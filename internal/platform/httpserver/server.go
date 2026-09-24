@@ -14,9 +14,10 @@ import (
 )
 
 type Dependencies struct {
-	Logger *slog.Logger
-	DB     *pgxpool.Pool
-	Redis  *redis.Client
+	Logger   *slog.Logger
+	DB       *pgxpool.Pool
+	Redis    *redis.Client
+	Identity http.Handler
 }
 
 func New(addr string, deps Dependencies) *http.Server {
@@ -48,6 +49,10 @@ func New(addr string, deps Dependencies) *http.Server {
 
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ready"})
 	})
+
+	if deps.Identity != nil {
+		router.Mount("/api/v1/auth", deps.Identity)
+	}
 
 	return &http.Server{
 		Addr:              addr,
