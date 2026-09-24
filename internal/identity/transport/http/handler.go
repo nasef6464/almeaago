@@ -32,6 +32,7 @@ type GoogleOAuth interface {
 
 type Options struct {
 	Google    GoogleOAuth
+	Admin     *application.AdminService
 	WebOrigin string
 }
 
@@ -39,6 +40,7 @@ type Handler struct {
 	service    *application.Service
 	production bool
 	google     GoogleOAuth
+	admin      *application.AdminService
 	webOrigin  string
 }
 
@@ -63,6 +65,7 @@ func New(service *application.Service, production bool, options ...Options) http
 	}
 	if len(options) > 0 {
 		handler.google = options[0].Google
+		handler.admin = options[0].Admin
 		if strings.TrimSpace(options[0].WebOrigin) != "" {
 			handler.webOrigin = strings.TrimRight(options[0].WebOrigin, "/")
 		}
@@ -85,6 +88,13 @@ func New(service *application.Service, production bool, options ...Options) http
 	router.Post("/reset-password", handler.resetPassword)
 	router.Post("/email/verify", handler.verifyEmail)
 	router.Post("/email/resend", handler.resendEmailVerification)
+
+	router.Get("/admin/users", handler.adminListUsers)
+	router.Get("/admin/users/summary", handler.adminUsersSummary)
+	router.Post("/admin/users", handler.adminUpsertUser)
+	router.Patch("/admin/users/bulk-status", handler.adminBulkStatus)
+	router.Patch("/admin/users/{id}", handler.adminUpdateUser)
+	router.Delete("/admin/users/{id}", handler.adminDeleteUser)
 
 	return router
 }
@@ -546,6 +556,18 @@ func writeApplicationError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "لا توجد كلمة مرور مضبوطة لهذا الحساب — استخدم رمز واتساب بدلاً"})
 	case errors.Is(err, application.ErrProviderUnavailable):
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"message": "Authentication provider is not configured"})
+	case errors.Is(err, application.ErrForbidden):
+		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Forbidden"})
+	case errors.Is(err, application.ErrOrganizationScopePending):
+		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Organization-scoped user directory is not enabled yet"})
+	case errors.Is(err, application.ErrUnsupportedAdminScope):
+		writeJSON(w, http.StatusConflict, map[string]string{"message": "Organization scope fields are handled by the Organizations domain"})
+	case errors.Is(err, domain.ErrLastAdmin):
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Cannot remove or disable the last active admin account"})
+	case errors.Is(err, domain.ErrSelfDelete):
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "You cannot delete your current account"})
+	case errors.Is(err, domain.ErrNotFound):
+		writeJSON(w, http.StatusNotFound, map[string]string{"message": "User not found"})
 	case errors.Is(err, application.ErrRateLimited), errors.Is(err, application.ErrTooManyAttempts):
 		writeJSON(w, http.StatusTooManyRequests, map[string]string{"message": "Too many attempts. Try again later."})
 	default:
