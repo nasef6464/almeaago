@@ -164,12 +164,10 @@ func (h *Handler) forgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.ForgotPassword(r.Context(), payload.Email); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"message": "Unable to process password recovery right now",
-		})
-		return
-	}
+	// Always return the same public response to avoid account enumeration.
+	// Delivery/infrastructure failures are observed out-of-band, never through
+	// an existence-dependent HTTP response.
+	_ = h.service.ForgotPassword(r.Context(), payload.Email)
 
 	writeJSON(w, http.StatusOK, map[string]string{
 		"message": "If this email exists, password reset instructions will be sent.",
