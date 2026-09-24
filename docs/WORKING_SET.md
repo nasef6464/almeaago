@@ -1,25 +1,30 @@
 # Current Working Set
 
 ## Current phase
-Foundation Release 0.
+Identity/Auth.
 
-## Files allowed to change while closing this phase
-- cmd/api
-- cmd/worker
-- internal/platform
-- migrations
-- db/queries
-- api/openapi
-- apps/web foundation shell
-- .github/workflows/ci.yml
-- foundation documentation
+## Foundation gate
+GREEN.
+
+## Allowed code areas
+- internal/identity/**
+- internal/platform/security/**
+- internal/platform/httpserver/**
+- migrations/000003_identity_auth.*
+- db/queries/identity.sql
+- api/openapi/**
+- apps/web/src/features/auth/**
+- apps/web/src/shared/auth/**
+- auth visual-baseline docs
+- targeted CI files only when needed
+
+## Identity/Auth target
+Email/password + session cookie first, then recovery/email verification, National ID, Google OAuth and WhatsApp OTP while preserving the legacy UI and behavior.
 
 ## Do not start yet
-No Identity/Auth business implementation until Foundation CI is green.
+Organizations/Schools implementation beyond existing foundation schema.
+No Vercel/Render deployment.
+No external database/Redis/R2/AI account.
 
 ## Next exact action
-1. Observe Foundation CI.
-2. Fix any failing job.
-3. Mark Foundation Gate green.
-4. Create Identity/Auth ADR + schema/API contracts.
-5. Begin Identity/Auth as the first business slice.
+Ship the Identity/Auth backend slice and prove it with database/backend tests before starting the Auth frontend parity slice.
