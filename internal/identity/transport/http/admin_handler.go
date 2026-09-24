@@ -22,9 +22,16 @@ func (h *Handler) adminListUsers(w http.ResponseWriter, r *http.Request) {
 		writeApplicationError(w, application.ErrInvalidInput)
 		return
 	}
-	if parseOptionalBool(r.URL.Query().Get("platformTrainer")) == true {
-		writeApplicationError(w, application.ErrUnsupportedAdminScope)
-		return
+	if raw := strings.TrimSpace(r.URL.Query().Get("platformTrainer")); raw != "" {
+		value, err := strconv.ParseBool(raw)
+		if err != nil {
+			writeApplicationError(w, application.ErrInvalidInput)
+			return
+		}
+		if value {
+			writeApplicationError(w, application.ErrUnsupportedAdminScope)
+			return
+		}
 	}
 
 	page, err := h.admin.ListUsers(r.Context(), auth.User, query)
@@ -274,11 +281,6 @@ func parseAdminUserQuery(r *http.Request) (domain.AdminUserQuery, error) {
 	}
 
 	return query, nil
-}
-
-func parseOptionalBool(raw string) bool {
-	value, _ := strconv.ParseBool(strings.TrimSpace(raw))
-	return value
 }
 
 func adminScopeFieldsProvided(
