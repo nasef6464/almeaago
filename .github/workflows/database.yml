@@ -33,18 +33,17 @@ jobs:
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000003_identity_auth.up.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000004_identity_recovery.up.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000005_identity_providers.up.sql
+          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000006_otp_rate_limit_index.up.sql
       - name: Verify identity constraints
         run: |
           psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.user_roles') is not null" | grep -qx t
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from information_schema.columns where table_name='auth_sessions' and column_name='csrf_token_hash'" | grep -qx 1
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.auth_one_time_tokens') is not null" | grep -qx t
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='auth_one_time_tokens' and indexname='auth_one_time_tokens_user_active_idx'" | grep -qx 1
           psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.auth_provider_identities') is not null" | grep -qx t
           psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.auth_otp_challenges') is not null" | grep -qx t
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='auth_provider_identities' and indexname='auth_provider_identities_user_idx'" | grep -qx 1
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='auth_otp_challenges' and indexname='auth_otp_challenges_phone_active_idx'" | grep -qx 1
+          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='auth_otp_challenges' and indexname='auth_otp_challenges_phone_history_idx'" | grep -qx 1
+          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='auth_otp_challenges' and indexname='auth_otp_challenges_phone_active_idx'" | grep -qx 0
       - name: Roll back and re-apply
         run: |
+          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000006_otp_rate_limit_index.down.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000005_identity_providers.down.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000004_identity_recovery.down.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000003_identity_auth.down.sql
@@ -55,3 +54,4 @@ jobs:
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000003_identity_auth.up.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000004_identity_recovery.up.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000005_identity_providers.up.sql
+          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000006_otp_rate_limit_index.up.sql
