@@ -18,7 +18,13 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with: { go-version: "1.27.1", cache: false }
-      - run: go mod download
+      - name: Bootstrap module lock
+        shell: bash
+        run: |
+          go mod tidy
+          echo "::group::generated-go-sum"
+          cat go.sum
+          echo "::endgroup::"
       - name: Install pinned sqlc binary
         shell: bash
         run: |
