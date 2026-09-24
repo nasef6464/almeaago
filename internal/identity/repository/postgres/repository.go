@@ -78,13 +78,17 @@ func (r *Repository) UserByNationalID(ctx context.Context, nationalID string) (d
 	return r.userBy(ctx, `national_id = $1`, nationalID)
 }
 
+func (r *Repository) UserByPhone(ctx context.Context, phone string) (domain.User, error) {
+	return r.userBy(ctx, `phone = $1`, phone)
+}
+
 func (r *Repository) UserByID(ctx context.Context, id string) (domain.User, error) {
 	return r.userBy(ctx, `id = $1`, id)
 }
 
 func (r *Repository) userBy(ctx context.Context, predicate string, value any) (domain.User, error) {
 	query := `
-		SELECT id::text, email, name, password_hash, status, avatar_url,
+		SELECT id::text, COALESCE(email, ''), name, COALESCE(password_hash, ''), status, avatar_url,
 		       COALESCE(national_id, ''), COALESCE(phone, ''),
 		       (email_verified_at IS NOT NULL), failed_login_attempts,
 		       COALESCE(login_locked_until, 'epoch'::timestamptz),
@@ -193,7 +197,7 @@ func (r *Repository) SessionByTokenHash(ctx context.Context, tokenHash string) (
 	var user domain.User
 	err := r.db.QueryRow(ctx, `
 		SELECT s.id::text, s.user_id::text, s.token_hash, s.csrf_token_hash, s.expires_at, s.last_seen_at,
-		       u.id::text, u.email, u.name, u.password_hash, u.status, u.avatar_url,
+		       u.id::text, COALESCE(u.email, ''), u.name, COALESCE(u.password_hash, ''), u.status, u.avatar_url,
 		       COALESCE(u.national_id, ''), COALESCE(u.phone, ''),
 		       (u.email_verified_at IS NOT NULL), u.failed_login_attempts,
 		       COALESCE(u.login_locked_until, 'epoch'::timestamptz),
