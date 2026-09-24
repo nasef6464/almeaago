@@ -21,6 +21,14 @@ jobs:
       - run: go mod download
       - run: go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
       - run: sqlc compile
-      - run: test -z "$(gofmt -l ./cmd ./internal)"
+      - name: Check gofmt
+        shell: bash
+        run: |
+          unformatted="$(find cmd internal -type f -name '*.go' -print0 | xargs -0 gofmt -l)"
+          if [ -n "$unformatted" ]; then
+            echo "Unformatted Go files:"
+            echo "$unformatted"
+            exit 1
+          fi
       - run: go vet ./...
       - run: go test ./...
