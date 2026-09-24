@@ -1,6 +1,7 @@
 package identityhttp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -15,8 +16,23 @@ import (
 
 const sessionCookieName = "almeaa_access_token"
 
+type service interface {
+	Register(ctx context.Context, name, email, password string) (application.AuthResult, error)
+	Login(ctx context.Context, email, password string) (application.AuthResult, error)
+	LoginNationalID(ctx context.Context, nationalID, password string) (application.AuthResult, error)
+	LoginPhone(ctx context.Context, phone, password string) (application.AuthResult, error)
+	Authenticate(ctx context.Context, rawToken string) (application.Authenticated, error)
+	RotateCSRF(ctx context.Context, auth application.Authenticated) (string, error)
+	VerifyCSRF(auth application.Authenticated, rawCSRF string) error
+	Logout(ctx context.Context, rawToken string) error
+	ForgotPassword(ctx context.Context, email string) error
+	ResetPassword(ctx context.Context, rawToken, password string) (domain.User, error)
+	VerifyEmail(ctx context.Context, rawToken string) (domain.User, error)
+	ResendEmailVerification(ctx context.Context, user domain.User) error
+}
+
 type Handler struct {
-	service    *application.Service
+	service    service
 	production bool
 }
 
@@ -26,23 +42,27 @@ type userResponse struct {
 	Name          string        `json:"name"`
 	Status        string        `json:"status"`
 	AvatarURL     string        `json:"avatarUrl"`
-	NationalID    string        `json:"nationalId,omitempty"`
-	Phone         string        `json:"phone,omitempty"`
 	EmailVerified bool          `json:"emailVerified"`
 	Role          domain.Role   `json:"role"`
 	Roles         []domain.Role `json:"roles"`
 }
 
-func New(service *application.Service, production bool) http.Handler {
+func New(service service, production bool) http.Handler {
 	handler := &Handler{service: service, production: production}
 	router := chi.NewRouter()
+	router.Use(noStore)
 
 	router.Post("/register", handler.register)
 	router.Post("/login", handler.login)
 	router.Post("/login/national-id", handler.loginNationalID)
+	router.Post("/login/phone-password", handler.loginPhone)
 	router.Get("/me", handler.me)
 	router.Get("/csrf", handler.csrf)
 	router.Post("/logout", handler.logout)
+	router.Post("/forgot-password", handler.forgotPassword)
+	router.Post("/reset-password", handler.resetPassword)
+	router.Post("/email/verify", handler.verifyEmail)
+	router.Post("/email/resend-verification", handler.resendEmailVerification)
 
 	return router
 }
@@ -99,6 +119,23 @@ func (h *Handler) loginNationalID(w http.ResponseWriter, r *http.Request) {
 	h.writeAuthResult(w, http.StatusOK, result)
 }
 
+func (h *Handler) loginPhone(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Phone    string `json:"phone"`
+		Password string `json:"password"`
+	}
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+
+	result, err := h.service.LoginPhone(r.Context(), payload.Phone, payload.Password)
+	if err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+	h.writeAuthResult(w, http.StatusOK, result)
+}
+
 func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 	auth, ok := h.authenticate(w, r)
 	if !ok {
@@ -112,9 +149,12 @@ func (h *Handler) csrf(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+
 	token, err := h.service.RotateCSRF(r.Context(), auth)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Unable to issue CSRF token"})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{
+			"message": "Unable to issue CSRF token",
+		})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"csrfToken": token})
@@ -144,12 +184,88 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.service.Logout(r.Context(), rawToken); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Unable to logout"})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{
+			"message": "Unable to logout",
+		})
 		return
 	}
 
 	h.clearSessionCookie(w)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) forgotPassword(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Email string `json:"email"`
+	}
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+
+	_ = h.service.ForgotPassword(r.Context(), payload.Email)
+	writeJSON(w, http.StatusOK, map[string]string{
+		"message": "If this email exists, password reset instructions will be sent.",
+	})
+}
+
+func (h *Handler) resetPassword(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Token    string `json:"token"`
+		Password string `json:"password"`
+	}
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+
+	if _, err := h.service.ResetPassword(r.Context(), payload.Token, payload.Password); err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"message": "Password has been reset.",
+	})
+}
+
+func (h *Handler) verifyEmail(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Token string `json:"token"`
+	}
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+
+	user, err := h.service.VerifyEmail(r.Context(), payload.Token)
+	if err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"user":    presentUser(user),
+		"message": "Email has been verified.",
+	})
+}
+
+func (h *Handler) resendEmailVerification(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authenticate(w, r)
+	if !ok {
+		return
+	}
+
+	if err := h.service.VerifyCSRF(auth, r.Header.Get("X-CSRF-Token")); err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+
+	if err := h.service.ResendEmailVerification(r.Context(), auth.User); err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"message": "Verification email has been queued.",
+	})
 }
 
 func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request) (application.Authenticated, bool) {
@@ -201,14 +317,13 @@ func presentUser(user domain.User) userResponse {
 	if len(user.Roles) > 0 {
 		role = user.Roles[0]
 	}
+
 	return userResponse{
 		ID:            user.ID,
 		Email:         user.Email,
 		Name:          user.Name,
 		Status:        user.Status,
 		AvatarURL:     user.AvatarURL,
-		NationalID:    user.NationalID,
-		Phone:         user.Phone,
 		EmailVerified: user.EmailVerified,
 		Role:          role,
 		Roles:         user.Roles,
@@ -230,10 +345,18 @@ func sameSite(production bool) http.SameSite {
 	return http.SameSiteLaxMode
 }
 
+func noStore(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		next.ServeHTTP(w, r)
+	})
+}
+
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
+
 	if err := decoder.Decode(dst); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request"})
 		return false
@@ -244,21 +367,41 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 func writeApplicationError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, application.ErrInvalidCredentials):
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "Invalid email or password"})
+		writeJSON(w, http.StatusUnauthorized, map[string]string{
+			"message": "Invalid credentials",
+		})
 	case errors.Is(err, application.ErrAccountDisabled):
-		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Account is disabled"})
+		writeJSON(w, http.StatusForbidden, map[string]string{
+			"message": "Account is disabled",
+		})
 	case errors.Is(err, application.ErrLoginLocked):
-		writeJSON(w, http.StatusTooManyRequests, map[string]string{"message": "Too many login attempts. Try again later."})
+		writeJSON(w, http.StatusTooManyRequests, map[string]string{
+			"message": "Too many login attempts. Try again later.",
+		})
 	case errors.Is(err, application.ErrEmailExists):
-		writeJSON(w, http.StatusConflict, map[string]string{"message": "Email already exists"})
+		writeJSON(w, http.StatusConflict, map[string]string{
+			"message": "Email already exists",
+		})
 	case errors.Is(err, application.ErrInvalidInput):
-		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"message": "Invalid request",
+		})
+	case errors.Is(err, application.ErrInvalidToken):
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"message": "Invalid or expired token",
+		})
 	case errors.Is(err, application.ErrUnauthenticated):
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "Authentication required"})
+		writeJSON(w, http.StatusUnauthorized, map[string]string{
+			"message": "Authentication required",
+		})
 	case errors.Is(err, application.ErrCSRF):
-		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Invalid CSRF token"})
+		writeJSON(w, http.StatusForbidden, map[string]string{
+			"message": "Invalid CSRF token",
+		})
 	default:
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Internal server error"})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{
+			"message": "Internal server error",
+		})
 	}
 }
 
