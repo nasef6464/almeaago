@@ -18,10 +18,10 @@ import (
 )
 
 const (
-	sessionCookieName        = "almeaa_access_token"
-	googleStateCookieName    = "almeaa_google_oauth_state"
-	googleReturnCookieName   = "almeaa_google_oauth_return"
-	googleStateTTL           = 10 * time.Minute
+	sessionCookieName      = "almeaa_access_token"
+	googleStateCookieName  = "almeaa_google_oauth_state"
+	googleReturnCookieName = "almeaa_google_oauth_return"
+	googleStateTTL         = 10 * time.Minute
 )
 
 type GoogleOAuth interface {
