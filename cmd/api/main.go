@@ -57,6 +57,8 @@ func main() {
 		OTPPepper:        cfg.OTPPepper,
 	})
 
+	adminService := application.NewAdminService(identityRepository)
+
 	googleClient := googleprovider.New(googleprovider.Config{
 		ClientID:     cfg.GoogleClientID,
 		ClientSecret: cfg.GoogleClientSecret,
@@ -64,6 +66,7 @@ func main() {
 	})
 	identityHandler := identityhttp.New(identityService, cfg.IsProduction(), identityhttp.Options{
 		Google:    googleClient,
+		Admin:     adminService,
 		WebOrigin: cfg.WebOrigin,
 	})
 

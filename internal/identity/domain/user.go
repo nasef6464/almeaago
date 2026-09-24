@@ -46,3 +46,21 @@ func (u User) IsDisabled() bool {
 func (u User) IsLoginLocked(now time.Time) bool {
 	return !u.LoginLockedUntil.IsZero() && u.LoginLockedUntil.After(now)
 }
+
+func (u User) HasRole(role Role) bool {
+	for _, current := range u.Roles {
+		if current == role {
+			return true
+		}
+	}
+	return false
+}
+
+func ValidRole(role Role) bool {
+	switch role {
+	case RoleStudent, RoleTeacher, RoleAdmin, RoleSupervisor, RoleSchoolAdmin, RoleParent:
+		return true
+	default:
+		return false
+	}
+}

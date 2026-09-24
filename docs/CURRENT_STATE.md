@@ -4,9 +4,9 @@
 **FOUNDATION_GREEN**
 
 Evidence:
-- Database CI: PostgreSQL 18 migrations apply, rollback and re-apply successfully.
-- Frontend CI: TypeScript + Vite production build green.
-- Backend CI: sqlc compile + gofmt + go vet + go test green.
+- PostgreSQL 18 migrations are exercised by apply / verify / rollback / re-apply CI.
+- Frontend TypeScript + Vite production build is green.
+- Backend sqlc compile + gofmt + go vet + go test is green.
 - CI is split into Backend / Frontend / Database with path filters and cancel-in-progress.
 - Product Blueprint, visual parity, database scalability and resource-budget docs live in this repository.
 
@@ -26,7 +26,7 @@ Identity/Auth — **IN_PROGRESS**.
 - opaque revocable sessions.
 - per-session CSRF.
 - Argon2id password hashing.
-- lockout after repeated failures.
+- login lockout.
 - current user / logout.
 - normalized roles.
 
@@ -35,56 +35,76 @@ Identity/Auth — **IN_PROGRESS**.
 - one-time hashed reset/verification tokens.
 - password reset revokes active sessions.
 - resend verification requires session + CSRF.
-- query-driven recovery indexes.
+
+## Google OAuth + WhatsApp OTP — TESTED / MERGED
+PR #6 passed Backend + Frontend + Database CI and was merged.
+
+Implemented:
+- Google OAuth authorization + callback adapter.
+- HttpOnly short-lived OAuth state cookie.
+- internal-only returnTo validation.
+- verified Google email requirement.
+- explicit Google provider identity.
+- WhatsApp OTP webhook adapter.
+- random six-digit OTP.
+- HMAC-SHA256 OTP digest with external pepper.
+- 10-minute OTP TTL.
+- three sends per 15 minutes.
+- five verification attempts.
+- provider-only account without fake email/password.
+- legacy send -> code -> verify -> resend UI flow.
+
+Still pending external staging configuration:
+- real Google OAuth credentials.
+- production OTP pepper.
+- real WhatsApp delivery endpoint/token.
+- live provider smoke test.
 
 ## Auth UI — BUILD TESTED / MERGED
 - legacy-compatible Tailwind theme.
 - login/register modal structure preserved.
-- recovery/verification screens preserved.
+- recovery screens preserved.
+- Google/WhatsApp entry points wired.
 - RTL/loading/error/disabled states.
-- phone/password connected to real backend.
-- screenshot desktop/mobile comparison still required before PARITY_PROVEN.
+- desktop/mobile screenshot comparison remains required before PARITY_PROVEN.
 
-## Identity Provider Foundation — TESTED / MERGED
-- provider-only users can exist without fake email/password values.
-- external identities are explicit in `auth_provider_identities`.
-- OTP challenges are separate short-lived authentication evidence.
-- Saudi phone numbers are canonicalized to 9665xxxxxxxx.
-- provider lookup and OTP history have query-driven indexes.
+## Identity Admin Accounts — IMPLEMENTED / CI PENDING
+Branch: `feat/identity-admin`
 
-## Google OAuth + WhatsApp OTP — IMPLEMENTED / CI PENDING
-Branch: `feat/identity-oauth-otp`
+Implemented in this slice:
+- platform-admin user directory with page/limit/search/role/status filters.
+- hard page limit 100.
+- trigram-backed name/email search.
+- role/status summary.
+- admin account create/upsert by email.
+- account name/avatar/role/status update.
+- bulk activation/deactivation with per-user results.
+- user delete.
+- CSRF required for all unsafe admin mutations.
+- transactional audit logs.
+- disabling an account revokes active sessions.
+- self-delete blocked.
+- last active admin protected on update/upsert/bulk/delete.
+- last-admin invariant serialized with a transaction advisory lock.
+- legacy last-admin PATCH inconsistency documented and intentionally fixed.
 
-Implemented:
-- Google OAuth authorization + callback adapter.
-- 10-minute HttpOnly OAuth state cookie.
-- internal-only returnTo validation.
-- verified Google email required before account resolution.
-- Google subject binds to explicit provider identity.
-- WhatsApp OTP provider adapter through configurable webhook.
-- cryptographically random 6-digit OTP.
-- HMAC-SHA256 OTP digest with external pepper; plaintext OTP is never persisted.
-- 10-minute OTP TTL.
-- maximum 3 OTP sends per 15 minutes per canonical phone.
-- maximum 5 verification attempts per challenge.
-- used/failed-delivery challenges cannot authenticate.
-- WhatsApp-only account does not require fake email or fake password.
-- legacy OTP UI flow restored: send -> code -> verify -> resend.
-- Google callback restores the requested internal path after /me resolves.
+Deliberately pending for Organizations/Trainer scopes:
+- schoolId synchronization.
+- class/group membership mapping.
+- parent/student relationship synchronization.
+- trainer managed path/subject scopes.
+- supervisor/teacher scoped user directory.
+- platformTrainer filter/count.
 
-External configuration still pending:
-- real Google OAuth client credentials.
-- real WhatsApp delivery endpoint/token.
-- production OTP pepper.
-- live provider smoke test on staging.
-- screenshot visual parity gate.
+These fields are never silently discarded. Unsupported scope writes fail explicitly until their owning domain is implemented.
 
 ## Performance/scalability
-- database scalability policy is mandatory.
-- OTP rate-limit query uses phone/channel/created_at history index.
-- provider subject lookup is unique and indexed.
-- no provider login performs broad user scans.
-- external provider network calls have bounded HTTP timeouts.
+- admin directory uses bounded pagination.
+- user search uses pg_trgm indexes.
+- list roles are returned without N+1 queries.
+- mutation audit and account state changes commit atomically.
+- provider and OTP lookup paths remain indexed.
+- no large media passes through the Go API.
 
 ## Next exact action
-Run Backend + Database + Frontend CI for the OAuth/OTP branch. Repair any gate failure on the same branch, merge the exact tested SHA, then move to Identity admin-account operations and the Auth screenshot parity gate.
+Run Backend + Database CI for the Identity Admin branch, repair failures on the same branch, merge the exact tested SHA, then close the remaining Identity visual/live-provider gates and move into Organizations/Schools/Classes.
