@@ -37,8 +37,5 @@ ALTER TABLE auth_sessions
 
 ALTER TABLE auth_sessions ALTER COLUMN csrf_token_hash DROP DEFAULT;
 
-CREATE INDEX auth_sessions_token_active_idx
-  ON auth_sessions(token_hash, expires_at)
-  WHERE revoked_at IS NULL;
 
 COMMIT;
