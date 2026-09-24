@@ -261,7 +261,6 @@ func (r *Repository) RevokeSessionByTokenHash(ctx context.Context, tokenHash str
 	return err
 }
 
-
 func (r *Repository) IssueOneTimeToken(
 	ctx context.Context,
 	userID string,
