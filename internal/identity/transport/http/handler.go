@@ -40,6 +40,7 @@ func New(service *application.Service, production bool) http.Handler {
 	router.Post("/register", handler.register)
 	router.Post("/login", handler.login)
 	router.Post("/login/national-id", handler.loginNationalID)
+	router.Post("/login/phone-password", handler.loginPhonePassword)
 	router.Get("/me", handler.me)
 	router.Get("/csrf", handler.csrf)
 	router.Post("/logout", handler.logout)
@@ -96,6 +97,23 @@ func (h *Handler) loginNationalID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.service.LoginNationalID(r.Context(), payload.NationalID, payload.Password)
+	if err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+	h.writeAuthResult(w, http.StatusOK, result)
+}
+
+func (h *Handler) loginPhonePassword(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Phone    string `json:"phone"`
+		Password string `json:"password"`
+	}
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+
+	result, err := h.service.LoginPhonePassword(r.Context(), payload.Phone, payload.Password)
 	if err != nil {
 		writeApplicationError(w, err)
 		return
@@ -341,6 +359,8 @@ func writeApplicationError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Invalid CSRF token"})
 	case errors.Is(err, application.ErrInvalidToken):
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid or expired token"})
+	case errors.Is(err, application.ErrPasswordUnavailable):
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "لا توجد كلمة مرور مضبوطة لهذا الحساب — استخدم رمز واتساب بدلاً"})
 	default:
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Internal server error"})
 	}

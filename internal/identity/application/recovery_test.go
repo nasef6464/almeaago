@@ -20,6 +20,7 @@ type recoveryRepo struct {
 	resetTokenHash    string
 	resetPasswordHash string
 	verifyTokenHash   string
+	phoneLookup       string
 }
 
 func (r *recoveryRepo) CreateUser(context.Context, string, string, string, domain.Role) (domain.User, error) {
@@ -35,6 +36,14 @@ func (r *recoveryRepo) UserByEmail(context.Context, string) (domain.User, error)
 
 func (r *recoveryRepo) UserByNationalID(context.Context, string) (domain.User, error) {
 	return domain.User{}, domain.ErrNotFound
+}
+
+func (r *recoveryRepo) UserByPhone(_ context.Context, phone string) (domain.User, error) {
+	r.phoneLookup = phone
+	if r.userByEmailErr != nil {
+		return domain.User{}, r.userByEmailErr
+	}
+	return r.userByEmail, nil
 }
 
 func (r *recoveryRepo) UserByID(context.Context, string) (domain.User, error) {
@@ -218,5 +227,51 @@ func TestVerifyEmailUsesTokenDigest(t *testing.T) {
 	}
 	if !user.EmailVerified {
 		t.Fatal("expected verified user")
+	}
+}
+
+func TestPhonePasswordLoginCanonicalizesSaudiNumber(t *testing.T) {
+	passwordHash, err := security.HashPassword("PhonePass123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := &recoveryRepo{
+		userByEmail: domain.User{
+			ID:           "user-phone",
+			Name:         "طالب",
+			Phone:        "966501234567",
+			PasswordHash: passwordHash,
+			Status:       "active",
+			Roles:        []domain.Role{domain.RoleStudent},
+		},
+	}
+	service := NewService(repo)
+
+	result, err := service.LoginPhonePassword(context.Background(), "050 123 4567", "PhonePass123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repo.phoneLookup != "966501234567" {
+		t.Fatalf("expected canonical lookup, got %q", repo.phoneLookup)
+	}
+	if result.SessionToken == "" || result.CSRFToken == "" {
+		t.Fatal("expected authenticated session")
+	}
+}
+
+func TestPhonePasswordLoginRejectsProviderOnlyAccount(t *testing.T) {
+	repo := &recoveryRepo{
+		userByEmail: domain.User{
+			ID:     "user-whatsapp",
+			Name:   "طالب واتساب",
+			Phone:  "966501234567",
+			Status: "active",
+		},
+	}
+	service := NewService(repo)
+
+	_, err := service.LoginPhonePassword(context.Background(), "+966501234567", "Anything1")
+	if !errors.Is(err, ErrPasswordUnavailable) {
+		t.Fatalf("expected ErrPasswordUnavailable, got %v", err)
 	}
 }

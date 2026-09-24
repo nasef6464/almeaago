@@ -5,7 +5,7 @@
 
 Evidence:
 - Database CI: PostgreSQL 18 migrations apply, rollback and re-apply successfully.
-- Frontend CI: TypeScript + Vite production build green for the foundation.
+- Frontend CI: TypeScript + Vite production build green.
 - Backend CI: sqlc compile + gofmt + go vet + go test green.
 - CI split into Backend / Frontend / Database with path filters and cancel-in-progress.
 - Product Blueprint, project map, visual parity, database scalability and resource-budget docs live in this repository.
@@ -20,56 +20,54 @@ Evidence:
 Identity/Auth — **IN_PROGRESS**.
 
 ## Identity Core — TESTED / MERGED
-- normalized user roles.
-- email/password registration and login.
+- email/password registration/login.
 - Saudi National ID login.
 - opaque revocable sessions.
-- CSRF token bound to session.
+- per-session CSRF.
 - Argon2id password hashing.
-- account lockout.
-- current user.
-- logout.
-- indexed session lookup.
-- bounded last_seen writes.
-- OpenAPI contract.
+- lockout after repeated failures.
+- current user / logout.
+- normalized roles.
 
 ## Identity Recovery — TESTED / MERGED
 - enumeration-safe forgot-password.
-- one-time hashed password reset tokens.
-- one-time hashed email verification tokens.
-- 60-minute password reset TTL.
-- 24-hour verification TTL.
-- reset revokes active sessions transactionally.
+- one-time hashed reset/verification tokens.
+- password reset revokes active sessions.
 - resend verification requires session + CSRF.
-- query-driven indexes.
-- Backend + Database CI green.
+- query-driven recovery indexes.
 
-## Auth UI Visual Parity — IMPLEMENTED / CI PENDING
-Branch: `feat/auth-ui-parity`
+## Auth UI — BUILD TESTED / MERGED
+- legacy-compatible Tailwind theme.
+- login/register modal structure preserved.
+- recovery/verification screens preserved.
+- RTL/loading/error/disabled states.
+- Frontend TypeScript + Vite build green.
+- screenshot desktop/mobile comparison still required before PARITY_PROVEN.
+- full legacy Header/Homepage remains a later visual slice.
 
-Implemented:
-- Tailwind 3.4-compatible legacy theme.
-- React Router auth routes.
-- auth API client with credential cookies.
-- in-memory CSRF handling; no session/local storage tokens.
-- legacy-shaped login/register modal.
-- smart identity input for email / Saudi National ID / phone detection.
-- Google button preserved visually.
-- WhatsApp/phone entry preserved visually.
-- Forgot Password page copied from legacy visual contract.
-- Reset Password page copied from legacy visual contract.
-- Verify Email page copied from legacy visual contract.
-- same RTL, modal geometry, colors, validation/error/loading states.
+## Identity Provider Foundation — IMPLEMENTED / CI PENDING
+Branch: `feat/identity-providers`
 
-Pending before Visual Parity can be claimed:
-- Frontend CI.
-- browser screenshot comparison desktop/mobile.
-- Google OAuth backend.
-- phone/password + WhatsApp OTP backend.
-- full legacy Header/Homepage migration; current shell is temporary and is NOT parity-proven.
+Includes:
+- provider-only users can exist without fake email/password values.
+- external identities are explicit in `auth_provider_identities`.
+- OTP challenges have a dedicated short-lived table.
+- Saudi mobile canonicalization: 05xxxxxxxx -> 9665xxxxxxxx.
+- phone/password login uses the same lockout/session/CSRF path as other password login.
+- UI smart phone login now calls the real phone-password endpoint.
+- provider tables and hot lookup indexes are migration-tested by CI definition.
+
+Still pending:
+- Google OAuth network adapter and callback.
+- WhatsApp OTP delivery adapter/challenge lifecycle.
+- actual external provider credentials.
+- browser visual screenshot gate.
 
 ## Performance/scalability
-Database and hot-endpoint budgets are documented. Query-driven indexing is required; speculative indexes are intentionally avoided.
+- database scalability policy is mandatory.
+- indexes are tied to real queries, not added speculatively.
+- auth provider lookup uses unique/partial indexes.
+- media and high-volume domains remain subject to bandwidth/query budgets.
 
 ## Next exact action
-Open Auth UI PR, require Frontend CI green, repair any TypeScript/Vite failure, then perform visual browser comparison before merge or mark exact remaining visual gaps.
+Open the provider-foundation PR, require Backend + Database + Frontend CI green, merge exact tested SHA, then implement Google OAuth + WhatsApp OTP on top of the provider identity tables.
