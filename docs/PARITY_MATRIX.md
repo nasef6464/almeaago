@@ -5,7 +5,7 @@ Status values: NOT_STARTED · DISCOVERED · SPECIFIED · IMPLEMENTED · TESTED �
 | Capability | Domain | Functional | Role/Scope | Data | Visual | E2E | Status |
 |---|---|---|---|---|---|---|---|
 | Platform foundation | platform | yes | n/a | migrations verified | shell only | CI | TESTED |
-| Identity/Auth | identity | pending | pending | pending | legacy baseline pending | pending | NOT_STARTED |
+| Identity/Auth | identity | core + recovery implemented | core session/CSRF implemented | migrations 003/004 + transactional recovery | legacy baseline documented; UI pending | backend/security tests; full E2E pending | IMPLEMENTED |
 | Schools/Classes | organizations | pending | pending | schema seed only | pending | pending | NOT_STARTED |
 | Taxonomy | taxonomy | pending | pending | schema seed only | pending | pending | NOT_STARTED |
 | Foundation learning | content/learning | pending | pending | relation seed only | pending | pending | NOT_STARTED |
