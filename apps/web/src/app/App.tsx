@@ -1,5 +1,5 @@
 import { LogIn } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Link,
   Route,
@@ -82,6 +82,7 @@ function PlaceholderPage({ title }: { title: string }) {
 export function App() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
   const [manualMode, setManualMode] = useState<ModalMode>(null);
 
   const routeMode = useMemo<ModalMode>(() => {
@@ -94,6 +95,29 @@ export function App() {
   }, [location.pathname, location.search]);
 
   const modalMode = manualMode ?? routeMode;
+
+  useEffect(() => {
+    if (loading || !user || location.pathname !== '/login') {
+      return;
+    }
+
+    const params = new URLSearchParams(location.search);
+    if (params.get('oauth_provider') !== 'google') {
+      return;
+    }
+
+    const returnTo = params.get('oauth_return') || '/';
+    if (
+      returnTo.startsWith('/') &&
+      !returnTo.startsWith('//') &&
+      !returnTo.includes('\\') &&
+      !/[\r\n]/.test(returnTo)
+    ) {
+      navigate(returnTo, { replace: true });
+    } else {
+      navigate('/', { replace: true });
+    }
+  }, [loading, location.pathname, location.search, navigate, user]);
 
   function closeModal() {
     setManualMode(null);
