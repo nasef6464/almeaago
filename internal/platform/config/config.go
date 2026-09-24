@@ -34,6 +34,10 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
+func (c Config) IsProduction() bool {
+	return c.Environment == "production"
+}
+
 func value(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v

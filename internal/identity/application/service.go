@@ -2,246 +2,239 @@ package application
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/hex"
+	"errors"
+	"fmt"
 	"net/mail"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/nasef6464/almeaago/internal/identity/domain"
-)
-
-const (
-	loginFailureThreshold = 5
-	loginLockDuration     = 15 * time.Minute
-	sessionTTL            = 7 * 24 * time.Hour
-	emailVerificationTTL  = 24 * time.Hour
-	passwordResetTTL      = time.Hour
+	"github.com/nasef6464/almeaago/internal/platform/security"
 )
 
 var (
-	letterPattern     = regexp.MustCompile("[A-Za-z]")
-	digitPattern      = regexp.MustCompile("[0-9]")
-	nationalIDPattern = regexp.MustCompile("^[12][0-9]{9}$")
+	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrAccountDisabled    = errors.New("account disabled")
+	ErrLoginLocked        = errors.New("login locked")
+	ErrEmailExists        = errors.New("email already exists")
+	ErrInvalidInput       = errors.New("invalid input")
+	ErrUnauthenticated    = errors.New("unauthenticated")
+	ErrCSRF               = errors.New("invalid csrf token")
 )
 
+const (
+	sessionTTL        = 7 * 24 * time.Hour
+	lockDuration      = 15 * time.Minute
+	maxFailedAttempts = 5
+)
+
+var nationalIDPattern = regexp.MustCompile(`^[12][0-9]{9}$`)
+
+type Repository interface {
+	CreateUser(ctx context.Context, name, email, passwordHash string, role domain.Role) (domain.User, error)
+	UserByEmail(ctx context.Context, email string) (domain.User, error)
+	UserByNationalID(ctx context.Context, nationalID string) (domain.User, error)
+	UserByID(ctx context.Context, id string) (domain.User, error)
+	RecordFailedLogin(ctx context.Context, userID string, threshold int, lockDuration time.Duration) error
+	ClearFailedLogin(ctx context.Context, userID string) error
+	CreateSession(ctx context.Context, userID, tokenHash, csrfHash string, expiresAt time.Time) (domain.Session, error)
+	SessionByTokenHash(ctx context.Context, tokenHash string) (domain.Session, domain.User, error)
+	RotateSessionCSRF(ctx context.Context, sessionID, csrfHash string) error
+	RevokeSessionByTokenHash(ctx context.Context, tokenHash string) error
+}
+
 type Service struct {
-	repo      Repository
-	passwords PasswordHasher
-	delivery  Delivery
-	now       func() time.Time
+	repo Repository
+	now  func() time.Time
 }
 
 type AuthResult struct {
 	User         domain.User
 	SessionToken string
+	CSRFToken    string
 	ExpiresAt    time.Time
 }
 
-func NewService(repo Repository, passwords PasswordHasher, delivery Delivery) *Service {
-	return &Service{repo: repo, passwords: passwords, delivery: delivery, now: time.Now}
+type Authenticated struct {
+	User    domain.User
+	Session domain.Session
 }
 
-func (s *Service) Register(ctx context.Context, name, email, password, userAgent string) (AuthResult, error) {
+func NewService(repo Repository) *Service {
+	return &Service{repo: repo, now: time.Now}
+}
+
+func (s *Service) Register(ctx context.Context, name, email, password string) (AuthResult, error) {
 	name = strings.TrimSpace(name)
-	email, err := normalizeEmail(email)
-	if err != nil || len(name) < 2 || !validPassword(password) {
+	email = normalizeEmail(email)
+	if len(name) < 2 || !validEmail(email) || !validPassword(password) {
 		return AuthResult{}, ErrInvalidInput
 	}
 
-	passwordHash, err := s.passwords.Hash(password)
+	hash, err := security.HashPassword(password)
+	if err != nil {
+		return AuthResult{}, fmt.Errorf("hash password: %w", err)
+	}
+
+	user, err := s.repo.CreateUser(ctx, name, email, hash, domain.RoleStudent)
+	if errors.Is(err, domain.ErrConflict) {
+		return AuthResult{}, ErrEmailExists
+	}
 	if err != nil {
 		return AuthResult{}, err
 	}
-
-	user, err := s.repo.CreateUserWithRole(ctx, name, email, passwordHash, domain.RoleStudent)
-	if err != nil {
-		return AuthResult{}, err
-	}
-
-	rawVerification, verificationHash, err := newOpaqueToken()
-	if err != nil {
-		return AuthResult{}, err
-	}
-	if err := s.repo.CreateOneTimeToken(ctx, user.ID, PurposeEmailVerification, verificationHash, s.now().Add(emailVerificationTTL)); err != nil {
-		return AuthResult{}, err
-	}
-	_ = s.delivery.SendEmailVerification(ctx, user.Email, rawVerification)
-
-	return s.issueSession(ctx, user, userAgent)
+	return s.createSession(ctx, user)
 }
 
-func (s *Service) Login(ctx context.Context, email, password, userAgent string) (AuthResult, error) {
-	email, err := normalizeEmail(email)
-	if err != nil || password == "" {
+func (s *Service) Login(ctx context.Context, email, password string) (AuthResult, error) {
+	user, err := s.repo.UserByEmail(ctx, normalizeEmail(email))
+	if errors.Is(err, domain.ErrNotFound) {
 		return AuthResult{}, ErrInvalidCredentials
 	}
-
-	user, err := s.repo.FindUserByEmail(ctx, email)
 	if err != nil {
-		_, _ = s.passwords.Verify(dummyArgon2Hash, password)
-		return AuthResult{}, ErrInvalidCredentials
+		return AuthResult{}, err
 	}
-	return s.loginUser(ctx, user, password, userAgent)
+	return s.loginUser(ctx, user, password)
 }
 
-func (s *Service) LoginNationalID(ctx context.Context, nationalID, password, userAgent string) (AuthResult, error) {
+func (s *Service) LoginNationalID(ctx context.Context, nationalID, password string) (AuthResult, error) {
 	nationalID = strings.TrimSpace(nationalID)
-	if !nationalIDPattern.MatchString(nationalID) || password == "" {
+	if !nationalIDPattern.MatchString(nationalID) {
 		return AuthResult{}, ErrInvalidCredentials
 	}
-	user, err := s.repo.FindUserByNationalID(ctx, nationalID)
+
+	user, err := s.repo.UserByNationalID(ctx, nationalID)
+	if errors.Is(err, domain.ErrNotFound) {
+		return AuthResult{}, ErrInvalidCredentials
+	}
 	if err != nil {
-		_, _ = s.passwords.Verify(dummyArgon2Hash, password)
-		return AuthResult{}, ErrInvalidCredentials
+		return AuthResult{}, err
 	}
-	return s.loginUser(ctx, user, password, userAgent)
+	return s.loginUser(ctx, user, password)
 }
 
-func (s *Service) loginUser(ctx context.Context, user domain.User, password, userAgent string) (AuthResult, error) {
-	now := s.now()
-	if user.LoginLockedUntil != nil && user.LoginLockedUntil.After(now) {
-		return AuthResult{}, ErrAccountLocked
+func (s *Service) Authenticate(ctx context.Context, rawToken string) (Authenticated, error) {
+	if strings.TrimSpace(rawToken) == "" {
+		return Authenticated{}, ErrUnauthenticated
 	}
-	if !user.Active() {
+
+	session, user, err := s.repo.SessionByTokenHash(ctx, security.DigestToken(rawToken))
+	if errors.Is(err, domain.ErrNotFound) {
+		return Authenticated{}, ErrUnauthenticated
+	}
+	if err != nil {
+		return Authenticated{}, err
+	}
+	if session.ExpiresAt.Before(s.now()) {
+		return Authenticated{}, ErrUnauthenticated
+	}
+	if user.IsDisabled() {
+		return Authenticated{}, ErrAccountDisabled
+	}
+
+	return Authenticated{User: user, Session: session}, nil
+}
+
+func (s *Service) RotateCSRF(ctx context.Context, auth Authenticated) (string, error) {
+	raw, err := security.NewOpaqueToken(32)
+	if err != nil {
+		return "", err
+	}
+	if err := s.repo.RotateSessionCSRF(ctx, auth.Session.ID, security.DigestToken(raw)); err != nil {
+		return "", err
+	}
+	return raw, nil
+}
+
+func (s *Service) VerifyCSRF(auth Authenticated, rawCSRF string) error {
+	if rawCSRF == "" || security.DigestToken(rawCSRF) != auth.Session.CSRFHash {
+		return ErrCSRF
+	}
+	return nil
+}
+
+func (s *Service) Logout(ctx context.Context, rawToken string) error {
+	if rawToken == "" {
+		return nil
+	}
+	return s.repo.RevokeSessionByTokenHash(ctx, security.DigestToken(rawToken))
+}
+
+func (s *Service) loginUser(ctx context.Context, user domain.User, password string) (AuthResult, error) {
+	now := s.now()
+	if user.IsLoginLocked(now) {
+		return AuthResult{}, ErrLoginLocked
+	}
+	if user.IsDisabled() {
 		return AuthResult{}, ErrAccountDisabled
 	}
-
-	valid, err := s.passwords.Verify(user.PasswordHash, password)
-	if err != nil || !valid {
-		_ = s.repo.RecordFailedLogin(ctx, user.ID, loginFailureThreshold, now.Add(loginLockDuration))
+	if !security.VerifyPassword(user.PasswordHash, password) {
+		_ = s.repo.RecordFailedLogin(ctx, user.ID, maxFailedAttempts, lockDuration)
 		return AuthResult{}, ErrInvalidCredentials
 	}
 	if err := s.repo.ClearFailedLogin(ctx, user.ID); err != nil {
 		return AuthResult{}, err
 	}
+
 	user.FailedLoginAttempts = 0
-	user.LastFailedLoginAt = nil
-	user.LoginLockedUntil = nil
-	return s.issueSession(ctx, user, userAgent)
+	user.LoginLockedUntil = time.Time{}
+	return s.createSession(ctx, user)
 }
 
-func (s *Service) issueSession(ctx context.Context, user domain.User, userAgent string) (AuthResult, error) {
-	raw, hash, err := newOpaqueToken()
+func (s *Service) createSession(ctx context.Context, user domain.User) (AuthResult, error) {
+	sessionToken, err := security.NewOpaqueToken(32)
 	if err != nil {
 		return AuthResult{}, err
 	}
+	csrfToken, err := security.NewOpaqueToken(32)
+	if err != nil {
+		return AuthResult{}, err
+	}
+
 	expiresAt := s.now().Add(sessionTTL)
-	if err := s.repo.CreateSession(ctx, user.ID, hash, strings.TrimSpace(userAgent), expiresAt); err != nil {
+	_, err = s.repo.CreateSession(
+		ctx,
+		user.ID,
+		security.DigestToken(sessionToken),
+		security.DigestToken(csrfToken),
+		expiresAt,
+	)
+	if err != nil {
 		return AuthResult{}, err
 	}
-	return AuthResult{User: user, SessionToken: raw, ExpiresAt: expiresAt}, nil
+
+	return AuthResult{
+		User:         user,
+		SessionToken: sessionToken,
+		CSRFToken:    csrfToken,
+		ExpiresAt:    expiresAt,
+	}, nil
 }
 
-func (s *Service) Authenticate(ctx context.Context, rawSessionToken string) (domain.User, error) {
-	if strings.TrimSpace(rawSessionToken) == "" {
-		return domain.User{}, ErrUnauthenticated
-	}
-	user, err := s.repo.FindUserBySessionHash(ctx, hashToken(rawSessionToken))
-	if err != nil || !user.Active() {
-		return domain.User{}, ErrUnauthenticated
-	}
-	return user, nil
+func normalizeEmail(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
 }
 
-func (s *Service) Logout(ctx context.Context, rawSessionToken string) error {
-	if strings.TrimSpace(rawSessionToken) == "" {
-		return nil
-	}
-	return s.repo.RevokeSessionByHash(ctx, hashToken(rawSessionToken))
+func validEmail(value string) bool {
+	address, err := mail.ParseAddress(value)
+	return err == nil && strings.EqualFold(address.Address, value)
 }
 
-func (s *Service) ForgotPassword(ctx context.Context, email string) error {
-	email, err := normalizeEmail(email)
-	if err != nil {
-		return nil
+func validPassword(value string) bool {
+	if len(value) < 8 || len(value) > 160 {
+		return false
 	}
-	user, err := s.repo.FindUserByEmail(ctx, email)
-	if err != nil || !user.Active() {
-		return nil
-	}
-	raw, hash, err := newOpaqueToken()
-	if err != nil {
-		return err
-	}
-	if err := s.repo.CreateOneTimeToken(ctx, user.ID, PurposePasswordReset, hash, s.now().Add(passwordResetTTL)); err != nil {
-		return err
-	}
-	_ = s.delivery.SendPasswordReset(ctx, user.Email, raw)
-	return nil
-}
 
-func (s *Service) ResetPassword(ctx context.Context, rawToken, password string) (domain.User, error) {
-	if strings.TrimSpace(rawToken) == "" || !validPassword(password) {
-		return domain.User{}, ErrInvalidInput
+	hasLetter := false
+	hasDigit := false
+	for _, r := range value {
+		if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') {
+			hasLetter = true
+		}
+		if r >= '0' && r <= '9' {
+			hasDigit = true
+		}
 	}
-	passwordHash, err := s.passwords.Hash(password)
-	if err != nil {
-		return domain.User{}, err
-	}
-	user, err := s.repo.ResetPasswordByToken(ctx, hashToken(rawToken), passwordHash, s.now())
-	if err != nil {
-		return domain.User{}, ErrInvalidToken
-	}
-	return user, nil
+	return hasLetter && hasDigit
 }
-
-func (s *Service) VerifyEmail(ctx context.Context, rawToken string) (domain.User, error) {
-	if strings.TrimSpace(rawToken) == "" {
-		return domain.User{}, ErrInvalidToken
-	}
-	user, err := s.repo.VerifyEmailByToken(ctx, hashToken(rawToken), s.now())
-	if err != nil {
-		return domain.User{}, ErrInvalidToken
-	}
-	return user, nil
-}
-
-func (s *Service) ResendEmailVerification(ctx context.Context, user domain.User) error {
-	if user.EmailVerified() {
-		return nil
-	}
-	raw, hash, err := newOpaqueToken()
-	if err != nil {
-		return err
-	}
-	if err := s.repo.CreateOneTimeToken(ctx, user.ID, PurposeEmailVerification, hash, s.now().Add(emailVerificationTTL)); err != nil {
-		return err
-	}
-	return s.delivery.SendEmailVerification(ctx, user.Email, raw)
-}
-
-func validPassword(password string) bool {
-	return len(password) >= 8 &&
-		len(password) <= 160 &&
-		letterPattern.MatchString(password) &&
-		digitPattern.MatchString(password)
-}
-
-func normalizeEmail(value string) (string, error) {
-	email := strings.ToLower(strings.TrimSpace(value))
-	address, err := mail.ParseAddress(email)
-	if err != nil || strings.ToLower(address.Address) != email {
-		return "", ErrInvalidInput
-	}
-	return email, nil
-}
-
-func newOpaqueToken() (raw string, hash string, err error) {
-	buffer := make([]byte, 32)
-	if _, err = rand.Read(buffer); err != nil {
-		return "", "", err
-	}
-	raw = base64.RawURLEncoding.EncodeToString(buffer)
-	return raw, hashToken(raw), nil
-}
-
-func hashToken(raw string) string {
-	sum := sha256.Sum256([]byte(raw))
-	return hex.EncodeToString(sum[:])
-}
-
-const dummyArgon2Hash = "$argon2id$v=19$m=65536,t=3,p=2$MDEyMzQ1Njc4OWFiY2RlZg$waGIuS/4ugIZfWob0q6bwNCu7kJJvqbf9U+PAN1WQww"

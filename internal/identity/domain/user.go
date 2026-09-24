@@ -20,22 +20,29 @@ type User struct {
 	PasswordHash        string
 	Status              string
 	AvatarURL           string
-	EmailVerifiedAt     *time.Time
-	NationalID          *string
-	Phone               *string
+	NationalID          string
+	Phone               string
+	EmailVerified       bool
 	FailedLoginAttempts int
-	LastFailedLoginAt   *time.Time
-	LoginLockedUntil    *time.Time
-	PasswordChangedAt   *time.Time
-	Roles               []Role
+	LoginLockedUntil    time.Time
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
+	Roles               []Role
 }
 
-func (u User) EmailVerified() bool {
-	return u.EmailVerifiedAt != nil
+type Session struct {
+	ID         string
+	UserID     string
+	TokenHash  string
+	CSRFHash   string
+	ExpiresAt  time.Time
+	LastSeenAt time.Time
 }
 
-func (u User) Active() bool {
-	return u.Status == "active"
+func (u User) IsDisabled() bool {
+	return u.Status == "disabled"
+}
+
+func (u User) IsLoginLocked(now time.Time) bool {
+	return !u.LoginLockedUntil.IsZero() && u.LoginLockedUntil.After(now)
 }
