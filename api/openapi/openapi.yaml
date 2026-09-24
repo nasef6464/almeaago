@@ -141,10 +141,10 @@ paths:
         - { in: query, name: isActive, schema: { type: boolean } }
         - { in: query, name: platformTrainer, schema: { type: boolean } }
       responses:
-        "200": { description: Paginated user directory for platform admin }
+        "200": { description: Paginated user directory; supervisors and teachers are limited to shared active school/class scope }
         "401": { description: Authentication required }
-        "403": { description: Forbidden or organization-scoped directory pending }
-        "409": { description: Trainer scope filter belongs to pending Organizations/Trainer scope model }
+        "403": { description: Role not permitted }
+        "409": { description: platformTrainer filter is pending Catalog/Content trainer scope }
     post:
       operationId: adminUpsertUser
       parameters:
@@ -175,13 +175,13 @@ paths:
         "400": { description: Invalid request or last-admin invariant }
         "401": { description: Authentication required }
         "403": { description: Admin role required }
-        "409": { description: Organization scope fields require Organizations domain integration }
+        "409": { description: managedPathIds/managedSubjectIds require Catalog/Content trainer scope integration }
 
   /api/v1/auth/admin/users/summary:
     get:
       operationId: adminUsersSummary
       responses:
-        "200": { description: User totals, inactive count and counts by role; trainer count remains pending Organizations scope }
+        "200": { description: User totals, inactive count and counts by role; platform trainer count remains pending Catalog/Content scope }
         "401": { description: Authentication required }
         "403": { description: Admin role required }
 
@@ -268,6 +268,55 @@ paths:
       responses:
         "200": { description: Current user }
         "401": { description: Authentication required }
+
+  /api/v1/auth/me/profile:
+    patch:
+      operationId: authUpdateMyProfile
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                avatar: { type: string, maxLength: 2000 }
+      responses:
+        "200": { description: Profile updated }
+        "400": { description: Invalid request }
+        "401": { description: Authentication required }
+        "403": { description: Invalid CSRF token }
+
+  /api/v1/auth/me/identity:
+    patch:
+      operationId: authUpdateMyIdentity
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                nationalId: { type: [string, "null"], pattern: "^[12][0-9]{9}$" }
+                phone: { type: [string, "null"], minLength: 8, maxLength: 24 }
+      responses:
+        "200": { description: Login identity updated }
+        "400": { description: Invalid request }
+        "401": { description: Authentication required }
+        "403": { description: Invalid CSRF token }
+        "409": { description: Identity value already in use or removal would remove final login identity }
 
   /api/v1/auth/csrf:
     get:
