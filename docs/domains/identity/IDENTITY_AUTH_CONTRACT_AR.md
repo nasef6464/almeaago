@@ -42,7 +42,6 @@ Learning يملك Progress/Review.
 
 ## Password Storage
 Password hashing versioned وقابل للهجرة مستقبلًا.
-انظر ADR-0007.
 قبل Production يتم Benchmark على instance class الحقيقية لضبط cost بدون إضعاف الأمان أو إرهاق السيرفر.
 
 ## Recovery / Verification Slice
@@ -58,13 +57,27 @@ Implemented on `feat/identity-recovery`:
 - resend verification requires authenticated session + CSRF.
 - repeated token issuance invalidates prior unused token for the same purpose.
 
+## Provider Slice
+Implemented on `feat/identity-oauth-otp`:
+- POST /api/v1/auth/whatsapp/start
+- POST /api/v1/auth/whatsapp/verify
+- GET /api/v1/auth/google/start
+- GET /api/v1/auth/google/callback
+- canonical Saudi phone identity.
+- HMAC-peppered OTP digest; plaintext OTP never persists.
+- 10-minute OTP TTL.
+- 3 sends / 15 minutes.
+- 5 verification attempts.
+- Google OAuth state protected by HttpOnly short-lived cookie.
+- Google verified email required.
+- external provider configuration remains optional until staging.
+
 ## الخطوات التالية داخل Identity
-1. Auth frontend visual parity.
-2. Google OAuth.
-3. WhatsApp OTP.
-4. Phone/password parity if the legacy smart-input flow still requires it.
-5. Admin account management.
-6. External delivery adapters.
+1. CI verification for Google/WhatsApp slice.
+2. Staging provider credentials and live smoke test.
+3. Auth screenshot visual parity.
+4. Admin account management.
+5. Email delivery adapter when notification provider is selected.
 
 ## Security Acceptance
 - Wrong credentials => generic 401.
