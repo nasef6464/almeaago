@@ -21,12 +21,17 @@ var (
 	ErrInvalidInput       = errors.New("invalid input")
 	ErrUnauthenticated    = errors.New("unauthenticated")
 	ErrCSRF               = errors.New("invalid csrf token")
+	ErrInvalidToken       = errors.New("invalid or expired token")
 )
 
 const (
-	sessionTTL        = 7 * 24 * time.Hour
-	lockDuration      = 15 * time.Minute
-	maxFailedAttempts = 5
+	sessionTTL           = 7 * 24 * time.Hour
+	lockDuration         = 15 * time.Minute
+	maxFailedAttempts    = 5
+	passwordResetTTL     = time.Hour
+	emailVerificationTTL = 24 * time.Hour
+	purposePasswordReset = "password_reset"
+	purposeEmailVerify   = "email_verification"
 )
 
 var nationalIDPattern = regexp.MustCompile(`^[12][0-9]{9}$`)
@@ -42,11 +47,30 @@ type Repository interface {
 	SessionByTokenHash(ctx context.Context, tokenHash string) (domain.Session, domain.User, error)
 	RotateSessionCSRF(ctx context.Context, sessionID, csrfHash string) error
 	RevokeSessionByTokenHash(ctx context.Context, tokenHash string) error
+	IssueOneTimeToken(ctx context.Context, userID, purpose, tokenHash string, expiresAt time.Time) error
+	ResetPasswordByToken(ctx context.Context, tokenHash, passwordHash string, changedAt time.Time) (domain.User, error)
+	VerifyEmailByToken(ctx context.Context, tokenHash string, verifiedAt time.Time) (domain.User, error)
+}
+
+type Delivery interface {
+	SendPasswordReset(ctx context.Context, email, rawToken string) error
+	SendEmailVerification(ctx context.Context, email, rawToken string) error
+}
+
+type DiscardDelivery struct{}
+
+func (DiscardDelivery) SendPasswordReset(context.Context, string, string) error {
+	return nil
+}
+
+func (DiscardDelivery) SendEmailVerification(context.Context, string, string) error {
+	return nil
 }
 
 type Service struct {
-	repo Repository
-	now  func() time.Time
+	repo     Repository
+	delivery Delivery
+	now      func() time.Time
 }
 
 type AuthResult struct {
@@ -61,8 +85,12 @@ type Authenticated struct {
 	Session domain.Session
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo, now: time.Now}
+func NewService(repo Repository, deliveries ...Delivery) *Service {
+	var delivery Delivery = DiscardDelivery{}
+	if len(deliveries) > 0 && deliveries[0] != nil {
+		delivery = deliveries[0]
+	}
+	return &Service{repo: repo, delivery: delivery, now: time.Now}
 }
 
 func (s *Service) Register(ctx context.Context, name, email, password string) (AuthResult, error) {
@@ -84,7 +112,15 @@ func (s *Service) Register(ctx context.Context, name, email, password string) (A
 	if err != nil {
 		return AuthResult{}, err
 	}
-	return s.createSession(ctx, user)
+
+	result, err := s.createSession(ctx, user)
+	if err != nil {
+		return AuthResult{}, err
+	}
+
+	// Verification delivery must never make a successfully-created account unusable.
+	_ = s.issueEmailVerification(ctx, user)
+	return result, nil
 }
 
 func (s *Service) Login(ctx context.Context, email, password string) (AuthResult, error) {
@@ -159,6 +195,98 @@ func (s *Service) Logout(ctx context.Context, rawToken string) error {
 		return nil
 	}
 	return s.repo.RevokeSessionByTokenHash(ctx, security.DigestToken(rawToken))
+}
+
+func (s *Service) ForgotPassword(ctx context.Context, email string) error {
+	email = normalizeEmail(email)
+	if !validEmail(email) {
+		return nil
+	}
+
+	user, err := s.repo.UserByEmail(ctx, email)
+	if errors.Is(err, domain.ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if user.IsDisabled() {
+		return nil
+	}
+
+	raw, err := security.NewOpaqueToken(32)
+	if err != nil {
+		return err
+	}
+	if err := s.repo.IssueOneTimeToken(
+		ctx,
+		user.ID,
+		purposePasswordReset,
+		security.DigestToken(raw),
+		s.now().Add(passwordResetTTL),
+	); err != nil {
+		return err
+	}
+
+	return s.delivery.SendPasswordReset(ctx, user.Email, raw)
+}
+
+func (s *Service) ResetPassword(ctx context.Context, rawToken, password string) error {
+	if strings.TrimSpace(rawToken) == "" || !validPassword(password) {
+		return ErrInvalidInput
+	}
+
+	passwordHash, err := security.HashPassword(password)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.repo.ResetPasswordByToken(
+		ctx,
+		security.DigestToken(rawToken),
+		passwordHash,
+		s.now(),
+	)
+	if errors.Is(err, domain.ErrNotFound) {
+		return ErrInvalidToken
+	}
+	return err
+}
+
+func (s *Service) VerifyEmail(ctx context.Context, rawToken string) (domain.User, error) {
+	if strings.TrimSpace(rawToken) == "" {
+		return domain.User{}, ErrInvalidToken
+	}
+
+	user, err := s.repo.VerifyEmailByToken(ctx, security.DigestToken(rawToken), s.now())
+	if errors.Is(err, domain.ErrNotFound) {
+		return domain.User{}, ErrInvalidToken
+	}
+	return user, err
+}
+
+func (s *Service) ResendEmailVerification(ctx context.Context, auth Authenticated) error {
+	if auth.User.EmailVerified {
+		return nil
+	}
+	return s.issueEmailVerification(ctx, auth.User)
+}
+
+func (s *Service) issueEmailVerification(ctx context.Context, user domain.User) error {
+	raw, err := security.NewOpaqueToken(32)
+	if err != nil {
+		return err
+	}
+	if err := s.repo.IssueOneTimeToken(
+		ctx,
+		user.ID,
+		purposeEmailVerify,
+		security.DigestToken(raw),
+		s.now().Add(emailVerificationTTL),
+	); err != nil {
+		return err
+	}
+	return s.delivery.SendEmailVerification(ctx, user.Email, raw)
 }
 
 func (s *Service) loginUser(ctx context.Context, user domain.User, password string) (AuthResult, error) {

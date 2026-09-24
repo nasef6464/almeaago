@@ -45,12 +45,26 @@ Password hashing versioned وقابل للهجرة مستقبلًا.
 انظر ADR-0007.
 قبل Production يتم Benchmark على instance class الحقيقية لضبط cost بدون إضعاف الأمان أو إرهاق السيرفر.
 
+## Recovery / Verification Slice
+Implemented on `feat/identity-recovery`:
+- POST /api/v1/auth/forgot-password
+- POST /api/v1/auth/reset-password
+- POST /api/v1/auth/email/verify
+- POST /api/v1/auth/email/resend
+- raw recovery/verification tokens never persist.
+- password reset TTL = 60 minutes.
+- email verification TTL = 24 hours.
+- reset revokes active sessions transactionally.
+- resend verification requires authenticated session + CSRF.
+- repeated token issuance invalidates prior unused token for the same purpose.
+
 ## الخطوات التالية داخل Identity
-1. Password recovery + email verification token lifecycle.
+1. Auth frontend visual parity.
 2. Google OAuth.
 3. WhatsApp OTP.
-4. Admin account management.
-5. Auth frontend visual parity.
+4. Phone/password parity if the legacy smart-input flow still requires it.
+5. Admin account management.
+6. External delivery adapters.
 
 ## Security Acceptance
 - Wrong credentials => generic 401.

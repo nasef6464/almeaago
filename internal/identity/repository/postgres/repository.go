@@ -261,6 +261,155 @@ func (r *Repository) RevokeSessionByTokenHash(ctx context.Context, tokenHash str
 	return err
 }
 
+func (r *Repository) IssueOneTimeToken(
+	ctx context.Context,
+	userID string,
+	purpose string,
+	tokenHash string,
+	expiresAt time.Time,
+) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE auth_one_time_tokens
+		SET used_at = now()
+		WHERE user_id = $1
+		  AND purpose = $2
+		  AND used_at IS NULL
+	`, userID, purpose); err != nil {
+		return fmt.Errorf("invalidate prior auth tokens: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO auth_one_time_tokens (user_id, purpose, token_hash, expires_at)
+		VALUES ($1, $2, $3, $4)
+	`, userID, purpose, tokenHash, expiresAt); err != nil {
+		return fmt.Errorf("create one-time auth token: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (r *Repository) ResetPasswordByToken(
+	ctx context.Context,
+	tokenHash string,
+	passwordHash string,
+	changedAt time.Time,
+) (domain.User, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return domain.User{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var userID string
+	err = tx.QueryRow(ctx, `
+		SELECT user_id::text
+		FROM auth_one_time_tokens
+		WHERE purpose = 'password_reset'
+		  AND token_hash = $1
+		  AND used_at IS NULL
+		  AND expires_at > now()
+		FOR UPDATE
+	`, tokenHash).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.User{}, domain.ErrNotFound
+	}
+	if err != nil {
+		return domain.User{}, fmt.Errorf("load password reset token: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE auth_one_time_tokens
+		SET used_at = now()
+		WHERE token_hash = $1
+	`, tokenHash); err != nil {
+		return domain.User{}, fmt.Errorf("consume password reset token: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE users
+		SET password_hash = $2,
+		    password_changed_at = $3,
+		    failed_login_attempts = 0,
+		    last_failed_login_at = NULL,
+		    login_locked_until = NULL,
+		    updated_at = now()
+		WHERE id = $1
+	`, userID, passwordHash, changedAt); err != nil {
+		return domain.User{}, fmt.Errorf("update password: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE auth_sessions
+		SET revoked_at = COALESCE(revoked_at, now())
+		WHERE user_id = $1
+		  AND revoked_at IS NULL
+	`, userID); err != nil {
+		return domain.User{}, fmt.Errorf("revoke sessions after password reset: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return domain.User{}, err
+	}
+	return r.UserByID(ctx, userID)
+}
+
+func (r *Repository) VerifyEmailByToken(
+	ctx context.Context,
+	tokenHash string,
+	verifiedAt time.Time,
+) (domain.User, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return domain.User{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var userID string
+	err = tx.QueryRow(ctx, `
+		SELECT user_id::text
+		FROM auth_one_time_tokens
+		WHERE purpose = 'email_verification'
+		  AND token_hash = $1
+		  AND used_at IS NULL
+		  AND expires_at > now()
+		FOR UPDATE
+	`, tokenHash).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.User{}, domain.ErrNotFound
+	}
+	if err != nil {
+		return domain.User{}, fmt.Errorf("load email verification token: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE auth_one_time_tokens
+		SET used_at = now()
+		WHERE token_hash = $1
+	`, tokenHash); err != nil {
+		return domain.User{}, fmt.Errorf("consume email verification token: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE users
+		SET email_verified_at = COALESCE(email_verified_at, $2),
+		    updated_at = now()
+		WHERE id = $1
+	`, userID, verifiedAt); err != nil {
+		return domain.User{}, fmt.Errorf("verify email: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return domain.User{}, err
+	}
+	return r.UserByID(ctx, userID)
+}
+
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"

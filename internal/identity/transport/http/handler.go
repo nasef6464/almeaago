@@ -43,6 +43,10 @@ func New(service *application.Service, production bool) http.Handler {
 	router.Get("/me", handler.me)
 	router.Get("/csrf", handler.csrf)
 	router.Post("/logout", handler.logout)
+	router.Post("/forgot-password", handler.forgotPassword)
+	router.Post("/reset-password", handler.resetPassword)
+	router.Post("/email/verify", handler.verifyEmail)
+	router.Post("/email/resend", handler.resendEmailVerification)
 
 	return router
 }
@@ -152,6 +156,84 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *Handler) forgotPassword(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Email string `json:"email"`
+	}
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+
+	// Always return the same public response to avoid account enumeration.
+	// Delivery/infrastructure failures are observed out-of-band, never through
+	// an existence-dependent HTTP response.
+	_ = h.service.ForgotPassword(r.Context(), payload.Email)
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"message": "If this email exists, password reset instructions will be sent.",
+	})
+}
+
+func (h *Handler) resetPassword(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Token    string `json:"token"`
+		Password string `json:"password"`
+	}
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+
+	if err := h.service.ResetPassword(r.Context(), payload.Token, payload.Password); err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"message": "Password has been reset.",
+	})
+}
+
+func (h *Handler) verifyEmail(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Token string `json:"token"`
+	}
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+
+	user, err := h.service.VerifyEmail(r.Context(), payload.Token)
+	if err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"user":    presentUser(user),
+		"message": "Email has been verified.",
+	})
+}
+
+func (h *Handler) resendEmailVerification(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authenticate(w, r)
+	if !ok {
+		return
+	}
+	if err := h.service.VerifyCSRF(auth, r.Header.Get("X-CSRF-Token")); err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+	if err := h.service.ResendEmailVerification(r.Context(), auth); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{
+			"message": "Unable to resend verification right now",
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"message": "Verification email has been queued.",
+	})
+}
+
 func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request) (application.Authenticated, bool) {
 	auth, err := h.service.Authenticate(r.Context(), sessionToken(r))
 	if err != nil {
@@ -257,6 +339,8 @@ func writeApplicationError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "Authentication required"})
 	case errors.Is(err, application.ErrCSRF):
 		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Invalid CSRF token"})
+	case errors.Is(err, application.ErrInvalidToken):
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid or expired token"})
 	default:
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Internal server error"})
 	}
