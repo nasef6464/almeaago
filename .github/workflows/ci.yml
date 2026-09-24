@@ -1,0 +1,75 @@
+name: Foundation CI
+on:
+  pull_request:
+    paths: ["apps/**","cmd/**","internal/**","migrations/**","db/**","api/**","go.mod","go.sum","sqlc.yaml","Makefile","docker-compose.yml",".github/workflows/ci.yml"]
+  push:
+    branches: [main]
+    paths: ["apps/**","cmd/**","internal/**","migrations/**","db/**","api/**","go.mod","go.sum","sqlc.yaml","Makefile","docker-compose.yml",".github/workflows/ci.yml"]
+  workflow_dispatch:
+concurrency:
+  group: foundation-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.27.1", cache: true }
+      - run: go mod download
+      - run: go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
+      - run: sqlc compile
+      - run: test -z "$(gofmt -l ./cmd ./internal)"
+      - run: go vet ./...
+      - run: go test ./...
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults: { run: { working-directory: apps/web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env: { POSTGRES_USER: almeaa, POSTGRES_PASSWORD: almeaa, POSTGRES_DB: almeaa }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U almeaa -d almeaa"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env: { PGPASSWORD: almeaa }
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Apply migrations
+        run: |
+          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000001_platform_foundation.up.sql
+          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000002_organization_access_foundation.up.sql
+      - name: Verify critical tables
+        run: |
+          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.questions') is not null" | grep -qx t
+          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.question_skill_links') is not null" | grep -qx t
+          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.teaching_assignments') is not null" | grep -qx t
+          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.entitlements') is not null" | grep -qx t
+      - name: Roll back and re-apply
+        run: |
+          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000002_organization_access_foundation.down.sql
+          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000001_platform_foundation.down.sql
+          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000001_platform_foundation.up.sql
+          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000002_organization_access_foundation.up.sql

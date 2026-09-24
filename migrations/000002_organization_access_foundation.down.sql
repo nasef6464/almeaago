@@ -1,0 +1,3 @@
+BEGIN;
+DROP TABLE IF EXISTS foundation_topic_skills,foundation_topics,entitlements,parent_student_relationships,teaching_assignments,class_memberships,classes CASCADE;
+COMMIT;

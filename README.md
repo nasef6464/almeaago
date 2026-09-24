@@ -1,16 +1,31 @@
-# ALMEAA V2
+# ALMEAA V2 — almeaago
 
-Clean rebuild of the ALMEAA education platform.
+Clean rebuild of the ALMEAA education platform from a verified product blueprint.
 
-- Frontend: React + TypeScript
-- Backend: Go
-- Database: PostgreSQL
-- Cache/Jobs/Realtime coordination: Redis
-- Media: Cloudflare R2
-- API Contract: OpenAPI
-- Architecture: Modular Monolith
+## Approved stack
+React + TypeScript · Go · PostgreSQL · Redis · Cloudflare R2 · OpenAPI · WebSocket · Modular Monolith.
 
-Legacy repository `nasef6464/almeaacodax` is a behavioral reference only.
+## Repositories
+- New implementation: `nasef6464/almeaago`
+- Legacy behavioral/visual reference only: `nasef6464/almeaacodax`
 
-## Status
-Repository write access from ChatGPT is verified. Foundation bootstrap follows next.
+## Non-negotiable rules
+- Preserve functional, role, data and visual parity unless a change is explicitly approved.
+- One stable question identity; assessments, review and remediation reference it instead of cloning it.
+- School membership is separate from learning entitlement.
+- Durable relationships use relational tables, not unbounded arrays on users.
+- Large media lives in R2; PostgreSQL keeps metadata and references.
+- Growing collections are paginated/bounded from the first endpoint.
+- Sensitive commands are idempotent and audited.
+- Server-side authorization is mandatory.
+- AI is never the source of truth for scoring or deterministic mastery.
+- CI/Vercel/Render/DB/bandwidth/AI consumption is budgeted.
+- A feature is complete only at `PARITY_PROVEN`.
+
+## Start here
+1. `docs/CURRENT_STATE.md`
+2. `docs/PROJECT_EXECUTION_PLAN_AR.md`
+3. `docs/architecture/PROJECT_MAP.md`
+4. `docs/architecture/VISUAL_PARITY_POLICY.md`
+5. `docs/architecture/RESOURCE_BUDGET_POLICY.md`
+6. `docs/blueprint/00_MASTER_INDEX_AR.md`

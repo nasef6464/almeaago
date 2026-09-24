@@ -1,0 +1,1 @@
+export function App(){return <main className="shell"><section className="card"><p className="eyebrow">ALMEAA V2</p><h1>Foundation</h1><p>Visual implementation will follow the legacy ALMEAA baseline screen by screen.</p></section></main>}
