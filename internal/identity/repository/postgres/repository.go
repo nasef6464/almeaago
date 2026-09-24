@@ -78,6 +78,10 @@ func (r *Repository) UserByNationalID(ctx context.Context, nationalID string) (d
 	return r.userBy(ctx, `national_id = $1`, nationalID)
 }
 
+func (r *Repository) UserByPhone(ctx context.Context, phone string) (domain.User, error) {
+	return r.userBy(ctx, `phone = $1`, phone)
+}
+
 func (r *Repository) UserByID(ctx context.Context, id string) (domain.User, error) {
 	return r.userBy(ctx, `id = $1`, id)
 }
@@ -168,6 +172,18 @@ func (r *Repository) ClearFailedLogin(ctx context.Context, userID string) error 
 		    updated_at = now()
 		WHERE id = $1
 	`, userID)
+	return err
+}
+
+func (r *Repository) UpdatePasswordHash(ctx context.Context, userID, passwordHash string) error {
+	_, err := r.db.Exec(
+		ctx,
+		`UPDATE users
+		 SET password_hash = $2, password_changed_at = now(), updated_at = now()
+		 WHERE id = $1`,
+		userID,
+		passwordHash,
+	)
 	return err
 }
 
