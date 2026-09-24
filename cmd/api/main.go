@@ -46,14 +46,15 @@ func main() {
 	defer redisClient.Close()
 
 	identityRepository := identityrepo.New(db)
-	identityService := application.NewService(identityRepository)
+	identityService := application.NewService(identityRepository, application.DiscardDelivery{})
 	identityHandler := identityhttp.New(identityService, cfg.IsProduction())
 
 	server := httpserver.New(cfg.HTTPAddr, httpserver.Dependencies{
 		Logger:   logger,
 		DB:       db,
 		Redis:    redisClient,
-		Identity: identityHandler,
+		Identity:   identityHandler,
+		WebOrigins: cfg.WebOrigin,
 	})
 
 	go func() {
