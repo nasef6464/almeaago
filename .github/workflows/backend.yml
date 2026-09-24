@@ -13,13 +13,19 @@ permissions: { contents: read }
 jobs:
   backend:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with: { go-version: "1.27.1", cache: false }
       - run: go mod download
-      - run: go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
+      - name: Install pinned sqlc binary
+        shell: bash
+        run: |
+          curl -fsSL "https://github.com/sqlc-dev/sqlc/releases/download/v1.31.1/sqlc_1.31.1_linux_amd64.tar.gz" -o /tmp/sqlc.tar.gz
+          tar -xzf /tmp/sqlc.tar.gz -C /tmp
+          sudo install -m 0755 /tmp/sqlc /usr/local/bin/sqlc
+          sqlc version
       - run: sqlc compile
       - name: Check gofmt
         shell: bash
