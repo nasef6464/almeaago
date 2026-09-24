@@ -18,7 +18,15 @@ interface Props {
 
 export function AuthModal({ open, initialSignUp = false, onClose }: Props) {
   const navigate = useNavigate();
-  const { signIn, signInNationalId, signInPhone, signUp } = useAuth();
+  const {
+    signIn,
+    signInNationalId,
+    signInPhone,
+    signUp,
+    startWhatsAppOTP,
+    verifyWhatsAppOTP,
+    googleStartURL,
+  } = useAuth();
 
   const [isSignUp, setIsSignUp] = useState(initialSignUp);
   const [authError, setAuthError] = useState('');
@@ -27,6 +35,9 @@ export function AuthModal({ open, initialSignUp = false, onClose }: Props) {
   const [smartInput, setSmartInput] = useState('');
   const [smartPassword, setSmartPassword] = useState('');
   const [showSmartPassword, setShowSmartPassword] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpExpiresIn, setOtpExpiresIn] = useState(0);
 
   const [signupName, setSignupName] = useState('');
   const [email, setEmail] = useState('');
@@ -54,6 +65,9 @@ export function AuthModal({ open, initialSignUp = false, onClose }: Props) {
     setSmartInput('');
     setSmartPassword('');
     setShowSmartPassword(false);
+    setOtpSent(false);
+    setOtpCode('');
+    setOtpExpiresIn(0);
     setSignupName('');
     setEmail('');
     setPassword('');
@@ -150,12 +164,52 @@ export function AuthModal({ open, initialSignUp = false, onClose }: Props) {
     setIsSignUp((value) => !value);
   }
 
-  function pendingGoogle() {
-    setAuthError('تسجيل Google محفوظ في الواجهة وسيُفعّل عند ربط مزود Google في مرحلة التكاملات.');
+  function startGoogle() {
+    const returnTo = window.location.pathname + window.location.search;
+    window.location.assign(googleStartURL(returnTo || '/'));
   }
 
-  function pendingWhatsApp() {
-    setAuthError('تسجيل واتساب محفوظ في الواجهة وسيُفعّل مع OTP في مرحلة الهوية التالية.');
+  async function sendWhatsAppOTP() {
+    if (submitting) return;
+    if (inputType !== 'phone') {
+      setAuthError('أدخل رقم جوال سعودي صحيح أولاً.');
+      return;
+    }
+
+    setSubmitting(true);
+    setAuthError('');
+    try {
+      const result = await startWhatsAppOTP(smartInput);
+      setOtpSent(true);
+      setOtpCode('');
+      setOtpExpiresIn(result.expiresInSeconds);
+      setSmartPassword('');
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'تعذر إرسال رمز واتساب الآن.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function submitWhatsAppOTP(event: FormEvent) {
+    event.preventDefault();
+    if (submitting) return;
+    if (!/^[0-9]{6}$/.test(otpCode.trim())) {
+      setAuthError('أدخل رمز التحقق المكوّن من 6 أرقام.');
+      return;
+    }
+
+    setSubmitting(true);
+    setAuthError('');
+    try {
+      const user = await verifyWhatsAppOTP(smartInput, otpCode.trim());
+      close();
+      navigate(dashboardPathFor(user));
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'تعذر التحقق من رمز واتساب.');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -191,7 +245,7 @@ export function AuthModal({ open, initialSignUp = false, onClose }: Props) {
         <div className="space-y-4 p-6">
           <AuthErrorBanner message={authError} />
 
-          <GoogleButton signUp={isSignUp} onClick={pendingGoogle} />
+          <GoogleButton signUp={isSignUp} onClick={startGoogle} />
 
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
@@ -256,14 +310,64 @@ export function AuthModal({ open, initialSignUp = false, onClose }: Props) {
               </button>
 
               {inputType === 'phone' ? (
-                <button
-                  type="button"
-                  onClick={pendingWhatsApp}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-[#1ebe5d]"
-                >
-                  <MessageCircle size={18} />
-                  تسجيل بالواتساب
-                </button>
+                otpSent ? (
+                  <div className="space-y-2 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                    <p className="text-center text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                      أرسلنا رمزاً من 6 أرقام إلى واتساب
+                      {otpExpiresIn > 0 ? ` — صالح لمدة ${Math.ceil(otpExpiresIn / 60)} دقائق` : ''}
+                    </p>
+                    <form onSubmit={submitWhatsAppOTP} className="space-y-2">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        value={otpCode}
+                        onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className="w-full rounded-xl border-2 border-emerald-200 bg-white px-4 py-3 text-center text-xl font-black tracking-[0.35em] outline-none transition focus:border-emerald-400 dark:border-emerald-900/60 dark:bg-slate-800 dark:text-white"
+                        dir="ltr"
+                        placeholder="000000"
+                        aria-label="رمز واتساب"
+                        autoFocus
+                      />
+                      <button
+                        type="submit"
+                        disabled={submitting || otpCode.length !== 6}
+                        className="w-full rounded-xl bg-[#25D366] py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-[#1ebe5d] disabled:opacity-50"
+                      >
+                        {submitting ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <Loader2 size={16} className="animate-spin" />
+                            جارٍ التحقق...
+                          </span>
+                        ) : (
+                          'تحقق ودخول'
+                        )}
+                      </button>
+                    </form>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOtpSent(false);
+                        setOtpCode('');
+                        void sendWhatsAppOTP();
+                      }}
+                      className="w-full py-1 text-xs font-medium text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      إعادة إرسال الرمز
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void sendWhatsAppOTP()}
+                    disabled={submitting}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-[#1ebe5d] disabled:opacity-50"
+                  >
+                    <MessageCircle size={18} />
+                    {submitting ? 'جارٍ إرسال الرمز...' : 'تسجيل بالواتساب'}
+                  </button>
+                )
               ) : null}
             </form>
           ) : (
