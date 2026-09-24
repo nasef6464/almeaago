@@ -99,3 +99,36 @@ Implemented on `feat/identity-oauth-otp`:
 - نفس password visibility controls.
 - نفس mobile behavior.
 - نفس الصياغة العربية إلا لو اعتمد تغيير صريح.
+
+
+## Admin Account Operations
+Current V2 slice:
+- GET /api/v1/auth/admin/users
+- GET /api/v1/auth/admin/users/summary
+- POST /api/v1/auth/admin/users
+- PATCH /api/v1/auth/admin/users/bulk-status
+- PATCH /api/v1/auth/admin/users/:id
+- DELETE /api/v1/auth/admin/users/:id
+
+Rules:
+- unsafe mutations require authenticated session + CSRF.
+- create/update/bulk/delete require platform admin role.
+- directory page size defaults to 50 and is hard-capped at 100.
+- search is bounded and indexed by PostgreSQL pg_trgm.
+- disabling an account revokes active sessions.
+- self-delete is blocked.
+- at least one active admin must remain.
+- the last-admin invariant is protected transactionally under concurrency.
+- every mutation writes an audit event in the same transaction.
+
+Organization-owned fields remain pending:
+- school/class/group scope.
+- parent/student relationships.
+- trainer managed paths/subjects.
+- supervisor/teacher directory scope.
+
+V2 does not silently ignore those fields. Their writes fail explicitly until Organizations/Trainer scope is connected.
+
+## Intentional legacy fix
+Legacy single-user PATCH did not consistently protect the last admin while delete/bulk operations did.
+V2 applies one invariant across all account mutations. See `docs/LEGACY-BUGS.md`.
