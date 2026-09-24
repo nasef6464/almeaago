@@ -18,7 +18,10 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with: { go-version: "1.27.1", cache: false }
-      - run: go mod download
+      - name: Verify module lock
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
       - name: Install pinned sqlc binary
         shell: bash
         run: |
@@ -30,11 +33,19 @@ jobs:
       - name: Check gofmt
         shell: bash
         run: |
-          unformatted="$(find cmd internal -type f -name '*.go' -print0 | xargs -0 gofmt -l)"
-          if [ -n "$unformatted" ]; then
-            echo "Unformatted Go files:"
-            echo "$unformatted"
-            exit 1
-          fi
+          status=0
+          while IFS= read -r -d '' file; do
+            if listed="$(gofmt -l "$file")"; then
+              if [ -n "$listed" ]; then
+                echo "::error file=$file::file is not gofmt-formatted"
+                gofmt -d "$file" || true
+                status=1
+              fi
+            else
+              echo "::error file=$file::gofmt could not parse this file"
+              status=1
+            fi
+          done < <(find cmd internal -type f -name '*.go' -print0)
+          exit "$status"
       - run: go vet ./...
       - run: go test ./...
