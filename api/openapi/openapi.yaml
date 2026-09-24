@@ -61,6 +61,74 @@ paths:
         "403": { description: Account disabled }
         "429": { description: Login locked }
 
+  /api/v1/auth/whatsapp/start:
+    post:
+      operationId: authWhatsAppStart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [phone]
+              properties:
+                phone: { type: string, minLength: 8, maxLength: 24 }
+      responses:
+        "200": { description: OTP sent through configured WhatsApp provider }
+        "400": { description: Invalid phone }
+        "429": { description: Too many OTP requests }
+        "503": { description: WhatsApp provider not configured or unavailable }
+
+  /api/v1/auth/whatsapp/verify:
+    post:
+      operationId: authWhatsAppVerify
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [phone, code]
+              properties:
+                phone: { type: string, minLength: 8, maxLength: 24 }
+                code: { type: string, pattern: "^[0-9]{6}$" }
+      responses:
+        "200": { description: OTP verified and authenticated session created }
+        "400": { description: Invalid or expired OTP }
+        "401": { description: Wrong OTP }
+        "403": { description: Account disabled }
+        "429": { description: Too many attempts }
+        "503": { description: OTP security configuration unavailable }
+
+  /api/v1/auth/google/start:
+    get:
+      operationId: authGoogleStart
+      parameters:
+        - in: query
+          name: returnTo
+          required: false
+          schema: { type: string, default: "/" }
+      responses:
+        "302": { description: Redirect to Google OAuth authorization }
+        "503": { description: Google OAuth not configured }
+
+  /api/v1/auth/google/callback:
+    get:
+      operationId: authGoogleCallback
+      parameters:
+        - in: query
+          name: code
+          required: false
+          schema: { type: string }
+        - in: query
+          name: state
+          required: false
+          schema: { type: string }
+      responses:
+        "302": { description: Redirect back to web app after success or failure }
+
   /api/v1/auth/me:
     get:
       operationId: authMe
