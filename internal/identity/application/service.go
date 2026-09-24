@@ -71,6 +71,13 @@ type Repository interface {
 	ExpireOTPChallenge(ctx context.Context, challengeID string) error
 	ResolveWhatsAppUser(ctx context.Context, phone string, verifiedAt time.Time) (domain.User, error)
 	ResolveGoogleUser(ctx context.Context, profile domain.GoogleProfile, verifiedAt time.Time) (domain.User, error)
+
+	AdminCreateOrUpsertUser(ctx context.Context, actorUserID string, write domain.AdminUserWrite) (domain.AdminUserRecord, error)
+	AdminUpdateUser(ctx context.Context, actorUserID, targetUserID string, write domain.AdminUserWrite) (domain.AdminUserRecord, error)
+	AdminDeleteUser(ctx context.Context, actorUserID, targetUserID string) error
+	AdminBulkStatus(ctx context.Context, actorUserID string, userIDs []string, active bool) ([]domain.BulkStatusResult, error)
+	AdminListUsers(ctx context.Context, options domain.AdminUserListOptions) (domain.AdminUserPage, error)
+	AdminSummary(ctx context.Context) (domain.AdminSummary, error)
 }
 
 type Delivery interface {
