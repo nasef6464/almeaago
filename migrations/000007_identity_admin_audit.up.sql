@@ -24,6 +24,9 @@ CREATE INDEX audit_logs_resource_created_idx
 CREATE INDEX users_created_desc_idx
   ON users(created_at DESC, id);
 
+CREATE INDEX school_memberships_user_active_idx
+  ON school_memberships(user_id, status, school_id);
+
 CREATE INDEX users_status_created_idx
   ON users(status, created_at DESC, id);
 
