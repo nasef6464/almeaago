@@ -558,16 +558,14 @@ func writeApplicationError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"message": "Authentication provider is not configured"})
 	case errors.Is(err, application.ErrForbidden):
 		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Forbidden"})
-	case errors.Is(err, application.ErrOrganizationScopePending):
-		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Organization-scoped user directory is not enabled yet"})
 	case errors.Is(err, application.ErrUnsupportedAdminScope):
-		writeJSON(w, http.StatusConflict, map[string]string{"message": "Organization scope fields are handled by the Organizations domain"})
+		writeJSON(w, http.StatusConflict, map[string]string{"message": "Trainer path/subject scope is handled by the Catalog/Content domain"})
 	case errors.Is(err, domain.ErrLastAdmin):
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Cannot remove or disable the last active admin account"})
 	case errors.Is(err, domain.ErrSelfDelete):
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "You cannot delete your current account"})
 	case errors.Is(err, domain.ErrNotFound):
-		writeJSON(w, http.StatusNotFound, map[string]string{"message": "User not found"})
+		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Requested record was not found"})
 	case errors.Is(err, application.ErrRateLimited), errors.Is(err, application.ErrTooManyAttempts):
 		writeJSON(w, http.StatusTooManyRequests, map[string]string{"message": "Too many attempts. Try again later."})
 	default:
