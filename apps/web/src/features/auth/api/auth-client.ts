@@ -75,6 +75,25 @@ export const authClient = {
     });
   },
 
+  startWhatsAppOTP(phone: string) {
+    return request<{ message: string; expiresInSeconds: number }>('/api/v1/auth/whatsapp/start', {
+      method: 'POST',
+      body: JSON.stringify({ phone }),
+    });
+  },
+
+  verifyWhatsAppOTP(phone: string, code: string) {
+    return request<AuthResult>('/api/v1/auth/whatsapp/verify', {
+      method: 'POST',
+      body: JSON.stringify({ phone, code }),
+    });
+  },
+
+  googleStartURL(returnTo = '/') {
+    const params = new URLSearchParams({ returnTo });
+    return `${API_BASE}/api/v1/auth/google/start?${params.toString()}`;
+  },
+
   me() {
     return request<{ user: AuthUser }>('/api/v1/auth/me');
   },
