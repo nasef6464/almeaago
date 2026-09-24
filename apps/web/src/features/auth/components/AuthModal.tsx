@@ -191,8 +191,7 @@ export function AuthModal({ open, initialSignUp = false, onClose }: Props) {
     }
   }
 
-  async function submitWhatsAppOTP(event: FormEvent) {
-    event.preventDefault();
+  async function submitWhatsAppOTP() {
     if (submitting) return;
     if (!/^[0-9]{6}$/.test(otpCode.trim())) {
       setAuthError('أدخل رمز التحقق المكوّن من 6 أرقام.');
@@ -356,7 +355,7 @@ export function AuthModal({ open, initialSignUp = false, onClose }: Props) {
                         id="smart-otp-verify-btn"
                         type="button"
                         disabled={submitting || otpCode.length !== 6}
-                        onClick={(event) => void submitWhatsAppOTP(event as unknown as FormEvent)}
+                        onClick={() => void submitWhatsAppOTP()}
                         className="w-full rounded-xl bg-[#25D366] py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-[#1ebe5d] disabled:opacity-50"
                       >
                         {submitting ? (
