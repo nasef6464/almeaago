@@ -23,6 +23,9 @@ var (
 	ErrCSRF                = errors.New("invalid csrf token")
 	ErrInvalidToken        = errors.New("invalid or expired token")
 	ErrPasswordUnavailable = errors.New("password unavailable")
+	ErrProviderUnavailable = errors.New("provider unavailable")
+	ErrRateLimited         = errors.New("rate limited")
+	ErrTooManyAttempts     = errors.New("too many attempts")
 )
 
 const (
@@ -33,9 +36,16 @@ const (
 	emailVerificationTTL = 24 * time.Hour
 	purposePasswordReset = "password_reset"
 	purposeEmailVerify   = "email_verification"
+	whatsAppOTPTTL       = 10 * time.Minute
+	whatsAppOTPLimit     = 3
+	whatsAppOTPWindow    = 15 * time.Minute
+	whatsAppMaxAttempts  = 5
 )
 
-var nationalIDPattern = regexp.MustCompile(`^[12][0-9]{9}$`)
+var (
+	nationalIDPattern = regexp.MustCompile(`^[12][0-9]{9}$`)
+	otpPattern        = regexp.MustCompile(`^[0-9]{6}$`)
+)
 
 type Repository interface {
 	CreateUser(ctx context.Context, name, email, passwordHash string, role domain.Role) (domain.User, error)
@@ -52,6 +62,15 @@ type Repository interface {
 	IssueOneTimeToken(ctx context.Context, userID, purpose, tokenHash string, expiresAt time.Time) error
 	ResetPasswordByToken(ctx context.Context, tokenHash, passwordHash string, changedAt time.Time) (domain.User, error)
 	VerifyEmailByToken(ctx context.Context, tokenHash string, verifiedAt time.Time) (domain.User, error)
+
+	CountRecentOTPChallenges(ctx context.Context, phone, channel string, since time.Time) (int, error)
+	CreateOTPChallenge(ctx context.Context, phone, channel, codeHash string, expiresAt time.Time) (domain.OTPChallenge, error)
+	LatestActiveOTPChallenge(ctx context.Context, phone, channel string) (domain.OTPChallenge, error)
+	IncrementOTPAttempts(ctx context.Context, challengeID string) error
+	ConsumeOTPChallenge(ctx context.Context, challengeID string) error
+	ExpireOTPChallenge(ctx context.Context, challengeID string) error
+	ResolveWhatsAppUser(ctx context.Context, phone string, verifiedAt time.Time) (domain.User, error)
+	ResolveGoogleUser(ctx context.Context, profile domain.GoogleProfile, verifiedAt time.Time) (domain.User, error)
 }
 
 type Delivery interface {
@@ -69,10 +88,33 @@ func (DiscardDelivery) SendEmailVerification(context.Context, string, string) er
 	return nil
 }
 
+type WhatsAppOTPDelivery interface {
+	Available() bool
+	SendOTP(ctx context.Context, phone, code string, ttl time.Duration) error
+}
+
+type UnavailableWhatsAppDelivery struct{}
+
+func (UnavailableWhatsAppDelivery) Available() bool {
+	return false
+}
+
+func (UnavailableWhatsAppDelivery) SendOTP(context.Context, string, string, time.Duration) error {
+	return ErrProviderUnavailable
+}
+
+type ServiceOptions struct {
+	EmailDelivery    Delivery
+	WhatsAppDelivery WhatsAppOTPDelivery
+	OTPPepper        string
+}
+
 type Service struct {
-	repo     Repository
-	delivery Delivery
-	now      func() time.Time
+	repo      Repository
+	delivery  Delivery
+	whatsApp  WhatsAppOTPDelivery
+	otpPepper string
+	now       func() time.Time
 }
 
 type AuthResult struct {
@@ -87,12 +129,34 @@ type Authenticated struct {
 	Session domain.Session
 }
 
+type OTPStartResult struct {
+	ExpiresInSeconds int
+}
+
 func NewService(repo Repository, deliveries ...Delivery) *Service {
-	var delivery Delivery = DiscardDelivery{}
+	var emailDelivery Delivery = DiscardDelivery{}
 	if len(deliveries) > 0 && deliveries[0] != nil {
-		delivery = deliveries[0]
+		emailDelivery = deliveries[0]
 	}
-	return &Service{repo: repo, delivery: delivery, now: time.Now}
+	return NewServiceWithOptions(repo, ServiceOptions{EmailDelivery: emailDelivery})
+}
+
+func NewServiceWithOptions(repo Repository, options ServiceOptions) *Service {
+	emailDelivery := options.EmailDelivery
+	if emailDelivery == nil {
+		emailDelivery = DiscardDelivery{}
+	}
+	whatsApp := options.WhatsAppDelivery
+	if whatsApp == nil {
+		whatsApp = UnavailableWhatsAppDelivery{}
+	}
+	return &Service{
+		repo:      repo,
+		delivery:  emailDelivery,
+		whatsApp:  whatsApp,
+		otpPepper: options.OTPPepper,
+		now:       time.Now,
+	}
 }
 
 func (s *Service) Register(ctx context.Context, name, email, password string) (AuthResult, error) {
@@ -120,7 +184,6 @@ func (s *Service) Register(ctx context.Context, name, email, password string) (A
 		return AuthResult{}, err
 	}
 
-	// Verification delivery must never make a successfully-created account unusable.
 	_ = s.issueEmailVerification(ctx, user)
 	return result, nil
 }
@@ -169,6 +232,119 @@ func (s *Service) LoginPhonePassword(ctx context.Context, phone, password string
 		return AuthResult{}, ErrPasswordUnavailable
 	}
 	return s.loginUser(ctx, user, password)
+}
+
+func (s *Service) StartWhatsAppOTP(ctx context.Context, phone string) (OTPStartResult, error) {
+	normalized, ok := domain.NormalizeSaudiPhone(phone)
+	if !ok {
+		return OTPStartResult{}, ErrInvalidInput
+	}
+	if !s.whatsApp.Available() || len(s.otpPepper) < 32 {
+		return OTPStartResult{}, ErrProviderUnavailable
+	}
+
+	recent, err := s.repo.CountRecentOTPChallenges(
+		ctx,
+		normalized,
+		"whatsapp",
+		s.now().Add(-whatsAppOTPWindow),
+	)
+	if err != nil {
+		return OTPStartResult{}, err
+	}
+	if recent >= whatsAppOTPLimit {
+		return OTPStartResult{}, ErrRateLimited
+	}
+
+	code, err := security.NewNumericCode(6)
+	if err != nil {
+		return OTPStartResult{}, err
+	}
+	codeHash, err := security.DigestOTP(s.otpPepper, normalized, code)
+	if err != nil {
+		return OTPStartResult{}, err
+	}
+
+	challenge, err := s.repo.CreateOTPChallenge(
+		ctx,
+		normalized,
+		"whatsapp",
+		codeHash,
+		s.now().Add(whatsAppOTPTTL),
+	)
+	if err != nil {
+		return OTPStartResult{}, err
+	}
+
+	if err := s.whatsApp.SendOTP(ctx, normalized, code, whatsAppOTPTTL); err != nil {
+		_ = s.repo.ExpireOTPChallenge(ctx, challenge.ID)
+		return OTPStartResult{}, ErrProviderUnavailable
+	}
+
+	return OTPStartResult{ExpiresInSeconds: int(whatsAppOTPTTL.Seconds())}, nil
+}
+
+func (s *Service) VerifyWhatsAppOTP(ctx context.Context, phone, code string) (AuthResult, error) {
+	normalized, ok := domain.NormalizeSaudiPhone(phone)
+	code = strings.TrimSpace(code)
+	if !ok || !otpPattern.MatchString(code) {
+		return AuthResult{}, ErrInvalidInput
+	}
+	if len(s.otpPepper) < 32 {
+		return AuthResult{}, ErrProviderUnavailable
+	}
+
+	challenge, err := s.repo.LatestActiveOTPChallenge(ctx, normalized, "whatsapp")
+	if errors.Is(err, domain.ErrNotFound) {
+		return AuthResult{}, ErrInvalidToken
+	}
+	if err != nil {
+		return AuthResult{}, err
+	}
+	if challenge.ExpiresAt.Before(s.now()) {
+		_ = s.repo.ExpireOTPChallenge(ctx, challenge.ID)
+		return AuthResult{}, ErrInvalidToken
+	}
+	if challenge.Attempts >= whatsAppMaxAttempts {
+		return AuthResult{}, ErrTooManyAttempts
+	}
+
+	if !security.VerifyOTPDigest(s.otpPepper, normalized, code, challenge.CodeHash) {
+		_ = s.repo.IncrementOTPAttempts(ctx, challenge.ID)
+		return AuthResult{}, ErrInvalidCredentials
+	}
+
+	if err := s.repo.ConsumeOTPChallenge(ctx, challenge.ID); err != nil {
+		return AuthResult{}, err
+	}
+	user, err := s.repo.ResolveWhatsAppUser(ctx, normalized, s.now())
+	if err != nil {
+		return AuthResult{}, err
+	}
+	if user.IsDisabled() {
+		return AuthResult{}, ErrAccountDisabled
+	}
+	return s.createSession(ctx, user)
+}
+
+func (s *Service) LoginGoogle(ctx context.Context, profile domain.GoogleProfile) (AuthResult, error) {
+	profile.Subject = strings.TrimSpace(profile.Subject)
+	profile.Email = normalizeEmail(profile.Email)
+	profile.Name = strings.TrimSpace(profile.Name)
+	profile.AvatarURL = strings.TrimSpace(profile.AvatarURL)
+
+	if profile.Subject == "" || !profile.EmailVerified || !validEmail(profile.Email) {
+		return AuthResult{}, ErrInvalidCredentials
+	}
+
+	user, err := s.repo.ResolveGoogleUser(ctx, profile, s.now())
+	if err != nil {
+		return AuthResult{}, err
+	}
+	if user.IsDisabled() {
+		return AuthResult{}, ErrAccountDisabled
+	}
+	return s.createSession(ctx, user)
 }
 
 func (s *Service) Authenticate(ctx context.Context, rawToken string) (Authenticated, error) {
@@ -231,7 +407,7 @@ func (s *Service) ForgotPassword(ctx context.Context, email string) error {
 	if err != nil {
 		return err
 	}
-	if user.IsDisabled() {
+	if user.IsDisabled() || user.Email == "" {
 		return nil
 	}
 
@@ -287,13 +463,16 @@ func (s *Service) VerifyEmail(ctx context.Context, rawToken string) (domain.User
 }
 
 func (s *Service) ResendEmailVerification(ctx context.Context, auth Authenticated) error {
-	if auth.User.EmailVerified {
+	if auth.User.EmailVerified || auth.User.Email == "" {
 		return nil
 	}
 	return s.issueEmailVerification(ctx, auth.User)
 }
 
 func (s *Service) issueEmailVerification(ctx context.Context, user domain.User) error {
+	if user.Email == "" {
+		return nil
+	}
 	raw, err := security.NewOpaqueToken(32)
 	if err != nil {
 		return err
@@ -317,6 +496,9 @@ func (s *Service) loginUser(ctx context.Context, user domain.User, password stri
 	}
 	if user.IsDisabled() {
 		return AuthResult{}, ErrAccountDisabled
+	}
+	if user.PasswordHash == "" {
+		return AuthResult{}, ErrPasswordUnavailable
 	}
 	if !security.VerifyPassword(user.PasswordHash, password) {
 		_ = s.repo.RecordFailedLogin(ctx, user.ID, maxFailedAttempts, lockDuration)

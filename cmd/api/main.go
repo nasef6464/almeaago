@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/nasef6464/almeaago/internal/identity/application"
+	googleprovider "github.com/nasef6464/almeaago/internal/identity/provider/google"
+	whatsappprovider "github.com/nasef6464/almeaago/internal/identity/provider/whatsapp"
 	identityrepo "github.com/nasef6464/almeaago/internal/identity/repository/postgres"
 	identityhttp "github.com/nasef6464/almeaago/internal/identity/transport/http"
 	"github.com/nasef6464/almeaago/internal/platform/cache"
@@ -46,8 +48,24 @@ func main() {
 	defer redisClient.Close()
 
 	identityRepository := identityrepo.New(db)
-	identityService := application.NewService(identityRepository)
-	identityHandler := identityhttp.New(identityService, cfg.IsProduction())
+	whatsAppDelivery := whatsappprovider.NewWebhook(
+		cfg.WhatsAppOTPEndpoint,
+		cfg.WhatsAppOTPToken,
+	)
+	identityService := application.NewServiceWithOptions(identityRepository, application.ServiceOptions{
+		WhatsAppDelivery: whatsAppDelivery,
+		OTPPepper:        cfg.OTPPepper,
+	})
+
+	googleClient := googleprovider.New(googleprovider.Config{
+		ClientID:     cfg.GoogleClientID,
+		ClientSecret: cfg.GoogleClientSecret,
+		RedirectURI:  cfg.GoogleRedirectURI,
+	})
+	identityHandler := identityhttp.New(identityService, cfg.IsProduction(), identityhttp.Options{
+		Google:    googleClient,
+		WebOrigin: cfg.WebOrigin,
+	})
 
 	server := httpserver.New(cfg.HTTPAddr, httpserver.Dependencies{
 		Logger:   logger,

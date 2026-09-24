@@ -18,11 +18,13 @@ migrate-up:
 	psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000001_platform_foundation.up.sql
 	psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000002_organization_access_foundation.up.sql
 	psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000003_identity_auth.up.sql
-	psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000004_identity_recovery.up.sql
-	psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000005_identity_providers.up.sql
+	psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000004_identity_recovery.up.sql
+	psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000005_identity_providers.up.sql
+	psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000006_otp_rate_limit_index.up.sql
 migrate-down:
-	psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000005_identity_providers.down.sql
-	psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000004_identity_recovery.down.sql
+	psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000006_otp_rate_limit_index.down.sql
+	psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000005_identity_providers.down.sql
+	psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000004_identity_recovery.down.sql
 	psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000003_identity_auth.down.sql
 	psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000002_organization_access_foundation.down.sql
 	psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000001_platform_foundation.down.sql

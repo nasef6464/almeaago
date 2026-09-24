@@ -12,6 +12,14 @@ type Config struct {
 	RedisURL    string
 	WebOrigin   string
 	LogLevel    string
+
+	OTPPepper           string
+	WhatsAppOTPEndpoint string
+	WhatsAppOTPToken    string
+
+	GoogleClientID     string
+	GoogleClientSecret string
+	GoogleRedirectURI  string
 }
 
 func Load() (Config, error) {
@@ -22,6 +30,14 @@ func Load() (Config, error) {
 		RedisURL:    os.Getenv("REDIS_URL"),
 		WebOrigin:   value("WEB_ORIGIN", "http://localhost:5173"),
 		LogLevel:    value("LOG_LEVEL", "info"),
+
+		OTPPepper:           os.Getenv("AUTH_OTP_PEPPER"),
+		WhatsAppOTPEndpoint: os.Getenv("WHATSAPP_OTP_ENDPOINT"),
+		WhatsAppOTPToken:    os.Getenv("WHATSAPP_OTP_TOKEN"),
+
+		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+		GoogleRedirectURI:  os.Getenv("GOOGLE_REDIRECT_URI"),
 	}
 
 	if cfg.DatabaseURL == "" {

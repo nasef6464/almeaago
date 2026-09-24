@@ -17,6 +17,9 @@ interface AuthContextValue {
   signIn(email: string, password: string): Promise<AuthUser>;
   signInNationalId(nationalId: string, password: string): Promise<AuthUser>;
   signInPhone(phone: string, password: string): Promise<AuthUser>;
+  startWhatsAppOTP(phone: string): ReturnType<typeof authClient.startWhatsAppOTP>;
+  verifyWhatsAppOTP(phone: string, code: string): Promise<AuthUser>;
+  googleStartURL(returnTo?: string): string;
   signUp(name: string, email: string, password: string): Promise<AuthUser>;
   signOut(): Promise<void>;
   forgotPassword(email: string): ReturnType<typeof authClient.forgotPassword>;
@@ -91,6 +94,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setUser(result.user);
         setCsrfToken(result.csrfToken);
         return result.user;
+      },
+
+      startWhatsAppOTP(phone) {
+        return authClient.startWhatsAppOTP(phone);
+      },
+
+      async verifyWhatsAppOTP(phone, code) {
+        const result = await authClient.verifyWhatsAppOTP(phone, code);
+        setUser(result.user);
+        setCsrfToken(result.csrfToken);
+        return result.user;
+      },
+
+      googleStartURL(returnTo = '/') {
+        return authClient.googleStartURL(returnTo);
       },
 
       async signUp(name, email, password) {
