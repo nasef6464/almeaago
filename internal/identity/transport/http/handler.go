@@ -26,8 +26,6 @@ type userResponse struct {
 	Name          string        `json:"name"`
 	Status        string        `json:"status"`
 	AvatarURL     string        `json:"avatarUrl"`
-	NationalID    string        `json:"nationalId,omitempty"`
-	Phone         string        `json:"phone,omitempty"`
 	EmailVerified bool          `json:"emailVerified"`
 	Role          domain.Role   `json:"role"`
 	Roles         []domain.Role `json:"roles"`
@@ -36,10 +34,12 @@ type userResponse struct {
 func New(service *application.Service, production bool) http.Handler {
 	handler := &Handler{service: service, production: production}
 	router := chi.NewRouter()
+	router.Use(noStore)
 
 	router.Post("/register", handler.register)
 	router.Post("/login", handler.login)
 	router.Post("/login/national-id", handler.loginNationalID)
+	router.Post("/login/phone-password", handler.loginPhone)
 	router.Get("/me", handler.me)
 	router.Get("/csrf", handler.csrf)
 	router.Post("/logout", handler.logout)
@@ -47,6 +47,7 @@ func New(service *application.Service, production bool) http.Handler {
 	router.Post("/reset-password", handler.resetPassword)
 	router.Post("/email/verify", handler.verifyEmail)
 	router.Post("/email/resend", handler.resendEmailVerification)
+	router.Post("/email/resend-verification", handler.resendEmailVerification)
 
 	return router
 }
@@ -96,6 +97,23 @@ func (h *Handler) loginNationalID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.service.LoginNationalID(r.Context(), payload.NationalID, payload.Password)
+	if err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+	h.writeAuthResult(w, http.StatusOK, result)
+}
+
+func (h *Handler) loginPhone(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Phone    string `json:"phone"`
+		Password string `json:"password"`
+	}
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+
+	result, err := h.service.LoginPhone(r.Context(), payload.Phone, payload.Password)
 	if err != nil {
 		writeApplicationError(w, err)
 		return
@@ -289,8 +307,6 @@ func presentUser(user domain.User) userResponse {
 		Name:          user.Name,
 		Status:        user.Status,
 		AvatarURL:     user.AvatarURL,
-		NationalID:    user.NationalID,
-		Phone:         user.Phone,
 		EmailVerified: user.EmailVerified,
 		Role:          role,
 		Roles:         user.Roles,
@@ -303,6 +319,14 @@ func sessionToken(r *http.Request) string {
 		return ""
 	}
 	return strings.TrimSpace(cookie.Value)
+}
+
+func noStore(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Pragma", "no-cache")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func sameSite(production bool) http.SameSite {
@@ -326,7 +350,7 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 func writeApplicationError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, application.ErrInvalidCredentials):
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "Invalid email or password"})
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "Invalid credentials"})
 	case errors.Is(err, application.ErrAccountDisabled):
 		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Account is disabled"})
 	case errors.Is(err, application.ErrLoginLocked):
