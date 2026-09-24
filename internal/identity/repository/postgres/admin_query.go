@@ -85,7 +85,7 @@ func buildAdminUserWhere(query domain.AdminUserQuery) (string, []any) {
 		args = append(args, strings.ToLower(query.Search))
 		n := strconv.Itoa(len(args))
 		clauses = append(clauses,
-			"(lower(u.name) LIKE '%' || $"+n+" || '%' OR lower(COALESCE(u.email,'')) LIKE '%' || $"+n+" || '%')",
+			"(lower(u.name) LIKE '%' || $"+n+" || '%' OR lower(u.email) LIKE '%' || $"+n+" || '%')",
 		)
 	}
 	if query.Role != nil {
