@@ -8,21 +8,22 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/nasef6464/almeaago/internal/identity/domain"
+	orgdomain "github.com/nasef6464/almeaago/internal/organizations/domain"
 )
 
 func (r *Repository) AdminUpsertUser(
 	ctx context.Context,
 	actorID string,
 	input domain.AdminUpsertUserInput,
-) (domain.AdminUserRecord, error) {
+) (domain.User, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return domain.AdminUserRecord{}, err
+		return domain.User{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	if err := lockAdminInvariant(ctx, tx); err != nil {
-		return domain.AdminUserRecord{}, err
+		return domain.User{}, err
 	}
 
 	var userID string
@@ -62,16 +63,16 @@ func (r *Repository) AdminUpsertUser(
 		`, input.Email, input.Name, input.PasswordHash).Scan(&userID)
 		if err != nil {
 			if isUniqueViolation(err) {
-				return domain.AdminUserRecord{}, domain.ErrConflict
+				return domain.User{}, domain.ErrConflict
 			}
-			return domain.AdminUserRecord{}, fmt.Errorf("admin create user: %w", err)
+			return domain.User{}, fmt.Errorf("admin create user: %w", err)
 		}
 	case err != nil:
-		return domain.AdminUserRecord{}, err
+		return domain.User{}, err
 	default:
 		if currentIsAdmin && currentStatus == "active" && input.Role != domain.RoleAdmin {
 			if err := ensureAnotherActiveAdmin(ctx, tx, userID); err != nil {
-				return domain.AdminUserRecord{}, err
+				return domain.User{}, err
 			}
 		}
 
@@ -89,9 +90,9 @@ func (r *Repository) AdminUpsertUser(
 		`, userID, input.Name, input.Email, input.PasswordHash)
 		if err != nil {
 			if isUniqueViolation(err) {
-				return domain.AdminUserRecord{}, domain.ErrConflict
+				return domain.User{}, domain.ErrConflict
 			}
-			return domain.AdminUserRecord{}, fmt.Errorf("admin update existing user: %w", err)
+			return domain.User{}, fmt.Errorf("admin update existing user: %w", err)
 		}
 
 		if _, err := tx.Exec(ctx, `
@@ -100,29 +101,30 @@ func (r *Repository) AdminUpsertUser(
 			WHERE user_id::text = $1
 			  AND revoked_at IS NULL
 		`, userID); err != nil {
-			return domain.AdminUserRecord{}, err
+			return domain.User{}, err
 		}
 	}
 
 	roleChanged := existing && currentRole != input.Role
 	if err := replaceAdminRoleTx(ctx, tx, userID, input.Role); err != nil {
-		return domain.AdminUserRecord{}, err
+		return domain.User{}, err
 	}
 
 	schoolID := input.SchoolID
 	classIDs := append([]string(nil), input.ClassIDs...)
 	linkedStudentIDs := append([]string(nil), input.LinkedStudentIDs...)
-	if err := syncAdminScopesTx(
-		ctx,
-		tx,
-		userID,
-		input.Role,
-		roleChanged,
-		&schoolID,
-		&classIDs,
-		&linkedStudentIDs,
-	); err != nil {
-		return domain.AdminUserRecord{}, err
+	if err := r.orgScopes.SyncTx(ctx, tx, orgdomain.AdminAccountScopeCommand{
+		UserID:           userID,
+		Role:             input.Role,
+		RoleChanged:      roleChanged,
+		SchoolID:         &schoolID,
+		ClassIDs:         &classIDs,
+		LinkedStudentIDs: &linkedStudentIDs,
+	}); err != nil {
+		if errors.Is(err, orgdomain.ErrScopeNotFound) {
+			return domain.User{}, domain.ErrNotFound
+		}
+		return domain.User{}, err
 	}
 
 	if err := insertAudit(ctx, tx, actorID, "auth.admin_user.upsert", "user", userID, "success", map[string]any{
@@ -130,17 +132,13 @@ func (r *Repository) AdminUpsertUser(
 		"targetRole":  input.Role,
 		"existing":    existing,
 	}); err != nil {
-		return domain.AdminUserRecord{}, err
+		return domain.User{}, err
 	}
 
-	record, err := adminRecordTx(ctx, tx, userID)
-	if err != nil {
-		return domain.AdminUserRecord{}, err
-	}
 	if err := tx.Commit(ctx); err != nil {
-		return domain.AdminUserRecord{}, err
+		return domain.User{}, err
 	}
-	return record, nil
+	return r.UserByID(ctx, userID)
 }
 
 func (r *Repository) AdminUpdateUser(
@@ -148,15 +146,15 @@ func (r *Repository) AdminUpdateUser(
 	actorID string,
 	targetID string,
 	input domain.AdminUpdateUserInput,
-) (domain.AdminUserRecord, error) {
+) (domain.User, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return domain.AdminUserRecord{}, err
+		return domain.User{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	if err := lockAdminInvariant(ctx, tx); err != nil {
-		return domain.AdminUserRecord{}, err
+		return domain.User{}, err
 	}
 
 	var currentStatus string
@@ -182,10 +180,10 @@ func (r *Repository) AdminUpdateUser(
 		FOR UPDATE OF u
 	`, targetID).Scan(&currentStatus, &currentRole, &currentIsAdmin)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return domain.AdminUserRecord{}, domain.ErrNotFound
+		return domain.User{}, domain.ErrNotFound
 	}
 	if err != nil {
-		return domain.AdminUserRecord{}, err
+		return domain.User{}, err
 	}
 
 	nextActive := currentStatus == "active"
@@ -199,7 +197,7 @@ func (r *Repository) AdminUpdateUser(
 
 	if currentIsAdmin && currentStatus == "active" && (!nextActive || nextRole != domain.RoleAdmin) {
 		if err := ensureAnotherActiveAdmin(ctx, tx, targetID); err != nil {
-			return domain.AdminUserRecord{}, err
+			return domain.User{}, err
 		}
 	}
 
@@ -209,7 +207,7 @@ func (r *Repository) AdminUpdateUser(
 			targetID,
 			*input.Name,
 		); err != nil {
-			return domain.AdminUserRecord{}, err
+			return domain.User{}, err
 		}
 	}
 	if input.AvatarURL != nil {
@@ -218,7 +216,7 @@ func (r *Repository) AdminUpdateUser(
 			targetID,
 			*input.AvatarURL,
 		); err != nil {
-			return domain.AdminUserRecord{}, err
+			return domain.User{}, err
 		}
 	}
 	if input.Active != nil {
@@ -231,27 +229,28 @@ func (r *Repository) AdminUpdateUser(
 			targetID,
 			status,
 		); err != nil {
-			return domain.AdminUserRecord{}, err
+			return domain.User{}, err
 		}
 	}
 
 	roleChanged := input.Role != nil && nextRole != currentRole
 	if input.Role != nil {
 		if err := replaceAdminRoleTx(ctx, tx, targetID, nextRole); err != nil {
-			return domain.AdminUserRecord{}, err
+			return domain.User{}, err
 		}
 	}
-	if err := syncAdminScopesTx(
-		ctx,
-		tx,
-		targetID,
-		nextRole,
-		roleChanged,
-		input.SchoolID,
-		input.ClassIDs,
-		input.LinkedStudentIDs,
-	); err != nil {
-		return domain.AdminUserRecord{}, err
+	if err := r.orgScopes.SyncTx(ctx, tx, orgdomain.AdminAccountScopeCommand{
+		UserID:           targetID,
+		Role:             nextRole,
+		RoleChanged:      roleChanged,
+		SchoolID:         input.SchoolID,
+		ClassIDs:         input.ClassIDs,
+		LinkedStudentIDs: input.LinkedStudentIDs,
+	}); err != nil {
+		if errors.Is(err, orgdomain.ErrScopeNotFound) {
+			return domain.User{}, domain.ErrNotFound
+		}
+		return domain.User{}, err
 	}
 
 	if roleChanged || (input.Active != nil && !*input.Active) {
@@ -261,7 +260,7 @@ func (r *Repository) AdminUpdateUser(
 			WHERE user_id::text = $1
 			  AND revoked_at IS NULL
 		`, targetID); err != nil {
-			return domain.AdminUserRecord{}, err
+			return domain.User{}, err
 		}
 	}
 
@@ -292,15 +291,11 @@ func (r *Repository) AdminUpdateUser(
 		"changedKeys": changed,
 		"targetRole":  nextRole,
 	}); err != nil {
-		return domain.AdminUserRecord{}, err
+		return domain.User{}, err
 	}
 
-	record, err := adminRecordTx(ctx, tx, targetID)
-	if err != nil {
-		return domain.AdminUserRecord{}, err
-	}
 	if err := tx.Commit(ctx); err != nil {
-		return domain.AdminUserRecord{}, err
+		return domain.User{}, err
 	}
-	return record, nil
+	return r.UserByID(ctx, targetID)
 }
