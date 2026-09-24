@@ -16,6 +16,7 @@ interface AuthContextValue {
   loading: boolean;
   signIn(email: string, password: string): Promise<AuthUser>;
   signInNationalId(nationalId: string, password: string): Promise<AuthUser>;
+  signInPhone(phone: string, password: string): Promise<AuthUser>;
   signUp(name: string, email: string, password: string): Promise<AuthUser>;
   signOut(): Promise<void>;
   forgotPassword(email: string): ReturnType<typeof authClient.forgotPassword>;
@@ -80,6 +81,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
       async signInNationalId(nationalId, password) {
         const result = await authClient.loginNationalId(nationalId, password);
+        setUser(result.user);
+        setCsrfToken(result.csrfToken);
+        return result.user;
+      },
+
+      async signInPhone(phone, password) {
+        const result = await authClient.loginPhone(phone, password);
         setUser(result.user);
         setCsrfToken(result.csrfToken);
         return result.user;
