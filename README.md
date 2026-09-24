@@ -1,0 +1,2 @@
+# almeaago
+platform with go
