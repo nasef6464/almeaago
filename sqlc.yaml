@@ -7,6 +7,7 @@ sql:
       - "migrations/000003_identity_auth.up.sql"
       - "migrations/000004_identity_recovery.up.sql"
       - "migrations/000005_identity_providers.up.sql"
+      - "migrations/000006_otp_rate_limit_index.up.sql"
     queries: "db/queries"
     gen:
       go:
