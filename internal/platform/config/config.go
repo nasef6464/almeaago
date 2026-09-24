@@ -13,7 +13,7 @@ type Config struct {
 	WebOrigin   string
 	LogLevel    string
 
-	OTPPepper          string
+	OTPPepper           string
 	WhatsAppOTPEndpoint string
 	WhatsAppOTPToken    string
 
