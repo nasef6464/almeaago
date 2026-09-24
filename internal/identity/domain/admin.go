@@ -36,7 +36,7 @@ type AdminUpdateUserInput struct {
 }
 
 type AdminBulkStatusResult struct {
-	UserID string
-	Status string
-	Reason string
+	UserID string `json:"userId"`
+	Status string `json:"status"`
+	Reason string `json:"reason,omitempty"`
 }
