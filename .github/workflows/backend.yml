@@ -1,0 +1,26 @@
+name: Backend CI
+on:
+  pull_request:
+    paths: ["cmd/**","internal/**","db/**","go.mod","go.sum","sqlc.yaml",".github/workflows/backend.yml"]
+  push:
+    branches: [main]
+    paths: ["cmd/**","internal/**","db/**","go.mod","go.sum","sqlc.yaml",".github/workflows/backend.yml"]
+  workflow_dispatch:
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+permissions: { contents: read }
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.27.1", cache: false }
+      - run: go mod download
+      - run: go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
+      - run: sqlc compile
+      - run: test -z "$(gofmt -l ./cmd ./internal)"
+      - run: go vet ./...
+      - run: go test ./...
