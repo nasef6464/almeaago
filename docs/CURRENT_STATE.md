@@ -7,8 +7,8 @@ Evidence:
 - Database CI: PostgreSQL 18 migrations apply, rollback and re-apply successfully.
 - Frontend CI: TypeScript + Vite production build green.
 - Backend CI: sqlc compile + gofmt + go vet + go test green.
-- CI split into Backend / Frontend / Database with path filters and cancel-in-progress.
-- Product Blueprint, project map, visual parity, database scalability and resource-budget docs live in this repository.
+- CI is split into Backend / Frontend / Database with path filters and cancel-in-progress.
+- Product Blueprint, visual parity, database scalability and resource-budget docs live in this repository.
 
 ## Repository
 `nasef6464/almeaago` is the only implementation repository.
@@ -20,8 +20,9 @@ Evidence:
 Identity/Auth — **IN_PROGRESS**.
 
 ## Identity Core — TESTED / MERGED
-- email/password registration/login.
+- email/password registration and login.
 - Saudi National ID login.
+- phone/password login.
 - opaque revocable sessions.
 - per-session CSRF.
 - Argon2id password hashing.
@@ -41,33 +42,49 @@ Identity/Auth — **IN_PROGRESS**.
 - login/register modal structure preserved.
 - recovery/verification screens preserved.
 - RTL/loading/error/disabled states.
-- Frontend TypeScript + Vite build green.
+- phone/password connected to real backend.
 - screenshot desktop/mobile comparison still required before PARITY_PROVEN.
-- full legacy Header/Homepage remains a later visual slice.
 
-## Identity Provider Foundation — IMPLEMENTED / CI PENDING
-Branch: `feat/identity-providers`
-
-Includes:
+## Identity Provider Foundation — TESTED / MERGED
 - provider-only users can exist without fake email/password values.
 - external identities are explicit in `auth_provider_identities`.
-- OTP challenges have a dedicated short-lived table.
-- Saudi mobile canonicalization: 05xxxxxxxx -> 9665xxxxxxxx.
-- phone/password login uses the same lockout/session/CSRF path as other password login.
-- UI smart phone login now calls the real phone-password endpoint.
-- provider tables and hot lookup indexes are migration-tested by CI definition.
+- OTP challenges are separate short-lived authentication evidence.
+- Saudi phone numbers are canonicalized to 9665xxxxxxxx.
+- provider lookup and OTP history have query-driven indexes.
 
-Still pending:
-- Google OAuth network adapter and callback.
-- WhatsApp OTP delivery adapter/challenge lifecycle.
-- actual external provider credentials.
-- browser visual screenshot gate.
+## Google OAuth + WhatsApp OTP — IMPLEMENTED / CI PENDING
+Branch: `feat/identity-oauth-otp`
+
+Implemented:
+- Google OAuth authorization + callback adapter.
+- 10-minute HttpOnly OAuth state cookie.
+- internal-only returnTo validation.
+- verified Google email required before account resolution.
+- Google subject binds to explicit provider identity.
+- WhatsApp OTP provider adapter through configurable webhook.
+- cryptographically random 6-digit OTP.
+- HMAC-SHA256 OTP digest with external pepper; plaintext OTP is never persisted.
+- 10-minute OTP TTL.
+- maximum 3 OTP sends per 15 minutes per canonical phone.
+- maximum 5 verification attempts per challenge.
+- used/failed-delivery challenges cannot authenticate.
+- WhatsApp-only account does not require fake email or fake password.
+- legacy OTP UI flow restored: send -> code -> verify -> resend.
+- Google callback restores the requested internal path after /me resolves.
+
+External configuration still pending:
+- real Google OAuth client credentials.
+- real WhatsApp delivery endpoint/token.
+- production OTP pepper.
+- live provider smoke test on staging.
+- screenshot visual parity gate.
 
 ## Performance/scalability
 - database scalability policy is mandatory.
-- indexes are tied to real queries, not added speculatively.
-- auth provider lookup uses unique/partial indexes.
-- media and high-volume domains remain subject to bandwidth/query budgets.
+- OTP rate-limit query uses phone/channel/created_at history index.
+- provider subject lookup is unique and indexed.
+- no provider login performs broad user scans.
+- external provider network calls have bounded HTTP timeouts.
 
 ## Next exact action
-Open the provider-foundation PR, require Backend + Database + Frontend CI green, merge exact tested SHA, then implement Google OAuth + WhatsApp OTP on top of the provider identity tables.
+Run Backend + Database + Frontend CI for the OAuth/OTP branch. Repair any gate failure on the same branch, merge the exact tested SHA, then move to Identity admin-account operations and the Auth screenshot parity gate.
