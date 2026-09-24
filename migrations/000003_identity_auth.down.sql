@@ -1,7 +1,5 @@
 BEGIN;
 
-DROP INDEX IF EXISTS auth_sessions_token_active_idx;
-
 ALTER TABLE auth_sessions
   DROP COLUMN IF EXISTS last_seen_at,
   DROP COLUMN IF EXISTS csrf_token_hash;
