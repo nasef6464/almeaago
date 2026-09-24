@@ -34,15 +34,55 @@ const (
 	purposeEmailVerify   = "email_verification"
 )
 
-var nationalIDPattern = regexp.MustCompile(`^[12][0-9]{9}$`)
+var nationalIDPattern = regexp.MustCompile(`^[12][0-9]{9}package application
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/mail"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/nasef6464/almeaago/internal/identity/domain"
+	"github.com/nasef6464/almeaago/internal/platform/security"
+)
+
+var (
+	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrAccountDisabled    = errors.New("account disabled")
+	ErrLoginLocked        = errors.New("login locked")
+	ErrEmailExists        = errors.New("email already exists")
+	ErrInvalidInput       = errors.New("invalid input")
+	ErrUnauthenticated    = errors.New("unauthenticated")
+	ErrCSRF               = errors.New("invalid csrf token")
+	ErrInvalidToken       = errors.New("invalid or expired token")
+)
+
+const (
+	sessionTTL           = 7 * 24 * time.Hour
+	lockDuration         = 15 * time.Minute
+	maxFailedAttempts    = 5
+	passwordResetTTL     = time.Hour
+	emailVerificationTTL = 24 * time.Hour
+	purposePasswordReset = "password_reset"
+	purposeEmailVerify   = "email_verification"
+)
+
+)
+
+const dummyPasswordHash = "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
 type Repository interface {
 	CreateUser(ctx context.Context, name, email, passwordHash string, role domain.Role) (domain.User, error)
 	UserByEmail(ctx context.Context, email string) (domain.User, error)
 	UserByNationalID(ctx context.Context, nationalID string) (domain.User, error)
+	UserByPhone(ctx context.Context, phone string) (domain.User, error)
 	UserByID(ctx context.Context, id string) (domain.User, error)
 	RecordFailedLogin(ctx context.Context, userID string, threshold int, lockDuration time.Duration) error
 	ClearFailedLogin(ctx context.Context, userID string) error
+	UpdatePasswordHash(ctx context.Context, userID, passwordHash string) error
 	CreateSession(ctx context.Context, userID, tokenHash, csrfHash string, expiresAt time.Time) (domain.Session, error)
 	SessionByTokenHash(ctx context.Context, tokenHash string) (domain.Session, domain.User, error)
 	RotateSessionCSRF(ctx context.Context, sessionID, csrfHash string) error
@@ -126,6 +166,7 @@ func (s *Service) Register(ctx context.Context, name, email, password string) (A
 func (s *Service) Login(ctx context.Context, email, password string) (AuthResult, error) {
 	user, err := s.repo.UserByEmail(ctx, normalizeEmail(email))
 	if errors.Is(err, domain.ErrNotFound) {
+		_ = security.VerifyPassword(dummyPasswordHash, password)
 		return AuthResult{}, ErrInvalidCredentials
 	}
 	if err != nil {
@@ -142,6 +183,24 @@ func (s *Service) LoginNationalID(ctx context.Context, nationalID, password stri
 
 	user, err := s.repo.UserByNationalID(ctx, nationalID)
 	if errors.Is(err, domain.ErrNotFound) {
+		_ = security.VerifyPassword(dummyPasswordHash, password)
+		return AuthResult{}, ErrInvalidCredentials
+	}
+	if err != nil {
+		return AuthResult{}, err
+	}
+	return s.loginUser(ctx, user, password)
+}
+
+func (s *Service) LoginPhone(ctx context.Context, phone, password string) (AuthResult, error) {
+	phone = normalizePhone(phone)
+	if len(phone) < 8 || len(phone) > 24 {
+		return AuthResult{}, ErrInvalidCredentials
+	}
+
+	user, err := s.repo.UserByPhone(ctx, phone)
+	if errors.Is(err, domain.ErrNotFound) {
+		_ = security.VerifyPassword(dummyPasswordHash, password)
 		return AuthResult{}, ErrInvalidCredentials
 	}
 	if err != nil {
@@ -301,6 +360,15 @@ func (s *Service) loginUser(ctx context.Context, user domain.User, password stri
 		_ = s.repo.RecordFailedLogin(ctx, user.ID, maxFailedAttempts, lockDuration)
 		return AuthResult{}, ErrInvalidCredentials
 	}
+
+	if security.PasswordHashNeedsUpgrade(user.PasswordHash) {
+		if upgraded, err := security.HashPassword(password); err == nil {
+			if err := s.repo.UpdatePasswordHash(ctx, user.ID, upgraded); err == nil {
+				user.PasswordHash = upgraded
+			}
+		}
+	}
+
 	if err := s.repo.ClearFailedLogin(ctx, user.ID); err != nil {
 		return AuthResult{}, err
 	}
@@ -342,6 +410,17 @@ func (s *Service) createSession(ctx context.Context, user domain.User) (AuthResu
 
 func normalizeEmail(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
+}
+
+func normalizePhone(value string) string {
+	var builder strings.Builder
+	builder.Grow(len(value))
+	for _, r := range value {
+		if r >= '0' && r <= '9' {
+			builder.WriteRune(r)
+		}
+	}
+	return builder.String()
 }
 
 func validEmail(value string) bool {
