@@ -9,7 +9,6 @@ sql:
       - "migrations/000005_identity_providers.up.sql"
       - "migrations/000006_otp_rate_limit_index.up.sql"
       - "migrations/000007_identity_admin_audit.up.sql"
-      - "migrations/000007_identity_admin_audit.up.sql"
     queries: "db/queries"
     gen:
       go:
