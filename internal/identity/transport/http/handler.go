@@ -1,9 +1,12 @@
 package identityhttp
 
 import (
+	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -11,13 +14,32 @@ import (
 
 	"github.com/nasef6464/almeaago/internal/identity/application"
 	"github.com/nasef6464/almeaago/internal/identity/domain"
+	"github.com/nasef6464/almeaago/internal/platform/security"
 )
 
-const sessionCookieName = "almeaa_access_token"
+const (
+	sessionCookieName        = "almeaa_access_token"
+	googleStateCookieName    = "almeaa_google_oauth_state"
+	googleReturnCookieName   = "almeaa_google_oauth_return"
+	googleStateTTL           = 10 * time.Minute
+)
+
+type GoogleOAuth interface {
+	Available() bool
+	AuthorizationURL(state string) string
+	Exchange(ctx context.Context, code string) (domain.GoogleProfile, error)
+}
+
+type Options struct {
+	Google    GoogleOAuth
+	WebOrigin string
+}
 
 type Handler struct {
 	service    *application.Service
 	production bool
+	google     GoogleOAuth
+	webOrigin  string
 }
 
 type userResponse struct {
@@ -33,14 +55,29 @@ type userResponse struct {
 	Roles         []domain.Role `json:"roles"`
 }
 
-func New(service *application.Service, production bool) http.Handler {
-	handler := &Handler{service: service, production: production}
+func New(service *application.Service, production bool, options ...Options) http.Handler {
+	handler := &Handler{
+		service:    service,
+		production: production,
+		webOrigin:  "http://localhost:5173",
+	}
+	if len(options) > 0 {
+		handler.google = options[0].Google
+		if strings.TrimSpace(options[0].WebOrigin) != "" {
+			handler.webOrigin = strings.TrimRight(options[0].WebOrigin, "/")
+		}
+	}
+
 	router := chi.NewRouter()
 
 	router.Post("/register", handler.register)
 	router.Post("/login", handler.login)
 	router.Post("/login/national-id", handler.loginNationalID)
 	router.Post("/login/phone-password", handler.loginPhonePassword)
+	router.Post("/whatsapp/start", handler.startWhatsAppOTP)
+	router.Post("/whatsapp/verify", handler.verifyWhatsAppOTP)
+	router.Get("/google/start", handler.googleStart)
+	router.Get("/google/callback", handler.googleCallback)
 	router.Get("/me", handler.me)
 	router.Get("/csrf", handler.csrf)
 	router.Post("/logout", handler.logout)
@@ -121,6 +158,103 @@ func (h *Handler) loginPhonePassword(w http.ResponseWriter, r *http.Request) {
 	h.writeAuthResult(w, http.StatusOK, result)
 }
 
+func (h *Handler) startWhatsAppOTP(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Phone string `json:"phone"`
+	}
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+
+	result, err := h.service.StartWhatsAppOTP(r.Context(), payload.Phone)
+	if err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"message":          "OTP sent to WhatsApp.",
+		"expiresInSeconds": result.ExpiresInSeconds,
+	})
+}
+
+func (h *Handler) verifyWhatsAppOTP(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Phone string `json:"phone"`
+		Code  string `json:"code"`
+	}
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+
+	result, err := h.service.VerifyWhatsAppOTP(r.Context(), payload.Phone, payload.Code)
+	if err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+	h.writeAuthResult(w, http.StatusOK, result)
+}
+
+func (h *Handler) googleStart(w http.ResponseWriter, r *http.Request) {
+	if h.google == nil || !h.google.Available() {
+		writeApplicationError(w, application.ErrProviderUnavailable)
+		return
+	}
+
+	state, err := security.NewOpaqueToken(32)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Unable to start Google login"})
+		return
+	}
+	returnTo := normalizeReturnTo(r.URL.Query().Get("returnTo"))
+
+	h.setOAuthCookie(w, googleStateCookieName, state)
+	h.setOAuthCookie(w, googleReturnCookieName, returnTo)
+	http.Redirect(w, r, h.google.AuthorizationURL(state), http.StatusFound)
+}
+
+func (h *Handler) googleCallback(w http.ResponseWriter, r *http.Request) {
+	if h.google == nil || !h.google.Available() {
+		h.redirectOAuthError(w, r, "unavailable")
+		return
+	}
+
+	code := strings.TrimSpace(r.URL.Query().Get("code"))
+	state := strings.TrimSpace(r.URL.Query().Get("state"))
+	if code == "" || state == "" || r.URL.Query().Get("error") != "" {
+		h.clearOAuthCookies(w)
+		h.redirectOAuthError(w, r, "provider")
+		return
+	}
+
+	stateCookie, err := r.Cookie(googleStateCookieName)
+	if err != nil || !constantTimeEqual(strings.TrimSpace(stateCookie.Value), state) {
+		h.clearOAuthCookies(w)
+		h.redirectOAuthError(w, r, "state")
+		return
+	}
+
+	returnTo := "/"
+	if returnCookie, err := r.Cookie(googleReturnCookieName); err == nil {
+		returnTo = normalizeReturnTo(returnCookie.Value)
+	}
+	h.clearOAuthCookies(w)
+
+	profile, err := h.google.Exchange(r.Context(), code)
+	if err != nil {
+		h.redirectOAuthError(w, r, "exchange")
+		return
+	}
+	result, err := h.service.LoginGoogle(r.Context(), profile)
+	if err != nil {
+		h.redirectOAuthError(w, r, "account")
+		return
+	}
+
+	h.setSessionCookie(w, result)
+	target := h.webOrigin + "/login?oauth_provider=google&oauth_return=" + url.QueryEscape(returnTo)
+	http.Redirect(w, r, target, http.StatusFound)
+}
+
 func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 	auth, ok := h.authenticate(w, r)
 	if !ok {
@@ -182,11 +316,7 @@ func (h *Handler) forgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Always return the same public response to avoid account enumeration.
-	// Delivery/infrastructure failures are observed out-of-band, never through
-	// an existence-dependent HTTP response.
 	_ = h.service.ForgotPassword(r.Context(), payload.Email)
-
 	writeJSON(w, http.StatusOK, map[string]string{
 		"message": "If this email exists, password reset instructions will be sent.",
 	})
@@ -205,10 +335,7 @@ func (h *Handler) resetPassword(w http.ResponseWriter, r *http.Request) {
 		writeApplicationError(w, err)
 		return
 	}
-
-	writeJSON(w, http.StatusOK, map[string]string{
-		"message": "Password has been reset.",
-	})
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Password has been reset."})
 }
 
 func (h *Handler) verifyEmail(w http.ResponseWriter, r *http.Request) {
@@ -224,7 +351,6 @@ func (h *Handler) verifyEmail(w http.ResponseWriter, r *http.Request) {
 		writeApplicationError(w, err)
 		return
 	}
-
 	writeJSON(w, http.StatusOK, map[string]any{
 		"user":    presentUser(user),
 		"message": "Email has been verified.",
@@ -262,11 +388,18 @@ func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request) (applicat
 }
 
 func (h *Handler) writeAuthResult(w http.ResponseWriter, status int, result application.AuthResult) {
+	h.setSessionCookie(w, result)
+	writeJSON(w, status, map[string]any{
+		"user":      presentUser(result.User),
+		"csrfToken": result.CSRFToken,
+	})
+}
+
+func (h *Handler) setSessionCookie(w http.ResponseWriter, result application.AuthResult) {
 	maxAge := int(time.Until(result.ExpiresAt).Seconds())
 	if maxAge < 1 {
 		maxAge = 1
 	}
-
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    result.SessionToken,
@@ -276,10 +409,6 @@ func (h *Handler) writeAuthResult(w http.ResponseWriter, status int, result appl
 		SameSite: sameSite(h.production),
 		Expires:  result.ExpiresAt,
 		MaxAge:   maxAge,
-	})
-	writeJSON(w, status, map[string]any{
-		"user":      presentUser(result.User),
-		"csrfToken": result.CSRFToken,
 	})
 }
 
@@ -294,6 +423,39 @@ func (h *Handler) clearSessionCookie(w http.ResponseWriter) {
 		MaxAge:   -1,
 		Expires:  time.Unix(1, 0),
 	})
+}
+
+func (h *Handler) setOAuthCookie(w http.ResponseWriter, name, value string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     "/api/v1/auth/google",
+		HttpOnly: true,
+		Secure:   h.production,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   int(googleStateTTL.Seconds()),
+		Expires:  time.Now().Add(googleStateTTL),
+	})
+}
+
+func (h *Handler) clearOAuthCookies(w http.ResponseWriter) {
+	for _, name := range []string{googleStateCookieName, googleReturnCookieName} {
+		http.SetCookie(w, &http.Cookie{
+			Name:     name,
+			Value:    "",
+			Path:     "/api/v1/auth/google",
+			HttpOnly: true,
+			Secure:   h.production,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   -1,
+			Expires:  time.Unix(1, 0),
+		})
+	}
+}
+
+func (h *Handler) redirectOAuthError(w http.ResponseWriter, r *http.Request, step string) {
+	target := h.webOrigin + "/login?oauth_error=google&step=" + url.QueryEscape(step)
+	http.Redirect(w, r, target, http.StatusFound)
 }
 
 func presentUser(user domain.User) userResponse {
@@ -330,6 +492,27 @@ func sameSite(production bool) http.SameSite {
 	return http.SameSiteLaxMode
 }
 
+func normalizeReturnTo(value string) string {
+	candidate := strings.TrimSpace(value)
+	if candidate == "" {
+		return "/"
+	}
+	if !strings.HasPrefix(candidate, "/") ||
+		strings.HasPrefix(candidate, "//") ||
+		strings.Contains(candidate, "\\") ||
+		strings.ContainsAny(candidate, "\r\n") {
+		return "/"
+	}
+	return candidate
+}
+
+func constantTimeEqual(left, right string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(left), []byte(right)) == 1
+}
+
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 	decoder := json.NewDecoder(r.Body)
@@ -344,7 +527,7 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 func writeApplicationError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, application.ErrInvalidCredentials):
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "Invalid email or password"})
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "Invalid credentials"})
 	case errors.Is(err, application.ErrAccountDisabled):
 		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Account is disabled"})
 	case errors.Is(err, application.ErrLoginLocked):
@@ -361,6 +544,10 @@ func writeApplicationError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid or expired token"})
 	case errors.Is(err, application.ErrPasswordUnavailable):
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "لا توجد كلمة مرور مضبوطة لهذا الحساب — استخدم رمز واتساب بدلاً"})
+	case errors.Is(err, application.ErrProviderUnavailable):
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"message": "Authentication provider is not configured"})
+	case errors.Is(err, application.ErrRateLimited), errors.Is(err, application.ErrTooManyAttempts):
+		writeJSON(w, http.StatusTooManyRequests, map[string]string{"message": "Too many attempts. Try again later."})
 	default:
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Internal server error"})
 	}
