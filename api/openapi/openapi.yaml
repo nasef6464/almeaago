@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: ALMEAA API
-  version: 0.1.0
+  version: 0.2.0
 paths:
   /health/live:
     get:
@@ -14,3 +14,55 @@ paths:
       responses:
         "200": { description: Core dependencies are reachable }
         "503": { description: Dependency unavailable }
+
+  /api/v1/auth/register:
+    post:
+      operationId: authRegister
+      responses:
+        "201": { description: Account and session created }
+        "400": { description: Invalid request }
+        "409": { description: Email already exists }
+
+  /api/v1/auth/login:
+    post:
+      operationId: authLogin
+      responses:
+        "200": { description: Authenticated }
+        "401": { description: Invalid credentials }
+        "403": { description: Account disabled }
+        "429": { description: Login locked }
+
+  /api/v1/auth/login/national-id:
+    post:
+      operationId: authLoginNationalId
+      responses:
+        "200": { description: Authenticated }
+        "401": { description: Invalid credentials }
+        "403": { description: Account disabled }
+        "429": { description: Login locked }
+
+  /api/v1/auth/me:
+    get:
+      operationId: authMe
+      responses:
+        "200": { description: Current user }
+        "401": { description: Authentication required }
+
+  /api/v1/auth/csrf:
+    get:
+      operationId: authCsrf
+      responses:
+        "200": { description: Rotated CSRF token }
+        "401": { description: Authentication required }
+
+  /api/v1/auth/logout:
+    post:
+      operationId: authLogout
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      responses:
+        "204": { description: Logged out }
+        "403": { description: Invalid CSRF token }
