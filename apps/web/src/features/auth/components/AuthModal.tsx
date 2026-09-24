@@ -18,7 +18,7 @@ interface Props {
 
 export function AuthModal({ open, initialSignUp = false, onClose }: Props) {
   const navigate = useNavigate();
-  const { signIn, signInNationalId, signUp } = useAuth();
+  const { signIn, signInNationalId, signInPhone, signUp } = useAuth();
 
   const [isSignUp, setIsSignUp] = useState(initialSignUp);
   const [authError, setAuthError] = useState('');
@@ -100,7 +100,9 @@ export function AuthModal({ open, initialSignUp = false, onClose }: Props) {
       }
 
       if (inputType === 'phone') {
-        setAuthError('الدخول بالجوال سيُفعّل مع مسار الجوال والواتساب في مرحلة الهوية التالية.');
+        const user = await signInPhone(identity, enteredPassword);
+        close();
+        navigate(dashboardPathFor(user));
         return;
       }
 
