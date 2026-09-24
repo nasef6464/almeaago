@@ -22,6 +22,7 @@ var (
 	ErrUnauthenticated    = errors.New("unauthenticated")
 	ErrCSRF               = errors.New("invalid csrf token")
 	ErrInvalidToken       = errors.New("invalid or expired token")
+	ErrPasswordUnavailable = errors.New("password unavailable")
 )
 
 const (
@@ -40,6 +41,7 @@ type Repository interface {
 	CreateUser(ctx context.Context, name, email, passwordHash string, role domain.Role) (domain.User, error)
 	UserByEmail(ctx context.Context, email string) (domain.User, error)
 	UserByNationalID(ctx context.Context, nationalID string) (domain.User, error)
+	UserByPhone(ctx context.Context, phone string) (domain.User, error)
 	UserByID(ctx context.Context, id string) (domain.User, error)
 	RecordFailedLogin(ctx context.Context, userID string, threshold int, lockDuration time.Duration) error
 	ClearFailedLogin(ctx context.Context, userID string) error
@@ -146,6 +148,25 @@ func (s *Service) LoginNationalID(ctx context.Context, nationalID, password stri
 	}
 	if err != nil {
 		return AuthResult{}, err
+	}
+	return s.loginUser(ctx, user, password)
+}
+
+func (s *Service) LoginPhonePassword(ctx context.Context, phone, password string) (AuthResult, error) {
+	normalized, ok := domain.NormalizeSaudiPhone(phone)
+	if !ok || strings.TrimSpace(password) == "" {
+		return AuthResult{}, ErrInvalidCredentials
+	}
+
+	user, err := s.repo.UserByPhone(ctx, normalized)
+	if errors.Is(err, domain.ErrNotFound) {
+		return AuthResult{}, ErrInvalidCredentials
+	}
+	if err != nil {
+		return AuthResult{}, err
+	}
+	if strings.TrimSpace(user.PasswordHash) == "" {
+		return AuthResult{}, ErrPasswordUnavailable
 	}
 	return s.loginUser(ctx, user, password)
 }
