@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: ALMEAA API
-  version: 0.2.0
+  version: 0.3.0
 paths:
   /health/live:
     get:
@@ -66,3 +66,69 @@ paths:
       responses:
         "204": { description: Logged out }
         "403": { description: Invalid CSRF token }
+
+  /api/v1/auth/forgot-password:
+    post:
+      operationId: authForgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "200": { description: Generic recovery response }
+        "500": { description: Recovery service unavailable }
+
+  /api/v1/auth/reset-password:
+    post:
+      operationId: authResetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token, password]
+              properties:
+                token: { type: string, minLength: 16 }
+                password: { type: string, minLength: 8, maxLength: 160 }
+      responses:
+        "200": { description: Password reset and active sessions revoked }
+        "400": { description: Invalid request or expired token }
+
+  /api/v1/auth/email/verify:
+    post:
+      operationId: authVerifyEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token]
+              properties:
+                token: { type: string, minLength: 16 }
+      responses:
+        "200": { description: Email verified }
+        "400": { description: Invalid or expired token }
+
+  /api/v1/auth/email/resend:
+    post:
+      operationId: authResendEmailVerification
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Verification delivery queued }
+        "401": { description: Authentication required }
+        "403": { description: Invalid CSRF token }
+        "500": { description: Delivery unavailable }
