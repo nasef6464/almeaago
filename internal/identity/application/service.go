@@ -14,14 +14,14 @@ import (
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrAccountDisabled    = errors.New("account disabled")
-	ErrLoginLocked        = errors.New("login locked")
-	ErrEmailExists        = errors.New("email already exists")
-	ErrInvalidInput       = errors.New("invalid input")
-	ErrUnauthenticated    = errors.New("unauthenticated")
-	ErrCSRF               = errors.New("invalid csrf token")
-	ErrInvalidToken       = errors.New("invalid or expired token")
+	ErrInvalidCredentials  = errors.New("invalid credentials")
+	ErrAccountDisabled     = errors.New("account disabled")
+	ErrLoginLocked         = errors.New("login locked")
+	ErrEmailExists         = errors.New("email already exists")
+	ErrInvalidInput        = errors.New("invalid input")
+	ErrUnauthenticated     = errors.New("unauthenticated")
+	ErrCSRF                = errors.New("invalid csrf token")
+	ErrInvalidToken        = errors.New("invalid or expired token")
 	ErrPasswordUnavailable = errors.New("password unavailable")
 )
 
