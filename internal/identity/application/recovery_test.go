@@ -11,15 +11,15 @@ import (
 )
 
 type recoveryRepo struct {
-	userByEmail      domain.User
-	userByEmailErr   error
-	issuedUserID     string
-	issuedPurpose    string
-	issuedTokenHash  string
-	issuedExpiresAt  time.Time
-	resetTokenHash   string
+	userByEmail       domain.User
+	userByEmailErr    error
+	issuedUserID      string
+	issuedPurpose     string
+	issuedTokenHash   string
+	issuedExpiresAt   time.Time
+	resetTokenHash    string
 	resetPasswordHash string
-	verifyTokenHash  string
+	verifyTokenHash   string
 }
 
 func (r *recoveryRepo) CreateUser(context.Context, string, string, string, domain.Role) (domain.User, error) {
