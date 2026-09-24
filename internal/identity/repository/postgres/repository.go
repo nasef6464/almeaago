@@ -11,14 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/nasef6464/almeaago/internal/identity/domain"
+	orgpostgres "github.com/nasef6464/almeaago/internal/organizations/repository/postgres"
 )
 
 type Repository struct {
-	db *pgxpool.Pool
+	db        *pgxpool.Pool
+	orgScopes *orgpostgres.AdminScopeWriter
 }
 
 func New(db *pgxpool.Pool) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		db:        db,
+		orgScopes: orgpostgres.NewAdminScopeWriter(),
+	}
 }
 
 func (r *Repository) CreateUser(ctx context.Context, name, email, passwordHash string, role domain.Role) (domain.User, error) {
