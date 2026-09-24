@@ -21,6 +21,9 @@ func (r *Repository) AdminUpsertUser(
 		return domain.User{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if err := lockAdminInvariant(ctx, tx); err != nil {
+		return domain.User{}, err
+	}
 
 	var userID string
 	var currentStatus string
@@ -109,6 +112,9 @@ func (r *Repository) AdminUpdateUser(
 		return domain.User{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if err := lockAdminInvariant(ctx, tx); err != nil {
+		return domain.User{}, err
+	}
 
 	var currentStatus string
 	var currentIsAdmin bool
@@ -233,6 +239,9 @@ func (r *Repository) AdminBulkStatus(
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if err := lockAdminInvariant(ctx, tx); err != nil {
+		return nil, err
+	}
 
 	activeAdminIDs, err := lockActiveAdmins(ctx, tx)
 	if err != nil {
@@ -351,6 +360,9 @@ func (r *Repository) AdminDeleteUser(
 		return err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if err := lockAdminInvariant(ctx, tx); err != nil {
+		return err
+	}
 
 	var status string
 	var isAdmin bool
@@ -388,6 +400,11 @@ func (r *Repository) AdminDeleteUser(
 	}
 
 	return tx.Commit(ctx)
+}
+
+func lockAdminInvariant(ctx context.Context, tx pgx.Tx) error {
+	_, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtext('identity_active_admin_invariant'))")
+	return err
 }
 
 func ensureAnotherActiveAdmin(ctx context.Context, tx pgx.Tx, targetID string) error {
