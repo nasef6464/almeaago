@@ -20,7 +20,7 @@ var (
 
 const (
 	PurposeEmailVerification = "email_verification"
-	PurposePasswordReset      = "password_reset"
+	PurposePasswordReset     = "password_reset"
 )
 
 type Repository interface {
@@ -52,4 +52,4 @@ type Delivery interface {
 type DiscardDelivery struct{}
 
 func (DiscardDelivery) SendEmailVerification(context.Context, string, string) error { return nil }
-func (DiscardDelivery) SendPasswordReset(context.Context, string, string) error      { return nil }
+func (DiscardDelivery) SendPasswordReset(context.Context, string, string) error     { return nil }
