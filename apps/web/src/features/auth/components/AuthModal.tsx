@@ -262,6 +262,9 @@ export function AuthModal({ open, initialSignUp = false, onClose }: Props) {
                 onChange={(value) => {
                   setSmartInput(value);
                   setAuthError('');
+                  setOtpSent(false);
+                  setOtpCode('');
+                  setOtpExpiresIn(0);
                 }}
               />
 
@@ -309,30 +312,51 @@ export function AuthModal({ open, initialSignUp = false, onClose }: Props) {
                 )}
               </button>
 
-              {inputType === 'phone' ? (
-                otpSent ? (
-                  <div className="space-y-2 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/20">
-                    <p className="text-center text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                      أرسلنا رمزاً من 6 أرقام إلى واتساب
-                      {otpExpiresIn > 0 ? ` — صالح لمدة ${Math.ceil(otpExpiresIn / 60)} دقائق` : ''}
-                    </p>
-                    <form onSubmit={submitWhatsAppOTP} className="space-y-2">
+              {inputType === 'phone' && smartInput.trim().length > 3 ? (
+                <div className="space-y-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+                  <p className="text-center text-xs font-medium text-gray-400">
+                    أو الدخول السريع عبر رمز واتساب
+                  </p>
+
+                  {!otpSent ? (
+                    <button
+                      id="smart-otp-send-btn"
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => void sendWhatsAppOTP()}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-[#1ebe5d] disabled:opacity-50"
+                    >
+                      {submitting ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <MessageCircle size={18} />
+                      )}
+                      إرسال رمز التحقق على واتساب
+                    </button>
+                  ) : (
+                    <div className="space-y-2">
                       <input
+                        id="smart-otp-code"
                         type="text"
                         inputMode="numeric"
                         autoComplete="one-time-code"
                         maxLength={6}
                         value={otpCode}
                         onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                        className="w-full rounded-xl border-2 border-emerald-200 bg-white px-4 py-3 text-center text-xl font-black tracking-[0.35em] outline-none transition focus:border-emerald-400 dark:border-emerald-900/60 dark:bg-slate-800 dark:text-white"
+                        className="w-full rounded-xl border-2 border-[#25D366] bg-white px-4 py-3 text-center text-2xl font-mono tracking-widest outline-none transition focus:border-[#1ebe5d] focus:ring-0 dark:bg-slate-800 dark:text-white"
                         dir="ltr"
-                        placeholder="000000"
-                        aria-label="رمز واتساب"
+                        placeholder="• • • • • •"
                         autoFocus
                       />
+                      <p className="text-center text-xs font-medium text-[#25D366]">
+                        ✓ تم إرسال الرمز على واتساب بنجاح
+                        {otpExpiresIn > 0 ? ` — صالح ${Math.ceil(otpExpiresIn / 60)} دقائق` : ''}
+                      </p>
                       <button
-                        type="submit"
+                        id="smart-otp-verify-btn"
+                        type="button"
                         disabled={submitting || otpCode.length !== 6}
+                        onClick={(event) => void submitWhatsAppOTP(event as unknown as FormEvent)}
                         className="w-full rounded-xl bg-[#25D366] py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-[#1ebe5d] disabled:opacity-50"
                       >
                         {submitting ? (
@@ -344,30 +368,20 @@ export function AuthModal({ open, initialSignUp = false, onClose }: Props) {
                           'تحقق ودخول'
                         )}
                       </button>
-                    </form>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOtpSent(false);
-                        setOtpCode('');
-                        void sendWhatsAppOTP();
-                      }}
-                      className="w-full py-1 text-xs font-medium text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    >
-                      إعادة إرسال الرمز
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => void sendWhatsAppOTP()}
-                    disabled={submitting}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-[#1ebe5d] disabled:opacity-50"
-                  >
-                    <MessageCircle size={18} />
-                    {submitting ? 'جارٍ إرسال الرمز...' : 'تسجيل بالواتساب'}
-                  </button>
-                )
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOtpSent(false);
+                          setOtpCode('');
+                          setOtpExpiresIn(0);
+                        }}
+                        className="w-full py-1 text-xs font-medium text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      >
+                        إعادة إرسال الرمز
+                      </button>
+                    </div>
+                  )}
+                </div>
               ) : null}
             </form>
           ) : (
