@@ -1,25 +1,6 @@
 package domain
 
-type AdminUserWrite struct {
-	Name             *string
-	Email            *string
-	PasswordHash     *string
-	Role             *Role
-	Active           *bool
-	AvatarURL        *string
-	SchoolID         *string
-	ClassIDs         *[]string
-	LinkedStudentIDs *[]string
-}
-
-type AdminUserRecord struct {
-	User             User
-	SchoolID         string
-	ClassIDs         []string
-	LinkedStudentIDs []string
-}
-
-type AdminUserListOptions struct {
+type AdminUserQuery struct {
 	Page   int
 	Limit  int
 	Search string
@@ -30,41 +11,49 @@ type AdminUserListOptions struct {
 	ActorRoles  []Role
 }
 
-type AdminUserPage struct {
-	Users      []AdminUserRecord
-	Page       int
-	Limit      int
-	Total      int
-	TotalPages int
+type AdminUserRecord struct {
+	User             User
+	SchoolID         string
+	ClassIDs         []string
+	LinkedStudentIDs []string
 }
 
-type AdminSummary struct {
+type AdminUserPage struct {
+	Users []AdminUserRecord
+	Page  int
+	Limit int
+	Total int
+}
+
+type AdminUserSummary struct {
 	Total            int
 	Inactive         int
 	ByRole           map[Role]int
 	PlatformTrainers int
 }
 
-type BulkStatusResult struct {
-	UserID string
-	Status string
-	Reason string
+type AdminUpsertUserInput struct {
+	Name             string
+	Email            string
+	PasswordHash     string
+	Role             Role
+	SchoolID         string
+	ClassIDs         []string
+	LinkedStudentIDs []string
 }
 
-func IsValidRole(role Role) bool {
-	switch role {
-	case RoleStudent, RoleTeacher, RoleAdmin, RoleSupervisor, RoleSchoolAdmin, RoleParent:
-		return true
-	default:
-		return false
-	}
+type AdminUpdateUserInput struct {
+	Name             *string
+	AvatarURL        *string
+	Role             *Role
+	Active           *bool
+	SchoolID         *string
+	ClassIDs         *[]string
+	LinkedStudentIDs *[]string
 }
 
-func HasRole(roles []Role, target Role) bool {
-	for _, role := range roles {
-		if role == target {
-			return true
-		}
-	}
-	return false
+type AdminBulkStatusResult struct {
+	UserID string `json:"userId"`
+	Status string `json:"status"`
+	Reason string `json:"reason,omitempty"`
 }
