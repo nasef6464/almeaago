@@ -414,7 +414,6 @@ func (r *Repository) VerifyEmailByToken(
 	return r.UserByID(ctx, userID)
 }
 
-
 func (r *Repository) CountRecentOTPChallenges(
 	ctx context.Context,
 	phone string,
