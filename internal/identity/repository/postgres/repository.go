@@ -238,7 +238,7 @@ func (r *Repository) SessionByTokenHash(ctx context.Context, tokenHash string) (
 	}
 	user.Roles = roles
 
-	_, _ = r.db.Exec(ctx, `UPDATE auth_sessions SET last_seen_at = now() WHERE id = $1`, session.ID)
+	_, _ = r.db.Exec(ctx, `UPDATE auth_sessions SET last_seen_at = now() WHERE id = $1 AND last_seen_at < now() - interval '5 minutes'`, session.ID)
 	return session, user, nil
 }
 
