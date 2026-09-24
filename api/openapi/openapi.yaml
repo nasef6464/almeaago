@@ -1,13 +1,14 @@
 openapi: 3.1.0
 info:
   title: ALMEAA API
-  version: 0.2.0
+  version: 0.3.0
 paths:
   /health/live:
     get:
       operationId: healthLive
       responses:
         "200": { description: Process is alive }
+
   /health/ready:
     get:
       operationId: healthReady
@@ -18,51 +19,301 @@ paths:
   /api/v1/auth/register:
     post:
       operationId: authRegister
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
       responses:
-        "201": { description: Account and session created }
-        "400": { description: Invalid request }
-        "409": { description: Email already exists }
+        "201": { $ref: "#/components/responses/AuthResult" }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+        "409": { $ref: "#/components/responses/ErrorResponse" }
 
   /api/v1/auth/login:
     post:
       operationId: authLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
       responses:
-        "200": { description: Authenticated }
-        "401": { description: Invalid credentials }
-        "403": { description: Account disabled }
-        "429": { description: Login locked }
+        "200": { $ref: "#/components/responses/AuthResult" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "429": { $ref: "#/components/responses/ErrorResponse" }
 
   /api/v1/auth/login/national-id:
     post:
-      operationId: authLoginNationalId
+      operationId: authLoginNationalID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NationalIDLoginRequest"
       responses:
-        "200": { description: Authenticated }
-        "401": { description: Invalid credentials }
-        "403": { description: Account disabled }
-        "429": { description: Login locked }
+        "200": { $ref: "#/components/responses/AuthResult" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "429": { $ref: "#/components/responses/ErrorResponse" }
+
+  /api/v1/auth/login/phone-password:
+    post:
+      operationId: authLoginPhonePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhoneLoginRequest"
+      responses:
+        "200": { $ref: "#/components/responses/AuthResult" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+        "429": { $ref: "#/components/responses/ErrorResponse" }
 
   /api/v1/auth/me:
     get:
       operationId: authMe
       responses:
-        "200": { description: Current user }
-        "401": { description: Authentication required }
+        "200": { $ref: "#/components/responses/UserResponse" }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
 
   /api/v1/auth/csrf:
     get:
       operationId: authCsrf
       responses:
-        "200": { description: Rotated CSRF token }
-        "401": { description: Authentication required }
+        "200":
+          description: Rotated CSRF token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [csrfToken]
+                properties:
+                  csrfToken: { type: string }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
 
   /api/v1/auth/logout:
     post:
       operationId: authLogout
       parameters:
-        - in: header
-          name: X-CSRF-Token
-          required: true
-          schema: { type: string }
+        - $ref: "#/components/parameters/CsrfHeader"
       responses:
         "204": { description: Logged out }
-        "403": { description: Invalid CSRF token }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+
+  /api/v1/auth/forgot-password:
+    post:
+      operationId: authForgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordRequest"
+      responses:
+        "200":
+          description: Generic recovery response
+
+  /api/v1/auth/reset-password:
+    post:
+      operationId: authResetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200": { description: Password reset }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+
+  /api/v1/auth/email/verify:
+    post:
+      operationId: authVerifyEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TokenRequest"
+      responses:
+        "200": { $ref: "#/components/responses/UserResponse" }
+        "400": { $ref: "#/components/responses/ErrorResponse" }
+
+  /api/v1/auth/email/resend-verification:
+    post:
+      operationId: authResendEmailVerification
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      responses:
+        "200": { description: Verification email queued }
+        "401": { $ref: "#/components/responses/ErrorResponse" }
+        "403": { $ref: "#/components/responses/ErrorResponse" }
+
+components:
+  parameters:
+    CsrfHeader:
+      in: header
+      name: X-CSRF-Token
+      required: true
+      schema:
+        type: string
+
+  schemas:
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          minLength: 2
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 160
+
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+          maxLength: 160
+
+    NationalIDLoginRequest:
+      type: object
+      additionalProperties: false
+      required: [nationalId, password]
+      properties:
+        nationalId:
+          type: string
+          pattern: "^[12][0-9]{9}$"
+        password:
+          type: string
+          minLength: 1
+          maxLength: 160
+
+    PhoneLoginRequest:
+      type: object
+      additionalProperties: false
+      required: [phone, password]
+      properties:
+        phone:
+          type: string
+          minLength: 8
+          maxLength: 24
+        password:
+          type: string
+          minLength: 1
+          maxLength: 160
+
+    ForgotPasswordRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    ResetPasswordRequest:
+      type: object
+      additionalProperties: false
+      required: [token, password]
+      properties:
+        token:
+          type: string
+          minLength: 16
+        password:
+          type: string
+          minLength: 8
+          maxLength: 160
+
+    TokenRequest:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token:
+          type: string
+          minLength: 16
+
+    User:
+      type: object
+      required: [id, email, name, status, emailVerified, role, roles]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        status:
+          type: string
+        avatarUrl:
+          type: string
+        emailVerified:
+          type: boolean
+        role:
+          type: string
+          enum: [student, teacher, admin, supervisor, school_admin, parent]
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [student, teacher, admin, supervisor, school_admin, parent]
+
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+  responses:
+    AuthResult:
+      description: Authenticated user and CSRF token
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [user, csrfToken]
+            properties:
+              user:
+                $ref: "#/components/schemas/User"
+              csrfToken:
+                type: string
+
+    UserResponse:
+      description: Current user
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [user]
+            properties:
+              user:
+                $ref: "#/components/schemas/User"
+
+    ErrorResponse:
+      description: API error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
