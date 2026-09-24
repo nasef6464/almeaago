@@ -68,6 +68,13 @@ export const authClient = {
     });
   },
 
+  loginPhone(phone: string, password: string) {
+    return request<AuthResult>('/api/v1/auth/login/phone-password', {
+      method: 'POST',
+      body: JSON.stringify({ phone, password }),
+    });
+  },
+
   me() {
     return request<{ user: AuthUser }>('/api/v1/auth/me');
   },
