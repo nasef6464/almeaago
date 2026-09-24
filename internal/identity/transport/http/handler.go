@@ -1,6 +1,7 @@
 package identityhttp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -15,8 +16,23 @@ import (
 
 const sessionCookieName = "almeaa_access_token"
 
+type service interface {
+	Register(ctx context.Context, name, email, password string) (application.AuthResult, error)
+	Login(ctx context.Context, email, password string) (application.AuthResult, error)
+	LoginNationalID(ctx context.Context, nationalID, password string) (application.AuthResult, error)
+	LoginPhone(ctx context.Context, phone, password string) (application.AuthResult, error)
+	Authenticate(ctx context.Context, rawToken string) (application.Authenticated, error)
+	RotateCSRF(ctx context.Context, auth application.Authenticated) (string, error)
+	VerifyCSRF(auth application.Authenticated, rawCSRF string) error
+	Logout(ctx context.Context, rawToken string) error
+	ForgotPassword(ctx context.Context, email string) error
+	ResetPassword(ctx context.Context, rawToken, password string) error
+	VerifyEmail(ctx context.Context, rawToken string) (domain.User, error)
+	ResendEmailVerification(ctx context.Context, auth application.Authenticated) error
+}
+
 type Handler struct {
-	service    *application.Service
+	service    service
 	production bool
 }
 
@@ -31,7 +47,7 @@ type userResponse struct {
 	Roles         []domain.Role `json:"roles"`
 }
 
-func New(service *application.Service, production bool) http.Handler {
+func New(service service, production bool) http.Handler {
 	handler := &Handler{service: service, production: production}
 	router := chi.NewRouter()
 	router.Use(noStore)
