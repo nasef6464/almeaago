@@ -25,13 +25,13 @@ var (
 )
 
 const (
-	sessionTTL             = 7 * 24 * time.Hour
-	lockDuration           = 15 * time.Minute
-	maxFailedAttempts      = 5
-	passwordResetTTL       = time.Hour
-	emailVerificationTTL   = 24 * time.Hour
-	purposePasswordReset   = "password_reset"
-	purposeEmailVerify     = "email_verification"
+	sessionTTL           = 7 * 24 * time.Hour
+	lockDuration         = 15 * time.Minute
+	maxFailedAttempts    = 5
+	passwordResetTTL     = time.Hour
+	emailVerificationTTL = 24 * time.Hour
+	purposePasswordReset = "password_reset"
+	purposeEmailVerify   = "email_verification"
 )
 
 var nationalIDPattern = regexp.MustCompile(`^[12][0-9]{9}$`)
