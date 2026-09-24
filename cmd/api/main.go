@@ -50,10 +50,11 @@ func main() {
 	identityHandler := identityhttp.New(identityService, cfg.IsProduction())
 
 	server := httpserver.New(cfg.HTTPAddr, httpserver.Dependencies{
-		Logger:   logger,
-		DB:       db,
-		Redis:    redisClient,
-		Identity: identityHandler,
+		Logger:     logger,
+		DB:         db,
+		Redis:      redisClient,
+		Identity:   identityHandler,
+		WebOrigins: cfg.WebOrigin,
 	})
 
 	go func() {
