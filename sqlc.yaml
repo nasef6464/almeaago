@@ -6,6 +6,7 @@ sql:
       - "migrations/000002_organization_access_foundation.up.sql"
       - "migrations/000003_identity_auth.up.sql"
       - "migrations/000004_identity_recovery.up.sql"
+      - "migrations/000005_identity_providers.up.sql"
     queries: "db/queries"
     gen:
       go:
