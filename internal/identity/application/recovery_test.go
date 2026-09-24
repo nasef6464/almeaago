@@ -22,15 +22,15 @@ type recoveryRepo struct {
 	verifyTokenHash   string
 	phoneLookup       string
 
-	recentOTPCount    int
-	otpChallenge      domain.OTPChallenge
-	otpChallengeErr   error
-	otpIncrementedID  string
-	otpConsumedID     string
-	otpExpiredID      string
-	whatsAppUser      domain.User
-	googleUser        domain.User
-	googleProfile     domain.GoogleProfile
+	recentOTPCount   int
+	otpChallenge     domain.OTPChallenge
+	otpChallengeErr  error
+	otpIncrementedID string
+	otpConsumedID    string
+	otpExpiredID     string
+	whatsAppUser     domain.User
+	googleUser       domain.User
+	googleProfile    domain.GoogleProfile
 }
 
 func (r *recoveryRepo) CreateUser(context.Context, string, string, string, domain.Role) (domain.User, error) {
