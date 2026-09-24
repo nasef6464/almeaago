@@ -2,16 +2,49 @@ name: Database CI
 on:
   pull_request:
     paths: ["migrations/**",".github/workflows/database.yml"]
+    types: [opened, synchronize, reopened]
   push:
     branches: [main]
     paths: ["migrations/**",".github/workflows/database.yml"]
   workflow_dispatch:
+
 concurrency:
   group: database-ci-${{ github.ref }}
   cancel-in-progress: true
-permissions: { contents: read }
+
+permissions:
+  contents: read
+
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      database: ${{ steps.detect.outputs.database }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - id: detect
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.event.after }}
+        run: |
+          database=true
+          if [ "$EVENT_NAME" = "pull_request" ] && [ "$EVENT_ACTION" = "synchronize" ] && [ -n "$BEFORE_SHA" ] && [ -n "$AFTER_SHA" ]; then
+            git fetch --no-tags --depth=1 origin "$BEFORE_SHA" || true
+            if git diff --quiet "$BEFORE_SHA" "$AFTER_SHA" -- migrations/ .github/workflows/database.yml; then
+              database=false
+            fi
+          fi
+          echo "database=$database" >> "$GITHUB_OUTPUT"
+
   database:
+    needs: changes
+    if: needs.changes.outputs.database == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:
@@ -22,7 +55,8 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U almeaa -d almeaa"
           --health-interval 10s --health-timeout 5s --health-retries 5
-    env: { PGPASSWORD: almeaa }
+    env:
+      PGPASSWORD: almeaa
     steps:
       - uses: actions/checkout@v7
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
@@ -31,15 +65,19 @@ jobs:
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000001_platform_foundation.up.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000002_organization_access_foundation.up.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000003_identity_auth.up.sql
+          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000004_identity_recovery.up.sql
       - name: Verify identity constraints
         run: |
           psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.user_roles') is not null" | grep -qx t
           psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from information_schema.columns where table_name='auth_sessions' and column_name='csrf_token_hash'" | grep -qx 1
+          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.auth_one_time_tokens') is not null" | grep -qx t
       - name: Roll back and re-apply
         run: |
+          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000004_identity_recovery.down.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000003_identity_auth.down.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000002_organization_access_foundation.down.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000001_platform_foundation.down.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000001_platform_foundation.up.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000002_organization_access_foundation.up.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000003_identity_auth.up.sql
+          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000004_identity_recovery.up.sql
