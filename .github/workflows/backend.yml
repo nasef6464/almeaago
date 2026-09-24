@@ -30,13 +30,23 @@ jobs:
           sudo install -m 0755 /tmp/sqlc /usr/local/bin/sqlc
           sqlc version
       - run: sqlc compile
-      - name: Check gofmt
+      - name: Check gofmt with per-file diagnostics
         shell: bash
         run: |
-          diff="$(find cmd internal -type f -name '*.go' -print0 | xargs -0 gofmt -d)"
-          if [ -n "$diff" ]; then
-            echo "$diff"
-            exit 1
-          fi
+          status=0
+          while IFS= read -r -d '' file; do
+            tmp="$(mktemp)"
+            if ! gofmt -d "$file" >"$tmp"; then
+              echo "::error file=$file::gofmt could not parse this file"
+              cat "$tmp"
+              status=1
+            elif [ -s "$tmp" ]; then
+              echo "::error file=$file::file is not gofmt-formatted"
+              cat "$tmp"
+              status=1
+            fi
+            rm -f "$tmp"
+          done < <(find cmd internal -type f -name '*.go' -print0)
+          exit "$status"
       - run: go vet ./...
       - run: go test ./...
