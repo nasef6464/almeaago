@@ -58,6 +58,7 @@ func main() {
 	})
 
 	adminService := application.NewAdminService(identityRepository)
+	accountService := application.NewAccountService(identityRepository)
 
 	googleClient := googleprovider.New(googleprovider.Config{
 		ClientID:     cfg.GoogleClientID,
@@ -67,6 +68,7 @@ func main() {
 	identityHandler := identityhttp.New(identityService, cfg.IsProduction(), identityhttp.Options{
 		Google:    googleClient,
 		Admin:     adminService,
+		Account:   accountService,
 		WebOrigin: cfg.WebOrigin,
 	})
 

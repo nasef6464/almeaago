@@ -33,6 +33,7 @@ type GoogleOAuth interface {
 type Options struct {
 	Google    GoogleOAuth
 	Admin     *application.AdminService
+	Account   *application.AccountService
 	WebOrigin string
 }
 
@@ -41,6 +42,7 @@ type Handler struct {
 	production bool
 	google     GoogleOAuth
 	admin      *application.AdminService
+	account    *application.AccountService
 	webOrigin  string
 }
 
@@ -66,6 +68,7 @@ func New(service *application.Service, production bool, options ...Options) http
 	if len(options) > 0 {
 		handler.google = options[0].Google
 		handler.admin = options[0].Admin
+		handler.account = options[0].Account
 		if strings.TrimSpace(options[0].WebOrigin) != "" {
 			handler.webOrigin = strings.TrimRight(options[0].WebOrigin, "/")
 		}
@@ -81,13 +84,18 @@ func New(service *application.Service, production bool, options ...Options) http
 	router.Post("/whatsapp/verify", handler.verifyWhatsAppOTP)
 	router.Get("/google/start", handler.googleStart)
 	router.Get("/google/callback", handler.googleCallback)
+	router.Get("/google/call", handler.googleCallback)
 	router.Get("/me", handler.me)
+	router.Patch("/me/profile", handler.updateMyProfile)
+	router.Patch("/me/identity", handler.updateMyIdentity)
 	router.Get("/csrf", handler.csrf)
+	router.Get("/csrf-token", handler.csrf)
 	router.Post("/logout", handler.logout)
 	router.Post("/forgot-password", handler.forgotPassword)
 	router.Post("/reset-password", handler.resetPassword)
 	router.Post("/email/verify", handler.verifyEmail)
 	router.Post("/email/resend", handler.resendEmailVerification)
+	router.Post("/email/resend-verification", handler.resendEmailVerification)
 
 	router.Get("/admin/users", handler.adminListUsers)
 	router.Get("/admin/users/summary", handler.adminUsersSummary)
@@ -562,6 +570,8 @@ func writeApplicationError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Organization-scoped user directory is not enabled yet"})
 	case errors.Is(err, application.ErrUnsupportedAdminScope):
 		writeJSON(w, http.StatusConflict, map[string]string{"message": "Organization scope fields are handled by the Organizations domain"})
+	case errors.Is(err, application.ErrIdentityConflict):
+		writeJSON(w, http.StatusConflict, map[string]string{"message": "Identity value is already linked to another account or cannot be removed"})
 	case errors.Is(err, domain.ErrLastAdmin):
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Cannot remove or disable the last active admin account"})
 	case errors.Is(err, domain.ErrSelfDelete):

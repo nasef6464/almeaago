@@ -132,3 +132,27 @@ V2 does not silently ignore those fields. Their writes fail explicitly until Org
 ## Intentional legacy fix
 Legacy single-user PATCH did not consistently protect the last admin while delete/bulk operations did.
 V2 applies one invariant across all account mutations. See `docs/LEGACY-BUGS.md`.
+
+
+## Self Profile and Identity
+V2 routes:
+- PATCH /api/v1/auth/me/profile
+- PATCH /api/v1/auth/me/identity
+
+Rules:
+- authenticated session + CSRF are required.
+- name is trimmed and bounded.
+- avatar is a small reference string only; binary/data-URI media belongs in object storage.
+- National ID must match the Saudi 10-digit shape starting with 1 or 2.
+- phone is canonicalized to 9665xxxxxxxx.
+- unique identity conflicts return 409.
+- explicit null clears National ID/phone.
+- a provider-only account cannot remove its final login identity.
+- successful updates are audited.
+
+Legacy aliases retained:
+- /csrf-token
+- /email/resend-verification
+- /google/call
+
+See `IDENTITY_CLOSURE_AUDIT.md` for auth-era routes moved to Learning, Commerce, Parents, Organizations and Reporting.

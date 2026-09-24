@@ -4,10 +4,10 @@
 **FOUNDATION_GREEN**
 
 Evidence:
-- PostgreSQL 18 migrations are exercised by apply / verify / rollback / re-apply CI.
-- Frontend TypeScript + Vite production build is green.
-- Backend sqlc compile + gofmt + go vet + go test is green.
-- CI is split into Backend / Frontend / Database with path filters and cancel-in-progress.
+- PostgreSQL 18 migrations apply, verify, rollback and re-apply in CI.
+- Frontend TypeScript + Vite production build green.
+- Backend sqlc compile + gofmt + go vet + go test green.
+- CI split into Backend / Frontend / Database with path filters and cancel-in-progress.
 - Product Blueprint, visual parity, database scalability and resource-budget docs live in this repository.
 
 ## Repository
@@ -17,94 +17,74 @@ Evidence:
 `nasef6464/almeaacodax` remains read-only behavioral and visual reference.
 
 ## Current phase
-Identity/Auth — **IN_PROGRESS**.
+Identity/Auth closure — **IN_PROGRESS**.
 
-## Identity Core — TESTED / MERGED
-- email/password registration and login.
-- Saudi National ID login.
-- phone/password login.
-- opaque revocable sessions.
-- per-session CSRF.
-- Argon2id password hashing.
-- login lockout.
-- current user / logout.
-- normalized roles.
+## Identity Core / Recovery / Providers — TESTED / MERGED
+Includes:
+- email/password, National ID and phone/password login.
+- opaque revocable sessions + CSRF.
+- Argon2id and login lockout.
+- forgot/reset password and email verification.
+- Google OAuth implementation.
+- WhatsApp OTP implementation.
+- explicit provider identities.
+- canonical Saudi phone normalization.
+- HMAC-peppered OTPs and rate limits.
 
-## Identity Recovery — TESTED / MERGED
-- enumeration-safe forgot-password.
-- one-time hashed reset/verification tokens.
-- password reset revokes active sessions.
-- resend verification requires session + CSRF.
-
-## Google OAuth + WhatsApp OTP — TESTED / MERGED
-PR #6 passed Backend + Frontend + Database CI and was merged.
-
-Implemented:
-- Google OAuth authorization + callback adapter.
-- HttpOnly short-lived OAuth state cookie.
-- internal-only returnTo validation.
-- verified Google email requirement.
-- explicit Google provider identity.
-- WhatsApp OTP webhook adapter.
-- random six-digit OTP.
-- HMAC-SHA256 OTP digest with external pepper.
-- 10-minute OTP TTL.
-- three sends per 15 minutes.
-- five verification attempts.
-- provider-only account without fake email/password.
-- legacy send -> code -> verify -> resend UI flow.
-
-Still pending external staging configuration:
-- real Google OAuth credentials.
+External staging gates still pending:
+- real Google OAuth credentials and live smoke.
 - production OTP pepper.
-- real WhatsApp delivery endpoint/token.
-- live provider smoke test.
+- real WhatsApp delivery endpoint/token and live smoke.
 
-## Auth UI — BUILD TESTED / MERGED
-- legacy-compatible Tailwind theme.
-- login/register modal structure preserved.
-- recovery screens preserved.
-- Google/WhatsApp entry points wired.
-- RTL/loading/error/disabled states.
-- desktop/mobile screenshot comparison remains required before PARITY_PROVEN.
+## Identity Admin Accounts — TESTED / MERGED
+PR #7 passed Backend + Database CI and was merged.
 
-## Identity Admin Accounts — IMPLEMENTED / CI PENDING
-Branch: `feat/identity-admin`
+Includes:
+- bounded paginated admin user directory.
+- trigram name/email search.
+- role/status filters and summary.
+- create/upsert/update/bulk-status/delete.
+- transactional audit log.
+- session revocation on disable.
+- self-delete protection.
+- concurrency-safe last-active-admin protection.
+- explicit fail-closed boundaries for organization-owned fields.
 
-Implemented in this slice:
-- platform-admin user directory with page/limit/search/role/status filters.
-- hard page limit 100.
-- trigram-backed name/email search.
-- role/status summary.
-- admin account create/upsert by email.
-- account name/avatar/role/status update.
-- bulk activation/deactivation with per-user results.
-- user delete.
-- CSRF required for all unsafe admin mutations.
-- transactional audit logs.
-- disabling an account revokes active sessions.
-- self-delete blocked.
-- last active admin protected on update/upsert/bulk/delete.
-- last-admin invariant serialized with a transaction advisory lock.
-- legacy last-admin PATCH inconsistency documented and intentionally fixed.
+## Self Profile / Identity — IMPLEMENTED / CI PENDING
+Branch: `feat/identity-account-profile`
 
-Deliberately pending for Organizations/Trainer scopes:
-- schoolId synchronization.
-- class/group membership mapping.
-- parent/student relationship synchronization.
-- trainer managed path/subject scopes.
-- supervisor/teacher scoped user directory.
-- platformTrainer filter/count.
+Includes:
+- PATCH /api/v1/auth/me/profile
+- PATCH /api/v1/auth/me/identity
+- profile name/avatar-reference update.
+- National ID update/clear with validation and uniqueness.
+- Saudi phone canonicalization on update.
+- phone update/clear with uniqueness.
+- provider-only account cannot remove its final login identity.
+- self-update audit events.
+- CSRF required for both PATCH routes.
 
-These fields are never silently discarded. Unsupported scope writes fail explicitly until their owning domain is implemented.
+Compatibility aliases:
+- GET /api/v1/auth/csrf-token
+- POST /api/v1/auth/email/resend-verification
+- GET /api/v1/auth/google/call
 
-## Performance/scalability
-- admin directory uses bounded pagination.
-- user search uses pg_trgm indexes.
-- list roles are returned without N+1 queries.
-- mutation audit and account state changes commit atomically.
-- provider and OTP lookup paths remain indexed.
-- no large media passes through the Go API.
+## Identity Closure Audit
+See `docs/domains/identity/IDENTITY_CLOSURE_AUDIT.md`.
+
+Routes deliberately moved out of Identity:
+- preferences -> Learning.
+- purchase/redeem -> Commerce.
+- parent linking -> Parents / Organizations.
+- trainer directory/performance -> Organizations / Reporting.
+- school/class/group/user scope synchronization -> Organizations.
+
+## Visual / External gates
+Still required before Identity can be PARITY_PROVEN:
+- desktop/mobile Auth screenshot comparison.
+- live Google smoke on staging.
+- live WhatsApp OTP smoke on staging.
+- organization-owned auth-era flows proven in their destination domains.
 
 ## Next exact action
-Run Backend + Database CI for the Identity Admin branch, repair failures on the same branch, merge the exact tested SHA, then close the remaining Identity visual/live-provider gates and move into Organizations/Schools/Classes.
+Run Backend CI for the account-profile closure branch, repair any failure, merge the exact tested SHA, then begin Organizations/Schools/Classes while keeping the visual/provider gates tracked.
