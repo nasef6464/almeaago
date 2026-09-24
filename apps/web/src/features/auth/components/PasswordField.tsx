@@ -1,7 +1,8 @@
 import { Eye, EyeOff } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 interface Props {
-  label: string;
+  label?: ReactNode;
   value: string;
   onChange(value: string): void;
   shown: boolean;
@@ -27,9 +28,11 @@ export function PasswordField({
 }: Props) {
   return (
     <div>
-      <label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">
-        {label}
-      </label>
+      {label ? (
+        <label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">
+          {label}
+        </label>
+      ) : null}
       <div className="relative">
         <input
           id={id}
