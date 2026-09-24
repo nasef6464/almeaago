@@ -16,10 +16,10 @@ import (
 
 const (
 	loginFailureThreshold = 5
-	loginLockDuration      = 15 * time.Minute
-	sessionTTL             = 7 * 24 * time.Hour
-	emailVerificationTTL   = 24 * time.Hour
-	passwordResetTTL       = time.Hour
+	loginLockDuration     = 15 * time.Minute
+	sessionTTL            = 7 * 24 * time.Hour
+	emailVerificationTTL  = 24 * time.Hour
+	passwordResetTTL      = time.Hour
 )
 
 var (
