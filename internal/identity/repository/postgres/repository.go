@@ -414,6 +414,291 @@ func (r *Repository) VerifyEmailByToken(
 	return r.UserByID(ctx, userID)
 }
 
+
+func (r *Repository) CountRecentOTPChallenges(
+	ctx context.Context,
+	phone string,
+	channel string,
+	since time.Time,
+) (int, error) {
+	var count int
+	err := r.db.QueryRow(ctx, `
+		SELECT count(*)::int
+		FROM auth_otp_challenges
+		WHERE phone = $1
+		  AND channel = $2
+		  AND created_at >= $3
+	`, phone, channel, since).Scan(&count)
+	return count, err
+}
+
+func (r *Repository) CreateOTPChallenge(
+	ctx context.Context,
+	phone string,
+	channel string,
+	codeHash string,
+	expiresAt time.Time,
+) (domain.OTPChallenge, error) {
+	var challenge domain.OTPChallenge
+	err := r.db.QueryRow(ctx, `
+		INSERT INTO auth_otp_challenges (phone, channel, code_hash, expires_at)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id::text, phone, channel, code_hash, expires_at, attempts, used_at, created_at
+	`, phone, channel, codeHash, expiresAt).Scan(
+		&challenge.ID,
+		&challenge.Phone,
+		&challenge.Channel,
+		&challenge.CodeHash,
+		&challenge.ExpiresAt,
+		&challenge.Attempts,
+		&challenge.UsedAt,
+		&challenge.CreatedAt,
+	)
+	return challenge, err
+}
+
+func (r *Repository) LatestActiveOTPChallenge(
+	ctx context.Context,
+	phone string,
+	channel string,
+) (domain.OTPChallenge, error) {
+	var challenge domain.OTPChallenge
+	err := r.db.QueryRow(ctx, `
+		SELECT id::text, phone, channel, code_hash, expires_at, attempts, used_at, created_at
+		FROM auth_otp_challenges
+		WHERE phone = $1
+		  AND channel = $2
+		  AND used_at IS NULL
+		ORDER BY created_at DESC
+		LIMIT 1
+	`, phone, channel).Scan(
+		&challenge.ID,
+		&challenge.Phone,
+		&challenge.Channel,
+		&challenge.CodeHash,
+		&challenge.ExpiresAt,
+		&challenge.Attempts,
+		&challenge.UsedAt,
+		&challenge.CreatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.OTPChallenge{}, domain.ErrNotFound
+	}
+	return challenge, err
+}
+
+func (r *Repository) IncrementOTPAttempts(ctx context.Context, challengeID string) error {
+	tag, err := r.db.Exec(ctx, `
+		UPDATE auth_otp_challenges
+		SET attempts = attempts + 1
+		WHERE id = $1
+		  AND used_at IS NULL
+	`, challengeID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+func (r *Repository) ConsumeOTPChallenge(ctx context.Context, challengeID string) error {
+	tag, err := r.db.Exec(ctx, `
+		UPDATE auth_otp_challenges
+		SET used_at = now()
+		WHERE id = $1
+		  AND used_at IS NULL
+	`, challengeID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+func (r *Repository) ExpireOTPChallenge(ctx context.Context, challengeID string) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE auth_otp_challenges
+		SET used_at = COALESCE(used_at, now())
+		WHERE id = $1
+	`, challengeID)
+	return err
+}
+
+func (r *Repository) ResolveWhatsAppUser(
+	ctx context.Context,
+	phone string,
+	verifiedAt time.Time,
+) (domain.User, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return domain.User{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var userID string
+	err = tx.QueryRow(ctx, `
+		SELECT user_id::text
+		FROM auth_provider_identities
+		WHERE provider = 'whatsapp'
+		  AND provider_subject = $1
+		LIMIT 1
+	`, phone).Scan(&userID)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = tx.QueryRow(ctx, `
+			SELECT id::text
+			FROM users
+			WHERE phone = $1
+			LIMIT 1
+		`, phone).Scan(&userID)
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			name := "طالب واتساب"
+			err = tx.QueryRow(ctx, `
+				INSERT INTO users (email, name, password_hash, status, phone)
+				VALUES (NULL, $1, NULL, 'active', $2)
+				RETURNING id::text
+			`, name, phone).Scan(&userID)
+			if err != nil {
+				return domain.User{}, fmt.Errorf("create whatsapp user: %w", err)
+			}
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO user_roles (user_id, role)
+				VALUES ($1, 'student')
+				ON CONFLICT DO NOTHING
+			`, userID); err != nil {
+				return domain.User{}, fmt.Errorf("create whatsapp role: %w", err)
+			}
+		} else if err != nil {
+			return domain.User{}, err
+		}
+
+		var linkedUserID string
+		err = tx.QueryRow(ctx, `
+			INSERT INTO auth_provider_identities (
+				user_id, provider, provider_subject, verified_at
+			)
+			VALUES ($1, 'whatsapp', $2, $3)
+			ON CONFLICT (provider, provider_subject)
+			DO UPDATE SET updated_at = now()
+			RETURNING user_id::text
+		`, userID, phone, verifiedAt).Scan(&linkedUserID)
+		if err != nil {
+			return domain.User{}, fmt.Errorf("link whatsapp identity: %w", err)
+		}
+		userID = linkedUserID
+	} else if err != nil {
+		return domain.User{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return domain.User{}, err
+	}
+	return r.UserByID(ctx, userID)
+}
+
+func (r *Repository) ResolveGoogleUser(
+	ctx context.Context,
+	profile domain.GoogleProfile,
+	verifiedAt time.Time,
+) (domain.User, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return domain.User{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var userID string
+	err = tx.QueryRow(ctx, `
+		SELECT user_id::text
+		FROM auth_provider_identities
+		WHERE provider = 'google'
+		  AND provider_subject = $1
+		LIMIT 1
+	`, profile.Subject).Scan(&userID)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = tx.QueryRow(ctx, `
+			SELECT id::text
+			FROM users
+			WHERE lower(email) = lower($1)
+			LIMIT 1
+		`, profile.Email).Scan(&userID)
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			err = tx.QueryRow(ctx, `
+				INSERT INTO users (
+					email, name, password_hash, status, avatar_url, email_verified_at
+				)
+				VALUES ($1, $2, NULL, 'active', $3, $4)
+				RETURNING id::text
+			`, profile.Email, profile.Name, profile.AvatarURL, verifiedAt).Scan(&userID)
+			if err != nil {
+				return domain.User{}, fmt.Errorf("create google user: %w", err)
+			}
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO user_roles (user_id, role)
+				VALUES ($1, 'student')
+				ON CONFLICT DO NOTHING
+			`, userID); err != nil {
+				return domain.User{}, fmt.Errorf("create google role: %w", err)
+			}
+		} else if err != nil {
+			return domain.User{}, err
+		} else {
+			if _, err := tx.Exec(ctx, `
+				UPDATE users
+				SET email_verified_at = COALESCE(email_verified_at, $2),
+				    avatar_url = CASE WHEN avatar_url = '' THEN $3 ELSE avatar_url END,
+				    updated_at = now()
+				WHERE id = $1
+			`, userID, verifiedAt, profile.AvatarURL); err != nil {
+				return domain.User{}, fmt.Errorf("refresh google-linked user: %w", err)
+			}
+		}
+
+		var linkedUserID string
+		err = tx.QueryRow(ctx, `
+			INSERT INTO auth_provider_identities (
+				user_id, provider, provider_subject, verified_at,
+				metadata
+			)
+			VALUES (
+				$1, 'google', $2, $3,
+				jsonb_build_object('email', $4)
+			)
+			ON CONFLICT (provider, provider_subject)
+			DO UPDATE SET updated_at = now()
+			RETURNING user_id::text
+		`, userID, profile.Subject, verifiedAt, profile.Email).Scan(&linkedUserID)
+		if err != nil {
+			return domain.User{}, fmt.Errorf("link google identity: %w", err)
+		}
+		userID = linkedUserID
+	} else if err != nil {
+		return domain.User{}, err
+	} else {
+		if _, err := tx.Exec(ctx, `
+			UPDATE users
+			SET email_verified_at = COALESCE(email_verified_at, $2),
+			    avatar_url = CASE WHEN avatar_url = '' THEN $3 ELSE avatar_url END,
+			    updated_at = now()
+			WHERE id = $1
+		`, userID, verifiedAt, profile.AvatarURL); err != nil {
+			return domain.User{}, fmt.Errorf("refresh google identity: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return domain.User{}, err
+	}
+	return r.UserByID(ctx, userID)
+}
+
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
