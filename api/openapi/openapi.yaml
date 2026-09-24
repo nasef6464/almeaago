@@ -269,6 +269,94 @@ paths:
         "200": { description: Current user }
         "401": { description: Authentication required }
 
+
+  /api/v1/auth/me/profile:
+    patch:
+      operationId: authUpdateMyProfile
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                avatar: { type: string, maxLength: 2000 }
+      responses:
+        "200": { description: Profile updated }
+        "400": { description: Invalid request }
+        "401": { description: Authentication required }
+        "403": { description: Invalid CSRF token }
+
+  /api/v1/auth/me/identity:
+    patch:
+      operationId: authUpdateMyIdentity
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                nationalId:
+                  oneOf:
+                    - { type: string, pattern: "^[12][0-9]{9}$" }
+                    - { type: "null" }
+                phone:
+                  oneOf:
+                    - { type: string, minLength: 8, maxLength: 24 }
+                    - { type: "null" }
+      responses:
+        "200": { description: National ID and/or phone updated }
+        "400": { description: Invalid request }
+        "401": { description: Authentication required }
+        "403": { description: Invalid CSRF token }
+        "409": { description: Identity value already belongs to another account or final login identity cannot be removed }
+
+  /api/v1/auth/csrf-token:
+    get:
+      deprecated: true
+      operationId: authCsrfLegacyAlias
+      responses:
+        "200": { description: Legacy alias of /api/v1/auth/csrf }
+        "401": { description: Authentication required }
+
+  /api/v1/auth/email/resend-verification:
+    post:
+      deprecated: true
+      operationId: authResendEmailVerificationLegacyAlias
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Legacy alias of /api/v1/auth/email/resend }
+        "401": { description: Authentication required }
+        "403": { description: Invalid CSRF token }
+
+  /api/v1/auth/google/call:
+    get:
+      deprecated: true
+      operationId: authGoogleCallbackLegacyAlias
+      parameters:
+        - { in: query, name: code, required: false, schema: { type: string } }
+        - { in: query, name: state, required: false, schema: { type: string } }
+      responses:
+        "302": { description: Legacy alias of Google callback }
+
   /api/v1/auth/csrf:
     get:
       operationId: authCsrf
