@@ -564,6 +564,9 @@ func (s *Service) ListAssignments(
 		if !allowed {
 			return org.AssignmentPage{}, ErrForbidden
 		}
+		if err := s.requireSchoolModule(ctx, schoolID, org.SchoolModuleCore); err != nil {
+			return org.AssignmentPage{}, err
+		}
 	default:
 		return org.AssignmentPage{}, ErrForbidden
 	}
@@ -608,6 +611,9 @@ func (s *Service) UpsertAssignment(
 		}
 		if !allowed {
 			return org.TeachingAssignment{}, ErrForbidden
+		}
+		if err := s.requireSchoolModule(ctx, schoolID, org.SchoolModuleCore); err != nil {
+			return org.TeachingAssignment{}, err
 		}
 	}
 
@@ -677,7 +683,7 @@ func (s *Service) requireClassManagement(
 			return err
 		}
 		if allowed {
-			return nil
+			return s.requireSchoolModule(ctx, schoolID, org.SchoolModuleCore)
 		}
 	}
 	return ErrForbidden
