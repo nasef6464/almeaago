@@ -18,7 +18,7 @@ var (
 )
 
 const (
-	permissionSchoolStudentsView = "SCHOOL_STUDENTS_VIEW"
+	permissionSchoolStudentsView  = "SCHOOL_STUDENTS_VIEW"
 	permissionSchoolClassesManage = "SCHOOL_CLASSES_MANAGE"
 	maxMetadataBytes              = 16 << 10
 )
