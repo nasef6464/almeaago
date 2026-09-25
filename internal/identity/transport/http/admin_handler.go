@@ -174,11 +174,11 @@ func (h *Handler) adminUpdateUser(w http.ResponseWriter, r *http.Request) {
 		auth.User,
 		chi.URLParam(r, "id"),
 		domain.AdminUpdateUserInput{
-			Name:             payload.Name,
-			AvatarURL:        payload.Avatar,
-			Role:             payload.Role,
-			Active:           payload.IsActive,
-			SchoolID:         schoolID,
+			Name:              payload.Name,
+			AvatarURL:         payload.Avatar,
+			Role:              payload.Role,
+			Active:            payload.IsActive,
+			SchoolID:          schoolID,
 			ClassIDs:          payload.GroupIDs,
 			LinkedStudentIDs:  payload.LinkedStudentIDs,
 			ManagedPathIDs:    payload.ManagedPathIDs,
@@ -330,13 +330,13 @@ func presentAdminRecord(record domain.AdminUserRecord) adminUserResponse {
 		record.ManagedSubjectIDs = []string{}
 	}
 	return adminUserResponse{
-		userResponse:       base,
-		IsActive:           record.User.Status == "active",
-		SchoolID:           record.SchoolID,
-		GroupIDs:           record.ClassIDs,
-		LinkedStudentIDs:   record.LinkedStudentIDs,
-		ManagedPathIDs:     record.ManagedPathIDs,
-		ManagedSubjectIDs:  record.ManagedSubjectIDs,
-		SchoolContexts:     contexts,
+		userResponse:      base,
+		IsActive:          record.User.Status == "active",
+		SchoolID:          record.SchoolID,
+		GroupIDs:          record.ClassIDs,
+		LinkedStudentIDs:  record.LinkedStudentIDs,
+		ManagedPathIDs:    record.ManagedPathIDs,
+		ManagedSubjectIDs: record.ManagedSubjectIDs,
+		SchoolContexts:    contexts,
 	}
 }
