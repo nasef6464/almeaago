@@ -114,19 +114,23 @@ func (s *ImportService) Import(ctx context.Context, actor identity.User, input I
 		imageHash := command.Provenance.ImageHash
 		result.QuestionCodes = append(result.QuestionCodes, code)
 
+		duplicate := false
 		if seenCodes[code] {
 			result.Issues = append(result.Issues, importIssue(index, code, "DUPLICATE_QUESTION_CODE", "questionCode is duplicated inside the batch"))
-			continue
+			duplicate = true
 		}
 		if seenSources[sourceID] {
 			result.Issues = append(result.Issues, importIssue(index, code, "DUPLICATE_SOURCE_ITEM_ID", "sourceItemId is duplicated inside the batch"))
-			continue
+			duplicate = true
 		}
 		if seenHashes[imageHash] {
 			result.Issues = append(result.Issues, importIssue(index, code, "DUPLICATE_IMAGE_HASH", "imageHash is duplicated inside the batch"))
-			continue
+			duplicate = true
 		}
 		seenCodes[code], seenSources[sourceID], seenHashes[imageHash] = true, true, true
+		if duplicate {
+			continue
+		}
 		codes = append(codes, code)
 		sourceIDs = append(sourceIDs, sourceID)
 		hashes = append(hashes, imageHash)
