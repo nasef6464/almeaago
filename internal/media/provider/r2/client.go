@@ -65,7 +65,7 @@ func New(cfg Config) *Client {
 }
 
 func (c *Client) Available() bool {
-	return c != nil && c.accountID != "" && c.bucket != "" && c.accessKeyID != "" && c.secretAccessKey != ""
+	return c != nil && c.accountID != "" && c.bucket != "" && c.publicBaseURL != "" && c.accessKeyID != "" && c.secretAccessKey != ""
 }
 
 func (c *Client) PresignPut(objectKey, mimeType, sha256sum string, expires time.Duration) (media.UploadTarget, error) {
