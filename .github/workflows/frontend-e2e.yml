@@ -1,0 +1,45 @@
+name: Frontend E2E
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/web/src/app/App.tsx"
+      - "apps/web/src/features/content/**"
+      - "apps/web/tests/e2e/**"
+      - "apps/web/playwright.config.ts"
+      - "apps/web/package.json"
+      - ".github/workflows/frontend-e2e.yml"
+
+concurrency:
+  group: frontend-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: content-browser-evidence
+          path: |
+            apps/web/test-results
+            apps/web/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7

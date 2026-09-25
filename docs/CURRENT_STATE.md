@@ -21,9 +21,13 @@ Organizations / Schools / Classes compatibility — **STRUCTURAL CHECKPOINT GREE
 
 Taxonomy — **STRUCTURAL CHECKPOINT GREEN**.
 
-Question Bank — **CORE + FILTERS GREEN / IN_PROGRESS**.
+Question Bank — **STRUCTURAL CHECKPOINT GREEN**.
 
 Media / R2 — **DIRECT-UPLOAD FOUNDATION GREEN**.
+
+Content / Foundation backend — **CORE MANAGEMENT TESTED / MERGED**.
+
+Content React cutover — **TESTED / VISUAL CHECKPOINT GREEN (PR #38 PRE-MERGE)**.
 
 ## Identity Core / Recovery / Providers — TESTED / MERGED
 Includes:
@@ -296,6 +300,57 @@ Question Bank is structurally green for:
 
 Reuse contracts for Assessment/Realtime/Learning will consume canonical question IDs later; those domains must not copy question objects.
 
+## Content Core Management — TESTED / MERGED
+PR #37 passed exact-head Backend CI and Database CI on `0c493741ccae5e241b1eadb9555bf3a49ce573e8` and merged to `main` as `3a13259401f6328ce65e4b74532ed46dfe635302`.
+
+Implemented:
+- normalized PostgreSQL Content persistence for courses, lessons, Foundation topics and library items.
+- bounded staff lists with compact DTOs and no exact-count work on normal list paths.
+- canonical platform-trainer authoring scope plus exact Organizations teaching-assignment composition for school teachers.
+- teacher ownership/assignment authority; `created_by` remains audit provenance only.
+- optimistic revisions, lifecycle/workflow guards, CSRF-protected mutations and transaction-scoped audit.
+- course modules/lesson placement and Foundation lesson/library placement with bounded composition reads.
+- explicit course publication separated from approval and visibility.
+- learner-safe bounded learning-space/course/Foundation projections without leaking content bodies, answer/access authority, ownership or revenue metadata.
+- legacy admin `managedPathIds`/`managedSubjectIds` compatibility adapted transactionally to Content-owned trainer scope.
+- Question Bank authoring consumes the same combined teacher scope.
+- no Vercel/Render deployment changes.
+
+Cross-domain / product deferrals after Content closure:
+- Commerce entitlement/access resolution remains owned by Commerce/Access.
+- Assessment placements remain owned by Assessment and will reference canonical Content/Question Bank IDs rather than embed copies.
+- Media/R2 asset-picker UI remains a Media-owned cutover; Content preserves asset references and never proxies large binary bytes through Go.
+- legacy bulk XLSX import/export requires a bounded server-side preview/validation contract before restoration; the old full-inventory browser pattern will not be copied.
+- richer in-video question authoring belongs to Question Bank/Assessment integration, not duplicated Content state.
+- approved-content editing remains intentionally fail-closed until the product/versioning policy is explicitly finalized.
+
+## Content Web Cutover — TESTED / VISUAL CHECKPOINT GREEN (PRE-MERGE)
+PR #38 (`feat/content-web-cutover`) is the active Content React parity branch and has reached its merge gate.
+
+Implemented so far:
+- role-aware `/admin-dashboard/content` route.
+- bounded Course/Lesson/Foundation/Library staff lists backed by the Go API.
+- exact path+subject requirement in the UI before school-teacher list requests.
+- core Taxonomy bootstrap for list filters; full skills bootstrap is loaded only inside authoring/edit flows.
+- secure CSRF-backed Course draft creation, detail/edit flow, workflow controls and admin-only publication control.
+- Course curriculum builder backed by canonical module/lesson-placement IDs and optimistic parent revision updates; no embedded lesson copies.
+- bounded same-taxonomy lesson search for course placement, including explicit free-preview placement state.
+- Lesson create/edit flow for text, assignment, video and live-meeting variants, with workflow review controls and server-owned Media references preserved.
+- Library create/edit flow with workflow review controls; large binary bytes remain in Media/R2 and do not pass through Go.
+- Foundation admin create/edit flow with stable code behavior plus optimistic lesson/library placements.
+- Foundation parent/lesson/library selectors use independent bounded server-side search instead of loading the full inventory.
+
+Verification:
+- Frontend CI passed on `51059ab81203219e557072b2877d0ffa4c690862` for the initial bounded read slice.
+- Frontend CI passed on `4e9968c12d88f7ce589a6bc0e3846a0027cc45dc` for secure Course draft creation.
+- Frontend CI passed on `7452d603c142d21af0bcad3f6681c7b1e156775d` for Course workflow/publication controls.
+- Frontend CI passed on `c73f81d6b37dfceceeb4fb230196323537dc5dc3` for Course edit + curriculum builder.
+- Frontend CI passed on `17e8ad5c6e6eb89052d749a06c87d3fc67d9ce86` for Lesson authoring/review.
+- Frontend CI passed on `c00ee648a816844f9383a9d3378bf94519bd5e41` for Library + Foundation management flows before bounded selector search refinement.
+- Representative visual alignment landed on `9c92769f6c64c3815782d65f75aed9c1fe548778`; Frontend CI run `36163074967` passed and Frontend E2E run `36163074657` passed 4/4.
+- Browser evidence artifact `10875638539` contains the current desktop Course-builder and mobile Lesson-builder screenshots.
+- The final documentation/assertion head must pass Frontend CI + Frontend E2E again before merge; PR #38 must be merged only with that exact tested SHA.
+
 ## Performance/scalability
 - bounded pagination for admin/director directories.
 - pg_trgm-backed user search.
@@ -314,4 +369,4 @@ Reuse contracts for Assessment/Realtime/Learning will consume canonical question
 - Use `almeaacodax` only for explicit behavioral/visual parity checks, never as an implementation target.
 
 ## Next exact action
-Start Content foundation from current `main`. Audit Lesson/Course/Foundation/Library legacy models against the Content blueprint, then create only the normalized PostgreSQL identities/relationships needed before student learning or commerce depends on them. Keep Foundation and Course distinct, link to Taxonomy by IDs, keep binaries in Media/R2, use lifecycle/workflow instead of destructive history loss, and do not mix access/entitlement state into Content.
+Close PR #38 only after the final documentation/assertion head passes both Frontend CI and Frontend E2E on that exact SHA. After merge, update this file on a docs-only checkpoint branch with the merge commit, then begin Phase 6 Assessment from current `main`: audit the legacy Assessment contracts against the blueprint and existing canonical Question Bank/Content IDs, design normalized PostgreSQL assessment identities/attempt state deliberately, and do not copy question/content payloads into Assessment. Keep learner answer secrecy, bounded reads, optimistic/audited staff mutations, and Commerce/Learning boundaries explicit.
