@@ -97,7 +97,10 @@ Routes deliberately owned elsewhere:
 - trainer directory/performance -> Reporting / Content ownership.
 - school/class/group canonical relationship state -> Organizations.
 
-## Organizations Core — IN PROGRESS
+## Organizations Core — TESTED / MERGED
+Core school/class/roster/membership/director-delegation/assignment foundation was merged to `main` as `c182892d12ac50f3260b23d7281cba10bb9eb28f`.
+
+## School Director Core — IMPLEMENTED / CI PENDING
 Branch: `feat/organizations-core`
 
 Current implementation:

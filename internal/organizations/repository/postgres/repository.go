@@ -14,19 +14,59 @@ import (
 	org "github.com/nasef6464/almeaago/internal/organizations/domain"
 )
 
-var errAuditWriterUnavailable = errors.New("organization audit writer is not configured")
+var (
+	errAuditWriterUnavailable          = errors.New("organization audit writer is not configured")
+	errStudentAccountWriterUnavailable = errors.New("student account writer is not configured")
+)
 
 type AuditWriter interface {
 	WriteTx(ctx context.Context, tx pgx.Tx, event operations.AuditEvent) error
 }
 
-type Repository struct {
-	db    *pgxpool.Pool
-	audit AuditWriter
+type StudentAccountWriter interface {
+	UpsertSchoolStudentTx(
+		ctx context.Context,
+		tx pgx.Tx,
+		name string,
+		email string,
+		password string,
+	) (identity.SchoolStudentAccount, bool, error)
+	UpdateSchoolStudentBasicTx(
+		ctx context.Context,
+		tx pgx.Tx,
+		userID string,
+		name *string,
+		phone *string,
+	) (identity.SchoolStudentAccount, error)
+	SetSchoolStudentActiveTx(
+		ctx context.Context,
+		tx pgx.Tx,
+		userID string,
+		active bool,
+	) (identity.SchoolStudentAccount, error)
+	SchoolStudentAccountTx(
+		ctx context.Context,
+		tx pgx.Tx,
+		userID string,
+	) (identity.SchoolStudentAccount, error)
 }
 
-func New(db *pgxpool.Pool, audit AuditWriter) *Repository {
-	return &Repository{db: db, audit: audit}
+type Repository struct {
+	db              *pgxpool.Pool
+	audit           AuditWriter
+	studentAccounts StudentAccountWriter
+}
+
+func New(db *pgxpool.Pool, audit AuditWriter, studentAccounts ...StudentAccountWriter) *Repository {
+	var writer StudentAccountWriter
+	if len(studentAccounts) > 0 {
+		writer = studentAccounts[0]
+	}
+	return &Repository{
+		db:              db,
+		audit:           audit,
+		studentAccounts: writer,
+	}
 }
 
 type rowScanner interface {

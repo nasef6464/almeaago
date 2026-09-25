@@ -151,6 +151,83 @@ func (m *repositoryMock) UpsertAssignment(
 	}, nil
 }
 
+func (m *repositoryMock) DirectorAddStudent(
+	_ context.Context,
+	_ string,
+	_ string,
+	write org.DirectorStudentCreate,
+) (org.DirectorStudentMutationResult, error) {
+	return org.DirectorStudentMutationResult{
+		Student: org.DirectorStudent{
+			StudentID: "student-1",
+			Name:      write.Name,
+			Email:     write.Email,
+			Active:    true,
+			ClassID:   write.ClassID,
+		},
+		Created: true,
+	}, nil
+}
+
+func (m *repositoryMock) DirectorMoveStudent(
+	_ context.Context,
+	_ string,
+	_ string,
+	studentID string,
+	classID string,
+) (org.DirectorStudentMutationResult, error) {
+	return org.DirectorStudentMutationResult{
+		Student: org.DirectorStudent{
+			StudentID: studentID,
+			Active:    true,
+			ClassID:   classID,
+		},
+	}, nil
+}
+
+func (m *repositoryMock) DirectorUpdateStudentBasic(
+	_ context.Context,
+	_ string,
+	_ string,
+	studentID string,
+	patch org.DirectorStudentBasicPatch,
+) (org.DirectorStudentMutationResult, error) {
+	name := "Student"
+	if patch.Name != nil {
+		name = *patch.Name
+	}
+	return org.DirectorStudentMutationResult{
+		Student: org.DirectorStudent{StudentID: studentID, Name: name, Active: true},
+	}, nil
+}
+
+func (m *repositoryMock) DirectorSetStudentActive(
+	_ context.Context,
+	_ string,
+	_ string,
+	studentID string,
+	active bool,
+) (org.DirectorStudentMutationResult, error) {
+	return org.DirectorStudentMutationResult{
+		Student: org.DirectorStudent{StudentID: studentID, Active: active},
+	}, nil
+}
+
+func (m *repositoryMock) ListDirectorStudents(
+	_ context.Context,
+	_ string,
+	query org.DirectorStudentQuery,
+) (org.DirectorStudentPage, error) {
+	return org.DirectorStudentPage{Page: query.Page, Limit: query.Limit}, nil
+}
+
+func (m *repositoryMock) DirectorTeachers(
+	context.Context,
+	string,
+) (org.DirectorTeacherWorkspace, error) {
+	return org.DirectorTeacherWorkspace{}, nil
+}
+
 func (m *repositoryMock) CanAccessSchool(context.Context, org.AccessContext, string) (bool, error) {
 	return m.accessAllowed, nil
 }

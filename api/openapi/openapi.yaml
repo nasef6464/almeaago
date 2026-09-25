@@ -450,6 +450,128 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Platform admin or school director permission and CSRF denied }
 
+  /api/school-access/director/schools/{schoolId}/overview-access:
+    get:
+      deprecated: true
+      operationId: legacyDirectorOverviewAccess
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Legacy-compatible school director overview permission check }
+        "401": { description: Authentication required }
+        "403": { description: School director permission denied }
+
+  /api/school-access/director/schools/{schoolId}/students:
+    get:
+      deprecated: true
+      operationId: legacyDirectorStudents
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: query, name: search, schema: { type: string, maxLength: 120 } }
+      responses:
+        "200": { description: Legacy-compatible student list; bounded to 500 lightweight records }
+        "401": { description: Authentication required }
+        "403": { description: SCHOOL_STUDENTS_VIEW denied }
+    post:
+      deprecated: true
+      operationId: legacyDirectorAddStudent
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Existing student attached/reactivated in school }
+        "201": { description: New student account created and attached }
+        "400": { description: Invalid student/class payload }
+        "403": { description: SCHOOL_STUDENTS_ADD or CSRF denied }
+        "409": { description: Email belongs to non-student or student is active in another school }
+
+  /api/school-access/director/schools/{schoolId}/students/{studentId}/class:
+    put:
+      deprecated: true
+      operationId: legacyDirectorMoveStudentClass
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: path, name: studentId, required: true, schema: { type: string } }
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Student class changed; response includes idempotent flag }
+        "403": { description: SCHOOL_STUDENTS_MOVE_CLASS or CSRF denied }
+        "404": { description: Student or class outside school }
+
+  /api/school-access/director/schools/{schoolId}/students/{studentId}:
+    patch:
+      deprecated: true
+      operationId: legacyDirectorUpdateStudentBasic
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: path, name: studentId, required: true, schema: { type: string } }
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Student basic identity fields updated through Identity boundary }
+        "403": { description: SCHOOL_STUDENTS_UPDATE_BASIC or CSRF denied }
+        "404": { description: Student outside school }
+        "409": { description: Identity value conflict }
+
+  /api/school-access/director/schools/{schoolId}/students/{studentId}/active:
+    patch:
+      deprecated: true
+      operationId: legacyDirectorSetStudentActive
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: path, name: studentId, required: true, schema: { type: string } }
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Student account and school membership activation state updated atomically }
+        "403": { description: SCHOOL_STUDENTS_DEACTIVATE or CSRF denied }
+        "404": { description: Student outside school }
+
+  /api/school-access/director/schools/{schoolId}/classes:
+    post:
+      deprecated: true
+      operationId: legacyDirectorCreateClass
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      responses:
+        "201": { description: Legacy-compatible class created }
+        "403": { description: SCHOOL_CLASSES_MANAGE or CSRF denied }
+        "409": { description: Duplicate class identity inside school }
+
+  /api/school-access/director/schools/{schoolId}/classes/{classId}:
+    patch:
+      deprecated: true
+      operationId: legacyDirectorUpdateClass
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: path, name: classId, required: true, schema: { type: string } }
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Legacy-compatible class renamed }
+        "403": { description: SCHOOL_CLASSES_MANAGE or CSRF denied }
+        "404": { description: Class outside school }
+
+  /api/school-access/director/schools/{schoolId}/teachers:
+    get:
+      deprecated: true
+      operationId: legacyDirectorTeachers
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Lightweight teacher list plus teaching assignments }
+        "403": { description: SCHOOL_TEACHERS_ASSIGN denied }
+
+  /api/school-access/director/schools/{schoolId}/assignments:
+    put:
+      deprecated: true
+      operationId: legacyDirectorUpsertAssignment
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Teacher/class/subject assignment upserted }
+        "400": { description: Teacher/class/subject scope invalid }
+        "403": { description: SCHOOL_TEACHERS_ASSIGN or CSRF denied }
+
   /api/v1/auth/register:
     post:
       operationId: authRegister
