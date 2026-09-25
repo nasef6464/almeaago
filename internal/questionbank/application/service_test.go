@@ -11,9 +11,10 @@ import (
 )
 
 type repoStub struct {
-	current      question.Question
-	create       question.CreateCommand
-	workflowCall bool
+	current       question.Question
+	create        question.CreateCommand
+	workflowCall  bool
+	lastListQuery question.ListQuery
 }
 
 func (r *repoStub) Create(_ context.Context, _ string, command question.CreateCommand) (question.Question, error) {
@@ -34,6 +35,16 @@ func (r *repoStub) SetWorkflow(_ context.Context, _ string, _ string, _ int, sta
 
 func (r *repoStub) Get(context.Context, string) (question.Question, error) {
 	return r.current, nil
+}
+
+func (r *repoStub) List(_ context.Context, query question.ListQuery) (question.QuestionPage, error) {
+	r.lastListQuery = query
+	return question.QuestionPage{Page: query.Page, Limit: query.Limit}, nil
+}
+
+func (r *repoStub) Coverage(_ context.Context, query question.CoverageQuery) (question.Coverage, error) {
+	r.lastListQuery = query.ListQuery
+	return question.Coverage{SkillPage: query.SkillPage, SkillLimit: query.SkillLimit}, nil
 }
 
 func actor(role identity.Role) identity.User {
@@ -148,6 +159,38 @@ func TestAdminCannotSkipDraftDirectlyToApproved(t *testing.T) {
 	}
 	if repo.workflowCall {
 		t.Fatal("repository workflow write must not run for an invalid transition")
+	}
+}
+
+func TestStaffListDefaultsToBoundedPage(t *testing.T) {
+	repo := &repoStub{}
+	service := NewService(repo)
+	page, err := service.StaffList(context.Background(), actor(identity.RoleAdmin), question.ListQuery{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if page.Page != 1 || page.Limit != 80 {
+		t.Fatalf("unexpected defaults: %#v", page)
+	}
+}
+
+func TestTeacherListIsForcedToOwnScope(t *testing.T) {
+	repo := &repoStub{}
+	service := NewService(repo)
+	teacher := identity.User{ID: "11111111-1111-7111-8111-111111111111", Roles: []identity.Role{identity.RoleTeacher}}
+	if _, err := service.StaffList(context.Background(), teacher, question.ListQuery{}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if repo.lastListQuery.TeacherScopeUserID != teacher.ID {
+		t.Fatalf("teacher scope not enforced: %#v", repo.lastListQuery)
+	}
+}
+
+func TestStaffListRejectsUnboundedLimit(t *testing.T) {
+	service := NewService(&repoStub{})
+	_, err := service.StaffList(context.Background(), actor(identity.RoleAdmin), question.ListQuery{Limit: 101})
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected invalid input, got %v", err)
 	}
 }
 
