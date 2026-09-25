@@ -20,7 +20,8 @@ var ErrDryRunRequired = errors.New("successful dry run required")
 type ImportRepository interface {
 	ImportConflicts(ctx context.Context, questionCodes, sourceItemIDs, imageHashes []string) ([]question.ImportConflict, error)
 	ValidateImportBatch(ctx context.Context, commands []question.ImportCommand) ([]question.ImportIssue, error)
-	WriteImportBatch(ctx context.Context, actorUserID, batchID string, commands []question.ImportCommand) (question.ImportBatch, error)
+	SaveImportPreflight(ctx context.Context, actorUserID, batchID, manifestHash string, requested int, report question.ImportResult, expiresAt time.Time) error
+	WriteImportBatch(ctx context.Context, actorUserID, batchID, manifestHash string, commands []question.ImportCommand) (question.ImportBatch, error)
 	GetImportBatch(ctx context.Context, batchID string) (question.ImportBatch, error)
 	RollbackImportBatch(ctx context.Context, actorUserID, batchID string) (question.ImportBatch, error)
 }
@@ -29,28 +30,20 @@ type ImportMediaResolver interface {
 	Get(ctx context.Context, actor identity.User, assetID string) (media.Asset, error)
 }
 
-type ImportValidationStore interface {
-	Put(ctx context.Context, batchID, digest string, ttl time.Duration) error
-	Consume(ctx context.Context, batchID, digest string) (bool, error)
-}
-
 type ImportService struct {
-	repo       ImportRepository
-	media      ImportMediaResolver
-	validations ImportValidationStore
+	repo          ImportRepository
+	media         ImportMediaResolver
 	validationTTL time.Duration
 }
 
 func NewImportService(
 	repo ImportRepository,
 	mediaResolver ImportMediaResolver,
-	validations ImportValidationStore,
 	validationTTL time.Duration,
 ) *ImportService {
 	return &ImportService{
-		repo: repo,
-		media: mediaResolver,
-		validations: validations,
+		repo:          repo,
+		media:         mediaResolver,
 		validationTTL: validationTTL,
 	}
 }
@@ -83,7 +76,7 @@ func (s *ImportService) Import(ctx context.Context, actor identity.User, input I
 	if !validBatchID(batchID) || len(input.Items) < 1 || len(input.Items) > 100 {
 		return question.ImportResult{}, ErrInvalidInput
 	}
-	if s.media == nil || s.validations == nil {
+	if s.media == nil || s.repo == nil {
 		return question.ImportResult{}, errors.New("question import dependencies are not configured")
 	}
 
@@ -170,22 +163,26 @@ func (s *ImportService) Import(ctx context.Context, actor identity.User, input I
 		return question.ImportResult{}, err
 	}
 	if input.DryRun {
-		if err := s.validations.Put(ctx, batchID, digest, s.validationTTL); err != nil {
-			return question.ImportResult{}, err
-		}
 		result.Status = "PASS"
 		result.Mode = "DRY_RUN"
+		if err := s.repo.SaveImportPreflight(
+			ctx,
+			actor.ID,
+			batchID,
+			digest,
+			len(commands),
+			result,
+			time.Now().UTC().Add(s.validationTTL),
+		); err != nil {
+			return question.ImportResult{}, err
+		}
 		return result, nil
 	}
 
-	ok, err := s.validations.Consume(ctx, batchID, digest)
-	if err != nil {
-		return question.ImportResult{}, err
-	}
-	if !ok {
+	batch, err := s.repo.WriteImportBatch(ctx, actor.ID, batchID, digest, commands)
+	if errors.Is(err, question.ErrImportPreflight) {
 		return question.ImportResult{}, ErrDryRunRequired
 	}
-	batch, err := s.repo.WriteImportBatch(ctx, actor.ID, batchID, commands)
 	if err != nil {
 		return question.ImportResult{}, err
 	}
