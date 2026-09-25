@@ -1,12 +1,13 @@
 package assessmenthttp
 
 import (
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	app "github.com/nasef6464/almeaago/internal/assessment/application"
 	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 	identityapp "github.com/nasef6464/almeaago/internal/identity/application"
 	identitysession "github.com/nasef6464/almeaago/internal/identity/transport/session"
-	"net/http"
 )
 
 type AssignmentHandler struct {
