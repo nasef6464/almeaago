@@ -451,5 +451,21 @@ Verification:
 - final exact head `d4e4de73336a9a55211ad4f28c8cada320b71eaa` passed Frontend CI run `36190174622` and Frontend E2E run `36190174557`.
 - PR #43 merged to `main` as `3fd2c71ef95c92ae9ba40047637d2e410494c832`.
 
+## Assessment Learner Attempt Core — TESTED / PR #44
+Implemented:
+- student-only start from approved + published + visible exact `published_version`.
+- bounded idempotent start/submission keys and transactionally serialized attempt-number/max-attempt enforcement.
+- exact-version learner-safe question/options projection with deterministic per-attempt randomization where configured.
+- autosave/resume with ownership, exact placement/version validation and server-owned expiry.
+- server-owned canonical scoring from Question Bank answer keys; points-weighted percentage plus question counts.
+- one transactional final result per attempt and idempotent submission retry.
+- learner React attempt experience with mobile checkpoint, autosave, navigation, progress and final result.
+- transactional audit on start/submit without autosave audit amplification.
+- deliberately excludes Realtime, Commerce, Learning side effects and AI.
+
+Verification checkpoint:
+- implementation head `eff0e6bef76edf015d234afd49a91365759277a2` passed Backend CI `36191084320`, Frontend CI `36191084520`, and Frontend E2E `36191084428`.
+- final documentation-inclusive exact-head Backend + Frontend + E2E gate is required before merge.
+
 ## Next exact action
-Start learner Assessment attempt lifecycle (start/autosave/resume/submit/scoring) from current `main` as the next focused batch. Do not mix Realtime, Commerce, Learning side effects or AI into that attempt-core batch.
+Close PR #44 only after the final exact head is Green across Backend CI, Frontend CI and Frontend E2E; merge it and record the merge SHA. Then select the next Assessment parity slice from current main; do not mix deferred Realtime/Commerce/Learning/AI concerns into this closed attempt core.
