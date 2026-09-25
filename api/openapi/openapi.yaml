@@ -222,7 +222,7 @@ paths:
               required: [userId, role]
               properties:
                 userId: { type: string }
-                role: { type: string, enum: [student, teacher, supervisor, school_admin, parent] }
+                role: { type: string, enum: [student, teacher, supervisor, parent] }
                 status: { type: string, enum: [active, suspended, graduated, revoked], default: active }
       responses:
         "200": { description: School membership created or updated }
