@@ -4,7 +4,7 @@
 **FOUNDATION_GREEN**
 
 Evidence:
-- PostgreSQL 18 migrations are exercised by apply / verify / rollback / re-apply CI.
+- PostgreSQL 18 migrations apply, verify, rollback and re-apply in CI.
 - Frontend TypeScript + Vite production build is green.
 - Backend sqlc compile + gofmt + go vet + go test is green.
 - CI is split into Backend / Frontend / Database with path filters and cancel-in-progress.
@@ -17,67 +17,55 @@ Evidence:
 `nasef6464/almeaacodax` remains read-only behavioral and visual reference.
 
 ## Current phase
-Identity/Auth — **IN_PROGRESS**.
+Identity/Auth closure — **IN_PROGRESS**.
 
-## Identity Core — TESTED / MERGED
-- email/password registration and login.
-- Saudi National ID login.
-- phone/password login.
-- opaque revocable sessions.
-- per-session CSRF.
-- Argon2id password hashing.
-- login lockout.
-- current user / logout.
-- normalized roles.
+## Identity Core / Recovery / Providers — TESTED / MERGED
+Includes:
+- email/password, National ID and phone/password login.
+- opaque revocable sessions + CSRF.
+- Argon2id and login lockout.
+- forgot/reset password and email verification.
+- Google OAuth implementation.
+- WhatsApp OTP implementation.
+- explicit provider identities.
+- canonical Saudi phone normalization.
+- HMAC-peppered OTPs and rate limits.
 
-## Identity Recovery — TESTED / MERGED
-- enumeration-safe forgot-password.
-- one-time hashed reset/verification tokens.
-- password reset revokes active sessions.
-- resend verification requires session + CSRF.
+External staging gates still pending:
+- real Google OAuth credentials and live smoke.
+- real WhatsApp delivery endpoint/token and live smoke.
 
-## Google OAuth + WhatsApp OTP — TESTED / MERGED
-PR #6 passed Backend + Frontend + Database CI and was merged.
+## Self Profile / Identity — IMPLEMENTED
+Included in the current Identity branch:
+- PATCH /api/v1/auth/me/profile
+- PATCH /api/v1/auth/me/identity
+- profile name/avatar-reference update.
+- National ID update/clear with validation and uniqueness.
+- Saudi phone canonicalization on update.
+- phone update/clear with uniqueness.
+- provider-only account cannot remove its final login identity.
+- self-update audit events.
+- CSRF required for both PATCH routes.
 
-Implemented:
-- Google OAuth authorization + callback adapter.
-- HttpOnly short-lived OAuth state cookie.
-- internal-only returnTo validation.
-- verified Google email requirement.
-- explicit Google provider identity.
-- WhatsApp OTP webhook adapter.
-- random six-digit OTP.
-- HMAC-SHA256 OTP digest with external pepper.
-- 10-minute OTP TTL.
-- three sends per 15 minutes.
-- five verification attempts.
-- provider-only account without fake email/password.
-- legacy send -> code -> verify -> resend UI flow.
-
-Still pending external staging configuration:
-- real Google OAuth credentials.
-- production OTP pepper.
-- real WhatsApp delivery endpoint/token.
-- live provider smoke test.
-
-## Auth UI — BUILD TESTED / MERGED
-- legacy-compatible Tailwind theme.
-- login/register modal structure preserved.
-- recovery screens preserved.
-- Google/WhatsApp entry points wired.
-- RTL/loading/error/disabled states.
-- desktop/mobile screenshot comparison remains required before PARITY_PROVEN.
+Compatibility aliases retained:
+- GET /api/v1/auth/csrf-token
+- POST /api/v1/auth/email/resend-verification
+- GET /api/v1/auth/google/call
 
 ## Identity Admin Accounts — IMPLEMENTED / CI PENDING
 Branch: `feat/identity-admin`
 
 Implemented in this slice:
 - platform-admin user directory with page/limit/search/role/status filters.
+- supervisor/teacher directory constrained to legacy-compatible active school/class scope.
 - hard page limit 100.
 - trigram-backed name/email search.
 - role/status summary.
 - admin account create/upsert by email.
 - account name/avatar/role/status update.
+- normalized school membership synchronization.
+- normalized class/group membership synchronization.
+- normalized parent/student relationship synchronization.
 - bulk activation/deactivation with per-user results.
 - user delete.
 - CSRF required for all unsafe admin mutations.
@@ -87,24 +75,36 @@ Implemented in this slice:
 - last active admin protected on update/upsert/bulk/delete.
 - last-admin invariant serialized with a transaction advisory lock.
 - legacy last-admin PATCH inconsistency documented and intentionally fixed.
+- cross-domain writes delegated to Organizations contract.
+- cross-domain user directory reads owned by Reporting read model.
+- admin directory does not load password hashes or login/token internals.
 
-Deliberately pending for Organizations/Trainer scopes:
-- schoolId synchronization.
-- class/group membership mapping.
-- parent/student relationship synchronization.
+Still pending outside this slice:
 - trainer managed path/subject scopes.
-- supervisor/teacher scoped user directory.
 - platformTrainer filter/count.
+- live Google/WhatsApp staging smoke.
+- desktop/mobile Auth screenshot parity gate.
 
-These fields are never silently discarded. Unsupported scope writes fail explicitly until their owning domain is implemented.
+Trainer scopes are never silently discarded: unsupported managedPathIds/managedSubjectIds fail explicitly until Catalog/Content ownership is implemented.
+
+## Identity Closure Audit
+See `docs/domains/identity/IDENTITY_CLOSURE_AUDIT.md`.
+
+Routes deliberately owned elsewhere:
+- preferences -> Learning.
+- purchase/redeem -> Commerce.
+- parent-facing link/unlink/read flows -> Parents / Organizations.
+- trainer directory/performance -> Reporting / Content ownership.
+- school/class/group canonical relationship state -> Organizations.
 
 ## Performance/scalability
 - admin directory uses bounded pagination.
 - user search uses pg_trgm indexes.
-- list roles are returned without N+1 queries.
-- mutation audit and account state changes commit atomically.
+- school-scope lookup has user-first index support.
+- directory reads use one paginated read-model query rather than N+1 user hydration.
+- mutation audit, identity state and organization scope changes commit atomically.
 - provider and OTP lookup paths remain indexed.
 - no large media passes through the Go API.
 
 ## Next exact action
-Run Backend + Database CI for the Identity Admin branch, repair failures on the same branch, merge the exact tested SHA, then close the remaining Identity visual/live-provider gates and move into Organizations/Schools/Classes.
+Run Backend + Database CI for `feat/identity-admin`, repair failures on the same branch, merge the exact tested SHA, then begin Organizations/Schools/Classes while keeping visual/provider/trainer-scope gates tracked.
