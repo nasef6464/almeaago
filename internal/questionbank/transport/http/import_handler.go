@@ -95,16 +95,20 @@ func presentImportResult(result question.ImportResult) map[string]any {
 
 func presentImportBatch(batch question.ImportBatch) map[string]any {
 	return map[string]any{
-		"batchId":        batch.BatchID,
-		"status":         batch.Status,
-		"requestedCount": batch.RequestedCount,
-		"insertedCount":  batch.InsertedCount,
-		"createdAt":      batch.CreatedAt,
-		"rolledBackAt":   batch.RolledBackAt,
-		"questions":      batch.Questions,
+		"batchId":            batch.BatchID,
+		"status":             batch.Status,
+		"requestedCount":     batch.RequestedCount,
+		"insertedCount":      batch.InsertedCount,
+		"manifestHash":       batch.ManifestHash,
+		"report":             json.RawMessage(batch.Report),
+		"preflightExpiresAt": batch.PreflightExpiresAt,
+		"committedAt":        batch.CommittedAt,
+		"createdAt":          batch.CreatedAt,
+		"updatedAt":          batch.UpdatedAt,
+		"rolledBackAt":       batch.RolledBackAt,
+		"questions":          batch.Questions,
 	}
 }
-
 
 func decodeImportJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	r.Body = http.MaxBytesReader(w, r.Body, 8<<20)
