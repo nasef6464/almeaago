@@ -126,7 +126,8 @@ func (h *Handler) upsertDirector(w http.ResponseWriter, r *http.Request) {
 
 	var permissions []string
 	if payload.Permissions != nil {
-		permissions = append([]string(nil), (*payload.Permissions)...)
+		permissions = make([]string, len(*payload.Permissions))
+		copy(permissions, *payload.Permissions)
 	}
 	record, err := h.service.UpsertDirector(
 		r.Context(),
