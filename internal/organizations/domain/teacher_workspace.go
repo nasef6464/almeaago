@@ -6,7 +6,7 @@ package domain
 // contracts.
 type TeacherWorkspace struct {
 	PlatformTrainer bool
-	Schools          []TeacherWorkspaceSchool
+	Schools         []TeacherWorkspaceSchool
 }
 
 type TeacherWorkspaceSchool struct {
