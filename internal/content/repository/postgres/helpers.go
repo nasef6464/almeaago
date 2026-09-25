@@ -57,13 +57,17 @@ func (r *Repository) validateContentRefsTx(ctx context.Context, tx pgx.Tx, pathI
 		return content.ErrInvalidTaxonomy
 	}
 	if len(skillIDs) > 0 {
+		skillArgs := make([]any, 0, len(skillIDs)+1)
+		skillPlaceholders := make([]string, 0, len(skillIDs))
+		for _, skillID := range skillIDs {
+			skillArgs = append(skillArgs, skillID)
+			skillPlaceholders = append(skillPlaceholders, fmt.Sprintf("$%d::uuid", len(skillArgs)))
+		}
+		skillArgs = append(skillArgs, subjectID)
 		var validSkillCount int
-		if err := tx.QueryRow(ctx, `
-			SELECT count(DISTINCT s.id)
-			FROM skills s
-			JOIN unnest($1::text[]) AS requested(id) ON s.id=requested.id::uuid
-			WHERE s.subject_id=$2::uuid AND s.status='active'
-		`, skillIDs, subjectID).Scan(&validSkillCount); err != nil {
+		query := "SELECT count(*) FROM skills WHERE id IN (" + strings.Join(skillPlaceholders, ",") + ")" +
+			fmt.Sprintf(" AND subject_id=$%d::uuid AND status='active'", len(skillArgs))
+		if err := tx.QueryRow(ctx, query, skillArgs...).Scan(&validSkillCount); err != nil {
 			return mapError(err)
 		}
 		if validSkillCount != len(skillIDs) {
@@ -78,13 +82,15 @@ func (r *Repository) validateContentRefsTx(ctx context.Context, tx pgx.Tx, pathI
 		}
 	}
 	if len(liveAssetIDs) > 0 {
+		assetArgs := make([]any, 0, len(liveAssetIDs))
+		assetPlaceholders := make([]string, 0, len(liveAssetIDs))
+		for _, assetID := range liveAssetIDs {
+			assetArgs = append(assetArgs, assetID)
+			assetPlaceholders = append(assetPlaceholders, fmt.Sprintf("$%d::uuid", len(assetArgs)))
+		}
 		var validAssetCount int
-		if err := tx.QueryRow(ctx, `
-			SELECT count(DISTINCT a.id)
-			FROM assets a
-			JOIN unnest($1::text[]) AS requested(id) ON a.id=requested.id::uuid
-			WHERE a.status='active'
-		`, liveAssetIDs).Scan(&validAssetCount); err != nil {
+		query := "SELECT count(*) FROM assets WHERE id IN (" + strings.Join(assetPlaceholders, ",") + ") AND status='active'"
+		if err := tx.QueryRow(ctx, query, assetArgs...).Scan(&validAssetCount); err != nil {
 			return mapError(err)
 		}
 		if validAssetCount != len(liveAssetIDs) {
