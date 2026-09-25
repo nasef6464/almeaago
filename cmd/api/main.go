@@ -90,6 +90,7 @@ func main() {
 	assessmentRepository := assessmentrepo.New(db, auditWriter)
 	assessmentService := assessmentapp.NewService(assessmentRepository)
 	assessmentAttemptService := assessmentapp.NewAttemptService(assessmentRepository)
+	assessmentAssignmentService := assessmentapp.NewAssignmentService(assessmentRepository)
 	mediaRepository := mediarepo.New(db, auditWriter)
 	r2Client := r2provider.New(r2provider.Config{
 		AccountID:       cfg.R2AccountID,
@@ -125,8 +126,9 @@ func main() {
 	contentManagementHandler := contenthttp.NewManagement(contentService, identityService)
 	learningSpacesHandler := contenthttp.NewLearningSpaces(contentService, identityService)
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
-	assessmentHandler := assessmenthttp.New(assessmentService, identityService, assessmentAttemptService)
+	assessmentHandler := assessmenthttp.NewWithAssignments(assessmentService, identityService, assessmentAssignmentService, assessmentAttemptService)
 	assessmentAttemptsHandler := assessmenthttp.NewAttempts(assessmentAttemptService, identityService)
+	assessmentAssignmentsHandler := assessmenthttp.NewAssignments(assessmentAssignmentService, identityService)
 	questionHandler := questionhttp.New(
 		questionService,
 		identityService,
@@ -163,6 +165,7 @@ func main() {
 		QuestionBank:       questionHandler,
 		Assessments:        assessmentHandler,
 		AssessmentAttempts: assessmentAttemptsHandler,
+		AssessmentAssignments: assessmentAssignmentsHandler,
 		Media:              mediaHandler,
 		Courses:            coursesHandler,
 		Lessons:            lessonsHandler,
