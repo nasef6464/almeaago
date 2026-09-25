@@ -86,6 +86,7 @@ func TestHeadVerifiesStoredObjectMetadata(t *testing.T) {
 	client := New(Config{
 		AccountID:       "account123",
 		Bucket:          "almeaa-media",
+		PublicBaseURL:   "https://cdn.example",
 		AccessKeyID:     "k",
 		SecretAccessKey: "s",
 		Clock:           fixedClock,
