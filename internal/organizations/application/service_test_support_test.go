@@ -72,7 +72,6 @@ func (m *repositoryMock) Roster(_ context.Context, _ org.AccessContext, _ string
 	return org.RosterPage{Page: query.Page, Limit: query.Limit}, nil
 }
 
-
 func (m *repositoryMock) UpsertMembership(
 	_ context.Context,
 	_ string,
