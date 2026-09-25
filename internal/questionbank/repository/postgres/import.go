@@ -388,7 +388,7 @@ func (r *Repository) RollbackImportBatch(
 	}
 	if _, err := tx.Exec(ctx, `
 		UPDATE question_import_batches
-		SET status='rolled_back', rolled_back_at=now()
+		SET status='rolled_back', rolled_back_at=now(), updated_at=now()
 		WHERE batch_id=$1
 	`, batchID); err != nil {
 		return question.ImportBatch{}, err
