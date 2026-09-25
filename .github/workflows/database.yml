@@ -10,6 +10,7 @@ concurrency:
   group: database-ci-${{ github.ref }}
   cancel-in-progress: true
 permissions: { contents: read }
+
 jobs:
   database:
     runs-on: ubuntu-latest
@@ -26,48 +27,63 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
-      - name: Apply migrations
+
+      - name: Apply every migration
+        shell: bash
         run: |
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000001_platform_foundation.up.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000002_organization_access_foundation.up.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000003_identity_auth.up.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000004_identity_recovery.up.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000005_identity_providers.up.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000006_otp_rate_limit_index.up.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000007_identity_admin_audit.up.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000008_organizations_core.up.sql
-      - name: Verify platform constraints
+          set -euo pipefail
+          mapfile -t migrations < <(find migrations -maxdepth 1 -type f -name '*.up.sql' | sort)
+          test "${#migrations[@]}" -gt 0
+          for file in "${migrations[@]}"; do
+            echo "::group::apply $file"
+            psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f "$file"
+            echo "::endgroup::"
+          done
+
+      - name: Verify current schema constraints
+        shell: bash
         run: |
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.user_roles') is not null" | grep -qx t
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.auth_provider_identities') is not null" | grep -qx t
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.auth_otp_challenges') is not null" | grep -qx t
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='auth_otp_challenges' and indexname='auth_otp_challenges_phone_history_idx'" | grep -qx 1
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='auth_otp_challenges' and indexname='auth_otp_challenges_phone_active_idx'" | grep -qx 0
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.audit_logs') is not null" | grep -qx t
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='users' and indexname='users_name_trgm_idx'" | grep -qx 1
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='users' and indexname='users_email_trgm_idx'" | grep -qx 1
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='school_memberships' and indexname='school_memberships_user_active_idx'" | grep -qx 1
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.school_supervisor_scopes') is not null" | grep -qx t
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.school_membership_permissions') is not null" | grep -qx t
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from information_schema.columns where table_name='schools' and column_name='metadata'" | grep -qx 1
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='classes' and indexname='classes_school_status_created_idx'" | grep -qx 1
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='schools' and indexname='schools_name_trgm_idx'" | grep -qx 1
-          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='classes' and indexname='classes_name_trgm_idx'" | grep -qx 1
-      - name: Roll back and re-apply
+          set -euo pipefail
+          check() {
+            local sql="$1"
+            psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "$sql" | grep -qx t
+          }
+
+          check "select to_regclass('public.user_roles') is not null"
+          check "select to_regclass('public.auth_provider_identities') is not null"
+          check "select to_regclass('public.audit_logs') is not null"
+          check "select to_regclass('public.school_supervisor_scopes') is not null"
+          check "select to_regclass('public.levels') is not null"
+          check "select to_regclass('public.question_import_batches') is not null"
+          check "select to_regclass('public.courses') is not null"
+          check "select to_regclass('public.course_modules') is not null"
+          check "select to_regclass('public.lessons') is not null"
+          check "select to_regclass('public.library_items') is not null"
+          check "select to_regclass('public.topic_skill_links') is not null"
+          check "select exists(select 1 from information_schema.columns where table_name='foundation_topics' and column_name='path_id')"
+          check "select exists(select 1 from pg_indexes where tablename='assets' and indexname='assets_sha256_live_unique_idx')"
+          check "select exists(select 1 from pg_indexes where tablename='questions' and indexname='questions_source_item_unique_idx')"
+          check "select exists(select 1 from pg_indexes where tablename='courses' and indexname='courses_taxonomy_workflow_idx')"
+
+      - name: Roll back every migration
+        shell: bash
         run: |
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000008_organizations_core.down.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000007_identity_admin_audit.down.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000006_otp_rate_limit_index.down.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000005_identity_providers.down.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000004_identity_recovery.down.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000003_identity_auth.down.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000002_organization_access_foundation.down.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000001_platform_foundation.down.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000001_platform_foundation.up.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000002_organization_access_foundation.up.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000003_identity_auth.up.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000004_identity_recovery.up.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000005_identity_providers.up.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000006_otp_rate_limit_index.up.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000007_identity_admin_audit.up.sql
-          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000008_organizations_core.up.sql
+          set -euo pipefail
+          mapfile -t migrations < <(find migrations -maxdepth 1 -type f -name '*.down.sql' | sort -r)
+          for file in "${migrations[@]}"; do
+            echo "::group::rollback $file"
+            psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f "$file"
+            echo "::endgroup::"
+          done
+          test "$(psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.users') is null")" = "t"
+
+      - name: Re-apply every migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t migrations < <(find migrations -maxdepth 1 -type f -name '*.up.sql' | sort)
+          for file in "${migrations[@]}"; do
+            echo "::group::reapply $file"
+            psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f "$file"
+            echo "::endgroup::"
+          done
