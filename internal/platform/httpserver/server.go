@@ -20,6 +20,7 @@ type Dependencies struct {
 	Identity           http.Handler
 	Organizations      http.Handler
 	Parents            http.Handler
+	Taxonomy           http.Handler
 	LegacySchoolAccess http.Handler
 }
 
@@ -61,6 +62,9 @@ func New(addr string, deps Dependencies) *http.Server {
 	}
 	if deps.Parents != nil {
 		router.Mount("/api/v1/parents", deps.Parents)
+	}
+	if deps.Taxonomy != nil {
+		router.Mount("/api/v1/taxonomy", deps.Taxonomy)
 	}
 	if deps.LegacySchoolAccess != nil {
 		router.Mount("/api/school-access", deps.LegacySchoolAccess)
