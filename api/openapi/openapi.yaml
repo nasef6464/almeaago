@@ -15,6 +15,54 @@ paths:
         "400": { description: Invalid bootstrap phase }
         "500": { description: Taxonomy unavailable }
 
+  /api/v1/taxonomy/admin/paths:
+    post:
+      operationId: taxonomyAdminCreatePath
+      description: Platform-admin only. Codes are immutable after creation; CSRF required.
+      responses:
+        "201": { description: Path created }
+        "400": { description: Invalid hierarchy input }
+        "403": { description: Admin role or CSRF required }
+        "409": { description: Taxonomy hierarchy conflict }
+  /api/v1/taxonomy/admin/paths/{id}:
+    patch:
+      operationId: taxonomyAdminUpdatePath
+      description: Lifecycle-safe path update; code is not mutable.
+      responses:
+        "200": { description: Path updated }
+        "404": { description: Path not found }
+        "409": { description: Taxonomy hierarchy conflict }
+  /api/v1/taxonomy/admin/levels:
+    post:
+      operationId: taxonomyAdminCreateLevel
+      responses:
+        "201": { description: Level created under an active path }
+  /api/v1/taxonomy/admin/levels/{id}:
+    patch:
+      operationId: taxonomyAdminUpdateLevel
+      responses:
+        "200": { description: Level updated }
+  /api/v1/taxonomy/admin/subjects:
+    post:
+      operationId: taxonomyAdminCreateSubject
+      responses:
+        "201": { description: Subject created with optional same-path active level }
+  /api/v1/taxonomy/admin/subjects/{id}:
+    patch:
+      operationId: taxonomyAdminUpdateSubject
+      responses:
+        "200": { description: Subject updated }
+  /api/v1/taxonomy/admin/skills:
+    post:
+      operationId: taxonomyAdminCreateSkill
+      responses:
+        "201": { description: Main/sub skill created with hierarchy validation }
+  /api/v1/taxonomy/admin/skills/{id}:
+    patch:
+      operationId: taxonomyAdminUpdateSkill
+      responses:
+        "200": { description: Skill updated without changing stable code/kind/subject }
+
   /health/live:
     get:
       operationId: healthLive
