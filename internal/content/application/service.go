@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"time"
 
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	content "github.com/nasef6464/almeaago/internal/content/domain"
@@ -301,8 +302,11 @@ func (s *Service) CreateTopic(ctx context.Context, actor identity.User, input To
 }
 
 func (s *Service) UpdateTopic(ctx context.Context, actor identity.User, id string, expectedRevision int, input TopicInput) (content.FoundationTopic, error) {
-	if !actor.HasRole(identity.RoleAdmin) || expectedRevision < 1 {
+	if !actor.HasRole(identity.RoleAdmin) {
 		return content.FoundationTopic{}, ErrForbidden
+	}
+	if expectedRevision < 1 {
+		return content.FoundationTopic{}, ErrInvalidInput
 	}
 	command, err := normalizeTopic(input)
 	if err != nil {
@@ -329,22 +333,31 @@ func (s *Service) ListTopics(ctx context.Context, actor identity.User, query con
 }
 
 func (s *Service) ArchiveTopic(ctx context.Context, actor identity.User, id string, expectedRevision int) (content.FoundationTopic, error) {
-	if !actor.HasRole(identity.RoleAdmin) || expectedRevision < 1 {
+	if !actor.HasRole(identity.RoleAdmin) {
 		return content.FoundationTopic{}, ErrForbidden
+	}
+	if expectedRevision < 1 {
+		return content.FoundationTopic{}, ErrInvalidInput
 	}
 	return s.repo.ArchiveTopic(ctx, actor.ID, strings.TrimSpace(id), expectedRevision)
 }
 
 func (s *Service) LinkTopicLesson(ctx context.Context, actor identity.User, topicID, lessonID string, sortOrder int) error {
-	if !actor.HasRole(identity.RoleAdmin) || sortOrder < 0 {
+	if !actor.HasRole(identity.RoleAdmin) {
 		return ErrForbidden
+	}
+	if sortOrder < 0 {
+		return ErrInvalidInput
 	}
 	return s.repo.LinkTopicLesson(ctx, actor.ID, strings.TrimSpace(topicID), strings.TrimSpace(lessonID), sortOrder)
 }
 
 func (s *Service) LinkTopicLibrary(ctx context.Context, actor identity.User, topicID, itemID string, sortOrder int) error {
-	if !actor.HasRole(identity.RoleAdmin) || sortOrder < 0 {
+	if !actor.HasRole(identity.RoleAdmin) {
 		return ErrForbidden
+	}
+	if sortOrder < 0 {
+		return ErrInvalidInput
 	}
 	return s.repo.LinkTopicLibrary(ctx, actor.ID, strings.TrimSpace(topicID), strings.TrimSpace(itemID), sortOrder)
 }
