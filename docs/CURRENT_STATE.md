@@ -100,8 +100,8 @@ Routes deliberately owned elsewhere:
 ## Organizations Core — TESTED / MERGED
 Core school/class/roster/membership/director-delegation/assignment foundation was merged to `main` as `c182892d12ac50f3260b23d7281cba10bb9eb28f`.
 
-## School Director Core — IMPLEMENTED / CI PENDING
-Branch: `feat/organizations-core`
+## School Director Core — TESTED / MERGED
+Merged to `main` as `51c71e830c412386694c20f31e014881ce3d653a`.
 
 Current implementation:
 - Migration 000008 for organization delegation/core metadata.
@@ -146,5 +146,10 @@ Next within this slice:
 - provider and OTP lookup paths remain indexed.
 - no large media passes through the Go API.
 
+## Active performance hardening
+Branch: `perf/organizations-read-indexes`
+
+Migration 000009 adds targeted indexes for school-scoped membership scans, current active class lookup by student, and school-scoped teaching assignments. This is deliberately separate from feature parity work and must pass the existing database apply/verify/rollback/re-apply gate before merge.
+
 ## Next exact action
-Run Backend + Database CI for the expanded Organizations relationship core on `feat/organizations-core`, repair failures on the same branch, then add context/director/teacher compatibility workflows before the exact tested SHA can be merged.
+Open/test the organization read-index hardening PR, then continue teacher workspace compatibility without fabricating assessment or entitlement data: those fields must be supplied by their owning domain boundaries.
