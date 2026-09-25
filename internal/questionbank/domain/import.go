@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type ImportProvenance struct {
 	DocumentCode          string
@@ -39,14 +42,19 @@ type ImportedQuestion struct {
 }
 
 type ImportBatch struct {
-	BatchID        string
-	Status         string
-	RequestedCount int
-	InsertedCount  int
-	CreatedBy      string
-	CreatedAt      time.Time
-	RolledBackAt   *time.Time
-	Questions      []ImportedQuestion
+	BatchID            string
+	Status             string
+	RequestedCount     int
+	InsertedCount      int
+	CreatedBy          string
+	ManifestHash       string
+	Report             json.RawMessage
+	PreflightExpiresAt *time.Time
+	CommittedAt        *time.Time
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	RolledBackAt       *time.Time
+	Questions          []ImportedQuestion
 }
 
 type ImportResult struct {
