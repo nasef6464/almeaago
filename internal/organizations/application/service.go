@@ -335,6 +335,13 @@ func (s *Service) Roster(
 	if !allowed {
 		return org.RosterPage{}, ErrForbidden
 	}
+	if actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleSupervisor) {
+		if query.Role != nil && *query.Role != identity.RoleStudent {
+			return org.RosterPage{}, ErrForbidden
+		}
+		role := identity.RoleStudent
+		query.Role = &role
+	}
 	if actor.HasRole(identity.RoleSchoolAdmin) && !actor.HasRole(identity.RoleAdmin) {
 		permitted, err := s.repo.HasSchoolPermission(ctx, actor.ID, schoolID, permissionSchoolStudentsView)
 		if err != nil {
@@ -343,10 +350,11 @@ func (s *Service) Roster(
 		if !permitted {
 			return org.RosterPage{}, ErrForbidden
 		}
-		if query.Role == nil {
-			role := identity.RoleStudent
-			query.Role = &role
+		if query.Role != nil && *query.Role != identity.RoleStudent {
+			return org.RosterPage{}, ErrForbidden
 		}
+		role := identity.RoleStudent
+		query.Role = &role
 	}
 
 	query.Page = clampPage(query.Page)
