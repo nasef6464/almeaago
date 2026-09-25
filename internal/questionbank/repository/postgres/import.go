@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -302,13 +301,11 @@ func (r *Repository) RollbackImportBatch(
 	`, batchID); err != nil {
 		return question.ImportBatch{}, err
 	}
-	var rolledBackAt time.Time
-	if err := tx.QueryRow(ctx, `
+	if _, err := tx.Exec(ctx, `
 		UPDATE question_import_batches
 		SET status='rolled_back', rolled_back_at=now()
 		WHERE batch_id=$1
-		RETURNING rolled_back_at
-	`, batchID).Scan(&rolledBackAt); err != nil {
+	`, batchID); err != nil {
 		return question.ImportBatch{}, err
 	}
 	if err := r.writeAudit(ctx, tx, operations.AuditEvent{
