@@ -414,7 +414,6 @@ func (s *Service) Roster(
 	return s.repo.Roster(ctx, accessOf(actor), schoolID, query)
 }
 
-
 func (s *Service) UpsertMembership(
 	ctx context.Context,
 	actor identity.User,
