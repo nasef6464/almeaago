@@ -3,12 +3,12 @@ package postgres
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/jackc/pgx/v5"
 	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	operations "github.com/nasef6464/almeaago/internal/operations/domain"
-	"strconv"
-	"time"
 )
 
 func has(r []identity.Role, x identity.Role) bool {
@@ -245,4 +245,3 @@ func (r *Repository) StartAssigned(ctx context.Context, student, assignmentID, s
 	return r.GetAttempt(ctx, id)
 }
 
-var _ = strconv.Itoa
