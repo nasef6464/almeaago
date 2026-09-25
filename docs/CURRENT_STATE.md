@@ -31,6 +31,34 @@ Content React cutover — **TESTED / VISUAL CHECKPOINT GREEN / MERGED**.
 
 Assessment foundation schema — **TESTED / MERGED**.
 
+## Active batch — Assessment Definition / Version API
+PR #42 on `feat/assessment-definition-api` is the only active implementation batch.
+
+Implemented:
+- Assessment domain model with explicit owner, workflow, revision and immutable version composition.
+- Admin/teacher application authorization with bounded list pagination (default 50, max 100).
+- teacher authoring constrained by active path/subject scope; teacher ownership is server-normalized.
+- explicit review workflow; teachers cannot approve; publication is admin-only and requires approved content with questions.
+- exact Question Bank references use `question_id + question_version`; question data is not duplicated.
+- PostgreSQL repository validates Taxonomy/Question Bank references and writes definition/version/sections/question placement transactionally.
+- optimistic revision conflicts are explicit.
+- assessment mutations require transaction-scoped Operations audit writes.
+- secured HTTP transport mounted at `/api/v1/assessments`; unsafe routes require CSRF.
+- request bodies are bounded and unknown JSON fields are rejected.
+- list reads use bounded `limit + 1` pagination and avoid mandatory exact-count scans.
+
+Verification:
+- one-shot gofmt automation completed and removed itself.
+- Backend CI passed on implementation SHA `688a503774d865094e31f1dc8bffe067b7aed2c7`.
+- final documentation-inclusive exact-head CI is required before merge.
+- no Vercel or Render deployment is part of this batch.
+
+Next gate:
+1. run Backend CI on the final documentation-inclusive head;
+2. merge PR #42 only if that exact head is Green and mergeable;
+3. update main checkpoint/parity evidence from the merged result;
+4. only then start the next parity batch.
+
 ## Identity Core / Recovery / Providers — TESTED / MERGED
 Includes:
 - email/password, National ID and phone/password login.
