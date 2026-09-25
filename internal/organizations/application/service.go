@@ -44,17 +44,30 @@ type Repository interface {
 	ListAssignments(ctx context.Context, access org.AccessContext, schoolID string, query org.AssignmentQuery) (org.AssignmentPage, error)
 	UpsertAssignment(ctx context.Context, actorUserID, schoolID string, write org.AssignmentWrite) (org.TeachingAssignment, error)
 
+	DirectorAddStudent(ctx context.Context, actorUserID, schoolID string, write org.DirectorStudentCreate) (org.DirectorStudentMutationResult, error)
+	DirectorMoveStudent(ctx context.Context, actorUserID, schoolID, studentID, classID string) (org.DirectorStudentMutationResult, error)
+	DirectorUpdateStudentBasic(ctx context.Context, actorUserID, schoolID, studentID string, patch org.DirectorStudentBasicPatch) (org.DirectorStudentMutationResult, error)
+	DirectorSetStudentActive(ctx context.Context, actorUserID, schoolID, studentID string, active bool) (org.DirectorStudentMutationResult, error)
+
 	CanAccessSchool(ctx context.Context, access org.AccessContext, schoolID string) (bool, error)
 	CanManageSchool(ctx context.Context, userID, schoolID string) (bool, error)
 	HasSchoolPermission(ctx context.Context, userID, schoolID, permission string) (bool, error)
 }
 
 type Service struct {
-	repo Repository
+	repo              Repository
+	directorDirectory DirectorDirectory
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, directories ...DirectorDirectory) *Service {
+	var directorDirectory DirectorDirectory
+	if len(directories) > 0 {
+		directorDirectory = directories[0]
+	}
+	return &Service{
+		repo:              repo,
+		directorDirectory: directorDirectory,
+	}
 }
 
 type CreateSchoolInput struct {
