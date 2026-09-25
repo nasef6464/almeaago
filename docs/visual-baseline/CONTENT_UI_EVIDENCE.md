@@ -1,18 +1,20 @@
 # Content UI Browser Evidence
 
-Status: **VISUAL_CHECKPOINT_GREEN / PR_38_PRE_MERGE**
+Status: **VISUAL_CHECKPOINT_GREEN / MERGED**
 
 This checkpoint covers the representative Content administration surfaces needed to close the current React cutover batch. It is not a claim that every ALMEAA screen is globally parity-proven.
 
 ## Exact browser checkpoint
 
 Representative visual alignment implementation:
-- commit `9c92769f6c64c3815782d65f75aed9c1fe548778`.
-- Frontend CI run `36163074967`: PASS (TypeScript typecheck + Vite production build).
-- Frontend E2E run `36163074657`: PASS (4/4).
-- browser evidence artifact `10875638539`.
+- visual alignment commit `9c92769f6c64c3815782d65f75aed9c1fe548778`.
+- final PR #38 head `84723eb593749bab0c3a33a3fb090539b2e3f315`.
+- final Frontend CI run `36163606394`: PASS (TypeScript typecheck + Vite production build).
+- final Frontend E2E run `36163606469`: PASS (4/4).
+- final browser evidence artifact `10875624297`.
+- PR #38 merge commit `8133e36b09621bc58c8bf0180cf65fe34ab2c3c3`.
 
-The final PR #38 documentation/assertion head must pass Frontend CI and Frontend E2E again before merge. Only that exact green SHA may be merged.
+The merge used the exact tested head SHA guard; GitHub would have rejected the merge if the branch moved.
 
 ## Legacy comparison basis
 
