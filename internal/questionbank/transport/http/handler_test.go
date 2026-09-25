@@ -72,7 +72,7 @@ func approvedQuestion() question.Question {
 			Difficulty:             "medium",
 			ExamType:               "qudurat",
 		},
-		Options: []question.Option{{Index: 0, Text: "A"}, {Index: 1, Text: "B"}},
+		Options:    []question.Option{{Index: 0, Text: "A"}, {Index: 1, Text: "B"}},
 		SkillLinks: []question.SkillLink{{SkillID: "skill-main", RelationType: question.RelationMain}},
 	}
 }
