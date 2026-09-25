@@ -1,5 +1,11 @@
 name: Format Directed Assignments
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'internal/assessment/**'
+      - 'cmd/api/main.go'
+      - 'internal/platform/httpserver/server.go'
   workflow_dispatch:
 jobs:
   format:
