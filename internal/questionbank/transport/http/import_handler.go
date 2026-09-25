@@ -1,6 +1,7 @@
 package questionhttp
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -19,7 +20,7 @@ func (h *Handler) importBatch(w http.ResponseWriter, r *http.Request) {
 		DryRun  *bool                         `json:"dryRun"`
 		Items   []questionapp.ImportItemInput `json:"items"`
 	}
-	if !decodeJSON(w, r, &payload) {
+	if !decodeImportJSON(w, r, &payload) {
 		return
 	}
 	dryRun := true
@@ -102,4 +103,16 @@ func presentImportBatch(batch question.ImportBatch) map[string]any {
 		"rolledBackAt":   batch.RolledBackAt,
 		"questions":      batch.Questions,
 	}
+}
+
+
+func decodeImportJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<20)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(dst); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid import request"})
+		return false
+	}
+	return true
 }
