@@ -180,8 +180,8 @@ func (d *SchoolDirectorDirectory) DirectorTeachers(
 			&assignment.SubjectID,
 			&assignment.Status,
 			&assignment.CreatedAt,
-		&assignment.UpdatedAt,
-			); err != nil {
+			&assignment.UpdatedAt,
+		); err != nil {
 			return org.DirectorTeacherWorkspace{}, err
 		}
 		assignments = append(assignments, assignment)
