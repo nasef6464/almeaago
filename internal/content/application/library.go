@@ -9,12 +9,15 @@ import (
 )
 
 func (s *Service) CreateLibraryItem(ctx context.Context, actor identity.User, input LibraryInput) (content.LibraryItem, error) {
-	if !actor.HasRole(identity.RoleAdmin) {
-		return content.LibraryItem{}, ErrForbidden
-	}
 	write, err := normalizeLibrary(actor, input)
 	if err != nil {
 		return content.LibraryItem{}, err
+	}
+	if err := s.requireAuthorScope(ctx, actor, write.PathID, write.SubjectID); err != nil {
+		return content.LibraryItem{}, err
+	}
+	if !actor.HasRole(identity.RoleAdmin) {
+		write.RevenueSharePercentage = nil
 	}
 	return s.repo.CreateLibraryItem(ctx, actor.ID, write)
 }
@@ -31,11 +34,17 @@ func (s *Service) UpdateLibraryItem(ctx context.Context, actor identity.User, it
 	if !canEdit(actor, current.OwnerType, current.OwnerUserID, current.AssignedTeacherID) {
 		return content.LibraryItem{}, ErrForbidden
 	}
+	if err := s.requireAuthorScope(ctx, actor, current.PathID, current.SubjectID); err != nil {
+		return content.LibraryItem{}, err
+	}
 	if current.WorkflowStatus == content.WorkflowApproved || current.WorkflowStatus == content.WorkflowArchived {
 		return content.LibraryItem{}, ErrWorkflow
 	}
 	write, err := normalizeLibrary(actor, input.LibraryInput)
 	if err != nil {
+		return content.LibraryItem{}, err
+	}
+	if err := s.requireAuthorScope(ctx, actor, write.PathID, write.SubjectID); err != nil {
 		return content.LibraryItem{}, err
 	}
 	if !actor.HasRole(identity.RoleAdmin) {
@@ -51,6 +60,9 @@ func (s *Service) SetLibraryWorkflow(ctx context.Context, actor identity.User, i
 		return content.LibraryItem{}, err
 	}
 	if err := validateWorkflowInput(input); err != nil {
+		return content.LibraryItem{}, err
+	}
+	if err := s.requireAuthorScope(ctx, actor, current.PathID, current.SubjectID); err != nil {
 		return content.LibraryItem{}, err
 	}
 	if err := authorizeWorkflow(actor, current.OwnerType, current.OwnerUserID, current.AssignedTeacherID, current.WorkflowStatus, input.Status); err != nil {
@@ -69,6 +81,9 @@ func (s *Service) StaffLibraryItem(ctx context.Context, actor identity.User, ite
 	}
 	if !canEdit(actor, row.OwnerType, row.OwnerUserID, row.AssignedTeacherID) {
 		return content.LibraryItem{}, ErrForbidden
+	}
+	if err := s.requireAuthorScope(ctx, actor, row.PathID, row.SubjectID); err != nil {
+		return content.LibraryItem{}, err
 	}
 	return row, nil
 }

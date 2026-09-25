@@ -10,12 +10,15 @@ import (
 )
 
 func (s *Service) CreateCourse(ctx context.Context, actor identity.User, input CourseInput) (content.Course, error) {
-	if !actor.HasRole(identity.RoleAdmin) {
-		return content.Course{}, ErrForbidden
-	}
 	write, err := normalizeCourse(actor, input)
 	if err != nil {
 		return content.Course{}, err
+	}
+	if err := s.requireAuthorScope(ctx, actor, write.PathID, write.SubjectID); err != nil {
+		return content.Course{}, err
+	}
+	if !actor.HasRole(identity.RoleAdmin) {
+		write.RevenueSharePercentage = nil
 	}
 	return s.repo.CreateCourse(ctx, actor.ID, write)
 }
@@ -32,11 +35,17 @@ func (s *Service) UpdateCourse(ctx context.Context, actor identity.User, courseI
 	if !canEdit(actor, current.OwnerType, current.OwnerUserID, current.AssignedTeacherID) {
 		return content.Course{}, ErrForbidden
 	}
+	if err := s.requireAuthorScope(ctx, actor, current.PathID, current.SubjectID); err != nil {
+		return content.Course{}, err
+	}
 	if current.WorkflowStatus == content.WorkflowApproved || current.WorkflowStatus == content.WorkflowArchived {
 		return content.Course{}, ErrWorkflow
 	}
 	write, err := normalizeCourse(actor, input.CourseInput)
 	if err != nil {
+		return content.Course{}, err
+	}
+	if err := s.requireAuthorScope(ctx, actor, write.PathID, write.SubjectID); err != nil {
 		return content.Course{}, err
 	}
 	if !actor.HasRole(identity.RoleAdmin) {
@@ -52,6 +61,9 @@ func (s *Service) SetCourseWorkflow(ctx context.Context, actor identity.User, co
 		return content.Course{}, err
 	}
 	if err := validateWorkflowInput(input); err != nil {
+		return content.Course{}, err
+	}
+	if err := s.requireAuthorScope(ctx, actor, current.PathID, current.SubjectID); err != nil {
 		return content.Course{}, err
 	}
 	if err := authorizeWorkflow(actor, current.OwnerType, current.OwnerUserID, current.AssignedTeacherID, current.WorkflowStatus, input.Status); err != nil {
@@ -76,6 +88,9 @@ func (s *Service) StaffCourse(ctx context.Context, actor identity.User, courseID
 	}
 	if !canEdit(actor, row.OwnerType, row.OwnerUserID, row.AssignedTeacherID) {
 		return content.Course{}, ErrForbidden
+	}
+	if err := s.requireAuthorScope(ctx, actor, row.PathID, row.SubjectID); err != nil {
+		return content.Course{}, err
 	}
 	return row, nil
 }

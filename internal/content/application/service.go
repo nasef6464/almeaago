@@ -83,6 +83,23 @@ func normalizeOwner(actor identity.User, ownerType *content.OwnerType, ownerUser
 	return nil
 }
 
+func (s *Service) requireAuthorScope(ctx context.Context, actor identity.User, pathID, subjectID string) error {
+	if actor.HasRole(identity.RoleAdmin) {
+		return nil
+	}
+	if !actor.HasRole(identity.RoleTeacher) {
+		return ErrForbidden
+	}
+	ok, err := s.repo.CanAuthor(ctx, actor.ID, strings.TrimSpace(pathID), strings.TrimSpace(subjectID))
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrForbidden
+	}
+	return nil
+}
+
 func normalizeList(actor identity.User, query *content.ListQuery) error {
 	if !isStaff(actor) {
 		return ErrForbidden

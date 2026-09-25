@@ -16,6 +16,9 @@ func TestBuildListWhereTeacherScopeDoesNotUseCreatorAuthority(t *testing.T) {
 	if !strings.Contains(where, "owner_user_id") || !strings.Contains(where, "assigned_teacher_id") {
 		t.Fatalf("teacher scope must use owner/assignment authority: %s", where)
 	}
+	if !strings.Contains(where, "content_trainer_path_scopes") || !strings.Contains(where, "content_trainer_subject_scopes") {
+		t.Fatalf("teacher list must also enforce canonical trainer taxonomy scope: %s", where)
+	}
 	if len(args) != 1 || args[0] != "teacher-1" {
 		t.Fatalf("unexpected args: %#v", args)
 	}

@@ -15,9 +15,23 @@ type repoStub struct {
 	courseWrite   content.CourseWrite
 	workflowWrite bool
 	listQuery     content.ListQuery
+	canAuthor     bool
+	scope         content.TrainerScope
 }
 
-func (r *repoStub) CreateCourse(context.Context, string, content.CourseWrite) (content.Course, error) {
+func (r *repoStub) GetTrainerScope(context.Context, string) (content.TrainerScope, error) {
+	return r.scope, nil
+}
+func (r *repoStub) SetTrainerScope(_ context.Context, _ string, userID string, pathIDs, subjectIDs []string) (content.TrainerScope, error) {
+	r.scope = content.TrainerScope{UserID: userID, PathIDs: pathIDs, SubjectIDs: subjectIDs}
+	return r.scope, nil
+}
+func (r *repoStub) CanAuthor(context.Context, string, string, string) (bool, error) {
+	return r.canAuthor, nil
+}
+
+func (r *repoStub) CreateCourse(_ context.Context, _ string, write content.CourseWrite) (content.Course, error) {
+	r.courseWrite = write
 	return content.Course{}, nil
 }
 func (r *repoStub) UpdateCourse(_ context.Context, _ string, _ string, _ int, write content.CourseWrite) (content.Course, error) {
@@ -111,7 +125,7 @@ func TestListRejectsUnboundedLimit(t *testing.T) {
 }
 
 func TestTeacherUpdatePreservesExistingAssignment(t *testing.T) {
-	repo := &repoStub{course: content.Course{
+	repo := &repoStub{canAuthor: true, course: content.Course{
 		ID:                     "course-1",
 		OwnerType:              content.OwnerTeacher,
 		OwnerUserID:            "teacher-1",
@@ -139,11 +153,26 @@ func TestTeacherUpdatePreservesExistingAssignment(t *testing.T) {
 	}
 }
 
-func TestTeacherCannotCreateBeforeAuthoringScopeIsAvailable(t *testing.T) {
-	service := NewService(&repoStub{})
-	_, err := service.CreateCourse(context.Background(), staffActor(identity.RoleTeacher), CourseInput{})
-	if !errors.Is(err, ErrForbidden) {
-		t.Fatalf("expected forbidden teacher self-create, got %v", err)
+func TestTeacherCreateRequiresAuthoringScope(t *testing.T) {
+	input := CourseInput{
+		PathID: "path-1", SubjectID: "subject-1", Title: "Course",
+		Level: content.CourseBeginner, SkillIDs: []string{"skill-1"}, RevenueSharePercentage: float64Ptr(80),
+	}
+	denied := NewService(&repoStub{})
+	if _, err := denied.CreateCourse(context.Background(), staffActor(identity.RoleTeacher), input); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected forbidden outside trainer scope, got %v", err)
+	}
+
+	repo := &repoStub{canAuthor: true}
+	service := NewService(repo)
+	if _, err := service.CreateCourse(context.Background(), staffActor(identity.RoleTeacher), input); err != nil {
+		t.Fatalf("unexpected scoped trainer error: %v", err)
+	}
+	if repo.courseWrite.OwnerType != content.OwnerTeacher || repo.courseWrite.OwnerUserID != "teacher-1" || repo.courseWrite.AssignedTeacherID != "teacher-1" {
+		t.Fatalf("trainer ownership was not forced: %#v", repo.courseWrite)
+	}
+	if repo.courseWrite.RevenueSharePercentage != nil {
+		t.Fatalf("trainer must not set revenue share: %#v", repo.courseWrite)
 	}
 }
 
