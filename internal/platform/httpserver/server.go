@@ -22,6 +22,7 @@ type Dependencies struct {
 	Parents            http.Handler
 	Taxonomy           http.Handler
 	QuestionBank       http.Handler
+	Assessments        http.Handler
 	Media              http.Handler
 	Courses            http.Handler
 	Lessons            http.Handler
@@ -76,6 +77,9 @@ func New(addr string, deps Dependencies) *http.Server {
 	}
 	if deps.QuestionBank != nil {
 		router.Mount("/api/v1/questions", deps.QuestionBank)
+	}
+	if deps.Assessments != nil {
+		router.Mount("/api/v1/assessments", deps.Assessments)
 	}
 	if deps.Media != nil {
 		router.Mount("/api/v1/media", deps.Media)
