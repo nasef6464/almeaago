@@ -180,25 +180,33 @@ CREATE TABLE lesson_assets (
   PRIMARY KEY(lesson_id, asset_id, purpose)
 );
 
-CREATE TABLE foundation_topics (
-  id uuid PRIMARY KEY DEFAULT uuidv7(),
-  path_id uuid NOT NULL REFERENCES paths(id) ON DELETE RESTRICT,
-  subject_id uuid NOT NULL REFERENCES subjects(id) ON DELETE RESTRICT,
-  parent_topic_id uuid REFERENCES foundation_topics(id) ON DELETE RESTRICT,
-  title text NOT NULL CHECK (btrim(title) <> ''),
-  description text NOT NULL DEFAULT '',
-  sort_order integer NOT NULL DEFAULT 0 CHECK (sort_order >= 0),
-  is_visible boolean NOT NULL DEFAULT true,
-  is_locked boolean NOT NULL DEFAULT false,
-  status text NOT NULL DEFAULT 'active'
-    CHECK (status IN ('active','inactive','archived')),
-  created_by uuid REFERENCES users(id) ON DELETE SET NULL,
-  revision integer NOT NULL DEFAULT 1 CHECK (revision > 0),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT foundation_topics_parent_not_self
-    CHECK (parent_topic_id IS NULL OR parent_topic_id <> id)
-);
+ALTER TABLE foundation_topics
+  RENAME COLUMN name TO title;
+
+ALTER TABLE foundation_topics
+  DROP CONSTRAINT IF EXISTS foundation_topics_subject_id_fkey;
+
+ALTER TABLE foundation_topics
+  ADD CONSTRAINT foundation_topics_subject_id_fkey
+    FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE RESTRICT,
+  ADD COLUMN path_id uuid REFERENCES paths(id) ON DELETE RESTRICT,
+  ADD COLUMN description text NOT NULL DEFAULT '',
+  ADD COLUMN is_visible boolean NOT NULL DEFAULT true,
+  ADD COLUMN is_locked boolean NOT NULL DEFAULT false,
+  ADD COLUMN created_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN revision integer NOT NULL DEFAULT 1 CHECK (revision > 0),
+  ADD CONSTRAINT foundation_topics_parent_not_self
+    CHECK (parent_topic_id IS NULL OR parent_topic_id <> id),
+  ADD CONSTRAINT foundation_topics_status_check
+    CHECK (status IN ('active','inactive','archived'));
+
+UPDATE foundation_topics t
+SET path_id = s.path_id
+FROM subjects s
+WHERE s.id = t.subject_id;
+
+ALTER TABLE foundation_topics
+  ALTER COLUMN path_id SET NOT NULL;
 
 CREATE INDEX foundation_topics_scope_tree_idx
   ON foundation_topics(path_id, subject_id, status, parent_topic_id, sort_order, id);
@@ -206,14 +214,24 @@ CREATE INDEX foundation_topics_parent_idx
   ON foundation_topics(parent_topic_id, sort_order, id)
   WHERE parent_topic_id IS NOT NULL;
 
-CREATE TABLE topic_skill_links (
-  topic_id uuid NOT NULL REFERENCES foundation_topics(id) ON DELETE RESTRICT,
-  skill_id uuid NOT NULL REFERENCES skills(id) ON DELETE RESTRICT,
-  relation_type text NOT NULL DEFAULT 'primary'
+ALTER TABLE foundation_topic_skills
+  RENAME TO topic_skill_links;
+
+ALTER TABLE topic_skill_links
+  ADD COLUMN relation_type text NOT NULL DEFAULT 'secondary'
     CHECK (relation_type IN ('primary','secondary')),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY(topic_id, skill_id)
-);
+  ADD COLUMN created_at timestamptz NOT NULL DEFAULT now();
+
+WITH ranked AS (
+  SELECT topic_id, skill_id,
+         row_number() OVER (PARTITION BY topic_id ORDER BY skill_id) AS rn
+  FROM topic_skill_links
+)
+UPDATE topic_skill_links tsl
+SET relation_type = CASE WHEN ranked.rn = 1 THEN 'primary' ELSE 'secondary' END
+FROM ranked
+WHERE ranked.topic_id = tsl.topic_id
+  AND ranked.skill_id = tsl.skill_id;
 
 CREATE UNIQUE INDEX topic_skill_links_one_primary_idx
   ON topic_skill_links(topic_id)
