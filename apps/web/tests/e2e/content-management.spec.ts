@@ -267,3 +267,18 @@ test('teacher does not issue a broad content list before exact scope selection',
   await expect(page.getByText('أساسيات الكمي')).toBeVisible();
   expect(courseListRequests).toBe(1);
 });
+
+
+test('admin Foundation editor resolves relational lesson and library placements', async ({ page }) => {
+  await mockContentAPI(page);
+  await page.goto('/admin-dashboard/content');
+
+  await page.getByRole('button', { name: 'التأسيس' }).click();
+  await expect(page.getByText('تأسيس الأعداد')).toBeVisible();
+  await page.getByRole('button', { name: 'تعديل / روابط' }).click();
+
+  await expect(page.getByRole('heading', { name: 'تعديل موضوع التأسيس' })).toBeVisible();
+  await expect(page.getByText('روابط التأسيس')).toBeVisible();
+  await expect(page.getByText('مدخل إلى الأعداد')).toBeVisible();
+  await expect(page.getByText('ملخص الأعداد')).toBeVisible();
+});
