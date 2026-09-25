@@ -70,8 +70,6 @@ func main() {
 	taxonomyService := taxonomyapp.NewService(taxonomyRepository)
 	questionRepository := questionrepo.New(db, auditWriter)
 	questionService := questionapp.NewService(questionRepository)
-	questionRepository := questionrepo.New(db, auditWriter)
-	questionService := questionapp.NewService(questionRepository)
 
 	whatsAppDelivery := whatsappprovider.NewWebhook(
 		cfg.WhatsAppOTPEndpoint,
@@ -82,7 +80,6 @@ func main() {
 		OTPPepper:        cfg.OTPPepper,
 	})
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
-	questionHandler := questionhttp.New(questionService, identityService)
 	questionHandler := questionhttp.New(questionService, identityService)
 	organizationsHandler := organizationshttp.New(organizationsService, identityService)
 	parentsHandler := organizationshttp.NewParentFacade(organizationsService, identityService)
