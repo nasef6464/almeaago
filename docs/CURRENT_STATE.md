@@ -330,14 +330,22 @@ Implemented so far:
 - role-aware `/admin-dashboard/content` route.
 - bounded Course/Lesson/Foundation/Library staff lists backed by the Go API.
 - exact path+subject requirement in the UI before school-teacher list requests.
-- core Taxonomy bootstrap for list filters.
-- secure CSRF-backed Course draft creation.
-- full Taxonomy/skills bootstrap is lazy-loaded only when opening the Course create flow, avoiding unnecessary list-screen payload.
-- Course review workflow controls and admin-only publication control are being cut over on this branch.
+- core Taxonomy bootstrap for list filters; full skills bootstrap is loaded only inside authoring/edit flows.
+- secure CSRF-backed Course draft creation, detail/edit flow, workflow controls and admin-only publication control.
+- Course curriculum builder backed by canonical module/lesson-placement IDs and optimistic parent revision updates; no embedded lesson copies.
+- bounded same-taxonomy lesson search for course placement, including explicit free-preview placement state.
+- Lesson create/edit flow for text, assignment, video and live-meeting variants, with workflow review controls and server-owned Media references preserved.
+- Library create/edit flow with workflow review controls; large binary bytes remain in Media/R2 and do not pass through Go.
+- Foundation admin create/edit flow with stable code behavior plus optimistic lesson/library placements.
+- Foundation parent/lesson/library selectors use independent bounded server-side search instead of loading the full inventory.
 
 Verification:
 - Frontend CI passed on `51059ab81203219e557072b2877d0ffa4c690862` for the initial bounded read slice.
 - Frontend CI passed on `4e9968c12d88f7ce589a6bc0e3846a0027cc45dc` for secure Course draft creation.
+- Frontend CI passed on `7452d603c142d21af0bcad3f6681c7b1e156775d` for Course workflow/publication controls.
+- Frontend CI passed on `c73f81d6b37dfceceeb4fb230196323537dc5dc3` for Course edit + curriculum builder.
+- Frontend CI passed on `17e8ad5c6e6eb89052d749a06c87d3fc67d9ce86` for Lesson authoring/review.
+- Frontend CI passed on `c00ee648a816844f9383a9d3378bf94519bd5e41` for Library + Foundation management flows before bounded selector search refinement.
 - The final PR head must pass Frontend CI again before merge.
 
 ## Performance/scalability
@@ -358,4 +366,4 @@ Verification:
 - Use `almeaacodax` only for explicit behavioral/visual parity checks, never as an implementation target.
 
 ## Next exact action
-Continue PR #38 from the current `feat/content-web-cutover` head. Complete Course management parity in small tested slices (edit/detail, module builder, review/publication UX), then Lessons, Foundation and Library CRUD. Keep lists bounded, lazy-load detail-only Taxonomy/Media data, require exact teacher scope where needed, and add Playwright/visual-regression evidence before declaring the Content React gate proven. Do not merge until the exact final PR head passes Frontend CI.
+Continue PR #38 from the current `feat/content-web-cutover` head with the Content parity/verification pass: compare Course/Lesson/Foundation/Library flows against the legacy React screens, add Playwright coverage and desktop/mobile visual-regression evidence, and record intentional deferrals such as the Media/R2 asset picker or legacy bulk import/export where their owning contract is not yet cut over. Keep normal lists and relationship selectors bounded. Do not merge until the exact final PR head passes Frontend CI and the parity evidence is documented.

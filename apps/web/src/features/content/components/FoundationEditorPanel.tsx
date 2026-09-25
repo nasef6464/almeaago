@@ -41,7 +41,15 @@ export function FoundationEditorPanel({
   const [topicOptions, setTopicOptions] = useState<FoundationTopicSummary[]>([]);
   const [lessonOptions, setLessonOptions] = useState<LessonSummary[]>([]);
   const [libraryOptions, setLibraryOptions] = useState<LibrarySummary[]>([]);
-  const [selectionHasMore, setSelectionHasMore] = useState(false);
+  const [topicHasMore, setTopicHasMore] = useState(false);
+  const [lessonHasMore, setLessonHasMore] = useState(false);
+  const [libraryHasMore, setLibraryHasMore] = useState(false);
+  const [topicSearch, setTopicSearch] = useState('');
+  const [lessonSearch, setLessonSearch] = useState('');
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [debouncedTopicSearch, setDebouncedTopicSearch] = useState('');
+  const [debouncedLessonSearch, setDebouncedLessonSearch] = useState('');
+  const [debouncedLibrarySearch, setDebouncedLibrarySearch] = useState('');
   const [selectedLessonId, setSelectedLessonId] = useState('');
   const [selectedLibraryId, setSelectedLibraryId] = useState('');
   const [loading, setLoading] = useState(editing);
@@ -101,29 +109,85 @@ export function FoundationEditorPanel({
   }, [topicId]);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedTopicSearch(topicSearch.trim());
+      setDebouncedLessonSearch(lessonSearch.trim());
+      setDebouncedLibrarySearch(librarySearch.trim());
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [librarySearch, lessonSearch, topicSearch]);
+
+  useEffect(() => {
     if (!pathId || !subjectId) {
       setTopicOptions([]);
-      setLessonOptions([]);
-      setLibraryOptions([]);
+      setTopicHasMore(false);
       return;
     }
     const controller = new AbortController();
-    Promise.all([
-      contentClient.foundation({ page: 1, limit: 100, pathId, subjectId }, controller.signal),
-      contentClient.lessons({ page: 1, limit: 100, pathId, subjectId }, controller.signal),
-      contentClient.library({ page: 1, limit: 100, pathId, subjectId }, controller.signal),
-    ])
-      .then(([topics, lessons, library]) => {
-        setTopicOptions(topics.items.filter((item) => item.id !== topicId));
-        setLessonOptions(lessons.items);
-        setLibraryOptions(library.items);
-        setSelectionHasMore(topics.hasMore || lessons.hasMore || library.hasMore);
+    contentClient
+      .foundation(
+        { page: 1, limit: 50, pathId, subjectId, search: debouncedTopicSearch },
+        controller.signal,
+      )
+      .then((result) => {
+        setTopicOptions(result.items.filter((item) => item.id !== topicId));
+        setTopicHasMore(result.hasMore);
       })
       .catch((cause: unknown) => {
-        if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'تعذر تحميل خيارات الربط.');
+        if (!controller.signal.aborted) {
+          setError(cause instanceof Error ? cause.message : 'تعذر تحميل موضوعات التأسيس.');
+        }
       });
     return () => controller.abort();
-  }, [pathId, subjectId, topicId]);
+  }, [debouncedTopicSearch, pathId, subjectId, topicId]);
+
+  useEffect(() => {
+    if (!pathId || !subjectId) {
+      setLessonOptions([]);
+      setLessonHasMore(false);
+      return;
+    }
+    const controller = new AbortController();
+    contentClient
+      .lessons(
+        { page: 1, limit: 50, pathId, subjectId, search: debouncedLessonSearch },
+        controller.signal,
+      )
+      .then((result) => {
+        setLessonOptions(result.items);
+        setLessonHasMore(result.hasMore);
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) {
+          setError(cause instanceof Error ? cause.message : 'تعذر تحميل دروس التأسيس.');
+        }
+      });
+    return () => controller.abort();
+  }, [debouncedLessonSearch, pathId, subjectId]);
+
+  useEffect(() => {
+    if (!pathId || !subjectId) {
+      setLibraryOptions([]);
+      setLibraryHasMore(false);
+      return;
+    }
+    const controller = new AbortController();
+    contentClient
+      .library(
+        { page: 1, limit: 50, pathId, subjectId, search: debouncedLibrarySearch },
+        controller.signal,
+      )
+      .then((result) => {
+        setLibraryOptions(result.items);
+        setLibraryHasMore(result.hasMore);
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) {
+          setError(cause instanceof Error ? cause.message : 'تعذر تحميل عناصر مكتبة التأسيس.');
+        }
+      });
+    return () => controller.abort();
+  }, [debouncedLibrarySearch, pathId, subjectId]);
 
   const subjects = useMemo(() => taxonomy.subjects.filter((subject) => !pathId || subject.pathId === pathId), [pathId, taxonomy.subjects]);
   const skills = useMemo(() => taxonomy.skills.filter((skill) => skill.subjectId === subjectId), [subjectId, taxonomy.skills]);
@@ -266,7 +330,20 @@ export function FoundationEditorPanel({
             <label className="space-y-2"><span className="text-sm font-black text-gray-700">المسار *</span><select value={pathId} onChange={(event) => { setPathId(event.target.value); setSubjectId(''); setParentTopicId(''); setSkillIds([]); }} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold"><option value="">اختر المسار</option>{taxonomy.paths.map((path) => <option key={path.id} value={path.id}>{path.name}</option>)}</select></label>
             <label className="space-y-2"><span className="text-sm font-black text-gray-700">المادة *</span><select disabled={!pathId} value={subjectId} onChange={(event) => { setSubjectId(event.target.value); setParentTopicId(''); setSkillIds([]); }} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold disabled:bg-gray-50"><option value="">اختر المادة</option>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select></label>
             <label className="space-y-2"><span className="text-sm font-black text-gray-700">الكود الثابت *</span><input disabled={editing} value={code} maxLength={80} onChange={(event) => setCode(event.target.value.toUpperCase())} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-black uppercase disabled:bg-gray-50" /></label>
-            <label className="space-y-2"><span className="text-sm font-black text-gray-700">الموضوع الأب</span><select value={parentTopicId} onChange={(event) => setParentTopicId(event.target.value)} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold"><option value="">بدون أب</option>{topicOptions.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+            <div className="space-y-2">
+              <span className="text-sm font-black text-gray-700">الموضوع الأب</span>
+              <input
+                value={topicSearch}
+                onChange={(event) => setTopicSearch(event.target.value)}
+                placeholder="ابحث عن موضوع أب..."
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm font-bold"
+              />
+              <select value={parentTopicId} onChange={(event) => setParentTopicId(event.target.value)} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold">
+                <option value="">بدون أب</option>
+                {topicOptions.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+              </select>
+              {topicHasMore ? <p className="text-xs font-bold text-amber-700">هناك نتائج أخرى؛ ضيّق البحث للوصول إليها بدون تحميل القائمة كاملة.</p> : null}
+            </div>
             <label className="space-y-2 md:col-span-2"><span className="text-sm font-black text-gray-700">العنوان *</span><input value={title} maxLength={240} onChange={(event) => setTitle(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold" /></label>
             <label className="space-y-2"><span className="text-sm font-black text-gray-700">الترتيب</span><input type="number" min={0} value={sortOrder} onChange={(event) => setSortOrder(Number(event.target.value))} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold" /></label>
             <label className="space-y-2"><span className="text-sm font-black text-gray-700">الحالة</span><select value={status} onChange={(event) => setStatus(event.target.value as FoundationTopicStatus)} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold"><option value="active">نشط</option><option value="inactive">غير نشط</option><option value="archived">مؤرشف</option></select></label>
@@ -286,17 +363,33 @@ export function FoundationEditorPanel({
         {editing && topic ? (
           <section className="space-y-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
             <div><h2 className="text-lg font-black text-gray-900">روابط التأسيس</h2><p className="mt-1 text-sm font-medium text-gray-500">Revision {topic.revision} · الروابط متاحة فقط والموضوع نشط.</p></div>
-            {selectionHasMore ? <div className="rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-800">يوجد أكثر من 100 عنصر في أحد المصادر؛ هذه الواجهة تعرض أول 100 فقط حاليًا، وسيُضاف بحث خادمي عند شريحة التحسين النهائية.</div> : null}
+            <div className="rounded-xl bg-slate-50 p-3 text-xs font-bold leading-6 text-slate-600">
+              خيارات الربط تُبحث خادميًا داخل نفس المسار والمادة وبحد أقصى 50 نتيجة لكل قائمة، بدل تحميل كل المحتوى.
+            </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="space-y-3 rounded-2xl border border-gray-100 p-4">
                 <h3 className="font-black text-gray-800">الدروس</h3>
+                <input
+                  value={lessonSearch}
+                  onChange={(event) => setLessonSearch(event.target.value)}
+                  placeholder="ابحث عن درس..."
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm font-bold"
+                />
+                {lessonHasMore ? <p className="text-xs font-bold text-amber-700">هناك دروس أخرى؛ استخدم البحث لتضييق النتائج.</p> : null}
                 {placements.lessons.map((placement) => <div key={placement.lessonId} className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 p-3"><div><div className="font-black text-gray-800">{lessonName(placement.lessonId)}</div><div className="text-xs font-bold text-gray-500">ترتيب {placement.sortOrder}</div></div><button type="button" disabled={saving || topic.status !== 'active'} onClick={() => void unlinkLesson(placement.lessonId)} className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-rose-700 disabled:opacity-50"><Trash2 size={15} /></button></div>)}
                 <div className="flex gap-2"><select disabled={topic.status !== 'active'} value={selectedLessonId} onChange={(event) => setSelectedLessonId(event.target.value)} className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm font-bold"><option value="">اختر درسًا...</option>{lessonOptions.filter((lesson) => !placements.lessons.some((placement) => placement.lessonId === lesson.id)).map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.title}</option>)}</select><button type="button" disabled={saving || topic.status !== 'active' || !selectedLessonId} onClick={() => void linkLesson()} className="rounded-xl bg-blue-600 px-3 py-2 text-white disabled:opacity-50"><Link2 size={17} /></button></div>
               </div>
 
               <div className="space-y-3 rounded-2xl border border-gray-100 p-4">
                 <h3 className="font-black text-gray-800">المكتبة</h3>
+                <input
+                  value={librarySearch}
+                  onChange={(event) => setLibrarySearch(event.target.value)}
+                  placeholder="ابحث في المكتبة..."
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm font-bold"
+                />
+                {libraryHasMore ? <p className="text-xs font-bold text-amber-700">هناك عناصر أخرى؛ استخدم البحث لتضييق النتائج.</p> : null}
                 {placements.libraryItems.map((placement) => <div key={placement.libraryItemId} className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 p-3"><div><div className="font-black text-gray-800">{libraryName(placement.libraryItemId)}</div><div className="text-xs font-bold text-gray-500">ترتيب {placement.sortOrder}</div></div><button type="button" disabled={saving || topic.status !== 'active'} onClick={() => void unlinkLibrary(placement.libraryItemId)} className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-rose-700 disabled:opacity-50"><Trash2 size={15} /></button></div>)}
                 <div className="flex gap-2"><select disabled={topic.status !== 'active'} value={selectedLibraryId} onChange={(event) => setSelectedLibraryId(event.target.value)} className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm font-bold"><option value="">اختر عنصرًا...</option>{libraryOptions.filter((item) => !placements.libraryItems.some((placement) => placement.libraryItemId === item.id)).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select><button type="button" disabled={saving || topic.status !== 'active' || !selectedLibraryId} onClick={() => void linkLibrary()} className="rounded-xl bg-blue-600 px-3 py-2 text-white disabled:opacity-50"><Link2 size={17} /></button></div>
               </div>
