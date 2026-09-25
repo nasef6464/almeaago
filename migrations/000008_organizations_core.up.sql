@@ -14,8 +14,26 @@ ALTER TABLE class_memberships
   ADD CONSTRAINT class_memberships_status_check
   CHECK (status IN ('active','inactive','revoked'));
 
-ALTER TABLE teaching_assignments
-  DROP CONSTRAINT teaching_assignments_school_id_teacher_id_class_id_subject_id_key;
+DO $
+DECLARE
+  unique_constraint_name text;
+BEGIN
+  SELECT c.conname
+  INTO unique_constraint_name
+  FROM pg_constraint c
+  JOIN pg_class t ON t.oid = c.conrelid
+  WHERE t.relname = 'teaching_assignments'
+    AND c.contype = 'u'
+    AND pg_get_constraintdef(c.oid) = 'UNIQUE (school_id, teacher_id, class_id, subject_id)'
+  LIMIT 1;
+
+  IF unique_constraint_name IS NOT NULL THEN
+    EXECUTE format(
+      'ALTER TABLE teaching_assignments DROP CONSTRAINT %I',
+      unique_constraint_name
+    );
+  END IF;
+END $;
 
 ALTER TABLE teaching_assignments
   ALTER COLUMN subject_id DROP NOT NULL;
