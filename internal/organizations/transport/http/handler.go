@@ -31,6 +31,7 @@ func New(service *orgapp.Service, auth Authenticator) http.Handler {
 	h := &Handler{service: service, auth: auth}
 	r := chi.NewRouter()
 
+	r.Get("/context", h.schoolContexts)
 	r.Get("/", h.listSchools)
 	r.Post("/", h.createSchool)
 	r.Get("/{schoolId}", h.schoolByID)
