@@ -73,7 +73,7 @@ func (d *AdminUserDirectory) AdminUserByID(
 ) (domain.AdminUserRecord, error) {
 	row := d.db.QueryRow(
 		ctx,
-		adminUserSelect+" WHERE u.id::text = $1",
+		adminUserSelect+" WHERE u.id = $1::uuid",
 		userID,
 	)
 	record, err := scanAdminRecord(row)
@@ -88,14 +88,11 @@ const adminUserSelect = `
 		u.id::text,
 		COALESCE(u.email, ''),
 		u.name,
-		COALESCE(u.password_hash, ''),
 		u.status,
 		u.avatar_url,
 		COALESCE(u.national_id, ''),
 		COALESCE(u.phone, ''),
 		(u.email_verified_at IS NOT NULL),
-		u.failed_login_attempts,
-		COALESCE(u.login_locked_until, 'epoch'::timestamptz),
 		u.created_at,
 		u.updated_at,
 		ARRAY(
@@ -165,7 +162,7 @@ func BuildAdminUserWhere(query domain.AdminUserQuery) (string, []any) {
 		args = append(args, "%"+strings.ToLower(query.Search)+"%")
 		n := strconv.Itoa(len(args))
 		clauses = append(clauses,
-			"(lower(u.name) LIKE $"+n+" OR lower(COALESCE(u.email, '')) LIKE $"+n+")",
+			"(lower(u.name) LIKE $"+n+" OR (u.email IS NOT NULL AND lower(u.email) LIKE $"+n+"))",
 		)
 	}
 	if query.Role != nil {
@@ -200,14 +197,11 @@ func scanAdminRecord(row adminRowScanner) (domain.AdminUserRecord, error) {
 		&record.User.ID,
 		&record.User.Email,
 		&record.User.Name,
-		&record.User.PasswordHash,
 		&record.User.Status,
 		&record.User.AvatarURL,
 		&record.User.NationalID,
 		&record.User.Phone,
 		&record.User.EmailVerified,
-		&record.User.FailedLoginAttempts,
-		&record.User.LoginLockedUntil,
 		&record.User.CreatedAt,
 		&record.User.UpdatedAt,
 		&roleStrings,
