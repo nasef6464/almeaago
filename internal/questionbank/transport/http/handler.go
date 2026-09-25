@@ -19,13 +19,21 @@ type Authenticator interface {
 	VerifyCSRF(auth identityapp.Authenticated, rawToken string) error
 }
 
-type Handler struct {
-	service *questionapp.Service
-	auth    Authenticator
+type Options struct {
+	Import *questionapp.ImportService
 }
 
-func New(service *questionapp.Service, auth Authenticator) http.Handler {
+type Handler struct {
+	service       *questionapp.Service
+	importService *questionapp.ImportService
+	auth          Authenticator
+}
+
+func New(service *questionapp.Service, auth Authenticator, options ...Options) http.Handler {
 	h := &Handler{service: service, auth: auth}
+	if len(options) > 0 {
+		h.importService = options[0].Import
+	}
 	r := chi.NewRouter()
 	r.Get("/", h.staffList)
 	r.Post("/", h.create)
@@ -34,6 +42,11 @@ func New(service *questionapp.Service, auth Authenticator) http.Handler {
 	r.Get("/{id}/staff", h.staffGet)
 	r.Post("/{id}/versions", h.appendVersion)
 	r.Patch("/{id}/workflow", h.setWorkflow)
+	if h.importService != nil {
+		r.Post("/import-batches", h.importBatch)
+		r.Get("/import-batches/{batchId}", h.getImportBatch)
+		r.Post("/import-batches/{batchId}/rollback", h.rollbackImportBatch)
+	}
 	return r
 }
 
@@ -219,6 +232,8 @@ func writeError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid question request"})
 	case errors.Is(err, questionapp.ErrForbidden):
 		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Forbidden"})
+	case errors.Is(err, questionapp.ErrDryRunRequired):
+		writeJSON(w, http.StatusConflict, map[string]string{"message": "A successful matching dry run is required before import write"})
 	case errors.Is(err, questionapp.ErrVersionConflict), errors.Is(err, questionapp.ErrWorkflow), errors.Is(err, question.ErrConflict), errors.Is(err, question.ErrInvalidTaxonomy):
 		writeJSON(w, http.StatusConflict, map[string]string{"message": "Question state conflicts with the requested operation"})
 	case errors.Is(err, question.ErrNotFound):
