@@ -3,8 +3,6 @@ package postgres
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 
@@ -391,6 +389,3 @@ func (r *Repository) loadCourseSkills(ctx context.Context, courseID string) ([]c
 	return result, rows.Err()
 }
 
-func buildListDebug(query content.ListQuery) string {
-	return fmt.Sprintf("%s:%s:%s", query.PathID, query.SubjectID, strings.TrimSpace(query.Search))
-}
