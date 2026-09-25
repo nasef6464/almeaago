@@ -6,6 +6,8 @@ DROP INDEX IF EXISTS parent_student_parent_status_idx;
 DROP INDEX IF EXISTS teaching_assignments_teacher_active_idx;
 DROP INDEX IF EXISTS class_memberships_class_status_user_idx;
 DROP INDEX IF EXISTS classes_school_status_created_idx;
+DROP INDEX IF EXISTS classes_name_trgm_idx;
+DROP INDEX IF EXISTS schools_name_trgm_idx;
 DROP INDEX IF EXISTS school_supervisor_scopes_user_active_idx;
 DROP INDEX IF EXISTS school_supervisor_scope_class_active_unique;
 DROP INDEX IF EXISTS school_supervisor_scope_school_active_unique;
