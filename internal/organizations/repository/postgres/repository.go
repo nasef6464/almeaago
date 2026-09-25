@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	errAuditWriterUnavailable       = errors.New("organization audit writer is not configured")
+	errAuditWriterUnavailable          = errors.New("organization audit writer is not configured")
 	errStudentAccountWriterUnavailable = errors.New("student account writer is not configured")
 )
 
