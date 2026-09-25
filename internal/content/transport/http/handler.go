@@ -110,3 +110,9 @@ func writeError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Internal server error"})
 	}
 }
+
+func writeJSON(w http.ResponseWriter, status int, body any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(body)
+}
