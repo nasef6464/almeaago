@@ -13,6 +13,7 @@ import { ForgotPasswordPage } from '../features/auth/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '../features/auth/pages/ResetPasswordPage';
 import { VerifyEmailPage } from '../features/auth/pages/VerifyEmailPage';
 import { useAuth } from '../features/auth/state/AuthProvider';
+import { ContentAdminPage } from '../features/content/pages/ContentAdminPage';
 
 type ModalMode = 'login' | 'signup' | null;
 
@@ -141,6 +142,7 @@ export function App() {
         <Route path="/privacy" element={<PlaceholderPage title="سياسة الخصوصية" />} />
         <Route path="/dashboard" element={<PlaceholderPage title="لوحة الطالب" />} />
         <Route path="/admin-dashboard" element={<PlaceholderPage title="لوحة الإدارة" />} />
+        <Route path="/admin-dashboard/content" element={<ContentAdminPage />} />
         <Route path="/school-teacher-dashboard" element={<PlaceholderPage title="لوحة معلم المدرسة" />} />
         <Route path="/supervisor-dashboard" element={<PlaceholderPage title="لوحة المشرف" />} />
         <Route path="/school-director-dashboard" element={<PlaceholderPage title="لوحة مدير المدرسة" />} />
