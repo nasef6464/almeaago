@@ -60,7 +60,8 @@ The following are not complete in this PR and must remain separate work rather t
 - Canonical teacher/trainer authoring scope (school teaching assignments plus future managed path/subject trainer scope); self-create stays denied until this is resolved.
 - Course module CRUD and module/lesson placement.
 - Foundation topic -> lesson and topic -> library placement management.
-- Learner-safe approved/visible Content projections.
+- Explicit Course publication state separate from approval and show-on-platform visibility; legacy Course uses both `isPublished` and `showOnPlatform`, so learner catalog cutover must not infer publication from approval alone.
+- Learner-safe approved/published/visible Content projections.
 - Entitlement/access resolution.
 - Assessment placement links.
 - React management/learner screen cutover and visual-regression parity.

@@ -112,9 +112,9 @@ func TestListRejectsUnboundedLimit(t *testing.T) {
 
 func TestTeacherUpdatePreservesExistingAssignment(t *testing.T) {
 	repo := &repoStub{course: content.Course{
-		ID:                "course-1",
-		OwnerType:         content.OwnerTeacher,
-		OwnerUserID:       "teacher-1",
+		ID:                     "course-1",
+		OwnerType:              content.OwnerTeacher,
+		OwnerUserID:            "teacher-1",
 		AssignedTeacherID:      "teacher-2",
 		WorkflowStatus:         content.WorkflowDraft,
 		RevenueSharePercentage: float64Ptr(25),
