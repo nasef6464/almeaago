@@ -10,6 +10,9 @@ import (
 	"syscall"
 	"time"
 
+	assessmentapp "github.com/nasef6464/almeaago/internal/assessment/application"
+	assessmentrepo "github.com/nasef6464/almeaago/internal/assessment/repository/postgres"
+	assessmenthttp "github.com/nasef6464/almeaago/internal/assessment/transport/http"
 	contentapp "github.com/nasef6464/almeaago/internal/content/application"
 	contentrepo "github.com/nasef6464/almeaago/internal/content/repository/postgres"
 	contenthttp "github.com/nasef6464/almeaago/internal/content/transport/http"
@@ -84,6 +87,8 @@ func main() {
 	taxonomyService := taxonomyapp.NewService(taxonomyRepository)
 	questionRepository := questionrepo.New(db, auditWriter)
 	questionService := questionapp.NewServiceWithAuthorScope(questionRepository, authorScope)
+	assessmentRepository := assessmentrepo.New(db, auditWriter)
+	assessmentService := assessmentapp.NewService(assessmentRepository)
 	mediaRepository := mediarepo.New(db, auditWriter)
 	r2Client := r2provider.New(r2provider.Config{
 		AccountID:       cfg.R2AccountID,
@@ -119,6 +124,7 @@ func main() {
 	contentManagementHandler := contenthttp.NewManagement(contentService, identityService)
 	learningSpacesHandler := contenthttp.NewLearningSpaces(contentService, identityService)
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
+	assessmentHandler := assessmenthttp.New(assessmentService, identityService)
 	questionHandler := questionhttp.New(
 		questionService,
 		identityService,
@@ -153,6 +159,7 @@ func main() {
 		Parents:            parentsHandler,
 		Taxonomy:           taxonomyHandler,
 		QuestionBank:       questionHandler,
+		Assessments:        assessmentHandler,
 		Media:              mediaHandler,
 		Courses:            coursesHandler,
 		Lessons:            lessonsHandler,
