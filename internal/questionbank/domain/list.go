@@ -59,20 +59,20 @@ type CoverageQuery struct {
 }
 
 type SkillCoverage struct {
-	SkillID      string
-	RelationType RelationType
+	SkillID       string
+	RelationType  RelationType
 	QuestionCount int
 }
 
 type Coverage struct {
-	QuestionsTotal      int
-	Approved            int
-	PendingReview       int
-	Unlinked            int
-	MainSkillCoverage   int
-	SubSkillCoverage    int
-	Skills              []SkillCoverage
-	SkillPage           int
-	SkillLimit          int
-	SkillsHasMore       bool
+	QuestionsTotal    int
+	Approved          int
+	PendingReview     int
+	Unlinked          int
+	MainSkillCoverage int
+	SubSkillCoverage  int
+	Skills            []SkillCoverage
+	SkillPage         int
+	SkillLimit        int
+	SkillsHasMore     bool
 }
