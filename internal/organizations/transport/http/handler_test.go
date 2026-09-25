@@ -209,7 +209,6 @@ func TestParseRosterRejectsInvalidBoolean(t *testing.T) {
 	}
 }
 
-
 func TestMembershipMutationRequiresCSRF(t *testing.T) {
 	service := orgapp.NewService(&repoStub{})
 	handler := New(service, authStub{auth: adminAuth(), csrfErr: identityapp.ErrCSRF})
