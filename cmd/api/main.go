@@ -25,6 +25,9 @@ import (
 	"github.com/nasef6464/almeaago/internal/platform/httpserver"
 	"github.com/nasef6464/almeaago/internal/platform/observability"
 	reportingrepo "github.com/nasef6464/almeaago/internal/reporting/repository/postgres"
+	questionapp "github.com/nasef6464/almeaago/internal/questionbank/application"
+	questionrepo "github.com/nasef6464/almeaago/internal/questionbank/repository/postgres"
+	questionhttp "github.com/nasef6464/almeaago/internal/questionbank/transport/http"
 	taxonomyapp "github.com/nasef6464/almeaago/internal/taxonomy/application"
 	taxonomyrepo "github.com/nasef6464/almeaago/internal/taxonomy/repository/postgres"
 	taxonomyhttp "github.com/nasef6464/almeaago/internal/taxonomy/transport/http"
@@ -65,6 +68,8 @@ func main() {
 	organizationsService := orgapp.NewService(organizationsRepository, directorDirectory)
 	taxonomyRepository := taxonomyrepo.New(db)
 	taxonomyService := taxonomyapp.NewService(taxonomyRepository)
+	questionRepository := questionrepo.New(db, auditWriter)
+	questionService := questionapp.NewService(questionRepository)
 
 	whatsAppDelivery := whatsappprovider.NewWebhook(
 		cfg.WhatsAppOTPEndpoint,
@@ -75,6 +80,7 @@ func main() {
 		OTPPepper:        cfg.OTPPepper,
 	})
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
+	questionHandler := questionhttp.New(questionService, identityService)
 	organizationsHandler := organizationshttp.New(organizationsService, identityService)
 	parentsHandler := organizationshttp.NewParentFacade(organizationsService, identityService)
 	legacySchoolAccessHandler := organizationshttp.NewLegacy(organizationsService, identityService)
@@ -102,6 +108,7 @@ func main() {
 		Organizations:      organizationsHandler,
 		Parents:            parentsHandler,
 		Taxonomy:           taxonomyHandler,
+		Questions:          questionHandler,
 		LegacySchoolAccess: legacySchoolAccessHandler,
 	})
 
