@@ -51,6 +51,10 @@ func New(service *orgapp.Service, auth Authenticator) http.Handler {
 	r.Get("/{schoolId}/assignments", h.listAssignments)
 	r.Put("/{schoolId}/assignments", h.upsertAssignment)
 
+	r.Get("/{schoolId}/contract", h.schoolContract)
+	r.Put("/{schoolId}/contract", h.upsertSchoolContract)
+	r.Get("/{schoolId}/entitlements/{module}", h.schoolEntitlement)
+
 	return r
 }
 
