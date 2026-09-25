@@ -93,7 +93,6 @@ func (r *Repository) adminUserRecordTx(
 	return record, nil
 }
 
-
 func replaceAdminRoleTx(
 	ctx context.Context,
 	tx pgx.Tx,
