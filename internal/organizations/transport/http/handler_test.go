@@ -29,7 +29,10 @@ func (a authStub) VerifyCSRF(identityapp.Authenticated, string) error {
 }
 
 type repoStub struct {
-	page orgdomain.SchoolPage
+	page            orgdomain.SchoolPage
+	membershipWrite orgdomain.MembershipWrite
+	directorWrite   orgdomain.DirectorWrite
+	assignmentWrite orgdomain.AssignmentWrite
 }
 
 func (r *repoStub) ListSchools(context.Context, orgdomain.AccessContext, orgdomain.SchoolListQuery) (orgdomain.SchoolPage, error) {
@@ -61,6 +64,71 @@ func (r *repoStub) ArchiveClass(context.Context, string, string, string) (orgdom
 }
 func (r *repoStub) Roster(context.Context, orgdomain.AccessContext, string, orgdomain.RosterQuery) (orgdomain.RosterPage, error) {
 	return orgdomain.RosterPage{}, nil
+}
+
+func (r *repoStub) UpsertMembership(
+	_ context.Context,
+	_ string,
+	schoolID string,
+	write orgdomain.MembershipWrite,
+) (orgdomain.SchoolMembership, error) {
+	r.membershipWrite = write
+	return orgdomain.SchoolMembership{
+		ID:       "membership-1",
+		SchoolID: schoolID,
+		UserID:   write.UserID,
+		Role:     write.Role,
+		Status:   write.Status,
+	}, nil
+}
+func (r *repoStub) ListDirectors(
+	_ context.Context,
+	_ string,
+	query orgdomain.DirectorQuery,
+) (orgdomain.DirectorPage, error) {
+	return orgdomain.DirectorPage{Page: query.Page, Limit: query.Limit}, nil
+}
+func (r *repoStub) UpsertDirector(
+	_ context.Context,
+	_ string,
+	schoolID string,
+	write orgdomain.DirectorWrite,
+) (orgdomain.DirectorRecord, error) {
+	r.directorWrite = write
+	return orgdomain.DirectorRecord{
+		Membership: orgdomain.SchoolMembership{
+			ID:          "director-membership-1",
+			SchoolID:    schoolID,
+			UserID:      write.UserID,
+			Role:        identitydomain.RoleSchoolAdmin,
+			Status:      write.Status,
+			Permissions: append([]string(nil), write.Permissions...),
+		},
+	}, nil
+}
+func (r *repoStub) ListAssignments(
+	_ context.Context,
+	_ orgdomain.AccessContext,
+	_ string,
+	query orgdomain.AssignmentQuery,
+) (orgdomain.AssignmentPage, error) {
+	return orgdomain.AssignmentPage{Page: query.Page, Limit: query.Limit}, nil
+}
+func (r *repoStub) UpsertAssignment(
+	_ context.Context,
+	_ string,
+	schoolID string,
+	write orgdomain.AssignmentWrite,
+) (orgdomain.TeachingAssignment, error) {
+	r.assignmentWrite = write
+	return orgdomain.TeachingAssignment{
+		ID:        "assignment-1",
+		SchoolID:  schoolID,
+		TeacherID: write.TeacherID,
+		ClassID:   write.ClassID,
+		SubjectID: write.SubjectID,
+		Status:    write.Status,
+	}, nil
 }
 func (r *repoStub) CanAccessSchool(context.Context, orgdomain.AccessContext, string) (bool, error) {
 	return true, nil
@@ -138,5 +206,71 @@ func TestParseRosterRejectsInvalidBoolean(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/?isActive=maybe", nil)
 	if _, err := parseRosterQuery(request); !errors.Is(err, orgapp.ErrInvalidInput) {
 		t.Fatalf("expected invalid input, got %v", err)
+	}
+}
+
+
+func TestMembershipMutationRequiresCSRF(t *testing.T) {
+	service := orgapp.NewService(&repoStub{})
+	handler := New(service, authStub{auth: adminAuth(), csrfErr: identityapp.ErrCSRF})
+	request := httptest.NewRequest(
+		http.MethodPut,
+		"/school-1/memberships",
+		strings.NewReader(`{"userId":"student-1","role":"student","status":"active"}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", response.Code)
+	}
+}
+
+func TestExplicitEmptyDirectorPermissionsArePreserved(t *testing.T) {
+	repo := &repoStub{}
+	service := orgapp.NewService(repo)
+	handler := New(service, authStub{auth: adminAuth()})
+	request := httptest.NewRequest(
+		http.MethodPut,
+		"/school-1/directors/director-1",
+		strings.NewReader(`{"status":"active","permissions":[]}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", response.Code, response.Body.String())
+	}
+	if repo.directorWrite.Permissions == nil {
+		t.Fatal("explicit empty permission list must not become nil/default permissions")
+	}
+	if len(repo.directorWrite.Permissions) != 0 {
+		t.Fatalf("expected no permissions, got %#v", repo.directorWrite.Permissions)
+	}
+}
+
+func TestAssignmentAllowsLegacySubjectAgnosticPayload(t *testing.T) {
+	repo := &repoStub{}
+	service := orgapp.NewService(repo)
+	handler := New(service, authStub{auth: adminAuth()})
+	request := httptest.NewRequest(
+		http.MethodPut,
+		"/school-1/assignments",
+		strings.NewReader(`{"teacherId":"teacher-1","classId":"class-1","subjectId":"","status":"active"}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", response.Code, response.Body.String())
+	}
+	if repo.assignmentWrite.SubjectID != "" {
+		t.Fatalf("expected subject-agnostic assignment, got %q", repo.assignmentWrite.SubjectID)
 	}
 }
