@@ -206,3 +206,170 @@ func TestArchiveStatusCannotBypassArchiveLifecycle(t *testing.T) {
 		t.Fatalf("expected class archive patch rejection, got %v", err)
 	}
 }
+
+
+func TestMembershipMutationRequiresPlatformAdmin(t *testing.T) {
+	repo := &repositoryMock{}
+	service := NewService(repo)
+
+	if _, err := service.UpsertMembership(
+		context.Background(),
+		actor("director-1", identity.RoleSchoolAdmin),
+		"school-1",
+		UpsertMembershipInput{
+			UserID: "student-1",
+			Role:   identity.RoleStudent,
+		},
+	); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected forbidden membership mutation, got %v", err)
+	}
+
+	membership, err := service.UpsertMembership(
+		context.Background(),
+		actor("admin-1", identity.RoleAdmin),
+		"school-1",
+		UpsertMembershipInput{
+			UserID: "student-1",
+			Role:   identity.RoleStudent,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if membership.Status != org.MembershipStatusActive ||
+		repo.membershipWrite.Status != org.MembershipStatusActive {
+		t.Fatalf("expected active membership default, got %#v", membership)
+	}
+}
+
+func TestDirectorDefaultsMatchLegacyPermissionSet(t *testing.T) {
+	repo := &repositoryMock{}
+	service := NewService(repo)
+
+	record, err := service.UpsertDirector(
+		context.Background(),
+		actor("admin-1", identity.RoleAdmin),
+		"school-1",
+		UpsertDirectorInput{
+			UserID: "director-1",
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := org.DefaultSchoolDirectorPermissions
+	if len(record.Membership.Permissions) != len(expected) {
+		t.Fatalf("unexpected default permissions %#v", record.Membership.Permissions)
+	}
+	for index, permission := range expected {
+		if record.Membership.Permissions[index] != permission {
+			t.Fatalf("permission %d: expected %q got %q", index, permission, record.Membership.Permissions[index])
+		}
+	}
+
+	if _, err := service.UpsertDirector(
+		context.Background(),
+		actor("admin-1", identity.RoleAdmin),
+		"school-1",
+		UpsertDirectorInput{
+			UserID:      "director-1",
+			Permissions: []string{"NOT_A_REAL_PERMISSION"},
+		},
+	); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected invalid director permission, got %v", err)
+	}
+}
+
+func TestSchoolDirectorAssignmentRequiresTeacherAssignPermission(t *testing.T) {
+	repo := &repositoryMock{}
+	service := NewService(repo)
+	director := actor("director-1", identity.RoleSchoolAdmin)
+	input := UpsertAssignmentInput{
+		TeacherID: "teacher-1",
+		ClassID:   "class-1",
+	}
+
+	if _, err := service.UpsertAssignment(
+		context.Background(),
+		director,
+		"school-1",
+		input,
+	); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected forbidden assignment mutation, got %v", err)
+	}
+
+	repo.permissionAllowed = true
+	assignment, err := service.UpsertAssignment(
+		context.Background(),
+		director,
+		"school-1",
+		input,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if assignment.Status != org.AssignmentStatusActive {
+		t.Fatalf("expected active assignment default, got %#v", assignment)
+	}
+	if repo.assignmentWrite.SubjectID != "" {
+		t.Fatalf("legacy subject-agnostic assignment must remain empty, got %q", repo.assignmentWrite.SubjectID)
+	}
+}
+
+func TestTeacherAssignmentDirectoryIsSelfScoped(t *testing.T) {
+	repo := &repositoryMock{}
+	service := NewService(repo)
+	teacher := actor("teacher-1", identity.RoleTeacher)
+
+	page, err := service.ListAssignments(
+		context.Background(),
+		teacher,
+		"school-1",
+		org.AssignmentQuery{Page: 0, Limit: 500},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Page != 1 || page.Limit != 100 {
+		t.Fatalf("unexpected pagination %#v", page)
+	}
+	if repo.assignmentQuery.TeacherID != "teacher-1" {
+		t.Fatalf("teacher directory must be self-scoped: %#v", repo.assignmentQuery)
+	}
+
+	if _, err := service.ListAssignments(
+		context.Background(),
+		teacher,
+		"school-1",
+		org.AssignmentQuery{TeacherID: "teacher-2"},
+	); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected other-teacher assignment denial, got %v", err)
+	}
+}
+
+func TestDirectorDirectoryIsBoundedAndAdminOnly(t *testing.T) {
+	repo := &repositoryMock{}
+	service := NewService(repo)
+
+	if _, err := service.ListDirectors(
+		context.Background(),
+		actor("supervisor-1", identity.RoleSupervisor),
+		"school-1",
+		org.DirectorQuery{},
+	); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected director directory to be admin-only, got %v", err)
+	}
+
+	page, err := service.ListDirectors(
+		context.Background(),
+		actor("admin-1", identity.RoleAdmin),
+		"school-1",
+		org.DirectorQuery{Limit: 500},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Limit != 100 || repo.directorQuery.Limit != 100 {
+		t.Fatalf("director directory must cap at 100, got %#v", repo.directorQuery)
+	}
+}
