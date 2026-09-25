@@ -22,6 +22,18 @@ paths:
         "200": { description: Canonical active school contexts for the authenticated user }
         "401": { description: Authentication required }
 
+  /api/v1/parents/authority:
+    get:
+      operationId: organizationsParentAuthority
+      description: >
+        Canonical Organizations-owned parent-to-student authority projection.
+        Returns identifiers and relationship scope only; student profile/progress/reporting
+        data remains owned by Identity/Reporting/Learning.
+      responses:
+        "200": { description: Active canonical parent-to-student relationships }
+        "401": { description: Authentication required }
+        "403": { description: Parent role required }
+
   /api/v1/schools/teacher-workspace:
     get:
       operationId: organizationsTeacherWorkspace
