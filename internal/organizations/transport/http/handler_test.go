@@ -29,11 +29,11 @@ func (a authStub) VerifyCSRF(identityapp.Authenticated, string) error {
 }
 
 type repoStub struct {
-	contexts        []orgdomain.SchoolContext
-	page            orgdomain.SchoolPage
-	membershipWrite orgdomain.MembershipWrite
-	directorWrite   orgdomain.DirectorWrite
-	assignmentWrite orgdomain.AssignmentWrite
+	contexts         []orgdomain.SchoolContext
+	page             orgdomain.SchoolPage
+	membershipWrite  orgdomain.MembershipWrite
+	directorWrite    orgdomain.DirectorWrite
+	assignmentWrite  orgdomain.AssignmentWrite
 	teacherWorkspace orgdomain.TeacherWorkspace
 }
 
@@ -431,7 +431,6 @@ func TestSchoolContextUsesCanonicalMembershipData(t *testing.T) {
 	}
 }
 
-
 func TestTeacherWorkspaceRequiresTeacherRole(t *testing.T) {
 	service := orgapp.NewService(&repoStub{})
 	handler := New(service, authStub{auth: adminAuth()})
@@ -448,14 +447,14 @@ func TestTeacherWorkspaceRequiresTeacherRole(t *testing.T) {
 func TestTeacherWorkspaceReturnsOnlyOrganizationsProjection(t *testing.T) {
 	repo := &repoStub{teacherWorkspace: orgdomain.TeacherWorkspace{
 		Schools: []orgdomain.TeacherWorkspaceSchool{{
-			SchoolID: "school-1",
+			SchoolID:   "school-1",
 			SchoolName: "School",
-			Source: "membership",
+			Source:     "membership",
 			Assignments: []orgdomain.TeacherWorkspaceAssignment{{
 				AssignmentID: "assignment-1",
-				ClassID: "class-1",
-				ClassName: "Class A",
-				SubjectID: "subject-1",
+				ClassID:      "class-1",
+				ClassName:    "Class A",
+				SubjectID:    "subject-1",
 				StudentCount: 12,
 			}},
 		}},
