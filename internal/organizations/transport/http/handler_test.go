@@ -35,6 +35,11 @@ type repoStub struct {
 	directorWrite    orgdomain.DirectorWrite
 	assignmentWrite  orgdomain.AssignmentWrite
 	teacherWorkspace orgdomain.TeacherWorkspace
+	parentAuthority   orgdomain.ParentAuthority
+}
+
+func (r *repoStub) ParentAuthority(_ context.Context, _ string) (orgdomain.ParentAuthority, error) {
+	return r.parentAuthority, nil
 }
 
 func (r *repoStub) TeacherWorkspace(_ context.Context, _ string) (orgdomain.TeacherWorkspace, error) {
@@ -486,5 +491,52 @@ func TestTeacherWorkspaceReturnsOnlyOrganizationsProjection(t *testing.T) {
 	}
 	if strings.Contains(body, "students") || strings.Contains(body, "assessments") || strings.Contains(body, "smartClassroomEnabled") {
 		t.Fatalf("cross-domain data leaked into organizations projection: %s", body)
+	}
+}
+
+
+func TestParentAuthorityRequiresParentRole(t *testing.T) {
+	service := orgapp.NewService(&repoStub{})
+	handler := New(service, authStub{auth: adminAuth()})
+	request := httptest.NewRequest(http.MethodGet, "/parent-authority", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestParentAuthorityReturnsOnlyCanonicalIdentifiers(t *testing.T) {
+	repo := &repoStub{parentAuthority: orgdomain.ParentAuthority{
+		Relationships: []orgdomain.ParentStudentRelationship{{
+			ID: "relationship-1", ParentID: "parent-1", StudentID: "student-1",
+			SchoolID: "school-1", Status: "active", Source: "admin",
+		}},
+	}}
+	service := orgapp.NewService(repo)
+	auth := identityapp.Authenticated{User: identitydomain.User{
+		ID: "parent-1", Status: "active", Roles: []identitydomain.Role{identitydomain.RoleParent},
+	}}
+	handler := New(service, authStub{auth: auth})
+	request := httptest.NewRequest(http.MethodGet, "/parent-authority", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", response.Code, response.Body.String())
+	}
+	body := response.Body.String()
+	for _, fragment := range []string{`"studentIds":["student-1"]`, `"schoolId":"school-1"`, `"source":"admin"`} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("missing %s in %s", fragment, body)
+		}
+	}
+	for _, forbidden := range []string{"nationalId", "phone", "email", "progress", "results"} {
+		if strings.Contains(body, forbidden) {
+			t.Fatalf("unexpected cross-domain/PII field %s in %s", forbidden, body)
+		}
 	}
 }
