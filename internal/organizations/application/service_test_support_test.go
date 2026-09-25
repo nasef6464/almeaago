@@ -27,7 +27,7 @@ type repositoryMock struct {
 	assignmentQuery   org.AssignmentQuery
 	assignmentWrite   org.AssignmentWrite
 	teacherWorkspace  org.TeacherWorkspace
-	parentAuthority    org.ParentAuthority
+	parentAuthority   org.ParentAuthority
 }
 
 func (m *repositoryMock) ParentAuthority(_ context.Context, _ string) (org.ParentAuthority, error) {
@@ -276,7 +276,6 @@ func TestTeacherWorkspaceDelegatesTeacherIdentity(t *testing.T) {
 		t.Fatalf("unexpected workspace: %#v", workspace)
 	}
 }
-
 
 func TestParentAuthorityRequiresParentRole(t *testing.T) {
 	service := NewService(&repositoryMock{})
