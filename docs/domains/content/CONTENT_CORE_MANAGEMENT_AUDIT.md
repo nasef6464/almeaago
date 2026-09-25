@@ -15,6 +15,7 @@ This document records the first bounded staff-management slice for the Content d
 - Canonical Content-owned platform-trainer authoring scope via active path/subject relations, with transactional audit and fail-closed enforcement across Courses, Lessons, Library, and Question Bank authoring.
 - Legacy admin `managedPathIds`/`managedSubjectIds` compatibility is transactionally adapted into the canonical Content trainer-scope tables; Identity stores no duplicate trainer arrays.
 - Organizations teacher workspace resolves its `platformTrainer` persona through Content's active canonical scope contract instead of inferring it from school membership.
+- School-teacher authoring is resolved from active canonical Organizations teaching assignments for the exact path/subject; it is composed with, not substituted for, platform-trainer scope.
 - PostgreSQL-backed taxonomy/skill validation and active Media asset validation.
 - Transactional audit writes for content mutations.
 - CSRF on unsafe HTTP mutations.
@@ -40,7 +41,7 @@ Learning owns learner progress, mastery and next-action state.
 
 - Unsafe mutations require an authenticated session and CSRF.
 - Teachers cannot assign ownership or assignment scope through client input.
-- Platform trainers may self-create only inside canonical managed path/subject scope; ownership and assignment are forced to the authenticated trainer and revenue share remains admin-controlled.
+- Teachers may self-create only inside a canonical authoring scope: either active Content platform-trainer scope or an exact active Organizations teaching assignment. Ownership and assignment are forced to the authenticated teacher and revenue share remains admin-controlled.
 - Admin assignment of a teacher is rejected unless that teacher is active and the target content taxonomy falls inside the teacher's canonical trainer scope.
 - Legacy Identity admin trainer-scope fields are accepted only for teacher accounts, validated against active Taxonomy, and committed in the same PostgreSQL transaction as the account mutation.
 - Non-admin edits preserve the existing canonical ownership/assignment tuple.
@@ -72,7 +73,6 @@ Learning owns learner progress, mastery and next-action state.
 
 The following are not complete in this PR and must remain separate work rather than being guessed into this slice:
 
-- School-teacher authoring scope derived from canonical Organizations teaching assignments; the new platform-trainer path/subject scope does not silently substitute for school authority.
 - Entitlement/access resolution.
 - Assessment placement links.
 - React management/learner screen cutover and visual-regression parity.

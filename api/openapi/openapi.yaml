@@ -68,9 +68,9 @@ paths:
       operationId: questionBankStaffList
       description: >
         Bounded staff Question Bank list. Default limit 80, maximum 100. Teacher access
-        is forcibly scoped to owned/assigned questions and canonical active Content trainer
-        path/subject scope. Exact coverage counts are not
-        computed on this normal list path.
+        is forcibly scoped to owned/assigned questions. Platform-trainer scope is canonical
+        in Content; an exact pathId+subjectId filter may also be authorized by an active
+        Organizations teaching assignment. Exact coverage counts are not computed on this normal list path.
       parameters:
         - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
         - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 80 } }
@@ -97,8 +97,9 @@ paths:
       operationId: questionBankCreate
       description: >
         Create a stable question identity with version 1. Staff-only and CSRF-protected.
-        Platform trainers may author only inside canonical active Content trainer scope;
-        admin assignment to a trainer is rejected outside that trainer scope.
+        Teachers may author only inside canonical active Content platform-trainer scope or an
+        exact active Organizations teaching assignment; admin assignment is rejected outside
+        the target teacher's combined authoring scope.
         A question may be text-only, image-only, or text+image. Image bytes are never sent
         through this endpoint; media is referenced by asset ID. AI-readable metadata stays
         server-side in the staff version payload.
@@ -1269,8 +1270,9 @@ paths:
       operationId: contentListCourses
       description: >
         Authenticated staff list. Default limit 50, maximum 100, returns compact rows plus
-        hasMore. Teacher scope is forcibly limited to content they own or are explicitly assigned,
-        and to their canonical active trainer path/subject scope.
+        hasMore. Teacher scope is forcibly limited to content they own or are explicitly assigned.
+        Platform-trainer scope is canonical in Content; an exact pathId+subjectId filter may also
+        be authorized by an active Organizations teaching assignment.
       parameters:
         - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
         - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
@@ -1285,7 +1287,7 @@ paths:
         "403": { description: Staff scope required }
     post:
       operationId: contentCreateCourse
-      description: Platform admins and scoped platform trainers may create courses. Trainer ownership/assignment is server-forced, revenue share remains admin-controlled, and taxonomy/active Media references are server-validated.
+      description: Platform admins and teachers with canonical platform-trainer scope or an active exact school teaching assignment may create courses. Teacher ownership/assignment is server-forced, revenue share remains admin-controlled, and taxonomy/active Media references are server-validated.
       responses:
         "201": { description: Draft course created }
         "400": { description: Invalid course payload }
@@ -1320,7 +1322,7 @@ paths:
   /api/v1/lessons:
     get:
       operationId: contentListLessons
-      description: Bounded staff lesson list with teacher owner/assignment plus canonical trainer taxonomy scope and hasMore pagination.
+      description: Bounded staff lesson list with owner/assignment authority; platform trainer scope applies globally, while an exact pathId+subjectId filter may be authorized by an active school teaching assignment.
       parameters:
         - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
         - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
@@ -1333,7 +1335,7 @@ paths:
         "403": { description: Staff scope required }
     post:
       operationId: contentCreateLesson
-      description: Platform admins and scoped platform trainers may create lessons. Trainer ownership/assignment is server-forced; binary assets remain in Media/R2 and are referenced by ID.
+      description: Platform admins and teachers with canonical platform-trainer scope or an active exact school teaching assignment may create lessons. Teacher ownership/assignment is server-forced; binary assets remain in Media/R2 and are referenced by ID.
       responses:
         "201": { description: Draft lesson created }
         "400": { description: Invalid lesson payload }
@@ -1405,7 +1407,7 @@ paths:
   /api/v1/library:
     get:
       operationId: contentListLibrary
-      description: Bounded staff library list with teacher owner/assignment plus canonical trainer taxonomy scope and hasMore pagination.
+      description: Bounded staff library list with owner/assignment authority; platform trainer scope applies globally, while an exact pathId+subjectId filter may be authorized by an active school teaching assignment.
       parameters:
         - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
         - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
@@ -1418,7 +1420,7 @@ paths:
         "403": { description: Staff scope required }
     post:
       operationId: contentCreateLibraryItem
-      description: Platform admins and scoped platform trainers may create library items. Trainer ownership/assignment is server-forced and large binaries stay in Media/R2.
+      description: Platform admins and teachers with canonical platform-trainer scope or an active exact school teaching assignment may create library items. Teacher ownership/assignment is server-forced and large binaries stay in Media/R2.
       responses:
         "201": { description: Draft library item created }
         "403": { description: Admin/trainer scope or CSRF denied }

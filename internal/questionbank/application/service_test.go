@@ -194,6 +194,22 @@ func TestTeacherListIsForcedToOwnScope(t *testing.T) {
 	}
 }
 
+func TestTeacherExactSubjectListUsesPrevalidatedAuthorScope(t *testing.T) {
+	repo := &repoStub{}
+	service := NewServiceWithAuthorScope(repo, scopeStub{allowed: true})
+	teacher := identity.User{ID: "11111111-1111-7111-8111-111111111111", Roles: []identity.Role{identity.RoleTeacher}}
+
+	if _, err := service.StaffList(context.Background(), teacher, question.ListQuery{
+		PathID:    "22222222-2222-7222-8222-222222222222",
+		SubjectID: "33333333-3333-7333-8333-333333333333",
+	}); err != nil {
+		t.Fatalf("unexpected exact-scope question list error: %v", err)
+	}
+	if !repo.lastListQuery.TeacherScopePrevalidated {
+		t.Fatalf("expected exact teacher scope prevalidation: %#v", repo.lastListQuery)
+	}
+}
+
 func TestStaffListRejectsUnboundedLimit(t *testing.T) {
 	service := NewService(&repoStub{})
 	_, err := service.StaffList(context.Background(), actor(identity.RoleAdmin), question.ListQuery{Limit: 101})

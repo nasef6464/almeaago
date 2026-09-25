@@ -326,19 +326,22 @@ func buildListWhere(query content.ListQuery, alias string) (string, []any) {
 		args = append(args, query.TeacherScopeUserID)
 		index := len(args)
 		parts = append(parts, fmt.Sprintf("(%s.owner_user_id=$%d::uuid OR %s.assigned_teacher_id=$%d::uuid)", alias, index, alias, index))
-		parts = append(parts, fmt.Sprintf(`(
-			EXISTS(
-				SELECT 1 FROM content_trainer_path_scopes ps
-				JOIN paths p ON p.id=ps.path_id
-				WHERE ps.user_id=$%d::uuid AND ps.path_id=%s.path_id AND p.status='active'
-			)
-			OR EXISTS(
-				SELECT 1 FROM content_trainer_subject_scopes ss
-				JOIN subjects s ON s.id=ss.subject_id
-				WHERE ss.user_id=$%d::uuid AND ss.subject_id=%s.subject_id
-				  AND s.path_id=%s.path_id AND s.status='active'
-			)
-		)`, index, alias, index, alias, alias))
+		if !query.TeacherScopePrevalidated {
+			parts = append(parts, fmt.Sprintf(`(
+				EXISTS(
+					SELECT 1 FROM content_trainer_path_scopes ps
+					JOIN paths p ON p.id=ps.path_id
+					WHERE ps.user_id=$%d::uuid AND ps.path_id=%s.path_id AND p.status='active'
+				)
+				OR EXISTS(
+					SELECT 1 FROM content_trainer_subject_scopes ss
+					JOIN subjects s ON s.id=ss.subject_id
+					WHERE ss.user_id=$%d::uuid AND ss.subject_id=%s.subject_id
+					  AND s.path_id=%s.path_id AND s.status='active'
+				)
+			)`, index, alias, index, alias, alias))
+	
+		}
 	}
 	return strings.Join(parts, " AND "), args
 }

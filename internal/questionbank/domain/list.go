@@ -18,8 +18,9 @@ type ListQuery struct {
 	Year               *int
 	WorkflowStatus     WorkflowStatus
 	WithVideo          *bool
-	WithExplanation    *bool
-	TeacherScopeUserID string
+	WithExplanation          *bool
+	TeacherScopeUserID       string
+	TeacherScopePrevalidated bool
 }
 
 type QuestionSummary struct {

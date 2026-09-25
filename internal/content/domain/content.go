@@ -226,8 +226,9 @@ type ListQuery struct {
 	PathID             string
 	SubjectID          string
 	Search             string
-	WorkflowStatus     WorkflowStatus
-	TeacherScopeUserID string
+	WorkflowStatus            WorkflowStatus
+	TeacherScopeUserID        string
+	TeacherScopePrevalidated  bool
 }
 
 type CoursePage struct {

@@ -170,6 +170,24 @@ func (s *Service) validateTeacherWriteScope(
 	return nil
 }
 
+func (s *Service) prepareTeacherListScope(
+	ctx context.Context,
+	actor identity.User,
+	query *content.ListQuery,
+) error {
+	if !actor.HasRole(identity.RoleTeacher) || actor.HasRole(identity.RoleAdmin) {
+		return nil
+	}
+	if query.PathID == "" || query.SubjectID == "" {
+		return nil
+	}
+	if err := s.requireAuthorScope(ctx, actor, query.PathID, query.SubjectID); err != nil {
+		return err
+	}
+	query.TeacherScopePrevalidated = true
+	return nil
+}
+
 func normalizeList(actor identity.User, query *content.ListQuery) error {
 	if !isStaff(actor) {
 		return ErrForbidden

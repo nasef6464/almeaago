@@ -294,6 +294,24 @@ func (s *Service) LearnerGet(ctx context.Context, actor identity.User, questionI
 	return row, nil
 }
 
+func (s *Service) prepareTeacherListScope(
+	ctx context.Context,
+	actor identity.User,
+	query *question.ListQuery,
+) error {
+	if !actor.HasRole(identity.RoleTeacher) || actor.HasRole(identity.RoleAdmin) {
+		return nil
+	}
+	if query.PathID == "" || query.SubjectID == "" {
+		return nil
+	}
+	if err := s.requireAuthorScope(ctx, actor, query.PathID, query.SubjectID); err != nil {
+		return err
+	}
+	query.TeacherScopePrevalidated = true
+	return nil
+}
+
 func (s *Service) StaffList(ctx context.Context, actor identity.User, query question.ListQuery) (question.QuestionPage, error) {
 	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) {
 		return question.QuestionPage{}, ErrForbidden
@@ -303,6 +321,9 @@ func (s *Service) StaffList(ctx context.Context, actor identity.User, query ques
 	}
 	if actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleAdmin) {
 		query.TeacherScopeUserID = actor.ID
+	}
+	if err := s.prepareTeacherListScope(ctx, actor, &query); err != nil {
+		return question.QuestionPage{}, err
 	}
 	return s.repo.List(ctx, query)
 }
@@ -325,6 +346,9 @@ func (s *Service) Coverage(ctx context.Context, actor identity.User, query quest
 	}
 	if actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleAdmin) {
 		query.TeacherScopeUserID = actor.ID
+	}
+	if err := s.prepareTeacherListScope(ctx, actor, &query.ListQuery); err != nil {
+		return question.Coverage{}, err
 	}
 	return s.repo.Coverage(ctx, query)
 }

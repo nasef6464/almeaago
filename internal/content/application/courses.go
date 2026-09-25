@@ -105,6 +105,9 @@ func (s *Service) ListCourses(ctx context.Context, actor identity.User, query co
 	if err := normalizeList(actor, &query); err != nil {
 		return content.CoursePage{}, err
 	}
+	if err := s.prepareTeacherListScope(ctx, actor, &query); err != nil {
+		return content.CoursePage{}, err
+	}
 	return s.repo.ListCourses(ctx, query)
 }
 

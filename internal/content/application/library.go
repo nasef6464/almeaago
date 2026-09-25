@@ -98,6 +98,9 @@ func (s *Service) ListLibraryItems(ctx context.Context, actor identity.User, que
 	if err := normalizeList(actor, &query); err != nil {
 		return content.LibraryPage{}, err
 	}
+	if err := s.prepareTeacherListScope(ctx, actor, &query); err != nil {
+		return content.LibraryPage{}, err
+	}
 	return s.repo.ListLibraryItems(ctx, query)
 }
 
