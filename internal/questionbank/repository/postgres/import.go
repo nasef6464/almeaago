@@ -276,7 +276,8 @@ func (r *Repository) GetImportBatch(ctx context.Context, batchID string) (questi
 	err := r.db.QueryRow(ctx, `
 		SELECT
 			batch_id,status,requested_count,inserted_count,
-			COALESCE(created_by::text,''),created_at,rolled_back_at
+			COALESCE(created_by::text,''),COALESCE(manifest_hash,''),report,
+			preflight_expires_at,committed_at,created_at,updated_at,rolled_back_at
 		FROM question_import_batches
 		WHERE batch_id=$1
 	`, batchID).Scan(
@@ -285,7 +286,12 @@ func (r *Repository) GetImportBatch(ctx context.Context, batchID string) (questi
 		&batch.RequestedCount,
 		&batch.InsertedCount,
 		&batch.CreatedBy,
+		&batch.ManifestHash,
+		&batch.Report,
+		&batch.PreflightExpiresAt,
+		&batch.CommittedAt,
 		&batch.CreatedAt,
+		&batch.UpdatedAt,
 		&batch.RolledBackAt,
 	)
 	if err != nil {
