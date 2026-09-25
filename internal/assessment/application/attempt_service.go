@@ -2,14 +2,13 @@ package application
 
 import(
 "context"
-"errors"
 "strings"
 identity "github.com/nasef6464/almeaago/internal/identity/domain"
 assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 )
-var ErrAttemptExpired=errors.New("assessment attempt expired")
-var ErrAttemptSubmitted=errors.New("assessment attempt submitted")
-var ErrResultUnavailable=errors.New("assessment result unavailable")
+var ErrAttemptExpired=assessment.ErrAttemptExpired
+var ErrAttemptSubmitted=assessment.ErrAttemptSubmitted
+var ErrResultUnavailable=assessment.ErrResultUnavailable
 type AttemptRepository interface{Start(context.Context,string,string,string)(assessment.Attempt,error);GetAttempt(context.Context,string)(assessment.Attempt,error);SaveAnswer(context.Context,string,string,string,assessment.AnswerWrite)(assessment.Attempt,error);Submit(context.Context,string,string,string)(assessment.Result,error);GetResult(context.Context,string)(assessment.Result,error)}
 type AttemptService struct{repo AttemptRepository}
 func NewAttemptService(r AttemptRepository)*AttemptService{return &AttemptService{repo:r}}
