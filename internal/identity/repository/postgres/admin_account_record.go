@@ -92,3 +92,32 @@ func (r *Repository) adminUserRecordTx(
 	record.LinkedStudentIDs = snapshot.LinkedStudentIDs
 	return record, nil
 }
+
+
+func replaceAdminRoleTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	userID string,
+	role domain.Role,
+) error {
+	if _, err := tx.Exec(ctx,
+		"DELETE FROM user_roles WHERE user_id = $1::uuid",
+		userID,
+	); err != nil {
+		return err
+	}
+
+	tag, err := tx.Exec(ctx, `
+		INSERT INTO user_roles (user_id, role)
+		SELECT id, $2
+		FROM users
+		WHERE id = $1::uuid
+	`, userID, string(role))
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
