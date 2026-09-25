@@ -21,6 +21,8 @@ Organizations / Schools / Classes compatibility — **STRUCTURAL CHECKPOINT GREE
 
 Taxonomy — **STRUCTURAL CHECKPOINT GREEN**.
 
+Question Bank — **CORE API GREEN / IN_PROGRESS**.
+
 ## Identity Core / Recovery / Providers — TESTED / MERGED
 Includes:
 - email/password, National ID and phone/password login.
@@ -188,6 +190,35 @@ Implemented:
 ## Taxonomy checkpoint
 The structural Taxonomy foundation is green for normalized persistence, bounded public bootstrap reads, stable hierarchy identity, and lifecycle-safe admin mutation contracts. Content and Question Bank may now depend on Taxonomy IDs through explicit boundaries.
 
+## Question Bank Foundation Schema — TESTED / MERGED
+PR #22 passed exact-head Database CI and merged as `f93b3e21c66a22c2a4f7d9b19bc81a13c7f53525`.
+
+Implemented:
+- immutable question_code enforcement in PostgreSQL.
+- deferred current-version integrity to question_versions.
+- question path/subject classification and reviewer/assignment metadata.
+- option/correct-index integrity constraints.
+- query-oriented workflow/taxonomy/owner/media indexes.
+- revision author/note metadata.
+- rollback-safe migration.
+
+## Question Bank Core API — TESTED / MERGED
+PR #23 passed exact-head Backend CI and merged as `4e219ddcee95ede1cb75bd685312c87258556b27`.
+
+Implemented:
+- stable question identity with immutable version history.
+- text-only, image-only, and text+image question authoring.
+- compact AI-readiness metadata for readable/speech/visual/option/math/context fields without routing image bytes through the Go API.
+- embedded-image option questions require textual option representations for AI/accessibility.
+- Taxonomy-validated relational main/sub/secondary skill links.
+- optimistic append-version flow.
+- explicit draft/pending_review/approved/rejected/archived workflow.
+- teacher owner/assignment edit scope; teachers cannot approve their own questions.
+- admin workflow transitions are explicit; draft cannot silently jump directly to approved.
+- approved learner-safe projection strips answer keys, explanation/hint/strategy, full AI/source metadata, reviewer notes and voice authoring metadata.
+- active asset references only; Media/R2 owns image bytes.
+- CSRF on unsafe question mutations and transaction-scoped audit records.
+
 ## Performance/scalability
 - bounded pagination for admin/director directories.
 - pg_trgm-backed user search.
@@ -206,4 +237,4 @@ The structural Taxonomy foundation is green for normalized persistence, bounded 
 - Use `almeaacodax` only for explicit behavioral/visual parity checks, never as an implementation target.
 
 ## Next exact action
-Start the Question Bank foundation from current `main`, using the existing normalized question/question_version/question_option/question_skill_link schema as the starting point. First audit that schema against the Question Bank blueprint, then add only the missing integrity/index constraints before implementing question identity/version/workflow APIs. Preserve immutable question_code, relational skill links, learner answer secrecy, soft archive/history safety, and direct-to-R2 media boundaries.
+Continue Question Bank with bounded staff listing/filter contracts and separate coverage counters. Preserve max-100 pagination, explicit filtered scopes, distinct-question counting for multi-skill links, linked/unlinked filters, workflow/type/difficulty/exam/source/year/media/explanation/search filters, and keep expensive coverage separate from normal list reads. After that, implement the Media/R2 presigned upload boundary needed by image authoring/import without sending image bytes through Go.
