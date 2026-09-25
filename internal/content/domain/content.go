@@ -363,7 +363,7 @@ type CourseModule struct {
 }
 
 type CourseLessonPlacement struct {
-	LessonID string
+	LessonID  string
 	SortOrder int
 	IsPreview bool
 }
@@ -374,7 +374,7 @@ type FoundationPlacements struct {
 }
 
 type TopicLessonPlacement struct {
-	LessonID string
+	LessonID  string
 	SortOrder int
 }
 
