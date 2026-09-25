@@ -261,3 +261,72 @@ export interface UpdateLessonInput extends CreateLessonInput {
   assignedTeacherId: string;
   revenueSharePercentage: number | null;
 }
+
+export type LibraryItemType = 'pdf' | 'doc' | 'video' | 'link';
+
+export interface LibraryDetail extends LibrarySummary {
+  description: string;
+  externalUrl: string;
+  createdBy: string;
+  approvedBy: string;
+  approvedAt: string | null;
+  reviewerNotes: string;
+  revenueSharePercentage: number | null;
+  skillIds: string[];
+  primaryAssetId: string;
+  createdAt: string;
+}
+
+export interface CreateLibraryInput {
+  pathId: string;
+  subjectId: string;
+  title: string;
+  description: string;
+  type: LibraryItemType;
+  externalUrl: string;
+  isVisible: boolean;
+  isLocked: boolean;
+  skillIds: string[];
+  primaryAssetId: string;
+}
+
+export interface UpdateLibraryInput extends CreateLibraryInput {
+  expectedRevision: number;
+  ownerType: ContentOwnerType;
+  ownerUserId: string;
+  ownerSchoolId: string;
+  assignedTeacherId: string;
+  revenueSharePercentage: number | null;
+}
+
+export type FoundationTopicStatus = 'active' | 'inactive' | 'archived';
+
+export interface FoundationTopicDetail extends FoundationTopicSummary {
+  description: string;
+  createdBy: string;
+  skillIds: string[];
+  createdAt: string;
+}
+
+export interface CreateFoundationTopicInput {
+  pathId: string;
+  subjectId: string;
+  parentTopicId: string;
+  code: string;
+  title: string;
+  description: string;
+  sortOrder: number;
+  status: FoundationTopicStatus;
+  isVisible: boolean;
+  isLocked: boolean;
+  skillIds: string[];
+}
+
+export interface UpdateFoundationTopicInput extends CreateFoundationTopicInput {
+  expectedRevision: number;
+}
+
+export interface FoundationPlacements {
+  lessons: Array<{ lessonId: string; sortOrder: number }>;
+  libraryItems: Array<{ libraryItemId: string; sortOrder: number }>;
+}

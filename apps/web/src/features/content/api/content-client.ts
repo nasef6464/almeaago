@@ -5,7 +5,12 @@ import type {
   CourseSummary,
   CreateCourseInput,
   CreateLessonInput,
+  CreateFoundationTopicInput,
+  CreateLibraryInput,
+  FoundationPlacements,
+  FoundationTopicDetail,
   FoundationTopicSummary,
+  LibraryDetail,
   LibrarySummary,
   LessonDetail,
   LessonSummary,
@@ -13,7 +18,9 @@ import type {
   TaxonomyCore,
   TaxonomyFull,
   UpdateCourseInput,
+  UpdateFoundationTopicInput,
   UpdateLessonInput,
+  UpdateLibraryInput,
 } from './content-types';
 
 const API_BASE = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
@@ -150,6 +157,58 @@ export const contentClient = {
     );
   },
 
+  libraryItem(itemId: string, signal?: AbortSignal) {
+    return request<{ item: LibraryDetail }>(
+      `/api/v1/library/${encodeURIComponent(itemId)}`,
+      { signal },
+    );
+  },
+
+  createLibraryItem(input: CreateLibraryInput, csrfToken: string) {
+    return request<{ item: LibraryDetail }>('/api/v1/library', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      body: JSON.stringify(input),
+    });
+  },
+
+  updateLibraryItem(itemId: string, input: UpdateLibraryInput, csrfToken: string) {
+    return request<{ item: LibraryDetail }>(
+      `/api/v1/library/${encodeURIComponent(itemId)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  libraryWorkflow(
+    itemId: string,
+    expectedRevision: number,
+    status: 'draft' | 'pending_review' | 'approved' | 'rejected' | 'archived',
+    reviewerNotes: string,
+    csrfToken: string,
+  ) {
+    return request<{ item: LibraryDetail }>(
+      `/api/v1/library/${encodeURIComponent(itemId)}/workflow`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify({ expectedRevision, status, reviewerNotes }),
+      },
+    );
+  },
+
   foundation(filters: ContentListFilters, signal?: AbortSignal) {
     const params = new URLSearchParams();
     params.set('page', String(filters.page || 1));
@@ -160,6 +219,127 @@ export const contentClient = {
     return request<PageResult<FoundationTopicSummary>>(
       `/api/v1/foundation/topics?${params.toString()}`,
       { signal },
+    );
+  },
+
+  foundationTopic(topicId: string, signal?: AbortSignal) {
+    return request<{ topic: FoundationTopicDetail }>(
+      `/api/v1/foundation/topics/${encodeURIComponent(topicId)}`,
+      { signal },
+    );
+  },
+
+  createFoundationTopic(input: CreateFoundationTopicInput, csrfToken: string) {
+    return request<{ topic: FoundationTopicDetail }>('/api/v1/foundation/topics', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      body: JSON.stringify(input),
+    });
+  },
+
+  updateFoundationTopic(
+    topicId: string,
+    input: UpdateFoundationTopicInput,
+    csrfToken: string,
+  ) {
+    return request<{ topic: FoundationTopicDetail }>(
+      `/api/v1/foundation/topics/${encodeURIComponent(topicId)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  foundationPlacements(topicId: string, signal?: AbortSignal) {
+    return request<{ placements: FoundationPlacements }>(
+      `/api/v1/foundation/topics/${encodeURIComponent(topicId)}/placements`,
+      { signal },
+    );
+  },
+
+  linkFoundationLesson(
+    topicId: string,
+    lessonId: string,
+    expectedRevision: number,
+    sortOrder: number,
+    csrfToken: string,
+  ) {
+    return request<{ topicRevision: number }>(
+      `/api/v1/foundation/topics/${encodeURIComponent(topicId)}/lessons/${encodeURIComponent(lessonId)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify({ expectedRevision, sortOrder, isPreview: false }),
+      },
+    );
+  },
+
+  unlinkFoundationLesson(
+    topicId: string,
+    lessonId: string,
+    expectedRevision: number,
+    csrfToken: string,
+  ) {
+    return request<{ topicRevision: number }>(
+      `/api/v1/foundation/topics/${encodeURIComponent(topicId)}/lessons/${encodeURIComponent(lessonId)}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify({ expectedRevision }),
+      },
+    );
+  },
+
+  linkFoundationLibraryItem(
+    topicId: string,
+    itemId: string,
+    expectedRevision: number,
+    sortOrder: number,
+    csrfToken: string,
+  ) {
+    return request<{ topicRevision: number }>(
+      `/api/v1/foundation/topics/${encodeURIComponent(topicId)}/library/${encodeURIComponent(itemId)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify({ expectedRevision, sortOrder, isPreview: false }),
+      },
+    );
+  },
+
+  unlinkFoundationLibraryItem(
+    topicId: string,
+    itemId: string,
+    expectedRevision: number,
+    csrfToken: string,
+  ) {
+    return request<{ topicRevision: number }>(
+      `/api/v1/foundation/topics/${encodeURIComponent(topicId)}/library/${encodeURIComponent(itemId)}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify({ expectedRevision }),
+      },
     );
   },
 
