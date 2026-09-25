@@ -14,10 +14,10 @@ Evidence:
 `nasef6464/almeaago` is the only implementation repository.
 
 ## Legacy reference
-`nasef6464/almeaacodax` remains read-only behavioral and visual reference.
+`nasef6464/almeaacodax` is read-only behavioral and visual reference. No implementation work is merged there as part of ALMEAA Go.
 
 ## Current phase
-Organizations / Schools / Classes core — **IN_PROGRESS**.
+Organizations / Schools / Classes compatibility — **IN_PROGRESS**.
 
 ## Identity Core / Recovery / Providers — TESTED / MERGED
 Includes:
@@ -36,7 +36,6 @@ External staging gates still pending:
 - real WhatsApp delivery endpoint/token and live smoke.
 
 ## Self Profile / Identity — IMPLEMENTED
-Included in the current Identity branch:
 - PATCH /api/v1/auth/me/profile
 - PATCH /api/v1/auth/me/identity
 - profile name/avatar-reference update.
@@ -56,36 +55,21 @@ Compatibility aliases retained:
 PR #9 passed Backend + Database CI on the exact tested head and was merged to `main` as `c57d03e726d58eea7605c8ec77d3be29b092bd0b`.
 
 Implemented:
-- platform-admin user directory with page/limit/search/role/status filters.
-- supervisor/teacher directory constrained to legacy-compatible active school/class scope.
-- hard page limit 100.
-- trigram-backed name/email search.
-- role/status summary.
-- admin account create/upsert by email.
-- account name/avatar/role/status update.
-- normalized school membership synchronization.
-- normalized class/group membership synchronization.
-- normalized parent/student relationship synchronization.
-- bulk activation/deactivation with per-user results.
-- user delete.
-- CSRF required for all unsafe admin mutations.
-- transactional audit logs.
+- platform-admin user directory with bounded pagination/search/role/status filters.
+- supervisor/teacher directory constrained to active school/class scope.
+- normalized school, class/group and parent/student relationship synchronization.
+- admin account create/update/bulk activation/deactivation/delete.
+- CSRF on unsafe mutations and transactional audit logs.
 - disabling an account revokes active sessions.
-- self-delete blocked.
-- last active admin protected on update/upsert/bulk/delete.
-- last-admin invariant serialized with a transaction advisory lock.
-- legacy last-admin PATCH inconsistency documented and intentionally fixed.
-- cross-domain writes delegated to Organizations contract.
-- cross-domain user directory reads owned by Reporting read model.
-- admin directory does not load password hashes or login/token internals.
+- self-delete and last-active-admin protections.
+- Organizations owns cross-domain relationship writes.
+- Reporting owns cross-domain directory read models.
 
 Still pending outside this slice:
 - trainer managed path/subject scopes.
 - platformTrainer filter/count.
 - live Google/WhatsApp staging smoke.
 - desktop/mobile Auth screenshot parity gate.
-
-Trainer scopes are never silently discarded: unsupported managedPathIds/managedSubjectIds fail explicitly until Catalog/Content ownership is implemented.
 
 ## Identity Closure Audit
 See `docs/domains/identity/IDENTITY_CLOSURE_AUDIT.md`.
@@ -100,51 +84,54 @@ Routes deliberately owned elsewhere:
 ## Organizations Core — TESTED / MERGED
 Core school/class/roster/membership/director-delegation/assignment foundation was merged to `main` as `c182892d12ac50f3260b23d7281cba10bb9eb28f`.
 
-## School Director Core — IMPLEMENTED / CI PENDING
-Branch: `feat/organizations-core`
+## School Director Core Compatibility — MERGED TO MAIN
+Latest main checkpoint: `51c71e830c412386694c20f31e014881ce3d653a`.
 
-Current implementation:
-- Migration 000008 for organization delegation/core metadata.
+Implemented in main:
+- Migration 000008 organization delegation/core metadata.
 - explicit supervisor scope persistence.
 - Operations-owned transactional audit writer.
 - Organizations domain/application boundaries.
 - scoped PostgreSQL repositories for schools, classes and roster.
 - bounded school/class search with supporting indexes.
-- admin/supervisor/teacher/school_admin read-policy tests.
-- archive lifecycle instead of hard-delete for schools/classes.
+- archive lifecycle for schools/classes.
 - canonical HTTP API under `/api/v1/schools`.
-- authenticated school/class/roster reads.
-- CSRF-protected school/class mutations.
+- authenticated school/class/roster reads and CSRF-protected mutations.
 - platform-admin membership mutation API.
-- bounded director delegation directory and permission replacement.
-- legacy director default permission set preserved exactly.
-- bounded teaching-assignment directory.
-- subject-agnostic teaching assignments preserved through nullable PostgreSQL subject scope.
-- teacher assignment reads forced to the current teacher.
-- school director assignment writes require `SCHOOL_TEACHERS_ASSIGN`.
-- Organizations repository is wired through `cmd/api`.
+- director delegation directory and permission replacement.
+- legacy director default permission set.
+- teaching-assignment directory with nullable subject scope.
+- school director student list/add/update/activate/move-class workflows.
+- school director class create/update workflows.
+- school director teacher/assignment workflows.
+- legacy-compatible director adapters required by the preserved React UI.
+- Reporting-owned school director read model.
+- Identity-owned student account writes.
+- parity-safe bounded director rosters.
 
-Current green checkpoint before relationship expansion:
-- Backend CI green.
-- Database CI green.
-- Migration 000008 apply/verify/rollback/re-apply green.
+Branch note:
+- `feat/organizations-core` has no unmerged commits and is behind `main`; do not use it as the source of new work.
 
-Next within this slice:
-- re-run Backend/Database gate for relationship expansion.
-- school context API.
-- school director compatibility workflows.
-- teacher workspace compatibility.
-- legacy route adapters required by the preserved React UI.
-- contract/entitlement APIs in their owning boundary.
+Verification note:
+- GitHub's PR-scoped workflow lookup returns no workflow runs for the direct main commit `51c71e...`.
+- Do not label this commit as exact-head CI verified until a new PR/CI checkpoint supplies that evidence.
 
 ## Performance/scalability
-- admin directory uses bounded pagination.
-- user search uses pg_trgm indexes.
-- school-scope lookup has user-first index support.
-- directory reads use one paginated read-model query rather than N+1 user hydration.
-- mutation audit, identity state and organization scope changes commit atomically.
-- provider and OTP lookup paths remain indexed.
+- bounded pagination for admin/director directories.
+- pg_trgm-backed user search.
+- user-first school-scope indexes.
+- paginated read models instead of N+1 user hydration.
+- atomic audit/identity/organization mutations.
+- indexed provider and OTP lookup paths.
 - no large media passes through the Go API.
 
+## Engineering workflow
+- Build foundation-first by domain boundary; do not implement unrelated product features early.
+- New implementation work starts from current `main` on a fresh focused branch.
+- Keep changes reviewable and domain-scoped.
+- Run relevant Backend / Database / Frontend gates on the exact PR head before merge.
+- Merge only after required gates are green; update this file after each verified checkpoint.
+- Use `almeaacodax` only for explicit behavioral/visual parity checks, never as an implementation target.
+
 ## Next exact action
-Run Backend + Database CI for the expanded Organizations relationship core on `feat/organizations-core`, repair failures on the same branch, then add context/director/teacher compatibility workflows before the exact tested SHA can be merged.
+Start a fresh branch from current `main` for the remaining Organizations compatibility slice. First inventory the Organizations routes/workflows already present on `main` against the ALMEAA Go architecture/product sources, then implement only the missing school-context and teacher-workspace compatibility contracts. Keep contract/entitlement work in its owning boundary. Open a focused PR and require exact-head Backend + Database CI before merge.
