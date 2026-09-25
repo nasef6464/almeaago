@@ -17,7 +17,9 @@ Evidence:
 `nasef6464/almeaacodax` is read-only behavioral and visual reference. No implementation work is merged there as part of ALMEAA Go.
 
 ## Current phase
-Organizations / Schools / Classes compatibility — **IN_PROGRESS**.
+Organizations / Schools / Classes compatibility — **STRUCTURAL CHECKPOINT GREEN**.
+
+Next foundation phase: Taxonomy.
 
 ## Identity Core / Recovery / Providers — TESTED / MERGED
 Includes:
@@ -116,6 +118,44 @@ Verification note:
 - GitHub's PR-scoped workflow lookup returns no workflow runs for the direct main commit `51c71e...`.
 - Do not label this commit as exact-head CI verified until a new PR/CI checkpoint supplies that evidence.
 
+## Teacher Workspace — TESTED / MERGED
+PR #14 passed exact-head Backend CI and merged as `f9664d6fe894475685bd51016d96f96a3c554238`.
+
+Implemented:
+- teacher-only scoped workspace.
+- active membership + active assignment + active school/class enforcement.
+- multi-school class/subject projection with aggregate student counts.
+- no student PII or cross-domain assessment/commerce/realtime/reporting payload coupling.
+
+## Parent Authority — TESTED / MERGED
+PR #15 passed exact-head Backend CI and merged as `955b27d14e137ad85d4747eddc5d83d8b198d749`.
+
+Implemented:
+- canonical `parent_student_relationships` authority read.
+- dedicated `GET /api/v1/parents/authority` facade.
+- active parent→student relationships only.
+- no student profile/progress/PII leakage from Organizations.
+- existing admin account synchronization remains the canonical relationship writer.
+
+Security decision:
+- legacy self-linking by knowledge of National ID/phone is **not** copied as authority.
+- a future self-service claim flow requires explicit verification/consent policy; identifier knowledge alone is insufficient.
+
+## Organizations read-path indexes — TESTED / MERGED
+PR #12 passed Database CI and merged as `23e52df7247b3f4371b895249bcfde0b208579a9`.
+
+## Organizations checkpoint
+The structural Organizations foundation is now green for:
+- schools, memberships and delegated director permissions.
+- classes and class memberships.
+- teaching assignments and teacher workspace.
+- bounded rosters/directories.
+- supervisor scopes.
+- canonical parent/student authority.
+- archive/revocation behavior and supporting read indexes.
+
+Commercial school contracts/modules/entitlements are not moved into Organizations. Commerce owns entitlement/access state and will integrate through explicit contracts.
+
 ## Performance/scalability
 - bounded pagination for admin/director directories.
 - pg_trgm-backed user search.
@@ -134,4 +174,4 @@ Verification note:
 - Use `almeaacodax` only for explicit behavioral/visual parity checks, never as an implementation target.
 
 ## Next exact action
-Start a fresh branch from current `main` for the remaining Organizations compatibility slice. First inventory the Organizations routes/workflows already present on `main` against the ALMEAA Go architecture/product sources, then implement only the missing school-context and teacher-workspace compatibility contracts. Keep contract/entitlement work in its owning boundary. Open a focused PR and require exact-head Backend + Database CI before merge.
+Start Taxonomy foundation from current `main`. Preserve stable path/subject/skill identities and legacy-visible hierarchy semantics, but normalize levels and skill hierarchy relationally. Do not copy legacy embedded subSkills/questionIds/lessonIds arrays. Build bounded public/staff taxonomy reads and admin mutations with referential safety before Content/Question Bank depends on them.
