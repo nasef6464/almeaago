@@ -33,7 +33,6 @@ func New(service *orgapp.Service, auth Authenticator) http.Handler {
 
 	r.Get("/context", h.schoolContexts)
 	r.Get("/teacher-workspace", h.teacherWorkspace)
-	r.Get("/parent-authority", h.parentAuthority)
 	r.Get("/", h.listSchools)
 	r.Post("/", h.createSchool)
 	r.Get("/{schoolId}", h.schoolByID)
