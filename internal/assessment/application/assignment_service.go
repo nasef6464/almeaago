@@ -90,4 +90,3 @@ func (s *AssignmentService) Start(ctx context.Context, a identity.User, id, star
 	}
 	return s.repo.StartAssigned(ctx, a.ID, id, startKey)
 }
-
