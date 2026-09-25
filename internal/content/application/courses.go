@@ -131,3 +131,26 @@ func normalizeCourse(actor identity.User, input CourseInput) (content.CourseWrit
 	}
 	return write, nil
 }
+
+type PublicationInput struct {
+	ExpectedRevision int  `json:"expectedRevision"`
+	IsPublished      bool `json:"isPublished"`
+}
+
+func (s *Service) SetCoursePublication(ctx context.Context, actor identity.User, courseID string, input PublicationInput) (content.Course, error) {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return content.Course{}, ErrForbidden
+	}
+	courseID = strings.TrimSpace(courseID)
+	if courseID == "" || input.ExpectedRevision < 1 {
+		return content.Course{}, ErrInvalidInput
+	}
+	current, err := s.repo.GetCourse(ctx, courseID)
+	if err != nil {
+		return content.Course{}, err
+	}
+	if input.IsPublished && current.WorkflowStatus != content.WorkflowApproved {
+		return content.Course{}, ErrWorkflow
+	}
+	return s.repo.SetCoursePublication(ctx, actor.ID, courseID, input.ExpectedRevision, input.IsPublished)
+}

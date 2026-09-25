@@ -1583,3 +1583,18 @@ paths:
         "403": { description: Platform admin or CSRF denied }
         "404": { description: Placement not found }
         "409": { description: Revision or lifecycle conflict }
+
+
+  /api/v1/courses/{id}/publication:
+    patch:
+      operationId: contentSetCoursePublication
+      description: >
+        Platform-admin-only, CSRF-protected publication toggle using expectedRevision.
+        Publication is separate from review approval and visibility. A course may be published
+        only while workflowStatus=approved; leaving approved state clears publication atomically.
+      responses:
+        "200": { description: Course publication state updated }
+        "400": { description: Invalid revision payload }
+        "403": { description: Platform admin or CSRF required }
+        "404": { description: Course not found }
+        "409": { description: Revision or approval-state conflict }

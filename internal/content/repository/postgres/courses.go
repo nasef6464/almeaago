@@ -99,7 +99,71 @@ func (r *Repository) UpdateCourse(ctx context.Context, actorUserID, courseID str
 }
 
 func (r *Repository) SetCourseWorkflow(ctx context.Context, actorUserID, courseID string, expectedRevision int, status content.WorkflowStatus, reviewerNotes string) (content.Course, error) {
-	if err := r.setWorkflow(ctx, actorUserID, "courses", "course", courseID, expectedRevision, status, reviewerNotes); err != nil {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return content.Course{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var id string
+	err = tx.QueryRow(ctx, `
+		UPDATE courses SET
+			workflow_status=$3,
+			reviewer_notes=$4,
+			approved_by=CASE WHEN $3='approved' THEN $5::uuid ELSE NULL END,
+			approved_at=CASE WHEN $3='approved' THEN now() ELSE NULL END,
+			is_published=CASE WHEN $3='approved' THEN is_published ELSE false END,
+			published_by=CASE WHEN $3='approved' THEN published_by ELSE NULL END,
+			published_at=CASE WHEN $3='approved' THEN published_at ELSE NULL END,
+			revision=revision+1,
+			updated_at=now()
+		WHERE id=$1::uuid AND revision=$2
+		RETURNING id::text
+	`, courseID, expectedRevision, string(status), reviewerNotes, actorUserID).Scan(&id)
+	if err != nil {
+		return content.Course{}, mapUpdateError(ctx, tx, "courses", courseID, expectedRevision, err)
+	}
+	if err := r.writeAudit(ctx, tx, operations.AuditEvent{
+		ActorUserID: actorUserID, Action: "content.course.workflow", ResourceType: "course", ResourceID: id,
+		Metadata: map[string]any{"status": status},
+	}); err != nil {
+		return content.Course{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return content.Course{}, err
+	}
+	return r.GetCourse(ctx, courseID)
+}
+
+func (r *Repository) SetCoursePublication(ctx context.Context, actorUserID, courseID string, expectedRevision int, published bool) (content.Course, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return content.Course{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var id string
+	err = tx.QueryRow(ctx, `
+		UPDATE courses SET
+			is_published=$3,
+			published_by=CASE WHEN $3 THEN $4::uuid ELSE NULL END,
+			published_at=CASE WHEN $3 THEN now() ELSE NULL END,
+			revision=revision+1,
+			updated_at=now()
+		WHERE id=$1::uuid AND revision=$2
+		  AND (NOT $3 OR workflow_status='approved')
+		RETURNING id::text
+	`, courseID, expectedRevision, published, actorUserID).Scan(&id)
+	if err != nil {
+		return content.Course{}, mapUpdateError(ctx, tx, "courses", courseID, expectedRevision, err)
+	}
+	if err := r.writeAudit(ctx, tx, operations.AuditEvent{
+		ActorUserID: actorUserID, Action: "content.course.publication", ResourceType: "course", ResourceID: id,
+		Metadata: map[string]any{"isPublished": published},
+	}); err != nil {
+		return content.Course{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
 		return content.Course{}, err
 	}
 	return r.GetCourse(ctx, courseID)
@@ -107,24 +171,26 @@ func (r *Repository) SetCourseWorkflow(ctx context.Context, actorUserID, courseI
 
 func (r *Repository) GetCourse(ctx context.Context, courseID string) (content.Course, error) {
 	var row content.Course
-	var ownerUserID, ownerSchoolID, createdBy, assignedTeacherID, approvedBy, thumbnailAssetID string
+	var ownerUserID, ownerSchoolID, createdBy, assignedTeacherID, approvedBy, publishedBy, thumbnailAssetID string
 	var presentation []byte
 	err := r.db.QueryRow(ctx, `
 		SELECT id::text,path_id::text,subject_id::text,title,description,instructor_name,duration_minutes,level,
 			owner_type,COALESCE(owner_user_id::text,''),COALESCE(owner_school_id::text,''),COALESCE(created_by::text,''),
 			COALESCE(assigned_teacher_id::text,''),workflow_status,COALESCE(approved_by::text,''),approved_at,reviewer_notes,
-			revenue_share_percentage,is_visible,drip_content_enabled,certificate_enabled,COALESCE(thumbnail_asset_id::text,''),
+			revenue_share_percentage,is_visible,is_published,COALESCE(published_by::text,''),published_at,
+			drip_content_enabled,certificate_enabled,COALESCE(thumbnail_asset_id::text,''),
 			presentation,revision,created_at,updated_at
 		FROM courses WHERE id=$1::uuid
 	`, courseID).Scan(&row.ID, &row.PathID, &row.SubjectID, &row.Title, &row.Description, &row.InstructorName,
 		&row.DurationMinutes, &row.Level, &row.OwnerType, &ownerUserID, &ownerSchoolID, &createdBy, &assignedTeacherID,
 		&row.WorkflowStatus, &approvedBy, &row.ApprovedAt, &row.ReviewerNotes, &row.RevenueSharePercentage, &row.IsVisible,
-		&row.DripContentEnabled, &row.CertificateEnabled, &thumbnailAssetID, &presentation, &row.Revision, &row.CreatedAt, &row.UpdatedAt)
+		&row.IsPublished, &publishedBy, &row.PublishedAt, &row.DripContentEnabled, &row.CertificateEnabled,
+		&thumbnailAssetID, &presentation, &row.Revision, &row.CreatedAt, &row.UpdatedAt)
 	if err != nil {
 		return content.Course{}, mapError(err)
 	}
 	row.OwnerUserID, row.OwnerSchoolID, row.CreatedBy = ownerUserID, ownerSchoolID, createdBy
-	row.AssignedTeacherID, row.ApprovedBy, row.ThumbnailAssetID = assignedTeacherID, approvedBy, thumbnailAssetID
+	row.AssignedTeacherID, row.ApprovedBy, row.PublishedBy, row.ThumbnailAssetID = assignedTeacherID, approvedBy, publishedBy, thumbnailAssetID
 	row.Presentation = json.RawMessage(presentation)
 	row.SkillIDs, err = r.loadIDs(ctx, `SELECT skill_id::text FROM course_skill_links WHERE course_id=$1::uuid ORDER BY skill_id`, courseID)
 	if err != nil {
@@ -139,7 +205,7 @@ func (r *Repository) ListCourses(ctx context.Context, query content.ListQuery) (
 	rows, err := r.db.Query(ctx, `
 		SELECT c.id::text,c.path_id::text,c.subject_id::text,c.title,c.instructor_name,c.duration_minutes,c.level,
 			c.owner_type,COALESCE(c.owner_user_id::text,''),COALESCE(c.owner_school_id::text,''),
-			COALESCE(c.assigned_teacher_id::text,''),c.workflow_status,c.is_visible,c.revision,c.updated_at
+			COALESCE(c.assigned_teacher_id::text,''),c.workflow_status,c.is_visible,c.is_published,c.revision,c.updated_at
 		FROM courses c
 		WHERE `+where+`
 		ORDER BY c.updated_at DESC,c.id DESC
@@ -153,7 +219,7 @@ func (r *Repository) ListCourses(ctx context.Context, query content.ListQuery) (
 		var row content.Course
 		if err := rows.Scan(&row.ID, &row.PathID, &row.SubjectID, &row.Title, &row.InstructorName, &row.DurationMinutes,
 			&row.Level, &row.OwnerType, &row.OwnerUserID, &row.OwnerSchoolID, &row.AssignedTeacherID,
-			&row.WorkflowStatus, &row.IsVisible, &row.Revision, &row.UpdatedAt); err != nil {
+			&row.WorkflowStatus, &row.IsVisible, &row.IsPublished, &row.Revision, &row.UpdatedAt); err != nil {
 			return content.CoursePage{}, err
 		}
 		items = append(items, row)

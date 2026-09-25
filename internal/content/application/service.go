@@ -24,6 +24,7 @@ type Repository interface {
 	CreateCourse(ctx context.Context, actorUserID string, write content.CourseWrite) (content.Course, error)
 	UpdateCourse(ctx context.Context, actorUserID, courseID string, expectedRevision int, write content.CourseWrite) (content.Course, error)
 	SetCourseWorkflow(ctx context.Context, actorUserID, courseID string, expectedRevision int, status content.WorkflowStatus, reviewerNotes string) (content.Course, error)
+	SetCoursePublication(ctx context.Context, actorUserID, courseID string, expectedRevision int, published bool) (content.Course, error)
 	GetCourse(ctx context.Context, courseID string) (content.Course, error)
 	ListCourses(ctx context.Context, query content.ListQuery) (content.CoursePage, error)
 	CourseReadyForApproval(ctx context.Context, courseID string) (bool, error)

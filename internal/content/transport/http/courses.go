@@ -16,6 +16,7 @@ func NewCourses(service *contentapp.Service, auth Authenticator) http.Handler {
 	r.Get("/{id}", h.getCourse)
 	r.Put("/{id}", h.updateCourse)
 	r.Patch("/{id}/workflow", h.courseWorkflow)
+	r.Patch("/{id}/publication", h.coursePublication)
 	r.Get("/{id}/modules", h.listCourseModules)
 	r.Post("/{id}/modules", h.createCourseModule)
 	r.Put("/{id}/modules/{moduleId}", h.updateCourseModule)
@@ -102,6 +103,23 @@ func (h *Handler) courseWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	row, err := h.service.SetCourseWorkflow(r.Context(), auth.User, chi.URLParam(r, "id"), input)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"course": presentCourse(row)})
+}
+
+func (h *Handler) coursePublication(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authenticate(w, r, true)
+	if !ok {
+		return
+	}
+	var input contentapp.PublicationInput
+	if !decodeJSON(w, r, &input) {
+		return
+	}
+	row, err := h.service.SetCoursePublication(r.Context(), auth.User, chi.URLParam(r, "id"), input)
 	if err != nil {
 		writeError(w, err)
 		return

@@ -126,6 +126,9 @@ type Course struct {
 	ReviewerNotes          string
 	RevenueSharePercentage *float64
 	IsVisible              bool
+	IsPublished            bool
+	PublishedBy            string
+	PublishedAt            *time.Time
 	DripContentEnabled     bool
 	CertificateEnabled     bool
 	ThumbnailAssetID       string

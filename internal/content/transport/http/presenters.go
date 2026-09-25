@@ -8,7 +8,7 @@ func presentCourseSummary(row content.Course) map[string]any {
 		"instructorName": row.InstructorName, "durationMinutes": row.DurationMinutes, "level": row.Level,
 		"ownerType": row.OwnerType, "ownerUserId": row.OwnerUserID, "ownerSchoolId": row.OwnerSchoolID,
 		"assignedTeacherId": row.AssignedTeacherID, "workflowStatus": row.WorkflowStatus,
-		"isVisible": row.IsVisible, "revision": row.Revision, "updatedAt": row.UpdatedAt,
+		"isVisible": row.IsVisible, "isPublished": row.IsPublished, "revision": row.Revision, "updatedAt": row.UpdatedAt,
 	}
 }
 
@@ -20,6 +20,8 @@ func presentCourse(row content.Course) map[string]any {
 	body["approvedAt"] = row.ApprovedAt
 	body["reviewerNotes"] = row.ReviewerNotes
 	body["revenueSharePercentage"] = row.RevenueSharePercentage
+	body["publishedBy"] = row.PublishedBy
+	body["publishedAt"] = row.PublishedAt
 	body["dripContentEnabled"] = row.DripContentEnabled
 	body["certificateEnabled"] = row.CertificateEnabled
 	body["thumbnailAssetId"] = row.ThumbnailAssetID

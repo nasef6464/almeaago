@@ -11,10 +11,11 @@ import (
 )
 
 type repoStub struct {
-	course        content.Course
-	courseWrite   content.CourseWrite
-	workflowWrite bool
-	listQuery     content.ListQuery
+	course          content.Course
+	courseWrite     content.CourseWrite
+	workflowWrite   bool
+	publicationCall bool
+	listQuery       content.ListQuery
 	canAuthor     bool
 	scope         content.TrainerScope
 }
@@ -41,6 +42,12 @@ func (r *repoStub) UpdateCourse(_ context.Context, _ string, _ string, _ int, wr
 func (r *repoStub) SetCourseWorkflow(context.Context, string, string, int, content.WorkflowStatus, string) (content.Course, error) {
 	r.workflowWrite = true
 	return r.course, nil
+}
+func (r *repoStub) SetCoursePublication(_ context.Context, _ string, _ string, _ int, published bool) (content.Course, error) {
+	r.publicationCall = true
+	row := r.course
+	row.IsPublished = published
+	return row, nil
 }
 func (r *repoStub) GetCourse(context.Context, string) (content.Course, error) { return r.course, nil }
 func (r *repoStub) ListCourses(_ context.Context, query content.ListQuery) (content.CoursePage, error) {
@@ -232,5 +239,27 @@ func TestCoursePresentationMetadataIsBounded(t *testing.T) {
 	})
 	if !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("expected oversized presentation to be rejected, got %v", err)
+	}
+}
+
+func TestCoursePublicationRequiresApprovalAndAdmin(t *testing.T) {
+	draftRepo := &repoStub{course: content.Course{ID: "course-1", WorkflowStatus: content.WorkflowDraft}}
+	service := NewService(draftRepo)
+	_, err := service.SetCoursePublication(context.Background(), staffActor(identity.RoleAdmin), "course-1", PublicationInput{
+		ExpectedRevision: 1,
+		IsPublished:      true,
+	})
+	if !errors.Is(err, ErrWorkflow) || draftRepo.publicationCall {
+		t.Fatalf("draft publication must be rejected before repository write: err=%v called=%v", err, draftRepo.publicationCall)
+	}
+
+	approvedRepo := &repoStub{course: content.Course{ID: "course-1", WorkflowStatus: content.WorkflowApproved}}
+	service = NewService(approvedRepo)
+	_, err = service.SetCoursePublication(context.Background(), staffActor(identity.RoleTeacher), "course-1", PublicationInput{
+		ExpectedRevision: 1,
+		IsPublished:      true,
+	})
+	if !errors.Is(err, ErrForbidden) || approvedRepo.publicationCall {
+		t.Fatalf("trainer publication must be denied: err=%v called=%v", err, approvedRepo.publicationCall)
 	}
 }
