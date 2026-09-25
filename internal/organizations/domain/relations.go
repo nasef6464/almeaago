@@ -97,6 +97,19 @@ type DirectorRecord struct {
 	UserStatus string
 }
 
+type DirectorQuery struct {
+	Page   int
+	Limit  int
+	Status *MembershipStatus
+}
+
+type DirectorPage struct {
+	Directors []DirectorRecord
+	Page      int
+	Limit     int
+	Total     int
+}
+
 type TeachingAssignment struct {
 	ID        string
 	SchoolID  string
@@ -113,6 +126,22 @@ type AssignmentWrite struct {
 	ClassID   string
 	SubjectID string
 	Status    AssignmentStatus
+}
+
+type AssignmentQuery struct {
+	Page      int
+	Limit     int
+	TeacherID string
+	ClassID   string
+	SubjectID *string
+	Status    *AssignmentStatus
+}
+
+type AssignmentPage struct {
+	Assignments []TeachingAssignment
+	Page        int
+	Limit       int
+	Total       int
 }
 
 func ValidMembershipStatus(status MembershipStatus) bool {
