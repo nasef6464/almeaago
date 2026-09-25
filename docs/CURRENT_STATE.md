@@ -21,7 +21,9 @@ Organizations / Schools / Classes compatibility — **STRUCTURAL CHECKPOINT GREE
 
 Taxonomy — **STRUCTURAL CHECKPOINT GREEN**.
 
-Question Bank — **CORE API GREEN / IN_PROGRESS**.
+Question Bank — **CORE + FILTERS GREEN / IN_PROGRESS**.
+
+Media / R2 — **DIRECT-UPLOAD FOUNDATION GREEN**.
 
 ## Identity Core / Recovery / Providers — TESTED / MERGED
 Includes:
@@ -219,6 +221,47 @@ Implemented:
 - active asset references only; Media/R2 owns image bytes.
 - CSRF on unsafe question mutations and transaction-scoped audit records.
 
+## Question Bank Staff Filters & Coverage — TESTED / MERGED
+Search/filter index PR #25 passed exact-head Database CI and merged as `0846ba302f6beff0542eb94fb4d1ffcd0f99c13b`.
+
+Staff filter/coverage PR #26 passed exact-head Backend CI and merged as `1e3cc4bed6d262f382a0e551884499f41f228c0c`.
+
+Implemented:
+- default list limit 80 / max 100 with hasMore, not exact counts on every list request.
+- path/subject/main-skill/multi-skill/linked/difficulty/type/exam/source/year/workflow/video/explanation/search filters.
+- teacher list scope forcibly constrained to owned/assigned questions.
+- summary DTOs avoid full-question N+1 hydration.
+- separate filtered coverage endpoint.
+- distinct question totals for multi-skill questions.
+- approved/pending/unlinked/main-skill/subskill coverage.
+- independently paginated per-skill counts.
+- trigram/search and video-presence indexes for the hot filter paths.
+
+## Media / R2 Direct Upload — TESTED / MERGED
+Lifecycle schema PR #27 passed exact-head Database CI and merged as `e88fd81c5dd014a9b9521485ccae5a4fe3c025c1`.
+
+Direct-upload API PR #28 passed exact-head Backend CI and merged as `56eb659b40d1014beaacab1881c909cd33de07b1`.
+
+Implemented:
+- pending_upload -> verified active asset lifecycle.
+- SHA-256 live dedupe and pending-expiry lookup.
+- staff-only CSRF-protected presigned PUT flow.
+- direct browser -> R2 binary upload; image/audio bytes do not pass through Go.
+- signed MIME, immutable cache policy and x-amz-meta-sha256.
+- authenticated R2 HEAD completion verification for size/MIME/hash.
+- hash-addressed question image keys `questions/v2/{QUESTION_CODE}/{SHA256}.{ext}`.
+- question image MIME: JPEG/PNG/WebP; explanation audio MIME bounded separately.
+- backend-only R2 credentials.
+- configurable upload byte limit and presign TTL.
+- active asset metadata read endpoint.
+- duplicate `/api/v1/questions` HTTP mount discovered during review was removed.
+
+External staging gates:
+- real R2 account/bucket credentials.
+- bucket CORS allowing the returned signed PUT headers.
+- `R2_PUBLIC_BASE_URL`/CDN delivery smoke.
+- real upload -> HEAD verify -> question render smoke.
+
 ## Performance/scalability
 - bounded pagination for admin/director directories.
 - pg_trgm-backed user search.
@@ -237,4 +280,4 @@ Implemented:
 - Use `almeaacodax` only for explicit behavioral/visual parity checks, never as an implementation target.
 
 ## Next exact action
-Continue Question Bank with bounded staff listing/filter contracts and separate coverage counters. Preserve max-100 pagination, explicit filtered scopes, distinct-question counting for multi-skill links, linked/unlinked filters, workflow/type/difficulty/exam/source/year/media/explanation/search filters, and keep expensive coverage separate from normal list reads. After that, implement the Media/R2 presigned upload boundary needed by image authoring/import without sending image bytes through Go.
+Build the Question Bank V2 import workflow from current `main`: strict batch ID, max 100 items, dry-run first, duplicate questionCode/image-hash detection, missing-asset reporting, draft-only transactional metadata writes, and an explicit import report. Reuse the verified Media asset boundary; do not upload binary bytes through the import API and do not auto-approve imported questions.
