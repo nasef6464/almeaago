@@ -35,7 +35,7 @@ type repoStub struct {
 	directorWrite    orgdomain.DirectorWrite
 	assignmentWrite  orgdomain.AssignmentWrite
 	teacherWorkspace orgdomain.TeacherWorkspace
-	parentAuthority   orgdomain.ParentAuthority
+	parentAuthority  orgdomain.ParentAuthority
 }
 
 func (r *repoStub) ParentAuthority(_ context.Context, _ string) (orgdomain.ParentAuthority, error) {
@@ -493,7 +493,6 @@ func TestTeacherWorkspaceReturnsOnlyOrganizationsProjection(t *testing.T) {
 		t.Fatalf("cross-domain data leaked into organizations projection: %s", body)
 	}
 }
-
 
 func TestParentAuthorityRequiresParentRole(t *testing.T) {
 	service := orgapp.NewService(&repoStub{})
