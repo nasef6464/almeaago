@@ -126,8 +126,7 @@ paths:
       operationId: questionBankImportBatchV2
       description: >
         Platform-admin-only V2 quantitative question import. dryRun defaults to true.
-        A write is accepted only after the server has recorded a successful matching
-        dry-run digest in Redis. Maximum 100 items. Image bytes must already be uploaded
+        A write is accepted only after the server has recorded a successful matching durable PostgreSQL preflight for the exact normalized manifest. Maximum 100 items. Image bytes must already be uploaded
         and verified by Media/R2; this endpoint accepts metadata/asset IDs only.
       responses:
         "200": { description: Dry-run PASS report }
