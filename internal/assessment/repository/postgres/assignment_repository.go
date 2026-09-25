@@ -244,4 +244,3 @@ func (r *Repository) StartAssigned(ctx context.Context, student, assignmentID, s
 	}
 	return r.GetAttempt(ctx, id)
 }
-
