@@ -31,9 +31,9 @@ type Provider interface {
 }
 
 type Service struct {
-	repo      Repository
-	provider  Provider
-	maxUpload int64
+	repo       Repository
+	provider   Provider
+	maxUpload  int64
 	presignTTL time.Duration
 }
 
