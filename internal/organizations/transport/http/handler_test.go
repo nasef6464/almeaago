@@ -34,10 +34,11 @@ type repoStub struct {
 	membershipWrite orgdomain.MembershipWrite
 	directorWrite   orgdomain.DirectorWrite
 	assignmentWrite orgdomain.AssignmentWrite
+	teacherWorkspace orgdomain.TeacherWorkspace
 }
 
 func (r *repoStub) TeacherWorkspace(_ context.Context, _ string) (orgdomain.TeacherWorkspace, error) {
-	return orgdomain.TeacherWorkspace{}, nil
+	return r.teacherWorkspace, nil
 }
 
 func (r *repoStub) SchoolContexts(
@@ -427,5 +428,64 @@ func TestSchoolContextUsesCanonicalMembershipData(t *testing.T) {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("missing %s in %s", fragment, body)
 		}
+	}
+}
+
+
+func TestTeacherWorkspaceRequiresTeacherRole(t *testing.T) {
+	service := orgapp.NewService(&repoStub{})
+	handler := New(service, authStub{auth: adminAuth()})
+	request := httptest.NewRequest(http.MethodGet, "/teacher-workspace", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestTeacherWorkspaceReturnsOnlyOrganizationsProjection(t *testing.T) {
+	repo := &repoStub{teacherWorkspace: orgdomain.TeacherWorkspace{
+		Schools: []orgdomain.TeacherWorkspaceSchool{{
+			SchoolID: "school-1",
+			SchoolName: "School",
+			Source: "membership",
+			Assignments: []orgdomain.TeacherWorkspaceAssignment{{
+				AssignmentID: "assignment-1",
+				ClassID: "class-1",
+				ClassName: "Class A",
+				SubjectID: "subject-1",
+				StudentCount: 12,
+			}},
+		}},
+	}}
+	service := orgapp.NewService(repo)
+	auth := identityapp.Authenticated{User: identitydomain.User{
+		ID: "teacher-1", Status: "active", Roles: []identitydomain.Role{identitydomain.RoleTeacher},
+	}}
+	handler := New(service, authStub{auth: auth})
+	request := httptest.NewRequest(http.MethodGet, "/teacher-workspace", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", response.Code, response.Body.String())
+	}
+	body := response.Body.String()
+	for _, fragment := range []string{
+		`"schoolTeacher":true`,
+		`"platformTrainer":false`,
+		`"schoolId":"school-1"`,
+		`"assignmentId":"assignment-1"`,
+		`"studentCount":12`,
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("missing %s in %s", fragment, body)
+		}
+	}
+	if strings.Contains(body, "students") || strings.Contains(body, "assessments") || strings.Contains(body, "smartClassroomEnabled") {
+		t.Fatalf("cross-domain data leaked into organizations projection: %s", body)
 	}
 }
