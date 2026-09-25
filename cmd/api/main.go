@@ -90,6 +90,7 @@ func main() {
 	assessmentRepository := assessmentrepo.New(db, auditWriter)
 	assessmentService := assessmentapp.NewService(assessmentRepository)
 	assessmentAttemptService := assessmentapp.NewAttemptService(assessmentRepository)
+	assessmentAssignmentService := assessmentapp.NewAssignmentService(assessmentRepository)
 	mediaRepository := mediarepo.New(db, auditWriter)
 	r2Client := r2provider.New(r2provider.Config{
 		AccountID:       cfg.R2AccountID,
@@ -125,8 +126,9 @@ func main() {
 	contentManagementHandler := contenthttp.NewManagement(contentService, identityService)
 	learningSpacesHandler := contenthttp.NewLearningSpaces(contentService, identityService)
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
-	assessmentHandler := assessmenthttp.New(assessmentService, identityService, assessmentAttemptService)
+	assessmentHandler := assessmenthttp.NewWithAssignments(assessmentService, identityService, assessmentAssignmentService, assessmentAttemptService)
 	assessmentAttemptsHandler := assessmenthttp.NewAttempts(assessmentAttemptService, identityService)
+	assessmentAssignmentsHandler := assessmenthttp.NewAssignments(assessmentAssignmentService, identityService)
 	questionHandler := questionhttp.New(
 		questionService,
 		identityService,
@@ -153,24 +155,25 @@ func main() {
 	})
 
 	server := httpserver.New(cfg.HTTPAddr, httpserver.Dependencies{
-		Logger:             logger,
-		DB:                 db,
-		Redis:              redisClient,
-		Identity:           identityHandler,
-		Organizations:      organizationsHandler,
-		Parents:            parentsHandler,
-		Taxonomy:           taxonomyHandler,
-		QuestionBank:       questionHandler,
-		Assessments:        assessmentHandler,
-		AssessmentAttempts: assessmentAttemptsHandler,
-		Media:              mediaHandler,
-		Courses:            coursesHandler,
-		Lessons:            lessonsHandler,
-		Foundation:         foundationHandler,
-		Library:            libraryHandler,
-		ContentManagement:  contentManagementHandler,
-		LearningSpaces:     learningSpacesHandler,
-		LegacySchoolAccess: legacySchoolAccessHandler,
+		Logger:                logger,
+		DB:                    db,
+		Redis:                 redisClient,
+		Identity:              identityHandler,
+		Organizations:         organizationsHandler,
+		Parents:               parentsHandler,
+		Taxonomy:              taxonomyHandler,
+		QuestionBank:          questionHandler,
+		Assessments:           assessmentHandler,
+		AssessmentAttempts:    assessmentAttemptsHandler,
+		AssessmentAssignments: assessmentAssignmentsHandler,
+		Media:                 mediaHandler,
+		Courses:               coursesHandler,
+		Lessons:               lessonsHandler,
+		Foundation:            foundationHandler,
+		Library:               libraryHandler,
+		ContentManagement:     contentManagementHandler,
+		LearningSpaces:        learningSpacesHandler,
+		LegacySchoolAccess:    legacySchoolAccessHandler,
 	})
 
 	go func() {

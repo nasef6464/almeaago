@@ -14,24 +14,25 @@ import (
 )
 
 type Dependencies struct {
-	Logger             *slog.Logger
-	DB                 *pgxpool.Pool
-	Redis              *redis.Client
-	Identity           http.Handler
-	Organizations      http.Handler
-	Parents            http.Handler
-	Taxonomy           http.Handler
-	QuestionBank       http.Handler
-	Assessments        http.Handler
-	AssessmentAttempts http.Handler
-	Media              http.Handler
-	Courses            http.Handler
-	Lessons            http.Handler
-	Foundation         http.Handler
-	Library            http.Handler
-	ContentManagement  http.Handler
-	LearningSpaces     http.Handler
-	LegacySchoolAccess http.Handler
+	Logger                *slog.Logger
+	DB                    *pgxpool.Pool
+	Redis                 *redis.Client
+	Identity              http.Handler
+	Organizations         http.Handler
+	Parents               http.Handler
+	Taxonomy              http.Handler
+	QuestionBank          http.Handler
+	Assessments           http.Handler
+	AssessmentAttempts    http.Handler
+	AssessmentAssignments http.Handler
+	Media                 http.Handler
+	Courses               http.Handler
+	Lessons               http.Handler
+	Foundation            http.Handler
+	Library               http.Handler
+	ContentManagement     http.Handler
+	LearningSpaces        http.Handler
+	LegacySchoolAccess    http.Handler
 }
 
 func New(addr string, deps Dependencies) *http.Server {
@@ -84,6 +85,9 @@ func New(addr string, deps Dependencies) *http.Server {
 	}
 	if deps.AssessmentAttempts != nil {
 		router.Mount("/api/v1/assessment-attempts", deps.AssessmentAttempts)
+	}
+	if deps.AssessmentAssignments != nil {
+		router.Mount("/api/v1/assessment-assignments", deps.AssessmentAssignments)
 	}
 	if deps.Media != nil {
 		router.Mount("/api/v1/media", deps.Media)

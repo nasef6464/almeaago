@@ -1,0 +1,92 @@
+package application
+
+import (
+	"context"
+	"strings"
+
+	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
+	identity "github.com/nasef6464/almeaago/internal/identity/domain"
+)
+
+type AssignmentRepository interface {
+	CreateAssignment(context.Context, string, []identity.Role, string, assessment.AssignmentWrite) (assessment.Assignment, error)
+	ListAssignments(context.Context, string, []identity.Role, string, int, int) (assessment.AssignmentPage, error)
+	SetAssignmentStatus(context.Context, string, []identity.Role, string, assessment.AssignmentStatus) (assessment.Assignment, error)
+	ListLearnerAssignments(context.Context, string, int, int) ([]assessment.LearnerAssignment, bool, error)
+	StartAssigned(context.Context, string, string, string) (assessment.Attempt, error)
+}
+type AssignmentService struct{ repo AssignmentRepository }
+
+func NewAssignmentService(r AssignmentRepository) *AssignmentService {
+	return &AssignmentService{repo: r}
+}
+func staff(a identity.User) bool {
+	return a.HasRole(identity.RoleAdmin) || a.HasRole(identity.RoleTeacher) || a.HasRole(identity.RoleSupervisor) || a.HasRole(identity.RoleSchoolAdmin)
+}
+func (s *AssignmentService) Create(ctx context.Context, a identity.User, assessmentID string, w assessment.AssignmentWrite) (assessment.Assignment, error) {
+	if !staff(a) {
+		return assessment.Assignment{}, ErrForbidden
+	}
+	assessmentID = strings.TrimSpace(assessmentID)
+	w.SchoolID = strings.TrimSpace(w.SchoolID)
+	w.SupervisorMessage = strings.TrimSpace(w.SupervisorMessage)
+	if assessmentID == "" || w.SchoolID == "" || len(w.SupervisorMessage) > 1000 || len(w.UserIDs) > 500 || len(w.ClassIDs) > 100 || len(w.UserIDs)+len(w.ClassIDs) == 0 {
+		return assessment.Assignment{}, ErrInvalidInput
+	}
+	if w.OpensAt != nil && w.ClosesAt != nil && !w.ClosesAt.After(*w.OpensAt) {
+		return assessment.Assignment{}, ErrInvalidInput
+	}
+	if w.MaxAttemptsOverride != nil && (*w.MaxAttemptsOverride < 1 || *w.MaxAttemptsOverride > 100) {
+		return assessment.Assignment{}, ErrInvalidInput
+	}
+	return s.repo.CreateAssignment(ctx, a.ID, a.Roles, assessmentID, w)
+}
+func (s *AssignmentService) List(ctx context.Context, a identity.User, assessmentID string, page, limit int) (assessment.AssignmentPage, error) {
+	if !staff(a) {
+		return assessment.AssignmentPage{}, ErrForbidden
+	}
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	return s.repo.ListAssignments(ctx, a.ID, a.Roles, strings.TrimSpace(assessmentID), page, limit)
+}
+func (s *AssignmentService) Status(ctx context.Context, a identity.User, id string, status assessment.AssignmentStatus) (assessment.Assignment, error) {
+	if !staff(a) {
+		return assessment.Assignment{}, ErrForbidden
+	}
+	if status != assessment.AssignmentActive && status != assessment.AssignmentClosed && status != assessment.AssignmentCancelled {
+		return assessment.Assignment{}, ErrInvalidInput
+	}
+	return s.repo.SetAssignmentStatus(ctx, a.ID, a.Roles, strings.TrimSpace(id), status)
+}
+func (s *AssignmentService) Learner(ctx context.Context, a identity.User, page, limit int) ([]assessment.LearnerAssignment, bool, error) {
+	if requireStudent(a) != nil {
+		return nil, false, ErrForbidden
+	}
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 30
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	return s.repo.ListLearnerAssignments(ctx, a.ID, page, limit)
+}
+func (s *AssignmentService) Start(ctx context.Context, a identity.User, id, startKey string) (assessment.Attempt, error) {
+	if requireStudent(a) != nil {
+		return assessment.Attempt{}, ErrForbidden
+	}
+	startKey = key(startKey)
+	if strings.TrimSpace(id) == "" || startKey == "" {
+		return assessment.Attempt{}, ErrInvalidInput
+	}
+	return s.repo.StartAssigned(ctx, a.ID, id, startKey)
+}
