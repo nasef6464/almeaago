@@ -324,28 +324,33 @@ func validatePublishable(row question.Question) error {
 	if v.ImageAssetID != "" && strings.TrimSpace(v.Explanation) == "" {
 		return ErrInvalidInput
 	}
-	if v.OptionsEmbeddedInImage && !hasEmbeddedOptionTexts(v.AIContext) {
-		return ErrInvalidInput
+	if v.OptionsEmbeddedInImage {
+		count := embeddedOptionTextCount(v.AIContext)
+		if count < 2 || v.CorrectOptionIndex == nil || *v.CorrectOptionIndex < 0 || *v.CorrectOptionIndex >= count {
+			return ErrInvalidInput
+		}
 	}
 	return nil
 }
 
-func hasEmbeddedOptionTexts(raw json.RawMessage) bool {
+func hasEmbeddedOptionTexts(raw json.RawMessage) bool { return embeddedOptionTextCount(raw) >= 2 }
+
+func embeddedOptionTextCount(raw json.RawMessage) int {
 	if len(raw) == 0 {
-		return false
+		return 0
 	}
 	var value struct {
 		OptionTexts []string `json:"optionTexts"`
 	}
-	if json.Unmarshal(raw, &value) != nil || len(value.OptionTexts) < 2 {
-		return false
+	if json.Unmarshal(raw, &value) != nil {
+		return 0
 	}
 	for _, item := range value.OptionTexts {
 		if strings.TrimSpace(item) == "" {
-			return false
+			return 0
 		}
 	}
-	return true
+	return len(value.OptionTexts)
 }
 
 func normalizeJSON(raw json.RawMessage) json.RawMessage {
