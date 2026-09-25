@@ -5,10 +5,10 @@ import "time"
 type Status string
 
 const (
-	StatusPendingUpload  Status = "pending_upload"
-	StatusActive         Status = "active"
+	StatusPendingUpload   Status = "pending_upload"
+	StatusActive          Status = "active"
 	StatusOrphanCandidate Status = "orphan_candidate"
-	StatusArchived       Status = "archived"
+	StatusArchived        Status = "archived"
 )
 
 type UploadKind string
