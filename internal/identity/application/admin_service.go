@@ -16,7 +16,6 @@ var (
 )
 
 type AdminRepository interface {
-	AdminListUsers(ctx context.Context, query domain.AdminUserQuery) (domain.AdminUserPage, error)
 	AdminSummary(ctx context.Context) (domain.AdminUserSummary, error)
 	AdminUpsertUser(ctx context.Context, actorID string, input domain.AdminUpsertUserInput) (domain.AdminUserRecord, error)
 	AdminUpdateUser(ctx context.Context, actorID, targetID string, input domain.AdminUpdateUserInput) (domain.AdminUserRecord, error)
@@ -24,12 +23,20 @@ type AdminRepository interface {
 	AdminDeleteUser(ctx context.Context, actorID, targetID string) error
 }
 
-type AdminService struct {
-	repo AdminRepository
+type AdminDirectory interface {
+	AdminListUsers(ctx context.Context, query domain.AdminUserQuery) (domain.AdminUserPage, error)
 }
 
-func NewAdminService(repo AdminRepository) *AdminService {
-	return &AdminService{repo: repo}
+type AdminService struct {
+	repo      AdminRepository
+	directory AdminDirectory
+}
+
+func NewAdminService(repo AdminRepository, directory AdminDirectory) *AdminService {
+	return &AdminService{
+		repo:      repo,
+		directory: directory,
+	}
 }
 
 func (s *AdminService) ListUsers(
@@ -54,7 +61,10 @@ func (s *AdminService) ListUsers(
 	}
 	query.ActorUserID = actor.ID
 	query.ActorRoles = append([]domain.Role(nil), actor.Roles...)
-	return s.repo.AdminListUsers(ctx, query)
+	if s.directory == nil {
+		return domain.AdminUserPage{}, errors.New("admin user directory is unavailable")
+	}
+	return s.directory.AdminListUsers(ctx, query)
 }
 
 func (s *AdminService) Summary(
