@@ -24,6 +24,9 @@ type repositoryMock struct {
 	directorWrite     org.DirectorWrite
 	assignmentQuery   org.AssignmentQuery
 	assignmentWrite   org.AssignmentWrite
+	contract          org.SchoolContract
+	contractWrite     org.SchoolContractWrite
+	moduleDenied      bool
 }
 
 func (m *repositoryMock) SchoolContexts(
@@ -149,6 +152,43 @@ func (m *repositoryMock) UpsertAssignment(
 		SubjectID: write.SubjectID,
 		Status:    write.Status,
 	}, nil
+}
+
+func (m *repositoryMock) SchoolContractBySchool(
+	_ context.Context,
+	schoolID string,
+) (org.SchoolContract, error) {
+	if m.contract.ID == "" {
+		return org.SchoolContract{}, org.ErrNotFound
+	}
+	result := m.contract
+	result.SchoolID = schoolID
+	return result, nil
+}
+
+func (m *repositoryMock) UpsertSchoolContract(
+	_ context.Context,
+	_ string,
+	schoolID string,
+	write org.SchoolContractWrite,
+) (org.SchoolContract, error) {
+	m.contractWrite = write
+	return org.SchoolContract{
+		ID:         "contract-1",
+		SchoolID:   schoolID,
+		Status:     write.Status,
+		Modules:    append([]org.SchoolModule(nil), write.Modules...),
+		ValidFrom:  write.ValidFrom,
+		ValidUntil: write.ValidUntil,
+	}, nil
+}
+
+func (m *repositoryMock) HasSchoolModule(
+	context.Context,
+	string,
+	org.SchoolModule,
+) (bool, error) {
+	return !m.moduleDenied, nil
 }
 
 func (m *repositoryMock) DirectorAddStudent(
