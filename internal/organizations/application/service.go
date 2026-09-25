@@ -44,6 +44,10 @@ type Repository interface {
 	ListAssignments(ctx context.Context, access org.AccessContext, schoolID string, query org.AssignmentQuery) (org.AssignmentPage, error)
 	UpsertAssignment(ctx context.Context, actorUserID, schoolID string, write org.AssignmentWrite) (org.TeachingAssignment, error)
 
+	SchoolContractBySchool(ctx context.Context, schoolID string) (org.SchoolContract, error)
+	UpsertSchoolContract(ctx context.Context, actorUserID, schoolID string, write org.SchoolContractWrite) (org.SchoolContract, error)
+	HasSchoolModule(ctx context.Context, schoolID string, module org.SchoolModule) (bool, error)
+
 	DirectorAddStudent(ctx context.Context, actorUserID, schoolID string, write org.DirectorStudentCreate) (org.DirectorStudentMutationResult, error)
 	DirectorMoveStudent(ctx context.Context, actorUserID, schoolID, studentID, classID string) (org.DirectorStudentMutationResult, error)
 	DirectorUpdateStudentBasic(ctx context.Context, actorUserID, schoolID, studentID string, patch org.DirectorStudentBasicPatch) (org.DirectorStudentMutationResult, error)
