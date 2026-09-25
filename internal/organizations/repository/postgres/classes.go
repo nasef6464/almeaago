@@ -282,7 +282,7 @@ func (r *Repository) UpdateClass(
 		ResourceType: "class",
 		ResourceID:   class.ID,
 		Metadata: map[string]any{
-			"schoolId":   schoolID,
+			"schoolId":    schoolID,
 			"changedKeys": changed,
 		},
 	}); err != nil {
