@@ -15,7 +15,10 @@ import (
 	whatsappprovider "github.com/nasef6464/almeaago/internal/identity/provider/whatsapp"
 	identityrepo "github.com/nasef6464/almeaago/internal/identity/repository/postgres"
 	identityhttp "github.com/nasef6464/almeaago/internal/identity/transport/http"
+	operationsrepo "github.com/nasef6464/almeaago/internal/operations/repository/postgres"
+	orgapp "github.com/nasef6464/almeaago/internal/organizations/application"
 	orgrepo "github.com/nasef6464/almeaago/internal/organizations/repository/postgres"
+	organizationshttp "github.com/nasef6464/almeaago/internal/organizations/transport/http"
 	"github.com/nasef6464/almeaago/internal/platform/cache"
 	"github.com/nasef6464/almeaago/internal/platform/config"
 	"github.com/nasef6464/almeaago/internal/platform/database"
@@ -53,6 +56,10 @@ func main() {
 	identityRepository := identityrepo.New(db, organizationScopes)
 	adminDirectory := reportingrepo.NewAdminUserDirectory(db)
 
+	auditWriter := operationsrepo.NewAuditWriter()
+	organizationsRepository := orgrepo.New(db, auditWriter)
+	organizationsService := orgapp.NewService(organizationsRepository)
+
 	whatsAppDelivery := whatsappprovider.NewWebhook(
 		cfg.WhatsAppOTPEndpoint,
 		cfg.WhatsAppOTPToken,
@@ -61,6 +68,7 @@ func main() {
 		WhatsAppDelivery: whatsAppDelivery,
 		OTPPepper:        cfg.OTPPepper,
 	})
+	organizationsHandler := organizationshttp.New(organizationsService, identityService)
 
 	adminService := application.NewAdminService(identityRepository, adminDirectory)
 	accountService := application.NewAccountService(identityRepository)
@@ -80,8 +88,9 @@ func main() {
 	server := httpserver.New(cfg.HTTPAddr, httpserver.Dependencies{
 		Logger:   logger,
 		DB:       db,
-		Redis:    redisClient,
-		Identity: identityHandler,
+		Redis:         redisClient,
+		Identity:      identityHandler,
+		Organizations: organizationsHandler,
 	})
 
 	go func() {
