@@ -221,14 +221,14 @@ type LibraryItem struct {
 }
 
 type ListQuery struct {
-	Page               int
-	Limit              int
-	PathID             string
-	SubjectID          string
-	Search             string
-	WorkflowStatus            WorkflowStatus
-	TeacherScopeUserID        string
-	TeacherScopePrevalidated  bool
+	Page                     int
+	Limit                    int
+	PathID                   string
+	SubjectID                string
+	Search                   string
+	WorkflowStatus           WorkflowStatus
+	TeacherScopeUserID       string
+	TeacherScopePrevalidated bool
 }
 
 type CoursePage struct {
