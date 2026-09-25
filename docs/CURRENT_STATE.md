@@ -112,15 +112,27 @@ Current implementation:
 - canonical HTTP API under `/api/v1/schools`.
 - authenticated school/class/roster reads.
 - CSRF-protected school/class mutations.
+- platform-admin membership mutation API.
+- bounded director delegation directory and permission replacement.
+- legacy director default permission set preserved exactly.
+- bounded teaching-assignment directory.
+- subject-agnostic teaching assignments preserved through nullable PostgreSQL subject scope.
+- teacher assignment reads forced to the current teacher.
+- school director assignment writes require `SCHOOL_TEACHERS_ASSIGN`.
 - Organizations repository is wired through `cmd/api`.
 
+Current green checkpoint before relationship expansion:
+- Backend CI green.
+- Database CI green.
+- Migration 000008 apply/verify/rollback/re-apply green.
+
 Next within this slice:
-- HTTP/OpenAPI gate.
-- Database/Backend CI.
-- membership/delegation mutation APIs.
+- re-run Backend/Database gate for relationship expansion.
+- school context API.
 - school director compatibility workflows.
-- teacher assignment APIs.
+- teacher workspace compatibility.
 - legacy route adapters required by the preserved React UI.
+- contract/entitlement APIs in their owning boundary.
 
 ## Performance/scalability
 - admin directory uses bounded pagination.
@@ -132,4 +144,4 @@ Next within this slice:
 - no large media passes through the Go API.
 
 ## Next exact action
-Finish the Organizations core HTTP contract on `feat/organizations-core`, run Backend + Database CI, repair failures on the same branch, then add membership/delegation and teacher-assignment flows before merging the exact tested SHA.
+Run Backend + Database CI for the expanded Organizations relationship core on `feat/organizations-core`, repair failures on the same branch, then add context/director/teacher compatibility workflows before the exact tested SHA can be merged.
