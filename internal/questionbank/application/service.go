@@ -166,6 +166,9 @@ func (s *Service) SetWorkflow(ctx context.Context, actor identity.User, question
 		return question.Question{}, ErrWorkflow
 	}
 	if actor.HasRole(identity.RoleAdmin) {
+		if !validAdminTransition(current.WorkflowStatus, input.Status) {
+			return question.Question{}, ErrWorkflow
+		}
 		if input.Status == question.WorkflowApproved || input.Status == question.WorkflowPendingReview {
 			if err := validatePublishable(current); err != nil {
 				return question.Question{}, err
@@ -305,6 +308,12 @@ func normalizeVersion(input VersionInput) (question.VersionCommand, error) {
 		return question.VersionCommand{}, ErrInvalidInput
 	}
 
+	for _, raw := range []json.RawMessage{input.SourceMeta, input.AIContext, input.VoiceExplanation} {
+		if len(raw) > 0 && !json.Valid(raw) {
+			return question.VersionCommand{}, ErrInvalidInput
+		}
+	}
+
 	return question.VersionCommand{
 		PathID: input.PathID, SubjectID: input.SubjectID, QuestionType: input.QuestionType,
 		TextContent: input.TextContent, ImageAssetID: input.ImageAssetID, ImageAlt: input.ImageAlt,
@@ -314,6 +323,19 @@ func normalizeVersion(input VersionInput) (question.VersionCommand, error) {
 		Difficulty: input.Difficulty, ExamType: input.ExamType, Source: input.Source, SourceYear: input.SourceYear,
 		RevisionNote: input.RevisionNote, Options: options, SkillLinks: links,
 	}, nil
+}
+
+func validAdminTransition(from, to question.WorkflowStatus) bool {
+	switch from {
+	case question.WorkflowDraft, question.WorkflowRejected:
+		return to == question.WorkflowPendingReview || to == question.WorkflowArchived
+	case question.WorkflowPendingReview:
+		return to == question.WorkflowApproved || to == question.WorkflowRejected || to == question.WorkflowDraft || to == question.WorkflowArchived
+	case question.WorkflowApproved:
+		return to == question.WorkflowArchived
+	default:
+		return false
+	}
 }
 
 func validatePublishable(row question.Question) error {
