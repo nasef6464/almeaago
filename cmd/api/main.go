@@ -65,7 +65,6 @@ func main() {
 	organizationsService := orgapp.NewService(organizationsRepository, directorDirectory)
 	taxonomyRepository := taxonomyrepo.New(db)
 	taxonomyService := taxonomyapp.NewService(taxonomyRepository)
-	taxonomyHandler := taxonomyhttp.New(taxonomyService)
 
 	whatsAppDelivery := whatsappprovider.NewWebhook(
 		cfg.WhatsAppOTPEndpoint,
@@ -75,6 +74,7 @@ func main() {
 		WhatsAppDelivery: whatsAppDelivery,
 		OTPPepper:        cfg.OTPPepper,
 	})
+	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
 	organizationsHandler := organizationshttp.New(organizationsService, identityService)
 	parentsHandler := organizationshttp.NewParentFacade(organizationsService, identityService)
 	legacySchoolAccessHandler := organizationshttp.NewLegacy(organizationsService, identityService)
