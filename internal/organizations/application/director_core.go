@@ -212,7 +212,6 @@ func validDirectorPassword(value string) bool {
 	return hasLetter && hasDigit
 }
 
-
 func clampDirectorStudentLimit(limit int) int {
 	if limit < 1 {
 		return 100
