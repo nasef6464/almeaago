@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -55,9 +56,47 @@ func (r *Repository) ValidateImportBatch(
 	return issues, nil
 }
 
+func (r *Repository) SaveImportPreflight(
+	ctx context.Context,
+	actorUserID, batchID, manifestHash string,
+	requested int,
+	report question.ImportResult,
+	expiresAt time.Time,
+) error {
+	raw, err := json.Marshal(report)
+	if err != nil {
+		return err
+	}
+	var id string
+	err = r.db.QueryRow(ctx, `
+		INSERT INTO question_import_batches (
+			batch_id, status, requested_count, inserted_count, created_by, report,
+			manifest_hash, preflight_expires_at, committed_at, rolled_back_at, updated_at
+		)
+		VALUES ($1,'preflight',$2,0,$3::uuid,$4::jsonb,$5,$6,NULL,NULL,now())
+		ON CONFLICT (batch_id) DO UPDATE
+		SET status='preflight',
+			requested_count=EXCLUDED.requested_count,
+			inserted_count=0,
+			created_by=EXCLUDED.created_by,
+			report=EXCLUDED.report,
+			manifest_hash=EXCLUDED.manifest_hash,
+			preflight_expires_at=EXCLUDED.preflight_expires_at,
+			committed_at=NULL,
+			rolled_back_at=NULL,
+			updated_at=now()
+		WHERE question_import_batches.status='preflight'
+		RETURNING id::text
+	`, batchID, requested, actorUserID, string(raw), manifestHash, expiresAt).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return question.ErrConflict
+	}
+	return mapError(err)
+}
+
 func (r *Repository) WriteImportBatch(
 	ctx context.Context,
-	actorUserID, batchID string,
+	actorUserID, batchID, manifestHash string,
 	commands []question.ImportCommand,
 ) (question.ImportBatch, error) {
 	tx, err := r.db.Begin(ctx)
@@ -65,6 +104,23 @@ func (r *Repository) WriteImportBatch(
 		return question.ImportBatch{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+
+	var preflightStatus, storedHash string
+	var expiresAt *time.Time
+	if err := tx.QueryRow(ctx, `
+		SELECT status, COALESCE(manifest_hash,''), preflight_expires_at
+		FROM question_import_batches
+		WHERE batch_id=$1
+		FOR UPDATE
+	`, batchID).Scan(&preflightStatus, &storedHash, &expiresAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return question.ImportBatch{}, question.ErrImportPreflight
+		}
+		return question.ImportBatch{}, err
+	}
+	if preflightStatus != "preflight" || storedHash != manifestHash || expiresAt == nil || !expiresAt.After(time.Now().UTC()) {
+		return question.ImportBatch{}, question.ErrImportPreflight
+	}
 
 	codes, sourceIDs, hashes := importIdentityLists(commands)
 	conflicts, err := importConflicts(ctx, tx, codes, sourceIDs, hashes)
@@ -84,6 +140,9 @@ func (r *Repository) WriteImportBatch(
 			command.Create.SubjectID,
 			command.Create.SkillLinks,
 		); err != nil {
+			return question.ImportBatch{}, err
+		}
+		if err := r.validateAssetsTx(ctx, tx, command.Create.Version); err != nil {
 			return question.ImportBatch{}, err
 		}
 
@@ -145,8 +204,11 @@ func (r *Repository) WriteImportBatch(
 	}
 
 	report, err := json.Marshal(map[string]any{
+		"status":        "IMPORTED",
 		"mode":          "WRITE",
 		"draftOnly":     true,
+		"requested":     len(commands),
+		"inserted":      len(imported),
 		"questionCodes": codes,
 	})
 	if err != nil {
@@ -154,21 +216,37 @@ func (r *Repository) WriteImportBatch(
 	}
 	var batch question.ImportBatch
 	err = tx.QueryRow(ctx, `
-		INSERT INTO question_import_batches (
-			batch_id, status, requested_count, inserted_count, created_by, report
-		)
-		VALUES ($1,'imported',$2,$2,$3::uuid,$4::jsonb)
-		RETURNING batch_id,status,requested_count,inserted_count,
-		          COALESCE(created_by::text,''),created_at,rolled_back_at
-	`, batchID, len(commands), actorUserID, string(report)).Scan(
+		UPDATE question_import_batches
+		SET status='imported',
+			inserted_count=$2,
+			report=$3::jsonb,
+			committed_at=now(),
+			preflight_expires_at=NULL,
+			updated_at=now()
+		WHERE batch_id=$1
+		  AND status='preflight'
+		  AND manifest_hash=$4
+		RETURNING
+			batch_id,status,requested_count,inserted_count,
+			COALESCE(created_by::text,''),COALESCE(manifest_hash,''),report,
+			preflight_expires_at,committed_at,created_at,updated_at,rolled_back_at
+	`, batchID, len(imported), string(report), manifestHash).Scan(
 		&batch.BatchID,
 		&batch.Status,
 		&batch.RequestedCount,
 		&batch.InsertedCount,
 		&batch.CreatedBy,
+		&batch.ManifestHash,
+		&batch.Report,
+		&batch.PreflightExpiresAt,
+		&batch.CommittedAt,
 		&batch.CreatedAt,
+		&batch.UpdatedAt,
 		&batch.RolledBackAt,
 	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return question.ImportBatch{}, question.ErrImportPreflight
+	}
 	if err != nil {
 		return question.ImportBatch{}, mapError(err)
 	}
@@ -182,6 +260,7 @@ func (r *Repository) WriteImportBatch(
 		Metadata: map[string]any{
 			"requested": len(commands),
 			"inserted":  len(imported),
+			"manifestHash": manifestHash,
 		},
 	}); err != nil {
 		return question.ImportBatch{}, err
