@@ -12,25 +12,17 @@ import (
 	"github.com/nasef6464/almeaago/internal/platform/security"
 )
 
-type SchoolStudentAccount struct {
-	UserID string
-	Name   string
-	Email  string
-	Phone  string
-	Active bool
-}
-
 func (r *Repository) UpsertSchoolStudentTx(
 	ctx context.Context,
 	tx pgx.Tx,
 	name string,
 	email string,
 	password string,
-) (SchoolStudentAccount, bool, error) {
+) (domain.SchoolStudentAccount, bool, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	name = strings.TrimSpace(name)
 
-	var account SchoolStudentAccount
+	var account domain.SchoolStudentAccount
 	var status string
 	err := tx.QueryRow(ctx, \`
 		SELECT
@@ -59,21 +51,21 @@ func (r *Repository) UpsertSchoolStudentTx(
 				  AND ur.role = 'student'
 			)
 		\`, account.UserID).Scan(&isStudent); err != nil {
-			return SchoolStudentAccount{}, false, err
+			return domain.SchoolStudentAccount{}, false, err
 		}
 		if !isStudent {
-			return SchoolStudentAccount{}, false, domain.ErrConflict
+			return domain.SchoolStudentAccount{}, false, domain.ErrConflict
 		}
 		account.Active = status == "active"
 		return account, false, nil
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
-		return SchoolStudentAccount{}, false, err
+		return domain.SchoolStudentAccount{}, false, err
 	}
 
 	passwordHash, err := security.HashPassword(password)
 	if err != nil {
-		return SchoolStudentAccount{}, false, fmt.Errorf("hash school student password: %w", err)
+		return domain.SchoolStudentAccount{}, false, fmt.Errorf("hash school student password: %w", err)
 	}
 
 	err = tx.QueryRow(ctx, \`
@@ -89,9 +81,9 @@ func (r *Repository) UpsertSchoolStudentTx(
 	)
 	if err != nil {
 		if isUniqueViolation(err) {
-			return SchoolStudentAccount{}, false, domain.ErrConflict
+			return domain.SchoolStudentAccount{}, false, domain.ErrConflict
 		}
-		return SchoolStudentAccount{}, false, err
+		return domain.SchoolStudentAccount{}, false, err
 	}
 
 	if _, err := tx.Exec(ctx, \`
@@ -99,7 +91,7 @@ func (r *Repository) UpsertSchoolStudentTx(
 		VALUES ($1::uuid, 'student')
 		ON CONFLICT DO NOTHING
 	\`, account.UserID); err != nil {
-		return SchoolStudentAccount{}, false, err
+		return domain.SchoolStudentAccount{}, false, err
 	}
 	account.Active = true
 	return account, true, nil
@@ -111,7 +103,7 @@ func (r *Repository) UpdateSchoolStudentBasicTx(
 	userID string,
 	name *string,
 	phone *string,
-) (SchoolStudentAccount, error) {
+) (domain.SchoolStudentAccount, error) {
 	if name != nil {
 		value := strings.TrimSpace(*name)
 		if _, err := tx.Exec(ctx, \`
@@ -123,7 +115,7 @@ func (r *Repository) UpdateSchoolStudentBasicTx(
 				WHERE ur.user_id = users.id AND ur.role = 'student'
 			  )
 		\`, userID, value); err != nil {
-			return SchoolStudentAccount{}, err
+			return domain.SchoolStudentAccount{}, err
 		}
 	}
 	if phone != nil {
@@ -134,7 +126,7 @@ func (r *Repository) UpdateSchoolStudentBasicTx(
 		} else {
 			canonical, ok := domain.NormalizeSaudiPhone(value)
 			if !ok {
-				return SchoolStudentAccount{}, domain.ErrConflict
+				return domain.SchoolStudentAccount{}, domain.ErrConflict
 			}
 			normalized = canonical
 		}
@@ -148,9 +140,9 @@ func (r *Repository) UpdateSchoolStudentBasicTx(
 			  )
 		\`, userID, normalized); err != nil {
 			if isUniqueViolation(err) {
-				return SchoolStudentAccount{}, domain.ErrConflict
+				return domain.SchoolStudentAccount{}, domain.ErrConflict
 			}
-			return SchoolStudentAccount{}, err
+			return domain.SchoolStudentAccount{}, err
 		}
 	}
 	return schoolStudentAccountTx(ctx, tx, userID)
@@ -161,7 +153,7 @@ func (r *Repository) SetSchoolStudentActiveTx(
 	tx pgx.Tx,
 	userID string,
 	active bool,
-) (SchoolStudentAccount, error) {
+) (domain.SchoolStudentAccount, error) {
 	status := "disabled"
 	if active {
 		status = "active"
@@ -176,10 +168,10 @@ func (r *Repository) SetSchoolStudentActiveTx(
 		  )
 	\`, userID, status)
 	if err != nil {
-		return SchoolStudentAccount{}, err
+		return domain.SchoolStudentAccount{}, err
 	}
 	if tag.RowsAffected() == 0 {
-		return SchoolStudentAccount{}, domain.ErrNotFound
+		return domain.SchoolStudentAccount{}, domain.ErrNotFound
 	}
 
 	if !active {
@@ -189,7 +181,7 @@ func (r *Repository) SetSchoolStudentActiveTx(
 			WHERE user_id = $1::uuid
 			  AND revoked_at IS NULL
 		\`, userID); err != nil {
-			return SchoolStudentAccount{}, err
+			return domain.SchoolStudentAccount{}, err
 		}
 	}
 	return schoolStudentAccountTx(ctx, tx, userID)
@@ -199,8 +191,8 @@ func schoolStudentAccountTx(
 	ctx context.Context,
 	tx pgx.Tx,
 	userID string,
-) (SchoolStudentAccount, error) {
-	var account SchoolStudentAccount
+) (domain.SchoolStudentAccount, error) {
+	var account domain.SchoolStudentAccount
 	var status string
 	err := tx.QueryRow(ctx, \`
 		SELECT
@@ -225,10 +217,10 @@ func schoolStudentAccountTx(
 		&status,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return SchoolStudentAccount{}, domain.ErrNotFound
+		return domain.SchoolStudentAccount{}, domain.ErrNotFound
 	}
 	if err != nil {
-		return SchoolStudentAccount{}, err
+		return domain.SchoolStudentAccount{}, err
 	}
 	account.Active = status == "active"
 	return account, nil
