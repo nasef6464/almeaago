@@ -36,6 +36,7 @@ jobs:
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000006_otp_rate_limit_index.up.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000007_identity_admin_audit.up.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000008_organizations_core.up.sql
+          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000009_school_contracts.up.sql
       - name: Verify platform constraints
         run: |
           psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.user_roles') is not null" | grep -qx t
@@ -53,8 +54,13 @@ jobs:
           psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='classes' and indexname='classes_school_status_created_idx'" | grep -qx 1
           psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='schools' and indexname='schools_name_trgm_idx'" | grep -qx 1
           psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='classes' and indexname='classes_name_trgm_idx'" | grep -qx 1
+          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.school_contracts') is not null" | grep -qx t
+          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.school_contract_modules') is not null" | grep -qx t
+          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='school_contracts' and indexname='school_contracts_status_validity_idx'" | grep -qx 1
+          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='school_contract_modules' and indexname='school_contract_modules_module_idx'" | grep -qx 1
       - name: Roll back and re-apply
         run: |
+          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000009_school_contracts.down.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000008_organizations_core.down.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000007_identity_admin_audit.down.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000006_otp_rate_limit_index.down.sql
@@ -71,3 +77,4 @@ jobs:
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000006_otp_rate_limit_index.up.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000007_identity_admin_audit.up.sql
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000008_organizations_core.up.sql
+          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000009_school_contracts.up.sql
