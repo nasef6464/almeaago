@@ -2,10 +2,10 @@ package application
 
 import (
 	"context"
+	"strings"
+
 	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
-	"strings"
-	"time"
 )
 
 type AssignmentRepository interface {
@@ -91,4 +91,3 @@ func (s *AssignmentService) Start(ctx context.Context, a identity.User, id, star
 	return s.repo.StartAssigned(ctx, a.ID, id, startKey)
 }
 
-var _ = time.Now
