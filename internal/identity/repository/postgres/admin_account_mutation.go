@@ -150,7 +150,7 @@ func (r *Repository) AdminUpdateUser(
 	actorID string,
 	targetID string,
 	input domain.AdminUpdateUserInput,
-) (domain.User, error) {
+) (domain.AdminUserRecord, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return domain.AdminUserRecord{}, err
