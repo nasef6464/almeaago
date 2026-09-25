@@ -76,3 +76,24 @@ func TestBuildAdminUserWhereUsesIndexedSearchExpressions(t *testing.T) {
 		t.Fatalf("unexpected args %#v", args)
 	}
 }
+
+func TestBuildAdminUserWherePlatformTrainerUsesCanonicalContentScope(t *testing.T) {
+	value := true
+	where, args := BuildAdminUserWhere(domain.AdminUserQuery{
+		ActorUserID:     "00000000-0000-0000-0000-000000000001",
+		ActorRoles:      []domain.Role{domain.RoleAdmin},
+		PlatformTrainer: &value,
+	})
+	for _, fragment := range []string{
+		"trainer_role.role='teacher'",
+		"content_trainer_path_scopes",
+		"content_trainer_subject_scopes",
+	} {
+		if !strings.Contains(where, fragment) {
+			t.Fatalf("missing %q in %q", fragment, where)
+		}
+	}
+	if len(args) != 0 {
+		t.Fatalf("unexpected args %#v", args)
+	}
+}

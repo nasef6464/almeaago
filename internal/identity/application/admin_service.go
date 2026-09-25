@@ -87,6 +87,8 @@ func (s *AdminService) UpsertUser(
 	schoolID string,
 	classIDs []string,
 	linkedStudentIDs []string,
+	managedPathIDs []string,
+	managedSubjectIDs []string,
 ) (domain.AdminUserRecord, error) {
 	if !actor.HasRole(domain.RoleAdmin) {
 		return domain.AdminUserRecord{}, ErrForbidden
@@ -109,15 +111,28 @@ func (s *AdminService) UpsertUser(
 	if role != domain.RoleParent {
 		linkedStudentIDs = nil
 	}
+	managedPathIDs, err = normalizeStrictAdminIDs(managedPathIDs, 50)
+	if err != nil {
+		return domain.AdminUserRecord{}, err
+	}
+	managedSubjectIDs, err = normalizeStrictAdminIDs(managedSubjectIDs, 200)
+	if err != nil {
+		return domain.AdminUserRecord{}, err
+	}
+	if role != domain.RoleTeacher && (len(managedPathIDs) > 0 || len(managedSubjectIDs) > 0) {
+		return domain.AdminUserRecord{}, ErrInvalidInput
+	}
 
 	record, err := s.repo.AdminUpsertUser(ctx, actor.ID, domain.AdminUpsertUserInput{
-		Name:             name,
-		Email:            email,
-		PasswordHash:     passwordHash,
-		Role:             role,
-		SchoolID:         schoolID,
-		ClassIDs:         classIDs,
-		LinkedStudentIDs: linkedStudentIDs,
+		Name:              name,
+		Email:             email,
+		PasswordHash:      passwordHash,
+		Role:              role,
+		SchoolID:          schoolID,
+		ClassIDs:          classIDs,
+		LinkedStudentIDs:  linkedStudentIDs,
+		ManagedPathIDs:    managedPathIDs,
+		ManagedSubjectIDs: managedSubjectIDs,
 	})
 	if errors.Is(err, domain.ErrConflict) {
 		return domain.AdminUserRecord{}, ErrEmailExists
@@ -169,6 +184,28 @@ func (s *AdminService) UpdateUser(
 		normalized := normalizeAdminIDs(*input.LinkedStudentIDs, 500)
 		input.LinkedStudentIDs = &normalized
 	}
+	if input.ManagedPathIDs != nil {
+		normalized, err := normalizeStrictAdminIDs(*input.ManagedPathIDs, 50)
+		if err != nil {
+			return domain.AdminUserRecord{}, err
+		}
+		input.ManagedPathIDs = &normalized
+	}
+	if input.ManagedSubjectIDs != nil {
+		normalized, err := normalizeStrictAdminIDs(*input.ManagedSubjectIDs, 200)
+		if err != nil {
+			return domain.AdminUserRecord{}, err
+		}
+		input.ManagedSubjectIDs = &normalized
+	}
+	if input.Role != nil && *input.Role != domain.RoleTeacher {
+		if input.ManagedPathIDs != nil && len(*input.ManagedPathIDs) > 0 {
+			return domain.AdminUserRecord{}, ErrInvalidInput
+		}
+		if input.ManagedSubjectIDs != nil && len(*input.ManagedSubjectIDs) > 0 {
+			return domain.AdminUserRecord{}, ErrInvalidInput
+		}
+	}
 
 	if input.Name == nil &&
 		input.AvatarURL == nil &&
@@ -176,7 +213,9 @@ func (s *AdminService) UpdateUser(
 		input.Active == nil &&
 		input.SchoolID == nil &&
 		input.ClassIDs == nil &&
-		input.LinkedStudentIDs == nil {
+		input.LinkedStudentIDs == nil &&
+		input.ManagedPathIDs == nil &&
+		input.ManagedSubjectIDs == nil {
 		return domain.AdminUserRecord{}, ErrInvalidInput
 	}
 
@@ -250,4 +289,24 @@ func normalizeAdminIDs(values []string, max int) []string {
 		}
 	}
 	return result
+}
+
+func normalizeStrictAdminIDs(values []string, max int) ([]string, error) {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		id := strings.TrimSpace(value)
+		if id == "" {
+			continue
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		if len(result) >= max {
+			return nil, ErrInvalidInput
+		}
+		seen[id] = struct{}{}
+		result = append(result, id)
+	}
+	return result, nil
 }

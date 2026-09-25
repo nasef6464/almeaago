@@ -972,7 +972,6 @@ paths:
         "200": { description: Paginated user directory; supervisors and teachers are limited to shared active school/class scope }
         "401": { description: Authentication required }
         "403": { description: Role not permitted }
-        "409": { description: platformTrainer filter is pending Catalog/Content trainer scope }
     post:
       operationId: adminUpsertUser
       parameters:
@@ -996,20 +995,20 @@ paths:
                 schoolId: { type: [string, "null"] }
                 groupIds: { type: array, items: { type: string } }
                 linkedStudentIds: { type: array, items: { type: string } }
-                managedPathIds: { type: array, items: { type: string } }
-                managedSubjectIds: { type: array, items: { type: string } }
+                managedPathIds: { type: array, maxItems: 50, items: { type: string }, description: Compatibility form mapped transactionally to canonical Content trainer scope; teacher role only. }
+                managedSubjectIds: { type: array, maxItems: 200, items: { type: string }, description: Compatibility form mapped transactionally to canonical Content trainer scope; teacher role only. }
       responses:
         "201": { description: User account created or updated by email }
         "400": { description: Invalid request or last-admin invariant }
         "401": { description: Authentication required }
         "403": { description: Admin role required }
-        "409": { description: managedPathIds/managedSubjectIds require Catalog/Content trainer scope integration }
+        "409": { description: Managed trainer scope conflicts with role or active taxonomy }
 
   /api/v1/auth/admin/users/summary:
     get:
       operationId: adminUsersSummary
       responses:
-        "200": { description: User totals, inactive count and counts by role; platform trainer count remains pending Catalog/Content scope }
+        "200": { description: User totals, inactive count, counts by role, and canonical active platform-trainer count }
         "401": { description: Authentication required }
         "403": { description: Admin role required }
 
@@ -1074,7 +1073,7 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Admin role required }
         "404": { description: User not found }
-        "409": { description: Organization scope fields require Organizations domain integration }
+        "409": { description: Organization or managed trainer scope conflicts with canonical relations }
     delete:
       operationId: adminDeleteUser
       parameters:

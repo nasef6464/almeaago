@@ -23,6 +23,8 @@ func TestAdminUpsertHashesPasswordAndNormalizesScopes(t *testing.T) {
 		" school-1 ",
 		[]string{" class-1 ", "class-1", "class-2"},
 		[]string{" student-1 ", "student-1", "student-2"},
+		nil,
+		nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -63,6 +65,8 @@ func TestAdminUpsertDropsParentLinksForNonParent(t *testing.T) {
 		"",
 		nil,
 		[]string{"student-1"},
+		nil,
+		nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -83,6 +87,8 @@ func TestAdminUpsertRejectsInvalidIdentityFields(t *testing.T) {
 		"short",
 		domain.Role("root"),
 		"",
+		nil,
+		nil,
 		nil,
 		nil,
 	)
@@ -159,5 +165,66 @@ func TestAdminUpdateAcceptsScopeOnlyPatch(t *testing.T) {
 	}
 	if repo.updateInput.ClassIDs == nil || len(*repo.updateInput.ClassIDs) != 1 {
 		t.Fatalf("unexpected class scope %#v", repo.updateInput.ClassIDs)
+	}
+}
+
+func TestAdminUpsertNormalizesManagedTrainerScope(t *testing.T) {
+	repo := &adminRepoMock{}
+	service := NewAdminService(repo, repo)
+
+	_, err := service.UpsertUser(
+		context.Background(),
+		adminActor(),
+		"Trainer User",
+		"trainer@example.com",
+		"Password123",
+		domain.RoleTeacher,
+		"",
+		nil,
+		nil,
+		[]string{" path-1 ", "path-1", "path-2"},
+		[]string{" subject-1 ", "subject-1"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(repo.upsertInput.ManagedPathIDs) != 2 ||
+		repo.upsertInput.ManagedPathIDs[0] != "path-1" ||
+		repo.upsertInput.ManagedPathIDs[1] != "path-2" {
+		t.Fatalf("unexpected managed paths %#v", repo.upsertInput.ManagedPathIDs)
+	}
+	if len(repo.upsertInput.ManagedSubjectIDs) != 1 ||
+		repo.upsertInput.ManagedSubjectIDs[0] != "subject-1" {
+		t.Fatalf("unexpected managed subjects %#v", repo.upsertInput.ManagedSubjectIDs)
+	}
+}
+
+func TestAdminUpdateAcceptsManagedScopeOnlyPatch(t *testing.T) {
+	repo := &adminRepoMock{}
+	service := NewAdminService(repo, repo)
+	paths := []string{" path-1 ", "path-1"}
+	subjects := []string{" subject-1 "}
+
+	_, err := service.UpdateUser(
+		context.Background(),
+		adminActor(),
+		"user-1",
+		domain.AdminUpdateUserInput{
+			ManagedPathIDs:    &paths,
+			ManagedSubjectIDs: &subjects,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repo.updateInput.ManagedPathIDs == nil ||
+		len(*repo.updateInput.ManagedPathIDs) != 1 ||
+		(*repo.updateInput.ManagedPathIDs)[0] != "path-1" {
+		t.Fatalf("unexpected managed paths %#v", repo.updateInput.ManagedPathIDs)
+	}
+	if repo.updateInput.ManagedSubjectIDs == nil ||
+		len(*repo.updateInput.ManagedSubjectIDs) != 1 ||
+		(*repo.updateInput.ManagedSubjectIDs)[0] != "subject-1" {
+		t.Fatalf("unexpected managed subjects %#v", repo.updateInput.ManagedSubjectIDs)
 	}
 }

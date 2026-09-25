@@ -57,9 +57,11 @@ func (m *adminRepoMock) AdminUpsertUser(
 			Status: "active",
 			Roles:  []domain.Role{input.Role},
 		},
-		SchoolID:         input.SchoolID,
-		ClassIDs:         append([]string(nil), input.ClassIDs...),
-		LinkedStudentIDs: append([]string(nil), input.LinkedStudentIDs...),
+		SchoolID:          input.SchoolID,
+		ClassIDs:          append([]string(nil), input.ClassIDs...),
+		LinkedStudentIDs:  append([]string(nil), input.LinkedStudentIDs...),
+		ManagedPathIDs:    append([]string(nil), input.ManagedPathIDs...),
+		ManagedSubjectIDs: append([]string(nil), input.ManagedSubjectIDs...),
 	}, nil
 }
 

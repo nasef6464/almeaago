@@ -40,6 +40,20 @@ func (r *Repository) AdminSummary(ctx context.Context) (domain.AdminUserSummary,
 		return domain.AdminUserSummary{}, err
 	}
 
-	summary.PlatformTrainers = 0
+	if err := r.db.QueryRow(ctx, `
+		SELECT count(*)::int
+		FROM users u
+		WHERE u.status='active'
+		  AND EXISTS (
+			SELECT 1 FROM user_roles ur
+			WHERE ur.user_id=u.id AND ur.role='teacher'
+		  )
+		  AND (
+			EXISTS (SELECT 1 FROM content_trainer_path_scopes cps WHERE cps.user_id=u.id)
+			OR EXISTS (SELECT 1 FROM content_trainer_subject_scopes css WHERE css.user_id=u.id)
+		  )
+	`).Scan(&summary.PlatformTrainers); err != nil {
+		return domain.AdminUserSummary{}, err
+	}
 	return summary, nil
 }

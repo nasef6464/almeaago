@@ -65,12 +65,13 @@ func main() {
 	}
 	defer redisClient.Close()
 
+	auditWriter := operationsrepo.NewAuditWriter()
 	organizationScopes := orgrepo.NewAdminScopeWriter()
-	identityRepository := identityrepo.New(db, organizationScopes)
+	contentAdminScopes := contentrepo.NewAdminScopeWriter(auditWriter)
+	identityRepository := identityrepo.NewWithContentScopes(db, organizationScopes, contentAdminScopes)
 	adminDirectory := reportingrepo.NewAdminUserDirectory(db)
 	directorDirectory := reportingrepo.NewSchoolDirectorDirectory(db)
 
-	auditWriter := operationsrepo.NewAuditWriter()
 	contentRepository := contentrepo.New(db, auditWriter)
 	contentService := contentapp.NewService(contentRepository)
 	organizationsRepository := orgrepo.New(db, auditWriter, identityRepository)
