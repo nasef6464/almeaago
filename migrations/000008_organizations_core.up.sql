@@ -14,6 +14,20 @@ ALTER TABLE class_memberships
   ADD CONSTRAINT class_memberships_status_check
   CHECK (status IN ('active','inactive','revoked'));
 
+ALTER TABLE teaching_assignments
+  DROP CONSTRAINT teaching_assignments_school_id_teacher_id_class_id_subject_id_key;
+
+ALTER TABLE teaching_assignments
+  ALTER COLUMN subject_id DROP NOT NULL;
+
+CREATE UNIQUE INDEX teaching_assignments_scope_unique_idx
+  ON teaching_assignments (
+    school_id,
+    teacher_id,
+    class_id,
+    COALESCE(subject_id, '00000000-0000-0000-0000-000000000000'::uuid)
+  );
+
 CREATE TABLE school_membership_permissions (
   membership_id uuid NOT NULL REFERENCES school_memberships(id) ON DELETE CASCADE,
   permission text NOT NULL CHECK (permission IN (
