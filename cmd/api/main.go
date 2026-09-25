@@ -69,6 +69,7 @@ func main() {
 		OTPPepper:        cfg.OTPPepper,
 	})
 	organizationsHandler := organizationshttp.New(organizationsService, identityService)
+	legacySchoolAccessHandler := organizationshttp.NewLegacy(organizationsService, identityService)
 
 	adminService := application.NewAdminService(identityRepository, adminDirectory)
 	accountService := application.NewAccountService(identityRepository)
@@ -89,8 +90,9 @@ func main() {
 		Logger:        logger,
 		DB:            db,
 		Redis:         redisClient,
-		Identity:      identityHandler,
-		Organizations: organizationsHandler,
+		Identity:           identityHandler,
+		Organizations:      organizationsHandler,
+		LegacySchoolAccess: legacySchoolAccessHandler,
 	})
 
 	go func() {
