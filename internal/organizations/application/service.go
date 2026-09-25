@@ -25,6 +25,7 @@ const (
 
 type Repository interface {
 	SchoolContexts(ctx context.Context, userID string) ([]org.SchoolContext, error)
+	TeacherWorkspace(ctx context.Context, userID string) (org.TeacherWorkspace, error)
 	ListSchools(ctx context.Context, access org.AccessContext, query org.SchoolListQuery) (org.SchoolPage, error)
 	SchoolByID(ctx context.Context, access org.AccessContext, schoolID string) (org.School, error)
 	CreateSchool(ctx context.Context, actorUserID string, write org.SchoolWrite) (org.School, error)
@@ -121,6 +122,16 @@ func (s *Service) SchoolContexts(
 		return nil, ErrForbidden
 	}
 	return s.repo.SchoolContexts(ctx, actor.ID)
+}
+
+func (s *Service) TeacherWorkspace(
+	ctx context.Context,
+	actor identity.User,
+) (org.TeacherWorkspace, error) {
+	if strings.TrimSpace(actor.ID) == "" || !actor.HasRole(identity.RoleTeacher) {
+		return org.TeacherWorkspace{}, ErrForbidden
+	}
+	return s.repo.TeacherWorkspace(ctx, actor.ID)
 }
 
 func (s *Service) ListSchools(
