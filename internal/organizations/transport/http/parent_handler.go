@@ -16,4 +16,3 @@ func NewParentFacade(service *orgapp.Service, auth Authenticator) http.Handler {
 	r.Get("/authority", h.parentAuthority)
 	return r
 }
-
