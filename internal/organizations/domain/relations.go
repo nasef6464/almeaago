@@ -78,6 +78,14 @@ type SchoolMembership struct {
 	UpdatedAt   time.Time
 }
 
+type SchoolContext struct {
+	SchoolID    string
+	SchoolName  string
+	Role        identity.Role
+	Permissions []string
+	Source      string
+}
+
 type MembershipWrite struct {
 	UserID string
 	Role   identity.Role
