@@ -27,7 +27,7 @@ Media / R2 — **DIRECT-UPLOAD FOUNDATION GREEN**.
 
 Content / Foundation backend — **CORE MANAGEMENT TESTED / MERGED**.
 
-Content React cutover — **TESTED / VISUAL CHECKPOINT GREEN (PR #38 PRE-MERGE)**.
+Content React cutover — **TESTED / VISUAL CHECKPOINT GREEN / MERGED**.
 
 ## Identity Core / Recovery / Providers — TESTED / MERGED
 Includes:
@@ -324,8 +324,8 @@ Cross-domain / product deferrals after Content closure:
 - richer in-video question authoring belongs to Question Bank/Assessment integration, not duplicated Content state.
 - approved-content editing remains intentionally fail-closed until the product/versioning policy is explicitly finalized.
 
-## Content Web Cutover — TESTED / VISUAL CHECKPOINT GREEN (PRE-MERGE)
-PR #38 (`feat/content-web-cutover`) is the active Content React parity branch and has reached its merge gate.
+## Content Web Cutover — TESTED / VISUAL CHECKPOINT GREEN / MERGED
+PR #38 passed the exact-head Frontend CI + Frontend E2E gate on `84723eb593749bab0c3a33a3fb090539b2e3f315` and merged to `main` as `8133e36b09621bc58c8bf0180cf65fe34ab2c3c3`.
 
 Implemented so far:
 - role-aware `/admin-dashboard/content` route.
@@ -348,8 +348,9 @@ Verification:
 - Frontend CI passed on `17e8ad5c6e6eb89052d749a06c87d3fc67d9ce86` for Lesson authoring/review.
 - Frontend CI passed on `c00ee648a816844f9383a9d3378bf94519bd5e41` for Library + Foundation management flows before bounded selector search refinement.
 - Representative visual alignment landed on `9c92769f6c64c3815782d65f75aed9c1fe548778`; Frontend CI run `36163074967` passed and Frontend E2E run `36163074657` passed 4/4.
-- Browser evidence artifact `10875638539` contains the current desktop Course-builder and mobile Lesson-builder screenshots.
-- The final documentation/assertion head must pass Frontend CI + Frontend E2E again before merge; PR #38 must be merged only with that exact tested SHA.
+- Final exact head `84723eb593749bab0c3a33a3fb090539b2e3f315` passed Frontend CI run `36163606394` and Frontend E2E run `36163606469` (4/4).
+- Final browser evidence artifact `10875624297` records the desktop/mobile checkpoint.
+- PR #38 merged only after the exact tested head was verified and no review threads were open.
 
 ## Performance/scalability
 - bounded pagination for admin/director directories.
@@ -369,4 +370,4 @@ Verification:
 - Use `almeaacodax` only for explicit behavioral/visual parity checks, never as an implementation target.
 
 ## Next exact action
-Close PR #38 only after the final documentation/assertion head passes both Frontend CI and Frontend E2E on that exact SHA. After merge, update this file on a docs-only checkpoint branch with the merge commit, then begin Phase 6 Assessment from current `main`: audit the legacy Assessment contracts against the blueprint and existing canonical Question Bank/Content IDs, design normalized PostgreSQL assessment identities/attempt state deliberately, and do not copy question/content payloads into Assessment. Keep learner answer secrecy, bounded reads, optimistic/audited staff mutations, and Commerce/Learning boundaries explicit.
+Begin Phase 6 Assessment from current `main` after this docs checkpoint merges. Audit the legacy Assessment contracts against the blueprint and existing canonical Question Bank/Content IDs, then design normalized PostgreSQL assessment identities, placement references and learner attempt state deliberately. Assessment must reference canonical question/content identities rather than copy their payloads. Preserve learner answer secrecy, bounded staff/learner reads, transaction-scoped audit for staff mutations, attempt integrity, and explicit Commerce/Learning/Realtime boundaries.
