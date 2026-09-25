@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	operations "github.com/nasef6464/almeaago/internal/operations/domain"
 	media "github.com/nasef6464/almeaago/internal/media/domain"
+	operations "github.com/nasef6464/almeaago/internal/operations/domain"
 )
 
 type AuditWriter interface {
@@ -64,10 +64,10 @@ func (r *Repository) Reserve(ctx context.Context, actorUserID string, request me
 		return media.Asset{}, mapError(err)
 	}
 	if err := r.writeAudit(ctx, tx, operations.AuditEvent{
-		ActorUserID: actorUserID,
-		Action:      "media.upload.reserve",
-		ResourceType:"asset",
-		ResourceID:  asset.ID,
+		ActorUserID:  actorUserID,
+		Action:       "media.upload.reserve",
+		ResourceType: "asset",
+		ResourceID:   asset.ID,
 		Metadata: map[string]any{
 			"objectKey": request.ObjectKey,
 			"mimeType":  request.MimeType,
@@ -105,11 +105,11 @@ func (r *Repository) RefreshPending(ctx context.Context, actorUserID, assetID st
 		return media.Asset{}, mapError(err)
 	}
 	if err := r.writeAudit(ctx, tx, operations.AuditEvent{
-		ActorUserID: actorUserID,
-		Action:      "media.upload.refresh",
-		ResourceType:"asset",
-		ResourceID:  asset.ID,
-		Metadata:    map[string]any{"uploadExpiresAt": expiresAt},
+		ActorUserID:  actorUserID,
+		Action:       "media.upload.refresh",
+		ResourceType: "asset",
+		ResourceID:   asset.ID,
+		Metadata:     map[string]any{"uploadExpiresAt": expiresAt},
 	}); err != nil {
 		return media.Asset{}, err
 	}
@@ -155,10 +155,10 @@ func (r *Repository) Activate(ctx context.Context, actorUserID, assetID string, 
 		return media.Asset{}, mapError(err)
 	}
 	if err := r.writeAudit(ctx, tx, operations.AuditEvent{
-		ActorUserID: actorUserID,
-		Action:      "media.upload.complete",
-		ResourceType:"asset",
-		ResourceID:  asset.ID,
+		ActorUserID:  actorUserID,
+		Action:       "media.upload.complete",
+		ResourceType: "asset",
+		ResourceID:   asset.ID,
 		Metadata: map[string]any{
 			"sizeBytes": info.SizeBytes,
 			"mimeType":  info.MimeType,
