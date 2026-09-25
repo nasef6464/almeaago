@@ -89,7 +89,7 @@ func normalizeLibrary(actor identity.User, input LibraryInput) (content.LibraryW
 		RevenueSharePercentage: input.RevenueSharePercentage, IsVisible: boolDefault(input.IsVisible, true), IsLocked: input.IsLocked,
 		SkillIDs: normalizeIDs(input.SkillIDs), PrimaryAssetID: strings.TrimSpace(input.PrimaryAssetID),
 	}
-	if write.PathID == "" || write.SubjectID == "" || write.Title == "" || len(write.Title) > 240 || len(write.Description) > 12000 || !content.ValidLibraryType(write.ItemType) || len(write.SkillIDs) == 0 || len(write.SkillIDs) > 50 || (write.ExternalURL == "" && write.PrimaryAssetID == "") {
+	if write.PathID == "" || write.SubjectID == "" || write.Title == "" || len(write.Title) > 240 || len(write.Description) > 12000 || len(write.ExternalURL) > 2048 || !content.ValidLibraryType(write.ItemType) || len(write.SkillIDs) == 0 || len(write.SkillIDs) > 50 || (write.ExternalURL == "" && write.PrimaryAssetID == "") {
 		return content.LibraryWrite{}, ErrInvalidInput
 	}
 	if write.ItemType == content.LibraryLink && write.ExternalURL == "" {

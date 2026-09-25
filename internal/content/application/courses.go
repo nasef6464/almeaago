@@ -88,7 +88,7 @@ func (s *Service) ListCourses(ctx context.Context, actor identity.User, query co
 }
 
 func normalizeCourse(actor identity.User, input CourseInput) (content.CourseWrite, error) {
-	if len(input.Presentation) > 0 && !json.Valid(input.Presentation) {
+	if len(input.Presentation) > 32<<10 || (len(input.Presentation) > 0 && !json.Valid(input.Presentation)) {
 		return content.CourseWrite{}, ErrInvalidInput
 	}
 	write := content.CourseWrite{

@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	content "github.com/nasef6464/almeaago/internal/content/domain"
@@ -163,3 +164,14 @@ func TestAdminCannotSkipDraftDirectlyToApproved(t *testing.T) {
 }
 
 func float64Ptr(value float64) *float64 { return &value }
+
+func TestCoursePresentationMetadataIsBounded(t *testing.T) {
+	_, err := normalizeCourse(staffActor(identity.RoleAdmin), CourseInput{
+		PathID: "path-1", SubjectID: "subject-1", Title: "Course",
+		Level: content.CourseBeginner, SkillIDs: []string{"skill-1"},
+		Presentation: []byte(`{"payload":"` + strings.Repeat("x", 33<<10) + `"}`),
+	})
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected oversized presentation to be rejected, got %v", err)
+	}
+}

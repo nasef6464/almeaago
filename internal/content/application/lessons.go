@@ -92,7 +92,7 @@ func normalizeLesson(actor identity.User, input LessonInput) (content.LessonWrit
 		AssignedTeacherID: strings.TrimSpace(input.AssignedTeacherID), RevenueSharePercentage: input.RevenueSharePercentage,
 		IsVisible: boolDefault(input.IsVisible, true), IsLocked: input.IsLocked, SkillIDs: normalizeIDs(input.SkillIDs), AssetIDs: normalizeIDs(input.AssetIDs),
 	}
-	if write.PathID == "" || write.SubjectID == "" || write.Title == "" || len(write.Title) > 240 || len(write.Description) > 12000 || len(write.ContentText) > 50000 || len(write.JoinInstructions) > 10000 || write.DurationSeconds < 0 || !content.ValidLessonType(write.LessonType) || len(write.SkillIDs) == 0 || len(write.SkillIDs) > 50 || len(write.AssetIDs) > 20 {
+	if write.PathID == "" || write.SubjectID == "" || write.Title == "" || len(write.Title) > 240 || len(write.Description) > 12000 || len(write.ContentText) > 50000 || len(write.JoinInstructions) > 10000 || len(write.VideoURL) > 2048 || len(write.MeetingURL) > 2048 || len(write.RecordingURL) > 2048 || write.DurationSeconds < 0 || !content.ValidLessonType(write.LessonType) || len(write.SkillIDs) == 0 || len(write.SkillIDs) > 50 || len(write.AssetIDs) > 20 {
 		return content.LessonWrite{}, ErrInvalidInput
 	}
 	if write.VideoSource != "" && write.VideoSource != "upload" && write.VideoSource != "youtube" && write.VideoSource != "vimeo" {
