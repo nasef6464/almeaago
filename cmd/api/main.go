@@ -55,10 +55,11 @@ func main() {
 	organizationScopes := orgrepo.NewAdminScopeWriter()
 	identityRepository := identityrepo.New(db, organizationScopes)
 	adminDirectory := reportingrepo.NewAdminUserDirectory(db)
+	directorDirectory := reportingrepo.NewSchoolDirectorDirectory(db)
 
 	auditWriter := operationsrepo.NewAuditWriter()
-	organizationsRepository := orgrepo.New(db, auditWriter)
-	organizationsService := orgapp.NewService(organizationsRepository)
+	organizationsRepository := orgrepo.New(db, auditWriter, identityRepository)
+	organizationsService := orgapp.NewService(organizationsRepository, directorDirectory)
 
 	whatsAppDelivery := whatsappprovider.NewWebhook(
 		cfg.WhatsAppOTPEndpoint,
