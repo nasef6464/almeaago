@@ -262,6 +262,40 @@ External staging gates:
 - `R2_PUBLIC_BASE_URL`/CDN delivery smoke.
 - real upload -> HEAD verify -> question render smoke.
 
+## Question Bank V2 Import — TESTED / MERGED
+Durable provenance schema PR #30 passed exact-head Database CI and merged as `df0569d5dad00c4bd83ca289497d62a115c843c7`.
+
+Durable preflight schema PR #32 passed exact-head Database CI and merged as `936f2f9decd6c040584047d87e2b97d89b583fc6`.
+
+V2 import API PR #31 passed exact-head Backend CI and merged as `38ef2b5737a60cd11054552d3db4e66941a8c3a2`.
+
+Implemented:
+- platform-admin-only V2 quantitative import with CSRF on write/rollback.
+- strict 8..160 batch identity and maximum 100 items.
+- deterministic `QDR-QNT-{DOCUMENT_CODE}-P###-Q##` identity plus canonical sourceItemId coordinates.
+- duplicate questionCode/sourceItemId/imageHash detection in-batch and against PostgreSQL.
+- verified active WebP asset must match questionCode + SHA-256 R2 object identity.
+- exact normalized manifest SHA-256 stored as an expiring PostgreSQL preflight; write cannot bypass or reuse a changed/expired dry run.
+- taxonomy and media integrity are revalidated before/inside the write transaction.
+- all-or-nothing draft-only platform-owned writes with provenance, immutable version/options, skill links and audit.
+- no auto-approval.
+- durable batch/report/preflight/commit timestamps.
+- rollback archives an all-draft batch rather than deleting stable question identity/history.
+- import endpoint receives metadata/asset IDs only; image bytes remain direct-to-R2.
+- AI-readable text/context remains versioned server-side so routine AI use does not require downloading the image.
+
+## Question Bank checkpoint
+Question Bank is structurally green for:
+- stable identity and immutable version history.
+- text/image/mixed authoring.
+- AI-readiness metadata and learner answer secrecy.
+- Taxonomy skill relationships.
+- bounded staff filters and separate coverage counters.
+- Media/R2 direct upload and SHA-256 dedupe.
+- dry-run-first V2 import and archive-safe rollback.
+
+Reuse contracts for Assessment/Realtime/Learning will consume canonical question IDs later; those domains must not copy question objects.
+
 ## Performance/scalability
 - bounded pagination for admin/director directories.
 - pg_trgm-backed user search.
@@ -280,4 +314,4 @@ External staging gates:
 - Use `almeaacodax` only for explicit behavioral/visual parity checks, never as an implementation target.
 
 ## Next exact action
-Build the Question Bank V2 import workflow from current `main`: strict batch ID, max 100 items, dry-run first, duplicate questionCode/image-hash detection, missing-asset reporting, draft-only transactional metadata writes, and an explicit import report. Reuse the verified Media asset boundary; do not upload binary bytes through the import API and do not auto-approve imported questions.
+Start Content foundation from current `main`. Audit Lesson/Course/Foundation/Library legacy models against the Content blueprint, then create only the normalized PostgreSQL identities/relationships needed before student learning or commerce depends on them. Keep Foundation and Course distinct, link to Taxonomy by IDs, keep binaries in Media/R2, use lifecycle/workflow instead of destructive history loss, and do not mix access/entitlement state into Content.
