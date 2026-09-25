@@ -11,7 +11,7 @@ import (
 
 func TestAdminUpsertHashesPasswordAndNormalizesScopes(t *testing.T) {
 	repo := &adminRepoMock{}
-	service := NewAdminService(repo)
+	service := NewAdminService(repo, repo)
 
 	_, err := service.UpsertUser(
 		context.Background(),
@@ -51,7 +51,7 @@ func TestAdminUpsertHashesPasswordAndNormalizesScopes(t *testing.T) {
 
 func TestAdminUpsertDropsParentLinksForNonParent(t *testing.T) {
 	repo := &adminRepoMock{}
-	service := NewAdminService(repo)
+	service := NewAdminService(repo, repo)
 
 	_, err := service.UpsertUser(
 		context.Background(),
@@ -73,7 +73,7 @@ func TestAdminUpsertDropsParentLinksForNonParent(t *testing.T) {
 }
 
 func TestAdminUpsertRejectsInvalidIdentityFields(t *testing.T) {
-	service := NewAdminService(&adminRepoMock{})
+	service := NewAdminService(&adminRepoMock{}, &adminRepoMock{})
 
 	_, err := service.UpsertUser(
 		context.Background(),
@@ -93,7 +93,7 @@ func TestAdminUpsertRejectsInvalidIdentityFields(t *testing.T) {
 
 func TestAdminBulkStatusDeduplicatesIDs(t *testing.T) {
 	repo := &adminRepoMock{}
-	service := NewAdminService(repo)
+	service := NewAdminService(repo, repo)
 
 	_, err := service.BulkStatus(
 		context.Background(),
@@ -115,7 +115,7 @@ func TestAdminBulkStatusDeduplicatesIDs(t *testing.T) {
 }
 
 func TestAdminUpdateRejectsEmptyPatchAndInvalidRole(t *testing.T) {
-	service := NewAdminService(&adminRepoMock{})
+	service := NewAdminService(&adminRepoMock{}, &adminRepoMock{})
 
 	if _, err := service.UpdateUser(
 		context.Background(),
@@ -139,7 +139,7 @@ func TestAdminUpdateRejectsEmptyPatchAndInvalidRole(t *testing.T) {
 
 func TestAdminUpdateAcceptsScopeOnlyPatch(t *testing.T) {
 	repo := &adminRepoMock{}
-	service := NewAdminService(repo)
+	service := NewAdminService(repo, repo)
 	school := " school-1 "
 	classes := []string{" class-1 ", "class-1"}
 
