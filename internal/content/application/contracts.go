@@ -41,7 +41,7 @@ type LessonInput struct {
 	MeetingURL             string             `json:"meetingUrl"`
 	MeetingAt              *time.Time         `json:"meetingAt"`
 	RecordingURL           string             `json:"recordingUrl"`
-	JoinInstructions       string             `json:"ioinstructions"`
+	JoinInstructions       string             `json:"joinInstructions"`
 	ShowRecording          bool               `json:"showRecording"`
 	OwnerType              content.OwnerType  `json:"ownerType"`
 	OwnerUserID            string             `json:"ownerUserId"`

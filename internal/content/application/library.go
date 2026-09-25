@@ -39,7 +39,7 @@ func (s *Service) UpdateLibraryItem(ctx context.Context, actor identity.User, it
 		return content.LibraryItem{}, err
 	}
 	if !actor.HasRole(identity.RoleAdmin) {
-		write.OwnerType, write.OwnerUserID, write.OwnerSchoolID = current.OwnerType, current.OwnerUserID, current.OwnerSchoolID
+		write.OwnerType, write.OwnerUserID, write.OwnerSchoolID, write.AssignedTeacherID = current.OwnerType, current.OwnerUserID, current.OwnerSchoolID, current.AssignedTeacherID
 	}
 	return s.repo.UpdateLibraryItem(ctx, actor.ID, itemID, input.ExpectedRevision, write)
 }

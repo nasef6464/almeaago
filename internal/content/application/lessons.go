@@ -39,7 +39,7 @@ func (s *Service) UpdateLesson(ctx context.Context, actor identity.User, lessonI
 		return content.Lesson{}, err
 	}
 	if !actor.HasRole(identity.RoleAdmin) {
-		write.OwnerType, write.OwnerUserID, write.OwnerSchoolID = current.OwnerType, current.OwnerUserID, current.OwnerSchoolID
+		write.OwnerType, write.OwnerUserID, write.OwnerSchoolID, write.AssignedTeacherID = current.OwnerType, current.OwnerUserID, current.OwnerSchoolID, current.AssignedTeacherID
 	}
 	return s.repo.UpdateLesson(ctx, actor.ID, lessonID, input.ExpectedRevision, write)
 }

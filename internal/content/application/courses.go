@@ -40,7 +40,7 @@ func (s *Service) UpdateCourse(ctx context.Context, actor identity.User, courseI
 		return content.Course{}, err
 	}
 	if !actor.HasRole(identity.RoleAdmin) {
-		write.OwnerType, write.OwnerUserID, write.OwnerSchoolID = current.OwnerType, current.OwnerUserID, current.OwnerSchoolID
+		write.OwnerType, write.OwnerUserID, write.OwnerSchoolID, write.AssignedTeacherID = current.OwnerType, current.OwnerUserID, current.OwnerSchoolID, current.AssignedTeacherID
 	}
 	return s.repo.UpdateCourse(ctx, actor.ID, courseID, input.ExpectedRevision, write)
 }

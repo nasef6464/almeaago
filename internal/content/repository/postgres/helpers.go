@@ -258,7 +258,7 @@ func buildListWhere(query content.ListQuery, alias string) (string, []any) {
 	if query.TeacherScopeUserID != "" {
 		args = append(args, query.TeacherScopeUserID)
 		index := len(args)
-		parts = append(parts, fmt.Sprintf("(%s.owner_user_id=$%d::uuid OR %s.assigned_teacher_id=$%d::uuid OR %s.created_by=$%d::uuid)", alias, index, alias, index, alias, index))
+		parts = append(parts, fmt.Sprintf("(%s.owner_user_id=$%d::uuid OR %s.assigned_teacher_id=$%d::uuid)", alias, index, alias, index))
 	}
 	return strings.Join(parts, " AND "), args
 }
