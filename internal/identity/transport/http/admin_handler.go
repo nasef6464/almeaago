@@ -333,7 +333,7 @@ func presentAdminRecord(record domain.AdminUserRecord) adminUserResponse {
 		record.LinkedStudentIDs = []string{}
 	}
 	return adminUserResponse{
-		userResponse:      base,
+		userResponse:     base,
 		IsActive:         record.User.Status == "active",
 		SchoolID:         record.SchoolID,
 		GroupIDs:         record.ClassIDs,
