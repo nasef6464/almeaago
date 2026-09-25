@@ -203,6 +203,143 @@ paths:
         "401": { description: Authentication required }
         "403": { description: School/role/class scope denied }
 
+  /api/v1/schools/{schoolId}/memberships:
+    put:
+      operationId: organizationsUpsertMembership
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [userId, role]
+              properties:
+                userId: { type: string }
+                role: { type: string, enum: [student, teacher, supervisor, school_admin, parent] }
+                status: { type: string, enum: [active, suspended, graduated, revoked], default: active }
+      responses:
+        "200": { description: School membership created or updated }
+        "400": { description: Invalid membership input }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin role or CSRF denied }
+        "404": { description: School/user/role relationship target not found }
+
+  /api/v1/schools/{schoolId}/directors:
+    get:
+      operationId: organizationsListDirectors
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: status, schema: { type: string, enum: [active, suspended, graduated, revoked] } }
+      responses:
+        "200": { description: Paginated school director delegations plus supported/default permission catalog }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin role required }
+
+  /api/v1/schools/{schoolId}/directors/{userId}:
+    put:
+      operationId: organizationsUpsertDirector
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: path, name: userId, required: true, schema: { type: string } }
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                status: { type: string, enum: [active, revoked], default: active }
+                permissions:
+                  type: array
+                  uniqueItems: true
+                  items:
+                    type: string
+                    enum:
+                      - SCHOOL_OVERVIEW_VIEW
+                      - SCHOOL_REPORTS_AGGREGATE_VIEW
+                      - SCHOOL_STUDENTS_VIEW
+                      - SCHOOL_STUDENTS_ADD
+                      - SCHOOL_STUDENTS_MOVE_CLASS
+                      - SCHOOL_STUDENTS_UPDATE_BASIC
+                      - SCHOOL_STUDENTS_DEACTIVATE
+                      - SCHOOL_CLASSES_MANAGE
+                      - SCHOOL_TEACHERS_ASSIGN
+                      - SCHOOL_REPORTS_DETAILED_VIEW
+                      - SCHOOL_REPORTS_EXPORT
+                      - SCHOOL_ASSESSMENTS_MANAGE
+                      - SCHOOL_SMART_CLASSROOM_VIEW
+                      - SCHOOL_INTERVENTIONS_VIEW
+                      - SCHOOL_INTERVENTIONS_MANAGE
+                      - SCHOOL_STUDENTS_TRANSFER_SCHOOL
+              description: Omitting permissions uses the legacy default set; an explicit empty array grants no director permissions.
+      responses:
+        "200": { description: Director delegation updated transactionally with permissions and audit }
+        "400": { description: Invalid status or permission }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin role or CSRF denied }
+        "404": { description: School or school_admin user not found }
+
+  /api/v1/schools/{schoolId}/assignments:
+    get:
+      operationId: organizationsListTeachingAssignments
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: teacherId, schema: { type: string } }
+        - { in: query, name: classId, schema: { type: string } }
+        - { in: query, name: subjectId, schema: { type: string, description: Empty value selects subject-agnostic assignments } }
+        - { in: query, name: status, schema: { type: string, enum: [active, ended, revoked] } }
+      responses:
+        "200": { description: Bounded teaching-assignment directory; teachers are forced to their own assignments }
+        "400": { description: Invalid filter }
+        "401": { description: Authentication required }
+        "403": { description: Role or SCHOOL_TEACHERS_ASSIGN permission denied }
+    put:
+      operationId: organizationsUpsertTeachingAssignment
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [teacherId, classId]
+              properties:
+                teacherId: { type: string }
+                classId: { type: string }
+                subjectId:
+                  type: string
+                  default: ""
+                  description: Empty keeps legacy subject-agnostic class assignment behavior.
+                status: { type: string, enum: [active, ended, revoked], default: active }
+      responses:
+        "200": { description: Teaching assignment created or updated transactionally }
+        "400": { description: Invalid assignment input }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin or SCHOOL_TEACHERS_ASSIGN permission and CSRF required }
+        "404": { description: School/class/teacher/subject relationship target not found }
+
   /api/v1/auth/register:
     post:
       operationId: authRegister
