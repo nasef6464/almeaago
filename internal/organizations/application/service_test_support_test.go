@@ -24,10 +24,11 @@ type repositoryMock struct {
 	directorWrite     org.DirectorWrite
 	assignmentQuery   org.AssignmentQuery
 	assignmentWrite   org.AssignmentWrite
+	teacherWorkspace org.TeacherWorkspace
 }
 
 func (m *repositoryMock) TeacherWorkspace(_ context.Context, _ string) (org.TeacherWorkspace, error) {
-	return org.TeacherWorkspace{}, nil
+	return m.teacherWorkspace, nil
 }
 
 func (m *repositoryMock) SchoolContexts(
@@ -246,4 +247,26 @@ func (m *repositoryMock) HasSchoolPermission(context.Context, string, string, st
 
 func actor(id string, role identity.Role) identity.User {
 	return identity.User{ID: id, Status: "active", Roles: []identity.Role{role}}
+}
+
+
+func TestTeacherWorkspaceRequiresTeacherRole(t *testing.T) {
+	service := NewService(&repositoryMock{})
+	if _, err := service.TeacherWorkspace(context.Background(), actor("admin-1", identity.RoleAdmin)); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected forbidden, got %v", err)
+	}
+}
+
+func TestTeacherWorkspaceDelegatesTeacherIdentity(t *testing.T) {
+	repo := &repositoryMock{teacherWorkspace: org.TeacherWorkspace{
+		Schools: []org.TeacherWorkspaceSchool{{SchoolID: "school-1"}},
+	}}
+	service := NewService(repo)
+	workspace, err := service.TeacherWorkspace(context.Background(), actor("teacher-1", identity.RoleTeacher))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(workspace.Schools) != 1 || workspace.Schools[0].SchoolID != "school-1" {
+		t.Fatalf("unexpected workspace: %#v", workspace)
+	}
 }
