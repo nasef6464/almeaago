@@ -45,9 +45,13 @@ func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request, csrf bool
 
 func parseListQuery(w http.ResponseWriter, r *http.Request) (content.ListQuery, bool) {
 	page, ok := parsePositiveInt(w, r.URL.Query().Get("page"))
-	if !ok { return content.ListQuery{}, false }
+	if !ok {
+		return content.ListQuery{}, false
+	}
 	limit, ok := parsePositiveInt(w, r.URL.Query().Get("limit"))
-	if !ok { return content.ListQuery{}, false }
+	if !ok {
+		return content.ListQuery{}, false
+	}
 	return content.ListQuery{
 		Page: page, Limit: limit, PathID: r.URL.Query().Get("pathId"), SubjectID: r.URL.Query().Get("subjectId"),
 		Search: r.URL.Query().Get("search"), WorkflowStatus: content.WorkflowStatus(r.URL.Query().Get("workflowStatus")),
@@ -56,9 +60,13 @@ func parseListQuery(w http.ResponseWriter, r *http.Request) (content.ListQuery, 
 
 func parseTopicQuery(w http.ResponseWriter, r *http.Request) (content.TopicQuery, bool) {
 	page, ok := parsePositiveInt(w, r.URL.Query().Get("page"))
-	if !ok { return content.TopicQuery{}, false }
+	if !ok {
+		return content.TopicQuery{}, false
+	}
 	limit, ok := parsePositiveInt(w, r.URL.Query().Get("limit"))
-	if !ok { return content.TopicQuery{}, false }
+	if !ok {
+		return content.TopicQuery{}, false
+	}
 	return content.TopicQuery{
 		Page: page, Limit: limit, PathID: r.URL.Query().Get("pathId"), SubjectID: r.URL.Query().Get("subjectId"),
 		ParentID: r.URL.Query().Get("parentId"), Search: r.URL.Query().Get("search"), Status: content.TopicStatus(r.URL.Query().Get("status")),
@@ -66,7 +74,9 @@ func parseTopicQuery(w http.ResponseWriter, r *http.Request) (content.TopicQuery
 }
 
 func parsePositiveInt(w http.ResponseWriter, raw string) (int, bool) {
-	if strings.TrimSpace(raw) == "" { return 0, true }
+	if strings.TrimSpace(raw) == "" {
+		return 0, true
+	}
 	value, err := strconv.Atoi(raw)
 	if err != nil || value < 1 {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid pagination"})

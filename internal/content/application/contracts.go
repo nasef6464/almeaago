@@ -42,9 +42,9 @@ type LessonInput struct {
 	MeetingAt              *time.Time         `json:"meetingAt"`
 	RecordingURL           string             `json:"recordingUrl"`
 	JoinInstructions       string             `json:"ioinstructions"`
-	ShowRecording          bool                `json:"showRecording"`
+	ShowRecording          bool               `json:"showRecording"`
 	OwnerType              content.OwnerType  `json:"ownerType"`
-	OwnerUserID            string              `json:"ownerUserId"`
+	OwnerUserID            string             `json:"ownerUserId"`
 	OwnerSchoolID          string             `json:"ownerSchoolId"`
 	AssignedTeacherID      string             `json:"assignedTeacherId"`
 	RevenueSharePercentage *float64           `json:"revenueSharePercentage"`
