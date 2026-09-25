@@ -122,8 +122,8 @@ func (r *Repository) ListTopics(ctx context.Context, query content.TopicQuery) (
 	}
 	args = append(args, query.Limit+1, (query.Page-1)*query.Limit)
 	rows, err := r.db.Query(ctx, `
-		SELECT t.id::text,t.path_id::text,t.subject_id::text,COALESCE(t.parent_topic_id::text,''),t.code,t.title,t.description,
-			t.sort_order,t.status,t.is_visible,t.is_locked,COALESCE(t.created_by::text,''),t.revision,t.created_at,t.updated_at
+		SELECT t.id::text,t.path_id::text,t.subject_id::text,COALESCE(t.parent_topic_id::text,''),t.code,t.title,
+			t.sort_order,t.status,t.is_visible,t.is_locked,t.revision,t.updated_at
 		FROM foundation_topics t WHERE `+strings.Join(parts, " AND ")+`
 		ORDER BY t.sort_order,t.id
 		LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
@@ -134,12 +134,12 @@ func (r *Repository) ListTopics(ctx context.Context, query content.TopicQuery) (
 	items := make([]content.FoundationTopic, 0, query.Limit+1)
 	for rows.Next() {
 		var row content.FoundationTopic
-		var parentID, createdBy string
-		if err := rows.Scan(&row.ID, &row.PathID, &row.SubjectID, &parentID, &row.Code, &row.Title, &row.Description,
-			&row.SortOrder, &row.Status, &row.IsVisible, &row.IsLocked, &createdBy, &row.Revision, &row.CreatedAt, &row.UpdatedAt); err != nil {
+		var parentID string
+		if err := rows.Scan(&row.ID, &row.PathID, &row.SubjectID, &parentID, &row.Code, &row.Title,
+			&row.SortOrder, &row.Status, &row.IsVisible, &row.IsLocked, &row.Revision, &row.UpdatedAt); err != nil {
 			return content.TopicPage{}, err
 		}
-		row.ParentTopicID, row.CreatedBy = parentID, createdBy
+		row.ParentTopicID = parentID
 		items = append(items, row)
 	}
 	if err := rows.Err(); err != nil {

@@ -158,6 +158,24 @@ func validateTopicParentTx(ctx context.Context, tx pgx.Tx, topicID, parentID, pa
 	if !ok {
 		return content.ErrConflict
 	}
+	if topicID != "" {
+		var createsCycle bool
+		if err := tx.QueryRow(ctx, `
+			WITH RECURSIVE descendants(id) AS (
+				SELECT id FROM foundation_topics WHERE id=$1::uuid
+				UNION
+				SELECT child.id
+				FROM foundation_topics child
+				JOIN descendants d ON child.parent_topic_id=d.id
+			)
+			SELECT EXISTS(SELECT 1 FROM descendants WHERE id=$2::uuid)
+		`, topicID, parentID).Scan(&createsCycle); err != nil {
+			return mapError(err)
+		}
+		if createsCycle {
+			return content.ErrConflict
+		}
+	}
 	return nil
 }
 

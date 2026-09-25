@@ -112,7 +112,17 @@ func (r *Repository) GetLibraryItem(ctx context.Context, itemID string) (content
 	if err != nil {
 		return content.LibraryItem{}, err
 	}
-	_ = r.db.QueryRow(ctx, `SELECT COALESCE(asset_id::text,'') FROM library_item_assets WHERE library_item_id=$1::uuid AND purpose='primary' LIMIT 1`, itemID).Scan(&row.PrimaryAssetID)
+	if err := r.db.QueryRow(ctx, `
+		SELECT COALESCE((
+			SELECT asset_id::text
+			FROM library_item_assets
+			WHERE library_item_id=$1::uuid AND purpose='primary'
+			ORDER BY sort_order,asset_id
+			LIMIT 1
+		),'')
+	`, itemID).Scan(&row.PrimaryAssetID); err != nil {
+		return content.LibraryItem{}, err
+	}
 	return row, nil
 }
 
