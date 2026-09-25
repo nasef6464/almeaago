@@ -497,8 +497,8 @@ func TestTeacherWorkspaceReturnsOnlyOrganizationsProjection(t *testing.T) {
 
 func TestParentAuthorityRequiresParentRole(t *testing.T) {
 	service := orgapp.NewService(&repoStub{})
-	handler := New(service, authStub{auth: adminAuth()})
-	request := httptest.NewRequest(http.MethodGet, "/parent-authority", nil)
+	handler := NewParentFacade(service, authStub{auth: adminAuth()})
+	request := httptest.NewRequest(http.MethodGet, "/authority", nil)
 	response := httptest.NewRecorder()
 
 	handler.ServeHTTP(response, request)
@@ -519,8 +519,8 @@ func TestParentAuthorityReturnsOnlyCanonicalIdentifiers(t *testing.T) {
 	auth := identityapp.Authenticated{User: identitydomain.User{
 		ID: "parent-1", Status: "active", Roles: []identitydomain.Role{identitydomain.RoleParent},
 	}}
-	handler := New(service, authStub{auth: auth})
-	request := httptest.NewRequest(http.MethodGet, "/parent-authority", nil)
+	handler := NewParentFacade(service, authStub{auth: auth})
+	request := httptest.NewRequest(http.MethodGet, "/authority", nil)
 	response := httptest.NewRecorder()
 
 	handler.ServeHTTP(response, request)
