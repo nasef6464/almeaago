@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: ALMEAA API
-  version: 0.3.0
+  version: 0.4.0
 paths:
   /api/v1/taxonomy/bootstrap:
     get:
@@ -1259,3 +1259,187 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Invalid CSRF token }
         "500": { description: Delivery unavailable }
+
+
+  /api/v1/courses:
+    get:
+      operationId: contentListCourses
+      description: >
+        Authenticated staff list. Default limit 50, maximum 100, returns compact rows plus
+        hasMore. Teacher scope is forcibly limited to content they own or are explicitly assigned.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: pathId, schema: { type: string } }
+        - { in: query, name: subjectId, schema: { type: string } }
+        - { in: query, name: search, schema: { type: string, maxLength: 160 } }
+        - { in: query, name: workflowStatus, schema: { type: string, enum: [draft, pending_review, approved, rejected, archived] } }
+      responses:
+        "200": { description: Bounded staff course page }
+        "400": { description: Invalid filter or pagination }
+        "401": { description: Authentication required }
+        "403": { description: Staff scope required }
+    post:
+      operationId: contentCreateCourse
+      description: Staff-only, CSRF-protected course creation. Taxonomy and active Media references are server-validated.
+      responses:
+        "201": { description: Draft course created }
+        "400": { description: Invalid course payload }
+        "403": { description: Staff role or CSRF denied }
+        "409": { description: Taxonomy, owner, asset, or relational conflict }
+
+  /api/v1/courses/{id}:
+    get:
+      operationId: contentGetCourseStaff
+      responses:
+        "200": { description: Staff-authorized course detail }
+        "403": { description: Ownership or assignment scope denied }
+        "404": { description: Course not found }
+    put:
+      operationId: contentUpdateCourse
+      description: CSRF-protected optimistic update using expectedRevision. Approved and archived rows are not edited in place.
+      responses:
+        "200": { description: Course updated }
+        "400": { description: Invalid payload }
+        "403": { description: Edit scope or CSRF denied }
+        "409": { description: Revision, workflow, taxonomy, owner, or asset conflict }
+
+  /api/v1/courses/{id}/workflow:
+    patch:
+      operationId: contentSetCourseWorkflow
+      description: CSRF-protected workflow transition using expectedRevision. Approval requires publishable course composition.
+      responses:
+        "200": { description: Course workflow updated }
+        "403": { description: Role/scope or CSRF denied }
+        "409": { description: Invalid transition or revision conflict }
+
+  /api/v1/lessons:
+    get:
+      operationId: contentListLessons
+      description: Bounded staff lesson list with teacher owner/assignment scope and hasMore pagination.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: pathId, schema: { type: string } }
+        - { in: query, name: subjectId, schema: { type: string } }
+        - { in: query, name: search, schema: { type: string, maxLength: 160 } }
+        - { in: query, name: workflowStatus, schema: { type: string, enum: [draft, pending_review, approved, rejected, archived] } }
+      responses:
+        "200": { description: Bounded staff lesson page }
+        "403": { description: Staff scope required }
+    post:
+      operationId: contentCreateLesson
+      description: Staff-only, CSRF-protected lesson creation. Binary assets remain in Media/R2 and are referenced by ID.
+      responses:
+        "201": { description: Draft lesson created }
+        "400": { description: Invalid lesson payload }
+        "403": { description: Staff role or CSRF denied }
+        "409": { description: Taxonomy, owner, or asset conflict }
+
+  /api/v1/lessons/{id}:
+    get:
+      operationId: contentGetLessonStaff
+      responses:
+        "200": { description: Staff-authorized lesson detail }
+        "403": { description: Ownership or assignment scope denied }
+        "404": { description: Lesson not found }
+    put:
+      operationId: contentUpdateLesson
+      description: CSRF-protected optimistic update using expectedRevision.
+      responses:
+        "200": { description: Lesson updated }
+        "403": { description: Edit scope or CSRF denied }
+        "409": { description: Revision, workflow, taxonomy, owner, or asset conflict }
+
+  /api/v1/lessons/{id}/workflow:
+    patch:
+      operationId: contentSetLessonWorkflow
+      description: Approval requires lesson-type-specific publishable content and active linked assets.
+      responses:
+        "200": { description: Lesson workflow updated }
+        "403": { description: Role/scope or CSRF denied }
+        "409": { description: Invalid transition or revision conflict }
+
+  /api/v1/foundation/topics:
+    get:
+      operationId: contentListFoundationTopics
+      description: Platform-admin bounded foundation topic tree list. Foundation remains distinct from Courses.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: pathId, schema: { type: string } }
+        - { in: query, name: subjectId, schema: { type: string } }
+        - { in: query, name: parentId, schema: { type: string } }
+        - { in: query, name: search, schema: { type: string, maxLength: 160 } }
+        - { in: query, name: status, schema: { type: string, enum: [active, inactive, archived] } }
+      responses:
+        "200": { description: Bounded foundation topic page }
+        "403": { description: Platform admin required }
+    post:
+      operationId: contentCreateFoundationTopic
+      description: Platform-admin, CSRF-protected structural topic creation with taxonomy and skill validation.
+      responses:
+        "201": { description: Foundation topic created }
+        "403": { description: Platform admin or CSRF denied }
+        "409": { description: Parent, taxonomy, or skill conflict }
+
+  /api/v1/foundation/topics/{id}:
+    get:
+      operationId: contentGetFoundationTopicStaff
+      responses:
+        "200": { description: Foundation topic detail }
+        "403": { description: Platform admin required }
+        "404": { description: Topic not found }
+    put:
+      operationId: contentUpdateFoundationTopic
+      description: CSRF-protected optimistic update. Stable topic code cannot be changed.
+      responses:
+        "200": { description: Foundation topic updated }
+        "403": { description: Platform admin or CSRF denied }
+        "409": { description: Revision, parent, taxonomy, or skill conflict }
+
+  /api/v1/library:
+    get:
+      operationId: contentListLibrary
+      description: Bounded staff library list with teacher owner/assignment scope and hasMore pagination.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: pathId, schema: { type: string } }
+        - { in: query, name: subjectId, schema: { type: string } }
+        - { in: query, name: search, schema: { type: string, maxLength: 160 } }
+        - { in: query, name: workflowStatus, schema: { type: string, enum: [draft, pending_review, approved, rejected, archived] } }
+      responses:
+        "200": { description: Bounded staff library page }
+        "403": { description: Staff scope required }
+    post:
+      operationId: contentCreateLibraryItem
+      description: Staff-only, CSRF-protected library creation. Large binaries stay in Media/R2.
+      responses:
+        "201": { description: Draft library item created }
+        "403": { description: Staff role or CSRF denied }
+        "409": { description: Taxonomy, owner, or asset conflict }
+
+  /api/v1/library/{id}:
+    get:
+      operationId: contentGetLibraryItemStaff
+      responses:
+        "200": { description: Staff-authorized library detail }
+        "403": { description: Ownership or assignment scope denied }
+        "404": { description: Library item not found }
+    put:
+      operationId: contentUpdateLibraryItem
+      description: CSRF-protected optimistic update using expectedRevision.
+      responses:
+        "200": { description: Library item updated }
+        "403": { description: Edit scope or CSRF denied }
+        "409": { description: Revision, workflow, taxonomy, owner, or asset conflict }
+
+  /api/v1/library/{id}/workflow:
+    patch:
+      operationId: contentSetLibraryWorkflow
+      description: CSRF-protected lifecycle transition. Approval requires an external URL or verified active primary asset.
+      responses:
+        "200": { description: Library workflow updated }
+        "403": { description: Role/scope or CSRF denied }
+        "409": { description: Invalid transition or revision conflict }
