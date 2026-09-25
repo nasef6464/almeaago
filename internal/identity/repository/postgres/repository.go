@@ -11,18 +11,35 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/nasef6464/almeaago/internal/identity/domain"
-	orgpostgres "github.com/nasef6464/almeaago/internal/organizations/repository/postgres"
+	orgdomain "github.com/nasef6464/almeaago/internal/organizations/domain"
 )
+
+type OrganizationScopeGateway interface {
+	SyncTx(
+		ctx context.Context,
+		tx pgx.Tx,
+		command orgdomain.AdminAccountScopeCommand,
+	) error
+	SnapshotTx(
+		ctx context.Context,
+		tx pgx.Tx,
+		userID string,
+	) (orgdomain.AdminAccountScopeSnapshot, error)
+}
 
 type Repository struct {
 	db        *pgxpool.Pool
-	orgScopes *orgpostgres.AdminScopeWriter
+	orgScopes OrganizationScopeGateway
 }
 
-func New(db *pgxpool.Pool) *Repository {
+func New(db *pgxpool.Pool, scopes ...OrganizationScopeGateway) *Repository {
+	var orgScopes OrganizationScopeGateway
+	if len(scopes) > 0 {
+		orgScopes = scopes[0]
+	}
 	return &Repository{
 		db:        db,
-		orgScopes: orgpostgres.NewAdminScopeWriter(),
+		orgScopes: orgScopes,
 	}
 }
 
