@@ -15,6 +15,10 @@ import (
 	whatsappprovider "github.com/nasef6464/almeaago/internal/identity/provider/whatsapp"
 	identityrepo "github.com/nasef6464/almeaago/internal/identity/repository/postgres"
 	identityhttp "github.com/nasef6464/almeaago/internal/identity/transport/http"
+	mediaapp "github.com/nasef6464/almeaago/internal/media/application"
+	r2provider "github.com/nasef6464/almeaago/internal/media/provider/r2"
+	mediarepo "github.com/nasef6464/almeaago/internal/media/repository/postgres"
+	mediahttp "github.com/nasef6464/almeaago/internal/media/transport/http"
 	operationsrepo "github.com/nasef6464/almeaago/internal/operations/repository/postgres"
 	orgapp "github.com/nasef6464/almeaago/internal/organizations/application"
 	orgrepo "github.com/nasef6464/almeaago/internal/organizations/repository/postgres"
@@ -70,6 +74,20 @@ func main() {
 	taxonomyService := taxonomyapp.NewService(taxonomyRepository)
 	questionRepository := questionrepo.New(db, auditWriter)
 	questionService := questionapp.NewService(questionRepository)
+	mediaRepository := mediarepo.New(db, auditWriter)
+	r2Client := r2provider.New(r2provider.Config{
+		AccountID:       cfg.R2AccountID,
+		Bucket:          cfg.R2Bucket,
+		PublicBaseURL:   cfg.R2PublicBaseURL,
+		AccessKeyID:     cfg.R2AccessKeyID,
+		SecretAccessKey: cfg.R2SecretAccessKey,
+	})
+	mediaService := mediaapp.NewService(
+		mediaRepository,
+		r2Client,
+		cfg.MediaMaxUploadBytes,
+		time.Duration(cfg.MediaPresignTTLSeconds)*time.Second,
+	)
 
 	whatsAppDelivery := whatsappprovider.NewWebhook(
 		cfg.WhatsAppOTPEndpoint,
@@ -81,6 +99,7 @@ func main() {
 	})
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
 	questionHandler := questionhttp.New(questionService, identityService)
+	mediaHandler := mediahttp.New(mediaService, identityService)
 	organizationsHandler := organizationshttp.New(organizationsService, identityService)
 	parentsHandler := organizationshttp.NewParentFacade(organizationsService, identityService)
 	legacySchoolAccessHandler := organizationshttp.NewLegacy(organizationsService, identityService)
@@ -109,7 +128,7 @@ func main() {
 		Parents:            parentsHandler,
 		Taxonomy:           taxonomyHandler,
 		QuestionBank:       questionHandler,
-		Questions:          questionHandler,
+		Media:              mediaHandler,
 		LegacySchoolAccess: legacySchoolAccessHandler,
 	})
 
