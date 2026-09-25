@@ -71,7 +71,6 @@ type Repository interface {
 	ExpireOTPChallenge(ctx context.Context, challengeID string) error
 	ResolveWhatsAppUser(ctx context.Context, phone string, verifiedAt time.Time) (domain.User, error)
 	ResolveGoogleUser(ctx context.Context, profile domain.GoogleProfile, verifiedAt time.Time) (domain.User, error)
-
 }
 
 type Delivery interface {
