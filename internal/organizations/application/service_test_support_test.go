@@ -26,6 +26,10 @@ type repositoryMock struct {
 	assignmentWrite   org.AssignmentWrite
 }
 
+func (m *repositoryMock) TeacherWorkspace(_ context.Context, _ string) (org.TeacherWorkspace, error) {
+	return org.TeacherWorkspace{}, nil
+}
+
 func (m *repositoryMock) SchoolContexts(
 	_ context.Context,
 	_ string,
