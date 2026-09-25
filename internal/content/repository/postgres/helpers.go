@@ -56,24 +56,38 @@ func (r *Repository) validateContentRefsTx(ctx context.Context, tx pgx.Tx, pathI
 	if !taxonomyOK {
 		return content.ErrInvalidTaxonomy
 	}
-	for _, skillID := range skillIDs {
-		var ok bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM skills WHERE id=$1::uuid AND subject_id=$2::uuid AND status='active')`, skillID, subjectID).Scan(&ok); err != nil {
-			return err
+	if len(skillIDs) > 0 {
+		var validSkillCount int
+		if err := tx.QueryRow(ctx, `
+			SELECT count(DISTINCT s.id)
+			FROM skills s
+			JOIN unnest($1::text[]) AS requested(id) ON s.id=requested.id::uuid
+			WHERE s.subject_id=$2::uuid AND s.status='active'
+		`, skillIDs, subjectID).Scan(&validSkillCount); err != nil {
+			return mapError(err)
 		}
-		if !ok {
+		if validSkillCount != len(skillIDs) {
 			return content.ErrInvalidTaxonomy
 		}
 	}
+
+	liveAssetIDs := make([]string, 0, len(assetIDs))
 	for _, assetID := range assetIDs {
-		if assetID == "" {
-			continue
+		if assetID != "" {
+			liveAssetIDs = append(liveAssetIDs, assetID)
 		}
-		var ok bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM assets WHERE id=$1::uuid AND status='active')`, assetID).Scan(&ok); err != nil {
-			return err
+	}
+	if len(liveAssetIDs) > 0 {
+		var validAssetCount int
+		if err := tx.QueryRow(ctx, `
+			SELECT count(DISTINCT a.id)
+			FROM assets a
+			JOIN unnest($1::text[]) AS requested(id) ON a.id=requested.id::uuid
+			WHERE a.status='active'
+		`, liveAssetIDs).Scan(&validAssetCount); err != nil {
+			return mapError(err)
 		}
-		if !ok {
+		if validAssetCount != len(liveAssetIDs) {
 			return content.ErrInvalidAsset
 		}
 	}
