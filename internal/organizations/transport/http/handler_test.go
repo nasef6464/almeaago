@@ -109,7 +109,7 @@ func TestAdminCanListSchools(t *testing.T) {
 	service := orgapp.NewService(&repoStub{
 		page: orgdomain.SchoolPage{
 			Schools: []orgdomain.School{{ID: "school-1", Code: "SCH-1", Name: "School", Status: orgdomain.SchoolStatusActive}},
-			Page: 1, Limit: 50, Total: 1,
+			Page:    1, Limit: 50, Total: 1,
 		},
 	})
 	handler := New(service, authStub{auth: adminAuth()})
