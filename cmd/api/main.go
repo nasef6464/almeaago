@@ -29,7 +29,6 @@ import (
 	"github.com/nasef6464/almeaago/internal/platform/httpserver"
 	"github.com/nasef6464/almeaago/internal/platform/observability"
 	questionapp "github.com/nasef6464/almeaago/internal/questionbank/application"
-	questionredis "github.com/nasef6464/almeaago/internal/questionbank/infrastructure/redis"
 	questionrepo "github.com/nasef6464/almeaago/internal/questionbank/repository/postgres"
 	questionhttp "github.com/nasef6464/almeaago/internal/questionbank/transport/http"
 	reportingrepo "github.com/nasef6464/almeaago/internal/reporting/repository/postgres"
@@ -89,11 +88,9 @@ func main() {
 		cfg.MediaMaxUploadBytes,
 		time.Duration(cfg.MediaPresignTTLSeconds)*time.Second,
 	)
-	importValidationStore := questionredis.NewImportValidationStore(redisClient)
 	questionImportService := questionapp.NewImportService(
 		questionRepository,
 		mediaService,
-		importValidationStore,
 		30*time.Minute,
 	)
 
