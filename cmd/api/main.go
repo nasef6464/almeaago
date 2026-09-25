@@ -10,6 +10,9 @@ import (
 	"syscall"
 	"time"
 
+	contentapp "github.com/nasef6464/almeaago/internal/content/application"
+	contentrepo "github.com/nasef6464/almeaago/internal/content/repository/postgres"
+	contenthttp "github.com/nasef6464/almeaago/internal/content/transport/http"
 	"github.com/nasef6464/almeaago/internal/identity/application"
 	googleprovider "github.com/nasef6464/almeaago/internal/identity/provider/google"
 	whatsappprovider "github.com/nasef6464/almeaago/internal/identity/provider/whatsapp"
@@ -68,6 +71,8 @@ func main() {
 	directorDirectory := reportingrepo.NewSchoolDirectorDirectory(db)
 
 	auditWriter := operationsrepo.NewAuditWriter()
+	contentRepository := contentrepo.New(db, auditWriter)
+	contentService := contentapp.NewService(contentRepository)
 	organizationsRepository := orgrepo.New(db, auditWriter, identityRepository)
 	organizationsService := orgapp.NewService(organizationsRepository, directorDirectory)
 	taxonomyRepository := taxonomyrepo.New(db)
@@ -102,6 +107,10 @@ func main() {
 		WhatsAppDelivery: whatsAppDelivery,
 		OTPPepper:        cfg.OTPPepper,
 	})
+	coursesHandler := contenthttp.NewCourses(contentService, identityService)
+	lessonsHandler := contenthttp.NewLessons(contentService, identityService)
+	foundationHandler := contenthttp.NewFoundation(contentService, identityService)
+	libraryHandler := contenthttp.NewLibrary(contentService, identityService)
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
 	questionHandler := questionhttp.New(
 		questionService,
@@ -138,6 +147,10 @@ func main() {
 		Taxonomy:           taxonomyHandler,
 		QuestionBank:       questionHandler,
 		Media:              mediaHandler,
+		Courses:            coursesHandler,
+		Lessons:            lessonsHandler,
+		Foundation:         foundationHandler,
+		Library:            libraryHandler,
 		LegacySchoolAccess: legacySchoolAccessHandler,
 	})
 

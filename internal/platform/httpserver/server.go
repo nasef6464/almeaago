@@ -23,6 +23,10 @@ type Dependencies struct {
 	Taxonomy           http.Handler
 	QuestionBank       http.Handler
 	Media              http.Handler
+	Courses            http.Handler
+	Lessons            http.Handler
+	Foundation         http.Handler
+	Library            http.Handler
 	LegacySchoolAccess http.Handler
 }
 
@@ -73,6 +77,18 @@ func New(addr string, deps Dependencies) *http.Server {
 	}
 	if deps.Media != nil {
 		router.Mount("/api/v1/media", deps.Media)
+	}
+	if deps.Courses != nil {
+		router.Mount("/api/v1/courses", deps.Courses)
+	}
+	if deps.Lessons != nil {
+		router.Mount("/api/v1/lessons", deps.Lessons)
+	}
+	if deps.Foundation != nil {
+		router.Mount("/api/v1/foundation", deps.Foundation)
+	}
+	if deps.Library != nil {
+		router.Mount("/api/v1/library", deps.Library)
 	}
 	if deps.LegacySchoolAccess != nil {
 		router.Mount("/api/school-access", deps.LegacySchoolAccess)
