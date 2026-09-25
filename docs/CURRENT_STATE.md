@@ -435,7 +435,7 @@ Still deliberately deferred:
 - Merge only after required gates are green; update this file after each verified checkpoint.
 - Use `almeaacodax` only for explicit behavioral/visual parity checks, never as an implementation target.
 
-## Assessment Staff Builder React Cutover — TESTED / PR #43
+## Assessment Staff Builder React Cutover — TESTED / MERGED
 Implemented:
 - role-aware `/admin-dashboard/assessments` management route using the existing admin shell.
 - bounded Assessment list/search/filter pagination and exact teacher path+subject gating before any list request.
@@ -448,7 +448,8 @@ Implemented:
 Verification:
 - PR #43 implementation head `2fc2264b839ebb4e4d465c55a5f53fb469ba31a2` passed Frontend CI run `36190040514`.
 - Frontend E2E run `36190040492` passed, including Assessment desktop, mobile and teacher exact-scope tests plus the existing suite.
-- final documentation-inclusive exact-head CI/E2E is required before merge.
+- final exact head `d4e4de73336a9a55211ad4f28c8cada320b71eaa` passed Frontend CI run `36190174622` and Frontend E2E run `36190174557`.
+- PR #43 merged to `main` as `3fd2c71ef95c92ae9ba40047637d2e410494c832`.
 
 ## Next exact action
-Close PR #43 on a final exact head with Frontend CI + Frontend E2E green, merge it, then start learner Assessment attempt lifecycle (start/autosave/resume/submit/scoring) as the next focused batch. Do not mix Realtime, Commerce, Learning side effects or AI into that attempt-core batch.
+Start learner Assessment attempt lifecycle (start/autosave/resume/submit/scoring) from current `main` as the next focused batch. Do not mix Realtime, Commerce, Learning side effects or AI into that attempt-core batch.
