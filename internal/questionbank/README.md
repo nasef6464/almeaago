@@ -29,7 +29,7 @@ The quantitative import path is deliberately stricter than normal staff authorin
 - SHA-256 image identity.
 - verified active WebP asset from Media/R2 before import.
 - dry-run is the default.
-- write mode requires a successful server-recorded Redis dry-run digest for the exact normalized payload.
+- write mode requires a successful durable PostgreSQL preflight for the exact normalized manifest hash; the preflight expires and is consumed transactionally.
 - duplicate questionCode, sourceItemId and imageHash are rejected.
 - imported questions are always platform-owned drafts; import never auto-approves.
 - durable batch reports are stored.
