@@ -32,7 +32,7 @@ Content React cutover — **TESTED / VISUAL CHECKPOINT GREEN / MERGED**.
 Assessment foundation schema — **TESTED / MERGED**.
 
 ## Active batch — Assessment Definition / Version API
-PR #42 on `feat/assessment-definition-api` is the only active implementation batch.
+PR #42 — Assessment Definition / Version API — **TESTED / MERGED**.
 
 Implemented:
 - Assessment domain model with explicit owner, workflow, revision and immutable version composition.
@@ -50,14 +50,17 @@ Implemented:
 Verification:
 - one-shot gofmt automation completed and removed itself.
 - Backend CI passed on implementation SHA `688a503774d865094e31f1dc8bffe067b7aed2c7`.
-- final documentation-inclusive exact-head CI is required before merge.
+- final documentation-inclusive head `cf43f141c4102997f9d8c029d9fe504b21d9f0be` passed Backend CI.
 - no Vercel or Render deployment is part of this batch.
 
+Merge evidence:
+- PR #42 merged only after the exact head above was Green and mergeable.
+- squash merge on `main`: `0348540c024c1fb0d1fb5e93fa230140304ca1ae`.
+
 Next gate:
-1. run Backend CI on the final documentation-inclusive head;
-2. merge PR #42 only if that exact head is Green and mergeable;
-3. update main checkpoint/parity evidence from the merged result;
-4. only then start the next parity batch.
+1. begin the next parity batch from `main` only;
+2. keep `almeaacodax` as read-only behavioral/visual reference;
+3. preserve the same contract -> implementation -> exact-head CI -> documentation -> merge discipline.
 
 ## Identity Core / Recovery / Providers — TESTED / MERGED
 Includes:
