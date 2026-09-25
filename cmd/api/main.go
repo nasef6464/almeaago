@@ -86,8 +86,8 @@ func main() {
 	})
 
 	server := httpserver.New(cfg.HTTPAddr, httpserver.Dependencies{
-		Logger:   logger,
-		DB:       db,
+		Logger:        logger,
+		DB:            db,
 		Redis:         redisClient,
 		Identity:      identityHandler,
 		Organizations: organizationsHandler,
