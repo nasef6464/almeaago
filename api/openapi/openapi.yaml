@@ -102,7 +102,7 @@ paths:
       responses:
         "201": { description: Draft question created }
         "400": { description: Invalid question/version payload }
-        "403": { description: Platform admin role or CSRF denied }
+        "403": { description: Staff role or CSRF denied }
         "409": { description: Question code, taxonomy, asset, or hierarchy conflict }
 
   /api/v1/questions/coverage:
@@ -216,7 +216,7 @@ paths:
         "200": { description: Existing verified asset or short-lived signed PUT target }
         "400": { description: Invalid purpose, MIME, size, question code, or SHA-256 }
         "401": { description: Authentication required }
-        "403": { description: Platform admin role or CSRF denied }
+        "403": { description: Staff role or CSRF denied }
         "409": { description: Existing hash metadata conflicts }
         "503": { description: R2 provider not configured or unavailable }
 
