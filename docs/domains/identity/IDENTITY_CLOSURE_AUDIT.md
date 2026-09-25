@@ -26,7 +26,7 @@ This document prevents unrelated legacy auth-router responsibilities from being 
 | admin/trainers | Reporting / Organizations | trainer directory depends on managed path/subject scope |
 | admin/trainers/:id | Reporting / Organizations | trainer detail and scope |
 | trainer/performance | Reporting | analytics/read model |
-| school/group fields on admin user mutation | Organizations | explicitly rejected until school/class scope is wired |
+| school/group fields on admin user mutation | Organizations | wired through explicit Organizations transaction contract |
 
 ## Compatibility aliases retained
 
@@ -50,14 +50,18 @@ This is required by the ALMEAA media/bandwidth policy.
 
 Legacy auth routes directly mutated school/group/parent/teacher relationships.
 
-V2 does not silently reproduce those cross-domain writes inside Identity. Their owning Organizations/Parents domains will perform the relationship transaction and audit explicitly.
+V2 preserves the observable admin flow without making Identity own those foreign tables:
+- Identity owns the account/role mutation and transaction boundary.
+- Organizations owns school/class/parent relationship SQL through an explicit transaction-aware contract.
+- Reporting owns the cross-domain admin user-directory read model.
+- trainer managed path/subject scope remains with Catalog/Content and is rejected explicitly until connected.
 
 ## Exit criteria for Identity functional closure
 
 Identity can be considered functionally closed when:
-1. account-profile slice is Backend CI green and merged;
+1. admin + self-account slice is Backend/Database CI green and merged;
 2. live Google/WhatsApp provider smoke is tracked as an external staging gate;
 3. desktop/mobile Auth screenshots are compared against legacy;
-4. organization-owned routes above are present in their destination domain plans and not lost.
+4. organization-owned and trainer/reporting flows remain tracked in their destination domains.
 
 Only then may the Identity parity row move beyond TESTED toward PARITY_PROVEN.
