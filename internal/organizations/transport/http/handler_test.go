@@ -29,12 +29,19 @@ func (a authStub) VerifyCSRF(identityapp.Authenticated, string) error {
 }
 
 type repoStub struct {
+	contexts        []orgdomain.SchoolContext
 	page            orgdomain.SchoolPage
 	membershipWrite orgdomain.MembershipWrite
 	directorWrite   orgdomain.DirectorWrite
 	assignmentWrite orgdomain.AssignmentWrite
 }
 
+func (r *repoStub) SchoolContexts(
+	_ context.Context,
+	_ string,
+) ([]orgdomain.SchoolContext, error) {
+	return append([]orgdomain.SchoolContext(nil), r.contexts...), nil
+}
 func (r *repoStub) ListSchools(context.Context, orgdomain.AccessContext, orgdomain.SchoolListQuery) (orgdomain.SchoolPage, error) {
 	return r.page, nil
 }
