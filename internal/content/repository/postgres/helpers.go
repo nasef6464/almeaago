@@ -340,7 +340,7 @@ func buildListWhere(query content.ListQuery, alias string) (string, []any) {
 					  AND s.path_id=%s.path_id AND s.status='active'
 				)
 			)`, index, alias, index, alias, alias))
-	
+
 		}
 	}
 	return strings.Join(parts, " AND "), args

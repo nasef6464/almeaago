@@ -245,7 +245,7 @@ func buildListFilters(query question.ListQuery) ([]string, []any) {
 					  AND s.path_id=q.path_id AND s.status='active'
 				)
 			)`, index, index))
-	
+
 		}
 	}
 	if query.Search != "" {
