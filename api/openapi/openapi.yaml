@@ -1266,7 +1266,8 @@ paths:
       operationId: contentListCourses
       description: >
         Authenticated staff list. Default limit 50, maximum 100, returns compact rows plus
-        hasMore. Teacher scope is forcibly limited to content they own or are explicitly assigned.
+        hasMore. Teacher scope is forcibly limited to content they own or are explicitly assigned,
+        and to their canonical active trainer path/subject scope.
       parameters:
         - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
         - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
@@ -1281,11 +1282,11 @@ paths:
         "403": { description: Staff scope required }
     post:
       operationId: contentCreateCourse
-      description: Platform-admin-only, CSRF-protected course creation until canonical trainer/school-teacher authoring scopes are integrated. Taxonomy and active Media references are server-validated.
+      description: Platform admins and scoped platform trainers may create courses. Trainer ownership/assignment is server-forced, revenue share remains admin-controlled, and taxonomy/active Media references are server-validated.
       responses:
         "201": { description: Draft course created }
         "400": { description: Invalid course payload }
-        "403": { description: Platform admin role or CSRF denied }
+        "403": { description: Admin/trainer scope or CSRF denied }
         "409": { description: Taxonomy, owner, asset, or relational conflict }
 
   /api/v1/courses/{id}:
@@ -1316,7 +1317,7 @@ paths:
   /api/v1/lessons:
     get:
       operationId: contentListLessons
-      description: Bounded staff lesson list with teacher owner/assignment scope and hasMore pagination.
+      description: Bounded staff lesson list with teacher owner/assignment plus canonical trainer taxonomy scope and hasMore pagination.
       parameters:
         - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
         - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
@@ -1329,11 +1330,11 @@ paths:
         "403": { description: Staff scope required }
     post:
       operationId: contentCreateLesson
-      description: Platform-admin-only, CSRF-protected lesson creation until canonical trainer/school-teacher authoring scopes are integrated. Binary assets remain in Media/R2 and are referenced by ID.
+      description: Platform admins and scoped platform trainers may create lessons. Trainer ownership/assignment is server-forced; binary assets remain in Media/R2 and are referenced by ID.
       responses:
         "201": { description: Draft lesson created }
         "400": { description: Invalid lesson payload }
-        "403": { description: Platform admin role or CSRF denied }
+        "403": { description: Admin/trainer scope or CSRF denied }
         "409": { description: Taxonomy, owner, or asset conflict }
 
   /api/v1/lessons/{id}:
@@ -1401,7 +1402,7 @@ paths:
   /api/v1/library:
     get:
       operationId: contentListLibrary
-      description: Bounded staff library list with teacher owner/assignment scope and hasMore pagination.
+      description: Bounded staff library list with teacher owner/assignment plus canonical trainer taxonomy scope and hasMore pagination.
       parameters:
         - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
         - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
@@ -1414,10 +1415,10 @@ paths:
         "403": { description: Staff scope required }
     post:
       operationId: contentCreateLibraryItem
-      description: Platform-admin-only, CSRF-protected library creation until canonical trainer/school-teacher authoring scopes are integrated. Large binaries stay in Media/R2.
+      description: Platform admins and scoped platform trainers may create library items. Trainer ownership/assignment is server-forced and large binaries stay in Media/R2.
       responses:
         "201": { description: Draft library item created }
-        "403": { description: Platform admin role or CSRF denied }
+        "403": { description: Admin/trainer scope or CSRF denied }
         "409": { description: Taxonomy, owner, or asset conflict }
 
   /api/v1/library/{id}:
@@ -1443,3 +1444,39 @@ paths:
         "200": { description: Library workflow updated }
         "403": { description: Role/scope or CSRF denied }
         "409": { description: Invalid transition or revision conflict }
+
+
+  /api/v1/content/trainer-scopes/{userId}:
+    get:
+      operationId: contentGetTrainerScope
+      description: Platform-admin read of the canonical Content-owned platform-trainer path/subject authoring scope.
+      parameters:
+        - { in: path, name: userId, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Trainer authoring scope }
+        "403": { description: Platform admin required }
+        "404": { description: Teacher account not found }
+    put:
+      operationId: contentSetTrainerScope
+      description: >
+        Platform-admin, CSRF-protected replacement of the platform-trainer authoring scope.
+        Paths/subjects must be active canonical Taxonomy records. Empty arrays revoke platform-trainer authoring.
+      parameters:
+        - { in: path, name: userId, required: true, schema: { type: string } }
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                pathIds: { type: array, maxItems: 50, items: { type: string } }
+                subjectIds: { type: array, maxItems: 200, items: { type: string } }
+      responses:
+        "200": { description: Trainer authoring scope replaced transactionally with audit }
+        "400": { description: Invalid or unbounded scope payload }
+        "403": { description: Platform admin or CSRF denied }
+        "404": { description: Teacher account not found }
+        "409": { description: Inactive/invalid taxonomy or teacher relationship conflict }

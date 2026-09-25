@@ -51,3 +51,18 @@ func TestCourseListRejectsInvalidPaginationBeforeRepository(t *testing.T) {
 		t.Fatalf("expected 400, got %d body=%s", response.Code, response.Body.String())
 	}
 }
+
+func TestTrainerScopeMutationRequiresCSRF(t *testing.T) {
+	service := contentapp.NewService(nil)
+	handler := NewManagement(service, authStub{
+		auth:    identityapp.Authenticated{User: identity.User{ID: "admin-1", Roles: []identity.Role{identity.RoleAdmin}}},
+		csrfErr: errors.New("bad csrf"),
+	})
+	request := httptest.NewRequest(http.MethodPut, "/trainer-scopes/teacher-1", strings.NewReader(`{"pathIds":[],"subjectIds":[]}`))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d body=%s", response.Code, response.Body.String())
+	}
+}

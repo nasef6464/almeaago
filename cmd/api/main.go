@@ -111,6 +111,7 @@ func main() {
 	lessonsHandler := contenthttp.NewLessons(contentService, identityService)
 	foundationHandler := contenthttp.NewFoundation(contentService, identityService)
 	libraryHandler := contenthttp.NewLibrary(contentService, identityService)
+	contentManagementHandler := contenthttp.NewManagement(contentService, identityService)
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
 	questionHandler := questionhttp.New(
 		questionService,
@@ -151,6 +152,7 @@ func main() {
 		Lessons:            lessonsHandler,
 		Foundation:         foundationHandler,
 		Library:            libraryHandler,
+		ContentManagement:  contentManagementHandler,
 		LegacySchoolAccess: legacySchoolAccessHandler,
 	})
 
