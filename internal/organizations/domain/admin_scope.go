@@ -9,10 +9,16 @@ import (
 var ErrScopeNotFound = errors.New("organization scope record not found")
 
 type AdminAccountScopeCommand struct {
-	UserID             string
-	Role               identity.Role
-	RoleChanged        bool
-	SchoolID           *string
-	ClassIDs           *[]string
-	LinkedStudentIDs   *[]string
+	UserID           string
+	Role             identity.Role
+	RoleChanged      bool
+	SchoolID         *string
+	ClassIDs         *[]string
+	LinkedStudentIDs *[]string
+}
+
+type AdminAccountScopeSnapshot struct {
+	SchoolID         string
+	ClassIDs         []string
+	LinkedStudentIDs []string
 }
