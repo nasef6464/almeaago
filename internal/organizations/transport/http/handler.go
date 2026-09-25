@@ -88,7 +88,7 @@ func (h *Handler) listSchools(w http.ResponseWriter, r *http.Request) {
 		items = append(items, presentSchool(school))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"schools": items,
+		"schools":    items,
 		"pagination": pagination(page.Page, page.Limit, page.Total),
 	})
 }
@@ -185,7 +185,7 @@ func (h *Handler) listClasses(w http.ResponseWriter, r *http.Request) {
 		items = append(items, presentClass(classroom))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"classes": items,
+		"classes":    items,
 		"pagination": pagination(page.Page, page.Limit, page.Total),
 	})
 }
@@ -274,7 +274,7 @@ func (h *Handler) roster(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"members": page.Members,
+		"members":    page.Members,
 		"pagination": pagination(page.Page, page.Limit, page.Total),
 	})
 }
