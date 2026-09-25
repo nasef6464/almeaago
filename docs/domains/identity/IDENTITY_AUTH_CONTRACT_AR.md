@@ -121,13 +121,17 @@ Rules:
 - the last-admin invariant is protected transactionally under concurrency.
 - every mutation writes an audit event in the same transaction.
 
-Organization-owned fields remain pending:
-- school/class/group scope.
-- parent/student relationships.
-- trainer managed paths/subjects.
-- supervisor/teacher directory scope.
+Organization-owned account scopes now use explicit domain contracts:
+- school membership synchronization -> Organizations.
+- class/group membership synchronization -> Organizations.
+- parent/student relationship synchronization -> Organizations.
+- supervisor/teacher directory scope -> Reporting read model over canonical Organizations relations.
 
-V2 does not silently ignore those fields. Their writes fail explicitly until Organizations/Trainer scope is connected.
+Still pending:
+- trainer managed paths/subjects -> Catalog/Content ownership.
+- platformTrainer filter/count.
+
+V2 does not silently ignore pending trainer scope fields; those writes fail explicitly until the owning domain is connected.
 
 ## Intentional legacy fix
 Legacy single-user PATCH did not consistently protect the last admin while delete/bulk operations did.

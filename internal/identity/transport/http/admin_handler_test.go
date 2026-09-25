@@ -1,6 +1,7 @@
 package identityhttp
 
 import (
+	"encoding/json"
 	"net/http/httptest"
 	"testing"
 
@@ -30,15 +31,20 @@ func TestParseAdminUserQueryRejectsLimitAbove100(t *testing.T) {
 	}
 }
 
-func TestAdminScopeFieldsProvided(t *testing.T) {
-	school := "school-1"
-	if !adminScopeFieldsProvided(&school, nil, nil, nil, nil) {
-		t.Fatal("school scope must be detected")
+func TestOptionalAdminStringDistinguishesNullAndValue(t *testing.T) {
+	var nullValue optionalAdminString
+	if err := json.Unmarshal([]byte("null"), &nullValue); err != nil {
+		t.Fatal(err)
 	}
-	if !adminScopeFieldsProvided(nil, []string{"class-1"}, nil, nil, nil) {
-		t.Fatal("group/class scope must be detected")
+	if !nullValue.Present || nullValue.Value != "" {
+		t.Fatalf("unexpected null parse %#v", nullValue)
 	}
-	if adminScopeFieldsProvided(nil, nil, nil, nil, nil) {
-		t.Fatal("empty scope must not be detected")
+
+	var value optionalAdminString
+	if err := json.Unmarshal([]byte(`"school-1"`), &value); err != nil {
+		t.Fatal(err)
+	}
+	if !value.Present || value.Value != "school-1" {
+		t.Fatalf("unexpected value parse %#v", value)
 	}
 }

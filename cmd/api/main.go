@@ -15,11 +15,13 @@ import (
 	whatsappprovider "github.com/nasef6464/almeaago/internal/identity/provider/whatsapp"
 	identityrepo "github.com/nasef6464/almeaago/internal/identity/repository/postgres"
 	identityhttp "github.com/nasef6464/almeaago/internal/identity/transport/http"
+	orgrepo "github.com/nasef6464/almeaago/internal/organizations/repository/postgres"
 	"github.com/nasef6464/almeaago/internal/platform/cache"
 	"github.com/nasef6464/almeaago/internal/platform/config"
 	"github.com/nasef6464/almeaago/internal/platform/database"
 	"github.com/nasef6464/almeaago/internal/platform/httpserver"
 	"github.com/nasef6464/almeaago/internal/platform/observability"
+	reportingrepo "github.com/nasef6464/almeaago/internal/reporting/repository/postgres"
 )
 
 func main() {
@@ -47,7 +49,10 @@ func main() {
 	}
 	defer redisClient.Close()
 
-	identityRepository := identityrepo.New(db)
+	organizationScopes := orgrepo.NewAdminScopeWriter()
+	identityRepository := identityrepo.New(db, organizationScopes)
+	adminDirectory := reportingrepo.NewAdminUserDirectory(db)
+
 	whatsAppDelivery := whatsappprovider.NewWebhook(
 		cfg.WhatsAppOTPEndpoint,
 		cfg.WhatsAppOTPToken,
@@ -57,7 +62,7 @@ func main() {
 		OTPPepper:        cfg.OTPPepper,
 	})
 
-	adminService := application.NewAdminService(identityRepository)
+	adminService := application.NewAdminService(identityRepository, adminDirectory)
 	accountService := application.NewAccountService(identityRepository)
 
 	googleClient := googleprovider.New(googleprovider.Config{

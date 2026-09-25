@@ -5,7 +5,7 @@ Status values: NOT_STARTED · DISCOVERED · SPECIFIED · IMPLEMENTED · TESTED �
 | Capability | Domain | Functional | Role/Scope | Data | Visual | E2E | Status |
 |---|---|---|---|---|---|---|---|
 | Platform foundation | platform | yes | n/a | migrations verified | shell only | CI | TESTED |
-| Identity/Auth | identity | core/recovery/providers/admin tested; self profile/identity implemented | session/CSRF/lockout/OTP/admin guards tested; organization-owned scopes moved to destination domains | normalized identity/session/recovery/provider/OTP/admin-audit schema | auth/OTP UI build-tested; screenshot gate pending | admin gates green; self-account backend gate pending; live provider smoke pending | IN_PROGRESS |
+| Identity/Auth | identity | core/recovery/providers/self-profile implemented; admin lifecycle + normalized school/class/parent scopes implemented | session/CSRF/lockout/OTP/admin guards; teacher/supervisor directory uses legacy-compatible school/class scope | normalized identity/session/recovery/provider/OTP/admin-audit + organization relationships | auth/OTP UI build-tested; screenshot gate pending | admin Backend/Database gate pending; live provider smoke pending | IN_PROGRESS |
 | Schools/Classes | organizations | pending | pending | schema seed only | pending | pending | NOT_STARTED |
 | Taxonomy | taxonomy | pending | pending | schema seed only | pending | pending | NOT_STARTED |
 | Foundation learning | content/learning | pending | pending | relation seed only | pending | pending | NOT_STARTED |

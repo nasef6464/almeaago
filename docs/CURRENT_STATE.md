@@ -5,9 +5,9 @@
 
 Evidence:
 - PostgreSQL 18 migrations apply, verify, rollback and re-apply in CI.
-- Frontend TypeScript + Vite production build green.
-- Backend sqlc compile + gofmt + go vet + go test green.
-- CI split into Backend / Frontend / Database with path filters and cancel-in-progress.
+- Frontend TypeScript + Vite production build is green.
+- Backend sqlc compile + gofmt + go vet + go test is green.
+- CI is split into Backend / Frontend / Database with path filters and cancel-in-progress.
 - Product Blueprint, visual parity, database scalability and resource-budget docs live in this repository.
 
 ## Repository
@@ -33,27 +33,10 @@ Includes:
 
 External staging gates still pending:
 - real Google OAuth credentials and live smoke.
-- production OTP pepper.
 - real WhatsApp delivery endpoint/token and live smoke.
 
-## Identity Admin Accounts — TESTED / MERGED
-PR #7 passed Backend + Database CI and was merged.
-
-Includes:
-- bounded paginated admin user directory.
-- trigram name/email search.
-- role/status filters and summary.
-- create/upsert/update/bulk-status/delete.
-- transactional audit log.
-- session revocation on disable.
-- self-delete protection.
-- concurrency-safe last-active-admin protection.
-- explicit fail-closed boundaries for organization-owned fields.
-
-## Self Profile / Identity — IMPLEMENTED / CI PENDING
-Branch: `feat/identity-account-profile`
-
-Includes:
+## Self Profile / Identity — IMPLEMENTED
+Included in the current Identity branch:
 - PATCH /api/v1/auth/me/profile
 - PATCH /api/v1/auth/me/identity
 - profile name/avatar-reference update.
@@ -64,27 +47,64 @@ Includes:
 - self-update audit events.
 - CSRF required for both PATCH routes.
 
-Compatibility aliases:
+Compatibility aliases retained:
 - GET /api/v1/auth/csrf-token
 - POST /api/v1/auth/email/resend-verification
 - GET /api/v1/auth/google/call
 
+## Identity Admin Accounts — IMPLEMENTED / CI PENDING
+Branch: `feat/identity-admin`
+
+Implemented in this slice:
+- platform-admin user directory with page/limit/search/role/status filters.
+- supervisor/teacher directory constrained to legacy-compatible active school/class scope.
+- hard page limit 100.
+- trigram-backed name/email search.
+- role/status summary.
+- admin account create/upsert by email.
+- account name/avatar/role/status update.
+- normalized school membership synchronization.
+- normalized class/group membership synchronization.
+- normalized parent/student relationship synchronization.
+- bulk activation/deactivation with per-user results.
+- user delete.
+- CSRF required for all unsafe admin mutations.
+- transactional audit logs.
+- disabling an account revokes active sessions.
+- self-delete blocked.
+- last active admin protected on update/upsert/bulk/delete.
+- last-admin invariant serialized with a transaction advisory lock.
+- legacy last-admin PATCH inconsistency documented and intentionally fixed.
+- cross-domain writes delegated to Organizations contract.
+- cross-domain user directory reads owned by Reporting read model.
+- admin directory does not load password hashes or login/token internals.
+
+Still pending outside this slice:
+- trainer managed path/subject scopes.
+- platformTrainer filter/count.
+- live Google/WhatsApp staging smoke.
+- desktop/mobile Auth screenshot parity gate.
+
+Trainer scopes are never silently discarded: unsupported managedPathIds/managedSubjectIds fail explicitly until Catalog/Content ownership is implemented.
+
 ## Identity Closure Audit
 See `docs/domains/identity/IDENTITY_CLOSURE_AUDIT.md`.
 
-Routes deliberately moved out of Identity:
+Routes deliberately owned elsewhere:
 - preferences -> Learning.
 - purchase/redeem -> Commerce.
-- parent linking -> Parents / Organizations.
-- trainer directory/performance -> Organizations / Reporting.
-- school/class/group/user scope synchronization -> Organizations.
+- parent-facing link/unlink/read flows -> Parents / Organizations.
+- trainer directory/performance -> Reporting / Content ownership.
+- school/class/group canonical relationship state -> Organizations.
 
-## Visual / External gates
-Still required before Identity can be PARITY_PROVEN:
-- desktop/mobile Auth screenshot comparison.
-- live Google smoke on staging.
-- live WhatsApp OTP smoke on staging.
-- organization-owned auth-era flows proven in their destination domains.
+## Performance/scalability
+- admin directory uses bounded pagination.
+- user search uses pg_trgm indexes.
+- school-scope lookup has user-first index support.
+- directory reads use one paginated read-model query rather than N+1 user hydration.
+- mutation audit, identity state and organization scope changes commit atomically.
+- provider and OTP lookup paths remain indexed.
+- no large media passes through the Go API.
 
 ## Next exact action
-Run Backend CI for the account-profile closure branch, repair any failure, merge the exact tested SHA, then begin Organizations/Schools/Classes while keeping the visual/provider gates tracked.
+Run Backend + Database CI for `feat/identity-admin`, repair failures on the same branch, merge the exact tested SHA, then begin Organizations/Schools/Classes while keeping visual/provider/trainer-scope gates tracked.

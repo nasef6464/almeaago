@@ -1,6 +1,7 @@
 package identityhttp
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -10,6 +11,35 @@ import (
 	"github.com/nasef6464/almeaago/internal/identity/application"
 	"github.com/nasef6464/almeaago/internal/identity/domain"
 )
+
+type optionalAdminString struct {
+	Present bool
+	Value   string
+}
+
+func (o *optionalAdminString) UnmarshalJSON(data []byte) error {
+	o.Present = true
+	if string(data) == "null" {
+		o.Value = ""
+		return nil
+	}
+	return json.Unmarshal(data, &o.Value)
+}
+
+type adminUserResponse struct {
+	userResponse
+	IsActive         bool            `json:"isActive"`
+	SchoolID         string          `json:"schoolId,omitempty"`
+	GroupIDs         []string        `json:"groupIds"`
+	LinkedStudentIDs []string        `json:"linkedStudentIds"`
+	SchoolContexts   []schoolContext `json:"schoolContexts"`
+}
+
+type schoolContext struct {
+	SchoolID    string      `json:"schoolId"`
+	Role        domain.Role `json:"role"`
+	Permissions []string    `json:"permissions"`
+}
 
 func (h *Handler) adminListUsers(w http.ResponseWriter, r *http.Request) {
 	auth, ok := h.adminAuthenticate(w, r, false)
@@ -40,9 +70,9 @@ func (h *Handler) adminListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users := make([]userResponse, 0, len(page.Users))
-	for _, user := range page.Users {
-		users = append(users, presentUser(user))
+	users := make([]adminUserResponse, 0, len(page.Users))
+	for _, record := range page.Users {
+		users = append(users, presentAdminRecord(record))
 	}
 
 	totalPages := 0
@@ -75,8 +105,7 @@ func (h *Handler) adminUsersSummary(w http.ResponseWriter, r *http.Request) {
 		"total":            summary.Total,
 		"inactive":         summary.Inactive,
 		"byRole":           summary.ByRole,
-		"platformTrainers": nil,
-		"scopeStatus":      "pending_organizations",
+		"platformTrainers": summary.PlatformTrainers,
 	})
 }
 
@@ -100,30 +129,31 @@ func (h *Handler) adminUpsertUser(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &payload) {
 		return
 	}
-	if adminScopeFieldsProvided(
-		payload.SchoolID,
-		payload.GroupIDs,
-		payload.LinkedStudentIDs,
-		payload.ManagedPathIDs,
-		payload.ManagedSubjectIDs,
-	) {
+	if len(payload.ManagedPathIDs) > 0 || len(payload.ManagedSubjectIDs) > 0 {
 		writeApplicationError(w, application.ErrUnsupportedAdminScope)
 		return
 	}
 
-	user, err := h.admin.UpsertUser(
+	schoolID := ""
+	if payload.SchoolID != nil {
+		schoolID = *payload.SchoolID
+	}
+	record, err := h.admin.UpsertUser(
 		r.Context(),
 		auth.User,
 		payload.Name,
 		payload.Email,
 		payload.Password,
 		payload.Role,
+		schoolID,
+		payload.GroupIDs,
+		payload.LinkedStudentIDs,
 	)
 	if err != nil {
 		writeApplicationError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"user": presentUser(user)})
+	writeJSON(w, http.StatusCreated, map[string]any{"user": presentAdminRecord(record)})
 }
 
 func (h *Handler) adminUpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -133,46 +163,49 @@ func (h *Handler) adminUpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		Name              *string      `json:"name"`
-		Avatar            *string      `json:"avatar"`
-		Role              *domain.Role `json:"role"`
-		IsActive          *bool        `json:"isActive"`
-		SchoolID          *string      `json:"schoolId"`
-		GroupIDs          []string     `json:"groupIds"`
-		LinkedStudentIDs  []string     `json:"linkedStudentIds"`
-		ManagedPathIDs    []string     `json:"managedPathIds"`
-		ManagedSubjectIDs []string     `json:"managedSubjectIds"`
+		Name              *string             `json:"name"`
+		Avatar            *string             `json:"avatar"`
+		Role              *domain.Role        `json:"role"`
+		IsActive          *bool               `json:"isActive"`
+		SchoolID          optionalAdminString `json:"schoolId"`
+		GroupIDs          *[]string           `json:"groupIds"`
+		LinkedStudentIDs  *[]string           `json:"linkedStudentIds"`
+		ManagedPathIDs    []string            `json:"managedPathIds"`
+		ManagedSubjectIDs []string            `json:"managedSubjectIds"`
 	}
 	if !decodeJSON(w, r, &payload) {
 		return
 	}
-	if adminScopeFieldsProvided(
-		payload.SchoolID,
-		payload.GroupIDs,
-		payload.LinkedStudentIDs,
-		payload.ManagedPathIDs,
-		payload.ManagedSubjectIDs,
-	) {
+	if len(payload.ManagedPathIDs) > 0 || len(payload.ManagedSubjectIDs) > 0 {
 		writeApplicationError(w, application.ErrUnsupportedAdminScope)
 		return
 	}
 
-	user, err := h.admin.UpdateUser(
+	var schoolID *string
+	if payload.SchoolID.Present {
+		value := payload.SchoolID.Value
+		schoolID = &value
+	}
+
+	record, err := h.admin.UpdateUser(
 		r.Context(),
 		auth.User,
 		chi.URLParam(r, "id"),
 		domain.AdminUpdateUserInput{
-			Name:      payload.Name,
-			AvatarURL: payload.Avatar,
-			Role:      payload.Role,
-			Active:    payload.IsActive,
+			Name:             payload.Name,
+			AvatarURL:        payload.Avatar,
+			Role:             payload.Role,
+			Active:           payload.IsActive,
+			SchoolID:         schoolID,
+			ClassIDs:         payload.GroupIDs,
+			LinkedStudentIDs: payload.LinkedStudentIDs,
 		},
 	)
 	if err != nil {
 		writeApplicationError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"user": presentUser(user)})
+	writeJSON(w, http.StatusOK, map[string]any{"user": presentAdminRecord(record)})
 }
 
 func (h *Handler) adminBulkStatus(w http.ResponseWriter, r *http.Request) {
@@ -283,18 +316,28 @@ func parseAdminUserQuery(r *http.Request) (domain.AdminUserQuery, error) {
 	return query, nil
 }
 
-func adminScopeFieldsProvided(
-	schoolID *string,
-	groupIDs []string,
-	linkedStudentIDs []string,
-	managedPathIDs []string,
-	managedSubjectIDs []string,
-) bool {
-	if schoolID != nil && strings.TrimSpace(*schoolID) != "" {
-		return true
+func presentAdminRecord(record domain.AdminUserRecord) adminUserResponse {
+	base := presentUser(record.User)
+	contexts := make([]schoolContext, 0, 1)
+	if record.SchoolID != "" {
+		contexts = append(contexts, schoolContext{
+			SchoolID:    record.SchoolID,
+			Role:        base.Role,
+			Permissions: []string{},
+		})
 	}
-	return len(groupIDs) > 0 ||
-		len(linkedStudentIDs) > 0 ||
-		len(managedPathIDs) > 0 ||
-		len(managedSubjectIDs) > 0
+	if record.ClassIDs == nil {
+		record.ClassIDs = []string{}
+	}
+	if record.LinkedStudentIDs == nil {
+		record.LinkedStudentIDs = []string{}
+	}
+	return adminUserResponse{
+		userResponse:     base,
+		IsActive:         record.User.Status == "active",
+		SchoolID:         record.SchoolID,
+		GroupIDs:         record.ClassIDs,
+		LinkedStudentIDs: record.LinkedStudentIDs,
+		SchoolContexts:   contexts,
+	}
 }

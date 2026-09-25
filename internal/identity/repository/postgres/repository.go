@@ -11,14 +11,36 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/nasef6464/almeaago/internal/identity/domain"
+	orgdomain "github.com/nasef6464/almeaago/internal/organizations/domain"
 )
 
-type Repository struct {
-	db *pgxpool.Pool
+type OrganizationScopeGateway interface {
+	SyncTx(
+		ctx context.Context,
+		tx pgx.Tx,
+		command orgdomain.AdminAccountScopeCommand,
+	) error
+	SnapshotTx(
+		ctx context.Context,
+		tx pgx.Tx,
+		userID string,
+	) (orgdomain.AdminAccountScopeSnapshot, error)
 }
 
-func New(db *pgxpool.Pool) *Repository {
-	return &Repository{db: db}
+type Repository struct {
+	db        *pgxpool.Pool
+	orgScopes OrganizationScopeGateway
+}
+
+func New(db *pgxpool.Pool, scopes ...OrganizationScopeGateway) *Repository {
+	var orgScopes OrganizationScopeGateway
+	if len(scopes) > 0 {
+		orgScopes = scopes[0]
+	}
+	return &Repository{
+		db:        db,
+		orgScopes: orgScopes,
+	}
 }
 
 func (r *Repository) CreateUser(ctx context.Context, name, email, passwordHash string, role domain.Role) (domain.User, error) {
