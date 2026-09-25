@@ -468,7 +468,7 @@ Verification checkpoint:
 - final exact head `782d06a1d7b65435c2a8b68136aec17208a3d4de` passed Backend CI `36191285919`, Frontend CI `36191285944`, and Frontend E2E `36191285945`.
 - PR #44 merged to `main` as `56d6d6edf661a44f8919efefcc8d60565da0a7b0`.
 
-## Assessment Directed Assignments — IMPLEMENTED / PR #45
+## Assessment Directed Assignments — TESTED / MERGED
 Implemented:
 - bounded staff assignment create/list/status management with relational student/class audiences.
 - active school/class/student audience validation and staff school/assessment authority checks.
@@ -480,7 +480,8 @@ Implemented:
 
 Verification checkpoint:
 - exact implementation/test head `b801a97c9c5dbf6e4c88257acfc371cd70d7b1d0` passed Backend CI `36195573893`.
-- final documentation-inclusive exact-head Backend CI is required before merge.
+- final documentation-inclusive exact head `1680910ecf68a0f94f7f8a961ed678cecd49d718` passed Backend CI `36195683646`.
+- PR #45 merged to `main` as `5eed0f62b9d1f732dae79ead422f4df3b1fdf90f`.
 
 ## Next exact action
-Close PR #45 only after the final documentation-inclusive exact head is Green and review threads are clear; merge it and record the merge SHA. Then begin the next Assessment parity slice from current main.
+Build the Assessment result/review presentation slice from current `main`: learner result history/detail, question review governed by Assessment review settings, wrong/unanswered/review-later projections, and responsive learner UI/E2E. Keep Learning mastery side effects, Realtime sessions, Commerce and AI out of this batch.
