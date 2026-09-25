@@ -13,7 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 
@@ -27,7 +27,7 @@ const navItems = [
   { label: 'اعتماد المحتوى', icon: CheckCircle2 },
   { label: 'مركز الدروس', icon: BookOpen },
   { label: 'مركز المكتبة وملفات الدعم', icon: Library },
-  { label: 'مركز الاختبارات', icon: HelpCircle },
+  { label: 'مركز الاختبارات', icon: HelpCircle, href: '/admin-dashboard/assessments' },
   { label: 'إدارة المستخدمين', icon: Users },
   { label: 'الإعدادات', icon: Settings },
 ];
@@ -48,6 +48,7 @@ function Brand() {
 
 export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
   const { user } = useAuth();
+  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const sidebar = (
@@ -59,7 +60,8 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
       <nav className="flex-1 overflow-y-auto py-3">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const classes = item.active
+          const active = item.href ? location.pathname === item.href : item.active;
+          const classes = active
             ? 'border-r-4 border-amber-500 bg-amber-50 text-amber-700'
             : 'border-r-4 border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-800';
           if (item.href) {
