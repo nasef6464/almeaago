@@ -12,11 +12,11 @@ import (
 )
 
 type repoStub struct {
-	live       media.Asset
-	liveErr    error
-	reserved   media.ReserveRequest
-	asset      media.Asset
-	activated  bool
+	live      media.Asset
+	liveErr   error
+	reserved  media.ReserveRequest
+	asset     media.Asset
+	activated bool
 }
 
 func (r *repoStub) FindLiveBySHA(context.Context, string) (media.Asset, error) {
@@ -68,7 +68,7 @@ func (r *repoStub) Activate(_ context.Context, _ string, _ string, _ media.Objec
 }
 
 type providerStub struct {
-	available   bool
+	available    bool
 	presignCalls int
 	head         media.ObjectInfo
 	headErr      error
