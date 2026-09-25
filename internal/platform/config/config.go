@@ -22,12 +22,12 @@ type Config struct {
 	GoogleClientSecret string
 	GoogleRedirectURI  string
 
-	R2AccountID          string
-	R2Bucket             string
-	R2PublicBaseURL      string
-	R2AccessKeyID        string
-	R2SecretAccessKey    string
-	MediaMaxUploadBytes  int64
+	R2AccountID            string
+	R2Bucket               string
+	R2PublicBaseURL        string
+	R2AccessKeyID          string
+	R2SecretAccessKey      string
+	MediaMaxUploadBytes    int64
 	MediaPresignTTLSeconds int
 }
 
@@ -86,7 +86,6 @@ func value(key, fallback string) string {
 	}
 	return fallback
 }
-
 
 func int64Value(key string, fallback int64) (int64, error) {
 	raw := os.Getenv(key)
