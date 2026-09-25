@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	maxActiveCourseModules = 200
-	maxLessonsPerModule    = 500
-	maxTopicPlacements     = 1000
+	maxCourseModules          = 200
+	maxLessonsPerModule       = 500
+	maxCourseLessonPlacements = 5000
+	maxTopicPlacements        = 1000
 )
 
 func (r *Repository) CreateCourseModule(ctx context.Context, actorUserID, courseID string, expectedRevision int, title, description string, sortOrder int) (content.CourseModule, int, error) {
@@ -27,11 +28,11 @@ func (r *Repository) CreateCourseModule(ctx context.Context, actorUserID, course
 	if err != nil {
 		return content.CourseModule{}, 0, err
 	}
-	var activeCount int
-	if err := tx.QueryRow(ctx, `SELECT count(*) FROM course_modules WHERE course_id=$1::uuid AND status='active'`, courseID).Scan(&activeCount); err != nil {
+	var moduleCount int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM course_modules WHERE course_id=$1::uuid`, courseID).Scan(&moduleCount); err != nil {
 		return content.CourseModule{}, 0, err
 	}
-	if activeCount >= maxActiveCourseModules {
+	if moduleCount >= maxCourseModules {
 		return content.CourseModule{}, 0, content.ErrConflict
 	}
 	var row content.CourseModule
@@ -106,23 +107,61 @@ func (r *Repository) ListCourseModules(ctx context.Context, courseID string) ([]
 	if err != nil {
 		return nil, mapError(err)
 	}
-	defer rows.Close()
 	modules := make([]content.CourseModule, 0, 16)
+	indexByID := make(map[string]int, 16)
 	for rows.Next() {
-		var row content.CourseModule
-		if err := rows.Scan(&row.ID, &row.CourseID, &row.Title, &row.Description, &row.SortOrder, &row.Status, &row.CreatedAt, &row.UpdatedAt); err != nil {
-			return nil, err
-		}
-		if len(modules) >= maxActiveCourseModules {
+		if len(modules) >= maxCourseModules {
+			rows.Close()
 			return nil, content.ErrConflict
 		}
-		row.Lessons, err = r.listModuleLessons(ctx, row.ID)
-		if err != nil {
+		var row content.CourseModule
+		if err := rows.Scan(&row.ID, &row.CourseID, &row.Title, &row.Description, &row.SortOrder, &row.Status, &row.CreatedAt, &row.UpdatedAt); err != nil {
+			rows.Close()
 			return nil, err
 		}
+		row.Lessons = []content.CourseLessonPlacement{}
+		indexByID[row.ID] = len(modules)
 		modules = append(modules, row)
 	}
 	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+
+	placementRows, err := r.db.Query(ctx, `
+		SELECT cl.module_id::text,cl.lesson_id::text,cl.sort_order,cl.is_preview
+		FROM course_lessons cl
+		JOIN course_modules cm ON cm.id=cl.module_id
+		WHERE cm.course_id=$1::uuid
+		ORDER BY cm.sort_order,cm.id,cl.sort_order,cl.lesson_id
+		LIMIT 5001
+	`, courseID)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	defer placementRows.Close()
+	placementCount := 0
+	for placementRows.Next() {
+		if placementCount >= maxCourseLessonPlacements {
+			return nil, content.ErrConflict
+		}
+		var moduleID string
+		var placement content.CourseLessonPlacement
+		if err := placementRows.Scan(&moduleID, &placement.LessonID, &placement.SortOrder, &placement.IsPreview); err != nil {
+			return nil, err
+		}
+		index, ok := indexByID[moduleID]
+		if !ok {
+			return nil, content.ErrConflict
+		}
+		if len(modules[index].Lessons) >= maxLessonsPerModule {
+			return nil, content.ErrConflict
+		}
+		modules[index].Lessons = append(modules[index].Lessons, placement)
+		placementCount++
+	}
+	if err := placementRows.Err(); err != nil {
 		return nil, err
 	}
 	return modules, nil
@@ -164,16 +203,21 @@ func (r *Repository) PlaceCourseLesson(ctx context.Context, actorUserID, courseI
 		return 0, content.ErrConflict
 	}
 	var exists bool
-	var count int
+	var moduleCount, courseCount int
 	if err := tx.QueryRow(ctx, `
-		SELECT EXISTS(SELECT 1 FROM course_lessons WHERE module_id=$1::uuid AND lesson_id=$2::uuid),
-		       count(*)
-		FROM course_lessons
-		WHERE module_id=$1::uuid
-	`, moduleID, lessonID).Scan(&exists, &count); err != nil {
+		SELECT
+			EXISTS(SELECT 1 FROM course_lessons WHERE module_id=$1::uuid AND lesson_id=$2::uuid),
+			(SELECT count(*) FROM course_lessons WHERE module_id=$1::uuid),
+			(
+				SELECT count(*)
+				FROM course_lessons cl
+				JOIN course_modules cm ON cm.id=cl.module_id
+				WHERE cm.course_id=$3::uuid
+			)
+	`, moduleID, lessonID, courseID).Scan(&exists, &moduleCount, &courseCount); err != nil {
 		return 0, err
 	}
-	if !exists && count >= maxLessonsPerModule {
+	if !exists && (moduleCount >= maxLessonsPerModule || courseCount >= maxCourseLessonPlacements) {
 		return 0, content.ErrConflict
 	}
 	if _, err := tx.Exec(ctx, `
@@ -471,32 +515,6 @@ func validateTopicLibraryTx(ctx context.Context, tx pgx.Tx, itemID, pathID, subj
 		return content.ErrConflict
 	}
 	return nil
-}
-
-func (r *Repository) listModuleLessons(ctx context.Context, moduleID string) ([]content.CourseLessonPlacement, error) {
-	rows, err := r.db.Query(ctx, `
-		SELECT lesson_id::text,sort_order,is_preview
-		FROM course_lessons
-		WHERE module_id=$1::uuid
-		ORDER BY sort_order,lesson_id
-		LIMIT 501
-	`, moduleID)
-	if err != nil {
-		return nil, mapError(err)
-	}
-	defer rows.Close()
-	result := make([]content.CourseLessonPlacement, 0, 16)
-	for rows.Next() {
-		if len(result) >= maxLessonsPerModule {
-			return nil, content.ErrConflict
-		}
-		var row content.CourseLessonPlacement
-		if err := rows.Scan(&row.LessonID, &row.SortOrder, &row.IsPreview); err != nil {
-			return nil, err
-		}
-		result = append(result, row)
-	}
-	return result, rows.Err()
 }
 
 func listModuleLessonsTx(ctx context.Context, tx pgx.Tx, moduleID string) ([]content.CourseLessonPlacement, error) {

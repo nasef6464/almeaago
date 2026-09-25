@@ -82,8 +82,11 @@ func (s *Service) PlaceCourseLesson(ctx context.Context, actor identity.User, co
 		return 0, err
 	}
 	moduleID = strings.TrimSpace(moduleID)
-	if input.ExpectedRevision < 1 || input.SortOrder < 0 || moduleID == "" || courseRow.PathID != lessonRow.PathID || courseRow.SubjectID != lessonRow.SubjectID {
+	if input.ExpectedRevision < 1 || input.SortOrder < 0 || moduleID == "" {
 		return 0, ErrInvalidInput
+	}
+	if courseRow.PathID != lessonRow.PathID || courseRow.SubjectID != lessonRow.SubjectID {
+		return 0, content.ErrConflict
 	}
 	return s.repo.PlaceCourseLesson(ctx, actor.ID, courseRow.ID, moduleID, lessonRow.ID, input.ExpectedRevision, input.SortOrder, input.IsPreview)
 }
@@ -127,7 +130,7 @@ func (s *Service) LinkTopicLesson(ctx context.Context, actor identity.User, topi
 		return 0, err
 	}
 	if lesson.WorkflowStatus == content.WorkflowArchived || lesson.PathID != topic.PathID || lesson.SubjectID != topic.SubjectID {
-		return 0, ErrInvalidInput
+		return 0, content.ErrConflict
 	}
 	return s.repo.LinkTopicLesson(ctx, actor.ID, topic.ID, lesson.ID, input.ExpectedRevision, input.SortOrder)
 }
@@ -141,8 +144,11 @@ func (s *Service) UnlinkTopicLesson(ctx context.Context, actor identity.User, to
 		return 0, err
 	}
 	lessonID = strings.TrimSpace(lessonID)
-	if topic.Status != content.TopicActive || input.ExpectedRevision < 1 || lessonID == "" {
+	if input.ExpectedRevision < 1 || lessonID == "" {
 		return 0, ErrInvalidInput
+	}
+	if topic.Status != content.TopicActive {
+		return 0, ErrWorkflow
 	}
 	return s.repo.UnlinkTopicLesson(ctx, actor.ID, topic.ID, lessonID, input.ExpectedRevision)
 }
@@ -163,7 +169,7 @@ func (s *Service) LinkTopicLibrary(ctx context.Context, actor identity.User, top
 		return 0, err
 	}
 	if item.WorkflowStatus == content.WorkflowArchived || item.PathID != topic.PathID || item.SubjectID != topic.SubjectID {
-		return 0, ErrInvalidInput
+		return 0, content.ErrConflict
 	}
 	return s.repo.LinkTopicLibrary(ctx, actor.ID, topic.ID, item.ID, input.ExpectedRevision, input.SortOrder)
 }
@@ -177,8 +183,11 @@ func (s *Service) UnlinkTopicLibrary(ctx context.Context, actor identity.User, t
 		return 0, err
 	}
 	itemID = strings.TrimSpace(itemID)
-	if topic.Status != content.TopicActive || input.ExpectedRevision < 1 || itemID == "" {
+	if input.ExpectedRevision < 1 || itemID == "" {
 		return 0, ErrInvalidInput
+	}
+	if topic.Status != content.TopicActive {
+		return 0, ErrWorkflow
 	}
 	return s.repo.UnlinkTopicLibrary(ctx, actor.ID, topic.ID, itemID, input.ExpectedRevision)
 }
