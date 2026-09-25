@@ -18,3 +18,18 @@ This is an account-recovery and platform-governance invariant, not a UX feature.
 
 Parity status:
 Intentional security fix. The admin UI flow remains the same; only the unsafe edge case changes.
+
+
+## ID-MEDIA-001 — Large inline avatar payloads
+
+Legacy behavior:
+- profile/admin avatar fields could accept very large strings, including inline data payloads.
+
+V2 decision: **intentional change**.
+
+Identity stores only a small avatar reference string. Media bytes must use the media/object-storage flow (R2) instead of the users row or ordinary auth JSON requests.
+
+Reason:
+- prevents database bloat;
+- prevents repeated large API payloads;
+- follows ALMEAA bandwidth/media policy.
