@@ -82,7 +82,7 @@ func (providerStub) PublicURL(key string) string { return "https://cdn.example/"
 
 func adminAuth() identityapp.Authenticated {
 	return identityapp.Authenticated{User: identity.User{
-		ID: "11111111-1111-7111-8111-111111111111",
+		ID:    "11111111-1111-7111-8111-111111111111",
 		Roles: []identity.Role{identity.RoleAdmin},
 	}}
 }
