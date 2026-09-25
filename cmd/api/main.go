@@ -16,12 +16,12 @@ import (
 	identityrepo "github.com/nasef6464/almeaago/internal/identity/repository/postgres"
 	identityhttp "github.com/nasef6464/almeaago/internal/identity/transport/http"
 	orgrepo "github.com/nasef6464/almeaago/internal/organizations/repository/postgres"
-	reportingrepo "github.com/nasef6464/almeaago/internal/reporting/repository/postgres"
 	"github.com/nasef6464/almeaago/internal/platform/cache"
 	"github.com/nasef6464/almeaago/internal/platform/config"
 	"github.com/nasef6464/almeaago/internal/platform/database"
 	"github.com/nasef6464/almeaago/internal/platform/httpserver"
 	"github.com/nasef6464/almeaago/internal/platform/observability"
+	reportingrepo "github.com/nasef6464/almeaago/internal/reporting/repository/postgres"
 )
 
 func main() {
