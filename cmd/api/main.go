@@ -70,6 +70,7 @@ func main() {
 		OTPPepper:        cfg.OTPPepper,
 	})
 	organizationsHandler := organizationshttp.New(organizationsService, identityService)
+	parentsHandler := organizationshttp.NewParentFacade(organizationsService, identityService)
 	legacySchoolAccessHandler := organizationshttp.NewLegacy(organizationsService, identityService)
 
 	adminService := application.NewAdminService(identityRepository, adminDirectory)
@@ -93,6 +94,7 @@ func main() {
 		Redis:              redisClient,
 		Identity:           identityHandler,
 		Organizations:      organizationsHandler,
+		Parents:            parentsHandler,
 		LegacySchoolAccess: legacySchoolAccessHandler,
 	})
 
