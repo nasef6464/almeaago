@@ -10,6 +10,7 @@ sql:
       - "migrations/000006_otp_rate_limit_index.up.sql"
       - "migrations/000007_identity_admin_audit.up.sql"
       - "migrations/000008_organizations_core.up.sql"
+      - "migrations/000009_school_contracts.up.sql"
     queries: "db/queries"
     gen:
       go:
