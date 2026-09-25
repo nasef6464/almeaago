@@ -81,6 +81,13 @@ func (s *Service) ListSchools(
 	if !canReadOrganizations(actor) {
 		return org.SchoolPage{}, ErrForbidden
 	}
+	if query.Status != nil && !org.ValidSchoolStatus(*query.Status) {
+		return org.SchoolPage{}, ErrInvalidInput
+	}
+	query.Search = strings.TrimSpace(query.Search)
+	if len(query.Search) > 120 {
+		return org.SchoolPage{}, ErrInvalidInput
+	}
 	query = normalizeSchoolQuery(query)
 	return s.repo.ListSchools(ctx, accessOf(actor), query)
 }
@@ -161,8 +168,10 @@ func (s *Service) UpdateSchool(
 		}
 		patch.Name = &name
 	}
-	if input.Status != nil && !org.ValidSchoolStatus(*input.Status) {
-		return org.School{}, ErrInvalidInput
+	if input.Status != nil {
+		if !org.ValidSchoolStatus(*input.Status) || *input.Status == org.SchoolStatusArchived {
+			return org.School{}, ErrInvalidInput
+		}
 	}
 	if input.Metadata != nil {
 		metadata, err := normalizeMetadata(*input.Metadata)
@@ -211,6 +220,13 @@ func (s *Service) ListClasses(
 	}
 	if !allowed {
 		return org.ClassPage{}, ErrForbidden
+	}
+	if query.Status != nil && !org.ValidClassStatus(*query.Status) {
+		return org.ClassPage{}, ErrInvalidInput
+	}
+	query.Search = strings.TrimSpace(query.Search)
+	if len(query.Search) > 120 {
+		return org.ClassPage{}, ErrInvalidInput
 	}
 	query = normalizeClassQuery(query)
 	return s.repo.ListClasses(ctx, accessOf(actor), schoolID, query)
@@ -278,8 +294,10 @@ func (s *Service) UpdateClass(
 		}
 		patch.Name = &name
 	}
-	if input.Status != nil && !org.ValidClassStatus(*input.Status) {
-		return org.Class{}, ErrInvalidInput
+	if input.Status != nil {
+		if !org.ValidClassStatus(*input.Status) || *input.Status == org.ClassStatusArchived {
+			return org.Class{}, ErrInvalidInput
+		}
 	}
 	if input.Metadata != nil {
 		metadata, err := normalizeMetadata(*input.Metadata)
@@ -438,9 +456,6 @@ func normalizeSchoolQuery(query org.SchoolListQuery) org.SchoolListQuery {
 	query.Page = clampPage(query.Page)
 	query.Limit = clampLimit(query.Limit)
 	query.Search = strings.TrimSpace(query.Search)
-	if len(query.Search) > 120 {
-		query.Search = query.Search[:120]
-	}
 	return query
 }
 
