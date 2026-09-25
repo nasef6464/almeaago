@@ -18,6 +18,11 @@ type repositoryMock struct {
 	updatedSchool     org.SchoolPatch
 	createdClass      org.ClassWrite
 	updatedClass      org.ClassPatch
+	membershipWrite   org.MembershipWrite
+	directorQuery     org.DirectorQuery
+	directorWrite     org.DirectorWrite
+	assignmentQuery   org.AssignmentQuery
+	assignmentWrite   org.AssignmentWrite
 }
 
 func (m *repositoryMock) ListSchools(_ context.Context, _ org.AccessContext, query org.SchoolListQuery) (org.SchoolPage, error) {
@@ -65,6 +70,78 @@ func (m *repositoryMock) ArchiveClass(_ context.Context, _ string, schoolID, cla
 func (m *repositoryMock) Roster(_ context.Context, _ org.AccessContext, _ string, query org.RosterQuery) (org.RosterPage, error) {
 	m.lastRosterQuery = query
 	return org.RosterPage{Page: query.Page, Limit: query.Limit}, nil
+}
+
+
+func (m *repositoryMock) UpsertMembership(
+	_ context.Context,
+	_ string,
+	schoolID string,
+	write org.MembershipWrite,
+) (org.SchoolMembership, error) {
+	m.membershipWrite = write
+	return org.SchoolMembership{
+		ID:       "membership-1",
+		SchoolID: schoolID,
+		UserID:   write.UserID,
+		Role:     write.Role,
+		Status:   write.Status,
+	}, nil
+}
+
+func (m *repositoryMock) ListDirectors(
+	_ context.Context,
+	_ string,
+	query org.DirectorQuery,
+) (org.DirectorPage, error) {
+	m.directorQuery = query
+	return org.DirectorPage{Page: query.Page, Limit: query.Limit}, nil
+}
+
+func (m *repositoryMock) UpsertDirector(
+	_ context.Context,
+	_ string,
+	schoolID string,
+	write org.DirectorWrite,
+) (org.DirectorRecord, error) {
+	m.directorWrite = write
+	return org.DirectorRecord{
+		Membership: org.SchoolMembership{
+			ID:          "director-membership-1",
+			SchoolID:    schoolID,
+			UserID:      write.UserID,
+			Role:        identity.RoleSchoolAdmin,
+			Status:      write.Status,
+			Permissions: append([]string(nil), write.Permissions...),
+		},
+	}, nil
+}
+
+func (m *repositoryMock) ListAssignments(
+	_ context.Context,
+	_ org.AccessContext,
+	_ string,
+	query org.AssignmentQuery,
+) (org.AssignmentPage, error) {
+	m.assignmentQuery = query
+	return org.AssignmentPage{Page: query.Page, Limit: query.Limit}, nil
+}
+
+func (m *repositoryMock) UpsertAssignment(
+	_ context.Context,
+	_ string,
+	schoolID string,
+	write org.AssignmentWrite,
+) (org.TeachingAssignment, error) {
+	m.assignmentWrite = write
+	return org.TeachingAssignment{
+		ID:        "assignment-1",
+		SchoolID:  schoolID,
+		TeacherID: write.TeacherID,
+		ClassID:   write.ClassID,
+		SubjectID: write.SubjectID,
+		Status:    write.Status,
+	}, nil
 }
 
 func (m *repositoryMock) CanAccessSchool(context.Context, org.AccessContext, string) (bool, error) {
