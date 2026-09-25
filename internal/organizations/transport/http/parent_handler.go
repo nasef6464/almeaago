@@ -3,7 +3,6 @@ package organizationshttp
 import (
 	"net/http"
 
-	identityapp "github.com/nasef6464/almeaago/internal/identity/application"
 	orgapp "github.com/nasef6464/almeaago/internal/organizations/application"
 
 	"github.com/go-chi/chi/v5"
@@ -18,4 +17,3 @@ func NewParentFacade(service *orgapp.Service, auth Authenticator) http.Handler {
 	return r
 }
 
-var _ identityapp.Authenticated
