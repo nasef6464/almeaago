@@ -10,7 +10,7 @@ import (
 
 func TestAdminListNormalizesPaginationAndCarriesActorScope(t *testing.T) {
 	repo := &adminRepoMock{}
-	service := NewAdminService(repo)
+	service := NewAdminService(repo, repo)
 
 	_, err := service.ListUsers(context.Background(), adminActor(), domain.AdminUserQuery{
 		Page:  0,
@@ -43,7 +43,7 @@ func TestAdminListNormalizesPaginationAndCarriesActorScope(t *testing.T) {
 func TestSupervisorAndTeacherDirectoryUseOrganizationScope(t *testing.T) {
 	for _, role := range []domain.Role{domain.RoleSupervisor, domain.RoleTeacher} {
 		repo := &adminRepoMock{}
-		service := NewAdminService(repo)
+		service := NewAdminService(repo, repo)
 		actor := domain.User{ID: "actor-" + string(role), Roles: []domain.Role{role}}
 
 		if _, err := service.ListUsers(
@@ -62,7 +62,7 @@ func TestSupervisorAndTeacherDirectoryUseOrganizationScope(t *testing.T) {
 }
 
 func TestStudentCannotUseAdminDirectoryOrMutations(t *testing.T) {
-	service := NewAdminService(&adminRepoMock{})
+	service := NewAdminService(&adminRepoMock{}, &adminRepoMock{})
 	student := domain.User{ID: "student", Roles: []domain.Role{domain.RoleStudent}}
 
 	if _, err := service.ListUsers(
