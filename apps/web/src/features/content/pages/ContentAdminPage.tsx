@@ -18,6 +18,7 @@ import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../api/content-client';
 import { CourseCreatePanel } from '../components/CourseCreatePanel';
 import { CourseEditorPanel } from '../components/CourseEditorPanel';
+import { LessonEditorPanel } from '../components/LessonEditorPanel';
 import type {
   ContentListFilters,
   ContentWorkflowStatus,
@@ -68,6 +69,10 @@ function isCourseRow(row: ContentRow): row is CourseSummary {
   return 'isPublished' in row;
 }
 
+function isLessonRow(row: ContentRow): row is LessonSummary {
+  return 'durationSeconds' in row;
+}
+
 export function ContentAdminPage() {
   const { user, loading: authLoading, getCsrfToken } = useAuth();
   const isAdmin = user?.roles.includes('admin') ?? false;
@@ -88,7 +93,9 @@ export function ContentAdminPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [creatingCourse, setCreatingCourse] = useState(false);
   const [editingCourseId, setEditingCourseId] = useState('');
+  const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
   const [mutatingCourseId, setMutatingCourseId] = useState('');
+  const [mutatingLessonId, setMutatingLessonId] = useState('');
   const [actionError, setActionError] = useState('');
 
   useEffect(() => {
@@ -249,11 +256,61 @@ export function ContentAdminPage() {
     void setCourseWorkflow(course, 'rejected', notes);
   }
 
+  async function setLessonWorkflow(
+    lesson: LessonSummary,
+    status: ContentWorkflowStatus,
+    reviewerNotes = '',
+  ) {
+    setMutatingLessonId(lesson.id);
+    setActionError('');
+    try {
+      const csrfToken = await getCsrfToken();
+      await contentClient.lessonWorkflow(
+        lesson.id,
+        lesson.revision,
+        status,
+        reviewerNotes.trim(),
+        csrfToken,
+      );
+      setReloadKey((value) => value + 1);
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : 'تعذر تحديث حالة الدرس.');
+    } finally {
+      setMutatingLessonId('');
+    }
+  }
+
+  function rejectLesson(lesson: LessonSummary) {
+    const notes = window.prompt('اشرح المطلوب تعديله للمدرب:', '');
+    if (notes === null) return;
+    void setLessonWorkflow(lesson, 'rejected', notes);
+  }
+
   if (authLoading) {
     return <main className="min-h-[calc(100vh-5rem)] bg-gray-50 p-10 text-center font-black text-gray-600">جاري التحقق من الجلسة...</main>;
   }
   if (!user || (!isAdmin && !isTeacher)) {
     return <main className="min-h-[calc(100vh-5rem)] bg-gray-50 p-10 text-center font-black text-rose-700">هذه الشاشة متاحة للإدارة والمعلمين المخولين فقط.</main>;
+  }
+
+  if (editingLessonId !== null) {
+    return (
+      <LessonEditorPanel
+        lessonId={editingLessonId || undefined}
+        coreTaxonomy={taxonomy}
+        initialPathId={pathId}
+        initialSubjectId={subjectId}
+        lockScope={teacherRequiresExactScope}
+        getCsrfToken={getCsrfToken}
+        onCancel={() => setEditingLessonId(null)}
+        onSaved={() => {
+          setEditingLessonId(null);
+          setTab('lessons');
+          setPage(1);
+          setReloadKey((value) => value + 1);
+        }}
+      />
+    );
   }
 
   if (editingCourseId) {
@@ -309,19 +366,27 @@ export function ContentAdminPage() {
           </div>
           <button
             type="button"
-            disabled={tab !== 'courses' || (teacherRequiresExactScope && (!pathId || !subjectId))}
+            disabled={
+              (tab !== 'courses' && tab !== 'lessons') ||
+              (teacherRequiresExactScope && (!pathId || !subjectId))
+            }
             title={
-              tab !== 'courses'
+              tab !== 'courses' && tab !== 'lessons'
                 ? 'سيتم تفعيل الإنشاء لكل نوع محتوى في شريحته المنفصلة.'
                 : teacherRequiresExactScope && (!pathId || !subjectId)
                   ? 'اختر المسار والمادة أولًا لتثبيت نطاق المعلم.'
-                  : 'إنشاء دورة جديدة'
+                  : tab === 'courses'
+                    ? 'إنشاء دورة جديدة'
+                    : 'إضافة درس جديد'
             }
-            onClick={() => setCreatingCourse(true)}
+            onClick={() => {
+              if (tab === 'courses') setCreatingCourse(true);
+              if (tab === 'lessons') setEditingLessonId('');
+            }}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Plus size={18} />
-            {tab === 'courses' ? 'إنشاء دورة جديدة' : 'إضافة'}
+            {tab === 'courses' ? 'إنشاء دورة جديدة' : tab === 'lessons' ? 'إضافة درس جديد' : 'إضافة'}
           </button>
         </section>
 
@@ -542,6 +607,57 @@ export function ContentAdminPage() {
                                     >
                                       {row.isPublished ? 'إلغاء النشر' : 'نشر'}
                                     </button>
+                                  ) : null}
+                                </div>
+                              ) : isLessonRow(row) ? (
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={mutatingLessonId === row.id}
+                                    onClick={() => setEditingLessonId(row.id)}
+                                    className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-black text-blue-800 disabled:opacity-50"
+                                  >
+                                    تعديل
+                                  </button>
+                                  {(row.workflowStatus === 'draft' || row.workflowStatus === 'rejected') ? (
+                                    <button
+                                      type="button"
+                                      disabled={mutatingLessonId === row.id}
+                                      onClick={() => void setLessonWorkflow(row, 'pending_review')}
+                                      className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-black text-amber-800 disabled:opacity-50"
+                                    >
+                                      إرسال للمراجعة
+                                    </button>
+                                  ) : null}
+                                  {row.workflowStatus === 'pending_review' && !isAdmin ? (
+                                    <button
+                                      type="button"
+                                      disabled={mutatingLessonId === row.id}
+                                      onClick={() => void setLessonWorkflow(row, 'draft')}
+                                      className="rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-black text-gray-700 disabled:opacity-50"
+                                    >
+                                      سحب للمسودة
+                                    </button>
+                                  ) : null}
+                                  {row.workflowStatus === 'pending_review' && isAdmin ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        disabled={mutatingLessonId === row.id}
+                                        onClick={() => void setLessonWorkflow(row, 'approved')}
+                                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-black text-emerald-800 disabled:opacity-50"
+                                      >
+                                        اعتماد
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={mutatingLessonId === row.id}
+                                        onClick={() => rejectLesson(row)}
+                                        className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-black text-rose-800 disabled:opacity-50"
+                                      >
+                                        رفض
+                                      </button>
+                                    </>
                                   ) : null}
                                 </div>
                               ) : (

@@ -4,13 +4,16 @@ import type {
   CourseModule,
   CourseSummary,
   CreateCourseInput,
+  CreateLessonInput,
   FoundationTopicSummary,
   LibrarySummary,
+  LessonDetail,
   LessonSummary,
   PageResult,
   TaxonomyCore,
   TaxonomyFull,
   UpdateCourseInput,
+  UpdateLessonInput,
 } from './content-types';
 
 const API_BASE = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
@@ -85,6 +88,58 @@ export const contentClient = {
     return request<PageResult<LessonSummary>>(
       `/api/v1/lessons?${listQuery(filters)}`,
       { signal },
+    );
+  },
+
+  lesson(lessonId: string, signal?: AbortSignal) {
+    return request<{ lesson: LessonDetail }>(
+      `/api/v1/lessons/${encodeURIComponent(lessonId)}`,
+      { signal },
+    );
+  },
+
+  createLesson(input: CreateLessonInput, csrfToken: string) {
+    return request<{ lesson: LessonDetail }>('/api/v1/lessons', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      body: JSON.stringify(input),
+    });
+  },
+
+  updateLesson(lessonId: string, input: UpdateLessonInput, csrfToken: string) {
+    return request<{ lesson: LessonDetail }>(
+      `/api/v1/lessons/${encodeURIComponent(lessonId)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  lessonWorkflow(
+    lessonId: string,
+    expectedRevision: number,
+    status: 'draft' | 'pending_review' | 'approved' | 'rejected' | 'archived',
+    reviewerNotes: string,
+    csrfToken: string,
+  ) {
+    return request<{ lesson: LessonDetail }>(
+      `/api/v1/lessons/${encodeURIComponent(lessonId)}/workflow`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify({ expectedRevision, status, reviewerNotes }),
+      },
     );
   },
 

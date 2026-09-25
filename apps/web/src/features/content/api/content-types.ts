@@ -201,3 +201,63 @@ export interface CourseModule {
   createdAt: string;
   updatedAt: string;
 }
+
+export type LessonType =
+  | 'video'
+  | 'file'
+  | 'text'
+  | 'assignment'
+  | 'live_youtube'
+  | 'zoom'
+  | 'google_meet'
+  | 'teams';
+
+export interface LessonDetail extends LessonSummary {
+  description: string;
+  contentText: string;
+  videoUrl: string;
+  videoSource: '' | 'upload' | 'youtube' | 'vimeo';
+  meetingUrl: string;
+  meetingAt: string | null;
+  recordingUrl: string;
+  joinInstructions: string;
+  showRecording: boolean;
+  createdBy: string;
+  approvedBy: string;
+  approvedAt: string | null;
+  reviewerNotes: string;
+  revenueSharePercentage: number | null;
+  skillIds: string[];
+  assetIds: string[];
+  createdAt: string;
+}
+
+export interface CreateLessonInput {
+  pathId: string;
+  subjectId: string;
+  title: string;
+  description: string;
+  type: LessonType;
+  contentText: string;
+  durationSeconds: number;
+  videoUrl: string;
+  videoSource: '' | 'upload' | 'youtube' | 'vimeo';
+  meetingUrl: string;
+  meetingAt: string | null;
+  recordingUrl: string;
+  joinInstructions: string;
+  showRecording: boolean;
+  isVisible: boolean;
+  isLocked: boolean;
+  skillIds: string[];
+  assetIds: string[];
+}
+
+export interface UpdateLessonInput extends CreateLessonInput {
+  expectedRevision: number;
+  ownerType: ContentOwnerType;
+  ownerUserId: string;
+  ownerSchoolId: string;
+  assignedTeacherId: string;
+  revenueSharePercentage: number | null;
+}
