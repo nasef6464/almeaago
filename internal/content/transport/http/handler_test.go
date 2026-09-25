@@ -26,7 +26,7 @@ func (a authStub) VerifyCSRF(identityapp.Authenticated, string) error { return a
 func TestCourseMutationRequiresCSRF(t *testing.T) {
 	service := contentapp.NewService(nil)
 	handler := NewCourses(service, authStub{
-		auth: identityapp.Authenticated{User: identity.User{ID: "admin-1", Roles: []identity.Role{identity.RoleAdmin}}},
+		auth:    identityapp.Authenticated{User: identity.User{ID: "admin-1", Roles: []identity.Role{identity.RoleAdmin}}},
 		csrfErr: errors.New("bad csrf"),
 	})
 	request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"pathId":"x"}`))

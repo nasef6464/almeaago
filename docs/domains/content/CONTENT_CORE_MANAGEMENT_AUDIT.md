@@ -36,6 +36,7 @@ Learning owns learner progress, mastery and next-action state.
 
 - Unsafe mutations require an authenticated session and CSRF.
 - Teachers cannot assign ownership or assignment scope through client input.
+- Teacher self-create is intentionally denied in this checkpoint until a canonical authoring-scope resolver exists; admins may create/assign records and teachers may manage records they canonically own or are assigned.
 - Non-admin edits preserve the existing canonical ownership/assignment tuple.
 - Teachers cannot approve content.
 - Draft cannot jump directly to approved.
@@ -56,6 +57,7 @@ Learning owns learner progress, mastery and next-action state.
 
 The following are not complete in this PR and must remain separate work rather than being guessed into this slice:
 
+- Canonical teacher/trainer authoring scope (school teaching assignments plus future managed path/subject trainer scope); self-create stays denied until this is resolved.
 - Course module CRUD and module/lesson placement.
 - Foundation topic -> lesson and topic -> library placement management.
 - Learner-safe approved/visible Content projections.
