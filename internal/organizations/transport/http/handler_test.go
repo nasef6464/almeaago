@@ -36,6 +36,10 @@ type repoStub struct {
 	assignmentWrite orgdomain.AssignmentWrite
 }
 
+func (r *repoStub) TeacherWorkspace(_ context.Context, _ string) (orgdomain.TeacherWorkspace, error) {
+	return orgdomain.TeacherWorkspace{}, nil
+}
+
 func (r *repoStub) SchoolContexts(
 	_ context.Context,
 	_ string,
