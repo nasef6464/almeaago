@@ -18,6 +18,7 @@ type repoStub struct {
 	listQuery       content.ListQuery
 	canAuthor       bool
 	scope           content.TrainerScope
+	learningLimit   int
 }
 
 func (r *repoStub) GetTrainerScope(context.Context, string) (content.TrainerScope, error) {
@@ -131,6 +132,16 @@ func (r *repoStub) LinkTopicLibrary(context.Context, string, string, string, int
 }
 func (r *repoStub) UnlinkTopicLibrary(context.Context, string, string, string, int) (int, error) {
 	return 2, nil
+}
+func (r *repoStub) GetLearningSpace(_ context.Context, pathID, subjectID string, limit int) (content.LearningSpace, error) {
+	r.learningLimit = limit
+	return content.LearningSpace{PathID: pathID, SubjectID: subjectID}, nil
+}
+func (r *repoStub) GetLearnerCourse(context.Context, string) (content.LearnerCourse, error) {
+	return content.LearnerCourse{}, nil
+}
+func (r *repoStub) GetLearnerTopic(context.Context, string) (content.LearnerTopic, error) {
+	return content.LearnerTopic{}, nil
 }
 
 func staffActor(role identity.Role) identity.User {
@@ -261,5 +272,31 @@ func TestCoursePublicationRequiresApprovalAndAdmin(t *testing.T) {
 	})
 	if !errors.Is(err, ErrForbidden) || approvedRepo.publicationCall {
 		t.Fatalf("trainer publication must be denied: err=%v called=%v", err, approvedRepo.publicationCall)
+	}
+}
+
+func TestLearningSpaceRequiresAuthenticatedIdentity(t *testing.T) {
+	service := NewService(&repoStub{})
+	_, err := service.LearningSpace(context.Background(), identity.User{}, "path-1", "subject-1", 10)
+	if !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected forbidden anonymous learning-space access, got %v", err)
+	}
+}
+
+func TestLearningSpaceDefaultsToBoundedLimit(t *testing.T) {
+	repo := &repoStub{}
+	service := NewService(repo)
+	row, err := service.LearningSpace(
+		context.Background(),
+		identity.User{ID: "student-1", Roles: []identity.Role{identity.RoleStudent}},
+		"path-1",
+		"subject-1",
+		0,
+	)
+	if err != nil {
+		t.Fatalf("unexpected learning-space error: %v", err)
+	}
+	if repo.learningLimit != 24 || row.PathID != "path-1" || row.SubjectID != "subject-1" {
+		t.Fatalf("unexpected learning-space defaults: limit=%d row=%#v", repo.learningLimit, row)
 	}
 }

@@ -55,6 +55,10 @@ type Repository interface {
 	UnlinkTopicLesson(ctx context.Context, actorUserID, topicID, lessonID string, expectedRevision int) (int, error)
 	LinkTopicLibrary(ctx context.Context, actorUserID, topicID, itemID string, expectedRevision, sortOrder int) (int, error)
 	UnlinkTopicLibrary(ctx context.Context, actorUserID, topicID, itemID string, expectedRevision int) (int, error)
+
+	GetLearningSpace(ctx context.Context, pathID, subjectID string, limit int) (content.LearningSpace, error)
+	GetLearnerCourse(ctx context.Context, courseID string) (content.LearnerCourse, error)
+	GetLearnerTopic(ctx context.Context, topicID string) (content.LearnerTopic, error)
 }
 
 type Service struct{ repo Repository }

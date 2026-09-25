@@ -385,3 +385,73 @@ type TopicLibraryPlacement struct {
 	LibraryItemID string
 	SortOrder     int
 }
+
+type LearningSpace struct {
+	PathID            string
+	SubjectID         string
+	Courses           []LearnerCourseSummary
+	CoursesHasMore    bool
+	Foundation        []LearnerTopicSummary
+	FoundationHasMore bool
+	LibraryItems      []LearnerLibrarySummary
+	LibraryHasMore    bool
+}
+
+type LearnerCourseSummary struct {
+	ID                 string
+	Title              string
+	Description        string
+	InstructorName     string
+	DurationMinutes    int
+	Level              CourseLevel
+	ThumbnailAssetID   string
+	DripContentEnabled bool
+	CertificateEnabled bool
+}
+
+type LearnerTopicSummary struct {
+	ID            string
+	ParentTopicID string
+	Title         string
+	Description   string
+	SortOrder     int
+	IsLocked      bool
+}
+
+type LearnerLibrarySummary struct {
+	ID          string
+	Title       string
+	Description string
+	ItemType    LibraryType
+	IsLocked    bool
+}
+
+type LearnerLessonSummary struct {
+	ID              string
+	Title           string
+	Description     string
+	LessonType      LessonType
+	DurationSeconds int
+	IsLocked        bool
+	IsPreview       bool
+	SortOrder       int
+}
+
+type LearnerCourseModule struct {
+	ID          string
+	Title       string
+	Description string
+	SortOrder   int
+	Lessons     []LearnerLessonSummary
+}
+
+type LearnerCourse struct {
+	Course  LearnerCourseSummary
+	Modules []LearnerCourseModule
+}
+
+type LearnerTopic struct {
+	Topic        LearnerTopicSummary
+	Lessons      []LearnerLessonSummary
+	LibraryItems []LearnerLibrarySummary
+}
