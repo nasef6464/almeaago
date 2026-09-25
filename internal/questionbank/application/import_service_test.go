@@ -14,10 +14,10 @@ import (
 )
 
 type importRepoStub struct {
-	conflicts     []question.ImportConflict
-	issues        []question.ImportIssue
-	written       []question.ImportCommand
-	preflightHash string
+	conflicts      []question.ImportConflict
+	issues         []question.ImportIssue
+	written        []question.ImportCommand
+	preflightHash  string
 	preflightSaved bool
 }
 
