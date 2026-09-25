@@ -86,8 +86,7 @@ func (c *Client) PresignPut(objectKey, mimeType, sha256sum string, expires time.
 		"content-type:" + canonicalHeaderValue(mimeType),
 		"host:" + c.host(),
 		"x-amz-meta-sha256:" + canonicalHeaderValue(sha256sum),
-	}, "
-")
+	}, "\n")
 
 	query := url.Values{}
 	query.Set("X-Amz-Algorithm", algorithm)
@@ -104,15 +103,13 @@ func (c *Client) PresignPut(objectKey, mimeType, sha256sum string, expires time.
 		canonicalHeaders,
 		signedHeaders,
 		unsignedPayload,
-	}, "
-")
+	}, "\n")
 	stringToSign := strings.Join([]string{
 		algorithm,
 		amzDate,
 		scope,
 		sha256Hex(canonicalRequest),
-	}, "
-")
+	}, "\n")
 	query.Set("X-Amz-Signature", c.signature(dateStamp, stringToSign))
 
 	return media.UploadTarget{
@@ -139,8 +136,7 @@ func (c *Client) Head(ctx context.Context, objectKey string) (media.ObjectInfo, 
 		"host:" + c.host(),
 		"x-amz-content-sha256:" + emptyPayloadSHA,
 		"x-amz-date:" + amzDate,
-	}, "
-")
+	}, "\n")
 	uri := c.canonicalURI(objectKey)
 	canonicalRequest := strings.Join([]string{
 		http.MethodHead,
@@ -149,15 +145,13 @@ func (c *Client) Head(ctx context.Context, objectKey string) (media.ObjectInfo, 
 		canonicalHeaders,
 		signedHeaders,
 		emptyPayloadSHA,
-	}, "
-")
+	}, "\n")
 	stringToSign := strings.Join([]string{
 		algorithm,
 		amzDate,
 		scope,
 		sha256Hex(canonicalRequest),
-	}, "
-")
+	}, "\n")
 	signature := c.signature(dateStamp, stringToSign)
 	authorization := algorithm + " Credential=" + c.accessKeyID + "/" + scope +
 		", SignedHeaders=" + signedHeaders + ", Signature=" + signature
