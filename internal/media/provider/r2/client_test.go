@@ -76,8 +76,8 @@ func TestHeadVerifiesStoredObjectMetadata(t *testing.T) {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Header: http.Header{
-				"Content-Length":     []string{"3456"},
-				"Content-Type":       []string{"image/webp"},
+				"Content-Length":    []string{"3456"},
+				"Content-Type":      []string{"image/webp"},
 				"X-Amz-Meta-Sha256": []string{hash},
 			},
 			Body: http.NoBody,
