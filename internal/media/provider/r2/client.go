@@ -115,9 +115,9 @@ func (c *Client) PresignPut(objectKey, mimeType, sha256sum string, expires time.
 	return media.UploadTarget{
 		URL: c.endpoint() + uri + "?" + query.Encode(),
 		Headers: map[string]string{
-			"Content-Type":        mimeType,
-			"Cache-Control":       cacheControl,
-			"x-amz-meta-sha256":   sha256sum,
+			"Content-Type":      mimeType,
+			"Cache-Control":     cacheControl,
+			"x-amz-meta-sha256": sha256sum,
 		},
 		ExpiresAt: now.Add(expires),
 	}, nil
