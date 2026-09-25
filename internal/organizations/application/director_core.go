@@ -117,7 +117,13 @@ func (s *Service) DirectorUpdateStudentBasic(
 		}
 		patch.Phone = &value
 	}
-	if err := s.requireDirectorPermission(ctx, actor, schoolID, org.PermissionSchoolStudentsUpdateBasic); err != nil {
+	if err := s.requireDirectorCapability(
+		ctx,
+		actor,
+		schoolID,
+		org.PermissionSchoolStudentsUpdateBasic,
+		org.SchoolModuleCore,
+	); err != nil {
 		return org.DirectorStudentMutationResult{}, err
 	}
 	return s.repo.DirectorUpdateStudentBasic(ctx, actor.ID, schoolID, studentID, patch)
@@ -135,7 +141,13 @@ func (s *Service) DirectorSetStudentActive(
 	if schoolID == "" || studentID == "" {
 		return org.DirectorStudentMutationResult{}, ErrInvalidInput
 	}
-	if err := s.requireDirectorPermission(ctx, actor, schoolID, org.PermissionSchoolStudentsDeactivate); err != nil {
+	if err := s.requireDirectorCapability(
+		ctx,
+		actor,
+		schoolID,
+		org.PermissionSchoolStudentsDeactivate,
+		org.SchoolModuleCore,
+	); err != nil {
 		return org.DirectorStudentMutationResult{}, err
 	}
 	return s.repo.DirectorSetStudentActive(ctx, actor.ID, schoolID, studentID, active)
@@ -150,7 +162,13 @@ func (s *Service) DirectorTeachers(
 	if schoolID == "" {
 		return org.DirectorTeacherWorkspace{}, ErrInvalidInput
 	}
-	if err := s.requireDirectorPermission(ctx, actor, schoolID, org.PermissionSchoolTeachersAssign); err != nil {
+	if err := s.requireDirectorCapability(
+		ctx,
+		actor,
+		schoolID,
+		org.PermissionSchoolTeachersAssign,
+		org.SchoolModuleCore,
+	); err != nil {
 		return org.DirectorTeacherWorkspace{}, err
 	}
 	if s.directorDirectory == nil {
@@ -169,6 +187,19 @@ func (s *Service) DirectorOverviewAccess(
 		return ErrInvalidInput
 	}
 	return s.requireDirectorPermission(ctx, actor, schoolID, org.PermissionSchoolOverviewView)
+}
+
+func (s *Service) requireDirectorCapability(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+	permission string,
+	module org.SchoolModule,
+) error {
+	if err := s.requireDirectorPermission(ctx, actor, schoolID, permission); err != nil {
+		return err
+	}
+	return s.requireSchoolModule(ctx, schoolID, module)
 }
 
 func (s *Service) requireDirectorPermission(
