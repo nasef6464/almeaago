@@ -33,3 +33,17 @@ Reason:
 - prevents database bloat;
 - prevents repeated large API payloads;
 - follows ALMEAA bandwidth/media policy.
+
+
+## ORG-CONTRACT-001 — Reversed school contract validity range
+
+Legacy behavior:
+- the admin UI prevented an end date before the start date;
+- the legacy API/schema could still store that invalid range when called directly.
+
+V2 decision: **fix**.
+
+PostgreSQL and the Organizations application both reject `validUntil < validFrom`.
+
+Reason:
+An impossible validity window should never become persistent contract state. The visible admin UI behavior is unchanged; the unsafe API edge case is closed.
