@@ -85,3 +85,47 @@ func (r *Repository) TeacherWorkspace(
 	}
 	return workspace, nil
 }
+
+func (r *Repository) CanTeachSubject(
+	ctx context.Context,
+	userID string,
+	pathID string,
+	subjectID string,
+) (bool, error) {
+	var ok bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1
+			FROM teaching_assignments ta
+			JOIN users u
+			  ON u.id=ta.teacher_id
+			 AND u.status='active'
+			JOIN user_roles ur
+			  ON ur.user_id=u.id
+			 AND ur.role='teacher'
+			JOIN school_memberships sm
+			  ON sm.school_id=ta.school_id
+			 AND sm.user_id=ta.teacher_id
+			 AND sm.role='teacher'
+			 AND sm.status='active'
+			JOIN schools school
+			  ON school.id=ta.school_id
+			 AND school.status='active'
+			JOIN classes class
+			  ON class.id=ta.class_id
+			 AND class.school_id=ta.school_id
+			 AND class.status='active'
+			JOIN subjects subject
+			  ON subject.id=ta.subject_id
+			 AND subject.status='active'
+			JOIN paths path
+			  ON path.id=subject.path_id
+			 AND path.status='active'
+			WHERE ta.teacher_id=$1::uuid
+			  AND ta.status='active'
+			  AND ta.subject_id=$3::uuid
+			  AND subject.path_id=$2::uuid
+		)
+	`, userID, pathID, subjectID).Scan(&ok)
+	return ok, err
+}

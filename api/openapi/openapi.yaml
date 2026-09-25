@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: ALMEAA API
-  version: 0.3.0
+  version: 0.4.0
 paths:
   /api/v1/taxonomy/bootstrap:
     get:
@@ -68,8 +68,9 @@ paths:
       operationId: questionBankStaffList
       description: >
         Bounded staff Question Bank list. Default limit 80, maximum 100. Teacher access
-        is forcibly scoped to owned/assigned questions. Exact coverage counts are not
-        computed on this normal list path.
+        is forcibly scoped to owned/assigned questions. Platform-trainer scope is canonical
+        in Content; an exact pathId+subjectId filter may also be authorized by an active
+        Organizations teaching assignment. Exact coverage counts are not computed on this normal list path.
       parameters:
         - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
         - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 80 } }
@@ -96,6 +97,9 @@ paths:
       operationId: questionBankCreate
       description: >
         Create a stable question identity with version 1. Staff-only and CSRF-protected.
+        Teachers may author only inside canonical active Content platform-trainer scope or an
+        exact active Organizations teaching assignment; admin assignment is rejected outside
+        the target teacher's combined authoring scope.
         A question may be text-only, image-only, or text+image. Image bytes are never sent
         through this endpoint; media is referenced by asset ID. AI-readable metadata stays
         server-side in the staff version payload.
@@ -281,10 +285,11 @@ paths:
     get:
       operationId: organizationsTeacherWorkspace
       description: >
-        Organizations-owned structural workspace for an authenticated school teacher.
-        Returns only active school/class/subject assignments and aggregate student counts.
-        Entitlements, assessments, realtime state, reporting data, and trainer scope remain
-        owned by their respective domains.
+        Organizations-owned structural workspace for an authenticated teacher. Returns active
+        school/class/subject assignments and aggregate student counts, plus a platformTrainer
+        persona boolean resolved from Content's canonical active trainer scope. Organizations
+        does not infer platform-trainer authority from school membership. Entitlements,
+        assessments, realtime state, and reporting data remain owned by their domains.
       responses:
         "200": { description: Scoped teacher school assignments }
         "401": { description: Authentication required }
@@ -969,7 +974,6 @@ paths:
         "200": { description: Paginated user directory; supervisors and teachers are limited to shared active school/class scope }
         "401": { description: Authentication required }
         "403": { description: Role not permitted }
-        "409": { description: platformTrainer filter is pending Catalog/Content trainer scope }
     post:
       operationId: adminUpsertUser
       parameters:
@@ -993,20 +997,20 @@ paths:
                 schoolId: { type: [string, "null"] }
                 groupIds: { type: array, items: { type: string } }
                 linkedStudentIds: { type: array, items: { type: string } }
-                managedPathIds: { type: array, items: { type: string } }
-                managedSubjectIds: { type: array, items: { type: string } }
+                managedPathIds: { type: array, maxItems: 50, items: { type: string }, description: Compatibility form mapped transactionally to canonical Content trainer scope; teacher role only. }
+                managedSubjectIds: { type: array, maxItems: 200, items: { type: string }, description: Compatibility form mapped transactionally to canonical Content trainer scope; teacher role only. }
       responses:
         "201": { description: User account created or updated by email }
         "400": { description: Invalid request or last-admin invariant }
         "401": { description: Authentication required }
         "403": { description: Admin role required }
-        "409": { description: managedPathIds/managedSubjectIds require Catalog/Content trainer scope integration }
+        "409": { description: Managed trainer scope conflicts with role or active taxonomy }
 
   /api/v1/auth/admin/users/summary:
     get:
       operationId: adminUsersSummary
       responses:
-        "200": { description: User totals, inactive count and counts by role; platform trainer count remains pending Catalog/Content scope }
+        "200": { description: User totals, inactive count, counts by role, and canonical active platform-trainer count }
         "401": { description: Authentication required }
         "403": { description: Admin role required }
 
@@ -1063,15 +1067,15 @@ paths:
                 schoolId: { type: [string, "null"] }
                 groupIds: { type: array, items: { type: string } }
                 linkedStudentIds: { type: array, items: { type: string } }
-                managedPathIds: { type: array, items: { type: string } }
-                managedSubjectIds: { type: array, items: { type: string } }
+                managedPathIds: { type: array, maxItems: 50, items: { type: string }, description: Compatibility form mapped transactionally to canonical Content trainer scope; teacher role only. Empty array revokes path scope. }
+                managedSubjectIds: { type: array, maxItems: 200, items: { type: string }, description: Compatibility form mapped transactionally to canonical Content trainer scope; teacher role only. Empty array revokes subject scope. }
       responses:
         "200": { description: User account updated }
         "400": { description: Invalid request or operation would remove last active admin }
         "401": { description: Authentication required }
         "403": { description: Admin role required }
         "404": { description: User not found }
-        "409": { description: Organization scope fields require Organizations domain integration }
+        "409": { description: Organization or managed trainer scope conflicts with canonical relations }
     delete:
       operationId: adminDeleteUser
       parameters:
@@ -1259,3 +1263,391 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Invalid CSRF token }
         "500": { description: Delivery unavailable }
+
+
+  /api/v1/courses:
+    get:
+      operationId: contentListCourses
+      description: >
+        Authenticated staff list. Default limit 50, maximum 100, returns compact rows plus
+        hasMore. Teacher scope is forcibly limited to content they own or are explicitly assigned.
+        Platform-trainer scope is canonical in Content; an exact pathId+subjectId filter may also
+        be authorized by an active Organizations teaching assignment.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: pathId, schema: { type: string } }
+        - { in: query, name: subjectId, schema: { type: string } }
+        - { in: query, name: search, schema: { type: string, maxLength: 160 } }
+        - { in: query, name: workflowStatus, schema: { type: string, enum: [draft, pending_review, approved, rejected, archived] } }
+      responses:
+        "200": { description: Bounded staff course page }
+        "400": { description: Invalid filter or pagination }
+        "401": { description: Authentication required }
+        "403": { description: Staff scope required }
+    post:
+      operationId: contentCreateCourse
+      description: Platform admins and teachers with canonical platform-trainer scope or an active exact school teaching assignment may create courses. Teacher ownership/assignment is server-forced, revenue share remains admin-controlled, and taxonomy/active Media references are server-validated.
+      responses:
+        "201": { description: Draft course created }
+        "400": { description: Invalid course payload }
+        "403": { description: Admin/trainer scope or CSRF denied }
+        "409": { description: Taxonomy, owner, asset, or relational conflict }
+
+  /api/v1/courses/{id}:
+    get:
+      operationId: contentGetCourseStaff
+      responses:
+        "200": { description: Staff-authorized course detail }
+        "403": { description: Ownership or assignment scope denied }
+        "404": { description: Course not found }
+    put:
+      operationId: contentUpdateCourse
+      description: CSRF-protected optimistic update using expectedRevision. Approved and archived rows are not edited in place.
+      responses:
+        "200": { description: Course updated }
+        "400": { description: Invalid payload }
+        "403": { description: Edit scope or CSRF denied }
+        "409": { description: Revision, workflow, taxonomy, owner, or asset conflict }
+
+  /api/v1/courses/{id}/workflow:
+    patch:
+      operationId: contentSetCourseWorkflow
+      description: CSRF-protected workflow transition using expectedRevision. Approval requires publishable course composition.
+      responses:
+        "200": { description: Course workflow updated }
+        "403": { description: Role/scope or CSRF denied }
+        "409": { description: Invalid transition or revision conflict }
+
+  /api/v1/lessons:
+    get:
+      operationId: contentListLessons
+      description: Bounded staff lesson list with owner/assignment authority; platform trainer scope applies globally, while an exact pathId+subjectId filter may be authorized by an active school teaching assignment.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: pathId, schema: { type: string } }
+        - { in: query, name: subjectId, schema: { type: string } }
+        - { in: query, name: search, schema: { type: string, maxLength: 160 } }
+        - { in: query, name: workflowStatus, schema: { type: string, enum: [draft, pending_review, approved, rejected, archived] } }
+      responses:
+        "200": { description: Bounded staff lesson page }
+        "403": { description: Staff scope required }
+    post:
+      operationId: contentCreateLesson
+      description: Platform admins and teachers with canonical platform-trainer scope or an active exact school teaching assignment may create lessons. Teacher ownership/assignment is server-forced; binary assets remain in Media/R2 and are referenced by ID.
+      responses:
+        "201": { description: Draft lesson created }
+        "400": { description: Invalid lesson payload }
+        "403": { description: Admin/trainer scope or CSRF denied }
+        "409": { description: Taxonomy, owner, or asset conflict }
+
+  /api/v1/lessons/{id}:
+    get:
+      operationId: contentGetLessonStaff
+      responses:
+        "200": { description: Staff-authorized lesson detail }
+        "403": { description: Ownership or assignment scope denied }
+        "404": { description: Lesson not found }
+    put:
+      operationId: contentUpdateLesson
+      description: CSRF-protected optimistic update using expectedRevision.
+      responses:
+        "200": { description: Lesson updated }
+        "403": { description: Edit scope or CSRF denied }
+        "409": { description: Revision, workflow, taxonomy, owner, or asset conflict }
+
+  /api/v1/lessons/{id}/workflow:
+    patch:
+      operationId: contentSetLessonWorkflow
+      description: Approval requires lesson-type-specific publishable content and active linked assets.
+      responses:
+        "200": { description: Lesson workflow updated }
+        "403": { description: Role/scope or CSRF denied }
+        "409": { description: Invalid transition or revision conflict }
+
+  /api/v1/foundation/topics:
+    get:
+      operationId: contentListFoundationTopics
+      description: Platform-admin bounded foundation topic tree list. Foundation remains distinct from Courses.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: pathId, schema: { type: string } }
+        - { in: query, name: subjectId, schema: { type: string } }
+        - { in: query, name: parentId, schema: { type: string } }
+        - { in: query, name: search, schema: { type: string, maxLength: 160 } }
+        - { in: query, name: status, schema: { type: string, enum: [active, inactive, archived] } }
+      responses:
+        "200": { description: Bounded foundation topic page }
+        "403": { description: Platform admin required }
+    post:
+      operationId: contentCreateFoundationTopic
+      description: Platform-admin, CSRF-protected structural topic creation with taxonomy and skill validation.
+      responses:
+        "201": { description: Foundation topic created }
+        "403": { description: Platform admin or CSRF denied }
+        "409": { description: Parent, taxonomy, or skill conflict }
+
+  /api/v1/foundation/topics/{id}:
+    get:
+      operationId: contentGetFoundationTopicStaff
+      responses:
+        "200": { description: Foundation topic detail }
+        "403": { description: Platform admin required }
+        "404": { description: Topic not found }
+    put:
+      operationId: contentUpdateFoundationTopic
+      description: CSRF-protected optimistic update. Stable topic code cannot be changed.
+      responses:
+        "200": { description: Foundation topic updated }
+        "403": { description: Platform admin or CSRF denied }
+        "409": { description: Revision, parent, taxonomy, or skill conflict }
+
+  /api/v1/library:
+    get:
+      operationId: contentListLibrary
+      description: Bounded staff library list with owner/assignment authority; platform trainer scope applies globally, while an exact pathId+subjectId filter may be authorized by an active school teaching assignment.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: pathId, schema: { type: string } }
+        - { in: query, name: subjectId, schema: { type: string } }
+        - { in: query, name: search, schema: { type: string, maxLength: 160 } }
+        - { in: query, name: workflowStatus, schema: { type: string, enum: [draft, pending_review, approved, rejected, archived] } }
+      responses:
+        "200": { description: Bounded staff library page }
+        "403": { description: Staff scope required }
+    post:
+      operationId: contentCreateLibraryItem
+      description: Platform admins and teachers with canonical platform-trainer scope or an active exact school teaching assignment may create library items. Teacher ownership/assignment is server-forced and large binaries stay in Media/R2.
+      responses:
+        "201": { description: Draft library item created }
+        "403": { description: Admin/trainer scope or CSRF denied }
+        "409": { description: Taxonomy, owner, or asset conflict }
+
+  /api/v1/library/{id}:
+    get:
+      operationId: contentGetLibraryItemStaff
+      responses:
+        "200": { description: Staff-authorized library detail }
+        "403": { description: Ownership or assignment scope denied }
+        "404": { description: Library item not found }
+    put:
+      operationId: contentUpdateLibraryItem
+      description: CSRF-protected optimistic update using expectedRevision.
+      responses:
+        "200": { description: Library item updated }
+        "403": { description: Edit scope or CSRF denied }
+        "409": { description: Revision, workflow, taxonomy, owner, or asset conflict }
+
+  /api/v1/library/{id}/workflow:
+    patch:
+      operationId: contentSetLibraryWorkflow
+      description: CSRF-protected lifecycle transition. Approval requires an external URL or verified active primary asset.
+      responses:
+        "200": { description: Library workflow updated }
+        "403": { description: Role/scope or CSRF denied }
+        "409": { description: Invalid transition or revision conflict }
+
+
+  /api/v1/content/trainer-scopes/{userId}:
+    get:
+      operationId: contentGetTrainerScope
+      description: Platform-admin read of the canonical Content-owned platform-trainer path/subject authoring scope.
+      parameters:
+        - { in: path, name: userId, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Trainer authoring scope }
+        "403": { description: Platform admin required }
+        "404": { description: Teacher account not found }
+    put:
+      operationId: contentSetTrainerScope
+      description: >
+        Platform-admin, CSRF-protected replacement of the platform-trainer authoring scope.
+        Paths/subjects must be active canonical Taxonomy records. Empty arrays revoke platform-trainer authoring.
+      parameters:
+        - { in: path, name: userId, required: true, schema: { type: string } }
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                pathIds: { type: array, maxItems: 50, items: { type: string } }
+                subjectIds: { type: array, maxItems: 200, items: { type: string } }
+      responses:
+        "200": { description: Trainer authoring scope replaced transactionally with audit }
+        "400": { description: Invalid or unbounded scope payload }
+        "403": { description: Platform admin or CSRF denied }
+        "404": { description: Teacher account not found }
+        "409": { description: Inactive/invalid taxonomy or teacher relationship conflict }
+
+
+  /api/v1/courses/{id}/modules:
+    get:
+      operationId: contentListCourseModules
+      description: >
+        Staff-authorized bounded course composition. At most 200 modules and 5,000 lesson
+        placements are returned; placements are loaded without per-module N+1 queries.
+      responses:
+        "200": { description: Ordered modules and lesson placements }
+        "403": { description: Course edit scope denied }
+        "404": { description: Course not found }
+        "409": { description: Stored composition exceeds safety bounds }
+    post:
+      operationId: contentCreateCourseModule
+      description: >
+        CSRF-protected module creation using the parent course expectedRevision.
+        Composition changes increment the parent course revision transactionally.
+      responses:
+        "201": { description: Module created with new courseRevision }
+        "400": { description: Invalid module payload }
+        "403": { description: Course edit scope or CSRF denied }
+        "409": { description: Revision, workflow, or composition bound conflict }
+
+  /api/v1/courses/{id}/modules/{moduleId}:
+    put:
+      operationId: contentUpdateCourseModule
+      description: CSRF-protected optimistic module update/archive; approved or archived courses cannot be composed in place.
+      responses:
+        "200": { description: Module updated with new courseRevision }
+        "400": { description: Invalid module payload }
+        "403": { description: Course edit scope or CSRF denied }
+        "404": { description: Course or module not found }
+        "409": { description: Revision or workflow conflict }
+
+  /api/v1/courses/{id}/modules/{moduleId}/lessons/{lessonId}:
+    put:
+      operationId: contentPlaceCourseLesson
+      description: >
+        CSRF-protected optimistic lesson placement. Course and lesson must share taxonomy,
+        and trainer callers must have edit authority and active authoring scope for both.
+      responses:
+        "200": { description: Placement upserted with new courseRevision }
+        "400": { description: Invalid placement payload }
+        "403": { description: Course/lesson edit scope or CSRF denied }
+        "404": { description: Course, module, or lesson not found }
+        "409": { description: Revision, taxonomy, workflow, or composition bound conflict }
+    delete:
+      operationId: contentRemoveCourseLesson
+      description: CSRF-protected optimistic removal; request body carries expectedRevision.
+      responses:
+        "200": { description: Placement removed with new courseRevision }
+        "400": { description: Invalid revision payload }
+        "403": { description: Course edit scope or CSRF denied }
+        "404": { description: Placement not found }
+        "409": { description: Revision or workflow conflict }
+
+  /api/v1/foundation/topics/{id}/placements:
+    get:
+      operationId: contentGetFoundationPlacements
+      description: Platform-admin bounded foundation placement read, capped at 1,000 lessons and 1,000 library items per topic.
+      responses:
+        "200": { description: Ordered lesson and library placements }
+        "403": { description: Platform admin required }
+        "404": { description: Topic not found }
+        "409": { description: Stored placement set exceeds safety bounds }
+
+  /api/v1/foundation/topics/{id}/lessons/{lessonId}:
+    put:
+      operationId: contentLinkFoundationLesson
+      description: CSRF-protected optimistic link of a non-archived same-taxonomy lesson to an active topic.
+      responses:
+        "200": { description: Lesson linked with new topicRevision }
+        "403": { description: Platform admin or CSRF denied }
+        "409": { description: Revision, taxonomy, lifecycle, or placement bound conflict }
+    delete:
+      operationId: contentUnlinkFoundationLesson
+      description: CSRF-protected optimistic unlink; request body carries expectedRevision.
+      responses:
+        "200": { description: Lesson unlinked with new topicRevision }
+        "403": { description: Platform admin or CSRF denied }
+        "404": { description: Placement not found }
+        "409": { description: Revision or lifecycle conflict }
+
+  /api/v1/foundation/topics/{id}/library/{itemId}:
+    put:
+      operationId: contentLinkFoundationLibrary
+      description: CSRF-protected optimistic link of a non-archived same-taxonomy library item to an active topic.
+      responses:
+        "200": { description: Library item linked with new topicRevision }
+        "403": { description: Platform admin or CSRF denied }
+        "409": { description: Revision, taxonomy, lifecycle, or placement bound conflict }
+    delete:
+      operationId: contentUnlinkFoundationLibrary
+      description: CSRF-protected optimistic unlink; request body carries expectedRevision.
+      responses:
+        "200": { description: Library item unlinked with new topicRevision }
+        "403": { description: Platform admin or CSRF denied }
+        "404": { description: Placement not found }
+        "409": { description: Revision or lifecycle conflict }
+
+
+  /api/v1/courses/{id}/publication:
+    patch:
+      operationId: contentSetCoursePublication
+      description: >
+        Platform-admin-only, CSRF-protected publication toggle using expectedRevision.
+        Publication is separate from review approval and visibility. A course may be published
+        only while workflowStatus=approved; leaving approved state clears publication atomically.
+      responses:
+        "200": { description: Course publication state updated }
+        "400": { description: Invalid revision payload }
+        "403": { description: Platform admin or CSRF required }
+        "404": { description: Course not found }
+        "409": { description: Revision or approval-state conflict }
+
+
+  /api/v1/learning-spaces/{pathId}/subjects/{subjectId}:
+    get:
+      operationId: contentLearnerLearningSpace
+      description: >
+        Authenticated learner-safe browsing projection for one active path/subject. Returns
+        bounded metadata only: approved+published+visible courses, active+visible Foundation
+        topics, and approved+visible library items. It does not resolve entitlement and does
+        not expose lesson bodies, file URLs, owner/revenue data, or review metadata.
+      parameters:
+        - { in: path, name: pathId, required: true, schema: { type: string } }
+        - { in: path, name: subjectId, required: true, schema: { type: string } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 50, default: 24 } }
+      responses:
+        "200": { description: Bounded learning-space summary with per-section hasMore flags }
+        "400": { description: Invalid scope or limit }
+        "401": { description: Authentication required }
+        "404": { description: Active path/subject scope not found }
+
+  /api/v1/learning-spaces/courses/{id}:
+    get:
+      operationId: contentLearnerCourseProjection
+      description: >
+        Authenticated learner-safe course structure for an approved, published and visible
+        course. Only active modules and approved+visible lesson metadata are returned.
+        Lesson body/media delivery remains outside this endpoint until entitlement resolution exists.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Learner-safe course metadata and module/lesson structure }
+        "400": { description: Invalid course ID }
+        "401": { description: Authentication required }
+        "404": { description: Course unavailable to learner catalog }
+        "409": { description: Stored composition exceeds safety bounds }
+
+  /api/v1/learning-spaces/foundation/{id}:
+    get:
+      operationId: contentLearnerFoundationProjection
+      description: >
+        Authenticated learner-safe active+visible Foundation topic projection. Linked lessons
+        are restricted to approved+visible lesson metadata and linked library items to
+        approved+visible metadata. Content/file URLs are not exposed here.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Learner-safe Foundation topic placement metadata }
+        "400": { description: Invalid topic ID }
+        "401": { description: Authentication required }
+        "404": { description: Foundation topic unavailable }
+        "409": { description: Stored placement set exceeds safety bounds }

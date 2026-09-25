@@ -49,6 +49,14 @@ func (m *adminRepoMock) AdminUpsertUser(
 	if m.err != nil {
 		return domain.AdminUserRecord{}, m.err
 	}
+	managedPathIDs := []string{}
+	if input.ManagedPathIDs != nil {
+		managedPathIDs = append(managedPathIDs, (*input.ManagedPathIDs)...)
+	}
+	managedSubjectIDs := []string{}
+	if input.ManagedSubjectIDs != nil {
+		managedSubjectIDs = append(managedSubjectIDs, (*input.ManagedSubjectIDs)...)
+	}
 	return domain.AdminUserRecord{
 		User: domain.User{
 			ID:     "user-1",
@@ -57,9 +65,11 @@ func (m *adminRepoMock) AdminUpsertUser(
 			Status: "active",
 			Roles:  []domain.Role{input.Role},
 		},
-		SchoolID:         input.SchoolID,
-		ClassIDs:         append([]string(nil), input.ClassIDs...),
-		LinkedStudentIDs: append([]string(nil), input.LinkedStudentIDs...),
+		SchoolID:          input.SchoolID,
+		ClassIDs:          append([]string(nil), input.ClassIDs...),
+		LinkedStudentIDs:  append([]string(nil), input.LinkedStudentIDs...),
+		ManagedPathIDs:    managedPathIDs,
+		ManagedSubjectIDs: managedSubjectIDs,
 	}, nil
 }
 

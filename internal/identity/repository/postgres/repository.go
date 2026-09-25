@@ -27,9 +27,23 @@ type OrganizationScopeGateway interface {
 	) (orgdomain.AdminAccountScopeSnapshot, error)
 }
 
+type ContentScopeGateway interface {
+	SyncTx(
+		ctx context.Context,
+		tx pgx.Tx,
+		command domain.AdminTrainerScopeCommand,
+	) error
+	SnapshotTx(
+		ctx context.Context,
+		tx pgx.Tx,
+		userID string,
+	) (domain.AdminTrainerScopeSnapshot, error)
+}
+
 type Repository struct {
-	db        *pgxpool.Pool
-	orgScopes OrganizationScopeGateway
+	db            *pgxpool.Pool
+	orgScopes     OrganizationScopeGateway
+	contentScopes ContentScopeGateway
 }
 
 func New(db *pgxpool.Pool, scopes ...OrganizationScopeGateway) *Repository {
@@ -40,6 +54,18 @@ func New(db *pgxpool.Pool, scopes ...OrganizationScopeGateway) *Repository {
 	return &Repository{
 		db:        db,
 		orgScopes: orgScopes,
+	}
+}
+
+func NewWithContentScopes(
+	db *pgxpool.Pool,
+	orgScopes OrganizationScopeGateway,
+	contentScopes ContentScopeGateway,
+) *Repository {
+	return &Repository{
+		db:            db,
+		orgScopes:     orgScopes,
+		contentScopes: contentScopes,
 	}
 }
 

@@ -64,6 +64,13 @@ jobs:
           check "select exists(select 1 from pg_indexes where tablename='assets' and indexname='assets_sha256_live_unique_idx')"
           check "select exists(select 1 from pg_indexes where tablename='questions' and indexname='questions_source_item_unique_idx')"
           check "select exists(select 1 from pg_indexes where tablename='courses' and indexname='courses_taxonomy_workflow_idx')"
+          check "select to_regclass('public.content_trainer_path_scopes') is not null"
+          check "select to_regclass('public.content_trainer_subject_scopes') is not null"
+          check "select exists(select 1 from information_schema.columns where table_name='courses' and column_name='is_published')"
+          check "select exists(select 1 from information_schema.columns where table_name='courses' and column_name='published_by')"
+          check "select exists(select 1 from information_schema.columns where table_name='courses' and column_name='published_at')"
+          check "select exists(select 1 from pg_constraint where conname='courses_publication_requires_approval')"
+          check "select exists(select 1 from pg_indexes where tablename='courses' and indexname='courses_published_catalog_idx')"
 
       - name: Roll back every migration
         shell: bash

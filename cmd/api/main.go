@@ -10,6 +10,9 @@ import (
 	"syscall"
 	"time"
 
+	contentapp "github.com/nasef6464/almeaago/internal/content/application"
+	contentrepo "github.com/nasef6464/almeaago/internal/content/repository/postgres"
+	contenthttp "github.com/nasef6464/almeaago/internal/content/transport/http"
 	"github.com/nasef6464/almeaago/internal/identity/application"
 	googleprovider "github.com/nasef6464/almeaago/internal/identity/provider/google"
 	whatsappprovider "github.com/nasef6464/almeaago/internal/identity/provider/whatsapp"
@@ -62,18 +65,25 @@ func main() {
 	}
 	defer redisClient.Close()
 
+	auditWriter := operationsrepo.NewAuditWriter()
 	organizationScopes := orgrepo.NewAdminScopeWriter()
-	identityRepository := identityrepo.New(db, organizationScopes)
+	contentAdminScopes := contentrepo.NewAdminScopeWriter(auditWriter)
+	identityRepository := identityrepo.NewWithContentScopes(db, organizationScopes, contentAdminScopes)
 	adminDirectory := reportingrepo.NewAdminUserDirectory(db)
 	directorDirectory := reportingrepo.NewSchoolDirectorDirectory(db)
 
-	auditWriter := operationsrepo.NewAuditWriter()
+	contentRepository := contentrepo.New(db, auditWriter)
 	organizationsRepository := orgrepo.New(db, auditWriter, identityRepository)
-	organizationsService := orgapp.NewService(organizationsRepository, directorDirectory)
+	authorScope := contentapp.NewCombinedAuthorScope(contentRepository, organizationsRepository)
+	contentService := contentapp.NewServiceWithAuthorScope(contentRepository, authorScope)
+	organizationsService := orgapp.NewServiceWithOptions(organizationsRepository, orgapp.ServiceOptions{
+		DirectorDirectory:       directorDirectory,
+		PlatformTrainerResolver: contentRepository,
+	})
 	taxonomyRepository := taxonomyrepo.New(db)
 	taxonomyService := taxonomyapp.NewService(taxonomyRepository)
 	questionRepository := questionrepo.New(db, auditWriter)
-	questionService := questionapp.NewService(questionRepository)
+	questionService := questionapp.NewServiceWithAuthorScope(questionRepository, authorScope)
 	mediaRepository := mediarepo.New(db, auditWriter)
 	r2Client := r2provider.New(r2provider.Config{
 		AccountID:       cfg.R2AccountID,
@@ -102,6 +112,12 @@ func main() {
 		WhatsAppDelivery: whatsAppDelivery,
 		OTPPepper:        cfg.OTPPepper,
 	})
+	coursesHandler := contenthttp.NewCourses(contentService, identityService)
+	lessonsHandler := contenthttp.NewLessons(contentService, identityService)
+	foundationHandler := contenthttp.NewFoundation(contentService, identityService)
+	libraryHandler := contenthttp.NewLibrary(contentService, identityService)
+	contentManagementHandler := contenthttp.NewManagement(contentService, identityService)
+	learningSpacesHandler := contenthttp.NewLearningSpaces(contentService, identityService)
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
 	questionHandler := questionhttp.New(
 		questionService,
@@ -138,6 +154,12 @@ func main() {
 		Taxonomy:           taxonomyHandler,
 		QuestionBank:       questionHandler,
 		Media:              mediaHandler,
+		Courses:            coursesHandler,
+		Lessons:            lessonsHandler,
+		Foundation:         foundationHandler,
+		Library:            libraryHandler,
+		ContentManagement:  contentManagementHandler,
+		LearningSpaces:     learningSpacesHandler,
 		LegacySchoolAccess: legacySchoolAccessHandler,
 	})
 

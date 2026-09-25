@@ -26,11 +26,55 @@ type Repository interface {
 	Coverage(ctx context.Context, query question.CoverageQuery) (question.Coverage, error)
 }
 
+type AuthorScope interface {
+	CanAuthor(ctx context.Context, userID, pathID, subjectID string) (bool, error)
+}
+
 type Service struct {
-	repo Repository
+	repo  Repository
+	scope AuthorScope
 }
 
 func NewService(repo Repository) *Service { return &Service{repo: repo} }
+
+func NewServiceWithAuthorScope(repo Repository, scope AuthorScope) *Service {
+	return &Service{repo: repo, scope: scope}
+}
+
+func (s *Service) requireAuthorScope(ctx context.Context, actor identity.User, pathID, subjectID string) error {
+	if actor.HasRole(identity.RoleAdmin) {
+		return nil
+	}
+	if !actor.HasRole(identity.RoleTeacher) || s.scope == nil {
+		return ErrForbidden
+	}
+	ok, err := s.scope.CanAuthor(ctx, actor.ID, pathID, subjectID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrForbidden
+	}
+	return nil
+}
+
+func (s *Service) validateAssignedTeacherScope(ctx context.Context, userID, pathID, subjectID string) error {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil
+	}
+	if s.scope == nil {
+		return question.ErrConflict
+	}
+	ok, err := s.scope.CanAuthor(ctx, userID, pathID, subjectID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return question.ErrConflict
+	}
+	return nil
+}
 
 type OptionInput struct {
 	Text    string `json:"text"`
@@ -98,6 +142,9 @@ func (s *Service) Create(ctx context.Context, actor identity.User, input CreateI
 	ownerID := strings.TrimSpace(input.OwnerID)
 	assignedTeacherID := strings.TrimSpace(input.AssignedTeacherID)
 	if actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleAdmin) {
+		if err := s.requireAuthorScope(ctx, actor, version.PathID, version.SubjectID); err != nil {
+			return question.Question{}, err
+		}
 		ownerType = question.OwnerTeacher
 		ownerID = actor.ID
 		assignedTeacherID = actor.ID
@@ -113,6 +160,14 @@ func (s *Service) Create(ctx context.Context, actor identity.User, input CreateI
 		}
 		if ownerType == question.OwnerTeacher && ownerID == "" {
 			return question.Question{}, ErrInvalidInput
+		}
+		if ownerType == question.OwnerTeacher {
+			if err := s.validateAssignedTeacherScope(ctx, ownerID, version.PathID, version.SubjectID); err != nil {
+				return question.Question{}, err
+			}
+		}
+		if err := s.validateAssignedTeacherScope(ctx, assignedTeacherID, version.PathID, version.SubjectID); err != nil {
+			return question.Question{}, err
 		}
 	}
 
@@ -140,11 +195,17 @@ func (s *Service) AppendVersion(ctx context.Context, actor identity.User, questi
 	if !canEdit(actor, current) {
 		return question.Question{}, ErrForbidden
 	}
+	if err := s.requireAuthorScope(ctx, actor, current.PathID, current.SubjectID); err != nil {
+		return question.Question{}, err
+	}
 	if current.WorkflowStatus == question.WorkflowApproved || current.WorkflowStatus == question.WorkflowArchived {
 		return question.Question{}, ErrWorkflow
 	}
 	version, err := normalizeVersion(input)
 	if err != nil {
+		return question.Question{}, err
+	}
+	if err := s.requireAuthorScope(ctx, actor, version.PathID, version.SubjectID); err != nil {
 		return question.Question{}, err
 	}
 	row, err := s.repo.AppendVersion(ctx, actor.ID, questionID, expected, version)
@@ -185,6 +246,9 @@ func (s *Service) SetWorkflow(ctx context.Context, actor identity.User, question
 	if !actor.HasRole(identity.RoleTeacher) || !canEdit(actor, current) {
 		return question.Question{}, ErrForbidden
 	}
+	if err := s.requireAuthorScope(ctx, actor, current.PathID, current.SubjectID); err != nil {
+		return question.Question{}, err
+	}
 	allowed := (current.WorkflowStatus == question.WorkflowDraft || current.WorkflowStatus == question.WorkflowRejected) && input.Status == question.WorkflowPendingReview
 	allowed = allowed || (current.WorkflowStatus == question.WorkflowPendingReview && input.Status == question.WorkflowDraft)
 	if !allowed {
@@ -210,6 +274,9 @@ func (s *Service) StaffGet(ctx context.Context, actor identity.User, questionID 
 	if !canEdit(actor, row) {
 		return question.Question{}, ErrForbidden
 	}
+	if err := s.requireAuthorScope(ctx, actor, row.PathID, row.SubjectID); err != nil {
+		return question.Question{}, err
+	}
 	return row, nil
 }
 
@@ -227,6 +294,24 @@ func (s *Service) LearnerGet(ctx context.Context, actor identity.User, questionI
 	return row, nil
 }
 
+func (s *Service) prepareTeacherListScope(
+	ctx context.Context,
+	actor identity.User,
+	query *question.ListQuery,
+) error {
+	if !actor.HasRole(identity.RoleTeacher) || actor.HasRole(identity.RoleAdmin) {
+		return nil
+	}
+	if query.PathID == "" || query.SubjectID == "" {
+		return nil
+	}
+	if err := s.requireAuthorScope(ctx, actor, query.PathID, query.SubjectID); err != nil {
+		return err
+	}
+	query.TeacherScopePrevalidated = true
+	return nil
+}
+
 func (s *Service) StaffList(ctx context.Context, actor identity.User, query question.ListQuery) (question.QuestionPage, error) {
 	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) {
 		return question.QuestionPage{}, ErrForbidden
@@ -236,6 +321,9 @@ func (s *Service) StaffList(ctx context.Context, actor identity.User, query ques
 	}
 	if actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleAdmin) {
 		query.TeacherScopeUserID = actor.ID
+	}
+	if err := s.prepareTeacherListScope(ctx, actor, &query); err != nil {
+		return question.QuestionPage{}, err
 	}
 	return s.repo.List(ctx, query)
 }
@@ -258,6 +346,9 @@ func (s *Service) Coverage(ctx context.Context, actor identity.User, query quest
 	}
 	if actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleAdmin) {
 		query.TeacherScopeUserID = actor.ID
+	}
+	if err := s.prepareTeacherListScope(ctx, actor, &query.ListQuery); err != nil {
+		return question.Coverage{}, err
 	}
 	return s.repo.Coverage(ctx, query)
 }

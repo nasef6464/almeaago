@@ -373,6 +373,35 @@ func validateTeacherTx(ctx context.Context, tx pgx.Tx, userID string) error {
 	return nil
 }
 
+func validateTeacherScopeTx(ctx context.Context, tx pgx.Tx, userID, pathID, subjectID string) error {
+	if err := validateTeacherTx(ctx, tx, userID); err != nil {
+		return err
+	}
+	var ok bool
+	if err := tx.QueryRow(ctx, `
+		SELECT
+			EXISTS(
+				SELECT 1
+				FROM content_trainer_path_scopes ps
+				JOIN paths p ON p.id=ps.path_id
+				WHERE ps.user_id=$1::uuid AND ps.path_id=$2::uuid AND p.status='active'
+			)
+			OR EXISTS(
+				SELECT 1
+				FROM content_trainer_subject_scopes ss
+				JOIN subjects s ON s.id=ss.subject_id
+				WHERE ss.user_id=$1::uuid AND ss.subject_id=$3::uuid
+				  AND s.path_id=$2::uuid AND s.status='active'
+			)
+	`, userID, pathID, subjectID).Scan(&ok); err != nil {
+		return err
+	}
+	if !ok {
+		return question.ErrConflict
+	}
+	return nil
+}
+
 func (r *Repository) loadOptions(ctx context.Context, questionID string, version int) ([]question.Option, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT option_index, option_text, COALESCE(asset_id::text,'')

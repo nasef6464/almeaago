@@ -559,7 +559,9 @@ func writeApplicationError(w http.ResponseWriter, err error) {
 	case errors.Is(err, application.ErrForbidden):
 		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Forbidden"})
 	case errors.Is(err, application.ErrUnsupportedAdminScope):
-		writeJSON(w, http.StatusConflict, map[string]string{"message": "Trainer path/subject scope is handled by the Catalog/Content domain"})
+		writeJSON(w, http.StatusConflict, map[string]string{"message": "Unsupported admin scope"})
+	case errors.Is(err, domain.ErrAdminScopeConflict):
+		writeJSON(w, http.StatusConflict, map[string]string{"message": "Trainer scope conflicts with the target role or active taxonomy"})
 	case errors.Is(err, application.ErrIdentityConflict):
 		writeJSON(w, http.StatusConflict, map[string]string{"message": "Identity value is already linked to another account or cannot be removed"})
 	case errors.Is(err, domain.ErrLastAdmin):

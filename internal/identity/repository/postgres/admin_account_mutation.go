@@ -127,6 +127,17 @@ func (r *Repository) AdminUpsertUser(
 		return domain.AdminUserRecord{}, err
 	}
 
+	if err := r.syncContentScopesTx(ctx, tx, domain.AdminTrainerScopeCommand{
+		ActorUserID: actorID,
+		UserID:      userID,
+		IsTrainer:   input.Role == domain.RoleTeacher,
+		RoleChanged: roleChanged,
+		PathIDs:     input.ManagedPathIDs,
+		SubjectIDs:  input.ManagedSubjectIDs,
+	}); err != nil {
+		return domain.AdminUserRecord{}, err
+	}
+
 	if err := insertAudit(ctx, tx, actorID, "auth.admin_user.upsert", "user", userID, "success", map[string]any{
 		"targetEmail": input.Email,
 		"targetRole":  input.Role,
@@ -257,6 +268,17 @@ func (r *Repository) AdminUpdateUser(
 		return domain.AdminUserRecord{}, err
 	}
 
+	if err := r.syncContentScopesTx(ctx, tx, domain.AdminTrainerScopeCommand{
+		ActorUserID: actorID,
+		UserID:      targetID,
+		IsTrainer:   nextRole == domain.RoleTeacher,
+		RoleChanged: roleChanged,
+		PathIDs:     input.ManagedPathIDs,
+		SubjectIDs:  input.ManagedSubjectIDs,
+	}); err != nil {
+		return domain.AdminUserRecord{}, err
+	}
+
 	if roleChanged || (input.Active != nil && !*input.Active) {
 		if _, err := tx.Exec(ctx, `
 			UPDATE auth_sessions
@@ -289,6 +311,12 @@ func (r *Repository) AdminUpdateUser(
 	}
 	if input.LinkedStudentIDs != nil {
 		changed = append(changed, "linkedStudentIds")
+	}
+	if input.ManagedPathIDs != nil {
+		changed = append(changed, "managedPathIds")
+	}
+	if input.ManagedSubjectIDs != nil {
+		changed = append(changed, "managedSubjectIds")
 	}
 
 	if err := insertAudit(ctx, tx, actorID, "auth.admin_user.update", "user", targetID, "success", map[string]any{

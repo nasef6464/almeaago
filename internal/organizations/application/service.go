@@ -56,9 +56,19 @@ type Repository interface {
 	HasSchoolPermission(ctx context.Context, userID, schoolID, permission string) (bool, error)
 }
 
+type PlatformTrainerResolver interface {
+	HasActiveTrainerScope(ctx context.Context, userID string) (bool, error)
+}
+
+type ServiceOptions struct {
+	DirectorDirectory       DirectorDirectory
+	PlatformTrainerResolver PlatformTrainerResolver
+}
+
 type Service struct {
-	repo              Repository
-	directorDirectory DirectorDirectory
+	repo                    Repository
+	directorDirectory       DirectorDirectory
+	platformTrainerResolver PlatformTrainerResolver
 }
 
 func NewService(repo Repository, directories ...DirectorDirectory) *Service {
@@ -66,9 +76,14 @@ func NewService(repo Repository, directories ...DirectorDirectory) *Service {
 	if len(directories) > 0 {
 		directorDirectory = directories[0]
 	}
+	return NewServiceWithOptions(repo, ServiceOptions{DirectorDirectory: directorDirectory})
+}
+
+func NewServiceWithOptions(repo Repository, options ServiceOptions) *Service {
 	return &Service{
-		repo:              repo,
-		directorDirectory: directorDirectory,
+		repo:                    repo,
+		directorDirectory:       options.DirectorDirectory,
+		platformTrainerResolver: options.PlatformTrainerResolver,
 	}
 }
 
@@ -142,7 +157,17 @@ func (s *Service) TeacherWorkspace(
 	if strings.TrimSpace(actor.ID) == "" || !actor.HasRole(identity.RoleTeacher) {
 		return org.TeacherWorkspace{}, ErrForbidden
 	}
-	return s.repo.TeacherWorkspace(ctx, actor.ID)
+	workspace, err := s.repo.TeacherWorkspace(ctx, actor.ID)
+	if err != nil {
+		return org.TeacherWorkspace{}, err
+	}
+	if s.platformTrainerResolver != nil {
+		workspace.PlatformTrainer, err = s.platformTrainerResolver.HasActiveTrainerScope(ctx, actor.ID)
+		if err != nil {
+			return org.TeacherWorkspace{}, err
+		}
+	}
+	return workspace, nil
 }
 
 func (s *Service) ListSchools(

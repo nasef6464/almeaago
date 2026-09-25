@@ -3,23 +3,24 @@ package domain
 import "time"
 
 type ListQuery struct {
-	Page               int
-	Limit              int
-	Search             string
-	PathID             string
-	SubjectID          string
-	MainSkillID        string
-	SkillIDs           []string
-	Linked             *bool
-	Difficulty         string
-	QuestionType       QuestionType
-	ExamType           string
-	Source             string
-	Year               *int
-	WorkflowStatus     WorkflowStatus
-	WithVideo          *bool
-	WithExplanation    *bool
-	TeacherScopeUserID string
+	Page                     int
+	Limit                    int
+	Search                   string
+	PathID                   string
+	SubjectID                string
+	MainSkillID              string
+	SkillIDs                 []string
+	Linked                   *bool
+	Difficulty               string
+	QuestionType             QuestionType
+	ExamType                 string
+	Source                   string
+	Year                     *int
+	WorkflowStatus           WorkflowStatus
+	WithVideo                *bool
+	WithExplanation          *bool
+	TeacherScopeUserID       string
+	TeacherScopePrevalidated bool
 }
 
 type QuestionSummary struct {

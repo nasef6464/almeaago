@@ -17,6 +17,14 @@ type repoStub struct {
 	lastListQuery question.ListQuery
 }
 
+type scopeStub struct {
+	allowed bool
+}
+
+func (s scopeStub) CanAuthor(context.Context, string, string, string) (bool, error) {
+	return s.allowed, nil
+}
+
 func (r *repoStub) Create(_ context.Context, _ string, command question.CreateCommand) (question.Question, error) {
 	r.create = command
 	return question.Question{ID: "question-1"}, nil
@@ -129,7 +137,7 @@ func TestTeacherCannotApproveOwnQuestion(t *testing.T) {
 			CorrectOptionIndex: intPtr(0),
 		},
 	}
-	service := NewService(&repoStub{current: current})
+	service := NewServiceWithAuthorScope(&repoStub{current: current}, scopeStub{allowed: true})
 	_, err := service.SetWorkflow(context.Background(), actor(identity.RoleTeacher), current.ID, WorkflowInput{
 		ExpectedCurrentVersion: 1,
 		Status:                 question.WorkflowApproved,
@@ -186,6 +194,22 @@ func TestTeacherListIsForcedToOwnScope(t *testing.T) {
 	}
 }
 
+func TestTeacherExactSubjectListUsesPrevalidatedAuthorScope(t *testing.T) {
+	repo := &repoStub{}
+	service := NewServiceWithAuthorScope(repo, scopeStub{allowed: true})
+	teacher := identity.User{ID: "11111111-1111-7111-8111-111111111111", Roles: []identity.Role{identity.RoleTeacher}}
+
+	if _, err := service.StaffList(context.Background(), teacher, question.ListQuery{
+		PathID:    "22222222-2222-7222-8222-222222222222",
+		SubjectID: "33333333-3333-7333-8333-333333333333",
+	}); err != nil {
+		t.Fatalf("unexpected exact-scope question list error: %v", err)
+	}
+	if !repo.lastListQuery.TeacherScopePrevalidated {
+		t.Fatalf("expected exact teacher scope prevalidation: %#v", repo.lastListQuery)
+	}
+}
+
 func TestStaffListRejectsUnboundedLimit(t *testing.T) {
 	service := NewService(&repoStub{})
 	_, err := service.StaffList(context.Background(), actor(identity.RoleAdmin), question.ListQuery{Limit: 101})
@@ -195,3 +219,34 @@ func TestStaffListRejectsUnboundedLimit(t *testing.T) {
 }
 
 func intPtr(value int) *int { return &value }
+
+func TestTeacherCreateRequiresCanonicalAuthorScope(t *testing.T) {
+	input := CreateInput{QuestionCode: "Q-SCOPE", Version: baseVersion()}
+
+	denied := NewServiceWithAuthorScope(&repoStub{}, scopeStub{allowed: false})
+	if _, err := denied.Create(context.Background(), actor(identity.RoleTeacher), input); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected forbidden outside trainer scope, got %v", err)
+	}
+
+	repo := &repoStub{}
+	allowed := NewServiceWithAuthorScope(repo, scopeStub{allowed: true})
+	if _, err := allowed.Create(context.Background(), actor(identity.RoleTeacher), input); err != nil {
+		t.Fatalf("unexpected scoped trainer error: %v", err)
+	}
+	if repo.create.OwnerType != question.OwnerTeacher || repo.create.OwnerID != "actor-1" || repo.create.AssignedTeacherID != "actor-1" {
+		t.Fatalf("trainer ownership was not forced: %#v", repo.create)
+	}
+}
+
+func TestAdminCannotAssignQuestionOutsideTrainerScope(t *testing.T) {
+	input := CreateInput{
+		QuestionCode:      "Q-ASSIGN",
+		OwnerType:         question.OwnerPlatform,
+		AssignedTeacherID: "teacher-2",
+		Version:           baseVersion(),
+	}
+	service := NewServiceWithAuthorScope(&repoStub{}, scopeStub{allowed: false})
+	if _, err := service.Create(context.Background(), actor(identity.RoleAdmin), input); !errors.Is(err, question.ErrConflict) {
+		t.Fatalf("expected trainer assignment conflict, got %v", err)
+	}
+}

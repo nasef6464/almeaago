@@ -5,7 +5,8 @@ package domain
 // is intentionally not embedded here; those owners enrich the UI through their own
 // contracts.
 type TeacherWorkspace struct {
-	Schools []TeacherWorkspaceSchool
+	PlatformTrainer bool
+	Schools         []TeacherWorkspaceSchool
 }
 
 type TeacherWorkspaceSchool struct {

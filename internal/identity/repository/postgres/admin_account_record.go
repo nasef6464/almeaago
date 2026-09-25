@@ -10,7 +10,10 @@ import (
 	orgdomain "github.com/nasef6464/almeaago/internal/organizations/domain"
 )
 
-var errOrganizationScopeGatewayUnavailable = errors.New("organization scope gateway is not configured")
+var (
+	errOrganizationScopeGatewayUnavailable = errors.New("organization scope gateway is not configured")
+	errContentScopeGatewayUnavailable      = errors.New("content scope gateway is not configured")
+)
 
 func (r *Repository) syncOrganizationScopesTx(
 	ctx context.Context,
@@ -21,6 +24,17 @@ func (r *Repository) syncOrganizationScopesTx(
 		return errOrganizationScopeGatewayUnavailable
 	}
 	return r.orgScopes.SyncTx(ctx, tx, command)
+}
+
+func (r *Repository) syncContentScopesTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	command domain.AdminTrainerScopeCommand,
+) error {
+	if r.contentScopes == nil {
+		return errContentScopeGatewayUnavailable
+	}
+	return r.contentScopes.SyncTx(ctx, tx, command)
 }
 
 func (r *Repository) adminUserRecordTx(
@@ -90,6 +104,19 @@ func (r *Repository) adminUserRecordTx(
 	record.SchoolID = snapshot.SchoolID
 	record.ClassIDs = snapshot.ClassIDs
 	record.LinkedStudentIDs = snapshot.LinkedStudentIDs
+
+	if r.contentScopes == nil {
+		return domain.AdminUserRecord{}, errContentScopeGatewayUnavailable
+	}
+	contentSnapshot, err := r.contentScopes.SnapshotTx(ctx, tx, userID)
+	if errors.Is(err, domain.ErrNotFound) {
+		return domain.AdminUserRecord{}, domain.ErrNotFound
+	}
+	if err != nil {
+		return domain.AdminUserRecord{}, err
+	}
+	record.ManagedPathIDs = contentSnapshot.PathIDs
+	record.ManagedSubjectIDs = contentSnapshot.SubjectIDs
 	return record, nil
 }
 

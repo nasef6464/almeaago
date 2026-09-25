@@ -28,11 +28,13 @@ func (o *optionalAdminString) UnmarshalJSON(data []byte) error {
 
 type adminUserResponse struct {
 	userResponse
-	IsActive         bool            `json:"isActive"`
-	SchoolID         string          `json:"schoolId,omitempty"`
-	GroupIDs         []string        `json:"groupIds"`
-	LinkedStudentIDs []string        `json:"linkedStudentIds"`
-	SchoolContexts   []schoolContext `json:"schoolContexts"`
+	IsActive          bool            `json:"isActive"`
+	SchoolID          string          `json:"schoolId,omitempty"`
+	GroupIDs          []string        `json:"groupIds"`
+	LinkedStudentIDs  []string        `json:"linkedStudentIds"`
+	ManagedPathIDs    []string        `json:"managedPathIds"`
+	ManagedSubjectIDs []string        `json:"managedSubjectIds"`
+	SchoolContexts    []schoolContext `json:"schoolContexts"`
 }
 
 type schoolContext struct {
@@ -52,18 +54,6 @@ func (h *Handler) adminListUsers(w http.ResponseWriter, r *http.Request) {
 		writeApplicationError(w, application.ErrInvalidInput)
 		return
 	}
-	if raw := strings.TrimSpace(r.URL.Query().Get("platformTrainer")); raw != "" {
-		value, err := strconv.ParseBool(raw)
-		if err != nil {
-			writeApplicationError(w, application.ErrInvalidInput)
-			return
-		}
-		if value {
-			writeApplicationError(w, application.ErrUnsupportedAdminScope)
-			return
-		}
-	}
-
 	page, err := h.admin.ListUsers(r.Context(), auth.User, query)
 	if err != nil {
 		writeApplicationError(w, err)
@@ -123,17 +113,12 @@ func (h *Handler) adminUpsertUser(w http.ResponseWriter, r *http.Request) {
 		SchoolID          *string     `json:"schoolId"`
 		GroupIDs          []string    `json:"groupIds"`
 		LinkedStudentIDs  []string    `json:"linkedStudentIds"`
-		ManagedPathIDs    []string    `json:"managedPathIds"`
-		ManagedSubjectIDs []string    `json:"managedSubjectIds"`
+		ManagedPathIDs    *[]string   `json:"managedPathIds"`
+		ManagedSubjectIDs *[]string   `json:"managedSubjectIds"`
 	}
 	if !decodeJSON(w, r, &payload) {
 		return
 	}
-	if len(payload.ManagedPathIDs) > 0 || len(payload.ManagedSubjectIDs) > 0 {
-		writeApplicationError(w, application.ErrUnsupportedAdminScope)
-		return
-	}
-
 	schoolID := ""
 	if payload.SchoolID != nil {
 		schoolID = *payload.SchoolID
@@ -148,6 +133,8 @@ func (h *Handler) adminUpsertUser(w http.ResponseWriter, r *http.Request) {
 		schoolID,
 		payload.GroupIDs,
 		payload.LinkedStudentIDs,
+		payload.ManagedPathIDs,
+		payload.ManagedSubjectIDs,
 	)
 	if err != nil {
 		writeApplicationError(w, err)
@@ -170,17 +157,12 @@ func (h *Handler) adminUpdateUser(w http.ResponseWriter, r *http.Request) {
 		SchoolID          optionalAdminString `json:"schoolId"`
 		GroupIDs          *[]string           `json:"groupIds"`
 		LinkedStudentIDs  *[]string           `json:"linkedStudentIds"`
-		ManagedPathIDs    []string            `json:"managedPathIds"`
-		ManagedSubjectIDs []string            `json:"managedSubjectIds"`
+		ManagedPathIDs    *[]string           `json:"managedPathIds"`
+		ManagedSubjectIDs *[]string           `json:"managedSubjectIds"`
 	}
 	if !decodeJSON(w, r, &payload) {
 		return
 	}
-	if len(payload.ManagedPathIDs) > 0 || len(payload.ManagedSubjectIDs) > 0 {
-		writeApplicationError(w, application.ErrUnsupportedAdminScope)
-		return
-	}
-
 	var schoolID *string
 	if payload.SchoolID.Present {
 		value := payload.SchoolID.Value
@@ -192,13 +174,15 @@ func (h *Handler) adminUpdateUser(w http.ResponseWriter, r *http.Request) {
 		auth.User,
 		chi.URLParam(r, "id"),
 		domain.AdminUpdateUserInput{
-			Name:             payload.Name,
-			AvatarURL:        payload.Avatar,
-			Role:             payload.Role,
-			Active:           payload.IsActive,
-			SchoolID:         schoolID,
-			ClassIDs:         payload.GroupIDs,
-			LinkedStudentIDs: payload.LinkedStudentIDs,
+			Name:              payload.Name,
+			AvatarURL:         payload.Avatar,
+			Role:              payload.Role,
+			Active:            payload.IsActive,
+			SchoolID:          schoolID,
+			ClassIDs:          payload.GroupIDs,
+			LinkedStudentIDs:  payload.LinkedStudentIDs,
+			ManagedPathIDs:    payload.ManagedPathIDs,
+			ManagedSubjectIDs: payload.ManagedSubjectIDs,
 		},
 	)
 	if err != nil {
@@ -309,6 +293,13 @@ func parseAdminUserQuery(r *http.Request) (domain.AdminUserQuery, error) {
 		}
 		query.Active = &active
 	}
+	if raw := strings.TrimSpace(values.Get("platformTrainer")); raw != "" {
+		value, err := strconv.ParseBool(raw)
+		if err != nil {
+			return domain.AdminUserQuery{}, application.ErrInvalidInput
+		}
+		query.PlatformTrainer = &value
+	}
 	if len(query.Search) > 120 {
 		return domain.AdminUserQuery{}, application.ErrInvalidInput
 	}
@@ -332,12 +323,20 @@ func presentAdminRecord(record domain.AdminUserRecord) adminUserResponse {
 	if record.LinkedStudentIDs == nil {
 		record.LinkedStudentIDs = []string{}
 	}
+	if record.ManagedPathIDs == nil {
+		record.ManagedPathIDs = []string{}
+	}
+	if record.ManagedSubjectIDs == nil {
+		record.ManagedSubjectIDs = []string{}
+	}
 	return adminUserResponse{
-		userResponse:     base,
-		IsActive:         record.User.Status == "active",
-		SchoolID:         record.SchoolID,
-		GroupIDs:         record.ClassIDs,
-		LinkedStudentIDs: record.LinkedStudentIDs,
-		SchoolContexts:   contexts,
+		userResponse:      base,
+		IsActive:          record.User.Status == "active",
+		SchoolID:          record.SchoolID,
+		GroupIDs:          record.ClassIDs,
+		LinkedStudentIDs:  record.LinkedStudentIDs,
+		ManagedPathIDs:    record.ManagedPathIDs,
+		ManagedSubjectIDs: record.ManagedSubjectIDs,
+		SchoolContexts:    contexts,
 	}
 }

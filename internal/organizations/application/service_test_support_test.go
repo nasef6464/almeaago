@@ -297,3 +297,28 @@ func TestParentAuthorityDelegatesCanonicalRelationshipRead(t *testing.T) {
 		t.Fatalf("unexpected authority: %#v", authority)
 	}
 }
+
+type platformTrainerResolverStub struct {
+	active bool
+	err    error
+}
+
+func (s platformTrainerResolverStub) HasActiveTrainerScope(context.Context, string) (bool, error) {
+	return s.active, s.err
+}
+
+func TestTeacherWorkspaceResolvesPlatformTrainerPersonaFromContent(t *testing.T) {
+	repo := &repositoryMock{teacherWorkspace: org.TeacherWorkspace{
+		Schools: []org.TeacherWorkspaceSchool{},
+	}}
+	service := NewServiceWithOptions(repo, ServiceOptions{
+		PlatformTrainerResolver: platformTrainerResolverStub{active: true},
+	})
+	workspace, err := service.TeacherWorkspace(context.Background(), actor("teacher-1", identity.RoleTeacher))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !workspace.PlatformTrainer {
+		t.Fatalf("expected canonical Content trainer persona: %#v", workspace)
+	}
+}

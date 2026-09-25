@@ -122,6 +122,18 @@ const adminUserSelect = `
 			WHERE ps.parent_user_id = u.id
 			  AND ps.status = 'active'
 			ORDER BY ps.created_at DESC
+		)::text[],
+		ARRAY(
+			SELECT cps.path_id::text
+			FROM content_trainer_path_scopes cps
+			WHERE cps.user_id = u.id
+			ORDER BY cps.path_id
+		)::text[],
+		ARRAY(
+			SELECT css.subject_id::text
+			FROM content_trainer_subject_scopes css
+			WHERE css.user_id = u.id
+			ORDER BY css.subject_id
 		)::text[]
 	FROM users u
 `
@@ -179,6 +191,23 @@ func BuildAdminUserWhere(query domain.AdminUserQuery) (string, []any) {
 			clauses = append(clauses, "u.status <> 'active'")
 		}
 	}
+	if query.PlatformTrainer != nil {
+		expression := `(
+			EXISTS (
+				SELECT 1 FROM user_roles trainer_role
+				WHERE trainer_role.user_id=u.id AND trainer_role.role='teacher'
+			)
+			AND (
+				EXISTS (SELECT 1 FROM content_trainer_path_scopes cps WHERE cps.user_id=u.id)
+				OR EXISTS (SELECT 1 FROM content_trainer_subject_scopes css WHERE css.user_id=u.id)
+			)
+		)`
+		if *query.PlatformTrainer {
+			clauses = append(clauses, expression)
+		} else {
+			clauses = append(clauses, "NOT "+expression)
+		}
+	}
 
 	if len(clauses) == 0 {
 		return "", args
@@ -208,6 +237,8 @@ func scanAdminRecord(row adminRowScanner) (domain.AdminUserRecord, error) {
 		&record.SchoolID,
 		&record.ClassIDs,
 		&record.LinkedStudentIDs,
+		&record.ManagedPathIDs,
+		&record.ManagedSubjectIDs,
 	)
 	if err != nil {
 		return domain.AdminUserRecord{}, err
@@ -222,6 +253,12 @@ func scanAdminRecord(row adminRowScanner) (domain.AdminUserRecord, error) {
 	}
 	if record.LinkedStudentIDs == nil {
 		record.LinkedStudentIDs = []string{}
+	}
+	if record.ManagedPathIDs == nil {
+		record.ManagedPathIDs = []string{}
+	}
+	if record.ManagedSubjectIDs == nil {
+		record.ManagedSubjectIDs = []string{}
 	}
 	return record, nil
 }

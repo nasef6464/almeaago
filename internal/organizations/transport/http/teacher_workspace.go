@@ -43,8 +43,9 @@ func (h *Handler) teacherWorkspace(w http.ResponseWriter, r *http.Request) {
 	response := teacherWorkspaceResponse{
 		Schools: make([]teacherWorkspaceSchoolResponse, 0, len(workspace.Schools)),
 	}
-	// Platform-trainer scope belongs to Content/Taxonomy and must not be inferred
-	// from Organizations data. It stays false until that owner exposes its contract.
+	// Platform-trainer scope is resolved through Content's canonical contract; it is
+	// never inferred from school membership or Organizations assignments.
+	response.Personas.PlatformTrainer = workspace.PlatformTrainer
 	response.Personas.SchoolTeacher = len(workspace.Schools) > 0
 
 	for _, school := range workspace.Schools {
