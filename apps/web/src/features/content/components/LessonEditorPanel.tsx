@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, Loader2, Save } from 'lucide-react';
+import { CheckCircle2, Loader2, Save, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
 import { contentClient } from '../api/content-client';
@@ -229,22 +229,22 @@ export function LessonEditorPanel({
   }
 
   return (
-    <main className="min-h-[calc(100vh-5rem)] bg-gray-50 px-3 py-6 sm:px-6 lg:px-8">
-      <form onSubmit={submit} className="mx-auto max-w-5xl space-y-5">
-        <section className="flex flex-col gap-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="text-xs font-black text-indigo-600">Lesson Builder</div>
-            <h1 className="mt-1 text-2xl font-black text-gray-900">{editing ? 'تعديل الدرس' : 'إضافة درس جديد'}</h1>
-            <p className="mt-2 text-sm font-medium leading-7 text-gray-500">
-              نفس هوية الدرس يمكن ربطها بأكثر من دورة؛ الدورة تحتفظ بالترتيب والمعاينة فقط ولا تنسخ محتوى الدرس.
-            </p>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-2 backdrop-blur-sm sm:p-4">
+      <form onSubmit={submit} className="flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between gap-3 border-b border-gray-100 bg-gray-50 p-4">
+          <div className="min-w-0">
+            <div className="text-xs font-black text-indigo-600">منشئ الدروس الموحد</div>
+            <h1 className="mt-1 truncate text-lg font-black text-gray-800">
+              {editing ? 'تعديل الدرس' : 'إضافة درس جديد'}
+            </h1>
+            <p className="mt-1 truncate text-xs font-bold text-gray-400">{title.trim() || 'درس جديد'}</p>
           </div>
-          <button type="button" onClick={onCancel} className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-black text-gray-700">
-            <ArrowRight size={18} />
-            رجوع
+          <button type="button" onClick={onCancel} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-200 hover:text-gray-700" aria-label="إغلاق منشئ الدرس">
+            <X size={20} />
           </button>
-        </section>
+        </div>
 
+        <div className="flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
         {lockScope ? <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">نطاق المعلم مثبت على المسار والمادة المختارين.</div> : null}
         {lockedByWorkflow ? <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">الدرس معتمد أو مؤرشف؛ التعديل المباشر مقفول في الـBackend.</div> : null}
         {error ? <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">{error}</div> : null}
@@ -368,7 +368,9 @@ export function LessonEditorPanel({
           </label>
         </section>
 
-        <section className="flex flex-col gap-3 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        </div>
+
+        <section className="flex flex-col gap-3 border-t border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
             <CheckCircle2 size={17} className="text-emerald-600" />
             الحفظ لا يعتمد الدرس تلقائيًا؛ الاعتماد يظل خطوة مراجعة مستقلة.
@@ -379,6 +381,6 @@ export function LessonEditorPanel({
           </button>
         </section>
       </form>
-    </main>
+    </div>
   );
 }

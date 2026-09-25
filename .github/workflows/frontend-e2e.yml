@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - "apps/web/src/app/App.tsx"
+      - "apps/web/src/features/content/**"
       - "apps/web/tests/e2e/**"
       - "apps/web/playwright.config.ts"
       - "apps/web/package.json"

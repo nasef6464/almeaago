@@ -1,5 +1,5 @@
 import {
-  ArrowRight,
+  X,
   BookOpen,
   Eye,
   Layers3,
@@ -365,51 +365,69 @@ export function CourseEditorPanel({
   }
 
   return (
-    <main className="min-h-[calc(100vh-5rem)] bg-gray-50 px-3 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl space-y-5">
-        <section className="flex flex-col gap-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="text-xs font-black text-indigo-600">Master Course Builder</div>
-            <h1 className="mt-1 text-2xl font-black text-gray-900">{course.title}</h1>
-            <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold text-gray-500">
-              <span>Revision {course.revision}</span>
-              <span>•</span>
-              <span>{course.workflowStatus}</span>
-              {course.isPublished ? <span className="text-emerald-700">• منشور</span> : null}
+    <main className="bg-gray-50 p-1 sm:p-2">
+      <div className="mx-auto max-w-6xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <section className="flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 p-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-200 hover:text-gray-700"
+              aria-label="إغلاق باني الدورة"
+            >
+              <X size={20} />
+            </button>
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-black text-gray-800 sm:text-xl">تعديل الدورة (Master Builder)</h1>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-bold text-gray-500">
+                <span className="truncate">{course.title}</span>
+                <span>•</span>
+                <span>Revision {course.revision}</span>
+                <span>•</span>
+                <span>{course.workflowStatus}</span>
+                {course.isPublished ? <span className="text-emerald-700">• منشور</span> : null}
+              </div>
             </div>
           </div>
-          <button type="button" onClick={onCancel} className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-black text-gray-700">
-            <ArrowRight size={18} />
-            رجوع
-          </button>
+          {activeTab === 'settings' ? (
+            <button
+              type="submit"
+              form="course-settings-form"
+              disabled={!canMutate || mutating}
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white transition hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {mutating ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
+              <span className="hidden sm:inline">حفظ الدورة</span>
+            </button>
+          ) : null}
         </section>
 
         {lockScope ? (
-          <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">
+          <div className="m-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">
             نطاق المعلم مثبت على مسار ومادة هذه الدورة؛ تغيير التصنيف من هذه الشاشة غير متاح للمعلم.
           </div>
         ) : null}
         {!canMutate ? (
-          <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+          <div className="m-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
             الدورة {course.workflowStatus === 'approved' ? 'معتمدة' : 'مؤرشفة'}؛ الـBackend يمنع التعديل المباشر عليها. استخدم دورة العمل المناسبة أولًا.
           </div>
         ) : null}
-        {notice ? <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">{notice}</div> : null}
-        {error ? <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">{error}</div> : null}
+        {notice ? <div className="mx-4 mb-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">{notice}</div> : null}
+        {error ? <div className="mx-4 mb-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">{error}</div> : null}
 
-        <section className="grid grid-cols-2 rounded-2xl border border-gray-100 bg-white p-2 shadow-sm">
-          <button type="button" onClick={() => setActiveTab('curriculum')} className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black ${activeTab === 'curriculum' ? 'bg-indigo-600 text-white' : 'text-gray-600'}`}>
+        <section className="flex border-b border-gray-200 bg-white px-4 sm:px-6">
+          <button type="button" onClick={() => setActiveTab('curriculum')} className={`flex flex-1 items-center justify-center gap-2 border-b-2 px-4 py-4 text-sm font-black transition sm:flex-none sm:px-6 ${activeTab === 'curriculum' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
             <BookOpen size={18} />
             المنهج
           </button>
-          <button type="button" onClick={() => setActiveTab('settings')} className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black ${activeTab === 'settings' ? 'bg-indigo-600 text-white' : 'text-gray-600'}`}>
+          <button type="button" onClick={() => setActiveTab('settings')} className={`flex flex-1 items-center justify-center gap-2 border-b-2 px-4 py-4 text-sm font-black transition sm:flex-none sm:px-6 ${activeTab === 'settings' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
             <Layers3 size={18} />
             إعدادات الدورة
           </button>
         </section>
 
         {activeTab === 'settings' ? (
-          <form onSubmit={saveSettings} className="space-y-5">
+          <form id="course-settings-form" onSubmit={saveSettings} className="space-y-5 bg-gray-50 p-4 sm:p-6">
             <section className="grid gap-5 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 md:grid-cols-2">
               <label className="space-y-2 md:col-span-2">
                 <span className="text-sm font-black text-gray-700">اسم الدورة *</span>
@@ -491,11 +509,11 @@ export function CourseEditorPanel({
             </div>
           </form>
         ) : (
-          <section className="space-y-4">
-            <div className="flex flex-col gap-3 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <section className="space-y-4 bg-gray-50 p-4 sm:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-black text-gray-900">باني المنهج</h2>
-                <p className="mt-1 text-sm font-medium text-gray-500">أقسام مرتبة وروابط إلى دروس Content الحقيقية؛ لا يتم نسخ الدرس داخل الدورة.</p>
+                <h2 className="text-lg font-black text-gray-900">باني المناهج (Curriculum Builder)</h2>
+                <p className="mt-1 text-sm font-medium text-gray-500">قم بإضافة الأقسام والدروس. الروابط تحفظ مراجع Content الحقيقية ولا تنسخ محتوى الدرس.</p>
               </div>
               <button type="button" disabled={!canMutate || mutating || modules.length >= 200} onClick={() => void addModule()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">
                 <Plus size={18} />
