@@ -73,8 +73,9 @@ func main() {
 	directorDirectory := reportingrepo.NewSchoolDirectorDirectory(db)
 
 	contentRepository := contentrepo.New(db, auditWriter)
-	contentService := contentapp.NewService(contentRepository)
 	organizationsRepository := orgrepo.New(db, auditWriter, identityRepository)
+	authorScope := contentapp.NewCombinedAuthorScope(contentRepository, organizationsRepository)
+	contentService := contentapp.NewServiceWithAuthorScope(contentRepository, authorScope)
 	organizationsService := orgapp.NewServiceWithOptions(organizationsRepository, orgapp.ServiceOptions{
 		DirectorDirectory:       directorDirectory,
 		PlatformTrainerResolver: contentRepository,
@@ -82,7 +83,7 @@ func main() {
 	taxonomyRepository := taxonomyrepo.New(db)
 	taxonomyService := taxonomyapp.NewService(taxonomyRepository)
 	questionRepository := questionrepo.New(db, auditWriter)
-	questionService := questionapp.NewServiceWithAuthorScope(questionRepository, contentRepository)
+	questionService := questionapp.NewServiceWithAuthorScope(questionRepository, authorScope)
 	mediaRepository := mediarepo.New(db, auditWriter)
 	r2Client := r2provider.New(r2provider.Config{
 		AccountID:       cfg.R2AccountID,

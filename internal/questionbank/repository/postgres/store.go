@@ -28,12 +28,12 @@ func (r *Repository) Create(ctx context.Context, actorUserID string, command que
 		return question.Question{}, err
 	}
 	if command.OwnerType == question.OwnerTeacher {
-		if err := validateTeacherScopeTx(ctx, tx, command.OwnerID, command.PathID, command.SubjectID); err != nil {
+		if err := validateTeacherTx(ctx, tx, command.OwnerID); err != nil {
 			return question.Question{}, err
 		}
 	}
 	if command.AssignedTeacherID != "" {
-		if err := validateTeacherScopeTx(ctx, tx, command.AssignedTeacherID, command.PathID, command.SubjectID); err != nil {
+		if err := validateTeacherTx(ctx, tx, command.AssignedTeacherID); err != nil {
 			return question.Question{}, err
 		}
 	}

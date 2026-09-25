@@ -61,9 +61,18 @@ type Repository interface {
 	GetLearnerTopic(ctx context.Context, topicID string) (content.LearnerTopic, error)
 }
 
-type Service struct{ repo Repository }
+type Service struct {
+	repo        Repository
+	authorScope AuthorScope
+}
 
-func NewService(repo Repository) *Service { return &Service{repo: repo} }
+func NewService(repo Repository) *Service {
+	return &Service{repo: repo, authorScope: repo}
+}
+
+func NewServiceWithAuthorScope(repo Repository, scope AuthorScope) *Service {
+	return &Service{repo: repo, authorScope: scope}
+}
 
 func normalizeOwner(actor identity.User, ownerType *content.OwnerType, ownerUserID, ownerSchoolID, assignedTeacherID *string) error {
 	if actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleAdmin) {
@@ -105,12 +114,58 @@ func (s *Service) requireAuthorScope(ctx context.Context, actor identity.User, p
 	if !actor.HasRole(identity.RoleTeacher) {
 		return ErrForbidden
 	}
-	ok, err := s.repo.CanAuthor(ctx, actor.ID, strings.TrimSpace(pathID), strings.TrimSpace(subjectID))
+	if s.authorScope == nil {
+		return ErrForbidden
+	}
+	ok, err := s.authorScope.CanAuthor(ctx, actor.ID, strings.TrimSpace(pathID), strings.TrimSpace(subjectID))
 	if err != nil {
 		return err
 	}
 	if !ok {
 		return ErrForbidden
+	}
+	return nil
+}
+
+func (s *Service) validateTeacherWriteScope(
+	ctx context.Context,
+	pathID string,
+	subjectID string,
+	ownerType content.OwnerType,
+	ownerUserID string,
+	assignedTeacherID string,
+) error {
+	if s.authorScope == nil {
+		return content.ErrConflict
+	}
+	seen := map[string]struct{}{}
+	validate := func(userID string) error {
+		userID = strings.TrimSpace(userID)
+		if userID == "" {
+			return content.ErrConflict
+		}
+		if _, ok := seen[userID]; ok {
+			return nil
+		}
+		seen[userID] = struct{}{}
+		ok, err := s.authorScope.CanAuthor(ctx, userID, strings.TrimSpace(pathID), strings.TrimSpace(subjectID))
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return content.ErrConflict
+		}
+		return nil
+	}
+	if ownerType == content.OwnerTeacher {
+		if err := validate(ownerUserID); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(assignedTeacherID) != "" {
+		if err := validate(assignedTeacherID); err != nil {
+			return err
+		}
 	}
 	return nil
 }

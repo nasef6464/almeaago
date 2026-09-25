@@ -102,12 +102,12 @@ func (r *Repository) validateContentRefsTx(ctx context.Context, tx pgx.Tx, pathI
 
 func validateOwnerTx(ctx context.Context, tx pgx.Tx, pathID, subjectID string, ownerType content.OwnerType, ownerUserID, ownerSchoolID, assignedTeacherID string) error {
 	if ownerType == content.OwnerTeacher {
-		if err := validateTeacherScopeTx(ctx, tx, ownerUserID, pathID, subjectID); err != nil {
+		if err := validateTeacherTx(ctx, tx, ownerUserID); err != nil {
 			return err
 		}
 	}
 	if assignedTeacherID != "" {
-		if err := validateTeacherScopeTx(ctx, tx, assignedTeacherID, pathID, subjectID); err != nil {
+		if err := validateTeacherTx(ctx, tx, assignedTeacherID); err != nil {
 			return err
 		}
 	}

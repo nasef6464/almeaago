@@ -20,6 +20,9 @@ func (s *Service) CreateCourse(ctx context.Context, actor identity.User, input C
 	if !actor.HasRole(identity.RoleAdmin) {
 		write.RevenueSharePercentage = nil
 	}
+	if err := s.validateTeacherWriteScope(ctx, write.PathID, write.SubjectID, write.OwnerType, write.OwnerUserID, write.AssignedTeacherID); err != nil {
+		return content.Course{}, err
+	}
 	return s.repo.CreateCourse(ctx, actor.ID, write)
 }
 
@@ -51,6 +54,9 @@ func (s *Service) UpdateCourse(ctx context.Context, actor identity.User, courseI
 	if !actor.HasRole(identity.RoleAdmin) {
 		write.OwnerType, write.OwnerUserID, write.OwnerSchoolID, write.AssignedTeacherID = current.OwnerType, current.OwnerUserID, current.OwnerSchoolID, current.AssignedTeacherID
 		write.RevenueSharePercentage = current.RevenueSharePercentage
+	}
+	if err := s.validateTeacherWriteScope(ctx, write.PathID, write.SubjectID, write.OwnerType, write.OwnerUserID, write.AssignedTeacherID); err != nil {
+		return content.Course{}, err
 	}
 	return s.repo.UpdateCourse(ctx, actor.ID, courseID, input.ExpectedRevision, write)
 }

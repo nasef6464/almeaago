@@ -19,6 +19,9 @@ func (s *Service) CreateLibraryItem(ctx context.Context, actor identity.User, in
 	if !actor.HasRole(identity.RoleAdmin) {
 		write.RevenueSharePercentage = nil
 	}
+	if err := s.validateTeacherWriteScope(ctx, write.PathID, write.SubjectID, write.OwnerType, write.OwnerUserID, write.AssignedTeacherID); err != nil {
+		return content.LibraryItem{}, err
+	}
 	return s.repo.CreateLibraryItem(ctx, actor.ID, write)
 }
 
@@ -50,6 +53,9 @@ func (s *Service) UpdateLibraryItem(ctx context.Context, actor identity.User, it
 	if !actor.HasRole(identity.RoleAdmin) {
 		write.OwnerType, write.OwnerUserID, write.OwnerSchoolID, write.AssignedTeacherID = current.OwnerType, current.OwnerUserID, current.OwnerSchoolID, current.AssignedTeacherID
 		write.RevenueSharePercentage = current.RevenueSharePercentage
+	}
+	if err := s.validateTeacherWriteScope(ctx, write.PathID, write.SubjectID, write.OwnerType, write.OwnerUserID, write.AssignedTeacherID); err != nil {
+		return content.LibraryItem{}, err
 	}
 	return s.repo.UpdateLibraryItem(ctx, actor.ID, itemID, input.ExpectedRevision, write)
 }
