@@ -16,8 +16,8 @@ type repoStub struct {
 	workflowWrite   bool
 	publicationCall bool
 	listQuery       content.ListQuery
-	canAuthor     bool
-	scope         content.TrainerScope
+	canAuthor       bool
+	scope           content.TrainerScope
 }
 
 func (r *repoStub) GetTrainerScope(context.Context, string) (content.TrainerScope, error) {
