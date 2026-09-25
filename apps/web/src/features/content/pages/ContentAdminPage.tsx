@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../api/content-client';
+import { CourseCreatePanel } from '../components/CourseCreatePanel';
 import type {
   ContentListFilters,
   ContentWorkflowStatus,
@@ -63,7 +64,7 @@ function workflowClass(status: ContentWorkflowStatus) {
 }
 
 export function ContentAdminPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, getCsrfToken } = useAuth();
   const isAdmin = user?.roles.includes('admin') ?? false;
   const isTeacher = user?.roles.includes('teacher') ?? false;
   const [tab, setTab] = useState<ContentTab>('courses');
@@ -80,6 +81,7 @@ export function ContentAdminPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+  const [creatingCourse, setCreatingCourse] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -197,6 +199,24 @@ export function ContentAdminPage() {
     return <main className="min-h-[calc(100vh-5rem)] bg-gray-50 p-10 text-center font-black text-rose-700">هذه الشاشة متاحة للإدارة والمعلمين المخولين فقط.</main>;
   }
 
+  if (creatingCourse) {
+    return (
+      <CourseCreatePanel
+        coreTaxonomy={taxonomy}
+        initialPathId={pathId}
+        initialSubjectId={subjectId}
+        getCsrfToken={getCsrfToken}
+        onCancel={() => setCreatingCourse(false)}
+        onCreated={() => {
+          setCreatingCourse(false);
+          setTab('courses');
+          setPage(1);
+          setReloadKey((value) => value + 1);
+        }}
+      />
+    );
+  }
+
   const tabs: Array<{ id: ContentTab; label: string; icon: typeof BookOpen }> = [
     { id: 'courses', label: 'الدورات', icon: GraduationCap },
     { id: 'lessons', label: 'الدروس', icon: BookOpen },
@@ -217,12 +237,19 @@ export function ContentAdminPage() {
           </div>
           <button
             type="button"
-            disabled
-            title="يُفعّل مع شريحة CRUD بعد ربط نموذج الإنشاء والتحقق البصري."
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-black text-white opacity-60"
+            disabled={tab !== 'courses' || (teacherRequiresExactScope && (!pathId || !subjectId))}
+            title={
+              tab !== 'courses'
+                ? 'سيتم تفعيل الإنشاء لكل نوع محتوى في شريحته المنفصلة.'
+                : teacherRequiresExactScope && (!pathId || !subjectId)
+                  ? 'اختر المسار والمادة أولًا لتثبيت نطاق المعلم.'
+                  : 'إنشاء دورة جديدة'
+            }
+            onClick={() => setCreatingCourse(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Plus size={18} />
-            إضافة
+            {tab === 'courses' ? 'إنشاء دورة جديدة' : 'إضافة'}
           </button>
         </section>
 

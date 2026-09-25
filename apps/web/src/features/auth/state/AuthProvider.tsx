@@ -26,6 +26,7 @@ interface AuthContextValue {
   resetPassword(token: string, password: string): ReturnType<typeof authClient.resetPassword>;
   verifyEmail(token: string): ReturnType<typeof authClient.verifyEmail>;
   resendEmailVerification(): ReturnType<typeof authClient.resendEmailVerification>;
+  getCsrfToken(): Promise<string>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -142,6 +143,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       async resendEmailVerification() {
         const token = await ensureCsrf();
         return authClient.resendEmailVerification(token);
+      },
+
+      getCsrfToken() {
+        return ensureCsrf();
       },
     }),
     [csrfToken, ensureCsrf, loading, user],

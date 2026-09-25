@@ -108,7 +108,36 @@ export interface TaxonomySubject {
   sortOrder: number;
 }
 
+export interface TaxonomySkill {
+  id: string;
+  subjectId: string;
+  parentSkillId?: string;
+  code: string;
+  name: string;
+  description: string;
+  kind: string;
+  sortOrder: number;
+}
+
 export interface TaxonomyCore {
   paths: TaxonomyPath[];
   subjects: TaxonomySubject[];
+}
+
+export interface TaxonomyFull extends TaxonomyCore {
+  skills: TaxonomySkill[];
+}
+
+export interface CreateCourseInput {
+  pathId: string;
+  subjectId: string;
+  title: string;
+  description: string;
+  instructorName: string;
+  durationMinutes: number;
+  level: 'beginner' | 'intermediate' | 'advanced';
+  isVisible: boolean;
+  dripContentEnabled: boolean;
+  certificateEnabled: boolean;
+  skillIds: string[];
 }

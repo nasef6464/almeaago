@@ -1,11 +1,13 @@
 import type {
   ContentListFilters,
   CourseSummary,
+  CreateCourseInput,
   FoundationTopicSummary,
   LibrarySummary,
   LessonSummary,
   PageResult,
   TaxonomyCore,
+  TaxonomyFull,
 } from './content-types';
 
 const API_BASE = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
@@ -15,11 +17,14 @@ interface ErrorBody {
   error?: { message?: string };
 }
 
-async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
+    ...init,
     credentials: 'include',
-    signal,
-    headers: { Accept: 'application/json' },
+    headers: {
+      Accept: 'application/json',
+      ...init.headers,
+    },
   });
 
   if (!response.ok) {
@@ -37,7 +42,9 @@ async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
           ? 'يلزم تسجيل الدخول.'
           : response.status === 403
             ? 'لا تملك صلاحية هذا النطاق.'
-            : 'تعذر تحميل البيانات الآن.'),
+            : response.status === 409
+              ? 'تعارضت العملية مع حالة المحتوى الحالية. حدّث الصفحة وحاول مرة أخرى.'
+              : 'تعذر تنفيذ الطلب الآن.'),
     );
   }
 
@@ -57,27 +64,31 @@ function listQuery(filters: ContentListFilters) {
 
 export const contentClient = {
   taxonomyCore(signal?: AbortSignal) {
-    return request<TaxonomyCore>('/api/v1/taxonomy/bootstrap?phase=core', signal);
+    return request<TaxonomyCore>('/api/v1/taxonomy/bootstrap?phase=core', { signal });
+  },
+
+  taxonomyFull(signal?: AbortSignal) {
+    return request<TaxonomyFull>('/api/v1/taxonomy/bootstrap?phase=full', { signal });
   },
 
   courses(filters: ContentListFilters, signal?: AbortSignal) {
     return request<PageResult<CourseSummary>>(
       `/api/v1/courses?${listQuery(filters)}`,
-      signal,
+      { signal },
     );
   },
 
   lessons(filters: ContentListFilters, signal?: AbortSignal) {
     return request<PageResult<LessonSummary>>(
       `/api/v1/lessons?${listQuery(filters)}`,
-      signal,
+      { signal },
     );
   },
 
   library(filters: ContentListFilters, signal?: AbortSignal) {
     return request<PageResult<LibrarySummary>>(
       `/api/v1/library?${listQuery(filters)}`,
-      signal,
+      { signal },
     );
   },
 
@@ -90,7 +101,18 @@ export const contentClient = {
     if (filters.search) params.set('search', filters.search);
     return request<PageResult<FoundationTopicSummary>>(
       `/api/v1/foundation/topics?${params.toString()}`,
-      signal,
+      { signal },
     );
+  },
+
+  createCourse(input: CreateCourseInput, csrfToken: string) {
+    return request<{ course: CourseSummary }>('/api/v1/courses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      body: JSON.stringify(input),
+    });
   },
 };
