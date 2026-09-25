@@ -17,7 +17,7 @@ func (r *Repository) CreateLesson(ctx context.Context, actorUserID string, write
 	if err := r.validateContentRefsTx(ctx, tx, write.PathID, write.SubjectID, write.SkillIDs, write.AssetIDs); err != nil {
 		return content.Lesson{}, err
 	}
-	if err := validateOwnerTx(ctx, tx, write.OwnerType, write.OwnerUserID, write.OwnerSchoolID, write.AssignedTeacherID); err != nil {
+	if err := validateOwnerTx(ctx, tx, write.PathID, write.SubjectID, write.OwnerType, write.OwnerUserID, write.OwnerSchoolID, write.AssignedTeacherID); err != nil {
 		return content.Lesson{}, err
 	}
 	var id string
@@ -57,7 +57,7 @@ func (r *Repository) UpdateLesson(ctx context.Context, actorUserID, lessonID str
 	if err := r.validateContentRefsTx(ctx, tx, write.PathID, write.SubjectID, write.SkillIDs, write.AssetIDs); err != nil {
 		return content.Lesson{}, err
 	}
-	if err := validateOwnerTx(ctx, tx, write.OwnerType, write.OwnerUserID, write.OwnerSchoolID, write.AssignedTeacherID); err != nil {
+	if err := validateOwnerTx(ctx, tx, write.PathID, write.SubjectID, write.OwnerType, write.OwnerUserID, write.OwnerSchoolID, write.AssignedTeacherID); err != nil {
 		return content.Lesson{}, err
 	}
 	var id string

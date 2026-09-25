@@ -17,6 +17,10 @@ var (
 )
 
 type Repository interface {
+	GetTrainerScope(ctx context.Context, userID string) (content.TrainerScope, error)
+	SetTrainerScope(ctx context.Context, actorUserID, userID string, pathIDs, subjectIDs []string) (content.TrainerScope, error)
+	CanAuthor(ctx context.Context, userID, pathID, subjectID string) (bool, error)
+
 	CreateCourse(ctx context.Context, actorUserID string, write content.CourseWrite) (content.Course, error)
 	UpdateCourse(ctx context.Context, actorUserID, courseID string, expectedRevision int, write content.CourseWrite) (content.Course, error)
 	SetCourseWorkflow(ctx context.Context, actorUserID, courseID string, expectedRevision int, status content.WorkflowStatus, reviewerNotes string) (content.Course, error)

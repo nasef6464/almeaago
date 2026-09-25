@@ -343,3 +343,9 @@ type LibraryWrite struct {
 	SkillIDs               []string
 	PrimaryAssetID         string
 }
+
+type TrainerScope struct {
+	UserID     string
+	PathIDs    []string
+	SubjectIDs []string
+}

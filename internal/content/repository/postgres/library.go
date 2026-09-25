@@ -17,7 +17,7 @@ func (r *Repository) CreateLibraryItem(ctx context.Context, actorUserID string, 
 	if err := r.validateContentRefsTx(ctx, tx, write.PathID, write.SubjectID, write.SkillIDs, []string{write.PrimaryAssetID}); err != nil {
 		return content.LibraryItem{}, err
 	}
-	if err := validateOwnerTx(ctx, tx, write.OwnerType, write.OwnerUserID, write.OwnerSchoolID, write.AssignedTeacherID); err != nil {
+	if err := validateOwnerTx(ctx, tx, write.PathID, write.SubjectID, write.OwnerType, write.OwnerUserID, write.OwnerSchoolID, write.AssignedTeacherID); err != nil {
 		return content.LibraryItem{}, err
 	}
 	var id string
@@ -55,7 +55,7 @@ func (r *Repository) UpdateLibraryItem(ctx context.Context, actorUserID, itemID 
 	if err := r.validateContentRefsTx(ctx, tx, write.PathID, write.SubjectID, write.SkillIDs, []string{write.PrimaryAssetID}); err != nil {
 		return content.LibraryItem{}, err
 	}
-	if err := validateOwnerTx(ctx, tx, write.OwnerType, write.OwnerUserID, write.OwnerSchoolID, write.AssignedTeacherID); err != nil {
+	if err := validateOwnerTx(ctx, tx, write.PathID, write.SubjectID, write.OwnerType, write.OwnerUserID, write.OwnerSchoolID, write.AssignedTeacherID); err != nil {
 		return content.LibraryItem{}, err
 	}
 	var id string

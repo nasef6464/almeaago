@@ -100,14 +100,14 @@ func (r *Repository) validateContentRefsTx(ctx context.Context, tx pgx.Tx, pathI
 	return nil
 }
 
-func validateOwnerTx(ctx context.Context, tx pgx.Tx, ownerType content.OwnerType, ownerUserID, ownerSchoolID, assignedTeacherID string) error {
+func validateOwnerTx(ctx context.Context, tx pgx.Tx, pathID, subjectID string, ownerType content.OwnerType, ownerUserID, ownerSchoolID, assignedTeacherID string) error {
 	if ownerType == content.OwnerTeacher {
-		if err := validateTeacherTx(ctx, tx, ownerUserID); err != nil {
+		if err := validateTeacherScopeTx(ctx, tx, ownerUserID, pathID, subjectID); err != nil {
 			return err
 		}
 	}
 	if assignedTeacherID != "" {
-		if err := validateTeacherTx(ctx, tx, assignedTeacherID); err != nil {
+		if err := validateTeacherScopeTx(ctx, tx, assignedTeacherID, pathID, subjectID); err != nil {
 			return err
 		}
 	}
@@ -132,6 +132,35 @@ func validateTeacherTx(ctx context.Context, tx pgx.Tx, userID string) error {
 		)
 	`, userID).Scan(&ok); err != nil {
 		return err
+	}
+	if !ok {
+		return content.ErrConflict
+	}
+	return nil
+}
+
+func validateTeacherScopeTx(ctx context.Context, tx pgx.Tx, userID, pathID, subjectID string) error {
+	if err := validateTeacherTx(ctx, tx, userID); err != nil {
+		return err
+	}
+	var ok bool
+	if err := tx.QueryRow(ctx, `
+		SELECT
+			EXISTS(
+				SELECT 1
+				FROM content_trainer_path_scopes ps
+				JOIN paths p ON p.id=ps.path_id
+				WHERE ps.user_id=$1::uuid AND ps.path_id=$2::uuid AND p.status='active'
+			)
+			OR EXISTS(
+				SELECT 1
+				FROM content_trainer_subject_scopes ss
+				JOIN subjects s ON s.id=ss.subject_id
+				WHERE ss.user_id=$1::uuid AND ss.subject_id=$3::uuid
+				  AND s.path_id=$2::uuid AND s.status='active'
+			)
+	`, userID, pathID, subjectID).Scan(&ok); err != nil {
+		return mapError(err)
 	}
 	if !ok {
 		return content.ErrConflict
@@ -297,6 +326,19 @@ func buildListWhere(query content.ListQuery, alias string) (string, []any) {
 		args = append(args, query.TeacherScopeUserID)
 		index := len(args)
 		parts = append(parts, fmt.Sprintf("(%s.owner_user_id=$%d::uuid OR %s.assigned_teacher_id=$%d::uuid)", alias, index, alias, index))
+		parts = append(parts, fmt.Sprintf(`(
+			EXISTS(
+				SELECT 1 FROM content_trainer_path_scopes ps
+				JOIN paths p ON p.id=ps.path_id
+				WHERE ps.user_id=$%d::uuid AND ps.path_id=%s.path_id AND p.status='active'
+			)
+			OR EXISTS(
+				SELECT 1 FROM content_trainer_subject_scopes ss
+				JOIN subjects s ON s.id=ss.subject_id
+				WHERE ss.user_id=$%d::uuid AND ss.subject_id=%s.subject_id
+				  AND s.path_id=%s.path_id AND s.status='active'
+			)
+		)`, index, alias, index, alias, alias))
 	}
 	return strings.Join(parts, " AND "), args
 }
