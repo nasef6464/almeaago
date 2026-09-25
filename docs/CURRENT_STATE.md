@@ -435,5 +435,20 @@ Still deliberately deferred:
 - Merge only after required gates are green; update this file after each verified checkpoint.
 - Use `almeaacodax` only for explicit behavioral/visual parity checks, never as an implementation target.
 
+## Assessment Staff Builder React Cutover — TESTED / PR #43
+Implemented:
+- role-aware `/admin-dashboard/assessments` management route using the existing admin shell.
+- bounded Assessment list/search/filter pagination and exact teacher path+subject gating before any list request.
+- create/edit builder consuming canonical Assessment Definition/Version API.
+- bounded server-side approved Question Bank search; no full inventory browser load.
+- exact `questionId + questionVersion` placement preserved in the builder.
+- workflow review controls and admin publication controls.
+- responsive desktop/mobile layouts with Playwright screenshot evidence.
+
+Verification:
+- PR #43 implementation head `2fc2264b839ebb4e4d465c55a5f53fb469ba31a2` passed Frontend CI run `36190040514`.
+- Frontend E2E run `36190040492` passed, including Assessment desktop, mobile and teacher exact-scope tests plus the existing suite.
+- final documentation-inclusive exact-head CI/E2E is required before merge.
+
 ## Next exact action
-Assessment Definition/Version API is closed in PR #42. Start the Assessment staff builder React cutover from current `main` on a fresh focused branch. Preserve the existing React visual language, consume only bounded Assessment/Taxonomy/Question Bank APIs, keep question selection server-searchable and version-pinned, and do not start learner attempts/scoring until the staff builder parity gate is green.
+Close PR #43 on a final exact head with Frontend CI + Frontend E2E green, merge it, then start learner Assessment attempt lifecycle (start/autosave/resume/submit/scoring) as the next focused batch. Do not mix Realtime, Commerce, Learning side effects or AI into that attempt-core batch.
