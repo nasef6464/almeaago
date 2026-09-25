@@ -22,6 +22,7 @@ type Authenticator interface {
 type Handler struct {
 	service *app.Service
 	auth    Authenticator
+	attempts *app.AttemptService
 }
 
 type writeInput struct {
@@ -46,8 +47,9 @@ type publicationInput struct {
 	Published        bool `json:"published"`
 }
 
-func New(service *app.Service, auth Authenticator) http.Handler {
+func New(service *app.Service, auth Authenticator, attemptServices ...*app.AttemptService) http.Handler {
 	h := &Handler{service: service, auth: auth}
+	if len(attemptServices)>0 { h.attempts=attemptServices[0] }
 	r := chi.NewRouter()
 	r.Get("/", h.list)
 	r.Post("/", h.create)
@@ -55,6 +57,7 @@ func New(service *app.Service, auth Authenticator) http.Handler {
 	r.Patch("/{id}", h.update)
 	r.Post("/{id}/workflow", h.workflow)
 	r.Post("/{id}/publication", h.publication)
+	r.Post("/{id}/attempts", h.startAttempt)
 	return r
 }
 func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request, csrf bool) (identityapp.Authenticated, bool) {
@@ -213,3 +216,5 @@ func writeJSON(w http.ResponseWriter, status int, b any) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(b)
 }
+
+func (h *Handler) startAttempt(w http.ResponseWriter,r *http.Request){a,ok:=h.authenticate(w,r,true);if !ok{return};if h.attempts==nil{writeJSON(w,503,map[string]string{"message":"Attempt service unavailable"});return};var in struct{StartKey string `json:"startKey"`};if !decode(w,r,&in){return};x,e:=h.attempts.Start(r.Context(),a.User,chi.URLParam(r,"id"),in.StartKey);if e!=nil{writeAttemptError(w,e);return};writeJSON(w,201,map[string]any{"attempt":x})}
