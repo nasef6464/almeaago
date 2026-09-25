@@ -39,7 +39,7 @@ func (s *Service) DirectorStudents(
 	}
 
 	query.Page = clampPage(query.Page)
-	query.Limit = clampLimit(query.Limit)
+	query.Limit = clampDirectorStudentLimit(query.Limit)
 	query.Search = strings.TrimSpace(query.Search)
 	if len(query.Search) > 120 {
 		return org.DirectorStudentPage{}, ErrInvalidInput
@@ -112,7 +112,7 @@ func (s *Service) DirectorUpdateStudentBasic(
 	}
 	if patch.Phone != nil {
 		value := strings.TrimSpace(*patch.Phone)
-		if len(value) > 24 {
+		if len(value) > 40 {
 			return org.DirectorStudentMutationResult{}, ErrInvalidInput
 		}
 		patch.Phone = &value
@@ -210,4 +210,15 @@ func validDirectorPassword(value string) bool {
 		}
 	}
 	return hasLetter && hasDigit
+}
+
+
+func clampDirectorStudentLimit(limit int) int {
+	if limit < 1 {
+		return 100
+	}
+	if limit > 500 {
+		return 500
+	}
+	return limit
 }
