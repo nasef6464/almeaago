@@ -64,6 +64,34 @@ paths:
         "200": { description: Skill updated without changing stable code/kind/subject }
 
   /api/v1/questions:
+    get:
+      operationId: questionBankStaffList
+      description: >
+        Bounded staff Question Bank list. Default limit 80, maximum 100. Teacher access
+        is forcibly scoped to owned/assigned questions. Exact coverage counts are not
+        computed on this normal list path.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 80 } }
+        - { in: query, name: search, schema: { type: string, maxLength: 200 } }
+        - { in: query, name: pathId, schema: { type: string } }
+        - { in: query, name: subjectId, schema: { type: string } }
+        - { in: query, name: mainSkillId, schema: { type: string } }
+        - { in: query, name: skillId, schema: { type: string }, description: Repeatable skill filter; any matching skill qualifies. }
+        - { in: query, name: linked, schema: { type: boolean } }
+        - { in: query, name: difficulty, schema: { type: string } }
+        - { in: query, name: type, schema: { type: string, enum: [mcq, true_false, essay] } }
+        - { in: query, name: examType, schema: { type: string } }
+        - { in: query, name: source, schema: { type: string } }
+        - { in: query, name: year, schema: { type: integer } }
+        - { in: query, name: workflowStatus, schema: { type: string, enum: [draft, pending_review, approved, rejected, archived] } }
+        - { in: query, name: withVideo, schema: { type: boolean } }
+        - { in: query, name: withExplanation, schema: { type: boolean } }
+      responses:
+        "200": { description: Bounded staff summary page with hasMore }
+        "400": { description: Invalid filter or pagination }
+        "401": { description: Authentication required }
+        "403": { description: Staff role required }
     post:
       operationId: questionBankCreate
       description: >
@@ -76,6 +104,22 @@ paths:
         "400": { description: Invalid question/version payload }
         "403": { description: Staff role or CSRF denied }
         "409": { description: Question code, taxonomy, asset, or hierarchy conflict }
+
+  /api/v1/questions/coverage:
+    get:
+      operationId: questionBankCoverage
+      description: >
+        Separate filtered coverage/count endpoint so normal list reads stay bounded.
+        Questions linked to multiple skills count once in Questions Total and once in each
+        relevant per-skill count. Skill coverage rows are independently paginated to max 100.
+      parameters:
+        - { in: query, name: skillPage, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: skillLimit, schema: { type: integer, minimum: 1, maximum: 100, default: 100 } }
+      responses:
+        "200": { description: Scoped aggregate and paginated per-skill coverage }
+        "400": { description: Invalid filter or pagination }
+        "401": { description: Authentication required }
+        "403": { description: Staff role required }
 
   /api/v1/questions/{id}:
     get:

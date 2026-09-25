@@ -22,6 +22,8 @@ type Repository interface {
 	AppendVersion(ctx context.Context, actorUserID, questionID string, expectedCurrentVersion int, command question.VersionCommand) (question.Question, error)
 	SetWorkflow(ctx context.Context, actorUserID, questionID string, expectedCurrentVersion int, status question.WorkflowStatus, reviewerNotes string) (question.Question, error)
 	Get(ctx context.Context, questionID string) (question.Question, error)
+	List(ctx context.Context, query question.ListQuery) (question.QuestionPage, error)
+	Coverage(ctx context.Context, query question.CoverageQuery) (question.Coverage, error)
 }
 
 type Service struct {
@@ -223,6 +225,99 @@ func (s *Service) LearnerGet(ctx context.Context, actor identity.User, questionI
 		return question.Question{}, question.ErrNotFound
 	}
 	return row, nil
+}
+
+func (s *Service) StaffList(ctx context.Context, actor identity.User, query question.ListQuery) (question.QuestionPage, error) {
+	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) {
+		return question.QuestionPage{}, ErrForbidden
+	}
+	if err := normalizeListQuery(&query); err != nil {
+		return question.QuestionPage{}, err
+	}
+	if actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleAdmin) {
+		query.TeacherScopeUserID = actor.ID
+	}
+	return s.repo.List(ctx, query)
+}
+
+func (s *Service) Coverage(ctx context.Context, actor identity.User, query question.CoverageQuery) (question.Coverage, error) {
+	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) {
+		return question.Coverage{}, ErrForbidden
+	}
+	if err := normalizeListQuery(&query.ListQuery); err != nil {
+		return question.Coverage{}, err
+	}
+	if query.SkillPage == 0 {
+		query.SkillPage = 1
+	}
+	if query.SkillLimit == 0 {
+		query.SkillLimit = 100
+	}
+	if query.SkillPage < 1 || query.SkillLimit < 1 || query.SkillLimit > 100 {
+		return question.Coverage{}, ErrInvalidInput
+	}
+	if actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleAdmin) {
+		query.TeacherScopeUserID = actor.ID
+	}
+	return s.repo.Coverage(ctx, query)
+}
+
+func normalizeListQuery(query *question.ListQuery) error {
+	if query.Page == 0 {
+		query.Page = 1
+	}
+	if query.Limit == 0 {
+		query.Limit = 80
+	}
+	query.Search = strings.TrimSpace(query.Search)
+	query.PathID = strings.TrimSpace(query.PathID)
+	query.SubjectID = strings.TrimSpace(query.SubjectID)
+	query.MainSkillID = strings.TrimSpace(query.MainSkillID)
+	query.Difficulty = strings.TrimSpace(query.Difficulty)
+	query.ExamType = strings.TrimSpace(query.ExamType)
+	query.Source = strings.TrimSpace(query.Source)
+
+	if query.Page < 1 || query.Limit < 1 || query.Limit > 100 || len(query.Search) > 200 ||
+		len(query.Difficulty) > 64 || len(query.ExamType) > 64 || len(query.Source) > 64 ||
+		len(query.SkillIDs) > 20 {
+		return ErrInvalidInput
+	}
+	for _, value := range []string{query.PathID, query.SubjectID, query.MainSkillID} {
+		if value != "" && !validUUID(value) {
+			return ErrInvalidInput
+		}
+	}
+	for i := range query.SkillIDs {
+		query.SkillIDs[i] = strings.TrimSpace(query.SkillIDs[i])
+		if !validUUID(query.SkillIDs[i]) {
+			return ErrInvalidInput
+		}
+	}
+	if query.QuestionType != "" && !question.ValidQuestionType(query.QuestionType) {
+		return ErrInvalidInput
+	}
+	if query.WorkflowStatus != "" && !question.ValidWorkflowStatus(query.WorkflowStatus) {
+		return ErrInvalidInput
+	}
+	if query.Year != nil && (*query.Year < 1900 || *query.Year > 2200) {
+		return ErrInvalidInput
+	}
+	return nil
+}
+
+func validUUID(value string) bool {
+	if len(value) != 36 || value[8] != '-' || value[13] != '-' || value[18] != '-' || value[23] != '-' {
+		return false
+	}
+	for i, ch := range value {
+		if i == 8 || i == 13 || i == 18 || i == 23 {
+			continue
+		}
+		if !((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')) {
+			return false
+		}
+	}
+	return true
 }
 
 func canEdit(actor identity.User, row question.Question) bool {

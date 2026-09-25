@@ -44,6 +44,12 @@ func (r *repoStub) SetWorkflow(context.Context, string, string, int, question.Wo
 func (r *repoStub) Get(context.Context, string) (question.Question, error) {
 	return r.current, nil
 }
+func (r *repoStub) List(_ context.Context, query question.ListQuery) (question.QuestionPage, error) {
+	return question.QuestionPage{Page: query.Page, Limit: query.Limit}, nil
+}
+func (r *repoStub) Coverage(_ context.Context, query question.CoverageQuery) (question.Coverage, error) {
+	return question.Coverage{SkillPage: query.SkillPage, SkillLimit: query.SkillLimit}, nil
+}
 
 func approvedQuestion() question.Question {
 	correct := 1
@@ -131,5 +137,37 @@ func TestQuestionMutationRequiresCSRF(t *testing.T) {
 
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("expected 403, got %d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestStaffListRejectsInvalidBooleanFilter(t *testing.T) {
+	service := questionapp.NewService(&repoStub{})
+	auth := identityapp.Authenticated{User: identity.User{ID: "admin-1", Roles: []identity.Role{identity.RoleAdmin}}}
+	handler := New(service, authStub{auth: auth})
+
+	request := httptest.NewRequest(http.MethodGet, "/?withVideo=maybe", nil)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestCoverageUsesSeparateSkillPagination(t *testing.T) {
+	service := questionapp.NewService(&repoStub{})
+	auth := identityapp.Authenticated{User: identity.User{ID: "admin-1", Roles: []identity.Role{identity.RoleAdmin}}}
+	handler := New(service, authStub{auth: auth})
+
+	request := httptest.NewRequest(http.MethodGet, "/coverage?skillPage=2&skillLimit=50", nil)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", response.Code, response.Body.String())
+	}
+	body := response.Body.String()
+	if !strings.Contains(body, `"skillPage":2`) || !strings.Contains(body, `"skillLimit":50`) {
+		t.Fatalf("unexpected coverage paging: %s", body)
 	}
 }
