@@ -29,6 +29,8 @@ Content / Foundation backend — **CORE MANAGEMENT TESTED / MERGED**.
 
 Content React cutover — **TESTED / VISUAL CHECKPOINT GREEN / MERGED**.
 
+Assessment foundation schema — **TESTED / MERGED**.
+
 ## Identity Core / Recovery / Providers — TESTED / MERGED
 Includes:
 - email/password, National ID and phone/password login.
@@ -352,6 +354,39 @@ Verification:
 - Final browser evidence artifact `10875624297` records the desktop/mobile checkpoint.
 - PR #38 merged only after the exact tested head was verified and no review threads were open.
 
+## Assessment Foundation Schema — TESTED / MERGED
+PR #40 passed exact-head Database CI + Backend CI on `de36b145a49afc87953b9a3c8dbb0a6ace49c19b` and merged to `main` as `1484bca1a6d6a61ea231c3e10a1975df207b24f3`.
+
+Implemented:
+- stable Assessment identity and immutable assessment code.
+- exact versioned definitions with normal/practice, normal/exam and mock classification.
+- explicit canonical settings with seconds-based time limits and mock-only shape constraints.
+- sections plus exact Question Bank `question_id + question_version` placements; no copied question payloads.
+- learning placements separate from Definition and from Commerce entitlement.
+- directed assignments with relational user/class audiences.
+- public/barcode/live session foundation separate from Definition.
+- attempt lifecycle with exact Assessment version, distribution-context integrity, attempt-number uniqueness and idempotency keys.
+- autosave answer state with exact Question version/option foreign-key integrity and server-owned correctness fields.
+- one final result per attempt with count constraints plus normalized section/skill summaries.
+- intentional hot-path indexes for staff definitions, placements, attempts, answers and result summaries.
+- reversible migration apply/verify/rollback/re-apply coverage.
+- Assessment architecture/audit handoff in `docs/domains/assessment/ASSESSMENT_FOUNDATION_AUDIT.md`.
+
+Verification:
+- Database CI run `36164596402`: PASS apply + schema verification + rollback + re-apply.
+- Backend CI run `36164596405`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+
+Still deliberately deferred:
+- Assessment definition/version service/repository/HTTP API.
+- staff builder React UI and visual parity.
+- learner attempt start/autosave/resume/submit/scoring endpoints.
+- directed scope authorization.
+- result/review presentation.
+- Learning mastery/review side effects.
+- Realtime session orchestration.
+- Commerce entitlement checks.
+- legacy Mongo migration/backfill.
+
 ## Performance/scalability
 - bounded pagination for admin/director directories.
 - pg_trgm-backed user search.
@@ -370,4 +405,4 @@ Verification:
 - Use `almeaacodax` only for explicit behavioral/visual parity checks, never as an implementation target.
 
 ## Next exact action
-Begin Phase 6 Assessment from current `main` after this docs checkpoint merges. Audit the legacy Assessment contracts against the blueprint and existing canonical Question Bank/Content IDs, then design normalized PostgreSQL assessment identities, placement references and learner attempt state deliberately. Assessment must reference canonical question/content identities rather than copy their payloads. Preserve learner answer secrecy, bounded staff/learner reads, transaction-scoped audit for staff mutations, attempt integrity, and explicit Commerce/Learning/Realtime boundaries.
+Build the Assessment Definition/Version API from current `main` on a fresh focused branch. Start with bounded staff list/detail, draft create/update/version composition, exact Question Bank version validation, explicit review/publish workflow, teacher/school scope authorization, optimistic revision and transaction-scoped audit. Do not start learner attempts or scoring until the definition/version contract is green. Keep question selection bounded/searchable and never copy Question payloads into Assessment.
