@@ -58,6 +58,74 @@ jobs:
           psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.school_contract_modules') is not null" | grep -qx t
           psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='school_contracts' and indexname='school_contracts_status_validity_idx'" | grep -qx 1
           psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='school_contract_modules' and indexname='school_contract_modules_module_idx'" | grep -qx 1
+      - name: Verify school contract entitlement semantics
+        run: |
+          psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO schools (code, name, status)
+          VALUES ('CI-CONTRACT-SCHOOL', 'CI Contract School', 'active');
+
+          INSERT INTO school_contracts (school_id, status, valid_from, valid_until)
+          SELECT id, 'active', now() - interval '1 day', now() + interval '1 day'
+          FROM schools
+          WHERE code = 'CI-CONTRACT-SCHOOL';
+
+          INSERT INTO school_contract_modules (contract_id, module)
+          SELECT sc.id, 'SCHOOL_CORE'
+          FROM school_contracts sc
+          JOIN schools s ON s.id = sc.school_id
+          WHERE s.code = 'CI-CONTRACT-SCHOOL';
+
+          DO $
+          DECLARE
+            school_uuid uuid;
+            contract_uuid uuid;
+            allowed boolean;
+          BEGIN
+            SELECT id INTO school_uuid
+            FROM schools
+            WHERE code = 'CI-CONTRACT-SCHOOL';
+
+            SELECT id INTO contract_uuid
+            FROM school_contracts
+            WHERE school_id = school_uuid;
+
+            SELECT EXISTS (
+              SELECT 1
+              FROM school_contracts sc
+              JOIN school_contract_modules scm ON scm.contract_id = sc.id
+              WHERE sc.school_id = school_uuid
+                AND sc.status = 'active'
+                AND (sc.valid_from IS NULL OR sc.valid_from <= now())
+                AND (sc.valid_until IS NULL OR sc.valid_until >= now())
+                AND scm.module = 'SCHOOL_CORE'
+            ) INTO allowed;
+
+            IF NOT allowed THEN
+              RAISE EXCEPTION 'active SCHOOL_CORE contract must allow entitlement';
+            END IF;
+
+            UPDATE school_contracts
+            SET valid_until = now() - interval '2 days',
+                valid_from = now() - interval '3 days'
+            WHERE id = contract_uuid;
+
+            SELECT EXISTS (
+              SELECT 1
+              FROM school_contracts sc
+              JOIN school_contract_modules scm ON scm.contract_id = sc.id
+              WHERE sc.school_id = school_uuid
+                AND sc.status = 'active'
+                AND (sc.valid_from IS NULL OR sc.valid_from <= now())
+                AND (sc.valid_until IS NULL OR sc.valid_until >= now())
+                AND scm.module = 'SCHOOL_CORE'
+            ) INTO allowed;
+
+            IF allowed THEN
+              RAISE EXCEPTION 'expired SCHOOL_CORE contract must deny entitlement';
+            END IF;
+          END $;
+          SQL
+
       - name: Roll back and re-apply
         run: |
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000009_school_contracts.down.sql
