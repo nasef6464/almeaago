@@ -3,7 +3,7 @@ package organizationshttp
 import "net/http"
 
 type parentAuthorityResponse struct {
-	StudentIDs    []string                    `json:"studentIds"`
+	StudentIDs    []string                     `json:"studentIds"`
 	Relationships []parentRelationshipResponse `json:"relationships"`
 }
 
