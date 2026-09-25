@@ -25,7 +25,7 @@ type repositoryMock struct {
 	directorWrite     org.DirectorWrite
 	assignmentQuery   org.AssignmentQuery
 	assignmentWrite   org.AssignmentWrite
-	teacherWorkspace org.TeacherWorkspace
+	teacherWorkspace  org.TeacherWorkspace
 }
 
 func (m *repositoryMock) TeacherWorkspace(_ context.Context, _ string) (org.TeacherWorkspace, error) {
@@ -249,7 +249,6 @@ func (m *repositoryMock) HasSchoolPermission(context.Context, string, string, st
 func actor(id string, role identity.Role) identity.User {
 	return identity.User{ID: id, Status: "active", Roles: []identity.Role{role}}
 }
-
 
 func TestTeacherWorkspaceRequiresTeacherRole(t *testing.T) {
 	service := NewService(&repositoryMock{})
