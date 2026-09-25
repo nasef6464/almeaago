@@ -22,7 +22,7 @@ paths:
         "200": { description: Canonical active school contexts for the authenticated user }
         "401": { description: Authentication required }
 
-  /api/v1/schools/parent-authority:
+  /api/v1/parents/authority:
     get:
       operationId: organizationsParentAuthority
       description: >
