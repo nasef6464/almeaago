@@ -281,7 +281,6 @@ func TestAssignmentAllowsLegacySubjectAgnosticPayload(t *testing.T) {
 	}
 }
 
-
 func TestSchoolContextUsesCanonicalMembershipData(t *testing.T) {
 	repo := &repoStub{
 		contexts: []orgdomain.SchoolContext{{
