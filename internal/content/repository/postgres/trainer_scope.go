@@ -90,11 +90,11 @@ func (r *Repository) SetTrainerScope(ctx context.Context, actorUserID, userID st
 		}
 	}
 	if err := r.writeAudit(ctx, tx, operations.AuditEvent{
-		ActorUserID: actorUserID,
-		Action: "content.trainer_scope.update",
+		ActorUserID:  actorUserID,
+		Action:       "content.trainer_scope.update",
 		ResourceType: "content_trainer_scope",
-		ResourceID: userID,
-		Metadata: map[string]any{"pathIds": pathIDs, "subjectIds": subjectIDs},
+		ResourceID:   userID,
+		Metadata:     map[string]any{"pathIds": pathIDs, "subjectIds": subjectIDs},
 	}); err != nil {
 		return content.TrainerScope{}, err
 	}

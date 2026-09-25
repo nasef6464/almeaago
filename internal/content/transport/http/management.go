@@ -57,8 +57,8 @@ func presentTrainerScope(scope content.TrainerScope) map[string]any {
 		subjectIDs = []string{}
 	}
 	return map[string]any{
-		"userId": scope.UserID,
-		"pathIds": pathIDs,
+		"userId":     scope.UserID,
+		"pathIds":    pathIDs,
 		"subjectIds": subjectIDs,
 	}
 }
