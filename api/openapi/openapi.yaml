@@ -68,7 +68,8 @@ paths:
       operationId: questionBankStaffList
       description: >
         Bounded staff Question Bank list. Default limit 80, maximum 100. Teacher access
-        is forcibly scoped to owned/assigned questions. Exact coverage counts are not
+        is forcibly scoped to owned/assigned questions and canonical active Content trainer
+        path/subject scope. Exact coverage counts are not
         computed on this normal list path.
       parameters:
         - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
@@ -96,6 +97,8 @@ paths:
       operationId: questionBankCreate
       description: >
         Create a stable question identity with version 1. Staff-only and CSRF-protected.
+        Platform trainers may author only inside canonical active Content trainer scope;
+        admin assignment to a trainer is rejected outside that trainer scope.
         A question may be text-only, image-only, or text+image. Image bytes are never sent
         through this endpoint; media is referenced by asset ID. AI-readable metadata stays
         server-side in the staff version payload.

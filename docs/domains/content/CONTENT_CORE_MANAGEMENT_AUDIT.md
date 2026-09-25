@@ -11,7 +11,7 @@ This document records the first bounded staff-management slice for the Content d
 - Foundation topics: platform-admin structural create/detail/list/update with stable code/lifecycle plus revisioned lesson/library placement.
 - Library items: create, staff detail, bounded list, optimistic update, review workflow.
 - Runtime mounts under `/api/v1/courses`, `/api/v1/lessons`, `/api/v1/foundation`, `/api/v1/library`, and Content management under `/api/v1/content`.
-- Canonical Content-owned platform-trainer authoring scope via active path/subject relations, with transactional audit and fail-closed enforcement.
+- Canonical Content-owned platform-trainer authoring scope via active path/subject relations, with transactional audit and fail-closed enforcement across Courses, Lessons, Library, and Question Bank authoring.
 - PostgreSQL-backed taxonomy/skill validation and active Media asset validation.
 - Transactional audit writes for content mutations.
 - CSRF on unsafe HTTP mutations.

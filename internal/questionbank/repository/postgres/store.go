@@ -28,12 +28,12 @@ func (r *Repository) Create(ctx context.Context, actorUserID string, command que
 		return question.Question{}, err
 	}
 	if command.OwnerType == question.OwnerTeacher {
-		if err := validateTeacherTx(ctx, tx, command.OwnerID); err != nil {
+		if err := validateTeacherScopeTx(ctx, tx, command.OwnerID, command.PathID, command.SubjectID); err != nil {
 			return question.Question{}, err
 		}
 	}
 	if command.AssignedTeacherID != "" {
-		if err := validateTeacherTx(ctx, tx, command.AssignedTeacherID); err != nil {
+		if err := validateTeacherScopeTx(ctx, tx, command.AssignedTeacherID, command.PathID, command.SubjectID); err != nil {
 			return question.Question{}, err
 		}
 	}
@@ -365,6 +365,35 @@ func validateTeacherTx(ctx context.Context, tx pgx.Tx, userID string) error {
 			WHERE u.id=$1::uuid AND u.status='active' AND ur.role='teacher'
 		)
 	`, userID).Scan(&ok); err != nil {
+		return err
+	}
+	if !ok {
+		return question.ErrConflict
+	}
+	return nil
+}
+
+func validateTeacherScopeTx(ctx context.Context, tx pgx.Tx, userID, pathID, subjectID string) error {
+	if err := validateTeacherTx(ctx, tx, userID); err != nil {
+		return err
+	}
+	var ok bool
+	if err := tx.QueryRow(ctx, `
+		SELECT
+			EXISTS(
+				SELECT 1
+				FROM content_trainer_path_scopes ps
+				JOIN paths p ON p.id=ps.path_id
+				WHERE ps.user_id=$1::uuid AND ps.path_id=$2::uuid AND p.status='active'
+			)
+			OR EXISTS(
+				SELECT 1
+				FROM content_trainer_subject_scopes ss
+				JOIN subjects s ON s.id=ss.subject_id
+				WHERE ss.user_id=$1::uuid AND ss.subject_id=$3::uuid
+				  AND s.path_id=$2::uuid AND s.status='active'
+			)
+	`, userID, pathID, subjectID).Scan(&ok); err != nil {
 		return err
 	}
 	if !ok {

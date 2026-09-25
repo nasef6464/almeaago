@@ -78,7 +78,7 @@ func main() {
 	taxonomyRepository := taxonomyrepo.New(db)
 	taxonomyService := taxonomyapp.NewService(taxonomyRepository)
 	questionRepository := questionrepo.New(db, auditWriter)
-	questionService := questionapp.NewService(questionRepository)
+	questionService := questionapp.NewServiceWithAuthorScope(questionRepository, contentRepository)
 	mediaRepository := mediarepo.New(db, auditWriter)
 	r2Client := r2provider.New(r2provider.Config{
 		AccountID:       cfg.R2AccountID,

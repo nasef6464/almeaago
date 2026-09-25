@@ -231,6 +231,19 @@ func buildListFilters(query question.ListQuery) ([]string, []any) {
 			index,
 			index,
 		))
+		clauses = append(clauses, fmt.Sprintf(`(
+			EXISTS(
+				SELECT 1 FROM content_trainer_path_scopes ps
+				JOIN paths p ON p.id=ps.path_id
+				WHERE ps.user_id=$%d::uuid AND ps.path_id=q.path_id AND p.status='active'
+			)
+			OR EXISTS(
+				SELECT 1 FROM content_trainer_subject_scopes ss
+				JOIN subjects s ON s.id=ss.subject_id
+				WHERE ss.user_id=$%d::uuid AND ss.subject_id=q.subject_id
+				  AND s.path_id=q.path_id AND s.status='active'
+			)
+		)`, index, index))
 	}
 	if query.Search != "" {
 		pattern := literalLikePattern(query.Search)
