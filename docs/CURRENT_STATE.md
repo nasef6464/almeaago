@@ -468,5 +468,19 @@ Verification checkpoint:
 - final exact head `782d06a1d7b65435c2a8b68136aec17208a3d4de` passed Backend CI `36191285919`, Frontend CI `36191285944`, and Frontend E2E `36191285945`.
 - PR #44 merged to `main` as `56d6d6edf661a44f8919efefcc8d60565da0a7b0`.
 
+## Assessment Directed Assignments — IMPLEMENTED / PR #45
+Implemented:
+- bounded staff assignment create/list/status management with relational student/class audiences.
+- active school/class/student audience validation and staff school/assessment authority checks.
+- assignment pins the exact published Assessment version; no copied question payloads.
+- learner `mine` availability is bounded and requires an active direct-user or active class-membership audience.
+- server-owned open/close windows, max-attempt overrides and assignment-context attempt counting.
+- assignment attempt start is idempotent and records the assignment context transactionally with audit.
+- public/barcode/live sessions, Commerce, Learning side effects and AI remain out of scope.
+
+Verification checkpoint:
+- exact implementation/test head `b801a97c9c5dbf6e4c88257acfc371cd70d7b1d0` passed Backend CI `36195573893`.
+- final documentation-inclusive exact-head Backend CI is required before merge.
+
 ## Next exact action
-Build Assessment directed distribution/assignment authorization from current `main`: bounded staff assignment management, relational user/class audiences, school/class authority validation, open/close windows and max-attempt overrides, plus learner availability/start through an authorized assignment context. Keep public/barcode/live sessions in the later Realtime slice; keep Commerce, Learning side effects and AI out of this batch.
+Close PR #45 only after the final documentation-inclusive exact head is Green and review threads are clear; merge it and record the merge SHA. Then begin the next Assessment parity slice from current main.
