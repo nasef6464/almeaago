@@ -9,13 +9,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	operations "github.com/nasef6464/almeaago/internal/operations/domain"
 	taxonomy "github.com/nasef6464/almeaago/internal/taxonomy/domain"
 )
-
-type AuditWriter interface {
-	WriteTx(ctx context.Context, tx pgx.Tx, event operations.AuditEvent) error
-}
 
 func (r *Repository) CreatePath(ctx context.Context, actor string, write taxonomy.PathWrite) (taxonomy.Path, error) {
 	tx, err := r.db.Begin(ctx); if err != nil { return taxonomy.Path{}, err }; defer func(){ _ = tx.Rollback(ctx) }()
