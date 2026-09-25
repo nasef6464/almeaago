@@ -283,7 +283,6 @@ func (w *AdminScopeWriter) resolveSchoolID(
 	return schoolID, err
 }
 
-
 func (w *AdminScopeWriter) SnapshotTx(
 	ctx context.Context,
 	tx pgx.Tx,
