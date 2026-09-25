@@ -20,9 +20,9 @@ type Authenticator interface {
 	VerifyCSRF(identityapp.Authenticated, string) error
 }
 type Handler struct {
-	service  *app.Service
-	auth     Authenticator
-	attempts *app.AttemptService
+	service     *app.Service
+	auth        Authenticator
+	attempts    *app.AttemptService
 	assignments *app.AssignmentService
 }
 
@@ -248,5 +248,49 @@ func (h *Handler) startAttempt(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 201, map[string]any{"attempt": x})
 }
 
-func(h *Handler) listAssignments(w http.ResponseWriter,r *http.Request){a,ok:=h.authenticate(w,r,false);if!ok{return};if h.assignments==nil{writeJSON(w,503,map[string]string{"message":"Assignment service unavailable"});return};page,e:=atoi(r.URL.Query().Get("page"));if e!=nil{writeJSON(w,400,map[string]string{"message":"Invalid pagination"});return};limit,e:=atoi(r.URL.Query().Get("limit"));if e!=nil{writeJSON(w,400,map[string]string{"message":"Invalid pagination"});return};x,e:=h.assignments.List(r.Context(),a.User,chi.URLParam(r,"id"),page,limit);if e!=nil{writeError(w,e);return};writeJSON(w,200,x)}
-func(h *Handler) createAssignment(w http.ResponseWriter,r *http.Request){a,ok:=h.authenticate(w,r,true);if!ok{return};if h.assignments==nil{writeJSON(w,503,map[string]string{"message":"Assignment service unavailable"});return};var in assessment.AssignmentWrite;if!decode(w,r,&in){return};x,e:=h.assignments.Create(r.Context(),a.User,chi.URLParam(r,"id"),in);if e!=nil{writeError(w,e);return};writeJSON(w,201,map[string]any{"assignment":x})}
+func (h *Handler) listAssignments(w http.ResponseWriter, r *http.Request) {
+	a, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	if h.assignments == nil {
+		writeJSON(w, 503, map[string]string{"message": "Assignment service unavailable"})
+		return
+	}
+	page, e := atoi(r.URL.Query().Get("page"))
+	if e != nil {
+		writeJSON(w, 400, map[string]string{"message": "Invalid pagination"})
+		return
+	}
+	limit, e := atoi(r.URL.Query().Get("limit"))
+	if e != nil {
+		writeJSON(w, 400, map[string]string{"message": "Invalid pagination"})
+		return
+	}
+	x, e := h.assignments.List(r.Context(), a.User, chi.URLParam(r, "id"), page, limit)
+	if e != nil {
+		writeError(w, e)
+		return
+	}
+	writeJSON(w, 200, x)
+}
+func (h *Handler) createAssignment(w http.ResponseWriter, r *http.Request) {
+	a, ok := h.authenticate(w, r, true)
+	if !ok {
+		return
+	}
+	if h.assignments == nil {
+		writeJSON(w, 503, map[string]string{"message": "Assignment service unavailable"})
+		return
+	}
+	var in assessment.AssignmentWrite
+	if !decode(w, r, &in) {
+		return
+	}
+	x, e := h.assignments.Create(r.Context(), a.User, chi.URLParam(r, "id"), in)
+	if e != nil {
+		writeError(w, e)
+		return
+	}
+	writeJSON(w, 201, map[string]any{"assignment": x})
+}
