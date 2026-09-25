@@ -8,6 +8,7 @@ import (
 )
 
 type repositoryMock struct {
+	contexts          []org.SchoolContext
 	accessAllowed     bool
 	manageAllowed     bool
 	permissionAllowed bool
@@ -23,6 +24,13 @@ type repositoryMock struct {
 	directorWrite     org.DirectorWrite
 	assignmentQuery   org.AssignmentQuery
 	assignmentWrite   org.AssignmentWrite
+}
+
+func (m *repositoryMock) SchoolContexts(
+	_ context.Context,
+	_ string,
+) ([]org.SchoolContext, error) {
+	return append([]org.SchoolContext(nil), m.contexts...), nil
 }
 
 func (m *repositoryMock) ListSchools(_ context.Context, _ org.AccessContext, query org.SchoolListQuery) (org.SchoolPage, error) {
