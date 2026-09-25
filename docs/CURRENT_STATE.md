@@ -137,6 +137,26 @@ Next within this slice:
 - legacy route adapters required by the preserved React UI.
 - contract/entitlement APIs in their owning boundary.
 
+## School Contracts & Entitlements — IMPLEMENTED / CI PENDING
+Branch: `feat/organizations-entitlements`
+
+Implemented:
+- normalized `school_contracts` + `school_contract_modules`.
+- 11 legacy school modules preserved.
+- admin contract read/upsert with transactional audit.
+- active/status/date/module entitlement policy evaluated server-side.
+- missing contract denies module access exactly like legacy.
+- canonical and legacy-compatible contract/entitlement routes.
+- SCHOOL_CORE capability gating connected to director basic-update, deactivate/reactivate, class management, teacher workspace and assignments.
+- contract modules are indexed rather than stored as an unqueryable array/document.
+- invalid reversed validity windows are rejected intentionally and documented.
+
+Still not claimed complete:
+- director aggregate workspace response with contract modules.
+- academic overview metrics.
+- additional module gates for Assessment / Smart Classroom / Intervention / Reporting routes as those domains are implemented.
+- commercial B2B package / seat-limit model beyond current legacy contract fields.
+
 ## Performance/scalability
 - admin directory uses bounded pagination.
 - user search uses pg_trgm indexes.
@@ -147,4 +167,4 @@ Next within this slice:
 - no large media passes through the Go API.
 
 ## Next exact action
-Run Backend + Database CI for the expanded Organizations relationship core on `feat/organizations-core`, repair failures on the same branch, then add context/director/teacher compatibility workflows before the exact tested SHA can be merged.
+Run Backend + Database CI for `feat/organizations-entitlements`, repair exact failures on the same branch, merge the tested SHA, then use the contract policy in director-workspace and the future Assessment/Smart Classroom/Reporting domain routes.
