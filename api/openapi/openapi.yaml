@@ -22,6 +22,19 @@ paths:
         "200": { description: Canonical active school contexts for the authenticated user }
         "401": { description: Authentication required }
 
+  /api/v1/schools/teacher-workspace:
+    get:
+      operationId: organizationsTeacherWorkspace
+      description: >
+        Organizations-owned structural workspace for an authenticated school teacher.
+        Returns only active school/class/subject assignments and aggregate student counts.
+        Entitlements, assessments, realtime state, reporting data, and trainer scope remain
+        owned by their respective domains.
+      responses:
+        "200": { description: Scoped teacher school assignments }
+        "401": { description: Authentication required }
+        "403": { description: Teacher role required }
+
   /api/v1/schools:
     get:
       operationId: organizationsListSchools
