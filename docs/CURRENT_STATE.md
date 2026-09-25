@@ -19,7 +19,7 @@ Evidence:
 ## Current phase
 Organizations / Schools / Classes compatibility — **STRUCTURAL CHECKPOINT GREEN**.
 
-Next foundation phase: Taxonomy.
+Next foundation phase: Taxonomy — **IN_PROGRESS / FOUNDATION GREEN**.
 
 ## Identity Core / Recovery / Providers — TESTED / MERGED
 Includes:
@@ -156,6 +156,22 @@ The structural Organizations foundation is now green for:
 
 Commercial school contracts/modules/entitlements are not moved into Organizations. Commerce owns entitlement/access state and will integrate through explicit contracts.
 
+## Taxonomy Foundation — TESTED / MERGED
+Schema normalization PR #17 passed exact-head Database CI and merged as `968f545727c4bfcbaacd8b2a75fdd951ee65aae1`.
+
+Public bootstrap PR #18 passed exact-head Backend CI and merged as `b68287cbbcb45909529d0f2ea3acfb05970bfedb`.
+
+Implemented:
+- hierarchical paths with lifecycle/order metadata.
+- relational levels.
+- optional subject→level hierarchy and subject lifecycle/order.
+- relational main/sub skill hierarchy retained; skill lifecycle/description added.
+- restrictive taxonomy references instead of legacy destructive cascade behavior.
+- public `GET /api/v1/taxonomy/bootstrap` with core/compact/full phases.
+- active-ancestor filtering and stable normalized DTOs.
+- no legacy embedded `subSkills[]`, `questionIds[]`, or `lessonIds[]` ownership arrays.
+- PostgreSQL remains taxonomy truth; no runtime auto-seeding as a correctness dependency.
+
 ## Performance/scalability
 - bounded pagination for admin/director directories.
 - pg_trgm-backed user search.
@@ -174,4 +190,4 @@ Commercial school contracts/modules/entitlements are not moved into Organization
 - Use `almeaacodax` only for explicit behavioral/visual parity checks, never as an implementation target.
 
 ## Next exact action
-Start Taxonomy foundation from current `main`. Preserve stable path/subject/skill identities and legacy-visible hierarchy semantics, but normalize levels and skill hierarchy relationally. Do not copy legacy embedded subSkills/questionIds/lessonIds arrays. Build bounded public/staff taxonomy reads and admin mutations with referential safety before Content/Question Bank depends on them.
+Continue Taxonomy with staff/admin mutation contracts and referential lifecycle safety on top of the green normalized schema. Preserve stable IDs/codes, validate parent/subject/level hierarchy, prefer archive/inactive lifecycle over destructive deletes when downstream references exist, and add exact-head Backend/Database gates before Content or Question Bank depends on these contracts.
