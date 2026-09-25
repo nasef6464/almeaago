@@ -47,7 +47,7 @@ func (r *Repository) DirectorAddStudent(
 	}
 
 	var outside bool
-	if err := tx.QueryRow(ctx, \`
+	if err := tx.QueryRow(ctx, `
 		SELECT EXISTS (
 			SELECT 1
 			FROM school_memberships sm
@@ -56,7 +56,7 @@ func (r *Repository) DirectorAddStudent(
 			  AND sm.status = 'active'
 			  AND sm.school_id <> $2::uuid
 		)
-	\`, account.UserID, schoolID).Scan(&outside); err != nil {
+	`, account.UserID, schoolID).Scan(&outside); err != nil {
 		return org.DirectorStudentMutationResult{}, err
 	}
 	if outside {
@@ -70,12 +70,12 @@ func (r *Repository) DirectorAddStudent(
 		}
 	}
 
-	if _, err := tx.Exec(ctx, \`
+	if _, err := tx.Exec(ctx, `
 		INSERT INTO school_memberships (school_id, user_id, role, status)
 		VALUES ($1::uuid, $2::uuid, 'student', 'active')
 		ON CONFLICT (school_id, user_id, role)
 		DO UPDATE SET status = 'active', updated_at = now()
-	\`, schoolID, account.UserID); err != nil {
+	`, schoolID, account.UserID); err != nil {
 		return org.DirectorStudentMutationResult{}, err
 	}
 
@@ -133,7 +133,7 @@ func (r *Repository) DirectorMoveStudent(
 	}
 
 	var already bool
-	if err := tx.QueryRow(ctx, \`
+	if err := tx.QueryRow(ctx, `
 		SELECT EXISTS (
 			SELECT 1
 			FROM class_memberships cm
@@ -141,7 +141,7 @@ func (r *Repository) DirectorMoveStudent(
 			  AND cm.user_id = $2::uuid
 			  AND cm.status = 'active'
 		)
-	\`, classID, studentID).Scan(&already); err != nil {
+	`, classID, studentID).Scan(&already); err != nil {
 		return org.DirectorStudentMutationResult{}, err
 	}
 
@@ -276,13 +276,13 @@ func (r *Repository) DirectorSetStudentActive(
 	if active {
 		membershipStatus = "active"
 	}
-	if _, err := tx.Exec(ctx, \`
+	if _, err := tx.Exec(ctx, `
 		UPDATE school_memberships
 		SET status = $3, updated_at = now()
 		WHERE school_id = $1::uuid
 		  AND user_id = $2::uuid
 		  AND role = 'student'
-	\`, schoolID, studentID, membershipStatus); err != nil {
+	`, schoolID, studentID, membershipStatus); err != nil {
 		return org.DirectorStudentMutationResult{}, err
 	}
 
@@ -322,7 +322,7 @@ func requireStudentMembershipTx(
 	studentID string,
 ) error {
 	var exists bool
-	if err := tx.QueryRow(ctx, \`
+	if err := tx.QueryRow(ctx, `
 		SELECT EXISTS (
 			SELECT 1
 			FROM school_memberships sm
@@ -331,7 +331,7 @@ func requireStudentMembershipTx(
 			  AND sm.role = 'student'
 			  AND sm.status IN ('active','suspended')
 		)
-	\`, schoolID, studentID).Scan(&exists); err != nil {
+	`, schoolID, studentID).Scan(&exists); err != nil {
 		return err
 	}
 	if !exists {
@@ -347,7 +347,7 @@ func activeClassNameTx(
 	classID string,
 ) (string, error) {
 	var name string
-	err := tx.QueryRow(ctx, \`
+	err := tx.QueryRow(ctx, `
 		SELECT c.name
 		FROM classes c
 		JOIN schools s ON s.id = c.school_id
@@ -355,7 +355,7 @@ func activeClassNameTx(
 		  AND c.school_id = $1::uuid
 		  AND c.status = 'active'
 		  AND s.status = 'active'
-	\`, schoolID, classID).Scan(&name)
+	`, schoolID, classID).Scan(&name)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", org.ErrNotFound
 	}
@@ -369,7 +369,7 @@ func replaceStudentClassTx(
 	studentID string,
 	classID string,
 ) error {
-	if _, err := tx.Exec(ctx, \`
+	if _, err := tx.Exec(ctx, `
 		UPDATE class_memberships cm
 		SET status = 'inactive',
 		    left_at = COALESCE(cm.left_at, now())
@@ -379,11 +379,11 @@ func replaceStudentClassTx(
 		  AND cm.user_id = $2::uuid
 		  AND cm.status = 'active'
 		  AND cm.class_id <> $3::uuid
-	\`, schoolID, studentID, classID); err != nil {
+	`, schoolID, studentID, classID); err != nil {
 		return err
 	}
 
-	tag, err := tx.Exec(ctx, \`
+	tag, err := tx.Exec(ctx, `
 		INSERT INTO class_memberships (
 			class_id, user_id, status, joined_at, left_at
 		)
@@ -397,7 +397,7 @@ func replaceStudentClassTx(
 			status = 'active',
 			joined_at = now(),
 			left_at = NULL
-	\`, schoolID, studentID, classID)
+	`, schoolID, studentID, classID)
 	if err != nil {
 		return err
 	}
@@ -415,7 +415,7 @@ func currentStudentClassTx(
 ) (string, string, error) {
 	var classID string
 	var className string
-	err := tx.QueryRow(ctx, \`
+	err := tx.QueryRow(ctx, `
 		SELECT c.id::text, c.name
 		FROM class_memberships cm
 		JOIN classes c ON c.id = cm.class_id
@@ -425,7 +425,7 @@ func currentStudentClassTx(
 		  AND c.status = 'active'
 		ORDER BY cm.joined_at DESC
 		LIMIT 1
-	\`, schoolID, studentID).Scan(&classID, &className)
+	`, schoolID, studentID).Scan(&classID, &className)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", "", nil
 	}
