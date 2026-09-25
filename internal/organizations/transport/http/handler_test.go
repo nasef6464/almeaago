@@ -280,3 +280,37 @@ func TestAssignmentAllowsLegacySubjectAgnosticPayload(t *testing.T) {
 		t.Fatalf("expected subject-agnostic assignment, got %q", repo.assignmentWrite.SubjectID)
 	}
 }
+
+
+func TestSchoolContextUsesCanonicalMembershipData(t *testing.T) {
+	repo := &repoStub{
+		contexts: []orgdomain.SchoolContext{{
+			SchoolID:    "school-1",
+			SchoolName:  "School",
+			Role:        identitydomain.RoleSchoolAdmin,
+			Permissions: []string{orgdomain.PermissionSchoolStudentsView},
+			Source:      "membership",
+		}},
+	}
+	service := orgapp.NewService(repo)
+	handler := New(service, authStub{auth: adminAuth()})
+	request := httptest.NewRequest(http.MethodGet, "/context", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", response.Code, response.Body.String())
+	}
+	body := response.Body.String()
+	for _, fragment := range []string{
+		`"schoolId":"school-1"`,
+		`"role":"school_admin"`,
+		`"source":"membership"`,
+		`"SCHOOL_STUDENTS_VIEW"`,
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("missing %s in %s", fragment, body)
+		}
+	}
+}
