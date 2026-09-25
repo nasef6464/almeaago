@@ -408,7 +408,7 @@ Verification:
 - Backend CI run `36164596405`: PASS module lock + sqlc compile + gofmt + go vet + go test.
 
 Still deliberately deferred:
-- Assessment definition/version service/repository/HTTP API.
+- Assessment staff builder React UI and visual parity.
 - staff builder React UI and visual parity.
 - learner attempt start/autosave/resume/submit/scoring endpoints.
 - directed scope authorization.
@@ -436,4 +436,4 @@ Still deliberately deferred:
 - Use `almeaacodax` only for explicit behavioral/visual parity checks, never as an implementation target.
 
 ## Next exact action
-Build the Assessment Definition/Version API from current `main` on a fresh focused branch. Start with bounded staff list/detail, draft create/update/version composition, exact Question Bank version validation, explicit review/publish workflow, teacher/school scope authorization, optimistic revision and transaction-scoped audit. Do not start learner attempts or scoring until the definition/version contract is green. Keep question selection bounded/searchable and never copy Question payloads into Assessment.
+Assessment Definition/Version API is closed in PR #42. Start the Assessment staff builder React cutover from current `main` on a fresh focused branch. Preserve the existing React visual language, consume only bounded Assessment/Taxonomy/Question Bank APIs, keep question selection server-searchable and version-pinned, and do not start learner attempts/scoring until the staff builder parity gate is green.
