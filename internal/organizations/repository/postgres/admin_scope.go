@@ -282,3 +282,56 @@ func (w *AdminScopeWriter) resolveSchoolID(
 	}
 	return schoolID, err
 }
+
+
+func (w *AdminScopeWriter) SnapshotTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	userID string,
+) (orgdomain.AdminAccountScopeSnapshot, error) {
+	var snapshot orgdomain.AdminAccountScopeSnapshot
+	err := tx.QueryRow(ctx, `
+		SELECT
+			COALESCE((
+				SELECT sm.school_id::text
+				FROM school_memberships sm
+				WHERE sm.user_id = u.id
+				  AND sm.status = 'active'
+				ORDER BY sm.updated_at DESC, sm.created_at DESC
+				LIMIT 1
+			), ''),
+			ARRAY(
+				SELECT cm.class_id::text
+				FROM class_memberships cm
+				WHERE cm.user_id = u.id
+				  AND cm.status = 'active'
+				ORDER BY cm.joined_at DESC
+			)::text[],
+			ARRAY(
+				SELECT ps.student_user_id::text
+				FROM parent_student_relationships ps
+				WHERE ps.parent_user_id = u.id
+				  AND ps.status = 'active'
+				ORDER BY ps.created_at DESC
+			)::text[]
+		FROM users u
+		WHERE u.id = $1::uuid
+	`, userID).Scan(
+		&snapshot.SchoolID,
+		&snapshot.ClassIDs,
+		&snapshot.LinkedStudentIDs,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return orgdomain.AdminAccountScopeSnapshot{}, orgdomain.ErrScopeNotFound
+	}
+	if err != nil {
+		return orgdomain.AdminAccountScopeSnapshot{}, err
+	}
+	if snapshot.ClassIDs == nil {
+		snapshot.ClassIDs = []string{}
+	}
+	if snapshot.LinkedStudentIDs == nil {
+		snapshot.LinkedStudentIDs = []string{}
+	}
+	return snapshot, nil
+}
