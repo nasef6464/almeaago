@@ -168,6 +168,47 @@ paths:
         "404": { description: Question not found }
         "409": { description: Invalid workflow or version conflict }
 
+  /api/v1/media/uploads/presign:
+    post:
+      operationId: mediaPresignUpload
+      description: >
+        Staff-only CSRF-protected authorization for direct R2 upload. The Go API receives
+        metadata only, never image/audio bytes. Supported question images are JPEG/PNG/WebP.
+        Verified SHA-256 hashes are deduplicated.
+      responses:
+        "200": { description: Existing verified asset or short-lived signed PUT target }
+        "400": { description: Invalid purpose, MIME, size, question code, or SHA-256 }
+        "401": { description: Authentication required }
+        "403": { description: Staff role or CSRF denied }
+        "409": { description: Existing hash metadata conflicts }
+        "503": { description: R2 provider not configured or unavailable }
+
+  /api/v1/media/uploads/{id}/complete:
+    post:
+      operationId: mediaCompleteUpload
+      description: >
+        Verify the uploaded R2 object with authenticated HEAD. Size, MIME and signed
+        x-amz-meta-sha256 must match the reserved asset before it becomes active.
+      responses:
+        "200": { description: Verified active asset }
+        "401": { description: Authentication required }
+        "403": { description: Asset ownership/admin scope or CSRF denied }
+        "404": { description: Asset not found }
+        "409": { description: R2 object missing or metadata verification failed }
+        "503": { description: R2 provider unavailable }
+
+  /api/v1/media/assets/{id}:
+    get:
+      operationId: mediaGetAsset
+      description: >
+        Authenticated asset metadata lookup. Active assets are readable by authenticated
+        consumers; pending assets remain restricted to their creator/platform admin.
+      responses:
+        "200": { description: Asset metadata and CDN/public URL }
+        "401": { description: Authentication required }
+        "404": { description: Asset not found or not visible }
+
+
   /health/live:
     get:
       operationId: healthLive
