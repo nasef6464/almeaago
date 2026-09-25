@@ -6,9 +6,9 @@ This document records the first bounded staff-management slice for the Content d
 
 ## Included in this slice
 
-- Courses: create, staff detail, bounded list, optimistic update, review workflow.
+- Courses: create, staff detail, bounded list, optimistic update, review workflow, revisioned modules, and lesson placement.
 - Lessons: create, staff detail, bounded list, optimistic update, review workflow.
-- Foundation topics: platform-admin structural create/detail/list/update with stable code and lifecycle.
+- Foundation topics: platform-admin structural create/detail/list/update with stable code/lifecycle plus revisioned lesson/library placement.
 - Library items: create, staff detail, bounded list, optimistic update, review workflow.
 - Runtime mounts under `/api/v1/courses`, `/api/v1/lessons`, `/api/v1/foundation`, `/api/v1/library`, and Content management under `/api/v1/content`.
 - Canonical Content-owned platform-trainer authoring scope via active path/subject relations, with transactional audit and fail-closed enforcement.
@@ -43,6 +43,9 @@ Learning owns learner progress, mastery and next-action state.
 - Teachers cannot approve content.
 - Draft cannot jump directly to approved.
 - Approved/archived records are not edited in place by the normal update contract.
+- Course composition mutations are blocked on approved/archived courses and increment the parent course revision in the same transaction.
+- Trainer lesson placement requires edit authority and active authoring scope for both the course and the lesson.
+- Foundation placement mutations are platform-admin only, require an active topic, and increment the parent topic revision transactionally.
 - Foundation structural mutations are platform-admin only in this slice.
 - Audit write and content mutation share the same PostgreSQL transaction.
 
@@ -53,6 +56,8 @@ Learning owns learner progress, mastery and next-action state.
 - List SQL selects summary columns only.
 - Skill and asset integrity checks are batched within a write transaction.
 - Full relationship collections are loaded only for detail reads.
+- Course composition is bounded to 200 modules, 500 lessons per module, and 5,000 lesson placements per course; module+placement reads use two bounded queries rather than per-module N+1 reads.
+- Foundation placement reads are bounded to 1,000 lesson links and 1,000 library links per topic.
 - Search relies on the content title trigram indexes already present on `main`.
 
 ## Explicitly deferred
@@ -61,8 +66,6 @@ The following are not complete in this PR and must remain separate work rather t
 
 - School-teacher authoring scope derived from canonical Organizations teaching assignments; the new platform-trainer path/subject scope does not silently substitute for school authority.
 - Compatibility adaptation of legacy Identity `managedPathIds`/`managedSubjectIds` forms to the new Content-owned scope API; Identity still does not own these relations.
-- Course module CRUD and module/lesson placement.
-- Foundation topic -> lesson and topic -> library placement management.
 - Explicit Course publication state separate from approval and show-on-platform visibility; legacy Course uses both `isPublished` and `showOnPlatform`, so learner catalog cutover must not infer publication from approval alone.
 - Learner-safe approved/published/visible Content projections.
 - Entitlement/access resolution.

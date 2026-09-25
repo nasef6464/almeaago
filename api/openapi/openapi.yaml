@@ -1480,3 +1480,103 @@ paths:
         "403": { description: Platform admin or CSRF denied }
         "404": { description: Teacher account not found }
         "409": { description: Inactive/invalid taxonomy or teacher relationship conflict }
+
+
+  /api/v1/courses/{id}/modules:
+    get:
+      operationId: contentListCourseModules
+      description: >
+        Staff-authorized bounded course composition. At most 200 modules and 5,000 lesson
+        placements are returned; placements are loaded without per-module N+1 queries.
+      responses:
+        "200": { description: Ordered modules and lesson placements }
+        "403": { description: Course edit scope denied }
+        "404": { description: Course not found }
+        "409": { description: Stored composition exceeds safety bounds }
+    post:
+      operationId: contentCreateCourseModule
+      description: >
+        CSRF-protected module creation using the parent course expectedRevision.
+        Composition changes increment the parent course revision transactionally.
+      responses:
+        "201": { description: Module created with new courseRevision }
+        "400": { description: Invalid module payload }
+        "403": { description: Course edit scope or CSRF denied }
+        "409": { description: Revision, workflow, or composition bound conflict }
+
+  /api/v1/courses/{id}/modules/{moduleId}:
+    put:
+      operationId: contentUpdateCourseModule
+      description: CSRF-protected optimistic module update/archive; approved or archived courses cannot be composed in place.
+      responses:
+        "200": { description: Module updated with new courseRevision }
+        "400": { description: Invalid module payload }
+        "403": { description: Course edit scope or CSRF denied }
+        "404": { description: Course or module not found }
+        "409": { description: Revision or workflow conflict }
+
+  /api/v1/courses/{id}/modules/{moduleId}/lessons/{lessonId}:
+    put:
+      operationId: contentPlaceCourseLesson
+      description: >
+        CSRF-protected optimistic lesson placement. Course and lesson must share taxonomy,
+        and trainer callers must have edit authority and active authoring scope for both.
+      responses:
+        "200": { description: Placement upserted with new courseRevision }
+        "400": { description: Invalid placement payload }
+        "403": { description: Course/lesson edit scope or CSRF denied }
+        "404": { description: Course, module, or lesson not found }
+        "409": { description: Revision, taxonomy, workflow, or composition bound conflict }
+    delete:
+      operationId: contentRemoveCourseLesson
+      description: CSRF-protected optimistic removal; request body carries expectedRevision.
+      responses:
+        "200": { description: Placement removed with new courseRevision }
+        "400": { description: Invalid revision payload }
+        "403": { description: Course edit scope or CSRF denied }
+        "404": { description: Placement not found }
+        "409": { description: Revision or workflow conflict }
+
+  /api/v1/foundation/topics/{id}/placements:
+    get:
+      operationId: contentGetFoundationPlacements
+      description: Platform-admin bounded foundation placement read, capped at 1,000 lessons and 1,000 library items per topic.
+      responses:
+        "200": { description: Ordered lesson and library placements }
+        "403": { description: Platform admin required }
+        "404": { description: Topic not found }
+        "409": { description: Stored placement set exceeds safety bounds }
+
+  /api/v1/foundation/topics/{id}/lessons/{lessonId}:
+    put:
+      operationId: contentLinkFoundationLesson
+      description: CSRF-protected optimistic link of a non-archived same-taxonomy lesson to an active topic.
+      responses:
+        "200": { description: Lesson linked with new topicRevision }
+        "403": { description: Platform admin or CSRF denied }
+        "409": { description: Revision, taxonomy, lifecycle, or placement bound conflict }
+    delete:
+      operationId: contentUnlinkFoundationLesson
+      description: CSRF-protected optimistic unlink; request body carries expectedRevision.
+      responses:
+        "200": { description: Lesson unlinked with new topicRevision }
+        "403": { description: Platform admin or CSRF denied }
+        "404": { description: Placement not found }
+        "409": { description: Revision or lifecycle conflict }
+
+  /api/v1/foundation/topics/{id}/library/{itemId}:
+    put:
+      operationId: contentLinkFoundationLibrary
+      description: CSRF-protected optimistic link of a non-archived same-taxonomy library item to an active topic.
+      responses:
+        "200": { description: Library item linked with new topicRevision }
+        "403": { description: Platform admin or CSRF denied }
+        "409": { description: Revision, taxonomy, lifecycle, or placement bound conflict }
+    delete:
+      operationId: contentUnlinkFoundationLibrary
+      description: CSRF-protected optimistic unlink; request body carries expectedRevision.
+      responses:
+        "200": { description: Library item unlinked with new topicRevision }
+        "403": { description: Platform admin or CSRF denied }
+        "404": { description: Placement not found }
+        "409": { description: Revision or lifecycle conflict }

@@ -16,6 +16,11 @@ func NewCourses(service *contentapp.Service, auth Authenticator) http.Handler {
 	r.Get("/{id}", h.getCourse)
 	r.Put("/{id}", h.updateCourse)
 	r.Patch("/{id}/workflow", h.courseWorkflow)
+	r.Get("/{id}/modules", h.listCourseModules)
+	r.Post("/{id}/modules", h.createCourseModule)
+	r.Put("/{id}/modules/{moduleId}", h.updateCourseModule)
+	r.Put("/{id}/modules/{moduleId}/lessons/{lessonId}", h.placeCourseLesson)
+	r.Delete("/{id}/modules/{moduleId}/lessons/{lessonId}", h.removeCourseLesson)
 	return r
 }
 
