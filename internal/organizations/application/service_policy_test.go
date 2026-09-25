@@ -207,7 +207,6 @@ func TestArchiveStatusCannotBypassArchiveLifecycle(t *testing.T) {
 	}
 }
 
-
 func TestMembershipMutationRequiresPlatformAdmin(t *testing.T) {
 	repo := &repositoryMock{}
 	service := NewService(repo)
@@ -373,7 +372,6 @@ func TestDirectorDirectoryIsBoundedAndAdminOnly(t *testing.T) {
 		t.Fatalf("director directory must cap at 100, got %#v", repo.directorQuery)
 	}
 }
-
 
 func TestGenericMembershipCannotGrantSchoolAdmin(t *testing.T) {
 	service := NewService(&repositoryMock{})
