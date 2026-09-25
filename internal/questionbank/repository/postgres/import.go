@@ -258,8 +258,8 @@ func (r *Repository) WriteImportBatch(
 		ResourceType: "question_import_batch",
 		ResourceID:   batchID,
 		Metadata: map[string]any{
-			"requested": len(commands),
-			"inserted":  len(imported),
+			"requested":    len(commands),
+			"inserted":     len(imported),
 			"manifestHash": manifestHash,
 		},
 	}); err != nil {
