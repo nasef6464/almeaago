@@ -1,0 +1,22 @@
+name: Format Directed Assignments
+on:
+  workflow_dispatch:
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/assessment-directed-assignments
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: gofmt -w internal/assessment/domain/assignment.go internal/assessment/application/assignment_service.go internal/assessment/repository/postgres/assignment_repository.go internal/assessment/transport/http/assignment_handler.go internal/assessment/transport/http/handler.go internal/platform/httpserver/server.go cmd/api/main.go
+      - run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git diff --cached --quiet || git commit -m "chore: format directed assignment batch"
+          git push
