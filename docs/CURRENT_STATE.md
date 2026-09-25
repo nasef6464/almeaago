@@ -21,9 +21,13 @@ Organizations / Schools / Classes compatibility — **STRUCTURAL CHECKPOINT GREE
 
 Taxonomy — **STRUCTURAL CHECKPOINT GREEN**.
 
-Question Bank — **CORE + FILTERS GREEN / IN_PROGRESS**.
+Question Bank — **STRUCTURAL CHECKPOINT GREEN**.
 
 Media / R2 — **DIRECT-UPLOAD FOUNDATION GREEN**.
+
+Content / Foundation backend — **CORE MANAGEMENT TESTED / MERGED**.
+
+Content React cutover — **IN PROGRESS (PR #38)**.
 
 ## Identity Core / Recovery / Providers — TESTED / MERGED
 Includes:
@@ -296,6 +300,46 @@ Question Bank is structurally green for:
 
 Reuse contracts for Assessment/Realtime/Learning will consume canonical question IDs later; those domains must not copy question objects.
 
+## Content Core Management — TESTED / MERGED
+PR #37 passed exact-head Backend CI and Database CI on `0c493741ccae5e241b1eadb9555bf3a49ce573e8` and merged to `main` as `3a13259401f6328ce65e4b74532ed46dfe635302`.
+
+Implemented:
+- normalized PostgreSQL Content persistence for courses, lessons, Foundation topics and library items.
+- bounded staff lists with compact DTOs and no exact-count work on normal list paths.
+- canonical platform-trainer authoring scope plus exact Organizations teaching-assignment composition for school teachers.
+- teacher ownership/assignment authority; `created_by` remains audit provenance only.
+- optimistic revisions, lifecycle/workflow guards, CSRF-protected mutations and transaction-scoped audit.
+- course modules/lesson placement and Foundation lesson/library placement with bounded composition reads.
+- explicit course publication separated from approval and visibility.
+- learner-safe bounded learning-space/course/Foundation projections without leaking content bodies, answer/access authority, ownership or revenue metadata.
+- legacy admin `managedPathIds`/`managedSubjectIds` compatibility adapted transactionally to Content-owned trainer scope.
+- Question Bank authoring consumes the same combined teacher scope.
+- no Vercel/Render deployment changes.
+
+Still deferred from Content closure:
+- React CRUD parity beyond the current web cutover.
+- Commerce entitlement/access resolution.
+- Assessment placement integration.
+- end-to-end/visual parity proof against the legacy Content screens.
+- product decision for any approved-content editing model beyond the current no-in-place-edit rule.
+
+## Content Web Cutover — IN PROGRESS
+Draft PR #38 (`feat/content-web-cutover`) is the active Content React parity branch.
+
+Implemented so far:
+- role-aware `/admin-dashboard/content` route.
+- bounded Course/Lesson/Foundation/Library staff lists backed by the Go API.
+- exact path+subject requirement in the UI before school-teacher list requests.
+- core Taxonomy bootstrap for list filters.
+- secure CSRF-backed Course draft creation.
+- full Taxonomy/skills bootstrap is lazy-loaded only when opening the Course create flow, avoiding unnecessary list-screen payload.
+- Course review workflow controls and admin-only publication control are being cut over on this branch.
+
+Verification:
+- Frontend CI passed on `51059ab81203219e557072b2877d0ffa4c690862` for the initial bounded read slice.
+- Frontend CI passed on `4e9968c12d88f7ce589a6bc0e3846a0027cc45dc` for secure Course draft creation.
+- The final PR head must pass Frontend CI again before merge.
+
 ## Performance/scalability
 - bounded pagination for admin/director directories.
 - pg_trgm-backed user search.
@@ -314,4 +358,4 @@ Reuse contracts for Assessment/Realtime/Learning will consume canonical question
 - Use `almeaacodax` only for explicit behavioral/visual parity checks, never as an implementation target.
 
 ## Next exact action
-Start Content foundation from current `main`. Audit Lesson/Course/Foundation/Library legacy models against the Content blueprint, then create only the normalized PostgreSQL identities/relationships needed before student learning or commerce depends on them. Keep Foundation and Course distinct, link to Taxonomy by IDs, keep binaries in Media/R2, use lifecycle/workflow instead of destructive history loss, and do not mix access/entitlement state into Content.
+Continue PR #38 from the current `feat/content-web-cutover` head. Complete Course management parity in small tested slices (edit/detail, module builder, review/publication UX), then Lessons, Foundation and Library CRUD. Keep lists bounded, lazy-load detail-only Taxonomy/Media data, require exact teacher scope where needed, and add Playwright/visual-regression evidence before declaring the Content React gate proven. Do not merge until the exact final PR head passes Frontend CI.

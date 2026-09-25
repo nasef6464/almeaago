@@ -115,4 +115,43 @@ export const contentClient = {
       body: JSON.stringify(input),
     });
   },
+
+  courseWorkflow(
+    courseId: string,
+    expectedRevision: number,
+    status: 'draft' | 'pending_review' | 'approved' | 'rejected' | 'archived',
+    reviewerNotes: string,
+    csrfToken: string,
+  ) {
+    return request<{ course: CourseSummary }>(
+      `/api/v1/courses/${encodeURIComponent(courseId)}/workflow`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify({ expectedRevision, status, reviewerNotes }),
+      },
+    );
+  },
+
+  coursePublication(
+    courseId: string,
+    expectedRevision: number,
+    isPublished: boolean,
+    csrfToken: string,
+  ) {
+    return request<{ course: CourseSummary }>(
+      `/api/v1/courses/${encodeURIComponent(courseId)}/publication`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify({ expectedRevision, isPublished }),
+      },
+    );
+  },
 };

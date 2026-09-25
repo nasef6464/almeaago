@@ -8,6 +8,7 @@ interface CourseCreatePanelProps {
   coreTaxonomy: TaxonomyCore;
   initialPathId: string;
   initialSubjectId: string;
+  lockScope: boolean;
   getCsrfToken(): Promise<string>;
   onCancel(): void;
   onCreated(): void;
@@ -23,6 +24,7 @@ export function CourseCreatePanel({
   coreTaxonomy,
   initialPathId,
   initialSubjectId,
+  lockScope,
   getCsrfToken,
   onCancel,
   onCreated,
@@ -141,6 +143,11 @@ export function CourseCreatePanel({
 
         {taxonomyError ? <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">{taxonomyError}</div> : null}
         {error ? <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">{error}</div> : null}
+        {lockScope ? (
+          <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">
+            نطاق المعلم مثبت على المسار والمادة المختارين لتجنب طلبات خارج التكليف المصرح.
+          </div>
+        ) : null}
 
         <section className="grid gap-5 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 md:grid-cols-2">
           <label className="space-y-2 md:col-span-2">
@@ -150,7 +157,7 @@ export function CourseCreatePanel({
 
           <label className="space-y-2">
             <span className="text-sm font-black text-gray-700">المسار *</span>
-            <select value={pathId} onChange={(event) => { setPathId(event.target.value); setSubjectId(''); setSkillIds([]); }} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold">
+            <select value={pathId} disabled={lockScope} onChange={(event) => { setPathId(event.target.value); setSubjectId(''); setSkillIds([]); }} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold disabled:opacity-60">
               <option value="">اختر المسار</option>
               {taxonomy.paths.map((path) => <option key={path.id} value={path.id}>{path.name}</option>)}
             </select>
@@ -158,7 +165,7 @@ export function CourseCreatePanel({
 
           <label className="space-y-2">
             <span className="text-sm font-black text-gray-700">المادة *</span>
-            <select value={subjectId} disabled={!pathId} onChange={(event) => { setSubjectId(event.target.value); setSkillIds([]); }} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold disabled:opacity-50">
+            <select value={subjectId} disabled={!pathId || lockScope} onChange={(event) => { setSubjectId(event.target.value); setSkillIds([]); }} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold disabled:opacity-60">
               <option value="">اختر المادة</option>
               {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
             </select>

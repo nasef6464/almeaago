@@ -63,6 +63,10 @@ function workflowClass(status: ContentWorkflowStatus) {
   return 'bg-gray-100 text-gray-600';
 }
 
+function isCourseRow(row: ContentRow): row is CourseSummary {
+  return 'isPublished' in row;
+}
+
 export function ContentAdminPage() {
   const { user, loading: authLoading, getCsrfToken } = useAuth();
   const isAdmin = user?.roles.includes('admin') ?? false;
@@ -82,6 +86,8 @@ export function ContentAdminPage() {
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [creatingCourse, setCreatingCourse] = useState(false);
+  const [mutatingCourseId, setMutatingCourseId] = useState('');
+  const [actionError, setActionError] = useState('');
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -192,6 +198,55 @@ export function ContentAdminPage() {
     return { shown: rows.length, approved, visible, locked };
   }, [rows]);
 
+  async function setCourseWorkflow(
+    course: CourseSummary,
+    status: ContentWorkflowStatus,
+    reviewerNotes = '',
+  ) {
+    setMutatingCourseId(course.id);
+    setActionError('');
+    try {
+      const csrfToken = await getCsrfToken();
+      await contentClient.courseWorkflow(
+        course.id,
+        course.revision,
+        status,
+        reviewerNotes.trim(),
+        csrfToken,
+      );
+      setReloadKey((value) => value + 1);
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : 'تعذر تحديث حالة الدورة.');
+    } finally {
+      setMutatingCourseId('');
+    }
+  }
+
+  async function toggleCoursePublication(course: CourseSummary) {
+    setMutatingCourseId(course.id);
+    setActionError('');
+    try {
+      const csrfToken = await getCsrfToken();
+      await contentClient.coursePublication(
+        course.id,
+        course.revision,
+        !course.isPublished,
+        csrfToken,
+      );
+      setReloadKey((value) => value + 1);
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : 'تعذر تحديث نشر الدورة.');
+    } finally {
+      setMutatingCourseId('');
+    }
+  }
+
+  function rejectCourse(course: CourseSummary) {
+    const notes = window.prompt('اشرح المطلوب تعديله للمدرب:', '');
+    if (notes === null) return;
+    void setCourseWorkflow(course, 'rejected', notes);
+  }
+
   if (authLoading) {
     return <main className="min-h-[calc(100vh-5rem)] bg-gray-50 p-10 text-center font-black text-gray-600">جاري التحقق من الجلسة...</main>;
   }
@@ -205,6 +260,7 @@ export function ContentAdminPage() {
         coreTaxonomy={taxonomy}
         initialPathId={pathId}
         initialSubjectId={subjectId}
+        lockScope={teacherRequiresExactScope}
         getCsrfToken={getCsrfToken}
         onCancel={() => setCreatingCourse(false)}
         onCreated={() => {
@@ -362,6 +418,7 @@ export function ContentAdminPage() {
             </section>
 
             {error ? <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-800">{error}</div> : null}
+            {actionError ? <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-800">{actionError}</div> : null}
 
             <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
               <div className="flex items-center justify-between border-b border-gray-100 px-4 py-4">
@@ -390,6 +447,7 @@ export function ContentAdminPage() {
                         <th className="px-4 py-3">الظهور</th>
                         <th className="px-4 py-3">النوع / المستوى</th>
                         <th className="px-4 py-3">آخر تحديث</th>
+                        <th className="px-4 py-3">إجراءات</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -408,6 +466,64 @@ export function ContentAdminPage() {
                             <td className="px-4 py-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${row.isVisible ? 'bg-sky-50 text-sky-700' : 'bg-gray-100 text-gray-500'}`}>{row.isVisible ? 'ظاهر' : 'مخفي'}</span></td>
                             <td className="px-4 py-4 font-bold text-gray-600">{type || '-'}</td>
                             <td className="px-4 py-4 text-xs font-bold text-gray-500">{new Date(row.updatedAt).toLocaleString('ar-SA')}</td>
+                            <td className="px-4 py-4">
+                              {isCourseRow(row) ? (
+                                <div className="flex flex-wrap gap-2">
+                                  {(row.workflowStatus === 'draft' || row.workflowStatus === 'rejected') ? (
+                                    <button
+                                      type="button"
+                                      disabled={mutatingCourseId === row.id}
+                                      onClick={() => void setCourseWorkflow(row, 'pending_review')}
+                                      className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-black text-amber-800 disabled:opacity-50"
+                                    >
+                                      إرسال للمراجعة
+                                    </button>
+                                  ) : null}
+                                  {row.workflowStatus === 'pending_review' && !isAdmin ? (
+                                    <button
+                                      type="button"
+                                      disabled={mutatingCourseId === row.id}
+                                      onClick={() => void setCourseWorkflow(row, 'draft')}
+                                      className="rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-black text-gray-700 disabled:opacity-50"
+                                    >
+                                      سحب للمسودة
+                                    </button>
+                                  ) : null}
+                                  {row.workflowStatus === 'pending_review' && isAdmin ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        disabled={mutatingCourseId === row.id}
+                                        onClick={() => void setCourseWorkflow(row, 'approved')}
+                                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-black text-emerald-800 disabled:opacity-50"
+                                      >
+                                        اعتماد
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={mutatingCourseId === row.id}
+                                        onClick={() => rejectCourse(row)}
+                                        className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-black text-rose-800 disabled:opacity-50"
+                                      >
+                                        رفض
+                                      </button>
+                                    </>
+                                  ) : null}
+                                  {row.workflowStatus === 'approved' && isAdmin ? (
+                                    <button
+                                      type="button"
+                                      disabled={mutatingCourseId === row.id}
+                                      onClick={() => void toggleCoursePublication(row)}
+                                      className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-black text-indigo-800 disabled:opacity-50"
+                                    >
+                                      {row.isPublished ? 'إلغاء النشر' : 'نشر'}
+                                    </button>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <span className="text-xs font-bold text-gray-400">—</span>
+                              )}
+                            </td>
                           </tr>
                         );
                       })}
