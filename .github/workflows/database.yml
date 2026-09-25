@@ -52,6 +52,8 @@ jobs:
           psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.school_membership_permissions') is not null" | grep -qx t
           psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from information_schema.columns where table_name='schools' and column_name='metadata'" | grep -qx 1
           psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='classes' and indexname='classes_school_status_created_idx'" | grep -qx 1
+          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='schools' and indexname='schools_name_trgm_idx'" | grep -qx 1
+          psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select count(*) from pg_indexes where tablename='classes' and indexname='classes_name_trgm_idx'" | grep -qx 1
       - name: Roll back and re-apply
         run: |
           psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f migrations/000008_organizations_core.down.sql
