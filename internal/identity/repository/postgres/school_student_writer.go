@@ -145,7 +145,7 @@ func (r *Repository) UpdateSchoolStudentBasicTx(
 			return domain.SchoolStudentAccount{}, err
 		}
 	}
-	return schoolStudentAccountTx(ctx, tx, userID)
+	return r.SchoolStudentAccountTx(ctx, tx, userID)
 }
 
 func (r *Repository) SetSchoolStudentActiveTx(
@@ -184,10 +184,10 @@ func (r *Repository) SetSchoolStudentActiveTx(
 			return domain.SchoolStudentAccount{}, err
 		}
 	}
-	return schoolStudentAccountTx(ctx, tx, userID)
+	return r.SchoolStudentAccountTx(ctx, tx, userID)
 }
 
-func schoolStudentAccountTx(
+func (r *Repository) SchoolStudentAccountTx(
 	ctx context.Context,
 	tx pgx.Tx,
 	userID string,
