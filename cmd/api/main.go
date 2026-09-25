@@ -88,6 +88,11 @@ func main() {
 		cfg.MediaMaxUploadBytes,
 		time.Duration(cfg.MediaPresignTTLSeconds)*time.Second,
 	)
+	questionImportService := questionapp.NewImportService(
+		questionRepository,
+		mediaService,
+		30*time.Minute,
+	)
 
 	whatsAppDelivery := whatsappprovider.NewWebhook(
 		cfg.WhatsAppOTPEndpoint,
@@ -98,7 +103,11 @@ func main() {
 		OTPPepper:        cfg.OTPPepper,
 	})
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
-	questionHandler := questionhttp.New(questionService, identityService)
+	questionHandler := questionhttp.New(
+		questionService,
+		identityService,
+		questionhttp.Options{Import: questionImportService},
+	)
 	mediaHandler := mediahttp.New(mediaService, identityService)
 	organizationsHandler := organizationshttp.New(organizationsService, identityService)
 	parentsHandler := organizationshttp.NewParentFacade(organizationsService, identityService)
