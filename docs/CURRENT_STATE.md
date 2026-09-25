@@ -19,7 +19,7 @@ Evidence:
 ## Current phase
 Organizations / Schools / Classes compatibility — **STRUCTURAL CHECKPOINT GREEN**.
 
-Next foundation phase: Taxonomy — **IN_PROGRESS / FOUNDATION GREEN**.
+Taxonomy — **STRUCTURAL CHECKPOINT GREEN**.
 
 ## Identity Core / Recovery / Providers — TESTED / MERGED
 Includes:
@@ -172,6 +172,22 @@ Implemented:
 - no legacy embedded `subSkills[]`, `questionIds[]`, or `lessonIds[]` ownership arrays.
 - PostgreSQL remains taxonomy truth; no runtime auto-seeding as a correctness dependency.
 
+## Taxonomy Admin Mutations — TESTED / MERGED
+PR #20 passed exact-head Backend CI and merged as `e488acf47723e15f801d24a61f8afd34f18e95c8`.
+
+Implemented:
+- platform-admin-only create/update contracts for paths, levels, subjects and skills.
+- CSRF on all taxonomy mutations.
+- stable create-only codes and stable IDs.
+- active path/level/subject and main/sub skill hierarchy validation.
+- lifecycle updates through active/inactive/archived; no destructive taxonomy delete API.
+- transaction-scoped audit records.
+- explicit conflict/not-found mapping and bounded input normalization.
+- Taxonomy remains hierarchy-only; no question/content ownership arrays.
+
+## Taxonomy checkpoint
+The structural Taxonomy foundation is green for normalized persistence, bounded public bootstrap reads, stable hierarchy identity, and lifecycle-safe admin mutation contracts. Content and Question Bank may now depend on Taxonomy IDs through explicit boundaries.
+
 ## Performance/scalability
 - bounded pagination for admin/director directories.
 - pg_trgm-backed user search.
@@ -190,4 +206,4 @@ Implemented:
 - Use `almeaacodax` only for explicit behavioral/visual parity checks, never as an implementation target.
 
 ## Next exact action
-Continue Taxonomy with staff/admin mutation contracts and referential lifecycle safety on top of the green normalized schema. Preserve stable IDs/codes, validate parent/subject/level hierarchy, prefer archive/inactive lifecycle over destructive deletes when downstream references exist, and add exact-head Backend/Database gates before Content or Question Bank depends on these contracts.
+Start the Question Bank foundation from current `main`, using the existing normalized question/question_version/question_option/question_skill_link schema as the starting point. First audit that schema against the Question Bank blueprint, then add only the missing integrity/index constraints before implementing question identity/version/workflow APIs. Preserve immutable question_code, relational skill links, learner answer secrecy, soft archive/history safety, and direct-to-R2 media boundaries.
