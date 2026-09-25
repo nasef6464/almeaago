@@ -323,17 +323,7 @@ func (r *Repository) RollbackImportBatch(
 	if err := tx.Commit(ctx); err != nil {
 		return question.ImportBatch{}, err
 	}
-	for index := range items {
-		items[index].WorkflowStatus = question.WorkflowArchived
-	}
-	return question.ImportBatch{
-		BatchID:        batchID,
-		Status:         "rolled_back",
-		RequestedCount: len(items),
-		InsertedCount:  len(items),
-		RolledBackAt:   &rolledBackAt,
-		Questions:      items,
-	}, nil
+	return r.GetImportBatch(ctx, batchID)
 }
 
 type importQueryer interface {
