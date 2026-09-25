@@ -137,6 +137,37 @@ func (r *repoStub) UpsertAssignment(
 		Status:    write.Status,
 	}, nil
 }
+func (r *repoStub) SchoolContractBySchool(
+	context.Context,
+	string,
+) (orgdomain.SchoolContract, error) {
+	return orgdomain.SchoolContract{}, orgdomain.ErrNotFound
+}
+
+func (r *repoStub) UpsertSchoolContract(
+	_ context.Context,
+	_ string,
+	schoolID string,
+	write orgdomain.SchoolContractWrite,
+) (orgdomain.SchoolContract, error) {
+	return orgdomain.SchoolContract{
+		ID:         "contract-1",
+		SchoolID:   schoolID,
+		Status:     write.Status,
+		Modules:    append([]orgdomain.SchoolModule(nil), write.Modules...),
+		ValidFrom:  write.ValidFrom,
+		ValidUntil: write.ValidUntil,
+	}, nil
+}
+
+func (r *repoStub) HasSchoolModule(
+	context.Context,
+	string,
+	orgdomain.SchoolModule,
+) (bool, error) {
+	return true, nil
+}
+
 func (r *repoStub) DirectorAddStudent(
 	_ context.Context,
 	_ string,
