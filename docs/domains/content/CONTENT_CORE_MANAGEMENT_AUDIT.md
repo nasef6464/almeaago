@@ -14,6 +14,7 @@ This document records the first bounded staff-management slice for the Content d
 - Learner-safe bounded metadata projections for active path/subject learning spaces, published course structure, and Foundation placements.
 - Canonical Content-owned platform-trainer authoring scope via active path/subject relations, with transactional audit and fail-closed enforcement across Courses, Lessons, Library, and Question Bank authoring.
 - Legacy admin `managedPathIds`/`managedSubjectIds` compatibility is transactionally adapted into the canonical Content trainer-scope tables; Identity stores no duplicate trainer arrays.
+- Organizations teacher workspace resolves its `platformTrainer` persona through Content's active canonical scope contract instead of inferring it from school membership.
 - PostgreSQL-backed taxonomy/skill validation and active Media asset validation.
 - Transactional audit writes for content mutations.
 - CSRF on unsafe HTTP mutations.

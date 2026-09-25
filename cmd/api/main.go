@@ -75,7 +75,10 @@ func main() {
 	contentRepository := contentrepo.New(db, auditWriter)
 	contentService := contentapp.NewService(contentRepository)
 	organizationsRepository := orgrepo.New(db, auditWriter, identityRepository)
-	organizationsService := orgapp.NewService(organizationsRepository, directorDirectory)
+	organizationsService := orgapp.NewServiceWithOptions(organizationsRepository, orgapp.ServiceOptions{
+		DirectorDirectory:       directorDirectory,
+		PlatformTrainerResolver: contentRepository,
+	})
 	taxonomyRepository := taxonomyrepo.New(db)
 	taxonomyService := taxonomyapp.NewService(taxonomyRepository)
 	questionRepository := questionrepo.New(db, auditWriter)

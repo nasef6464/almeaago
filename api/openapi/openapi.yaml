@@ -284,10 +284,11 @@ paths:
     get:
       operationId: organizationsTeacherWorkspace
       description: >
-        Organizations-owned structural workspace for an authenticated school teacher.
-        Returns only active school/class/subject assignments and aggregate student counts.
-        Entitlements, assessments, realtime state, reporting data, and trainer scope remain
-        owned by their respective domains.
+        Organizations-owned structural workspace for an authenticated teacher. Returns active
+        school/class/subject assignments and aggregate student counts, plus a platformTrainer
+        persona boolean resolved from Content's canonical active trainer scope. Organizations
+        does not infer platform-trainer authority from school membership. Entitlements,
+        assessments, realtime state, and reporting data remain owned by their domains.
       responses:
         "200": { description: Scoped teacher school assignments }
         "401": { description: Authentication required }

@@ -158,3 +158,36 @@ func validateActiveIDsTx(ctx context.Context, tx pgx.Tx, table, column string, i
 	}
 	return nil
 }
+
+func (r *Repository) HasActiveTrainerScope(ctx context.Context, userID string) (bool, error) {
+	var ok bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1
+			FROM users u
+			JOIN user_roles ur ON ur.user_id=u.id AND ur.role='teacher'
+			WHERE u.id=$1::uuid AND u.status='active'
+			  AND (
+				EXISTS(
+					SELECT 1
+					FROM content_trainer_path_scopes ps
+					JOIN paths p ON p.id=ps.path_id
+					WHERE ps.user_id=u.id AND p.status='active'
+				)
+				OR EXISTS(
+					SELECT 1
+					FROM content_trainer_subject_scopes ss
+					JOIN subjects s ON s.id=ss.subject_id
+					JOIN paths p ON p.id=s.path_id
+					WHERE ss.user_id=u.id
+					  AND s.status='active'
+					  AND p.status='active'
+				)
+			  )
+		)
+	`, userID).Scan(&ok)
+	if err != nil {
+		return false, mapError(err)
+	}
+	return ok, nil
+}
