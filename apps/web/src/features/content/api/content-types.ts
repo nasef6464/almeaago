@@ -141,3 +141,63 @@ export interface CreateCourseInput {
   certificateEnabled: boolean;
   skillIds: string[];
 }
+
+export type CourseLevel = 'beginner' | 'intermediate' | 'advanced';
+export type ContentOwnerType = 'platform' | 'teacher' | 'school';
+
+export interface CourseDetail extends CourseSummary {
+  description: string;
+  createdBy: string;
+  approvedBy: string;
+  approvedAt: string | null;
+  reviewerNotes: string;
+  revenueSharePercentage: number | null;
+  publishedBy: string;
+  publishedAt: string | null;
+  dripContentEnabled: boolean;
+  certificateEnabled: boolean;
+  thumbnailAssetId: string;
+  presentation: unknown;
+  skillIds: string[];
+  createdAt: string;
+}
+
+export interface UpdateCourseInput {
+  expectedRevision: number;
+  pathId: string;
+  subjectId: string;
+  title: string;
+  description: string;
+  instructorName: string;
+  durationMinutes: number;
+  level: CourseLevel;
+  ownerType: ContentOwnerType;
+  ownerUserId: string;
+  ownerSchoolId: string;
+  assignedTeacherId: string;
+  revenueSharePercentage: number | null;
+  isVisible: boolean;
+  dripContentEnabled: boolean;
+  certificateEnabled: boolean;
+  thumbnailAssetId: string;
+  presentation: unknown;
+  skillIds: string[];
+}
+
+export interface CourseLessonPlacement {
+  lessonId: string;
+  sortOrder: number;
+  isPreview: boolean;
+}
+
+export interface CourseModule {
+  id: string;
+  courseId: string;
+  title: string;
+  description: string;
+  sortOrder: number;
+  status: 'active' | 'archived';
+  lessons: CourseLessonPlacement[];
+  createdAt: string;
+  updatedAt: string;
+}

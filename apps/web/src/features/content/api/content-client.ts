@@ -1,5 +1,7 @@
 import type {
   ContentListFilters,
+  CourseDetail,
+  CourseModule,
   CourseSummary,
   CreateCourseInput,
   FoundationTopicSummary,
@@ -8,6 +10,7 @@ import type {
   PageResult,
   TaxonomyCore,
   TaxonomyFull,
+  UpdateCourseInput,
 } from './content-types';
 
 const API_BASE = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
@@ -102,6 +105,111 @@ export const contentClient = {
     return request<PageResult<FoundationTopicSummary>>(
       `/api/v1/foundation/topics?${params.toString()}`,
       { signal },
+    );
+  },
+
+  course(courseId: string, signal?: AbortSignal) {
+    return request<{ course: CourseDetail }>(
+      `/api/v1/courses/${encodeURIComponent(courseId)}`,
+      { signal },
+    );
+  },
+
+  updateCourse(courseId: string, input: UpdateCourseInput, csrfToken: string) {
+    return request<{ course: CourseDetail }>(
+      `/api/v1/courses/${encodeURIComponent(courseId)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  courseModules(courseId: string, signal?: AbortSignal) {
+    return request<{ modules: CourseModule[] }>(
+      `/api/v1/courses/${encodeURIComponent(courseId)}/modules`,
+      { signal },
+    );
+  },
+
+  createCourseModule(
+    courseId: string,
+    input: { expectedRevision: number; title: string; description: string; sortOrder: number; status: 'active' },
+    csrfToken: string,
+  ) {
+    return request<{ module: CourseModule; courseRevision: number }>(
+      `/api/v1/courses/${encodeURIComponent(courseId)}/modules`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  updateCourseModule(
+    courseId: string,
+    moduleId: string,
+    input: { expectedRevision: number; title: string; description: string; sortOrder: number; status: 'active' | 'archived' },
+    csrfToken: string,
+  ) {
+    return request<{ module: CourseModule; courseRevision: number }>(
+      `/api/v1/courses/${encodeURIComponent(courseId)}/modules/${encodeURIComponent(moduleId)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  placeCourseLesson(
+    courseId: string,
+    moduleId: string,
+    lessonId: string,
+    input: { expectedRevision: number; sortOrder: number; isPreview: boolean },
+    csrfToken: string,
+  ) {
+    return request<{ courseRevision: number }>(
+      `/api/v1/courses/${encodeURIComponent(courseId)}/modules/${encodeURIComponent(moduleId)}/lessons/${encodeURIComponent(lessonId)}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  removeCourseLesson(
+    courseId: string,
+    moduleId: string,
+    lessonId: string,
+    expectedRevision: number,
+    csrfToken: string,
+  ) {
+    return request<{ courseRevision: number }>(
+      `/api/v1/courses/${encodeURIComponent(courseId)}/modules/${encodeURIComponent(moduleId)}/lessons/${encodeURIComponent(lessonId)}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify({ expectedRevision }),
+      },
     );
   },
 

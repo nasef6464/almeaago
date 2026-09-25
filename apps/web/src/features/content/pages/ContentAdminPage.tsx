@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../api/content-client';
 import { CourseCreatePanel } from '../components/CourseCreatePanel';
+import { CourseEditorPanel } from '../components/CourseEditorPanel';
 import type {
   ContentListFilters,
   ContentWorkflowStatus,
@@ -86,6 +87,7 @@ export function ContentAdminPage() {
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [creatingCourse, setCreatingCourse] = useState(false);
+  const [editingCourseId, setEditingCourseId] = useState('');
   const [mutatingCourseId, setMutatingCourseId] = useState('');
   const [actionError, setActionError] = useState('');
 
@@ -252,6 +254,20 @@ export function ContentAdminPage() {
   }
   if (!user || (!isAdmin && !isTeacher)) {
     return <main className="min-h-[calc(100vh-5rem)] bg-gray-50 p-10 text-center font-black text-rose-700">هذه الشاشة متاحة للإدارة والمعلمين المخولين فقط.</main>;
+  }
+
+  if (editingCourseId) {
+    return (
+      <CourseEditorPanel
+        courseId={editingCourseId}
+        coreTaxonomy={taxonomy}
+        isAdmin={isAdmin}
+        lockScope={teacherRequiresExactScope}
+        getCsrfToken={getCsrfToken}
+        onCancel={() => setEditingCourseId('')}
+        onChanged={() => setReloadKey((value) => value + 1)}
+      />
+    );
   }
 
   if (creatingCourse) {
@@ -469,6 +485,14 @@ export function ContentAdminPage() {
                             <td className="px-4 py-4">
                               {isCourseRow(row) ? (
                                 <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={mutatingCourseId === row.id}
+                                    onClick={() => setEditingCourseId(row.id)}
+                                    className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-black text-blue-800 disabled:opacity-50"
+                                  >
+                                    تعديل / المنهج
+                                  </button>
                                   {(row.workflowStatus === 'draft' || row.workflowStatus === 'rejected') ? (
                                     <button
                                       type="button"
