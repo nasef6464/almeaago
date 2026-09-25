@@ -15,6 +15,13 @@ paths:
         "200": { description: Core dependencies are reachable }
         "503": { description: Dependency unavailable }
 
+  /api/v1/schools/context:
+    get:
+      operationId: organizationsSchoolContexts
+      responses:
+        "200": { description: Canonical active school contexts for the authenticated user }
+        "401": { description: Authentication required }
+
   /api/v1/schools:
     get:
       operationId: organizationsListSchools
@@ -339,6 +346,109 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Platform admin or SCHOOL_TEACHERS_ASSIGN permission and CSRF required }
         "404": { description: School/class/teacher/subject relationship target not found }
+
+  /api/school-access/context:
+    get:
+      deprecated: true
+      operationId: legacySchoolAccessContext
+      responses:
+        "200": { description: Legacy-compatible school context response backed by canonical Organizations data }
+        "401": { description: Authentication required }
+
+  /api/school-access/memberships:
+    put:
+      deprecated: true
+      operationId: legacySchoolAccessUpsertMembership
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [schoolId, userId, role]
+              properties:
+                schoolId: { type: string }
+                userId: { type: string }
+                role: { type: string, enum: [student, teacher, supervisor, parent] }
+                status: { type: string, enum: [active, inactive], default: active }
+      responses:
+        "200": { description: Legacy membership shape; inactive maps to canonical revoked }
+        "400": { description: Invalid request }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin role or CSRF denied }
+
+  /api/school-access/directors/{schoolId}:
+    get:
+      deprecated: true
+      operationId: legacySchoolAccessDirectors
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Legacy flat director delegation shape backed by canonical memberships/permissions }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin role required }
+
+  /api/school-access/directors/{schoolId}/{userId}:
+    put:
+      deprecated: true
+      operationId: legacySchoolAccessUpsertDirector
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: path, name: userId, required: true, schema: { type: string } }
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                status: { type: string, enum: [active, inactive], default: active }
+                permissions: { type: array, items: { type: string } }
+      responses:
+        "200": { description: Legacy director membership shape; inactive maps to canonical revoked }
+        "400": { description: Invalid status or permission }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin role or CSRF denied }
+
+  /api/school-access/assignments:
+    put:
+      deprecated: true
+      operationId: legacySchoolAccessUpsertTeachingAssignment
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [schoolId, teacherId, classId]
+              properties:
+                schoolId: { type: string }
+                teacherId: { type: string }
+                classId: { type: string }
+                subjectId: { type: string, default: "" }
+                status: { type: string, enum: [active, inactive], default: active }
+      responses:
+        "200": { description: Legacy assignment shape; inactive maps to canonical ended }
+        "400": { description: Invalid assignment input }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin or school director permission and CSRF denied }
 
   /api/v1/auth/register:
     post:
