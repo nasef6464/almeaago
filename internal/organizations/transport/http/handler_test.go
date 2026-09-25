@@ -137,6 +137,118 @@ func (r *repoStub) UpsertAssignment(
 		Status:    write.Status,
 	}, nil
 }
+func (r *repoStub) DirectorAddStudent(
+	_ context.Context,
+	_ string,
+	_ string,
+	write orgdomain.DirectorStudentCreate,
+) (orgdomain.DirectorStudentMutationResult, error) {
+	return orgdomain.DirectorStudentMutationResult{
+		Student: orgdomain.DirectorStudent{
+			StudentID: "student-1",
+			Name:      write.Name,
+			Email:     write.Email,
+			Active:    true,
+			ClassID:   write.ClassID,
+			ClassName: "Class A",
+		},
+		Created: true,
+	}, nil
+}
+
+func (r *repoStub) DirectorMoveStudent(
+	_ context.Context,
+	_ string,
+	_ string,
+	studentID string,
+	classID string,
+) (orgdomain.DirectorStudentMutationResult, error) {
+	return orgdomain.DirectorStudentMutationResult{
+		Student: orgdomain.DirectorStudent{
+			StudentID: studentID,
+			Name:      "Student",
+			Active:    true,
+			ClassID:   classID,
+			ClassName: "Class B",
+		},
+	}, nil
+}
+
+func (r *repoStub) DirectorUpdateStudentBasic(
+	_ context.Context,
+	_ string,
+	_ string,
+	studentID string,
+	patch orgdomain.DirectorStudentBasicPatch,
+) (orgdomain.DirectorStudentMutationResult, error) {
+	name := "Student"
+	phone := ""
+	if patch.Name != nil {
+		name = *patch.Name
+	}
+	if patch.Phone != nil {
+		phone = *patch.Phone
+	}
+	return orgdomain.DirectorStudentMutationResult{
+		Student: orgdomain.DirectorStudent{
+			StudentID: studentID,
+			Name:      name,
+			Phone:     phone,
+			Active:    true,
+		},
+	}, nil
+}
+
+func (r *repoStub) DirectorSetStudentActive(
+	_ context.Context,
+	_ string,
+	_ string,
+	studentID string,
+	active bool,
+) (orgdomain.DirectorStudentMutationResult, error) {
+	return orgdomain.DirectorStudentMutationResult{
+		Student: orgdomain.DirectorStudent{
+			StudentID: studentID,
+			Name:      "Student",
+			Active:    active,
+		},
+	}, nil
+}
+
+func (r *repoStub) ListDirectorStudents(
+	_ context.Context,
+	_ string,
+	query orgdomain.DirectorStudentQuery,
+) (orgdomain.DirectorStudentPage, error) {
+	return orgdomain.DirectorStudentPage{
+		Students: []orgdomain.DirectorStudent{{
+			StudentID: "student-1",
+			Name:      "Student",
+			Email:     "student@example.com",
+			Active:    true,
+			ClassID:   "class-1",
+			ClassName: "Class A",
+		}},
+		Page:  query.Page,
+		Limit: query.Limit,
+		Total: 1,
+	}, nil
+}
+
+func (r *repoStub) DirectorTeachers(
+	context.Context,
+	string,
+) (orgdomain.DirectorTeacherWorkspace, error) {
+	return orgdomain.DirectorTeacherWorkspace{
+		Teachers: []orgdomain.DirectorTeacher{{
+			TeacherID: "teacher-1",
+			Name:      "Teacher",
+			Email:     "teacher@example.com",
+			Active:    true,
+		}},
+	}, nil
+}
+
 func (r *repoStub) CanAccessSchool(context.Context, orgdomain.AccessContext, string) (bool, error) {
 	return true, nil
 }
