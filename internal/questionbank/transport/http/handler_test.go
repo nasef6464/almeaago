@@ -140,7 +140,6 @@ func TestQuestionMutationRequiresCSRF(t *testing.T) {
 	}
 }
 
-
 func TestStaffListRejectsInvalidBooleanFilter(t *testing.T) {
 	service := questionapp.NewService(&repoStub{})
 	auth := identityapp.Authenticated{User: identity.User{ID: "admin-1", Roles: []identity.Role{identity.RoleAdmin}}}
