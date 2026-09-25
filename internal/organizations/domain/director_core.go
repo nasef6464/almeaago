@@ -36,8 +36,8 @@ type DirectorStudentBasicPatch struct {
 }
 
 type DirectorStudentMutationResult struct {
-	Student   DirectorStudent
-	Created   bool
+	Student    DirectorStudent
+	Created    bool
 	Idempotent bool
 }
 
