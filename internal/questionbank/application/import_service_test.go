@@ -14,9 +14,11 @@ import (
 )
 
 type importRepoStub struct {
-	conflicts []question.ImportConflict
-	issues    []question.ImportIssue
-	written   []question.ImportCommand
+	conflicts     []question.ImportConflict
+	issues        []question.ImportIssue
+	written       []question.ImportCommand
+	preflightHash string
+	preflightSaved bool
 }
 
 func (r *importRepoStub) ImportConflicts(context.Context, []string, []string, []string) ([]question.ImportConflict, error) {
@@ -27,7 +29,29 @@ func (r *importRepoStub) ValidateImportBatch(context.Context, []question.ImportC
 	return r.issues, nil
 }
 
-func (r *importRepoStub) WriteImportBatch(_ context.Context, actor, batchID string, commands []question.ImportCommand) (question.ImportBatch, error) {
+func (r *importRepoStub) SaveImportPreflight(
+	_ context.Context,
+	_ string,
+	_ string,
+	manifestHash string,
+	_ int,
+	_ question.ImportResult,
+	_ time.Time,
+) error {
+	r.preflightHash = manifestHash
+	r.preflightSaved = true
+	return nil
+}
+
+func (r *importRepoStub) WriteImportBatch(
+	_ context.Context,
+	actor, batchID, manifestHash string,
+	commands []question.ImportCommand,
+) (question.ImportBatch, error) {
+	if !r.preflightSaved || r.preflightHash != manifestHash {
+		return question.ImportBatch{}, question.ErrImportPreflight
+	}
+	r.preflightSaved = false
 	r.written = append([]question.ImportCommand(nil), commands...)
 	items := make([]question.ImportedQuestion, 0, len(commands))
 	for index, command := range commands {
@@ -38,8 +62,13 @@ func (r *importRepoStub) WriteImportBatch(_ context.Context, actor, batchID stri
 		})
 	}
 	return question.ImportBatch{
-		BatchID: batchID, Status: "imported", RequestedCount: len(commands),
-		InsertedCount: len(commands), CreatedBy: actor, Questions: items,
+		BatchID:        batchID,
+		Status:         "imported",
+		RequestedCount: len(commands),
+		InsertedCount:  len(commands),
+		CreatedBy:      actor,
+		ManifestHash:   manifestHash,
+		Questions:      items,
 	}, nil
 }
 
@@ -61,26 +90,6 @@ func (m importMediaStub) Get(_ context.Context, _ identity.User, assetID string)
 		return media.Asset{}, media.ErrNotFound
 	}
 	return asset, nil
-}
-
-type validationStoreStub struct {
-	values map[string]string
-}
-
-func (s *validationStoreStub) Put(_ context.Context, batchID, digest string, _ time.Duration) error {
-	if s.values == nil {
-		s.values = map[string]string{}
-	}
-	s.values[batchID] = digest
-	return nil
-}
-
-func (s *validationStoreStub) Consume(_ context.Context, batchID, digest string) (bool, error) {
-	if s.values[batchID] != digest {
-		return false, nil
-	}
-	delete(s.values, batchID)
-	return true, nil
 }
 
 func importAdmin() identity.User {
@@ -114,21 +123,20 @@ func validImportItem(hash string) ImportItemInput {
 	}
 }
 
-func importServiceFixture(hash string) (*ImportService, *importRepoStub, *validationStoreStub) {
+func importServiceFixture(hash string) (*ImportService, *importRepoStub) {
 	repo := &importRepoStub{}
-	store := &validationStoreStub{values: map[string]string{}}
 	mediaResolver := importMediaStub{assets: map[string]media.Asset{
 		"asset-1": {
 			ID: "asset-1", Status: media.StatusActive, MimeType: "image/webp",
 			SHA256: hash, ObjectKey: "questions/v2/QDR-QNT-DOC1-P012-Q03/" + hash + ".webp",
 		},
 	}}
-	return NewImportService(repo, mediaResolver, store, 30*time.Minute), repo, store
+	return NewImportService(repo, mediaResolver, 30*time.Minute), repo
 }
 
 func TestImportRequiresSuccessfulMatchingDryRunBeforeWrite(t *testing.T) {
 	hash := strings.Repeat("a", 64)
-	service, repo, _ := importServiceFixture(hash)
+	service, repo := importServiceFixture(hash)
 	input := ImportBatchInput{BatchID: "BATCH-001", Items: []ImportItemInput{validImportItem(hash)}}
 
 	if _, err := service.Import(context.Background(), importAdmin(), input); !errors.Is(err, ErrDryRunRequired) {
@@ -140,8 +148,8 @@ func TestImportRequiresSuccessfulMatchingDryRunBeforeWrite(t *testing.T) {
 
 	input.DryRun = true
 	result, err := service.Import(context.Background(), importAdmin(), input)
-	if err != nil || result.Status != "PASS" {
-		t.Fatalf("expected PASS dry run, result=%#v err=%v", result, err)
+	if err != nil || result.Status != "PASS" || !repo.preflightSaved {
+		t.Fatalf("expected durable PASS dry run, result=%#v err=%v", result, err)
 	}
 
 	input.DryRun = false
@@ -159,7 +167,7 @@ func TestImportRequiresSuccessfulMatchingDryRunBeforeWrite(t *testing.T) {
 
 func TestImportDryRunDigestRejectsChangedPayload(t *testing.T) {
 	hash := strings.Repeat("b", 64)
-	service, _, _ := importServiceFixture(hash)
+	service, _ := importServiceFixture(hash)
 	input := ImportBatchInput{BatchID: "BATCH-002", DryRun: true, Items: []ImportItemInput{validImportItem(hash)}}
 	if _, err := service.Import(context.Background(), importAdmin(), input); err != nil {
 		t.Fatalf("dry run failed: %v", err)
@@ -173,7 +181,7 @@ func TestImportDryRunDigestRejectsChangedPayload(t *testing.T) {
 
 func TestImportRejectsCanonicalIdentityMismatch(t *testing.T) {
 	hash := strings.Repeat("c", 64)
-	service, _, _ := importServiceFixture(hash)
+	service, _ := importServiceFixture(hash)
 	item := validImportItem(hash)
 	item.QuestionCode = "QDR-QNT-DOC1-P012-Q04"
 	result, err := service.Import(context.Background(), importAdmin(), ImportBatchInput{
@@ -189,7 +197,7 @@ func TestImportRejectsCanonicalIdentityMismatch(t *testing.T) {
 
 func TestImportRejectsUnverifiedOrMismatchedImageAsset(t *testing.T) {
 	hash := strings.Repeat("d", 64)
-	service, _, _ := importServiceFixture(hash)
+	service, _ := importServiceFixture(hash)
 	item := validImportItem(hash)
 	item.Version.ImageAssetID = "missing"
 	result, err := service.Import(context.Background(), importAdmin(), ImportBatchInput{
@@ -200,5 +208,16 @@ func TestImportRejectsUnverifiedOrMismatchedImageAsset(t *testing.T) {
 	}
 	if result.Status != "INVALID" || len(result.Issues) != 1 || result.Issues[0].Code != "MEDIA_NOT_VERIFIED" {
 		t.Fatalf("unexpected result: %#v", result)
+	}
+}
+
+func TestImportRejectsNonAdmin(t *testing.T) {
+	hash := strings.Repeat("e", 64)
+	service, _ := importServiceFixture(hash)
+	_, err := service.Import(context.Background(), identity.User{ID: "teacher-1", Roles: []identity.Role{identity.RoleTeacher}}, ImportBatchInput{
+		BatchID: "BATCH-005", DryRun: true, Items: []ImportItemInput{validImportItem(hash)},
+	})
+	if !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected forbidden, got %v", err)
 	}
 }
