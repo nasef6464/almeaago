@@ -373,3 +373,21 @@ func TestDirectorDirectoryIsBoundedAndAdminOnly(t *testing.T) {
 		t.Fatalf("director directory must cap at 100, got %#v", repo.directorQuery)
 	}
 }
+
+
+func TestGenericMembershipCannotGrantSchoolAdmin(t *testing.T) {
+	service := NewService(&repositoryMock{})
+
+	if _, err := service.UpsertMembership(
+		context.Background(),
+		actor("admin-1", identity.RoleAdmin),
+		"school-1",
+		UpsertMembershipInput{
+			UserID: "director-1",
+			Role:   identity.RoleSchoolAdmin,
+			Status: org.MembershipStatusActive,
+		},
+	); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("school_admin must use director delegation flow, got %v", err)
+	}
+}
