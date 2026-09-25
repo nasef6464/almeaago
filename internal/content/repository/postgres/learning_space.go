@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	maxLearnerCourseModules      = 200
-	maxLearnerCoursePlacements   = 5000
-	maxLearnerModulePlacements   = 500
-	maxLearnerTopicPlacements    = 1000
+	maxLearnerCourseModules    = 200
+	maxLearnerCoursePlacements = 5000
+	maxLearnerModulePlacements = 500
+	maxLearnerTopicPlacements  = 1000
 )
 
 func (r *Repository) GetLearningSpace(ctx context.Context, pathID, subjectID string, limit int) (content.LearningSpace, error) {
