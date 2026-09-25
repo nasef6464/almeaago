@@ -68,6 +68,12 @@ CREATE UNIQUE INDEX school_supervisor_scope_class_active_unique
 CREATE INDEX school_supervisor_scopes_user_active_idx
   ON school_supervisor_scopes(supervisor_user_id, status, school_id, class_id);
 
+CREATE INDEX schools_name_trgm_idx
+  ON schools USING gin (lower(name) gin_trgm_ops);
+
+CREATE INDEX classes_name_trgm_idx
+  ON classes USING gin (lower(name) gin_trgm_ops);
+
 CREATE INDEX classes_school_status_created_idx
   ON classes(school_id, status, created_at DESC, id DESC);
 
