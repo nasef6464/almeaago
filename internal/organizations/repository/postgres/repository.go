@@ -44,6 +44,11 @@ type StudentAccountWriter interface {
 		userID string,
 		active bool,
 	) (identity.SchoolStudentAccount, error)
+	SchoolStudentAccountTx(
+		ctx context.Context,
+		tx pgx.Tx,
+		userID string,
+	) (identity.SchoolStudentAccount, error)
 }
 
 type Repository struct {
