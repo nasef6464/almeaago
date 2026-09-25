@@ -1,5 +1,9 @@
 BEGIN;
 
+DROP INDEX IF EXISTS teaching_assignments_scope_unique_idx;
+ALTER TABLE teaching_assignments
+  ALTER COLUMN subject_id SET NOT NULL;
+
 DROP INDEX IF EXISTS school_memberships_user_role_status_idx;
 DROP INDEX IF EXISTS parent_student_student_status_idx;
 DROP INDEX IF EXISTS parent_student_parent_status_idx;
