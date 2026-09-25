@@ -24,6 +24,7 @@ const (
 )
 
 type Repository interface {
+	SchoolContexts(ctx context.Context, userID string) ([]org.SchoolContext, error)
 	ListSchools(ctx context.Context, access org.AccessContext, query org.SchoolListQuery) (org.SchoolPage, error)
 	SchoolByID(ctx context.Context, access org.AccessContext, schoolID string) (org.School, error)
 	CreateSchool(ctx context.Context, actorUserID string, write org.SchoolWrite) (org.School, error)
@@ -97,6 +98,16 @@ type UpsertAssignmentInput struct {
 	ClassID   string
 	SubjectID string
 	Status    org.AssignmentStatus
+}
+
+func (s *Service) SchoolContexts(
+	ctx context.Context,
+	actor identity.User,
+) ([]org.SchoolContext, error) {
+	if strings.TrimSpace(actor.ID) == "" {
+		return nil, ErrForbidden
+	}
+	return s.repo.SchoolContexts(ctx, actor.ID)
 }
 
 func (s *Service) ListSchools(
