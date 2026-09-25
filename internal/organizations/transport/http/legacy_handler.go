@@ -28,6 +28,17 @@ func NewLegacy(service *orgapp.Service, auth Authenticator) http.Handler {
 	r.Put("/directors/{schoolId}/{userId}", h.upsertDirector)
 	r.Put("/assignments", h.upsertAssignment)
 
+	r.Get("/director/schools/{schoolId}/overview-access", h.directorOverviewAccess)
+	r.Get("/director/schools/{schoolId}/students", h.directorStudents)
+	r.Post("/director/schools/{schoolId}/students", h.directorAddStudent)
+	r.Put("/director/schools/{schoolId}/students/{studentId}/class", h.directorMoveStudent)
+	r.Patch("/director/schools/{schoolId}/students/{studentId}", h.directorUpdateStudentBasic)
+	r.Patch("/director/schools/{schoolId}/students/{studentId}/active", h.directorSetStudentActive)
+	r.Post("/director/schools/{schoolId}/classes", h.directorCreateClass)
+	r.Patch("/director/schools/{schoolId}/classes/{classId}", h.directorUpdateClass)
+	r.Get("/director/schools/{schoolId}/teachers", h.directorTeachers)
+	r.Put("/director/schools/{schoolId}/assignments", h.directorUpsertAssignment)
+
 	return r
 }
 
