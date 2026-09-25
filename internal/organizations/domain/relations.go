@@ -24,22 +24,22 @@ const (
 )
 
 const (
-	PermissionSchoolOverviewView          = "SCHOOL_OVERVIEW_VIEW"
+	PermissionSchoolOverviewView         = "SCHOOL_OVERVIEW_VIEW"
 	PermissionSchoolReportsAggregateView = "SCHOOL_REPORTS_AGGREGATE_VIEW"
-	PermissionSchoolStudentsView          = "SCHOOL_STUDENTS_VIEW"
-	PermissionSchoolStudentsAdd           = "SCHOOL_STUDENTS_ADD"
-	PermissionSchoolStudentsMoveClass     = "SCHOOL_STUDENTS_MOVE_CLASS"
-	PermissionSchoolStudentsUpdateBasic   = "SCHOOL_STUDENTS_UPDATE_BASIC"
-	PermissionSchoolStudentsDeactivate    = "SCHOOL_STUDENTS_DEACTIVATE"
-	PermissionSchoolClassesManage         = "SCHOOL_CLASSES_MANAGE"
-	PermissionSchoolTeachersAssign        = "SCHOOL_TEACHERS_ASSIGN"
-	PermissionSchoolReportsDetailedView   = "SCHOOL_REPORTS_DETAILED_VIEW"
-	PermissionSchoolReportsExport         = "SCHOOL_REPORTS_EXPORT"
-	PermissionSchoolAssessmentsManage     = "SCHOOL_ASSESSMENTS_MANAGE"
-	PermissionSchoolSmartClassroomView    = "SCHOOL_SMART_CLASSROOM_VIEW"
-	PermissionSchoolInterventionsView     = "SCHOOL_INTERVENTIONS_VIEW"
-	PermissionSchoolInterventionsManage   = "SCHOOL_INTERVENTIONS_MANAGE"
-	PermissionSchoolStudentsTransfer      = "SCHOOL_STUDENTS_TRANSFER_SCHOOL"
+	PermissionSchoolStudentsView         = "SCHOOL_STUDENTS_VIEW"
+	PermissionSchoolStudentsAdd          = "SCHOOL_STUDENTS_ADD"
+	PermissionSchoolStudentsMoveClass    = "SCHOOL_STUDENTS_MOVE_CLASS"
+	PermissionSchoolStudentsUpdateBasic  = "SCHOOL_STUDENTS_UPDATE_BASIC"
+	PermissionSchoolStudentsDeactivate   = "SCHOOL_STUDENTS_DEACTIVATE"
+	PermissionSchoolClassesManage        = "SCHOOL_CLASSES_MANAGE"
+	PermissionSchoolTeachersAssign       = "SCHOOL_TEACHERS_ASSIGN"
+	PermissionSchoolReportsDetailedView  = "SCHOOL_REPORTS_DETAILED_VIEW"
+	PermissionSchoolReportsExport        = "SCHOOL_REPORTS_EXPORT"
+	PermissionSchoolAssessmentsManage    = "SCHOOL_ASSESSMENTS_MANAGE"
+	PermissionSchoolSmartClassroomView   = "SCHOOL_SMART_CLASSROOM_VIEW"
+	PermissionSchoolInterventionsView    = "SCHOOL_INTERVENTIONS_VIEW"
+	PermissionSchoolInterventionsManage  = "SCHOOL_INTERVENTIONS_MANAGE"
+	PermissionSchoolStudentsTransfer     = "SCHOOL_STUDENTS_TRANSFER_SCHOOL"
 )
 
 var SchoolDirectorPermissions = []string{
