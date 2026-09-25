@@ -14,11 +14,11 @@ import (
 
 	"github.com/nasef6464/almeaago/internal/identity/application"
 	"github.com/nasef6464/almeaago/internal/identity/domain"
+	identitysession "github.com/nasef6464/almeaago/internal/identity/transport/session"
 	"github.com/nasef6464/almeaago/internal/platform/security"
 )
 
 const (
-	sessionCookieName      = "almeaa_access_token"
 	googleStateCookieName  = "almeaa_google_oauth_state"
 	googleReturnCookieName = "almeaa_google_oauth_return"
 	googleStateTTL         = 10 * time.Minute
@@ -295,7 +295,7 @@ func (h *Handler) csrf(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
-	rawToken := sessionToken(r)
+	rawToken := identitysession.Token(r)
 	if rawToken == "" {
 		h.clearSessionCookie(w)
 		w.WriteHeader(http.StatusNoContent)
@@ -397,7 +397,7 @@ func (h *Handler) resendEmailVerification(w http.ResponseWriter, r *http.Request
 }
 
 func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request) (application.Authenticated, bool) {
-	auth, err := h.service.Authenticate(r.Context(), sessionToken(r))
+	auth, err := h.service.Authenticate(r.Context(), identitysession.Token(r))
 	if err != nil {
 		writeApplicationError(w, err)
 		return application.Authenticated{}, false
@@ -419,7 +419,7 @@ func (h *Handler) setSessionCookie(w http.ResponseWriter, result application.Aut
 		maxAge = 1
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
+		Name:     identitysession.CookieName,
 		Value:    result.SessionToken,
 		Path:     "/",
 		HttpOnly: true,
@@ -432,7 +432,7 @@ func (h *Handler) setSessionCookie(w http.ResponseWriter, result application.Aut
 
 func (h *Handler) clearSessionCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
+		Name:     identitysession.CookieName,
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
@@ -493,14 +493,6 @@ func presentUser(user domain.User) userResponse {
 		Role:          role,
 		Roles:         user.Roles,
 	}
-}
-
-func sessionToken(r *http.Request) string {
-	cookie, err := r.Cookie(sessionCookieName)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(cookie.Value)
 }
 
 func sameSite(production bool) http.SameSite {

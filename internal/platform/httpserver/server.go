@@ -14,10 +14,12 @@ import (
 )
 
 type Dependencies struct {
-	Logger   *slog.Logger
-	DB       *pgxpool.Pool
-	Redis    *redis.Client
-	Identity http.Handler
+	Logger             *slog.Logger
+	DB                 *pgxpool.Pool
+	Redis              *redis.Client
+	Identity           http.Handler
+	Organizations      http.Handler
+	LegacySchoolAccess http.Handler
 }
 
 func New(addr string, deps Dependencies) *http.Server {
@@ -52,6 +54,12 @@ func New(addr string, deps Dependencies) *http.Server {
 
 	if deps.Identity != nil {
 		router.Mount("/api/v1/auth", deps.Identity)
+	}
+	if deps.Organizations != nil {
+		router.Mount("/api/v1/schools", deps.Organizations)
+	}
+	if deps.LegacySchoolAccess != nil {
+		router.Mount("/api/school-access", deps.LegacySchoolAccess)
 	}
 
 	return &http.Server{

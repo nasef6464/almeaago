@@ -17,7 +17,7 @@ Evidence:
 `nasef6464/almeaacodax` remains read-only behavioral and visual reference.
 
 ## Current phase
-Identity/Auth closure — **IN_PROGRESS**.
+Organizations / Schools / Classes core — **IN_PROGRESS**.
 
 ## Identity Core / Recovery / Providers — TESTED / MERGED
 Includes:
@@ -52,10 +52,10 @@ Compatibility aliases retained:
 - POST /api/v1/auth/email/resend-verification
 - GET /api/v1/auth/google/call
 
-## Identity Admin Accounts — IMPLEMENTED / CI PENDING
-Branch: `feat/identity-admin`
+## Identity Admin Accounts — TESTED / MERGED
+PR #9 passed Backend + Database CI on the exact tested head and was merged to `main` as `c57d03e726d58eea7605c8ec77d3be29b092bd0b`.
 
-Implemented in this slice:
+Implemented:
 - platform-admin user directory with page/limit/search/role/status filters.
 - supervisor/teacher directory constrained to legacy-compatible active school/class scope.
 - hard page limit 100.
@@ -97,6 +97,43 @@ Routes deliberately owned elsewhere:
 - trainer directory/performance -> Reporting / Content ownership.
 - school/class/group canonical relationship state -> Organizations.
 
+## Organizations Core — IN PROGRESS
+Branch: `feat/organizations-core`
+
+Current implementation:
+- Migration 000008 for organization delegation/core metadata.
+- explicit supervisor scope persistence.
+- Operations-owned transactional audit writer.
+- Organizations domain/application boundaries.
+- scoped PostgreSQL repositories for schools, classes and roster.
+- bounded school/class search with supporting indexes.
+- admin/supervisor/teacher/school_admin read-policy tests.
+- archive lifecycle instead of hard-delete for schools/classes.
+- canonical HTTP API under `/api/v1/schools`.
+- authenticated school/class/roster reads.
+- CSRF-protected school/class mutations.
+- platform-admin membership mutation API.
+- bounded director delegation directory and permission replacement.
+- legacy director default permission set preserved exactly.
+- bounded teaching-assignment directory.
+- subject-agnostic teaching assignments preserved through nullable PostgreSQL subject scope.
+- teacher assignment reads forced to the current teacher.
+- school director assignment writes require `SCHOOL_TEACHERS_ASSIGN`.
+- Organizations repository is wired through `cmd/api`.
+
+Current green checkpoint before relationship expansion:
+- Backend CI green.
+- Database CI green.
+- Migration 000008 apply/verify/rollback/re-apply green.
+
+Next within this slice:
+- re-run Backend/Database gate for relationship expansion.
+- school context API.
+- school director compatibility workflows.
+- teacher workspace compatibility.
+- legacy route adapters required by the preserved React UI.
+- contract/entitlement APIs in their owning boundary.
+
 ## Performance/scalability
 - admin directory uses bounded pagination.
 - user search uses pg_trgm indexes.
@@ -107,4 +144,4 @@ Routes deliberately owned elsewhere:
 - no large media passes through the Go API.
 
 ## Next exact action
-Run Backend + Database CI for `feat/identity-admin`, repair failures on the same branch, merge the exact tested SHA, then begin Organizations/Schools/Classes while keeping visual/provider/trainer-scope gates tracked.
+Run Backend + Database CI for the expanded Organizations relationship core on `feat/organizations-core`, repair failures on the same branch, then add context/director/teacher compatibility workflows before the exact tested SHA can be merged.
