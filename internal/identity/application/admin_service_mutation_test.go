@@ -182,19 +182,21 @@ func TestAdminUpsertNormalizesManagedTrainerScope(t *testing.T) {
 		"",
 		nil,
 		nil,
-		[]string{" path-1 ", "path-1", "path-2"},
-		[]string{" subject-1 ", "subject-1"},
+		&[]string{" path-1 ", "path-1", "path-2"},
+		&[]string{" subject-1 ", "subject-1"},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(repo.upsertInput.ManagedPathIDs) != 2 ||
-		repo.upsertInput.ManagedPathIDs[0] != "path-1" ||
-		repo.upsertInput.ManagedPathIDs[1] != "path-2" {
+	if repo.upsertInput.ManagedPathIDs == nil ||
+		len(*repo.upsertInput.ManagedPathIDs) != 2 ||
+		(*repo.upsertInput.ManagedPathIDs)[0] != "path-1" ||
+		(*repo.upsertInput.ManagedPathIDs)[1] != "path-2" {
 		t.Fatalf("unexpected managed paths %#v", repo.upsertInput.ManagedPathIDs)
 	}
-	if len(repo.upsertInput.ManagedSubjectIDs) != 1 ||
-		repo.upsertInput.ManagedSubjectIDs[0] != "subject-1" {
+	if repo.upsertInput.ManagedSubjectIDs == nil ||
+		len(*repo.upsertInput.ManagedSubjectIDs) != 1 ||
+		(*repo.upsertInput.ManagedSubjectIDs)[0] != "subject-1" {
 		t.Fatalf("unexpected managed subjects %#v", repo.upsertInput.ManagedSubjectIDs)
 	}
 }
@@ -226,5 +228,53 @@ func TestAdminUpdateAcceptsManagedScopeOnlyPatch(t *testing.T) {
 		len(*repo.updateInput.ManagedSubjectIDs) != 1 ||
 		(*repo.updateInput.ManagedSubjectIDs)[0] != "subject-1" {
 		t.Fatalf("unexpected managed subjects %#v", repo.updateInput.ManagedSubjectIDs)
+	}
+}
+
+func TestAdminUpsertPreservesOmittedManagedTrainerScope(t *testing.T) {
+	repo := &adminRepoMock{}
+	service := NewAdminService(repo, repo)
+
+	_, err := service.UpsertUser(
+		context.Background(),
+		adminActor(),
+		"Trainer User",
+		"trainer@example.com",
+		"Password123",
+		domain.RoleTeacher,
+		"",
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repo.upsertInput.ManagedPathIDs != nil || repo.upsertInput.ManagedSubjectIDs != nil {
+		t.Fatalf("omitted compatibility scope must remain omitted: %#v %#v", repo.upsertInput.ManagedPathIDs, repo.upsertInput.ManagedSubjectIDs)
+	}
+}
+
+func TestAdminUpsertRejectsManagedScopeForNonTeacher(t *testing.T) {
+	repo := &adminRepoMock{}
+	service := NewAdminService(repo, repo)
+	paths := []string{"path-1"}
+
+	_, err := service.UpsertUser(
+		context.Background(),
+		adminActor(),
+		"Student User",
+		"student2@example.com",
+		"Password123",
+		domain.RoleStudent,
+		"",
+		nil,
+		nil,
+		&paths,
+		nil,
+	)
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected non-teacher managed scope rejection, got %v", err)
 	}
 }

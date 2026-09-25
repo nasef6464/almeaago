@@ -1065,8 +1065,8 @@ paths:
                 schoolId: { type: [string, "null"] }
                 groupIds: { type: array, items: { type: string } }
                 linkedStudentIds: { type: array, items: { type: string } }
-                managedPathIds: { type: array, items: { type: string } }
-                managedSubjectIds: { type: array, items: { type: string } }
+                managedPathIds: { type: array, maxItems: 50, items: { type: string }, description: Compatibility form mapped transactionally to canonical Content trainer scope; teacher role only. Empty array revokes path scope. }
+                managedSubjectIds: { type: array, maxItems: 200, items: { type: string }, description: Compatibility form mapped transactionally to canonical Content trainer scope; teacher role only. Empty array revokes subject scope. }
       responses:
         "200": { description: User account updated }
         "400": { description: Invalid request or operation would remove last active admin }

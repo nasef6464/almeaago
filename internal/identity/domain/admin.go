@@ -17,8 +17,8 @@ type AdminUserRecord struct {
 	SchoolID          string
 	ClassIDs          []string
 	LinkedStudentIDs  []string
-	ManagedPathIDs    []string
-	ManagedSubjectIDs []string
+	ManagedPathIDs    *[]string
+	ManagedSubjectIDs *[]string
 }
 
 type AdminUserPage struct {

@@ -127,15 +127,13 @@ func (r *Repository) AdminUpsertUser(
 		return domain.AdminUserRecord{}, err
 	}
 
-	pathIDs := append([]string(nil), input.ManagedPathIDs...)
-	subjectIDs := append([]string(nil), input.ManagedSubjectIDs...)
 	if err := r.syncContentScopesTx(ctx, tx, domain.AdminTrainerScopeCommand{
 		ActorUserID: actorID,
 		UserID:      userID,
 		IsTrainer:   input.Role == domain.RoleTeacher,
 		RoleChanged: roleChanged,
-		PathIDs:     &pathIDs,
-		SubjectIDs:  &subjectIDs,
+		PathIDs:     input.ManagedPathIDs,
+		SubjectIDs:  input.ManagedSubjectIDs,
 	}); err != nil {
 		return domain.AdminUserRecord{}, err
 	}

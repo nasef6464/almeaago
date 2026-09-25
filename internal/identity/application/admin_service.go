@@ -87,8 +87,8 @@ func (s *AdminService) UpsertUser(
 	schoolID string,
 	classIDs []string,
 	linkedStudentIDs []string,
-	managedPathIDs []string,
-	managedSubjectIDs []string,
+	managedPathIDs *[]string,
+	managedSubjectIDs *[]string,
 ) (domain.AdminUserRecord, error) {
 	if !actor.HasRole(domain.RoleAdmin) {
 		return domain.AdminUserRecord{}, ErrForbidden
@@ -111,16 +111,27 @@ func (s *AdminService) UpsertUser(
 	if role != domain.RoleParent {
 		linkedStudentIDs = nil
 	}
-	managedPathIDs, err = normalizeStrictAdminIDs(managedPathIDs, 50)
-	if err != nil {
-		return domain.AdminUserRecord{}, err
+	if managedPathIDs != nil {
+		normalized, normalizeErr := normalizeStrictAdminIDs(*managedPathIDs, 50)
+		if normalizeErr != nil {
+			return domain.AdminUserRecord{}, normalizeErr
+		}
+		managedPathIDs = &normalized
 	}
-	managedSubjectIDs, err = normalizeStrictAdminIDs(managedSubjectIDs, 200)
-	if err != nil {
-		return domain.AdminUserRecord{}, err
+	if managedSubjectIDs != nil {
+		normalized, normalizeErr := normalizeStrictAdminIDs(*managedSubjectIDs, 200)
+		if normalizeErr != nil {
+			return domain.AdminUserRecord{}, normalizeErr
+		}
+		managedSubjectIDs = &normalized
 	}
-	if role != domain.RoleTeacher && (len(managedPathIDs) > 0 || len(managedSubjectIDs) > 0) {
-		return domain.AdminUserRecord{}, ErrInvalidInput
+	if role != domain.RoleTeacher {
+		if managedPathIDs != nil && len(*managedPathIDs) > 0 {
+			return domain.AdminUserRecord{}, ErrInvalidInput
+		}
+		if managedSubjectIDs != nil && len(*managedSubjectIDs) > 0 {
+			return domain.AdminUserRecord{}, ErrInvalidInput
+		}
 	}
 
 	record, err := s.repo.AdminUpsertUser(ctx, actor.ID, domain.AdminUpsertUserInput{

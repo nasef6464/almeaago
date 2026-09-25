@@ -113,8 +113,8 @@ func (h *Handler) adminUpsertUser(w http.ResponseWriter, r *http.Request) {
 		SchoolID          *string     `json:"schoolId"`
 		GroupIDs          []string    `json:"groupIds"`
 		LinkedStudentIDs  []string    `json:"linkedStudentIds"`
-		ManagedPathIDs    []string    `json:"managedPathIds"`
-		ManagedSubjectIDs []string    `json:"managedSubjectIds"`
+		ManagedPathIDs    *[]string   `json:"managedPathIds"`
+		ManagedSubjectIDs *[]string   `json:"managedSubjectIds"`
 	}
 	if !decodeJSON(w, r, &payload) {
 		return

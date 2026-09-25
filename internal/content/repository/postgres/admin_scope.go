@@ -72,9 +72,6 @@ func (w *AdminScopeWriter) SyncTx(
 		return identity.ErrAdminScopeConflict
 	}
 	if err := validateActiveIDsTx(ctx, tx, "paths", "id", pathIDs, "status='active'"); err != nil {
-		if errors.Is(err, identity.ErrAdminScopeConflict) {
-			return err
-		}
 		return identity.ErrAdminScopeConflict
 	}
 	if err := validateActiveIDsTx(ctx, tx, "subjects", "id", subjectIDs, "status='active'"); err != nil {

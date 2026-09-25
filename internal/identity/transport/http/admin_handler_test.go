@@ -48,3 +48,18 @@ func TestOptionalAdminStringDistinguishesNullAndValue(t *testing.T) {
 		t.Fatalf("unexpected value parse %#v", value)
 	}
 }
+
+func TestParseAdminUserQueryAcceptsPlatformTrainerFilter(t *testing.T) {
+	request := httptest.NewRequest(
+		"GET",
+		"/api/v1/auth/admin/users?platformTrainer=true",
+		nil,
+	)
+	query, err := parseAdminUserQuery(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if query.PlatformTrainer == nil || !*query.PlatformTrainer {
+		t.Fatalf("expected platformTrainer=true, got %#v", query.PlatformTrainer)
+	}
+}
