@@ -38,6 +38,9 @@ func (s *Service) UpdateTopic(ctx context.Context, actor identity.User, topicID 
 	if write.Code != current.Code {
 		return content.FoundationTopic{}, ErrInvalidInput
 	}
+	if current.Status == content.TopicArchived && write.Status != content.TopicArchived {
+		return content.FoundationTopic{}, ErrWorkflow
+	}
 	return s.repo.UpdateTopic(ctx, actor.ID, topicID, input.ExpectedRevision, write)
 }
 

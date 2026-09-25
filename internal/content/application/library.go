@@ -9,7 +9,7 @@ import (
 )
 
 func (s *Service) CreateLibraryItem(ctx context.Context, actor identity.User, input LibraryInput) (content.LibraryItem, error) {
-	if !isStaff(actor) {
+	if !actor.HasRole(identity.RoleAdmin) {
 		return content.LibraryItem{}, ErrForbidden
 	}
 	write, err := normalizeLibrary(actor, input)
@@ -40,6 +40,7 @@ func (s *Service) UpdateLibraryItem(ctx context.Context, actor identity.User, it
 	}
 	if !actor.HasRole(identity.RoleAdmin) {
 		write.OwnerType, write.OwnerUserID, write.OwnerSchoolID, write.AssignedTeacherID = current.OwnerType, current.OwnerUserID, current.OwnerSchoolID, current.AssignedTeacherID
+		write.RevenueSharePercentage = current.RevenueSharePercentage
 	}
 	return s.repo.UpdateLibraryItem(ctx, actor.ID, itemID, input.ExpectedRevision, write)
 }

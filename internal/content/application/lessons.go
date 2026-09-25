@@ -9,7 +9,7 @@ import (
 )
 
 func (s *Service) CreateLesson(ctx context.Context, actor identity.User, input LessonInput) (content.Lesson, error) {
-	if !isStaff(actor) {
+	if !actor.HasRole(identity.RoleAdmin) {
 		return content.Lesson{}, ErrForbidden
 	}
 	write, err := normalizeLesson(actor, input)
@@ -40,6 +40,7 @@ func (s *Service) UpdateLesson(ctx context.Context, actor identity.User, lessonI
 	}
 	if !actor.HasRole(identity.RoleAdmin) {
 		write.OwnerType, write.OwnerUserID, write.OwnerSchoolID, write.AssignedTeacherID = current.OwnerType, current.OwnerUserID, current.OwnerSchoolID, current.AssignedTeacherID
+		write.RevenueSharePercentage = current.RevenueSharePercentage
 	}
 	return s.repo.UpdateLesson(ctx, actor.ID, lessonID, input.ExpectedRevision, write)
 }

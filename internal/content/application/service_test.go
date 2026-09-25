@@ -43,7 +43,9 @@ func (r *repoStub) UpdateLesson(context.Context, string, string, int, content.Le
 func (r *repoStub) SetLessonWorkflow(context.Context, string, string, int, content.WorkflowStatus, string) (content.Lesson, error) {
 	return content.Lesson{}, nil
 }
-func (r *repoStub) GetLesson(context.Context, string) (content.Lesson, error) { return content.Lesson{}, nil }
+func (r *repoStub) GetLesson(context.Context, string) (content.Lesson, error) {
+	return content.Lesson{}, nil
+}
 func (r *repoStub) ListLessons(_ context.Context, query content.ListQuery) (content.LessonPage, error) {
 	r.listQuery = query
 	return content.LessonPage{Page: query.Page, Limit: query.Limit}, nil
@@ -112,8 +114,9 @@ func TestTeacherUpdatePreservesExistingAssignment(t *testing.T) {
 		ID:                "course-1",
 		OwnerType:         content.OwnerTeacher,
 		OwnerUserID:       "teacher-1",
-		AssignedTeacherID: "teacher-2",
-		WorkflowStatus:    content.WorkflowDraft,
+		AssignedTeacherID:      "teacher-2",
+		WorkflowStatus:         content.WorkflowDraft,
+		RevenueSharePercentage: float64Ptr(25),
 	}}
 	service := NewService(repo)
 
@@ -121,7 +124,7 @@ func TestTeacherUpdatePreservesExistingAssignment(t *testing.T) {
 		ExpectedRevision: 1,
 		CourseInput: CourseInput{
 			PathID: "path-1", SubjectID: "subject-1", Title: "Course",
-			Level: content.CourseBeginner, SkillIDs: []string{"skill-1"},
+			Level: content.CourseBeginner, SkillIDs: []string{"skill-1"}, RevenueSharePercentage: float64Ptr(90),
 		},
 	})
 	if err != nil {
@@ -129,6 +132,17 @@ func TestTeacherUpdatePreservesExistingAssignment(t *testing.T) {
 	}
 	if repo.courseWrite.AssignedTeacherID != "teacher-2" {
 		t.Fatalf("teacher changed assignment implicitly: %#v", repo.courseWrite)
+	}
+	if repo.courseWrite.RevenueSharePercentage == nil || *repo.courseWrite.RevenueSharePercentage != 25 {
+		t.Fatalf("teacher changed revenue share implicitly: %#v", repo.courseWrite)
+	}
+}
+
+func TestTeacherCannotCreateBeforeAuthoringScopeIsAvailable(t *testing.T) {
+	service := NewService(&repoStub{})
+	_, err := service.CreateCourse(context.Background(), staffActor(identity.RoleTeacher), CourseInput{})
+	if !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected forbidden teacher self-create, got %v", err)
 	}
 }
 
@@ -147,3 +161,5 @@ func TestAdminCannotSkipDraftDirectlyToApproved(t *testing.T) {
 		t.Fatal("repository workflow write must not run for an invalid transition")
 	}
 }
+
+func float64Ptr(value float64) *float64 { return &value }

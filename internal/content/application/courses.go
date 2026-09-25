@@ -10,7 +10,7 @@ import (
 )
 
 func (s *Service) CreateCourse(ctx context.Context, actor identity.User, input CourseInput) (content.Course, error) {
-	if !isStaff(actor) {
+	if !actor.HasRole(identity.RoleAdmin) {
 		return content.Course{}, ErrForbidden
 	}
 	write, err := normalizeCourse(actor, input)
@@ -41,6 +41,7 @@ func (s *Service) UpdateCourse(ctx context.Context, actor identity.User, courseI
 	}
 	if !actor.HasRole(identity.RoleAdmin) {
 		write.OwnerType, write.OwnerUserID, write.OwnerSchoolID, write.AssignedTeacherID = current.OwnerType, current.OwnerUserID, current.OwnerSchoolID, current.AssignedTeacherID
+		write.RevenueSharePercentage = current.RevenueSharePercentage
 	}
 	return s.repo.UpdateCourse(ctx, actor.ID, courseID, input.ExpectedRevision, write)
 }
