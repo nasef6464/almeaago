@@ -3,6 +3,18 @@ info:
   title: ALMEAA API
   version: 0.3.0
 paths:
+  /api/v1/taxonomy/bootstrap:
+    get:
+      operationId: taxonomyPublicBootstrap
+      parameters:
+        - in: query
+          name: phase
+          schema: { type: string, enum: [core, compact, full], default: full }
+      responses:
+        "200": { description: Active normalized taxonomy hierarchy; core omits skills }
+        "400": { description: Invalid bootstrap phase }
+        "500": { description: Taxonomy unavailable }
+
   /health/live:
     get:
       operationId: healthLive
