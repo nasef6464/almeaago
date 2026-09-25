@@ -96,3 +96,17 @@ func TestFoundationPlacementMutationRequiresCSRF(t *testing.T) {
 		t.Fatalf("expected 403, got %d body=%s", response.Code, response.Body.String())
 	}
 }
+
+func TestLearningSpaceRejectsUnboundedLimitBeforeRepository(t *testing.T) {
+	service := contentapp.NewService(nil)
+	handler := NewLearningSpaces(service, authStub{
+		auth: identityapp.Authenticated{User: identity.User{ID: "student-1", Roles: []identity.Role{identity.RoleStudent}}},
+	})
+	request := httptest.NewRequest(http.MethodGet, "/path-1/subjects/subject-1?limit=51", nil)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", response.Code, response.Body.String())
+	}
+}

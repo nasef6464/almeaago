@@ -28,6 +28,7 @@ type Dependencies struct {
 	Foundation         http.Handler
 	Library            http.Handler
 	ContentManagement  http.Handler
+	LearningSpaces     http.Handler
 	LegacySchoolAccess http.Handler
 }
 
@@ -93,6 +94,9 @@ func New(addr string, deps Dependencies) *http.Server {
 	}
 	if deps.ContentManagement != nil {
 		router.Mount("/api/v1/content", deps.ContentManagement)
+	}
+	if deps.LearningSpaces != nil {
+		router.Mount("/api/v1/learning-spaces", deps.LearningSpaces)
 	}
 	if deps.LegacySchoolAccess != nil {
 		router.Mount("/api/school-access", deps.LegacySchoolAccess)

@@ -10,7 +10,8 @@ This document records the first bounded staff-management slice for the Content d
 - Lessons: create, staff detail, bounded list, optimistic update, review workflow.
 - Foundation topics: platform-admin structural create/detail/list/update with stable code/lifecycle plus revisioned lesson/library placement.
 - Library items: create, staff detail, bounded list, optimistic update, review workflow.
-- Runtime mounts under `/api/v1/courses`, `/api/v1/lessons`, `/api/v1/foundation`, `/api/v1/library`, and Content management under `/api/v1/content`.
+- Runtime mounts under `/api/v1/courses`, `/api/v1/lessons`, `/api/v1/foundation`, `/api/v1/library`, Content management under `/api/v1/content`, and learner browsing projections under `/api/v1/learning-spaces`.
+- Learner-safe bounded metadata projections for active path/subject learning spaces, published course structure, and Foundation placements.
 - Canonical Content-owned platform-trainer authoring scope via active path/subject relations, with transactional audit and fail-closed enforcement across Courses, Lessons, Library, and Question Bank authoring.
 - PostgreSQL-backed taxonomy/skill validation and active Media asset validation.
 - Transactional audit writes for content mutations.
@@ -49,6 +50,8 @@ Learning owns learner progress, mastery and next-action state.
 - Foundation placement mutations are platform-admin only, require an active topic, and increment the parent topic revision transactionally.
 - Foundation structural mutations are platform-admin only in this slice.
 - Audit write and content mutation share the same PostgreSQL transaction.
+- Learner projections are fail-closed to approved/published/visible lifecycle rules and intentionally omit lesson bodies, external file URLs, ownership, revenue share and review metadata.
+- Learner browsing does not imply access: entitlement/content-delivery authority remains a separate Commerce boundary.
 
 ## Performance invariants
 
@@ -59,6 +62,7 @@ Learning owns learner progress, mastery and next-action state.
 - Full relationship collections are loaded only for detail reads.
 - Course composition is bounded to 200 modules, 500 lessons per module, and 5,000 lesson placements per course; module+placement reads use two bounded queries rather than per-module N+1 reads.
 - Foundation placement reads are bounded to 1,000 lesson links and 1,000 library links per topic.
+- Learner learning-space summaries default to 24 and cap each section at 50+1; learner course composition keeps the existing 200-module/5,000-placement safety ceilings.
 - Search relies on the content title trigram indexes already present on `main`.
 
 ## Explicitly deferred
@@ -67,7 +71,6 @@ The following are not complete in this PR and must remain separate work rather t
 
 - School-teacher authoring scope derived from canonical Organizations teaching assignments; the new platform-trainer path/subject scope does not silently substitute for school authority.
 - Compatibility adaptation of legacy Identity `managedPathIds`/`managedSubjectIds` forms to the new Content-owned scope API; Identity still does not own these relations.
-- Learner-safe approved/published/visible Content projections.
 - Entitlement/access resolution.
 - Assessment placement links.
 - React management/learner screen cutover and visual-regression parity.
