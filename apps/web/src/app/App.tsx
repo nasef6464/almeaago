@@ -15,6 +15,7 @@ import { VerifyEmailPage } from '../features/auth/pages/VerifyEmailPage';
 import { useAuth } from '../features/auth/state/AuthProvider';
 import { ContentAdminPage } from '../features/content/pages/ContentAdminPage';
 import { AssessmentAdminPage } from '../features/assessment/pages/AssessmentAdminPage';
+import { AssessmentAttemptPage } from '../features/assessment/pages/AssessmentAttemptPage';
 import { AdminDashboardShell } from '../features/content/components/AdminDashboardShell';
 
 type ModalMode = 'login' | 'signup' | null;
@@ -148,6 +149,8 @@ export function App() {
         <Route path="/admin-dashboard" element={<AdminDashboardShell><PlaceholderPage title="لوحة الإدارة" /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/content" element={<AdminDashboardShell><ContentAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/assessments" element={<AdminDashboardShell><AssessmentAdminPage /></AdminDashboardShell>} />
+        <Route path="/assessments/:assessmentId/start" element={<AssessmentAttemptPage />} />
+        <Route path="/assessment-attempts/:attemptId" element={<AssessmentAttemptPage />} />
         <Route path="/school-teacher-dashboard" element={<PlaceholderPage title="لوحة معلم المدرسة" />} />
         <Route path="/supervisor-dashboard" element={<PlaceholderPage title="لوحة المشرف" />} />
         <Route path="/school-director-dashboard" element={<PlaceholderPage title="لوحة مدير المدرسة" />} />
