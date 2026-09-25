@@ -27,6 +27,11 @@ type repositoryMock struct {
 	assignmentQuery   org.AssignmentQuery
 	assignmentWrite   org.AssignmentWrite
 	teacherWorkspace  org.TeacherWorkspace
+	parentAuthority    org.ParentAuthority
+}
+
+func (m *repositoryMock) ParentAuthority(_ context.Context, _ string) (org.ParentAuthority, error) {
+	return m.parentAuthority, nil
 }
 
 func (m *repositoryMock) TeacherWorkspace(_ context.Context, _ string) (org.TeacherWorkspace, error) {
@@ -269,5 +274,27 @@ func TestTeacherWorkspaceDelegatesTeacherIdentity(t *testing.T) {
 	}
 	if len(workspace.Schools) != 1 || workspace.Schools[0].SchoolID != "school-1" {
 		t.Fatalf("unexpected workspace: %#v", workspace)
+	}
+}
+
+
+func TestParentAuthorityRequiresParentRole(t *testing.T) {
+	service := NewService(&repositoryMock{})
+	if _, err := service.ParentAuthority(context.Background(), actor("teacher-1", identity.RoleTeacher)); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected forbidden, got %v", err)
+	}
+}
+
+func TestParentAuthorityDelegatesCanonicalRelationshipRead(t *testing.T) {
+	repo := &repositoryMock{parentAuthority: org.ParentAuthority{
+		Relationships: []org.ParentStudentRelationship{{StudentID: "student-1", Status: "active"}},
+	}}
+	service := NewService(repo)
+	authority, err := service.ParentAuthority(context.Background(), actor("parent-1", identity.RoleParent))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(authority.Relationships) != 1 || authority.Relationships[0].StudentID != "student-1" {
+		t.Fatalf("unexpected authority: %#v", authority)
 	}
 }
