@@ -58,6 +58,12 @@ type SchoolWrite struct {
 	Metadata json.RawMessage
 }
 
+type SchoolPatch struct {
+	Name     *string
+	Status   *SchoolStatus
+	Metadata *json.RawMessage
+}
+
 type Class struct {
 	ID        string
 	SchoolID  string
@@ -88,6 +94,12 @@ type ClassWrite struct {
 	Name     string
 	Status   ClassStatus
 	Metadata json.RawMessage
+}
+
+type ClassPatch struct {
+	Name     *string
+	Status   *ClassStatus
+	Metadata *json.RawMessage
 }
 
 type RosterQuery struct {
