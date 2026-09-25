@@ -426,7 +426,10 @@ func (s *Service) UpsertMembership(
 	}
 	schoolID = strings.TrimSpace(schoolID)
 	userID := strings.TrimSpace(input.UserID)
-	if schoolID == "" || userID == "" || !org.ValidSchoolMembershipRole(input.Role) {
+	if schoolID == "" ||
+		userID == "" ||
+		!org.ValidSchoolMembershipRole(input.Role) ||
+		input.Role == identity.RoleSchoolAdmin {
 		return org.SchoolMembership{}, ErrInvalidInput
 	}
 	status := input.Status
