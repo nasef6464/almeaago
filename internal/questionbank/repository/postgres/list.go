@@ -123,9 +123,28 @@ func (r *Repository) Coverage(ctx context.Context, query question.CoverageQuery)
 			count(*) FILTER (WHERE workflow_status='approved')::int,
 			count(*) FILTER (WHERE workflow_status='pending_review')::int,
 			count(*) FILTER (
-				WHERE NOT EXISTS (
-					SELECT 1 FROM question_skill_links qsl WHERE qsl.question_id=filtered.id
-				)
+				WHERE
+					NOT EXISTS (
+						SELECT 1 FROM question_skill_links qsl
+						WHERE qsl.question_id=filtered.id
+					)
+					OR (
+						EXISTS (
+							SELECT 1
+							FROM question_skill_links main_link
+							JOIN skills child
+							  ON child.parent_skill_id=main_link.skill_id
+							 AND child.kind='sub'
+							 AND child.status='active'
+							WHERE main_link.question_id=filtered.id
+							  AND main_link.relation_type='main'
+						)
+						AND NOT EXISTS (
+							SELECT 1 FROM question_skill_links sub_link
+							WHERE sub_link.question_id=filtered.id
+							  AND sub_link.relation_type='sub'
+						)
+					)
 			)::int,
 			(
 				SELECT count(DISTINCT qsl.skill_id)::int
@@ -205,10 +224,13 @@ func buildListFilters(query question.ListQuery) ([]string, []any) {
 	}
 
 	if query.TeacherScopeUserID != "" {
-		add("(q.assigned_teacher_id=$%d::uuid OR (q.owner_type='teacher' AND q.owner_id=$%d::uuid))", query.TeacherScopeUserID)
-		// The helper inserts one argument, so replace the duplicated placeholder with the same index.
+		args = append(args, query.TeacherScopeUserID)
 		index := len(args)
-		clauses[len(clauses)-1] = fmt.Sprintf("(q.assigned_teacher_id=$%d::uuid OR (q.owner_type='teacher' AND q.owner_id=$%d::uuid))", index, index)
+		clauses = append(clauses, fmt.Sprintf(
+			"(q.assigned_teacher_id=$%d::uuid OR (q.owner_type='teacher' AND q.owner_id=$%d::uuid))",
+			index,
+			index,
+		))
 	}
 	if query.Search != "" {
 		pattern := literalLikePattern(query.Search)
