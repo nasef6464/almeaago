@@ -116,7 +116,7 @@ type RosterMember struct {
 	Name     string
 	Email    string
 	Status   string
-	Role     identity.Role
+	Roles    []identity.Role
 	ClassIDs []string
 }
 
