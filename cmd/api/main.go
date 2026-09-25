@@ -74,6 +74,12 @@ func main() {
 	commerceRepository := commercerepo.New(db, auditWriter)
 	schoolContractService := commerceapp.NewSchoolContractService(commerceRepository)
 	entitlementsHandler := commercehttp.New(schoolContractService, identityService, organizationsService)
+	legacySchoolContractsHandler := commercehttp.NewLegacyContracts(schoolContractService, identityService)
+	legacySchoolEntitlementsHandler := commercehttp.NewLegacyEntitlements(
+		schoolContractService,
+		identityService,
+		organizationsService,
+	)
 
 	organizationsHandler := organizationshttp.New(organizationsService, identityService)
 	legacySchoolAccessHandler := organizationshttp.NewLegacy(organizationsService, identityService)
@@ -98,9 +104,11 @@ func main() {
 		DB:                 db,
 		Redis:              redisClient,
 		Identity:           identityHandler,
-		Organizations:      organizationsHandler,
-		Entitlements:       entitlementsHandler,
-		LegacySchoolAccess: legacySchoolAccessHandler,
+		Organizations:            organizationsHandler,
+		Entitlements:             entitlementsHandler,
+		LegacySchoolContracts:    legacySchoolContractsHandler,
+		LegacySchoolEntitlements: legacySchoolEntitlementsHandler,
+		LegacySchoolAccess:       legacySchoolAccessHandler,
 	})
 
 	go func() {
