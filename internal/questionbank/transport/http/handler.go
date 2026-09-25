@@ -27,7 +27,9 @@ type Handler struct {
 func New(service *questionapp.Service, auth Authenticator) http.Handler {
 	h := &Handler{service: service, auth: auth}
 	r := chi.NewRouter()
+	r.Get("/", h.staffList)
 	r.Post("/", h.create)
+	r.Get("/coverage", h.coverage)
 	r.Get("/{id}", h.learnerGet)
 	r.Get("/{id}/staff", h.staffGet)
 	r.Post("/{id}/versions", h.appendVersion)
