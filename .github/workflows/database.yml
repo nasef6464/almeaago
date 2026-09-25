@@ -71,6 +71,16 @@ jobs:
           check "select exists(select 1 from information_schema.columns where table_name='courses' and column_name='published_at')"
           check "select exists(select 1 from pg_constraint where conname='courses_publication_requires_approval')"
           check "select exists(select 1 from pg_indexes where tablename='courses' and indexname='courses_published_catalog_idx')"
+          check "select to_regclass('public.assessments') is not null"
+          check "select to_regclass('public.assessment_versions') is not null"
+          check "select to_regclass('public.assessment_version_questions') is not null"
+          check "select to_regclass('public.assessment_assignments') is not null"
+          check "select to_regclass('public.assessment_sessions') is not null"
+          check "select to_regclass('public.assessment_attempts') is not null"
+          check "select to_regclass('public.assessment_answers') is not null"
+          check "select to_regclass('public.assessment_results') is not null"
+          check "select exists(select 1 from pg_indexes where tablename='assessment_attempts' and indexname='assessment_attempts_student_recent_idx')"
+          check "select exists(select 1 from pg_indexes where tablename='assessment_results' and indexname='assessment_results_student_recent_idx')"
 
       - name: Roll back every migration
         shell: bash
