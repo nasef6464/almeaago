@@ -39,8 +39,10 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 		}
 		result.Paths = append(result.Paths, row)
 	}
-	if err := pathRows.Err(); err != nil { pathRows.Close()
-			return result, err }
+	if err := pathRows.Err(); err != nil {
+		pathRows.Close()
+		return result, err
+	}
 	pathRows.Close()
 
 	levelRows, err := r.db.Query(ctx, `
@@ -61,8 +63,10 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 		}
 		result.Levels = append(result.Levels, row)
 	}
-	if err := levelRows.Err(); err != nil { levelRows.Close()
-			return result, err }
+	if err := levelRows.Err(); err != nil {
+		levelRows.Close()
+		return result, err
+	}
 	levelRows.Close()
 
 	subjectRows, err := r.db.Query(ctx, `
@@ -85,8 +89,10 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 		}
 		result.Subjects = append(result.Subjects, row)
 	}
-	if err := subjectRows.Err(); err != nil { subjectRows.Close()
-			return result, err }
+	if err := subjectRows.Err(); err != nil {
+		subjectRows.Close()
+		return result, err
+	}
 	subjectRows.Close()
 
 	if !includeSkills {
