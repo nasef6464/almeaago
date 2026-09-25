@@ -15,6 +15,194 @@ paths:
         "200": { description: Core dependencies are reachable }
         "503": { description: Dependency unavailable }
 
+  /api/v1/schools:
+    get:
+      operationId: organizationsListSchools
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: search, schema: { type: string, maxLength: 120 } }
+        - { in: query, name: status, schema: { type: string, enum: [active, suspended, archived] } }
+      responses:
+        "200": { description: Paginated schools visible to the authenticated organization scope }
+        "401": { description: Authentication required }
+        "403": { description: Organization role or scope denied }
+    post:
+      operationId: organizationsCreateSchool
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                code: { type: string, maxLength: 64 }
+                name: { type: string, minLength: 1, maxLength: 160 }
+                metadata: { type: object }
+      responses:
+        "201": { description: School created }
+        "400": { description: Invalid request }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin role and valid CSRF required }
+        "409": { description: School code or normalized school identity conflicts }
+
+  /api/v1/schools/{schoolId}:
+    get:
+      operationId: organizationsGetSchool
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+      responses:
+        "200": { description: School visible to current scope }
+        "401": { description: Authentication required }
+        "403": { description: School scope denied }
+        "404": { description: School not found }
+    patch:
+      operationId: organizationsUpdateSchool
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { type: string, minLength: 1, maxLength: 160 }
+                status: { type: string, enum: [active, suspended] }
+                metadata: { type: object }
+      responses:
+        "200": { description: School updated }
+        "400": { description: Invalid patch }
+        "401": { description: Authentication required }
+        "403": { description: School-management scope or CSRF denied }
+        "404": { description: School not found }
+        "409": { description: School update conflicts }
+    delete:
+      operationId: organizationsArchiveSchool
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: School archived; canonical academic/audit records are retained }
+        "401": { description: Authentication required }
+        "403": { description: School-management scope or CSRF denied }
+        "404": { description: School not found }
+
+  /api/v1/schools/{schoolId}/classes:
+    get:
+      operationId: organizationsListClasses
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: search, schema: { type: string, maxLength: 120 } }
+        - { in: query, name: status, schema: { type: string, enum: [active, archived] } }
+      responses:
+        "200": { description: Paginated classes visible inside the school scope }
+        "401": { description: Authentication required }
+        "403": { description: School scope denied }
+    post:
+      operationId: organizationsCreateClass
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                code: { type: string, maxLength: 64 }
+                name: { type: string, minLength: 1, maxLength: 160 }
+                metadata: { type: object }
+      responses:
+        "201": { description: Class created }
+        "400": { description: Invalid request }
+        "401": { description: Authentication required }
+        "403": { description: Class-management capability or CSRF denied }
+        "409": { description: Class code/name conflicts inside the school }
+
+  /api/v1/schools/{schoolId}/classes/{classId}:
+    patch:
+      operationId: organizationsUpdateClass
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: path, name: classId, required: true, schema: { type: string } }
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { type: string, minLength: 1, maxLength: 160 }
+                status: { type: string, enum: [active] }
+                metadata: { type: object }
+      responses:
+        "200": { description: Class updated }
+        "400": { description: Invalid patch }
+        "401": { description: Authentication required }
+        "403": { description: Class-management capability or CSRF denied }
+        "404": { description: Class not found in school }
+        "409": { description: Class update conflicts }
+    delete:
+      operationId: organizationsArchiveClass
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: path, name: classId, required: true, schema: { type: string } }
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Class archived; roster/history remain relational records }
+        "401": { description: Authentication required }
+        "403": { description: Class-management capability or CSRF denied }
+        "404": { description: Class not found in school }
+
+  /api/v1/schools/{schoolId}/roster:
+    get:
+      operationId: organizationsSchoolRoster
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: search, schema: { type: string, maxLength: 120 } }
+        - { in: query, name: role, schema: { type: string, enum: [student, teacher, supervisor, school_admin, parent] } }
+        - { in: query, name: classId, schema: { type: string } }
+        - { in: query, name: isActive, schema: { type: boolean } }
+      responses:
+        "200": { description: Bounded school roster; teacher and school-director reads are constrained by role/capability policy }
+        "400": { description: Invalid filter }
+        "401": { description: Authentication required }
+        "403": { description: School/role/class scope denied }
+
   /api/v1/auth/register:
     post:
       operationId: authRegister
