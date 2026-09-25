@@ -121,6 +121,44 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Staff role required }
 
+  /api/v1/questions/import-batches:
+    post:
+      operationId: questionBankImportBatchV2
+      description: >
+        Platform-admin-only V2 quantitative question import. dryRun defaults to true.
+        A write is accepted only after the server has recorded a successful matching
+        dry-run digest in Redis. Maximum 100 items. Image bytes must already be uploaded
+        and verified by Media/R2; this endpoint accepts metadata/asset IDs only.
+      responses:
+        "200": { description: Dry-run PASS report }
+        "201": { description: Draft-only batch imported }
+        "400": { description: Invalid batch/item/canonical source identity }
+        "403": { description: Platform admin or CSRF denied }
+        "409": { description: Existing identity/hash conflict or matching dry-run required }
+
+  /api/v1/questions/import-batches/{batchId}:
+    get:
+      operationId: questionBankImportBatchStatus
+      description: Platform-admin import report and current question workflow states.
+      responses:
+        "200": { description: Durable import batch report }
+        "400": { description: Invalid batch ID }
+        "403": { description: Platform admin required }
+        "404": { description: Import batch not found }
+
+  /api/v1/questions/import-batches/{batchId}/rollback:
+    post:
+      operationId: questionBankRollbackImportBatch
+      description: >
+        Archive-only rollback. The entire batch must still be draft. Question rows,
+        stable IDs, provenance and history are retained rather than hard-deleted.
+      responses:
+        "200": { description: Batch rolled back by archiving imported drafts }
+        "400": { description: Invalid batch ID }
+        "403": { description: Platform admin or CSRF denied }
+        "404": { description: Import batch not found }
+        "409": { description: Batch contains non-draft questions or was already rolled back }
+
   /api/v1/questions/{id}:
     get:
       operationId: questionBankLearnerGet
