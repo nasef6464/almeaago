@@ -10,6 +10,9 @@ import (
 	"syscall"
 	"time"
 
+	commerceapp "github.com/nasef6464/almeaago/internal/commerce/application"
+	commercerepo "github.com/nasef6464/almeaago/internal/commerce/repository/postgres"
+	commercehttp "github.com/nasef6464/almeaago/internal/commerce/transport/http"
 	"github.com/nasef6464/almeaago/internal/identity/application"
 	googleprovider "github.com/nasef6464/almeaago/internal/identity/provider/google"
 	whatsappprovider "github.com/nasef6464/almeaago/internal/identity/provider/whatsapp"
@@ -68,6 +71,10 @@ func main() {
 		WhatsAppDelivery: whatsAppDelivery,
 		OTPPepper:        cfg.OTPPepper,
 	})
+	commerceRepository := commercerepo.New(db, auditWriter)
+	schoolContractService := commerceapp.NewSchoolContractService(commerceRepository)
+	entitlementsHandler := commercehttp.New(schoolContractService, identityService, organizationsService)
+
 	organizationsHandler := organizationshttp.New(organizationsService, identityService)
 	legacySchoolAccessHandler := organizationshttp.NewLegacy(organizationsService, identityService)
 
@@ -92,6 +99,7 @@ func main() {
 		Redis:              redisClient,
 		Identity:           identityHandler,
 		Organizations:      organizationsHandler,
+		Entitlements:       entitlementsHandler,
 		LegacySchoolAccess: legacySchoolAccessHandler,
 	})
 
