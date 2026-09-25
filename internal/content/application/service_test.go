@@ -48,6 +48,21 @@ func (r *repoStub) ListCourses(_ context.Context, query content.ListQuery) (cont
 	return content.CoursePage{Page: query.Page, Limit: query.Limit}, nil
 }
 func (r *repoStub) CourseReadyForApproval(context.Context, string) (bool, error) { return true, nil }
+func (r *repoStub) CreateCourseModule(context.Context, string, string, int, string, string, int) (content.CourseModule, int, error) {
+	return content.CourseModule{}, 2, nil
+}
+func (r *repoStub) UpdateCourseModule(context.Context, string, string, string, int, string, string, string, int) (content.CourseModule, int, error) {
+	return content.CourseModule{}, 2, nil
+}
+func (r *repoStub) ListCourseModules(context.Context, string) ([]content.CourseModule, error) {
+	return []content.CourseModule{}, nil
+}
+func (r *repoStub) PlaceCourseLesson(context.Context, string, string, string, string, int, int, bool) (int, error) {
+	return 2, nil
+}
+func (r *repoStub) RemoveCourseLesson(context.Context, string, string, string, string, int) (int, error) {
+	return 2, nil
+}
 
 func (r *repoStub) CreateLesson(context.Context, string, content.LessonWrite) (content.Lesson, error) {
 	return content.Lesson{}, nil
@@ -94,6 +109,21 @@ func (r *repoStub) GetTopic(context.Context, string) (content.FoundationTopic, e
 }
 func (r *repoStub) ListTopics(context.Context, content.TopicQuery) (content.TopicPage, error) {
 	return content.TopicPage{}, nil
+}
+func (r *repoStub) ListTopicPlacements(context.Context, string) (content.FoundationPlacements, error) {
+	return content.FoundationPlacements{}, nil
+}
+func (r *repoStub) LinkTopicLesson(context.Context, string, string, string, int, int) (int, error) {
+	return 2, nil
+}
+func (r *repoStub) UnlinkTopicLesson(context.Context, string, string, string, int) (int, error) {
+	return 2, nil
+}
+func (r *repoStub) LinkTopicLibrary(context.Context, string, string, string, int, int) (int, error) {
+	return 2, nil
+}
+func (r *repoStub) UnlinkTopicLibrary(context.Context, string, string, string, int) (int, error) {
+	return 2, nil
 }
 
 func staffActor(role identity.Role) identity.User {

@@ -27,6 +27,11 @@ type Repository interface {
 	GetCourse(ctx context.Context, courseID string) (content.Course, error)
 	ListCourses(ctx context.Context, query content.ListQuery) (content.CoursePage, error)
 	CourseReadyForApproval(ctx context.Context, courseID string) (bool, error)
+	CreateCourseModule(ctx context.Context, actorUserID, courseID string, expectedRevision int, title, description string, sortOrder int) (content.CourseModule, int, error)
+	UpdateCourseModule(ctx context.Context, actorUserID, courseID, moduleID string, expectedRevision int, title, description, status string, sortOrder int) (content.CourseModule, int, error)
+	ListCourseModules(ctx context.Context, courseID string) ([]content.CourseModule, error)
+	PlaceCourseLesson(ctx context.Context, actorUserID, courseID, moduleID, lessonID string, expectedRevision, sortOrder int, preview bool) (int, error)
+	RemoveCourseLesson(ctx context.Context, actorUserID, courseID, moduleID, lessonID string, expectedRevision int) (int, error)
 
 	CreateLesson(ctx context.Context, actorUserID string, write content.LessonWrite) (content.Lesson, error)
 	UpdateLesson(ctx context.Context, actorUserID, lessonID string, expectedRevision int, write content.LessonWrite) (content.Lesson, error)
@@ -44,6 +49,11 @@ type Repository interface {
 	UpdateTopic(ctx context.Context, actorUserID, topicID string, expectedRevision int, write content.TopicWrite) (content.FoundationTopic, error)
 	GetTopic(ctx context.Context, topicID string) (content.FoundationTopic, error)
 	ListTopics(ctx context.Context, query content.TopicQuery) (content.TopicPage, error)
+	ListTopicPlacements(ctx context.Context, topicID string) (content.FoundationPlacements, error)
+	LinkTopicLesson(ctx context.Context, actorUserID, topicID, lessonID string, expectedRevision, sortOrder int) (int, error)
+	UnlinkTopicLesson(ctx context.Context, actorUserID, topicID, lessonID string, expectedRevision int) (int, error)
+	LinkTopicLibrary(ctx context.Context, actorUserID, topicID, itemID string, expectedRevision, sortOrder int) (int, error)
+	UnlinkTopicLibrary(ctx context.Context, actorUserID, topicID, itemID string, expectedRevision int) (int, error)
 }
 
 type Service struct{ repo Repository }

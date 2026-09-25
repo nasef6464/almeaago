@@ -349,3 +349,36 @@ type TrainerScope struct {
 	PathIDs    []string
 	SubjectIDs []string
 }
+
+type CourseModule struct {
+	ID          string
+	CourseID    string
+	Title       string
+	Description string
+	SortOrder   int
+	Status      string
+	Lessons     []CourseLessonPlacement
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type CourseLessonPlacement struct {
+	LessonID string
+	SortOrder int
+	IsPreview bool
+}
+
+type FoundationPlacements struct {
+	Lessons      []TopicLessonPlacement
+	LibraryItems []TopicLibraryPlacement
+}
+
+type TopicLessonPlacement struct {
+	LessonID string
+	SortOrder int
+}
+
+type TopicLibraryPlacement struct {
+	LibraryItemID string
+	SortOrder     int
+}
