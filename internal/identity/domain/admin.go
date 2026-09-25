@@ -1,21 +1,24 @@
 package domain
 
 type AdminUserQuery struct {
-	Page   int
-	Limit  int
-	Search string
-	Role   *Role
-	Active *bool
+	Page            int
+	Limit           int
+	Search          string
+	Role            *Role
+	Active          *bool
+	PlatformTrainer *bool
 
 	ActorUserID string
 	ActorRoles  []Role
 }
 
 type AdminUserRecord struct {
-	User             User
-	SchoolID         string
-	ClassIDs         []string
-	LinkedStudentIDs []string
+	User              User
+	SchoolID          string
+	ClassIDs          []string
+	LinkedStudentIDs  []string
+	ManagedPathIDs    []string
+	ManagedSubjectIDs []string
 }
 
 type AdminUserPage struct {
@@ -33,23 +36,41 @@ type AdminUserSummary struct {
 }
 
 type AdminUpsertUserInput struct {
-	Name             string
-	Email            string
-	PasswordHash     string
-	Role             Role
-	SchoolID         string
-	ClassIDs         []string
-	LinkedStudentIDs []string
+	Name              string
+	Email             string
+	PasswordHash      string
+	Role              Role
+	SchoolID          string
+	ClassIDs          []string
+	LinkedStudentIDs  []string
+	ManagedPathIDs    []string
+	ManagedSubjectIDs []string
 }
 
 type AdminUpdateUserInput struct {
-	Name             *string
-	AvatarURL        *string
-	Role             *Role
-	Active           *bool
-	SchoolID         *string
-	ClassIDs         *[]string
-	LinkedStudentIDs *[]string
+	Name              *string
+	AvatarURL         *string
+	Role              *Role
+	Active            *bool
+	SchoolID          *string
+	ClassIDs          *[]string
+	LinkedStudentIDs  *[]string
+	ManagedPathIDs    *[]string
+	ManagedSubjectIDs *[]string
+}
+
+type AdminTrainerScopeCommand struct {
+	ActorUserID string
+	UserID      string
+	IsTrainer   bool
+	RoleChanged bool
+	PathIDs     *[]string
+	SubjectIDs  *[]string
+}
+
+type AdminTrainerScopeSnapshot struct {
+	PathIDs    []string
+	SubjectIDs []string
 }
 
 type AdminBulkStatusResult struct {
