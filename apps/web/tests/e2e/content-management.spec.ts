@@ -226,7 +226,7 @@ test('admin content desktop renders bounded management and curriculum builder', 
 
   await page.getByRole('button', { name: 'تعديل / المنهج' }).click();
   await expect(page.getByRole('heading', { name: 'أساسيات الكمي' })).toBeVisible();
-  await expect(page.getByText('الوحدة الأولى')).toBeVisible();
+  await expect(page.getByDisplayValue('الوحدة الأولى')).toBeVisible();
   await expect(page.getByText('مدخل إلى الأعداد')).toBeVisible();
 
   await page.screenshot({ path: 'test-results/content-desktop.png', fullPage: true });
