@@ -463,9 +463,6 @@ func normalizeClassQuery(query org.ClassListQuery) org.ClassListQuery {
 	query.Page = clampPage(query.Page)
 	query.Limit = clampLimit(query.Limit)
 	query.Search = strings.TrimSpace(query.Search)
-	if len(query.Search) > 120 {
-		query.Search = query.Search[:120]
-	}
 	return query
 }
 
