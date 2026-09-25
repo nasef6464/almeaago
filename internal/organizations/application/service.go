@@ -36,6 +36,13 @@ type Repository interface {
 	ArchiveClass(ctx context.Context, actorUserID, schoolID, classID string) (org.Class, error)
 
 	Roster(ctx context.Context, access org.AccessContext, schoolID string, query org.RosterQuery) (org.RosterPage, error)
+
+	UpsertMembership(ctx context.Context, actorUserID, schoolID string, write org.MembershipWrite) (org.SchoolMembership, error)
+	ListDirectors(ctx context.Context, schoolID string, query org.DirectorQuery) (org.DirectorPage, error)
+	UpsertDirector(ctx context.Context, actorUserID, schoolID string, write org.DirectorWrite) (org.DirectorRecord, error)
+	ListAssignments(ctx context.Context, access org.AccessContext, schoolID string, query org.AssignmentQuery) (org.AssignmentPage, error)
+	UpsertAssignment(ctx context.Context, actorUserID, schoolID string, write org.AssignmentWrite) (org.TeachingAssignment, error)
+
 	CanAccessSchool(ctx context.Context, access org.AccessContext, schoolID string) (bool, error)
 	CanManageSchool(ctx context.Context, userID, schoolID string) (bool, error)
 	HasSchoolPermission(ctx context.Context, userID, schoolID, permission string) (bool, error)
@@ -71,6 +78,25 @@ type UpdateClassInput struct {
 	Name     *string
 	Status   *org.ClassStatus
 	Metadata *json.RawMessage
+}
+
+type UpsertMembershipInput struct {
+	UserID string
+	Role   identity.Role
+	Status org.MembershipStatus
+}
+
+type UpsertDirectorInput struct {
+	UserID      string
+	Status      org.MembershipStatus
+	Permissions []string
+}
+
+type UpsertAssignmentInput struct {
+	TeacherID string
+	ClassID   string
+	SubjectID string
+	Status    org.AssignmentStatus
 }
 
 func (s *Service) ListSchools(
@@ -388,6 +414,195 @@ func (s *Service) Roster(
 	return s.repo.Roster(ctx, accessOf(actor), schoolID, query)
 }
 
+
+func (s *Service) UpsertMembership(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+	input UpsertMembershipInput,
+) (org.SchoolMembership, error) {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return org.SchoolMembership{}, ErrForbidden
+	}
+	schoolID = strings.TrimSpace(schoolID)
+	userID := strings.TrimSpace(input.UserID)
+	if schoolID == "" || userID == "" || !org.ValidSchoolMembershipRole(input.Role) {
+		return org.SchoolMembership{}, ErrInvalidInput
+	}
+	status := input.Status
+	if status == "" {
+		status = org.MembershipStatusActive
+	}
+	if !org.ValidMembershipStatus(status) {
+		return org.SchoolMembership{}, ErrInvalidInput
+	}
+	return s.repo.UpsertMembership(ctx, actor.ID, schoolID, org.MembershipWrite{
+		UserID: userID,
+		Role:   input.Role,
+		Status: status,
+	})
+}
+
+func (s *Service) ListDirectors(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+	query org.DirectorQuery,
+) (org.DirectorPage, error) {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return org.DirectorPage{}, ErrForbidden
+	}
+	schoolID = strings.TrimSpace(schoolID)
+	if schoolID == "" {
+		return org.DirectorPage{}, ErrInvalidInput
+	}
+	if query.Status != nil && !org.ValidMembershipStatus(*query.Status) {
+		return org.DirectorPage{}, ErrInvalidInput
+	}
+	query.Page = clampPage(query.Page)
+	query.Limit = clampLimit(query.Limit)
+	return s.repo.ListDirectors(ctx, schoolID, query)
+}
+
+func (s *Service) UpsertDirector(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+	input UpsertDirectorInput,
+) (org.DirectorRecord, error) {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return org.DirectorRecord{}, ErrForbidden
+	}
+	schoolID = strings.TrimSpace(schoolID)
+	userID := strings.TrimSpace(input.UserID)
+	if schoolID == "" || userID == "" {
+		return org.DirectorRecord{}, ErrInvalidInput
+	}
+
+	status := input.Status
+	if status == "" {
+		status = org.MembershipStatusActive
+	}
+	if status != org.MembershipStatusActive && status != org.MembershipStatusRevoked {
+		return org.DirectorRecord{}, ErrInvalidInput
+	}
+
+	permissions := input.Permissions
+	if permissions == nil {
+		permissions = append([]string(nil), org.DefaultSchoolDirectorPermissions...)
+	}
+	normalized, err := normalizeDirectorPermissions(permissions)
+	if err != nil {
+		return org.DirectorRecord{}, err
+	}
+
+	return s.repo.UpsertDirector(ctx, actor.ID, schoolID, org.DirectorWrite{
+		UserID:      userID,
+		Status:      status,
+		Permissions: normalized,
+	})
+}
+
+func (s *Service) ListAssignments(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+	query org.AssignmentQuery,
+) (org.AssignmentPage, error) {
+	schoolID = strings.TrimSpace(schoolID)
+	if schoolID == "" {
+		return org.AssignmentPage{}, ErrInvalidInput
+	}
+
+	switch {
+	case actor.HasRole(identity.RoleAdmin):
+	case actor.HasRole(identity.RoleTeacher):
+		if query.TeacherID != "" && strings.TrimSpace(query.TeacherID) != actor.ID {
+			return org.AssignmentPage{}, ErrForbidden
+		}
+		query.TeacherID = actor.ID
+	case actor.HasRole(identity.RoleSchoolAdmin):
+		allowed, err := s.repo.HasSchoolPermission(
+			ctx,
+			actor.ID,
+			schoolID,
+			org.PermissionSchoolTeachersAssign,
+		)
+		if err != nil {
+			return org.AssignmentPage{}, err
+		}
+		if !allowed {
+			return org.AssignmentPage{}, ErrForbidden
+		}
+	default:
+		return org.AssignmentPage{}, ErrForbidden
+	}
+
+	query.Page = clampPage(query.Page)
+	query.Limit = clampLimit(query.Limit)
+	query.TeacherID = strings.TrimSpace(query.TeacherID)
+	query.ClassID = strings.TrimSpace(query.ClassID)
+	if query.SubjectID != nil {
+		subjectID := strings.TrimSpace(*query.SubjectID)
+		query.SubjectID = &subjectID
+	}
+	if query.Status != nil && !org.ValidAssignmentStatus(*query.Status) {
+		return org.AssignmentPage{}, ErrInvalidInput
+	}
+	return s.repo.ListAssignments(ctx, accessOf(actor), schoolID, query)
+}
+
+func (s *Service) UpsertAssignment(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+	input UpsertAssignmentInput,
+) (org.TeachingAssignment, error) {
+	schoolID = strings.TrimSpace(schoolID)
+	if schoolID == "" {
+		return org.TeachingAssignment{}, ErrInvalidInput
+	}
+
+	if !actor.HasRole(identity.RoleAdmin) {
+		if !actor.HasRole(identity.RoleSchoolAdmin) {
+			return org.TeachingAssignment{}, ErrForbidden
+		}
+		allowed, err := s.repo.HasSchoolPermission(
+			ctx,
+			actor.ID,
+			schoolID,
+			org.PermissionSchoolTeachersAssign,
+		)
+		if err != nil {
+			return org.TeachingAssignment{}, err
+		}
+		if !allowed {
+			return org.TeachingAssignment{}, ErrForbidden
+		}
+	}
+
+	teacherID := strings.TrimSpace(input.TeacherID)
+	classID := strings.TrimSpace(input.ClassID)
+	subjectID := strings.TrimSpace(input.SubjectID)
+	if teacherID == "" || classID == "" {
+		return org.TeachingAssignment{}, ErrInvalidInput
+	}
+	status := input.Status
+	if status == "" {
+		status = org.AssignmentStatusActive
+	}
+	if !org.ValidAssignmentStatus(status) {
+		return org.TeachingAssignment{}, ErrInvalidInput
+	}
+
+	return s.repo.UpsertAssignment(ctx, actor.ID, schoolID, org.AssignmentWrite{
+		TeacherID: teacherID,
+		ClassID:   classID,
+		SubjectID: subjectID,
+		Status:    status,
+	})
+}
+
 func (s *Service) requireSchoolManagement(
 	ctx context.Context,
 	actor identity.User,
@@ -516,4 +731,27 @@ func normalizeMetadata(raw json.RawMessage) (json.RawMessage, error) {
 		return nil, err
 	}
 	return normalized, nil
+}
+
+func normalizeDirectorPermissions(values []string) ([]string, error) {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		permission := strings.TrimSpace(value)
+		if permission == "" {
+			continue
+		}
+		if !org.ValidSchoolDirectorPermission(permission) {
+			return nil, ErrInvalidInput
+		}
+		if _, exists := seen[permission]; exists {
+			continue
+		}
+		seen[permission] = struct{}{}
+		result = append(result, permission)
+		if len(result) > len(org.SchoolDirectorPermissions) {
+			return nil, ErrInvalidInput
+		}
+	}
+	return result, nil
 }
