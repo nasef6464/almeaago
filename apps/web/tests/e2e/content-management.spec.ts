@@ -219,6 +219,8 @@ test('admin content desktop renders bounded management and curriculum builder', 
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/admin-dashboard/content');
 
+  await expect(page.getByRole('heading', { name: 'لوحة الإدارة' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'إدارة المحتوى التعليمي' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'إدارة المحتوى التعليمي' })).toBeVisible();
   await expect(page.getByText('أساسيات الكمي')).toBeVisible();
   await expect(page.getByRole('button', { name: 'الدورات' })).toBeVisible();
@@ -242,7 +244,9 @@ test('admin content mobile keeps core actions reachable', async ({ page }) => {
   await page.getByRole('button', { name: 'الدروس' }).click();
   await expect(page.getByText('مدخل إلى الأعداد')).toBeVisible();
   await page.getByRole('button', { name: 'إضافة درس جديد' }).click();
+  await expect(page.getByText('منشئ الدروس الموحد')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'إضافة درس جديد' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'إغلاق منشئ الدرس' })).toBeVisible();
 
   await page.screenshot({ path: 'test-results/content-mobile.png', fullPage: true });
 });

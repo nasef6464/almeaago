@@ -27,7 +27,7 @@ Media / R2 — **DIRECT-UPLOAD FOUNDATION GREEN**.
 
 Content / Foundation backend — **CORE MANAGEMENT TESTED / MERGED**.
 
-Content React cutover — **IN PROGRESS (PR #38)**.
+Content React cutover — **TESTED / VISUAL CHECKPOINT GREEN (PR #38 PRE-MERGE)**.
 
 ## Identity Core / Recovery / Providers — TESTED / MERGED
 Includes:
@@ -316,15 +316,16 @@ Implemented:
 - Question Bank authoring consumes the same combined teacher scope.
 - no Vercel/Render deployment changes.
 
-Still deferred from Content closure:
-- React CRUD parity beyond the current web cutover.
-- Commerce entitlement/access resolution.
-- Assessment placement integration.
-- end-to-end/visual parity proof against the legacy Content screens.
-- product decision for any approved-content editing model beyond the current no-in-place-edit rule.
+Cross-domain / product deferrals after Content closure:
+- Commerce entitlement/access resolution remains owned by Commerce/Access.
+- Assessment placements remain owned by Assessment and will reference canonical Content/Question Bank IDs rather than embed copies.
+- Media/R2 asset-picker UI remains a Media-owned cutover; Content preserves asset references and never proxies large binary bytes through Go.
+- legacy bulk XLSX import/export requires a bounded server-side preview/validation contract before restoration; the old full-inventory browser pattern will not be copied.
+- richer in-video question authoring belongs to Question Bank/Assessment integration, not duplicated Content state.
+- approved-content editing remains intentionally fail-closed until the product/versioning policy is explicitly finalized.
 
-## Content Web Cutover — IN PROGRESS
-Draft PR #38 (`feat/content-web-cutover`) is the active Content React parity branch.
+## Content Web Cutover — TESTED / VISUAL CHECKPOINT GREEN (PRE-MERGE)
+PR #38 (`feat/content-web-cutover`) is the active Content React parity branch and has reached its merge gate.
 
 Implemented so far:
 - role-aware `/admin-dashboard/content` route.
@@ -346,7 +347,9 @@ Verification:
 - Frontend CI passed on `c73f81d6b37dfceceeb4fb230196323537dc5dc3` for Course edit + curriculum builder.
 - Frontend CI passed on `17e8ad5c6e6eb89052d749a06c87d3fc67d9ce86` for Lesson authoring/review.
 - Frontend CI passed on `c00ee648a816844f9383a9d3378bf94519bd5e41` for Library + Foundation management flows before bounded selector search refinement.
-- The final PR head must pass Frontend CI again before merge.
+- Representative visual alignment landed on `9c92769f6c64c3815782d65f75aed9c1fe548778`; Frontend CI run `36163074967` passed and Frontend E2E run `36163074657` passed 4/4.
+- Browser evidence artifact `10875638539` contains the current desktop Course-builder and mobile Lesson-builder screenshots.
+- The final documentation/assertion head must pass Frontend CI + Frontend E2E again before merge; PR #38 must be merged only with that exact tested SHA.
 
 ## Performance/scalability
 - bounded pagination for admin/director directories.
@@ -366,4 +369,4 @@ Verification:
 - Use `almeaacodax` only for explicit behavioral/visual parity checks, never as an implementation target.
 
 ## Next exact action
-Continue PR #38 from the current `feat/content-web-cutover` head with the Content parity/verification pass: compare Course/Lesson/Foundation/Library flows against the legacy React screens, add Playwright coverage and desktop/mobile visual-regression evidence, and record intentional deferrals such as the Media/R2 asset picker or legacy bulk import/export where their owning contract is not yet cut over. Keep normal lists and relationship selectors bounded. Do not merge until the exact final PR head passes Frontend CI and the parity evidence is documented.
+Close PR #38 only after the final documentation/assertion head passes both Frontend CI and Frontend E2E on that exact SHA. After merge, update this file on a docs-only checkpoint branch with the merge commit, then begin Phase 6 Assessment from current `main`: audit the legacy Assessment contracts against the blueprint and existing canonical Question Bank/Content IDs, design normalized PostgreSQL assessment identities/attempt state deliberately, and do not copy question/content payloads into Assessment. Keep learner answer secrecy, bounded reads, optimistic/audited staff mutations, and Commerce/Learning boundaries explicit.
