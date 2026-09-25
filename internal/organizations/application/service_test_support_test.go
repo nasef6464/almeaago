@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	org "github.com/nasef6464/almeaago/internal/organizations/domain"
