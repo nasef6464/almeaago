@@ -256,6 +256,116 @@ func (w *AdminScopeWriter) SyncTx(
 		}
 	}
 
+	if err := w.syncSupervisorScopesTx(ctx, tx, command); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (w *AdminScopeWriter) syncSupervisorScopesTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	command orgdomain.AdminAccountScopeCommand,
+) error {
+	if !command.RoleChanged && command.SchoolID == nil && command.ClassIDs == nil {
+		return nil
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE school_supervisor_scopes
+		SET status = 'revoked', updated_at = now()
+		WHERE supervisor_user_id = $1::uuid
+		  AND status = 'active'
+	`, command.UserID); err != nil {
+		return err
+	}
+
+	if command.Role != identity.RoleSupervisor {
+		return nil
+	}
+
+	schoolID, err := w.resolveSchoolID(ctx, tx, command)
+	if err != nil {
+		return err
+	}
+	if schoolID == "" {
+		return nil
+	}
+
+	classIDs := make([]string, 0, 8)
+	if command.ClassIDs != nil {
+		classIDs = append(classIDs, (*command.ClassIDs)...)
+	} else {
+		rows, err := tx.Query(ctx, `
+			SELECT cm.class_id::text
+			FROM class_memberships cm
+			JOIN classes c ON c.id = cm.class_id
+			WHERE cm.user_id = $1::uuid
+			  AND cm.status = 'active'
+			  AND c.school_id = $2::uuid
+			  AND c.status = 'active'
+			ORDER BY cm.joined_at DESC
+		`, command.UserID, schoolID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var classID string
+			if err := rows.Scan(&classID); err != nil {
+				return err
+			}
+			classIDs = append(classIDs, classID)
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+	}
+
+	if len(classIDs) == 0 {
+		_, err := tx.Exec(ctx, `
+			INSERT INTO school_supervisor_scopes (
+				school_id,
+				supervisor_user_id,
+				scope_type,
+				class_id,
+				status
+			)
+			VALUES ($1::uuid, $2::uuid, 'school', NULL, 'active')
+			ON CONFLICT DO NOTHING
+		`, schoolID, command.UserID)
+		return err
+	}
+
+	for _, classID := range classIDs {
+		tag, err := tx.Exec(ctx, `
+			INSERT INTO school_supervisor_scopes (
+				school_id,
+				supervisor_user_id,
+				scope_type,
+				class_id,
+				status
+			)
+			SELECT
+				c.school_id,
+				$2::uuid,
+				'class',
+				c.id,
+				'active'
+			FROM classes c
+			WHERE c.id = $1::uuid
+			  AND c.school_id = $3::uuid
+			  AND c.status = 'active'
+			ON CONFLICT DO NOTHING
+		`, classID, command.UserID, schoolID)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return orgdomain.ErrScopeNotFound
+		}
+	}
 	return nil
 }
 
