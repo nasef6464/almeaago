@@ -63,6 +63,67 @@ paths:
       responses:
         "200": { description: Skill updated without changing stable code/kind/subject }
 
+  /api/v1/questions:
+    post:
+      operationId: questionBankCreate
+      description: >
+        Create a stable question identity with version 1. Staff-only and CSRF-protected.
+        A question may be text-only, image-only, or text+image. Image bytes are never sent
+        through this endpoint; media is referenced by asset ID. AI-readable metadata stays
+        server-side in the staff version payload.
+      responses:
+        "201": { description: Draft question created }
+        "400": { description: Invalid question/version payload }
+        "403": { description: Staff role or CSRF denied }
+        "409": { description: Question code, taxonomy, asset, or hierarchy conflict }
+
+  /api/v1/questions/{id}:
+    get:
+      operationId: questionBankLearnerGet
+      description: >
+        Approved learner-safe question projection. Does not expose correctOptionIndex,
+        explanation, hint, solvingStrategy, sourceMeta, full aiContext, voiceExplanation,
+        reviewer notes, or approval internals.
+      responses:
+        "200": { description: Approved learner-safe question }
+        "401": { description: Authentication required }
+        "404": { description: Question unavailable or not approved }
+
+  /api/v1/questions/{id}/staff:
+    get:
+      operationId: questionBankStaffGet
+      description: Staff-authorized current version including workflow/private authoring metadata.
+      responses:
+        "200": { description: Staff question projection }
+        "401": { description: Authentication required }
+        "403": { description: Edit scope denied }
+        "404": { description: Question not found }
+
+  /api/v1/questions/{id}/versions:
+    post:
+      operationId: questionBankAppendVersion
+      description: >
+        Append an immutable material revision using optimistic expectedCurrentVersion.
+        Approved/archived questions are not silently edited in place.
+      responses:
+        "200": { description: New current version appended }
+        "400": { description: Invalid version payload }
+        "403": { description: Edit scope or CSRF denied }
+        "409": { description: Version, taxonomy, asset, or workflow conflict }
+
+  /api/v1/questions/{id}/workflow:
+    patch:
+      operationId: questionBankSetWorkflow
+      description: >
+        Lifecycle transition for draft/pending_review/approved/rejected/archived using
+        optimistic expectedCurrentVersion. Approval requires publishable answer metadata.
+      responses:
+        "200": { description: Workflow state updated }
+        "400": { description: Invalid workflow payload }
+        "403": { description: Role/scope or CSRF denied }
+        "404": { description: Question not found }
+        "409": { description: Invalid workflow or version conflict }
+
   /health/live:
     get:
       operationId: healthLive
