@@ -1,0 +1,12 @@
+BEGIN;
+DROP INDEX IF EXISTS question_skill_links_question_relation_idx;
+DROP INDEX IF EXISTS question_versions_filter_idx;
+DROP INDEX IF EXISTS questions_owner_workflow_updated_idx;
+DROP INDEX IF EXISTS questions_workflow_updated_idx;
+ALTER TABLE question_versions DROP CONSTRAINT IF EXISTS question_versions_source_year_sane;
+ALTER TABLE question_versions DROP CONSTRAINT IF EXISTS question_versions_correct_option_nonnegative;
+ALTER TABLE question_options DROP CONSTRAINT IF EXISTS question_options_index_nonnegative;
+ALTER TABLE questions DROP CONSTRAINT IF EXISTS questions_current_version_fk;
+DROP TRIGGER IF EXISTS questions_question_code_immutable ON questions;
+DROP FUNCTION IF EXISTS prevent_question_code_change();
+COMMIT;
