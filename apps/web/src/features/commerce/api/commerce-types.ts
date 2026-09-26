@@ -29,7 +29,7 @@ export type CommerceDiscountType='percentage'|'fixed';
 export type CommerceDiscountStatus='active'|'paused'|'expired';
 export type CommerceDiscountScopeType='all'|'product'|'product_type';
 export type CommercePaymentMethod='card'|'transfer'|'wallet';
-export type CommerceGatewayMode='manual_review'|'webhook';
+export type CommerceGatewayMode='manual_review'|'webhook'|'payment_link';
 export type CommercePaymentStatus='pending'|'paid'|'rejected'|'cancelled'|'failed';
 
 export interface CommerceDiscountScope{scopeType:CommerceDiscountScopeType;productId:string;productType:CommerceProductType|''}
@@ -51,7 +51,7 @@ export interface CommercePaymentRequest{
  id:string;userId:string;productId:string;productRevision:number;productName:string;originalAmountMinor:number;
  discountAmountMinor:number;finalAmountMinor:number;currency:string;discountId:string;discountCode:string;
  paymentMethod:CommercePaymentMethod;gatewayMode:CommerceGatewayMode;providerCode:string;status:CommercePaymentStatus;
- idempotencyKey:string;providerTransactionId:string;paidAt:string|null;reviewedBy:string;reviewedAt:string|null;
+ idempotencyKey:string;providerTransactionId:string;providerSessionId:string;providerRedirectUrl:string;providerSessionStatus:string;paidAt:string|null;reviewedBy:string;reviewedAt:string|null;
  reviewerNotes:string;approvalEvidence:string;revision:number;createdAt:string;updatedAt:string;
 }
 
