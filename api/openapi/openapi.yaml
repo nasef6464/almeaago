@@ -747,6 +747,86 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Student role required }
 
+
+  /api/v1/commerce/products:
+    get:
+      operationId: commerceProductList
+      description: Platform-admin bounded product catalog. Defaults to 50 and caps at 100; no exact-count scan.
+      responses:
+        "200": { description: Bounded product page }
+        "403": { description: Platform admin required }
+    post:
+      operationId: commerceProductCreate
+      description: >
+        Platform-admin CSRF-protected product creation. Course products target one canonical
+        approved/published/visible Course. Package/membership scope IDs are validated through
+        Content/Taxonomy boundaries. Client price is catalog configuration here, never payment proof.
+      responses:
+        "201": { description: Product created }
+        "400": { description: Invalid product or unbounded package items }
+        "403": { description: Platform admin or CSRF required }
+        "409": { description: Duplicate/invalid canonical target }
+
+  /api/v1/commerce/products/{id}:
+    get:
+      operationId: commerceProductDetail
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Product detail including package items when applicable }
+        "403": { description: Platform admin required }
+        "404": { description: Product not found }
+    put:
+      operationId: commerceProductUpdate
+      description: >
+        Platform-admin CSRF-protected optimistic update. Product type and direct Course target
+        are immutable; package items may be replaced after canonical scope validation.
+      responses:
+        "200": { description: Product updated }
+        "403": { description: Platform admin or CSRF required }
+        "409": { description: Revision or catalog conflict }
+
+  /api/v1/commerce/entitlements:
+    get:
+      operationId: commerceEntitlementList
+      description: Platform-admin bounded entitlement ledger list.
+      responses:
+        "200": { description: Bounded entitlement page }
+        "403": { description: Platform admin required }
+    post:
+      operationId: commerceManualEntitlementGrant
+      description: >
+        Platform-admin CSRF-protected manual user/school grant. Source is server-forced to
+        admin_manual and the idempotency key is unique. Payment confirmation is not accepted here.
+      responses:
+        "201": { description: Entitlement granted idempotently }
+        "400": { description: Invalid subject/product/time/idempotency input }
+        "403": { description: Platform admin or CSRF required }
+        "409": { description: Product or subject conflict }
+
+  /api/v1/commerce/entitlements/{id}/revoke:
+    post:
+      operationId: commerceEntitlementRevoke
+      description: Platform-admin CSRF-protected optimistic revocation with a required audit reason.
+      responses:
+        "200": { description: Entitlement revoked }
+        "403": { description: Platform admin or CSRF required }
+        "409": { description: Revision or lifecycle conflict }
+
+  /api/v1/commerce/access/courses/{id}:
+    get:
+      operationId: commerceCourseAccessDecision
+      description: >
+        Authenticated server-owned Course access decision. Resolves explicit free Course product,
+        active user grant, or eligible active-school package grant and returns a reason/source.
+        Seat-capped school packages do not grant by broad membership alone.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Access decision }
+        "401": { description: Authentication required }
+        "409": { description: Canonical Course/Commerce state conflict }
+
   /api/v1/media/uploads/presign:
     post:
       operationId: mediaPresignUpload
@@ -2164,7 +2244,8 @@ paths:
       description: >
         Authenticated learner-safe course structure for an approved, published and visible
         course. Only active modules and approved+visible lesson metadata are returned.
-        Lesson body/media delivery remains outside this endpoint until entitlement resolution exists.
+        Commerce resolves an explicit access decision. Preview Lessons remain available; non-preview
+        Lesson delivery fails closed when the Course is paid/unconfigured and no active entitlement applies.
       parameters:
         - { in: path, name: id, required: true, schema: { type: string } }
       responses:

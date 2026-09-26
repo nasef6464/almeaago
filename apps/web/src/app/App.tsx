@@ -24,6 +24,7 @@ import { CourseLearningPage } from '../features/learning/pages/CourseLearningPag
 import { StudyPlanPage } from '../features/learning/pages/StudyPlanPage';
 import { SchoolInterventionsPage } from '../features/learning/pages/SchoolInterventionsPage';
 import { PublicBarcodeAssessmentPage } from '../features/assessment/pages/PublicBarcodeAssessmentPage';
+import { CommerceAdminPage } from '../features/commerce/pages/CommerceAdminPage';
 import { LiveAssessmentJoinPage } from '../features/assessment/pages/LiveAssessmentJoinPage';
 import { AdminDashboardShell } from '../features/content/components/AdminDashboardShell';
 
@@ -158,6 +159,7 @@ export function App() {
         <Route path="/admin-dashboard" element={<AdminDashboardShell><PlaceholderPage title="لوحة الإدارة" /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/content" element={<AdminDashboardShell><ContentAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/assessments" element={<AdminDashboardShell><AssessmentAdminPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/commerce" element={<AdminDashboardShell><CommerceAdminPage /></AdminDashboardShell>} />
         <Route path="/assessments" element={<AssessmentAvailabilityPage />} />
         <Route path="/barcode-test" element={<PublicBarcodeAssessmentPage />} />
         <Route path="/barcode-test/:code" element={<PublicBarcodeAssessmentPage />} />

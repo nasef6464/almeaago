@@ -1,8 +1,8 @@
 import{expect,test,type Page,type Route}from'@playwright/test';
 
 const student={id:'student-1',email:'student@example.com',name:'طالب',status:'active',avatarUrl:'',emailVerified:true,role:'student',roles:['student']};
-const course={id:'course-1',title:'دورة الكمي',description:'تدريب منظم',instructorName:'فريق المنصة',durationMinutes:20,level:'beginner',thumbnailAssetId:'',dripContentEnabled:false,certificateEnabled:true,modules:[{id:'module-1',title:'الوحدة الأولى',description:'',sortOrder:1,lessons:[{id:'lesson-1',title:'فيديو النسب',description:'شرح مباشر',type:'video',durationSeconds:120,isLocked:false,isPreview:false,sortOrder:1}]}]};
-const lesson={id:'lesson-1',title:'فيديو النسب',description:'شرح مباشر',type:'video',durationSeconds:120,isLocked:false,isPreview:false,sortOrder:1,contentText:'',videoUrl:'/media/sample.mp4',videoSource:'upload'};
+const course={id:'course-1',title:'دورة الكمي',description:'تدريب منظم',instructorName:'فريق المنصة',durationMinutes:20,level:'beginner',thumbnailAssetId:'',dripContentEnabled:false,certificateEnabled:true,access:{allowed:true,configured:true,reason:'free_product'},modules:[{id:'module-1',title:'الوحدة الأولى',description:'',sortOrder:1,lessons:[{id:'lesson-1',title:'فيديو النسب',description:'شرح مباشر',type:'video',durationSeconds:120,isLocked:false,isPreview:false,commerceLocked:false,sortOrder:1}]}]};
+const lesson={id:'lesson-1',title:'فيديو النسب',description:'شرح مباشر',type:'video',durationSeconds:120,isLocked:false,isPreview:false,commerceLocked:false,sortOrder:1,contentText:'',videoUrl:'/media/sample.mp4',videoSource:'upload'};
 function json(r:Route,b:unknown,s=200){return r.fulfill({status:s,contentType:'application/json',body:JSON.stringify(b)})}
 async function auth(page:Page){await page.route('**/api/v1/auth/me',r=>json(r,{user:student}));await page.route('**/api/v1/auth/csrf',r=>json(r,{csrfToken:'csrf'}));}
 

@@ -435,6 +435,7 @@ type LearnerLessonSummary struct {
 	DurationSeconds int
 	IsLocked        bool
 	IsPreview       bool
+	CommerceLocked  bool
 	SortOrder       int
 }
 
@@ -454,8 +455,11 @@ type LearnerCourseModule struct {
 }
 
 type LearnerCourse struct {
-	Course  LearnerCourseSummary
-	Modules []LearnerCourseModule
+	Course           LearnerCourseSummary
+	Modules          []LearnerCourseModule
+	AccessAllowed    bool
+	AccessConfigured bool
+	AccessReason     string
 }
 
 type LearnerTopic struct {

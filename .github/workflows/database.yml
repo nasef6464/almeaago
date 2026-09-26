@@ -101,6 +101,13 @@ jobs:
           check "select to_regclass('public.study_plan_items') is not null"
           check "select exists(select 1 from pg_indexes where tablename='study_plans' and indexname='study_plans_student_path_status_idx')"
           check "select exists(select 1 from pg_constraint where conname='study_plan_items_target_shape')"
+          check "select to_regclass('public.commerce_products') is not null"
+          check "select to_regclass('public.commerce_packages') is not null"
+          check "select to_regclass('public.commerce_package_items') is not null"
+          check "select to_regclass('public.commerce_entitlements') is not null"
+          check "select exists(select 1 from pg_indexes where tablename='commerce_products' and indexname='commerce_products_course_unique_idx')"
+          check "select exists(select 1 from pg_indexes where tablename='commerce_entitlements' and indexname='commerce_entitlements_user_active_idx')"
+          check "select exists(select 1 from pg_constraint where conname='commerce_package_items_target_shape')"
 
       - name: Roll back every migration
         shell: bash
