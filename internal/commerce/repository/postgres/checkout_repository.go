@@ -343,6 +343,7 @@ const paymentSelect = `
 SELECT id::text,user_id::text,product_id::text,product_revision,product_name,original_amount_minor,
        discount_amount_minor,final_amount_minor,currency,COALESCE(discount_id::text,''),discount_code,
        payment_method,gateway_mode,provider_code,status,idempotency_key,provider_transaction_id,
+       provider_session_id,provider_redirect_url,provider_session_status,
        COALESCE(revenue_course_id::text,''),COALESCE(revenue_trainer_user_id::text,''),revenue_share_percentage,
        paid_at,COALESCE(reviewed_by::text,''),reviewed_at,reviewer_notes,approval_evidence,revision,created_at,updated_at
 FROM commerce_payment_requests
@@ -354,7 +355,8 @@ func scanPayment(row scanner) (commerce.PaymentRequest, error) {
 		&p.ID, &p.UserID, &p.ProductID, &p.ProductRevision, &p.ProductName, &p.OriginalAmountMinor,
 		&p.DiscountAmountMinor, &p.FinalAmountMinor, &p.Currency, &p.DiscountID, &p.DiscountCode,
 		&p.PaymentMethod, &p.GatewayMode, &p.ProviderCode, &p.Status, &p.IdempotencyKey,
-		&p.ProviderTransactionID, &p.RevenueCourseID, &p.RevenueTrainerUserID, &p.RevenueSharePercentage,
+		&p.ProviderTransactionID, &p.ProviderSessionID, &p.ProviderRedirectURL, &p.ProviderSessionStatus,
+		&p.RevenueCourseID, &p.RevenueTrainerUserID, &p.RevenueSharePercentage,
 		&p.PaidAt, &p.ReviewedBy, &p.ReviewedAt, &p.ReviewerNotes,
 		&p.ApprovalEvidence, &p.Revision, &p.CreatedAt, &p.UpdatedAt,
 	)
@@ -733,7 +735,7 @@ SELECT payment_request_id::text FROM commerce_provider_events WHERE provider_cod
 	if err != nil {
 		return commerce.ProviderEventResult{}, err
 	}
-	if p.ProviderCode != provider || p.GatewayMode != commerce.GatewayWebhook {
+	if p.ProviderCode != provider || (p.GatewayMode != commerce.GatewayWebhook && p.GatewayMode != commerce.GatewayPaymentLink) {
 		if commitErr := rejectProviderEventTx(ctx, tx, eventRowID, "rejected_provider_or_mode"); commitErr != nil {
 			return commerce.ProviderEventResult{}, commitErr
 		}
