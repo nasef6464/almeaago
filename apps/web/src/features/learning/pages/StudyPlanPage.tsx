@@ -63,7 +63,7 @@ export function StudyPlanPage(){
   const[taxonomy,setTaxonomy]=useState<TaxonomyCore>({paths:[],subjects:[]});
   const[pathId,setPathId]=useState('');
   const[statusView,setStatusView]=useState<StudyPlanStatus>('active');
-  const[summaries,setSummaries]=useState<StudyPlan[]>([]);
+  const[hasPlans,setHasPlans]=useState(false);
   const[current,setCurrent]=useState<StudyPlan|null>(null);
   const[draft,setDraft]=useState<StudyPlanWrite>(draftFor());
   const[courseSubjectId,setCourseSubjectId]=useState('');
@@ -81,18 +81,17 @@ export function StudyPlanPage(){
   useEffect(()=>{
     if(!pathId||authLoading||!user){setBusy(false);return}
     const c=new AbortController();setBusy(true);setError('');
-    studyPlanClient.list(pathId,statusView,1,20,c.signal).then(async page=>{
-      const details:StudyPlan[]=[];
-      for(const summary of page.items.slice(0,5)){
-        const detail=await studyPlanClient.get(summary.id,c.signal);
-        details.push(detail.plan);
+    studyPlanClient.list(pathId,statusView,1,20,c.signal).then(async result=>{
+      const first=result.items[0];
+      if(!first){
+        if(!c.signal.aborted){setHasPlans(false);setCurrent(null);setDraft(draftFor(pathId))}
+        return;
       }
+      const detail=await studyPlanClient.get(first.id,c.signal);
       if(c.signal.aborted)return;
-      setSummaries(details);
-      const next=details[0]||null;setCurrent(next);
-      if(next){
-        setDraft({name:next.name,pathId:next.pathId,subjectIds:next.subjectIds,courseIds:next.courseIds,startDate:next.startDate,endDate:next.endDate,skipCompletedQuizzes:next.skipCompletedQuizzes,offDays:next.offDays,dailyMinutes:next.dailyMinutes,preferredStartTime:next.preferredStartTime,status:next.status});
-      }else setDraft(draftFor(pathId));
+      setHasPlans(true);
+      const next=detail.plan;setCurrent(next);
+      setDraft({name:next.name,pathId:next.pathId,subjectIds:next.subjectIds,courseIds:next.courseIds,startDate:next.startDate,endDate:next.endDate,skipCompletedQuizzes:next.skipCompletedQuizzes,offDays:next.offDays,dailyMinutes:next.dailyMinutes,preferredStartTime:next.preferredStartTime,status:next.status});
     }).catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل الخطط')}).finally(()=>{if(!c.signal.aborted)setBusy(false)});
     return()=>c.abort();
   },[authLoading,pathId,reload,statusView,user]);
@@ -108,7 +107,9 @@ export function StudyPlanPage(){
     setPathId(value);setCurrent(null);setCourseSubjectId('');setCourseOptions([]);setDraft(draftFor(value));setNotice('');setError('');
   }
   function toggleSubject(id:string){
-    setDraft(x=>({...x,subjectIds:x.subjectIds.includes(id)?x.subjectIds.filter(v=>v!==id):[...x.subjectIds,id],courseIds:x.subjectIds.includes(id)?x.courseIds:x.courseIds}));
+    setCourseSubjectId('');
+    setCourseOptions([]);
+    setDraft(x=>({...x,subjectIds:x.subjectIds.includes(id)?x.subjectIds.filter(v=>v!==id):[...x.subjectIds,id],courseIds:[]}));
   }
   function toggleCourse(id:string){
     setDraft(x=>({...x,courseIds:x.courseIds.includes(id)?x.courseIds.filter(v=>v!==id):[...x.courseIds,id]}));
@@ -215,7 +216,7 @@ export function StudyPlanPage(){
         </div>
 
         {grouped.length===0?<div className="rounded-2xl border border-dashed bg-white p-8 text-center font-bold text-gray-500">لا توجد مهام في هذا النطاق الزمني.</div>:grouped.map(([date,items])=><article key={date} className="overflow-hidden rounded-2xl border bg-white shadow-sm"><div className="border-b bg-gray-50 px-4 py-3 font-black">{new Date(date+'T12:00:00').toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long'})}</div><div className="divide-y">{items.map(item=>{const href=taskLink(item,current);const row=<div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex gap-3"><div className={`mt-0.5 rounded-xl p-2 ${item.completed?'bg-emerald-50 text-emerald-700':'bg-indigo-50 text-indigo-700'}`}>{item.completed?<CheckCircle2 size={18}/>:taskIcon(item.itemType)}</div><div><div className="font-black">{item.title}</div><div className="mt-1 flex flex-wrap gap-2 text-xs font-bold text-gray-500"><span>{item.scheduledTime}</span><span>{item.durationMinutes} دقيقة</span><span>{phaseLabel(item.phase)}</span>{!item.available?<span className="text-rose-600">غير متاح حاليًا</span>:null}</div></div></div>{item.available&&(href||item.externalUrl)?item.externalUrl?<a href={item.externalUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-1 rounded-xl border px-3 py-2 text-sm font-black">فتح المورد<ExternalLink size={15}/></a>:<Link to={href} className="rounded-xl bg-indigo-600 px-3 py-2 text-center text-sm font-black text-white">ابدأ المهمة</Link>:null}</div>;return <div key={item.id}>{row}</div>})}</div></article>)}
-      </section>:summaries.length===0?<div className="rounded-3xl border border-dashed bg-white p-10 text-center font-bold text-gray-500">{statusView==='active'?'لا توجد خطة نشطة لهذا المسار بعد.':'لا توجد خطط مؤرشفة.'}</div>:null}
+      </section>:!hasPlans?<div className="rounded-3xl border border-dashed bg-white p-10 text-center font-bold text-gray-500">{statusView==='active'?'لا توجد خطة نشطة لهذا المسار بعد.':'لا توجد خطط مؤرشفة.'}</div>:null}
     </div>
   </main>;
 }
