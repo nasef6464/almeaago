@@ -128,10 +128,9 @@ func TestResultViewsRejectNonStudent(t *testing.T) {
 	}
 }
 
-
 type fakeAttemptEvidenceRepo struct {
 	*fakeAttemptRepo
-	event learning.SubmissionEvidence
+	event       learning.SubmissionEvidence
 	sourceCalls int
 }
 
@@ -144,7 +143,7 @@ func (f *fakeAttemptEvidenceRepo) LearningSubmissionEvidence(_ context.Context, 
 }
 
 type fakeEvidenceSink struct {
-	calls int
+	calls     int
 	failFirst bool
 }
 

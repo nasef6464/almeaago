@@ -12,20 +12,20 @@ import (
 )
 
 type repoStub struct {
-	progress       learning.SkillProgressPage
-	weakest        *learning.SkillProgress
-	cards          []learning.ReviewCard
-	hasMore        bool
-	applied        learning.SubmissionEvidence
-	lastStudent    string
-	lastPath       string
-	lastSubject    string
-	lastPage       int
-	lastLimit      int
-	lastTab        learning.ReviewTab
-	savedQuestion  string
-	savedValue     bool
-	err            error
+	progress      learning.SkillProgressPage
+	weakest       *learning.SkillProgress
+	cards         []learning.ReviewCard
+	hasMore       bool
+	applied       learning.SubmissionEvidence
+	lastStudent   string
+	lastPath      string
+	lastSubject   string
+	lastPage      int
+	lastLimit     int
+	lastTab       learning.ReviewTab
+	savedQuestion string
+	savedValue    bool
+	err           error
 }
 
 func (r *repoStub) ApplyAssessmentEvidence(_ context.Context, event learning.SubmissionEvidence) (learning.ApplyResult, error) {

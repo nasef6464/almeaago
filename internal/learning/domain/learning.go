@@ -181,10 +181,10 @@ func SM2(card SM2Card, quality int, now time.Time) SM2Result {
 	}
 	ease = math.Round(ease*1000) / 1000
 	return SM2Result{
-		EaseFactor: ease,
-		Interval: interval,
+		EaseFactor:  ease,
+		Interval:    interval,
 		Repetitions: repetitions,
-		NextReview: now.Add(time.Duration(interval) * 24 * time.Hour),
+		NextReview:  now.Add(time.Duration(interval) * 24 * time.Hour),
 	}
 }
 
