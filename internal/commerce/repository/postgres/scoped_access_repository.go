@@ -18,9 +18,9 @@ func (r *Repository) ResolveScopedAccess(
 	packageOnly bool,
 ) (commerce.AccessDecision, error) {
 	decision := commerce.AccessDecision{Configured: true}
-	var entitlementID, subjectType, productID string
+	var entitlementID, subjectType, productID, sourceType string
 	err := r.db.QueryRow(ctx, `
-SELECT e.id::text,e.subject_type,p.id::text
+SELECT e.id::text,e.subject_type,p.id::text,e.source_type
 FROM commerce_entitlements e
 JOIN commerce_products p ON p.id=e.product_id
 LEFT JOIN commerce_packages pkg ON pkg.product_id=p.id
@@ -65,7 +65,7 @@ ORDER BY
   e.created_at DESC,e.id
 LIMIT 1
 `, userID, schoolIDs, pathID, subjectID, courseID, string(contentType), packageOnly).Scan(
-		&entitlementID, &subjectType, &productID,
+		&entitlementID, &subjectType, &productID, &sourceType,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		decision.Allowed = false
@@ -78,7 +78,7 @@ LIMIT 1
 	decision.Allowed = true
 	decision.ProductID = productID
 	decision.EntitlementID = entitlementID
-	decision.EntitlementSource = subjectType
+	decision.EntitlementSource = sourceType
 	if subjectType == "school" {
 		decision.Reason = "school_entitlement"
 	} else {
