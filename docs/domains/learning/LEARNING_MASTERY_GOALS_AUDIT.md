@@ -1,6 +1,6 @@
 # Learning Mastery Goals Audit
 
-Status: **IN REVIEW**
+Status: **TESTED / MERGED**
 
 ## Verified legacy contract
 Sources inspected before implementation:
@@ -92,3 +92,13 @@ The `/review` Learning surface now carries the verified goal panel:
 - parent/school reporting of goals.
 
 Those require separate contracts and are not inferred in this slice.
+
+## Verification checkpoint
+- exact tested PR head: `25c95ce69276f501b0d06934fb85b513420d5fbc`.
+- Database CI `36227064502`: PASS.
+- Backend CI `36227064489`: PASS.
+- Frontend CI `36227064477`: PASS.
+- Frontend E2E `36227064470`: PASS.
+- browser evidence artifact: `10901058035`.
+- PR #52 merged to `main` as `1d77971252e2b5aa98fad5321b77436cf516c473`.
+- first-pass gofmt and Playwright mock-scope/routing failures were fixed on the same PR without weakening product behavior.

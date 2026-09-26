@@ -662,32 +662,32 @@ Verification:
 Audit:
 - `docs/domains/learning/LEARNING_LESSON_VIDEO_PROGRESS_AUDIT.md`.
 
-## Learning Mastery Goals — IN REVIEW
-Active branch: `feat/learning-mastery-goals`.
+## Learning Mastery Goals — TESTED / MERGED
+PR #52 passed all required exact-head gates on `25c95ce69276f501b0d06934fb85b513420d5fbc` and merged to `main` as `1d77971252e2b5aa98fad5321b77436cf516c473`.
 
-Legacy behavior verified before implementation:
-- `MasteryGoal` stores learner, path/optional subject, `topic|section|path` target, 50–100 target mastery, `short|long` horizon, due date and `active|achieved|archived` status.
-- student Reports UI creates a short goal (14 days) and long goal (60 days), defaulting to 90% target mastery.
-- goals are tracking markers; they do not mutate mastery score.
-- legacy staff could target scoped students, but that authority depends on school/report scope.
-
-Implemented on the branch:
+Implemented:
 - migration `000025_learning_mastery_goals` with normalized learner/path/subject ownership, bounded indexes and no user-embedded arrays.
 - student-only bounded list (default 20, max 100, `hasMore`; no exact-count scan).
 - CSRF-protected create/update with optimistic `expectedUpdatedAt`.
-- Taxonomy-owned active path/subject validation through a narrow boundary.
-- default 90% mastery and short-horizon compatibility.
-- responsive goals panel integrated into `/review`, with one active short and one active long goal per current UI scope, legacy 14/60-day quick creation, achieve/archive controls, and mobile E2E.
-- verified path targets are supported now.
-- legacy `section/topic` targets fail closed because the target platform intentionally removed a canonical Section table and no safe Topic mapping is yet owned by Taxonomy.
-- staff-targeted learner goals remain deferred to the school Interventions slice, where Organizations authorization can be composed correctly.
+- Taxonomy-owned active path/optional-subject validation through a narrow boundary.
+- verified legacy defaults: 90% target mastery, short/long horizons, 14/60-day quick due dates.
+- responsive goals panel integrated into `/review`, with one active short and one active long goal in the current UI scope plus achieve/archive controls.
+- goals remain tracking markers and do not mutate mastery evidence/progress.
+- verified canonical path targets are supported now.
+- legacy `section/topic` targets fail closed because V2 has no canonical legacy Section mapping and no safe Topic mapping has been assigned to Taxonomy.
+- staff-targeted learner goals remain deferred to school Interventions where Organizations authority can be composed correctly.
 - Study Plans, school Interventions, Commerce, Realtime and AI remain outside this batch.
+
+Verification:
+- Database CI `36227064502`: PASS apply + schema verification + rollback + re-apply.
+- Backend CI `36227064489`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36227064477`: PASS typecheck + production build.
+- Frontend E2E `36227064470`: PASS mobile self-owned goal create, optional path-only → exact subject scope transition, CSRF POST, optimistic achieve PATCH and existing browser suite.
+- browser evidence artifact `10901058035`.
+- initial gofmt and Playwright mock-scope/routing failures were corrected on the same PR without weakening behavior.
 
 Audit:
 - `docs/domains/learning/LEARNING_MASTERY_GOALS_AUDIT.md`.
 
-Verification state:
-- not merge-qualified until the exact PR head passes Database CI + Backend CI + Frontend CI + Frontend E2E.
-
 ## Next exact action
-Open the Mastery Goals PR from `feat/learning-mastery-goals`, run exact-head Database + Backend + Frontend + E2E gates, fix every failure on the same branch without weakening tests, record verified SHA/run evidence, and merge only when all gates are green. After merge, audit and cut over Study Plans as the next lowest-dependency Learning slice before school Interventions.
+Continue Phase 7 from current `main` with a verified Study Plans contract audit and normalized cutover. Preserve the legacy plan shape only where evidenced, keep plan ownership in Learning, reuse canonical Content/Taxonomy IDs instead of copying lessons/quizzes, keep schedule generation deterministic and bounded, and do not fold school Interventions into the same batch. Staff-created intervention plans must wait for the separate Interventions slice where Organizations scope is authoritative.
