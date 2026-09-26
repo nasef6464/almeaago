@@ -138,6 +138,9 @@ type PaymentRequest struct {
 	Status                PaymentStatus `json:"status"`
 	IdempotencyKey        string        `json:"idempotencyKey"`
 	ProviderTransactionID string        `json:"providerTransactionId"`
+	RevenueCourseID       string        `json:"revenueCourseId"`
+	RevenueTrainerUserID  string        `json:"revenueTrainerUserId"`
+	RevenueSharePercentage *float64      `json:"revenueSharePercentage"`
 	PaidAt                *time.Time    `json:"paidAt"`
 	ReviewedBy            string        `json:"reviewedBy"`
 	ReviewedAt            *time.Time    `json:"reviewedAt"`
