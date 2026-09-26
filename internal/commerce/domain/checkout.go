@@ -28,6 +28,7 @@ const (
 
 	GatewayManualReview GatewayMode = "manual_review"
 	GatewayWebhook      GatewayMode = "webhook"
+	GatewayPaymentLink  GatewayMode = "payment_link"
 
 	PaymentPending   PaymentStatus = "pending"
 	PaymentPaid      PaymentStatus = "paid"
@@ -50,7 +51,9 @@ func ValidDiscountScopeType(v DiscountScopeType) bool {
 func ValidPaymentMethod(v PaymentMethod) bool {
 	return v == PaymentCard || v == PaymentTransfer || v == PaymentWallet
 }
-func ValidGatewayMode(v GatewayMode) bool { return v == GatewayManualReview || v == GatewayWebhook }
+func ValidGatewayMode(v GatewayMode) bool {
+	return v == GatewayManualReview || v == GatewayWebhook || v == GatewayPaymentLink
+}
 func ValidProviderEventStatus(v ProviderEventStatus) bool {
 	return v == ProviderPaid || v == ProviderFailed || v == ProviderCancelled
 }
@@ -138,6 +141,9 @@ type PaymentRequest struct {
 	Status                 PaymentStatus `json:"status"`
 	IdempotencyKey         string        `json:"idempotencyKey"`
 	ProviderTransactionID  string        `json:"providerTransactionId"`
+	ProviderSessionID      string        `json:"providerSessionId"`
+	ProviderRedirectURL    string        `json:"providerRedirectUrl"`
+	ProviderSessionStatus  string        `json:"providerSessionStatus"`
 	RevenueCourseID        string        `json:"revenueCourseId"`
 	RevenueTrainerUserID   string        `json:"revenueTrainerUserId"`
 	RevenueSharePercentage *float64      `json:"revenueSharePercentage"`
