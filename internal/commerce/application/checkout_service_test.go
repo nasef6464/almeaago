@@ -32,7 +32,7 @@ func (r *checkoutRepoStub) UpdateDiscount(context.Context, string, string, int, 
 func (r *checkoutRepoStub) PreviewDiscount(context.Context, string, string) (commerce.DiscountPreview, error) {
 	return r.preview, nil
 }
-func (r *checkoutRepoStub) CreatePaymentRequest(_ context.Context, _ string, in commerce.CheckoutCreate, p commerce.CheckoutPolicy) (commerce.PaymentRequest, error) {
+func (r *checkoutRepoStub) CreatePaymentRequest(_ context.Context, _ string, in commerce.CheckoutCreate, p commerce.CheckoutPolicy, _ commerce.RevenuePolicySnapshot) (commerce.PaymentRequest, error) {
 	r.input = in
 	r.policy = p
 	return r.request, nil
@@ -48,6 +48,15 @@ func (r *checkoutRepoStub) ReviewPaymentRequest(context.Context, string, string,
 }
 func (r *checkoutRepoStub) ApplyProviderEvent(context.Context, string, commerce.ProviderEvent) (commerce.ProviderEventResult, error) {
 	return commerce.ProviderEventResult{}, nil
+}
+func (r *checkoutRepoStub) ListRevenueEntries(context.Context, int, int, commerce.RevenueAllocationStatus, commerce.PayoutStatus) (commerce.RevenueEntryPage, error) {
+	return commerce.RevenueEntryPage{}, nil
+}
+func (r *checkoutRepoStub) AllocateRevenue(context.Context, string, string, commerce.RevenueAllocation) (commerce.RevenueEntry, error) {
+	return commerce.RevenueEntry{}, nil
+}
+func (r *checkoutRepoStub) MarkPayoutPaid(context.Context, string, string, commerce.PayoutMarkPaid) (commerce.RevenueEntry, error) {
+	return commerce.RevenueEntry{}, nil
 }
 
 func checkoutUser() identity.User {
