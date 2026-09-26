@@ -859,5 +859,34 @@ Verification:
 Audit:
 - `docs/domains/commerce/COMMERCE_ASSESSMENT_ACCESS_AUDIT.md`.
 
+## Commerce Actual Revenue / Trainer Payout Ledger — TESTED / MERGED
+PR #60 passed all required exact-head gates on `8ed34950b19594bc07b7d02db05cd8fff353ac05` and merged to `main` as `c2e3555215ee17d6b193d12d270ff518169a9398`.
+
+Implemented:
+- migration `000032_commerce_revenue_payout_ledger` adds PaymentRequest trainer-policy snapshots and normalized `commerce_revenue_entries`.
+- Content remains owner of Course ownership + admin-controlled revenue-share policy; Commerce snapshots the policy through a narrow boundary at Checkout creation and never joins Content tables directly.
+- only teacher-owned Courses receive a trainer beneficiary; assigned teachers on platform-owned Courses are not silently treated as revenue owners.
+- a teacher-owned Course with no configured percentage is explicitly `policy_missing`; no payout amount is invented.
+- revenue rows are created only from trusted paid PaymentRequest transitions: evidence-backed manual approval or verified paid webhook with canonical amount/currency matching.
+- revenue creation is idempotent per PaymentRequest and stores server-authoritative gross, discount, paid amount and currency facts.
+- no historical backfill applies today's policy to old sales.
+- no provider fee/trainer share/platform share is automatically estimated because the source material does not define the financial formula.
+- platform-admin factual allocation requires explicit evidence, optimistic revision and exact integer-minor-unit identity: provider fee + trainer share + platform share = paid amount.
+- positive trainer share can be marked paid only after allocation with payout evidence; zero share is not treated as a pending payout.
+- allocation/payout mutations lock the row, enforce revision and write Operations audit events.
+- responsive Commerce admin shows factual revenue/allocation/payout status and states that settlement numbers are not estimates.
+- Package/Membership multi-trainer allocation remains deferred until an explicit business rule exists.
+
+Verification:
+- Database CI `36251701308`: PASS apply + schema verification + rollback + re-apply.
+- Backend CI `36251701292`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36251701283`: PASS typecheck + production build.
+- Frontend E2E `36251701284`: PASS all 30 browser tests including factual revenue allocation + trainer payout evidence.
+- browser evidence artifact `10910000402`, digest `sha256:7023d14206c488693fbc91659f095dbe16c48d034da1f9d94bacf70704d5b900`.
+- initial Backend failure was gofmt-only; initial E2E failure was an ambiguous locator after successful allocation. Both were fixed without weakening behavior and all four gates reran green on the final head.
+
+Audit:
+- `docs/domains/commerce/COMMERCE_REVENUE_PAYOUT_AUDIT.md`.
+
 ## Next exact action
-Continue Phase 8 Commerce from current `main` with one remaining focused Commerce slice after re-reading current code + blueprint. The still-deferred areas are provider-specific payment-session integration, trainer revenue/payout ledger, and expanded refunds/chargebacks. Do not combine them blindly; preserve server-authoritative pricing, provider evidence, idempotency and auditable ledger semantics.
+Continue Phase 8 Commerce from current `main` with one focused remaining slice after re-reading the blueprint and current provider/payment code. Still deferred: provider-specific payment-session integration and refunds/chargebacks/revenue reversal. Keep them separate unless one provider's documented contract makes their lifecycle inseparable. Do not invent provider choice, credentials, fee formulas, refund semantics, or payout formulas. Package/Membership multi-trainer allocation also remains deferred pending an explicit allocation rule.
