@@ -13,6 +13,7 @@ import type {
   LibraryDetail,
   LibrarySummary,
   LearnerCourse,
+  LearnerLessonDetail,
   LearnerTopic,
   LearningSpace,
   LessonDetail,
@@ -97,6 +98,13 @@ export const contentClient = {
   learnerCourse(courseId: string, signal?: AbortSignal) {
     return request<{ course: LearnerCourse }>(
       `/api/v1/learning-spaces/courses/${encodeURIComponent(courseId)}`,
+      { signal },
+    );
+  },
+
+  learnerCourseLesson(courseId: string, lessonId: string, signal?: AbortSignal) {
+    return request<{ lesson: LearnerLessonDetail }>(
+      `/api/v1/learning-spaces/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(lessonId)}`,
       { signal },
     );
   },

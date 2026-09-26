@@ -3,6 +3,8 @@ package postgres
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5"
+
 	content "github.com/nasef6464/almeaago/internal/content/domain"
 )
 
@@ -381,7 +383,7 @@ func (r *Repository) GetLearnerCourseLesson(ctx context.Context, courseID, lesso
 
 // ResolveLessonProgressTarget is Learning's bounded Content read boundary.
 // It returns false for hidden/locked content so Learning never grants access itself.
-func (r *Repository) ResolveLessonProgressTarget(ctx context.Context, contextType, contextID, lessonID, _ string) (bool, string, int, error) {
+func (r *Repository) ResolveLessonProgressTarget(ctx context.Context, contextType, contextID, lessonID string) (bool, string, int, error) {
 	var lessonType string
 	var duration int
 	switch contextType {

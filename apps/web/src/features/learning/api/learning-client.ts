@@ -218,3 +218,57 @@ export const learningClient = {
     );
   },
 };
+
+
+export type LessonProgressContextType='course'|'foundation';
+export type LessonProgressStatus='not_started'|'in_progress'|'completed';
+export interface LessonProgress {
+  lessonId:string;
+  contextType:LessonProgressContextType;
+  courseId:string;
+  topicId:string;
+  status:LessonProgressStatus;
+  positionSeconds:number;
+  completedAt:string|null;
+  updatedAt:string|null;
+}
+export interface LessonProgressContextInput {
+  contextType:LessonProgressContextType;
+  courseId:string;
+  topicId:string;
+}
+function lessonProgressQuery(input:LessonProgressContextInput){
+  const p=new URLSearchParams({contextType:input.contextType});
+  if(input.courseId)p.set('courseId',input.courseId);
+  if(input.topicId)p.set('topicId',input.topicId);
+  return p.toString();
+}
+
+export const lessonProgressClient={
+  get(lessonId:string,input:LessonProgressContextInput,signal?:AbortSignal){
+    return request<{progress:LessonProgress}>(
+      `/api/v1/learning-progress/lessons/${encodeURIComponent(lessonId)}?${lessonProgressQuery(input)}`,
+      {signal},
+    );
+  },
+  saveVideo(lessonId:string,input:LessonProgressContextInput,positionSeconds:number,csrfToken:string){
+    return request<{progress:LessonProgress}>(
+      `/api/v1/learning-progress/lessons/${encodeURIComponent(lessonId)}/video`,
+      {
+        method:'PUT',
+        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+        body:JSON.stringify({...input,positionSeconds}),
+      },
+    );
+  },
+  complete(lessonId:string,input:LessonProgressContextInput,csrfToken:string){
+    return request<{progress:LessonProgress}>(
+      `/api/v1/learning-progress/lessons/${encodeURIComponent(lessonId)}/complete`,
+      {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+        body:JSON.stringify(input),
+      },
+    );
+  },
+};

@@ -16,7 +16,7 @@ type LessonProgressRepository interface {
 }
 
 type LessonProgressContentResolver interface {
-	ResolveLessonProgressTarget(context.Context, string, string, string, string) (bool, string, int, error)
+	ResolveLessonProgressTarget(context.Context, string, string, string) (bool, string, int, error)
 }
 
 type LessonProgressService struct {
@@ -54,7 +54,7 @@ func (s *LessonProgressService) validateTarget(ctx context.Context, lessonID str
 	if in.ContextType == learning.LessonProgressFoundation {
 		contextID = in.TopicID
 	}
-	ok, lessonType, duration, err := s.content.ResolveLessonProgressTarget(ctx, string(in.ContextType), contextID, lessonID, "")
+	ok, lessonType, duration, err := s.content.ResolveLessonProgressTarget(ctx, string(in.ContextType), contextID, lessonID)
 	if err != nil {
 		return "", 0, err
 	}

@@ -28,7 +28,7 @@ func (r *lessonProgressRepoStub) CompleteLesson(_ context.Context,student,lesson
 	return learning.LessonProgress{LessonID:lessonID,ContextType:ct,CourseID:courseID,TopicID:topicID,Status:learning.LessonCompleted},nil
 }
 type lessonTargetStub struct{ ok bool; lessonType string; duration int }
-func (s lessonTargetStub) ResolveLessonProgressTarget(context.Context,string,string,string,string)(bool,string,int,error){return s.ok,s.lessonType,s.duration,nil}
+func (s lessonTargetStub) ResolveLessonProgressTarget(context.Context,string,string,string)(bool,string,int,error){return s.ok,s.lessonType,s.duration,nil}
 
 func progressStudent() identity.User { return identity.User{ID:"student-1",Roles:[]identity.Role{identity.RoleStudent}} }
 
