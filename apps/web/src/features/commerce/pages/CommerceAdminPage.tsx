@@ -2,7 +2,7 @@ import {BadgeDollarSign,CheckCircle2,KeyRound,Loader2,PackagePlus,Percent,Receip
 import {useEffect,useMemo,useState} from 'react';
 import {useAuth} from '../../auth/state/AuthProvider';
 import {commerceClient} from '../api/commerce-client';
-import type {CommerceContentType,CommerceDiscount,CommerceDiscountWrite,CommerceEntitlement,CommercePaymentRequest,CommerceProduct,CommerceProductWrite} from '../api/commerce-types';
+import type {CommerceAccessCode,CommerceContentType,CommerceDiscount,CommerceDiscountWrite,CommerceEntitlement,CommercePaymentRequest,CommerceProduct,CommerceProductWrite,CommerceSchoolSeat} from '../api/commerce-types';
 
 const money=(minor:number,currency:string)=>new Intl.NumberFormat('ar-SA',{style:'currency',currency}).format(minor/100);
 const productWrite=(p:CommerceProduct,priceMinor:number,accessMode:'free'|'paid'):CommerceProductWrite=>({
@@ -15,15 +15,19 @@ export function CommerceAdminPage(){
  const{user,loading:authLoading,getCsrfToken}=useAuth();
  const[products,setProducts]=useState<CommerceProduct[]>([]);const[entitlements,setEntitlements]=useState<CommerceEntitlement[]>([]);
  const[discounts,setDiscounts]=useState<CommerceDiscount[]>([]);const[paymentRequests,setPaymentRequests]=useState<CommercePaymentRequest[]>([]);
+ const[accessCodes,setAccessCodes]=useState<CommerceAccessCode[]>([]);const[schoolSeats,setSchoolSeats]=useState<CommerceSchoolSeat[]>([]);
  const[busy,setBusy]=useState(true);const[saving,setSaving]=useState('');const[error,setError]=useState('');const[notice,setNotice]=useState('');
  const[prices,setPrices]=useState<Record<string,number>>({});
  const[pkgName,setPkgName]=useState('');const[pkgCode,setPkgCode]=useState('');const[pkgPrice,setPkgPrice]=useState(0);const[pkgContent,setPkgContent]=useState<CommerceContentType>('all');
+ const[pkgKind,setPkgKind]=useState<'bundle'|'school'>('bundle');const[pkgSeats,setPkgSeats]=useState(30);
  const[subjectType,setSubjectType]=useState<'user'|'school'>('user');const[subjectId,setSubjectId]=useState('');const[grantProduct,setGrantProduct]=useState('');
+ const[accessCode,setAccessCode]=useState('');const[accessSchool,setAccessSchool]=useState('');const[accessProduct,setAccessProduct]=useState('');const[accessMaxUses,setAccessMaxUses]=useState(30);const[accessExpires,setAccessExpires]=useState('');
+ const[seatSchool,setSeatSchool]=useState('');const[seatUser,setSeatUser]=useState('');const[seatProduct,setSeatProduct]=useState('');
  const[discountCode,setDiscountCode]=useState('');const[discountPercent,setDiscountPercent]=useState(10);const[discountScope,setDiscountScope]=useState<'all'|'product'>('all');const[discountProduct,setDiscountProduct]=useState('');
  const[reload,setReload]=useState(0);
 
  useEffect(()=>{if(authLoading||!user||!user.roles.includes('admin'))return;const c=new AbortController();setBusy(true);setError('');
-  Promise.all([commerceClient.products(1,100,'','',c.signal),commerceClient.entitlements(1,50,c.signal),commerceClient.discounts(1,50,'','',c.signal),commerceClient.paymentRequests(1,50,'pending',c.signal)]).then(([p,e,d,r])=>{setProducts(p.items);setEntitlements(e.items);setDiscounts(d.items);setPaymentRequests(r.items);setPrices(Object.fromEntries(p.items.map(x=>[x.id,x.priceMinor])))}).catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل Commerce')}).finally(()=>{if(!c.signal.aborted)setBusy(false)});return()=>c.abort()
+  Promise.all([commerceClient.products(1,100,'','',c.signal),commerceClient.entitlements(1,50,c.signal),commerceClient.discounts(1,50,'','',c.signal),commerceClient.paymentRequests(1,50,'pending',c.signal),commerceClient.accessCodes(1,50,'',c.signal),commerceClient.schoolSeats(1,50,c.signal)]).then(([p,e,d,r,a,s])=>{setProducts(p.items);setEntitlements(e.items);setDiscounts(d.items);setPaymentRequests(r.items);setAccessCodes(a.items);setSchoolSeats(s.items);setPrices(Object.fromEntries(p.items.map(x=>[x.id,x.priceMinor])))}).catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل Commerce')}).finally(()=>{if(!c.signal.aborted)setBusy(false)});return()=>c.abort()
  },[authLoading,reload,user]);
 
  const activeProducts=useMemo(()=>products.filter(x=>x.status==='active'),[products]);
@@ -32,8 +36,20 @@ export function CommerceAdminPage(){
  }
  async function createPackage(){
   const name=pkgName.trim(),code=pkgCode.trim().toUpperCase();if(!name||!code){setError('اكتب اسم الباقة وكودها.');return}
-  setSaving('package');setError('');try{const csrf=await getCsrfToken();await commerceClient.createProduct({code,productType:'package',name,description:'',status:'active',accessMode:'paid',priceMinor:Math.max(1,Math.trunc(pkgPrice)),currency:'SAR',courseId:'',isVisible:true,package:{packageKind:'bundle',seatCapacity:null,validityDays:null,items:[{scopeType:pkgContent==='all'?'all':'content_type',courseId:'',pathId:'',subjectId:'',contentType:pkgContent==='all'?'':pkgContent}]}},csrf);setPkgName('');setPkgCode('');setPkgPrice(0);setNotice('تم إنشاء الباقة.');setReload(x=>x+1)}catch(e){setError(e instanceof Error?e.message:'تعذر إنشاء الباقة')}finally{setSaving('')}
+  setSaving('package');setError('');try{const csrf=await getCsrfToken();await commerceClient.createProduct({code,productType:'package',name,description:'',status:'active',accessMode:'paid',priceMinor:Math.max(1,Math.trunc(pkgPrice)),currency:'SAR',courseId:'',isVisible:true,package:{packageKind:pkgKind,seatCapacity:pkgKind==='school'?Math.max(1,Math.trunc(pkgSeats)):null,validityDays:null,items:[{scopeType:pkgContent==='all'?'all':'content_type',courseId:'',pathId:'',subjectId:'',contentType:pkgContent==='all'?'':pkgContent}]}},csrf);setPkgName('');setPkgCode('');setPkgPrice(0);setNotice('تم إنشاء الباقة.');setReload(x=>x+1)}catch(e){setError(e instanceof Error?e.message:'تعذر إنشاء الباقة')}finally{setSaving('')}
  }
+ async function createAccessCode(){
+  const code=accessCode.trim().toUpperCase(),schoolId=accessSchool.trim();if(!code||!schoolId||!accessProduct||!accessExpires){setError('اكتب الكود والمدرسة والباقة وتاريخ الانتهاء.');return}
+  setSaving('access-code');setError('');setNotice('');try{const csrf=await getCsrfToken();await commerceClient.createAccessCode({code,schoolId,productId:accessProduct,maxUses:Math.max(1,Math.trunc(accessMaxUses)),startsAt:null,expiresAt:new Date(accessExpires).toISOString()},csrf);setAccessCode('');setNotice('تم إنشاء كود التفعيل مع حد استخدام ومقاعد خاضعة للخادم.');setReload(x=>x+1)}catch(e){setError(e instanceof Error?e.message:'تعذر إنشاء كود التفعيل')}finally{setSaving('')}
+ }
+ async function toggleAccessCode(row:CommerceAccessCode){
+  setSaving(row.id);setError('');setNotice('');try{const csrf=await getCsrfToken();await commerceClient.updateAccessCode(row,row.status==='active'?'paused':'active',csrf);setNotice('تم تحديث حالة كود التفعيل.');setReload(x=>x+1)}catch(e){setError(e instanceof Error?e.message:'تعذر تحديث كود التفعيل')}finally{setSaving('')}
+ }
+ async function assignSeat(){
+  if(!seatSchool.trim()||!seatUser.trim()||!seatProduct){setError('حدد المدرسة والطالب والباقة المدرسية.');return}
+  setSaving('school-seat');setError('');setNotice('');try{const csrf=await getCsrfToken();await commerceClient.assignSchoolSeat({schoolId:seatSchool.trim(),userId:seatUser.trim(),productId:seatProduct,expiresAt:null,idempotencyKey:crypto.randomUUID()},csrf);setSeatUser('');setNotice('تم حجز مقعد صريح وإنشاء Entitlement واحد للطالب.');setReload(x=>x+1)}catch(e){setError(e instanceof Error?e.message:'تعذر حجز المقعد')}finally{setSaving('')}
+ }
+
  async function grant(){
   if(!subjectId.trim()||!grantProduct){setError('حدد المستفيد والمنتج.');return}
   setSaving('grant');setError('');try{const csrf=await getCsrfToken();await commerceClient.grant({subjectType,userId:subjectType==='user'?subjectId.trim():'',schoolId:subjectType==='school'?subjectId.trim():'',productId:grantProduct,expiresAt:null,idempotencyKey:crypto.randomUUID()},csrf);setSubjectId('');setNotice('تم منح الوصول يدويًا مع سجل قابل للتدقيق.');setReload(x=>x+1)}catch(e){setError(e instanceof Error?e.message:'تعذر منح الوصول')}finally{setSaving('')}
