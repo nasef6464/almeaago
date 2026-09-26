@@ -21,7 +21,8 @@ func (r *Repository) ListResults(ctx context.Context, student string, page, limi
 			z.unanswered,
 			z.passed,
 			z.time_spent_seconds,
-			z.finalized_at
+			z.finalized_at,
+			v.show_results_report
 		FROM assessment_results z
 		JOIN assessment_attempts x ON x.id=z.attempt_id
 		JOIN assessment_versions v
@@ -53,6 +54,7 @@ func (r *Repository) ListResults(ctx context.Context, student string, page, limi
 			&x.Passed,
 			&x.TimeSpentSeconds,
 			&x.FinalizedAt,
+			&x.ShowResultsReport,
 		); err != nil {
 			return out, err
 		}

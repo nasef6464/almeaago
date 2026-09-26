@@ -16,6 +16,7 @@ type ResultListItem struct {
 	Passed            bool      `json:"passed"`
 	TimeSpentSeconds  int       `json:"timeSpentSeconds"`
 	FinalizedAt       time.Time `json:"finalizedAt"`
+	ShowResultsReport bool      `json:"showResultsReport"`
 }
 
 // ResultPage is a bounded learner-owned history page.
