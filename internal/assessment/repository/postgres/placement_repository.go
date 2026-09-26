@@ -231,6 +231,29 @@ WHERE p.id=$1::uuid
 	return out, nil
 }
 
+func (r *Repository) FindPlacementStart(ctx context.Context, student, placementID, startKey string) (assessment.Attempt, bool, error) {
+	var id, existingStudent, existingPlacement string
+	err := r.db.QueryRow(ctx, `
+SELECT id::text,student_id::text,COALESCE(placement_id::text,'')
+FROM assessment_attempts
+WHERE start_key=$1
+`, startKey).Scan(&id, &existingStudent, &existingPlacement)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return assessment.Attempt{}, false, nil
+	}
+	if err != nil {
+		return assessment.Attempt{}, false, err
+	}
+	if existingStudent != student || existingPlacement != placementID {
+		return assessment.Attempt{}, false, assessment.ErrConflict
+	}
+	out, err := r.GetAttempt(ctx, id)
+	if err != nil {
+		return assessment.Attempt{}, false, err
+	}
+	return out, true, nil
+}
+
 func (r *Repository) StartPlacement(ctx context.Context, student, placementID, startKey string) (assessment.Attempt, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
