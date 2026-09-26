@@ -97,7 +97,7 @@ func main() {
 	checkoutService := commerceapp.NewCheckoutService(commerceRepository, commerce.CheckoutPolicy{
 		GatewayMode:  checkoutMode,
 		ProviderCode: strings.TrimSpace(os.Getenv("COMMERCE_PAYMENT_PROVIDER_CODE")),
-	})
+	}, contentRepository)
 	contentService := contentapp.NewServiceWithAuthorScope(contentRepository, authorScope, commerceService)
 	organizationsService := orgapp.NewServiceWithOptions(organizationsRepository, orgapp.ServiceOptions{
 		DirectorDirectory:       directorDirectory,
