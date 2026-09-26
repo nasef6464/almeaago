@@ -18,7 +18,7 @@ const (
 
 type RevenuePolicySnapshot struct {
 	CourseID               string
-	TrainerUserID           string
+	TrainerUserID          string
 	RevenueSharePercentage *float64
 }
 
