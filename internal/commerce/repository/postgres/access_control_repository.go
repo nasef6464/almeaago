@@ -76,7 +76,7 @@ RETURNING id::text
 		return commerce.AccessCode{}, mapError(err)
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actor,
+		ActorUserID:  actor,
 		Action:       "commerce.access_code.create",
 		ResourceType: "commerce_access_code",
 		ResourceID:   id,
@@ -110,7 +110,7 @@ WHERE id=$1::uuid AND revision=$2 AND current_uses<=$4
 		return commerce.AccessCode{}, commerce.ErrVersionConflict
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actor,
+		ActorUserID:  actor,
 		Action:       "commerce.access_code.update",
 		ResourceType: "commerce_access_code",
 		ResourceID:   id,
@@ -242,20 +242,37 @@ func (r *Repository) createSchoolSeatTx(
 	err := tx.QueryRow(ctx, `
 SELECT id::text,entitlement_id::text
 FROM commerce_school_seats
-WHERE school_id=$1::uuid AND product_id=$2::uuid AND user_id=$3::uuid
-`, schoolID, productID, userID).Scan(&existingSeatID, &existingEntitlementID)
+WHERE idempotency_key=$1
+`, idempotencyKey).Scan(&existingSeatID, &existingEntitlementID)
 	if err == nil {
 		seat, seatErr := scanSchoolSeat(tx.QueryRow(ctx, schoolSeatSelect+` WHERE id=$1::uuid`, existingSeatID))
 		if seatErr != nil {
 			return commerce.SchoolSeat{}, commerce.Entitlement{}, seatErr
 		}
+		if seat.SchoolID != schoolID || seat.ProductID != productID || seat.UserID != userID || seat.SourceType != sourceType || seat.SourceID != sourceID {
+			return commerce.SchoolSeat{}, commerce.Entitlement{}, commerce.ErrConflict
+		}
 		entitlement, entitlementErr := scanEntitlement(tx.QueryRow(ctx, entitlementSelect+` WHERE id=$1::uuid`, existingEntitlementID))
 		if entitlementErr != nil {
 			return commerce.SchoolSeat{}, commerce.Entitlement{}, entitlementErr
 		}
-		if seat.IdempotencyKey == idempotencyKey {
-			return seat, entitlement, nil
-		}
+		return seat, entitlement, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return commerce.SchoolSeat{}, commerce.Entitlement{}, err
+	}
+
+	err = tx.QueryRow(ctx, `
+SELECT s.id::text,s.entitlement_id::text
+FROM commerce_school_seats s
+JOIN commerce_entitlements e ON e.id=s.entitlement_id
+WHERE s.school_id=$1::uuid AND s.product_id=$2::uuid AND s.user_id=$3::uuid
+  AND e.status='active' AND e.starts_at<=now() AND (e.expires_at IS NULL OR e.expires_at>now())
+ORDER BY s.created_at DESC,s.id DESC
+LIMIT 1
+FOR UPDATE OF s,e
+`, schoolID, productID, userID).Scan(&existingSeatID, &existingEntitlementID)
+	if err == nil {
 		return commerce.SchoolSeat{}, commerce.Entitlement{}, commerce.ErrConflict
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
@@ -282,10 +299,23 @@ INSERT INTO commerce_entitlements(
   'user',$1::uuid,$2::uuid,$3,$4,'active',NULLIF($5,'')::uuid,$6,$7,$8,
   jsonb_build_object('schoolId',$9,'seatSource',$10)
 )
-ON CONFLICT(idempotency_key) DO UPDATE SET idempotency_key=EXCLUDED.idempotency_key
+ON CONFLICT(idempotency_key) DO NOTHING
 RETURNING id::text
 `, userID, productID, entitlementSource, sourceID, actor, now, expiresAt, idempotencyKey, schoolID, sourceType).Scan(&entitlementID)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
+		var existingUserID, existingProductID, existingSourceType, existingSourceID string
+		err = tx.QueryRow(ctx, `
+SELECT id::text,COALESCE(user_id::text,''),product_id::text,source_type,source_id
+FROM commerce_entitlements
+WHERE idempotency_key=$1
+`, idempotencyKey).Scan(&entitlementID, &existingUserID, &existingProductID, &existingSourceType, &existingSourceID)
+		if err != nil {
+			return commerce.SchoolSeat{}, commerce.Entitlement{}, mapError(err)
+		}
+		if existingUserID != userID || existingProductID != productID || existingSourceType != entitlementSource || existingSourceID != sourceID {
+			return commerce.SchoolSeat{}, commerce.Entitlement{}, commerce.ErrConflict
+		}
+	} else if err != nil {
 		return commerce.SchoolSeat{}, commerce.Entitlement{}, mapError(err)
 	}
 
@@ -390,7 +420,7 @@ WHERE id=$1::uuid AND current_uses<max_uses
 	accessCode.UpdatedAt = now
 
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: userID,
+		ActorUserID:  userID,
 		Action:       "commerce.access_code.redeem",
 		ResourceType: "commerce_access_code",
 		ResourceID:   accessCode.ID,
@@ -427,7 +457,7 @@ func (r *Repository) AssignSchoolSeat(ctx context.Context, actor string, in comm
 		return commerce.SchoolSeat{}, commerce.Entitlement{}, err
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actor,
+		ActorUserID:  actor,
 		Action:       "commerce.school_seat.assign",
 		ResourceType: "commerce_school_seat",
 		ResourceID:   seat.ID,
