@@ -29,6 +29,11 @@ ALTER TABLE commerce_payment_requests
     ))
   );
 
+DROP INDEX IF EXISTS commerce_payment_requests_provider_session_idx;
+CREATE UNIQUE INDEX commerce_payment_requests_provider_session_idx
+  ON commerce_payment_requests(provider_code,provider_session_id)
+  WHERE provider_session_id <> '';
+
 ALTER TABLE commerce_provider_events
   DROP CONSTRAINT IF EXISTS commerce_provider_events_event_status_check;
 
