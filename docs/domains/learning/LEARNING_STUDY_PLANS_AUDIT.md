@@ -1,6 +1,6 @@
 # Learning Study Plans Audit
 
-Status: **IN REVIEW**
+Status: **TESTED / MERGED**
 
 ## Legacy evidence used
 Verified from the legacy repository:
@@ -101,3 +101,13 @@ No exact-count query is required.
 - AI-generated plan rewriting.
 - Realtime classroom scheduling.
 - parent/school reporting.
+
+
+## Verification checkpoint
+- exact tested PR head: `f7334dfbb3a0513cacf694082eaa3a2e2d924dce`.
+- Database CI `36230733615`: PASS.
+- Backend CI `36230733610`: PASS.
+- Frontend CI `36230733660`: PASS.
+- Frontend E2E `36230733696`: PASS.
+- browser evidence artifact: `10901838282`.
+- PR #53 merged to `main` as `22eaaab106be64dce2e33d4e194263f1dbc0d93b`.

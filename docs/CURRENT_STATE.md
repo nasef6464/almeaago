@@ -689,28 +689,33 @@ Verification:
 Audit:
 - `docs/domains/learning/LEARNING_MASTERY_GOALS_AUDIT.md`.
 
-## Learning Study Plans — IN REVIEW
-Active branch: `feat/learning-study-plans`.
+## Learning Study Plans — TESTED / MERGED
+PR #53 passed all required exact-head gates on `f7334dfbb3a0513cacf694082eaa3a2e2d924dce` and merged to `main` as `22eaaab106be64dce2e33d4e194263f1dbc0d93b`.
 
-Implemented on the branch:
+Implemented:
 - normalized self-owned `study_plans` plus subject/course/off-day relations and relational `study_plan_items`.
-- legacy-evidenced plan settings preserved: name, path, optional subjects/courses, date range, skip-completed assessments, off-days, daily minutes, preferred start time, active/archive.
+- legacy-evidenced plan settings preserved: name, path, optional subjects/courses, date range, skip-completed assessments, off-days, daily minutes, preferred start time, active/archive and delete.
 - deterministic server-side schedule generation with bounded candidate catalogs, daily minute budget, off-day exclusion and foundation/practice/review phases.
 - Study Plan items reference canonical Content Lessons/Library items and Assessment learning placements; no Lesson/Question/Assessment payload copies.
 - Taxonomy validates active path/subject scope through a narrow boundary.
 - Content validates selected Courses and provides bounded learner-safe Lesson/Library candidates through a narrow boundary.
 - Assessment provides bounded published placement candidates and completion/attempt-budget projection through a narrow boundary.
-- existing Learning Lesson progress is reused for completion without embedded completed arrays.
+- existing Learning Lesson progress is reused for completion without embedded completion arrays.
 - student-only CSRF-protected create/update/delete, optimistic `expectedUpdatedAt` updates and bounded list.
 - responsive `/plan` flow with lazy exact-subject Course discovery and today/week/all schedule views.
 - normal list hydrates only the first selected plan detail instead of issuing detail reads for every listed plan.
-- staff-created intervention plans remain deliberately outside this batch; Organizations authority must be composed in the separate Interventions slice.
+- staff-created intervention plans remain deliberately outside this batch; Organizations authority is reserved for the separate Interventions slice.
+
+Verification:
+- Database CI `36230733615`: PASS apply + schema verification + rollback + re-apply.
+- Backend CI `36230733610`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36230733660`: PASS typecheck + production build.
+- Frontend E2E `36230733696`: PASS mobile create, lazy exact-subject Course discovery, deterministic schedule rendering, one-detail hydration and optimistic CSRF archive plus existing browser suite.
+- browser evidence artifact `10901838282`.
+- initial gofmt and ambiguous Playwright selector failures were corrected on the same PR without weakening behavior.
 
 Audit:
 - `docs/domains/learning/LEARNING_STUDY_PLANS_AUDIT.md`.
 
-Verification state:
-- not merge-qualified until exact-head Database CI + Backend CI + Frontend CI + Frontend E2E pass.
-
 ## Next exact action
-Open the Learning Study Plans PR, run exact-head Database + Backend + Frontend + E2E gates, fix every failure on the same branch without weakening tests, record the verified SHA/run evidence, and merge only when all gates are Green. After merge, continue the separate school Interventions slice using Organizations authority rather than expanding Study Plans staff access.
+Continue Phase 7 from current `main` with the separate school Interventions contract audit and normalized cutover. Keep intervention state in Learning but compose staff/student/school authority through Organizations; do not grant staff access by widening the learner Study Plan API. Verify the legacy intervention fields and school-role rules first, then implement bounded staff list/create/update lifecycle, learner-visible intervention projection where evidenced, PostgreSQL relationships, responsive staff/student UI and exact-head Database + Backend + Frontend + E2E gates before merge.
