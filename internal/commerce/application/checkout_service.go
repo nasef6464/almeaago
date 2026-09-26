@@ -19,25 +19,37 @@ type CheckoutRepository interface {
 	CreateDiscount(context.Context, string, commerce.DiscountWrite) (commerce.DiscountCode, error)
 	UpdateDiscount(context.Context, string, string, int, commerce.DiscountWrite) (commerce.DiscountCode, error)
 	PreviewDiscount(context.Context, string, string) (commerce.DiscountPreview, error)
-	CreatePaymentRequest(context.Context, string, commerce.CheckoutCreate, commerce.CheckoutPolicy) (commerce.PaymentRequest, error)
+	CreatePaymentRequest(context.Context, string, commerce.CheckoutCreate, commerce.CheckoutPolicy, commerce.RevenuePolicySnapshot) (commerce.PaymentRequest, error)
 	ListUserPaymentRequests(context.Context, string, int, int) (commerce.PaymentRequestPage, error)
 	ListAdminPaymentRequests(context.Context, int, int, commerce.PaymentStatus) (commerce.PaymentRequestPage, error)
 	ReviewPaymentRequest(context.Context, string, string, commerce.PaymentReview) (commerce.PaymentRequest, error)
 	ApplyProviderEvent(context.Context, string, commerce.ProviderEvent) (commerce.ProviderEventResult, error)
+	ListRevenueEntries(context.Context, int, int, commerce.RevenueAllocationStatus, commerce.PayoutStatus) (commerce.RevenueEntryPage, error)
+	AllocateRevenue(context.Context, string, string, commerce.RevenueAllocation) (commerce.RevenueEntry, error)
+	MarkPayoutPaid(context.Context, string, string, commerce.PayoutMarkPaid) (commerce.RevenueEntry, error)
+}
+
+type RevenuePolicyResolver interface {
+	CourseRevenuePolicy(context.Context, string) (string, *float64, bool, error)
 }
 
 type CheckoutService struct {
-	repo   CheckoutRepository
-	policy commerce.CheckoutPolicy
+	repo    CheckoutRepository
+	policy  commerce.CheckoutPolicy
+	revenue RevenuePolicyResolver
 }
 
-func NewCheckoutService(repo CheckoutRepository, policy commerce.CheckoutPolicy) *CheckoutService {
+func NewCheckoutService(repo CheckoutRepository, policy commerce.CheckoutPolicy, revenue ...RevenuePolicyResolver) *CheckoutService {
 	policy.ProviderCode = strings.ToLower(strings.TrimSpace(policy.ProviderCode))
 	if !commerce.ValidGatewayMode(policy.GatewayMode) || policy.ProviderCode == "" || !providerCodePattern.MatchString(policy.ProviderCode) {
 		policy.GatewayMode = commerce.GatewayManualReview
 		policy.ProviderCode = "manual"
 	}
-	return &CheckoutService{repo: repo, policy: policy}
+	service := &CheckoutService{repo: repo, policy: policy}
+	if len(revenue) > 0 {
+		service.revenue = revenue[0]
+	}
+	return service
 }
 
 func normalizeDiscountWrite(w *commerce.DiscountWrite) error {
@@ -140,7 +152,27 @@ func (s *CheckoutService) CreateCheckout(ctx context.Context, actor identity.Use
 	if policy.GatewayMode == commerce.GatewayManualReview {
 		policy.ProviderCode = "manual_" + string(in.PaymentMethod)
 	}
-	return s.repo.CreatePaymentRequest(ctx, actor.ID, in, policy)
+	product, err := s.repo.GetProduct(ctx, in.ProductID)
+	if err != nil {
+		return commerce.PaymentRequest{}, err
+	}
+	revenue := commerce.RevenuePolicySnapshot{}
+	if product.ProductType == commerce.ProductCourse {
+		if s.revenue == nil {
+			return commerce.PaymentRequest{}, commerce.ErrConflict
+		}
+		trainerID, percentage, eligible, resolveErr := s.revenue.CourseRevenuePolicy(ctx, product.CourseID)
+		if resolveErr != nil {
+			return commerce.PaymentRequest{}, resolveErr
+		}
+		if !eligible {
+			return commerce.PaymentRequest{}, commerce.ErrConflict
+		}
+		revenue.CourseID = product.CourseID
+		revenue.TrainerUserID = trainerID
+		revenue.RevenueSharePercentage = percentage
+	}
+	return s.repo.CreatePaymentRequest(ctx, actor.ID, in, policy, revenue)
 }
 
 func (s *CheckoutService) MyRequests(ctx context.Context, actor identity.User, page, limit int) (commerce.PaymentRequestPage, error) {
@@ -261,4 +293,46 @@ func (s *CheckoutService) ProviderEvent(ctx context.Context, provider string, in
 		}
 	}
 	return s.repo.ApplyProviderEvent(ctx, provider, in)
+}
+
+func (s *CheckoutService) RevenueEntries(ctx context.Context, actor identity.User, page, limit int, allocation commerce.RevenueAllocationStatus, payout commerce.PayoutStatus) (commerce.RevenueEntryPage, error) {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return commerce.RevenueEntryPage{}, ErrForbidden
+	}
+	var err error
+	page, limit, err = normalizePage(page, limit, 50)
+	if err != nil {
+		return commerce.RevenueEntryPage{}, err
+	}
+	if allocation != "" && allocation != commerce.RevenueNotApplicable && allocation != commerce.RevenuePolicyMissing && allocation != commerce.RevenuePending && allocation != commerce.RevenueAllocated {
+		return commerce.RevenueEntryPage{}, ErrInvalidInput
+	}
+	if payout != "" && payout != commerce.PayoutNotApplicable && payout != commerce.PayoutPending && payout != commerce.PayoutPaid {
+		return commerce.RevenueEntryPage{}, ErrInvalidInput
+	}
+	return s.repo.ListRevenueEntries(ctx, page, limit, allocation, payout)
+}
+
+func (s *CheckoutService) AllocateRevenue(ctx context.Context, actor identity.User, id string, in commerce.RevenueAllocation) (commerce.RevenueEntry, error) {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return commerce.RevenueEntry{}, ErrForbidden
+	}
+	id = strings.TrimSpace(id)
+	in.Evidence = strings.TrimSpace(in.Evidence)
+	if id == "" || in.ExpectedRevision < 1 || in.ProviderFeeMinor < 0 || in.TrainerShareMinor < 0 || in.PlatformShareMinor < 0 || len(in.Evidence) < 6 || len(in.Evidence) > 2000 {
+		return commerce.RevenueEntry{}, ErrInvalidInput
+	}
+	return s.repo.AllocateRevenue(ctx, actor.ID, id, in)
+}
+
+func (s *CheckoutService) MarkPayoutPaid(ctx context.Context, actor identity.User, id string, in commerce.PayoutMarkPaid) (commerce.RevenueEntry, error) {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return commerce.RevenueEntry{}, ErrForbidden
+	}
+	id = strings.TrimSpace(id)
+	in.Evidence = strings.TrimSpace(in.Evidence)
+	if id == "" || in.ExpectedRevision < 1 || len(in.Evidence) < 6 || len(in.Evidence) > 2000 {
+		return commerce.RevenueEntry{}, ErrInvalidInput
+	}
+	return s.repo.MarkPayoutPaid(ctx, actor.ID, id, in)
 }

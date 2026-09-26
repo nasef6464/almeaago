@@ -343,6 +343,7 @@ const paymentSelect = `
 SELECT id::text,user_id::text,product_id::text,product_revision,product_name,original_amount_minor,
        discount_amount_minor,final_amount_minor,currency,COALESCE(discount_id::text,''),discount_code,
        payment_method,gateway_mode,provider_code,status,idempotency_key,provider_transaction_id,
+       COALESCE(revenue_course_id::text,''),COALESCE(revenue_trainer_user_id::text,''),revenue_share_percentage,
        paid_at,COALESCE(reviewed_by::text,''),reviewed_at,reviewer_notes,approval_evidence,revision,created_at,updated_at
 FROM commerce_payment_requests
 `
@@ -353,7 +354,8 @@ func scanPayment(row scanner) (commerce.PaymentRequest, error) {
 		&p.ID, &p.UserID, &p.ProductID, &p.ProductRevision, &p.ProductName, &p.OriginalAmountMinor,
 		&p.DiscountAmountMinor, &p.FinalAmountMinor, &p.Currency, &p.DiscountID, &p.DiscountCode,
 		&p.PaymentMethod, &p.GatewayMode, &p.ProviderCode, &p.Status, &p.IdempotencyKey,
-		&p.ProviderTransactionID, &p.PaidAt, &p.ReviewedBy, &p.ReviewedAt, &p.ReviewerNotes,
+		&p.ProviderTransactionID, &p.RevenueCourseID, &p.RevenueTrainerUserID, &p.RevenueSharePercentage,
+		&p.PaidAt, &p.ReviewedBy, &p.ReviewedAt, &p.ReviewerNotes,
 		&p.ApprovalEvidence, &p.Revision, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {
@@ -366,7 +368,7 @@ func (r *Repository) getPayment(ctx context.Context, id string) (commerce.Paymen
 	return scanPayment(r.db.QueryRow(ctx, paymentSelect+` WHERE id=$1::uuid`, id))
 }
 
-func (r *Repository) CreatePaymentRequest(ctx context.Context, userID string, in commerce.CheckoutCreate, policy commerce.CheckoutPolicy) (commerce.PaymentRequest, error) {
+func (r *Repository) CreatePaymentRequest(ctx context.Context, userID string, in commerce.CheckoutCreate, policy commerce.CheckoutPolicy, revenue commerce.RevenuePolicySnapshot) (commerce.PaymentRequest, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return commerce.PaymentRequest{}, err
@@ -412,14 +414,17 @@ func (r *Repository) CreatePaymentRequest(ctx context.Context, userID string, in
 	err = tx.QueryRow(ctx, `
 INSERT INTO commerce_payment_requests(
   user_id,product_id,product_revision,product_name,original_amount_minor,discount_amount_minor,
-  final_amount_minor,currency,discount_id,discount_code,payment_method,gateway_mode,provider_code,idempotency_key
+  final_amount_minor,currency,discount_id,discount_code,payment_method,gateway_mode,provider_code,idempotency_key,
+  revenue_course_id,revenue_trainer_user_id,revenue_share_percentage
 ) VALUES(
-  $1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,NULLIF($9,'')::uuid,$10,$11,$12,$13,$14
+  $1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,NULLIF($9,'')::uuid,$10,$11,$12,$13,$14,
+  NULLIF($15,'')::uuid,NULLIF($16,'')::uuid,$17
 )
 ON CONFLICT(user_id,idempotency_key) DO NOTHING
 RETURNING id::text
 `, userID, p.ID, p.Revision, p.Name, p.PriceMinor, discountAmount, finalAmount, p.Currency,
-		discountID, discountCode, string(in.PaymentMethod), string(policy.GatewayMode), policy.ProviderCode, in.IdempotencyKey).Scan(&id)
+		discountID, discountCode, string(in.PaymentMethod), string(policy.GatewayMode), policy.ProviderCode, in.IdempotencyKey,
+		revenue.CourseID, revenue.TrainerUserID, revenue.RevenueSharePercentage).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		existing, getErr := scanPayment(tx.QueryRow(ctx, paymentSelect+` WHERE user_id=$1::uuid AND idempotency_key=$2`, userID, in.IdempotencyKey))
 		if getErr != nil {
@@ -664,6 +669,11 @@ WHERE id=$1::uuid
 	if err != nil {
 		return commerce.PaymentRequest{}, mapError(err)
 	}
+	if in.Status == commerce.PaymentPaid {
+		if err = ensureRevenueEntryTx(ctx, tx, p); err != nil {
+			return commerce.PaymentRequest{}, err
+		}
+	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
 		ActorUserID: actor, Action: "commerce.payment_request.review", ResourceType: "commerce_payment_request", ResourceID: id,
 		Metadata: map[string]any{"status": in.Status, "productId": p.ProductID, "amountMinor": p.FinalAmountMinor, "currency": p.Currency},
@@ -751,6 +761,9 @@ UPDATE commerce_payment_requests
 SET status='paid',paid_at=now(),provider_transaction_id=$2,revision=revision+1,updated_at=now()
 WHERE id=$1::uuid
 `, p.ID, in.TransactionID)
+			if err == nil {
+				err = ensureRevenueEntryTx(ctx, tx, p)
+			}
 			result = "paid_granted"
 		case commerce.ProviderFailed:
 			if err = settleDiscountTx(ctx, tx, p.ID, "released"); err != nil {

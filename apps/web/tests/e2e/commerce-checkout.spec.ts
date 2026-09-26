@@ -88,6 +88,7 @@ test('admin creates discount and approves pending payment with evidence',async({
  await page.route('**/api/v1/commerce/admin/discounts?**',r=>json(r,{items:discounts,page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/commerce/admin/payment-requests?**',r=>json(r,{items:requests,page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/commerce/admin/access-codes?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/revenue?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
 
  await page.route('**/api/v1/commerce/admin/discounts',async r=>{
    expect(r.request().method()).toBe('POST');
@@ -131,3 +132,41 @@ test('admin creates discount and approves pending payment with evidence',async({
  await expect(page.getByText('تم اعتماد الطلب وإنشاء صلاحية الوصول من الخادم.')).toBeVisible();
  await expect(page.getByText('لا توجد طلبات معلقة.')).toBeVisible();
 });
+
+test('admin records factual trainer revenue allocation and payout evidence',async({page})=>{
+ await auth(page,admin);
+ let entry:any={id:'rev-1',paymentRequestId:'payment-paid-1',productId:'product-course-1',productType:'course',courseId:'course-1',buyerUserId:'student-1',trainerUserId:'trainer-1',revenueSharePercentage:35,grossAmountMinor:12000,discountAmountMinor:1200,paidAmountMinor:10800,currency:'SAR',providerFeeMinor:null,trainerShareMinor:null,platformShareMinor:null,allocationStatus:'pending',payoutStatus:'pending',allocationEvidence:'',allocatedBy:'',allocatedAt:null,payoutEvidence:'',paidBy:'',payoutPaidAt:null,revision:1,createdAt:'2026-09-26T11:05:00Z',updatedAt:'2026-09-26T11:05:00Z'};
+
+ await page.route('**/api/v1/commerce/products?**',r=>json(r,{items:[product],page:1,limit:100,hasMore:false}));
+ await page.route('**/api/v1/commerce/entitlements?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/discounts?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/payment-requests?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/access-codes?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/revenue?**',r=>json(r,{items:[entry],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/revenue/rev-1/allocation',async r=>{
+   const body=JSON.parse(r.request().postData()||'{}');
+   expect(body).toEqual({expectedRevision:1,providerFeeMinor:300,trainerShareMinor:3500,platformShareMinor:7000,evidence:'settlement-7788'});
+   entry={...entry,providerFeeMinor:300,trainerShareMinor:3500,platformShareMinor:7000,allocationStatus:'allocated',allocationEvidence:body.evidence,allocatedBy:'admin-1',allocatedAt:'2026-09-26T11:06:00Z',revision:2};
+   return json(r,{entry});
+ });
+ await page.route('**/api/v1/commerce/admin/revenue/rev-1/payout',async r=>{
+   const body=JSON.parse(r.request().postData()||'{}');
+   expect(body).toEqual({expectedRevision:2,evidence:'payout-7788'});
+   entry={...entry,payoutStatus:'paid',payoutEvidence:body.evidence,paidBy:'admin-1',payoutPaidAt:'2026-09-26T11:07:00Z',revision:3};
+   return json(r,{entry});
+ });
+
+ const answers=['300','3500','7000','settlement-7788','payout-7788'];
+ page.on('dialog',dialog=>dialog.accept(answers.shift()||''));
+ await page.goto('/admin-dashboard/commerce');
+ await expect(page.getByText('سجل الإيراد الفعلي وحصص المدربين')).toBeVisible();
+ await expect(page.getByText('نسبة السياسة 35%')).toBeVisible();
+ await page.getByRole('button',{name:'تسجيل التسوية الفعلية'}).click();
+ await expect(page.getByText('تم تسجيل التسوية الفعلية بدون تقدير آلي للإيراد.')).toBeVisible();
+ await expect(page.getByText(/^رسوم المزود .* حصة المدرب .* حصة المنصة/)).toBeVisible();
+ await page.getByRole('button',{name:'تسجيل صرف المدرب'}).click();
+ await expect(page.getByText('تم تسجيل صرف حصة المدرب في السجل.')).toBeVisible();
+ await expect(page.getByText('الصرف paid', {exact:false})).toBeVisible();
+ await page.screenshot({path:'test-results/commerce-revenue-ledger.png',fullPage:true});
+});
+

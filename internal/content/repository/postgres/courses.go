@@ -248,3 +248,23 @@ func (r *Repository) CourseReadyForApproval(ctx context.Context, courseID string
 	`, courseID).Scan(&ready)
 	return ready, err
 }
+
+func (r *Repository) CourseRevenuePolicy(ctx context.Context, courseID string) (trainerUserID string, revenueSharePercentage *float64, eligible bool, err error) {
+	var ownerType content.OwnerType
+	var ownerUserID string
+	err = r.db.QueryRow(ctx, `
+SELECT owner_type,COALESCE(owner_user_id::text,''),revenue_share_percentage
+FROM courses
+WHERE id=$1::uuid
+  AND workflow_status='approved'
+  AND is_published=true
+  AND is_visible=true
+`, courseID).Scan(&ownerType, &ownerUserID, &revenueSharePercentage)
+	if err != nil {
+		return "", nil, false, mapError(err)
+	}
+	if ownerType != content.OwnerTeacher || ownerUserID == "" {
+		return "", nil, true, nil
+	}
+	return ownerUserID, revenueSharePercentage, true, nil
+}
