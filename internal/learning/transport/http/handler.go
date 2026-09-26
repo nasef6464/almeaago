@@ -23,6 +23,7 @@ type Authenticator interface {
 
 type Handler struct {
 	service *learningapp.Service
+	goals   *learningapp.MasteryGoalService
 	auth    Authenticator
 }
 
@@ -38,10 +39,17 @@ func NewReview(service *learningapp.Service, auth Authenticator) http.Handler {
 }
 
 func NewMastery(service *learningapp.Service, auth Authenticator) http.Handler {
-	h := &Handler{service: service, auth: auth}
+	return NewMasteryWithGoals(service, nil, auth)
+}
+
+func NewMasteryWithGoals(service *learningapp.Service, goals *learningapp.MasteryGoalService, auth Authenticator) http.Handler {
+	h := &Handler{service: service, goals: goals, auth: auth}
 	r := chi.NewRouter()
 	r.Get("/progress", h.progress)
 	r.Get("/next-action", h.nextAction)
+	r.Get("/goals", h.goalsList)
+	r.Post("/goals", h.goalsCreate)
+	r.Patch("/goals/{goalId}", h.goalsUpdate)
 	return r
 }
 
@@ -239,4 +247,84 @@ func (h *Handler) answer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"result": out})
+}
+
+
+func (h *Handler) goalsList(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, false)
+	if !ok {
+		return
+	}
+	if h.goals == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"message": "Mastery goal service unavailable"})
+		return
+	}
+	page, err := parsePositive(r.URL.Query().Get("page"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	limit, err := parsePositive(r.URL.Query().Get("limit"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	out, err := h.goals.List(
+		r.Context(),
+		authenticated.User,
+		r.URL.Query().Get("pathId"),
+		r.URL.Query().Get("subjectId"),
+		learning.GoalStatus(r.URL.Query().Get("status")),
+		page,
+		limit,
+	)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (h *Handler) goalsCreate(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, true)
+	if !ok {
+		return
+	}
+	if h.goals == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"message": "Mastery goal service unavailable"})
+		return
+	}
+	var in learning.MasteryGoalWrite
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&in); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+		return
+	}
+	out, err := h.goals.Create(r.Context(), authenticated.User, in)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"goal": out})
+}
+
+func (h *Handler) goalsUpdate(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, true)
+	if !ok {
+		return
+	}
+	if h.goals == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"message": "Mastery goal service unavailable"})
+		return
+	}
+	var in learning.MasteryGoalPatch
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&in); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+		return
+	}
+	out, err := h.goals.Update(r.Context(), authenticated.User, chi.URLParam(r, "goalId"), in)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"goal": out})
 }

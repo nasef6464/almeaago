@@ -126,3 +126,33 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	}
 	return result, nil
 }
+
+
+// ValidateMasteryGoalScope is Taxonomy's narrow read contract for learner goals.
+// It validates only active canonical path/subject identity; Learning owns goal state.
+func (r *Repository) ValidateMasteryGoalScope(ctx context.Context, pathID, subjectID string) (bool, error) {
+	if subjectID == "" {
+		var ok bool
+		err := r.db.QueryRow(ctx, `
+			SELECT EXISTS(
+				SELECT 1
+				FROM paths p
+				WHERE p.id=$1::uuid AND p.status='active'
+			)
+		`, pathID).Scan(&ok)
+		return ok, err
+	}
+	var ok bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1
+			FROM subjects s
+			JOIN paths p ON p.id=s.path_id
+			WHERE p.id=$1::uuid
+			  AND s.id=$2::uuid
+			  AND p.status='active'
+			  AND s.status='active'
+		)
+	`, pathID, subjectID).Scan(&ok)
+	return ok, err
+}
