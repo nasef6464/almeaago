@@ -1,6 +1,6 @@
 # Assessment Learning Placement Audit
 
-Status: **IN REVIEW**
+Status: **TESTED / MERGED**
 
 ## Scope
 This slice implements the normalized Assessment Learning Placement distribution surface on top of the existing `assessment_learning_placements` table.
@@ -83,3 +83,12 @@ Learner:
 - Commerce entitlement remains separate; placement does not own paid/free/package authority.
 - Learning mastery/evidence side effects remain in Learning.
 - public/barcode/live remains Assessment Session distribution and is the next separate Assessment batch.
+
+
+## Verification checkpoint
+- exact tested PR head: `e578d3a98d157b9143d713df4150ccd2f953c054`.
+- Backend CI `36211820991`: PASS.
+- Frontend CI `36211821001`: PASS.
+- Frontend E2E `36211820983`: PASS.
+- browser evidence artifact: `10895858161`.
+- PR #47 merged to `main` as `3d45c6af4e5b03f5f2e136ae068f74c275f1cb93`.

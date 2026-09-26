@@ -509,25 +509,29 @@ Verification:
 Audit:
 - `docs/domains/assessment/ASSESSMENT_RESULT_REVIEW_AUDIT.md`.
 
-## Assessment Learning Placements — IN REVIEW
-Active branch: `feat/assessment-learning-placements`.
+## Assessment Learning Placements — TESTED / MERGED
+PR #47 passed all required exact-head gates on `e578d3a98d157b9143d713df4150ccd2f953c054` and merged to `main` as `3d45c6af4e5b03f5f2e136ae068f74c275f1cb93`.
 
-Implemented on the branch:
-- normalized staff create/list + optimistic visibility/order updates over existing `assessment_learning_placements`.
-- exact Assessment-version pinning at placement creation.
+Implemented:
+- normalized staff create/list plus optimistic visibility/order updates over existing `assessment_learning_placements`.
+- exact published Assessment-version pinning at placement creation.
 - `training/tests/foundation/course` target-shape validation.
-- Content-owned validation through a narrow resolver interface; Assessment does not query foreign Content tables.
+- Content-owned target validation through a narrow resolver interface; Assessment does not query foreign Content tables.
 - bounded student-only availability requiring exact path + subject + slot and exact Course/Foundation context where relevant.
 - placement-context attempt start with idempotency, per-placement max-attempt counting, exact-version scoring readiness and transactional audit.
 - responsive staff placement management and learner `/assessments` entry UI.
-- Playwright coverage for staff placement lifecycle and mobile learner start.
-- Commerce, Learning evidence/mastery and Realtime remain outside this slice.
+- no copied Assessment, Question, Content or Media payload state.
+- Commerce entitlement, Learning evidence/mastery and Realtime remain outside this slice.
+
+Verification:
+- Backend CI `36211820991`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36211821001`: PASS typecheck + production build.
+- Frontend E2E `36211820983`: PASS staff placement lifecycle + mobile exact-scope learner start + existing browser suite.
+- browser evidence artifact `10895858161`.
+- initial gofmt and ambiguous Playwright-locator failures were corrected on the same PR without weakening behavior.
 
 Audit:
 - `docs/domains/assessment/ASSESSMENT_LEARNING_PLACEMENTS_AUDIT.md`.
 
-Verification state:
-- not merge-qualified until the exact PR head passes Backend CI + Frontend CI + Frontend E2E.
-
 ## Next exact action
-Open the Learning Placements PR, run exact-head Backend + Frontend + E2E gates, fix every failure on the same branch without weakening tests, record the verified SHA/run evidence, and merge only when all gates are green. After merge, continue Assessment closure with public/barcode/live Session delivery as a separate batch.
+Continue Assessment phase closure from current `main` with the public/barcode/live Session distribution batch. Build bounded staff session management, stable public/barcode entry codes, server-owned open/close/status policy, student/public attempt context as appropriate, and responsive entry/admin E2E. Keep live socket/presence orchestration in Realtime, Commerce entitlement in Commerce, and Learning mastery side effects in Learning; Assessment Sessions must reference exact published Assessment versions without copying Question payloads.
