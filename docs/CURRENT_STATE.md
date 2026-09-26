@@ -888,5 +888,33 @@ Verification:
 Audit:
 - `docs/domains/commerce/COMMERCE_REVENUE_PAYOUT_AUDIT.md`.
 
+## Commerce Tap Hosted Payment Link — TESTED / MERGED
+PR #61 passed all required exact-head gates on `8928c20bffcb293c931c599430cb92b9bd9bff56` and merged to `main` as `a26586c4bf89cdfa37dd7dd0b26306f4e2533f1a`.
+
+Implemented:
+- migration `000033_commerce_tap_payment_session` extends PaymentRequest with hosted-provider session state and the explicit `payment_link` gateway mode.
+- Checkout remains server-authoritative: browser submits Product ID, optional discount, payment method and idempotency key only; trusted amount/currency/product context comes from Commerce.
+- provider-specific Tap adapter creates the hosted Charge from the canonical PaymentRequest and correlates transaction/order/idempotent references to PaymentRequest ID.
+- Tap charge/session ID and redirect URL are persisted only after a valid initiated provider response.
+- failed provider initiation fails closed and releases any reserved discount instead of leaving an unusable reservation.
+- payment-link flow is currently card-only; unsupported local payment methods are rejected before PaymentRequest/discount reservation creation.
+- browser receives the trusted hosted-payment redirect URL only; no Tap secret or authoritative amount is exposed client-side.
+- Tap-specific webhook reads raw payload, verifies the provider hashstring using the server-only Tap key and maps final charge state into the existing provider-event ledger.
+- exact provider, amount and currency checks remain authoritative before Entitlement grant; duplicate provider events remain idempotent.
+- a trusted paid Tap callback still flows through the same Entitlement and factual-revenue ledger built in earlier Commerce slices.
+- Tap configuration is environment-owned: `COMMERCE_PAYMENT_GATEWAY_MODE=payment_link`, `COMMERCE_PAYMENT_PROVIDER_CODE=tap`, `TAP_SECRET_KEY` (legacy fallback `TAP_API_KEY`), `TAP_WEBHOOK_URL`, and optional `TAP_REDIRECT_URL`.
+- live Tap sandbox transaction is not claimed as proven because external account credentials are required; this is an environment/external-proof dependency, not a code merge gate.
+
+Verification:
+- Database CI `36252943842`: PASS apply + schema verification + rollback + re-apply.
+- Backend CI `36252943838`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36252943811`: PASS typecheck + production build.
+- Frontend E2E `36252943750`: PASS trusted Tap hosted redirect with no browser amount authority plus existing browser suite.
+- browser evidence artifact `10909912571`, digest `sha256:a853919f1f7d6af2b8e0205f4eab869c1ec840da942669c156fa0103f1f2e3e6`.
+- initial Backend runs exposed invalid escaped struct tags and gofmt deltas; they were corrected without weakening behavior, then all four exact-head gates passed.
+
+Audit:
+- `docs/domains/commerce/COMMERCE_TAP_PAYMENT_LINK_AUDIT.md`.
+
 ## Next exact action
-Continue Phase 8 Commerce from current `main` with one focused remaining slice after re-reading the blueprint and current provider/payment code. Still deferred: provider-specific payment-session integration and refunds/chargebacks/revenue reversal. Keep them separate unless one provider's documented contract makes their lifecycle inseparable. Do not invent provider choice, credentials, fee formulas, refund semantics, or payout formulas. Package/Membership multi-trainer allocation also remains deferred pending an explicit allocation rule.
+Continue Phase 8 Commerce from current `main` with a focused refunds/chargebacks + entitlement/revenue reversal slice after re-reading current payment/provider/revenue code and source evidence. Do not invent refund eligibility, partial-refund formulas, chargeback timing, provider fee recovery, payout clawback policy or irreversible provider operations where the source does not define them. Keep live Tap sandbox proof separately marked as externally credential-dependent. Package/Membership multi-trainer allocation remains deferred pending an explicit allocation rule.
