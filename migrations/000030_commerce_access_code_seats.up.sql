@@ -32,8 +32,7 @@ CREATE TABLE commerce_school_seats (
   source_id text NOT NULL CHECK (btrim(source_id) <> ''),
   idempotency_key text NOT NULL UNIQUE CHECK (btrim(idempotency_key) <> ''),
   assigned_by_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(school_id,product_id,user_id)
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX commerce_school_seats_school_product_idx
