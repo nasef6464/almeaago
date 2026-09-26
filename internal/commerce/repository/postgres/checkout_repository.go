@@ -669,6 +669,11 @@ WHERE id=$1::uuid
 	if err != nil {
 		return commerce.PaymentRequest{}, mapError(err)
 	}
+	if in.Status == commerce.PaymentPaid {
+		if err = ensureRevenueEntryTx(ctx, tx, p); err != nil {
+			return commerce.PaymentRequest{}, err
+		}
+	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
 		ActorUserID: actor, Action: "commerce.payment_request.review", ResourceType: "commerce_payment_request", ResourceID: id,
 		Metadata: map[string]any{"status": in.Status, "productId": p.ProductID, "amountMinor": p.FinalAmountMinor, "currency": p.Currency},
@@ -756,6 +761,9 @@ UPDATE commerce_payment_requests
 SET status='paid',paid_at=now(),provider_transaction_id=$2,revision=revision+1,updated_at=now()
 WHERE id=$1::uuid
 `, p.ID, in.TransactionID)
+			if err == nil {
+				err = ensureRevenueEntryTx(ctx, tx, p)
+			}
 			result = "paid_granted"
 		case commerce.ProviderFailed:
 			if err = settleDiscountTx(ctx, tx, p.ID, "released"); err != nil {
