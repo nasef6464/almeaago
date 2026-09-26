@@ -76,6 +76,9 @@ test('mobile student creates and achieves a bounded self-owned mastery goal', as
 
   await page.route('**/api/v1/mastery/goals**', async (route) => {
     const request = route.request();
+    if (request.method() === 'PATCH') {
+      return route.fallback();
+    }
     if (request.method() === 'GET') {
       const url = new URL(request.url());
       expect(url.searchParams.get('pathId')).toBe('path-1');
