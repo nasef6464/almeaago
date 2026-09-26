@@ -336,4 +336,3 @@ func (s *CheckoutService) MarkPayoutPaid(ctx context.Context, actor identity.Use
 	}
 	return s.repo.MarkPayoutPaid(ctx, actor.ID, id, in)
 }
-
