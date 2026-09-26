@@ -25,7 +25,7 @@ type AccessService struct {
 	schools SchoolMembershipResolver
 }
 
-func NewAccessService(repo AccessRepository, products Repository, schools SchoolMembershipResolver) *AccessService {
+func NewAccessService(repo AccessRepository, products ProductReader, schools SchoolMembershipResolver) *AccessService {
 	return &AccessService{repo: repo, products: products, schools: schools}
 }
 
