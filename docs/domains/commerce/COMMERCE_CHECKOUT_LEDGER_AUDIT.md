@@ -1,6 +1,6 @@
 # Commerce Checkout / Discount / Provider Ledger Audit
 
-Status: **IN REVIEW**
+Status: **TESTED / MERGED**
 
 ## Scope
 This checkpoint extends the merged Commerce Entitlement Foundation with the first trusted purchase pipeline:
@@ -89,3 +89,13 @@ The current Course lock links to Checkout using Commerce product ID only.
 - Backend module lock/sqlc/gofmt/vet/tests.
 - Frontend typecheck/build.
 - Frontend Playwright, including no-client-price Checkout assertion and admin approval flow.
+
+
+## Verification checkpoint
+- exact tested PR head: `e399083d20755e2a208cc042fa072fbe858b83f6`.
+- Database CI `36240504567`: PASS.
+- Backend CI `36240504510`: PASS.
+- Frontend CI `36240504504`: PASS.
+- Frontend E2E `36240504506`: PASS.
+- browser evidence artifact: `10905419021`.
+- PR #56 merged to `main` as `a59fdad11f7a95849d2dcb43b53428366e3cc4c9`.

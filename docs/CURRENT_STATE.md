@@ -775,20 +775,18 @@ Verification:
 Audit:
 - `docs/domains/commerce/COMMERCE_ENTITLEMENT_FOUNDATION_AUDIT.md`.
 
-## Commerce Checkout / Discount / Provider Ledger — IN REVIEW
-Active branch: `feat/commerce-checkout-ledger`.
+## Commerce Checkout / Discount / Provider Ledger — TESTED / MERGED
+PR #56 passed all required exact-head gates on `e399083d20755e2a208cc042fa072fbe858b83f6` and merged to `main` as `a59fdad11f7a95849d2dcb43b53428366e3cc4c9`.
 
-Implemented on the branch:
+Implemented:
 - migration `000029_commerce_checkout_ledger` with normalized discount codes/scopes, reserved/redeemed discount ledger, PaymentRequest snapshots and provider-event ledger.
-- Checkout client accepts only product ID, optional discount code, payment method and bounded idempotency key; price/currency/product name/scope are re-derived server-side.
-- transactionally pinned Product revision/name/original amount/final amount/currency.
-- active discount validation by lifecycle, exact relational scope, minimum amount and redemption budget.
-- discount reservation at PaymentRequest creation and atomic redeem/release on paid/rejected/cancelled terminal state.
-- manual admin approval requires evidence and grants an idempotent Entitlement only inside the payment transaction.
-- provider webhook uses HMAC-SHA256 over raw bytes, fails closed without `PAYMENT_WEBHOOK_SECRET`, deduplicates provider+eventId, persists SHA-256 payload evidence, and requires exact provider/mode/amount/currency match before grant.
-- verified-but-rejected provider events remain in the provider ledger with explicit processing result.
-- responsive learner Checkout UI, paid-Course purchase entry, recent PaymentRequest history, admin discount controls and pending-payment review.
-- E2E asserts the browser does not send authoritative price/amount/currency/product name.
+- Checkout accepts only Product ID, optional discount code, payment method and bounded idempotency key; Product revision/name/price/currency/scope are derived server-side.
+- transactional discount reservation with exact lifecycle/scope/minimum/redemption-budget validation and atomic redeem/release.
+- manual platform-admin paid approval requires evidence and grants one idempotent Entitlement inside the payment transaction.
+- raw-body HMAC-SHA256 webhook verification, fail-closed missing secret, provider+eventId dedupe, payload SHA-256 evidence and exact provider/mode/final amount/currency checks before grant.
+- verified semantic webhook rejections remain in the provider-event ledger.
+- responsive learner Checkout, paid-Course purchase entry, recent requests, admin discount controls and pending-payment review.
+- browser E2E proves no authoritative price/amount/currency/product name is sent by Checkout.
 - Access-code redemption, explicit school seat assignment, trainer payouts and Assessment entitlement consumption remain outside this slice.
 
 Configuration:
@@ -796,11 +794,16 @@ Configuration:
 - `COMMERCE_PAYMENT_PROVIDER_CODE=<provider>`.
 - `PAYMENT_WEBHOOK_SECRET=<server-only secret>`; no browser exposure.
 
+Verification:
+- Database CI `36240504567`: PASS apply + schema verification + rollback + re-apply.
+- Backend CI `36240504510`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36240504504`: PASS typecheck + production build.
+- Frontend E2E `36240504506`: PASS server-authoritative learner Checkout + no-client-price payload contract + admin discount/payment review + existing browser suite.
+- browser evidence artifact `10905419021`.
+- initial gofmt, type-projection and ambiguous/localized Playwright failures were fixed on the same PR; all four gates were rerun on the final head.
+
 Audit:
 - `docs/domains/commerce/COMMERCE_CHECKOUT_LEDGER_AUDIT.md`.
 
-Verification state:
-- not merge-qualified until exact-head Database CI + Backend CI + Frontend CI + Frontend E2E all pass.
-
 ## Next exact action
-Open the Checkout/Ledger PR, run all four exact-head gates, fix failures on the same branch without weakening tests, record the tested SHA/run evidence, and merge only when all gates are green. After merge, continue Phase 8 with the next remaining Commerce slice from the execution plan rather than reviving stale branches.
+Continue Phase 8 Commerce from current `main` with **School Commerce Contracts + explicit Seat Assignment**. Model school contract/package validity, seat capacity and per-user seat/grant allocation relationally; keep Organizations authoritative for active school membership/class scope and Commerce authoritative for paid access. Do not infer seat consumption from membership arrays, do not let seat-capped packages grant by broad school membership alone, keep mutations idempotent/audited/bounded, and add Database + Backend + Frontend + E2E gates before merge. Access-code redemption, trainer revenue/payout ledger and Assessment entitlement consumption remain separate later Commerce batches.
