@@ -164,7 +164,11 @@ export function AssessmentResultsPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (authLoading) return;
+    if (!user) {
+      setBusy(false);
+      return;
+    }
     let active = true;
     setBusy(true);
     setError('');

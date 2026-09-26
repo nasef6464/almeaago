@@ -209,6 +209,39 @@ paths:
         "404": { description: Question not found }
         "409": { description: Invalid workflow or version conflict }
 
+
+  /api/v1/assessment-attempts/results:
+    get:
+      operationId: assessmentLearnerResultHistory
+      description: >
+        Student-only bounded submitted-result history. Defaults to 20 rows and caps at 100.
+        Uses hasMore and does not hydrate question review or require an exact-count query.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200": { description: Learner-owned bounded result history page }
+        "400": { description: Invalid bounded pagination }
+        "401": { description: Authentication required }
+        "403": { description: Student role required }
+
+  /api/v1/assessment-attempts/{id}/review:
+    get:
+      operationId: assessmentLearnerResultReview
+      description: >
+        Student-owned submitted-result detail from the exact Assessment version.
+        If allowQuestionReview=false no question rows are returned. correctOptionIndex is
+        omitted when showAnswers=false; explanation/hint/solvingStrategy are omitted when
+        showExplanations=false.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Policy-governed learner result detail }
+        "400": { description: Invalid attempt id }
+        "401": { description: Authentication required }
+        "403": { description: Student role required }
+        "404": { description: Submitted result not found for this learner }
+
   /api/v1/media/uploads/presign:
     post:
       operationId: mediaPresignUpload
