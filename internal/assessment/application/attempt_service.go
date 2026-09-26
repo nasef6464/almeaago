@@ -15,6 +15,7 @@ var ErrAttemptSubmitted = assessment.ErrAttemptSubmitted
 var ErrResultUnavailable = assessment.ErrResultUnavailable
 
 type AttemptRepository interface {
+	GetPublishedAccessContext(context.Context, string) (assessment.AccessContext, error)
 	Start(context.Context, string, string, string) (assessment.Attempt, error)
 	GetAttempt(context.Context, string) (assessment.Attempt, error)
 	SaveAnswer(context.Context, string, string, string, assessment.AnswerWrite) (assessment.Attempt, error)
@@ -35,12 +36,17 @@ type LearningEvidenceSink interface {
 type AttemptService struct {
 	repo         AttemptRepository
 	evidenceSink LearningEvidenceSink
+	access       CommerceAccessResolver
 }
 
 func NewAttemptService(r AttemptRepository) *AttemptService { return &AttemptService{repo: r} }
 
 func NewAttemptServiceWithLearning(r AttemptRepository, sink LearningEvidenceSink) *AttemptService {
 	return &AttemptService{repo: r, evidenceSink: sink}
+}
+
+func NewAttemptServiceWithLearningAndCommerce(r AttemptRepository, sink LearningEvidenceSink, access CommerceAccessResolver) *AttemptService {
+	return &AttemptService{repo: r, evidenceSink: sink, access: access}
 }
 
 func requireStudent(a identity.User) error {
@@ -66,6 +72,17 @@ func (s *AttemptService) Start(ctx context.Context, a identity.User, assessmentI
 	startKey = key(startKey)
 	if assessmentID == "" || startKey == "" {
 		return assessment.Attempt{}, ErrInvalidInput
+	}
+	scope, err := s.repo.GetPublishedAccessContext(ctx, assessmentID)
+	if err != nil {
+		return assessment.Attempt{}, err
+	}
+	allowed, _, err := resolveDirectAssessmentAccess(ctx, s.access, a.ID, scope)
+	if err != nil {
+		return assessment.Attempt{}, err
+	}
+	if !allowed {
+		return assessment.Attempt{}, ErrForbidden
 	}
 	return s.repo.Start(ctx, a.ID, assessmentID, startKey)
 }
