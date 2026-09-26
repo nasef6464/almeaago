@@ -348,34 +348,34 @@ func (s *Service) Revoke(ctx context.Context, actor identity.User, id string, ex
 	return s.repo.RevokeEntitlement(ctx, actor.ID, id, expectedRevision, reason)
 }
 
-func (s *Service) CheckCourseAccess(ctx context.Context, userID, courseID string) (bool, bool, string, error) {
+func (s *Service) CheckCourseAccess(ctx context.Context, userID, courseID string) (bool, bool, string, string, error) {
 	userID = strings.TrimSpace(userID)
 	courseID = strings.TrimSpace(courseID)
 	if userID == "" || courseID == "" {
-		return false, false, "invalid", ErrInvalidInput
+		return false, false, "invalid", "", ErrInvalidInput
 	}
 	if s.catalog == nil {
-		return false, false, "resolver_unavailable", commerce.ErrConflict
+		return false, false, "resolver_unavailable", "", commerce.ErrConflict
 	}
 	pathID, subjectID, eligible, err := s.catalog.CourseCommerceScope(ctx, courseID)
 	if err != nil {
-		return false, false, "", err
+		return false, false, "", "", err
 	}
 	if !eligible {
-		return false, true, "course_unavailable", nil
+		return false, true, "course_unavailable", "", nil
 	}
 	var schoolIDs []string
 	if s.schools != nil {
 		schoolIDs, err = s.schools.ActiveSchoolIDsForUser(ctx, userID)
 		if err != nil {
-			return false, false, "", err
+			return false, false, "", "", err
 		}
 	}
 	decision, err := s.repo.ResolveCourseAccess(ctx, userID, schoolIDs, courseID, pathID, subjectID)
 	if err != nil {
 		return false, false, "", err
 	}
-	return decision.Allowed, decision.Configured, decision.Reason, nil
+	return decision.Allowed, decision.Configured, decision.Reason, decision.ProductID, nil
 }
 
 func (s *Service) CourseAccess(ctx context.Context, actor identity.User, courseID string) (commerce.AccessDecision, error) {

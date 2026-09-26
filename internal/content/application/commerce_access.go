@@ -9,7 +9,7 @@ import (
 )
 
 type CourseAccessResolver interface {
-	CheckCourseAccess(ctx context.Context, userID, courseID string) (allowed bool, configured bool, reason string, err error)
+	CheckCourseAccess(ctx context.Context, userID, courseID string) (allowed bool, configured bool, reason string, productID string, err error)
 }
 
 func (s *Service) applyCourseAccess(ctx context.Context, actor identity.User, row *content.LearnerCourse) error {
@@ -26,13 +26,14 @@ func (s *Service) applyCourseAccess(ctx context.Context, actor identity.User, ro
 		}
 		return nil
 	}
-	allowed, configured, reason, err := s.courseAccess.CheckCourseAccess(ctx, actor.ID, row.Course.ID)
+	allowed, configured, reason, productID, err := s.courseAccess.CheckCourseAccess(ctx, actor.ID, row.Course.ID)
 	if err != nil {
 		return err
 	}
 	row.AccessAllowed = allowed
 	row.AccessConfigured = configured
 	row.AccessReason = reason
+	row.AccessProductID = productID
 	if !allowed {
 		for mi := range row.Modules {
 			for li := range row.Modules[mi].Lessons {
@@ -52,7 +53,7 @@ func (s *Service) checkCourseLessonAccess(ctx context.Context, actor identity.Us
 	if s.courseAccess == nil {
 		return ErrForbidden
 	}
-	allowed, _, _, err := s.courseAccess.CheckCourseAccess(ctx, actor.ID, strings.TrimSpace(courseID))
+	allowed, _, _, _, err := s.courseAccess.CheckCourseAccess(ctx, actor.ID, strings.TrimSpace(courseID))
 	if err != nil {
 		return err
 	}

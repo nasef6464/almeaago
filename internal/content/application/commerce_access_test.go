@@ -27,8 +27,8 @@ type courseAccessStub struct {
 	reason              string
 }
 
-func (a courseAccessStub) CheckCourseAccess(context.Context, string, string) (bool, bool, string, error) {
-	return a.allowed, a.configured, a.reason, nil
+func (a courseAccessStub) CheckCourseAccess(context.Context, string, string) (bool, bool, string, string, error) {
+	return a.allowed, a.configured, a.reason, "product-1", nil
 }
 
 func TestLearnerCourseMarksOnlyNonPreviewLessonsCommerceLocked(t *testing.T) {

@@ -120,6 +120,7 @@ func presentLearnerCourse(row content.LearnerCourse) map[string]any {
 		"allowed":    row.AccessAllowed,
 		"configured": row.AccessConfigured,
 		"reason":     row.AccessReason,
+		"productId":  row.AccessProductID,
 	}
 	return result
 }

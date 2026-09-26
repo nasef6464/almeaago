@@ -460,6 +460,7 @@ type LearnerCourse struct {
 	AccessAllowed    bool
 	AccessConfigured bool
 	AccessReason     string
+	AccessProductID  string
 }
 
 type LearnerTopic struct {
