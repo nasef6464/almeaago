@@ -1,6 +1,6 @@
 # Commerce Access Code / School Seat Audit
 
-Status: **IMPLEMENTED — CI REQUIRED BEFORE MERGE**
+Status: **TESTED / MERGED**
 
 ## Scope
 This checkpoint continues Commerce after the trusted Checkout/Discount/Provider ledger with:
@@ -15,7 +15,7 @@ An access code references one canonical active paid Package/Membership Product.
 The code stores no copied package scope arrays.
 Redemption:
 - normalizes the code server-side.
-- locks the code row transactionally.
+- locks the code row and canonical Package row transactionally, so seat-capacity checks remain serialized even when different codes target the same Package.
 - enforces active lifecycle, start/expiry window and max uses.
 - is unique per code + user.
 - creates one Commerce Entitlement with source_type=access_code.
@@ -43,11 +43,16 @@ For a capped school Entitlement:
 Legacy behavior that silently attached a student to a school during access-code redemption is intentionally not copied.
 Organizations remains authoritative for school membership; Commerce consumes only its active-school-ID projection.
 
-## Required merge gates
-- Database apply/schema verification/rollback/re-apply.
-- Backend module lock/sqlc/gofmt/vet/tests.
-- Frontend typecheck/build.
-- Frontend Playwright with learner activation-code evidence plus existing Checkout/admin flows.
+## Verification checkpoint
+- PR #57 merged to `main` from exact tested head `4dead20ea2f6480d3c854a52176462987ed0cdf7`.
+- squash merge commit: `386023ebbfd73613df65727ead7491c146f9d2ff`.
+- Database CI `36243759206`: PASS — apply, schema verification, rollback, re-apply.
+- Backend CI `36243759164`: PASS — module lock, sqlc compile, gofmt, go vet, go test.
+- Frontend CI `36243759193`: PASS — TypeScript typecheck and production build.
+- Frontend E2E `36243759203`: PASS — learner activation-code redemption plus existing trusted Checkout/admin and Commerce foundation flows.
+- browser evidence artifact `content-browser-evidence` id `10906349191`.
+- the first E2E attempt failed because an older Commerce foundation test did not mock the new bounded access-code directory; the mock was aligned without weakening behavior.
+- an additional concurrency hardening commit changed redemption locking from code-only to code + Package-row locking before the final exact-head run.
 
 ## Deferred
 - provider-specific SDK/API session creation.
