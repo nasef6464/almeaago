@@ -60,6 +60,19 @@ func (r *checkoutRepoStub) AllocateRevenue(context.Context, string, string, comm
 func (r *checkoutRepoStub) MarkPayoutPaid(context.Context, string, string, commerce.PayoutMarkPaid) (commerce.RevenueEntry, error) {
 	return commerce.RevenueEntry{}, nil
 }
+func (r *checkoutRepoStub) AttachProviderSession(_ context.Context, _ string, _ string, _ int, session commerce.ProviderSession) (commerce.PaymentRequest, error) {
+	r.request.ProviderSessionID = session.SessionID
+	r.request.ProviderRedirectURL = session.RedirectURL
+	r.request.ProviderSessionStatus = "initiated"
+	r.request.Revision++
+	return r.request, nil
+}
+func (r *checkoutRepoStub) FailProviderSession(context.Context, string, string, int, string) (commerce.PaymentRequest, error) {
+	r.request.Status = commerce.PaymentFailed
+	r.request.ProviderSessionStatus = "failed"
+	r.request.Revision++
+	return r.request, nil
+}
 
 func checkoutUser() identity.User {
 	return identity.User{ID: "user-1", Roles: []identity.Role{identity.RoleStudent}}
@@ -72,6 +85,17 @@ type revenuePolicyStub struct {
 	trainerID string
 	share     *float64
 	eligible  bool
+}
+
+type sessionInitiatorStub struct {
+	input commerce.ProviderSessionInit
+	out   commerce.ProviderSession
+	err   error
+}
+
+func (s *sessionInitiatorStub) Initiate(_ context.Context, in commerce.ProviderSessionInit) (commerce.ProviderSession, error) {
+	s.input = in
+	return s.out, s.err
 }
 
 func (s revenuePolicyStub) CourseRevenuePolicy(context.Context, string) (string, *float64, bool, error) {
@@ -172,3 +196,88 @@ func TestRevenueMutationsRequireAdminAndEvidence(t *testing.T) {
 		t.Fatalf("expected payout evidence validation, got %v", err)
 	}
 }
+
+func TestPaymentLinkInitiatesTrustedProviderSession(t *testing.T) {
+	repo := &checkoutRepoStub{
+		product: commerce.Product{
+			ID: "product-1", ProductType: commerce.ProductPackage, Status: commerce.ProductActive,
+			AccessMode: commerce.AccessPaid, PriceMinor: 10800, Currency: "SAR", IsVisible: true,
+		},
+		request: commerce.PaymentRequest{
+			ID: "pay-1", ProductID: "product-1", ProductName: "باقة مدفوعة", FinalAmountMinor: 10800,
+			Currency: "SAR", GatewayMode: commerce.GatewayPaymentLink, ProviderCode: "tap",
+			Status: commerce.PaymentPending, Revision: 1,
+		},
+	}
+	initiator := &sessionInitiatorStub{out: commerce.ProviderSession{
+		SessionID: "chg_1", RedirectURL: "https://tap.example/pay/1", Status: "initiated",
+	}}
+	service := NewCheckoutServiceWithProvider(
+		repo,
+		commerce.CheckoutPolicy{GatewayMode: commerce.GatewayPaymentLink, ProviderCode: "tap"},
+		nil,
+		initiator,
+	)
+	user := checkoutUser()
+	user.Name = "طالب تجريبي"
+	user.Email = "student@example.com"
+	out, err := service.CreateCheckout(context.Background(), user, commerce.CheckoutCreate{
+		ProductID: "product-1", PaymentMethod: commerce.PaymentCard, IdempotencyKey: "tap-key",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.ProviderSessionID != "chg_1" || out.ProviderRedirectURL == "" || out.ProviderSessionStatus != "initiated" {
+		t.Fatalf("unexpected payment-link response: %#v", out)
+	}
+	if initiator.input.AmountMinor != 10800 || initiator.input.Currency != "SAR" ||
+		initiator.input.PaymentRequestID != "pay-1" || initiator.input.UserEmail != "student@example.com" {
+		t.Fatalf("provider did not receive server-authoritative checkout snapshot: %#v", initiator.input)
+	}
+}
+
+func TestPaymentLinkRejectsNonCardBeforeCreatingRequest(t *testing.T) {
+	repo := &checkoutRepoStub{}
+	service := NewCheckoutServiceWithProvider(
+		repo,
+		commerce.CheckoutPolicy{GatewayMode: commerce.GatewayPaymentLink, ProviderCode: "tap"},
+		nil,
+		&sessionInitiatorStub{},
+	)
+	_, err := service.CreateCheckout(context.Background(), checkoutUser(), commerce.CheckoutCreate{
+		ProductID: "product-1", PaymentMethod: commerce.PaymentTransfer, IdempotencyKey: "tap-key",
+	})
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected invalid payment method, got %v", err)
+	}
+	if repo.input.ProductID != "" {
+		t.Fatalf("payment request was created before validation: %#v", repo.input)
+	}
+}
+
+func TestPaymentLinkProviderFailureFailsClosed(t *testing.T) {
+	repo := &checkoutRepoStub{
+		product: commerce.Product{ID: "product-1", ProductType: commerce.ProductPackage},
+		request: commerce.PaymentRequest{
+			ID: "pay-1", ProductID: "product-1", ProductName: "باقة", FinalAmountMinor: 10800,
+			Currency: "SAR", GatewayMode: commerce.GatewayPaymentLink, ProviderCode: "tap",
+			Status: commerce.PaymentPending, Revision: 1,
+		},
+	}
+	service := NewCheckoutServiceWithProvider(
+		repo,
+		commerce.CheckoutPolicy{GatewayMode: commerce.GatewayPaymentLink, ProviderCode: "tap"},
+		nil,
+		&sessionInitiatorStub{err: errors.New("provider down")},
+	)
+	_, err := service.CreateCheckout(context.Background(), checkoutUser(), commerce.CheckoutCreate{
+		ProductID: "product-1", PaymentMethod: commerce.PaymentCard, IdempotencyKey: "tap-key",
+	})
+	if !errors.Is(err, ErrProviderUnavailable) {
+		t.Fatalf("expected provider unavailable, got %v", err)
+	}
+	if repo.request.Status != commerce.PaymentFailed || repo.request.ProviderSessionStatus != "failed" {
+		t.Fatalf("failed provider session did not fail closed: %#v", repo.request)
+	}
+}
+
