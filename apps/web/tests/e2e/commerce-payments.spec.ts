@@ -15,7 +15,7 @@ test('student checkout uses server quote and never posts client price',async({pa
  await page.getByRole('link',{name:'طلب شراء الدورة'}).click();
  await expect(page.getByRole('heading',{name:'إتمام طلب الشراء'})).toBeVisible();
  await page.getByLabel('كود الخصم').fill('SAVE10');await page.getByRole('button',{name:'تطبيق'}).click();
- await expect(page.getByText(/90/)).toBeVisible();
+ await expect(page.getByTestId('checkout-final-amount')).toContainText('90');
  await page.getByRole('button',{name:'تحويل'}).click();await page.getByLabel('مرجع التحويل').fill('TRX-123');
  await page.getByRole('button',{name:'إنشاء طلب الدفع'}).click();
  await expect(page.getByRole('heading',{name:'تم إنشاء طلب الدفع'})).toBeVisible();

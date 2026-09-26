@@ -494,6 +494,8 @@ FROM commerce_provider_events WHERE provider_code=$1 AND event_id=$2
 	switch {
 	case request.ProviderCode != event.ProviderCode:
 		processing, reason = "rejected", "provider_mismatch"
+	case request.GatewayMode != commerce.GatewayWebhook:
+		processing, reason = "rejected", "gateway_mode_not_webhook"
 	case request.Status != commerce.PaymentPending:
 		processing, reason = "ignored", "payment_request_already_final"
 	case event.Status == commerce.ProviderPaid && (event.AmountMinor != request.FinalAmountMinor || event.Currency != request.Currency):
