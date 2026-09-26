@@ -115,6 +115,10 @@ jobs:
           check "select to_regclass('public.commerce_school_seat_assignments') is not null"
           check "select exists(select 1 from pg_indexes where tablename='commerce_school_seat_assignments' and indexname='commerce_school_seat_active_user_idx')"
           check "select exists(select 1 from pg_constraint where conname='commerce_access_codes_window_check')"
+          check "select to_regclass('public.commerce_revenue_entries') is not null"
+          check "select exists(select 1 from information_schema.columns where table_name='commerce_payment_requests' and column_name='revenue_share_percentage')"
+          check "select exists(select 1 from pg_constraint where conname='commerce_revenue_allocation_shape')"
+          check "select exists(select 1 from pg_indexes where tablename='commerce_revenue_entries' and indexname='commerce_revenue_entries_trainer_idx')"
 
       - name: Roll back every migration
         shell: bash
