@@ -63,6 +63,48 @@ export interface ReviewPage {
   hasMore: boolean;
 }
 
+export interface ReviewPracticeQuestion {
+  id: string;
+  version: number;
+  type: string;
+  text: string;
+  imageAssetId: string;
+  imageAlt: string;
+  optionsEmbeddedInImage: boolean;
+  videoUrl: string;
+  difficulty: string;
+  options: Array<{ index: number; text: string; assetId: string }>;
+}
+
+export interface ReviewPracticeItem {
+  card: ReviewCard;
+  question: ReviewPracticeQuestion;
+}
+
+export interface ReviewPracticePage {
+  items: ReviewPracticeItem[];
+  page: number;
+  limit: number;
+  hasMore: boolean;
+}
+
+export interface ReviewAnswerResult {
+  submissionId: string;
+  cardId: string;
+  questionId: string;
+  questionVersion: number;
+  selectedOptionIndex: number;
+  correct: boolean;
+  evidenceType: 'remediation' | 'mastery_review';
+  quality: number;
+  correctOptionIndex: number;
+  explanation: string;
+  hint: string;
+  solvingStrategy: string;
+  reviewTypeAfter: 'error_recovery' | 'mastery_review' | 'saved_review';
+  nextReviewAt: string;
+}
+
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
 async function request<T>(path: string, init: RequestInit = {}) {
@@ -95,6 +137,46 @@ export const learningClient = {
     });
     if (subjectId) params.set('subjectId', subjectId);
     return request<ReviewPage>(`/api/v1/review/library?${params.toString()}`, { signal });
+  },
+
+  reviewPractice(
+    tab: ReviewTab,
+    pathId: string,
+    subjectId: string,
+    page = 1,
+    limit = 20,
+    signal?: AbortSignal,
+  ) {
+    const params = new URLSearchParams({
+      tab,
+      pathId,
+      page: String(page),
+      limit: String(limit),
+    });
+    if (subjectId) params.set('subjectId', subjectId);
+    return request<ReviewPracticePage>(`/api/v1/review/practice?${params.toString()}`, { signal });
+  },
+
+  answerReview(
+    cardId: string,
+    input: {
+      submissionKey: string;
+      expectedUpdatedAt: string;
+      selectedOptionIndex: number;
+    },
+    csrfToken: string,
+  ) {
+    return request<{ result: ReviewAnswerResult }>(
+      `/api/v1/review/cards/${encodeURIComponent(cardId)}/answer`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify(input),
+      },
+    );
   },
 
   saveReview(questionId: string, csrfToken: string) {

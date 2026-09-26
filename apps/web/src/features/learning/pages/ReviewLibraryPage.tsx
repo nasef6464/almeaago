@@ -5,9 +5,10 @@ import {
   ChevronRight,
   CircleAlert,
   Loader2,
+  PlayCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
@@ -211,6 +212,16 @@ export function ReviewLibraryPage() {
               ))}
             </div>
           </section>
+        ) : null}
+
+        {pathId ? (
+          <Link
+            to={`/review/practice?pathId=${encodeURIComponent(pathId)}&subjectId=${encodeURIComponent(subjectId)}&tab=${encodeURIComponent(tab)}`}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 px-4 py-3 font-black text-slate-950 shadow-sm sm:w-auto"
+          >
+            <PlayCircle size={19} />
+            ابدأ جلسة المراجعة المستحقة
+          </Link>
         ) : null}
 
         <section className="grid grid-cols-3 gap-2 rounded-2xl border bg-white p-2">
