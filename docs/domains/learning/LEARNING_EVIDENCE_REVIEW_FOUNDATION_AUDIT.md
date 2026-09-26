@@ -1,6 +1,6 @@
 # Learning Evidence / Mastery / Review Foundation Audit
 
-Status: **IN REVIEW**
+Status: **TESTED / MERGED**
 
 ## Scope
 
@@ -148,3 +148,13 @@ This checkpoint does not yet implement:
 - AI recommendations.
 
 The next Learning batch should close the remediation/review attempt loop using canonical Question IDs/versions and idempotent evidence, rather than introducing another quiz engine.
+
+
+## Verification checkpoint
+- exact tested PR head: `9a7f0c6d3f3f2c0af835e29ea750ddd9f403d864`.
+- Database CI `36215808450`: PASS.
+- Backend CI `36215808456`: PASS.
+- Frontend CI `36215808437`: PASS.
+- Frontend E2E `36215808444`: PASS.
+- browser evidence artifact: `10897855638`.
+- PR #49 merged to `main` as `61e67ef145179832d57a1de19b8652d9d086c7e4`.

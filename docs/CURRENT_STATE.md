@@ -578,10 +578,10 @@ Not claimed by this checkpoint:
 - Commerce entitlement decisions.
 - Reporting/analytics beyond Assessment core result/review projections.
 
-## Learning Evidence / Mastery / Review Foundation — IN REVIEW
-Active branch: `feat/learning-evidence-review-foundation`.
+## Learning Evidence / Mastery / Review Foundation — TESTED / MERGED
+PR #49 passed all required exact-head gates on `9a7f0c6d3f3f2c0af835e29ea750ddd9f403d864` and merged to `main` as `61e67ef145179832d57a1de19b8652d9d086c7e4`.
 
-Implemented on the branch:
+Implemented:
 - migration `000022_learning_evidence_review` with normalized evidence, skill progress, ReviewCard and card-skill relations.
 - one canonical Assessment evidence event per submitted attempt/question outcome with a DB replay guard.
 - retry-safe Assessment submit → Learning handoff: failed Learning application can be retried through the same Assessment submission key without duplicating result/evidence.
@@ -592,15 +592,19 @@ Implemented on the branch:
 - bounded student-only mastery progress (default 50, max 100) and weakest-skill next action.
 - batched exact-version Question Bank review projection; no per-card Question N+1.
 - responsive `/review` React surface and save-from-result workflow.
-- unit contracts + Database CI schema checks + Playwright save/mobile review coverage.
 - anonymous Public/Barcode results remain outside account mastery until an explicit identity-claim product flow exists.
 - Realtime, Commerce, AI and reporting aggregates remain outside this batch.
+
+Verification:
+- Database CI `36215808450`: PASS.
+- Backend CI `36215808456`: PASS.
+- Frontend CI `36215808437`: PASS.
+- Frontend E2E `36215808444`: PASS, including save-from-result and mobile review/mastery flows.
+- browser evidence artifact `10897855638`.
+- earlier Database/Backend/E2E failures were fixed on the same PR before the final exact-head run without weakening tests.
 
 Audit:
 - `docs/domains/learning/LEARNING_EVIDENCE_REVIEW_FOUNDATION_AUDIT.md`.
 
-Verification state:
-- not merge-qualified until exact PR head passes Database CI + Backend CI + Frontend CI + Frontend E2E.
-
 ## Next exact action
-Open the Learning Evidence / Mastery / Review Foundation PR, run exact-head Database + Backend + Frontend + E2E gates, fix every failure on the same branch without weakening tests, record the verified SHA/run evidence, and merge only when all gates are green. After merge, continue Phase 7 with the remediation/mastery-review attempt loop: bounded due-card discovery, server-validated answers without answer-key leakage, idempotent review evidence, and canonical Assessment/Question reuse instead of a second quiz engine.
+Continue Phase 7 from current `main` with the remediation/mastery-review attempt loop: bounded due-card discovery, server-validated answer submission without answer-key leakage, idempotent review evidence application, ReviewCard SM-2 state advancement, and canonical Question ID/version reuse. Do not create a second quiz engine; keep Assessment attempt/result ownership separate and keep Realtime, Commerce and AI outside this batch.
