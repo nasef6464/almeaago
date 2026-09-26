@@ -21,6 +21,7 @@ import { AssessmentAvailabilityPage } from '../features/assessment/pages/Assessm
 import { ReviewLibraryPage } from '../features/learning/pages/ReviewLibraryPage';
 import { ReviewPracticePage } from '../features/learning/pages/ReviewPracticePage';
 import { CourseLearningPage } from '../features/learning/pages/CourseLearningPage';
+import { StudyPlanPage } from '../features/learning/pages/StudyPlanPage';
 import { PublicBarcodeAssessmentPage } from '../features/assessment/pages/PublicBarcodeAssessmentPage';
 import { LiveAssessmentJoinPage } from '../features/assessment/pages/LiveAssessmentJoinPage';
 import { AdminDashboardShell } from '../features/content/components/AdminDashboardShell';
@@ -167,6 +168,7 @@ export function App() {
         <Route path="/learning/courses/:courseId" element={<CourseLearningPage />} />
         <Route path="/review" element={<ReviewLibraryPage />} />
         <Route path="/review/practice" element={<ReviewPracticePage />} />
+        <Route path="/plan" element={<StudyPlanPage />} />
         <Route path="/school-teacher-dashboard" element={<PlaceholderPage title="لوحة معلم المدرسة" />} />
         <Route path="/supervisor-dashboard" element={<PlaceholderPage title="لوحة المشرف" />} />
         <Route path="/school-director-dashboard" element={<PlaceholderPage title="لوحة مدير المدرسة" />} />
