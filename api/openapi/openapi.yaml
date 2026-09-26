@@ -401,6 +401,82 @@ paths:
         "404": { description: Public attempt/session unavailable }
         "409": { description: Expired, duplicate, attempt-budget, answer-integrity or submission-cap conflict }
 
+
+  /api/v1/review/library:
+    get:
+      operationId: learningReviewLibrary
+      description: >
+        Student-only path-scoped review library. Combines saved and mistake reasons on one
+        canonical learner/question ReviewCard, defaults to 20 rows, caps at 50, and uses
+        hasMore without an exact-count scan. Exact Question versions are composed in one
+        bounded Question Bank batch.
+      parameters:
+        - { in: query, name: tab, schema: { type: string, enum: [saved, mistakes, all], default: all } }
+        - { in: query, name: pathId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: subjectId, schema: { type: string, format: uuid } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        "200": { description: Bounded learner review page }
+        "400": { description: Invalid scope or pagination }
+        "401": { description: Authentication required }
+        "403": { description: Student role required }
+
+  /api/v1/review/questions/{id}/saved:
+    put:
+      operationId: learningSaveReviewQuestion
+      description: >
+        CSRF-protected Student mutation that adds the saved-for-review reason to an existing
+        canonical ReviewCard. It never creates a duplicate card for a mistake.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Saved reason applied idempotently }
+        "403": { description: Student role or CSRF denied }
+        "404": { description: ReviewCard does not exist for this learner/question }
+    delete:
+      operationId: learningUnsaveReviewQuestion
+      description: >
+        CSRF-protected Student mutation that removes only the saved reason. Mistake/mastery
+        review state remains canonical on the same card.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Saved reason removed idempotently }
+        "403": { description: Student role or CSRF denied }
+
+  /api/v1/mastery/progress:
+    get:
+      operationId: learningMasteryProgress
+      description: >
+        Student-only path-scoped current mastery materialization from canonical evidence.
+        Defaults to 50 rows, caps at 100 and never returns raw evidence history.
+      parameters:
+        - { in: query, name: pathId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: subjectId, schema: { type: string, format: uuid } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        "200": { description: Bounded mastery progress page }
+        "400": { description: Invalid path scope or pagination }
+        "401": { description: Authentication required }
+        "403": { description: Student role required }
+
+  /api/v1/mastery/next-action:
+    get:
+      operationId: learningMasteryNextAction
+      description: >
+        Student-only deterministic weakest-skill next action for the selected path/subject.
+        AI is not a source of truth for this value.
+      parameters:
+        - { in: query, name: pathId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: subjectId, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Weakest current skill progress item or null when evidence is absent }
+        "400": { description: Invalid path scope }
+        "401": { description: Authentication required }
+        "403": { description: Student role required }
+
   /api/v1/media/uploads/presign:
     post:
       operationId: mediaPresignUpload

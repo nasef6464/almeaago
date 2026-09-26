@@ -578,5 +578,29 @@ Not claimed by this checkpoint:
 - Commerce entitlement decisions.
 - Reporting/analytics beyond Assessment core result/review projections.
 
+## Learning Evidence / Mastery / Review Foundation — IN REVIEW
+Active branch: `feat/learning-evidence-review-foundation`.
+
+Implemented on the branch:
+- migration `000022_learning_evidence_review` with normalized evidence, skill progress, ReviewCard and card-skill relations.
+- one canonical Assessment evidence event per submitted attempt/question outcome with a DB replay guard.
+- retry-safe Assessment submit → Learning handoff: failed Learning application can be retried through the same Assessment submission key without duplicating result/evidence.
+- exact path/subject + multi-skill evidence scope.
+- deterministic mastery/status/recommended-action bands preserving the documented legacy policy.
+- canonical one learner/question ReviewCard with independent saved + mistake reasons and SM-2 scheduling state.
+- bounded student-only review library (default 20, max 50; no exact-count scan).
+- bounded student-only mastery progress (default 50, max 100) and weakest-skill next action.
+- batched exact-version Question Bank review projection; no per-card Question N+1.
+- responsive `/review` React surface and save-from-result workflow.
+- unit contracts + Database CI schema checks + Playwright save/mobile review coverage.
+- anonymous Public/Barcode results remain outside account mastery until an explicit identity-claim product flow exists.
+- Realtime, Commerce, AI and reporting aggregates remain outside this batch.
+
+Audit:
+- `docs/domains/learning/LEARNING_EVIDENCE_REVIEW_FOUNDATION_AUDIT.md`.
+
+Verification state:
+- not merge-qualified until exact PR head passes Database CI + Backend CI + Frontend CI + Frontend E2E.
+
 ## Next exact action
-Start the Learning / Adaptive / Review phase from current `main`. Build the normalized learner evidence/mastery/review-card foundation first: one canonical evidence event per attempt/question outcome, idempotent application from Assessment submission, bounded review-library reads, and deterministic mastery/next-action rules. Do not move Smart Classroom realtime state or Commerce entitlement into Learning.
+Open the Learning Evidence / Mastery / Review Foundation PR, run exact-head Database + Backend + Frontend + E2E gates, fix every failure on the same branch without weakening tests, record the verified SHA/run evidence, and merge only when all gates are green. After merge, continue Phase 7 with the remediation/mastery-review attempt loop: bounded due-card discovery, server-validated answers without answer-key leakage, idempotent review evidence, and canonical Assessment/Question reuse instead of a second quiz engine.
