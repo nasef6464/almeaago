@@ -517,6 +517,51 @@ paths:
         "403": { description: Student role required }
 
 
+  /api/v1/mastery/goals:
+    get:
+      operationId: learningMasteryGoalList
+      description: >
+        Student-only bounded mastery-goal list scoped to an exact canonical path
+        and optional subject. Defaults to active goals, 20 rows, max 100, using
+        hasMore rather than an exact-count query.
+      parameters:
+        - { in: query, name: pathId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: subjectId, schema: { type: string, format: uuid } }
+        - { in: query, name: status, schema: { type: string, enum: [active, achieved, archived], default: active } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200": { description: Learner-owned bounded mastery-goal page }
+        "400": { description: Invalid taxonomy scope, status, or pagination }
+        "401": { description: Authentication required }
+        "403": { description: Student role required }
+    post:
+      operationId: learningMasteryGoalCreate
+      description: >
+        Student-only CSRF-protected goal creation. This first normalized slice supports
+        verified path targets only. Legacy section/topic target values fail closed until
+        Taxonomy owns an explicit canonical mapping.
+      responses:
+        "201": { description: Learner-owned mastery goal created }
+        "400": { description: Invalid goal, date, target, or taxonomy scope }
+        "401": { description: Authentication required }
+        "403": { description: Student role or CSRF denied }
+
+  /api/v1/mastery/goals/{goalId}:
+    patch:
+      operationId: learningMasteryGoalUpdate
+      description: >
+        Student-only CSRF-protected optimistic goal update. Requires expectedUpdatedAt
+        and supports title, targetMastery, dueDate, and active/achieved/archived status.
+      parameters:
+        - { in: path, name: goalId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Learner-owned mastery goal updated }
+        "400": { description: Invalid patch }
+        "401": { description: Authentication required }
+        "403": { description: Student role or CSRF denied }
+        "409": { description: Goal ownership or concurrent-update conflict }
+
   /api/v1/learning-progress/lessons/{lessonId}:
     get:
       operationId: learningLessonProgressGet

@@ -6,6 +6,7 @@ import {
   CircleAlert,
   Loader2,
   PlayCircle,
+  Target,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -15,6 +16,8 @@ import { contentClient } from '../../content/api/content-client';
 import type { TaxonomyCore } from '../../content/api/content-types';
 import {
   learningClient,
+  type MasteryGoal,
+  type MasteryGoalHorizon,
   type ReviewItem,
   type ReviewTab,
   type SkillProgress,
@@ -36,6 +39,14 @@ const statusLabel: Record<SkillProgress['status'], string> = {
 const optionLetter = (index: number) =>
   ['أ', 'ب', 'ج', 'د', 'هـ', 'و'][index] || String(index + 1);
 
+function formatGoalDate(value: string) {
+  if (!value) return 'بدون موعد محدد';
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString('ar-SA', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 export function ReviewLibraryPage() {
   const { user, loading: authLoading, getCsrfToken } = useAuth();
   const [searchParams] = useSearchParams();
@@ -48,6 +59,10 @@ export function ReviewLibraryPage() {
   const [hasMore, setHasMore] = useState(false);
   const [nextAction, setNextAction] = useState<SkillProgress | null>(null);
   const [progress, setProgress] = useState<SkillProgress[]>([]);
+  const [goals, setGoals] = useState<MasteryGoal[]>([]);
+  const [goalsHasMore, setGoalsHasMore] = useState(false);
+  const [goalsBusy, setGoalsBusy] = useState(false);
+  const [goalSaving, setGoalSaving] = useState('');
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState('');
   const [error, setError] = useState('');
@@ -106,6 +121,82 @@ export function ReviewLibraryPage() {
       });
     return () => controller.abort();
   }, [authLoading, page, pathId, reload, subjectId, tab, user]);
+
+  useEffect(() => {
+    if (authLoading || !user || !user.roles.includes('student') || !pathId) {
+      setGoals([]);
+      setGoalsHasMore(false);
+      setGoalsBusy(false);
+      return;
+    }
+    const controller = new AbortController();
+    setGoalsBusy(true);
+    learningClient
+      .goals(pathId, subjectId, 'active', 1, 20, controller.signal)
+      .then((response) => {
+        if (controller.signal.aborted) return;
+        setGoals(response.items);
+        setGoalsHasMore(response.hasMore);
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) {
+          setError(cause instanceof Error ? cause.message : 'تعذر تحميل أهداف الإتقان');
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setGoalsBusy(false);
+      });
+    return () => controller.abort();
+  }, [authLoading, pathId, subjectId, user]);
+
+  const canCreateShort = pathId !== '' && !goals.some((goal) => goal.horizon === 'short');
+  const canCreateLong = pathId !== '' && !goals.some((goal) => goal.horizon === 'long');
+
+  async function createGoal(horizon: MasteryGoalHorizon) {
+    if (!pathId || goalSaving) return;
+    setGoalSaving(`create:${horizon}`);
+    setError('');
+    try {
+      const csrf = await getCsrfToken();
+      const due = new Date();
+      due.setDate(due.getDate() + (horizon === 'short' ? 14 : 60));
+      const pathName = taxonomy.paths.find((item) => item.id === pathId)?.name || 'المسار الحالي';
+      const response = await learningClient.createGoal(
+        {
+          pathId,
+          subjectId,
+          targetType: 'path',
+          targetId: pathId,
+          title: horizon === 'short'
+            ? `هدف قصير لمسار ${pathName}`
+            : `إتقان مسار ${pathName}`,
+          targetMastery: 90,
+          horizon,
+          dueDate: due.toISOString().slice(0, 10),
+        },
+        csrf,
+      );
+      setGoals((current) => [response.goal, ...current.filter((goal) => goal.id !== response.goal.id)]);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'تعذر إنشاء هدف الإتقان');
+    } finally {
+      setGoalSaving('');
+    }
+  }
+
+  async function setGoalStatus(goal: MasteryGoal, status: 'achieved' | 'archived') {
+    setGoalSaving(goal.id);
+    setError('');
+    try {
+      const csrf = await getCsrfToken();
+      await learningClient.updateGoal(goal, { status }, csrf);
+      setGoals((current) => current.filter((item) => item.id !== goal.id));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'تعذر تحديث هدف الإتقان');
+    } finally {
+      setGoalSaving('');
+    }
+  }
 
   async function toggleSaved(item: ReviewItem) {
     setSaving(item.card.questionId);
@@ -180,6 +271,95 @@ export function ReviewLibraryPage() {
             </select>
           </label>
         </section>
+
+        {pathId ? (
+          <section className="rounded-3xl border border-indigo-100 bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700">
+                  <Target size={14} />
+                  أهداف الإتقان
+                </div>
+                <h2 className="mt-2 text-lg font-black text-gray-900">هدف قريب وهدف للمسار</h2>
+                <p className="mt-1 text-sm font-bold leading-7 text-gray-500">
+                  الهدف لا يغيّر درجة الإتقان؛ هو علامة متابعة مستقلة مبنية على نفس المسار والمادة.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={!canCreateShort || goalSaving !== ''}
+                  onClick={() => void createGoal('short')}
+                  className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {goalSaving === 'create:short' ? 'جاري الإنشاء...' : 'هدف قصير'}
+                </button>
+                <button
+                  type="button"
+                  disabled={!canCreateLong || goalSaving !== ''}
+                  onClick={() => void createGoal('long')}
+                  className="rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {goalSaving === 'create:long' ? 'جاري الإنشاء...' : 'هدف طويل'}
+                </button>
+              </div>
+            </div>
+
+            {goalsHasMore ? (
+              <p className="mt-3 rounded-xl bg-amber-50 p-2 text-xs font-bold text-amber-800">
+                لديك أهداف نشطة إضافية؛ هذه الشاشة تعرض أول 20 هدفًا فقط.
+              </p>
+            ) : null}
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {goalsBusy ? (
+                <div className="rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-500">
+                  جاري تحميل الأهداف...
+                </div>
+              ) : goals.length ? (
+                goals.map((goal) => (
+                  <article key={goal.id} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-slate-600">
+                          {goal.horizon === 'short' ? 'قصير' : 'طويل'}
+                        </span>
+                        <h3 className="mt-2 font-black leading-7 text-gray-900">{goal.title}</h3>
+                      </div>
+                      <div className="rounded-xl bg-white px-3 py-2 text-center">
+                        <div className="text-lg font-black text-indigo-700">{goal.targetMastery}%</div>
+                        <div className="text-[10px] font-bold text-gray-400">الهدف</div>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs font-bold text-gray-500">{formatGoalDate(goal.dueDate)}</p>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        disabled={goalSaving !== ''}
+                        onClick={() => void setGoalStatus(goal, 'achieved')}
+                        className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[11px] font-black text-emerald-700 disabled:opacity-50"
+                      >
+                        تحقق
+                      </button>
+                      <button
+                        type="button"
+                        disabled={goalSaving !== ''}
+                        onClick={() => void setGoalStatus(goal, 'archived')}
+                        className="rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-black text-slate-600 disabled:opacity-50"
+                      >
+                        أرشفة
+                      </button>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-bold leading-7 text-slate-500 md:col-span-2">
+                  لا يوجد هدف إتقان نشط بعد. أنشئ هدفًا قصيرًا أو طويلًا للمسار الحالي.
+                </div>
+              )}
+            </div>
+          </section>
+        ) : null}
 
         {pathId && nextAction ? (
           <section className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">

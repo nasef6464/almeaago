@@ -1,4 +1,32 @@
 export type ReviewTab = 'saved' | 'mistakes' | 'all';
+export type MasteryGoalHorizon = 'short' | 'long';
+export type MasteryGoalStatus = 'active' | 'achieved' | 'archived';
+export type MasteryGoalTargetType = 'topic' | 'section' | 'path';
+
+export interface MasteryGoal {
+  id: string;
+  studentId: string;
+  createdByUserId: string;
+  createdByRole: string;
+  pathId: string;
+  subjectId: string;
+  targetType: MasteryGoalTargetType;
+  targetId: string;
+  title: string;
+  targetMastery: number;
+  horizon: MasteryGoalHorizon;
+  dueDate: string;
+  status: MasteryGoalStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MasteryGoalPage {
+  items: MasteryGoal[];
+  page: number;
+  limit: number;
+  hasMore: boolean;
+}
 
 export interface SkillProgress {
   pathId: string;
@@ -215,6 +243,70 @@ export const learningClient = {
     return request<{ item: SkillProgress | null }>(
       `/api/v1/mastery/next-action?${params.toString()}`,
       { signal },
+    );
+  },
+
+  goals(
+    pathId: string,
+    subjectId: string,
+    status: MasteryGoalStatus = 'active',
+    page = 1,
+    limit = 20,
+    signal?: AbortSignal,
+  ) {
+    const params = new URLSearchParams({
+      pathId,
+      status,
+      page: String(page),
+      limit: String(limit),
+    });
+    if (subjectId) params.set('subjectId', subjectId);
+    return request<MasteryGoalPage>(`/api/v1/mastery/goals?${params.toString()}`, { signal });
+  },
+
+  createGoal(
+    input: {
+      pathId: string;
+      subjectId: string;
+      targetType: MasteryGoalTargetType;
+      targetId: string;
+      title: string;
+      targetMastery: number;
+      horizon: MasteryGoalHorizon;
+      dueDate: string;
+    },
+    csrfToken: string,
+  ) {
+    return request<{ goal: MasteryGoal }>('/api/v1/mastery/goals', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      body: JSON.stringify(input),
+    });
+  },
+
+  updateGoal(
+    goal: MasteryGoal,
+    patch: {
+      title?: string;
+      targetMastery?: number;
+      dueDate?: string;
+      status?: MasteryGoalStatus;
+    },
+    csrfToken: string,
+  ) {
+    return request<{ goal: MasteryGoal }>(
+      `/api/v1/mastery/goals/${encodeURIComponent(goal.id)}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify({ expectedUpdatedAt: goal.updatedAt, ...patch }),
+      },
     );
   },
 };
