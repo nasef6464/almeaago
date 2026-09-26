@@ -953,5 +953,37 @@ Commerce remains `TESTED`, not `PARITY_PROVEN`. The remaining Commerce items can
 - Package/Membership multi-trainer allocation requires an explicit allocation rule.
 These items stay explicit external/UNKNOWN boundaries rather than being implemented speculatively.
 
+## Parents Linked-Child Dashboard / Weekly Report — TESTED / MERGED
+PR #63 passed all required exact-head gates on `cfcc0bf24caa55c52266fcc75c5c0dc31f4c0a95` and merged to `main` as `0fc4d5d4962e01ca81c844eb153a8c0235103260`.
+
+Implemented:
+- Organizations remains canonical owner of active `parent_student_relationships`; Parents consumes that authority instead of storing duplicate child arrays or inferring scope from Identity.
+- `GET /api/v1/parents/authority` remains available through the new Parents facade.
+- Parent dashboard orchestration sends only already-authorized bounded student IDs to owning-domain readers.
+- Identity supplies a privacy-safe name/avatar projection only; parent reads do not expose email, phone or national ID.
+- Assessment supplies batched rolling-seven-day count/average/time facts plus bounded recent result summaries; question responses, correct-option keys and review payloads never enter the parent contract.
+- Learning supplies batched current skills below the canonical good threshold plus its existing deterministic `recommended_action`; Parents does not invent a second recommendation engine.
+- `GET /api/v1/parents/dashboard` returns bounded linked-child overview data.
+- `GET /api/v1/parents/children/{studentId}/results` rechecks canonical authority before calling Assessment; an unlinked student is denied before the foreign reader executes.
+- `GET /api/v1/parents/weekly-report` returns a read-only rolling seven-day summary and does not send email/WhatsApp.
+- `/parent-dashboard` is no longer a placeholder: responsive overview, linked children, results, weak skills/next action, weekly report and explicit no-linked-child state are implemented.
+- no self-service link-code/consent policy, parent payment approval, notification delivery, WhatsApp preference or student learning mutation was invented where the Blueprint did not make it part of this golden slice.
+
+Verification:
+- Database CI `36261272111`: PASS apply + canonical parent relationship index verification + rollback + re-apply.
+- Backend CI `36261272140`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36261272127`: PASS typecheck + production build.
+- Frontend E2E `36261272112`: PASS all 34 browser tests including mobile parent linked-child golden journey and no-active-link empty state.
+- browser evidence artifact `10912034166`, digest `sha256:55ae07b373810ef3e3a04fce7e18cc94b90d16c484b61dee8d81806b57b4e127`.
+- early Backend failures were formatting-only. The first Parent E2E failure was a strict-locator ambiguity and was corrected by targeting the semantic linked-child heading without changing product behavior.
+
+Audit:
+- `docs/domains/parents/PARENTS_DASHBOARD_REPORT_AUDIT.md`.
+
+## Parents phase checkpoint
+The Product Blueprint parent golden journey is now implemented and exact-head tested: **active linked child only -> result/progress -> weekly report**. Parent is an observer and cannot author Assessment or mutate Learning state.
+
+Parents remains `TESTED`, not `PARITY_PROVEN`. Parent-specific notification delivery, weekly scheduling, email/WhatsApp preferences/templates and delivery evidence belong to the Communication/Notifications phase. Legacy payment-approval and self-linking behaviors are not treated as canonical unless a source-backed product rule is established.
+
 ## Next exact action
-Start the Parents phase from current `main`. Re-read the Product Blueprint, current Organizations-owned parent authority projection, legacy parent flows and current learner/reporting boundaries before selecting the first focused slice. Preserve Organizations as the authority for parent-to-student relationships and compose child learning/reporting data through narrow owning-domain contracts; do not duplicate student progress or infer parent permissions from identity fields.
+Start the Communication/Notifications phase from current `main`. Re-read the Blueprint, current notification placeholders/legacy delivery flows and provider/config evidence before choosing the first bounded slice. Keep domain events and outbox/delivery evidence separate from parent/assessment state, make user notification preferences explicit, and do not invent WhatsApp/email retry, consent or provider semantics where source evidence is missing.
