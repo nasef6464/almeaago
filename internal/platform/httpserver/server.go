@@ -14,28 +14,28 @@ import (
 )
 
 type Dependencies struct {
-	Logger                *slog.Logger
-	DB                    *pgxpool.Pool
-	Redis                 *redis.Client
-	Identity              http.Handler
-	Organizations         http.Handler
-	Parents               http.Handler
-	Taxonomy              http.Handler
-	QuestionBank          http.Handler
-	Assessments           http.Handler
-	AssessmentAttempts    http.Handler
-	AssessmentAssignments http.Handler
-	AssessmentPlacements  http.Handler
-	AssessmentSessions    http.Handler
+	Logger                   *slog.Logger
+	DB                       *pgxpool.Pool
+	Redis                    *redis.Client
+	Identity                 http.Handler
+	Organizations            http.Handler
+	Parents                  http.Handler
+	Taxonomy                 http.Handler
+	QuestionBank             http.Handler
+	Assessments              http.Handler
+	AssessmentAttempts       http.Handler
+	AssessmentAssignments    http.Handler
+	AssessmentPlacements     http.Handler
+	AssessmentSessions       http.Handler
 	PublicAssessmentSessions http.Handler
-	Media                 http.Handler
-	Courses               http.Handler
-	Lessons               http.Handler
-	Foundation            http.Handler
-	Library               http.Handler
-	ContentManagement     http.Handler
-	LearningSpaces        http.Handler
-	LegacySchoolAccess    http.Handler
+	Media                    http.Handler
+	Courses                  http.Handler
+	Lessons                  http.Handler
+	Foundation               http.Handler
+	Library                  http.Handler
+	ContentManagement        http.Handler
+	LearningSpaces           http.Handler
+	LegacySchoolAccess       http.Handler
 }
 
 func New(addr string, deps Dependencies) *http.Server {

@@ -11,10 +11,10 @@ import (
 )
 
 type sessionRepoStub struct {
-	created assessment.Session
-	page    assessment.SessionPage
-	live    assessment.LiveJoin
-	lastPage int
+	created   assessment.Session
+	page      assessment.SessionPage
+	live      assessment.LiveJoin
+	lastPage  int
 	lastLimit int
 }
 
@@ -71,15 +71,15 @@ func (r *sessionDefinitionRepo) CanAuthor(context.Context, string, string, strin
 func publishedSessionDefinition(owner string) assessment.Assessment {
 	version := 2
 	return assessment.Assessment{
-		ID:               "assessment-1",
-		OwnerType:        assessment.OwnerTeacher,
-		OwnerUserID:      owner,
+		ID:                "assessment-1",
+		OwnerType:         assessment.OwnerTeacher,
+		OwnerUserID:       owner,
 		AssignedTeacherID: owner,
-		WorkflowStatus:   assessment.WorkflowApproved,
-		IsPublished:      true,
-		IsVisible:        true,
-		PublishedVersion: &version,
-		Version:          assessment.Version{Version: 2, PathID: "path-1", SubjectID: "subject-1"},
+		WorkflowStatus:    assessment.WorkflowApproved,
+		IsPublished:       true,
+		IsVisible:         true,
+		PublishedVersion:  &version,
+		Version:           assessment.Version{Version: 2, PathID: "path-1", SubjectID: "subject-1"},
 	}
 }
 

@@ -86,14 +86,14 @@ type PublicAnswerWrite struct {
 }
 
 type PublicSubmitInput struct {
-	ParticipantKey string              `json:"participantKey"`
-	PublicAttemptID string              `json:"publicAttemptId"`
-	SubmissionKey  string              `json:"submissionKey"`
-	ParticipantName string              `json:"participantName"`
-	SchoolName      string              `json:"schoolName"`
-	ClassroomName   string              `json:"classroomName"`
-	Contact         string              `json:"contact"`
-	TimeSpentSeconds int                `json:"timeSpentSeconds"`
+	ParticipantKey   string              `json:"participantKey"`
+	PublicAttemptID  string              `json:"publicAttemptId"`
+	SubmissionKey    string              `json:"submissionKey"`
+	ParticipantName  string              `json:"participantName"`
+	SchoolName       string              `json:"schoolName"`
+	ClassroomName    string              `json:"classroomName"`
+	Contact          string              `json:"contact"`
+	TimeSpentSeconds int                 `json:"timeSpentSeconds"`
 	Answers          []PublicAnswerWrite `json:"answers"`
 }
 

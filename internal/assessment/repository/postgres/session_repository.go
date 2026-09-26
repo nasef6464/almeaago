@@ -76,7 +76,7 @@ func (r *Repository) CreateSession(ctx context.Context, actor string, roles []id
 	}
 
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actor,
+		ActorUserID:  actor,
 		Action:       "assessment.session.create",
 		ResourceType: "assessment_session",
 		ResourceID:   id,
@@ -209,7 +209,7 @@ func (r *Repository) SetSessionStatus(ctx context.Context, actor string, roles [
 		return assessment.Session{}, assessment.ErrNotFound
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actor,
+		ActorUserID:  actor,
 		Action:       "assessment.session.status",
 		ResourceType: "assessment_session",
 		ResourceID:   id,
@@ -775,7 +775,7 @@ func (r *Repository) StartLive(ctx context.Context, student, sessionID, startKey
 		return assessment.Attempt{}, mapError(err)
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: student,
+		ActorUserID:  student,
 		Action:       "assessment.session.attempt.start",
 		ResourceType: "assessment_attempt",
 		ResourceID:   id,
