@@ -43,6 +43,12 @@ func NewWithCheckout(service *commerceapp.Service, checkout *commerceapp.Checkou
 	r.Post("/entitlements", h.grantEntitlement)
 	r.Post("/entitlements/{id}/revoke", h.revokeEntitlement)
 	r.Get("/access/courses/{id}", h.courseAccess)
+	r.Get("/admin/access-codes", h.listAccessCodes)
+	r.Post("/admin/access-codes", h.createAccessCode)
+	r.Patch("/admin/access-codes/{id}", h.updateAccessCode)
+	r.Get("/admin/school-seats", h.listSchoolSeats)
+	r.Post("/admin/school-seats", h.assignSchoolSeat)
+	r.Post("/access-codes/redeem", h.redeemAccessCode)
 	if checkout != nil {
 		r.Get("/catalog/products/{id}", h.catalogProduct)
 		r.Post("/discounts/preview", h.previewDiscount)
