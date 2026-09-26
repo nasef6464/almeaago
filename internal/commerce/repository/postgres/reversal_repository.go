@@ -190,7 +190,7 @@ func (r *Repository) RecordAdminReversal(
 	}
 	if !duplicate {
 		if err = r.auditTx(ctx, tx, operations.AuditEvent{
-			ActorUserID: actor,
+			ActorUserID:  actor,
 			Action:       "commerce.payment_reversal.record",
 			ResourceType: "commerce_payment_request",
 			ResourceID:   p.ID,
