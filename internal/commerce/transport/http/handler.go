@@ -22,12 +22,18 @@ type Authenticator interface {
 }
 
 type Handler struct {
-	service *commerceapp.Service
-	auth    Authenticator
+	service       *commerceapp.Service
+	checkout      *commerceapp.CheckoutService
+	auth          Authenticator
+	webhookSecret []byte
 }
 
 func New(service *commerceapp.Service, auth Authenticator) http.Handler {
-	h := &Handler{service: service, auth: auth}
+	return NewWithCheckout(service, nil, auth, nil)
+}
+
+func NewWithCheckout(service *commerceapp.Service, checkout *commerceapp.CheckoutService, auth Authenticator, webhookSecret []byte) http.Handler {
+	h := &Handler{service: service, checkout: checkout, auth: auth, webhookSecret: webhookSecret}
 	r := chi.NewRouter()
 	r.Get("/products", h.listProducts)
 	r.Post("/products", h.createProduct)
@@ -37,6 +43,18 @@ func New(service *commerceapp.Service, auth Authenticator) http.Handler {
 	r.Post("/entitlements", h.grantEntitlement)
 	r.Post("/entitlements/{id}/revoke", h.revokeEntitlement)
 	r.Get("/access/courses/{id}", h.courseAccess)
+	if checkout != nil {
+		r.Get("/catalog/products/{id}", h.catalogProduct)
+		r.Post("/discounts/preview", h.previewDiscount)
+		r.Get("/checkout/requests", h.myPaymentRequests)
+		r.Post("/checkout/requests", h.createCheckout)
+		r.Get("/admin/discounts", h.listDiscounts)
+		r.Post("/admin/discounts", h.createDiscount)
+		r.Put("/admin/discounts/{id}", h.updateDiscount)
+		r.Get("/admin/payment-requests", h.adminPaymentRequests)
+		r.Patch("/admin/payment-requests/{id}/review", h.reviewPaymentRequest)
+		r.Post("/webhooks/{provider}", h.providerWebhook)
+	}
 	return r
 }
 

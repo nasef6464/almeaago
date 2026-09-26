@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	assessmentrepo "github.com/nasef6464/almeaago/internal/assessment/repository/postgres"
 	assessmenthttp "github.com/nasef6464/almeaago/internal/assessment/transport/http"
 	commerceapp "github.com/nasef6464/almeaago/internal/commerce/application"
+	commerce "github.com/nasef6464/almeaago/internal/commerce/domain"
 	commercerepo "github.com/nasef6464/almeaago/internal/commerce/repository/postgres"
 	commercehttp "github.com/nasef6464/almeaago/internal/commerce/transport/http"
 	contentapp "github.com/nasef6464/almeaago/internal/content/application"
@@ -87,6 +89,14 @@ func main() {
 	taxonomyRepository := taxonomyrepo.New(db)
 	commerceRepository := commercerepo.New(db, auditWriter)
 	commerceService := commerceapp.NewService(commerceRepository, contentRepository, taxonomyRepository, organizationsRepository)
+	checkoutMode := commerce.GatewayManualReview
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("COMMERCE_PAYMENT_GATEWAY_MODE")), string(commerce.GatewayWebhook)) {
+		checkoutMode = commerce.GatewayWebhook
+	}
+	checkoutService := commerceapp.NewCheckoutService(commerceRepository, commerce.CheckoutPolicy{
+		GatewayMode:  checkoutMode,
+		ProviderCode: strings.TrimSpace(os.Getenv("COMMERCE_PAYMENT_PROVIDER_CODE")),
+	})
 	contentService := contentapp.NewServiceWithAuthorScope(contentRepository, authorScope, commerceService)
 	organizationsService := orgapp.NewServiceWithOptions(organizationsRepository, orgapp.ServiceOptions{
 		DirectorDirectory:       directorDirectory,
@@ -146,7 +156,12 @@ func main() {
 	lessonProgressHandler := learninghttp.NewLessonProgress(lessonProgressService, identityService)
 	studyPlansHandler := learninghttp.NewStudyPlans(studyPlanService, identityService)
 	interventionsHandler := learninghttp.NewInterventions(interventionService, identityService)
-	commerceHandler := commercehttp.New(commerceService, identityService)
+	commerceHandler := commercehttp.NewWithCheckout(
+		commerceService,
+		checkoutService,
+		identityService,
+		[]byte(strings.TrimSpace(os.Getenv("PAYMENT_WEBHOOK_SECRET"))),
+	)
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
 	assessmentHandler := assessmenthttp.NewWithDistribution(assessmentService, identityService, assessmentAssignmentService, assessmentPlacementService, assessmentAttemptService)
 	assessmentAttemptsHandler := assessmenthttp.NewAttempts(assessmentAttemptService, identityService)

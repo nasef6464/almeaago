@@ -12,6 +12,8 @@ test('admin makes a course paid and grants server-owned access',async({page})=>{
  let entitlement:any=null;
  await page.route('**/api/v1/commerce/products?**',r=>json(r,{items:[courseProduct],page:1,limit:100,hasMore:false}));
  await page.route('**/api/v1/commerce/entitlements?**',r=>json(r,{items:entitlement?[entitlement]:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/discounts?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/payment-requests?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/commerce/products/product-course-1',async r=>{
    expect(r.request().method()).toBe('PUT');
    const body=JSON.parse(r.request().postData()||'{}');
@@ -30,7 +32,7 @@ test('admin makes a course paid and grants server-owned access',async({page})=>{
  });
 
  await page.goto('/admin-dashboard/commerce');
- await expect(page.getByRole('heading',{name:'المنتجات والباقات وصلاحيات الوصول'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'المنتجات والخصومات وطلبات الدفع'})).toBeVisible();
  await page.getByLabel('سعر دورة الكمي').fill('12000');
  await page.getByRole('button',{name:'مدفوع'}).click();
  await expect(page.getByText('تم حفظ سياسة الوصول من الخادم.')).toBeVisible();
