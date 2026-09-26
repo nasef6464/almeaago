@@ -86,6 +86,8 @@ jobs:
           check "select to_regclass('public.assessment_results') is not null"
           check "select exists(select 1 from pg_indexes where tablename='assessment_attempts' and indexname='assessment_attempts_student_recent_idx')"
           check "select exists(select 1 from pg_indexes where tablename='assessment_results' and indexname='assessment_results_student_recent_idx')"
+          check "select exists(select 1 from information_schema.columns where table_name='assessment_versions' and column_name='access_type' and column_default like '%free%')"
+          check "select exists(select 1 from information_schema.columns where table_name='assessment_learning_placements' and column_name='access_type' and column_default like '%inherit%')"
           check "select to_regclass('public.mastery_evidence') is not null"
           check "select to_regclass('public.mastery_evidence_skills') is not null"
           check "select to_regclass('public.skill_progress') is not null"

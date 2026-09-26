@@ -82,6 +82,7 @@ type Assessment struct {
 
 type Version struct {
 	Version                 int
+	AccessType              AccessType
 	Title                   string
 	Description             string
 	PathID                  string

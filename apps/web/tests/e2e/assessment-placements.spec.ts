@@ -45,13 +45,19 @@ test('student enters exact learning scope and starts placement attempt on mobile
    expect(u.searchParams.get('slot')).toBe('tests');
    expect(u.searchParams.get('pathId')).toBe('path-1');
    expect(u.searchParams.get('subjectId')).toBe('subject-1');
-   return json(r,{items:[{placementId:'placement-1',assessmentId:'assessment-1',assessmentVersion:2,title:'اختبار الكمي',slot:'tests',pathId:'path-1',subjectId:'subject-1',courseId:'',lessonId:'',topicId:'',sortOrder:0,attemptCount:0,maxAttempts:2,canStart:true}],page:1,limit:30,hasMore:false});
+   return json(r,{items:[
+    {placementId:'placement-paid',assessmentId:'assessment-paid',assessmentVersion:1,assessmentKind:'normal',title:'اختبار مدفوع',slot:'tests',pathId:'path-1',subjectId:'subject-1',courseId:'',lessonId:'',topicId:'',sortOrder:0,attemptCount:0,maxAttempts:2,accessType:'paid',baseAccessType:'free',accessAllowed:false,accessReason:'paid_required',canStart:false},
+    {placementId:'placement-1',assessmentId:'assessment-1',assessmentVersion:2,assessmentKind:'normal',title:'اختبار الكمي',slot:'tests',pathId:'path-1',subjectId:'subject-1',courseId:'',lessonId:'',topicId:'',sortOrder:1,attemptCount:0,maxAttempts:2,accessType:'inherit',baseAccessType:'free',accessAllowed:true,accessReason:'free_assessment',canStart:true}
+   ],page:1,limit:30,hasMore:false});
  });
  await page.route('**/api/v1/assessment-placements/placement-1/start',r=>json(r,{attempt},201));
  await page.route('**/api/v1/assessment-attempts/attempt-placement-1',r=>json(r,{attempt}));
  await page.goto('/assessments');
  await page.getByLabel('المسار').selectOption('path-1');
  await page.getByLabel('المادة').selectOption('subject-1');
+ await expect(page.getByText('اختبار مدفوع')).toBeVisible();
+ await expect(page.getByRole('button',{name:'يتطلب تفعيل باقة أو صلاحية'})).toBeDisabled();
+ await expect(page.getByText('الوصول لهذا الاختبار يتحقق من Commerce على الخادم عند العرض وعند بدء المحاولة.')).toBeVisible();
  await expect(page.getByText('اختبار الكمي')).toBeVisible();
  await page.getByRole('button',{name:'ابدأ الاختبار'}).click();
  await expect(page).toHaveURL(/assessment-attempts\/attempt-placement-1/);

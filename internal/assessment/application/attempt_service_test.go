@@ -21,8 +21,18 @@ type fakeAttemptRepo struct {
 	lastPage    int
 	lastLimit   int
 	lastDetail  string
+	access      assessment.AccessContext
 }
 
+func (f *fakeAttemptRepo) GetPublishedAccessContext(context.Context, string) (assessment.AccessContext, error) {
+	if f.access.AssessmentKind == "" {
+		return assessment.AccessContext{AssessmentKind: assessment.KindNormal, BaseAccess: assessment.AccessFree, PathID: "path-1", SubjectID: "subject-1"}, f.err
+	}
+	return f.access, f.err
+}
+func (f *fakeAttemptRepo) FindDirectStart(context.Context, string, string, string) (assessment.Attempt, bool, error) {
+	return assessment.Attempt{}, false, f.err
+}
 func (f *fakeAttemptRepo) Start(context.Context, string, string, string) (assessment.Attempt, error) {
 	return f.a, f.err
 }
@@ -180,5 +190,30 @@ func TestAttemptSubmitRetriesLearningHandoffWithSameAssessmentResult(t *testing.
 	}
 	if result.AttemptID != "attempt-1" || sink.calls != 2 || repo.sourceCalls != 2 {
 		t.Fatalf("retry handoff mismatch result=%#v sink=%d source=%d", result, sink.calls, repo.sourceCalls)
+	}
+}
+
+func TestDirectPaidAttemptRequiresCommerceEntitlement(t *testing.T) {
+	repo := &fakeAttemptRepo{
+		a: assessment.Attempt{ID: "attempt-1"},
+		access: assessment.AccessContext{
+			AssessmentID: "assessment-1", AssessmentKind: assessment.KindNormal,
+			BaseAccess: assessment.AccessPaid, PathID: "path-1", SubjectID: "subject-1",
+		},
+	}
+	denied := &recordingCommerceAccess{commerceAccessStub: commerceAccessStub{allowed: false, reason: "paid_required"}}
+	service := NewAttemptServiceWithLearningAndCommerce(repo, nil, denied)
+	if _, err := service.Start(context.Background(), student("student-1"), "assessment-1", "start-key"); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected paid direct attempt forbidden, got %v", err)
+	}
+	if denied.calls != 1 {
+		t.Fatalf("expected one commerce check, got %d", denied.calls)
+	}
+
+	allowed := &recordingCommerceAccess{commerceAccessStub: commerceAccessStub{allowed: true, reason: "user_entitlement"}}
+	service = NewAttemptServiceWithLearningAndCommerce(repo, nil, allowed)
+	out, err := service.Start(context.Background(), student("student-1"), "assessment-1", "start-key-2")
+	if err != nil || out.ID != "attempt-1" {
+		t.Fatalf("entitled direct attempt failed: %#v %v", out, err)
 	}
 }

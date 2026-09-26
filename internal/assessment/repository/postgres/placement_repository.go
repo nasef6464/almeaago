@@ -40,14 +40,14 @@ func (r *Repository) CreatePlacement(ctx context.Context, actor, assessmentID st
 	var id string
 	err = tx.QueryRow(ctx, `
 		INSERT INTO assessment_learning_placements(
-			assessment_id,assessment_version,slot,path_id,subject_id,course_id,lesson_id,topic_id,
+			assessment_id,assessment_version,slot,access_type,path_id,subject_id,course_id,lesson_id,topic_id,
 			is_visible,sort_order,created_by
 		) VALUES(
-			$1::uuid,$2,$3,$4::uuid,$5::uuid,NULLIF($6,'')::uuid,NULLIF($7,'')::uuid,NULLIF($8,'')::uuid,
-			$9,$10,$11::uuid
+			$1::uuid,$2,$3,$4,$5::uuid,$6::uuid,NULLIF($7,'')::uuid,NULLIF($8,'')::uuid,NULLIF($9,'')::uuid,
+			$10,$11,$12::uuid
 		)
 		RETURNING id::text
-	`, assessmentID, version, string(w.Slot), w.PathID, w.SubjectID, w.CourseID, w.LessonID, w.TopicID, w.IsVisible, w.SortOrder, actor).Scan(&id)
+	`, assessmentID, version, string(w.Slot), string(w.AccessType), w.PathID, w.SubjectID, w.CourseID, w.LessonID, w.TopicID, w.IsVisible, w.SortOrder, actor).Scan(&id)
 	if err != nil {
 		return assessment.Placement{}, mapError(err)
 	}
@@ -75,13 +75,13 @@ func (r *Repository) CreatePlacement(ctx context.Context, actor, assessmentID st
 func (r *Repository) GetPlacement(ctx context.Context, id string) (assessment.Placement, error) {
 	var p assessment.Placement
 	err := r.db.QueryRow(ctx, `
-		SELECT id::text,assessment_id::text,assessment_version,slot,path_id::text,
+		SELECT id::text,assessment_id::text,assessment_version,slot,access_type,path_id::text,
 		       COALESCE(subject_id::text,''),COALESCE(course_id::text,''),COALESCE(lesson_id::text,''),
 		       COALESCE(topic_id::text,''),is_visible,sort_order,created_at,updated_at
 		FROM assessment_learning_placements
 		WHERE id=$1::uuid
 	`, id).Scan(
-		&p.ID, &p.AssessmentID, &p.AssessmentVersion, &p.Slot, &p.PathID, &p.SubjectID,
+		&p.ID, &p.AssessmentID, &p.AssessmentVersion, &p.Slot, &p.AccessType, &p.PathID, &p.SubjectID,
 		&p.CourseID, &p.LessonID, &p.TopicID, &p.IsVisible, &p.SortOrder, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {
@@ -92,7 +92,7 @@ func (r *Repository) GetPlacement(ctx context.Context, id string) (assessment.Pl
 
 func (r *Repository) ListPlacements(ctx context.Context, assessmentID string, page, limit int) (assessment.PlacementPage, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id::text,assessment_id::text,assessment_version,slot,path_id::text,
+		SELECT id::text,assessment_id::text,assessment_version,slot,access_type,path_id::text,
 		       COALESCE(subject_id::text,''),COALESCE(course_id::text,''),COALESCE(lesson_id::text,''),
 		       COALESCE(topic_id::text,''),is_visible,sort_order,created_at,updated_at
 		FROM assessment_learning_placements
@@ -108,7 +108,7 @@ func (r *Repository) ListPlacements(ctx context.Context, assessmentID string, pa
 	for rows.Next() {
 		var p assessment.Placement
 		if err = rows.Scan(
-			&p.ID, &p.AssessmentID, &p.AssessmentVersion, &p.Slot, &p.PathID, &p.SubjectID,
+			&p.ID, &p.AssessmentID, &p.AssessmentVersion, &p.Slot, &p.AccessType, &p.PathID, &p.SubjectID,
 			&p.CourseID, &p.LessonID, &p.TopicID, &p.IsVisible, &p.SortOrder, &p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
 			return out, err
@@ -125,7 +125,7 @@ func (r *Repository) ListPlacements(ctx context.Context, assessmentID string, pa
 	return out, nil
 }
 
-func (r *Repository) PatchPlacement(ctx context.Context, actor, id string, expected time.Time, visible bool, sortOrder int) (assessment.Placement, error) {
+func (r *Repository) PatchPlacement(ctx context.Context, actor, id string, expected time.Time, accessType assessment.PlacementAccessType, visible bool, sortOrder int) (assessment.Placement, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return assessment.Placement{}, err
@@ -133,9 +133,9 @@ func (r *Repository) PatchPlacement(ctx context.Context, actor, id string, expec
 	defer tx.Rollback(ctx)
 	tag, err := tx.Exec(ctx, `
 		UPDATE assessment_learning_placements
-		SET is_visible=$3,sort_order=$4,updated_at=now()
+		SET access_type=$3,is_visible=$4,sort_order=$5,updated_at=now()
 		WHERE id=$1::uuid AND updated_at=$2
-	`, id, expected, visible, sortOrder)
+	`, id, expected, string(accessType), visible, sortOrder)
 	if err != nil {
 		return assessment.Placement{}, mapError(err)
 	}
@@ -147,7 +147,7 @@ func (r *Repository) PatchPlacement(ctx context.Context, actor, id string, expec
 		Action:       "assessment.placement.update",
 		ResourceType: "assessment_learning_placement",
 		ResourceID:   id,
-		Metadata:     map[string]any{"visible": visible, "sortOrder": sortOrder},
+		Metadata:     map[string]any{"accessType": accessType, "visible": visible, "sortOrder": sortOrder},
 	}); err != nil {
 		return assessment.Placement{}, err
 	}
@@ -160,11 +160,11 @@ func (r *Repository) PatchPlacement(ctx context.Context, actor, id string, expec
 func (r *Repository) ListLearnerPlacements(ctx context.Context, student string, q assessment.LearnerPlacementQuery) (assessment.LearnerPlacementPage, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT
-			p.id::text,p.assessment_id::text,p.assessment_version,v.title,p.slot,p.path_id::text,
+			p.id::text,p.assessment_id::text,p.assessment_version,v.assessment_kind,v.title,p.slot,p.path_id::text,
 			COALESCE(p.subject_id::text,''),COALESCE(p.course_id::text,''),COALESCE(p.lesson_id::text,''),
 			COALESCE(p.topic_id::text,''),p.sort_order,
 			(SELECT count(*)::int FROM assessment_attempts x WHERE x.placement_id=p.id AND x.student_id=$1::uuid),
-			v.max_attempts
+			v.max_attempts,p.access_type,v.access_type
 		FROM assessment_learning_placements p
 		JOIN assessments d ON d.id=p.assessment_id
 		JOIN assessment_versions v ON v.assessment_id=p.assessment_id AND v.version=p.assessment_version
@@ -189,8 +189,9 @@ func (r *Repository) ListLearnerPlacements(ctx context.Context, student string, 
 	for rows.Next() {
 		var p assessment.LearnerPlacement
 		if err = rows.Scan(
-			&p.PlacementID, &p.AssessmentID, &p.AssessmentVersion, &p.Title, &p.Slot, &p.PathID,
+			&p.PlacementID, &p.AssessmentID, &p.AssessmentVersion, &p.AssessmentKind, &p.Title, &p.Slot, &p.PathID,
 			&p.SubjectID, &p.CourseID, &p.LessonID, &p.TopicID, &p.SortOrder, &p.AttemptCount, &p.MaxAttempts,
+			&p.AccessType, &p.BaseAccessType,
 		); err != nil {
 			return out, err
 		}
@@ -205,6 +206,52 @@ func (r *Repository) ListLearnerPlacements(ctx context.Context, student string, 
 		out.Items = out.Items[:q.Limit]
 	}
 	return out, nil
+}
+
+func (r *Repository) GetPlacementAccessContext(ctx context.Context, placementID string) (assessment.AccessContext, error) {
+	var out assessment.AccessContext
+	err := r.db.QueryRow(ctx, `
+SELECT p.assessment_id::text,v.assessment_kind,v.access_type,p.id::text,p.slot,p.access_type,
+       p.path_id::text,COALESCE(p.subject_id::text,''),COALESCE(p.course_id::text,'')
+FROM assessment_learning_placements p
+JOIN assessments a ON a.id=p.assessment_id
+JOIN assessment_versions v ON v.assessment_id=p.assessment_id AND v.version=p.assessment_version
+WHERE p.id=$1::uuid
+  AND p.is_visible=true
+  AND a.workflow_status='approved'
+  AND a.is_published=true
+  AND a.is_visible=true
+`, placementID).Scan(
+		&out.AssessmentID, &out.AssessmentKind, &out.BaseAccess, &out.PlacementID, &out.PlacementSlot,
+		&out.PlacementAccess, &out.PathID, &out.SubjectID, &out.CourseID,
+	)
+	if err != nil {
+		return out, mapError(err)
+	}
+	return out, nil
+}
+
+func (r *Repository) FindPlacementStart(ctx context.Context, student, placementID, startKey string) (assessment.Attempt, bool, error) {
+	var id, existingStudent, existingPlacement string
+	err := r.db.QueryRow(ctx, `
+SELECT id::text,student_id::text,COALESCE(placement_id::text,'')
+FROM assessment_attempts
+WHERE start_key=$1
+`, startKey).Scan(&id, &existingStudent, &existingPlacement)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return assessment.Attempt{}, false, nil
+	}
+	if err != nil {
+		return assessment.Attempt{}, false, err
+	}
+	if existingStudent != student || existingPlacement != placementID {
+		return assessment.Attempt{}, false, assessment.ErrConflict
+	}
+	out, err := r.GetAttempt(ctx, id)
+	if err != nil {
+		return assessment.Attempt{}, false, err
+	}
+	return out, true, nil
 }
 
 func (r *Repository) StartPlacement(ctx context.Context, student, placementID, startKey string) (assessment.Attempt, error) {
@@ -340,6 +387,9 @@ func (r *Repository) ListStudyPlanResources(
 			p.id::text,
 			p.assessment_id::text,
 			p.assessment_version,
+			v.assessment_kind,
+			v.access_type,
+			p.access_type,
 			p.subject_id::text,
 			v.title,
 			p.slot,
@@ -390,6 +440,9 @@ func (r *Repository) ListStudyPlanResources(
 			&item.PlacementID,
 			&item.AssessmentID,
 			&item.AssessmentVersion,
+			&item.AssessmentKind,
+			&item.BaseAccessType,
+			&item.PlacementAccess,
 			&item.SubjectID,
 			&item.Title,
 			&item.Slot,

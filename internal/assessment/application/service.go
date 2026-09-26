@@ -78,6 +78,12 @@ func (s *Service) normalizeWrite(ctx context.Context, actor identity.User, w *as
 	w.Version.Title = strings.TrimSpace(w.Version.Title)
 	w.Version.PathID = strings.TrimSpace(w.Version.PathID)
 	w.Version.SubjectID = strings.TrimSpace(w.Version.SubjectID)
+	if w.Version.AccessType == "" {
+		w.Version.AccessType = assessment.AccessFree
+	}
+	if !assessment.ValidAccessType(w.Version.AccessType) {
+		return ErrInvalidInput
+	}
 	if w.Code == "" || w.Version.Title == "" || w.Version.PathID == "" || len(w.Code) > 120 || len(w.Version.Title) > 240 || len(w.Version.Description) > 8000 || len(w.Sections) > 100 || len(w.Questions) > 500 {
 		return ErrInvalidInput
 	}

@@ -261,7 +261,8 @@ paths:
       operationId: assessmentStaffLearningPlacementCreate
       description: >
         CSRF-protected placement create. The placement pins the currently published Assessment
-        version. Content validates Course/Lesson/Foundation targets through a domain boundary;
+        version. accessType is inherit|free|paid|package; inherit resolves the pinned Version
+        policy. Content validates Course/Lesson/Foundation targets through a domain boundary;
         Assessment stores IDs only.
       responses:
         "201": { description: Learning placement created }
@@ -273,8 +274,8 @@ paths:
     patch:
       operationId: assessmentStaffLearningPlacementPatch
       description: >
-        CSRF-protected optimistic visibility/order update using expectedUpdatedAt. Target IDs
-        and pinned Assessment version are immutable in this slice.
+        CSRF-protected optimistic accessType/visibility/order update using expectedUpdatedAt.
+        Target IDs and pinned Assessment version remain immutable.
       parameters:
         - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
       responses:
@@ -288,8 +289,10 @@ paths:
       operationId: assessmentLearnerLearningPlacementList
       description: >
         Student-only bounded availability. Requires exact pathId + subjectId + slot. Course
-        and Foundation slots also require exact learner-safe Content context. No broad
-        Assessment or Content inventory is loaded.
+        and Foundation slots also require exact learner-safe Content context. Effective access
+        is resolved from Version policy + placement override + current Commerce Entitlements;
+        each item returns accessAllowed/accessReason and canStart is false when Commerce denies.
+        No broad Assessment or Content inventory is loaded.
       parameters:
         - { in: query, name: slot, required: true, schema: { type: string, enum: [training, tests, foundation, course] } }
         - { in: query, name: pathId, required: true, schema: { type: string, format: uuid } }
@@ -310,9 +313,9 @@ paths:
     post:
       operationId: assessmentLearnerLearningPlacementStart
       description: >
-        CSRF-protected idempotent student start in exact placement context. Enforces the
-        placement-pinned Assessment version, placement attempt budget, server expiry and
-        learner-safe Attempt projection.
+        CSRF-protected idempotent student start in exact placement context. Re-resolves the
+        placement-pinned access policy against current Commerce Entitlements immediately before
+        a new attempt, then enforces attempt budget, server expiry and learner-safe projection.
       parameters:
         - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
       responses:
@@ -370,7 +373,8 @@ paths:
       operationId: assessmentLearnerLiveSessionStart
       description: >
         CSRF-protected idempotent live-session attempt start using the Session-pinned exact
-        Assessment version and canonical Attempt runner.
+        Assessment version and canonical Attempt runner. Live Session distribution is an
+        authorized special distribution and does not inherit direct/placement Commerce gating.
       responses:
         "201": { description: Session-context Attempt started or resumed }
         "403": { description: Student role/scope or CSRF denied }
