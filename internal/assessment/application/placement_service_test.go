@@ -49,6 +49,9 @@ func (r *placementRepoStub) GetPlacementAccessContext(context.Context, string) (
 		PathID: r.placement.PathID, SubjectID: r.placement.SubjectID, CourseID: r.placement.CourseID,
 	}, nil
 }
+func (r *placementRepoStub) FindPlacementStart(context.Context, string, string, string) (assessment.Attempt, bool, error) {
+	return assessment.Attempt{}, false, nil
+}
 func (r *placementRepoStub) StartPlacement(context.Context, string, string, string) (assessment.Attempt, error) {
 	return r.attempt, nil
 }
