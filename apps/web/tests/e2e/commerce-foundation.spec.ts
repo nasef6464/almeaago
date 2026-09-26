@@ -14,6 +14,7 @@ test('admin makes a course paid and grants server-owned access',async({page})=>{
  await page.route('**/api/v1/commerce/entitlements?**',r=>json(r,{items:entitlement?[entitlement]:[],page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/commerce/admin/discounts?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/commerce/admin/payment-requests?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/access-codes?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/commerce/products/product-course-1',async r=>{
    expect(r.request().method()).toBe('PUT');
    const body=JSON.parse(r.request().postData()||'{}');
