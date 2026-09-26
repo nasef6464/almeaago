@@ -30,6 +30,9 @@ func (f *fakeAttemptRepo) GetPublishedAccessContext(context.Context, string) (as
 	}
 	return f.access, f.err
 }
+func (f *fakeAttemptRepo) FindDirectStart(context.Context, string, string, string) (assessment.Attempt, bool, error) {
+	return assessment.Attempt{}, false, f.err
+}
 func (f *fakeAttemptRepo) Start(context.Context, string, string, string) (assessment.Attempt, error) {
 	return f.a, f.err
 }
