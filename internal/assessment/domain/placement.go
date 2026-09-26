@@ -73,6 +73,7 @@ type LearnerPlacement struct {
 	PlacementID       string        `json:"placementId"`
 	AssessmentID      string        `json:"assessmentId"`
 	AssessmentVersion int           `json:"assessmentVersion"`
+	AssessmentKind    Kind          `json:"assessmentKind"`
 	Title             string        `json:"title"`
 	Slot              PlacementSlot `json:"slot"`
 	PathID            string        `json:"pathId"`
