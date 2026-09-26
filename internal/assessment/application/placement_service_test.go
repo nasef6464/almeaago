@@ -27,12 +27,19 @@ func (r *placementRepoStub) GetPlacement(context.Context, string) (assessment.Pl
 func (r *placementRepoStub) ListPlacements(context.Context, string, int, int) (assessment.PlacementPage, error) {
 	return r.page, nil
 }
-func (r *placementRepoStub) PatchPlacement(context.Context, string, string, time.Time, bool, int) (assessment.Placement, error) {
+func (r *placementRepoStub) PatchPlacement(context.Context, string, string, time.Time, assessment.PlacementAccessType, bool, int) (assessment.Placement, error) {
 	return r.placement, nil
 }
 func (r *placementRepoStub) ListLearnerPlacements(_ context.Context, _ string, q assessment.LearnerPlacementQuery) (assessment.LearnerPlacementPage, error) {
 	r.lastLearner = q
 	return r.learner, nil
+}
+func (r *placementRepoStub) GetPlacementAccessContext(context.Context, string) (assessment.AccessContext, error) {
+	return assessment.AccessContext{
+		AssessmentID: "assessment-1", AssessmentKind: assessment.KindNormal, BaseAccess: assessment.AccessFree,
+		PlacementID: r.placement.ID, PlacementSlot: r.placement.Slot, PlacementAccess: assessment.PlacementAccessInherit,
+		PathID: r.placement.PathID, SubjectID: r.placement.SubjectID, CourseID: r.placement.CourseID,
+	}, nil
 }
 func (r *placementRepoStub) StartPlacement(context.Context, string, string, string) (assessment.Attempt, error) {
 	return r.attempt, nil
