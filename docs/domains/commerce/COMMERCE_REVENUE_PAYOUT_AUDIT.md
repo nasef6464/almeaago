@@ -1,6 +1,6 @@
 # Commerce Revenue / Trainer Payout Ledger Audit
 
-Status: **IMPLEMENTED — CI REQUIRED BEFORE MERGE**
+Status: **TESTED / MERGED**
 
 ## Source evidence
 The Commerce blueprint requires finance truth to separate:
@@ -106,8 +106,12 @@ The UI states that shares are not estimates and validates the exact arithmetic b
 - package/membership multi-trainer allocation policy.
 - external payout-provider money transfer.
 
-## Required merge gates
-- Database apply + schema verification + rollback + re-apply.
-- Backend module lock + sqlc compile + gofmt + go vet + go test.
-- Frontend typecheck + production build.
-- Frontend Playwright including factual allocation + payout evidence and all existing Commerce flows.
+## Verification checkpoint
+- PR #60 merged from exact tested head `8ed34950b19594bc07b7d02db05cd8fff353ac05`.
+- squash merge commit: `c2e3555215ee17d6b193d12d270ff518169a9398`.
+- Database CI `36251701308`: PASS — apply/schema verification/rollback/re-apply.
+- Backend CI `36251701292`: PASS — module lock/sqlc/gofmt/vet/tests.
+- Frontend CI `36251701283`: PASS — typecheck/build.
+- Frontend E2E `36251701284`: PASS — all 30 browser tests including factual trainer allocation and payout evidence.
+- browser evidence artifact `content-browser-evidence` id `10910000402`, digest `sha256:7023d14206c488693fbc91659f095dbe16c48d034da1f9d94bacf70704d5b900`.
+- initial Backend failure was gofmt-only and the initial browser failure was an ambiguous locator after a successful allocation; both were corrected without weakening behavior, then all four gates passed on the final head.
