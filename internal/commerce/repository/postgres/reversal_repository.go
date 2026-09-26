@@ -74,9 +74,9 @@ RETURNING id::text
 		return commerce.PaymentReversal{}, false, mapError(err)
 	}
 
-	nextStatus := commerce.PaymentRefunded
-	if in.ReversalType == commerce.PaymentChargeback {
-		nextStatus = commerce.PaymentChargeback
+	nextStatus := commerce.ReversalRefunded
+	if in.ReversalType == commerce.ReversalChargeback {
+		nextStatus = commerce.ReversalChargeback
 	}
 	_, err = tx.Exec(ctx, `
 UPDATE commerce_payment_requests
@@ -133,9 +133,9 @@ func (r *Repository) applyProviderReversalTx(
 	if in.AmountMinor == nil || *in.AmountMinor != p.FinalAmountMinor || in.Currency != p.Currency {
 		return "", commerce.ErrConflict
 	}
-	reversalType := commerce.PaymentRefund
+	reversalType := commerce.ReversalRefund
 	if in.Status == commerce.ProviderChargeback {
-		reversalType = commerce.PaymentChargeback
+		reversalType = commerce.ReversalChargeback
 	} else if in.Status != commerce.ProviderRefunded {
 		return "", commerce.ErrConflict
 	}
