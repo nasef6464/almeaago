@@ -2,7 +2,9 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,6 +27,13 @@ type repoStub struct {
 	lastTab       learning.ReviewTab
 	savedQuestion string
 	savedValue    bool
+	dueCards      []learning.ReviewCard
+	dueMore       bool
+	card          learning.ReviewCard
+	submission    *learning.ReviewSubmission
+	answerResult  learning.ReviewSubmission
+	answerEvent   learning.ReviewAnswerEvent
+	answerCalls   int
 	err           error
 }
 
@@ -47,6 +56,26 @@ func (r *repoStub) ListReviewCards(_ context.Context, student string, tab learni
 func (r *repoStub) SetSavedReview(_ context.Context, student, questionID string, saved bool) error {
 	r.lastStudent, r.savedQuestion, r.savedValue = student, questionID, saved
 	return r.err
+}
+func (r *repoStub) ListDueReviewCards(_ context.Context, student string, tab learning.ReviewTab, path, subject string, page, limit int, _ time.Time) ([]learning.ReviewCard, bool, error) {
+	r.lastStudent, r.lastTab, r.lastPath, r.lastSubject, r.lastPage, r.lastLimit = student, tab, path, subject, page, limit
+	return r.dueCards, r.dueMore, r.err
+}
+func (r *repoStub) GetReviewCard(_ context.Context, student, cardID string) (learning.ReviewCard, error) {
+	r.lastStudent = student
+	if r.card.ID != "" && r.card.ID != cardID {
+		return learning.ReviewCard{}, learning.ErrNotFound
+	}
+	return r.card, r.err
+}
+func (r *repoStub) GetReviewSubmissionByKey(_ context.Context, student, _ string) (*learning.ReviewSubmission, error) {
+	r.lastStudent = student
+	return r.submission, r.err
+}
+func (r *repoStub) ApplyReviewAnswer(_ context.Context, event learning.ReviewAnswerEvent) (learning.ReviewSubmission, error) {
+	r.answerCalls++
+	r.answerEvent = event
+	return r.answerResult, r.err
 }
 
 type questionReaderStub struct {
@@ -138,5 +167,123 @@ func TestSetSavedUsesAuthenticatedStudentOnly(t *testing.T) {
 	}
 	if repo.lastStudent != "student-1" || repo.savedQuestion != "question-1" || !repo.savedValue {
 		t.Fatalf("unexpected saved mutation: %#v", repo)
+	}
+}
+
+func TestReviewPracticeIsBoundedAndDoesNotLeakAnswerKey(t *testing.T) {
+	now := time.Now().UTC()
+	repo := &repoStub{
+		dueCards: []learning.ReviewCard{{
+			ID: "card-1", QuestionID: "question-1", QuestionVersion: 2,
+			PathID: "path-1", SubjectID: "subject-1", ReviewType: "error_recovery",
+			NextReviewAt: now.Add(-time.Minute), UpdatedAt: now,
+		}},
+		dueMore: true,
+	}
+	correct := 1
+	reader := &questionReaderStub{rows: []question.ReviewProjection{{
+		ID: "question-1", Version: 2, QuestionType: question.QuestionMCQ,
+		TextContent: "٢ + ٢ = ؟", CorrectOptionIndex: &correct,
+		Explanation: "الإجابة أربعة", Hint: "اجمع", SolvingStrategy: "جمع مباشر",
+		Options: []question.Option{{Index: 0, Text: "٣"}, {Index: 1, Text: "٤"}},
+	}}}
+	service := NewService(repo, reader)
+
+	page, err := service.ReviewPractice(
+		context.Background(), learner("student-1"), learning.ReviewMistakes,
+		"path-1", "subject-1", 0, 100,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repo.lastStudent != "student-1" || repo.lastPage != 1 || repo.lastLimit != 50 || repo.lastTab != learning.ReviewMistakes {
+		t.Fatalf("practice query not bounded/scoped: %#v", repo)
+	}
+	if len(page.Items) != 1 || !page.HasMore || page.Items[0].Question.Text != "٢ + ٢ = ؟" {
+		t.Fatalf("unexpected practice page: %#v", page)
+	}
+	raw, err := json.Marshal(page)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := string(raw)
+	for _, secret := range []string{"correctOptionIndex", "الإجابة أربعة", "اجمع", "جمع مباشر"} {
+		if strings.Contains(payload, secret) {
+			t.Fatalf("practice payload leaked %q: %s", secret, payload)
+		}
+	}
+}
+
+func TestSubmitReviewAnswerScoresOnServerAndCreatesRemediationEvidence(t *testing.T) {
+	now := time.Now().UTC()
+	repo := &repoStub{
+		card: learning.ReviewCard{
+			ID: "card-1", QuestionID: "question-1", QuestionVersion: 2,
+			PathID: "path-1", SubjectID: "subject-1", ReviewType: "error_recovery",
+			NextReviewAt: now.Add(-time.Minute), UpdatedAt: now,
+		},
+		answerResult: learning.ReviewSubmission{
+			ID: "submission-1", StudentID: "student-1", CardID: "card-1",
+			QuestionID: "question-1", QuestionVersion: 2, SelectedOptionIndex: 0,
+			Correct: false, EvidenceType: learning.EvidenceRemediation, Quality: 2,
+			ReviewTypeAfter: "error_recovery", NextReviewAt: now.Add(24 * time.Hour),
+		},
+	}
+	correct := 1
+	reader := &questionReaderStub{rows: []question.ReviewProjection{{
+		ID: "question-1", Version: 2, QuestionType: question.QuestionMCQ,
+		TextContent: "٢ + ٢ = ؟", CorrectOptionIndex: &correct, Explanation: "أربعة",
+		Options: []question.Option{{Index: 0, Text: "٣"}, {Index: 1, Text: "٤"}},
+	}}}
+	service := NewService(repo, reader)
+	result, err := service.SubmitReviewAnswer(
+		context.Background(),
+		learner("student-1"),
+		"card-1",
+		learning.ReviewAnswerWrite{
+			SubmissionKey:       "review-key-123",
+			ExpectedCardUpdated: now,
+			SelectedOptionIndex: 0,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repo.answerCalls != 1 || repo.answerEvent.StudentID != "student-1" ||
+		repo.answerEvent.Correct || repo.answerEvent.EvidenceType != learning.EvidenceRemediation ||
+		repo.answerEvent.Quality != 2 {
+		t.Fatalf("server scoring/evidence mismatch: %#v", repo.answerEvent)
+	}
+	if result.Correct || result.CorrectOptionIndex == nil || *result.CorrectOptionIndex != 1 ||
+		result.Explanation != "أربعة" {
+		t.Fatalf("unexpected post-answer feedback: %#v", result)
+	}
+}
+
+func TestReviewAnswerIdempotentRetryDoesNotApplyEvidenceAgain(t *testing.T) {
+	correct := 1
+	repo := &repoStub{submission: &learning.ReviewSubmission{
+		ID: "submission-1", StudentID: "student-1", CardID: "card-1",
+		QuestionID: "question-1", QuestionVersion: 2, SelectedOptionIndex: 1,
+		Correct: true, EvidenceType: learning.EvidenceMasteryReview, Quality: 4,
+		ReviewTypeAfter: "mastery_review", NextReviewAt: time.Now().Add(24 * time.Hour),
+	}}
+	reader := &questionReaderStub{rows: []question.ReviewProjection{{
+		ID: "question-1", Version: 2, CorrectOptionIndex: &correct,
+		Options: []question.Option{{Index: 0}, {Index: 1}},
+	}}}
+	service := NewService(repo, reader)
+	_, err := service.SubmitReviewAnswer(
+		context.Background(), learner("student-1"), "card-1",
+		learning.ReviewAnswerWrite{
+			SubmissionKey: "same-key-123", ExpectedCardUpdated: time.Now(),
+			SelectedOptionIndex: 1,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repo.answerCalls != 0 {
+		t.Fatalf("idempotent retry applied evidence again: %d", repo.answerCalls)
 	}
 }

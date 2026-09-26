@@ -422,6 +422,45 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Student role required }
 
+
+  /api/v1/review/practice:
+    get:
+      operationId: learningDueReviewPractice
+      description: >
+        Student-only bounded due ReviewCard discovery. Requires pathId, optionally narrows by
+        subject/tab, defaults to 20 and caps at 50. Exact Question versions are composed in one
+        bounded Question Bank batch. The response deliberately omits correctOptionIndex,
+        explanation, hint and solvingStrategy before the learner submits an answer.
+      parameters:
+        - { in: query, name: tab, schema: { type: string, enum: [saved, mistakes, all], default: all } }
+        - { in: query, name: pathId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: subjectId, schema: { type: string, format: uuid } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        "200": { description: Bounded due practice page with learner-safe Question projections }
+        "400": { description: Invalid path scope or pagination }
+        "401": { description: Authentication required }
+        "403": { description: Student role required }
+
+  /api/v1/review/cards/{id}/answer:
+    post:
+      operationId: learningSubmitReviewAnswer
+      description: >
+        Student-only CSRF-protected idempotent ReviewCard answer. The server reads the exact
+        canonical Question version, validates the selected option, scores it server-side,
+        inserts one remediation/mastery-review evidence event, advances SM-2 and returns the
+        answer key/explanation only after submission.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Server-scored answer feedback and next review schedule }
+        "400": { description: Invalid key, option or optimistic timestamp }
+        "401": { description: Authentication required }
+        "403": { description: Student role or CSRF denied }
+        "404": { description: ReviewCard not found for this learner }
+        "409": { description: Card not due, concurrent card change or idempotency conflict }
+
   /api/v1/review/questions/{id}/saved:
     put:
       operationId: learningSaveReviewQuestion
