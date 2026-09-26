@@ -1,6 +1,6 @@
 # Commerce Tap Payment-Link Audit
 
-Status: **IMPLEMENTED — CI REQUIRED BEFORE MERGE**
+Status: **TESTED / MERGED**
 
 ## Evidence
 Legacy ALMEAA had a provider-specific Tap initiation path using server-trusted amount/target, `POST https://api.tap.company/v2/charges`, a returned redirect URL/charge ID, and Tap-specific webhook handling. Archived handoff records say live closure remained dependent on Tap credentials and a sandbox transaction.
@@ -52,8 +52,12 @@ This provider slice accepts SAR and EGP because the preserved legacy Tap/payment
 - additional payment providers.
 - provider fee ingestion from settlement APIs.
 
-## Required gates
-- Database apply/schema verification/rollback/reapply.
-- Backend module/sqlc/gofmt/vet/tests, including Tap adapter + hashstring tests.
-- Frontend typecheck/build.
-- Playwright including trusted Tap redirect and all existing browser journeys.
+## Verification checkpoint
+- PR #61 merged from exact tested head `8928c20bffcb293c931c599430cb92b9bd9bff56`.
+- squash merge commit: `a26586c4bf89cdfa37dd7dd0b26306f4e2533f1a`.
+- Database CI `36252943842`: PASS — apply/schema verification/rollback/re-apply.
+- Backend CI `36252943838`: PASS — module lock/sqlc/gofmt/vet/tests including Tap adapter + hashstring coverage.
+- Frontend CI `36252943811`: PASS — typecheck/build.
+- Frontend E2E `36252943750`: PASS — trusted Tap redirect Checkout plus existing browser journeys.
+- browser evidence artifact `content-browser-evidence` id `10909912571`, digest `sha256:a853919f1f7d6af2b8e0205f4eab869c1ec840da942669c156fa0103f1f2e3e6`.
+- initial Backend runs exposed escaped struct tags and gofmt deltas in the new provider adapter; they were corrected without weakening behavior, then all four gates reran green on the final head.
