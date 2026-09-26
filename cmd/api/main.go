@@ -86,7 +86,13 @@ func main() {
 	authorScope := contentapp.NewCombinedAuthorScope(contentRepository, organizationsRepository)
 	taxonomyRepository := taxonomyrepo.New(db)
 	commerceRepository := commercerepo.New(db, auditWriter)
-	commerceService := commerceapp.NewService(commerceRepository, contentRepository, taxonomyRepository, organizationsRepository)
+	commerceService := commerceapp.NewServiceWithOptions(
+		commerceRepository,
+		contentRepository,
+		taxonomyRepository,
+		organizationsRepository,
+		commerceapp.ServiceOptions{WebhookSecret: cfg.CommerceWebhookSecret},
+	)
 	contentService := contentapp.NewServiceWithAuthorScope(contentRepository, authorScope, commerceService)
 	organizationsService := orgapp.NewServiceWithOptions(organizationsRepository, orgapp.ServiceOptions{
 		DirectorDirectory:       directorDirectory,

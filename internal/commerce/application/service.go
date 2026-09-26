@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	ErrForbidden    = errors.New("commerce action forbidden")
-	ErrInvalidInput = errors.New("invalid commerce input")
+	ErrForbidden          = errors.New("commerce action forbidden")
+	ErrInvalidInput       = errors.New("invalid commerce input")
+	ErrProviderUnavailable = errors.New("commerce provider unavailable")
 )
 
 var codePattern = regexp.MustCompile(`^[A-Z0-9][A-Z0-9_-]{1,79}$`)
@@ -41,15 +42,32 @@ type SchoolMembershipResolver interface {
 	ActiveSchoolIDsForUser(ctx context.Context, userID string) ([]string, error)
 }
 
+type ServiceOptions struct {
+	WebhookSecret string
+}
+
 type Service struct {
-	repo     Repository
-	catalog  CatalogResolver
-	taxonomy TaxonomyResolver
-	schools  SchoolMembershipResolver
+	repo          Repository
+	payments      PaymentRepository
+	catalog       CatalogResolver
+	taxonomy      TaxonomyResolver
+	schools       SchoolMembershipResolver
+	webhookSecret string
 }
 
 func NewService(repo Repository, catalog CatalogResolver, taxonomy TaxonomyResolver, schools SchoolMembershipResolver) *Service {
-	return &Service{repo: repo, catalog: catalog, taxonomy: taxonomy, schools: schools}
+	return NewServiceWithOptions(repo, catalog, taxonomy, schools, ServiceOptions{})
+}
+
+func NewServiceWithOptions(repo Repository, catalog CatalogResolver, taxonomy TaxonomyResolver, schools SchoolMembershipResolver, opts ServiceOptions) *Service {
+	var payments PaymentRepository
+	if candidate, ok := repo.(PaymentRepository); ok {
+		payments = candidate
+	}
+	return &Service{
+		repo: repo, payments: payments, catalog: catalog, taxonomy: taxonomy, schools: schools,
+		webhookSecret: strings.TrimSpace(opts.WebhookSecret),
+	}
 }
 
 func normalizePage(page, limit int, defaultLimit int) (int, int, error) {
