@@ -33,7 +33,7 @@ test('parent dashboard shows only canonical linked-child summary and determinist
  await page.goto('/parent-dashboard');
  await expect(page.getByRole('heading',{name:'متابعة الأبناء ببساطة'})).toBeVisible();
  await expect(page.getByTestId('parent-child-card')).toHaveCount(1);
- await expect(page.getByText('سارة',{exact:true})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'سارة',exact:true})).toBeVisible();
  await expect(page.getByText('خطة علاج عاجلة: شرح + تدريب + اختبار موجه',{exact:true}).first()).toBeVisible();
  await expect(page.getByText('student-other')).toHaveCount(0);
 
