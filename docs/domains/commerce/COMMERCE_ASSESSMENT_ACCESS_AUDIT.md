@@ -1,6 +1,6 @@
 # Commerce / Assessment Entitlement Consumption Audit
 
-Status: **IMPLEMENTED — CI REQUIRED BEFORE MERGE**
+Status: **TESTED / MERGED**
 
 ## Source contract
 The target boundary keeps Assessment authoritative for definition/version/distribution/attempts and Commerce authoritative for Entitlements/access. The module boundary explicitly permits Assessment to consume Commerce entitlement checks and forbids replacing that boundary with cross-domain table ownership.
@@ -70,11 +70,16 @@ The Assessment Study Plan catalog now passes through the same effective access r
 - learner availability displays a Commerce-locked state separately from exhausted attempts.
 - the locked state is informational only; the server repeats the entitlement decision at attempt start.
 
-## Required merge gates
-- Database apply + schema verification + rollback + re-apply.
-- Backend module lock + sqlc compile + gofmt + go vet + go test.
-- Frontend typecheck + production build.
-- Frontend Playwright including locked paid Assessment availability and existing Assessment/Commerce browser flows.
+## Verification checkpoint
+- PR #59 merged from exact tested head `350cf298e3112ac122bf919571291c87e37fba17`.
+- squash merge commit: `26a4269255674fac6d942333a3664361da6d94ca`.
+- Database CI `36245483437`: PASS — apply/schema verification/rollback/re-apply.
+- Backend CI `36245483438`: PASS — module lock/sqlc/gofmt/vet/tests.
+- Frontend CI `36245483452`: PASS — typecheck/build.
+- Frontend E2E `36245483523`: PASS — Assessment access/browser flows including Commerce-locked paid placement.
+- browser evidence artifact `content-browser-evidence` id `10906983993`.
+- idempotent direct/placement start was hardened so retries resume an existing Attempt before a newly denied entitlement can break the retry contract.
+- Study Plan candidate discovery was routed through the same effective access resolver so locked Assessments are not newly recommended.
 
 ## Deferred
 This slice does not add:
