@@ -1,6 +1,6 @@
 # Parents Dashboard / Weekly Report Audit
 
-Status: **IMPLEMENTED — CI REQUIRED BEFORE MERGE**
+Status: **TESTED / MERGED**
 
 ## Source contract
 The Product Blueprint defines the Parent as an observer, not an Assessment taker by default. The core capability is:
@@ -96,8 +96,12 @@ The Blueprint places weekly report delivery/WhatsApp with Communication/Notifica
 - Learning weak-skill rows are capped per selected child using a windowed batch query.
 - no N+1 child loop performs repository reads.
 
-## Required gates
-- Database migrations apply/schema verification/rollback/re-apply.
-- Backend module lock/sqlc/gofmt/vet/tests including parent canonical-authority negative tests.
-- Frontend typecheck/build.
-- Playwright parent mobile golden journey and empty-state regression plus all existing browser journeys.
+## Verification checkpoint
+- PR #63 merged from exact tested head `cfcc0bf24caa55c52266fcc75c5c0dc31f4c0a95`.
+- squash merge commit: `0fc4d5d4962e01ca81c844eb153a8c0235103260`.
+- Database CI `36261272111`: PASS — all migrations applied, canonical parent relationship table/indexes verified, every migration rolled back and re-applied.
+- Backend CI `36261272140`: PASS — module lock/sqlc/gofmt/vet/tests including canonical-authority negative coverage.
+- Frontend CI `36261272127`: PASS — typecheck/build.
+- Frontend E2E `36261272112`: PASS — all 34 browser tests including parent mobile linked-child golden journey and explicit no-link empty state.
+- browser evidence artifact `content-browser-evidence` id `10912034166`, digest `sha256:55ae07b373810ef3e3a04fce7e18cc94b90d16c484b61dee8d81806b57b4e127`.
+- initial Backend failures were gofmt-only; the initial Parent E2E failure was an ambiguous semantic locator. Both were corrected without weakening authorization or product behavior, then all four exact-head gates passed.
