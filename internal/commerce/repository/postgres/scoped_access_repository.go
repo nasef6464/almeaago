@@ -53,7 +53,7 @@ WHERE e.status='active'
             pi.scope_type='all'
             OR (pi.scope_type='course' AND $5<>'' AND pi.course_id=$5::uuid)
             OR (pi.scope_type='path' AND pi.path_id=$3::uuid)
-            OR (pi.scope_type='subject' AND pi.subject_id=$4::uuid)
+            OR (pi.scope_type='subject' AND $4<>'' AND pi.subject_id=$4::uuid)
             OR (pi.scope_type='content_type' AND pi.content_type IN ($6,'all'))
           )
       )
