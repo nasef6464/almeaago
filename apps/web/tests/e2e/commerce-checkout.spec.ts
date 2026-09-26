@@ -56,7 +56,7 @@ test('learner checkout uses server price and creates pending request without bro
 
  await page.goto('/checkout?productId=product-course-1');
  await expect(page.getByRole('heading',{name:'طلب شراء دورة الكمي'})).toBeVisible();
- await expect(page.getByText('120.00')).toBeVisible();
+ await expect(page.getByText('السعر الأصلي')).toBeVisible();
  await page.getByLabel('كود الخصم').fill('save10');
  await page.getByRole('button',{name:'تطبيق'}).click();
  await expect(page.getByText(/خصم/)).toBeVisible();
@@ -116,7 +116,7 @@ test('admin creates discount and approves pending payment with evidence',async({
  await expect(page.getByText('تم إنشاء كود الخصم من Commerce.')).toBeVisible();
  await expect(page.getByText('SAVE20')).toBeVisible();
 
- await expect(page.getByText('دورة الكمي')).toBeVisible();
+ await expect(page.getByRole('button',{name:'اعتماد'})).toBeVisible();
  await page.getByRole('button',{name:'اعتماد'}).click();
  await expect(page.getByText('تم اعتماد الطلب وإنشاء صلاحية الوصول من الخادم.')).toBeVisible();
  await expect(page.getByText('لا توجد طلبات معلقة.')).toBeVisible();

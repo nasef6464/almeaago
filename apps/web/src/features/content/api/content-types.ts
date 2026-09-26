@@ -336,7 +336,7 @@ export interface LearnerTopicSummary{id:string;parentTopicId:string;title:string
 export interface LearnerLibrarySummary{id:string;title:string;description:string;type:string;isLocked:boolean}
 export interface LearnerLessonSummary{id:string;title:string;description:string;type:string;durationSeconds:number;isLocked:boolean;isPreview:boolean;commerceLocked:boolean;sortOrder:number}
 export interface LearnerCourseModule{id:string;title:string;description:string;sortOrder:number;lessons:LearnerLessonSummary[]}
-export interface LearnerCourse extends LearnerCourseSummary{modules:LearnerCourseModule[];access:{allowed:boolean;configured:boolean;reason:string}}
+export interface LearnerCourse extends LearnerCourseSummary{modules:LearnerCourseModule[];access:{allowed:boolean;configured:boolean;reason:string;productId:string;entitlementId:string;entitlementSource:string}}
 export interface LearnerTopic extends LearnerTopicSummary{lessons:LearnerLessonSummary[];libraryItems:LearnerLibrarySummary[]}
 export interface LearningSpace{pathId:string;subjectId:string;courses:{items:LearnerCourseSummary[];hasMore:boolean};foundation:{items:LearnerTopicSummary[];hasMore:boolean};library:{items:LearnerLibrarySummary[];hasMore:boolean}}
 
