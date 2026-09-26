@@ -8,6 +8,8 @@ Scope: learner self-start for a published visible Assessment, exact-version ques
 - PUT /api/v1/assessment-attempts/{id}/answers/{questionId} — CSRF, autosave one answer
 - POST /api/v1/assessment-attempts/{id}/submit — body: {submissionKey}, CSRF
 - GET /api/v1/assessment-attempts/{id}/result
+- GET /api/v1/assessment-attempts/results?page={page}&limit={limit} — bounded learner-owned history.
+- GET /api/v1/assessment-attempts/{id}/review — learner-owned result detail governed by the exact Assessment version review settings.
 
 ## Invariants
 - student role only; an attempt is readable/writable only by its student.
@@ -24,5 +26,12 @@ Scope: learner self-start for a published visible Assessment, exact-version ques
 - current core is auto-scored: a published version containing a question without correct_option_index cannot start.
 - score is points-weighted; counts remain question counts.
 - result is unavailable before submit.
-- no Learning mastery/review side effects, Commerce entitlement, Realtime session orchestration or AI in this batch.
+- result history is learner-owned, defaults to 20 rows, caps at 100 rows per request, and uses hasMore rather than exact-count scans.
+- result review is unavailable to other students and never trusts client-provided correctness.
+- when allow_question_review=false, the server returns no question-review rows at all.
+- when show_answers=false, correctOptionIndex is omitted even if question review is allowed.
+- when show_explanations=false, explanation/hint/solvingStrategy are omitted even if question review is allowed.
+- show_results_report is preserved to the learner UI so score/report presentation can be hidden by the exact historical Assessment version.
+- wrong, unanswered, and marked-for-review views are projections of the submitted server-owned answer state; they do not duplicate Question rows or media.
+- no Learning mastery/review-library side effects, Commerce entitlement, Realtime session orchestration or AI in this batch.
 - start/submit are audited transactionally; autosave is intentionally not audit-event amplified.

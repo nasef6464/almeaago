@@ -483,5 +483,28 @@ Verification checkpoint:
 - final documentation-inclusive exact head `1680910ecf68a0f94f7f8a961ed678cecd49d718` passed Backend CI `36195683646`.
 - PR #45 merged to `main` as `5eed0f62b9d1f732dae79ead422f4df3b1fdf90f`.
 
+## Assessment Result / Review — IN REVIEW
+Active branch: `feat/assessment-result-review`.
+
+Implemented on the branch:
+- learner-owned bounded result history (default 20, max 100, hasMore; no exact-count scan).
+- learner-owned submitted-result detail.
+- server-governed question review from the exact historical Assessment version.
+- hard no-question projection when `allow_question_review=false`.
+- correct answer omission when `show_answers=false`.
+- explanation/hint/strategy omission when `show_explanations=false`.
+- result-report presentation flag propagated to the learner UI.
+- wrong/unanswered/marked-for-review projections without duplicating Question Bank rows.
+- responsive result history/detail React routes.
+- in-attempt “للمراجعة” control now persists through autosave after an answer exists.
+- Question Bank/media remain referenced by canonical IDs; no question/image copies.
+- Learning mastery, ReviewCard side effects, Realtime, Commerce and AI remain outside this batch.
+
+Audit:
+- `docs/domains/assessment/ASSESSMENT_RESULT_REVIEW_AUDIT.md`.
+
+Verification state:
+- implementation is not yet merge-qualified until exact-head Backend CI + Frontend CI + Frontend E2E pass on the PR head.
+
 ## Next exact action
-Build the Assessment result/review presentation slice from current `main`: learner result history/detail, question review governed by Assessment review settings, wrong/unanswered/review-later projections, and responsive learner UI/E2E. Keep Learning mastery side effects, Realtime sessions, Commerce and AI out of this batch.
+Open the Assessment Result / Review PR from `feat/assessment-result-review`, run exact-head Backend + Frontend + E2E gates, fix any failures without weakening tests, update this checkpoint with the tested SHA/run evidence, and merge only when all required gates are Green.
