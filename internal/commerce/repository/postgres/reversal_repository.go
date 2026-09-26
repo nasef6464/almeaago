@@ -74,9 +74,9 @@ RETURNING id::text
 		return commerce.PaymentReversal{}, false, mapError(err)
 	}
 
-	nextStatus := commerce.ReversalRefunded
+	nextStatus := commerce.PaymentRefunded
 	if in.ReversalType == commerce.ReversalChargeback {
-		nextStatus = commerce.ReversalChargeback
+		nextStatus = commerce.PaymentChargeback
 	}
 	_, err = tx.Exec(ctx, `
 UPDATE commerce_payment_requests
