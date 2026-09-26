@@ -299,13 +299,13 @@ func VerifyWebhook(secretKey string, raw []byte, postedHash string) (commerce.Pr
 }
 
 type refundWebhookPayload struct {
-	ID       string          `json:"id"`
-	Object   string          `json:"object"`
-	Status   string          `json:"status"`
-	Amount   json.Number     `json:"amount"`
-	Currency string          `json:"currency"`
-	ChargeID string          `json:"charge_id"`
-	Created  json.RawMessage `json:"created"`
+	ID        string          `json:"id"`
+	Object    string          `json:"object"`
+	Status    string          `json:"status"`
+	Amount    json.Number     `json:"amount"`
+	Currency  string          `json:"currency"`
+	ChargeID  string          `json:"charge_id"`
+	Created   json.RawMessage `json:"created"`
 	Reference struct {
 		Gateway string `json:"gateway"`
 		Payment string `json:"payment"`
