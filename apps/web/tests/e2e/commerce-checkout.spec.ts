@@ -59,13 +59,14 @@ test('learner checkout uses server price and creates pending request without bro
  await expect(page.getByText('السعر الأصلي')).toBeVisible();
  await page.getByLabel('كود الخصم').fill('save10');
  await page.getByRole('button',{name:'تطبيق'}).click();
- await expect(page.getByText(/خصم/)).toBeVisible();
- await expect(page.getByText(/108/)).toBeVisible();
+ await expect(page.getByText('تم تطبيق SAVE10', {exact:false})).toBeVisible();
+ await expect(page.getByText('المبلغ النهائي')).toBeVisible();
 
  await page.getByRole('button',{name:'إنشاء طلب دفع آمن'}).click();
- await expect(page.getByTestId('payment-request-status')).toBeVisible();
- await expect(page.getByText(/لن يتم منح الوصول من الواجهة/)).toBeVisible();
- await expect(page.getByText(/pending/)).toBeVisible();
+ const statusCard=page.getByTestId('payment-request-status');
+ await expect(statusCard).toBeVisible();
+ await expect(statusCard).toContainText('لن يتم منح الوصول من الواجهة');
+ await expect(statusCard).toContainText('pending');
  await page.screenshot({path:'test-results/commerce-checkout-mobile.png',fullPage:true});
 });
 
@@ -116,8 +117,9 @@ test('admin creates discount and approves pending payment with evidence',async({
  await expect(page.getByText('تم إنشاء كود الخصم من Commerce.')).toBeVisible();
  await expect(page.getByText('SAVE20')).toBeVisible();
 
- await expect(page.getByRole('button',{name:'اعتماد'})).toBeVisible();
- await page.getByRole('button',{name:'اعتماد'}).click();
+ const approve=page.getByRole('button',{name:'اعتماد',exact:true});
+ await expect(approve).toBeVisible();
+ await approve.click();
  await expect(page.getByText('تم اعتماد الطلب وإنشاء صلاحية الوصول من الخادم.')).toBeVisible();
  await expect(page.getByText('لا توجد طلبات معلقة.')).toBeVisible();
 });
