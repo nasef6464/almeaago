@@ -30,15 +30,19 @@ const (
 	GatewayWebhook      GatewayMode = "webhook"
 	GatewayPaymentLink  GatewayMode = "payment_link"
 
-	PaymentPending   PaymentStatus = "pending"
-	PaymentPaid      PaymentStatus = "paid"
-	PaymentRejected  PaymentStatus = "rejected"
-	PaymentCancelled PaymentStatus = "cancelled"
-	PaymentFailed    PaymentStatus = "failed"
+	PaymentPending    PaymentStatus = "pending"
+	PaymentPaid       PaymentStatus = "paid"
+	PaymentRejected   PaymentStatus = "rejected"
+	PaymentCancelled  PaymentStatus = "cancelled"
+	PaymentFailed     PaymentStatus = "failed"
+	PaymentRefunded   PaymentStatus = "refunded"
+	PaymentChargeback PaymentStatus = "chargeback"
 
-	ProviderPaid      ProviderEventStatus = "paid"
-	ProviderFailed    ProviderEventStatus = "failed"
-	ProviderCancelled ProviderEventStatus = "cancelled"
+	ProviderPaid       ProviderEventStatus = "paid"
+	ProviderFailed     ProviderEventStatus = "failed"
+	ProviderCancelled  ProviderEventStatus = "cancelled"
+	ProviderRefunded   ProviderEventStatus = "refunded"
+	ProviderChargeback ProviderEventStatus = "chargeback"
 )
 
 func ValidDiscountType(v DiscountType) bool { return v == DiscountPercentage || v == DiscountFixed }
@@ -55,7 +59,8 @@ func ValidGatewayMode(v GatewayMode) bool {
 	return v == GatewayManualReview || v == GatewayWebhook || v == GatewayPaymentLink
 }
 func ValidProviderEventStatus(v ProviderEventStatus) bool {
-	return v == ProviderPaid || v == ProviderFailed || v == ProviderCancelled
+	return v == ProviderPaid || v == ProviderFailed || v == ProviderCancelled ||
+		v == ProviderRefunded || v == ProviderChargeback
 }
 
 type DiscountScope struct {
