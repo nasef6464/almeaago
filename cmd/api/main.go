@@ -116,7 +116,8 @@ func main() {
 	assessmentAssignmentService := assessmentapp.NewAssignmentService(assessmentRepository)
 	assessmentPlacementService := assessmentapp.NewPlacementServiceWithCommerce(assessmentRepository, assessmentService, contentRepository, commerceService)
 	assessmentSessionService := assessmentapp.NewSessionService(assessmentRepository, assessmentService)
-	studyPlanService := learningapp.NewStudyPlanService(learningRepository, taxonomyRepository, contentRepository, assessmentRepository)
+	assessmentStudyPlanCatalog := assessmentapp.NewStudyPlanCatalog(assessmentRepository, commerceService)
+	studyPlanService := learningapp.NewStudyPlanService(learningRepository, taxonomyRepository, contentRepository, assessmentStudyPlanCatalog)
 	interventionService := learningapp.NewInterventionService(learningRepository, organizationsRepository, taxonomyRepository, studyPlanService)
 	mediaRepository := mediarepo.New(db, auditWriter)
 	r2Client := r2provider.New(r2provider.Config{
