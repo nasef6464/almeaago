@@ -211,8 +211,14 @@ test('mobile review library shows mistake, mastery next action and toggles saved
   await expect(page.getByText('خطة علاج عاجلة: شرح + تدريب + اختبار موجه')).toBeVisible();
   await expect(page.getByText('الإجابة الصحيحة')).toBeVisible();
 
+  const saveRequest = page.waitForRequest(
+    (request) =>
+      request.url().includes('/api/v1/review/questions/q-1/saved') &&
+      request.method() === 'PUT',
+  );
   await page.getByRole('button', { name: 'حفظ للمراجعة' }).click();
-  expect(saveCalls).toBe(1);
+  await saveRequest;
+  await expect.poll(() => saveCalls).toBe(1);
 
   await page.screenshot({ path: 'test-results/learning-review-mobile.png', fullPage: true });
 });
