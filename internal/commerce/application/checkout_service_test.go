@@ -280,4 +280,3 @@ func TestPaymentLinkProviderFailureFailsClosed(t *testing.T) {
 		t.Fatalf("failed provider session did not fail closed: %#v", repo.request)
 	}
 }
-
