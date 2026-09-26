@@ -11,16 +11,17 @@ import (
 )
 
 type placementRepoStub struct {
-	placement assessment.Placement
-	page      assessment.PlacementPage
-	learner   assessment.LearnerPlacementPage
-	attempt   assessment.Attempt
+	placement  assessment.Placement
+	page       assessment.PlacementPage
+	learner    assessment.LearnerPlacementPage
+	attempt    assessment.Attempt
+	lastLearner assessment.LearnerPlacementQuery
 }
 func (r *placementRepoStub) CreatePlacement(context.Context,string,string,assessment.PlacementWrite)(assessment.Placement,error){return r.placement,nil}
 func (r *placementRepoStub) GetPlacement(context.Context,string)(assessment.Placement,error){return r.placement,nil}
 func (r *placementRepoStub) ListPlacements(context.Context,string,int,int)(assessment.PlacementPage,error){return r.page,nil}
 func (r *placementRepoStub) PatchPlacement(context.Context,string,string,time.Time,bool,int)(assessment.Placement,error){return r.placement,nil}
-func (r *placementRepoStub) ListLearnerPlacements(context.Context,string,assessment.LearnerPlacementQuery)(assessment.LearnerPlacementPage,error){return r.learner,nil}
+func (r *placementRepoStub) ListLearnerPlacements(_ context.Context,_ string,q assessment.LearnerPlacementQuery)(assessment.LearnerPlacementPage,error){r.lastLearner=q;return r.learner,nil}
 func (r *placementRepoStub) StartPlacement(context.Context,string,string,string)(assessment.Attempt,error){return r.attempt,nil}
 
 type placementContentStub struct{ ok bool }
@@ -78,7 +79,8 @@ func TestLearnerPlacementRequiresExactBoundedContext(t *testing.T){
 	if !errors.Is(err,ErrInvalidInput){t.Fatalf("course without courseId must fail, got %v",err)}
 	out,err:=s.Learner(context.Background(),student,assessment.LearnerPlacementQuery{Slot:assessment.PlacementTests,PathID:"path-1",SubjectID:"subject-1",Limit:500})
 	if err!=nil{t.Fatal(err)}
-	if out.Limit!=0 && out.Limit>100{t.Fatalf("unexpected limit: %d",out.Limit)}
+	if repo.lastLearner.Limit!=100 || repo.lastLearner.Page!=1{t.Fatalf("query not bounded: page=%d limit=%d",repo.lastLearner.Page,repo.lastLearner.Limit)}
+	if out.Limit!=0 && out.Limit>100{t.Fatalf("unexpected result limit: %d",out.Limit)}
 }
 
 func TestPlacementStartRevalidatesVisibleContent(t *testing.T){
