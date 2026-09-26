@@ -206,7 +206,9 @@ type checkoutProduct struct {
 	Visible     bool
 }
 
-func loadCheckoutProduct(ctx context.Context, q interface{ QueryRow(context.Context, string, ...any) pgx.Row }, id string, lock bool) (checkoutProduct, error) {
+func loadCheckoutProduct(ctx context.Context, q interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, id string, lock bool) (checkoutProduct, error) {
 	var p checkoutProduct
 	sql := `
 SELECT id::text,product_type,name,status,access_mode,price_minor,currency,revision,is_visible

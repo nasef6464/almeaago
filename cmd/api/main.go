@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strings"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 

@@ -41,7 +41,9 @@ const (
 )
 
 func ValidDiscountType(v DiscountType) bool { return v == DiscountPercentage || v == DiscountFixed }
-func ValidDiscountStatus(v DiscountStatus) bool { return v == DiscountActive || v == DiscountPaused || v == DiscountExpired }
+func ValidDiscountStatus(v DiscountStatus) bool {
+	return v == DiscountActive || v == DiscountPaused || v == DiscountExpired
+}
 func ValidDiscountScopeType(v DiscountScopeType) bool {
 	return v == DiscountScopeAll || v == DiscountScopeProduct || v == DiscountScopeProductType
 }
@@ -60,23 +62,23 @@ type DiscountScope struct {
 }
 
 type DiscountCode struct {
-	ID              string          `json:"id"`
-	Code            string          `json:"code"`
-	Label           string          `json:"label"`
-	DiscountType    DiscountType    `json:"discountType"`
-	PercentageBPS   *int            `json:"percentageBps"`
-	FixedMinor      *int64          `json:"fixedMinor"`
-	Status          DiscountStatus  `json:"status"`
-	MinAmountMinor  int64           `json:"minAmountMinor"`
-	MaxRedemptions  int             `json:"maxRedemptions"`
-	ReservedCount   int             `json:"reservedCount"`
-	RedeemedCount   int             `json:"redeemedCount"`
-	StartsAt        *time.Time      `json:"startsAt"`
-	ExpiresAt       *time.Time      `json:"expiresAt"`
-	Revision        int             `json:"revision"`
-	Scopes          []DiscountScope `json:"scopes"`
-	CreatedAt       time.Time       `json:"createdAt"`
-	UpdatedAt       time.Time       `json:"updatedAt"`
+	ID             string          `json:"id"`
+	Code           string          `json:"code"`
+	Label          string          `json:"label"`
+	DiscountType   DiscountType    `json:"discountType"`
+	PercentageBPS  *int            `json:"percentageBps"`
+	FixedMinor     *int64          `json:"fixedMinor"`
+	Status         DiscountStatus  `json:"status"`
+	MinAmountMinor int64           `json:"minAmountMinor"`
+	MaxRedemptions int             `json:"maxRedemptions"`
+	ReservedCount  int             `json:"reservedCount"`
+	RedeemedCount  int             `json:"redeemedCount"`
+	StartsAt       *time.Time      `json:"startsAt"`
+	ExpiresAt      *time.Time      `json:"expiresAt"`
+	Revision       int             `json:"revision"`
+	Scopes         []DiscountScope `json:"scopes"`
+	CreatedAt      time.Time       `json:"createdAt"`
+	UpdatedAt      time.Time       `json:"updatedAt"`
 }
 
 type DiscountWrite struct {
@@ -136,9 +138,9 @@ type PaymentRequest struct {
 	Status                PaymentStatus `json:"status"`
 	IdempotencyKey        string        `json:"idempotencyKey"`
 	ProviderTransactionID string        `json:"providerTransactionId"`
-	PaidAt                *time.Time     `json:"paidAt"`
+	PaidAt                *time.Time    `json:"paidAt"`
 	ReviewedBy            string        `json:"reviewedBy"`
-	ReviewedAt            *time.Time     `json:"reviewedAt"`
+	ReviewedAt            *time.Time    `json:"reviewedAt"`
 	ReviewerNotes         string        `json:"reviewerNotes"`
 	ApprovalEvidence      string        `json:"approvalEvidence"`
 	Revision              int           `json:"revision"`
