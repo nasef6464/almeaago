@@ -17,6 +17,8 @@ type AttemptRepository interface {
 	SaveAnswer(context.Context, string, string, string, assessment.AnswerWrite) (assessment.Attempt, error)
 	Submit(context.Context, string, string, string) (assessment.Result, error)
 	GetResult(context.Context, string) (assessment.Result, error)
+	ListResults(context.Context, string, int, int) (assessment.ResultPage, error)
+	GetResultDetail(context.Context, string, string) (assessment.ResultDetail, error)
 }
 type AttemptService struct{ repo AttemptRepository }
 
