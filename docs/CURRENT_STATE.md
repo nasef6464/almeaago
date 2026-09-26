@@ -633,25 +633,34 @@ Verification:
 Audit:
 - `docs/domains/learning/LEARNING_REMEDIATION_LOOP_AUDIT.md`.
 
-## Learning Lesson / Video Progress — IN REVIEW
-Active branch: `feat/learning-lesson-video-progress`.
+## Learning Lesson / Video Progress — TESTED / MERGED
+PR #51 passed all required exact-head gates on `78f26cf1aff797fec0a3cd8dc827f04c1f4626e2` and merged to `main` as `125094a5f6e2af95aa0433c461fc96486133b6fc`.
 
-Implemented on the branch:
+Implemented:
 - migration `000024_learning_lesson_video_progress` with context-isolated normalized Lesson and video resume state.
+- one learner + reusable Lesson + exact Course/Foundation context progress row; no unbounded completion/video arrays on the user.
 - student-only CSRF-protected progress API.
-- Content-owned learner-safe context validation through a narrow resolver boundary.
+- Content-owned learner-safe context validation through a narrow resolver boundary; Learning does not query foreign Content tables.
 - lazy learner Course Lesson detail instead of hydrating video URLs for every Lesson in a Course.
 - direct-upload HTML5 video resume with coarse persistence and explicit server-confirmed completion.
-- locked non-preview Course Lessons fail closed; Learning does not invent Commerce entitlement.
-- no automatic completion from seek/position.
-- no interactive-question schema invented before Content owns that contract.
-- responsive `/learning/courses/{courseId}` surface and mobile Playwright coverage.
+- locked non-preview Course Lessons and locked Foundation Lessons fail closed.
+- seek/resume position never auto-completes a Lesson.
+- completed state remains separate from video position.
+- responsive `/learning/courses/{courseId}` surface and mobile browser proof.
+- no interactive-video question schema was invented before Content owns that contract.
+- YouTube/Vimeo provider-SDK resume and interactive must-pass event migration remain deliberate follow-up work.
+- Commerce entitlement remains outside Learning.
+
+Verification:
+- Database CI `36225203823`: PASS apply + schema verification + rollback + re-apply.
+- Backend CI `36225203857`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36225203909`: PASS typecheck + production build.
+- Frontend E2E `36225203838`: PASS mobile resume persistence, explicit-completion integrity, locked-Lesson no-request behavior and existing browser suite.
+- browser evidence artifact `10900855682`.
+- initial gofmt and ambiguous E2E-locator failures were corrected on the same PR without weakening behavior.
 
 Audit:
 - `docs/domains/learning/LEARNING_LESSON_VIDEO_PROGRESS_AUDIT.md`.
 
-Verification state:
-- not merge-qualified until Database CI + Backend CI + Frontend CI + Frontend E2E all pass on the exact PR head.
-
 ## Next exact action
-Open the Lesson / Video Progress PR, run all four exact-head gates, fix every failure on the same branch without weakening tests, record the verified SHA/run evidence, and merge only when all gates are green. After merge, resume the Phase 7 gap audit for mastery goals/study plans/interventions rather than guessing their unresolved product shapes.
+Continue Phase 7 from current `main` with a focused contract audit for mastery goals, study plans and interventions. These shapes are named in the target blueprint but are not defined by enough verified legacy behavior to implement safely by inference. Compare blueprint/model-catalog/organization permissions and any surviving legacy routes first, then choose the lowest-dependency normalized slice. Keep Learning progress/review canonical, keep school authority in Organizations, keep Commerce entitlement outside Learning, and do not create user-embedded arrays or a second planning engine.

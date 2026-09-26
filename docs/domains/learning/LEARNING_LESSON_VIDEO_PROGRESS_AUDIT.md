@@ -1,6 +1,6 @@
 # Learning Lesson / Video Progress Audit
 
-Status: **IN REVIEW**
+Status: **TESTED / MERGED**
 
 ## Scope
 This checkpoint replaces legacy learner-level completion/video arrays with normalized Learning-owned progress rows.
@@ -62,3 +62,13 @@ Legacy must-pass / answered-interactive-question persistence will be migrated on
 - learner-safe locked state.
 - direct-upload video resume and explicit completion.
 - mobile Playwright proof covers resume persistence and explicit completion semantics.
+
+
+## Verification checkpoint
+- exact tested PR head: `78f26cf1aff797fec0a3cd8dc827f04c1f4626e2`.
+- Database CI `36225203823`: PASS.
+- Backend CI `36225203857`: PASS.
+- Frontend CI `36225203909`: PASS.
+- Frontend E2E `36225203838`: PASS.
+- browser evidence artifact: `10900855682`.
+- PR #51 merged to `main` as `125094a5f6e2af95aa0433c461fc96486133b6fc`.
