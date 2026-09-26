@@ -93,6 +93,7 @@ func main() {
 	if strings.EqualFold(strings.TrimSpace(os.Getenv("COMMERCE_PAYMENT_GATEWAY_MODE")), string(commerce.GatewayWebhook)) {
 		checkoutMode = commerce.GatewayWebhook
 	}
+	accessService := commerceapp.NewAccessService(commerceRepository, commerceRepository, organizationsRepository)
 	checkoutService := commerceapp.NewCheckoutService(commerceRepository, commerce.CheckoutPolicy{
 		GatewayMode:  checkoutMode,
 		ProviderCode: strings.TrimSpace(os.Getenv("COMMERCE_PAYMENT_PROVIDER_CODE")),
@@ -156,9 +157,10 @@ func main() {
 	lessonProgressHandler := learninghttp.NewLessonProgress(lessonProgressService, identityService)
 	studyPlansHandler := learninghttp.NewStudyPlans(studyPlanService, identityService)
 	interventionsHandler := learninghttp.NewInterventions(interventionService, identityService)
-	commerceHandler := commercehttp.NewWithCheckout(
+	commerceHandler := commercehttp.NewWithAccess(
 		commerceService,
 		checkoutService,
+		accessService,
 		identityService,
 		[]byte(strings.TrimSpace(os.Getenv("PAYMENT_WEBHOOK_SECRET"))),
 	)
