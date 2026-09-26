@@ -674,6 +674,17 @@ WHERE id=$1::uuid
 	return r.getPayment(ctx, id)
 }
 
+func rejectProviderEventTx(ctx context.Context, tx pgx.Tx, eventID, result string) error {
+	if _, err := tx.Exec(ctx, `
+UPDATE commerce_provider_events
+SET processed_at=now(),processing_result=$2
+WHERE id=$1::uuid
+`, eventID, result); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 func (r *Repository) ApplyProviderEvent(ctx context.Context, provider string, in commerce.ProviderEvent) (commerce.ProviderEventResult, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -711,6 +722,9 @@ SELECT payment_request_id::text FROM commerce_provider_events WHERE provider_cod
 		return commerce.ProviderEventResult{}, err
 	}
 	if p.ProviderCode != provider || p.GatewayMode != commerce.GatewayWebhook {
+		if commitErr := rejectProviderEventTx(ctx, tx, eventRowID, "rejected_provider_or_mode"); commitErr != nil {
+			return commerce.ProviderEventResult{}, commitErr
+		}
 		return commerce.ProviderEventResult{}, commerce.ErrConflict
 	}
 
@@ -719,6 +733,9 @@ SELECT payment_request_id::text FROM commerce_provider_events WHERE provider_cod
 		switch in.Status {
 		case commerce.ProviderPaid:
 			if in.AmountMinor == nil || *in.AmountMinor != p.FinalAmountMinor || in.Currency != p.Currency {
+				if commitErr := rejectProviderEventTx(ctx, tx, eventRowID, "rejected_amount_or_currency"); commitErr != nil {
+					return commerce.ProviderEventResult{}, commitErr
+				}
 				return commerce.ProviderEventResult{}, commerce.ErrConflict
 			}
 			if err = grantPaymentEntitlementTx(ctx, tx, p, "payment_webhook", ""); err != nil {
