@@ -6,15 +6,15 @@ type PaymentReversalType string
 type PaymentReversalSource string
 
 const (
-	PaymentRefund     PaymentReversalType = "refund"
-	PaymentChargeback PaymentReversalType = "chargeback"
+	ReversalRefund     PaymentReversalType = "refund"
+	ReversalChargeback PaymentReversalType = "chargeback"
 
 	ReversalProviderWebhook PaymentReversalSource = "provider_webhook"
 	ReversalAdminEvidence   PaymentReversalSource = "admin_evidence"
 )
 
 func ValidPaymentReversalType(v PaymentReversalType) bool {
-	return v == PaymentRefund || v == PaymentChargeback
+	return v == ReversalRefund || v == ReversalChargeback
 }
 
 type PaymentReversal struct {
