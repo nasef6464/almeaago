@@ -1,6 +1,6 @@
 # Learning Remediation / Mastery Review Loop Audit
 
-Status: **IN REVIEW**
+Status: **TESTED / MERGED**
 
 ## Scope
 
@@ -114,3 +114,13 @@ Due practice:
 - formal Assessment result generation for Review practice.
 
 Those remain separate domain slices.
+
+
+## Verification checkpoint
+- exact tested PR head: `fb9025418145620105c43caf4903f114dfdafd8e`.
+- Database CI `36223291223`: PASS.
+- Backend CI `36223291194`: PASS.
+- Frontend CI `36223291218`: PASS.
+- Frontend E2E `36223291202`: PASS.
+- browser evidence artifact: `10900230059`.
+- PR #50 merged to `main` as `e9895e78ecd21c956fbdc97be23c4c9a9e78cfe8`.

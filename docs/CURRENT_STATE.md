@@ -606,10 +606,10 @@ Verification:
 Audit:
 - `docs/domains/learning/LEARNING_EVIDENCE_REVIEW_FOUNDATION_AUDIT.md`.
 
-## Learning Remediation / Mastery Review Loop — IN REVIEW
-Active branch: `feat/learning-remediation-loop`.
+## Learning Remediation / Mastery Review Loop — TESTED / MERGED
+PR #50 passed all required exact-head gates on `fb9025418145620105c43caf4903f114dfdafd8e` and merged to `main` as `e9895e78ecd21c956fbdc97be23c4c9a9e78cfe8`.
 
-Implemented on the branch:
+Implemented:
 - migration `000023_learning_review_loop` with idempotent `review_answer_submissions` and explicit Learning evidence source linkage.
 - Assessment evidence remains linked to Assessment attempts; remediation/mastery-review evidence links to Review submissions without fabricating an Assessment attempt.
 - bounded due-card discovery by exact learner/path and optional subject/tab (default 20, max 50; no exact-count scan).
@@ -618,16 +618,20 @@ Implemented on the branch:
 - idempotency by learner + bounded submission key and optimistic `expectedUpdatedAt` ReviewCard concurrency.
 - deterministic remediation vs mastery-review evidence classification from the pre-answer ReviewCard state.
 - ReviewCard SM-2 advancement after each submitted answer, with historical mistake reason retained independently.
-- mastery progress recomputation counts both Assessment attempts and Review submissions without double-counting a replayed submission.
+- mastery progress recomputation counts both Assessment attempts and Review submissions without double-counting replay.
 - responsive `/review/practice` one-question-at-a-time loop and entry from the existing Review library.
-- mobile Playwright coverage verifies no pre-answer key leakage, server feedback after submit and next-review scheduling.
 - Assessment results/attempt ownership, Realtime, Commerce and AI remain outside this Learning slice.
+
+Verification:
+- Database CI `36223291223`: PASS apply + schema verification + rollback + re-apply.
+- Backend CI `36223291194`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36223291218`: PASS typecheck + production build.
+- Frontend E2E `36223291202`: PASS mobile due-review flow, no pre-answer key leakage, CSRF server scoring, post-answer feedback and next-review schedule.
+- browser evidence artifact `10900230059`.
+- initial Backend failure was gofmt-only and was corrected on the same PR without weakening tests.
 
 Audit:
 - `docs/domains/learning/LEARNING_REMEDIATION_LOOP_AUDIT.md`.
 
-Verification state:
-- not merge-qualified until exact-head Database CI + Backend CI + Frontend CI + Frontend E2E pass.
-
 ## Next exact action
-Open the remediation/mastery-review PR, run Database + Backend + Frontend + E2E on the exact head, fix every failure on the same branch without weakening tests, record final evidence, and merge only when all gates are green.
+Continue Phase 7 from current `main` with a focused remaining-gap audit before the next implementation branch: compare legacy/blueprint behavior for mastery goals, study plans, learner interventions and lesson/video progress, then choose the lowest-dependency normalized slice. Keep ReviewCard/Question identity canonical, keep Commerce entitlement and Realtime outside Learning, and do not introduce unbounded user arrays or a second assessment engine.
