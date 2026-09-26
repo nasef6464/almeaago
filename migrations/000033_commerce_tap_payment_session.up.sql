@@ -24,6 +24,8 @@ ALTER TABLE commerce_payment_requests
       OR
       (status='failed' AND provider_session_status='failed' AND provider_redirect_url='')
       OR
+      (status='failed' AND provider_session_status='initiated' AND btrim(provider_session_id)<>'')
+      OR
       (status IN ('paid','cancelled','rejected') AND provider_session_status='initiated' AND btrim(provider_session_id)<>'')
     ))
   );
