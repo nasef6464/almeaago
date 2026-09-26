@@ -58,3 +58,14 @@ export interface CommercePaymentRequest{
 export type CommerceAccessCodeStatus='active'|'paused'|'archived';
 export interface CommerceAccessCode{id:string;code:string;productId:string;schoolId:string;status:CommerceAccessCodeStatus;maxUses:number;currentUses:number;startsAt:string;expiresAt:string;revision:number;createdAt:string;updatedAt:string}
 export interface CommerceSchoolSeat{id:string;schoolEntitlementId:string;userId:string;userEntitlementId:string;status:'active'|'revoked';revision:number;revokedAt:string|null;revokeReason:string;createdAt:string;updatedAt:string}
+
+
+export type CommerceRevenueAllocationStatus='not_applicable'|'policy_missing'|'pending'|'allocated';
+export type CommercePayoutStatus='not_applicable'|'pending'|'paid';
+export interface CommerceRevenueEntry{
+ id:string;paymentRequestId:string;productId:string;productType:CommerceProductType;courseId:string;buyerUserId:string;
+ trainerUserId:string;revenueSharePercentage:number|null;grossAmountMinor:number;discountAmountMinor:number;paidAmountMinor:number;
+ currency:string;providerFeeMinor:number|null;trainerShareMinor:number|null;platformShareMinor:number|null;
+ allocationStatus:CommerceRevenueAllocationStatus;payoutStatus:CommercePayoutStatus;allocationEvidence:string;allocatedBy:string;
+ allocatedAt:string|null;payoutEvidence:string;paidBy:string;payoutPaidAt:string|null;revision:number;createdAt:string;updatedAt:string;
+}
