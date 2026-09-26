@@ -606,5 +606,28 @@ Verification:
 Audit:
 - `docs/domains/learning/LEARNING_EVIDENCE_REVIEW_FOUNDATION_AUDIT.md`.
 
+## Learning Remediation / Mastery Review Loop — IN REVIEW
+Active branch: `feat/learning-remediation-loop`.
+
+Implemented on the branch:
+- migration `000023_learning_review_loop` with idempotent `review_answer_submissions` and explicit Learning evidence source linkage.
+- Assessment evidence remains linked to Assessment attempts; remediation/mastery-review evidence links to Review submissions without fabricating an Assessment attempt.
+- bounded due-card discovery by exact learner/path and optional subject/tab (default 20, max 50; no exact-count scan).
+- due practice projection composes canonical Question ID/version in one Question Bank batch and strips answer key/explanation/hint/strategy before answer.
+- CSRF-protected server-scored answer submission using canonical Question Bank answer key.
+- idempotency by learner + bounded submission key and optimistic `expectedUpdatedAt` ReviewCard concurrency.
+- deterministic remediation vs mastery-review evidence classification from the pre-answer ReviewCard state.
+- ReviewCard SM-2 advancement after each submitted answer, with historical mistake reason retained independently.
+- mastery progress recomputation counts both Assessment attempts and Review submissions without double-counting a replayed submission.
+- responsive `/review/practice` one-question-at-a-time loop and entry from the existing Review library.
+- mobile Playwright coverage verifies no pre-answer key leakage, server feedback after submit and next-review scheduling.
+- Assessment results/attempt ownership, Realtime, Commerce and AI remain outside this Learning slice.
+
+Audit:
+- `docs/domains/learning/LEARNING_REMEDIATION_LOOP_AUDIT.md`.
+
+Verification state:
+- not merge-qualified until exact-head Database CI + Backend CI + Frontend CI + Frontend E2E pass.
+
 ## Next exact action
-Continue Phase 7 from current `main` with the remediation/mastery-review attempt loop: bounded due-card discovery, server-validated answer submission without answer-key leakage, idempotent review evidence application, ReviewCard SM-2 state advancement, and canonical Question ID/version reuse. Do not create a second quiz engine; keep Assessment attempt/result ownership separate and keep Realtime, Commerce and AI outside this batch.
+Open the remediation/mastery-review PR, run Database + Backend + Frontend + E2E on the exact head, fix every failure on the same branch without weakening tests, record final evidence, and merge only when all gates are green.
