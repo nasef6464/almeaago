@@ -24,6 +24,8 @@ type CheckoutRepository interface {
 	ListAdminPaymentRequests(context.Context, int, int, commerce.PaymentStatus) (commerce.PaymentRequestPage, error)
 	ReviewPaymentRequest(context.Context, string, string, commerce.PaymentReview) (commerce.PaymentRequest, error)
 	ApplyProviderEvent(context.Context, string, commerce.ProviderEvent) (commerce.ProviderEventResult, error)
+	PaymentRequestByProviderSession(context.Context, string, string) (commerce.PaymentRequest, error)
+	RecordAdminReversal(context.Context, string, string, int, commerce.PaymentReversalRecord) (commerce.PaymentReversalResult, error)
 	ListRevenueEntries(context.Context, int, int, commerce.RevenueAllocationStatus, commerce.PayoutStatus) (commerce.RevenueEntryPage, error)
 	AllocateRevenue(context.Context, string, string, commerce.RevenueAllocation) (commerce.RevenueEntry, error)
 	MarkPayoutPaid(context.Context, string, string, commerce.PayoutMarkPaid) (commerce.RevenueEntry, error)
@@ -296,7 +298,9 @@ func (s *CheckoutService) AdminRequests(ctx context.Context, actor identity.User
 	if err != nil {
 		return commerce.PaymentRequestPage{}, err
 	}
-	if status != "" && status != commerce.PaymentPending && status != commerce.PaymentPaid && status != commerce.PaymentRejected && status != commerce.PaymentCancelled && status != commerce.PaymentFailed {
+	if status != "" && status != commerce.PaymentPending && status != commerce.PaymentPaid && status != commerce.PaymentRejected &&
+		status != commerce.PaymentCancelled && status != commerce.PaymentFailed && status != commerce.PaymentRefunded &&
+		status != commerce.PaymentChargeback {
 		return commerce.PaymentRequestPage{}, ErrInvalidInput
 	}
 	return s.repo.ListAdminPaymentRequests(ctx, page, limit, status)
@@ -332,7 +336,8 @@ func (s *CheckoutService) ProviderEvent(ctx context.Context, provider string, in
 		len(in.PayloadSHA256) != 64 {
 		return commerce.ProviderEventResult{}, ErrInvalidInput
 	}
-	if in.Status == commerce.ProviderPaid && (in.AmountMinor == nil || *in.AmountMinor < 0 || len(in.Currency) != 3) {
+	if (in.Status == commerce.ProviderPaid || in.Status == commerce.ProviderRefunded || in.Status == commerce.ProviderChargeback) &&
+		(in.AmountMinor == nil || *in.AmountMinor < 1 || len(in.Currency) != 3) {
 		return commerce.ProviderEventResult{}, ErrInvalidInput
 	}
 	if in.OccurredAt != nil {
@@ -342,6 +347,38 @@ func (s *CheckoutService) ProviderEvent(ctx context.Context, provider string, in
 		}
 	}
 	return s.repo.ApplyProviderEvent(ctx, provider, in)
+}
+
+func (s *CheckoutService) ProviderEventBySession(ctx context.Context, provider, sessionID string, in commerce.ProviderEvent) (commerce.ProviderEventResult, error) {
+	provider = strings.ToLower(strings.TrimSpace(provider))
+	sessionID = strings.TrimSpace(sessionID)
+	if !providerCodePattern.MatchString(provider) || sessionID == "" || len(sessionID) > 180 {
+		return commerce.ProviderEventResult{}, ErrInvalidInput
+	}
+	p, err := s.repo.PaymentRequestByProviderSession(ctx, provider, sessionID)
+	if err != nil {
+		return commerce.ProviderEventResult{}, err
+	}
+	in.PaymentRequestID = p.ID
+	return s.ProviderEvent(ctx, provider, in)
+}
+
+func (s *CheckoutService) RecordAdminReversal(ctx context.Context, actor identity.User, paymentRequestID string, in commerce.AdminReversalRecord) (commerce.PaymentReversalResult, error) {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return commerce.PaymentReversalResult{}, ErrForbidden
+	}
+	paymentRequestID = strings.TrimSpace(paymentRequestID)
+	in.ProviderReference = strings.TrimSpace(in.ProviderReference)
+	in.Evidence = strings.TrimSpace(in.Evidence)
+	if paymentRequestID == "" || in.ExpectedRevision < 1 || !commerce.ValidPaymentReversalType(in.ReversalType) ||
+		in.ProviderReference == "" || len(in.ProviderReference) > 180 || len(in.Evidence) < 6 || len(in.Evidence) > 2000 {
+		return commerce.PaymentReversalResult{}, ErrInvalidInput
+	}
+	return s.repo.RecordAdminReversal(ctx, actor.ID, paymentRequestID, in.ExpectedRevision, commerce.PaymentReversalRecord{
+		ReversalType:      in.ReversalType,
+		ProviderReference: in.ProviderReference,
+		Evidence:          in.Evidence,
+	})
 }
 
 func (s *CheckoutService) RevenueEntries(ctx context.Context, actor identity.User, page, limit int, allocation commerce.RevenueAllocationStatus, payout commerce.PayoutStatus) (commerce.RevenueEntryPage, error) {
