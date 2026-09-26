@@ -1,4 +1,4 @@
-import {CheckCircle2,ChevronLeft,Loader2,PauseCircle,PlayCircle} from 'lucide-react';
+import {CheckCircle2,ChevronLeft,Loader2,PauseCircle,PlayCircle,ShoppingCart} from 'lucide-react';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {Link,useParams} from 'react-router-dom';
 
@@ -118,7 +118,7 @@ export function CourseLearningPage(){
         <div className="flex items-center justify-between gap-3 rounded-2xl border bg-white p-4 shadow-sm"><div><Link to="/" className="text-xs font-black text-indigo-600">المنصة</Link><h2 className="mt-1 text-xl font-black text-gray-900">{detail?.title||selectedSummary?.title||'اختر درسًا'}</h2>{progress?<p className="mt-1 text-xs font-bold text-gray-500">{progress.status==='completed'?'مكتمل':progress.status==='in_progress'?`قيد التقدم · آخر موضع ${progress.positionSeconds} ثانية`:'لم يبدأ بعد'}</p>:null}</div>{progress?.status==='completed'?<span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-700"><CheckCircle2 size={15}/>مكتمل</span>:null}</div>
         {error?<div className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700">{error}</div>:null}
         {notice?<div className="rounded-xl bg-emerald-50 p-3 font-bold text-emerald-700">{notice}</div>:null}
-        {!course.access.allowed?<div data-testid="course-commerce-lock" className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm font-bold leading-7 text-amber-900">{course.access.configured?'هذه الدورة مدفوعة وتحتاج صلاحية وصول فعالة. يمكنك مشاهدة المعاينات المجانية فقط.':'سياسة الوصول التجارية لهذه الدورة غير مكتملة؛ تم قفل المحتوى غير المجاني احترازيًا.'}</div>:null}
+        {!course.access.allowed?<div data-testid="course-commerce-lock" className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm font-bold leading-7 text-amber-900"><div>{course.access.configured?'هذه الدورة مدفوعة وتحتاج صلاحية وصول فعالة. يمكنك مشاهدة المعاينات المجانية فقط.':'سياسة الوصول التجارية لهذه الدورة غير مكتملة؛ تم قفل المحتوى غير المجاني احترازيًا.'}</div>{course.access.configured&&course.access.productId?<Link to={`/checkout?productId=${encodeURIComponent(course.access.productId)}`} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 font-black text-slate-950"><ShoppingCart size={17}/>شراء الوصول</Link>:null}</div>:null}
 
         {(selectedSummary?.isLocked||selectedSummary?.commerceLocked)&&!selectedSummary.isPreview?<div className="rounded-2xl border border-amber-100 bg-amber-50 p-5 font-bold text-amber-900">{selectedSummary?.commerceLocked?'هذا الدرس يحتاج شراءً أو منحة وصول فعالة من Commerce.':'هذا الدرس مقفول بسياسة المحتوى الحالية.'}</div>:detail?<article className="rounded-2xl border bg-white p-4 shadow-sm sm:p-6">
           <p className="text-sm leading-7 text-gray-600">{detail.description}</p>
