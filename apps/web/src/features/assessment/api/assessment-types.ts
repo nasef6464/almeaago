@@ -9,3 +9,10 @@ export interface AssessmentPage{items:AssessmentSummary[];page:number;limit:numb
 export interface QuestionSummary{id:string;questionCode:string;currentVersion:number;pathId:string;subjectId:string;workflowStatus:string;type:string;text:string;imageAssetId:string;difficulty:string}
 export interface QuestionPage{items:QuestionSummary[];page:number;limit:number;hasMore:boolean}
 export interface AssessmentWriteInput{expectedRevision?:number;code:string;ownerType:'platform'|'teacher'|'school';ownerUserId:string;ownerSchoolId:string;assignedTeacherId:string;isVisible:boolean;version:AssessmentVersion;sections:AssessmentSection[];questions:AssessmentQuestionPlacement[]}
+
+export type AssessmentPlacementSlot='training'|'tests'|'foundation'|'course';
+export interface AssessmentPlacement{id:string;assessmentId:string;assessmentVersion:number;slot:AssessmentPlacementSlot;pathId:string;subjectId:string;courseId:string;lessonId:string;topicId:string;isVisible:boolean;sortOrder:number;createdAt:string;updatedAt:string}
+export interface AssessmentPlacementWrite{slot:AssessmentPlacementSlot;pathId:string;subjectId:string;courseId:string;lessonId:string;topicId:string;isVisible:boolean;sortOrder:number}
+export interface AssessmentPlacementPage{items:AssessmentPlacement[];page:number;limit:number;hasMore:boolean}
+export interface LearnerAssessmentPlacement{placementId:string;assessmentId:string;assessmentVersion:number;title:string;slot:AssessmentPlacementSlot;pathId:string;subjectId:string;courseId:string;lessonId:string;topicId:string;sortOrder:number;attemptCount:number;maxAttempts:number;canStart:boolean}
+export interface LearnerAssessmentPlacementPage{items:LearnerAssessmentPlacement[];page:number;limit:number;hasMore:boolean}
