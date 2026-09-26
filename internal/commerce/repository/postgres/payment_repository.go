@@ -396,8 +396,13 @@ func discountValues(w commerce.DiscountWrite) (int, int64) {
 
 func (r *Repository) CreateDiscountCode(ctx context.Context, actor string, w commerce.DiscountWrite) (commerce.DiscountCode, error) {
 	bps, fixed := discountValues(w)
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return commerce.DiscountCode{}, err
+	}
+	defer tx.Rollback(ctx)
 	var id string
-	err := r.db.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 INSERT INTO commerce_discount_codes(
  code,label,discount_type,percentage_bps,fixed_minor,currency,status,product_id,product_type,min_amount_minor,
  max_redemptions,starts_at,expires_at,created_by
@@ -407,6 +412,15 @@ RETURNING id::text
 		w.MinAmountMinor, w.MaxRedemptions, w.StartsAt, w.ExpiresAt, actor).Scan(&id)
 	if err != nil {
 		return commerce.DiscountCode{}, mapError(err)
+	}
+	if err = r.auditTx(ctx, tx, operations.AuditEvent{
+		ActorUserID: actor, Action: "commerce.discount.create", ResourceType: "commerce_discount_code", ResourceID: id,
+		Metadata: map[string]any{"code": w.Code, "type": w.Type, "productId": w.ProductID, "productType": w.ProductType},
+	}); err != nil {
+		return commerce.DiscountCode{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return commerce.DiscountCode{}, err
 	}
 	return scanDiscount(r.db.QueryRow(ctx, discountSelect+` WHERE id=$1::uuid`, id))
 }
