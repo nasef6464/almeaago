@@ -321,6 +321,86 @@ paths:
         "403": { description: Student role/CSRF or hidden placement denied }
         "409": { description: Attempt budget or Assessment/Content state conflict }
 
+  /api/v1/assessment-sessions:
+    get:
+      operationId: assessmentStaffSessionList
+      description: Staff-authorized bounded Session distribution list for one Assessment.
+      parameters:
+        - { in: query, name: assessmentId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        "200": { description: Bounded session page }
+        "401": { description: Authentication required }
+        "403": { description: Assessment staff scope denied }
+    post:
+      operationId: assessmentStaffSessionCreate
+      description: >
+        CSRF-protected Session create. Pins the currently published Assessment version and
+        returns a server-generated stable entry code. New sessions are scheduled, not active.
+      responses:
+        "201": { description: Session created }
+        "400": { description: Invalid channel/window/scope shape }
+        "403": { description: Staff scope or CSRF denied }
+        "409": { description: Assessment or organization scope conflict }
+
+  /api/v1/assessment-sessions/{id}/status:
+    patch:
+      operationId: assessmentStaffSessionStatus
+      description: CSRF-protected scheduled/active/closed/cancelled transition.
+      responses:
+        "200": { description: Session status updated }
+        "403": { description: Staff scope or CSRF denied }
+        "409": { description: Session state/scope conflict }
+
+  /api/v1/assessment-sessions/join/{code}:
+    get:
+      operationId: assessmentLearnerLiveSessionJoin
+      description: >
+        Student-only live-session lookup. Enforces active window and school/class membership
+        when the Session is organization-scoped.
+      responses:
+        "200": { description: Learner-safe live Session summary }
+        "401": { description: Authentication required }
+        "403": { description: Student role required }
+        "404": { description: Session not available in learner scope }
+
+  /api/v1/assessment-sessions/{id}/start:
+    post:
+      operationId: assessmentLearnerLiveSessionStart
+      description: >
+        CSRF-protected idempotent live-session attempt start using the Session-pinned exact
+        Assessment version and canonical Attempt runner.
+      responses:
+        "201": { description: Session-context Attempt started or resumed }
+        "403": { description: Student role/scope or CSRF denied }
+        "409": { description: Attempt budget/session state conflict }
+
+  /api/v1/public-assessments/{code}/start:
+    post:
+      operationId: assessmentPublicSessionStart
+      description: >
+        Anonymous public/barcode start. Uses opaque participant/start keys, creates a
+        normalized public attempt, enforces server expiry and never exposes answer keys.
+      responses:
+        "201": { description: Public attempt and learner-safe questions }
+        "400": { description: Invalid opaque keys }
+        "404": { description: Public session unavailable }
+        "409": { description: Attempt budget or assessment state conflict }
+
+  /api/v1/public-assessments/{code}/submit:
+    post:
+      operationId: assessmentPublicSessionSubmit
+      description: >
+        Anonymous retry-safe submission. Answers reference canonical Assessment/Question
+        versions; correctness and score are computed server-side. Result visibility follows
+        the exact pinned Assessment version.
+      responses:
+        "200": { description: Submission accepted; result included only when policy permits }
+        "400": { description: Invalid participant/submission payload }
+        "404": { description: Public attempt/session unavailable }
+        "409": { description: Expired, duplicate, attempt-budget, answer-integrity or submission-cap conflict }
+
   /api/v1/media/uploads/presign:
     post:
       operationId: mediaPresignUpload
