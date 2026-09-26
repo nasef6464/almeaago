@@ -20,7 +20,7 @@ type AccessRepository interface {
 }
 
 type ProductReader interface {
-\tGetProduct(context.Context, string) (commerce.Product, error)
+	GetProduct(context.Context, string) (commerce.Product, error)
 }
 
 type AccessService struct {
