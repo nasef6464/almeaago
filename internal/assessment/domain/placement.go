@@ -19,7 +19,8 @@ type Placement struct {
 	ID                string        `json:"id"`
 	AssessmentID      string        `json:"assessmentId"`
 	AssessmentVersion int           `json:"assessmentVersion"`
-	Slot              PlacementSlot `json:"slot"`
+	Slot              PlacementSlot       `json:"slot"`
+	AccessType        PlacementAccessType `json:"accessType"`
 	PathID            string        `json:"pathId"`
 	SubjectID         string        `json:"subjectId"`
 	CourseID          string        `json:"courseId"`
@@ -32,7 +33,8 @@ type Placement struct {
 }
 
 type PlacementWrite struct {
-	Slot      PlacementSlot `json:"slot"`
+	Slot       PlacementSlot       `json:"slot"`
+	AccessType PlacementAccessType `json:"accessType"`
 	PathID    string        `json:"pathId"`
 	SubjectID string        `json:"subjectId"`
 	CourseID  string        `json:"courseId"`
@@ -43,7 +45,8 @@ type PlacementWrite struct {
 }
 
 type PlacementPatch struct {
-	ExpectedUpdatedAt time.Time `json:"expectedUpdatedAt"`
+	ExpectedUpdatedAt time.Time           `json:"expectedUpdatedAt"`
+	AccessType        PlacementAccessType `json:"accessType"`
 	IsVisible         bool      `json:"isVisible"`
 	SortOrder         int       `json:"sortOrder"`
 }
@@ -80,7 +83,11 @@ type LearnerPlacement struct {
 	SortOrder         int           `json:"sortOrder"`
 	AttemptCount      int           `json:"attemptCount"`
 	MaxAttempts       int           `json:"maxAttempts"`
-	CanStart          bool          `json:"canStart"`
+	AccessType        PlacementAccessType `json:"accessType"`
+	BaseAccessType    AccessType          `json:"baseAccessType"`
+	AccessAllowed     bool                `json:"accessAllowed"`
+	AccessReason      string              `json:"accessReason"`
+	CanStart          bool                `json:"canStart"`
 }
 
 type LearnerPlacementPage struct {
