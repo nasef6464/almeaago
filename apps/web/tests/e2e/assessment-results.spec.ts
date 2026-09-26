@@ -149,7 +149,7 @@ test('mobile review filters wrong unanswered and marked questions without leakin
   await page.getByRole('button', { name: 'بدون إجابة' }).click();
   await expect(page.getByText('٥ + ٥ = ؟')).toBeVisible();
 
-  await page.getByRole('button', { name: 'للمراجعة' }).click();
+  await page.getByRole('button', { name: 'للمراجعة', exact: true }).click();
   await expect(page.getByText('٢ + ٢ = ؟')).toBeVisible();
   await page.screenshot({ path: 'test-results/assessment-result-review-mobile.png', fullPage: true });
 });

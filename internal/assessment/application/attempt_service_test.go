@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
+	learning "github.com/nasef6464/almeaago/internal/learning/domain"
 )
 
 type fakeAttemptRepo struct {
@@ -123,5 +125,60 @@ func TestResultViewsRejectNonStudent(t *testing.T) {
 	}
 	if _, err := s.ResultDetail(context.Background(), teacher, "attempt-1"); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("detail: expected forbidden, got %v", err)
+	}
+}
+
+type fakeAttemptEvidenceRepo struct {
+	*fakeAttemptRepo
+	event       learning.SubmissionEvidence
+	sourceCalls int
+}
+
+func (f *fakeAttemptEvidenceRepo) LearningSubmissionEvidence(_ context.Context, student, attemptID string) (learning.SubmissionEvidence, error) {
+	f.sourceCalls++
+	event := f.event
+	event.StudentID = student
+	event.AttemptID = attemptID
+	return event, nil
+}
+
+type fakeEvidenceSink struct {
+	calls     int
+	failFirst bool
+}
+
+func (s *fakeEvidenceSink) ApplyAssessmentSubmission(_ context.Context, event learning.SubmissionEvidence) error {
+	s.calls++
+	if s.failFirst && s.calls == 1 {
+		return errors.New("temporary learning failure")
+	}
+	if event.StudentID == "" || event.AttemptID == "" {
+		return errors.New("missing evidence identity")
+	}
+	return nil
+}
+
+func TestAttemptSubmitRetriesLearningHandoffWithSameAssessmentResult(t *testing.T) {
+	base := &fakeAttemptRepo{r: assessment.Result{AttemptID: "attempt-1", Score: 75}}
+	repo := &fakeAttemptEvidenceRepo{
+		fakeAttemptRepo: base,
+		event: learning.SubmissionEvidence{
+			AssessmentID: "assessment-1", AssessmentVersion: 1,
+			PathID: "path-1", SubjectID: "subject-1", OccurredAt: time.Now(),
+			Questions: []learning.QuestionEvidence{{QuestionID: "q-1", QuestionVersion: 1}},
+		},
+	}
+	sink := &fakeEvidenceSink{failFirst: true}
+	service := NewAttemptServiceWithLearning(repo, sink)
+
+	if _, err := service.Submit(context.Background(), student("student-1"), "attempt-1", "submission-key"); err == nil {
+		t.Fatal("first learning handoff should surface retryable failure")
+	}
+	result, err := service.Submit(context.Background(), student("student-1"), "attempt-1", "submission-key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.AttemptID != "attempt-1" || sink.calls != 2 || repo.sourceCalls != 2 {
+		t.Fatalf("retry handoff mismatch result=%#v sink=%d source=%d", result, sink.calls, repo.sourceCalls)
 	}
 }

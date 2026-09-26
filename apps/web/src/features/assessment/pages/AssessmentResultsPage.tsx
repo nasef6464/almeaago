@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Bookmark,
   Flag,
   History,
   XCircle,
@@ -11,6 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
+import { learningClient } from '../../learning/api/learning-client';
 import {
   attemptClient,
   type ResultDetail,
@@ -69,9 +71,15 @@ function ResultSummary({ item }: { item: ResultListItem }) {
 function ReviewQuestionCard({
   question,
   detail,
+  saved,
+  saving,
+  onSave,
 }: {
   question: ReviewQuestion;
   detail: ResultDetail;
+  saved: boolean;
+  saving: boolean;
+  onSave(questionId: string): void;
 }) {
   return (
     <article className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -101,6 +109,16 @@ function ReviewQuestionCard({
           ) : null}
         </div>
       </div>
+
+      <button
+        type="button"
+        disabled={saved || saving}
+        onClick={() => onSave(question.questionId)}
+        className="mt-3 inline-flex items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-800 disabled:opacity-60"
+      >
+        <Bookmark size={14} />
+        {saved ? 'تم الحفظ' : saving ? 'جاري الحفظ...' : 'حفظ للمراجعة'}
+      </button>
 
       <h3 className="mt-3 text-base font-black text-gray-900">
         {question.text || question.imageAlt || 'سؤال بصري'}
@@ -154,7 +172,7 @@ function ReviewQuestionCard({
 
 export function AssessmentResultsPage() {
   const { attemptId = '' } = useParams();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, getCsrfToken } = useAuth();
   const [history, setHistory] = useState<ResultListItem[]>([]);
   const [detail, setDetail] = useState<ResultDetail | null>(null);
   const [page, setPage] = useState(1);
@@ -162,6 +180,8 @@ export function AssessmentResultsPage() {
   const [filter, setFilter] = useState<ReviewFilter>('all');
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
+  const [savedQuestions, setSavedQuestions] = useState<Set<string>>(() => new Set());
+  const [savingQuestion, setSavingQuestion] = useState('');
 
   useEffect(() => {
     if (authLoading) return;
@@ -195,6 +215,25 @@ export function AssessmentResultsPage() {
       active = false;
     };
   }, [attemptId, authLoading, page, user]);
+
+  async function saveForReview(questionId: string) {
+    if (savedQuestions.has(questionId)) return;
+    setSavingQuestion(questionId);
+    setError('');
+    try {
+      const csrf = await getCsrfToken();
+      await learningClient.saveReview(questionId, csrf);
+      setSavedQuestions((current) => {
+        const next = new Set(current);
+        next.add(questionId);
+        return next;
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'تعذر حفظ السؤال للمراجعة');
+    } finally {
+      setSavingQuestion('');
+    }
+  }
 
   const filteredQuestions = useMemo(() => {
     const questions = detail?.questions || [];
@@ -272,9 +311,14 @@ export function AssessmentResultsPage() {
     <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-gray-50 px-3 py-6 sm:px-6">
       <div className="mx-auto max-w-4xl space-y-4">
         <header className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-          <Link to="/assessment-results" className="text-sm font-black text-indigo-700">
-            ← سجل النتائج
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link to="/assessment-results" className="text-sm font-black text-indigo-700">
+              ← سجل النتائج
+            </Link>
+            <Link to="/review" className="text-sm font-black text-amber-700">
+              أسئلتي للمراجعة
+            </Link>
+          </div>
           <h1 className="mt-3 text-2xl font-black text-gray-900">{detail.title}</h1>
           <p className="mt-1 text-xs font-bold text-gray-500">
             المحاولة {detail.attemptNumber} · {new Date(result.finalizedAt).toLocaleString('ar-SA')}
@@ -346,6 +390,9 @@ export function AssessmentResultsPage() {
                     key={`${question.questionId}:${question.questionVersion}`}
                     question={question}
                     detail={detail}
+                    saved={savedQuestions.has(question.questionId)}
+                    saving={savingQuestion === question.questionId}
+                    onSave={(questionId) => void saveForReview(questionId)}
                   />
                 ))}
               </div>

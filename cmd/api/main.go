@@ -21,6 +21,9 @@ import (
 	whatsappprovider "github.com/nasef6464/almeaago/internal/identity/provider/whatsapp"
 	identityrepo "github.com/nasef6464/almeaago/internal/identity/repository/postgres"
 	identityhttp "github.com/nasef6464/almeaago/internal/identity/transport/http"
+	learningapp "github.com/nasef6464/almeaago/internal/learning/application"
+	learningrepo "github.com/nasef6464/almeaago/internal/learning/repository/postgres"
+	learninghttp "github.com/nasef6464/almeaago/internal/learning/transport/http"
 	mediaapp "github.com/nasef6464/almeaago/internal/media/application"
 	r2provider "github.com/nasef6464/almeaago/internal/media/provider/r2"
 	mediarepo "github.com/nasef6464/almeaago/internal/media/repository/postgres"
@@ -87,9 +90,11 @@ func main() {
 	taxonomyService := taxonomyapp.NewService(taxonomyRepository)
 	questionRepository := questionrepo.New(db, auditWriter)
 	questionService := questionapp.NewServiceWithAuthorScope(questionRepository, authorScope)
+	learningRepository := learningrepo.New(db)
+	learningService := learningapp.NewService(learningRepository, questionService)
 	assessmentRepository := assessmentrepo.New(db, auditWriter)
 	assessmentService := assessmentapp.NewService(assessmentRepository)
-	assessmentAttemptService := assessmentapp.NewAttemptService(assessmentRepository)
+	assessmentAttemptService := assessmentapp.NewAttemptServiceWithLearning(assessmentRepository, learningService)
 	assessmentAssignmentService := assessmentapp.NewAssignmentService(assessmentRepository)
 	assessmentPlacementService := assessmentapp.NewPlacementService(assessmentRepository, assessmentService, contentRepository)
 	assessmentSessionService := assessmentapp.NewSessionService(assessmentRepository, assessmentService)
@@ -127,6 +132,8 @@ func main() {
 	libraryHandler := contenthttp.NewLibrary(contentService, identityService)
 	contentManagementHandler := contenthttp.NewManagement(contentService, identityService)
 	learningSpacesHandler := contenthttp.NewLearningSpaces(contentService, identityService)
+	learningReviewHandler := learninghttp.NewReview(learningService, identityService)
+	masteryHandler := learninghttp.NewMastery(learningService, identityService)
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
 	assessmentHandler := assessmenthttp.NewWithDistribution(assessmentService, identityService, assessmentAssignmentService, assessmentPlacementService, assessmentAttemptService)
 	assessmentAttemptsHandler := assessmenthttp.NewAttempts(assessmentAttemptService, identityService)
@@ -181,6 +188,8 @@ func main() {
 		Library:                  libraryHandler,
 		ContentManagement:        contentManagementHandler,
 		LearningSpaces:           learningSpacesHandler,
+		LearningReview:           learningReviewHandler,
+		Mastery:                  masteryHandler,
 		LegacySchoolAccess:       legacySchoolAccessHandler,
 	})
 

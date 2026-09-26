@@ -86,6 +86,14 @@ jobs:
           check "select to_regclass('public.assessment_results') is not null"
           check "select exists(select 1 from pg_indexes where tablename='assessment_attempts' and indexname='assessment_attempts_student_recent_idx')"
           check "select exists(select 1 from pg_indexes where tablename='assessment_results' and indexname='assessment_results_student_recent_idx')"
+          check "select to_regclass('public.mastery_evidence') is not null"
+          check "select to_regclass('public.mastery_evidence_skills') is not null"
+          check "select to_regclass('public.skill_progress') is not null"
+          check "select to_regclass('public.review_cards') is not null"
+          check "select to_regclass('public.review_card_skills') is not null"
+          check "select exists(select 1 from pg_indexes where schemaname='public' and tablename='mastery_evidence' and indexdef ~ 'UNIQUE.*\\(evidence_type, source_attempt_id, question_id\\)')"
+          check "select exists(select 1 from pg_indexes where tablename='skill_progress' and indexname='skill_progress_student_mastery_idx')"
+          check "select exists(select 1 from pg_indexes where tablename='review_cards' and indexname='review_cards_student_due_idx')"
 
       - name: Roll back every migration
         shell: bash

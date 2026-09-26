@@ -2,10 +2,12 @@ package application
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
+	learning "github.com/nasef6464/almeaago/internal/learning/domain"
 )
 
 var ErrAttemptExpired = assessment.ErrAttemptExpired
@@ -22,9 +24,24 @@ type AttemptRepository interface {
 	GetResultDetail(context.Context, string, string) (assessment.ResultDetail, error)
 }
 
-type AttemptService struct{ repo AttemptRepository }
+type SubmissionEvidenceSource interface {
+	LearningSubmissionEvidence(context.Context, string, string) (learning.SubmissionEvidence, error)
+}
+
+type LearningEvidenceSink interface {
+	ApplyAssessmentSubmission(context.Context, learning.SubmissionEvidence) error
+}
+
+type AttemptService struct {
+	repo         AttemptRepository
+	evidenceSink LearningEvidenceSink
+}
 
 func NewAttemptService(r AttemptRepository) *AttemptService { return &AttemptService{repo: r} }
+
+func NewAttemptServiceWithLearning(r AttemptRepository, sink LearningEvidenceSink) *AttemptService {
+	return &AttemptService{repo: r, evidenceSink: sink}
+}
 
 func requireStudent(a identity.User) error {
 	if strings.TrimSpace(a.ID) == "" || !a.HasRole(identity.RoleStudent) {
@@ -91,7 +108,25 @@ func (s *AttemptService) Submit(ctx context.Context, a identity.User, id, submis
 	if strings.TrimSpace(id) == "" || submissionKey == "" {
 		return assessment.Result{}, ErrInvalidInput
 	}
-	return s.repo.Submit(ctx, a.ID, id, submissionKey)
+	result, err := s.repo.Submit(ctx, a.ID, id, submissionKey)
+	if err != nil {
+		return result, err
+	}
+	if s.evidenceSink == nil {
+		return result, nil
+	}
+	source, ok := s.repo.(SubmissionEvidenceSource)
+	if !ok {
+		return result, errors.New("assessment learning evidence source is not configured")
+	}
+	event, err := source.LearningSubmissionEvidence(ctx, a.ID, id)
+	if err != nil {
+		return result, err
+	}
+	if err = s.evidenceSink.ApplyAssessmentSubmission(ctx, event); err != nil {
+		return result, err
+	}
+	return result, nil
 }
 
 func (s *AttemptService) Result(ctx context.Context, a identity.User, id string) (assessment.Result, error) {
