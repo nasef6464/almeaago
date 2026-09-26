@@ -205,4 +205,3 @@ func TestPlacementStartRechecksCommerceEntitlement(t *testing.T) {
 		t.Fatalf("expected fresh commerce check, got %d", commerce.calls)
 	}
 }
-
