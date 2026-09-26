@@ -746,5 +746,29 @@ Verification:
 Audit:
 - `docs/domains/learning/LEARNING_SCHOOL_INTERVENTIONS_AUDIT.md`.
 
+## Commerce Entitlement Foundation — IN REVIEW
+Active branch: `feat/commerce-entitlement-foundation`.
+
+Implemented on the branch:
+- normalized `commerce_products`, `commerce_packages`, relational `commerce_package_items`, and canonical `commerce_entitlements`.
+- integer minor-unit pricing + currency; Content remains price-agnostic.
+- verified Course-vs-Package split and legacy content-type scopes.
+- existing V2 Courses backfilled as explicit free Course products to preserve current learner behavior during staged cutover.
+- new/unconfigured Courses fail closed for non-preview delivery.
+- Course products validate canonical approved/published/visible Content through a narrow boundary.
+- package Path/Subject targets validate through Taxonomy; Commerce stores IDs only.
+- active School membership is composed through Organizations rather than Commerce cross-domain membership SQL.
+- school entitlement inheritance is allowed only for unlimited packages; seat-capped packages require future explicit per-user seat/grant flow.
+- platform-admin bounded product/entitlement management with CSRF, optimistic updates/revokes, idempotent manual grant and transaction-scoped audit.
+- Course learner structure carries a separate Commerce access decision; non-preview Lesson detail is server-enforced.
+- responsive Commerce admin UI and learner preview/paid lock behavior.
+- PaymentRequest, discounts, provider secrets/webhooks, access-code redemption, revenue payouts and Assessment entitlement consumption remain deliberately outside this foundation slice.
+
+Audit:
+- `docs/domains/commerce/COMMERCE_ENTITLEMENT_FOUNDATION_AUDIT.md`.
+
+Verification state:
+- not merge-qualified until exact-head Database CI + Backend CI + Frontend CI + Frontend E2E pass.
+
 ## Next exact action
-Phase 7 core Learning/Adaptive/Review slices are now tested/merged. Start Phase 8 Commerce/Entitlements from current `main` with a legacy contract audit before schema work: identify canonical package/product/price/entitlement ownership, free-vs-paid access rules for Content and Assessment, school/package boundaries, subscription lifecycle and payment-provider boundaries. Then create only the normalized PostgreSQL Commerce foundation needed for server-owned entitlement checks; do not mix payment-provider secrets/state into Content, Assessment or Learning and do not add broad access queries.
+Open the Commerce Entitlement Foundation PR, run exact-head Database + Backend + Frontend + E2E gates, fix every failure on the same branch without weakening tests, record the verified SHA/run evidence, and merge only when all gates are green. After merge, continue Phase 8 with server-owned PaymentRequest/discount/checkout validation and trusted provider-event confirmation on top of this entitlement authority; do not let payment UI create grants directly.
