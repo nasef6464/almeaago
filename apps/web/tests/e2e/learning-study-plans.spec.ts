@@ -65,6 +65,9 @@ test('mobile student creates deterministic study plan and archives it with optim
 
   await page.route('**/api/v1/study-plans/**', async (route) => {
     const request = route.request();
+    if (new URL(request.url()).pathname.endsWith('/study-plans/plan-1')) {
+      return route.fallback();
+    }
     if (request.method() === 'GET') {
       const url = new URL(request.url());
       expect(url.searchParams.get('pathId')).toBe('path-1');
