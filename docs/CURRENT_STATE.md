@@ -832,5 +832,32 @@ Verification:
 Audit:
 - `docs/domains/commerce/COMMERCE_ACCESS_CODES_SEATS_AUDIT.md`.
 
+## Commerce / Assessment Entitlement Consumption — TESTED / MERGED
+PR #59 passed all required exact-head gates on `350cf298e3112ac122bf919571291c87e37fba17` and merged to `main` as `26a4269255674fac6d942333a3664361da6d94ca`.
+
+Implemented:
+- migration `000031_assessment_commerce_access` adds Version base access `free|paid|private|course_only` and Placement override `inherit|free|paid|package`, preserving existing migrated behavior through `free + inherit` defaults.
+- Assessment owns access policy while Commerce remains canonical Entitlement authority; Assessment does not read Commerce tables directly.
+- direct paid Assessment start resolves current Commerce Entitlements; private and course-only direct starts fail closed outside authorized distribution context.
+- learner placement availability returns server-owned `accessAllowed/accessReason` and folds Commerce access into `canStart`.
+- placement start rechecks Commerce immediately before creating a new Attempt.
+- retry/idempotency semantics are preserved: an existing Attempt for the same start key is resumed before a new entitlement denial can invalidate the retry.
+- package scopes compose canonical all/course/path/subject/content-type targets; normal Assessment uses `tests`, mock uses `mock_exams`.
+- capped school packages consume the explicit user Entitlement created by the school-seat flow; unlimited school packages may use eligible school Entitlements.
+- package-only placement policy does not accept a standalone Course-product entitlement.
+- Study Plan/adaptive candidate discovery passes through the same effective Assessment access resolver before new plans are generated.
+- public/barcode/live Session and directed Assignment remain their existing authorized special/audience distribution paths rather than being silently converted into purchase checks.
+- Assessment builder and placement management expose the access policies; learner availability renders Commerce-locked state separately from exhausted attempts.
+
+Verification:
+- Database CI `36245483437`: PASS apply + schema verification + rollback + re-apply.
+- Backend CI `36245483438`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36245483452`: PASS typecheck + production build.
+- Frontend E2E `36245483523`: PASS Assessment access/browser flows including locked paid placement.
+- browser evidence artifact `10906983993`.
+
+Audit:
+- `docs/domains/commerce/COMMERCE_ASSESSMENT_ACCESS_AUDIT.md`.
+
 ## Next exact action
-Continue Phase 8 Commerce from current `main` with the next still-deferred focused slice. Re-read the Commerce blueprint/current code before choosing between trainer revenue/payout ledger, Assessment entitlement consumption, provider-specific payment-session integration, or refunds/chargebacks. Keep each as a separate server-authoritative batch; do not combine them blindly.
+Continue Phase 8 Commerce from current `main` with one remaining focused Commerce slice after re-reading current code + blueprint. The still-deferred areas are provider-specific payment-session integration, trainer revenue/payout ledger, and expanded refunds/chargebacks. Do not combine them blindly; preserve server-authoritative pricing, provider evidence, idempotency and auditable ledger semantics.
