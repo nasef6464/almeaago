@@ -97,6 +97,10 @@ jobs:
           check "select to_regclass('public.mastery_goals') is not null"
           check "select exists(select 1 from pg_indexes where tablename='mastery_goals' and indexname='mastery_goals_student_scope_idx')"
           check "select exists(select 1 from pg_constraint where conname='mastery_goals_path_target_shape')"
+          check "select to_regclass('public.study_plans') is not null"
+          check "select to_regclass('public.study_plan_items') is not null"
+          check "select exists(select 1 from pg_indexes where tablename='study_plans' and indexname='study_plans_student_path_status_idx')"
+          check "select exists(select 1 from pg_constraint where conname='study_plan_items_target_shape')"
 
       - name: Roll back every migration
         shell: bash

@@ -605,6 +605,71 @@ paths:
         "403": { description: Student role or CSRF denied }
         "404": { description: Learner-safe Content target unavailable }
 
+
+  /api/v1/study-plans/:
+    get:
+      operationId: learningStudyPlanList
+      description: >
+        Student-only bounded Study Plan list for one canonical path. Defaults to 20,
+        caps at 100 and uses hasMore rather than an exact-count query.
+      parameters:
+        - { in: query, name: pathId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: status, schema: { type: string, enum: [active, archived], default: active } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200": { description: Bounded learner-owned Study Plan page }
+        "400": { description: Invalid path/status/pagination }
+        "401": { description: Authentication required }
+        "403": { description: Student role required }
+    post:
+      operationId: learningStudyPlanCreate
+      description: >
+        CSRF-protected self-owned Study Plan create. The server validates Taxonomy/Content
+        scope and deterministically generates bounded relational plan items from canonical
+        Content and Assessment references.
+      responses:
+        "201": { description: Study Plan and generated schedule }
+        "400": { description: Invalid plan configuration }
+        "401": { description: Authentication required }
+        "403": { description: Student role or CSRF required }
+        "409": { description: Referenced learning state conflict }
+
+  /api/v1/study-plans/{id}:
+    get:
+      operationId: learningStudyPlanDetail
+      description: >
+        Student-owned Study Plan detail with generated item references hydrated through
+        bounded owner-domain projections.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Study Plan detail }
+        "401": { description: Authentication required }
+        "403": { description: Student role required }
+        "404": { description: Study Plan not found for learner }
+    patch:
+      operationId: learningStudyPlanUpdate
+      description: >
+        CSRF-protected optimistic update using expectedUpdatedAt; regenerates the bounded
+        relational schedule from the submitted plan configuration.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Updated Study Plan and schedule }
+        "400": { description: Invalid plan configuration }
+        "403": { description: Student role or CSRF required }
+        "409": { description: Concurrent update or learning-state conflict }
+    delete:
+      operationId: learningStudyPlanDelete
+      description: CSRF-protected deletion of a self-owned learner Study Plan.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Study Plan deleted }
+        "403": { description: Student role or CSRF required }
+        "404": { description: Study Plan not found for learner }
+
   /api/v1/media/uploads/presign:
     post:
       operationId: mediaPresignUpload

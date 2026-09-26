@@ -689,5 +689,28 @@ Verification:
 Audit:
 - `docs/domains/learning/LEARNING_MASTERY_GOALS_AUDIT.md`.
 
+## Learning Study Plans — IN REVIEW
+Active branch: `feat/learning-study-plans`.
+
+Implemented on the branch:
+- normalized self-owned `study_plans` plus subject/course/off-day relations and relational `study_plan_items`.
+- legacy-evidenced plan settings preserved: name, path, optional subjects/courses, date range, skip-completed assessments, off-days, daily minutes, preferred start time, active/archive.
+- deterministic server-side schedule generation with bounded candidate catalogs, daily minute budget, off-day exclusion and foundation/practice/review phases.
+- Study Plan items reference canonical Content Lessons/Library items and Assessment learning placements; no Lesson/Question/Assessment payload copies.
+- Taxonomy validates active path/subject scope through a narrow boundary.
+- Content validates selected Courses and provides bounded learner-safe Lesson/Library candidates through a narrow boundary.
+- Assessment provides bounded published placement candidates and completion/attempt-budget projection through a narrow boundary.
+- existing Learning Lesson progress is reused for completion without embedded completed arrays.
+- student-only CSRF-protected create/update/delete, optimistic `expectedUpdatedAt` updates and bounded list.
+- responsive `/plan` flow with lazy exact-subject Course discovery and today/week/all schedule views.
+- normal list hydrates only the first selected plan detail instead of issuing detail reads for every listed plan.
+- staff-created intervention plans remain deliberately outside this batch; Organizations authority must be composed in the separate Interventions slice.
+
+Audit:
+- `docs/domains/learning/LEARNING_STUDY_PLANS_AUDIT.md`.
+
+Verification state:
+- not merge-qualified until exact-head Database CI + Backend CI + Frontend CI + Frontend E2E pass.
+
 ## Next exact action
-Continue Phase 7 from current `main` with a verified Study Plans contract audit and normalized cutover. Preserve the legacy plan shape only where evidenced, keep plan ownership in Learning, reuse canonical Content/Taxonomy IDs instead of copying lessons/quizzes, keep schedule generation deterministic and bounded, and do not fold school Interventions into the same batch. Staff-created intervention plans must wait for the separate Interventions slice where Organizations scope is authoritative.
+Open the Learning Study Plans PR, run exact-head Database + Backend + Frontend + E2E gates, fix every failure on the same branch without weakening tests, record the verified SHA/run evidence, and merge only when all gates are Green. After merge, continue the separate school Interventions slice using Organizations authority rather than expanding Study Plans staff access.

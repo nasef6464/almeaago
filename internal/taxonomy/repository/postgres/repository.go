@@ -155,3 +155,26 @@ func (r *Repository) ValidateMasteryGoalScope(ctx context.Context, pathID, subje
 	`, pathID, subjectID).Scan(&ok)
 	return ok, err
 }
+
+// ValidateStudyPlanScope is Taxonomy's bounded read contract for learner Study Plans.
+// Empty subjectIDs means "all active subjects under this path"; otherwise every ID must be
+// active and belong to the exact active path.
+func (r *Repository) ValidateStudyPlanScope(ctx context.Context, pathID string, subjectIDs []string) (bool, error) {
+	var ok bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM paths p
+			WHERE p.id=$1::uuid AND p.status='active'
+		)
+		AND NOT EXISTS(
+			SELECT 1
+			FROM unnest($2::text[]) requested(subject_id)
+			LEFT JOIN subjects s
+			  ON s.id::text=requested.subject_id
+			 AND s.path_id=$1::uuid
+			 AND s.status='active'
+			WHERE s.id IS NULL
+		)
+	`, pathID, subjectIDs).Scan(&ok)
+	return ok, err
+}

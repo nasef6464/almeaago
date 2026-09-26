@@ -323,3 +323,85 @@ func (r *Repository) StartPlacement(ctx context.Context, student, placementID, s
 }
 
 func actorOrStudent(student string) string { return student }
+
+// ListStudyPlanResources is Learning's bounded Assessment catalog boundary.
+// Only visible placements pinned to published Assessment versions are exposed.
+func (r *Repository) ListStudyPlanResources(
+	ctx context.Context,
+	studentID, pathID string,
+	subjectIDs, courseIDs []string,
+	limit int,
+) ([]assessment.StudyPlanResource, error) {
+	if limit < 1 || limit > 100 {
+		return nil, assessment.ErrConflict
+	}
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			p.id::text,
+			p.assessment_id::text,
+			p.assessment_version,
+			p.subject_id::text,
+			v.title,
+			p.slot,
+			COALESCE(p.course_id::text,''),
+			GREATEST(10,COALESCE(CEIL(v.time_limit_seconds/60.0)::int,25)),
+			p.sort_order,
+			EXISTS(
+				SELECT 1
+				FROM assessment_attempts x
+				JOIN assessment_results z ON z.attempt_id=x.id
+				WHERE x.placement_id=p.id
+				  AND x.student_id=$1::uuid
+			),
+			(
+				SELECT COUNT(*)::int
+				FROM assessment_attempts x
+				WHERE x.placement_id=p.id
+				  AND x.student_id=$1::uuid
+			) < v.max_attempts
+		FROM assessment_learning_placements p
+		JOIN assessments d ON d.id=p.assessment_id
+		JOIN assessment_versions v
+		  ON v.assessment_id=p.assessment_id
+		 AND v.version=p.assessment_version
+		WHERE p.is_visible=true
+		  AND d.workflow_status='approved'
+		  AND d.is_published=true
+		  AND d.is_visible=true
+		  AND p.path_id=$2::uuid
+		  AND (cardinality($3::text[])=0 OR p.subject_id::text=ANY($3::text[]))
+		  AND p.slot IN ('training','tests','foundation','course')
+		  AND (
+			p.slot<>'course'
+			OR cardinality($4::text[])=0
+			OR p.course_id::text=ANY($4::text[])
+		  )
+		ORDER BY p.subject_id,p.sort_order,p.id
+		LIMIT $5
+	`, studentID, pathID, subjectIDs, courseIDs, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]assessment.StudyPlanResource, 0, limit)
+	for rows.Next() {
+		var item assessment.StudyPlanResource
+		if err = rows.Scan(
+			&item.PlacementID,
+			&item.AssessmentID,
+			&item.AssessmentVersion,
+			&item.SubjectID,
+			&item.Title,
+			&item.Slot,
+			&item.CourseID,
+			&item.DurationMinutes,
+			&item.SortOrder,
+			&item.Completed,
+			&item.CanStart,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}

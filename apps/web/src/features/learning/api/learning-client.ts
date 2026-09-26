@@ -364,3 +364,94 @@ export const lessonProgressClient={
     );
   },
 };
+
+
+export type StudyPlanStatus='active'|'archived';
+export type StudyPlanWeekday='saturday'|'sunday'|'monday'|'tuesday'|'wednesday'|'thursday'|'friday';
+export type StudyPlanItemType='lesson'|'assessment'|'resource';
+export type StudyPlanPhase='foundation'|'practice'|'review';
+
+export interface StudyPlanSummary{
+  id:string;
+  studentId:string;
+  name:string;
+  pathId:string;
+  startDate:string;
+  endDate:string;
+  skipCompletedQuizzes:boolean;
+  dailyMinutes:number;
+  preferredStartTime:string;
+  status:StudyPlanStatus;
+  itemCount:number;
+  createdAt:string;
+  updatedAt:string;
+}
+export interface StudyPlanItem{
+  id:string;
+  subjectId:string;
+  itemType:StudyPlanItemType;
+  lessonId:string;
+  courseId:string;
+  libraryItemId:string;
+  assessmentPlacementId:string;
+  scheduledDate:string;
+  scheduledTime:string;
+  durationMinutes:number;
+  phase:StudyPlanPhase;
+  sortOrder:number;
+  title:string;
+  externalUrl:string;
+  completed:boolean;
+  available:boolean;
+  assessmentSlot:string;
+}
+export interface StudyPlan extends StudyPlanSummary{
+  subjectIds:string[];
+  courseIds:string[];
+  offDays:StudyPlanWeekday[];
+  items:StudyPlanItem[];
+}
+export interface StudyPlanPage{items:StudyPlanSummary[];page:number;limit:number;hasMore:boolean}
+export interface StudyPlanWrite{
+  name:string;
+  pathId:string;
+  subjectIds:string[];
+  courseIds:string[];
+  startDate:string;
+  endDate:string;
+  skipCompletedQuizzes:boolean;
+  offDays:StudyPlanWeekday[];
+  dailyMinutes:number;
+  preferredStartTime:string;
+  status:StudyPlanStatus;
+}
+
+export const studyPlanClient={
+  list(pathId:string,status:StudyPlanStatus='active',page=1,limit=20,signal?:AbortSignal){
+    const p=new URLSearchParams({pathId,status,page:String(page),limit:String(limit)});
+    return request<StudyPlanPage>(`/api/v1/study-plans/?${p.toString()}`,{signal});
+  },
+  get(id:string,signal?:AbortSignal){
+    return request<{plan:StudyPlan}>(`/api/v1/study-plans/${encodeURIComponent(id)}`,{signal});
+  },
+  create(input:StudyPlanWrite,csrfToken:string){
+    return request<{plan:StudyPlan}>('/api/v1/study-plans/',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+      body:JSON.stringify(input),
+    });
+  },
+  update(plan:StudyPlan,input:StudyPlanWrite,csrfToken:string){
+    return request<{plan:StudyPlan}>(`/api/v1/study-plans/${encodeURIComponent(plan.id)}`,{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+      body:JSON.stringify({expectedUpdatedAt:plan.updatedAt,...input}),
+    });
+  },
+  delete(id:string,csrfToken:string){
+    return request<{success:boolean}>(`/api/v1/study-plans/${encodeURIComponent(id)}`,{
+      method:'DELETE',
+      headers:{'X-CSRF-Token':csrfToken},
+    });
+  },
+};

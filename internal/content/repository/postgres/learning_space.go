@@ -428,3 +428,127 @@ func (r *Repository) ResolveLessonProgressTarget(ctx context.Context, contextTyp
 		return false, "", 0, nil
 	}
 }
+
+// ValidateStudyPlanCourses verifies only Content-owned Course identity/visibility.
+// Learning owns the Study Plan; Commerce entitlement remains a separate later boundary.
+func (r *Repository) ValidateStudyPlanCourses(
+	ctx context.Context,
+	pathID string,
+	subjectIDs, courseIDs []string,
+) (bool, error) {
+	if len(courseIDs) == 0 {
+		return true, nil
+	}
+	var ok bool
+	err := r.db.QueryRow(ctx, `
+		SELECT NOT EXISTS(
+			SELECT 1
+			FROM unnest($2::text[]) requested(course_id)
+			LEFT JOIN courses c
+			  ON c.id::text=requested.course_id
+			 AND c.path_id=$1::uuid
+			 AND c.workflow_status='approved'
+			 AND c.is_published=true
+			 AND c.is_visible=true
+			 AND (
+				cardinality($3::text[])=0
+				OR c.subject_id::text=ANY($3::text[])
+			 )
+			WHERE c.id IS NULL
+		)
+	`, pathID, courseIDs, subjectIDs).Scan(&ok)
+	if err != nil {
+		return false, mapError(err)
+	}
+	return ok, nil
+}
+
+// ListStudyPlanResources is Learning's bounded Content catalog boundary.
+// It returns compact canonical references only; no Lesson/Library body or asset payload is copied.
+func (r *Repository) ListStudyPlanResources(
+	ctx context.Context,
+	pathID string,
+	subjectIDs, courseIDs []string,
+	limit int,
+) ([]content.StudyPlanResource, error) {
+	if limit < 1 || limit > 100 {
+		return nil, content.ErrConflict
+	}
+	rows, err := r.db.Query(ctx, `
+		WITH eligible_courses AS (
+			SELECT c.id,c.subject_id
+			FROM courses c
+			WHERE c.path_id=$1::uuid
+			  AND c.workflow_status='approved'
+			  AND c.is_published=true
+			  AND c.is_visible=true
+			  AND (cardinality($2::text[])=0 OR c.subject_id::text=ANY($2::text[]))
+			  AND (cardinality($3::text[])=0 OR c.id::text=ANY($3::text[]))
+		),
+		lesson_rows AS (
+			SELECT DISTINCT ON (l.id,c.id)
+			       'lesson'::text AS kind,
+			       l.id::text AS id,
+			       c.id::text AS course_id,
+			       l.subject_id::text AS subject_id,
+			       l.title,
+			       ''::text AS external_url,
+			       GREATEST(10,CEIL(l.duration_seconds/60.0)::int) AS duration_minutes,
+			       (cm.sort_order*10000+cl.sort_order) AS sort_order
+			FROM eligible_courses c
+			JOIN course_modules cm ON cm.course_id=c.id AND cm.status='active'
+			JOIN course_lessons cl ON cl.module_id=cm.id
+			JOIN lessons l ON l.id=cl.lesson_id
+			WHERE l.workflow_status='approved'
+			  AND l.is_visible=true
+			  AND (l.is_locked=false OR cl.is_preview=true)
+			ORDER BY l.id,c.id,cm.sort_order,cl.sort_order
+		),
+		resource_rows AS (
+			SELECT 'resource'::text,
+			       li.id::text,
+			       ''::text,
+			       li.subject_id::text,
+			       li.title,
+			       COALESCE(li.external_url,''),
+			       15,
+			       1000000+ROW_NUMBER() OVER(ORDER BY li.updated_at DESC,li.id)::int
+			FROM library_items li
+			WHERE li.path_id=$1::uuid
+			  AND li.workflow_status='approved'
+			  AND li.is_visible=true
+			  AND li.is_locked=false
+			  AND (cardinality($2::text[])=0 OR li.subject_id::text=ANY($2::text[]))
+		)
+		SELECT kind,id,course_id,subject_id,title,external_url,duration_minutes,sort_order
+		FROM (
+			SELECT * FROM lesson_rows
+			UNION ALL
+			SELECT * FROM resource_rows
+		) resources
+		ORDER BY subject_id,sort_order,kind,id
+		LIMIT $4
+	`, pathID, subjectIDs, courseIDs, limit)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	defer rows.Close()
+	out := make([]content.StudyPlanResource, 0, limit)
+	for rows.Next() {
+		var item content.StudyPlanResource
+		if err = rows.Scan(
+			&item.Kind,
+			&item.ID,
+			&item.CourseID,
+			&item.SubjectID,
+			&item.Title,
+			&item.ExternalURL,
+			&item.DurationMinutes,
+			&item.SortOrder,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
