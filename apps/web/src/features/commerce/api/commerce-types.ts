@@ -30,7 +30,7 @@ export type CommerceDiscountStatus='active'|'paused'|'expired';
 export type CommerceDiscountScopeType='all'|'product'|'product_type';
 export type CommercePaymentMethod='card'|'transfer'|'wallet';
 export type CommerceGatewayMode='manual_review'|'webhook'|'payment_link';
-export type CommercePaymentStatus='pending'|'paid'|'rejected'|'cancelled'|'failed';
+export type CommercePaymentStatus='pending'|'paid'|'rejected'|'cancelled'|'failed'|'refunded'|'chargeback';
 
 export interface CommerceDiscountScope{scopeType:CommerceDiscountScopeType;productId:string;productType:CommerceProductType|''}
 export interface CommerceDiscount{
