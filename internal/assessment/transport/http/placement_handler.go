@@ -59,7 +59,7 @@ func (h *PlacementHandler) available(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := h.service.Learner(r.Context(), a.User, assessment.LearnerPlacementQuery{
 		Page: page, Limit: limit,
-		Slot: assessment.PlacementSlot(r.URL.Query().Get("slot")),
+		Slot:   assessment.PlacementSlot(r.URL.Query().Get("slot")),
 		PathID: r.URL.Query().Get("pathId"), SubjectID: r.URL.Query().Get("subjectId"),
 		CourseID: r.URL.Query().Get("courseId"), LessonID: r.URL.Query().Get("lessonId"), TopicID: r.URL.Query().Get("topicId"),
 	})

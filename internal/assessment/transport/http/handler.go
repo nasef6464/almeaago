@@ -301,7 +301,6 @@ func (h *Handler) createAssignment(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 201, map[string]any{"assignment": x})
 }
 
-
 func (h *Handler) listPlacements(w http.ResponseWriter, r *http.Request) {
 	a, ok := h.authenticate(w, r, false)
 	if !ok {

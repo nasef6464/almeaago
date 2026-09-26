@@ -52,7 +52,7 @@ func (r *Repository) CreatePlacement(ctx context.Context, actor, assessmentID st
 		return assessment.Placement{}, mapError(err)
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actor,
+		ActorUserID:  actor,
 		Action:       "assessment.placement.create",
 		ResourceType: "assessment_learning_placement",
 		ResourceID:   id,
@@ -143,7 +143,7 @@ func (r *Repository) PatchPlacement(ctx context.Context, actor, id string, expec
 		return assessment.Placement{}, assessment.ErrVersionConflict
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actor,
+		ActorUserID:  actor,
 		Action:       "assessment.placement.update",
 		ResourceType: "assessment_learning_placement",
 		ResourceID:   id,
@@ -304,14 +304,14 @@ func (r *Repository) StartPlacement(ctx context.Context, student, placementID, s
 		return assessment.Attempt{}, mapError(err)
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actorOrStudent(student),
+		ActorUserID:  actorOrStudent(student),
 		Action:       "assessment.placement.attempt.start",
 		ResourceType: "assessment_attempt",
 		ResourceID:   id,
 		Metadata: map[string]any{
-			"placementId": placementID,
+			"placementId":  placementID,
 			"assessmentId": assessmentID,
-			"version": version,
+			"version":      version,
 		},
 	}); err != nil {
 		return assessment.Attempt{}, err
