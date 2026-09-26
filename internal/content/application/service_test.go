@@ -140,6 +140,9 @@ func (r *repoStub) GetLearningSpace(_ context.Context, pathID, subjectID string,
 func (r *repoStub) GetLearnerCourse(context.Context, string) (content.LearnerCourse, error) {
 	return content.LearnerCourse{}, nil
 }
+func (r *repoStub) GetLearnerCourseLesson(context.Context, string, string) (content.LearnerLessonDetail, error) {
+	return content.LearnerLessonDetail{}, nil
+}
 func (r *repoStub) GetLearnerTopic(context.Context, string) (content.LearnerTopic, error) {
 	return content.LearnerTopic{}, nil
 }

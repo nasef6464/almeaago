@@ -58,6 +58,7 @@ type Repository interface {
 
 	GetLearningSpace(ctx context.Context, pathID, subjectID string, limit int) (content.LearningSpace, error)
 	GetLearnerCourse(ctx context.Context, courseID string) (content.LearnerCourse, error)
+	GetLearnerCourseLesson(ctx context.Context, courseID, lessonID string) (content.LearnerLessonDetail, error)
 	GetLearnerTopic(ctx context.Context, topicID string) (content.LearnerTopic, error)
 }
 

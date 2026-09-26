@@ -351,3 +351,75 @@ func (r *Repository) learningTaxonomyExists(ctx context.Context, pathID, subject
 	}
 	return ok, nil
 }
+
+
+func (r *Repository) GetLearnerCourseLesson(ctx context.Context, courseID, lessonID string) (content.LearnerLessonDetail, error) {
+	var row content.LearnerLessonDetail
+	err := r.db.QueryRow(ctx, `
+		SELECT l.id::text,l.title,l.description,l.lesson_type,l.duration_seconds,l.is_locked,
+		       cl.is_preview,cl.sort_order,l.content_text,COALESCE(l.video_url,''),COALESCE(l.video_source,'')
+		FROM course_lessons cl
+		JOIN course_modules cm ON cm.id=cl.module_id AND cm.status='active'
+		JOIN courses c ON c.id=cm.course_id
+		JOIN lessons l ON l.id=cl.lesson_id
+		WHERE c.id=$1::uuid
+		  AND l.id=$2::uuid
+		  AND c.workflow_status='approved' AND c.is_published=true AND c.is_visible=true
+		  AND l.workflow_status='approved' AND l.is_visible=true
+		  AND (l.is_locked=false OR cl.is_preview=true)
+		ORDER BY cm.sort_order,cm.id,cl.sort_order
+		LIMIT 1
+	`, courseID, lessonID).Scan(
+		&row.ID,&row.Title,&row.Description,&row.LessonType,&row.DurationSeconds,&row.IsLocked,
+		&row.IsPreview,&row.SortOrder,&row.ContentText,&row.VideoURL,&row.VideoSource,
+	)
+	if err != nil {
+		return row, mapError(err)
+	}
+	return row, nil
+}
+
+// ResolveLessonProgressTarget is Learning's bounded Content read boundary.
+// It returns false for hidden/locked content so Learning never grants access itself.
+func (r *Repository) ResolveLessonProgressTarget(ctx context.Context, contextType, contextID, lessonID, _ string) (bool, string, int, error) {
+	var lessonType string
+	var duration int
+	switch contextType {
+	case "course":
+		err := r.db.QueryRow(ctx, `
+			SELECT l.lesson_type,l.duration_seconds
+			FROM course_lessons cl
+			JOIN course_modules cm ON cm.id=cl.module_id AND cm.status='active'
+			JOIN courses c ON c.id=cm.course_id
+			JOIN lessons l ON l.id=cl.lesson_id
+			WHERE c.id=$1::uuid AND l.id=$2::uuid
+			  AND c.workflow_status='approved' AND c.is_published=true AND c.is_visible=true
+			  AND l.workflow_status='approved' AND l.is_visible=true
+			  AND (l.is_locked=false OR cl.is_preview=true)
+			LIMIT 1
+		`, contextID, lessonID).Scan(&lessonType,&duration)
+		if err != nil {
+			if err == pgx.ErrNoRows { return false,"",0,nil }
+			return false,"",0,mapError(err)
+		}
+		return true,lessonType,duration,nil
+	case "foundation":
+		err := r.db.QueryRow(ctx, `
+			SELECT l.lesson_type,l.duration_seconds
+			FROM topic_lessons tl
+			JOIN foundation_topics t ON t.id=tl.topic_id
+			JOIN lessons l ON l.id=tl.lesson_id
+			WHERE t.id=$1::uuid AND l.id=$2::uuid
+			  AND t.status='active' AND t.is_visible=true AND t.is_locked=false
+			  AND l.workflow_status='approved' AND l.is_visible=true AND l.is_locked=false
+			LIMIT 1
+		`, contextID, lessonID).Scan(&lessonType,&duration)
+		if err != nil {
+			if err == pgx.ErrNoRows { return false,"",0,nil }
+			return false,"",0,mapError(err)
+		}
+		return true,lessonType,duration,nil
+	default:
+		return false,"",0,nil
+	}
+}

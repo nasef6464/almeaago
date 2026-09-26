@@ -13,6 +13,7 @@ func NewLearningSpaces(service *contentapp.Service, auth Authenticator) http.Han
 	h := &Handler{service: service, auth: auth}
 	r := chi.NewRouter()
 	r.Get("/courses/{id}", h.getLearnerCourse)
+	r.Get("/courses/{courseId}/lessons/{lessonId}", h.getLearnerCourseLesson)
 	r.Get("/foundation/{id}", h.getLearnerTopic)
 	r.Get("/{pathId}/subjects/{subjectId}", h.getLearningSpace)
 	return r
@@ -179,4 +180,21 @@ func presentLearnerLessonSummary(row content.LearnerLessonSummary) map[string]an
 		"isPreview":       row.IsPreview,
 		"sortOrder":       row.SortOrder,
 	}
+}
+
+
+func (h *Handler) getLearnerCourseLesson(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authenticate(w, r, false)
+	if !ok { return }
+	row, err := h.service.LearnerCourseLesson(r.Context(), auth.User, chi.URLParam(r,"courseId"), chi.URLParam(r,"lessonId"))
+	if err != nil { writeError(w,err); return }
+	writeJSON(w,http.StatusOK,map[string]any{"lesson":presentLearnerLessonDetail(row)})
+}
+
+func presentLearnerLessonDetail(row content.LearnerLessonDetail) map[string]any {
+	result:=presentLearnerLessonSummary(row.LearnerLessonSummary)
+	result["contentText"]=row.ContentText
+	result["videoUrl"]=row.VideoURL
+	result["videoSource"]=row.VideoSource
+	return result
 }

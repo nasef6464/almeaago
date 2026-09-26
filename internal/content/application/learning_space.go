@@ -44,3 +44,16 @@ func (s *Service) LearnerTopic(ctx context.Context, actor identity.User, topicID
 	}
 	return s.repo.GetLearnerTopic(ctx, topicID)
 }
+
+
+func (s *Service) LearnerCourseLesson(ctx context.Context, actor identity.User, courseID, lessonID string) (content.LearnerLessonDetail, error) {
+	if strings.TrimSpace(actor.ID) == "" {
+		return content.LearnerLessonDetail{}, ErrForbidden
+	}
+	courseID = strings.TrimSpace(courseID)
+	lessonID = strings.TrimSpace(lessonID)
+	if courseID == "" || lessonID == "" {
+		return content.LearnerLessonDetail{}, ErrInvalidInput
+	}
+	return s.repo.GetLearnerCourseLesson(ctx, courseID, lessonID)
+}
