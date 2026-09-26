@@ -1,4 +1,6 @@
 import type {
+  CommerceAccessCode,
+  CommerceAccessCodeStatus,
   CommerceAccessDecision,
   CommerceDiscount,
   CommerceDiscountPreview,
@@ -12,6 +14,7 @@ import type {
   CommerceProduct,
   CommerceProductType,
   CommerceProductWrite,
+  CommerceSchoolSeat,
 } from './commerce-types';
 const BASE=(import.meta.env.VITE_API_BASE_URL??'').replace(/\/$/,'');
 async function req<T>(path:string,init:RequestInit={}):Promise<T>{
@@ -40,4 +43,11 @@ export const commerceClient={
  updateDiscount:(row:CommerceDiscount,discount:CommerceDiscountWrite,csrf:string)=>req<{discount:CommerceDiscount}>(`/api/v1/commerce/admin/discounts/${encodeURIComponent(row.id)}`,{method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({expectedRevision:row.revision,discount})}),
  paymentRequests:(page=1,limit=50,status:CommercePaymentStatus|''='',signal?:AbortSignal)=>{const p=new URLSearchParams({page:String(page),limit:String(limit)});if(status)p.set('status',status);return req<CommercePage<CommercePaymentRequest>>(`/api/v1/commerce/admin/payment-requests?${p}`,{signal})},
  reviewPayment:(row:CommercePaymentRequest,status:'paid'|'rejected'|'cancelled',reviewerNotes:string,approvalEvidence:string,csrf:string)=>req<{request:CommercePaymentRequest}>(`/api/v1/commerce/admin/payment-requests/${encodeURIComponent(row.id)}/review`,{method:'PATCH',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({expectedRevision:row.revision,status,reviewerNotes,approvalEvidence})}),
+ accessCodes:(page=1,limit=50,signal?:AbortSignal)=>req<CommercePage<CommerceAccessCode>>(`/api/v1/commerce/admin/access-codes?page=${page}&limit=${limit}`,{signal}),
+ createAccessCode:(input:{code:string;productId:string;schoolId:string;maxUses:number;expiresAt:string},csrf:string)=>req<{accessCode:CommerceAccessCode}>('/api/v1/commerce/admin/access-codes',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(input)}),
+ setAccessCodeStatus:(row:CommerceAccessCode,status:CommerceAccessCodeStatus,csrf:string)=>req<{accessCode:CommerceAccessCode}>(`/api/v1/commerce/admin/access-codes/${encodeURIComponent(row.id)}/status`,{method:'PATCH',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({expectedRevision:row.revision,status})}),
+ redeemAccessCode:(code:string,csrf:string)=>req<{accessCode:CommerceAccessCode;entitlement:CommerceEntitlement}>('/api/v1/commerce/access-codes/redeem',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({code})}),
+ schoolSeats:(schoolEntitlementId:string,page=1,limit=50,signal?:AbortSignal)=>req<CommercePage<CommerceSchoolSeat>>(`/api/v1/commerce/admin/school-entitlements/${encodeURIComponent(schoolEntitlementId)}/seats?page=${page}&limit=${limit}`,{signal}),
+ assignSchoolSeat:(schoolEntitlementId:string,userId:string,csrf:string)=>req<{seat:CommerceSchoolSeat}>(`/api/v1/commerce/admin/school-entitlements/${encodeURIComponent(schoolEntitlementId)}/seats`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({userId})}),
+ revokeSchoolSeat:(row:CommerceSchoolSeat,reason:string,csrf:string)=>req<{seat:CommerceSchoolSeat}>(`/api/v1/commerce/admin/school-seats/${encodeURIComponent(row.id)}/revoke`,{method:'PATCH',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({expectedRevision:row.revision,reason})}),
 };

@@ -38,6 +38,10 @@ test('learner checkout uses server price and creates pending request without bro
    expect(body).toEqual({productId:'product-course-1',code:'SAVE10'});
    return json(r,{preview});
  });
+ await page.route('**/api/v1/commerce/access-codes/redeem',async r=>{
+   const body=JSON.parse(r.request().postData()||'{}');expect(body).toEqual({code:'ACCESS-2026'});expect(r.request().headers()['x-csrf-token']).toBe('csrf');
+   return json(r,{accessCode:{id:'code-1',code:'ACCESS-2026',productId:'package-1',schoolId:'',status:'active',maxUses:10,currentUses:1,startsAt:'2026-09-01T00:00:00Z',expiresAt:'2026-12-01T00:00:00Z',revision:1,createdAt:'2026-09-01T00:00:00Z',updatedAt:'2026-09-26T00:00:00Z'},entitlement:{id:'ent-1'}});
+ });
  await page.route('**/api/v1/commerce/checkout/requests',async r=>{
    expect(r.request().method()).toBe('POST');
    const body=JSON.parse(r.request().postData()||'{}');
@@ -57,6 +61,9 @@ test('learner checkout uses server price and creates pending request without bro
  await page.goto('/checkout?productId=product-course-1');
  await expect(page.getByRole('heading',{name:'طلب شراء دورة الكمي'})).toBeVisible();
  await expect(page.getByText('السعر الأصلي')).toBeVisible();
+ await page.getByTestId('payment-access-code-input').fill('access-2026');
+ await page.getByTestId('payment-redeem-access-code').click();
+ await expect(page.getByText('تم تفعيل كود الوصول. يمكنك العودة للمحتوى الآن.')).toBeVisible();
  await page.getByLabel('كود الخصم').fill('save10');
  await page.getByRole('button',{name:'تطبيق'}).click();
  await expect(page.getByText('تم تطبيق SAVE10', {exact:false})).toBeVisible();
@@ -80,6 +87,7 @@ test('admin creates discount and approves pending payment with evidence',async({
  await page.route('**/api/v1/commerce/entitlements?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/commerce/admin/discounts?**',r=>json(r,{items:discounts,page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/commerce/admin/payment-requests?**',r=>json(r,{items:requests,page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/access-codes?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
 
  await page.route('**/api/v1/commerce/admin/discounts',async r=>{
    expect(r.request().method()).toBe('POST');

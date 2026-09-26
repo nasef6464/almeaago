@@ -24,16 +24,21 @@ type Authenticator interface {
 type Handler struct {
 	service       *commerceapp.Service
 	checkout      *commerceapp.CheckoutService
+	access        *commerceapp.AccessService
 	auth          Authenticator
 	webhookSecret []byte
 }
 
 func New(service *commerceapp.Service, auth Authenticator) http.Handler {
-	return NewWithCheckout(service, nil, auth, nil)
+	return NewWithAccess(service, nil, nil, auth, nil)
 }
 
 func NewWithCheckout(service *commerceapp.Service, checkout *commerceapp.CheckoutService, auth Authenticator, webhookSecret []byte) http.Handler {
-	h := &Handler{service: service, checkout: checkout, auth: auth, webhookSecret: webhookSecret}
+	return NewWithAccess(service, checkout, nil, auth, webhookSecret)
+}
+
+func NewWithAccess(service *commerceapp.Service, checkout *commerceapp.CheckoutService, access *commerceapp.AccessService, auth Authenticator, webhookSecret []byte) http.Handler {
+	h := &Handler{service: service, checkout: checkout, access: access, auth: auth, webhookSecret: webhookSecret}
 	r := chi.NewRouter()
 	r.Get("/products", h.listProducts)
 	r.Post("/products", h.createProduct)
@@ -43,6 +48,15 @@ func NewWithCheckout(service *commerceapp.Service, checkout *commerceapp.Checkou
 	r.Post("/entitlements", h.grantEntitlement)
 	r.Post("/entitlements/{id}/revoke", h.revokeEntitlement)
 	r.Get("/access/courses/{id}", h.courseAccess)
+	if access != nil {
+		r.Post("/access-codes/redeem", h.redeemAccessCode)
+		r.Get("/admin/access-codes", h.listAccessCodes)
+		r.Post("/admin/access-codes", h.createAccessCode)
+		r.Patch("/admin/access-codes/{id}/status", h.updateAccessCodeStatus)
+		r.Get("/admin/school-entitlements/{id}/seats", h.listSchoolSeats)
+		r.Post("/admin/school-entitlements/{id}/seats", h.assignSchoolSeat)
+		r.Patch("/admin/school-seats/{id}/revoke", h.revokeSchoolSeat)
+	}
 	if checkout != nil {
 		r.Get("/catalog/products/{id}", h.catalogProduct)
 		r.Post("/discounts/preview", h.previewDiscount)

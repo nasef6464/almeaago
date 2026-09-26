@@ -19,7 +19,7 @@ export function CheckoutPage(){
  const[product,setProduct]=useState<CommerceProduct|null>(null);
  const[requests,setRequests]=useState<CommercePaymentRequest[]>([]);
  const[current,setCurrent]=useState<CommercePaymentRequest|null>(null);
- const[discountCode,setDiscountCode]=useState('');const[preview,setPreview]=useState<CommerceDiscountPreview|null>(null);
+ const[discountCode,setDiscountCode]=useState('');const[accessCode,setAccessCode]=useState('');const[preview,setPreview]=useState<CommerceDiscountPreview|null>(null);
  const[method,setMethod]=useState<CommercePaymentMethod>('card');
  const[busy,setBusy]=useState(true);const[saving,setSaving]=useState(false);const[previewing,setPreviewing]=useState(false);
  const[error,setError]=useState('');const[notice,setNotice]=useState('');
@@ -39,6 +39,13 @@ export function CheckoutPage(){
   try{const r=await commerceClient.previewDiscount(product.id,code);setPreview(r.preview);if(!r.preview.valid)setNotice(r.preview.message||'كود الخصم غير متاح لهذا المنتج.')}
   catch(e){setError(e instanceof Error?e.message:'تعذر فحص كود الخصم')}
   finally{setPreviewing(false)}
+ }
+
+ async function redeem(){
+  const code=accessCode.trim().toUpperCase();if(!code)return;setSaving(true);setError('');setNotice('');
+  try{const csrf=await getCsrfToken();await commerceClient.redeemAccessCode(code,csrf);setNotice('تم تفعيل كود الوصول. يمكنك العودة للمحتوى الآن.');setAccessCode('')}
+  catch(e){setError(e instanceof Error?e.message:'تعذر تفعيل كود الوصول')}
+  finally{setSaving(false)}
  }
 
  async function submit(){
@@ -61,6 +68,7 @@ export function CheckoutPage(){
   <header className="rounded-3xl bg-slate-950 p-5 text-white"><div className="flex items-center gap-2 text-amber-400"><CreditCard size={20}/><span className="text-xs font-black">SECURE CHECKOUT</span></div><h1 className="mt-2 text-2xl font-black">طلب شراء {product.name}</h1><p className="mt-2 text-sm leading-7 text-slate-300">السعر والعملة والخصم يعاد احتسابهم من الخادم عند إنشاء الطلب؛ المتصفح لا يرسل قيمة سعر معتمدة.</p></header>
   {error?<div role="alert" className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700">{error}</div>:null}{notice?<div className="rounded-xl bg-emerald-50 p-3 font-bold text-emerald-800">{notice}</div>:null}
   <section className="rounded-2xl border bg-white p-5 shadow-sm"><div className="flex items-start justify-between gap-3"><div><div className="text-xs font-black text-indigo-600">{product.code}</div><h2 className="mt-1 text-xl font-black">{product.name}</h2><p className="mt-1 text-sm text-gray-500">{product.description}</p></div><div className="text-left text-lg font-black">{money(product.priceMinor,product.currency)}</div></div></section>
+  <section data-testid="access-code-redemption" className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm"><div className="font-black text-amber-950">لديك كود تفعيل؟</div><p className="text-sm font-bold leading-6 text-amber-900">الكود يمنح Entitlement من الخادم فقط بعد التحقق من الصلاحية وعدد الاستخدامات والمقاعد.</p><div className="flex gap-2"><input data-testid="payment-access-code-input" aria-label="كود التفعيل" value={accessCode} onChange={e=>setAccessCode(e.target.value.toUpperCase())} placeholder="ACCESS-CODE" className="min-w-0 flex-1 rounded-xl border border-amber-300 bg-white p-2.5 font-mono"/><button data-testid="payment-redeem-access-code" type="button" disabled={saving||!accessCode.trim()} onClick={()=>void redeem()} className="rounded-xl bg-amber-500 px-4 py-2.5 font-black text-white disabled:opacity-40">تفعيل الكود</button></div></section>
   {!current?<section className="space-y-4 rounded-2xl border bg-white p-5 shadow-sm">
    <label className="space-y-2"><span className="flex items-center gap-2 text-sm font-black"><Percent size={16}/>كود الخصم</span><div className="flex gap-2"><input aria-label="كود الخصم" value={discountCode} onChange={e=>{setDiscountCode(e.target.value.toUpperCase());setPreview(null)}} className="min-w-0 flex-1 rounded-xl border p-2.5 font-mono"/><button type="button" disabled={previewing||!discountCode.trim()} onClick={()=>void applyDiscount()} className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 font-black text-indigo-800 disabled:opacity-40">{previewing?<Loader2 size={17} className="animate-spin"/>:'تطبيق'}</button></div></label>
    {preview?<div className={`rounded-xl p-3 text-sm font-bold ${preview.valid?'bg-emerald-50 text-emerald-800':'bg-amber-50 text-amber-900'}`}>{preview.valid?`تم تطبيق ${preview.code}: خصم ${money(preview.discountAmountMinor,preview.currency)}`:preview.message}</div>:null}

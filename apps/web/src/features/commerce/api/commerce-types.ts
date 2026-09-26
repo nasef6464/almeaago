@@ -54,3 +54,7 @@ export interface CommercePaymentRequest{
  idempotencyKey:string;providerTransactionId:string;paidAt:string|null;reviewedBy:string;reviewedAt:string|null;
  reviewerNotes:string;approvalEvidence:string;revision:number;createdAt:string;updatedAt:string;
 }
+
+export type CommerceAccessCodeStatus='active'|'paused'|'archived';
+export interface CommerceAccessCode{id:string;code:string;productId:string;schoolId:string;status:CommerceAccessCodeStatus;maxUses:number;currentUses:number;startsAt:string;expiresAt:string;revision:number;createdAt:string;updatedAt:string}
+export interface CommerceSchoolSeat{id:string;schoolEntitlementId:string;userId:string;userEntitlementId:string;status:'active'|'revoked';revision:number;revokedAt:string|null;revokeReason:string;createdAt:string;updatedAt:string}
