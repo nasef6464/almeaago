@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"time"
@@ -277,7 +278,7 @@ func (r *Repository) StartPublic(ctx context.Context, code, participantKey, star
 		return assessment.PublicAttempt{}, mapError(err)
 	}
 
-	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, sessionID+":"+string(hash)); err != nil {
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, sessionID+":"+hex.EncodeToString(hash)); err != nil {
 		return assessment.PublicAttempt{}, err
 	}
 
@@ -497,9 +498,9 @@ func (r *Repository) SubmitPublic(ctx context.Context, code string, in assessmen
 	}
 	tag, err := tx.Exec(ctx, `
 		WITH incoming AS (
-			SELECT question_id,selected_option_index
+			SELECT "questionId" AS question_id,"selectedOptionIndex" AS selected_option_index
 			  FROM jsonb_to_recordset($4::jsonb)
-			       AS x(question_id text,selected_option_index integer)
+			       AS x("questionId" text,"selectedOptionIndex" integer)
 		)
 		INSERT INTO assessment_public_answers(
 			public_attempt_id,assessment_id,assessment_version,question_id,question_version,
