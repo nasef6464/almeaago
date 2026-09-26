@@ -1,4 +1,8 @@
 import type {
+  CommerceAccessCode,
+  CommerceAccessCodeRedemption,
+  CommerceAccessCodeStatus,
+  CommerceAccessCodeWrite,
   CommerceAccessDecision,
   CommerceDiscount,
   CommerceDiscountPreview,
@@ -12,6 +16,7 @@ import type {
   CommerceProduct,
   CommerceProductType,
   CommerceProductWrite,
+  CommerceSchoolSeat,
 } from './commerce-types';
 const BASE=(import.meta.env.VITE_API_BASE_URL??'').replace(/\/$/,'');
 async function req<T>(path:string,init:RequestInit={}):Promise<T>{
@@ -40,4 +45,10 @@ export const commerceClient={
  updateDiscount:(row:CommerceDiscount,discount:CommerceDiscountWrite,csrf:string)=>req<{discount:CommerceDiscount}>(`/api/v1/commerce/admin/discounts/${encodeURIComponent(row.id)}`,{method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({expectedRevision:row.revision,discount})}),
  paymentRequests:(page=1,limit=50,status:CommercePaymentStatus|''='',signal?:AbortSignal)=>{const p=new URLSearchParams({page:String(page),limit:String(limit)});if(status)p.set('status',status);return req<CommercePage<CommercePaymentRequest>>(`/api/v1/commerce/admin/payment-requests?${p}`,{signal})},
  reviewPayment:(row:CommercePaymentRequest,status:'paid'|'rejected'|'cancelled',reviewerNotes:string,approvalEvidence:string,csrf:string)=>req<{request:CommercePaymentRequest}>(`/api/v1/commerce/admin/payment-requests/${encodeURIComponent(row.id)}/review`,{method:'PATCH',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({expectedRevision:row.revision,status,reviewerNotes,approvalEvidence})}),
+ accessCodes:(page=1,limit=50,status:CommerceAccessCodeStatus|''='',signal?:AbortSignal)=>{const p=new URLSearchParams({page:String(page),limit:String(limit)});if(status)p.set('status',status);return req<CommercePage<CommerceAccessCode>>(`/api/v1/commerce/admin/access-codes?${p}`,{signal})},
+ createAccessCode:(input:CommerceAccessCodeWrite,csrf:string)=>req<{accessCode:CommerceAccessCode}>('/api/v1/commerce/admin/access-codes',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(input)}),
+ updateAccessCode:(row:CommerceAccessCode,status:CommerceAccessCodeStatus,csrf:string)=>req<{accessCode:CommerceAccessCode}>(`/api/v1/commerce/admin/access-codes/${encodeURIComponent(row.id)}`,{method:'PATCH',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({expectedRevision:row.revision,status,maxUses:row.maxUses,expiresAt:row.expiresAt})}),
+ schoolSeats:(page=1,limit=50,signal?:AbortSignal)=>req<CommercePage<CommerceSchoolSeat>>(`/api/v1/commerce/admin/school-seats?page=${page}&limit=${limit}`,{signal}),
+ assignSchoolSeat:(input:{schoolId:string;productId:string;userId:string;expiresAt:string|null;idempotencyKey:string},csrf:string)=>req<{schoolSeat:CommerceSchoolSeat;entitlement:CommerceEntitlement}>('/api/v1/commerce/admin/school-seats',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(input)}),
+ redeemAccessCode:(code:string,csrf:string)=>req<{redemption:CommerceAccessCodeRedemption}>('/api/v1/commerce/access-codes/redeem',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({code})}),
 };
