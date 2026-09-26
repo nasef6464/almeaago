@@ -113,4 +113,3 @@ func TestVerifyRefundWebhookMapsFinalFullRefund(t *testing.T) {
 		t.Fatal("non-final refund must not reverse access")
 	}
 }
-
