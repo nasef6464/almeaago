@@ -162,12 +162,12 @@ test('mobile student creates deterministic study plan and archives it with optim
   expect(learningSpaceCalls).toBe(0);
 
   await page.getByLabel('اسم الخطة').fill('خطة الكمي');
-  await page.getByText('الكمي').click();
+  await page.getByLabel('اختر مادة الكمي').check();
   expect(learningSpaceCalls).toBe(0);
 
   await page.getByLabel('مادة اختيار الدورات').selectOption('subject-1');
   await expect.poll(() => learningSpaceCalls).toBe(1);
-  await page.getByText('دورة الكمي').click();
+  await page.getByLabel('اختر دورة دورة الكمي').check();
 
   await page.getByLabel('تاريخ البداية').fill('2026-09-26');
   await page.getByLabel('تاريخ النهاية').fill('2026-09-28');
