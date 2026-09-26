@@ -483,10 +483,10 @@ Verification checkpoint:
 - final documentation-inclusive exact head `1680910ecf68a0f94f7f8a961ed678cecd49d718` passed Backend CI `36195683646`.
 - PR #45 merged to `main` as `5eed0f62b9d1f732dae79ead422f4df3b1fdf90f`.
 
-## Assessment Result / Review — IN REVIEW
-Active branch: `feat/assessment-result-review`.
+## Assessment Result / Review — TESTED / MERGED
+PR #46 passed all required exact-head gates on `fb3f897b9a3c764d3784dbd49103ee65391082e6` and merged to `main` as `0fabf767557806d17012fb8456c3696698b97b0c`.
 
-Implemented on the branch:
+Implemented:
 - learner-owned bounded result history (default 20, max 100, hasMore; no exact-count scan).
 - learner-owned submitted-result detail.
 - server-governed question review from the exact historical Assessment version.
@@ -496,15 +496,18 @@ Implemented on the branch:
 - result-report presentation flag propagated to the learner UI.
 - wrong/unanswered/marked-for-review projections without duplicating Question Bank rows.
 - responsive result history/detail React routes.
-- in-attempt “للمراجعة” control now persists through autosave after an answer exists.
-- Question Bank/media remain referenced by canonical IDs; no question/image copies.
+- in-attempt “للمراجعة” control persists through autosave after an answer exists.
+- exact Question Bank IDs/versions and Media references are reused; no question/image copies.
 - Learning mastery, ReviewCard side effects, Realtime, Commerce and AI remain outside this batch.
+
+Verification:
+- Backend CI `36209979752`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36209979648`: PASS typecheck + production build.
+- Frontend E2E `36209979850`: PASS, including disabled-review secrecy, hidden-answer policy and responsive review filters.
+- browser evidence artifact `10894539327`.
 
 Audit:
 - `docs/domains/assessment/ASSESSMENT_RESULT_REVIEW_AUDIT.md`.
 
-Verification state:
-- implementation is not yet merge-qualified until exact-head Backend CI + Frontend CI + Frontend E2E pass on the PR head.
-
 ## Next exact action
-Open the Assessment Result / Review PR from `feat/assessment-result-review`, run exact-head Backend + Frontend + E2E gates, fix any failures without weakening tests, update this checkpoint with the tested SHA/run evidence, and merge only when all required gates are Green.
+Continue Assessment phase closure from current `main` with the remaining Distribution surface. Build the normalized Assessment Learning Placement API/learner-entry slice first, using existing `assessment_learning_placements` rows and canonical Content IDs without copying Assessment, Question or Content payloads. Keep lists bounded, validate Content/Taxonomy relationships server-side, enforce staff scope/CSRF on mutations, and add learner-safe availability + React/E2E. After that, close public/barcode/live session delivery as a separate Assessment batch before moving broadly into Learning/Adaptive/Review.

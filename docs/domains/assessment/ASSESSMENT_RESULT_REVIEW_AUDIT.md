@@ -1,6 +1,6 @@
 # Assessment Result / Review Audit
 
-Status: **IN REVIEW**
+Status: **TESTED / MERGED**
 
 ## Scope
 This checkpoint extends the already-merged learner attempt core with post-submit, learner-owned result history and review presentation.
@@ -47,3 +47,12 @@ This batch does not create:
 - Commerce entitlement logic.
 
 Those remain separate domain batches. This checkpoint is a read/presentation slice over canonical Assessment + Question Bank state.
+
+
+## Verification checkpoint
+- exact tested PR head: `fb3f897b9a3c764d3784dbd49103ee65391082e6`.
+- Backend CI `36209979752`: PASS.
+- Frontend CI `36209979648`: PASS.
+- Frontend E2E `36209979850`: PASS.
+- browser evidence artifact: `10894539327`.
+- PR #46 merged to `main` as `0fabf767557806d17012fb8456c3696698b97b0c`.
