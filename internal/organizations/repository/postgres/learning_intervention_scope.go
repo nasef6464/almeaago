@@ -29,7 +29,7 @@ func (r *Repository) CanManageLearningIntervention(ctx context.Context, actorID,
 					  AND ss.status='active'
 					  AND (
 						ss.scope_type='school'
-						OR (ss.scope_type='class' AND ss.class_id=$3::uuid)
+						OR (ss.scope_type='class' AND ss.class_id=NULLIF($3,'')::uuid)
 					  )
 				)
 			  )
@@ -65,7 +65,7 @@ func (r *Repository) CanViewLearningInterventions(ctx context.Context, actorID, 
 					  AND ss.status='active'
 					  AND (
 						ss.scope_type='school'
-						OR (ss.scope_type='class' AND ss.class_id=$3::uuid)
+						OR (ss.scope_type='class' AND ss.class_id=NULLIF($3,'')::uuid)
 					  )
 				)
 			  )

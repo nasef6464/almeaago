@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	learning "github.com/nasef6464/almeaago/internal/learning/domain"
+	operations "github.com/nasef6464/almeaago/internal/operations/domain"
 )
 
 func (r *Repository) InterventionEvidenceSnapshot(ctx context.Context, student, pathID, subjectID, skillID string, since *time.Time) (learning.InterventionEvidence, error) {
@@ -94,6 +95,21 @@ func (r *Repository) CreateSchoolIntervention(
 		input.SkillID, planID, actor, input.FollowUpAt, input.RemediationThreshold,
 		input.MinimumEvidence, baseline.EvidenceCount, baseline.Correct, baseline.Accuracy).Scan(&id)
 	if err != nil {
+		return learning.SchoolIntervention{}, err
+	}
+	if err = r.writeAuditTx(ctx, tx, operations.AuditEvent{
+		ActorUserID: actor,
+		Action: "learning.intervention.create",
+		ResourceType: "school_intervention",
+		ResourceID: id,
+		Metadata: map[string]any{
+			"schoolId": input.SchoolID,
+			"classId": input.ClassID,
+			"studentId": input.StudentID,
+			"skillId": input.SkillID,
+			"studyPlanId": planID,
+		},
+	}); err != nil {
 		return learning.SchoolIntervention{}, err
 	}
 	if err = tx.Commit(ctx); err != nil {
@@ -196,25 +212,74 @@ func (r *Repository) ListStudentInterventions(ctx context.Context, student strin
 	return out,nil
 }
 
-func (r *Repository) PatchSchoolIntervention(ctx context.Context, actor,id string, patch learning.InterventionPatch) (learning.SchoolIntervention,error) {
-	tag,err:=r.db.Exec(ctx,`
+func (r *Repository) PatchSchoolIntervention(ctx context.Context, actor, id string, patch learning.InterventionPatch) (learning.SchoolIntervention, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return learning.SchoolIntervention{}, err
+	}
+	defer tx.Rollback(ctx)
+	tag, err := tx.Exec(ctx, `
 		UPDATE school_interventions
 		SET status=$3,follow_up_at=$4,remediation_threshold=$5,minimum_evidence=$6,updated_at=now()
 		WHERE id=$1::uuid AND updated_at=$2
-	`,id,patch.ExpectedUpdatedAt,string(patch.Status),patch.FollowUpAt,patch.RemediationThreshold,patch.MinimumEvidence)
-	if err!=nil{return learning.SchoolIntervention{},err}
-	if tag.RowsAffected()==0{return learning.SchoolIntervention{},learning.ErrConflict}
-	return r.GetSchoolIntervention(ctx,id)
+	`, id, patch.ExpectedUpdatedAt, string(patch.Status), patch.FollowUpAt, patch.RemediationThreshold, patch.MinimumEvidence)
+	if err != nil {
+		return learning.SchoolIntervention{}, err
+	}
+	if tag.RowsAffected() == 0 {
+		return learning.SchoolIntervention{}, learning.ErrConflict
+	}
+	if err = r.writeAuditTx(ctx, tx, operations.AuditEvent{
+		ActorUserID: actor,
+		Action: "learning.intervention.update",
+		ResourceType: "school_intervention",
+		ResourceID: id,
+		Metadata: map[string]any{
+			"status": patch.Status,
+			"minimumEvidence": patch.MinimumEvidence,
+		},
+	}); err != nil {
+		return learning.SchoolIntervention{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return learning.SchoolIntervention{}, err
+	}
+	return r.GetSchoolIntervention(ctx, id)
 }
 
-func (r *Repository) MeasureSchoolIntervention(ctx context.Context, actor,id string, expected time.Time, snapshot learning.InterventionEvidence) (learning.SchoolIntervention,error) {
-	tag,err:=r.db.Exec(ctx,`
+func (r *Repository) MeasureSchoolIntervention(ctx context.Context, actor, id string, expected time.Time, snapshot learning.InterventionEvidence) (learning.SchoolIntervention, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return learning.SchoolIntervention{}, err
+	}
+	defer tx.Rollback(ctx)
+	tag, err := tx.Exec(ctx, `
 		UPDATE school_interventions
 		SET outcome_evidence_count=$3,outcome_correct=$4,outcome_accuracy=$5,
 		    outcome_measured_at=$6,updated_at=now()
 		WHERE id=$1::uuid AND updated_at=$2
-	`,id,expected,snapshot.EvidenceCount,snapshot.Correct,snapshot.Accuracy,snapshot.MeasuredAt)
-	if err!=nil{return learning.SchoolIntervention{},err}
-	if tag.RowsAffected()==0{return learning.SchoolIntervention{},learning.ErrConflict}
-	return r.GetSchoolIntervention(ctx,id)
+	`, id, expected, snapshot.EvidenceCount, snapshot.Correct, snapshot.Accuracy, snapshot.MeasuredAt)
+	if err != nil {
+		return learning.SchoolIntervention{}, err
+	}
+	if tag.RowsAffected() == 0 {
+		return learning.SchoolIntervention{}, learning.ErrConflict
+	}
+	if err = r.writeAuditTx(ctx, tx, operations.AuditEvent{
+		ActorUserID: actor,
+		Action: "learning.intervention.measure",
+		ResourceType: "school_intervention",
+		ResourceID: id,
+		Metadata: map[string]any{
+			"evidenceCount": snapshot.EvidenceCount,
+			"correct": snapshot.Correct,
+			"accuracy": snapshot.Accuracy,
+		},
+	}); err != nil {
+		return learning.SchoolIntervention{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return learning.SchoolIntervention{}, err
+	}
+	return r.GetSchoolIntervention(ctx, id)
 }
