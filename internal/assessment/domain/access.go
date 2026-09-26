@@ -24,13 +24,13 @@ func ValidPlacementAccessType(v PlacementAccessType) bool {
 }
 
 type AccessContext struct {
-	AssessmentID   string
-	AssessmentKind Kind
-	BaseAccess     AccessType
-	PlacementID    string
-	PlacementSlot  PlacementSlot
+	AssessmentID    string
+	AssessmentKind  Kind
+	BaseAccess      AccessType
+	PlacementID     string
+	PlacementSlot   PlacementSlot
 	PlacementAccess PlacementAccessType
-	PathID         string
-	SubjectID      string
-	CourseID       string
+	PathID          string
+	SubjectID       string
+	CourseID        string
 }
