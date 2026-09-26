@@ -743,6 +743,17 @@ SELECT payment_request_id::text FROM commerce_provider_events WHERE provider_cod
 	}
 
 	result := "already_" + string(p.Status)
+	if p.Status == commerce.PaymentPaid && (in.Status == commerce.ProviderRefunded || in.Status == commerce.ProviderChargeback) {
+		result, err = r.applyProviderReversalTx(ctx, tx, p, provider, in)
+		if err != nil {
+			if errors.Is(err, commerce.ErrConflict) {
+				if commitErr := rejectProviderEventTx(ctx, tx, eventRowID, "rejected_reversal_amount_or_state"); commitErr != nil {
+					return commerce.ProviderEventResult{}, commitErr
+				}
+			}
+			return commerce.ProviderEventResult{}, err
+		}
+	}
 	if p.Status == commerce.PaymentPending {
 		switch in.Status {
 		case commerce.ProviderPaid:
