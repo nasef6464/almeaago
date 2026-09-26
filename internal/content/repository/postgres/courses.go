@@ -268,4 +268,3 @@ WHERE id=$1::uuid
 	}
 	return ownerUserID, revenueSharePercentage, true, nil
 }
-
