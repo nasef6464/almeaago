@@ -354,7 +354,6 @@ func (r *Repository) learningTaxonomyExists(ctx context.Context, pathID, subject
 	return ok, nil
 }
 
-
 func (r *Repository) GetLearnerCourseLesson(ctx context.Context, courseID, lessonID string) (content.LearnerLessonDetail, error) {
 	var row content.LearnerLessonDetail
 	err := r.db.QueryRow(ctx, `
@@ -372,8 +371,8 @@ func (r *Repository) GetLearnerCourseLesson(ctx context.Context, courseID, lesso
 		ORDER BY cm.sort_order,cm.id,cl.sort_order
 		LIMIT 1
 	`, courseID, lessonID).Scan(
-		&row.ID,&row.Title,&row.Description,&row.LessonType,&row.DurationSeconds,&row.IsLocked,
-		&row.IsPreview,&row.SortOrder,&row.ContentText,&row.VideoURL,&row.VideoSource,
+		&row.ID, &row.Title, &row.Description, &row.LessonType, &row.DurationSeconds, &row.IsLocked,
+		&row.IsPreview, &row.SortOrder, &row.ContentText, &row.VideoURL, &row.VideoSource,
 	)
 	if err != nil {
 		return row, mapError(err)
@@ -399,12 +398,14 @@ func (r *Repository) ResolveLessonProgressTarget(ctx context.Context, contextTyp
 			  AND l.workflow_status='approved' AND l.is_visible=true
 			  AND (l.is_locked=false OR cl.is_preview=true)
 			LIMIT 1
-		`, contextID, lessonID).Scan(&lessonType,&duration)
+		`, contextID, lessonID).Scan(&lessonType, &duration)
 		if err != nil {
-			if err == pgx.ErrNoRows { return false,"",0,nil }
-			return false,"",0,mapError(err)
+			if err == pgx.ErrNoRows {
+				return false, "", 0, nil
+			}
+			return false, "", 0, mapError(err)
 		}
-		return true,lessonType,duration,nil
+		return true, lessonType, duration, nil
 	case "foundation":
 		err := r.db.QueryRow(ctx, `
 			SELECT l.lesson_type,l.duration_seconds
@@ -415,13 +416,15 @@ func (r *Repository) ResolveLessonProgressTarget(ctx context.Context, contextTyp
 			  AND t.status='active' AND t.is_visible=true AND t.is_locked=false
 			  AND l.workflow_status='approved' AND l.is_visible=true AND l.is_locked=false
 			LIMIT 1
-		`, contextID, lessonID).Scan(&lessonType,&duration)
+		`, contextID, lessonID).Scan(&lessonType, &duration)
 		if err != nil {
-			if err == pgx.ErrNoRows { return false,"",0,nil }
-			return false,"",0,mapError(err)
+			if err == pgx.ErrNoRows {
+				return false, "", 0, nil
+			}
+			return false, "", 0, mapError(err)
 		}
-		return true,lessonType,duration,nil
+		return true, lessonType, duration, nil
 	default:
-		return false,"",0,nil
+		return false, "", 0, nil
 	}
 }

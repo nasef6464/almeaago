@@ -182,19 +182,23 @@ func presentLearnerLessonSummary(row content.LearnerLessonSummary) map[string]an
 	}
 }
 
-
 func (h *Handler) getLearnerCourseLesson(w http.ResponseWriter, r *http.Request) {
 	auth, ok := h.authenticate(w, r, false)
-	if !ok { return }
-	row, err := h.service.LearnerCourseLesson(r.Context(), auth.User, chi.URLParam(r,"courseId"), chi.URLParam(r,"lessonId"))
-	if err != nil { writeError(w,err); return }
-	writeJSON(w,http.StatusOK,map[string]any{"lesson":presentLearnerLessonDetail(row)})
+	if !ok {
+		return
+	}
+	row, err := h.service.LearnerCourseLesson(r.Context(), auth.User, chi.URLParam(r, "courseId"), chi.URLParam(r, "lessonId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"lesson": presentLearnerLessonDetail(row)})
 }
 
 func presentLearnerLessonDetail(row content.LearnerLessonDetail) map[string]any {
-	result:=presentLearnerLessonSummary(row.LearnerLessonSummary)
-	result["contentText"]=row.ContentText
-	result["videoUrl"]=row.VideoURL
-	result["videoSource"]=row.VideoSource
+	result := presentLearnerLessonSummary(row.LearnerLessonSummary)
+	result["contentText"] = row.ContentText
+	result["videoUrl"] = row.VideoURL
+	result["videoSource"] = row.VideoSource
 	return result
 }

@@ -45,7 +45,6 @@ func (s *Service) LearnerTopic(ctx context.Context, actor identity.User, topicID
 	return s.repo.GetLearnerTopic(ctx, topicID)
 }
 
-
 func (s *Service) LearnerCourseLesson(ctx context.Context, actor identity.User, courseID, lessonID string) (content.LearnerLessonDetail, error) {
 	if strings.TrimSpace(actor.ID) == "" {
 		return content.LearnerLessonDetail{}, ErrForbidden

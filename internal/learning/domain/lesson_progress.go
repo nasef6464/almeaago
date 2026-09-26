@@ -24,8 +24,8 @@ type LessonProgress struct {
 	TopicID         string                `json:"topicId"`
 	Status          LessonProgressStatus  `json:"status"`
 	PositionSeconds int                   `json:"positionSeconds"`
-	CompletedAt     *time.Time             `json:"completedAt"`
-	UpdatedAt       *time.Time             `json:"updatedAt"`
+	CompletedAt     *time.Time            `json:"completedAt"`
+	UpdatedAt       *time.Time            `json:"updatedAt"`
 }
 
 type LessonProgressContextInput struct {
