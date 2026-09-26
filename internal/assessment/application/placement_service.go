@@ -16,6 +16,7 @@ type PlacementRepository interface {
 	PatchPlacement(context.Context, string, string, time.Time, assessment.PlacementAccessType, bool, int) (assessment.Placement, error)
 	ListLearnerPlacements(context.Context, string, assessment.LearnerPlacementQuery) (assessment.LearnerPlacementPage, error)
 	GetPlacementAccessContext(context.Context, string) (assessment.AccessContext, error)
+	FindPlacementStart(context.Context, string, string, string) (assessment.Attempt, bool, error)
 	StartPlacement(context.Context, string, string, string) (assessment.Attempt, error)
 }
 
@@ -242,6 +243,13 @@ func (s *PlacementService) Start(ctx context.Context, actor identity.User, place
 	startKey = key(startKey)
 	if placementID == "" || startKey == "" {
 		return assessment.Attempt{}, ErrInvalidInput
+	}
+	existing, found, err := s.repo.FindPlacementStart(ctx, actor.ID, placementID, startKey)
+	if err != nil {
+		return assessment.Attempt{}, err
+	}
+	if found {
+		return existing, nil
 	}
 	placement, err := s.repo.GetPlacement(ctx, placementID)
 	if err != nil {
