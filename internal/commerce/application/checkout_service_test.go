@@ -55,11 +55,10 @@ func (r *checkoutRepoStub) PaymentRequestByProviderSession(context.Context, stri
 	return r.request, nil
 }
 func (r *checkoutRepoStub) RecordAdminReversal(_ context.Context, _ string, _ string, _ int, in commerce.PaymentReversalRecord) (commerce.PaymentReversalResult, error) {
-	r.request.Status = commerce.PaymentStatus(in.ReversalType)
-	if in.ReversalType == commerce.ReversalRefund {
-		r.request.Status = commerce.ReversalRefunded
-	}
-	if in.ReversalType == commerce.ReversalChargeback {
+	switch in.ReversalType {
+	case commerce.ReversalRefund:
+		r.request.Status = commerce.PaymentRefunded
+	case commerce.ReversalChargeback:
 		r.request.Status = commerce.PaymentChargeback
 	}
 	return commerce.PaymentReversalResult{PaymentRequest: r.request, Reversal: commerce.PaymentReversal{ReversalType: in.ReversalType, ProviderReference: in.ProviderReference}}, nil
