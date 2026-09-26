@@ -26,6 +26,7 @@ import { SchoolInterventionsPage } from '../features/learning/pages/SchoolInterv
 import { PublicBarcodeAssessmentPage } from '../features/assessment/pages/PublicBarcodeAssessmentPage';
 import { CommerceAdminPage } from '../features/commerce/pages/CommerceAdminPage';
 import { CheckoutPage } from '../features/commerce/pages/CheckoutPage';
+import { ParentDashboardPage } from '../features/parents/pages/ParentDashboardPage';
 import { LiveAssessmentJoinPage } from '../features/assessment/pages/LiveAssessmentJoinPage';
 import { AdminDashboardShell } from '../features/content/components/AdminDashboardShell';
 
@@ -179,7 +180,7 @@ export function App() {
         <Route path="/supervisor-dashboard/interventions" element={<SchoolInterventionsPage />} />
         <Route path="/school-director-dashboard" element={<PlaceholderPage title="لوحة مدير المدرسة" />} />
         <Route path="/school-director-dashboard/interventions" element={<SchoolInterventionsPage />} />
-        <Route path="/parent-dashboard" element={<PlaceholderPage title="لوحة ولي الأمر" />} />
+        <Route path="/parent-dashboard" element={<ParentDashboardPage />} />
         <Route path="*" element={<PlaceholderPage title="الصفحة قيد النقل" />} />
       </Routes>
 
