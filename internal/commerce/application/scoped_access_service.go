@@ -21,7 +21,7 @@ func (s *Service) CheckAssessmentAccess(
 	pathID = strings.TrimSpace(pathID)
 	subjectID = strings.TrimSpace(subjectID)
 	courseID = strings.TrimSpace(courseID)
-	if userID == "" || pathID == "" || subjectID == "" ||
+	if userID == "" || pathID == "" ||
 		(contentType != commerce.ContentTests && contentType != commerce.ContentMockExams) {
 		return commerce.AccessDecision{}, ErrInvalidInput
 	}
