@@ -455,3 +455,81 @@ export const studyPlanClient={
     });
   },
 };
+
+export type InterventionStatus='active'|'completed'|'cancelled';
+export interface InterventionEvidence{
+  evidenceCount:number;
+  correct:number;
+  accuracy:number|null;
+  measuredAt?:string|null;
+}
+export interface SchoolIntervention{
+  id:string;
+  schoolId:string;
+  classId:string;
+  studentId:string;
+  pathId:string;
+  subjectId:string;
+  skillId:string;
+  actionType:'study_plan';
+  studyPlanId:string;
+  status:InterventionStatus;
+  assignedBy:string;
+  followUpAt:string|null;
+  remediationThreshold:number|null;
+  minimumEvidence:number;
+  baseline:InterventionEvidence;
+  outcome?:InterventionEvidence|null;
+  createdAt:string;
+  updatedAt:string;
+}
+export interface InterventionPage{items:SchoolIntervention[];page:number;limit:number;hasMore:boolean}
+export interface InterventionOutcome{
+  intervention:SchoolIntervention;
+  confidence:'insufficient'|'measured';
+  delta?:number;
+  thresholdMet?:boolean;
+}
+export interface InterventionCreateInput{
+  schoolId:string;
+  classId:string;
+  studentId:string;
+  pathId:string;
+  subjectId:string;
+  skillId:string;
+  followUpAt:string|null;
+  remediationThreshold:number|null;
+  minimumEvidence:number;
+}
+export const interventionClient={
+  staff(schoolId:string,classId:string,status:InterventionStatus='active',page=1,limit=50,signal?:AbortSignal){
+    const p=new URLSearchParams({schoolId,status,page:String(page),limit:String(limit)});
+    if(classId)p.set('classId',classId);
+    return request<InterventionPage>(`/api/v1/interventions/staff?${p.toString()}`,{signal});
+  },
+  create(input:InterventionCreateInput,csrfToken:string){
+    return request<{intervention:SchoolIntervention}>('/api/v1/interventions/staff',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+      body:JSON.stringify(input),
+    });
+  },
+  patch(row:SchoolIntervention,patch:{status:InterventionStatus;followUpAt:string|null;remediationThreshold:number|null;minimumEvidence:number},csrfToken:string){
+    return request<{intervention:SchoolIntervention}>(`/api/v1/interventions/staff/${encodeURIComponent(row.id)}`,{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+      body:JSON.stringify({expectedUpdatedAt:row.updatedAt,...patch}),
+    });
+  },
+  measure(row:SchoolIntervention,csrfToken:string){
+    return request<{outcome:InterventionOutcome}>(`/api/v1/interventions/staff/${encodeURIComponent(row.id)}/measure`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+      body:JSON.stringify({expectedUpdatedAt:row.updatedAt}),
+    });
+  },
+  mine(status:InterventionStatus='active',page=1,limit=20,signal?:AbortSignal){
+    const p=new URLSearchParams({status,page:String(page),limit:String(limit)});
+    return request<InterventionPage>(`/api/v1/interventions/mine?${p.toString()}`,{signal});
+  },
+};
