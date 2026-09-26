@@ -13,8 +13,9 @@ type PlacementRepository interface {
 	CreatePlacement(context.Context, string, string, assessment.PlacementWrite) (assessment.Placement, error)
 	GetPlacement(context.Context, string) (assessment.Placement, error)
 	ListPlacements(context.Context, string, int, int) (assessment.PlacementPage, error)
-	PatchPlacement(context.Context, string, string, time.Time, bool, int) (assessment.Placement, error)
+	PatchPlacement(context.Context, string, string, time.Time, assessment.PlacementAccessType, bool, int) (assessment.Placement, error)
 	ListLearnerPlacements(context.Context, string, assessment.LearnerPlacementQuery) (assessment.LearnerPlacementPage, error)
+	GetPlacementAccessContext(context.Context, string) (assessment.AccessContext, error)
 	StartPlacement(context.Context, string, string, string) (assessment.Attempt, error)
 }
 
@@ -26,10 +27,15 @@ type PlacementService struct {
 	repo        PlacementRepository
 	definitions *Service
 	content     PlacementContentResolver
+	access      CommerceAccessResolver
 }
 
 func NewPlacementService(repo PlacementRepository, definitions *Service, content PlacementContentResolver) *PlacementService {
 	return &PlacementService{repo: repo, definitions: definitions, content: content}
+}
+
+func NewPlacementServiceWithCommerce(repo PlacementRepository, definitions *Service, content PlacementContentResolver, access CommerceAccessResolver) *PlacementService {
+	return &PlacementService{repo: repo, definitions: definitions, content: content, access: access}
 }
 
 func normalizePlacementTarget(w *assessment.PlacementWrite) error {
@@ -38,6 +44,12 @@ func normalizePlacementTarget(w *assessment.PlacementWrite) error {
 	w.CourseID = strings.TrimSpace(w.CourseID)
 	w.LessonID = strings.TrimSpace(w.LessonID)
 	w.TopicID = strings.TrimSpace(w.TopicID)
+	if w.AccessType == "" {
+		w.AccessType = assessment.PlacementAccessInherit
+	}
+	if !assessment.ValidPlacementAccessType(w.AccessType) {
+		return ErrInvalidInput
+	}
 	if !assessment.ValidPlacementSlot(w.Slot) || w.PathID == "" || w.SubjectID == "" || w.SortOrder < 0 {
 		return ErrInvalidInput
 	}
@@ -150,7 +162,13 @@ func (s *PlacementService) Patch(ctx context.Context, actor identity.User, place
 	if _, err = s.definitions.Get(ctx, actor, current.AssessmentID); err != nil {
 		return assessment.Placement{}, err
 	}
-	return s.repo.PatchPlacement(ctx, actor.ID, placementID, patch.ExpectedUpdatedAt, patch.IsVisible, patch.SortOrder)
+	if patch.AccessType == "" {
+		patch.AccessType = current.AccessType
+	}
+	if !assessment.ValidPlacementAccessType(patch.AccessType) {
+		return assessment.Placement{}, ErrInvalidInput
+	}
+	return s.repo.PatchPlacement(ctx, actor.ID, placementID, patch.ExpectedUpdatedAt, patch.AccessType, patch.IsVisible, patch.SortOrder)
 }
 
 func learnerPlacementWrite(q assessment.LearnerPlacementQuery) assessment.PlacementWrite {
@@ -194,7 +212,26 @@ func (s *PlacementService) Learner(ctx context.Context, actor identity.User, q a
 		return assessment.LearnerPlacementPage{}, err
 	}
 	q.PathID, q.SubjectID, q.CourseID, q.LessonID, q.TopicID = target.PathID, target.SubjectID, target.CourseID, target.LessonID, target.TopicID
-	return s.repo.ListLearnerPlacements(ctx, actor.ID, q)
+	page, err := s.repo.ListLearnerPlacements(ctx, actor.ID, q)
+	if err != nil {
+		return assessment.LearnerPlacementPage{}, err
+	}
+	for i := range page.Items {
+		item := &page.Items[i]
+		scope := assessment.AccessContext{
+			AssessmentID: item.AssessmentID, AssessmentKind: item.AssessmentKind, BaseAccess: item.BaseAccessType,
+			PlacementID: item.PlacementID, PlacementSlot: item.Slot, PlacementAccess: item.AccessType,
+			PathID: item.PathID, SubjectID: item.SubjectID, CourseID: item.CourseID,
+		}
+		allowed, reason, accessErr := resolvePlacementAssessmentAccess(ctx, s.access, actor.ID, scope)
+		if accessErr != nil {
+			return assessment.LearnerPlacementPage{}, accessErr
+		}
+		item.AccessAllowed = allowed
+		item.AccessReason = reason
+		item.CanStart = item.AttemptCount < item.MaxAttempts && allowed
+	}
+	return page, nil
 }
 
 func (s *PlacementService) Start(ctx context.Context, actor identity.User, placementID, startKey string) (assessment.Attempt, error) {
@@ -219,6 +256,17 @@ func (s *PlacementService) Start(ctx context.Context, actor identity.User, place
 	}
 	if err = s.validateContent(ctx, target); err != nil {
 		return assessment.Attempt{}, err
+	}
+	scope, err := s.repo.GetPlacementAccessContext(ctx, placementID)
+	if err != nil {
+		return assessment.Attempt{}, err
+	}
+	allowed, _, err := resolvePlacementAssessmentAccess(ctx, s.access, actor.ID, scope)
+	if err != nil {
+		return assessment.Attempt{}, err
+	}
+	if !allowed {
+		return assessment.Attempt{}, ErrForbidden
 	}
 	return s.repo.StartPlacement(ctx, actor.ID, placementID, startKey)
 }
