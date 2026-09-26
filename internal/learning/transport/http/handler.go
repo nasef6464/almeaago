@@ -249,7 +249,6 @@ func (h *Handler) answer(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"result": out})
 }
 
-
 func (h *Handler) goalsList(w http.ResponseWriter, r *http.Request) {
 	authenticated, ok := h.authn(w, r, false)
 	if !ok {

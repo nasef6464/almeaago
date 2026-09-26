@@ -127,7 +127,6 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	return result, nil
 }
 
-
 // ValidateMasteryGoalScope is Taxonomy's narrow read contract for learner goals.
 // It validates only active canonical path/subject identity; Learning owns goal state.
 func (r *Repository) ValidateMasteryGoalScope(ctx context.Context, pathID, subjectID string) (bool, error) {
