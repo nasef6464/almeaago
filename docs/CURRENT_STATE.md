@@ -916,5 +916,42 @@ Verification:
 Audit:
 - `docs/domains/commerce/COMMERCE_TAP_PAYMENT_LINK_AUDIT.md`.
 
+## Commerce Full Payment Reversals — TESTED / MERGED
+PR #62 passed all required exact-head gates on `694bd1af2b2f7a317b13dffe57ca4661b1fc63ec` and merged to `main` as `88bbd386cf291e557dbc0729168ec18f3e065f38`.
+
+Implemented:
+- migration `000034_commerce_payment_reversals` adds normalized one-per-PaymentRequest full `refund|chargeback` facts plus explicit revenue-reversal projection.
+- PaymentRequest keeps the original paid timestamp and transitions from `paid` to `refunded` or `chargeback`.
+- full reversal requires exact server-authoritative paid amount, currency and provider; partial refunds are deliberately rejected because access/revenue semantics are not source-defined.
+- verified provider reversals reuse the provider-event idempotency/evidence ledger; generic signed events support full refunded/chargeback state.
+- Tap Refund webhook verification accepts only finalized `REFUNDED`, verifies the provider hashstring and correlates through original payment reference or the uniquely persisted provider session/charge ID.
+- provider + provider-session correlation is now protected by a partial unique database index.
+- platform-admin reconciliation can record an externally completed full refund/chargeback only with CSRF, exact optimistic revision, provider reference and evidence; it does not initiate provider-side money movement.
+- active Entitlements sourced from that PaymentRequest are revoked atomically with the reversal.
+- factual revenue keeps original gross/discount/paid/allocation/payout history and adds explicit reversal type, full reversed amount, reference and timestamp.
+- once reversed, new revenue allocation or trainer-payout marking is blocked. A payout already recorded as paid remains a historical fact; no automatic trainer clawback is invented.
+- redeemed discount capacity is not restored because refund coupon semantics are not defined by the source material.
+- Commerce admin separates pending reviews from paid/reversed sales, supports evidence-backed full reversal recording and displays the revenue reversal without presenting it as an estimated adjustment.
+
+Verification:
+- Database CI `36254502426`: PASS apply + reversal/provider-session schema verification + rollback + re-apply.
+- Backend CI `36254502476`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36254502436`: PASS typecheck + production build.
+- Frontend E2E `36254502532`: PASS factual full refund reversal, revenue reversal visibility, disabled post-reversal payout and existing browser suite.
+- browser evidence artifact `10909024739`, digest `sha256:ce44008cba452717c65f09eef8118ae9e79fb624417495c365fbe19e339e84c4`.
+- early runs caught gofmt, frontend projection and Go constant-domain issues; all were fixed without weakening behavior. The final head also includes unique provider-session correlation hardening before the complete exact-head rerun.
+
+Audit:
+- `docs/domains/commerce/COMMERCE_PAYMENT_REVERSALS_AUDIT.md`.
+
+## Phase 8 Commerce checkpoint
+The implemented Commerce path now covers canonical products/packages/entitlements, server-authoritative Checkout and discounts, provider-event evidence, activation codes and capped school seats, Assessment entitlement consumption, factual Course revenue/trainer payout evidence, Tap hosted payment-link initiation/webhook handling, and factual full payment reversals.
+
+Commerce remains `TESTED`, not `PARITY_PROVEN`. The remaining Commerce items cannot be safely completed by inference:
+- live Tap sandbox proof requires external account credentials/configuration.
+- partial-refund access/revenue effects, provider-fee recovery and trainer payout clawback require explicit business policy/provider contracts.
+- Package/Membership multi-trainer allocation requires an explicit allocation rule.
+These items stay explicit external/UNKNOWN boundaries rather than being implemented speculatively.
+
 ## Next exact action
-Continue Phase 8 Commerce from current `main` with a focused refunds/chargebacks + entitlement/revenue reversal slice after re-reading current payment/provider/revenue code and source evidence. Do not invent refund eligibility, partial-refund formulas, chargeback timing, provider fee recovery, payout clawback policy or irreversible provider operations where the source does not define them. Keep live Tap sandbox proof separately marked as externally credential-dependent. Package/Membership multi-trainer allocation remains deferred pending an explicit allocation rule.
+Start the Parents phase from current `main`. Re-read the Product Blueprint, current Organizations-owned parent authority projection, legacy parent flows and current learner/reporting boundaries before selecting the first focused slice. Preserve Organizations as the authority for parent-to-student relationships and compose child learning/reporting data through narrow owning-domain contracts; do not duplicate student progress or infer parent permissions from identity fields.
