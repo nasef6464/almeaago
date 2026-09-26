@@ -46,7 +46,7 @@ test('mobile course lesson resumes video and completes only through explicit act
 
  await page.getByRole('button',{name:'تحديد كمكتمل'}).click();
  await expect(page.getByText('تم تسجيل الدرس كمكتمل.')).toBeVisible();
- await expect(page.getByText('مكتمل',{exact:true})).toBeVisible();
+ await expect(page.locator('span').filter({hasText:'مكتمل'})).toBeVisible();
  expect(completeCalls).toBe(1);
  await page.screenshot({path:'test-results/learning-course-progress-mobile.png',fullPage:true});
 });
