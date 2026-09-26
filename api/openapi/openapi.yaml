@@ -936,6 +936,71 @@ paths:
         "409": { description: Provider/payment/amount/currency conflict }
         "503": { description: Webhook secret not configured }
 
+  /api/v1/commerce/admin/access-codes:
+    get:
+      operationId: commerceAdminAccessCodeList
+      description: >
+        Platform-admin bounded list of school access codes. Codes reference one canonical school
+        and one active school-package product; they never carry copied package scope.
+      responses:
+        "200": { description: Bounded access-code page }
+        "403": { description: Platform admin required }
+    post:
+      operationId: commerceAdminAccessCodeCreate
+      description: >
+        Platform-admin CSRF-protected creation of an uppercase activation code with explicit
+        school, school-package product, max uses, and expiry.
+      responses:
+        "201": { description: Access code created }
+        "400": { description: Invalid code/lifecycle input }
+        "403": { description: Platform admin or CSRF required }
+        "409": { description: Product, school, or code conflict }
+
+  /api/v1/commerce/admin/access-codes/{id}:
+    patch:
+      operationId: commerceAdminAccessCodeUpdate
+      description: >
+        Optimistic platform-admin lifecycle update. maxUses cannot be reduced below currentUses,
+        and an active code cannot be resumed after expiry.
+      responses:
+        "200": { description: Access code updated }
+        "403": { description: Platform admin or CSRF required }
+        "409": { description: Revision or usage conflict }
+
+  /api/v1/commerce/access-codes/redeem:
+    post:
+      operationId: commerceRedeemAccessCode
+      description: >
+        Student CSRF-protected redemption. The browser sends only the code. Commerce resolves the
+        canonical school-package product, verifies active Organizations membership, locks code and
+        package capacity, creates one explicit school seat plus one user Entitlement, and records
+        one idempotent redemption. Commerce never creates or changes SchoolMembership.
+      responses:
+        "200": { description: Redeemed or idempotently returned activation }
+        "400": { description: Invalid code shape }
+        "403": { description: Student or active school membership required }
+        "404": { description: Code not found }
+        "409": { description: Code lifecycle, package, duplicate-access, or seat-capacity conflict }
+
+  /api/v1/commerce/admin/school-seats:
+    get:
+      operationId: commerceAdminSchoolSeatList
+      description: Platform-admin bounded explicit school-seat ledger.
+      responses:
+        "200": { description: Bounded school-seat page }
+        "403": { description: Platform admin required }
+    post:
+      operationId: commerceAdminSchoolSeatAssign
+      description: >
+        Platform-admin CSRF-protected explicit seat assignment. The target user must already have
+        an active Organizations membership in the selected school. Seat capacity is serialized
+        against the canonical school-package row and one idempotent Entitlement is created.
+      responses:
+        "201": { description: Seat and Entitlement created or idempotently returned }
+        "400": { description: Invalid assignment input }
+        "403": { description: Platform admin, CSRF, or target membership required }
+        "409": { description: Package or seat-capacity conflict }
+
   /api/v1/media/uploads/presign:
     post:
       operationId: mediaPresignUpload
