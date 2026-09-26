@@ -12,6 +12,9 @@ import type {
   FoundationTopicSummary,
   LibraryDetail,
   LibrarySummary,
+  LearnerCourse,
+  LearnerTopic,
+  LearningSpace,
   LessonDetail,
   LessonSummary,
   PageResult,
@@ -82,6 +85,27 @@ export const contentClient = {
 
   taxonomyFull(signal?: AbortSignal) {
     return request<TaxonomyFull>('/api/v1/taxonomy/bootstrap?phase=full', { signal });
+  },
+
+  learningSpace(pathId: string, subjectId: string, limit = 50, signal?: AbortSignal) {
+    return request<LearningSpace>(
+      `/api/v1/learning-spaces/${encodeURIComponent(pathId)}/subjects/${encodeURIComponent(subjectId)}?limit=${limit}`,
+      { signal },
+    );
+  },
+
+  learnerCourse(courseId: string, signal?: AbortSignal) {
+    return request<{ course: LearnerCourse }>(
+      `/api/v1/learning-spaces/courses/${encodeURIComponent(courseId)}`,
+      { signal },
+    );
+  },
+
+  learnerTopic(topicId: string, signal?: AbortSignal) {
+    return request<{ topic: LearnerTopic }>(
+      `/api/v1/learning-spaces/foundation/${encodeURIComponent(topicId)}`,
+      { signal },
+    );
   },
 
   courses(filters: ContentListFilters, signal?: AbortSignal) {

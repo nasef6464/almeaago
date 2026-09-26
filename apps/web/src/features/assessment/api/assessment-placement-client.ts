@@ -1,0 +1,12 @@
+import type { Attempt } from './attempt-client';
+import type {AssessmentPlacement,AssessmentPlacementPage,AssessmentPlacementSlot,AssessmentPlacementWrite,LearnerAssessmentPlacementPage} from './assessment-types';
+const BASE=(import.meta.env.VITE_API_BASE_URL??'').replace(/\/$/,'');
+async function req<T>(path:string,init:RequestInit={}):Promise<T>{const response=await fetch(BASE+path,{...init,credentials:'include',headers:{Accept:'application/json',...init.headers}});if(!response.ok){const body=await response.json().catch(()=>({message:'تعذر تنفيذ الطلب'}));throw new Error(body.message||'تعذر تنفيذ الطلب')}return response.json() as Promise<T>}
+export interface LearnerPlacementFilters{page?:number;limit?:number;slot:AssessmentPlacementSlot;pathId:string;subjectId:string;courseId?:string;lessonId?:string;topicId?:string}
+export const assessmentPlacementClient={
+ staffList:(assessmentId:string,page=1,limit=100,signal?:AbortSignal)=>req<AssessmentPlacementPage>(`/api/v1/assessments/${encodeURIComponent(assessmentId)}/placements?page=${page}&limit=${limit}`,{signal}),
+ create:(assessmentId:string,input:AssessmentPlacementWrite,csrf:string)=>req<{placement:AssessmentPlacement}>(`/api/v1/assessments/${encodeURIComponent(assessmentId)}/placements`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(input)}),
+ patch:(placement:AssessmentPlacement,isVisible:boolean,sortOrder:number,csrf:string)=>req<{placement:AssessmentPlacement}>(`/api/v1/assessment-placements/${encodeURIComponent(placement.id)}`,{method:'PATCH',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({expectedUpdatedAt:placement.updatedAt,isVisible,sortOrder})}),
+ available:(filters:LearnerPlacementFilters,signal?:AbortSignal)=>{const p=new URLSearchParams({page:String(filters.page||1),limit:String(filters.limit||30),slot:filters.slot,pathId:filters.pathId,subjectId:filters.subjectId});if(filters.courseId)p.set('courseId',filters.courseId);if(filters.lessonId)p.set('lessonId',filters.lessonId);if(filters.topicId)p.set('topicId',filters.topicId);return req<LearnerAssessmentPlacementPage>(`/api/v1/assessment-placements/available?${p.toString()}`,{signal})},
+ start:(placementId:string,startKey:string,csrf:string)=>req<{attempt:Attempt}>(`/api/v1/assessment-placements/${encodeURIComponent(placementId)}/start`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({startKey})})
+};

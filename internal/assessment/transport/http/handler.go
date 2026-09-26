@@ -24,6 +24,7 @@ type Handler struct {
 	auth        Authenticator
 	attempts    *app.AttemptService
 	assignments *app.AssignmentService
+	placements  *app.PlacementService
 }
 
 type writeInput struct {
@@ -49,10 +50,13 @@ type publicationInput struct {
 }
 
 func New(service *app.Service, auth Authenticator, attemptServices ...*app.AttemptService) http.Handler {
-	return NewWithAssignments(service, auth, nil, attemptServices...)
+	return NewWithDistribution(service, auth, nil, nil, attemptServices...)
 }
 func NewWithAssignments(service *app.Service, auth Authenticator, assignmentService *app.AssignmentService, attemptServices ...*app.AttemptService) http.Handler {
-	h := &Handler{service: service, auth: auth, assignments: assignmentService}
+	return NewWithDistribution(service, auth, assignmentService, nil, attemptServices...)
+}
+func NewWithDistribution(service *app.Service, auth Authenticator, assignmentService *app.AssignmentService, placementService *app.PlacementService, attemptServices ...*app.AttemptService) http.Handler {
+	h := &Handler{service: service, auth: auth, assignments: assignmentService, placements: placementService}
 	if len(attemptServices) > 0 {
 		h.attempts = attemptServices[0]
 	}
@@ -66,6 +70,8 @@ func NewWithAssignments(service *app.Service, auth Authenticator, assignmentServ
 	r.Post("/{id}/attempts", h.startAttempt)
 	r.Get("/{id}/assignments", h.listAssignments)
 	r.Post("/{id}/assignments", h.createAssignment)
+	r.Get("/{id}/placements", h.listPlacements)
+	r.Post("/{id}/placements", h.createPlacement)
 	return r
 }
 func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request, csrf bool) (identityapp.Authenticated, bool) {
@@ -293,4 +299,52 @@ func (h *Handler) createAssignment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 201, map[string]any{"assignment": x})
+}
+
+func (h *Handler) listPlacements(w http.ResponseWriter, r *http.Request) {
+	a, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	if h.placements == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"message": "Placement service unavailable"})
+		return
+	}
+	page, err := atoi(r.URL.Query().Get("page"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid pagination"})
+		return
+	}
+	limit, err := atoi(r.URL.Query().Get("limit"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid pagination"})
+		return
+	}
+	out, err := h.placements.List(r.Context(), a.User, chi.URLParam(r, "id"), page, limit)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (h *Handler) createPlacement(w http.ResponseWriter, r *http.Request) {
+	a, ok := h.authenticate(w, r, true)
+	if !ok {
+		return
+	}
+	if h.placements == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"message": "Placement service unavailable"})
+		return
+	}
+	var in assessment.PlacementWrite
+	if !decode(w, r, &in) {
+		return
+	}
+	out, err := h.placements.Create(r.Context(), a.User, chi.URLParam(r, "id"), in)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"placement": out})
 }

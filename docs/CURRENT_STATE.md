@@ -509,5 +509,25 @@ Verification:
 Audit:
 - `docs/domains/assessment/ASSESSMENT_RESULT_REVIEW_AUDIT.md`.
 
+## Assessment Learning Placements — IN REVIEW
+Active branch: `feat/assessment-learning-placements`.
+
+Implemented on the branch:
+- normalized staff create/list + optimistic visibility/order updates over existing `assessment_learning_placements`.
+- exact Assessment-version pinning at placement creation.
+- `training/tests/foundation/course` target-shape validation.
+- Content-owned validation through a narrow resolver interface; Assessment does not query foreign Content tables.
+- bounded student-only availability requiring exact path + subject + slot and exact Course/Foundation context where relevant.
+- placement-context attempt start with idempotency, per-placement max-attempt counting, exact-version scoring readiness and transactional audit.
+- responsive staff placement management and learner `/assessments` entry UI.
+- Playwright coverage for staff placement lifecycle and mobile learner start.
+- Commerce, Learning evidence/mastery and Realtime remain outside this slice.
+
+Audit:
+- `docs/domains/assessment/ASSESSMENT_LEARNING_PLACEMENTS_AUDIT.md`.
+
+Verification state:
+- not merge-qualified until the exact PR head passes Backend CI + Frontend CI + Frontend E2E.
+
 ## Next exact action
-Continue Assessment phase closure from current `main` with the remaining Distribution surface. Build the normalized Assessment Learning Placement API/learner-entry slice first, using existing `assessment_learning_placements` rows and canonical Content IDs without copying Assessment, Question or Content payloads. Keep lists bounded, validate Content/Taxonomy relationships server-side, enforce staff scope/CSRF on mutations, and add learner-safe availability + React/E2E. After that, close public/barcode/live session delivery as a separate Assessment batch before moving broadly into Learning/Adaptive/Review.
+Open the Learning Placements PR, run exact-head Backend + Frontend + E2E gates, fix every failure on the same branch without weakening tests, record the verified SHA/run evidence, and merge only when all gates are green. After merge, continue Assessment closure with public/barcode/live Session delivery as a separate batch.

@@ -242,6 +242,85 @@ paths:
         "403": { description: Student role required }
         "404": { description: Submitted result not found for this learner }
 
+
+  /api/v1/assessments/{id}/placements:
+    get:
+      operationId: assessmentStaffLearningPlacementList
+      description: >
+        Staff-authorized bounded placement list for one Assessment. The Assessment definition
+        authorization contract is reused; normal reads use hasMore rather than exact counts.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        "200": { description: Bounded Assessment placement page }
+        "401": { description: Authentication required }
+        "403": { description: Assessment edit scope denied }
+    post:
+      operationId: assessmentStaffLearningPlacementCreate
+      description: >
+        CSRF-protected placement create. The placement pins the currently published Assessment
+        version. Content validates Course/Lesson/Foundation targets through a domain boundary;
+        Assessment stores IDs only.
+      responses:
+        "201": { description: Learning placement created }
+        "400": { description: Invalid placement target shape }
+        "403": { description: Staff scope or CSRF denied }
+        "409": { description: Assessment state, duplicate placement, taxonomy or Content target conflict }
+
+  /api/v1/assessment-placements/{id}:
+    patch:
+      operationId: assessmentStaffLearningPlacementPatch
+      description: >
+        CSRF-protected optimistic visibility/order update using expectedUpdatedAt. Target IDs
+        and pinned Assessment version are immutable in this slice.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Placement updated }
+        "400": { description: Invalid optimistic patch }
+        "403": { description: Staff scope or CSRF denied }
+        "409": { description: Concurrent placement update conflict }
+
+  /api/v1/assessment-placements/available:
+    get:
+      operationId: assessmentLearnerLearningPlacementList
+      description: >
+        Student-only bounded availability. Requires exact pathId + subjectId + slot. Course
+        and Foundation slots also require exact learner-safe Content context. No broad
+        Assessment or Content inventory is loaded.
+      parameters:
+        - { in: query, name: slot, required: true, schema: { type: string, enum: [training, tests, foundation, course] } }
+        - { in: query, name: pathId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: subjectId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: courseId, schema: { type: string, format: uuid } }
+        - { in: query, name: lessonId, schema: { type: string, format: uuid } }
+        - { in: query, name: topicId, schema: { type: string, format: uuid } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 30 } }
+      responses:
+        "200": { description: Bounded learner-safe placement availability page }
+        "400": { description: Invalid or incomplete exact learning context }
+        "401": { description: Authentication required }
+        "403": { description: Student role required }
+        "409": { description: Content target is no longer learner-safe }
+
+  /api/v1/assessment-placements/{id}/start:
+    post:
+      operationId: assessmentLearnerLearningPlacementStart
+      description: >
+        CSRF-protected idempotent student start in exact placement context. Enforces the
+        placement-pinned Assessment version, placement attempt budget, server expiry and
+        learner-safe Attempt projection.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "201": { description: Placement-context attempt started or idempotently resumed }
+        "400": { description: Invalid start key }
+        "403": { description: Student role/CSRF or hidden placement denied }
+        "409": { description: Attempt budget or Assessment/Content state conflict }
+
   /api/v1/media/uploads/presign:
     post:
       operationId: mediaPresignUpload
