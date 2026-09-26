@@ -156,7 +156,6 @@ func (r *Repository) ValidateMasteryGoalScope(ctx context.Context, pathID, subje
 	return ok, err
 }
 
-
 // ValidateStudyPlanScope is Taxonomy's bounded read contract for learner Study Plans.
 // Empty subjectIDs means "all active subjects under this path"; otherwise every ID must be
 // active and belong to the exact active path.

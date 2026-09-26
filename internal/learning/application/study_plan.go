@@ -416,7 +416,7 @@ func (s *StudyPlanService) generateItems(
 				SubjectID: next.subjectID, ItemType: next.itemType, LessonID: next.lessonID,
 				CourseID: next.courseID, LibraryItemID: next.libraryItemID,
 				AssessmentPlacementID: next.assessmentPlacementID,
-				ScheduledDate: date, ScheduledTime: addPlanMinutes(write.PreferredStartTime, consumed),
+				ScheduledDate:         date, ScheduledTime: addPlanMinutes(write.PreferredStartTime, consumed),
 				DurationMinutes: duration, Phase: phase, SortOrder: globalOrder,
 			})
 			globalOrder++

@@ -324,7 +324,6 @@ func (r *Repository) StartPlacement(ctx context.Context, student, placementID, s
 
 func actorOrStudent(student string) string { return student }
 
-
 // ListStudyPlanResources is Learning's bounded Assessment catalog boundary.
 // Only visible placements pinned to published Assessment versions are exposed.
 func (r *Repository) ListStudyPlanResources(

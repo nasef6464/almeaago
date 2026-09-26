@@ -429,7 +429,6 @@ func (r *Repository) ResolveLessonProgressTarget(ctx context.Context, contextTyp
 	}
 }
 
-
 // ValidateStudyPlanCourses verifies only Content-owned Course identity/visibility.
 // Learning owns the Study Plan; Commerce entitlement remains a separate later boundary.
 func (r *Repository) ValidateStudyPlanCourses(
