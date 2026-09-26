@@ -928,6 +928,24 @@ paths:
         "403": { description: Platform admin or CSRF required }
         "409": { description: Revision/lifecycle conflict }
 
+  /api/v1/commerce/admin/payment-requests/{id}/reversal:
+    patch:
+      operationId: commerceAdminPaymentReversalRecord
+      description: >
+        Platform-admin CSRF-protected optimistic record of an externally completed full refund
+        or chargeback. This endpoint does not call a payment provider or decide refund eligibility.
+        It requires external evidence and a provider reference, reverses the full trusted paid amount,
+        revokes the PaymentRequest-derived active Entitlement, and marks the factual revenue entry
+        reversed while preserving historical payout/allocation evidence. Partial reversals are
+        intentionally rejected until their access/revenue policy is explicitly defined.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Full factual reversal recorded }
+        "400": { description: Invalid reversal type/reference/evidence }
+        "403": { description: Platform admin or CSRF required }
+        "409": { description: Revision, lifecycle, amount or duplicate-reversal conflict }
+
   /api/v1/commerce/admin/revenue:
     get:
       operationId: commerceAdminRevenueList
@@ -980,10 +998,11 @@ paths:
     post:
       operationId: commerceTapWebhook
       description: >
-        Tap Charges webhook over exact raw bytes. Validates Tap's official hashstring using the
-        server-only Tap secret API key and canonical charge fields, maps only final CAPTURED/failed/
-        cancelled charge statuses, and then passes the event through the same idempotent Commerce
-        provider ledger with exact provider, amount and currency matching before any Entitlement grant.
+        Tap Charge or Refund webhook over exact raw bytes. Validates Tap's hashstring using the
+        server-only secret API key and canonical object fields. Final CAPTURED charge state may grant
+        access only after exact provider/amount/currency matching. A final REFUNDED object is accepted
+        only for the full trusted paid amount and atomically revokes PaymentRequest-derived access and
+        marks the factual revenue entry reversed. Non-final refund states do not reverse access.
       responses:
         "200": { description: Verified Tap event processed or idempotently acknowledged }
         "401": { description: Invalid Tap hashstring or unsupported payload }
@@ -998,6 +1017,8 @@ paths:
         absent. X-Payment-Signature must be HMAC-SHA256 over the exact raw body. Verified events
         are deduplicated by provider+eventId and persisted with SHA-256 payload hash. A paid event
         grants access only when provider, PaymentRequest mode, exact final amount and currency match.
+        Signed refunded/chargeback events are accepted only from a previously paid request and only
+        for the exact full paid amount; partial reversal semantics remain unsupported.
       responses:
         "200": { description: Verified event processed or idempotently acknowledged }
         "400": { description: Invalid event payload }
