@@ -1098,6 +1098,55 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Parent role required }
 
+  /api/v1/parents/dashboard:
+    get:
+      operationId: parentsDashboard
+      description: >
+        Parent-only bounded dashboard composed from canonical Organizations parent-to-student
+        authority plus privacy-safe Identity, Assessment result summaries and Learning skill
+        progress projections. Only active linked students are queried. No answer keys, student
+        email/phone/national ID, or unrestricted user directory data are returned.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        "200": { description: Bounded linked-child progress dashboard }
+        "401": { description: Authentication required }
+        "403": { description: Parent role required }
+
+  /api/v1/parents/children/{studentId}/results:
+    get:
+      operationId: parentsChildResults
+      description: >
+        Parent-only bounded Assessment result summaries for one canonically linked student.
+        The relationship is rechecked before the Assessment reader is called. This endpoint
+        exposes result facts only and never question responses, answer keys or review payloads.
+      parameters:
+        - { in: path, name: studentId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        "200": { description: Linked student's bounded result page }
+        "400": { description: Invalid pagination/student identifier }
+        "401": { description: Authentication required }
+        "403": { description: Parent role required or student is not linked }
+
+  /api/v1/parents/weekly-report:
+    get:
+      operationId: parentsWeeklyReport
+      description: >
+        Parent-only read-only report for the rolling previous seven days. It composes trusted
+        Assessment aggregates and current Learning weak-skill/next-action projections for active
+        linked students. Delivery through email/WhatsApp is intentionally Communication-owned and
+        is not triggered by this read endpoint.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        "200": { description: Bounded weekly linked-child report }
+        "401": { description: Authentication required }
+        "403": { description: Parent role required }
+
   /api/v1/schools/teacher-workspace:
     get:
       operationId: organizationsTeacherWorkspace
