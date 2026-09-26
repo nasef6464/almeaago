@@ -827,6 +827,115 @@ paths:
         "401": { description: Authentication required }
         "409": { description: Canonical Course/Commerce state conflict }
 
+  /api/v1/commerce/catalog/products/{id}:
+    get:
+      operationId: commerceCheckoutCatalogProduct
+      description: >
+        Authenticated learner-safe product snapshot for Checkout. Only active/visible products
+        are returned. Checkout never accepts product name, price, currency, or entitlement scope
+        from the browser.
+      responses:
+        "200": { description: Server-owned product snapshot }
+        "401": { description: Authentication required }
+        "404": { description: Product unavailable }
+
+  /api/v1/commerce/discounts/preview:
+    post:
+      operationId: commerceDiscountPreview
+      description: >
+        Authenticated server-side discount validation against the canonical product price,
+        current discount lifecycle, redemption budget and relational scope.
+      responses:
+        "200": { description: Discount validity and server-derived payable preview }
+        "400": { description: Invalid product/code shape }
+        "401": { description: Authentication required }
+        "409": { description: Product or Commerce state conflict }
+
+  /api/v1/commerce/checkout/requests:
+    get:
+      operationId: commerceMyPaymentRequests
+      description: Authenticated bounded payment-request history; defaults to 20 and caps at 100.
+      responses:
+        "200": { description: User-owned bounded PaymentRequest page }
+        "401": { description: Authentication required }
+    post:
+      operationId: commerceCreatePaymentRequest
+      description: >
+        CSRF-protected idempotent Checkout creation. Client sends productId, optional discountCode,
+        paymentMethod and idempotencyKey only. Server re-reads product revision, amount, currency,
+        discount and gateway policy transactionally. No Entitlement is granted by this endpoint.
+      responses:
+        "201": { description: Pending PaymentRequest created or idempotently returned }
+        "400": { description: Invalid checkout input }
+        "401": { description: Authentication required }
+        "403": { description: Invalid CSRF }
+        "409": { description: Product/discount/idempotency conflict }
+
+  /api/v1/commerce/admin/discounts:
+    get:
+      operationId: commerceAdminDiscountList
+      description: Platform-admin bounded discount list; defaults to 50 and caps at 100.
+      responses:
+        "200": { description: Bounded discount page }
+        "403": { description: Platform admin required }
+    post:
+      operationId: commerceAdminDiscountCreate
+      description: >
+        Platform-admin CSRF-protected discount creation with relational all/product/product-type
+        scopes, integer minor-unit/fixed values, percentage basis points and redemption budget.
+      responses:
+        "201": { description: Discount created }
+        "400": { description: Invalid discount shape }
+        "403": { description: Platform admin or CSRF required }
+        "409": { description: Code/product scope conflict }
+
+  /api/v1/commerce/admin/discounts/{id}:
+    put:
+      operationId: commerceAdminDiscountUpdate
+      description: >
+        Platform-admin optimistic update using expectedRevision. Reserved+redeemed redemptions
+        cannot be invalidated by shrinking maxRedemptions below already-consumed capacity.
+      responses:
+        "200": { description: Discount updated }
+        "403": { description: Platform admin or CSRF required }
+        "409": { description: Revision or lifecycle conflict }
+
+  /api/v1/commerce/admin/payment-requests:
+    get:
+      operationId: commerceAdminPaymentRequestList
+      description: Platform-admin bounded payment-request ledger; defaults to 50 and caps at 100.
+      responses:
+        "200": { description: Bounded PaymentRequest page }
+        "403": { description: Platform admin required }
+
+  /api/v1/commerce/admin/payment-requests/{id}/review:
+    patch:
+      operationId: commerceAdminPaymentReview
+      description: >
+        Platform-admin CSRF-protected optimistic manual review. Paid approval requires explicit
+        evidence, atomically redeems reserved discount and grants one idempotent Entitlement.
+        Rejection/cancellation releases the reservation.
+      responses:
+        "200": { description: PaymentRequest reviewed }
+        "400": { description: Invalid review/evidence }
+        "403": { description: Platform admin or CSRF required }
+        "409": { description: Revision/lifecycle conflict }
+
+  /api/v1/commerce/webhooks/{provider}:
+    post:
+      operationId: commerceProviderWebhook
+      description: >
+        Provider callback over raw request bytes. Fails closed when PAYMENT_WEBHOOK_SECRET is
+        absent. X-Payment-Signature must be HMAC-SHA256 over the exact raw body. Verified events
+        are deduplicated by provider+eventId and persisted with SHA-256 payload hash. A paid event
+        grants access only when provider, PaymentRequest mode, exact final amount and currency match.
+      responses:
+        "200": { description: Verified event processed or idempotently acknowledged }
+        "400": { description: Invalid event payload }
+        "401": { description: Invalid HMAC signature }
+        "409": { description: Provider/payment/amount/currency conflict }
+        "503": { description: Webhook secret not configured }
+
   /api/v1/media/uploads/presign:
     post:
       operationId: mediaPresignUpload
