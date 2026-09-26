@@ -28,6 +28,7 @@ const navItems = [
   { label: 'مركز الدروس', icon: BookOpen },
   { label: 'مركز المكتبة وملفات الدعم', icon: Library },
   { label: 'مركز الاختبارات', icon: HelpCircle, href: '/admin-dashboard/assessments' },
+  { label: 'التجارة والصلاحيات', icon: ShoppingCart, href: '/admin-dashboard/commerce' },
   { label: 'إدارة المستخدمين', icon: Users },
   { label: 'الإعدادات', icon: Settings },
 ];

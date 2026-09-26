@@ -3,8 +3,6 @@ package postgres
 import (
 	"context"
 	"errors"
-	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -270,5 +268,3 @@ LIMIT 1
 	return decision,nil
 }
 
-var _ = strings.TrimSpace
-var _ = time.Now

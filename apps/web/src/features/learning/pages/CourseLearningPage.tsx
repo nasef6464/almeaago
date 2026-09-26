@@ -36,7 +36,7 @@ export function CourseLearningPage(){
     contentClient.learnerCourse(courseId,c.signal)
       .then(r=>{
         setCourse(r.course);
-        const first=r.course.modules.flatMap(m=>m.lessons).find(x=>!x.isLocked||x.isPreview);
+        const first=r.course.modules.flatMap(m=>m.lessons).find(x=>(!x.isLocked&&!x.commerceLocked)||x.isPreview);
         if(first)setLessonId(current=>current||first.id);
       })
       .catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل الدورة')})
@@ -46,7 +46,7 @@ export function CourseLearningPage(){
 
   useEffect(()=>{
     if(!lessonId||!courseId)return;
-    if(selectedSummary?.isLocked&&!selectedSummary.isPreview){
+    if((selectedSummary?.isLocked||selectedSummary?.commerceLocked)&&!selectedSummary.isPreview){
       setDetail(null);setProgress(null);return;
     }
     const c=new AbortController();setError('');setNotice('');
@@ -59,7 +59,7 @@ export function CourseLearningPage(){
       lastSaved.current=progressResult.progress.positionSeconds||0;
     }).catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل الدرس')});
     return()=>c.abort();
-  },[context,courseId,lessonId,selectedSummary?.isLocked,selectedSummary?.isPreview]);
+  },[context,courseId,lessonId,selectedSummary?.commerceLocked,selectedSummary?.isLocked,selectedSummary?.isPreview]);
 
   async function persistVideoPosition(position:number,quiet=false){
     if(!detail||detail.type!=='video'||saving)return;
@@ -108,7 +108,7 @@ export function CourseLearningPage(){
         <div className="border-b bg-slate-950 p-4 text-white"><div className="text-xs font-black text-amber-400">COURSE LEARNING</div><h1 className="mt-1 text-lg font-black">{course.title}</h1></div>
         <div className="max-h-[70vh] overflow-y-auto">
           {course.modules.map(module=><section key={module.id} className="border-b last:border-b-0"><h2 className="bg-gray-50 px-4 py-2 text-xs font-black text-gray-500">{module.title}</h2>{module.lessons.map(lesson=>{
-            const locked=lesson.isLocked&&!lesson.isPreview;
+            const locked=(lesson.isLocked||lesson.commerceLocked)&&!lesson.isPreview;
             return <button key={lesson.id} type="button" disabled={locked} onClick={()=>setLessonId(lesson.id)} className={`flex w-full items-center justify-between gap-2 border-t px-4 py-3 text-right text-sm ${lesson.id===lessonId?'bg-indigo-50 text-indigo-900':'bg-white'} disabled:cursor-not-allowed disabled:opacity-45`}><span className="font-bold">{lesson.title}</span><span className="text-[11px] font-black">{locked?'مغلق':lesson.type==='video'?'فيديو':'درس'}</span></button>
           })}</section>)}
         </div>
@@ -118,8 +118,9 @@ export function CourseLearningPage(){
         <div className="flex items-center justify-between gap-3 rounded-2xl border bg-white p-4 shadow-sm"><div><Link to="/" className="text-xs font-black text-indigo-600">المنصة</Link><h2 className="mt-1 text-xl font-black text-gray-900">{detail?.title||selectedSummary?.title||'اختر درسًا'}</h2>{progress?<p className="mt-1 text-xs font-bold text-gray-500">{progress.status==='completed'?'مكتمل':progress.status==='in_progress'?`قيد التقدم · آخر موضع ${progress.positionSeconds} ثانية`:'لم يبدأ بعد'}</p>:null}</div>{progress?.status==='completed'?<span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-700"><CheckCircle2 size={15}/>مكتمل</span>:null}</div>
         {error?<div className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700">{error}</div>:null}
         {notice?<div className="rounded-xl bg-emerald-50 p-3 font-bold text-emerald-700">{notice}</div>:null}
+        {!course.access.allowed?<div data-testid="course-commerce-lock" className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm font-bold leading-7 text-amber-900">{course.access.configured?'هذه الدورة مدفوعة وتحتاج صلاحية وصول فعالة. يمكنك مشاهدة المعاينات المجانية فقط.':'سياسة الوصول التجارية لهذه الدورة غير مكتملة؛ تم قفل المحتوى غير المجاني احترازيًا.'}</div>:null}
 
-        {selectedSummary?.isLocked&&!selectedSummary.isPreview?<div className="rounded-2xl border border-amber-100 bg-amber-50 p-5 font-bold text-amber-900">هذا الدرس مغلق حاليًا. الوصول المدفوع/الحزم سيُحسم من Commerce ولا تمنحه Learning.</div>:detail?<article className="rounded-2xl border bg-white p-4 shadow-sm sm:p-6">
+        {(selectedSummary?.isLocked||selectedSummary?.commerceLocked)&&!selectedSummary.isPreview?<div className="rounded-2xl border border-amber-100 bg-amber-50 p-5 font-bold text-amber-900">{selectedSummary?.commerceLocked?'هذا الدرس يحتاج شراءً أو منحة وصول فعالة من Commerce.':'هذا الدرس مقفول بسياسة المحتوى الحالية.'}</div>:detail?<article className="rounded-2xl border bg-white p-4 shadow-sm sm:p-6">
           <p className="text-sm leading-7 text-gray-600">{detail.description}</p>
           {detail.type==='video'&&detail.videoSource==='upload'&&detail.videoUrl?<div className="mt-4 space-y-3"><video ref={videoRef} data-testid="lesson-video" src={detail.videoUrl} controls className="aspect-video w-full rounded-xl bg-black" onLoadedMetadata={()=>{const v=videoRef.current;if(v&&progress?.positionSeconds&&v.currentTime===0)v.currentTime=Math.min(progress.positionSeconds,Number.isFinite(v.duration)?v.duration:progress.positionSeconds)}} onTimeUpdate={onTimeUpdate} onPause={()=>{const v=videoRef.current;if(v)void persistVideoPosition(v.currentTime)}}/><div className="flex items-center gap-2 text-xs font-bold text-gray-500">{saving?<Loader2 size={15} className="animate-spin"/>:<PauseCircle size={15}/>}موضع الاستئناف يُحفظ دوريًا وعند الإيقاف. تغيير الموضع وحده لا يُكمل الدرس.</div></div>:null}
           {detail.type==='video'&&detail.videoSource!=='upload'?<div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm font-bold leading-7 text-blue-900"><PlayCircle size={18} className="mb-2"/>المصدر {detail.videoSource||'خارجي'} متاح كرابط محتوى، لكن resume الآلي عبر SDK الخاص بالمزود مؤجل عن هذه الدفعة. إكمال الدرس يظل خطوة صريحة منفصلة.</div>:null}
