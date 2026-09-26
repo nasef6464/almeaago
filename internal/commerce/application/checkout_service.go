@@ -163,6 +163,9 @@ func (s *CheckoutService) CreateCheckout(ctx context.Context, actor identity.Use
 	if policy.GatewayMode == commerce.GatewayManualReview {
 		policy.ProviderCode = "manual_" + string(in.PaymentMethod)
 	}
+	if policy.GatewayMode == commerce.GatewayPaymentLink && in.PaymentMethod != commerce.PaymentCard {
+		return commerce.PaymentRequest{}, ErrInvalidInput
+	}
 	product, err := s.repo.GetProduct(ctx, in.ProductID)
 	if err != nil {
 		return commerce.PaymentRequest{}, err
@@ -189,9 +192,6 @@ func (s *CheckoutService) CreateCheckout(ctx context.Context, actor identity.Use
 	}
 	if policy.GatewayMode != commerce.GatewayPaymentLink {
 		return request, nil
-	}
-	if in.PaymentMethod != commerce.PaymentCard {
-		return commerce.PaymentRequest{}, ErrInvalidInput
 	}
 	if request.Status != commerce.PaymentPending || request.ProviderSessionStatus == "initiated" {
 		return request, nil
