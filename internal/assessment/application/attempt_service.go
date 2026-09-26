@@ -2,9 +2,10 @@ package application
 
 import (
 	"context"
+	"strings"
+
 	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
-	"strings"
 )
 
 var ErrAttemptExpired = assessment.ErrAttemptExpired
@@ -20,15 +21,18 @@ type AttemptRepository interface {
 	ListResults(context.Context, string, int, int) (assessment.ResultPage, error)
 	GetResultDetail(context.Context, string, string) (assessment.ResultDetail, error)
 }
+
 type AttemptService struct{ repo AttemptRepository }
 
 func NewAttemptService(r AttemptRepository) *AttemptService { return &AttemptService{repo: r} }
+
 func requireStudent(a identity.User) error {
 	if strings.TrimSpace(a.ID) == "" || !a.HasRole(identity.RoleStudent) {
 		return ErrForbidden
 	}
 	return nil
 }
+
 func key(v string) string {
 	v = strings.TrimSpace(v)
 	if len(v) > 160 {
@@ -36,6 +40,7 @@ func key(v string) string {
 	}
 	return v
 }
+
 func (s *AttemptService) Start(ctx context.Context, a identity.User, assessmentID, startKey string) (assessment.Attempt, error) {
 	if requireStudent(a) != nil {
 		return assessment.Attempt{}, ErrForbidden
@@ -47,6 +52,7 @@ func (s *AttemptService) Start(ctx context.Context, a identity.User, assessmentI
 	}
 	return s.repo.Start(ctx, a.ID, assessmentID, startKey)
 }
+
 func (s *AttemptService) Get(ctx context.Context, a identity.User, id string) (assessment.Attempt, error) {
 	if requireStudent(a) != nil {
 		return assessment.Attempt{}, ErrForbidden
@@ -60,6 +66,7 @@ func (s *AttemptService) Get(ctx context.Context, a identity.User, id string) (a
 	}
 	return x, nil
 }
+
 func (s *AttemptService) Save(ctx context.Context, a identity.User, id, qid string, w assessment.AnswerWrite) (assessment.Attempt, error) {
 	if requireStudent(a) != nil {
 		return assessment.Attempt{}, ErrForbidden
@@ -75,6 +82,7 @@ func (s *AttemptService) Save(ctx context.Context, a identity.User, id, qid stri
 	}
 	return s.repo.SaveAnswer(ctx, a.ID, id, qid, w)
 }
+
 func (s *AttemptService) Submit(ctx context.Context, a identity.User, id, submissionKey string) (assessment.Result, error) {
 	if requireStudent(a) != nil {
 		return assessment.Result{}, ErrForbidden
@@ -85,6 +93,7 @@ func (s *AttemptService) Submit(ctx context.Context, a identity.User, id, submis
 	}
 	return s.repo.Submit(ctx, a.ID, id, submissionKey)
 }
+
 func (s *AttemptService) Result(ctx context.Context, a identity.User, id string) (assessment.Result, error) {
 	if requireStudent(a) != nil {
 		return assessment.Result{}, ErrForbidden
@@ -103,9 +112,18 @@ func (s *AttemptService) Results(ctx context.Context, a identity.User, page, lim
 	if requireStudent(a) != nil {
 		return assessment.ResultPage{}, ErrForbidden
 	}
-	if page < 1 { page = 1 }
-	if limit < 1 { limit = 20 }
-	if limit > 100 { limit = 100 }
+	if page < 1 {
+		page = 1
+	}
+	if page > 10000 {
+		return assessment.ResultPage{}, ErrInvalidInput
+	}
+	if limit < 1 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
 	return s.repo.ListResults(ctx, a.ID, page, limit)
 }
 
