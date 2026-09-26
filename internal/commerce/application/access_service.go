@@ -21,7 +21,7 @@ type AccessRepository interface {
 
 type AccessService struct {
 	repo     AccessRepository
-	products Repository
+	products ProductReader
 	schools  SchoolMembershipResolver
 }
 
