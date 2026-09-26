@@ -1,6 +1,6 @@
 # Commerce Payment Reversals Audit
 
-Status: **IMPLEMENTED — CI REQUIRED BEFORE MERGE**
+Status: **TESTED / MERGED**
 
 ## Evidence and deliberate limits
 The current Commerce checkpoint requires a focused refunds/chargebacks + entitlement/revenue reversal slice and explicitly forbids inventing refund eligibility, partial-refund formulas, provider-fee recovery, payout clawback policy, or irreversible provider operations.
@@ -70,8 +70,12 @@ Prior settlement and payout records remain historical facts. If trainer payout w
 ## Discount semantics
 A discount that was already redeemed by the paid sale remains redeemed. Returning coupon capacity after a refund is not source-defined and is not inferred.
 
-## Required gates
-- Database apply + schema verification + rollback + re-apply.
-- Backend module lock + sqlc compile + gofmt + go vet + go test.
-- Frontend typecheck + production build.
-- Playwright including evidence-backed full refund reversal, revenue reversal visibility, disabled post-reversal payout, and all existing browser journeys.
+## Verification checkpoint
+- PR #62 merged from exact tested head `694bd1af2b2f7a317b13dffe57ca4661b1fc63ec`.
+- squash merge commit: `88bbd386cf291e557dbc0729168ec18f3e065f38`.
+- Database CI `36254502426`: PASS — apply/schema verification/rollback/re-apply, including unique provider-session correlation and reversal constraints.
+- Backend CI `36254502476`: PASS — module lock/sqlc/gofmt/vet/tests.
+- Frontend CI `36254502436`: PASS — typecheck/build.
+- Frontend E2E `36254502532`: PASS — factual full refund reversal, revenue reversal visibility, disabled post-reversal payout and existing browser journeys.
+- browser evidence artifact `content-browser-evidence` id `10909024739`, digest `sha256:ce44008cba452717c65f09eef8118ae9e79fb624417495c365fbe19e339e84c4`.
+- initial runs exposed gofmt deltas, a missing frontend reversal projection and a reversal-type/payment-status constant collision; each was corrected without weakening behavior. Provider-session fallback correlation was then hardened with a unique partial index and all four gates reran green on the final exact head.
