@@ -31,7 +31,7 @@ test('staff creates and hides a bounded learning placement',async({page})=>{
  await page.getByRole('button',{name:'أماكن الظهور'}).click();
  await expect(page.getByRole('heading',{name:'أماكن ظهور الاختبار'})).toBeVisible();
  await page.getByRole('button',{name:'إضافة مكان الظهور'}).click();
- await expect(page.getByText('الاختبارات')).toBeVisible();
+ await expect(page.getByRole('button',{name:/إخفاء/})).toBeVisible();
  await page.getByRole('button',{name:/إخفاء/}).click();
  await expect(page.getByText('مخفي')).toBeVisible();
 });
