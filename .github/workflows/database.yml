@@ -119,6 +119,10 @@ jobs:
           check "select exists(select 1 from information_schema.columns where table_name='commerce_payment_requests' and column_name='revenue_share_percentage')"
           check "select exists(select 1 from pg_constraint where conname='commerce_revenue_allocation_shape')"
           check "select exists(select 1 from pg_indexes where tablename='commerce_revenue_entries' and indexname='commerce_revenue_entries_trainer_idx')"
+          check "select exists(select 1 from information_schema.columns where table_name='commerce_payment_requests' and column_name='provider_session_id')"
+          check "select exists(select 1 from pg_constraint where conname='commerce_payment_requests_gateway_mode_check')"
+          check "select exists(select 1 from pg_constraint where conname='commerce_payment_provider_session_shape')"
+          check "select exists(select 1 from pg_indexes where tablename='commerce_payment_requests' and indexname='commerce_payment_requests_provider_session_idx')"
 
       - name: Roll back every migration
         shell: bash
