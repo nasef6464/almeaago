@@ -31,7 +31,14 @@ func (s *Service) LearnerCourse(ctx context.Context, actor identity.User, course
 	if courseID == "" {
 		return content.LearnerCourse{}, ErrInvalidInput
 	}
-	return s.repo.GetLearnerCourse(ctx, courseID)
+	row, err := s.repo.GetLearnerCourse(ctx, courseID)
+	if err != nil {
+		return content.LearnerCourse{}, err
+	}
+	if err := s.applyCourseAccess(ctx, actor, &row); err != nil {
+		return content.LearnerCourse{}, err
+	}
+	return row, nil
 }
 
 func (s *Service) LearnerTopic(ctx context.Context, actor identity.User, topicID string) (content.LearnerTopic, error) {
@@ -54,5 +61,12 @@ func (s *Service) LearnerCourseLesson(ctx context.Context, actor identity.User, 
 	if courseID == "" || lessonID == "" {
 		return content.LearnerLessonDetail{}, ErrInvalidInput
 	}
-	return s.repo.GetLearnerCourseLesson(ctx, courseID, lessonID)
+	row, err := s.repo.GetLearnerCourseLesson(ctx, courseID, lessonID)
+	if err != nil {
+		return content.LearnerLessonDetail{}, err
+	}
+	if err := s.checkCourseLessonAccess(ctx, actor, courseID, row); err != nil {
+		return content.LearnerLessonDetail{}, err
+	}
+	return row, nil
 }

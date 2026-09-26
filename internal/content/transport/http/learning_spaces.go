@@ -116,6 +116,11 @@ func presentLearnerCourse(row content.LearnerCourse) map[string]any {
 	}
 	result := presentLearnerCourseSummary(row.Course)
 	result["modules"] = modules
+	result["access"] = map[string]any{
+		"allowed":    row.AccessAllowed,
+		"configured": row.AccessConfigured,
+		"reason":     row.AccessReason,
+	}
 	return result
 }
 
@@ -178,6 +183,7 @@ func presentLearnerLessonSummary(row content.LearnerLessonSummary) map[string]an
 		"durationSeconds": row.DurationSeconds,
 		"isLocked":        row.IsLocked,
 		"isPreview":       row.IsPreview,
+		"commerceLocked":  row.CommerceLocked,
 		"sortOrder":       row.SortOrder,
 	}
 }

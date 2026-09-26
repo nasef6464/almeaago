@@ -13,6 +13,9 @@ import (
 	assessmentapp "github.com/nasef6464/almeaago/internal/assessment/application"
 	assessmentrepo "github.com/nasef6464/almeaago/internal/assessment/repository/postgres"
 	assessmenthttp "github.com/nasef6464/almeaago/internal/assessment/transport/http"
+	commerceapp "github.com/nasef6464/almeaago/internal/commerce/application"
+	commercerepo "github.com/nasef6464/almeaago/internal/commerce/repository/postgres"
+	commercehttp "github.com/nasef6464/almeaago/internal/commerce/transport/http"
 	contentapp "github.com/nasef6464/almeaago/internal/content/application"
 	contentrepo "github.com/nasef6464/almeaago/internal/content/repository/postgres"
 	contenthttp "github.com/nasef6464/almeaago/internal/content/transport/http"
@@ -81,12 +84,14 @@ func main() {
 	contentRepository := contentrepo.New(db, auditWriter)
 	organizationsRepository := orgrepo.New(db, auditWriter, identityRepository)
 	authorScope := contentapp.NewCombinedAuthorScope(contentRepository, organizationsRepository)
-	contentService := contentapp.NewServiceWithAuthorScope(contentRepository, authorScope)
+	taxonomyRepository := taxonomyrepo.New(db)
+	commerceRepository := commercerepo.New(db, auditWriter)
+	commerceService := commerceapp.NewService(commerceRepository, contentRepository, taxonomyRepository, organizationsRepository)
+	contentService := contentapp.NewServiceWithAuthorScope(contentRepository, authorScope, commerceService)
 	organizationsService := orgapp.NewServiceWithOptions(organizationsRepository, orgapp.ServiceOptions{
 		DirectorDirectory:       directorDirectory,
 		PlatformTrainerResolver: contentRepository,
 	})
-	taxonomyRepository := taxonomyrepo.New(db)
 	taxonomyService := taxonomyapp.NewService(taxonomyRepository)
 	questionRepository := questionrepo.New(db, auditWriter)
 	questionService := questionapp.NewServiceWithAuthorScope(questionRepository, authorScope)
@@ -141,6 +146,7 @@ func main() {
 	lessonProgressHandler := learninghttp.NewLessonProgress(lessonProgressService, identityService)
 	studyPlansHandler := learninghttp.NewStudyPlans(studyPlanService, identityService)
 	interventionsHandler := learninghttp.NewInterventions(interventionService, identityService)
+	commerceHandler := commercehttp.New(commerceService, identityService)
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
 	assessmentHandler := assessmenthttp.NewWithDistribution(assessmentService, identityService, assessmentAssignmentService, assessmentPlacementService, assessmentAttemptService)
 	assessmentAttemptsHandler := assessmenthttp.NewAttempts(assessmentAttemptService, identityService)
@@ -200,6 +206,7 @@ func main() {
 		LearningProgress:         lessonProgressHandler,
 		StudyPlans:               studyPlansHandler,
 		Interventions:            interventionsHandler,
+		Commerce:                 commerceHandler,
 		LegacySchoolAccess:       legacySchoolAccessHandler,
 	})
 

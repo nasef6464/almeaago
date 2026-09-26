@@ -63,16 +63,21 @@ type Repository interface {
 }
 
 type Service struct {
-	repo        Repository
-	authorScope AuthorScope
+	repo         Repository
+	authorScope  AuthorScope
+	courseAccess CourseAccessResolver
 }
 
 func NewService(repo Repository) *Service {
 	return &Service{repo: repo, authorScope: repo}
 }
 
-func NewServiceWithAuthorScope(repo Repository, scope AuthorScope) *Service {
-	return &Service{repo: repo, authorScope: scope}
+func NewServiceWithAuthorScope(repo Repository, scope AuthorScope, access ...CourseAccessResolver) *Service {
+	service := &Service{repo: repo, authorScope: scope}
+	if len(access) > 0 {
+		service.courseAccess = access[0]
+	}
+	return service
 }
 
 func normalizeOwner(actor identity.User, ownerType *content.OwnerType, ownerUserID, ownerSchoolID, assignedTeacherID *string) error {
