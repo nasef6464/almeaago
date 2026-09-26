@@ -451,7 +451,7 @@ func (r *Repository) AssignSchoolSeat(ctx context.Context, actor string, in comm
 	key := "school_seat:" + in.IdempotencyKey
 	seat, entitlement, err := r.createSchoolSeatTx(
 		ctx, tx, actor, in.SchoolID, in.ProductID, in.UserID,
-		"admin_assignment", in.IdempotencyKey, key, "school_contract", in.ExpiresAt, seatCapacity, validityDays,
+		"admin_assignment", in.IdempotencyKey, key, "admin_manual", in.ExpiresAt, seatCapacity, validityDays,
 	)
 	if err != nil {
 		return commerce.SchoolSeat{}, commerce.Entitlement{}, err
