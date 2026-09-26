@@ -123,6 +123,42 @@ WHERE payment_request_id=$1::uuid
 	return out, false, scanErr
 }
 
+func (r *Repository) applyProviderReversalTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	p commerce.PaymentRequest,
+	provider string,
+	in commerce.ProviderEvent,
+) (string, error) {
+	if in.AmountMinor == nil || *in.AmountMinor != p.FinalAmountMinor || in.Currency != p.Currency {
+		return "", commerce.ErrConflict
+	}
+	reversalType := commerce.PaymentRefund
+	if in.Status == commerce.ProviderChargeback {
+		reversalType = commerce.PaymentChargeback
+	} else if in.Status != commerce.ProviderRefunded {
+		return "", commerce.ErrConflict
+	}
+	_, duplicate, err := recordFullReversalTx(ctx, tx, p, "", commerce.PaymentReversalRecord{
+		PaymentRequestID:  p.ID,
+		ReversalType:      reversalType,
+		AmountMinor:       *in.AmountMinor,
+		Currency:          in.Currency,
+		ProviderCode:      provider,
+		ProviderReference: in.EventID,
+		Source:            commerce.ReversalProviderWebhook,
+		PayloadSHA256:     in.PayloadSHA256,
+		OccurredAt:        in.OccurredAt,
+	})
+	if err != nil {
+		return "", err
+	}
+	if duplicate {
+		return "reversal_duplicate", nil
+	}
+	return string(reversalType) + "_reversed", nil
+}
+
 func (r *Repository) RecordAdminReversal(
 	ctx context.Context,
 	actor, paymentRequestID string,
