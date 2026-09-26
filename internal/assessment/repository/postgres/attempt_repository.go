@@ -27,6 +27,29 @@ WHERE a.id=$1::uuid
 	return out, nil
 }
 
+func (r *Repository) FindDirectStart(ctx context.Context, student, assessmentID, startKey string) (assessment.Attempt, bool, error) {
+	var id, existingStudent, existingAssessment string
+	err := r.db.QueryRow(ctx, `
+SELECT id::text,student_id::text,assessment_id::text
+FROM assessment_attempts
+WHERE start_key=$1
+`, startKey).Scan(&id, &existingStudent, &existingAssessment)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return assessment.Attempt{}, false, nil
+	}
+	if err != nil {
+		return assessment.Attempt{}, false, err
+	}
+	if existingStudent != student || existingAssessment != assessmentID {
+		return assessment.Attempt{}, false, assessment.ErrConflict
+	}
+	out, err := r.GetAttempt(ctx, id)
+	if err != nil {
+		return assessment.Attempt{}, false, err
+	}
+	return out, true, nil
+}
+
 func (r *Repository) Start(ctx context.Context, student, assessmentID, startKey string) (assessment.Attempt, error) {
 	tx, e := r.db.Begin(ctx)
 	if e != nil {
