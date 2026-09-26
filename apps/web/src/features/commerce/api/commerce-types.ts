@@ -67,5 +67,10 @@ export interface CommerceRevenueEntry{
  trainerUserId:string;revenueSharePercentage:number|null;grossAmountMinor:number;discountAmountMinor:number;paidAmountMinor:number;
  currency:string;providerFeeMinor:number|null;trainerShareMinor:number|null;platformShareMinor:number|null;
  allocationStatus:CommerceRevenueAllocationStatus;payoutStatus:CommercePayoutStatus;allocationEvidence:string;allocatedBy:string;
- allocatedAt:string|null;payoutEvidence:string;paidBy:string;payoutPaidAt:string|null;revision:number;createdAt:string;updatedAt:string;
+ allocatedAt:string|null;payoutEvidence:string;paidBy:string;payoutPaidAt:string|null;reversalType:''|'refund'|'chargeback';reversedAmountMinor:number|null;
+ reversalReference:string;reversedAt:string|null;revision:number;createdAt:string;updatedAt:string;
+}
+export interface CommercePaymentReversal{
+ id:string;paymentRequestId:string;reversalType:'refund'|'chargeback';amountMinor:number;currency:string;providerCode:string;
+ providerReference:string;source:'provider_webhook'|'admin_evidence';evidence:string;occurredAt:string|null;createdAt:string;
 }
