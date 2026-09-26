@@ -12,6 +12,7 @@ function checkoutKey(productId:string){
  if(!value){value=crypto.randomUUID();sessionStorage.setItem(k,value)}
  return value;
 }
+function resetCheckoutKey(productId:string){sessionStorage.removeItem(`commerce-checkout:${productId}`)}
 
 export function CheckoutPage(){
  const{user,loading:authLoading,getCsrfToken}=useAuth();
@@ -55,7 +56,11 @@ export function CheckoutPage(){
    const r=await commerceClient.createCheckout({productId:product.id,discountCode:preview?.valid?preview.code:'',paymentMethod:method,idempotencyKey:checkoutKey(product.id)},csrf);
    setCurrent(r.request);setRequests(v=>[r.request,...v.filter(x=>x.id!==r.request.id)]);
    setNotice(r.request.gatewayMode==='manual_review'?'تم إنشاء طلب الدفع. لن يُفتح المحتوى قبل اعتماد الخادم للطلب.':'تم إنشاء طلب الدفع. سيُفتح المحتوى فقط بعد callback موثوق من مزود الدفع.');
-  }catch(e){setError(e instanceof Error?e.message:'تعذر إنشاء طلب الدفع')}
+  }catch(e){
+   const message=e instanceof Error?e.message:'تعذر إنشاء طلب الدفع';
+   if(message==='Payment provider unavailable')resetCheckoutKey(product.id);
+   setError(message);
+  }
   finally{setSaving(false)}
  }
 
@@ -75,7 +80,7 @@ export function CheckoutPage(){
    <label className="space-y-2"><span className="text-sm font-black">وسيلة الدفع</span><select aria-label="وسيلة الدفع" value={method} onChange={e=>setMethod(e.target.value as CommercePaymentMethod)} className="w-full rounded-xl border p-2.5"><option value="card">بطاقة</option><option value="transfer">تحويل بنكي</option><option value="wallet">محفظة</option></select></label>
    {displayed?<div className="space-y-2 rounded-xl bg-gray-50 p-4 text-sm"><div className="flex justify-between"><span>السعر الأصلي</span><strong>{money(displayed.original,displayed.currency)}</strong></div><div className="flex justify-between"><span>الخصم</span><strong>{money(displayed.discount,displayed.currency)}</strong></div><div className="flex justify-between border-t pt-2 text-base"><span className="font-black">المبلغ النهائي</span><strong>{money(displayed.final,displayed.currency)}</strong></div></div>:null}
    <button type="button" disabled={saving} onClick={()=>void submit()} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-black text-white disabled:opacity-40">{saving?<Loader2 size={18} className="animate-spin"/>:<ShieldCheck size={18}/>}إنشاء طلب دفع آمن</button>
-  </section>:<section data-testid="payment-request-status" className="rounded-2xl border border-amber-100 bg-amber-50 p-5 text-amber-950"><div className="flex items-center gap-2 font-black"><ReceiptText size={19}/>طلب الدفع قيد المراجعة</div><p className="mt-2 text-sm leading-7">الحالة: {current.status} · المبلغ: {money(current.finalAmountMinor,current.currency)} · المزود: {current.providerCode}</p><p className="mt-2 text-xs font-bold">لن يتم منح الوصول من الواجهة. الاعتماد اليدوي أو webhook الموقّع فقط يمكنه إنشاء Entitlement.</p></section>}
+  </section>:<section data-testid="payment-request-status" className="rounded-2xl border border-amber-100 bg-amber-50 p-5 text-amber-950"><div className="flex items-center gap-2 font-black"><ReceiptText size={19}/>{current.gatewayMode==='payment_link'?'طلب الدفع جاهز للانتقال إلى المزود':'طلب الدفع قيد المراجعة'}</div><p className="mt-2 text-sm leading-7">الحالة: {current.status} · المبلغ: {money(current.finalAmountMinor,current.currency)} · المزود: {current.providerCode}</p><p className="mt-2 text-xs font-bold">لن يتم منح الوصول من الواجهة. الاعتماد اليدوي أو webhook موثوق من المزود فقط يمكنه إنشاء Entitlement.</p>{current.gatewayMode==='payment_link'&&current.providerRedirectUrl?<a data-testid="payment-provider-redirect" href={current.providerRedirectUrl} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 font-black text-white"><CreditCard size={17}/>متابعة الدفع عبر {current.providerCode}</a>:null}</section>}
   <section className="rounded-2xl border bg-white p-4 shadow-sm"><div className="flex items-center gap-2 font-black"><BadgeCheck size={18}/>طلباتك الأخيرة</div><div className="mt-3 space-y-2">{requests.length===0?<p className="text-sm font-bold text-gray-500">لا توجد طلبات سابقة.</p>:requests.slice(0,5).map(r=><div key={r.id} className="flex items-center justify-between rounded-xl bg-gray-50 p-3 text-sm"><span className="font-bold">{r.productName}</span><span className="font-black">{r.status} · {money(r.finalAmountMinor,r.currency)}</span></div>)}</div></section>
   <Link to="/" className="inline-flex items-center gap-1 text-sm font-black text-indigo-700">العودة للمنصة <ChevronLeft size={16}/></Link>
  </div></main>;
