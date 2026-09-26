@@ -805,5 +805,32 @@ Verification:
 Audit:
 - `docs/domains/commerce/COMMERCE_CHECKOUT_LEDGER_AUDIT.md`.
 
+## Commerce Access Codes / Explicit School Seats — TESTED / MERGED
+PR #57 passed all required exact-head gates on `4dead20ea2f6480d3c854a52176462987ed0cdf7` and merged to `main` as `386023ebbfd73613df65727ead7491c146f9d2ff`.
+
+Implemented:
+- migration `000030_commerce_access_codes_seats` with normalized activation-code redemption and explicit school-seat ledgers.
+- access codes reference canonical paid Package/Membership products; package scope is not copied into code records.
+- server-normalized code redemption with lifecycle, expiry, max-use and per-user idempotency.
+- school-scoped code redemption requires an existing active Organizations membership; Commerce never creates or mutates school membership.
+- code and Package rows are transaction-locked before capacity evaluation so multiple activation codes cannot race past the same package seat cap.
+- capped school Packages do not inherit access through broad school membership; an explicit seat creates one user Entitlement.
+- explicit seat assignment requires an active school Entitlement and active target-user school membership through the Organizations projection.
+- seat assignment is capacity-bounded and idempotent; seat revoke atomically revokes its generated user Entitlement.
+- unlimited school Packages retain the existing school-level inheritance behavior.
+- learner Checkout supports activation-code redemption while keeping discount/payment authority server-side.
+- Commerce admin supports access-code lifecycle and explicit school-seat assign/revoke workflows.
+
+Verification:
+- Database CI `36243759206`: PASS apply + schema verification + rollback + re-apply.
+- Backend CI `36243759164`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36243759193`: PASS typecheck + production build.
+- Frontend E2E `36243759203`: PASS learner activation-code redemption + existing trusted Checkout/admin and Commerce foundation flows.
+- browser evidence artifact `10906349191`.
+- first E2E failure was a stale Commerce foundation mock for the newly added access-code directory; it was corrected without weakening behavior and all four gates passed on the final head.
+
+Audit:
+- `docs/domains/commerce/COMMERCE_ACCESS_CODES_SEATS_AUDIT.md`.
+
 ## Next exact action
-Continue Phase 8 Commerce from current `main` with **School Commerce Contracts + explicit Seat Assignment**. Model school contract/package validity, seat capacity and per-user seat/grant allocation relationally; keep Organizations authoritative for active school membership/class scope and Commerce authoritative for paid access. Do not infer seat consumption from membership arrays, do not let seat-capped packages grant by broad school membership alone, keep mutations idempotent/audited/bounded, and add Database + Backend + Frontend + E2E gates before merge. Access-code redemption, trainer revenue/payout ledger and Assessment entitlement consumption remain separate later Commerce batches.
+Continue Phase 8 Commerce from current `main` with the next still-deferred focused slice. Re-read the Commerce blueprint/current code before choosing between trainer revenue/payout ledger, Assessment entitlement consumption, provider-specific payment-session integration, or refunds/chargebacks. Keep each as a separate server-authoritative batch; do not combine them blindly.
