@@ -82,11 +82,12 @@ export function CourseLearningPage(){
 
   async function complete(){
     if(!detail)return;
-    setSaving(true);setError('');
+    setError('');
     try{
       if(detail.type==='video'&&videoRef.current){
         await persistVideoPosition(videoRef.current.currentTime,true);
       }
+      setSaving(true);
       const csrf=await getCsrfToken();
       const r=await lessonProgressClient.complete(detail.id,context,csrf);
       setProgress(r.progress);setNotice('تم تسجيل الدرس كمكتمل.');

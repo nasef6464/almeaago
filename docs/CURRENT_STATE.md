@@ -633,5 +633,25 @@ Verification:
 Audit:
 - `docs/domains/learning/LEARNING_REMEDIATION_LOOP_AUDIT.md`.
 
+## Learning Lesson / Video Progress — IN REVIEW
+Active branch: `feat/learning-lesson-video-progress`.
+
+Implemented on the branch:
+- migration `000024_learning_lesson_video_progress` with context-isolated normalized Lesson and video resume state.
+- student-only CSRF-protected progress API.
+- Content-owned learner-safe context validation through a narrow resolver boundary.
+- lazy learner Course Lesson detail instead of hydrating video URLs for every Lesson in a Course.
+- direct-upload HTML5 video resume with coarse persistence and explicit server-confirmed completion.
+- locked non-preview Course Lessons fail closed; Learning does not invent Commerce entitlement.
+- no automatic completion from seek/position.
+- no interactive-question schema invented before Content owns that contract.
+- responsive `/learning/courses/{courseId}` surface and mobile Playwright coverage.
+
+Audit:
+- `docs/domains/learning/LEARNING_LESSON_VIDEO_PROGRESS_AUDIT.md`.
+
+Verification state:
+- not merge-qualified until Database CI + Backend CI + Frontend CI + Frontend E2E all pass on the exact PR head.
+
 ## Next exact action
-Continue Phase 7 from current `main` with a focused remaining-gap audit before the next implementation branch: compare legacy/blueprint behavior for mastery goals, study plans, learner interventions and lesson/video progress, then choose the lowest-dependency normalized slice. Keep ReviewCard/Question identity canonical, keep Commerce entitlement and Realtime outside Learning, and do not introduce unbounded user arrays or a second assessment engine.
+Open the Lesson / Video Progress PR, run all four exact-head gates, fix every failure on the same branch without weakening tests, record the verified SHA/run evidence, and merge only when all gates are green. After merge, resume the Phase 7 gap audit for mastery goals/study plans/interventions rather than guessing their unresolved product shapes.

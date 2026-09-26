@@ -516,6 +516,50 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Student role required }
 
+
+  /api/v1/learning-progress/lessons/{lessonId}:
+    get:
+      operationId: learningLessonProgressGet
+      description: >
+        Student-only exact-context Lesson progress read. Returns not_started without creating
+        a row when the learner-safe Content target exists but has no progress yet.
+      parameters:
+        - { in: path, name: lessonId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: contextType, required: true, schema: { type: string, enum: [course, foundation] } }
+        - { in: query, name: courseId, schema: { type: string, format: uuid } }
+        - { in: query, name: topicId, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Learner-owned Lesson progress }
+        "400": { description: Invalid exact learning context }
+        "403": { description: Student role required }
+        "404": { description: Learner-safe Content target unavailable }
+
+  /api/v1/learning-progress/lessons/{lessonId}/video:
+    put:
+      operationId: learningLessonVideoProgressSave
+      description: >
+        CSRF-protected video resume write. Position is bounded and never auto-completes the Lesson.
+      parameters:
+        - { in: path, name: lessonId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Saved video resume progress }
+        "400": { description: Invalid context, non-video Lesson or invalid position }
+        "403": { description: Student role or CSRF denied }
+        "404": { description: Learner-safe Content target unavailable }
+
+  /api/v1/learning-progress/lessons/{lessonId}/complete:
+    post:
+      operationId: learningLessonComplete
+      description: >
+        CSRF-protected explicit Lesson completion. Completion is separate from video seek/resume state.
+      parameters:
+        - { in: path, name: lessonId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Lesson marked completed }
+        "400": { description: Invalid exact learning context }
+        "403": { description: Student role or CSRF denied }
+        "404": { description: Learner-safe Content target unavailable }
+
   /api/v1/media/uploads/presign:
     post:
       operationId: mediaPresignUpload

@@ -171,7 +171,7 @@ func writeError(w http.ResponseWriter, err error) {
 	case errors.Is(err, learningapp.ErrForbidden):
 		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Forbidden"})
 	case errors.Is(err, learningapp.ErrNotFound):
-		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Review item not found"})
+		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Learning resource not found"})
 	case errors.Is(err, learningapp.ErrConflict):
 		writeJSON(w, http.StatusConflict, map[string]string{"message": "Learning state conflict"})
 	case errors.Is(err, learningapp.ErrNotDue):
