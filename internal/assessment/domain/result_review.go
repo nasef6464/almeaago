@@ -18,6 +18,7 @@ type ResultListItem struct {
 	FinalizedAt      time.Time `json:"finalizedAt"`
 }
 
+// ResultPage is a bounded learner-owned history page.
 type ResultPage struct {
 	Items   []ResultListItem `json:"items"`
 	Page    int              `json:"page"`
