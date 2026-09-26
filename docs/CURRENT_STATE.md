@@ -746,10 +746,10 @@ Verification:
 Audit:
 - `docs/domains/learning/LEARNING_SCHOOL_INTERVENTIONS_AUDIT.md`.
 
-## Commerce Entitlement Foundation — IN REVIEW
-Active branch: `feat/commerce-entitlement-foundation`.
+## Commerce Entitlement Foundation — TESTED / MERGED
+PR #55 passed all required exact-head gates on `186aab81e0df34cadad18b1d2c52df2e1384f0f9` and merged to `main` as `d0daabcadcdfc8bdd7768d2691641b62becde174`.
 
-Implemented on the branch:
+Implemented:
 - normalized `commerce_products`, `commerce_packages`, relational `commerce_package_items`, and canonical `commerce_entitlements`.
 - integer minor-unit pricing + currency; Content remains price-agnostic.
 - verified Course-vs-Package split and legacy content-type scopes.
@@ -764,11 +764,16 @@ Implemented on the branch:
 - responsive Commerce admin UI and learner preview/paid lock behavior.
 - PaymentRequest, discounts, provider secrets/webhooks, access-code redemption, revenue payouts and Assessment entitlement consumption remain deliberately outside this foundation slice.
 
+Verification:
+- Database CI `36236809132`: PASS apply + schema verification + rollback + re-apply.
+- Backend CI `36236809185`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36236809255`: PASS typecheck + production build.
+- Frontend E2E `36236809141`: PASS Commerce admin/access behavior plus existing browser suite.
+- browser evidence artifact `10903659884`.
+- initial Backend failure was gofmt-only and was corrected on the same PR; all four gates were rerun on the final head.
+
 Audit:
 - `docs/domains/commerce/COMMERCE_ENTITLEMENT_FOUNDATION_AUDIT.md`.
 
-Verification state:
-- not merge-qualified until exact-head Database CI + Backend CI + Frontend CI + Frontend E2E pass.
-
 ## Next exact action
-Open the Commerce Entitlement Foundation PR, run exact-head Database + Backend + Frontend + E2E gates, fix every failure on the same branch without weakening tests, record the verified SHA/run evidence, and merge only when all gates are green. After merge, continue Phase 8 with server-owned PaymentRequest/discount/checkout validation and trusted provider-event confirmation on top of this entitlement authority; do not let payment UI create grants directly.
+Continue Phase 8 Commerce from current `main` with server-owned PaymentRequest + discount + checkout validation and a trusted provider-event ledger. Derive payable product, price, currency and entitlement scope from Commerce server state; require idempotency; verify provider callbacks/signatures before any grant; keep provider secrets outside browser/Content/Assessment/Learning; and add Database + Backend + Frontend + E2E gates before merge. Access-code redemption, explicit school seat assignment, trainer payouts and Assessment entitlement consumption remain later separate Commerce batches.

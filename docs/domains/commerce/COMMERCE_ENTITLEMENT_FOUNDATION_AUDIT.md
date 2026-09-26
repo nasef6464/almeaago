@@ -1,6 +1,6 @@
 # Commerce Entitlement Foundation Audit
 
-Status: **IN REVIEW**
+Status: **TESTED / MERGED**
 
 ## Legacy contract verified
 The source system confirms:
@@ -99,3 +99,13 @@ Normal access checks are bounded point/EXISTS queries and do not scan user array
 - pricing marketplace visual parity.
 
 Those are separate Commerce batches and must reuse this product/entitlement authority rather than adding access arrays to User/Content/Assessment.
+
+
+## Verification checkpoint
+- exact tested PR head: `186aab81e0df34cadad18b1d2c52df2e1384f0f9`.
+- Database CI `36236809132`: PASS.
+- Backend CI `36236809185`: PASS.
+- Frontend CI `36236809255`: PASS.
+- Frontend E2E `36236809141`: PASS.
+- browser evidence artifact: `10903659884`.
+- PR #55 merged to `main` as `d0daabcadcdfc8bdd7768d2691641b62becde174`.
