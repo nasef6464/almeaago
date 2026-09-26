@@ -50,7 +50,7 @@ CREATE TABLE commerce_revenue_entries (
     OR
     (trainer_user_id IS NOT NULL AND revenue_share_percentage IS NULL AND allocation_status='policy_missing' AND payout_status='pending')
     OR
-    (trainer_user_id IS NOT NULL AND revenue_share_percentage IS NOT NULL AND allocation_status IN ('pending','allocated') AND payout_status IN ('pending','paid'))
+    (trainer_user_id IS NOT NULL AND revenue_share_percentage IS NOT NULL AND allocation_status IN ('pending','allocated') AND payout_status IN ('not_applicable','pending','paid'))
   ),
   CONSTRAINT commerce_revenue_allocation_shape CHECK (
     (allocation_status <> 'allocated'
