@@ -163,7 +163,7 @@ test('admin records factual trainer revenue allocation and payout evidence',asyn
  await expect(page.getByText('نسبة السياسة 35%')).toBeVisible();
  await page.getByRole('button',{name:'تسجيل التسوية الفعلية'}).click();
  await expect(page.getByText('تم تسجيل التسوية الفعلية بدون تقدير آلي للإيراد.')).toBeVisible();
- await expect(page.getByText('حصة المدرب', {exact:false})).toBeVisible();
+ await expect(page.getByText(/^رسوم المزود .* حصة المدرب .* حصة المنصة/)).toBeVisible();
  await page.getByRole('button',{name:'تسجيل صرف المدرب'}).click();
  await expect(page.getByText('تم تسجيل صرف حصة المدرب في السجل.')).toBeVisible();
  await expect(page.getByText('الصرف paid', {exact:false})).toBeVisible();
