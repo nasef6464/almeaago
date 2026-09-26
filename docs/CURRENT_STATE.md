@@ -717,30 +717,34 @@ Verification:
 Audit:
 - `docs/domains/learning/LEARNING_STUDY_PLANS_AUDIT.md`.
 
-## Learning School Interventions — IN REVIEW
-Active branch: `feat/learning-school-interventions`.
+## Learning School Interventions — TESTED / MERGED
+PR #54 passed all required exact-head gates on `4ac47b749c03259632e697dc34fa34503ebfd9cb` and merged to `main` as `b9e3d76ec39d41963355516207f02345e53c069d`.
 
-Implemented on the branch:
+Implemented:
 - normalized `school_interventions` with exact school/class/student/path/subject/skill relationships, linked Study Plan, lifecycle, baseline and outcome snapshots.
 - verified legacy intervention semantics: one school student + skill, `study_plan` action, 14-day generated plan, follow-up, remediation threshold, minimum evidence and outcome measurement.
 - Learning owns intervention state; Organizations owns school/class/student/staff authority; Taxonomy owns exact skill scope.
 - school-admin management requires `SCHOOL_INTERVENTIONS_MANAGE`; view accepts VIEW/MANAGE; supervisor authority follows exact active school/class scopes.
-- class-scoped supervisors cannot issue broad school intervention lists.
+- no staff intervention list request is sent before exact class selection; class-scoped supervisors cannot issue broad school reads.
 - create validates active student class membership and exact canonical skill before generating any plan.
-- intervention Study Plan and intervention row are created transactionally; active intervention plans cannot be edited/deleted through the learner self-owned Study Plan mutation API.
-- baseline and follow-up outcome use canonical Learning evidence for the exact student/path/subject/skill.
-- outcome is only marked measured after the configured minimum new evidence; optional threshold comparison remains server-owned.
-- bounded staff list (default 50/max 100) and learner list (default 20/max 50), both `limit+1/hasMore`; no exact-count scan added.
-- CSRF-protected create/update/measure with optimistic `expectedUpdatedAt` and transaction-scoped audit.
+- intervention Study Plan and intervention row are created transactionally; active intervention plans remain learner-readable but cannot be edited/deleted through self-owned Study Plan mutations.
+- baseline and outcome use canonical Learning evidence for the exact student/path/subject/skill.
+- outcome remains insufficient until the configured minimum new evidence exists; delta/threshold comparison is server-owned.
+- bounded staff list (default 50/max 100) and learner list (default 20/max 50), both `limit+1/hasMore`; no exact-count Learning scan added.
+- CSRF-protected create/update/measure with optimistic `expectedUpdatedAt` and transaction-scoped Operations audit.
 - responsive school director/supervisor intervention UI using canonical school contexts/classes/roster + Taxonomy.
 - learner `/plan` shows active school intervention context alongside the generated Study Plan.
-- Playwright covers director lifecycle, exact-class supervisor reads and mobile learner visibility.
+
+Verification:
+- Database CI `36234761401`: PASS apply + schema verification + rollback + re-apply.
+- Backend CI `36234761307`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36234761304`: PASS typecheck + production build.
+- Frontend E2E `36234761314`: PASS director create/measure/complete, exact-class supervisor read, mobile learner intervention visibility and existing browser suite.
+- browser evidence artifact `10903569202`.
+- initial Backend failure was gofmt-only and was corrected on the same PR; all gates were rerun on the final head.
 
 Audit:
 - `docs/domains/learning/LEARNING_SCHOOL_INTERVENTIONS_AUDIT.md`.
 
-Verification state:
-- not merge-qualified until exact-head Database CI + Backend CI + Frontend CI + Frontend E2E pass.
-
 ## Next exact action
-Open the School Interventions PR, run all four exact-head gates, fix every failure on the same branch without weakening tests, record the verified SHA/run evidence, and merge only when all gates are green. After merge, choose the next Phase 7/8 batch from the execution plan and current parity matrix rather than an old chat state.
+Phase 7 core Learning/Adaptive/Review slices are now tested/merged. Start Phase 8 Commerce/Entitlements from current `main` with a legacy contract audit before schema work: identify canonical package/product/price/entitlement ownership, free-vs-paid access rules for Content and Assessment, school/package boundaries, subscription lifecycle and payment-provider boundaries. Then create only the normalized PostgreSQL Commerce foundation needed for server-owned entitlement checks; do not mix payment-provider secrets/state into Content, Assessment or Learning and do not add broad access queries.

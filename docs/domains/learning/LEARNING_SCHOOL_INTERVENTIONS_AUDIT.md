@@ -1,6 +1,6 @@
 # Learning School Interventions Audit
 
-Status: **IN REVIEW**
+Status: **TESTED / MERGED**
 
 ## Legacy contract verified
 The legacy intervention flow was not merely an administrative note. It linked a school/class
@@ -100,3 +100,13 @@ This slice does not add:
 - Commerce entitlement.
 - AI-generated interventions.
 - staff-wide generic Study Plan CRUD.
+
+
+## Verification checkpoint
+- exact tested PR head: `4ac47b749c03259632e697dc34fa34503ebfd9cb`.
+- Database CI `36234761401`: PASS.
+- Backend CI `36234761307`: PASS.
+- Frontend CI `36234761304`: PASS.
+- Frontend E2E `36234761314`: PASS.
+- browser evidence artifact: `10903569202`.
+- PR #54 merged to `main` as `b9e3d76ec39d41963355516207f02345e53c069d`.
