@@ -214,4 +214,3 @@ func TestDirectPaidAttemptRequiresCommerceEntitlement(t *testing.T) {
 		t.Fatalf("entitled direct attempt failed: %#v %v", out, err)
 	}
 }
-
