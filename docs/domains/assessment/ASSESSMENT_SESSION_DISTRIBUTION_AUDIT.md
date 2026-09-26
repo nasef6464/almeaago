@@ -1,6 +1,6 @@
 # Assessment Session Distribution Audit
 
-Status: **IN REVIEW**
+Status: **TESTED / MERGED**
 
 ## Scope
 This slice closes Assessment's remaining HTTP/product-entry distribution surface:
@@ -71,3 +71,13 @@ All answer rows reference exact `assessment_version_questions` and `question_opt
 - entitlement is Commerce.
 - mastery/evidence is Learning.
 - public-to-account identity claiming is a separate explicit product flow, not implicit matching by name/contact.
+
+
+## Verification checkpoint
+- exact tested PR head: `7574543efca3f577e0821280691146cfae9496d6`.
+- Database CI `36213579205`: PASS.
+- Backend CI `36213579357`: PASS.
+- Frontend CI `36213579167`: PASS.
+- Frontend E2E `36213579219`: PASS.
+- browser evidence artifact: `10896393424`.
+- PR #48 merged to `main` as `c67f848b7495c240b9daf7b36f712c14940f89ef`.

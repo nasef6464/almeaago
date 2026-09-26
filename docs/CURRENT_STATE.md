@@ -533,31 +533,50 @@ Verification:
 Audit:
 - `docs/domains/assessment/ASSESSMENT_LEARNING_PLACEMENTS_AUDIT.md`.
 
-## Assessment Public / Barcode / Live Sessions — IN REVIEW
-Active branch: `feat/assessment-session-distribution`.
+## Assessment Public / Barcode / Live Sessions — TESTED / MERGED
+PR #48 passed all required exact-head gates on `7574543efca3f577e0821280691146cfae9496d6` and merged to `main` as `c67f848b7495c240b9daf7b36f712c14940f89ef`.
 
-Implemented on the branch:
+Implemented:
 - normalized staff Session distribution over canonical `assessment_sessions`, pinned to the exact published Assessment version.
-- server-generated stable entry codes; sessions start as `scheduled` and require an explicit CSRF-protected activation.
+- server-generated stable entry codes; Sessions start `scheduled` and require explicit CSRF-protected activation.
 - server-owned active/open/close/cancel policy.
 - bounded staff list (default 50, max 100, `hasMore`; no exact-count list scan).
-- anonymous `public/barcode` attempts in dedicated normalized tables, with no Guest User fabrication and no account-result mixing.
-- public attempt idempotent start/submission keys, per-participant attempt budget, server expiry, canonical Question-version references and server scoring.
-- public answer submission is batched through one relational insert rather than per-question SQL round trips.
-- optional bounded global public submission cap.
-- authenticated Student `live` join/start reuses canonical `assessment_attempts` with `session_id`, per-session attempt budget and school/class membership gate when scoped.
-- responsive staff Session manager, anonymous Barcode/Public runner, and authenticated Live join UI.
-- Smart Classroom websocket/presence/reveal orchestration remains owned by Realtime and is not duplicated here.
+- anonymous `public/barcode` attempts in dedicated normalized relational tables, with no Guest User fabrication and no account-result mixing.
+- SHA-256 participant key storage, idempotent start/submission keys, per-participant attempt budget and server expiry.
+- batched public answer insert with exact Assessment/Question-version foreign-key integrity and server-owned points-weighted scoring.
+- optional bounded public `max_submissions`.
+- authenticated Student `live` join/start reuses canonical `assessment_attempts.session_id`, per-session attempt budget and optional school/class membership gate.
+- responsive staff Session manager, anonymous mobile Barcode/Public runner and authenticated mobile Live join flow into the canonical Attempt runner.
+- Smart Classroom websocket/presence/reveal/projector orchestration remains Realtime-owned.
 - Commerce entitlement and Learning mastery/evidence side effects remain outside this slice.
 
 Migration:
 - `000021_assessment_session_distribution`.
 
-Verification state:
-- not merge-qualified until Database CI + Backend CI + Frontend CI + Frontend E2E pass on the exact PR head.
+Verification:
+- Database CI `36213579205`: PASS apply + schema verification + rollback + re-apply.
+- Backend CI `36213579357`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36213579167`: PASS typecheck + production build.
+- Frontend E2E `36213579219`: PASS staff Session create/activate + anonymous mobile barcode submission + authenticated mobile live join/start + existing browser suite.
+- browser evidence artifact `10896393424`.
+- initial first-pass Backend failure was gofmt-only and was corrected on the same PR without weakening behavior.
 
 Audit:
 - `docs/domains/assessment/ASSESSMENT_SESSION_DISTRIBUTION_AUDIT.md`.
 
+## Assessment phase checkpoint
+Assessment HTTP/product-entry core is now closed through:
+- versioned Definition + staff builder.
+- learner Attempt/autosave/submit/result/review.
+- directed Assignments.
+- Learning Placements.
+- Public/Barcode/Live Session distribution.
+
+Not claimed by this checkpoint:
+- Smart Classroom realtime orchestration.
+- Learning mastery/adaptive/review-card side effects.
+- Commerce entitlement decisions.
+- Reporting/analytics beyond Assessment core result/review projections.
+
 ## Next exact action
-Open the Session Distribution PR, run Database + Backend + Frontend + E2E on the exact head, fix every failure on the same branch, and merge only after the exact head is green. After merge, Assessment Distribution is closed at HTTP/product-entry level; Smart Classroom realtime orchestration remains a separate Realtime phase.
+Start the Learning / Adaptive / Review phase from current `main`. Build the normalized learner evidence/mastery/review-card foundation first: one canonical evidence event per attempt/question outcome, idempotent application from Assessment submission, bounded review-library reads, and deterministic mastery/next-action rules. Do not move Smart Classroom realtime state or Commerce entitlement into Learning.
