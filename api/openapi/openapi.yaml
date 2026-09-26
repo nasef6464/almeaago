@@ -925,6 +925,54 @@ paths:
         "403": { description: Platform admin or CSRF required }
         "409": { description: Revision/lifecycle conflict }
 
+  /api/v1/commerce/admin/revenue:
+    get:
+      operationId: commerceAdminRevenueList
+      description: >
+        Platform-admin bounded factual revenue ledger derived only from trusted paid PaymentRequests.
+        Separates gross, discount and paid amounts from provider fee, trainer share and platform share.
+        No provider fee or trainer share is estimated automatically. allocationStatus and payoutStatus
+        may be used as bounded filters.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: allocationStatus, schema: { type: string, enum: [not_applicable, policy_missing, pending, allocated] } }
+        - { in: query, name: payoutStatus, schema: { type: string, enum: [not_applicable, pending, paid] } }
+      responses:
+        "200": { description: Bounded actual-sale revenue page }
+        "403": { description: Platform admin required }
+
+  /api/v1/commerce/admin/revenue/{id}/allocation:
+    patch:
+      operationId: commerceAdminRevenueAllocate
+      description: >
+        Platform-admin CSRF-protected optimistic actual-settlement entry. Requires explicit evidence.
+        Provider fee + trainer share + platform share must equal the trusted paid amount exactly.
+        This endpoint records factual settlement numbers; it never computes an estimated share from
+        catalog price or the configured revenue percentage.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Revenue allocation recorded }
+        "400": { description: Invalid allocation or evidence }
+        "403": { description: Platform admin or CSRF required }
+        "409": { description: Revision, arithmetic or revenue-policy conflict }
+
+  /api/v1/commerce/admin/revenue/{id}/payout:
+    patch:
+      operationId: commerceAdminTrainerPayoutPaid
+      description: >
+        Platform-admin CSRF-protected optimistic evidence record that an allocated trainer share
+        was paid. The platform records evidence only; this slice does not execute an external
+        money transfer or invent a payout-provider integration.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Trainer payout marked paid with evidence }
+        "400": { description: Invalid payout evidence }
+        "403": { description: Platform admin or CSRF required }
+        "409": { description: Revision or payout-lifecycle conflict }
+
   /api/v1/commerce/webhooks/{provider}:
     post:
       operationId: commerceProviderWebhook
