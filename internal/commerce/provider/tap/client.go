@@ -160,14 +160,14 @@ func (c *Client) Initiate(ctx context.Context, in commerce.ProviderSessionInit) 
 		return commerce.ProviderSession{}, ErrProvider
 	}
 	var out struct {
-		ID          string \`json:"id"\`
-		Status      string \`json:"status"\`
+		ID          string `json:"id"`
+		Status      string `json:"status"`
 		Transaction struct {
-			URL string \`json:"url"\`
-		} \`json:"transaction"\`
+			URL string `json:"url"`
+		} `json:"transaction"`
 		Redirect struct {
-			URL string \`json:"url"\`
-		} \`json:"redirect"\`
+			URL string `json:"url"`
+		} `json:"redirect"`
 	}
 	if err = json.Unmarshal(body, &out); err != nil {
 		return commerce.ProviderSession{}, ErrProvider
@@ -188,20 +188,20 @@ func (c *Client) Initiate(ctx context.Context, in commerce.ProviderSessionInit) 
 }
 
 type webhookPayload struct {
-	ID       string      \`json:"id"\`
-	Object   string      \`json:"object"\`
-	Status   string      \`json:"status"\`
-	Amount   json.Number \`json:"amount"\`
-	Currency string      \`json:"currency"\`
+	ID       string      `json:"id"`
+	Object   string      `json:"object"`
+	Status   string      `json:"status"`
+	Amount   json.Number `json:"amount"`
+	Currency string      `json:"currency"`
 	Reference struct {
-		Gateway     string \`json:"gateway"\`
-		Payment     string \`json:"payment"\`
-		Transaction string \`json:"transaction"\`
-		Order       string \`json:"order"\`
-	} \`json:"reference"\`
+		Gateway     string `json:"gateway"`
+		Payment     string `json:"payment"`
+		Transaction string `json:"transaction"`
+		Order       string `json:"order"`
+	} `json:"reference"`
 	Transaction struct {
-		Created json.RawMessage \`json:"created"\`
-	} \`json:"transaction"\`
+		Created json.RawMessage `json:"created"`
+	} `json:"transaction"`
 }
 
 func createdString(raw json.RawMessage) string {
