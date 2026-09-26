@@ -9,6 +9,24 @@ import (
 	"time"
 )
 
+func (r *Repository) GetPublishedAccessContext(ctx context.Context, assessmentID string) (assessment.AccessContext, error) {
+	var out assessment.AccessContext
+	err := r.db.QueryRow(ctx, `
+SELECT a.id::text,v.assessment_kind,v.access_type,v.path_id::text,COALESCE(v.subject_id::text,'')
+FROM assessments a
+JOIN assessment_versions v ON v.assessment_id=a.id AND v.version=a.published_version
+WHERE a.id=$1::uuid
+  AND a.workflow_status='approved'
+  AND a.is_published=true
+  AND a.is_visible=true
+`, assessmentID).Scan(&out.AssessmentID, &out.AssessmentKind, &out.BaseAccess, &out.PathID, &out.SubjectID)
+	if err != nil {
+		return out, mapError(err)
+	}
+	out.PlacementAccess = assessment.PlacementAccessInherit
+	return out, nil
+}
+
 func (r *Repository) Start(ctx context.Context, student, assessmentID, startKey string) (assessment.Attempt, error) {
 	tx, e := r.db.Begin(ctx)
 	if e != nil {
