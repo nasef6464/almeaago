@@ -2,6 +2,7 @@ import {BadgeDollarSign,KeyRound,Loader2,PackagePlus,RefreshCcw,Save,ShieldCheck
 import {useEffect,useMemo,useState} from 'react';
 import {useAuth} from '../../auth/state/AuthProvider';
 import {commerceClient} from '../api/commerce-client';
+import {CommercePaymentsPanel} from '../components/CommercePaymentsPanel';
 import type {CommerceContentType,CommerceEntitlement,CommerceProduct,CommerceProductWrite} from '../api/commerce-types';
 
 const money=(minor:number,currency:string)=>new Intl.NumberFormat('ar-SA',{style:'currency',currency}).format(minor/100);
@@ -52,6 +53,7 @@ export function CommerceAdminPage(){
    <div className="space-y-3 rounded-2xl border bg-white p-4 shadow-sm"><div className="flex items-center gap-2 font-black"><KeyRound size={18}/>منحة وصول يدوية</div><select aria-label="نوع المستفيد" value={subjectType} onChange={e=>setSubjectType(e.target.value as 'user'|'school')} className="w-full rounded-xl border p-2.5"><option value="user">مستخدم</option><option value="school">مدرسة</option></select><input aria-label="معرف المستفيد" value={subjectId} onChange={e=>setSubjectId(e.target.value)} placeholder="UUID" className="w-full rounded-xl border p-2.5"/><select aria-label="المنتج الممنوح" value={grantProduct} onChange={e=>setGrantProduct(e.target.value)} className="w-full rounded-xl border p-2.5"><option value="">اختر المنتج</option>{activeProducts.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select><button type="button" disabled={saving==='grant'} onClick={()=>void grant()} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 font-black text-white disabled:opacity-40"><ShieldCheck size={17}/>منح الوصول</button></div>
   </section>
 
+  <CommercePaymentsPanel getCsrfToken={getCsrfToken}/>
   <section className="overflow-hidden rounded-2xl border bg-white shadow-sm"><div className="border-b p-4 font-black">آخر المنح</div><div className="divide-y">{entitlements.length===0?<div className="p-6 text-center text-sm font-bold text-gray-500">لا توجد منح.</div>:entitlements.map(row=><article key={row.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="font-black">{row.subjectType==='user'?row.userId:row.schoolId}</div><div className="text-xs font-bold text-gray-400">{row.productId} · {row.status}</div></div>{row.status==='active'?<button type="button" disabled={saving===row.id} onClick={()=>void revoke(row)} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 disabled:opacity-40">إلغاء المنحة</button>:null}</article>)}</div></section>
  </main>;
 }
