@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	ErrForbidden          = errors.New("commerce action forbidden")
-	ErrInvalidInput       = errors.New("invalid commerce input")
+	ErrForbidden           = errors.New("commerce action forbidden")
+	ErrInvalidInput        = errors.New("invalid commerce input")
 	ErrProviderUnavailable = errors.New("commerce payment provider unavailable")
 )
 
