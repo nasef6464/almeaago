@@ -2,6 +2,7 @@ package domain
 
 type ProviderSessionInit struct {
 	PaymentRequestID string
+	ProductID        string
 	UserID           string
 	UserName         string
 	UserEmail        string
