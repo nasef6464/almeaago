@@ -67,6 +67,9 @@ func NewWithAccess(service *commerceapp.Service, checkout *commerceapp.CheckoutS
 		r.Put("/admin/discounts/{id}", h.updateDiscount)
 		r.Get("/admin/payment-requests", h.adminPaymentRequests)
 		r.Patch("/admin/payment-requests/{id}/review", h.reviewPaymentRequest)
+		r.Get("/admin/revenue", h.listRevenueEntries)
+		r.Patch("/admin/revenue/{id}/allocation", h.allocateRevenue)
+		r.Patch("/admin/revenue/{id}/payout", h.markPayoutPaid)
 		r.Post("/webhooks/{provider}", h.providerWebhook)
 	}
 	return r
