@@ -19,7 +19,7 @@ type AccessRepository interface {
 	RevokeSchoolSeat(context.Context, string, string, int, string) (commerce.SchoolSeatAssignment, error)
 }
 
-type AccessService struct {
+type ProductReader interface {\n\tGetProduct(context.Context, string) (commerce.Product, error)\n}\n\ntype AccessService struct {
 	repo     AccessRepository
 	products ProductReader
 	schools  SchoolMembershipResolver
