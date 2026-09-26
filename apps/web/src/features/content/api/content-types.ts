@@ -339,3 +339,9 @@ export interface LearnerCourseModule{id:string;title:string;description:string;s
 export interface LearnerCourse extends LearnerCourseSummary{modules:LearnerCourseModule[]}
 export interface LearnerTopic extends LearnerTopicSummary{lessons:LearnerLessonSummary[];libraryItems:LearnerLibrarySummary[]}
 export interface LearningSpace{pathId:string;subjectId:string;courses:{items:LearnerCourseSummary[];hasMore:boolean};foundation:{items:LearnerTopicSummary[];hasMore:boolean};library:{items:LearnerLibrarySummary[];hasMore:boolean}}
+
+export interface LearnerLessonDetail extends LearnerLessonSummary {
+  contentText:string;
+  videoUrl:string;
+  videoSource:''|'upload'|'youtube'|'vimeo';
+}

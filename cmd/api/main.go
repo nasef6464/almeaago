@@ -92,6 +92,7 @@ func main() {
 	questionService := questionapp.NewServiceWithAuthorScope(questionRepository, authorScope)
 	learningRepository := learningrepo.New(db)
 	learningService := learningapp.NewService(learningRepository, questionService)
+	lessonProgressService := learningapp.NewLessonProgressService(learningRepository, contentRepository)
 	assessmentRepository := assessmentrepo.New(db, auditWriter)
 	assessmentService := assessmentapp.NewService(assessmentRepository)
 	assessmentAttemptService := assessmentapp.NewAttemptServiceWithLearning(assessmentRepository, learningService)
@@ -134,6 +135,7 @@ func main() {
 	learningSpacesHandler := contenthttp.NewLearningSpaces(contentService, identityService)
 	learningReviewHandler := learninghttp.NewReview(learningService, identityService)
 	masteryHandler := learninghttp.NewMastery(learningService, identityService)
+	lessonProgressHandler := learninghttp.NewLessonProgress(lessonProgressService, identityService)
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
 	assessmentHandler := assessmenthttp.NewWithDistribution(assessmentService, identityService, assessmentAssignmentService, assessmentPlacementService, assessmentAttemptService)
 	assessmentAttemptsHandler := assessmenthttp.NewAttempts(assessmentAttemptService, identityService)
@@ -190,6 +192,7 @@ func main() {
 		LearningSpaces:           learningSpacesHandler,
 		LearningReview:           learningReviewHandler,
 		Mastery:                  masteryHandler,
+		LearningProgress:         lessonProgressHandler,
 		LegacySchoolAccess:       legacySchoolAccessHandler,
 	})
 

@@ -438,6 +438,13 @@ type LearnerLessonSummary struct {
 	SortOrder       int
 }
 
+type LearnerLessonDetail struct {
+	LearnerLessonSummary
+	ContentText string
+	VideoURL    string
+	VideoSource string
+}
+
 type LearnerCourseModule struct {
 	ID          string
 	Title       string
