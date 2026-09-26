@@ -98,3 +98,24 @@ func (s *AttemptService) Result(ctx context.Context, a identity.User, id string)
 	}
 	return s.repo.GetResult(ctx, id)
 }
+
+func (s *AttemptService) Results(ctx context.Context, a identity.User, page, limit int) (assessment.ResultPage, error) {
+	if requireStudent(a) != nil {
+		return assessment.ResultPage{}, ErrForbidden
+	}
+	if page < 1 { page = 1 }
+	if limit < 1 { limit = 20 }
+	if limit > 100 { limit = 100 }
+	return s.repo.ListResults(ctx, a.ID, page, limit)
+}
+
+func (s *AttemptService) ResultDetail(ctx context.Context, a identity.User, id string) (assessment.ResultDetail, error) {
+	if requireStudent(a) != nil {
+		return assessment.ResultDetail{}, ErrForbidden
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return assessment.ResultDetail{}, ErrInvalidInput
+	}
+	return s.repo.GetResultDetail(ctx, a.ID, id)
+}
