@@ -652,7 +652,8 @@ paths:
       operationId: learningStudyPlanUpdate
       description: >
         CSRF-protected optimistic update using expectedUpdatedAt; regenerates the bounded
-        relational schedule from the submitted plan configuration.
+        relational schedule from the submitted plan configuration. A Study Plan linked to an
+        active school intervention is learner-readable but cannot be edited through this self-owned endpoint.
       parameters:
         - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
       responses:
@@ -662,13 +663,89 @@ paths:
         "409": { description: Concurrent update or learning-state conflict }
     delete:
       operationId: learningStudyPlanDelete
-      description: CSRF-protected deletion of a self-owned learner Study Plan.
+      description: >
+        CSRF-protected deletion of a self-owned learner Study Plan. Active school-intervention
+        plans are protected and return conflict instead of being removed behind the intervention lifecycle.
       parameters:
         - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
       responses:
         "200": { description: Study Plan deleted }
         "403": { description: Student role or CSRF required }
         "404": { description: Study Plan not found for learner }
+
+
+  /api/v1/interventions/staff:
+    get:
+      operationId: learningSchoolInterventionStaffList
+      description: >
+        Bounded staff intervention list. School directors require intervention view/manage
+        permission; class-scoped supervisors must provide the exact classId. Uses hasMore and
+        never performs an exact-count scan.
+      parameters:
+        - { in: query, name: schoolId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: classId, schema: { type: string, format: uuid } }
+        - { in: query, name: status, schema: { type: string, enum: [active, completed, cancelled], default: active } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        "200": { description: Bounded staff intervention page }
+        "400": { description: Invalid scope or pagination }
+        "401": { description: Authentication required }
+        "403": { description: School intervention scope denied }
+    post:
+      operationId: learningSchoolInterventionCreate
+      description: >
+        CSRF-protected intervention create. Validates Organizations school/class/student
+        authority and Taxonomy skill scope, captures baseline Learning evidence, then creates
+        a 14-day Study Plan and intervention in one database transaction.
+      responses:
+        "201": { description: Intervention and linked Study Plan created }
+        "400": { description: Invalid intervention configuration }
+        "403": { description: School scope, student membership or CSRF denied }
+        "409": { description: Active intervention or learning-state conflict }
+
+  /api/v1/interventions/staff/{id}:
+    patch:
+      operationId: learningSchoolInterventionUpdate
+      description: >
+        CSRF-protected optimistic lifecycle/follow-up policy update using expectedUpdatedAt.
+        Target student/class/skill and Study Plan identity are immutable in this slice.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Updated intervention }
+        "400": { description: Invalid intervention patch }
+        "403": { description: Manage scope or CSRF denied }
+        "409": { description: Concurrent update conflict }
+
+  /api/v1/interventions/staff/{id}/measure:
+    post:
+      operationId: learningSchoolInterventionMeasure
+      description: >
+        Captures a new evidence snapshot after intervention creation. Outcome confidence is
+        measured only when minimumEvidence is satisfied; delta/threshold status are server-derived.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Intervention outcome measurement }
+        "400": { description: Invalid optimistic request }
+        "403": { description: Manage scope or CSRF denied }
+        "409": { description: Concurrent update conflict }
+
+  /api/v1/interventions/mine:
+    get:
+      operationId: learningStudentInterventionList
+      description: >
+        Student-only bounded projection of interventions assigned to the authenticated learner.
+        Defaults to 20 and caps at 50.
+      parameters:
+        - { in: query, name: status, schema: { type: string, enum: [active, completed, cancelled], default: active } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        "200": { description: Bounded learner-owned intervention page }
+        "401": { description: Authentication required }
+        "403": { description: Student role required }
 
   /api/v1/media/uploads/presign:
     post:
