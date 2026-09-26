@@ -1,4 +1,4 @@
-import{BarChart3,BookOpen,CalendarDays,ChevronLeft,Clock3,FileText,Loader2,RefreshCcw,Target,Users}from'lucide-react';
+import{BookOpen,CalendarDays,ChevronLeft,Clock3,FileText,Loader2,RefreshCcw,Target,Users}from'lucide-react';
 import{useEffect,useMemo,useState}from'react';
 import{useAuth}from'../../auth/state/AuthProvider';
 import{parentsClient}from'../api/parents-client';
