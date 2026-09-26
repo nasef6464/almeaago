@@ -188,11 +188,11 @@ func (c *Client) Initiate(ctx context.Context, in commerce.ProviderSessionInit) 
 }
 
 type webhookPayload struct {
-	ID       string      `json:"id"`
-	Object   string      `json:"object"`
-	Status   string      `json:"status"`
-	Amount   json.Number `json:"amount"`
-	Currency string      `json:"currency"`
+	ID        string      `json:"id"`
+	Object    string      `json:"object"`
+	Status    string      `json:"status"`
+	Amount    json.Number `json:"amount"`
+	Currency  string      `json:"currency"`
 	Reference struct {
 		Gateway     string `json:"gateway"`
 		Payment     string `json:"payment"`
