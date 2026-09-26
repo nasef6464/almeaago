@@ -20,9 +20,9 @@ type AccessRepository interface {
 }
 
 type AccessService struct {
-	repo    AccessRepository
+	repo     AccessRepository
 	products Repository
-	schools SchoolMembershipResolver
+	schools  SchoolMembershipResolver
 }
 
 func NewAccessService(repo AccessRepository, products ProductReader, schools SchoolMembershipResolver) *AccessService {
