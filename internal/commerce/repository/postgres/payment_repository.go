@@ -155,6 +155,9 @@ func (r *Repository) CreatePaymentRequest(ctx context.Context, userID string, in
 	}
 	defer tx.Rollback(ctx)
 
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "commerce-payment:"+in.IdempotencyKey); err != nil {
+		return commerce.PaymentRequest{}, err
+	}
 	existing, existingErr := scanPayment(tx.QueryRow(ctx, paymentSelect+` WHERE idempotency_key=$1`, in.IdempotencyKey))
 	if existingErr == nil {
 		if existing.UserID != userID || existing.ProductID != in.ProductID {
@@ -465,6 +468,9 @@ func (r *Repository) ApplyProviderEvent(ctx context.Context, event commerce.Prov
 	}
 	defer tx.Rollback(ctx)
 
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "commerce-provider:"+event.ProviderCode+":"+event.EventID); err != nil {
+		return commerce.ProviderEventResult{}, err
+	}
 	var existingRequestID, existingStatus, existingReason string
 	err = tx.QueryRow(ctx, `
 SELECT payment_request_id::text,processing_status,processing_reason
