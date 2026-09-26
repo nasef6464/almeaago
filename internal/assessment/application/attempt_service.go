@@ -16,6 +16,7 @@ var ErrResultUnavailable = assessment.ErrResultUnavailable
 
 type AttemptRepository interface {
 	GetPublishedAccessContext(context.Context, string) (assessment.AccessContext, error)
+	FindDirectStart(context.Context, string, string, string) (assessment.Attempt, bool, error)
 	Start(context.Context, string, string, string) (assessment.Attempt, error)
 	GetAttempt(context.Context, string) (assessment.Attempt, error)
 	SaveAnswer(context.Context, string, string, string, assessment.AnswerWrite) (assessment.Attempt, error)
@@ -72,6 +73,13 @@ func (s *AttemptService) Start(ctx context.Context, a identity.User, assessmentI
 	startKey = key(startKey)
 	if assessmentID == "" || startKey == "" {
 		return assessment.Attempt{}, ErrInvalidInput
+	}
+	existing, found, err := s.repo.FindDirectStart(ctx, a.ID, assessmentID, startKey)
+	if err != nil {
+		return assessment.Attempt{}, err
+	}
+	if found {
+		return existing, nil
 	}
 	scope, err := s.repo.GetPublishedAccessContext(ctx, assessmentID)
 	if err != nil {
