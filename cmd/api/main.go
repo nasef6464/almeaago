@@ -16,6 +16,7 @@ import (
 	assessmenthttp "github.com/nasef6464/almeaago/internal/assessment/transport/http"
 	commerceapp "github.com/nasef6464/almeaago/internal/commerce/application"
 	commerce "github.com/nasef6464/almeaago/internal/commerce/domain"
+	tapprovider "github.com/nasef6464/almeaago/internal/commerce/provider/tap"
 	commercerepo "github.com/nasef6464/almeaago/internal/commerce/repository/postgres"
 	commercehttp "github.com/nasef6464/almeaago/internal/commerce/transport/http"
 	contentapp "github.com/nasef6464/almeaago/internal/content/application"
@@ -90,14 +91,30 @@ func main() {
 	commerceRepository := commercerepo.New(db, auditWriter)
 	commerceService := commerceapp.NewService(commerceRepository, contentRepository, taxonomyRepository, organizationsRepository)
 	checkoutMode := commerce.GatewayManualReview
-	if strings.EqualFold(strings.TrimSpace(os.Getenv("COMMERCE_PAYMENT_GATEWAY_MODE")), string(commerce.GatewayWebhook)) {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("COMMERCE_PAYMENT_GATEWAY_MODE"))) {
+	case string(commerce.GatewayWebhook):
 		checkoutMode = commerce.GatewayWebhook
+	case string(commerce.GatewayPaymentLink):
+		checkoutMode = commerce.GatewayPaymentLink
 	}
+	tapSecretKey := strings.TrimSpace(os.Getenv("TAP_SECRET_KEY"))
+	if tapSecretKey == "" {
+		tapSecretKey = strings.TrimSpace(os.Getenv("TAP_API_KEY"))
+	}
+	tapRedirectBase := strings.TrimSpace(os.Getenv("TAP_REDIRECT_URL"))
+	if tapRedirectBase == "" {
+		tapRedirectBase = strings.TrimRight(cfg.WebOrigin, "/") + "/checkout"
+	}
+	tapClient := tapprovider.New(tapprovider.Config{
+		SecretKey:       tapSecretKey,
+		WebhookURL:      strings.TrimSpace(os.Getenv("TAP_WEBHOOK_URL")),
+		RedirectBaseURL: tapRedirectBase,
+	})
 	accessService := commerceapp.NewAccessService(commerceRepository, commerceRepository, organizationsRepository)
-	checkoutService := commerceapp.NewCheckoutService(commerceRepository, commerce.CheckoutPolicy{
+	checkoutService := commerceapp.NewCheckoutServiceWithProvider(commerceRepository, commerce.CheckoutPolicy{
 		GatewayMode:  checkoutMode,
 		ProviderCode: strings.TrimSpace(os.Getenv("COMMERCE_PAYMENT_PROVIDER_CODE")),
-	}, contentRepository)
+	}, contentRepository, tapClient)
 	contentService := contentapp.NewServiceWithAuthorScope(contentRepository, authorScope, commerceService)
 	organizationsService := orgapp.NewServiceWithOptions(organizationsRepository, orgapp.ServiceOptions{
 		DirectorDirectory:       directorDirectory,
@@ -158,12 +175,13 @@ func main() {
 	lessonProgressHandler := learninghttp.NewLessonProgress(lessonProgressService, identityService)
 	studyPlansHandler := learninghttp.NewStudyPlans(studyPlanService, identityService)
 	interventionsHandler := learninghttp.NewInterventions(interventionService, identityService)
-	commerceHandler := commercehttp.NewWithAccess(
+	commerceHandler := commercehttp.NewWithProviderSecrets(
 		commerceService,
 		checkoutService,
 		accessService,
 		identityService,
 		[]byte(strings.TrimSpace(os.Getenv("PAYMENT_WEBHOOK_SECRET"))),
+		tapSecretKey,
 	)
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
 	assessmentHandler := assessmenthttp.NewWithDistribution(assessmentService, identityService, assessmentAssignmentService, assessmentPlacementService, assessmentAttemptService)

@@ -867,13 +867,16 @@ paths:
       description: >
         CSRF-protected idempotent Checkout creation. Client sends productId, optional discountCode,
         paymentMethod and idempotencyKey only. Server re-reads product revision, amount, currency,
-        discount and gateway policy transactionally. No Entitlement is granted by this endpoint.
+        discount and gateway policy transactionally. In payment_link mode the server creates the
+        provider session from that trusted PaymentRequest and returns only the provider redirect URL.
+        No Entitlement is granted by this endpoint.
       responses:
         "201": { description: Pending PaymentRequest created or idempotently returned }
         "400": { description: Invalid checkout input }
         "401": { description: Authentication required }
         "403": { description: Invalid CSRF }
         "409": { description: Product/discount/idempotency conflict }
+        "503": { description: Configured payment-link provider unavailable or invalid response }
 
   /api/v1/commerce/admin/discounts:
     get:
@@ -972,6 +975,20 @@ paths:
         "400": { description: Invalid payout evidence }
         "403": { description: Platform admin or CSRF required }
         "409": { description: Revision or payout-lifecycle conflict }
+
+  /api/v1/commerce/webhooks/tap:
+    post:
+      operationId: commerceTapWebhook
+      description: >
+        Tap Charges webhook over exact raw bytes. Validates Tap's official hashstring using the
+        server-only Tap secret API key and canonical charge fields, maps only final CAPTURED/failed/
+        cancelled charge statuses, and then passes the event through the same idempotent Commerce
+        provider ledger with exact provider, amount and currency matching before any Entitlement grant.
+      responses:
+        "200": { description: Verified Tap event processed or idempotently acknowledged }
+        "401": { description: Invalid Tap hashstring or unsupported payload }
+        "409": { description: Provider/payment/amount/currency conflict }
+        "503": { description: Tap secret key not configured }
 
   /api/v1/commerce/webhooks/{provider}:
     post:

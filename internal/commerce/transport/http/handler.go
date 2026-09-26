@@ -27,6 +27,7 @@ type Handler struct {
 	access        *commerceapp.AccessService
 	auth          Authenticator
 	webhookSecret []byte
+	tapSecretKey  string
 }
 
 func New(service *commerceapp.Service, auth Authenticator) http.Handler {
@@ -38,7 +39,11 @@ func NewWithCheckout(service *commerceapp.Service, checkout *commerceapp.Checkou
 }
 
 func NewWithAccess(service *commerceapp.Service, checkout *commerceapp.CheckoutService, access *commerceapp.AccessService, auth Authenticator, webhookSecret []byte) http.Handler {
-	h := &Handler{service: service, checkout: checkout, access: access, auth: auth, webhookSecret: webhookSecret}
+	return NewWithProviderSecrets(service, checkout, access, auth, webhookSecret, "")
+}
+
+func NewWithProviderSecrets(service *commerceapp.Service, checkout *commerceapp.CheckoutService, access *commerceapp.AccessService, auth Authenticator, webhookSecret []byte, tapSecretKey string) http.Handler {
+	h := &Handler{service: service, checkout: checkout, access: access, auth: auth, webhookSecret: webhookSecret, tapSecretKey: strings.TrimSpace(tapSecretKey)}
 	r := chi.NewRouter()
 	r.Get("/products", h.listProducts)
 	r.Post("/products", h.createProduct)
@@ -70,6 +75,7 @@ func NewWithAccess(service *commerceapp.Service, checkout *commerceapp.CheckoutS
 		r.Get("/admin/revenue", h.listRevenueEntries)
 		r.Patch("/admin/revenue/{id}/allocation", h.allocateRevenue)
 		r.Patch("/admin/revenue/{id}/payout", h.markPayoutPaid)
+		r.Post("/webhooks/tap", h.tapWebhook)
 		r.Post("/webhooks/{provider}", h.providerWebhook)
 	}
 	return r
@@ -119,6 +125,8 @@ func writeError(w http.ResponseWriter, err error) {
 		writeJSON(w, 400, map[string]string{"message": "Invalid commerce request"})
 	case errors.Is(err, commerceapp.ErrForbidden):
 		writeJSON(w, 403, map[string]string{"message": "Forbidden"})
+	case errors.Is(err, commerceapp.ErrProviderUnavailable):
+		writeJSON(w, 503, map[string]string{"message": "Payment provider unavailable"})
 	case errors.Is(err, commerce.ErrNotFound):
 		writeJSON(w, 404, map[string]string{"message": "Commerce record not found"})
 	case errors.Is(err, commerce.ErrConflict), errors.Is(err, commerce.ErrVersionConflict):

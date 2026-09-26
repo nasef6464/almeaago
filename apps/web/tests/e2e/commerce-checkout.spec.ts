@@ -170,3 +170,28 @@ test('admin records factual trainer revenue allocation and payout evidence',asyn
  await page.screenshot({path:'test-results/commerce-revenue-ledger.png',fullPage:true});
 });
 
+test('learner receives only a trusted Tap redirect after server-authoritative checkout',async({page})=>{
+ await auth(page,student);
+ await page.route('**/api/v1/commerce/catalog/products/product-course-1',r=>json(r,{product}));
+ await page.route('**/api/v1/commerce/checkout/requests?**',r=>json(r,{items:[],page:1,limit:20,hasMore:false}));
+ await page.route('**/api/v1/commerce/checkout/requests',async r=>{
+   const body=JSON.parse(r.request().postData()||'{}');
+   expect(body).toMatchObject({productId:'product-course-1',discountCode:'',paymentMethod:'card'});
+   expect(body).not.toHaveProperty('amount');
+   expect(body).not.toHaveProperty('amountMinor');
+   expect(body).not.toHaveProperty('currency');
+   return json(r,{request:{
+     ...pending,discountId:'',discountCode:'',discountAmountMinor:0,finalAmountMinor:12000,
+     gatewayMode:'payment_link',providerCode:'tap',providerSessionId:'chg_test_1',
+     providerRedirectUrl:'https://tap.example/pay/chg_test_1',providerSessionStatus:'initiated',
+     idempotencyKey:body.idempotencyKey
+   }},201);
+ });
+ await page.goto('/checkout?productId=product-course-1');
+ await page.getByRole('button',{name:'إنشاء طلب دفع آمن'}).click();
+ const link=page.getByTestId('payment-provider-redirect');
+ await expect(link).toBeVisible();
+ await expect(link).toHaveAttribute('href','https://tap.example/pay/chg_test_1');
+ await expect(page.getByText('لن يتم منح الوصول من الواجهة.',{exact:false})).toBeVisible();
+});
+

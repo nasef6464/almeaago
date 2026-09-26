@@ -27,29 +27,40 @@ type CheckoutRepository interface {
 	ListRevenueEntries(context.Context, int, int, commerce.RevenueAllocationStatus, commerce.PayoutStatus) (commerce.RevenueEntryPage, error)
 	AllocateRevenue(context.Context, string, string, commerce.RevenueAllocation) (commerce.RevenueEntry, error)
 	MarkPayoutPaid(context.Context, string, string, commerce.PayoutMarkPaid) (commerce.RevenueEntry, error)
+	AttachProviderSession(context.Context, string, string, int, commerce.ProviderSession) (commerce.PaymentRequest, error)
+	FailProviderSession(context.Context, string, string, int, string) (commerce.PaymentRequest, error)
 }
 
 type RevenuePolicyResolver interface {
 	CourseRevenuePolicy(context.Context, string) (string, *float64, bool, error)
 }
 
+type PaymentSessionInitiator interface {
+	Initiate(context.Context, commerce.ProviderSessionInit) (commerce.ProviderSession, error)
+}
+
 type CheckoutService struct {
-	repo    CheckoutRepository
-	policy  commerce.CheckoutPolicy
-	revenue RevenuePolicyResolver
+	repo      CheckoutRepository
+	policy    commerce.CheckoutPolicy
+	revenue   RevenuePolicyResolver
+	initiator PaymentSessionInitiator
 }
 
 func NewCheckoutService(repo CheckoutRepository, policy commerce.CheckoutPolicy, revenue ...RevenuePolicyResolver) *CheckoutService {
+	var resolver RevenuePolicyResolver
+	if len(revenue) > 0 {
+		resolver = revenue[0]
+	}
+	return NewCheckoutServiceWithProvider(repo, policy, resolver, nil)
+}
+
+func NewCheckoutServiceWithProvider(repo CheckoutRepository, policy commerce.CheckoutPolicy, revenue RevenuePolicyResolver, initiator PaymentSessionInitiator) *CheckoutService {
 	policy.ProviderCode = strings.ToLower(strings.TrimSpace(policy.ProviderCode))
 	if !commerce.ValidGatewayMode(policy.GatewayMode) || policy.ProviderCode == "" || !providerCodePattern.MatchString(policy.ProviderCode) {
 		policy.GatewayMode = commerce.GatewayManualReview
 		policy.ProviderCode = "manual"
 	}
-	service := &CheckoutService{repo: repo, policy: policy}
-	if len(revenue) > 0 {
-		service.revenue = revenue[0]
-	}
-	return service
+	return &CheckoutService{repo: repo, policy: policy, revenue: revenue, initiator: initiator}
 }
 
 func normalizeDiscountWrite(w *commerce.DiscountWrite) error {
@@ -152,6 +163,9 @@ func (s *CheckoutService) CreateCheckout(ctx context.Context, actor identity.Use
 	if policy.GatewayMode == commerce.GatewayManualReview {
 		policy.ProviderCode = "manual_" + string(in.PaymentMethod)
 	}
+	if policy.GatewayMode == commerce.GatewayPaymentLink && in.PaymentMethod != commerce.PaymentCard {
+		return commerce.PaymentRequest{}, ErrInvalidInput
+	}
 	product, err := s.repo.GetProduct(ctx, in.ProductID)
 	if err != nil {
 		return commerce.PaymentRequest{}, err
@@ -172,7 +186,42 @@ func (s *CheckoutService) CreateCheckout(ctx context.Context, actor identity.Use
 		revenue.TrainerUserID = trainerID
 		revenue.RevenueSharePercentage = percentage
 	}
-	return s.repo.CreatePaymentRequest(ctx, actor.ID, in, policy, revenue)
+	request, err := s.repo.CreatePaymentRequest(ctx, actor.ID, in, policy, revenue)
+	if err != nil {
+		return commerce.PaymentRequest{}, err
+	}
+	if policy.GatewayMode != commerce.GatewayPaymentLink {
+		return request, nil
+	}
+	if request.Status != commerce.PaymentPending || request.ProviderSessionStatus == "initiated" {
+		return request, nil
+	}
+	if s.initiator == nil {
+		_, _ = s.repo.FailProviderSession(ctx, actor.ID, request.ID, request.Revision, "payment provider not configured")
+		return commerce.PaymentRequest{}, ErrProviderUnavailable
+	}
+	session, initErr := s.initiator.Initiate(ctx, commerce.ProviderSessionInit{
+		PaymentRequestID: request.ID,
+		ProductID:        request.ProductID,
+		UserID:           actor.ID,
+		UserName:         actor.Name,
+		UserEmail:        actor.Email,
+		UserPhone:        actor.Phone,
+		ProductName:      request.ProductName,
+		AmountMinor:      request.FinalAmountMinor,
+		Currency:         request.Currency,
+	})
+	if initErr != nil {
+		_, _ = s.repo.FailProviderSession(ctx, actor.ID, request.ID, request.Revision, "provider session initiation failed")
+		return commerce.PaymentRequest{}, ErrProviderUnavailable
+	}
+	session.SessionID = strings.TrimSpace(session.SessionID)
+	session.RedirectURL = strings.TrimSpace(session.RedirectURL)
+	if session.SessionID == "" || len(session.SessionID) > 180 || session.RedirectURL == "" || len(session.RedirectURL) > 2000 {
+		_, _ = s.repo.FailProviderSession(ctx, actor.ID, request.ID, request.Revision, "provider returned invalid session")
+		return commerce.PaymentRequest{}, ErrProviderUnavailable
+	}
+	return s.repo.AttachProviderSession(ctx, actor.ID, request.ID, request.Revision, session)
 }
 
 func (s *CheckoutService) MyRequests(ctx context.Context, actor identity.User, page, limit int) (commerce.PaymentRequestPage, error) {
