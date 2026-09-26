@@ -60,7 +60,7 @@ func (r *checkoutRepoStub) RecordAdminReversal(_ context.Context, _ string, _ st
 		r.request.Status = commerce.ReversalRefunded
 	}
 	if in.ReversalType == commerce.ReversalChargeback {
-		r.request.Status = commerce.ReversalChargeback
+		r.request.Status = commerce.PaymentChargeback
 	}
 	return commerce.PaymentReversalResult{PaymentRequest: r.request, Reversal: commerce.PaymentReversal{ReversalType: in.ReversalType, ProviderReference: in.ProviderReference}}, nil
 }
@@ -323,7 +323,7 @@ func TestAdminReversalRequiresAdminEvidenceAndExplicitType(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out.PaymentRequest.Status != commerce.ReversalChargeback || out.Reversal.ProviderReference != "case-7788" {
+	if out.PaymentRequest.Status != commerce.PaymentChargeback || out.Reversal.ProviderReference != "case-7788" {
 		t.Fatalf("unexpected reversal: %#v", out)
 	}
 }
