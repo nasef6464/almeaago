@@ -112,7 +112,7 @@ WHERE id=$1::uuid
 		ResourceType: "commerce_payment_request",
 		ResourceID:   paymentRequestID,
 		Metadata: map[string]any{
-			"provider": p.ProviderCode,
+			"provider":    p.ProviderCode,
 			"reason":      reason,
 			"amountMinor": p.FinalAmountMinor,
 			"currency":    p.Currency,
