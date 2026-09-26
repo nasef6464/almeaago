@@ -46,15 +46,15 @@ WHERE id=$1::uuid
 		return commerce.PaymentRequest{}, mapError(err)
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actorUserID,
+		ActorUserID:  actorUserID,
 		Action:       "commerce.provider_session.initiated",
 		ResourceType: "commerce_payment_request",
 		ResourceID:   paymentRequestID,
 		Metadata: map[string]any{
-			"provider": p.ProviderCode,
-			"sessionId": session.SessionID,
+			"provider":    p.ProviderCode,
+			"sessionId":   session.SessionID,
 			"amountMinor": p.FinalAmountMinor,
-			"currency": p.Currency,
+			"currency":    p.Currency,
 		},
 	}); err != nil {
 		return commerce.PaymentRequest{}, err
@@ -107,15 +107,15 @@ WHERE id=$1::uuid
 		return commerce.PaymentRequest{}, mapError(err)
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actorUserID,
+		ActorUserID:  actorUserID,
 		Action:       "commerce.provider_session.failed",
 		ResourceType: "commerce_payment_request",
 		ResourceID:   paymentRequestID,
 		Metadata: map[string]any{
 			"provider": p.ProviderCode,
-			"reason": reason,
+			"reason":      reason,
 			"amountMinor": p.FinalAmountMinor,
-			"currency": p.Currency,
+			"currency":    p.Currency,
 		},
 	}); err != nil {
 		return commerce.PaymentRequest{}, err
