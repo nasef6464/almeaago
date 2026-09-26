@@ -662,5 +662,32 @@ Verification:
 Audit:
 - `docs/domains/learning/LEARNING_LESSON_VIDEO_PROGRESS_AUDIT.md`.
 
+## Learning Mastery Goals — IN REVIEW
+Active branch: `feat/learning-mastery-goals`.
+
+Legacy behavior verified before implementation:
+- `MasteryGoal` stores learner, path/optional subject, `topic|section|path` target, 50–100 target mastery, `short|long` horizon, due date and `active|achieved|archived` status.
+- student Reports UI creates a short goal (14 days) and long goal (60 days), defaulting to 90% target mastery.
+- goals are tracking markers; they do not mutate mastery score.
+- legacy staff could target scoped students, but that authority depends on school/report scope.
+
+Implemented on the branch:
+- migration `000025_learning_mastery_goals` with normalized learner/path/subject ownership, bounded indexes and no user-embedded arrays.
+- student-only bounded list (default 20, max 100, `hasMore`; no exact-count scan).
+- CSRF-protected create/update with optimistic `expectedUpdatedAt`.
+- Taxonomy-owned active path/subject validation through a narrow boundary.
+- default 90% mastery and short-horizon compatibility.
+- responsive goals panel integrated into `/review`, with one active short and one active long goal per current UI scope, legacy 14/60-day quick creation, achieve/archive controls, and mobile E2E.
+- verified path targets are supported now.
+- legacy `section/topic` targets fail closed because the target platform intentionally removed a canonical Section table and no safe Topic mapping is yet owned by Taxonomy.
+- staff-targeted learner goals remain deferred to the school Interventions slice, where Organizations authorization can be composed correctly.
+- Study Plans, school Interventions, Commerce, Realtime and AI remain outside this batch.
+
+Audit:
+- `docs/domains/learning/LEARNING_MASTERY_GOALS_AUDIT.md`.
+
+Verification state:
+- not merge-qualified until the exact PR head passes Database CI + Backend CI + Frontend CI + Frontend E2E.
+
 ## Next exact action
-Continue Phase 7 from current `main` with a focused contract audit for mastery goals, study plans and interventions. These shapes are named in the target blueprint but are not defined by enough verified legacy behavior to implement safely by inference. Compare blueprint/model-catalog/organization permissions and any surviving legacy routes first, then choose the lowest-dependency normalized slice. Keep Learning progress/review canonical, keep school authority in Organizations, keep Commerce entitlement outside Learning, and do not create user-embedded arrays or a second planning engine.
+Open the Mastery Goals PR from `feat/learning-mastery-goals`, run exact-head Database + Backend + Frontend + E2E gates, fix every failure on the same branch without weakening tests, record verified SHA/run evidence, and merge only when all gates are green. After merge, audit and cut over Study Plans as the next lowest-dependency Learning slice before school Interventions.
