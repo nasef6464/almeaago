@@ -42,13 +42,13 @@ const (
 	ScopeContentType PackageScopeType = "content_type"
 	ScopeAll         PackageScopeType = "all"
 
-	ContentCourses   ContentType = "courses"
+	ContentCourses    ContentType = "courses"
 	ContentFoundation ContentType = "foundation"
-	ContentBanks     ContentType = "banks"
-	ContentTests     ContentType = "tests"
-	ContentMockExams ContentType = "mock_exams"
-	ContentLibrary   ContentType = "library"
-	ContentAll       ContentType = "all"
+	ContentBanks      ContentType = "banks"
+	ContentTests      ContentType = "tests"
+	ContentMockExams  ContentType = "mock_exams"
+	ContentLibrary    ContentType = "library"
+	ContentAll        ContentType = "all"
 
 	SubjectUser   SubjectType = "user"
 	SubjectSchool SubjectType = "school"
@@ -58,13 +58,23 @@ const (
 	EntitlementExpired EntitlementStatus = "expired"
 )
 
-func ValidProductType(v ProductType) bool { return v==ProductCourse||v==ProductPackage||v==ProductMembership }
-func ValidProductStatus(v ProductStatus) bool { return v==ProductActive||v==ProductInactive||v==ProductArchived }
-func ValidAccessMode(v AccessMode) bool { return v==AccessFree||v==AccessPaid }
-func ValidPackageKind(v PackageKind) bool { return v==PackageBundle||v==PackageMembership||v==PackageSchool }
-func ValidScopeType(v PackageScopeType) bool { return v==ScopeCourse||v==ScopePath||v==ScopeSubject||v==ScopeContentType||v==ScopeAll }
-func ValidContentType(v ContentType) bool { return v==ContentCourses||v==ContentFoundation||v==ContentBanks||v==ContentTests||v==ContentMockExams||v==ContentLibrary||v==ContentAll }
-func ValidSubjectType(v SubjectType) bool { return v==SubjectUser||v==SubjectSchool }
+func ValidProductType(v ProductType) bool {
+	return v == ProductCourse || v == ProductPackage || v == ProductMembership
+}
+func ValidProductStatus(v ProductStatus) bool {
+	return v == ProductActive || v == ProductInactive || v == ProductArchived
+}
+func ValidAccessMode(v AccessMode) bool { return v == AccessFree || v == AccessPaid }
+func ValidPackageKind(v PackageKind) bool {
+	return v == PackageBundle || v == PackageMembership || v == PackageSchool
+}
+func ValidScopeType(v PackageScopeType) bool {
+	return v == ScopeCourse || v == ScopePath || v == ScopeSubject || v == ScopeContentType || v == ScopeAll
+}
+func ValidContentType(v ContentType) bool {
+	return v == ContentCourses || v == ContentFoundation || v == ContentBanks || v == ContentTests || v == ContentMockExams || v == ContentLibrary || v == ContentAll
+}
+func ValidSubjectType(v SubjectType) bool { return v == SubjectUser || v == SubjectSchool }
 
 type PackageItem struct {
 	ScopeType   PackageScopeType `json:"scopeType"`
