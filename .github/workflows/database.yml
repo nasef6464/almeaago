@@ -123,6 +123,12 @@ jobs:
           check "select exists(select 1 from pg_constraint where conname='commerce_payment_requests_gateway_mode_check')"
           check "select exists(select 1 from pg_constraint where conname='commerce_payment_provider_session_shape')"
           check "select exists(select 1 from pg_indexes where tablename='commerce_payment_requests' and indexname='commerce_payment_requests_provider_session_idx')"
+          check "select exists(select 1 from pg_index i join pg_class c on c.oid=i.indexrelid where c.relname='commerce_payment_requests_provider_session_idx' and i.indisunique)"
+          check "select exists(select 1 from information_schema.tables where table_name='commerce_payment_reversals')"
+          check "select exists(select 1 from pg_constraint where conname='commerce_payment_reversal_source_shape')"
+          check "select exists(select 1 from pg_indexes where tablename='commerce_payment_reversals' and indexname='commerce_payment_reversals_provider_ref_idx')"
+          check "select exists(select 1 from information_schema.columns where table_name='commerce_revenue_entries' and column_name='reversal_type')"
+          check "select exists(select 1 from pg_constraint where conname='commerce_revenue_reversal_shape')"
 
       - name: Roll back every migration
         shell: bash

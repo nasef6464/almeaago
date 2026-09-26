@@ -72,6 +72,7 @@ func NewWithProviderSecrets(service *commerceapp.Service, checkout *commerceapp.
 		r.Put("/admin/discounts/{id}", h.updateDiscount)
 		r.Get("/admin/payment-requests", h.adminPaymentRequests)
 		r.Patch("/admin/payment-requests/{id}/review", h.reviewPaymentRequest)
+		r.Patch("/admin/payment-requests/{id}/reversal", h.recordPaymentReversal)
 		r.Get("/admin/revenue", h.listRevenueEntries)
 		r.Patch("/admin/revenue/{id}/allocation", h.allocateRevenue)
 		r.Patch("/admin/revenue/{id}/payout", h.markPayoutPaid)

@@ -30,7 +30,7 @@ export type CommerceDiscountStatus='active'|'paused'|'expired';
 export type CommerceDiscountScopeType='all'|'product'|'product_type';
 export type CommercePaymentMethod='card'|'transfer'|'wallet';
 export type CommerceGatewayMode='manual_review'|'webhook'|'payment_link';
-export type CommercePaymentStatus='pending'|'paid'|'rejected'|'cancelled'|'failed';
+export type CommercePaymentStatus='pending'|'paid'|'rejected'|'cancelled'|'failed'|'refunded'|'chargeback';
 
 export interface CommerceDiscountScope{scopeType:CommerceDiscountScopeType;productId:string;productType:CommerceProductType|''}
 export interface CommerceDiscount{
@@ -67,5 +67,10 @@ export interface CommerceRevenueEntry{
  trainerUserId:string;revenueSharePercentage:number|null;grossAmountMinor:number;discountAmountMinor:number;paidAmountMinor:number;
  currency:string;providerFeeMinor:number|null;trainerShareMinor:number|null;platformShareMinor:number|null;
  allocationStatus:CommerceRevenueAllocationStatus;payoutStatus:CommercePayoutStatus;allocationEvidence:string;allocatedBy:string;
- allocatedAt:string|null;payoutEvidence:string;paidBy:string;payoutPaidAt:string|null;revision:number;createdAt:string;updatedAt:string;
+ allocatedAt:string|null;payoutEvidence:string;paidBy:string;payoutPaidAt:string|null;reversalType:''|'refund'|'chargeback';reversedAmountMinor:number|null;
+ reversalReference:string;reversedAt:string|null;revision:number;createdAt:string;updatedAt:string;
+}
+export interface CommercePaymentReversal{
+ id:string;paymentRequestId:string;reversalType:'refund'|'chargeback';amountMinor:number;currency:string;providerCode:string;
+ providerReference:string;source:'provider_webhook'|'admin_evidence';evidence:string;occurredAt:string|null;createdAt:string;
 }

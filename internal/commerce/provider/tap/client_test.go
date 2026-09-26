@@ -91,3 +91,25 @@ func TestVerifyWebhookMapsCapturedWithOfficialHashstringShape(t *testing.T) {
 		t.Fatal("expected invalid hashstring to fail closed")
 	}
 }
+
+func TestVerifyRefundWebhookMapsFinalFullRefund(t *testing.T) {
+	raw := []byte(`{"id":"re_1","object":"refund","status":"REFUNDED","amount":108.00,"currency":"SAR","charge_id":"chg_1","created":"1700000000000","reference":{"gateway":"gw_1","payment":"pay_1"},"charge":{"reference":{"order":"11111111-1111-1111-1111-111111111111"}}}`)
+	toHash := "x_idre_1x_amount108.00x_currencySARx_gateway_referencegw_1x_payment_referencepay_1x_statusREFUNDEDx_created1700000000000"
+	mac := hmac.New(sha256.New, []byte("sk_test_demo"))
+	_, _ = mac.Write([]byte(toHash))
+	hash := hex.EncodeToString(mac.Sum(nil))
+
+	verified, err := VerifyRefundWebhook("sk_test_demo", raw, hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if verified.ProviderSessionID != "chg_1" ||
+		verified.Event.PaymentRequestID != "11111111-1111-1111-1111-111111111111" ||
+		verified.Event.Status != commerce.ProviderRefunded ||
+		verified.Event.AmountMinor == nil || *verified.Event.AmountMinor != 10800 {
+		t.Fatalf("unexpected refund event: %#v", verified)
+	}
+	if _, err = VerifyRefundWebhook("sk_test_demo", []byte(`{"id":"re_2","object":"refund","status":"ACCEPTED","amount":108.00,"currency":"SAR","charge_id":"chg_1","created":"1700000000000","reference":{"gateway":"gw_1","payment":"pay_1"}}`), hash); err == nil {
+		t.Fatal("non-final refund must not reverse access")
+	}
+}

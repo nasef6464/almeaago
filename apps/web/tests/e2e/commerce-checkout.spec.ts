@@ -195,3 +195,35 @@ test('learner receives only a trusted Tap redirect after server-authoritative ch
  await expect(page.getByText('لن يتم منح الوصول من الواجهة.',{exact:false})).toBeVisible();
 });
 
+test('admin records a factual full refund and revenue/access reversal state',async({page})=>{
+ await auth(page,admin);
+ let paid:any={...pending,id:'payment-paid-2',discountId:'',discountCode:'',discountAmountMinor:0,finalAmountMinor:12000,gatewayMode:'payment_link',providerCode:'tap',providerSessionId:'chg-refund-1',providerRedirectUrl:'https://tap.example/pay/1',providerSessionStatus:'initiated',status:'paid',paidAt:'2026-09-26T12:00:00Z',revision:2};
+ let entry:any={id:'rev-refund-1',paymentRequestId:'payment-paid-2',productId:'product-course-1',productType:'course',courseId:'course-1',buyerUserId:'student-1',trainerUserId:'trainer-1',revenueSharePercentage:35,grossAmountMinor:12000,discountAmountMinor:0,paidAmountMinor:12000,currency:'SAR',providerFeeMinor:300,trainerShareMinor:4000,platformShareMinor:7700,allocationStatus:'allocated',payoutStatus:'pending',allocationEvidence:'settlement-1',allocatedBy:'admin-1',allocatedAt:'2026-09-26T12:01:00Z',payoutEvidence:'',paidBy:'',payoutPaidAt:null,reversalType:'',reversedAmountMinor:null,reversalReference:'',reversedAt:null,revision:2,createdAt:'2026-09-26T12:00:00Z',updatedAt:'2026-09-26T12:01:00Z'};
+
+ await page.route('**/api/v1/commerce/products?**',r=>json(r,{items:[product],page:1,limit:100,hasMore:false}));
+ await page.route('**/api/v1/commerce/entitlements?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/discounts?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/payment-requests?**',r=>json(r,{items:[paid],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/access-codes?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/revenue?**',r=>json(r,{items:[entry],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/payment-requests/payment-paid-2/reversal',async r=>{
+   expect(r.request().method()).toBe('PATCH');
+   const body=JSON.parse(r.request().postData()||'{}');
+   expect(body).toEqual({expectedRevision:2,reversalType:'refund',providerReference:'re_7788',evidence:'tap dashboard refund 7788'});
+   paid={...paid,status:'refunded',revision:3};
+   entry={...entry,reversalType:'refund',reversedAmountMinor:12000,reversalReference:'re_7788',reversedAt:'2026-09-26T12:02:00Z',revision:3};
+   return json(r,{result:{paymentRequest:paid,reversal:{id:'reverse-1',paymentRequestId:paid.id,reversalType:'refund',amountMinor:12000,currency:'SAR',providerCode:'tap',providerReference:'re_7788',source:'admin_evidence',evidence:body.evidence,occurredAt:null,createdAt:'2026-09-26T12:02:00Z'},duplicate:false}});
+ });
+
+ const answers=['re_7788','tap dashboard refund 7788'];
+ page.on('dialog',dialog=>dialog.accept(answers.shift()||''));
+ await page.goto('/admin-dashboard/commerce');
+ await expect(page.getByText('المدفوعات والانعكاسات الموثقة')).toBeVisible();
+ await page.getByRole('button',{name:'تسجيل استرداد كامل'}).click();
+ await expect(page.getByText('تم تسجيل الاسترداد الكامل وإلغاء الوصول المرتبط بالدفع.')).toBeVisible();
+ await expect(page.getByText('تم عكس البيع: refunded')).toBeVisible();
+ await expect(page.getByText(/انعكاس كامل: refund/)).toBeVisible();
+ await expect(page.getByRole('button',{name:'تسجيل صرف المدرب'})).toHaveCount(0);
+ await page.screenshot({path:'test-results/commerce-payment-refund-reversal.png',fullPage:true});
+});
+

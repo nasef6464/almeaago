@@ -46,6 +46,10 @@ type RevenueEntry struct {
 	PayoutEvidence         string                  `json:"payoutEvidence"`
 	PaidBy                 string                  `json:"paidBy"`
 	PayoutPaidAt           *time.Time              `json:"payoutPaidAt"`
+	ReversalType           PaymentReversalType     `json:"reversalType"`
+	ReversedAmountMinor    *int64                  `json:"reversedAmountMinor"`
+	ReversalReference      string                  `json:"reversalReference"`
+	ReversedAt             *time.Time              `json:"reversedAt"`
 	Revision               int                     `json:"revision"`
 	CreatedAt              time.Time               `json:"createdAt"`
 	UpdatedAt              time.Time               `json:"updatedAt"`

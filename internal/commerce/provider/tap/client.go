@@ -297,3 +297,78 @@ func VerifyWebhook(secretKey string, raw []byte, postedHash string) (commerce.Pr
 		PayloadSHA256:    hex.EncodeToString(sum[:]),
 	}, nil
 }
+
+type refundWebhookPayload struct {
+	ID        string          `json:"id"`
+	Object    string          `json:"object"`
+	Status    string          `json:"status"`
+	Amount    json.Number     `json:"amount"`
+	Currency  string          `json:"currency"`
+	ChargeID  string          `json:"charge_id"`
+	Created   json.RawMessage `json:"created"`
+	Reference struct {
+		Gateway string `json:"gateway"`
+		Payment string `json:"payment"`
+	} `json:"reference"`
+	Charge struct {
+		Reference struct {
+			Order string `json:"order"`
+		} `json:"reference"`
+	} `json:"charge"`
+}
+
+type VerifiedRefundWebhook struct {
+	ProviderSessionID string
+	Event             commerce.ProviderEvent
+}
+
+func VerifyRefundWebhook(secretKey string, raw []byte, postedHash string) (VerifiedRefundWebhook, error) {
+	secretKey = strings.TrimSpace(secretKey)
+	postedHash = strings.TrimSpace(postedHash)
+	if secretKey == "" || len(postedHash) != sha256.Size*2 {
+		return VerifiedRefundWebhook{}, ErrProvider
+	}
+	var payload refundWebhookPayload
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	if err := dec.Decode(&payload); err != nil {
+		return VerifiedRefundWebhook{}, ErrProvider
+	}
+	payload.ID = strings.TrimSpace(payload.ID)
+	payload.Object = strings.ToLower(strings.TrimSpace(payload.Object))
+	payload.Status = strings.ToUpper(strings.TrimSpace(payload.Status))
+	payload.Currency = strings.ToUpper(strings.TrimSpace(payload.Currency))
+	payload.ChargeID = strings.TrimSpace(payload.ChargeID)
+	created := createdString(payload.Created)
+	amountString, amountMinor, err := normalizeAmountForHash(payload.Amount, payload.Currency)
+	if err != nil || payload.ID == "" || payload.Object != "refund" || payload.Status != "REFUNDED" ||
+		payload.ChargeID == "" || created == "" {
+		return VerifiedRefundWebhook{}, ErrProvider
+	}
+	toHash := "x_id" + payload.ID +
+		"x_amount" + amountString +
+		"x_currency" + payload.Currency +
+		"x_gateway_reference" + strings.TrimSpace(payload.Reference.Gateway) +
+		"x_payment_reference" + strings.TrimSpace(payload.Reference.Payment) +
+		"x_status" + payload.Status +
+		"x_created" + created
+	mac := hmac.New(sha256.New, []byte(secretKey))
+	_, _ = mac.Write([]byte(toHash))
+	expected := hex.EncodeToString(mac.Sum(nil))
+	if !hmac.Equal([]byte(strings.ToLower(postedHash)), []byte(expected)) {
+		return VerifiedRefundWebhook{}, ErrProvider
+	}
+	sum := sha256.Sum256(raw)
+	return VerifiedRefundWebhook{
+		ProviderSessionID: payload.ChargeID,
+		Event: commerce.ProviderEvent{
+			EventID:          payload.ID,
+			PaymentRequestID: strings.TrimSpace(payload.Charge.Reference.Order),
+			Status:           commerce.ProviderRefunded,
+			AmountMinor:      &amountMinor,
+			Currency:         payload.Currency,
+			TransactionID:    payload.ID,
+			PayloadSHA256:    hex.EncodeToString(sum[:]),
+		},
+	}, nil
+}
