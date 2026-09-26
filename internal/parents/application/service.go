@@ -283,7 +283,7 @@ func (s *Service) WeeklyReport(ctx context.Context, actor identity.User, page, l
 			AssessmentCount: a.WeeklyAssessmentCount,
 			AverageScore:    a.WeeklyAverageScore,
 			StudyMinutes:    (a.WeeklyStudySeconds + 30) / 60,
-			WeakSkills: l.WeakSkills,
+			WeakSkills:      l.WeakSkills,
 		}
 		if len(l.WeakSkills) > 0 {
 			row.NextAction = l.WeakSkills[0].RecommendedAction
