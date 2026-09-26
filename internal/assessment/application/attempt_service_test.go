@@ -23,6 +23,9 @@ type fakeAttemptRepo struct {
 	lastDetail  string
 }
 
+func (f *fakeAttemptRepo) GetPublishedAccessContext(context.Context, string) (assessment.AccessContext, error) {
+	return assessment.AccessContext{AssessmentKind: assessment.KindNormal, BaseAccess: assessment.AccessFree, PathID: "path-1", SubjectID: "subject-1"}, f.err
+}
 func (f *fakeAttemptRepo) Start(context.Context, string, string, string) (assessment.Attempt, error) {
 	return f.a, f.err
 }
