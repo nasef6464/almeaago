@@ -170,7 +170,6 @@ func TestSetSavedUsesAuthenticatedStudentOnly(t *testing.T) {
 	}
 }
 
-
 func TestReviewPracticeIsBoundedAndDoesNotLeakAnswerKey(t *testing.T) {
 	now := time.Now().UTC()
 	repo := &repoStub{
@@ -242,7 +241,7 @@ func TestSubmitReviewAnswerScoresOnServerAndCreatesRemediationEvidence(t *testin
 		learner("student-1"),
 		"card-1",
 		learning.ReviewAnswerWrite{
-			SubmissionKey: "review-key-123",
+			SubmissionKey:       "review-key-123",
 			ExpectedCardUpdated: now,
 			SelectedOptionIndex: 0,
 		},

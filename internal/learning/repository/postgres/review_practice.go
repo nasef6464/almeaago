@@ -299,9 +299,9 @@ func (r *Repository) ApplyReviewAnswer(
 		}
 		type aggregate struct {
 			pathID, subjectID, skillID string
-			mastery                   float64
-			evidenceCount, attempts   int
-			last                      time.Time
+			mastery                    float64
+			evidenceCount, attempts    int
+			last                       time.Time
 		}
 		var aggregates []aggregate
 		for rows.Next() {

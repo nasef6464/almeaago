@@ -187,7 +187,6 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	_ = json.NewEncoder(w).Encode(body)
 }
 
-
 func (h *Handler) practice(w http.ResponseWriter, r *http.Request) {
 	authenticated, ok := h.authn(w, r, false)
 	if !ok {
