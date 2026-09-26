@@ -92,7 +92,7 @@ func (r *Repository) GetPlacement(ctx context.Context, id string) (assessment.Pl
 
 func (r *Repository) ListPlacements(ctx context.Context, assessmentID string, page, limit int) (assessment.PlacementPage, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id::text,assessment_id::text,assessment_version,slot,path_id::text,
+		SELECT id::text,assessment_id::text,assessment_version,slot,access_type,path_id::text,
 		       COALESCE(subject_id::text,''),COALESCE(course_id::text,''),COALESCE(lesson_id::text,''),
 		       COALESCE(topic_id::text,''),is_visible,sort_order,created_at,updated_at
 		FROM assessment_learning_placements
