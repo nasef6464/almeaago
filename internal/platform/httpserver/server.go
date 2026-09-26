@@ -26,6 +26,8 @@ type Dependencies struct {
 	AssessmentAttempts    http.Handler
 	AssessmentAssignments http.Handler
 	AssessmentPlacements  http.Handler
+	AssessmentSessions    http.Handler
+	PublicAssessmentSessions http.Handler
 	Media                 http.Handler
 	Courses               http.Handler
 	Lessons               http.Handler
@@ -92,6 +94,12 @@ func New(addr string, deps Dependencies) *http.Server {
 	}
 	if deps.AssessmentPlacements != nil {
 		router.Mount("/api/v1/assessment-placements", deps.AssessmentPlacements)
+	}
+	if deps.AssessmentSessions != nil {
+		router.Mount("/api/v1/assessment-sessions", deps.AssessmentSessions)
+	}
+	if deps.PublicAssessmentSessions != nil {
+		router.Mount("/api/v1/public-assessments", deps.PublicAssessmentSessions)
 	}
 	if deps.Media != nil {
 		router.Mount("/api/v1/media", deps.Media)
