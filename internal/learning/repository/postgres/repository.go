@@ -146,7 +146,7 @@ func (r *Repository) ApplyAssessmentEvidence(ctx context.Context, event learning
 		rows, queryErr := tx.Query(ctx, `
 			SELECT me.path_id::text,me.subject_id::text,mes.skill_id::text,
 			       ROUND(100.0*AVG(CASE WHEN me.is_correct THEN 1.0 ELSE 0.0 END),3)::float8,
-			       COUNT(*)::int,COUNT(DISTINCT me.source_attempt_id)::int,MAX(me.occurred_at)
+			       COUNT(*)::int,COUNT(DISTINCT COALESCE(me.source_attempt_id::text,me.review_submission_id::text))::int,MAX(me.occurred_at)
 			FROM mastery_evidence me
 			JOIN mastery_evidence_skills mes ON mes.evidence_id=me.id
 			WHERE me.student_id=$1::uuid AND (`+predicate+`)

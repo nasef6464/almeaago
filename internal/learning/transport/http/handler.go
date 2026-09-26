@@ -30,6 +30,8 @@ func NewReview(service *learningapp.Service, auth Authenticator) http.Handler {
 	h := &Handler{service: service, auth: auth}
 	r := chi.NewRouter()
 	r.Get("/library", h.library)
+	r.Get("/practice", h.practice)
+	r.Post("/cards/{cardId}/answer", h.answer)
 	r.Put("/questions/{questionId}/saved", h.save)
 	r.Delete("/questions/{questionId}/saved", h.unsave)
 	return r
@@ -170,6 +172,10 @@ func writeError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Forbidden"})
 	case errors.Is(err, learningapp.ErrNotFound):
 		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Review item not found"})
+	case errors.Is(err, learningapp.ErrConflict):
+		writeJSON(w, http.StatusConflict, map[string]string{"message": "Learning state conflict"})
+	case errors.Is(err, learningapp.ErrNotDue):
+		writeJSON(w, http.StatusConflict, map[string]string{"message": "Review item is not due"})
 	default:
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Internal server error"})
 	}
@@ -179,4 +185,59 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)
+}
+
+
+func (h *Handler) practice(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, false)
+	if !ok {
+		return
+	}
+	page, err := parsePositive(r.URL.Query().Get("page"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	limit, err := parsePositive(r.URL.Query().Get("limit"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	out, err := h.service.ReviewPractice(
+		r.Context(),
+		authenticated.User,
+		learning.ReviewTab(r.URL.Query().Get("tab")),
+		r.URL.Query().Get("pathId"),
+		r.URL.Query().Get("subjectId"),
+		page,
+		limit,
+	)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (h *Handler) answer(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, true)
+	if !ok {
+		return
+	}
+	var in learning.ReviewAnswerWrite
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&in); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+		return
+	}
+	out, err := h.service.SubmitReviewAnswer(
+		r.Context(),
+		authenticated.User,
+		chi.URLParam(r, "cardId"),
+		in,
+	)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"result": out})
 }

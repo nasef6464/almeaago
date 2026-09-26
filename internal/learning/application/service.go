@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	learning "github.com/nasef6464/almeaago/internal/learning/domain"
@@ -15,6 +16,8 @@ var (
 	ErrInvalidInput = errors.New("invalid learning request")
 	ErrForbidden    = errors.New("learning operation forbidden")
 	ErrNotFound     = learning.ErrNotFound
+	ErrConflict     = learning.ErrConflict
+	ErrNotDue       = learning.ErrNotDue
 )
 
 type Repository interface {
@@ -23,6 +26,10 @@ type Repository interface {
 	WeakestSkillProgress(context.Context, string, string, string) (*learning.SkillProgress, error)
 	ListReviewCards(context.Context, string, learning.ReviewTab, string, string, int, int) ([]learning.ReviewCard, bool, error)
 	SetSavedReview(context.Context, string, string, bool) error
+	ListDueReviewCards(context.Context, string, learning.ReviewTab, string, string, int, int, time.Time) ([]learning.ReviewCard, bool, error)
+	GetReviewCard(context.Context, string, string) (learning.ReviewCard, error)
+	GetReviewSubmissionByKey(context.Context, string, string) (*learning.ReviewSubmission, error)
+	ApplyReviewAnswer(context.Context, learning.ReviewAnswerEvent) (learning.ReviewSubmission, error)
 }
 
 type ReviewQuestionReader interface {
