@@ -29,6 +29,8 @@ type Config struct {
 	R2SecretAccessKey      string
 	MediaMaxUploadBytes    int64
 	MediaPresignTTLSeconds int
+
+	CommerceWebhookSecret string
 }
 
 func Load() (Config, error) {
@@ -53,6 +55,8 @@ func Load() (Config, error) {
 		R2PublicBaseURL:   os.Getenv("R2_PUBLIC_BASE_URL"),
 		R2AccessKeyID:     os.Getenv("R2_ACCESS_KEY_ID"),
 		R2SecretAccessKey: os.Getenv("R2_SECRET_ACCESS_KEY"),
+
+		CommerceWebhookSecret: os.Getenv("COMMERCE_WEBHOOK_SECRET"),
 	}
 
 	if cfg.DatabaseURL == "" {

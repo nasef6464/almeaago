@@ -108,6 +108,12 @@ jobs:
           check "select exists(select 1 from pg_indexes where tablename='commerce_products' and indexname='commerce_products_course_unique_idx')"
           check "select exists(select 1 from pg_indexes where tablename='commerce_entitlements' and indexname='commerce_entitlements_user_active_idx')"
           check "select exists(select 1 from pg_constraint where conname='commerce_package_items_target_shape')"
+          check "select to_regclass('public.commerce_discount_codes') is not null"
+          check "select to_regclass('public.commerce_payment_requests') is not null"
+          check "select to_regclass('public.commerce_provider_events') is not null"
+          check "select exists(select 1 from pg_indexes where tablename='commerce_payment_requests' and indexname='commerce_payment_requests_user_recent_idx')"
+          check "select exists(select 1 from pg_indexes where tablename='commerce_provider_events' and indexname='commerce_provider_events_request_idx')"
+          check "select exists(select 1 from pg_constraint where conname='commerce_payment_amount_check')"
 
       - name: Roll back every migration
         shell: bash
