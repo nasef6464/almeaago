@@ -42,24 +42,24 @@ type InterventionPatch struct {
 }
 
 type SchoolIntervention struct {
-	ID                   string               `json:"id"`
-	SchoolID             string               `json:"schoolId"`
-	ClassID              string               `json:"classId"`
-	StudentID            string               `json:"studentId"`
-	PathID               string               `json:"pathId"`
-	SubjectID            string               `json:"subjectId"`
-	SkillID              string               `json:"skillId"`
-	ActionType           string               `json:"actionType"`
-	StudyPlanID          string               `json:"studyPlanId"`
-	Status               InterventionStatus   `json:"status"`
-	AssignedBy           string               `json:"assignedBy"`
-	FollowUpAt           *time.Time           `json:"followUpAt"`
-	RemediationThreshold *float64             `json:"remediationThreshold"`
-	MinimumEvidence      int                  `json:"minimumEvidence"`
-	Baseline             InterventionEvidence `json:"baseline"`
+	ID                   string                `json:"id"`
+	SchoolID             string                `json:"schoolId"`
+	ClassID              string                `json:"classId"`
+	StudentID            string                `json:"studentId"`
+	PathID               string                `json:"pathId"`
+	SubjectID            string                `json:"subjectId"`
+	SkillID              string                `json:"skillId"`
+	ActionType           string                `json:"actionType"`
+	StudyPlanID          string                `json:"studyPlanId"`
+	Status               InterventionStatus    `json:"status"`
+	AssignedBy           string                `json:"assignedBy"`
+	FollowUpAt           *time.Time            `json:"followUpAt"`
+	RemediationThreshold *float64              `json:"remediationThreshold"`
+	MinimumEvidence      int                   `json:"minimumEvidence"`
+	Baseline             InterventionEvidence  `json:"baseline"`
 	Outcome              *InterventionEvidence `json:"outcome,omitempty"`
-	CreatedAt            time.Time            `json:"createdAt"`
-	UpdatedAt            time.Time            `json:"updatedAt"`
+	CreatedAt            time.Time             `json:"createdAt"`
+	UpdatedAt            time.Time             `json:"updatedAt"`
 }
 
 type InterventionPage struct {

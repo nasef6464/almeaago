@@ -98,15 +98,15 @@ func (r *Repository) CreateSchoolIntervention(
 		return learning.SchoolIntervention{}, err
 	}
 	if err = r.writeAuditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actor,
-		Action: "learning.intervention.create",
+		ActorUserID:  actor,
+		Action:       "learning.intervention.create",
 		ResourceType: "school_intervention",
-		ResourceID: id,
+		ResourceID:   id,
 		Metadata: map[string]any{
-			"schoolId": input.SchoolID,
-			"classId": input.ClassID,
-			"studentId": input.StudentID,
-			"skillId": input.SkillID,
+			"schoolId":    input.SchoolID,
+			"classId":     input.ClassID,
+			"studentId":   input.StudentID,
+			"skillId":     input.SkillID,
 			"studyPlanId": planID,
 		},
 	}); err != nil {
@@ -135,11 +135,11 @@ func scanIntervention(row interventionScanner) (learning.SchoolIntervention, err
 	var outcomeAccuracy *float64
 	var outcomeMeasured *time.Time
 	err := row.Scan(
-		&out.ID,&out.SchoolID,&out.ClassID,&out.StudentID,&out.PathID,&out.SubjectID,
-		&out.SkillID,&out.ActionType,&out.StudyPlanID,&out.Status,&out.AssignedBy,&out.FollowUpAt,
-		&out.RemediationThreshold,&out.MinimumEvidence,
-		&out.Baseline.EvidenceCount,&out.Baseline.Correct,&out.Baseline.Accuracy,
-		&outcomeCount,&outcomeCorrect,&outcomeAccuracy,&outcomeMeasured,&out.CreatedAt,&out.UpdatedAt,
+		&out.ID, &out.SchoolID, &out.ClassID, &out.StudentID, &out.PathID, &out.SubjectID,
+		&out.SkillID, &out.ActionType, &out.StudyPlanID, &out.Status, &out.AssignedBy, &out.FollowUpAt,
+		&out.RemediationThreshold, &out.MinimumEvidence,
+		&out.Baseline.EvidenceCount, &out.Baseline.Correct, &out.Baseline.Accuracy,
+		&outcomeCount, &outcomeCorrect, &outcomeAccuracy, &outcomeMeasured, &out.CreatedAt, &out.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -149,7 +149,7 @@ func scanIntervention(row interventionScanner) (learning.SchoolIntervention, err
 	}
 	if outcomeCount != nil && outcomeCorrect != nil {
 		out.Outcome = &learning.InterventionEvidence{
-			EvidenceCount:*outcomeCount,Correct:*outcomeCorrect,Accuracy:outcomeAccuracy,MeasuredAt:outcomeMeasured,
+			EvidenceCount: *outcomeCount, Correct: *outcomeCorrect, Accuracy: outcomeAccuracy, MeasuredAt: outcomeMeasured,
 		}
 	}
 	baselineMeasured := out.CreatedAt
@@ -162,7 +162,7 @@ func (r *Repository) GetSchoolIntervention(ctx context.Context, id string) (lear
 }
 
 func (r *Repository) ListSchoolInterventions(ctx context.Context, schoolID, classID string, status learning.InterventionStatus, page, limit int) (learning.InterventionPage, error) {
-	args := []any{schoolID, string(status), limit+1, (page-1)*limit}
+	args := []any{schoolID, string(status), limit + 1, (page - 1) * limit}
 	classFilter := ""
 	if classID != "" {
 		args = append(args, classID)
@@ -179,17 +179,22 @@ func (r *Repository) ListSchoolInterventions(ctx context.Context, schoolID, clas
 		return learning.InterventionPage{}, err
 	}
 	defer rows.Close()
-	out := learning.InterventionPage{Page:page,Limit:limit}
+	out := learning.InterventionPage{Page: page, Limit: limit}
 	for rows.Next() {
 		item, scanErr := scanIntervention(rows)
 		if scanErr != nil {
 			return out, scanErr
 		}
-		out.Items = append(out.Items,item)
+		out.Items = append(out.Items, item)
 	}
-	if err=rows.Err(); err!=nil { return out,err }
-	if len(out.Items)>limit { out.HasMore=true;out.Items=out.Items[:limit] }
-	return out,nil
+	if err = rows.Err(); err != nil {
+		return out, err
+	}
+	if len(out.Items) > limit {
+		out.HasMore = true
+		out.Items = out.Items[:limit]
+	}
+	return out, nil
 }
 
 func (r *Repository) ListStudentInterventions(ctx context.Context, student string, status learning.InterventionStatus, page, limit int) (learning.InterventionPage, error) {
@@ -199,17 +204,27 @@ func (r *Repository) ListStudentInterventions(ctx context.Context, student strin
 		WHERE student_id=$1::uuid AND status=$2
 		ORDER BY updated_at DESC,id DESC
 		LIMIT $3 OFFSET $4
-	`, student,string(status),limit+1,(page-1)*limit)
-	if err != nil { return learning.InterventionPage{},err }
-	defer rows.Close()
-	out:=learning.InterventionPage{Page:page,Limit:limit}
-	for rows.Next(){
-		item,scanErr:=scanIntervention(rows);if scanErr!=nil{return out,scanErr}
-		out.Items=append(out.Items,item)
+	`, student, string(status), limit+1, (page-1)*limit)
+	if err != nil {
+		return learning.InterventionPage{}, err
 	}
-	if err=rows.Err();err!=nil{return out,err}
-	if len(out.Items)>limit{out.HasMore=true;out.Items=out.Items[:limit]}
-	return out,nil
+	defer rows.Close()
+	out := learning.InterventionPage{Page: page, Limit: limit}
+	for rows.Next() {
+		item, scanErr := scanIntervention(rows)
+		if scanErr != nil {
+			return out, scanErr
+		}
+		out.Items = append(out.Items, item)
+	}
+	if err = rows.Err(); err != nil {
+		return out, err
+	}
+	if len(out.Items) > limit {
+		out.HasMore = true
+		out.Items = out.Items[:limit]
+	}
+	return out, nil
 }
 
 func (r *Repository) PatchSchoolIntervention(ctx context.Context, actor, id string, patch learning.InterventionPatch) (learning.SchoolIntervention, error) {
@@ -230,12 +245,12 @@ func (r *Repository) PatchSchoolIntervention(ctx context.Context, actor, id stri
 		return learning.SchoolIntervention{}, learning.ErrConflict
 	}
 	if err = r.writeAuditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actor,
-		Action: "learning.intervention.update",
+		ActorUserID:  actor,
+		Action:       "learning.intervention.update",
 		ResourceType: "school_intervention",
-		ResourceID: id,
+		ResourceID:   id,
 		Metadata: map[string]any{
-			"status": patch.Status,
+			"status":          patch.Status,
 			"minimumEvidence": patch.MinimumEvidence,
 		},
 	}); err != nil {
@@ -266,14 +281,14 @@ func (r *Repository) MeasureSchoolIntervention(ctx context.Context, actor, id st
 		return learning.SchoolIntervention{}, learning.ErrConflict
 	}
 	if err = r.writeAuditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actor,
-		Action: "learning.intervention.measure",
+		ActorUserID:  actor,
+		Action:       "learning.intervention.measure",
 		ResourceType: "school_intervention",
-		ResourceID: id,
+		ResourceID:   id,
 		Metadata: map[string]any{
 			"evidenceCount": snapshot.EvidenceCount,
-			"correct": snapshot.Correct,
-			"accuracy": snapshot.Accuracy,
+			"correct":       snapshot.Correct,
+			"accuracy":      snapshot.Accuracy,
 		},
 	}); err != nil {
 		return learning.SchoolIntervention{}, err
