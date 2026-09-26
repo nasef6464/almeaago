@@ -15,7 +15,9 @@ SELECT id::text,payment_request_id::text,product_id::text,product_type,COALESCE(
        gross_amount_minor,discount_amount_minor,paid_amount_minor,currency,
        provider_fee_minor,trainer_share_minor,platform_share_minor,allocation_status,payout_status,
        allocation_evidence,COALESCE(allocated_by::text,''),allocated_at,
-       payout_evidence,COALESCE(paid_by::text,''),payout_paid_at,revision,created_at,updated_at
+       payout_evidence,COALESCE(paid_by::text,''),payout_paid_at,
+       reversal_type,reversed_amount_minor,reversal_reference,reversed_at,
+       revision,created_at,updated_at
 FROM commerce_revenue_entries
 `
 
@@ -27,7 +29,9 @@ func scanRevenue(row scanner) (commerce.RevenueEntry, error) {
 		&out.GrossAmountMinor, &out.DiscountAmountMinor, &out.PaidAmountMinor, &out.Currency,
 		&out.ProviderFeeMinor, &out.TrainerShareMinor, &out.PlatformShareMinor, &out.AllocationStatus, &out.PayoutStatus,
 		&out.AllocationEvidence, &out.AllocatedBy, &out.AllocatedAt,
-		&out.PayoutEvidence, &out.PaidBy, &out.PayoutPaidAt, &out.Revision, &out.CreatedAt, &out.UpdatedAt,
+		&out.PayoutEvidence, &out.PaidBy, &out.PayoutPaidAt,
+		&out.ReversalType, &out.ReversedAmountMinor, &out.ReversalReference, &out.ReversedAt,
+		&out.Revision, &out.CreatedAt, &out.UpdatedAt,
 	)
 	if err != nil {
 		return out, mapError(err)
@@ -114,7 +118,7 @@ func (r *Repository) AllocateRevenue(ctx context.Context, actor, id string, in c
 	if row.Revision != in.ExpectedRevision {
 		return commerce.RevenueEntry{}, commerce.ErrVersionConflict
 	}
-	if row.AllocationStatus != commerce.RevenuePending || row.TrainerUserID == "" || row.RevenueSharePercentage == nil {
+	if row.ReversalType != "" || row.AllocationStatus != commerce.RevenuePending || row.TrainerUserID == "" || row.RevenueSharePercentage == nil {
 		return commerce.RevenueEntry{}, commerce.ErrConflict
 	}
 	if in.ProviderFeeMinor+in.TrainerShareMinor+in.PlatformShareMinor != row.PaidAmountMinor {
@@ -163,7 +167,7 @@ func (r *Repository) MarkPayoutPaid(ctx context.Context, actor, id string, in co
 	if row.Revision != in.ExpectedRevision {
 		return commerce.RevenueEntry{}, commerce.ErrVersionConflict
 	}
-	if row.AllocationStatus != commerce.RevenueAllocated || row.PayoutStatus != commerce.PayoutPending || row.TrainerShareMinor == nil || *row.TrainerShareMinor <= 0 {
+	if row.ReversalType != "" || row.AllocationStatus != commerce.RevenueAllocated || row.PayoutStatus != commerce.PayoutPending || row.TrainerShareMinor == nil || *row.TrainerShareMinor <= 0 {
 		return commerce.RevenueEntry{}, commerce.ErrConflict
 	}
 	_, err = tx.Exec(ctx, `
