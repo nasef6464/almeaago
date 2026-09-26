@@ -56,11 +56,11 @@ func (r *checkoutRepoStub) PaymentRequestByProviderSession(context.Context, stri
 }
 func (r *checkoutRepoStub) RecordAdminReversal(_ context.Context, _ string, _ string, _ int, in commerce.PaymentReversalRecord) (commerce.PaymentReversalResult, error) {
 	r.request.Status = commerce.PaymentStatus(in.ReversalType)
-	if in.ReversalType == commerce.PaymentRefund {
-		r.request.Status = commerce.PaymentRefunded
+	if in.ReversalType == commerce.ReversalRefund {
+		r.request.Status = commerce.ReversalRefunded
 	}
-	if in.ReversalType == commerce.PaymentChargeback {
-		r.request.Status = commerce.PaymentChargeback
+	if in.ReversalType == commerce.ReversalChargeback {
+		r.request.Status = commerce.ReversalChargeback
 	}
 	return commerce.PaymentReversalResult{PaymentRequest: r.request, Reversal: commerce.PaymentReversal{ReversalType: in.ReversalType, ProviderReference: in.ProviderReference}}, nil
 }
@@ -313,17 +313,17 @@ func TestProviderRefundBySessionUsesCanonicalPaymentLookup(t *testing.T) {
 func TestAdminReversalRequiresAdminEvidenceAndExplicitType(t *testing.T) {
 	repo := &checkoutRepoStub{request: commerce.PaymentRequest{ID: "pay-1", Status: commerce.PaymentPaid}}
 	s := NewCheckoutService(repo, commerce.CheckoutPolicy{})
-	if _, err := s.RecordAdminReversal(context.Background(), checkoutUser(), "pay-1", commerce.AdminReversalRecord{ExpectedRevision: 1, ReversalType: commerce.PaymentRefund, ProviderReference: "refund-1", Evidence: "provider receipt"}); !errors.Is(err, ErrForbidden) {
+	if _, err := s.RecordAdminReversal(context.Background(), checkoutUser(), "pay-1", commerce.AdminReversalRecord{ExpectedRevision: 1, ReversalType: commerce.ReversalRefund, ProviderReference: "refund-1", Evidence: "provider receipt"}); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("expected admin guard, got %v", err)
 	}
-	if _, err := s.RecordAdminReversal(context.Background(), checkoutAdmin(), "pay-1", commerce.AdminReversalRecord{ExpectedRevision: 1, ReversalType: commerce.PaymentRefund, ProviderReference: "refund-1", Evidence: "x"}); !errors.Is(err, ErrInvalidInput) {
+	if _, err := s.RecordAdminReversal(context.Background(), checkoutAdmin(), "pay-1", commerce.AdminReversalRecord{ExpectedRevision: 1, ReversalType: commerce.ReversalRefund, ProviderReference: "refund-1", Evidence: "x"}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("expected evidence validation, got %v", err)
 	}
-	out, err := s.RecordAdminReversal(context.Background(), checkoutAdmin(), "pay-1", commerce.AdminReversalRecord{ExpectedRevision: 1, ReversalType: commerce.PaymentChargeback, ProviderReference: "case-7788", Evidence: "provider chargeback report"})
+	out, err := s.RecordAdminReversal(context.Background(), checkoutAdmin(), "pay-1", commerce.AdminReversalRecord{ExpectedRevision: 1, ReversalType: commerce.ReversalChargeback, ProviderReference: "case-7788", Evidence: "provider chargeback report"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out.PaymentRequest.Status != commerce.PaymentChargeback || out.Reversal.ProviderReference != "case-7788" {
+	if out.PaymentRequest.Status != commerce.ReversalChargeback || out.Reversal.ProviderReference != "case-7788" {
 		t.Fatalf("unexpected reversal: %#v", out)
 	}
 }
