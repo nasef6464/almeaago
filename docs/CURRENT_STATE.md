@@ -533,5 +533,31 @@ Verification:
 Audit:
 - `docs/domains/assessment/ASSESSMENT_LEARNING_PLACEMENTS_AUDIT.md`.
 
+## Assessment Public / Barcode / Live Sessions — IN REVIEW
+Active branch: `feat/assessment-session-distribution`.
+
+Implemented on the branch:
+- normalized staff Session distribution over canonical `assessment_sessions`, pinned to the exact published Assessment version.
+- server-generated stable entry codes; sessions start as `scheduled` and require an explicit CSRF-protected activation.
+- server-owned active/open/close/cancel policy.
+- bounded staff list (default 50, max 100, `hasMore`; no exact-count list scan).
+- anonymous `public/barcode` attempts in dedicated normalized tables, with no Guest User fabrication and no account-result mixing.
+- public attempt idempotent start/submission keys, per-participant attempt budget, server expiry, canonical Question-version references and server scoring.
+- public answer submission is batched through one relational insert rather than per-question SQL round trips.
+- optional bounded global public submission cap.
+- authenticated Student `live` join/start reuses canonical `assessment_attempts` with `session_id`, per-session attempt budget and school/class membership gate when scoped.
+- responsive staff Session manager, anonymous Barcode/Public runner, and authenticated Live join UI.
+- Smart Classroom websocket/presence/reveal orchestration remains owned by Realtime and is not duplicated here.
+- Commerce entitlement and Learning mastery/evidence side effects remain outside this slice.
+
+Migration:
+- `000021_assessment_session_distribution`.
+
+Verification state:
+- not merge-qualified until Database CI + Backend CI + Frontend CI + Frontend E2E pass on the exact PR head.
+
+Audit:
+- `docs/domains/assessment/ASSESSMENT_SESSION_DISTRIBUTION_AUDIT.md`.
+
 ## Next exact action
-Continue Assessment phase closure from current `main` with the public/barcode/live Session distribution batch. Build bounded staff session management, stable public/barcode entry codes, server-owned open/close/status policy, student/public attempt context as appropriate, and responsive entry/admin E2E. Keep live socket/presence orchestration in Realtime, Commerce entitlement in Commerce, and Learning mastery side effects in Learning; Assessment Sessions must reference exact published Assessment versions without copying Question payloads.
+Open the Session Distribution PR, run Database + Backend + Frontend + E2E on the exact head, fix every failure on the same branch, and merge only after the exact head is green. After merge, Assessment Distribution is closed at HTTP/product-entry level; Smart Classroom realtime orchestration remains a separate Realtime phase.
