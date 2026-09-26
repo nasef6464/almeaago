@@ -118,7 +118,7 @@ FROM commerce_access_codes c
 JOIN commerce_products p ON p.id=c.product_id
 JOIN commerce_packages pk ON pk.product_id=p.id
 WHERE c.code=$1 AND p.status='active' AND p.access_mode='paid'
-FOR UPDATE OF c
+FOR UPDATE OF c,pk
 `, code).Scan(&c.ID, &c.Code, &c.ProductID, &c.SchoolID, &c.Status, &c.MaxUses, &c.CurrentUses, &c.StartsAt, &c.ExpiresAt, &c.Revision, &c.CreatedAt, &c.UpdatedAt, &packageID, &seatCapacity, &validityDays)
 	if err != nil {
 		return commerce.AccessCodeRedemption{}, mapError(err)
