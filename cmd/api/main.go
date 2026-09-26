@@ -100,6 +100,7 @@ func main() {
 	assessmentAssignmentService := assessmentapp.NewAssignmentService(assessmentRepository)
 	assessmentPlacementService := assessmentapp.NewPlacementService(assessmentRepository, assessmentService, contentRepository)
 	assessmentSessionService := assessmentapp.NewSessionService(assessmentRepository, assessmentService)
+	studyPlanService := learningapp.NewStudyPlanService(learningRepository, taxonomyRepository, contentRepository, assessmentRepository)
 	mediaRepository := mediarepo.New(db, auditWriter)
 	r2Client := r2provider.New(r2provider.Config{
 		AccountID:       cfg.R2AccountID,
@@ -137,6 +138,7 @@ func main() {
 	learningReviewHandler := learninghttp.NewReview(learningService, identityService)
 	masteryHandler := learninghttp.NewMasteryWithGoals(learningService, masteryGoalService, identityService)
 	lessonProgressHandler := learninghttp.NewLessonProgress(lessonProgressService, identityService)
+	studyPlansHandler := learninghttp.NewStudyPlans(studyPlanService, identityService)
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
 	assessmentHandler := assessmenthttp.NewWithDistribution(assessmentService, identityService, assessmentAssignmentService, assessmentPlacementService, assessmentAttemptService)
 	assessmentAttemptsHandler := assessmenthttp.NewAttempts(assessmentAttemptService, identityService)
@@ -194,6 +196,7 @@ func main() {
 		LearningReview:           learningReviewHandler,
 		Mastery:                  masteryHandler,
 		LearningProgress:         lessonProgressHandler,
+		StudyPlans:               studyPlansHandler,
 		LegacySchoolAccess:       legacySchoolAccessHandler,
 	})
 
