@@ -18,6 +18,8 @@ import { AssessmentAdminPage } from '../features/assessment/pages/AssessmentAdmi
 import { AssessmentAttemptPage } from '../features/assessment/pages/AssessmentAttemptPage';
 import { AssessmentResultsPage } from '../features/assessment/pages/AssessmentResultsPage';
 import { AssessmentAvailabilityPage } from '../features/assessment/pages/AssessmentAvailabilityPage';
+import { PublicBarcodeAssessmentPage } from '../features/assessment/pages/PublicBarcodeAssessmentPage';
+import { LiveAssessmentJoinPage } from '../features/assessment/pages/LiveAssessmentJoinPage';
 import { AdminDashboardShell } from '../features/content/components/AdminDashboardShell';
 
 type ModalMode = 'login' | 'signup' | null;
@@ -152,6 +154,9 @@ export function App() {
         <Route path="/admin-dashboard/content" element={<AdminDashboardShell><ContentAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/assessments" element={<AdminDashboardShell><AssessmentAdminPage /></AdminDashboardShell>} />
         <Route path="/assessments" element={<AssessmentAvailabilityPage />} />
+        <Route path="/barcode-test" element={<PublicBarcodeAssessmentPage />} />
+        <Route path="/barcode-test/:code" element={<PublicBarcodeAssessmentPage />} />
+        <Route path="/live-assessment" element={<LiveAssessmentJoinPage />} />
         <Route path="/assessments/:assessmentId/start" element={<AssessmentAttemptPage />} />
         <Route path="/assessment-attempts/:attemptId" element={<AssessmentAttemptPage />} />
         <Route path="/assessment-results" element={<AssessmentResultsPage />} />
