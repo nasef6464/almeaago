@@ -19,7 +19,9 @@ export function CommerceAdminPage(){
  const[prices,setPrices]=useState<Record<string,number>>({});
  const[pkgName,setPkgName]=useState('');const[pkgCode,setPkgCode]=useState('');const[pkgPrice,setPkgPrice]=useState(0);const[pkgContent,setPkgContent]=useState<CommerceContentType>('all');
  const[subjectType,setSubjectType]=useState<'user'|'school'>('user');const[subjectId,setSubjectId]=useState('');const[grantProduct,setGrantProduct]=useState('');
- const[activationCode,setActivationCode]=useState('');const[activationProduct,setActivationProduct]=useState('');const[activationUses,setActivationUses]=useState(1);const[activationExpires,setActivationExpires]=useState('');\n const[seatSchoolEntitlement,setSeatSchoolEntitlement]=useState('');const[seatUser,setSeatUser]=useState('');\n const[discountCode,setDiscountCode]=useState('');const[discountPercent,setDiscountPercent]=useState(10);const[discountScope,setDiscountScope]=useState<'all'|'product'>('all');const[discountProduct,setDiscountProduct]=useState('');
+ const[activationCode,setActivationCode]=useState('');const[activationProduct,setActivationProduct]=useState('');const[activationUses,setActivationUses]=useState(1);const[activationExpires,setActivationExpires]=useState('');
+ const[seatSchoolEntitlement,setSeatSchoolEntitlement]=useState('');const[seatUser,setSeatUser]=useState('');
+ const[discountCode,setDiscountCode]=useState('');const[discountPercent,setDiscountPercent]=useState(10);const[discountScope,setDiscountScope]=useState<'all'|'product'>('all');const[discountProduct,setDiscountProduct]=useState('');
  const[reload,setReload]=useState(0);
 
  useEffect(()=>{if(authLoading||!user||!user.roles.includes('admin'))return;const c=new AbortController();setBusy(true);setError('');
