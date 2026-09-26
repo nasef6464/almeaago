@@ -172,4 +172,3 @@ func TestRevenueMutationsRequireAdminAndEvidence(t *testing.T) {
 		t.Fatalf("expected payout evidence validation, got %v", err)
 	}
 }
-
