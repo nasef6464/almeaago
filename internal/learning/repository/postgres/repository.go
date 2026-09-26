@@ -11,14 +11,31 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	learning "github.com/nasef6464/almeaago/internal/learning/domain"
+	operations "github.com/nasef6464/almeaago/internal/operations/domain"
 )
 
-type Repository struct {
-	db *pgxpool.Pool
+type AuditWriter interface {
+	WriteTx(context.Context, pgx.Tx, operations.AuditEvent) error
 }
 
-func New(db *pgxpool.Pool) *Repository {
-	return &Repository{db: db}
+type Repository struct {
+	db    *pgxpool.Pool
+	audit AuditWriter
+}
+
+func New(db *pgxpool.Pool, audit ...AuditWriter) *Repository {
+	var writer AuditWriter
+	if len(audit) > 0 {
+		writer = audit[0]
+	}
+	return &Repository{db: db, audit: writer}
+}
+
+func (r *Repository) writeAuditTx(ctx context.Context, tx pgx.Tx, event operations.AuditEvent) error {
+	if r.audit == nil {
+		return nil
+	}
+	return r.audit.WriteTx(ctx, tx, event)
 }
 
 func (r *Repository) ApplyAssessmentEvidence(ctx context.Context, event learning.SubmissionEvidence) (learning.ApplyResult, error) {

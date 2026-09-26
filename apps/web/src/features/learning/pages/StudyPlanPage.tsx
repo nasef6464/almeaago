@@ -20,7 +20,9 @@ import {useAuth} from '../../auth/state/AuthProvider';
 import {contentClient} from '../../content/api/content-client';
 import type {LearnerCourseSummary,TaxonomyCore} from '../../content/api/content-types';
 import {
+  interventionClient,
   studyPlanClient,
+  type SchoolIntervention,
   type StudyPlan,
   type StudyPlanItem,
   type StudyPlanStatus,
@@ -68,6 +70,7 @@ export function StudyPlanPage(){
   const[draft,setDraft]=useState<StudyPlanWrite>(draftFor());
   const[courseSubjectId,setCourseSubjectId]=useState('');
   const[courseOptions,setCourseOptions]=useState<LearnerCourseSummary[]>([]);
+  const[interventions,setInterventions]=useState<SchoolIntervention[]>([]);
   const[busy,setBusy]=useState(true);
   const[saving,setSaving]=useState(false);
   const[error,setError]=useState('');
@@ -95,6 +98,13 @@ export function StudyPlanPage(){
     }).catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل الخطط')}).finally(()=>{if(!c.signal.aborted)setBusy(false)});
     return()=>c.abort();
   },[authLoading,pathId,reload,statusView,user]);
+
+  useEffect(()=>{
+    if(authLoading||!user||!user.roles.includes('student')){setInterventions([]);return}
+    const c=new AbortController();
+    interventionClient.mine('active',1,20,c.signal).then(r=>setInterventions(r.items)).catch(()=>setInterventions([]));
+    return()=>c.abort();
+  },[authLoading,reload,user]);
 
   useEffect(()=>{
     if(!courseSubjectId||!pathId){setCourseOptions([]);return}
@@ -179,6 +189,7 @@ export function StudyPlanPage(){
 
       {error?<div className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700">{error}</div>:null}
       {notice?<div className="rounded-xl bg-emerald-50 p-3 font-bold text-emerald-700">{notice}</div>:null}
+      {interventions.length>0?<section className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center gap-2 font-black text-amber-900"><Target size={18}/>خطط علاج المدرسة</div>{interventions.map(row=><div key={row.id} className="rounded-xl bg-white p-3 text-sm shadow-sm"><div className="flex flex-wrap items-center justify-between gap-2"><div className="font-black">مهارة {row.skillId}</div><span className="rounded-full bg-indigo-50 px-2 py-1 text-xs font-black text-indigo-700">{row.status}</span></div><div className="mt-2 flex flex-wrap gap-3 text-xs font-bold text-gray-500"><span>Baseline: {row.baseline.accuracy==null?'—':row.baseline.accuracy.toFixed(1)+'%'}</span><span>خطة الدراسة: {row.studyPlanId}</span>{row.followUpAt?<span>المتابعة: {new Date(row.followUpAt).toLocaleString('ar-SA')}</span>:null}</div>{row.outcome?<div className="mt-2 font-bold text-emerald-700">آخر قياس: {row.outcome.accuracy==null?'—':row.outcome.accuracy.toFixed(1)+'%'}</div>:null}</div>)}</section>:null}
 
       {statusView==='active'?<section className="space-y-4 rounded-3xl border bg-white p-4 shadow-sm sm:p-6">
         <h2 className="text-lg font-black">إعداد الخطة</h2>

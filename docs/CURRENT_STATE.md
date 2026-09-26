@@ -717,5 +717,30 @@ Verification:
 Audit:
 - `docs/domains/learning/LEARNING_STUDY_PLANS_AUDIT.md`.
 
+## Learning School Interventions — IN REVIEW
+Active branch: `feat/learning-school-interventions`.
+
+Implemented on the branch:
+- normalized `school_interventions` with exact school/class/student/path/subject/skill relationships, linked Study Plan, lifecycle, baseline and outcome snapshots.
+- verified legacy intervention semantics: one school student + skill, `study_plan` action, 14-day generated plan, follow-up, remediation threshold, minimum evidence and outcome measurement.
+- Learning owns intervention state; Organizations owns school/class/student/staff authority; Taxonomy owns exact skill scope.
+- school-admin management requires `SCHOOL_INTERVENTIONS_MANAGE`; view accepts VIEW/MANAGE; supervisor authority follows exact active school/class scopes.
+- class-scoped supervisors cannot issue broad school intervention lists.
+- create validates active student class membership and exact canonical skill before generating any plan.
+- intervention Study Plan and intervention row are created transactionally; active intervention plans cannot be edited/deleted through the learner self-owned Study Plan mutation API.
+- baseline and follow-up outcome use canonical Learning evidence for the exact student/path/subject/skill.
+- outcome is only marked measured after the configured minimum new evidence; optional threshold comparison remains server-owned.
+- bounded staff list (default 50/max 100) and learner list (default 20/max 50), both `limit+1/hasMore`; no exact-count scan added.
+- CSRF-protected create/update/measure with optimistic `expectedUpdatedAt` and transaction-scoped audit.
+- responsive school director/supervisor intervention UI using canonical school contexts/classes/roster + Taxonomy.
+- learner `/plan` shows active school intervention context alongside the generated Study Plan.
+- Playwright covers director lifecycle, exact-class supervisor reads and mobile learner visibility.
+
+Audit:
+- `docs/domains/learning/LEARNING_SCHOOL_INTERVENTIONS_AUDIT.md`.
+
+Verification state:
+- not merge-qualified until exact-head Database CI + Backend CI + Frontend CI + Frontend E2E pass.
+
 ## Next exact action
-Continue Phase 7 from current `main` with the separate school Interventions contract audit and normalized cutover. Keep intervention state in Learning but compose staff/student/school authority through Organizations; do not grant staff access by widening the learner Study Plan API. Verify the legacy intervention fields and school-role rules first, then implement bounded staff list/create/update lifecycle, learner-visible intervention projection where evidenced, PostgreSQL relationships, responsive staff/student UI and exact-head Database + Backend + Frontend + E2E gates before merge.
+Open the School Interventions PR, run all four exact-head gates, fix every failure on the same branch without weakening tests, record the verified SHA/run evidence, and merge only when all gates are green. After merge, choose the next Phase 7/8 batch from the execution plan and current parity matrix rather than an old chat state.

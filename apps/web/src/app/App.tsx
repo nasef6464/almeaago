@@ -22,6 +22,7 @@ import { ReviewLibraryPage } from '../features/learning/pages/ReviewLibraryPage'
 import { ReviewPracticePage } from '../features/learning/pages/ReviewPracticePage';
 import { CourseLearningPage } from '../features/learning/pages/CourseLearningPage';
 import { StudyPlanPage } from '../features/learning/pages/StudyPlanPage';
+import { SchoolInterventionsPage } from '../features/learning/pages/SchoolInterventionsPage';
 import { PublicBarcodeAssessmentPage } from '../features/assessment/pages/PublicBarcodeAssessmentPage';
 import { LiveAssessmentJoinPage } from '../features/assessment/pages/LiveAssessmentJoinPage';
 import { AdminDashboardShell } from '../features/content/components/AdminDashboardShell';
@@ -171,7 +172,9 @@ export function App() {
         <Route path="/plan" element={<StudyPlanPage />} />
         <Route path="/school-teacher-dashboard" element={<PlaceholderPage title="لوحة معلم المدرسة" />} />
         <Route path="/supervisor-dashboard" element={<PlaceholderPage title="لوحة المشرف" />} />
+        <Route path="/supervisor-dashboard/interventions" element={<SchoolInterventionsPage />} />
         <Route path="/school-director-dashboard" element={<PlaceholderPage title="لوحة مدير المدرسة" />} />
+        <Route path="/school-director-dashboard/interventions" element={<SchoolInterventionsPage />} />
         <Route path="/parent-dashboard" element={<PlaceholderPage title="لوحة ولي الأمر" />} />
         <Route path="*" element={<PlaceholderPage title="الصفحة قيد النقل" />} />
       </Routes>

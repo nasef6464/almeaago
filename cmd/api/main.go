@@ -90,7 +90,7 @@ func main() {
 	taxonomyService := taxonomyapp.NewService(taxonomyRepository)
 	questionRepository := questionrepo.New(db, auditWriter)
 	questionService := questionapp.NewServiceWithAuthorScope(questionRepository, authorScope)
-	learningRepository := learningrepo.New(db)
+	learningRepository := learningrepo.New(db, auditWriter)
 	learningService := learningapp.NewService(learningRepository, questionService)
 	masteryGoalService := learningapp.NewMasteryGoalService(learningRepository, taxonomyRepository)
 	lessonProgressService := learningapp.NewLessonProgressService(learningRepository, contentRepository)
@@ -101,6 +101,7 @@ func main() {
 	assessmentPlacementService := assessmentapp.NewPlacementService(assessmentRepository, assessmentService, contentRepository)
 	assessmentSessionService := assessmentapp.NewSessionService(assessmentRepository, assessmentService)
 	studyPlanService := learningapp.NewStudyPlanService(learningRepository, taxonomyRepository, contentRepository, assessmentRepository)
+	interventionService := learningapp.NewInterventionService(learningRepository, organizationsRepository, taxonomyRepository, studyPlanService)
 	mediaRepository := mediarepo.New(db, auditWriter)
 	r2Client := r2provider.New(r2provider.Config{
 		AccountID:       cfg.R2AccountID,
@@ -139,6 +140,7 @@ func main() {
 	masteryHandler := learninghttp.NewMasteryWithGoals(learningService, masteryGoalService, identityService)
 	lessonProgressHandler := learninghttp.NewLessonProgress(lessonProgressService, identityService)
 	studyPlansHandler := learninghttp.NewStudyPlans(studyPlanService, identityService)
+	interventionsHandler := learninghttp.NewInterventions(interventionService, identityService)
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
 	assessmentHandler := assessmenthttp.NewWithDistribution(assessmentService, identityService, assessmentAssignmentService, assessmentPlacementService, assessmentAttemptService)
 	assessmentAttemptsHandler := assessmenthttp.NewAttempts(assessmentAttemptService, identityService)
@@ -197,6 +199,7 @@ func main() {
 		Mastery:                  masteryHandler,
 		LearningProgress:         lessonProgressHandler,
 		StudyPlans:               studyPlansHandler,
+		Interventions:            interventionsHandler,
 		LegacySchoolAccess:       legacySchoolAccessHandler,
 	})
 

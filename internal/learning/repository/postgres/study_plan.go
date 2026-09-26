@@ -332,6 +332,12 @@ func (r *Repository) UpdateStudyPlan(
 		WHERE id=$1::uuid
 		  AND student_id=$2::uuid
 		  AND updated_at=$3
+		  AND NOT EXISTS(
+			SELECT 1
+			FROM school_interventions si
+			WHERE si.study_plan_id=study_plans.id
+			  AND si.status='active'
+		  )
 	`,
 		id,
 		student,
@@ -366,6 +372,22 @@ func (r *Repository) UpdateStudyPlan(
 }
 
 func (r *Repository) DeleteStudyPlan(ctx context.Context, student, id string) error {
+	var managed bool
+	if err := r.db.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1
+			FROM school_interventions si
+			JOIN study_plans sp ON sp.id=si.study_plan_id
+			WHERE si.study_plan_id=$1::uuid
+			  AND sp.student_id=$2::uuid
+			  AND si.status='active'
+		)
+	`, id, student).Scan(&managed); err != nil {
+		return err
+	}
+	if managed {
+		return learning.ErrConflict
+	}
 	tag, err := r.db.Exec(ctx, `
 		DELETE FROM study_plans
 		WHERE id=$1::uuid AND student_id=$2::uuid
