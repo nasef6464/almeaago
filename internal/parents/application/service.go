@@ -156,8 +156,8 @@ func (s *Service) Dashboard(ctx context.Context, actor identity.User, page, limi
 	selected, hasMore := pageScopes(allScopes, page, limit)
 	out := parents.Dashboard{
 		Children: []parents.ChildSummary{},
-		Summary: parents.DashboardSummary{TotalChildren: len(allScopes)},
-		Page: page, Limit: limit, HasMore: hasMore,
+		Summary:  parents.DashboardSummary{TotalChildren: len(allScopes)},
+		Page:     page, Limit: limit, HasMore: hasMore,
 	}
 	if len(selected) == 0 {
 		return out, nil
@@ -188,11 +188,11 @@ func (s *Service) Dashboard(ctx context.Context, actor identity.User, page, limi
 			LinkedStudent: parents.LinkedStudent{
 				StudentID: scope.studentID, Name: profile.Name, AvatarURL: profile.AvatarURL, SchoolIDs: scope.schoolIDs,
 			},
-			WeeklyStudyMinutes: (a.WeeklyStudySeconds + 30) / 60,
+			WeeklyStudyMinutes:    (a.WeeklyStudySeconds + 30) / 60,
 			WeeklyAssessmentCount: a.WeeklyAssessmentCount,
-			WeeklyAverageScore: a.WeeklyAverageScore,
-			RecentResults: a.RecentResults,
-			WeakSkills: l.WeakSkills,
+			WeeklyAverageScore:    a.WeeklyAverageScore,
+			RecentResults:         a.RecentResults,
+			WeakSkills:            l.WeakSkills,
 		}
 		if len(l.WeakSkills) > 0 {
 			child.NextAction = l.WeakSkills[0].RecommendedAction
@@ -281,8 +281,8 @@ func (s *Service) WeeklyReport(ctx context.Context, actor identity.User, page, l
 				StudentID: scope.studentID, Name: profile.Name, AvatarURL: profile.AvatarURL, SchoolIDs: scope.schoolIDs,
 			},
 			AssessmentCount: a.WeeklyAssessmentCount,
-			AverageScore: a.WeeklyAverageScore,
-			StudyMinutes: (a.WeeklyStudySeconds + 30) / 60,
+			AverageScore:    a.WeeklyAverageScore,
+			StudyMinutes:    (a.WeeklyStudySeconds + 30) / 60,
 			WeakSkills: l.WeakSkills,
 		}
 		if len(l.WeakSkills) > 0 {
