@@ -119,11 +119,8 @@ WHERE payment_request_id=$1::uuid
 		return commerce.PaymentReversal{}, false, mapError(err)
 	}
 
-	if actor != "" {
-		if err = (&Repository{}).auditTx; err != nil {
-		}
-	}
-	return scanReversal(tx.QueryRow(ctx, reversalSelect+` WHERE id=$1::uuid`, id))
+	out, scanErr := scanReversal(tx.QueryRow(ctx, reversalSelect+` WHERE id=$1::uuid`, id))
+	return out, false, scanErr
 }
 
 func (r *Repository) RecordAdminReversal(
