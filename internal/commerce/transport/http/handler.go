@@ -29,7 +29,7 @@ type Handler struct {
 }
 
 func New(service *commerceapp.Service, auth Authenticator) http.Handler {
-	return NewWithCheckout(service, nil, auth, nil)
+	return NewWithAccess(service, nil, nil, auth, nil)
 }
 
 func NewWithCheckout(service *commerceapp.Service, checkout *commerceapp.CheckoutService, auth Authenticator, webhookSecret []byte) http.Handler {
