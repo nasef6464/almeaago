@@ -43,6 +43,7 @@ test('mobile student creates and achieves a bounded self-owned mastery goal', as
   let goals: any[] = [];
   let createCalls = 0;
   let patchCalls = 0;
+  let subjectScopedReads = 0;
 
   await page.route('**/api/v1/mastery/goals/goal-1', async (route) => {
     expect(route.request().method()).toBe('PATCH');
@@ -78,9 +79,11 @@ test('mobile student creates and achieves a bounded self-owned mastery goal', as
     if (request.method() === 'GET') {
       const url = new URL(request.url());
       expect(url.searchParams.get('pathId')).toBe('path-1');
-      expect(url.searchParams.get('subjectId')).toBe('subject-1');
       expect(url.searchParams.get('status')).toBe('active');
       expect(url.searchParams.get('limit')).toBe('20');
+      const requestedSubject = url.searchParams.get('subjectId');
+      expect([null, 'subject-1']).toContain(requestedSubject);
+      if (requestedSubject === 'subject-1') subjectScopedReads += 1;
       return json(route, { items: goals, page: 1, limit: 20, hasMore: false });
     }
     expect(request.method()).toBe('POST');
@@ -122,6 +125,7 @@ test('mobile student creates and achieves a bounded self-owned mastery goal', as
   await page.getByLabel('مادة المراجعة').selectOption('subject-1');
 
   await expect(page.getByRole('heading', { name: 'هدف قريب وهدف للمسار' })).toBeVisible();
+  await expect.poll(() => subjectScopedReads).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'هدف قصير' }).click();
   await expect(page.getByRole('heading', { name: 'هدف قصير لمسار القدرات' })).toBeVisible();
   await expect.poll(() => createCalls).toBe(1);
