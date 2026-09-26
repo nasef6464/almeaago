@@ -1,5 +1,5 @@
 import type {
-  CommerceAccessDecision,
+  CommerceAccessCode,\n  CommerceAccessCodeStatus,\n  CommerceAccessDecision,
   CommerceDiscount,
   CommerceDiscountPreview,
   CommerceDiscountStatus,
@@ -11,7 +11,7 @@ import type {
   CommercePaymentStatus,
   CommerceProduct,
   CommerceProductType,
-  CommerceProductWrite,
+  CommerceProductWrite,\n  CommerceSchoolSeat,
 } from './commerce-types';
 const BASE=(import.meta.env.VITE_API_BASE_URL??'').replace(/\/$/,'');
 async function req<T>(path:string,init:RequestInit={}):Promise<T>{
