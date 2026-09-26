@@ -38,6 +38,8 @@ import (
 	orgapp "github.com/nasef6464/almeaago/internal/organizations/application"
 	orgrepo "github.com/nasef6464/almeaago/internal/organizations/repository/postgres"
 	organizationshttp "github.com/nasef6464/almeaago/internal/organizations/transport/http"
+	parentapp "github.com/nasef6464/almeaago/internal/parents/application"
+	parentshttp "github.com/nasef6464/almeaago/internal/parents/transport/http"
 	"github.com/nasef6464/almeaago/internal/platform/cache"
 	"github.com/nasef6464/almeaago/internal/platform/config"
 	"github.com/nasef6464/almeaago/internal/platform/database"
@@ -197,7 +199,8 @@ func main() {
 	)
 	mediaHandler := mediahttp.New(mediaService, identityService)
 	organizationsHandler := organizationshttp.New(organizationsService, identityService)
-	parentsHandler := organizationshttp.NewParentFacade(organizationsService, identityService)
+	parentService := parentapp.NewService(organizationsService, identityRepository, assessmentRepository, learningRepository)
+	parentsHandler := parentshttp.New(parentService, identityService)
 	legacySchoolAccessHandler := organizationshttp.NewLegacy(organizationsService, identityService)
 
 	adminService := application.NewAdminService(identityRepository, adminDirectory)
