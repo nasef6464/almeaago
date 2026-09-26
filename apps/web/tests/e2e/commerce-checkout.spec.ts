@@ -80,6 +80,8 @@ test('admin creates discount and approves pending payment with evidence',async({
  await page.route('**/api/v1/commerce/entitlements?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/commerce/admin/discounts?**',r=>json(r,{items:discounts,page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/commerce/admin/payment-requests?**',r=>json(r,{items:requests,page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/access-codes?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/school-seats?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
 
  await page.route('**/api/v1/commerce/admin/discounts',async r=>{
    expect(r.request().method()).toBe('POST');
