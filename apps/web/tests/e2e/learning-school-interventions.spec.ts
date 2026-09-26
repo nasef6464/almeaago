@@ -139,6 +139,10 @@ test('school director creates intervention, measures outcome and completes it', 
 
   await page.route('**/api/v1/interventions/staff**', async (route) => {
     const request = route.request();
+    const pathname = new URL(request.url()).pathname;
+    if (pathname !== '/api/v1/interventions/staff') {
+      return route.fallback();
+    }
     if (request.method() === 'GET') {
       const url = new URL(request.url());
       expect(url.searchParams.get('schoolId')).toBe('school-1');

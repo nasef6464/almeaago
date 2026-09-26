@@ -82,7 +82,7 @@ export function SchoolInterventionsPage(){
   useEffect(()=>{if(skillId&&!skills.some(x=>x.id===skillId))setSkillId('')},[skillId,skills]);
 
   useEffect(()=>{
-    if(!schoolId||(isSupervisor&&!classId)){setRows([]);setHasMore(false);return}
+    if(!schoolId||!classId){setRows([]);setHasMore(false);return}
     const c=new AbortController();setBusy(true);setError('');
     interventionClient.staff(schoolId,classId,status,1,50,c.signal).then(r=>{setRows(r.items);setHasMore(r.hasMore)})
       .catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل التدخلات')})
