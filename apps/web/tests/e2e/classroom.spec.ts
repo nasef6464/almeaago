@@ -82,7 +82,7 @@ test('teacher creates starts publishes reveals and finalizes a classroom session
 
  await page.goto('/school-teacher-dashboard');
  await expect(page.getByRole('heading',{name:'الفصل الذكي'})).toBeVisible();
- await page.getByRole('button',{name:/٢ + ٢/}).click();
+ await page.getByRole('button',{name:/٢ \+ ٢/}).click();
  await page.getByRole('button',{name:'إنشاء الحصة'}).click();
  await expect(page.getByText('654321')).toBeVisible();
  await page.getByRole('button',{name:'بدء الحصة'}).click();
