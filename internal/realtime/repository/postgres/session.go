@@ -64,14 +64,14 @@ func (r *Repository) CreateSession(
 		}
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: record.ActorUserID,
-		Action:      "realtime.classroom.create",
-		ResourceType:"classroom_session",
-		ResourceID:  sessionID,
+		ActorUserID:  record.ActorUserID,
+		Action:       "realtime.classroom.create",
+		ResourceType: "classroom_session",
+		ResourceID:   sessionID,
 		Metadata: map[string]any{
-			"schoolId": record.SchoolID,
-			"classId": record.ClassID,
-			"subjectId": record.SubjectID,
+			"schoolId":      record.SchoolID,
+			"classId":       record.ClassID,
+			"subjectId":     record.SubjectID,
 			"questionCount": len(record.Questions),
 		},
 	}); err != nil {
@@ -236,13 +236,13 @@ func (r *Repository) AppendBatch(
 		}
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: record.ActorUserID,
-		Action:      "realtime.classroom.batch.append",
-		ResourceType:"classroom_session",
-		ResourceID:  record.SessionID,
+		ActorUserID:  record.ActorUserID,
+		Action:       "realtime.classroom.batch.append",
+		ResourceType: "classroom_session",
+		ResourceID:   record.SessionID,
 		Metadata: map[string]any{
-			"batchId": batchID,
-			"batchNumber": nextBatch,
+			"batchId":       batchID,
+			"batchNumber":   nextBatch,
 			"questionCount": len(record.Questions),
 		},
 	}); err != nil {
@@ -345,10 +345,10 @@ func (r *Repository) StartSession(
 		return realtime.Session{}, mapError(err)
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actorID,
-		Action:      "realtime.classroom.start",
-		ResourceType:"classroom_session",
-		ResourceID:  sessionID,
+		ActorUserID:  actorID,
+		Action:       "realtime.classroom.start",
+		ResourceType: "classroom_session",
+		ResourceID:   sessionID,
 	}); err != nil {
 		return realtime.Session{}, err
 	}
@@ -431,11 +431,11 @@ func (r *Repository) PublishQuestion(
 		return realtime.Session{}, mapError(err)
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actorID,
-		Action:      "realtime.classroom.question.publish",
-		ResourceType:"classroom_session",
-		ResourceID:  sessionID,
-		Metadata:    map[string]any{"ordinal": ordinal, "batchId": batchID, "mode": mode},
+		ActorUserID:  actorID,
+		Action:       "realtime.classroom.question.publish",
+		ResourceType: "classroom_session",
+		ResourceID:   sessionID,
+		Metadata:     map[string]any{"ordinal": ordinal, "batchId": batchID, "mode": mode},
 	}); err != nil {
 		return realtime.Session{}, err
 	}
@@ -498,11 +498,11 @@ func (r *Repository) RevealQuestion(
 	out.PublishedAt = publishedAt
 	out.RevealedAt = revealedAt
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actorID,
-		Action:      "realtime.classroom.question.reveal",
-		ResourceType:"classroom_session",
-		ResourceID:  sessionID,
-		Metadata:    map[string]any{"ordinal": ordinal},
+		ActorUserID:  actorID,
+		Action:       "realtime.classroom.question.reveal",
+		ResourceType: "classroom_session",
+		ResourceID:   sessionID,
+		Metadata:     map[string]any{"ordinal": ordinal},
 	}); err != nil {
 		return realtime.PinnedQuestion{}, err
 	}
@@ -564,11 +564,11 @@ func (r *Repository) EndBatch(
 		}
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actorID,
-		Action:      "realtime.classroom.batch.end",
-		ResourceType:"classroom_session",
-		ResourceID:  sessionID,
-		Metadata:    map[string]any{"batchId": batchID},
+		ActorUserID:  actorID,
+		Action:       "realtime.classroom.batch.end",
+		ResourceType: "classroom_session",
+		ResourceID:   sessionID,
+		Metadata:     map[string]any{"batchId": batchID},
 	}); err != nil {
 		return realtime.Batch{}, err
 	}
