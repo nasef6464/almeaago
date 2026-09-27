@@ -80,7 +80,7 @@ test('taxonomy admin desktop manages lifecycle-safe hierarchy with csrf',async({
   await page.getByLabel('اسم المسار الجديد').fill('التحصيلي');
   await page.getByRole('button',{name:'إنشاء المسار'}).click();
   await expect(page.getByText('تم إنشاء المسار.')).toBeVisible();
-  await expect(page.getByText('التحصيلي')).toBeVisible();
+  await expect(page.getByRole('button',{name:/التحصيلي SAT نشط/})).toBeVisible();
   expect(observed.createPathCsrf).toBe('csrf-taxonomy');
 
   await page.getByLabel('حالة المسار').selectOption('inactive');
