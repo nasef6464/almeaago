@@ -142,6 +142,20 @@ jobs:
           check "select exists(select 1 from pg_indexes where tablename='notification_deliveries' and indexname='notification_deliveries_worker_idx')"
           check "select exists(select 1 from pg_constraint where conname='notification_delivery_state_shape')"
           check "select exists(select 1 from pg_constraint where conname='notification_campaign_channels_shape')"
+          check "select to_regclass('public.school_contracts') is not null"
+          check "select to_regclass('public.school_contract_modules') is not null"
+          check "select exists(select 1 from pg_indexes where tablename='school_contract_modules' and indexname='school_contract_modules_enabled_idx')"
+          check "select to_regclass('public.classroom_sessions') is not null"
+          check "select to_regclass('public.classroom_batches') is not null"
+          check "select to_regclass('public.classroom_questions') is not null"
+          check "select to_regclass('public.classroom_participants') is not null"
+          check "select to_regclass('public.classroom_responses') is not null"
+          check "select to_regclass('public.classroom_report_snapshots') is not null"
+          check "select exists(select 1 from pg_indexes where tablename='classroom_sessions' and indexname='classroom_sessions_one_live_per_class_idx')"
+          check "select exists(select 1 from pg_indexes where tablename='classroom_responses' and indexname='classroom_responses_session_question_idx')"
+          check "select exists(select 1 from pg_trigger where tgname='classroom_report_snapshots_immutable' and not tgisinternal)"
+          check "select exists(select 1 from pg_constraint where conname='classroom_sessions_active_question_fkey')"
+          check "select exists(select 1 from pg_constraint where conname='classroom_sessions_active_batch_fkey')"
 
       - name: Roll back every migration
         shell: bash

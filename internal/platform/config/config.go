@@ -42,6 +42,8 @@ type Config struct {
 	WhatsAppPhoneNumberID         string
 	WhatsAppWebhookURL            string
 	WhatsAppWebhookToken          string
+
+	ClassroomPINSecret string
 }
 
 func Load() (Config, error) {
@@ -77,6 +79,8 @@ func Load() (Config, error) {
 		WhatsAppPhoneNumberID: os.Getenv("WHATSAPP_PHONE_NUMBER_ID"),
 		WhatsAppWebhookURL:    os.Getenv("WHATSAPP_WEBHOOK_URL"),
 		WhatsAppWebhookToken:  os.Getenv("WHATSAPP_WEBHOOK_TOKEN"),
+
+		ClassroomPINSecret: os.Getenv("CLASSROOM_PIN_SECRET"),
 	}
 
 	if cfg.DatabaseURL == "" {
@@ -84,6 +88,9 @@ func Load() (Config, error) {
 	}
 	if cfg.RedisURL == "" {
 		return Config{}, fmt.Errorf("REDIS_URL is required")
+	}
+	if cfg.ClassroomPINSecret == "" {
+		return Config{}, fmt.Errorf("CLASSROOM_PIN_SECRET is required")
 	}
 
 	maxUpload, err := int64Value("MEDIA_MAX_UPLOAD_BYTES", 15*1024*1024)

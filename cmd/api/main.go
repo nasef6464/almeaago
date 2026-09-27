@@ -51,6 +51,10 @@ import (
 	questionapp "github.com/nasef6464/almeaago/internal/questionbank/application"
 	questionrepo "github.com/nasef6464/almeaago/internal/questionbank/repository/postgres"
 	questionhttp "github.com/nasef6464/almeaago/internal/questionbank/transport/http"
+	realtimeapp "github.com/nasef6464/almeaago/internal/realtime/application"
+	realtimeredis "github.com/nasef6464/almeaago/internal/realtime/infrastructure/redis"
+	realtimerepo "github.com/nasef6464/almeaago/internal/realtime/repository/postgres"
+	realtimehttp "github.com/nasef6464/almeaago/internal/realtime/transport/http"
 	reportingrepo "github.com/nasef6464/almeaago/internal/reporting/repository/postgres"
 	taxonomyapp "github.com/nasef6464/almeaago/internal/taxonomy/application"
 	taxonomyrepo "github.com/nasef6464/almeaago/internal/taxonomy/repository/postgres"
@@ -130,6 +134,17 @@ func main() {
 	taxonomyService := taxonomyapp.NewService(taxonomyRepository)
 	questionRepository := questionrepo.New(db, auditWriter)
 	questionService := questionapp.NewServiceWithAuthorScope(questionRepository, authorScope)
+	classroomQuestionReader := questionapp.NewClassroomReader(questionRepository)
+	schoolContractService := orgapp.NewSchoolContractService(organizationsRepository)
+	realtimeRepository := realtimerepo.New(db, auditWriter)
+	realtimeBroker := realtimeredis.New(redisClient)
+	realtimeService := realtimeapp.NewService(
+		realtimeRepository,
+		organizationsRepository,
+		classroomQuestionReader,
+		realtimeBroker,
+		cfg.ClassroomPINSecret,
+	)
 	learningRepository := learningrepo.New(db, auditWriter)
 	learningService := learningapp.NewService(learningRepository, questionService)
 	masteryGoalService := learningapp.NewMasteryGoalService(learningRepository, taxonomyRepository)
@@ -205,6 +220,8 @@ func main() {
 	)
 	mediaHandler := mediahttp.New(mediaService, identityService)
 	organizationsHandler := organizationshttp.New(organizationsService, identityService)
+	schoolContractsHandler := organizationshttp.NewSchoolContractHandler(schoolContractService, identityService)
+	classroomHandler := realtimehttp.New(realtimeService, identityService, realtimeBroker, cfg.WebOrigin)
 	parentService := parentapp.NewService(organizationsService, identityRepository, assessmentRepository, learningRepository)
 	parentsHandler := parentshttp.New(parentService, identityService)
 	legacySchoolAccessHandler := organizationshttp.NewLegacy(organizationsService, identityService)
@@ -230,6 +247,8 @@ func main() {
 		Redis:                    redisClient,
 		Identity:                 identityHandler,
 		Organizations:            organizationsHandler,
+		SchoolContracts:          schoolContractsHandler,
+		Classroom:                classroomHandler,
 		Parents:                  parentsHandler,
 		Taxonomy:                 taxonomyHandler,
 		QuestionBank:             questionHandler,

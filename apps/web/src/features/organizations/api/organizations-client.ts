@@ -7,6 +7,10 @@ export interface SchoolContext{
 }
 export interface SchoolClass{id:string;schoolId:string;code:string;name:string;status:string}
 export interface RosterMember{userId:string;name:string;email:string;status:string;roles:string[];classIds:string[]}
+export interface TeacherWorkspaceAssignment{assignmentId:string;classId:string;className:string;subjectId:string;studentCount:number}
+export interface TeacherWorkspaceSchool{schoolId:string;schoolName:string;source:string;assignments:TeacherWorkspaceAssignment[]}
+export interface TeacherWorkspace{personas:{platformTrainer:boolean;schoolTeacher:boolean};schools:TeacherWorkspaceSchool[]}
+export interface SchoolSummary{id:string;code:string;name:string;status:string}
 const BASE=(import.meta.env.VITE_API_BASE_URL??'').replace(/\/$/,'');
 async function request<T>(path:string,init:RequestInit={}):Promise<T>{
   const r=await fetch(BASE+path,{...init,credentials:'include',headers:{Accept:'application/json',...init.headers}});
@@ -14,6 +18,13 @@ async function request<T>(path:string,init:RequestInit={}):Promise<T>{
   return r.json() as Promise<T>;
 }
 export const organizationsClient={
+  schools(signal?:AbortSignal){
+    return request<{schools:SchoolSummary[];pagination:{page:number;limit:number;total:number;totalPages:number}}>(
+      '/api/v1/schools/?page=1&limit=100&status=active',{signal});
+  },
+  teacherWorkspace(signal?:AbortSignal){
+    return request<TeacherWorkspace>('/api/v1/schools/teacher-workspace',{signal});
+  },
   contexts(signal?:AbortSignal){return request<{contexts:SchoolContext[]}>('/api/v1/schools/context',{signal})},
   classes(schoolId:string,signal?:AbortSignal){
     return request<{classes:SchoolClass[];pagination:{page:number;limit:number;total:number;totalPages:number}}>(

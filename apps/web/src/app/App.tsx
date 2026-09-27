@@ -1,4 +1,4 @@
-import { Bell, LogIn } from 'lucide-react';
+import { Bell, LogIn, Radio } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Link,
@@ -31,6 +31,11 @@ import { LiveAssessmentJoinPage } from '../features/assessment/pages/LiveAssessm
 import { AdminDashboardShell } from '../features/content/components/AdminDashboardShell';
 import { NotificationInboxPage } from '../features/notifications/pages/NotificationInboxPage';
 import { NotificationsAdminPage } from '../features/notifications/pages/NotificationsAdminPage';
+import { ClassroomTeacherPage } from '../features/classroom/pages/ClassroomTeacherPage';
+import { ClassroomJoinPage } from '../features/classroom/pages/ClassroomJoinPage';
+import { ClassroomStudentPage } from '../features/classroom/pages/ClassroomStudentPage';
+import { ClassroomProjectorPage } from '../features/classroom/pages/ClassroomProjectorPage';
+import { ClassroomContractsAdminPage } from '../features/classroom/pages/ClassroomContractsAdminPage';
 
 type ModalMode = 'login' | 'signup' | null;
 
@@ -54,6 +59,9 @@ function SiteHeader({ onAuth }: { onAuth(mode: Exclude<ModalMode, null>): void }
 
         {user ? (
           <div className="flex items-center gap-2">
+            <Link to={user.roles.includes('teacher') ? '/school-teacher-dashboard' : '/classroom/join'} aria-label="الفصل الذكي" className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200">
+              <Radio size={18} />
+            </Link>
             <Link to="/notifications" aria-label="الإشعارات" className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200">
               <Bell size={18} />
             </Link>
@@ -148,10 +156,11 @@ export function App() {
   }
 
   const inAdminWorkspace = location.pathname.startsWith('/admin-dashboard');
+  const hideSiteHeader = inAdminWorkspace || location.pathname.endsWith('/projector');
 
   return (
     <>
-      {!inAdminWorkspace ? <SiteHeader onAuth={setManualMode} /> : null}
+      {!hideSiteHeader ? <SiteHeader onAuth={setManualMode} /> : null}
 
       <Routes>
         <Route path="/" element={<HomePage />} />
@@ -169,6 +178,7 @@ export function App() {
         <Route path="/admin-dashboard/assessments" element={<AdminDashboardShell><AssessmentAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/commerce" element={<AdminDashboardShell><CommerceAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/notifications" element={<AdminDashboardShell><NotificationsAdminPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/classroom" element={<AdminDashboardShell><ClassroomContractsAdminPage /></AdminDashboardShell>} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/assessments" element={<AssessmentAvailabilityPage />} />
         <Route path="/barcode-test" element={<PublicBarcodeAssessmentPage />} />
@@ -182,7 +192,11 @@ export function App() {
         <Route path="/review" element={<ReviewLibraryPage />} />
         <Route path="/review/practice" element={<ReviewPracticePage />} />
         <Route path="/plan" element={<StudyPlanPage />} />
-        <Route path="/school-teacher-dashboard" element={<PlaceholderPage title="لوحة معلم المدرسة" />} />
+        <Route path="/school-teacher-dashboard" element={<ClassroomTeacherPage />} />
+        <Route path="/school-teacher-dashboard/classroom" element={<ClassroomTeacherPage />} />
+        <Route path="/classroom/join" element={<ClassroomJoinPage />} />
+        <Route path="/classroom/:sessionId" element={<ClassroomStudentPage />} />
+        <Route path="/classroom/:sessionId/projector" element={<ClassroomProjectorPage />} />
         <Route path="/supervisor-dashboard" element={<PlaceholderPage title="لوحة المشرف" />} />
         <Route path="/supervisor-dashboard/interventions" element={<SchoolInterventionsPage />} />
         <Route path="/school-director-dashboard" element={<PlaceholderPage title="لوحة مدير المدرسة" />} />
