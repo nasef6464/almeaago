@@ -15,20 +15,20 @@ import (
 )
 
 type repoStub struct {
-	settings      []ai.ProviderSetting
-	cache         map[string]ai.CacheEntry
-	interactions  []ai.Interaction
-	successes     []ai.Provider
-	failures      []failureRecord
-	updateWrite   ai.ProviderSettingWrite
+	settings       []ai.ProviderSetting
+	cache          map[string]ai.CacheEntry
+	interactions   []ai.Interaction
+	successes      []ai.Provider
+	failures       []failureRecord
+	updateWrite    ai.ProviderSettingWrite
 	updateProvider ai.Provider
 	minuteCount    int
 }
 
 type failureRecord struct {
-	provider ai.Provider
+	provider  ai.Provider
 	openUntil *time.Time
-	category string
+	category  string
 }
 
 func (r *repoStub) ListProviderSettings(context.Context) ([]ai.ProviderSetting, error) {
@@ -155,11 +155,11 @@ func reviewQuestion() question.ReviewProjection {
 	answer := 1
 	return question.ReviewProjection{
 		ID: "question-1", Version: 3, QuestionType: question.QuestionMCQ,
-		TextContent: "ما ناتج 2 + 2؟",
+		TextContent:        "ما ناتج 2 + 2؟",
 		CorrectOptionIndex: &answer,
-		Hint: "اجمع العددين.", SolvingStrategy: "استخدم الجمع المباشر.",
+		Hint:               "اجمع العددين.", SolvingStrategy: "استخدم الجمع المباشر.",
 		Explanation: "اجمع 2 مع 2.",
-		Options: []question.Option{{Index: 0, Text: "3"}, {Index: 1, Text: "4"}},
+		Options:     []question.Option{{Index: 0, Text: "3"}, {Index: 1, Text: "4"}},
 	}
 }
 
@@ -214,8 +214,8 @@ func TestQuestionAssistFallsBackAndCachesWhenProvidersUnavailable(t *testing.T) 
 	}}}
 	providers := &providerStub{
 		configured: map[ai.Provider]bool{ai.ProviderGemini: false},
-		results: map[ai.Provider]ai.ProviderCallResult{},
-		errors: map[ai.Provider]error{},
+		results:    map[ai.Provider]ai.ProviderCallResult{},
+		errors:     map[ai.Provider]error{},
 	}
 	service := NewService(repo, &learningStub{card: reviewCard()}, &questionStub{row: reviewQuestion()}, providers, Config{CacheTTL: 30 * time.Minute})
 	service.now = func() time.Time { return time.Date(2026, 9, 27, 8, 0, 0, 0, time.UTC) }
@@ -265,8 +265,8 @@ func TestCircuitOpensOnThirdConsecutiveFailureAndFallsBack(t *testing.T) {
 	}}}
 	providers := &providerStub{
 		configured: map[ai.Provider]bool{ai.ProviderOpenAI: true},
-		results: map[ai.Provider]ai.ProviderCallResult{},
-		errors: map[ai.Provider]error{ai.ProviderOpenAI: errors.New("provider_http_429")},
+		results:    map[ai.Provider]ai.ProviderCallResult{},
+		errors:     map[ai.Provider]error{ai.ProviderOpenAI: errors.New("provider_http_429")},
 	}
 	service := NewService(repo, &learningStub{card: reviewCard()}, &questionStub{row: reviewQuestion()}, providers, Config{CircuitOpenFor: 2 * time.Minute})
 	now := time.Date(2026, 9, 27, 8, 0, 0, 0, time.UTC)
@@ -309,7 +309,6 @@ func TestAdminProviderUpdateGuardsRoleAndBaseURL(t *testing.T) {
 	}
 }
 
-
 func TestQuestionAssistServesCacheBeforeMinuteLimit(t *testing.T) {
 	repo := &repoStub{minuteCount: 8, cache: map[string]ai.CacheEntry{}}
 	card := reviewCard()
@@ -340,8 +339,8 @@ func TestQuestionAssistMinuteLimitUsesTrustedFallbackWithoutProvider(t *testing.
 	repo := &repoStub{minuteCount: 8}
 	providers := &providerStub{
 		configured: map[ai.Provider]bool{ai.ProviderGemini: true},
-		results: map[ai.Provider]ai.ProviderCallResult{ai.ProviderGemini: {Text: "provider"}},
-		errors: map[ai.Provider]error{},
+		results:    map[ai.Provider]ai.ProviderCallResult{ai.ProviderGemini: {Text: "provider"}},
+		errors:     map[ai.Provider]error{},
 	}
 	service := NewService(repo, &learningStub{card: reviewCard()}, &questionStub{row: reviewQuestion()}, providers, Config{PerMinuteLimit: 8})
 
