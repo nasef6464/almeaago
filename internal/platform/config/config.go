@@ -29,6 +29,19 @@ type Config struct {
 	R2SecretAccessKey      string
 	MediaMaxUploadBytes    int64
 	MediaPresignTTLSeconds int
+
+	NotificationWorkerBatch       int
+	NotificationWorkerPollSeconds int
+	EmailProvider                 string
+	EmailFrom                     string
+	ResendAPIKey                  string
+	EmailWebhookURL               string
+	EmailWebhookToken             string
+	WhatsAppProvider              string
+	WhatsAppAccessToken           string
+	WhatsAppPhoneNumberID         string
+	WhatsAppWebhookURL            string
+	WhatsAppWebhookToken          string
 }
 
 func Load() (Config, error) {
@@ -53,6 +66,17 @@ func Load() (Config, error) {
 		R2PublicBaseURL:   os.Getenv("R2_PUBLIC_BASE_URL"),
 		R2AccessKeyID:     os.Getenv("R2_ACCESS_KEY_ID"),
 		R2SecretAccessKey: os.Getenv("R2_SECRET_ACCESS_KEY"),
+
+		EmailProvider:         os.Getenv("EMAIL_PROVIDER"),
+		EmailFrom:             os.Getenv("EMAIL_FROM"),
+		ResendAPIKey:          os.Getenv("RESEND_API_KEY"),
+		EmailWebhookURL:       os.Getenv("EMAIL_WEBHOOK_URL"),
+		EmailWebhookToken:     os.Getenv("EMAIL_WEBHOOK_TOKEN"),
+		WhatsAppProvider:      os.Getenv("WHATSAPP_PROVIDER"),
+		WhatsAppAccessToken:   os.Getenv("WHATSAPP_ACCESS_TOKEN"),
+		WhatsAppPhoneNumberID: os.Getenv("WHATSAPP_PHONE_NUMBER_ID"),
+		WhatsAppWebhookURL:    os.Getenv("WHATSAPP_WEBHOOK_URL"),
+		WhatsAppWebhookToken:  os.Getenv("WHATSAPP_WEBHOOK_TOKEN"),
 	}
 
 	if cfg.DatabaseURL == "" {
@@ -72,6 +96,17 @@ func Load() (Config, error) {
 	}
 	cfg.MediaMaxUploadBytes = maxUpload
 	cfg.MediaPresignTTLSeconds = presignTTL
+
+	notificationBatch, err := intValue("NOTIFICATION_WORKER_BATCH", 25)
+	if err != nil || notificationBatch < 1 || notificationBatch > 50 {
+		return Config{}, fmt.Errorf("NOTIFICATION_WORKER_BATCH must be between 1 and 50")
+	}
+	notificationPoll, err := intValue("NOTIFICATION_WORKER_POLL_SECONDS", 5)
+	if err != nil || notificationPoll < 1 || notificationPoll > 300 {
+		return Config{}, fmt.Errorf("NOTIFICATION_WORKER_POLL_SECONDS must be between 1 and 300")
+	}
+	cfg.NotificationWorkerBatch = notificationBatch
+	cfg.NotificationWorkerPollSeconds = notificationPoll
 
 	return cfg, nil
 }
