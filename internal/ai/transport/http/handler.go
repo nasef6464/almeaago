@@ -180,11 +180,11 @@ func (h *Handler) adminTestProvider(w http.ResponseWriter, r *http.Request) {
 			"provider": out.Provider,
 			"model":    out.Model,
 			"usage": map[string]any{
-				"inputTokens": out.Usage.InputTokens,
+				"inputTokens":  out.Usage.InputTokens,
 				"outputTokens": out.Usage.OutputTokens,
-				"totalTokens": out.Usage.TotalTokens,
+				"totalTokens":  out.Usage.TotalTokens,
 				"cachedTokens": out.Usage.CachedTokens,
-				"estimated": out.Usage.Estimated,
+				"estimated":    out.Usage.Estimated,
 			},
 		},
 	})
@@ -235,8 +235,8 @@ func (h *Handler) questionAssistant(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := h.service.QuestionAssist(r.Context(), authenticated.User, ai.QuestionAssistInput{
 		ReviewCardID: payload.ReviewCardID,
-		HelpLevel: payload.HelpLevel,
-		Message: payload.Message,
+		HelpLevel:    payload.HelpLevel,
+		Message:      payload.Message,
 	})
 	if err != nil {
 		writeError(w, err)
