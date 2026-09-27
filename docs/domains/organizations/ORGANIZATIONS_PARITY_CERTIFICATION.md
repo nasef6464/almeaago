@@ -1,6 +1,6 @@
 # Organizations / Schools / Classes Parity Certification
 
-Status: **IMPLEMENTED — EXACT-HEAD CI REQUIRED**
+Status: **TESTED — INTERNAL PARITY EVIDENCE GREEN / DIRECT LEGACY SCREENSHOT COMPARISON PENDING**
 
 ## Source basis
 
@@ -71,12 +71,19 @@ Repository CI can capture deterministic V2 desktop/mobile screenshots, but a dir
 
 This batch therefore targets **TESTED**, not `PARITY_PROVEN`.
 
-## Required exact-head gates
+## First integrated exact-head verification
 
-The final documentation-inclusive PR head must pass:
-- Database CI.
-- Backend CI.
-- Frontend CI.
-- Frontend E2E.
+Integrated implementation head `6048bd10513d025bef336c6c052d2752904bc87d` passed all four gates:
+- Database CI `36311795047`: PASS — full migration apply, delegated school permission/contract schema assertions, rollback and re-apply.
+- Backend CI `36311794976`: PASS — module lock, sqlc compile, gofmt, go vet and Go tests.
+- Frontend CI `36311795033`: PASS — typecheck and production build.
+- Frontend E2E `36311795015`: PASS — **54/54 browser tests**, including all four Organizations director parity journeys.
 
-The E2E artifact must contain the Organizations director desktop/mobile screenshots.
+Browser evidence:
+- artifact `content-browser-evidence` id `10929725060`.
+- digest `sha256:209817f3ff2506e0fa4cab74b97889418d8eea80d8c7592cf8d4dc8ddb08e621`.
+- director screenshots include desktop operational workspace and mobile no-delegation state.
+
+The first E2E attempt exposed only a notification-state bug in the new page: the generic operation wrapper cleared the operation-specific success message after add/move. The wrapper was corrected without changing authorization or data behavior, then the full suite reran green.
+
+The documentation-inclusive final PR head must rerun the same four gates before merge.
