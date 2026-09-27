@@ -50,21 +50,15 @@ type Config struct {
 	AIQuestionAssistantPerMinute       int
 	AIInteractionRetentionDays         int
 
-	GeminiAPIKey      string
-	GeminiModel       string
-	OpenRouterAPIKey  string
-	OpenRouterModel   string
-	QwenAPIKey        string
-	QwenModel         string
-	QwenBaseURL       string
-	DeepSeekAPIKey    string
-	DeepSeekModel     string
-	OpenAIAPIKey      string
-	OpenAIModel       string
-	OllamaBaseURL     string
-	OllamaModel       string
-	LMStudioBaseURL   string
-	LMStudioModel     string
+	GeminiAPIKey     string
+	OpenRouterAPIKey string
+	QwenAPIKey       string
+	DeepSeekAPIKey   string
+	OpenAIAPIKey     string
+	OllamaBaseURL    string
+	OllamaModel      string
+	LMStudioBaseURL  string
+	LMStudioModel    string
 }
 
 func Load() (Config, error) {
@@ -104,16 +98,10 @@ func Load() (Config, error) {
 		ClassroomPINSecret: os.Getenv("CLASSROOM_PIN_SECRET"),
 
 		GeminiAPIKey:     os.Getenv("GEMINI_API_KEY"),
-		GeminiModel:      value("GEMINI_MODEL", "gemini-2.5-flash"),
 		OpenRouterAPIKey: os.Getenv("OPENROUTER_API_KEY"),
-		OpenRouterModel:  value("OPENROUTER_MODEL", "qwen/qwen3-235b-a22b:free"),
 		QwenAPIKey:       os.Getenv("QWEN_API_KEY"),
-		QwenModel:        value("QWEN_MODEL", "qwen-plus"),
-		QwenBaseURL:      value("QWEN_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
 		DeepSeekAPIKey:   os.Getenv("DEEPSEEK_API_KEY"),
-		DeepSeekModel:    value("DEEPSEEK_MODEL", "deepseek-chat"),
 		OpenAIAPIKey:     os.Getenv("OPENAI_API_KEY"),
-		OpenAIModel:      value("OPENAI_MODEL", "gpt-4.1-mini"),
 		OllamaBaseURL:    value("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
 		OllamaModel:      value("OLLAMA_MODEL", "gemma3:4b"),
 		LMStudioBaseURL:  value("LMSTUDIO_BASE_URL", "http://127.0.0.1:1234/v1"),
