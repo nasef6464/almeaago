@@ -14,3 +14,19 @@ type ClassroomQuestion struct {
 	SkillIDs               []string
 	Options                []Option
 }
+
+
+type ClassroomQuestionSummary struct {
+	ID           string
+	Version      int
+	QuestionType QuestionType
+	TextContent  string
+	Difficulty   string
+}
+
+type ClassroomQuestionPage struct {
+	Items   []ClassroomQuestionSummary
+	Page    int
+	Limit   int
+	HasMore bool
+}
