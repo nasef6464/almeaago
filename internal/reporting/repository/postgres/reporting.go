@@ -375,19 +375,19 @@ func resultScopeClause(scope reporting.ResolvedScope, query reporting.Query, sta
 		contextClause := `(
 			(a.assignment_id IS NOT NULL AND EXISTS(
 				SELECT 1 FROM assessment_assignments aa
-				WHERE aa.id=a.assignment_id AND aa.school_id=`+school+`::uuid
+				WHERE aa.id=a.assignment_id AND aa.school_id=` + school + `::uuid
 			))
 			OR
 			(a.session_id IS NOT NULL AND EXISTS(
 				SELECT 1 FROM assessment_sessions ase
-				WHERE ase.id=a.session_id AND ase.school_id=`+school+`::uuid
+				WHERE ase.id=a.session_id AND ase.school_id=` + school + `::uuid
 			))
 		)`
 		clauses = append(clauses, contextClause)
 		clauses = append(clauses, `EXISTS(
 			SELECT 1
 			FROM school_memberships report_sm
-			WHERE report_sm.school_id=`+school+`::uuid
+			WHERE report_sm.school_id=` + school + `::uuid
 			  AND report_sm.user_id=a.student_id
 			  AND report_sm.role='student'
 			  AND report_sm.status='active'
@@ -398,21 +398,21 @@ func resultScopeClause(scope reporting.ResolvedScope, query reporting.Query, sta
 				SELECT 1 FROM class_memberships report_cm
 				JOIN classes report_c
 				  ON report_c.id=report_cm.class_id
-				 AND report_c.school_id=`+school+`::uuid
+				 AND report_c.school_id=` + school + `::uuid
 				 AND report_c.status='active'
 				WHERE report_cm.user_id=a.student_id
-				  AND report_cm.class_id=`+classParam+`::uuid
+				  AND report_cm.class_id=` + classParam + `::uuid
 				  AND report_cm.status='active'
 			)`)
 			clauses = append(clauses, `(
 				(a.assignment_id IS NOT NULL AND EXISTS(
 					SELECT 1 FROM assessment_assignment_classes aac
-					WHERE aac.assignment_id=a.assignment_id AND aac.class_id=`+classParam+`::uuid
+					WHERE aac.assignment_id=a.assignment_id AND aac.class_id=` + classParam + `::uuid
 				))
 				OR
 				(a.session_id IS NOT NULL AND EXISTS(
 					SELECT 1 FROM assessment_sessions ase
-					WHERE ase.id=a.session_id AND ase.class_id=`+classParam+`::uuid
+					WHERE ase.id=a.session_id AND ase.class_id=` + classParam + `::uuid
 				))
 			)`)
 		}
@@ -421,8 +421,8 @@ func resultScopeClause(scope reporting.ResolvedScope, query reporting.Query, sta
 			clauses = append(clauses, `EXISTS(
 				SELECT 1
 				FROM teaching_assignments ta
-				WHERE ta.teacher_id=`+actor+`::uuid
-				  AND ta.school_id=`+school+`::uuid
+				WHERE ta.teacher_id=` + actor + `::uuid
+				  AND ta.school_id=` + school + `::uuid
 				  AND ta.status='active'
 				  AND (ta.subject_id IS NULL OR ta.subject_id=v.subject_id)
 				  AND (
@@ -576,16 +576,16 @@ func (r *ReportRepository) Overview(
 	for skillRows.Next() {
 		var item reporting.SkillAggregate
 		if err = skillRows.Scan(
-			&item.SkillID,&item.SkillName,&item.EvidenceCount,&item.AffectedStudents,&item.Mastery,
+			&item.SkillID, &item.SkillName, &item.EvidenceCount, &item.AffectedStudents, &item.Mastery,
 		); err != nil {
 			return reporting.Overview{}, err
 		}
-		out.WeakestSkills = append(out.WeakestSkills,item)
+		out.WeakestSkills = append(out.WeakestSkills, item)
 	}
 	if err = skillRows.Err(); err != nil {
 		return reporting.Overview{}, err
 	}
-	return out,nil
+	return out, nil
 }
 
 func (r *ReportRepository) Results(
@@ -594,7 +594,7 @@ func (r *ReportRepository) Results(
 	query reporting.Query,
 	page, limit int,
 ) (reporting.ResultPage, error) {
-	return r.resultPage(ctx,scope,query,page,limit,false)
+	return r.resultPage(ctx, scope, query, page, limit, false)
 }
 
 func (r *ReportRepository) resultPage(
@@ -611,39 +611,43 @@ func (r *ReportRepository) resultPage(
 		JOIN assessment_versions v ON v.assessment_id=r.assessment_id AND v.version=r.assessment_version
 		JOIN users u ON u.id=r.student_id
 		WHERE 1=1
-	`+scopeClause
+	` + scopeClause
 	var total int
-	if err := r.db.QueryRow(ctx,"SELECT count(*)::int "+base,args...).Scan(&total); err != nil {
-		return reporting.ResultPage{},err
+	if err := r.db.QueryRow(ctx, "SELECT count(*)::int "+base, args...).Scan(&total); err != nil {
+		return reporting.ResultPage{}, err
 	}
-	limitParam:=len(args)+1
-	offsetParam:=len(args)+2
-	listArgs:=append(append([]any{},args...),limit,(page-1)*limit)
-	rows,err:=r.db.Query(ctx,`
+	limitParam := len(args) + 1
+	offsetParam := len(args) + 2
+	listArgs := append(append([]any{}, args...), limit, (page-1)*limit)
+	rows, err := r.db.Query(ctx, `
 		SELECT r.attempt_id::text,r.student_id::text,u.name,r.assessment_id::text,r.assessment_version,
 		       v.title,v.path_id::text,COALESCE(v.subject_id::text,''),r.score::float8,r.passed,
 		       r.correct_answers,r.wrong_answers,r.unanswered,r.time_spent_seconds,r.finalized_at
 	`+base+`
 		ORDER BY r.finalized_at DESC,r.attempt_id DESC
-		LIMIT $`+strconv.Itoa(limitParam)+` OFFSET $`+strconv.Itoa(offsetParam),listArgs...)
+		LIMIT $`+strconv.Itoa(limitParam)+` OFFSET $`+strconv.Itoa(offsetParam), listArgs...)
 	if err != nil {
-		return reporting.ResultPage{},err
+		return reporting.ResultPage{}, err
 	}
 	defer rows.Close()
-	out:=reporting.ResultPage{Items:[]reporting.ResultItem{},Page:page,Limit:limit,Total:total}
-	for rows.Next(){
+	out := reporting.ResultPage{Items: []reporting.ResultItem{}, Page: page, Limit: limit, Total: total}
+	for rows.Next() {
 		var item reporting.ResultItem
-		if err=rows.Scan(
-			&item.AttemptID,&item.StudentID,&item.StudentName,&item.AssessmentID,&item.AssessmentVersion,
-			&item.Title,&item.PathID,&item.SubjectID,&item.Score,&item.Passed,
-			&item.CorrectAnswers,&item.WrongAnswers,&item.Unanswered,&item.TimeSpentSeconds,&item.FinalizedAt,
-		);err!=nil{return out,err}
-		out.Items=append(out.Items,item)
+		if err = rows.Scan(
+			&item.AttemptID, &item.StudentID, &item.StudentName, &item.AssessmentID, &item.AssessmentVersion,
+			&item.Title, &item.PathID, &item.SubjectID, &item.Score, &item.Passed,
+			&item.CorrectAnswers, &item.WrongAnswers, &item.Unanswered, &item.TimeSpentSeconds, &item.FinalizedAt,
+		); err != nil {
+			return out, err
+		}
+		out.Items = append(out.Items, item)
 	}
-	if err=rows.Err();err!=nil{return out,err}
-	out.HasMore=(page-1)*limit+len(out.Items)<total
+	if err = rows.Err(); err != nil {
+		return out, err
+	}
+	out.HasMore = (page-1)*limit+len(out.Items) < total
 	_ = export
-	return out,nil
+	return out, nil
 }
 
 func (r *ReportRepository) ExportResults(
@@ -652,7 +656,9 @@ func (r *ReportRepository) ExportResults(
 	query reporting.Query,
 	limit int,
 ) ([]reporting.ResultItem, int, error) {
-	page,err:=r.resultPage(ctx,scope,query,1,limit,false)
-	if err!=nil{return nil,0,err}
-	return page.Items,page.Total,nil
+	page, err := r.resultPage(ctx, scope, query, 1, limit, false)
+	if err != nil {
+		return nil, 0, err
+	}
+	return page.Items, page.Total, nil
 }
