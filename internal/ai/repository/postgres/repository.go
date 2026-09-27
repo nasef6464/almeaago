@@ -165,17 +165,17 @@ func (r *Repository) UpdateProviderSetting(
 		return ai.ProviderSetting{}, errors.New("ai audit writer is not configured")
 	}
 	if err = r.audit.WriteTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actorID,
-		Action:      "ai.provider.update",
-		ResourceType:"ai_provider",
-		ResourceID:  string(provider),
+		ActorUserID:  actorID,
+		Action:       "ai.provider.update",
+		ResourceType: "ai_provider",
+		ResourceID:   string(provider),
 		Metadata: map[string]any{
-			"enabled": write.Enabled,
-			"model": write.Model,
-			"baseUrl": write.BaseURL,
-			"priority": write.Priority,
+			"enabled":         write.Enabled,
+			"model":           write.Model,
+			"baseUrl":         write.BaseURL,
+			"priority":        write.Priority,
 			"maxOutputTokens": write.MaxOutputTokens,
-			"revision": currentRevision + 1,
+			"revision":        currentRevision + 1,
 		},
 	}); err != nil {
 		return ai.ProviderSetting{}, err
@@ -413,7 +413,6 @@ func (r *Repository) ListInteractions(
 	}
 	return out, nil
 }
-
 
 func (r *Repository) CountQuestionAssistSince(
 	ctx context.Context,
