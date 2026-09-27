@@ -1233,6 +1233,188 @@ paths:
         "403": { description: Platform admin and valid CSRF required }
         "413": { description: Resolved audience exceeds 500 recipients }
 
+  /api/v1/school-contracts/{schoolId}:
+    get:
+      operationId: schoolContractGet
+      description: Platform-admin read of the Organizations-owned school module contract.
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: School contract and enabled modules }
+        "403": { description: Platform admin required }
+        "404": { description: Contract not created }
+    put:
+      operationId: schoolContractUpsert
+      description: >
+        Platform-admin + CSRF optimistic create/update of the school contract. SMART_CLASSROOM
+        authorization requires an active contract in its validity window with that module enabled.
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Updated contract }
+        "400": { description: Invalid module/status/validity window }
+        "403": { description: Platform admin and valid CSRF required }
+        "409": { description: Revision conflict }
+
+  /api/v1/classroom/questions:
+    get:
+      operationId: classroomQuestionPicker
+      description: >
+        Bounded approved MCQ/true-false picker from canonical Question Bank for an authorized
+        school/class/subject teaching scope. Correct keys are never returned by this picker.
+      parameters:
+        - { in: query, name: schoolId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: classId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: subjectId, required: true, schema: { type: string, format: uuid } }
+        - { in: query, name: search, schema: { type: string, maxLength: 160 } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 50, default: 30 } }
+      responses:
+        "200": { description: Approved classroom question summaries }
+        "403": { description: Teaching scope or SMART_CLASSROOM module denied }
+
+  /api/v1/classroom/sessions:
+    get:
+      operationId: classroomTeacherSessions
+      description: Bounded recent sessions owned by the authenticated teacher.
+      responses:
+        "200": { description: Recent teacher sessions }
+    post:
+      operationId: classroomCreateSession
+      description: >
+        CSRF-protected creation using 1-30 approved canonical questions. Exact question versions
+        are pinned durably. A six-digit join PIN is returned once, stored only as an HMAC hash,
+        and expires after 30 minutes.
+      responses:
+        "201": { description: Draft classroom session plus one-time PIN }
+        "400": { description: Invalid scope/questions/mode }
+        "403": { description: Teaching assignment or active SMART_CLASSROOM contract denied }
+
+  /api/v1/classroom/join-by-pin:
+    post:
+      operationId: classroomJoinByPin
+      description: >
+        CSRF-protected student join. The live PIN must still be valid and Organizations must
+        confirm active student membership in the same school and class before attendance is recorded.
+      responses:
+        "200": { description: Idempotent participant join }
+        "403": { description: Student/class/module authorization denied }
+        "404": { description: No live session for the PIN }
+
+  /api/v1/classroom/sessions/{sessionId}/start:
+    post:
+      operationId: classroomStart
+      description: CSRF-protected assigned-teacher transition from draft/scheduled to live.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Live session }
+        "403": { description: Teacher scope or module denied }
+        "409": { description: Invalid lifecycle or optimistic revision }
+
+  /api/v1/classroom/sessions/{sessionId}/publish/{ordinal}:
+    post:
+      operationId: classroomPublishQuestion
+      description: >
+        CSRF-protected publish. Single mode exposes only the selected ordinal; batch mode exposes
+        the selected question batch. This emits a realtime delta rather than a full state broadcast.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: ordinal, required: true, schema: { type: integer, minimum: 0 } }
+      responses:
+        "200": { description: Updated live session }
+        "409": { description: Session/batch cannot be published }
+
+  /api/v1/classroom/sessions/{sessionId}/reveal/{ordinal}:
+    post:
+      operationId: classroomRevealQuestion
+      description: >
+        CSRF-protected reveal. Student/projector correct key and explanation remain absent before
+        this transition. New answer writes are rejected after reveal.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: ordinal, required: true, schema: { type: integer, minimum: 0 } }
+      responses:
+        "200": { description: Revealed pinned question }
+        "409": { description: Question is not currently publishable/revealable }
+
+  /api/v1/classroom/sessions/{sessionId}/current:
+    get:
+      operationId: classroomStudentState
+      description: >
+        Self-scoped student resume snapshot containing only the currently published question/batch,
+        the student's latest selected option, and answer/explanation only after reveal.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Student-safe classroom snapshot }
+        "403": { description: Participant or active module denied }
+
+  /api/v1/classroom/sessions/{sessionId}/answers/{ordinal}:
+    put:
+      operationId: classroomAnswer
+      description: >
+        CSRF-protected latest-answer upsert for a joined student. Revisions are allowed only while
+        the published question/batch remains open; correctness is calculated from the pinned
+        Question Bank version on the server.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: ordinal, required: true, schema: { type: integer, minimum: 0 } }
+      responses:
+        "200": { description: Saved latest selection without exposing correctness }
+        "400": { description: Invalid option }
+        "403": { description: Student or module authorization denied }
+        "409": { description: Question not open for answers }
+
+  /api/v1/classroom/sessions/{sessionId}/presentation:
+    get:
+      operationId: classroomPresentation
+      description: >
+        Authorized teacher/supervisor/projector projection with small live aggregates. Correct
+        option and explanation are included only for revealed questions.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Projector-safe live state }
+        "403": { description: Staff scope or module denied }
+
+  /api/v1/classroom/sessions/{sessionId}/end:
+    post:
+      operationId: classroomEnd
+      description: >
+        CSRF-protected teacher finalization using the canonical Organizations class roster. Writes
+        one immutable PostgreSQL report snapshot with attendance and response aggregates.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Immutable final report snapshot }
+        "403": { description: Teacher scope or module denied }
+        "409": { description: Session is not live }
+
+  /api/v1/classroom/sessions/{sessionId}/report:
+    get:
+      operationId: classroomReport
+      description: Authorized read of the immutable finalized session report.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Final classroom report }
+        "403": { description: Staff scope denied }
+        "404": { description: Report not finalized }
+
+  /api/v1/classroom/sessions/{sessionId}/stream:
+    get:
+      operationId: classroomWebSocket
+      description: >
+        Authenticated WebSocket upgrade. Server sends one authorized snapshot on connect/reconnect,
+        then small Redis-backed lifecycle/presence deltas. Presence expires ephemerally and is not
+        durable attendance truth.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "101": { description: WebSocket switching protocols }
+        "403": { description: Session scope denied }
+
   /api/v1/schools/teacher-workspace:
     get:
       operationId: organizationsTeacherWorkspace
