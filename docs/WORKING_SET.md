@@ -32,7 +32,7 @@ Taxonomy parity only, plus narrowly required shared test/documentation files:
 - docs/WORKING_SET.md
 
 ## Guardrails
-- Start Taxonomy parity from current `main` only after PR #70 merges.
+- Start Taxonomy parity from current `main` at/after Organizations merge `b7a9ae7a7844e187efec714fcec43b382a6ffa2f`.
 - `nasef6464/almeaacodax` remains read-only behavioral/visual reference.
 - Do not invent taxonomy levels/hierarchies or business rules absent from source evidence.
 - Preserve owner-domain boundaries; Content/Question Bank/Assessment consume Taxonomy IDs but do not own Taxonomy hierarchy truth.
