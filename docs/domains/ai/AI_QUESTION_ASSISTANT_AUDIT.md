@@ -1,6 +1,6 @@
 # AI Question Assistant Foundation Audit
 
-Status: **IMPLEMENTED — CI REQUIRED BEFORE MERGE**
+Status: **TESTED / MERGED**
 
 ## Source-backed scope
 The Product Blueprint treats AI as its own domain rather than scattered provider calls. The first deterministic V2 slice implements the documented golden path:
@@ -185,8 +185,12 @@ This slice does not invent or overclaim:
 
 Those remain explicit provider/deployment or later-domain work.
 
-## Required gates
-- Database migration apply + AI table/index/constraint verification + complete rollback + re-apply.
-- Backend module lock + sqlc compile + gofmt + go vet + all Go tests including ownership, URL guard, provider fail-closed, fallback/cache, circuit and rate policy.
-- Frontend typecheck + production build.
-- Playwright admin provider-policy/test flow + learner mobile Question Assistant flow + complete existing browser suite.
+## Verification checkpoint
+- PR #66 merged from exact tested head `cd7c7ba1f5a77923da45a5ce37f1945c21867c76`.
+- squash merge commit: `4d478fb972445ed66ba6a7270f31c53c454a73df`.
+- Database CI `36304139423`: PASS — migration apply, AI schema/index/constraint verification, complete rollback and re-apply.
+- Backend CI `36304139367`: PASS — module lock, sqlc compile, gofmt, go vet and all Go tests.
+- Frontend CI `36304139392`: PASS — typecheck + production build.
+- Frontend E2E `36304139375`: PASS — complete browser suite including AI admin provider policy and learner Question Assistant flows.
+- browser evidence artifact `content-browser-evidence` id `10926955841`, digest `sha256:2607c29387452bf87a15f2286d8ca8a49ae49bad765931a31ffe539f49bf97d2`.
+- the first final-head attempt exposed a duplicate `AI_QUESTION_ASSISTANT_MAX_OUTPUT_TOKENS` config parse at go vet; that duplicate block was removed without changing runtime policy, then all four exact-head gates reran green.
