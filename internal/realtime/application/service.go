@@ -264,7 +264,7 @@ func (s *Service) Create(
 		(input.Period != nil && (*input.Period < 1 || *input.Period > 12)) {
 		return CreateResult{}, ErrInvalidInput
 	}
-	if !actor.HasRole(identity.RoleTeacher) {
+	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) {
 		return CreateResult{}, ErrForbidden
 	}
 	if len(s.pinSecret) == 0 || s.questions == nil || s.org == nil {
@@ -273,14 +273,16 @@ func (s *Service) Create(
 	if err := s.validateScope(ctx, input.SchoolID, input.ClassID, input.SubjectID); err != nil {
 		return CreateResult{}, err
 	}
-	ok, err := s.org.CanTeacherControlSmartClassroom(
-		ctx, actor.ID, input.SchoolID, input.ClassID, input.SubjectID,
-	)
-	if err != nil {
-		return CreateResult{}, err
-	}
-	if !ok {
-		return CreateResult{}, ErrForbidden
+	if actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleAdmin) {
+		ok, err := s.org.CanTeacherControlSmartClassroom(
+			ctx, actor.ID, input.SchoolID, input.ClassID, input.SubjectID,
+		)
+		if err != nil {
+			return CreateResult{}, err
+		}
+		if !ok {
+			return CreateResult{}, ErrForbidden
+		}
 	}
 	rows, err := s.questions.Resolve(ctx, input.QuestionIDs, input.SubjectID)
 	if err != nil {
@@ -312,6 +314,44 @@ func (s *Service) Create(
 		return CreateResult{}, err
 	}
 	return CreateResult{Session: session, PIN: pin}, nil
+}
+
+type StaffState struct {
+	Session   realtime.Session
+	Pinned    []realtime.PinnedQuestion
+	Questions []question.ClassroomQuestion
+	Aggregate realtime.Aggregate
+}
+
+func (s *Service) StaffState(
+	ctx context.Context,
+	actor identity.User,
+	sessionID string,
+) (StaffState, error) {
+	session, err := s.repo.GetSession(ctx, strings.TrimSpace(sessionID))
+	if err != nil {
+		return StaffState{}, err
+	}
+	if err = s.canView(ctx, actor, session); err != nil {
+		return StaffState{}, err
+	}
+	pinned, err := s.repo.SessionQuestions(ctx, session.ID)
+	if err != nil {
+		return StaffState{}, err
+	}
+	refs := make([]question.ReviewRef, 0, len(pinned))
+	for _, item := range pinned {
+		refs = append(refs, question.ReviewRef{QuestionID: item.QuestionID, Version: item.QuestionVersion})
+	}
+	resolved, err := s.questions.ResolveRefs(ctx, refs)
+	if err != nil {
+		return StaffState{}, err
+	}
+	aggregate, err := s.repo.Aggregate(ctx, session.ID)
+	if err != nil {
+		return StaffState{}, err
+	}
+	return StaffState{Session: session, Pinned: pinned, Questions: resolved, Aggregate: aggregate}, nil
 }
 
 func (s *Service) TeacherSessions(
