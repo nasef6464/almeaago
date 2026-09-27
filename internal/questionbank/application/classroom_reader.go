@@ -1,0 +1,91 @@
+package application
+
+import (
+	"context"
+	"errors"
+	"strings"
+
+	question "github.com/nasef6464/almeaago/internal/questionbank/domain"
+)
+
+var ErrClassroomQuestionUnavailable = errors.New("classroom question unavailable")
+
+type ClassroomQuestionRepository interface {
+	ClassroomBatch(context.Context, []string, string) ([]question.ClassroomQuestion, error)
+	ClassroomBatchByRefs(context.Context, []question.ReviewRef) ([]question.ClassroomQuestion, error)
+}
+
+type ClassroomReader struct {
+	repo ClassroomQuestionRepository
+}
+
+func NewClassroomReader(repo ClassroomQuestionRepository) *ClassroomReader {
+	return &ClassroomReader{repo: repo}
+}
+
+func (r *ClassroomReader) Resolve(
+	ctx context.Context,
+	questionIDs []string,
+	subjectID string,
+) ([]question.ClassroomQuestion, error) {
+	subjectID = strings.TrimSpace(subjectID)
+	if subjectID == "" || len(questionIDs) < 1 || len(questionIDs) > 30 {
+		return nil, ErrInvalidInput
+	}
+	seen := make(map[string]struct{}, len(questionIDs))
+	normalized := make([]string, 0, len(questionIDs))
+	for _, raw := range questionIDs {
+		id := strings.TrimSpace(raw)
+		if !validUUID(id) {
+			return nil, ErrInvalidInput
+		}
+		if _, exists := seen[id]; exists {
+			return nil, ErrInvalidInput
+		}
+		seen[id] = struct{}{}
+		normalized = append(normalized, id)
+	}
+	rows, err := r.repo.ClassroomBatch(ctx, normalized, subjectID)
+	if err != nil {
+		return nil, err
+	}
+	return validateClassroomRows(rows, len(normalized))
+}
+
+func (r *ClassroomReader) ResolveOne(
+	ctx context.Context,
+	questionID string,
+	version int,
+) (question.ClassroomQuestion, error) {
+	questionID = strings.TrimSpace(questionID)
+	if !validUUID(questionID) || version < 1 {
+		return question.ClassroomQuestion{}, ErrInvalidInput
+	}
+	rows, err := r.repo.ClassroomBatchByRefs(ctx, []question.ReviewRef{{QuestionID: questionID, Version: version}})
+	if err != nil {
+		return question.ClassroomQuestion{}, err
+	}
+	rows, err = validateClassroomRows(rows, 1)
+	if err != nil {
+		return question.ClassroomQuestion{}, err
+	}
+	return rows[0], nil
+}
+
+func validateClassroomRows(rows []question.ClassroomQuestion, expected int) ([]question.ClassroomQuestion, error) {
+	if len(rows) != expected {
+		return nil, ErrClassroomQuestionUnavailable
+	}
+	for _, row := range rows {
+		if row.QuestionType != question.QuestionMCQ && row.QuestionType != question.QuestionTrueFalse {
+			return nil, ErrClassroomQuestionUnavailable
+		}
+		if row.CorrectOptionIndex == nil {
+			return nil, ErrClassroomQuestionUnavailable
+		}
+		if *row.CorrectOptionIndex < 0 || *row.CorrectOptionIndex >= len(row.Options) {
+			return nil, ErrClassroomQuestionUnavailable
+		}
+	}
+	return rows, nil
+}
