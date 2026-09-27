@@ -130,20 +130,22 @@ func (r *ReadRepository) ListAudit(
 		var item operations.AuditRecord
 		var metadataRaw []byte
 		if err = rows.Scan(
-			&item.ID,&item.ActorUserID,&item.ActorName,&item.Action,&item.ResourceType,
-			&item.ResourceID,&item.Status,&metadataRaw,&item.CreatedAt,
+			&item.ID, &item.ActorUserID, &item.ActorName, &item.Action, &item.ResourceType,
+			&item.ResourceID, &item.Status, &metadataRaw, &item.CreatedAt,
 		); err != nil {
 			return out, err
 		}
 		item.Metadata = map[string]any{}
 		if len(metadataRaw) > 0 {
-			if err = json.Unmarshal(metadataRaw,&item.Metadata); err != nil {
-				return out,err
+			if err = json.Unmarshal(metadataRaw, &item.Metadata); err != nil {
+				return out, err
 			}
 		}
-		out.Items=append(out.Items,item)
+		out.Items = append(out.Items, item)
 	}
-	if err=rows.Err();err!=nil{return out,err}
-	out.HasMore=(query.Page-1)*query.Limit+len(out.Items)<total
-	return out,nil
+	if err = rows.Err(); err != nil {
+		return out, err
+	}
+	out.HasMore = (query.Page-1)*query.Limit+len(out.Items) < total
+	return out, nil
 }
