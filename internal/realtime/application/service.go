@@ -63,23 +63,9 @@ type QuestionResolver interface {
 	ResolveRefs(context.Context, []question.ReviewRef) ([]question.ClassroomQuestion, error)
 }
 
-type EventPublisher interface {
-	Publish(context.Context, realtime.StreamEvent) error
-}
-
-type EventSubscription interface {
-	Events() <-chan realtime.StreamEvent
-	Errors() <-chan error
-	Close() error
-}
-
-type StreamCoordinator interface {
-	EventPublisher
-	Subscribe(context.Context, string) (EventSubscription, error)
-	TouchPresence(context.Context, string, string, string) (int64, error)
-	RemovePresence(context.Context, string, string, string) (int64, error)
-	PresenceCount(context.Context, string) (int64, error)
-}
+type EventPublisher = realtime.EventPublisher
+type EventSubscription = realtime.EventSubscription
+type StreamCoordinator = realtime.StreamCoordinator
 
 type Service struct {
 	repo      Repository
