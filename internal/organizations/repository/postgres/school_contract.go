@@ -282,3 +282,63 @@ func (r *Repository) CanStaffViewSmartClassroom(
 	`, actorID, schoolID, classID).Scan(&allowed)
 	return allowed, err
 }
+
+
+func (r *Repository) ValidateSmartClassroomScope(
+	ctx context.Context,
+	schoolID, classID, subjectID string,
+) (bool, error) {
+	var allowed bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1
+			FROM schools s
+			JOIN classes c ON c.school_id=s.id
+			JOIN subjects subject ON subject.id=$3::uuid
+			JOIN paths path ON path.id=subject.path_id
+			WHERE s.id=$1::uuid
+			  AND s.status='active'
+			  AND c.id=$2::uuid
+			  AND c.status='active'
+			  AND subject.status='active'
+			  AND path.status='active'
+		)
+	`, schoolID, classID, subjectID).Scan(&allowed)
+	return allowed, err
+}
+
+func (r *Repository) SmartClassroomRoster(
+	ctx context.Context,
+	schoolID, classID string,
+) ([]string, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT u.id::text
+		FROM class_memberships cm
+		JOIN users u ON u.id=cm.user_id AND u.status='active'
+		JOIN school_memberships sm
+		  ON sm.user_id=u.id
+		 AND sm.school_id=$1::uuid
+		 AND sm.role='student'
+		 AND sm.status='active'
+		JOIN classes c
+		  ON c.id=cm.class_id
+		 AND c.school_id=sm.school_id
+		 AND c.status='active'
+		WHERE cm.class_id=$2::uuid
+		  AND cm.status='active'
+		ORDER BY u.id
+	`, schoolID, classID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out,id)
+	}
+	return out, rows.Err()
+}
