@@ -40,6 +40,7 @@ type Dependencies struct {
 	LearningProgress         http.Handler
 	StudyPlans               http.Handler
 	Interventions            http.Handler
+	Notifications            http.Handler
 	Commerce                 http.Handler
 	LegacySchoolAccess       http.Handler
 }
@@ -142,6 +143,9 @@ func New(addr string, deps Dependencies) *http.Server {
 	}
 	if deps.Interventions != nil {
 		router.Mount("/api/v1/interventions", deps.Interventions)
+	}
+	if deps.Notifications != nil {
+		router.Mount("/api/v1/notifications", deps.Notifications)
 	}
 	if deps.Commerce != nil {
 		router.Mount("/api/v1/commerce", deps.Commerce)
