@@ -13,7 +13,12 @@ test('admin manages non-secret AI provider policy and inspects usage evidence',a
  await auth(page,admin);
  let patchBody:any=null;let patchCSRF='';let testCSRF='';
  const provider={provider:'gemini',enabled:false,model:'gemini-2.5-flash',baseUrl:'',priority:10,maxOutputTokens:450,revision:1,secretConfigured:true,health:{consecutiveFailures:0,openUntil:null,lastError:'',lastSuccessAt:null,lastFailureAt:null,updatedAt:'2026-09-27T08:00:00Z'},createdAt:'2026-09-27T08:00:00Z',updatedAt:'2026-09-27T08:00:00Z'};
- await page.route('**/api/v1/ai/admin/providers',route=>json(route,{items:[provider]}));
+ await page.route('**/api/v1/ai/admin/providers',async route=>{
+  if(route.request().method()==='GET')return json(route,{items:[provider]});
+  patchCSRF=route.request().headers()['x-csrf-token']||'';
+  patchBody=route.request().postDataJSON();
+  return json(route,{provider:{...provider,...patchBody,revision:2,secretConfigured:true}});
+ });
  await page.route('**/api/v1/ai/admin/interactions?**',route=>json(route,{items:[{id:'interaction-1',userId:'student-1',audience:'student',endpoint:'/ai/question-assistant',capability:'question_tutor',provider:'gemini',model:'gemini-2.5-flash',status:'success',usedFallback:false,cacheHit:false,questionId:'q-1',questionVersion:3,reviewCardId:'card-1',promptVersion:'question_tutor.v1',latencyMs:120,inputTokens:20,outputTokens:10,totalTokens:30,usageEstimated:false,responseLength:80,errorCategory:'',metadata:{helpLevel:'hint'},retentionUntil:'2026-10-27T08:00:00Z',createdAt:'2026-09-27T08:00:00Z'}],page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/ai/admin/providers/gemini',async route=>{
   patchCSRF=route.request().headers()['x-csrf-token']||'';
