@@ -13,36 +13,38 @@ import (
 )
 
 type repoStub struct {
-	session          realtime.Session
-	createRecord     realtime.CreateRecord
-	pinned           []realtime.PinnedQuestion
-	participant      realtime.Participant
-	responses        map[int]realtime.Response
-	aggregate        realtime.Aggregate
-	answerCorrect    bool
-	answerSelection  int
-	answerCalls      int
-	finalizeRoster   []string
+	session         realtime.Session
+	createRecord    realtime.CreateRecord
+	pinned          []realtime.PinnedQuestion
+	participant     realtime.Participant
+	responses       map[int]realtime.Response
+	aggregate       realtime.Aggregate
+	answerCorrect   bool
+	answerSelection int
+	answerCalls     int
+	finalizeRoster  []string
 }
 
 func (r *repoStub) CreateSession(_ context.Context, record realtime.CreateRecord) (realtime.Session, error) {
 	r.createRecord = record
 	if r.session.ID == "" {
 		r.session = realtime.Session{
-			ID: record.SchoolID + "-session",
-			SchoolID: record.SchoolID,
-			ClassID: record.ClassID,
-			SubjectID: record.SubjectID,
-			TeacherID: record.TeacherID,
-			Status: realtime.SessionDraft,
+			ID:            record.SchoolID + "-session",
+			SchoolID:      record.SchoolID,
+			ClassID:       record.ClassID,
+			SubjectID:     record.SubjectID,
+			TeacherID:     record.TeacherID,
+			Status:        realtime.SessionDraft,
 			PublishedMode: record.PublishedMode,
-			PINExpiresAt: record.PINExpiresAt,
-			Revision: 1,
+			PINExpiresAt:  record.PINExpiresAt,
+			Revision:      1,
 		}
 	}
 	return r.session, nil
 }
-func (r *repoStub) GetSession(context.Context, string) (realtime.Session, error) { return r.session, nil }
+func (r *repoStub) GetSession(context.Context, string) (realtime.Session, error) {
+	return r.session, nil
+}
 func (r *repoStub) FindLiveByPINHash(context.Context, string) (realtime.Session, error) {
 	return r.session, nil
 }
@@ -275,7 +277,7 @@ func TestStudentJoinRequiresCanonicalClassMembership(t *testing.T) {
 func TestStudentStateHidesAnswerUntilReveal(t *testing.T) {
 	published := time.Date(2026, 9, 27, 8, 1, 0, 0, time.UTC)
 	repo := &repoStub{
-		session: liveSession(),
+		session:     liveSession(),
 		participant: realtime.Participant{SessionID: "session-1", StudentID: "student-1"},
 		pinned: []realtime.PinnedQuestion{{
 			Ordinal: 0, BatchID: "batch-1", QuestionID: "question-1", QuestionVersion: 3,
@@ -323,7 +325,7 @@ func TestStudentStateHidesAnswerUntilReveal(t *testing.T) {
 
 func TestAnswerUsesPinnedServerOwnedCorrectKey(t *testing.T) {
 	repo := &repoStub{
-		session: liveSession(),
+		session:     liveSession(),
 		participant: realtime.Participant{SessionID: "session-1", StudentID: "student-1"},
 		pinned: []realtime.PinnedQuestion{{
 			Ordinal: 0, BatchID: "batch-1", QuestionID: "question-1", QuestionVersion: 3,
