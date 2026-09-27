@@ -87,7 +87,7 @@ test('teacher creates starts publishes reveals and finalizes a classroom session
  await expect(page.getByText('654321')).toBeVisible();
  await page.getByRole('button',{name:'بدء الحصة'}).click();
  await page.getByRole('button',{name:'نشر السؤال الأول'}).click();
- await expect(page.getByText('8')).toBeVisible();
+ await expect(page.getByText('8',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'إظهار الحل'}).click();
  await expect(page.getByText('لأن ٢ + ٢ = ٤')).toBeVisible();
  await page.getByRole('button',{name:'إنهاء الحصة وحفظ التقرير'}).click();
