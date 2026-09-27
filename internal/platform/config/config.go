@@ -42,6 +42,8 @@ type Config struct {
 	WhatsAppPhoneNumberID         string
 	WhatsAppWebhookURL            string
 	WhatsAppWebhookToken          string
+
+	ClassroomPINSecret string
 }
 
 func Load() (Config, error) {
@@ -77,6 +79,8 @@ func Load() (Config, error) {
 		WhatsAppPhoneNumberID: os.Getenv("WHATSAPP_PHONE_NUMBER_ID"),
 		WhatsAppWebhookURL:    os.Getenv("WHATSAPP_WEBHOOK_URL"),
 		WhatsAppWebhookToken:  os.Getenv("WHATSAPP_WEBHOOK_TOKEN"),
+
+		ClassroomPINSecret: os.Getenv("CLASSROOM_PIN_SECRET"),
 	}
 
 	if cfg.DatabaseURL == "" {
