@@ -1,30 +1,37 @@
 # Current Working Set
 
 ## Current phase
-Identity/Auth.
+Cross-domain parity / release certification.
 
 ## Foundation gate
 GREEN.
 
-## Allowed code areas
-- internal/identity/**
-- internal/platform/security/**
-- internal/platform/httpserver/**
-- migrations/000003_identity_auth.*
-- db/queries/identity.sql
-- api/openapi/**
-- apps/web/src/features/auth/**
-- apps/web/src/shared/auth/**
-- auth visual-baseline docs
-- targeted CI files only when needed
+## Completed certification checkpoint
+Identity/Auth internal parity — **TESTED** in PR #69.
 
-## Identity/Auth target
-Email/password + session cookie first, then recovery/email verification, National ID, Google OAuth and WhatsApp OTP while preserving the legacy UI and behavior.
+Evidence in this checkpoint:
+- integrated desktop/mobile Auth browser journeys.
+- deterministic V2 Auth screenshots.
+- Backend + Database + Frontend + Frontend E2E exact-head gates.
+- external Google/WhatsApp live proof and direct legacy-runtime screenshot comparison remain explicit external evidence; they are not treated as CI passes.
 
-## Do not start yet
-Organizations/Schools implementation beyond existing foundation schema.
-No Vercel/Render deployment.
-No external database/Redis/R2/AI account.
+## Next allowed code areas
+Organizations / Schools / Classes parity only, plus narrowly required shared test/documentation files:
+- internal/organizations/**
+- Organizations-owned migrations / queries when an actual gap is proven
+- apps/web Organizations/director/teacher-workspace surfaces required by the parity audit
+- targeted Organizations E2E/visual evidence
+- docs/domains/organizations/**
+- docs/CURRENT_STATE.md
+- docs/PARITY_MATRIX.md
+- docs/WORKING_SET.md
+
+## Guardrails
+- Start from current `main` only after PR #69 merges.
+- `nasef6464/almeaacodax` remains read-only behavioral/visual reference.
+- Do not invent business rules to convert UNKNOWN/external evidence into a pass.
+- Preserve owner-domain boundaries; Identity does not regain Organizations relationship ownership.
+- No production go-live claim from CI alone.
 
 ## Next exact action
-Ship the Identity/Auth backend slice and prove it with database/backend tests before starting the Auth frontend parity slice.
+Audit Organizations / Schools / Classes against the parity matrix and legacy observable workflows, select the first bounded internal gap, implement only source-backed corrections, then require Database + Backend + Frontend + E2E on the exact documentation-inclusive head before merge.

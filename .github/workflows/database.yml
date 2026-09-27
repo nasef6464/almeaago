@@ -50,6 +50,14 @@ jobs:
           }
 
           check "select to_regclass('public.user_roles') is not null"
+          check "select to_regclass('public.auth_sessions') is not null"
+          check "select to_regclass('public.auth_one_time_tokens') is not null"
+          check "select to_regclass('public.auth_otp_challenges') is not null"
+          check "select exists(select 1 from pg_indexes where tablename='user_roles' and indexname='user_roles_role_idx')"
+          check "select exists(select 1 from pg_indexes where tablename='auth_one_time_tokens' and indexname='auth_one_time_tokens_user_active_idx')"
+          check "select exists(select 1 from pg_indexes where tablename='auth_otp_challenges' and indexname='auth_otp_challenges_phone_history_idx')"
+          check "select exists(select 1 from pg_indexes where tablename='users' and indexname='users_email_unique_ci')"
+          check "select exists(select 1 from pg_constraint where conname='users_has_login_identity')"
           check "select to_regclass('public.auth_provider_identities') is not null"
           check "select to_regclass('public.audit_logs') is not null"
           check "select exists(select 1 from pg_indexes where tablename='audit_logs' and indexname='audit_logs_created_idx')"

@@ -108,11 +108,13 @@ Implemented:
 - Organizations owns cross-domain relationship writes.
 - Reporting owns cross-domain directory read models.
 
-Still pending outside this slice:
-- trainer managed path/subject scopes.
-- platformTrainer filter/count.
-- live Google/WhatsApp staging smoke.
-- desktop/mobile Auth screenshot parity gate.
+Owner-domain follow-through completed after this slice:
+- Content now owns canonical trainer path/subject scopes.
+- Reporting/Identity directory composition supports the platformTrainer filter/count from canonical Content scope.
+
+External parity evidence still pending:
+- live Google/WhatsApp staging smoke with deployment credentials.
+- direct legacy-runtime desktop/mobile screenshot capture for side-by-side comparison; the new V2 Auth screenshots are now captured by CI.
 
 ## Identity Closure Audit
 See `docs/domains/identity/IDENTITY_CLOSURE_AUDIT.md`.
@@ -123,6 +125,30 @@ Routes deliberately owned elsewhere:
 - parent-facing link/unlink/read flows -> Parents / Organizations.
 - trainer directory/performance -> Reporting / Content ownership.
 - school/class/group canonical relationship state -> Organizations.
+
+## Identity/Auth integrated parity certification — TESTED
+PR #69 certifies the current integrated Identity/Auth slice without converting external-provider evidence into a fake pass.
+
+Internal evidence now includes:
+- desktop email login modal and failure state.
+- mobile signup and password-policy UI.
+- Saudi-phone WhatsApp OTP send/verify progression against a mocked provider boundary.
+- forgot/reset/email-verification journeys, including token-from-URL and manual-token flows.
+- deterministic browser screenshots for the Auth states above.
+- backend coverage for the documented 160-character password ceiling.
+- Database CI assertions for Identity security tables, constraints and hot indexes.
+
+First integrated certification head `646c137f5119b4de3bc8174f1685a03ed826571c` passed all four gates:
+- Database CI `36308778367`.
+- Backend CI `36308778391`.
+- Frontend CI `36308778389`.
+- Frontend E2E `36308778432`: 50/50 tests.
+- browser evidence artifact `10928103825`, digest `sha256:df38daf618eb7e9b8c30409f7ce34f01b5cf4ade081e4a480db1e97779051555`.
+
+Release boundary:
+- Identity is now `TESTED` internally, not `PARITY_PROVEN`.
+- live Google OAuth, live WhatsApp delivery and direct legacy-runtime screenshot comparison remain external staging/visual evidence.
+- final merge still requires the same four gates on the documentation-inclusive exact PR head.
 
 ## Organizations Core — TESTED / MERGED
 Core school/class/roster/membership/director-delegation/assignment foundation was merged to `main` as `c182892d12ac50f3260b23d7281cba10bb9eb28f`.
@@ -1162,4 +1188,4 @@ The source-backed implementation order through **Commerce -> Parents -> Communic
 This is **not** equivalent to `PARITY_PROVEN` or production go-live approval. The matrix still records unresolved parity/release evidence, including Identity/provider live proof and visual parity gaps, production load/bandwidth evidence, dated backup/restore proof, exact retention/anonymization policy, external provider credentials/callback proof, observability/rollback/deployment identity proof and several explicitly UNKNOWN business-policy items. Those must stay visible rather than being converted into speculative implementation.
 
 ## Next exact action
-Run the cross-domain parity and release-certification phase from current `main`. Reconcile every non-`PARITY_PROVEN` matrix row against its functional, authorization, data, visual/E2E and external-proof requirements; close only source-backed internal gaps. For anything requiring credentials, production load, backup/restore drills, legal retention decisions or owner business policy, record the exact blocker/evidence required instead of inventing a pass.
+After Identity/Auth certification merges, continue cross-domain parity from Organizations / Schools / Classes. Reconcile its functional, authorization, data, visual/E2E and external-proof requirements on current `main`; close only source-backed internal gaps and keep any credential, production-load, backup/restore, legal-retention or owner-policy dependency explicit.
