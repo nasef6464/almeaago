@@ -1,6 +1,7 @@
 package reportinghttp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -140,6 +141,11 @@ func (h *Handler) exportResults(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
+	var buffer bytes.Buffer
+	if _, err = h.service.ExportCSV(r.Context(), authenticated.User, query, &buffer); err != nil {
+		writeError(w, err)
+		return
+	}
 	fileName := "assessment-results.csv"
 	if query.SchoolID != "" {
 		fileName = "school-assessment-results.csv"
@@ -147,11 +153,7 @@ func (h *Handler) exportResults(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
 	w.WriteHeader(http.StatusOK)
-	_, err = h.service.ExportCSV(r.Context(), authenticated.User, query, w)
-	if err != nil {
-		// Headers may already be committed; do not emit JSON into a CSV stream.
-		return
-	}
+	_, _ = w.Write(buffer.Bytes())
 }
 
 func writeError(w http.ResponseWriter, err error) {
