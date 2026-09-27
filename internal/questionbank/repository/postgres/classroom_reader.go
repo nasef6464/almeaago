@@ -7,6 +7,55 @@ import (
 	question "github.com/nasef6464/almeaago/internal/questionbank/domain"
 )
 
+func (r *Repository) ClassroomList(
+	ctx context.Context,
+	subjectID, search string,
+	page, limit int,
+) (question.ClassroomQuestionPage, error) {
+	pattern := "%" + literalLikePattern(search) + "%"
+	args := []any{subjectID, limit + 1, (page - 1) * limit}
+	searchClause := ""
+	if search != "" {
+		args = append(args, pattern)
+		searchClause = ` AND (q.question_code ILIKE $4 ESCAPE '\\' OR qv.text_content ILIKE $4 ESCAPE '\\')`
+	}
+	rows, err := r.db.Query(ctx, `
+		SELECT q.id::text,q.current_version,qv.question_type,qv.text_content,COALESCE(qv.difficulty,'')
+		FROM questions q
+		JOIN question_versions qv ON qv.question_id=q.id AND qv.version=q.current_version
+		WHERE q.workflow_status='approved'
+		  AND q.subject_id=$1::uuid
+		  AND qv.question_type IN ('mcq','true_false')
+	`+searchClause+`
+		ORDER BY q.updated_at DESC,q.id DESC
+		LIMIT $2 OFFSET $3
+	`, args...)
+	if err != nil {
+		return question.ClassroomQuestionPage{}, err
+	}
+	defer rows.Close()
+	out := question.ClassroomQuestionPage{
+		Items: []question.ClassroomQuestionSummary{},
+		Page: page,
+		Limit: limit,
+	}
+	for rows.Next() {
+		var item question.ClassroomQuestionSummary
+		if err = rows.Scan(&item.ID,&item.Version,&item.QuestionType,&item.TextContent,&item.Difficulty); err != nil {
+			return out, err
+		}
+		out.Items = append(out.Items,item)
+	}
+	if err = rows.Err(); err != nil {
+		return out, err
+	}
+	if len(out.Items) > limit {
+		out.HasMore = true
+		out.Items = out.Items[:limit]
+	}
+	return out,nil
+}
+
 func (r *Repository) ClassroomBatch(
 	ctx context.Context,
 	questionIDs []string,
