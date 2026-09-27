@@ -7,6 +7,7 @@ type Path struct {
 	ParentPathID string
 	Description  string
 	SortOrder    int
+	Status       Status
 }
 
 type Level struct {
@@ -15,6 +16,7 @@ type Level struct {
 	Code      string
 	Name      string
 	SortOrder int
+	Status    Status
 }
 
 type Subject struct {
@@ -24,6 +26,7 @@ type Subject struct {
 	Code      string
 	Name      string
 	SortOrder int
+	Status    Status
 }
 
 type Skill struct {
@@ -35,6 +38,7 @@ type Skill struct {
 	Description   string
 	Kind          string
 	SortOrder     int
+	Status        Status
 }
 
 type Bootstrap struct {
