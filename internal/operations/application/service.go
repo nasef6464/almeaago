@@ -101,6 +101,11 @@ func (s *Service) Readiness(
 				status = "ready_with_notes"
 			}
 		}
+		// Release readiness cannot be presented as fully green while no dated,
+		// verified restore drill is recorded by deployment operations.
+		if status == "ready" {
+			status = "ready_with_notes"
+		}
 	}
 	return operations.Readiness{
 		CheckedAt:           s.now().UTC(),
