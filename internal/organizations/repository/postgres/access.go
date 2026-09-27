@@ -108,6 +108,26 @@ func (r *Repository) HasSchoolPermission(
 			  AND sm.status = 'active'
 			  AND p.permission = $3
 			  AND s.status <> 'archived'
+			  AND (
+				p.permission NOT IN (
+				  'SCHOOL_STUDENTS_UPDATE_BASIC',
+				  'SCHOOL_STUDENTS_DEACTIVATE',
+				  'SCHOOL_CLASSES_MANAGE',
+				  'SCHOOL_TEACHERS_ASSIGN'
+				)
+				OR EXISTS (
+				  SELECT 1
+				  FROM school_contracts sc
+				  JOIN school_contract_modules scm
+				    ON scm.contract_id = sc.id
+				   AND scm.enabled = true
+				   AND scm.module_code = 'SCHOOL_CORE'
+				  WHERE sc.school_id = sm.school_id
+				    AND sc.status = 'active'
+				    AND (sc.valid_from IS NULL OR sc.valid_from <= now())
+				    AND (sc.valid_until IS NULL OR sc.valid_until >= now())
+				)
+			  )
 		)
 	`, schoolID, userID, permission).Scan(&allowed)
 	return allowed, err
