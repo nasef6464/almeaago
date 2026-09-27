@@ -1,5 +1,6 @@
 import {
   Bell,
+  BrainCircuit,
   BookOpen,
   CheckCircle2,
   HelpCircle,
@@ -33,6 +34,7 @@ const navItems = [
   { label: 'إدارة المستخدمين', icon: Users },
   { label: 'مركز الإشعارات', icon: Bell, href: '/admin-dashboard/notifications' },
   { label: 'الفصل الذكي', icon: Radio, href: '/admin-dashboard/classroom' },
+  { label: 'إدارة الذكاء الاصطناعي', icon: BrainCircuit, href: '/admin-dashboard/ai' },
   { label: 'الإعدادات', icon: Settings },
 ];
 
