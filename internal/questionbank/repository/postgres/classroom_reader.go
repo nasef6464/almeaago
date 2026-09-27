@@ -12,7 +12,7 @@ func (r *Repository) ClassroomList(
 	subjectID, search string,
 	page, limit int,
 ) (question.ClassroomQuestionPage, error) {
-	pattern := "%" + literalLikePattern(search) + "%"
+	pattern := literalLikePattern(search)
 	args := []any{subjectID, limit + 1, (page - 1) * limit}
 	searchClause := ""
 	if search != "" {
