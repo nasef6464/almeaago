@@ -186,3 +186,14 @@ type StreamEvent struct {
 	At        time.Time
 	Data      any
 }
+
+
+type Presentation struct {
+	SessionID             string
+	Status                SessionStatus
+	PublishedMode         PublishedMode
+	ActiveBatchID         string
+	ActiveQuestionOrdinal *int
+	Questions             []StudentQuestion
+	Aggregate             Aggregate
+}
