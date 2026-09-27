@@ -127,7 +127,7 @@ test('admin review workflow stays version-pinned and csrf protected',async({page
 
   await page.getByRole('button',{name:'إرسال للمراجعة'}).click();
   await expect(page.getByText('تم تحديث حالة السؤال إلى «بانتظار المراجعة».')).toBeVisible();
-  await page.getByRole('button',{name:'اعتماد'}).click();
+  await page.getByTestId('question-bank-admin').getByRole('button',{name:'اعتماد',exact:true}).click();
   await expect(page.getByText('تم تحديث حالة السؤال إلى «معتمد».')).toBeVisible();
   expect(csrf).toEqual(['csrf-question-bank','csrf-question-bank']);
 });
