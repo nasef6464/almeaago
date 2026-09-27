@@ -81,7 +81,7 @@ export function SchoolDirectorDashboardPage(){
 
   async function run(key:string, action:(csrf:string)=>Promise<void>, success:string){
     setPending(key);setError('');setNotice('');
-    try{const csrf=await getCsrfToken();await action(csrf);setNotice(success)}
+    try{const csrf=await getCsrfToken();await action(csrf);if(success)setNotice(success)}
     catch(e){setError(e instanceof Error?e.message:'تعذر تنفيذ العملية')}
     finally{setPending('')}
   }
