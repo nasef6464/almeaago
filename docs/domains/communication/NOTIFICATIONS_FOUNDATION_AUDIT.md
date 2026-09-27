@@ -1,6 +1,6 @@
 # Communication / Notifications Foundation Audit
 
-Status: **IMPLEMENTED — CI REQUIRED BEFORE MERGE**
+Status: **TESTED / MERGED**
 
 ## Source-backed contract
 The current product sources define Communication/Notifications as the owner of:
@@ -169,8 +169,12 @@ Not invented in this slice:
 
 Those require separate source-backed policy or deployment evidence. The durable inbox and worker do not depend on an unproven real-time transport.
 
-## Required gates
-- Database: migration apply + schema/index constraints + full rollback + re-apply.
-- Backend: module lock + sqlc compile + gofmt + vet + all tests including audience cap, actor scope, rendering and provider fail-closed tests.
-- Frontend: typecheck + production build.
-- Browser E2E: admin campaign creation + user inbox/read CSRF plus the full existing suite.
+## Verification checkpoint
+- PR #64 merged from exact tested head `8f25fefd239f0a75d0ff93dad3d521cea565c848`.
+- squash merge commit: `6c178b3c0106f8ed52c649b21865d289f9be6a92`.
+- Database CI `36291528761`: PASS — migration apply, notification tables/indexes/constraints verification, complete rollback and re-apply.
+- Backend CI `36291528793`: PASS — module lock, sqlc compile, gofmt, go vet and all Go tests including audience cap, actor scope, missing-variable rendering, retry accounting and provider fail-closed coverage.
+- Frontend CI `36291528776`: PASS — typecheck + production build.
+- Frontend E2E `36291528786`: PASS — complete browser suite including admin template/campaign creation and user inbox/read CSRF flows.
+- browser evidence artifact `content-browser-evidence` id `10922073896`, digest `sha256:ce7ac43ab1be32ead19713d5259f2194f1a6b0576f1d7377e5f3cad54ef59b03`.
+- the initial Backend run exposed gofmt-only deltas in the new notification files; they were corrected without changing behavior, then every required gate reran green on the exact final head.
