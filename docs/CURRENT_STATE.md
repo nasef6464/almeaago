@@ -985,5 +985,50 @@ The Product Blueprint parent golden journey is now implemented and exact-head te
 
 Parents remains `TESTED`, not `PARITY_PROVEN`. Parent-specific notification delivery, weekly scheduling, email/WhatsApp preferences/templates and delivery evidence belong to the Communication/Notifications phase. Legacy payment-approval and self-linking behaviors are not treated as canonical unless a source-backed product rule is established.
 
+## Communication / Notifications Foundation — TESTED / MERGED
+PR #64 passed all required exact-head gates on `8f25fefd239f0a75d0ff93dad3d521cea565c848` and merged to `main` as `6c178b3c0106f8ed52c649b21865d289f9be6a92`.
+
+Implemented:
+- normalized `notification_templates`, `notification_campaigns` and `notification_deliveries` with no delivery arrays embedded in User records.
+- Communication owns template rendering, campaigns, delivery evidence, retry state and external provider adapters.
+- Identity remains canonical user/contact/role authority; Communication receives only a narrow active-recipient projection and never performs foreign User SQL.
+- platform-admin template create/update is CSRF-protected, optimistic through `expectedRevision`, and Operations-audited.
+- campaign audience supports explicit user IDs and canonical roles, is de-duplicated server-side, and fails closed above 500 resolved recipients rather than truncating or partially creating a campaign.
+- browser requests never provide arbitrary recipient email/phone authority; contact snapshots are resolved server-side from Identity.
+- template variables preserve verified legacy `{{name}}` semantics, including missing placeholders rendering as empty strings.
+- in-app delivery is persisted as `sent` with provider `internal` in the campaign transaction.
+- email/WhatsApp deliveries are persisted as `pending`; provider calls never run inside campaign HTTP requests.
+- authenticated `/notifications` inbox is self-scoped, with unread count plus CSRF-protected read/read-all mutations; recipient contact snapshots are not returned in the self-inbox DTO.
+- `cmd/worker` now claims bounded external rows with PostgreSQL `FOR UPDATE SKIP LOCKED`, a five-minute lease and four total attempts using 1/2/4-minute exponential retry delays.
+- provider adapters cover source-backed console, Resend, generic email HTTP, WhatsApp Cloud and generic WhatsApp HTTP modes.
+- missing recipient/provider configuration fails closed and does not manufacture a successful delivery.
+- responsive admin notification center and authenticated inbox are wired into the React application.
+
+Verification:
+- Database CI `36291528761`: PASS migration apply + notification schema/index/constraint verification + full rollback + re-apply.
+- Backend CI `36291528793`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36291528776`: PASS typecheck + production build.
+- Frontend E2E `36291528786`: PASS full suite including admin template/campaign and user inbox/read CSRF flows.
+- browser evidence artifact `10922073896`, digest `sha256:ce7ac43ab1be32ead19713d5259f2194f1a6b0576f1d7377e5f3cad54ef59b03`.
+- the initial Backend failure was formatting-only; all four gates reran green on the final exact head.
+
+Audit:
+- `docs/domains/communication/NOTIFICATIONS_FOUNDATION_AUDIT.md`.
+
+## Communication / Notifications phase checkpoint
+The deterministic notification foundation is now `TESTED`, not `PARITY_PROVEN`.
+
+Still explicit external/policy boundaries:
+- automatic parent weekly scheduling/delivery.
+- parent WhatsApp/email opt-in, preference and consent semantics.
+- marketing unsubscribe rules.
+- provider delivery/read callbacks.
+- Redis/SSE live fan-out.
+- large 10,000-recipient fan-out beyond the current safe 500-recipient campaign bound.
+- live Resend/WhatsApp Cloud credential proof.
+- exact notification PII retention/purge duration.
+
+These are not inferred from adjacent behavior.
+
 ## Next exact action
-Start the Communication/Notifications phase from current `main`. Re-read the Blueprint, current notification placeholders/legacy delivery flows and provider/config evidence before choosing the first bounded slice. Keep domain events and outbox/delivery evidence separate from parent/assessment state, make user notification preferences explicit, and do not invent WhatsApp/email retry, consent or provider semantics where source evidence is missing.
+Start the Smart Classroom / Realtime phase from current `main`. Re-read the Product Blueprint, current Organizations school/class authority, canonical Question Bank and Assessment boundaries, and legacy classroom session/protocol evidence before choosing the first bounded slice. Keep transient presence/socket state separate from durable classroom records, reuse canonical Question/Skill IDs, and do not invent session scoring, audience or reconnect rules that are not source-backed.
