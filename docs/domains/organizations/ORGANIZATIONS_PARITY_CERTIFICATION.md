@@ -86,4 +86,18 @@ Browser evidence:
 
 The first E2E attempt exposed only a notification-state bug in the new page: the generic operation wrapper cleared the operation-specific success message after add/move. The wrapper was corrected without changing authorization or data behavior, then the full suite reran green.
 
-The documentation-inclusive final PR head must rerun the same four gates before merge.
+## Final documentation-inclusive exact-head checkpoint
+
+Final PR head `bfe1cdab22d476080706e0a7ce5884590b05ecda` passed all four gates:
+- Database CI `36311953531`: PASS.
+- Backend CI `36311953495`: PASS.
+- Frontend CI `36311953492`: PASS.
+- Frontend E2E `36311953491`: PASS — **54/54 browser tests**.
+
+Final browser evidence:
+- artifact `content-browser-evidence` id `10929288587`.
+- digest `sha256:9b4b24e6ace8a78a5e8495907fc937d88ff8c5a683abd3292bc6639c9bfc1fca`.
+
+PR #70 was squash-merged to `main` as `b7a9ae7a7844e187efec714fcec43b382a6ffa2f`.
+
+Organizations / Schools / Classes therefore closes this repository-internal batch at `TESTED`. It does not move to `PARITY_PROVEN` until direct legacy-runtime side-by-side visual evidence is available.
