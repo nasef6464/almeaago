@@ -60,6 +60,7 @@ type Config struct {
 	InteractionTTL    time.Duration
 	CircuitOpenFor    time.Duration
 	PerMinuteLimit    int
+	MaxOutputTokens   int
 }
 
 type Service struct {
@@ -98,6 +99,12 @@ func NewService(
 	}
 	if cfg.PerMinuteLimit <= 0 {
 		cfg.PerMinuteLimit = 8
+	}
+	if cfg.MaxOutputTokens <= 0 {
+		cfg.MaxOutputTokens = 450
+	}
+	if cfg.MaxOutputTokens > 2000 {
+		cfg.MaxOutputTokens = 2000
 	}
 	return &Service{
 		repo: repo,
@@ -412,6 +419,9 @@ func (s *Service) callProviderChain(
 		if setting.Health.OpenUntil != nil && setting.Health.OpenUntil.After(now) {
 			errorsSeen = append(errorsSeen, string(setting.Provider)+":circuit_open")
 			continue
+		}
+		if setting.MaxOutputTokens > s.cfg.MaxOutputTokens {
+			setting.MaxOutputTokens = s.cfg.MaxOutputTokens
 		}
 		result, callErr := s.providers.Call(ctx, setting, prompt)
 		if callErr != nil {
