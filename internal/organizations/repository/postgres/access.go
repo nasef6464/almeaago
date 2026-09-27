@@ -109,12 +109,7 @@ func (r *Repository) HasSchoolPermission(
 			  AND p.permission = $3
 			  AND s.status <> 'archived'
 			  AND (
-				p.permission NOT IN (
-				  'SCHOOL_STUDENTS_UPDATE_BASIC',
-				  'SCHOOL_STUDENTS_DEACTIVATE',
-				  'SCHOOL_CLASSES_MANAGE',
-				  'SCHOOL_TEACHERS_ASSIGN'
-				)
+				NOT $4::boolean
 				OR EXISTS (
 				  SELECT 1
 				  FROM school_contracts sc
@@ -129,6 +124,18 @@ func (r *Repository) HasSchoolPermission(
 				)
 			  )
 		)
-	`, schoolID, userID, permission).Scan(&allowed)
+	`, schoolID, userID, permission, schoolCoreGatedPermission(permission)).Scan(&allowed)
 	return allowed, err
+}
+
+func schoolCoreGatedPermission(permission string) bool {
+	switch permission {
+	case org.PermissionSchoolStudentsUpdateBasic,
+		org.PermissionSchoolStudentsDeactivate,
+		org.PermissionSchoolClassesManage,
+		org.PermissionSchoolTeachersAssign:
+		return true
+	default:
+		return false
+	}
 }
