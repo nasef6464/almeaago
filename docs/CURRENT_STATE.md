@@ -1123,5 +1123,43 @@ Still explicit deployment/policy boundaries:
 - distributed singleflight across API replicas and physical retention purge remain operational follow-up.
 - no AI is introduced into active Assessment attempts without a separate source-backed policy.
 
+## Reporting / Operations Foundation — TESTED / MERGED
+PR #67 passed all four required exact-head gates on `08fe59c45b565c0f95fcdd9e26de273a22552d85` and merged to `main` as `93be0a938a7d06f2052475d030ebbc8b5d06b962`.
+
+Implemented:
+- Reporting is a read-only composition boundary over canonical Identity/Organizations/Assessment/Learning facts and does not create a second score, mastery, membership or assignment source of truth.
+- `GET /api/v1/reports/overview` uses explicit student/result/evidence read budgets and reports population/sample/truncation separately.
+- Student reporting is self-only.
+- platform admin may read platform scope or an explicit school/class scope.
+- school-admin aggregate/detail/export authority is gated independently by canonical Organizations report permissions.
+- supervisor reporting respects exact active school/class supervisor scope and never widens a class-only supervisor to the whole school.
+- teacher reporting requires active school membership plus the matching teaching assignment/class/subject.
+- school reports include only school-context Assessment assignment/session evidence and do not mix platform self-study into school analytics.
+- `GET /api/v1/reports/results` returns bounded result summaries only; learner answers, question bodies, correct options and answer keys are absent.
+- `GET /api/v1/reports/results.csv` reuses the same authorization, requires explicit export authority where applicable and fails closed above 5000 rows instead of silently truncating.
+- no unmeasured large background export/object-storage workflow was invented.
+- Operations exposes platform-admin-only `GET /api/v1/operations/audit` and `GET /api/v1/operations/readiness`.
+- audit review is bounded/filterable and immutable from this surface.
+- readiness surfaces PostgreSQL/Redis, notification failure/retry counts, audit blocked/failed counts, live classroom count, enabled AI providers and whether deployment integrations are configured; it returns no provider secrets.
+- backup/restore truth remains explicit: `external_proof_required`. Healthy application dependencies therefore produce at best `ready_with_notes` until a dated verified restore drill is supplied externally.
+- migration `000038_reporting_operations_indexes` adds reversible indexes for chronological/status/action audit review, recent Assessment result sampling and scoped recent mastery evidence.
+- responsive `/reports`, admin reporting workspace and `/admin-dashboard/operations` are implemented and linked from the admin shell.
+
+Verification:
+- Database CI `36306943000`: PASS migration apply + reporting/operations index verification + complete rollback + re-apply.
+- Backend CI `36306943053`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36306942943`: PASS typecheck + production build.
+- Frontend E2E `36306943040`: PASS complete 45-test browser suite including self-scoped student report privacy and Operations external-proof behavior.
+- browser evidence artifact `10928135095`, digest `sha256:d64c8774633136511b88f76336a4940979726d7c5bc90ff339f4adb42aa22078`.
+- early gates caught formatting/source corruption, a Go helper collision and overly broad E2E locators. UUIDv7 and optional teacher UUID filtering were also hardened before the final exact-head rerun. No authorization/business behavior was weakened to turn CI green.
+
+Audit:
+- `docs/domains/reporting/REPORTING_OPERATIONS_FOUNDATION_AUDIT.md`.
+
+## Planned implementation-order checkpoint
+The source-backed implementation order through **Commerce -> Parents -> Communication/Notifications -> Smart Classroom/Realtime -> AI -> Reporting/Operations** is now merged and exact-head tested.
+
+This is **not** equivalent to `PARITY_PROVEN` or production go-live approval. The matrix still records unresolved parity/release evidence, including Identity/provider live proof and visual parity gaps, production load/bandwidth evidence, dated backup/restore proof, exact retention/anonymization policy, external provider credentials/callback proof, observability/rollback/deployment identity proof and several explicitly UNKNOWN business-policy items. Those must stay visible rather than being converted into speculative implementation.
+
 ## Next exact action
-Start the Reporting / Operations phase from current `main`. Re-read the Product Blueprint, current Operations audit evidence, Commerce/Assessment/Learning/Organizations/Communication/Realtime ownership boundaries and legacy reporting workflows before selecting the first bounded slice. Reporting should compose canonical owner-domain facts into durable/exportable views without becoming a second source of business truth; Operations should surface auditable system/admin evidence without bypassing the existing ownership contracts.
+Run the cross-domain parity and release-certification phase from current `main`. Reconcile every non-`PARITY_PROVEN` matrix row against its functional, authorization, data, visual/E2E and external-proof requirements; close only source-backed internal gaps. For anything requiring credentials, production load, backup/restore drills, legal retention decisions or owner business policy, record the exact blocker/evidence required instead of inventing a pass.
