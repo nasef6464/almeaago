@@ -1233,6 +1233,97 @@ paths:
         "403": { description: Platform admin and valid CSRF required }
         "413": { description: Resolved audience exceeds 500 recipients }
 
+  /api/v1/reports/overview:
+    get:
+      operationId: reportingOverview
+      description: >
+        Authenticated bounded reporting read model. Student scope is self-only. Teacher,
+        supervisor and school-admin scope is resolved from canonical Organizations authority;
+        school reporting includes only school-context Assessment evidence and does not blend
+        platform self-study into school aggregates. Platform admin may request a platform view.
+        The overview samples students/results/evidence under explicit limits and reports
+        truncation; it never mutates scoring, mastery or other business truth.
+      parameters:
+        - { in: query, name: schoolId, schema: { type: string, format: uuid } }
+        - { in: query, name: classId, schema: { type: string, format: uuid } }
+        - { in: query, name: pathId, schema: { type: string, format: uuid } }
+        - { in: query, name: subjectId, schema: { type: string, format: uuid } }
+        - { in: query, name: studentLimit, schema: { type: integer, minimum: 1, maximum: 1000, default: 500 } }
+        - { in: query, name: resultLimit, schema: { type: integer, minimum: 1, maximum: 5000, default: 2000 } }
+        - { in: query, name: attemptLimit, schema: { type: integer, minimum: 1, maximum: 5000, default: 3000 } }
+      responses:
+        "200": { description: Scoped bounded aggregate with explicit sample/truncation metadata }
+        "400": { description: Invalid scope identifier or read limit }
+        "401": { description: Authentication required }
+        "403": { description: Role/school/class/assignment/report permission denied }
+
+  /api/v1/reports/results:
+    get:
+      operationId: reportingResults
+      description: >
+        Paginated canonical Assessment result summaries for the resolved reporting scope.
+        Returns result facts only and never learner responses, question bodies, correct options
+        or answer keys. School views require school-context Assessment distribution and current
+        school authority; teacher views additionally require the matching teaching assignment.
+      parameters:
+        - { in: query, name: schoolId, schema: { type: string, format: uuid } }
+        - { in: query, name: classId, schema: { type: string, format: uuid } }
+        - { in: query, name: pathId, schema: { type: string, format: uuid } }
+        - { in: query, name: subjectId, schema: { type: string, format: uuid } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200": { description: Scoped result summary page }
+        "400": { description: Invalid reporting query }
+        "401": { description: Authentication required }
+        "403": { description: Detailed-report scope denied }
+
+  /api/v1/reports/results.csv:
+    get:
+      operationId: reportingResultsCsv
+      description: >
+        Direct CSV export of the same scoped result-summary fields. School admin export requires
+        SCHOOL_REPORTS_EXPORT; teacher/supervisor direct export is not granted by inference.
+        Direct export fails closed above 5000 rows instead of silently truncating. Larger exports
+        require a separately designed background export/object-storage workflow.
+      responses:
+        "200": { description: UTF-8 CSV containing authorized result summaries only }
+        "403": { description: Export permission denied }
+        "413": { description: Direct export exceeds the 5000-row cap }
+
+  /api/v1/operations/audit:
+    get:
+      operationId: operationsAudit
+      description: >
+        Platform-admin-only bounded audit-log read. Supports exact action/status/resource/actor
+        filters and returns immutable audit evidence plus 24-hour blocked/failed counts.
+      parameters:
+        - { in: query, name: action, schema: { type: string, maxLength: 160 } }
+        - { in: query, name: status, schema: { type: string, enum: [success, blocked, failed] } }
+        - { in: query, name: resourceType, schema: { type: string, maxLength: 120 } }
+        - { in: query, name: actorUserId, schema: { type: string, maxLength: 120 } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        "200": { description: Bounded immutable audit evidence page }
+        "400": { description: Invalid filter or pagination }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin required }
+
+  /api/v1/operations/readiness:
+    get:
+      operationId: operationsReadiness
+      description: >
+        Platform-admin-only operational evidence view over PostgreSQL/Redis health, bounded
+        operational counts and deployment integration configuration. This is not a go-live
+        certificate. Backup/restore remains external_proof_required until deployment operations
+        provide dated verified restore evidence, so the endpoint does not claim unconditional
+        release readiness.
+      responses:
+        "200": { description: Current operational evidence and explicit external proof gaps }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin required }
+
   /api/v1/ai/admin/providers:
     get:
       operationId: aiAdminProviders

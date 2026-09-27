@@ -41,7 +41,10 @@ import (
 	r2provider "github.com/nasef6464/almeaago/internal/media/provider/r2"
 	mediarepo "github.com/nasef6464/almeaago/internal/media/repository/postgres"
 	mediahttp "github.com/nasef6464/almeaago/internal/media/transport/http"
+	operationsapp "github.com/nasef6464/almeaago/internal/operations/application"
+	operations "github.com/nasef6464/almeaago/internal/operations/domain"
 	operationsrepo "github.com/nasef6464/almeaago/internal/operations/repository/postgres"
+	operationshttp "github.com/nasef6464/almeaago/internal/operations/transport/http"
 	orgapp "github.com/nasef6464/almeaago/internal/organizations/application"
 	orgrepo "github.com/nasef6464/almeaago/internal/organizations/repository/postgres"
 	organizationshttp "github.com/nasef6464/almeaago/internal/organizations/transport/http"
@@ -59,7 +62,9 @@ import (
 	realtimeredis "github.com/nasef6464/almeaago/internal/realtime/infrastructure/redis"
 	realtimerepo "github.com/nasef6464/almeaago/internal/realtime/repository/postgres"
 	realtimehttp "github.com/nasef6464/almeaago/internal/realtime/transport/http"
+	reportingapp "github.com/nasef6464/almeaago/internal/reporting/application"
 	reportingrepo "github.com/nasef6464/almeaago/internal/reporting/repository/postgres"
+	reportinghttp "github.com/nasef6464/almeaago/internal/reporting/transport/http"
 	taxonomyapp "github.com/nasef6464/almeaago/internal/taxonomy/application"
 	taxonomyrepo "github.com/nasef6464/almeaago/internal/taxonomy/repository/postgres"
 	taxonomyhttp "github.com/nasef6464/almeaago/internal/taxonomy/transport/http"
@@ -91,6 +96,19 @@ func main() {
 	defer redisClient.Close()
 
 	auditWriter := operationsrepo.NewAuditWriter()
+	operationsReadRepository := operationsrepo.NewReadRepository(db, redisClient)
+	operationsService := operationsapp.NewService(operationsReadRepository, operationsapp.Config{
+		Integrations: []operations.IntegrationCheck{
+			{ID: "r2", Configured: cfg.R2AccountID != "" && cfg.R2Bucket != "" && cfg.R2AccessKeyID != "" && cfg.R2SecretAccessKey != "", Detail: "Cloudflare R2 media storage"},
+			{ID: "tap", Configured: strings.TrimSpace(os.Getenv("TAP_SECRET_KEY")) != "" || strings.TrimSpace(os.Getenv("TAP_API_KEY")) != "", Detail: "Tap payment provider"},
+			{ID: "email", Configured: strings.TrimSpace(cfg.EmailProvider) != "", Detail: "Notification email provider"},
+			{ID: "whatsapp", Configured: strings.TrimSpace(cfg.WhatsAppProvider) != "", Detail: "Notification WhatsApp provider"},
+			{ID: "ai_remote", Configured: cfg.GeminiAPIKey != "" || cfg.OpenRouterAPIKey != "" || cfg.QwenAPIKey != "" || cfg.DeepSeekAPIKey != "" || cfg.OpenAIAPIKey != "", Detail: "Remote AI provider credentials"},
+			{ID: "google_oauth", Configured: cfg.GoogleClientID != "" && cfg.GoogleClientSecret != "" && cfg.GoogleRedirectURI != "", Detail: "Google OAuth"},
+		},
+	})
+	reportRepository := reportingrepo.NewReportRepository(db)
+	reportService := reportingapp.NewService(reportRepository)
 	organizationScopes := orgrepo.NewAdminScopeWriter()
 	contentAdminScopes := contentrepo.NewAdminScopeWriter(auditWriter)
 	identityRepository := identityrepo.NewWithContentScopes(db, organizationScopes, contentAdminScopes)
@@ -222,6 +240,8 @@ func main() {
 	studyPlansHandler := learninghttp.NewStudyPlans(studyPlanService, identityService)
 	interventionsHandler := learninghttp.NewInterventions(interventionService, identityService)
 	communicationHandler := communicationhttp.New(communicationService, identityService)
+	reportingHandler := reportinghttp.New(reportService, identityService)
+	operationsHandler := operationshttp.New(operationsService, identityService)
 	aiHandler := aihttp.New(aiService, identityService)
 	commerceHandler := commercehttp.NewWithProviderSecrets(
 		commerceService,
@@ -296,6 +316,8 @@ func main() {
 		StudyPlans:               studyPlansHandler,
 		Interventions:            interventionsHandler,
 		Notifications:            communicationHandler,
+		Reports:                  reportingHandler,
+		Operations:               operationsHandler,
 		AI:                       aiHandler,
 		Commerce:                 commerceHandler,
 		LegacySchoolAccess:       legacySchoolAccessHandler,

@@ -37,6 +37,8 @@ import { ClassroomStudentPage } from '../features/classroom/pages/ClassroomStude
 import { ClassroomProjectorPage } from '../features/classroom/pages/ClassroomProjectorPage';
 import { ClassroomContractsAdminPage } from '../features/classroom/pages/ClassroomContractsAdminPage';
 import { AiAdminPage } from '../features/ai/pages/AiAdminPage';
+import { ReportsPage } from '../features/reporting/pages/ReportsPage';
+import { OperationsAdminPage } from '../features/operations/pages/OperationsAdminPage';
 
 type ModalMode = 'login' | 'signup' | null;
 
@@ -173,6 +175,7 @@ export function App() {
         <Route path="/terms" element={<PlaceholderPage title="شروط الاستخدام" />} />
         <Route path="/privacy" element={<PlaceholderPage title="سياسة الخصوصية" />} />
         <Route path="/notifications" element={<NotificationInboxPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
         <Route path="/dashboard" element={<PlaceholderPage title="لوحة الطالب" />} />
         <Route path="/admin-dashboard" element={<AdminDashboardShell><PlaceholderPage title="لوحة الإدارة" /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/content" element={<AdminDashboardShell><ContentAdminPage /></AdminDashboardShell>} />
@@ -181,6 +184,8 @@ export function App() {
         <Route path="/admin-dashboard/notifications" element={<AdminDashboardShell><NotificationsAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/classroom" element={<AdminDashboardShell><ClassroomContractsAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/ai" element={<AdminDashboardShell><AiAdminPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/reports" element={<AdminDashboardShell><ReportsPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/operations" element={<AdminDashboardShell><OperationsAdminPage /></AdminDashboardShell>} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/assessments" element={<AssessmentAvailabilityPage />} />
         <Route path="/barcode-test" element={<PublicBarcodeAssessmentPage />} />

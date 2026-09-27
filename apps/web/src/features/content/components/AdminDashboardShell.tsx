@@ -1,5 +1,6 @@
 import {
   Bell,
+  BarChart3,
   BrainCircuit,
   BookOpen,
   CheckCircle2,
@@ -9,6 +10,7 @@ import {
   Moon,
   Search,
   Settings,
+  ShieldCheck,
   Radio,
   ShoppingCart,
   Users,
@@ -35,6 +37,8 @@ const navItems = [
   { label: 'مركز الإشعارات', icon: Bell, href: '/admin-dashboard/notifications' },
   { label: 'الفصل الذكي', icon: Radio, href: '/admin-dashboard/classroom' },
   { label: 'إدارة الذكاء الاصطناعي', icon: BrainCircuit, href: '/admin-dashboard/ai' },
+  { label: 'التقارير والتحليلات', icon: BarChart3, href: '/admin-dashboard/reports' },
+  { label: 'مركز العمليات والتدقيق', icon: ShieldCheck, href: '/admin-dashboard/operations' },
   { label: 'الإعدادات', icon: Settings },
 ];
 
