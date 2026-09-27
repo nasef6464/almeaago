@@ -152,7 +152,7 @@ func main() {
 	learningRepository := learningrepo.New(db, auditWriter)
 	aiRepository := airepo.New(db, auditWriter)
 	aiProvider := aiprovider.New(aiprovider.Config{
-		Timeout:              time.Duration(cfg.AIRequestTimeoutSeconds) * time.Second,
+		Timeout:              time.Duration(cfg.AIRequestTimeoutMS) * time.Millisecond,
 		GeminiAPIKey:         cfg.GeminiAPIKey,
 		OpenRouterAPIKey:     cfg.OpenRouterAPIKey,
 		QwenAPIKey:           cfg.QwenAPIKey,
@@ -164,9 +164,10 @@ func main() {
 		LMStudioModel:        cfg.LMStudioModel,
 	})
 	aiService := aiapp.NewService(aiRepository, learningRepository, questionRepository, aiProvider, aiapp.Config{
-		CacheTTL:       time.Duration(cfg.AIQuestionCacheMinutes) * time.Minute,
+		CacheTTL:       time.Duration(cfg.AIQuestionAssistantCacheMinutes) * time.Minute,
 		InteractionTTL: time.Duration(cfg.AIInteractionRetentionDays) * 24 * time.Hour,
-		CircuitOpenFor: 2 * time.Minute,
+		CircuitOpenFor: time.Minute,
+		PerMinuteLimit: cfg.AIQuestionAssistantPerMinute,
 	})
 	learningService := learningapp.NewService(learningRepository, questionService)
 	masteryGoalService := learningapp.NewMasteryGoalService(learningRepository, taxonomyRepository)
