@@ -282,6 +282,21 @@ func (s *Service) QuestionAssist(
 	}
 	q := rows[0]
 	now := s.now().UTC()
+	cacheKey := buildCacheKey(actor.ID, card, input)
+	cached, cacheErr := s.repo.CacheEntry(ctx, cacheKey, now)
+	if cacheErr == nil {
+		out := ai.QuestionAssistResult{
+			Text: cached.ResponseText, HelpLevel: input.HelpLevel,
+			Provider: cached.Provider, Model: cached.Model,
+			UsedFallback: cached.Provider == ai.ProviderNone, CacheHit: true,
+			PromptVersion: cached.PromptVersion,
+		}
+		_ = s.recordInteraction(ctx, actor, card, input, out, 0, ai.ProviderUsage{}, "")
+		return out, nil
+	}
+	if !errors.Is(cacheErr, ai.ErrNotFound) {
+		return ai.QuestionAssistResult{}, cacheErr
+	}
 	count, err := s.repo.CountQuestionAssistSince(ctx, actor.ID, now.Add(-time.Minute))
 	if err != nil {
 		return ai.QuestionAssistResult{}, err
@@ -298,21 +313,6 @@ func (s *Service) QuestionAssist(
 		}
 		_ = s.recordInteraction(ctx, actor, card, input, out, 0, ai.ProviderUsage{}, "rate_limited")
 		return out, nil
-	}
-	cacheKey := buildCacheKey(actor.ID, card, input)
-	cached, cacheErr := s.repo.CacheEntry(ctx, cacheKey, now)
-	if cacheErr == nil {
-		out := ai.QuestionAssistResult{
-			Text: cached.ResponseText, HelpLevel: input.HelpLevel,
-			Provider: cached.Provider, Model: cached.Model,
-			UsedFallback: cached.Provider == ai.ProviderNone, CacheHit: true,
-			PromptVersion: cached.PromptVersion,
-		}
-		_ = s.recordInteraction(ctx, actor, card, input, out, 0, ai.ProviderUsage{}, "")
-		return out, nil
-	}
-	if !errors.Is(cacheErr, ai.ErrNotFound) {
-		return ai.QuestionAssistResult{}, cacheErr
 	}
 
 	return s.doSingleFlight(ctx, cacheKey, func() (ai.QuestionAssistResult, error) {
