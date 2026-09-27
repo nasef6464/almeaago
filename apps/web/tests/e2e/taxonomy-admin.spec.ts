@@ -73,7 +73,7 @@ test('taxonomy admin desktop manages lifecycle-safe hierarchy with csrf',async({
   await expect(page.getByRole('heading',{name:'إدارة المسارات والتصنيف'})).toBeVisible();
   await expect(page.getByText('مسار قديم')).toBeVisible();
   await expect(page.getByText('الأعداد')).toBeVisible();
-  await expect(page.getByText('العمليات')).toBeVisible();
+  await expect(page.getByTestId('taxonomy-admin-page').getByText('العمليات',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:/حذف/})).toHaveCount(0);
 
   await page.getByLabel('كود المسار الجديد').fill('sat');
@@ -106,9 +106,9 @@ test('taxonomy admin mobile keeps path subject and skill controls reachable',asy
   await page.goto('/admin-dashboard/taxonomy');
 
   await expect(page.getByRole('heading',{name:'إدارة المسارات والتصنيف'})).toBeVisible();
-  await expect(page.getByText('شجرة المسارات')).toBeVisible();
-  await expect(page.getByText('المواد')).toBeVisible();
-  await expect(page.getByText('شجرة المهارات')).toBeVisible();
+  await expect(page.getByRole('heading',{name:'شجرة المسارات'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'المواد'})).toBeVisible();
+  await expect(page.getByText('شجرة المهارات',{exact:true})).toBeVisible();
   await expect(page.getByLabel('كود المسار الجديد')).toBeVisible();
   await page.screenshot({path:'test-results/taxonomy-admin-mobile.png',fullPage:true});
 });
