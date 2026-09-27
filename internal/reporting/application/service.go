@@ -174,17 +174,17 @@ func (s *Service) ExportCSV(
 	}
 	csvWriter := csv.NewWriter(writer)
 	if err = csvWriter.Write([]string{
-		"attempt_id","student_id","student_name","assessment_id","assessment_version","title",
-		"path_id","subject_id","score","passed","correct","wrong","unanswered","time_spent_seconds","finalized_at",
+		"attempt_id", "student_id", "student_name", "assessment_id", "assessment_version", "title",
+		"path_id", "subject_id", "score", "passed", "correct", "wrong", "unanswered", "time_spent_seconds", "finalized_at",
 	}); err != nil {
 		return 0, err
 	}
 	for _, row := range rows {
 		record := []string{
-			row.AttemptID,row.StudentID,row.StudentName,row.AssessmentID,strconv.Itoa(row.AssessmentVersion),row.Title,
-			row.PathID,row.SubjectID,fmt.Sprintf("%.3f",row.Score),strconv.FormatBool(row.Passed),
-			strconv.Itoa(row.CorrectAnswers),strconv.Itoa(row.WrongAnswers),strconv.Itoa(row.Unanswered),
-			strconv.Itoa(row.TimeSpentSeconds),row.FinalizedAt.UTC().Format(time.RFC3339),
+			row.AttemptID, row.StudentID, row.StudentName, row.AssessmentID, strconv.Itoa(row.AssessmentVersion), row.Title,
+			row.PathID, row.SubjectID, fmt.Sprintf("%.3f", row.Score), strconv.FormatBool(row.Passed),
+			strconv.Itoa(row.CorrectAnswers), strconv.Itoa(row.WrongAnswers), strconv.Itoa(row.Unanswered),
+			strconv.Itoa(row.TimeSpentSeconds), row.FinalizedAt.UTC().Format(time.RFC3339),
 		}
 		if err = csvWriter.Write(record); err != nil {
 			return 0, err
