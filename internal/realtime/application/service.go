@@ -57,6 +57,7 @@ type OrganizationResolver interface {
 }
 
 type QuestionResolver interface {
+	List(context.Context, string, string, int, int) (question.ClassroomQuestionPage, error)
 	Resolve(context.Context, []string, string) ([]question.ClassroomQuestion, error)
 	ResolveOne(context.Context, string, int) (question.ClassroomQuestion, error)
 	ResolveRefs(context.Context, []question.ReviewRef) ([]question.ClassroomQuestion, error)
@@ -209,6 +210,39 @@ func (s *Service) canView(ctx context.Context, actor identity.User, session real
 		return ErrForbidden
 	}
 	return nil
+}
+
+func (s *Service) Questions(
+	ctx context.Context,
+	actor identity.User,
+	schoolID, classID, subjectID, search string,
+	page, limit int,
+) (question.ClassroomQuestionPage, error) {
+	schoolID = strings.TrimSpace(schoolID)
+	classID = strings.TrimSpace(classID)
+	subjectID = strings.TrimSpace(subjectID)
+	if schoolID == "" || classID == "" || subjectID == "" {
+		return question.ClassroomQuestionPage{}, ErrInvalidInput
+	}
+	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) {
+		return question.ClassroomQuestionPage{}, ErrForbidden
+	}
+	if err := s.validateScope(ctx, schoolID, classID, subjectID); err != nil {
+		return question.ClassroomQuestionPage{}, err
+	}
+	if actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleAdmin) {
+		ok, err := s.org.CanTeacherControlSmartClassroom(ctx, actor.ID, schoolID, classID, subjectID)
+		if err != nil {
+			return question.ClassroomQuestionPage{}, err
+		}
+		if !ok {
+			return question.ClassroomQuestionPage{}, ErrForbidden
+		}
+	}
+	if s.questions == nil {
+		return question.ClassroomQuestionPage{}, ErrUnavailable
+	}
+	return s.questions.List(ctx, subjectID, search, page, limit)
 }
 
 func (s *Service) Create(
