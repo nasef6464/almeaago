@@ -36,6 +36,7 @@ import { ClassroomJoinPage } from '../features/classroom/pages/ClassroomJoinPage
 import { ClassroomStudentPage } from '../features/classroom/pages/ClassroomStudentPage';
 import { ClassroomProjectorPage } from '../features/classroom/pages/ClassroomProjectorPage';
 import { ClassroomContractsAdminPage } from '../features/classroom/pages/ClassroomContractsAdminPage';
+import { AiAdminPage } from '../features/ai/pages/AiAdminPage';
 
 type ModalMode = 'login' | 'signup' | null;
 
@@ -179,6 +180,7 @@ export function App() {
         <Route path="/admin-dashboard/commerce" element={<AdminDashboardShell><CommerceAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/notifications" element={<AdminDashboardShell><NotificationsAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/classroom" element={<AdminDashboardShell><ClassroomContractsAdminPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/ai" element={<AdminDashboardShell><AiAdminPage /></AdminDashboardShell>} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/assessments" element={<AssessmentAvailabilityPage />} />
         <Route path="/barcode-test" element={<PublicBarcodeAssessmentPage />} />
