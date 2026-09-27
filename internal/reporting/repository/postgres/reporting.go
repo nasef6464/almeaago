@@ -19,7 +19,7 @@ func NewReportRepository(db *pgxpool.Pool) *ReportRepository {
 	return &ReportRepository{db: db}
 }
 
-func hasRole(roles []identity.Role, target identity.Role) bool {
+func reportHasRole(roles []identity.Role, target identity.Role) bool {
 	for _, role := range roles {
 		if role == target {
 			return true
@@ -34,15 +34,15 @@ func (r *ReportRepository) ResolveScope(
 	query reporting.Query,
 ) (reporting.ResolvedScope, error) {
 	switch {
-	case hasRole(actor.Roles, identity.RoleAdmin):
+	case reportHasRole(actor.Roles, identity.RoleAdmin):
 		return r.resolveAdminScope(ctx, actor, query)
-	case hasRole(actor.Roles, identity.RoleSchoolAdmin):
+	case reportHasRole(actor.Roles, identity.RoleSchoolAdmin):
 		return r.resolveSchoolAdminScope(ctx, actor, query)
-	case hasRole(actor.Roles, identity.RoleSupervisor):
+	case reportHasRole(actor.Roles, identity.RoleSupervisor):
 		return r.resolveSupervisorScope(ctx, actor, query)
-	case hasRole(actor.Roles, identity.RoleTeacher):
+	case reportHasRole(actor.Roles, identity.RoleTeacher):
 		return r.resolveTeacherScope(ctx, actor, query)
-	case hasRole(actor.Roles, identity.RoleStudent):
+	case reportHasRole(actor.Roles, identity.RoleStudent):
 		if query.SchoolID != "" || query.ClassID != "" {
 			return reporting.ResolvedScope{}, reporting.ErrForbidden
 		}
