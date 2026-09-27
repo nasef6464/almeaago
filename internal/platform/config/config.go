@@ -45,9 +45,10 @@ type Config struct {
 
 	ClassroomPINSecret string
 
-	AIRequestTimeoutSeconds int
-	AIQuestionCacheMinutes  int
-	AIInteractionRetentionDays int
+	AIRequestTimeoutMS                  int
+	AIQuestionAssistantCacheMinutes    int
+	AIQuestionAssistantPerMinute       int
+	AIInteractionRetentionDays         int
 
 	GeminiAPIKey      string
 	GeminiModel       string
@@ -151,20 +152,25 @@ func Load() (Config, error) {
 	cfg.NotificationWorkerBatch = notificationBatch
 	cfg.NotificationWorkerPollSeconds = notificationPoll
 
-	aiTimeout, err := intValue("AI_REQUEST_TIMEOUT_SECONDS", 15)
-	if err != nil || aiTimeout < 1 || aiTimeout > 60 {
-		return Config{}, fmt.Errorf("AI_REQUEST_TIMEOUT_SECONDS must be between 1 and 60")
+	aiTimeoutMS, err := intValue("AI_REQUEST_TIMEOUT_MS", 15000)
+	if err != nil || aiTimeoutMS < 1000 || aiTimeoutMS > 60000 {
+		return Config{}, fmt.Errorf("AI_REQUEST_TIMEOUT_MS must be between 1000 and 60000")
 	}
-	aiCacheMinutes, err := intValue("AI_QUESTION_CACHE_MINUTES", 30)
+	aiCacheMinutes, err := intValue("AI_QUESTION_ASSISTANT_CACHE_MINUTES", 30)
 	if err != nil || aiCacheMinutes < 1 || aiCacheMinutes > 1440 {
-		return Config{}, fmt.Errorf("AI_QUESTION_CACHE_MINUTES must be between 1 and 1440")
+		return Config{}, fmt.Errorf("AI_QUESTION_ASSISTANT_CACHE_MINUTES must be between 1 and 1440")
+	}
+	aiPerMinute, err := intValue("AI_QUESTION_ASSISTANT_PER_MINUTE", 8)
+	if err != nil || aiPerMinute < 1 || aiPerMinute > 60 {
+		return Config{}, fmt.Errorf("AI_QUESTION_ASSISTANT_PER_MINUTE must be between 1 and 60")
 	}
 	aiRetentionDays, err := intValue("AI_INTERACTION_RETENTION_DAYS", 30)
 	if err != nil || aiRetentionDays < 1 || aiRetentionDays > 365 {
 		return Config{}, fmt.Errorf("AI_INTERACTION_RETENTION_DAYS must be between 1 and 365")
 	}
-	cfg.AIRequestTimeoutSeconds = aiTimeout
-	cfg.AIQuestionCacheMinutes = aiCacheMinutes
+	cfg.AIRequestTimeoutMS = aiTimeoutMS
+	cfg.AIQuestionAssistantCacheMinutes = aiCacheMinutes
+	cfg.AIQuestionAssistantPerMinute = aiPerMinute
 	cfg.AIInteractionRetentionDays = aiRetentionDays
 
 	return cfg, nil
