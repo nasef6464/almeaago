@@ -120,6 +120,7 @@ type providerStub struct {
 	errors     map[ai.Provider]error
 	calls      []ai.Provider
 	prompts    []string
+	maxTokens  []int
 	mu         sync.Mutex
 }
 
@@ -131,6 +132,7 @@ func (p *providerStub) Call(_ context.Context, setting ai.ProviderSetting, promp
 	defer p.mu.Unlock()
 	p.calls = append(p.calls, setting.Provider)
 	p.prompts = append(p.prompts, prompt)
+	p.maxTokens = append(p.maxTokens, setting.MaxOutputTokens)
 	if err := p.errors[setting.Provider]; err != nil {
 		return ai.ProviderCallResult{}, err
 	}
@@ -163,7 +165,7 @@ func reviewQuestion() question.ReviewProjection {
 
 func TestQuestionAssistUsesOwnedReviewCardAndProviderWithoutAnswerKey(t *testing.T) {
 	repo := &repoStub{settings: []ai.ProviderSetting{{
-		Provider: ai.ProviderGemini, Enabled: true, Model: "test-model", Priority: 10, MaxOutputTokens: 400,
+		Provider: ai.ProviderGemini, Enabled: true, Model: "test-model", Priority: 10, MaxOutputTokens: 800,
 	}}}
 	learningReader := &learningStub{card: reviewCard()}
 	questionReader := &questionStub{row: reviewQuestion()}
@@ -194,6 +196,9 @@ func TestQuestionAssistUsesOwnedReviewCardAndProviderWithoutAnswerKey(t *testing
 	}
 	if len(providers.prompts) != 1 {
 		t.Fatalf("expected one provider call, got %d", len(providers.prompts))
+	}
+	if len(providers.maxTokens) != 1 || providers.maxTokens[0] != 450 {
+		t.Fatalf("question assistant output cap not enforced: %#v", providers.maxTokens)
 	}
 	if strings.Contains(providers.prompts[0], "CorrectOptionIndex") || strings.Contains(providers.prompts[0], "الإجابة الصحيحة: 2") {
 		t.Fatalf("prompt leaked answer-key metadata: %s", providers.prompts[0])
