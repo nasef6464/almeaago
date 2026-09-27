@@ -12,11 +12,11 @@ import (
 )
 
 type reportRepoStub struct {
-	scope       reporting.ResolvedScope
-	overview    reporting.Overview
-	results     reporting.ResultPage
-	exportRows []reporting.ResultItem
-	exportTotal int
+	scope        reporting.ResolvedScope
+	overview     reporting.Overview
+	results      reporting.ResultPage
+	exportRows   []reporting.ResultItem
+	exportTotal  int
 	resolveCalls int
 }
 
@@ -76,7 +76,7 @@ func TestResultsFailClosedWhenScopeHasNoDetailPermission(t *testing.T) {
 
 func TestExportRejectsOversizedDirectDownload(t *testing.T) {
 	repo := &reportRepoStub{
-		scope: reporting.ResolvedScope{Kind: reporting.ScopePlatform, CanExport: true},
+		scope:       reporting.ResolvedScope{Kind: reporting.ScopePlatform, CanExport: true},
 		exportTotal: MaxExportRows + 1,
 	}
 	s := NewService(repo)
