@@ -132,10 +132,10 @@ func (r *Repository) UpsertSchoolContract(
 		}
 	}
 	if err = r.writeAudit(ctx, tx, operations.AuditEvent{
-		ActorUserID: actorID,
-		Action:      "organizations.school_contract.upsert",
-		ResourceType:"school_contract",
-		ResourceID:  contractID,
+		ActorUserID:  actorID,
+		Action:       "organizations.school_contract.upsert",
+		ResourceType: "school_contract",
+		ResourceID:   contractID,
 		Metadata: map[string]any{
 			"schoolId": schoolID,
 			"status":   write.Status,
@@ -283,7 +283,6 @@ func (r *Repository) CanStaffViewSmartClassroom(
 	return allowed, err
 }
 
-
 func (r *Repository) ValidateSmartClassroomScope(
 	ctx context.Context,
 	schoolID, classID, subjectID string,
@@ -338,7 +337,7 @@ func (r *Repository) SmartClassroomRoster(
 		if err = rows.Scan(&id); err != nil {
 			return nil, err
 		}
-		out = append(out,id)
+		out = append(out, id)
 	}
 	return out, rows.Err()
 }
