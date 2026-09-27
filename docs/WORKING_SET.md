@@ -27,7 +27,7 @@ Organizations / Schools / Classes parity only, plus narrowly required shared tes
 - docs/WORKING_SET.md
 
 ## Guardrails
-- Start from current `main` only after PR #69 merges.
+- Start Organizations parity from current `main` at/after Identity merge `274361cc4141567cab51686c246778a1b4e5b0e2`.
 - `nasef6464/almeaacodax` remains read-only behavioral/visual reference.
 - Do not invent business rules to convert UNKNOWN/external evidence into a pass.
 - Preserve owner-domain boundaries; Identity does not regain Organizations relationship ownership.
