@@ -158,3 +158,41 @@ type Status struct {
 	Providers []ProviderConfig `json:"providers"`
 	Health    []ProviderHealth `json:"health"`
 }
+
+
+type InteractionRow struct {
+	ID             string     `json:"id"`
+	UserID         string     `json:"userId"`
+	Audience       string     `json:"audience"`
+	Endpoint       string     `json:"endpoint"`
+	Capability     string     `json:"capability"`
+	Provider       ProviderID `json:"provider"`
+	Model          string     `json:"model"`
+	Status         string     `json:"status"`
+	UsedFallback   bool       `json:"usedFallback"`
+	CacheHit       bool       `json:"cacheHit"`
+	LatencyMS      int        `json:"latencyMs"`
+	InputTokens    int        `json:"inputTokens"`
+	OutputTokens   int        `json:"outputTokens"`
+	CachedTokens   int        `json:"cachedTokens"`
+	TotalTokens    int        `json:"totalTokens"`
+	ResponseLength int        `json:"responseLength"`
+	ErrorCategory  string     `json:"errorCategory"`
+	CreatedAt      time.Time  `json:"createdAt"`
+}
+
+type InteractionPage struct {
+	Items   []InteractionRow `json:"items"`
+	Page    int              `json:"page"`
+	Limit   int              `json:"limit"`
+	HasMore bool             `json:"hasMore"`
+}
+
+type UsageSummary struct {
+	RequestCount int `json:"requestCount"`
+	InputTokens int `json:"inputTokens"`
+	OutputTokens int `json:"outputTokens"`
+	CachedTokens int `json:"cachedTokens"`
+	FallbackCount int `json:"fallbackCount"`
+	ErrorCount int `json:"errorCount"`
+}
