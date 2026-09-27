@@ -30,6 +30,7 @@ const navItems = [
   { label: 'مركز الاختبارات', icon: HelpCircle, href: '/admin-dashboard/assessments' },
   { label: 'التجارة والصلاحيات', icon: ShoppingCart, href: '/admin-dashboard/commerce' },
   { label: 'إدارة المستخدمين', icon: Users },
+  { label: 'مركز الإشعارات', icon: Bell, href: '/admin-dashboard/notifications' },
   { label: 'الإعدادات', icon: Settings },
 ];
 
