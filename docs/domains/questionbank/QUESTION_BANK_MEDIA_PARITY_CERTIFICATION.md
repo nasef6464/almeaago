@@ -1,6 +1,6 @@
 # Question Bank / Media Parity Certification
 
-Status: **IMPLEMENTED — EXACT-HEAD CI REQUIRED**
+Status: **TESTED — INTERNAL PARITY EVIDENCE GREEN / LIVE R2 + DIRECT LEGACY VISUAL EVIDENCE PENDING**
 
 ## Source basis
 
@@ -93,12 +93,23 @@ Repository CI can prove the deterministic browser workflow against mocked direct
 
 Those remain explicit deployment/visual evidence requirements and are not converted into CI success.
 
-## Required exact-head gates
+## First integrated exact-head verification
 
-The final documentation-inclusive PR head must pass:
-- Database CI.
-- Backend CI.
-- Frontend CI.
-- Frontend E2E.
+Integrated implementation head `dab9fea3d599355b0414c3fddf514556dde43fe8` passed all four gates:
+- Database CI `36334171066`: PASS — full migration apply, Question Bank / Media integrity assertions, rollback and re-apply.
+- Backend CI `36334171032`: PASS — module lock, sqlc compile, gofmt, go vet and Go tests.
+- Frontend CI `36334171048`: PASS — typecheck and production build.
+- Frontend E2E `36334171056`: PASS — **61/61 browser tests**, including all four Question Bank / Media parity journeys.
 
-The E2E artifact must retain deterministic desktop Question Bank and mobile teacher evidence.
+Browser evidence:
+- artifact `content-browser-evidence` id `10935993271`.
+- digest `sha256:6d36703748032eb3281e2e0ee86137829907561a32654e0f97b427752f05ad12`.
+- deterministic desktop Question Bank and mobile teacher screenshots are captured by CI.
+
+Early verification caught two test/format defects only:
+- a Go test-file gofmt delta;
+- an ambiguous Playwright `اعتماد` locator colliding with the disabled shared admin-nav label `اعتماد المحتوى`.
+
+Both were corrected without widening authorization, weakening media verification, bypassing dry-run import policy, or changing Question Bank ownership.
+
+The documentation-inclusive final PR head must rerun the same four gates before merge.
