@@ -49,7 +49,7 @@ test('user inbox is self-scoped and read mutations require csrf',async({page})=>
  let readOneHeader='';let readAllHeader='';
  const rows=[{id:'delivery-1',campaignId:'campaign-1',templateKey:'',channel:'in_app',status:'sent',title:'نتيجتك جاهزة',subject:'',body:'راجع المهارة الأضعف اليوم',recipientUserId:'student-1',provider:'internal',providerMessageId:'',failureReason:'',retryCount:0,nextAttemptAt:null,sentAt:'2026-09-27T00:00:00Z',readAt:null,createdAt:'2026-09-27T00:00:00Z',updatedAt:'2026-09-27T00:00:00Z'}];
  await page.route('**/api/v1/notifications/me?page=1&limit=50',route=>json(route,{items:rows,page:1,limit:50,hasMore:false}));
- await page.route('**/api/v1/notifications/me/unread-count',route=>json(route,{unreadCount:1}));
+ await page.route('**/api/v1/notifications/me/unread-count',route=>json(route,{unreadCount:2}));
  await page.route('**/api/v1/notifications/delivery-1/read',route=>{readOneHeader=route.request().headers()['x-csrf-token']||'';return json(route,{notification:{...rows[0],readAt:'2026-09-27T01:00:00Z'}})});
  await page.route('**/api/v1/notifications/me/read-all',route=>{readAllHeader=route.request().headers()['x-csrf-token']||'';return json(route,{modifiedCount:0})});
 
@@ -58,8 +58,9 @@ test('user inbox is self-scoped and read mutations require csrf',async({page})=>
  await expect(page.getByText('نتيجتك جاهزة')).toBeVisible();
  await page.getByText('نتيجتك جاهزة').click();
  await expect.poll(()=>readOneHeader).toBe('csrf-token');
- await expect(page.getByText('0 غير مقروء')).toBeVisible();
+ await expect(page.getByText('1 غير مقروء')).toBeVisible();
 
- await page.getByRole('button',{name:'تعليم الكل مقروء'}).click({force:true});
- if(readAllHeader)expect(readAllHeader).toBe('csrf-token');
+ await page.getByRole('button',{name:'تعليم الكل مقروء'}).click();
+ await expect.poll(()=>readAllHeader).toBe('csrf-token');
+ await expect(page.getByText('0 غير مقروء')).toBeVisible();
 });
