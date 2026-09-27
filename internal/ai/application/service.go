@@ -56,11 +56,11 @@ type ProviderClient interface {
 }
 
 type Config struct {
-	CacheTTL          time.Duration
-	InteractionTTL    time.Duration
-	CircuitOpenFor    time.Duration
-	PerMinuteLimit    int
-	MaxOutputTokens   int
+	CacheTTL        time.Duration
+	InteractionTTL  time.Duration
+	CircuitOpenFor  time.Duration
+	PerMinuteLimit  int
+	MaxOutputTokens int
 }
 
 type Service struct {
@@ -107,13 +107,13 @@ func NewService(
 		cfg.MaxOutputTokens = 2000
 	}
 	return &Service{
-		repo: repo,
-		learning: learningReader,
+		repo:      repo,
+		learning:  learningReader,
 		questions: questionReader,
 		providers: providers,
-		cfg: cfg,
-		now: time.Now,
-		flights: map[string]*assistFlight{},
+		cfg:       cfg,
+		now:       time.Now,
+		flights:   map[string]*assistFlight{},
 	}
 }
 
@@ -223,7 +223,7 @@ func (s *Service) TestProvider(
 			Status: ai.InteractionError, ErrorCategory: errorCategory(callErr),
 			LatencyMS: latency, ResponseLength: 0,
 			RetentionUntil: timePtr(now.Add(s.cfg.InteractionTTL)),
-			Metadata: map[string]any{"manualTest": true},
+			Metadata:       map[string]any{"manualTest": true},
 		})
 		return ai.ProviderResponse{}, ErrUnavailable
 	}
@@ -355,11 +355,11 @@ func (s *Service) generateQuestionAssist(
 	latency := int(time.Since(started).Milliseconds())
 
 	out := ai.QuestionAssistResult{
-		HelpLevel: input.HelpLevel,
-		Provider: ai.ProviderNone,
-		Model: "trusted-fallback",
-		UsedFallback: true,
-		CacheHit: false,
+		HelpLevel:     input.HelpLevel,
+		Provider:      ai.ProviderNone,
+		Model:         "trusted-fallback",
+		UsedFallback:  true,
+		CacheHit:      false,
 		PromptVersion: PromptVersionQuestionTutor,
 	}
 	usage := ai.ProviderUsage{}
@@ -381,17 +381,17 @@ func (s *Service) generateQuestionAssist(
 	}
 
 	if err := s.repo.PutCacheEntry(ctx, ai.CacheEntry{
-		CacheKey: cacheKey,
-		UserID: actor.ID,
-		ReviewCardID: card.ID,
-		QuestionID: card.QuestionID,
+		CacheKey:        cacheKey,
+		UserID:          actor.ID,
+		ReviewCardID:    card.ID,
+		QuestionID:      card.QuestionID,
 		QuestionVersion: card.QuestionVersion,
-		HelpLevel: input.HelpLevel,
-		PromptVersion: PromptVersionQuestionTutor,
-		ResponseText: out.Text,
-		Provider: out.Provider,
-		Model: out.Model,
-		ExpiresAt: now.Add(ttl),
+		HelpLevel:       input.HelpLevel,
+		PromptVersion:   PromptVersionQuestionTutor,
+		ResponseText:    out.Text,
+		Provider:        out.Provider,
+		Model:           out.Model,
+		ExpiresAt:       now.Add(ttl),
 	}); err != nil {
 		return ai.QuestionAssistResult{}, err
 	}
@@ -436,10 +436,10 @@ func (s *Service) callProviderChain(
 		}
 		_ = s.repo.RecordProviderSuccess(ctx, setting.Provider, now)
 		return ai.ProviderResponse{
-			Text: result.Text,
+			Text:     result.Text,
 			Provider: setting.Provider,
-			Model: firstNonEmpty(result.Model, setting.Model),
-			Usage: result.Usage,
+			Model:    firstNonEmpty(result.Model, setting.Model),
+			Usage:    result.Usage,
 		}, nil
 	}
 	if len(errorsSeen) == 0 {
@@ -479,28 +479,28 @@ func (s *Service) recordInteraction(
 	}
 	now := s.now().UTC()
 	return s.repo.InsertInteraction(ctx, ai.Interaction{
-		UserID: actor.ID,
-		Audience: "student",
-		Endpoint: "/ai/question-assistant",
-		Capability: CapabilityQuestionTutor,
-		Provider: out.Provider,
-		Model: out.Model,
-		Status: status,
-		UsedFallback: out.UsedFallback,
-		CacheHit: out.CacheHit,
-		QuestionID: card.QuestionID,
+		UserID:          actor.ID,
+		Audience:        "student",
+		Endpoint:        "/ai/question-assistant",
+		Capability:      CapabilityQuestionTutor,
+		Provider:        out.Provider,
+		Model:           out.Model,
+		Status:          status,
+		UsedFallback:    out.UsedFallback,
+		CacheHit:        out.CacheHit,
+		QuestionID:      card.QuestionID,
 		QuestionVersion: card.QuestionVersion,
-		ReviewCardID: card.ID,
-		PromptVersion: out.PromptVersion,
-		LatencyMS: latency,
-		InputTokens: usage.InputTokens,
-		OutputTokens: usage.OutputTokens,
-		TotalTokens: usage.TotalTokens,
-		UsageEstimated: usage.Estimated,
-		ResponseLength: len([]rune(out.Text)),
-		ErrorCategory: errorName,
+		ReviewCardID:    card.ID,
+		PromptVersion:   out.PromptVersion,
+		LatencyMS:       latency,
+		InputTokens:     usage.InputTokens,
+		OutputTokens:    usage.OutputTokens,
+		TotalTokens:     usage.TotalTokens,
+		UsageEstimated:  usage.Estimated,
+		ResponseLength:  len([]rune(out.Text)),
+		ErrorCategory:   errorName,
 		Metadata: map[string]any{
-			"helpLevel": input.HelpLevel,
+			"helpLevel":       input.HelpLevel,
 			"messageProvided": input.Message != "",
 		},
 		RetentionUntil: timePtr(now.Add(s.cfg.InteractionTTL)),
