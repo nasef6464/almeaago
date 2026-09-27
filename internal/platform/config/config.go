@@ -45,10 +45,10 @@ type Config struct {
 
 	ClassroomPINSecret string
 
-	AIRequestTimeoutMS                  int
+	AIRequestTimeoutMS                 int
 	AIQuestionAssistantCacheMinutes    int
 	AIQuestionAssistantPerMinute       int
-	AIQuestionAssistantMaxOutputTokens  int
+	AIQuestionAssistantMaxOutputTokens int
 	AIInteractionRetentionDays         int
 
 	GeminiAPIKey     string
