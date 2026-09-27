@@ -14,6 +14,9 @@ type mutationRepoStub struct{ lastSkill taxonomy.SkillWrite }
 func (r *mutationRepoStub) PublicBootstrap(context.Context, bool) (taxonomy.Bootstrap, error) {
 	return taxonomy.Bootstrap{}, nil
 }
+func (r *mutationRepoStub) AdminBootstrap(context.Context) (taxonomy.Bootstrap, error) {
+	return taxonomy.Bootstrap{}, nil
+}
 func (r *mutationRepoStub) CreatePath(context.Context, string, taxonomy.PathWrite) (taxonomy.Path, error) {
 	return taxonomy.Path{}, nil
 }
