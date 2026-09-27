@@ -16,7 +16,7 @@ import {
   UploadCloud,
   XCircle,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
@@ -271,6 +271,6 @@ export function QuestionBankAdminPage(){
   </main>;
 }
 
-function Stat({icon,label,value}:{icon:React.ReactNode;label:string;value:number}){
+function Stat({icon,label,value}:{icon:ReactNode;label:string;value:number}){
   return <article className="rounded-2xl border bg-white p-4 shadow-sm"><div className="text-violet-700">{icon}</div><p className="mt-2 text-xs font-bold text-gray-500">{label}</p><p className="text-2xl font-black">{value}</p></article>;
 }
