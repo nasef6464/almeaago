@@ -1,10 +1,13 @@
 package application
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestPasswordPolicyMatchesLegacyContract(t *testing.T) {
 	valid := []string{"Password1", "abc12345"}
-	invalid := []string{"short1", "abcdefgh", "12345678", ""}
+	invalid := []string{"short1", "abcdefgh", "12345678", "", strings.Repeat("a", 159) + "A1"}
 
 	for _, value := range valid {
 		if !validPassword(value) {
