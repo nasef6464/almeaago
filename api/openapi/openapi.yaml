@@ -15,6 +15,18 @@ paths:
         "400": { description: Invalid bootstrap phase }
         "500": { description: Taxonomy unavailable }
 
+  /api/v1/taxonomy/admin/bootstrap:
+    get:
+      operationId: taxonomyAdminBootstrap
+      description: >
+        Platform-admin lifecycle view including active, inactive and archived paths,
+        levels, subjects and normalized main/sub skills. This authenticated response
+        is private/no-store and is intended for taxonomy administration only.
+      responses:
+        "200": { description: Full admin taxonomy lifecycle hierarchy }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin required }
+
   /api/v1/taxonomy/admin/paths:
     post:
       operationId: taxonomyAdminCreatePath

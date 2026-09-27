@@ -32,6 +32,7 @@ func New(service *taxonomyapp.Service, authenticators ...Authenticator) http.Han
 	}
 	r := chi.NewRouter()
 	r.Get("/bootstrap", h.bootstrap)
+	r.Get("/admin/bootstrap", h.adminBootstrap)
 	r.Post("/admin/paths", h.createPath)
 	r.Patch("/admin/paths/{id}", h.updatePath)
 	r.Post("/admin/levels", h.createLevel)
@@ -41,6 +42,19 @@ func New(service *taxonomyapp.Service, authenticators ...Authenticator) http.Han
 	r.Post("/admin/skills", h.createSkill)
 	r.Patch("/admin/skills/{id}", h.updateSkill)
 	return r
+}
+
+func (h *Handler) authenticateRead(w http.ResponseWriter, r *http.Request) (identityapp.Authenticated, bool) {
+	if h.auth == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"message": "Authentication service unavailable"})
+		return identityapp.Authenticated{}, false
+	}
+	auth, err := h.auth.Authenticate(r.Context(), identitysession.Token(r))
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "Authentication required"})
+		return identityapp.Authenticated{}, false
+	}
+	return auth, true
 }
 
 func (h *Handler) authenticateMutation(w http.ResponseWriter, r *http.Request) (identityapp.Authenticated, bool) {
@@ -187,6 +201,24 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	return true
 }
 
+func (h *Handler) adminBootstrap(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authenticateRead(w, r)
+	if !ok {
+		return
+	}
+	result, err := h.service.AdminBootstrap(r.Context(), auth.User)
+	if err != nil {
+		if errors.Is(err, taxonomyapp.ErrForbidden) {
+			writeJSON(w, http.StatusForbidden, map[string]string{"message": "Forbidden"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Internal server error"})
+		return
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
+	writeJSON(w, http.StatusOK, presentAdminBootstrap(result))
+}
+
 func (h *Handler) bootstrap(w http.ResponseWriter, r *http.Request) {
 	phase := strings.TrimSpace(r.URL.Query().Get("phase"))
 	result, err := h.service.PublicBootstrap(r.Context(), phase)
@@ -204,6 +236,44 @@ func (h *Handler) bootstrap(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=120")
 	w.Header().Set("X-Taxonomy-Phase", phase)
 	writeJSON(w, http.StatusOK, presentBootstrap(result))
+}
+
+type adminPathResponse struct {
+	ID           string `json:"id"`
+	Code         string `json:"code"`
+	Name         string `json:"name"`
+	ParentPathID string `json:"parentPathId,omitempty"`
+	Description  string `json:"description"`
+	SortOrder    int    `json:"sortOrder"`
+	Status       string `json:"status"`
+}
+type adminLevelResponse struct {
+	ID        string `json:"id"`
+	PathID    string `json:"pathId"`
+	Code      string `json:"code"`
+	Name      string `json:"name"`
+	SortOrder int    `json:"sortOrder"`
+	Status    string `json:"status"`
+}
+type adminSubjectResponse struct {
+	ID        string `json:"id"`
+	PathID    string `json:"pathId"`
+	LevelID   string `json:"levelId,omitempty"`
+	Code      string `json:"code"`
+	Name      string `json:"name"`
+	SortOrder int    `json:"sortOrder"`
+	Status    string `json:"status"`
+}
+type adminSkillResponse struct {
+	ID            string `json:"id"`
+	SubjectID     string `json:"subjectId"`
+	ParentSkillID string `json:"parentSkillId,omitempty"`
+	Code          string `json:"code"`
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	Kind          string `json:"kind"`
+	SortOrder     int    `json:"sortOrder"`
+	Status        string `json:"status"`
 }
 
 type pathResponse struct {
@@ -238,6 +308,26 @@ type skillResponse struct {
 	Description   string `json:"description"`
 	Kind          string `json:"kind"`
 	SortOrder     int    `json:"sortOrder"`
+}
+
+func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
+	paths := make([]adminPathResponse, 0, len(value.Paths))
+	for _, row := range value.Paths {
+		paths = append(paths, adminPathResponse{row.ID, row.Code, row.Name, row.ParentPathID, row.Description, row.SortOrder, string(row.Status)})
+	}
+	levels := make([]adminLevelResponse, 0, len(value.Levels))
+	for _, row := range value.Levels {
+		levels = append(levels, adminLevelResponse{row.ID, row.PathID, row.Code, row.Name, row.SortOrder, string(row.Status)})
+	}
+	subjects := make([]adminSubjectResponse, 0, len(value.Subjects))
+	for _, row := range value.Subjects {
+		subjects = append(subjects, adminSubjectResponse{row.ID, row.PathID, row.LevelID, row.Code, row.Name, row.SortOrder, string(row.Status)})
+	}
+	skills := make([]adminSkillResponse, 0, len(value.Skills))
+	for _, row := range value.Skills {
+		skills = append(skills, adminSkillResponse{row.ID, row.SubjectID, row.ParentSkillID, row.Code, row.Name, row.Description, row.Kind, row.SortOrder, string(row.Status)})
+	}
+	return map[string]any{"paths": paths, "levels": levels, "subjects": subjects, "skills": skills}
 }
 
 func presentBootstrap(value taxonomy.Bootstrap) map[string]any {

@@ -9,34 +9,40 @@ GREEN.
 ## Completed certification checkpoints
 - Identity/Auth internal parity — **TESTED** in PR #69.
 - Organizations / Schools / Classes internal parity — **TESTED** in PR #70.
+- Taxonomy internal parity — **TESTED** in PR #71.
 
-Organizations evidence in the current checkpoint:
-- real responsive school-director workspace.
-- bounded student/class/teacher delegated operations.
-- exact-school context isolation and explicit no-delegation state.
-- active contract modules projected into canonical school context.
-- optional Organizations-owned delegated tools dual-gated by permission + `SCHOOL_CORE`.
-- deterministic director desktop/mobile screenshots.
+Taxonomy evidence in the current checkpoint:
+- public active-only `core|compact|full` bootstrap preserved.
+- authenticated platform-admin lifecycle bootstrap includes active/inactive/archived hierarchy.
+- real responsive `/admin-dashboard/taxonomy` workspace.
+- path/level/subject/main-sub-skill create, edit and lifecycle controls.
+- stable codes/IDs and no destructive Taxonomy delete.
+- target hierarchy remains normalized; legacy Section is not recreated.
+- teacher persona does not issue the admin bootstrap; server admin authorization remains independent.
 - Database + Backend + Frontend + Frontend E2E exact-head gates.
+- deterministic Taxonomy desktop/mobile screenshots.
 - direct legacy-runtime side-by-side screenshot comparison remains external visual evidence and is not treated as a CI pass.
 
 ## Next allowed code areas
-Taxonomy parity only, plus narrowly required shared test/documentation files:
-- internal/taxonomy/**
-- Taxonomy-owned migrations / queries when an actual gap is proven
-- apps/web Taxonomy/admin surfaces required by the parity audit
-- targeted Taxonomy E2E/visual evidence
-- docs/domains/taxonomy/**
+Question Bank / Media parity only, plus narrowly required shared test/documentation files:
+- internal/questionbank/**
+- internal/media/**
+- Question Bank / Media-owned migrations or queries only when an actual gap is proven
+- apps/web Question Bank/admin/media surfaces required by the parity audit
+- targeted Question Bank / Media E2E/visual evidence
+- docs/domains/questionbank/**
+- docs/domains/media/**
 - docs/CURRENT_STATE.md
 - docs/PARITY_MATRIX.md
 - docs/WORKING_SET.md
 
 ## Guardrails
-- Start Taxonomy parity from current `main` at/after Organizations merge `b7a9ae7a7844e187efec714fcec43b382a6ffa2f`.
+- Start Question Bank / Media parity from current `main` only after PR #71 merges.
 - `nasef6464/almeaacodax` remains read-only behavioral/visual reference.
-- Do not invent taxonomy levels/hierarchies or business rules absent from source evidence.
-- Preserve owner-domain boundaries; Content/Question Bank/Assessment consume Taxonomy IDs but do not own Taxonomy hierarchy truth.
+- Taxonomy owns path/level/subject/skill hierarchy; Question Bank stores relational classification links, not copied hierarchy truth.
+- Media owns asset lifecycle/binary storage; Question Bank stores asset references only.
+- Do not invent new question types, moderation policy, import semantics or media lifecycle rules absent from source evidence.
 - No production go-live claim from CI alone.
 
 ## Next exact action
-Audit Taxonomy against the parity matrix and legacy observable admin/bootstrap workflows, select the first bounded internal gap, implement only source-backed corrections, then require Database + Backend + Frontend + E2E on the exact documentation-inclusive head before merge.
+Audit Question Bank / Media against the parity matrix and legacy observable authoring/filter/import/visual workflows, select the first bounded internal gap, implement only source-backed corrections, then require Database + Backend + Frontend + E2E on the exact documentation-inclusive head before merge.

@@ -3,6 +3,7 @@ import {
   BarChart3,
   BrainCircuit,
   BookOpen,
+  Boxes,
   CheckCircle2,
   HelpCircle,
   Library,
@@ -27,7 +28,8 @@ interface AdminDashboardShellProps {
 
 const navItems = [
   { label: 'نظرة عامة', icon: BookOpen, href: '/admin-dashboard' },
-  { label: 'إدارة المحتوى التعليمي', icon: BookOpen, href: '/admin-dashboard/content', active: true },
+  { label: 'إدارة المحتوى التعليمي', icon: BookOpen, href: '/admin-dashboard/content' },
+  { label: 'إدارة المسارات والتصنيف', icon: Boxes, href: '/admin-dashboard/taxonomy' },
   { label: 'اعتماد المحتوى', icon: CheckCircle2 },
   { label: 'مركز الدروس', icon: BookOpen },
   { label: 'مركز المكتبة وملفات الدعم', icon: Library },
@@ -70,7 +72,7 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
       <nav className="flex-1 overflow-y-auto py-3">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const active = item.href ? location.pathname === item.href : item.active;
+          const active = item.href ? location.pathname === item.href : ('active' in item && Boolean(item.active));
           const classes = active
             ? 'border-r-4 border-amber-500 bg-amber-50 text-amber-700'
             : 'border-r-4 border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-800';

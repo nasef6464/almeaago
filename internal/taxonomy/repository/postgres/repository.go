@@ -127,6 +127,101 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	return result, nil
 }
 
+func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, error) {
+	result := taxonomy.Bootstrap{
+		Paths: []taxonomy.Path{}, Levels: []taxonomy.Level{},
+		Subjects: []taxonomy.Subject{}, Skills: []taxonomy.Skill{},
+	}
+
+	pathRows, err := r.db.Query(ctx, `
+		SELECT id::text, code, name, COALESCE(parent_path_id::text, ''), description, sort_order, status
+		FROM paths
+		ORDER BY sort_order, id
+	`)
+	if err != nil {
+		return result, err
+	}
+	for pathRows.Next() {
+		var row taxonomy.Path
+		if err := pathRows.Scan(&row.ID, &row.Code, &row.Name, &row.ParentPathID, &row.Description, &row.SortOrder, &row.Status); err != nil {
+			pathRows.Close()
+			return result, err
+		}
+		result.Paths = append(result.Paths, row)
+	}
+	if err := pathRows.Err(); err != nil {
+		pathRows.Close()
+		return result, err
+	}
+	pathRows.Close()
+
+	levelRows, err := r.db.Query(ctx, `
+		SELECT id::text, path_id::text, code, name, sort_order, status
+		FROM levels
+		ORDER BY path_id, sort_order, id
+	`)
+	if err != nil {
+		return result, err
+	}
+	for levelRows.Next() {
+		var row taxonomy.Level
+		if err := levelRows.Scan(&row.ID, &row.PathID, &row.Code, &row.Name, &row.SortOrder, &row.Status); err != nil {
+			levelRows.Close()
+			return result, err
+		}
+		result.Levels = append(result.Levels, row)
+	}
+	if err := levelRows.Err(); err != nil {
+		levelRows.Close()
+		return result, err
+	}
+	levelRows.Close()
+
+	subjectRows, err := r.db.Query(ctx, `
+		SELECT id::text, path_id::text, COALESCE(level_id::text, ''), code, name, sort_order, status
+		FROM subjects
+		ORDER BY path_id, sort_order, id
+	`)
+	if err != nil {
+		return result, err
+	}
+	for subjectRows.Next() {
+		var row taxonomy.Subject
+		if err := subjectRows.Scan(&row.ID, &row.PathID, &row.LevelID, &row.Code, &row.Name, &row.SortOrder, &row.Status); err != nil {
+			subjectRows.Close()
+			return result, err
+		}
+		result.Subjects = append(result.Subjects, row)
+	}
+	if err := subjectRows.Err(); err != nil {
+		subjectRows.Close()
+		return result, err
+	}
+	subjectRows.Close()
+
+	skillRows, err := r.db.Query(ctx, `
+		SELECT id::text, subject_id::text, COALESCE(parent_skill_id::text, ''),
+		       code, name, description, kind, sort_order, status
+		FROM skills
+		ORDER BY subject_id, kind, sort_order, id
+	`)
+	if err != nil {
+		return result, err
+	}
+	defer skillRows.Close()
+	for skillRows.Next() {
+		var row taxonomy.Skill
+		if err := skillRows.Scan(&row.ID, &row.SubjectID, &row.ParentSkillID, &row.Code, &row.Name, &row.Description, &row.Kind, &row.SortOrder, &row.Status); err != nil {
+			return result, err
+		}
+		result.Skills = append(result.Skills, row)
+	}
+	if err := skillRows.Err(); err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
 // ValidateMasteryGoalScope is Taxonomy's narrow read contract for learner goals.
 // It validates only active canonical path/subject identity; Learning owns goal state.
 func (r *Repository) ValidateMasteryGoalScope(ctx context.Context, pathID, subjectID string) (bool, error) {
