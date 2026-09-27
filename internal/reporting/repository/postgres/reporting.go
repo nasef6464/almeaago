@@ -209,8 +209,8 @@ func (r *ReportRepository) resolveTeacherScope(
 			  AND sm.user_id=$2::uuid
 			  AND sm.role='teacher'
 			  AND sm.status='active'
-			  AND ($3='' OR ta.class_id=$3::uuid)
-			  AND ($4='' OR ta.subject_id IS NULL OR ta.subject_id=$4::uuid)
+			  AND ($3='' OR ta.class_id=NULLIF($3,'')::uuid)
+			  AND ($4='' OR ta.subject_id IS NULL OR ta.subject_id=NULLIF($4,'')::uuid)
 		)
 	`, query.SchoolID, actor.ID, query.ClassID, query.SubjectID).Scan(&allowed)
 	if err != nil {
