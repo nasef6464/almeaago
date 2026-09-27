@@ -112,4 +112,18 @@ Early verification caught two test/format defects only:
 
 Both were corrected without widening authorization, weakening media verification, bypassing dry-run import policy, or changing Question Bank ownership.
 
-The documentation-inclusive final PR head must rerun the same four gates before merge.
+## Final documentation-inclusive exact-head checkpoint
+
+Final PR head `2a98ad4d4e09c8ed7de0ef1cf0c62a5934f4cf88` passed all four gates:
+- Database CI `36334351564`: PASS.
+- Backend CI `36334351596`: PASS.
+- Frontend CI `36334351571`: PASS.
+- Frontend E2E `36334351583`: PASS — **61/61 browser tests**.
+
+Final browser evidence:
+- artifact `content-browser-evidence` id `10936483838`.
+- digest `sha256:43e37c2ae7e81be630662d0b4c94a965e184c3aa92c247353e91edceb76e809a`.
+
+PR #72 was squash-merged to `main` as `d5c23a1ee856af77aac3e047ccb795622d1d0eb7`.
+
+Question Bank / Media therefore closes this repository-internal batch at `TESTED`. It does not move to `PARITY_PROVEN` until live R2 account/bucket + CORS/CDN/render proof and direct legacy-runtime side-by-side visual evidence are available.
