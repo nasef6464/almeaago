@@ -19,6 +19,8 @@ type Dependencies struct {
 	Redis                    *redis.Client
 	Identity                 http.Handler
 	Organizations            http.Handler
+	SchoolContracts          http.Handler
+	Classroom                http.Handler
 	Parents                  http.Handler
 	Taxonomy                 http.Handler
 	QuestionBank             http.Handler
@@ -80,6 +82,12 @@ func New(addr string, deps Dependencies) *http.Server {
 	}
 	if deps.Organizations != nil {
 		router.Mount("/api/v1/schools", deps.Organizations)
+	}
+	if deps.SchoolContracts != nil {
+		router.Mount("/api/v1/school-contracts", deps.SchoolContracts)
+	}
+	if deps.Classroom != nil {
+		router.Mount("/api/v1/classroom", deps.Classroom)
 	}
 	if deps.Parents != nil {
 		router.Mount("/api/v1/parents", deps.Parents)
