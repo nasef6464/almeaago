@@ -49,19 +49,26 @@ func New(
 	r := chi.NewRouter()
 	r.Get("/questions", h.questions)
 	r.Get("/sessions", h.teacherSessions)
+	r.Get("/teacher/sessions", h.teacherSessions)
 	r.Post("/sessions", h.createSession)
 	r.Post("/join", h.joinByPIN)
+	r.Post("/join-by-pin", h.joinByPIN)
 	r.Get("/sessions/{sessionId}", h.staffState)
 	r.Post("/sessions/{sessionId}/start", h.startSession)
 	r.Post("/sessions/{sessionId}/batches", h.appendBatch)
 	r.Post("/sessions/{sessionId}/questions/{ordinal}/publish", h.publishQuestion)
+	r.Post("/sessions/{sessionId}/publish/{ordinal}", h.publishQuestion)
 	r.Post("/sessions/{sessionId}/questions/{ordinal}/reveal", h.revealQuestion)
+	r.Post("/sessions/{sessionId}/reveal/{ordinal}", h.revealQuestion)
 	r.Post("/sessions/{sessionId}/batches/{batchId}/end", h.endBatch)
 	r.Post("/sessions/{sessionId}/join", h.joinSession)
 	r.Get("/sessions/{sessionId}/state", h.studentState)
+	r.Get("/sessions/{sessionId}/current", h.studentState)
 	r.Put("/sessions/{sessionId}/answers/{ordinal}", h.answer)
 	r.Get("/sessions/{sessionId}/aggregate", h.aggregate)
+	r.Get("/sessions/{sessionId}/presentation", h.presentation)
 	r.Patch("/sessions/{sessionId}/attendance/{studentId}", h.attendance)
+	r.Patch("/sessions/{sessionId}/participants/{studentId}/attendance", h.attendance)
 	r.Post("/sessions/{sessionId}/end", h.endSession)
 	r.Get("/sessions/{sessionId}/report", h.report)
 	r.Get("/sessions/{sessionId}/stream", h.streamSession)
@@ -127,7 +134,7 @@ func (h *Handler) questions(w http.ResponseWriter, r *http.Request) {
 	items := make([]map[string]any, 0, len(out.Items))
 	for _, item := range out.Items {
 		items = append(items, map[string]any{
-			"id": item.ID, "version": item.Version, "type": item.QuestionType,
+			"id": item.ID, "version": item.Version, "questionType": item.QuestionType,
 			"text": item.TextContent, "difficulty": item.Difficulty,
 		})
 	}
@@ -399,6 +406,19 @@ type attendancePayload struct {
 	Status realtime.AttendanceStatus
 }
 
+func (h *Handler) presentation(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	out, err := h.service.Presentation(r.Context(), authenticated.User, chi.URLParam(r, "sessionId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"presentation": presentPresentation(out)})
+}
+
 func (h *Handler) attendance(w http.ResponseWriter, r *http.Request) {
 	authenticated, ok := h.authenticate(w, r, true)
 	if !ok {
@@ -646,6 +666,39 @@ func presentStudentState(item realtime.StudentState) map[string]any {
 		"sessionId": item.SessionID, "status": item.Status, "publishedMode": item.PublishedMode,
 		"activeBatchId": item.ActiveBatchID, "activeQuestionOrdinal": item.ActiveQuestionOrdinal,
 		"questions": questions,
+	}
+}
+
+func presentPresentation(item realtime.Presentation) map[string]any {
+	questions := make([]map[string]any, 0, len(item.Questions))
+	for _, row := range item.Questions {
+		options := make([]map[string]any, 0, len(row.Options))
+		for _, option := range row.Options {
+			options = append(options, map[string]any{
+				"index": option.Index, "text": option.Text, "assetId": option.AssetID,
+			})
+		}
+		questionRow := map[string]any{
+			"ordinal": row.Ordinal, "questionId": row.QuestionID, "questionVersion": row.QuestionVersion,
+			"text": row.Text, "imageAssetId": row.ImageAssetID, "imageAlt": row.ImageAlt,
+			"optionsEmbeddedInImage": row.OptionsEmbeddedInImage, "options": options,
+			"difficulty": row.Difficulty, "revealed": row.Revealed,
+			"selectedOptionIndex": row.SelectedOptionIndex,
+		}
+		if row.Revealed {
+			questionRow["correctOptionIndex"] = row.CorrectOptionIndex
+			questionRow["explanation"] = row.Explanation
+		}
+		questions = append(questions, questionRow)
+	}
+	return map[string]any{
+		"sessionId": item.SessionID,
+		"status": item.Status,
+		"publishedMode": item.PublishedMode,
+		"activeBatchId": item.ActiveBatchID,
+		"activeQuestionOrdinal": item.ActiveQuestionOrdinal,
+		"questions": questions,
+		"aggregate": presentAggregate(item.Aggregate),
 	}
 }
 
