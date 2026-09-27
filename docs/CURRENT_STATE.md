@@ -127,7 +127,7 @@ Routes deliberately owned elsewhere:
 - school/class/group canonical relationship state -> Organizations.
 
 ## Identity/Auth integrated parity certification — TESTED
-PR #69 certifies the current integrated Identity/Auth slice without converting external-provider evidence into a fake pass.
+PR #69 certified the current integrated Identity/Auth slice without converting external-provider evidence into a fake pass, and was squash-merged to `main` as `274361cc4141567cab51686c246778a1b4e5b0e2`.
 
 Internal evidence now includes:
 - desktop email login modal and failure state.
@@ -138,17 +138,17 @@ Internal evidence now includes:
 - backend coverage for the documented 160-character password ceiling.
 - Database CI assertions for Identity security tables, constraints and hot indexes.
 
-First integrated certification head `646c137f5119b4de3bc8174f1685a03ed826571c` passed all four gates:
-- Database CI `36308778367`.
-- Backend CI `36308778391`.
-- Frontend CI `36308778389`.
-- Frontend E2E `36308778432`: 50/50 tests.
-- browser evidence artifact `10928103825`, digest `sha256:df38daf618eb7e9b8c30409f7ce34f01b5cf4ade081e4a480db1e97779051555`.
+Final documentation-inclusive head `54850ff87947600b2d5b8e9576fc52da02e32622` passed all four gates:
+- Database CI `36308990772`.
+- Backend CI `36308990784`.
+- Frontend CI `36308990806`.
+- Frontend E2E `36308990810`: complete browser suite including the five Auth parity journeys.
+- browser evidence artifact `10928029227`, digest `sha256:7dc5638eec7ec7051b08b49d6c7050a646537f506af0b035a865ae84c3a09fa3`.
 
 Release boundary:
 - Identity is now `TESTED` internally, not `PARITY_PROVEN`.
 - live Google OAuth, live WhatsApp delivery and direct legacy-runtime screenshot comparison remain external staging/visual evidence.
-- final merge still requires the same four gates on the documentation-inclusive exact PR head.
+- PR #69 is merged; the next parity batch starts only from current `main`.
 
 ## Organizations Core — TESTED / MERGED
 Core school/class/roster/membership/director-delegation/assignment foundation was merged to `main` as `c182892d12ac50f3260b23d7281cba10bb9eb28f`.
