@@ -89,6 +89,10 @@ func Load() (Config, error) {
 	if cfg.RedisURL == "" {
 		return Config{}, fmt.Errorf("REDIS_URL is required")
 	}
+	if cfg.ClassroomPINSecret == "" {
+		return Config{}, fmt.Errorf("CLASSROOM_PIN_SECRET is required")
+	}
+
 
 	maxUpload, err := int64Value("MEDIA_MAX_UPLOAD_BYTES", 15*1024*1024)
 	if err != nil || maxUpload <= 0 {
