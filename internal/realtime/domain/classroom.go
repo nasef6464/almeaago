@@ -148,6 +148,16 @@ type StudentState struct {
 	Questions             []StudentQuestion
 }
 
+type Presentation struct {
+	SessionID             string
+	Status                SessionStatus
+	PublishedMode         PublishedMode
+	ActiveBatchID         string
+	ActiveQuestionOrdinal *int
+	Questions             []StudentQuestion
+	Aggregate             Aggregate
+}
+
 type CreateRecord struct {
 	ActorUserID   string
 	SchoolID      string
