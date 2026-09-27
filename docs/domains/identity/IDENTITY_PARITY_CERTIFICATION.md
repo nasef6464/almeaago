@@ -56,4 +56,18 @@ Browser evidence:
 - digest `sha256:df38daf618eb7e9b8c30409f7ce34f01b5cf4ade081e4a480db1e97779051555`.
 - captured Auth states include desktop login, desktop login error, mobile signup, mobile WhatsApp OTP and recovery/verification.
 
-The documentation-inclusive final PR head must rerun the same four gates before merge. Exact final-head run IDs are recorded in the PR checkpoint without changing the tested head.
+## Final documentation-inclusive exact-head checkpoint
+
+Final PR head `54850ff87947600b2d5b8e9576fc52da02e32622` passed all four gates:
+- Database CI `36308990772`: PASS.
+- Backend CI `36308990784`: PASS.
+- Frontend CI `36308990806`: PASS.
+- Frontend E2E `36308990810`: PASS.
+
+Final browser evidence:
+- artifact `content-browser-evidence` id `10928029227`.
+- digest `sha256:7dc5638eec7ec7051b08b49d6c7050a646537f506af0b035a865ae84c3a09fa3`.
+
+PR #69 was squash-merged to `main` as `274361cc4141567cab51686c246778a1b4e5b0e2`.
+
+Identity/Auth therefore closes this repository-internal batch at `TESTED`. It does not move to `PARITY_PROVEN` until the explicit external Google/WhatsApp live-smoke and direct legacy-runtime screenshot-comparison evidence is supplied.
