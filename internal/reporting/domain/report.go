@@ -5,11 +5,11 @@ import "time"
 type ScopeKind string
 
 const (
-	ScopePlatform    ScopeKind = "platform"
-	ScopeSchool      ScopeKind = "school"
-	ScopeTeacher     ScopeKind = "teacher"
-	ScopeSupervisor  ScopeKind = "supervisor"
-	ScopeStudent     ScopeKind = "student"
+	ScopePlatform   ScopeKind = "platform"
+	ScopeSchool     ScopeKind = "school"
+	ScopeTeacher    ScopeKind = "teacher"
+	ScopeSupervisor ScopeKind = "supervisor"
+	ScopeStudent    ScopeKind = "student"
 )
 
 type Query struct {
@@ -23,14 +23,14 @@ type Query struct {
 }
 
 type ResolvedScope struct {
-	Kind          ScopeKind
-	ActorUserID   string
-	SchoolID      string
-	ClassID       string
-	StudentIDs    []string
-	StudentCount  int
-	CanDetail     bool
-	CanExport     bool
+	Kind         ScopeKind
+	ActorUserID  string
+	SchoolID     string
+	ClassID      string
+	StudentIDs   []string
+	StudentCount int
+	CanDetail    bool
+	CanExport    bool
 }
 
 type AppliedLimits struct {
@@ -52,16 +52,16 @@ type ScopeSummary struct {
 }
 
 type AssessmentSummary struct {
-	ResultCount        int     `json:"resultCount"`
-	SampledResultCount int     `json:"sampledResultCount"`
-	ResultsTruncated   bool    `json:"resultsTruncated"`
-	AttemptCount       int     `json:"attemptCount"`
+	ResultCount         int     `json:"resultCount"`
+	SampledResultCount  int     `json:"sampledResultCount"`
+	ResultsTruncated    bool    `json:"resultsTruncated"`
+	AttemptCount        int     `json:"attemptCount"`
 	SampledAttemptCount int    `json:"sampledAttemptCount"`
-	AttemptsTruncated  bool    `json:"attemptsTruncated"`
-	AverageScore       float64 `json:"averageScore"`
-	Passed             int     `json:"passed"`
-	Failed             int     `json:"failed"`
-	PassRate           float64 `json:"passRate"`
+	AttemptsTruncated   bool    `json:"attemptsTruncated"`
+	AverageScore        float64 `json:"averageScore"`
+	Passed              int     `json:"passed"`
+	Failed              int     `json:"failed"`
+	PassRate            float64 `json:"passRate"`
 }
 
 type SkillAggregate struct {
