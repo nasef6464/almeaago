@@ -3,6 +3,7 @@ import {
   BarChart3,
   BrainCircuit,
   BookOpen,
+  Boxes,
   CheckCircle2,
   HelpCircle,
   Library,
@@ -27,7 +28,8 @@ interface AdminDashboardShellProps {
 
 const navItems = [
   { label: 'نظرة عامة', icon: BookOpen, href: '/admin-dashboard' },
-  { label: 'إدارة المحتوى التعليمي', icon: BookOpen, href: '/admin-dashboard/content', active: true },
+  { label: 'إدارة المحتوى التعليمي', icon: BookOpen, href: '/admin-dashboard/content' },
+  { label: 'إدارة المسارات والتصنيف', icon: Boxes, href: '/admin-dashboard/taxonomy' },
   { label: 'اعتماد المحتوى', icon: CheckCircle2 },
   { label: 'مركز الدروس', icon: BookOpen },
   { label: 'مركز المكتبة وملفات الدعم', icon: Library },
