@@ -1,6 +1,6 @@
 # Reporting / Operations Foundation Audit
 
-Status: **IMPLEMENTED — CI REQUIRED BEFORE MERGE**
+Status: **TESTED / MERGED**
 
 ## Sources reviewed
 This slice is grounded in:
@@ -98,9 +98,12 @@ This batch does **not** claim:
 
 These require production evidence, explicit policy or a separately specified workflow.
 
-## Required merge gates
-The exact final PR head must pass:
-- Database apply + reporting/operations index verification + full rollback + re-apply.
-- Backend module lock + sqlc compile + gofmt + go vet + go test.
-- Frontend typecheck + production build.
-- Frontend E2E including the self-scoped student report and the admin Operations evidence-gap journey.
+## Verification checkpoint
+- PR #67 exact tested head: `08fe59c45b565c0f95fcdd9e26de273a22552d85`.
+- squash merge commit: `93be0a938a7d06f2052475d030ebbc8b5d06b962`.
+- Database CI `36306943000`: PASS — all migrations apply, reporting/operations indexes verified, every migration rolled back, then all migrations re-applied.
+- Backend CI `36306943053`: PASS — module lock, sqlc compile, gofmt, go vet and all Go tests.
+- Frontend CI `36306942943`: PASS — typecheck and production build.
+- Frontend E2E `36306943040`: PASS — complete 45-test browser suite including self-scoped student reporting and Operations evidence-gap behavior.
+- browser evidence artifact `content-browser-evidence` id `10928135095`, digest `sha256:d64c8774633136511b88f76336a4940979726d7c5bc90ff339f4adb42aa22078`.
+- early Backend gates exposed gofmt/source corruption and a helper-name collision; UUIDv7 and optional teacher UUID filtering were also hardened. Initial E2E failures were selector false positives only. All corrections retained the intended authorization/data behavior, then all four gates reran green on the exact final head.
