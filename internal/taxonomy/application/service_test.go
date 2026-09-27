@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	taxonomy "github.com/nasef6464/almeaago/internal/taxonomy/domain"
 )
 
@@ -14,6 +15,9 @@ type repoStub struct {
 
 func (r *repoStub) PublicBootstrap(_ context.Context, includeSkills bool) (taxonomy.Bootstrap, error) {
 	r.includeSkills = includeSkills
+	return taxonomy.Bootstrap{}, nil
+}
+func (r *repoStub) AdminBootstrap(context.Context) (taxonomy.Bootstrap, error) {
 	return taxonomy.Bootstrap{}, nil
 }
 
@@ -69,4 +73,18 @@ func TestPublicBootstrapRejectsUnknownPhase(t *testing.T) {
 	if _, err := service.PublicBootstrap(context.Background(), "huge"); !errors.Is(err, ErrInvalidPhase) {
 		t.Fatalf("expected invalid phase, got %v", err)
 	}
+}
+
+func TestAdminBootstrapRequiresPlatformAdmin(t *testing.T) {
+	service := NewService(&repoStub{})
+	if _, err := service.AdminBootstrap(context.Background(), taxonomyActorForService(identity.RoleTeacher)); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected forbidden, got %v", err)
+	}
+	if _, err := service.AdminBootstrap(context.Background(), taxonomyActorForService(identity.RoleAdmin)); err != nil {
+		t.Fatalf("unexpected admin error: %v", err)
+	}
+}
+
+func taxonomyActorForService(role identity.Role) identity.User {
+	return identity.User{ID: "actor-1", Roles: []identity.Role{role}}
 }
