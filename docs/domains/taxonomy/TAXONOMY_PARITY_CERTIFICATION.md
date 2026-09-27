@@ -83,12 +83,18 @@ A direct side-by-side visual comparison still requires the legacy runtime to be 
 
 Therefore this repository-internal batch targets **TESTED**, not `PARITY_PROVEN`.
 
-## Final merge gate
+## Final documentation-inclusive exact-head checkpoint
 
-The documentation-inclusive final PR head must rerun and pass:
-- Database CI.
-- Backend CI.
-- Frontend CI.
-- Frontend E2E.
+Final PR head `16e46b0cad521cde40be1228e8bb9be223b8c780` passed all four gates:
+- Database CI `36313203873`: PASS.
+- Backend CI `36313203900`: PASS.
+- Frontend CI `36313203904`: PASS.
+- Frontend E2E `36313203918`: PASS — **57/57 browser tests**.
 
-The final E2E artifact must retain the deterministic Taxonomy desktop/mobile evidence.
+Final browser evidence:
+- artifact `content-browser-evidence` id `10929796659`.
+- digest `sha256:b3b67ea515622b840f1393ac8dfad98af5abccf667d975671ae736499286238c`.
+
+PR #71 was squash-merged to `main` as `7dd71d75043e39304d340607f84246e7a0b4d525`.
+
+Taxonomy therefore closes this repository-internal batch at `TESTED`. It does not move to `PARITY_PROVEN` until direct legacy-runtime side-by-side visual evidence is available.
