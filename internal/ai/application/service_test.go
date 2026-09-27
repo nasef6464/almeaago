@@ -22,6 +22,7 @@ type repoStub struct {
 	failures      []failureRecord
 	updateWrite   ai.ProviderSettingWrite
 	updateProvider ai.Provider
+	minuteCount    int
 }
 
 type failureRecord struct {
@@ -79,6 +80,9 @@ func (r *repoStub) InsertInteraction(_ context.Context, row ai.Interaction) erro
 }
 func (r *repoStub) ListInteractions(_ context.Context, page, limit int) (ai.InteractionPage, error) {
 	return ai.InteractionPage{Items: append([]ai.Interaction(nil), r.interactions...), Page: page, Limit: limit}, nil
+}
+func (r *repoStub) CountQuestionAssistSince(context.Context, string, time.Time) (int, error) {
+	return r.minuteCount, nil
 }
 
 type learningStub struct {
@@ -297,5 +301,52 @@ func TestAdminProviderUpdateGuardsRoleAndBaseURL(t *testing.T) {
 	}
 	if out.Revision != 2 || repo.updateProvider != ai.ProviderOpenAI {
 		t.Fatalf("unexpected update %#v", out)
+	}
+}
+
+
+func TestQuestionAssistServesCacheBeforeMinuteLimit(t *testing.T) {
+	repo := &repoStub{minuteCount: 8, cache: map[string]ai.CacheEntry{}}
+	card := reviewCard()
+	input := ai.QuestionAssistInput{ReviewCardID: card.ID, HelpLevel: ai.HelpHint}
+	key := buildCacheKey("student-1", card, input)
+	now := time.Date(2026, 9, 27, 8, 0, 0, 0, time.UTC)
+	repo.cache[key] = ai.CacheEntry{
+		CacheKey: key, UserID: "student-1", ReviewCardID: card.ID,
+		QuestionID: card.QuestionID, QuestionVersion: card.QuestionVersion,
+		HelpLevel: ai.HelpHint, PromptVersion: PromptVersionQuestionTutor,
+		ResponseText: "cached help", Provider: ai.ProviderGemini, Model: "m",
+		ExpiresAt: now.Add(10 * time.Minute),
+	}
+	providers := &providerStub{configured: map[ai.Provider]bool{}, results: map[ai.Provider]ai.ProviderCallResult{}, errors: map[ai.Provider]error{}}
+	service := NewService(repo, &learningStub{card: card}, &questionStub{row: reviewQuestion()}, providers, Config{PerMinuteLimit: 8})
+	service.now = func() time.Time { return now }
+
+	out, err := service.QuestionAssist(context.Background(), student(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !out.CacheHit || out.Text != "cached help" {
+		t.Fatalf("cache should bypass minute provider budget: %#v", out)
+	}
+}
+
+func TestQuestionAssistMinuteLimitUsesTrustedFallbackWithoutProvider(t *testing.T) {
+	repo := &repoStub{minuteCount: 8}
+	providers := &providerStub{
+		configured: map[ai.Provider]bool{ai.ProviderGemini: true},
+		results: map[ai.Provider]ai.ProviderCallResult{ai.ProviderGemini: {Text: "provider"}},
+		errors: map[ai.Provider]error{},
+	}
+	service := NewService(repo, &learningStub{card: reviewCard()}, &questionStub{row: reviewQuestion()}, providers, Config{PerMinuteLimit: 8})
+
+	out, err := service.QuestionAssist(context.Background(), student(), ai.QuestionAssistInput{
+		ReviewCardID: "card-1", HelpLevel: ai.HelpHint,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !out.UsedFallback || !strings.Contains(out.Text, "حد المحاولات") || len(providers.calls) != 0 {
+		t.Fatalf("minute policy did not fail to trusted fallback: out=%#v calls=%#v", out, providers.calls)
 	}
 }
