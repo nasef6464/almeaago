@@ -96,7 +96,6 @@ func (r *ClassroomReader) ResolveOne(
 	return rows[0], nil
 }
 
-
 func (r *ClassroomReader) ResolveRefs(
 	ctx context.Context,
 	refs []question.ReviewRef,
