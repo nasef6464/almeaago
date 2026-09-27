@@ -48,6 +48,7 @@ type Config struct {
 	AIRequestTimeoutMS                  int
 	AIQuestionAssistantCacheMinutes    int
 	AIQuestionAssistantPerMinute       int
+	AIQuestionAssistantMaxOutputTokens  int
 	AIInteractionRetentionDays         int
 
 	GeminiAPIKey     string
@@ -152,6 +153,10 @@ func Load() (Config, error) {
 	if err != nil || aiPerMinute < 1 || aiPerMinute > 60 {
 		return Config{}, fmt.Errorf("AI_QUESTION_ASSISTANT_PER_MINUTE must be between 1 and 60")
 	}
+	aiMaxOutputTokens, err := intValue("AI_QUESTION_ASSISTANT_MAX_OUTPUT_TOKENS", 450)
+	if err != nil || aiMaxOutputTokens < 64 || aiMaxOutputTokens > 2000 {
+		return Config{}, fmt.Errorf("AI_QUESTION_ASSISTANT_MAX_OUTPUT_TOKENS must be between 64 and 2000")
+	}
 	aiRetentionDays, err := intValue("AI_INTERACTION_RETENTION_DAYS", 30)
 	if err != nil || aiRetentionDays < 1 || aiRetentionDays > 365 {
 		return Config{}, fmt.Errorf("AI_INTERACTION_RETENTION_DAYS must be between 1 and 365")
@@ -159,6 +164,7 @@ func Load() (Config, error) {
 	cfg.AIRequestTimeoutMS = aiTimeoutMS
 	cfg.AIQuestionAssistantCacheMinutes = aiCacheMinutes
 	cfg.AIQuestionAssistantPerMinute = aiPerMinute
+	cfg.AIQuestionAssistantMaxOutputTokens = aiMaxOutputTokens
 	cfg.AIInteractionRetentionDays = aiRetentionDays
 
 	return cfg, nil
