@@ -25,7 +25,9 @@ test('student report is self-scoped, bounded and exposes no answer-level data',a
  await expect(page.getByText('النسبة والتناسب')).toBeVisible();
  await expect(page.getByText('اختبار الكمي')).toBeVisible();
  await expect(page.getByText('78%')).toBeVisible();
- await expect(page.getByText(/إجابات صحيحة|answer key|correct option/i)).toHaveCount(0);
+ await expect(page.locator('body')).not.toContainText('correctOptionIndex');
+ await expect(page.locator('body')).not.toContainText('answerKey');
+ await expect(page.getByText('مفتاح الإجابة',{exact:true})).toHaveCount(0);
  await page.screenshot({path:'test-results/reporting-student-mobile.png',fullPage:true});
 });
 
@@ -53,7 +55,7 @@ test('admin operations center exposes evidence gaps instead of claiming release 
  await expect(page.getByText('external_proof_required')).toBeVisible();
  await expect(page.getByText(/no verified backup\/restore drill yet/)).toBeVisible();
  await expect(page.getByText('Tap payment provider')).toBeVisible();
- await expect(page.getByText('غير مثبت')).toBeVisible();
+ await expect(page.getByText('غير مثبت',{exact:true})).toBeVisible();
  await expect(page.getByText('commerce.payment.reversal')).toBeVisible();
  await expect(page.getByText(/الإجمالي 1/)).toBeVisible();
  await page.screenshot({path:'test-results/operations-admin.png',fullPage:true});
