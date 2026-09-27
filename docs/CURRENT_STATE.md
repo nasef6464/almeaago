@@ -414,6 +414,36 @@ Question Bank is structurally green for:
 
 Reuse contracts for Assessment/Realtime/Learning will consume canonical question IDs later; those domains must not copy question objects.
 
+## Question Bank / Media integrated parity certification — TESTED
+PR #72 closes the current repository-internal Question Bank / Media parity batch without copying legacy full-inventory browser patterns or moving binary ownership into Question Bank.
+
+Implemented/verified in this batch:
+- `/admin-dashboard/questions` is a real responsive staff workspace linked from the admin shell.
+- bounded server-side list/search/filter and coverage are used instead of loading the full Question Bank into the browser.
+- question creation writes canonical Taxonomy path/subject IDs plus exactly one main-skill relation and optional sub-skill relation.
+- stable `questionCode`, current version and workflow state remain server-owned.
+- staff detail/review uses the exact current version; admin approval/rejection/archive and teacher review submission reuse existing server workflow rules.
+- no destructive question delete action is exposed.
+- browser media flow computes SHA-256, requests the existing CSRF-protected presigned target, sends bytes directly to the object URL, completes server verification, then stores only the verified asset ID in Question Bank.
+- the Go API does not proxy question image bytes.
+- platform-admin V2 import UI requires an explicit dry-run PASS before enabling write; the durable server manifest hash/preflight remains authoritative.
+- teacher UI omits admin-only import controls.
+- Media direct upload is explicitly tested as staff-only.
+- Database CI explicitly asserts Question Bank filter/media indexes, immutable question-code trigger, Media lifecycle/dedupe indexes and import preflight integrity.
+
+First integrated certification head `dab9fea3d599355b0414c3fddf514556dde43fe8` passed all four gates:
+- Database CI `36334171066`.
+- Backend CI `36334171032`.
+- Frontend CI `36334171048`.
+- Frontend E2E `36334171056`: 61/61 tests.
+- browser evidence artifact `10935993271`, digest `sha256:6d36703748032eb3281e2e0ee86137829907561a32654e0f97b427752f05ad12`.
+
+Release boundary:
+- Question Bank / Media remains `TESTED`, not `PARITY_PROVEN`.
+- live R2 account/bucket, bucket CORS, `R2_PUBLIC_BASE_URL`/CDN delivery and real upload -> HEAD verify -> render smoke remain external deployment evidence.
+- deterministic V2 desktop/mobile screenshots exist, but direct legacy-runtime side-by-side visual comparison remains external evidence.
+- the final documentation-inclusive PR head must pass the same four gates before merge.
+
 ## Content Core Management — TESTED / MERGED
 PR #37 passed exact-head Backend CI and Database CI on `0c493741ccae5e241b1eadb9555bf3a49ce573e8` and merged to `main` as `3a13259401f6328ce65e4b74532ed46dfe635302`.
 
@@ -1243,4 +1273,4 @@ The source-backed implementation order through **Commerce -> Parents -> Communic
 This is **not** equivalent to `PARITY_PROVEN` or production go-live approval. The matrix still records unresolved parity/release evidence, including Identity/provider live proof and visual parity gaps, production load/bandwidth evidence, dated backup/restore proof, exact retention/anonymization policy, external provider credentials/callback proof, observability/rollback/deployment identity proof and several explicitly UNKNOWN business-policy items. Those must stay visible rather than being converted into speculative implementation.
 
 ## Next exact action
-After Taxonomy certification merges, continue cross-domain parity from Question Bank / Media. Reconcile its functional, authorization, data, visual/E2E and external-proof requirements on current `main`; close only source-backed internal gaps and preserve Taxonomy/Media ownership boundaries.
+After Question Bank / Media certification merges, continue cross-domain parity from Foundation learning / Content. Reconcile its functional, authorization, data, visual/E2E and external-proof requirements on current `main`; close only source-backed internal gaps and preserve Taxonomy/Question Bank/Media/Commerce ownership boundaries.
