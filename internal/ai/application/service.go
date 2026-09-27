@@ -39,6 +39,7 @@ type Repository interface {
 	PutCacheEntry(context.Context, ai.CacheEntry) error
 	InsertInteraction(context.Context, ai.Interaction) error
 	ListInteractions(context.Context, int, int) (ai.InteractionPage, error)
+	CountQuestionAssistSince(context.Context, string, time.Time) (int, error)
 }
 
 type LearningReader interface {
@@ -55,9 +56,10 @@ type ProviderClient interface {
 }
 
 type Config struct {
-	CacheTTL         time.Duration
-	InteractionTTL   time.Duration
-	CircuitOpenFor   time.Duration
+	CacheTTL          time.Duration
+	InteractionTTL    time.Duration
+	CircuitOpenFor    time.Duration
+	PerMinuteLimit    int
 }
 
 type Service struct {
@@ -92,7 +94,10 @@ func NewService(
 		cfg.InteractionTTL = 30 * 24 * time.Hour
 	}
 	if cfg.CircuitOpenFor <= 0 {
-		cfg.CircuitOpenFor = 2 * time.Minute
+		cfg.CircuitOpenFor = time.Minute
+	}
+	if cfg.PerMinuteLimit <= 0 {
+		cfg.PerMinuteLimit = 8
 	}
 	return &Service{
 		repo: repo,
@@ -168,7 +173,7 @@ func (s *Service) UpdateProvider(
 	if !ai.ValidProvider(provider) ||
 		len(write.Model) < 1 || len(write.Model) > 200 ||
 		write.Priority < 1 || write.Priority > 1000 ||
-		write.MaxOutputTokens < 64 || write.MaxOutputTokens > 4000 ||
+		write.MaxOutputTokens < 64 || write.MaxOutputTokens > 2000 ||
 		write.ExpectedRevision < 1 ||
 		!allowedBaseURL(provider, write.BaseURL) {
 		return ai.ProviderSetting{}, ErrInvalidInput
@@ -276,8 +281,25 @@ func (s *Service) QuestionAssist(
 		return ai.QuestionAssistResult{}, ErrNotFound
 	}
 	q := rows[0]
-	cacheKey := buildCacheKey(actor.ID, card, input)
 	now := s.now().UTC()
+	count, err := s.repo.CountQuestionAssistSince(ctx, actor.ID, now.Add(-time.Minute))
+	if err != nil {
+		return ai.QuestionAssistResult{}, err
+	}
+	if count >= s.cfg.PerMinuteLimit {
+		out := ai.QuestionAssistResult{
+			Text:          truncate("تم الوصول إلى حد المحاولات القصير للمساعد. استخدم الشرح الموثوق الحالي ثم أعد المحاولة بعد قليل.\n\n"+trustedFallback(q, input.HelpLevel), 4000),
+			HelpLevel:     input.HelpLevel,
+			Provider:      ai.ProviderNone,
+			Model:         "trusted-fallback",
+			UsedFallback:  true,
+			CacheHit:      false,
+			PromptVersion: PromptVersionQuestionTutor,
+		}
+		_ = s.recordInteraction(ctx, actor, card, input, out, 0, ai.ProviderUsage{}, "rate_limited")
+		return out, nil
+	}
+	cacheKey := buildCacheKey(actor.ID, card, input)
 	cached, cacheErr := s.repo.CacheEntry(ctx, cacheKey, now)
 	if cacheErr == nil {
 		out := ai.QuestionAssistResult{
@@ -493,9 +515,7 @@ func buildQuestionPrompt(
 		"نص السؤال: " + truncate(strings.TrimSpace(q.TextContent), 5000),
 	}
 	if len(options) > 0 {
-		parts = append(parts, "الخيارات:
-"+strings.Join(options, "
-"))
+		parts = append(parts, "الخيارات:\n"+strings.Join(options, "\n"))
 	}
 	if strings.TrimSpace(q.Hint) != "" {
 		parts = append(parts, "تلميح موثوق: "+truncate(strings.TrimSpace(q.Hint), 1200))
@@ -510,9 +530,7 @@ func buildQuestionPrompt(
 	if input.Message != "" {
 		parts = append(parts, "طلب الطالب: "+truncate(input.Message, 500))
 	}
-	return truncate(strings.Join(parts, "
-
-"), 12000)
+	return truncate(strings.Join(parts, "\n\n"), 12000)
 }
 
 func trustedFallback(q question.ReviewProjection, level ai.HelpLevel) string {
@@ -546,8 +564,7 @@ func joinNonEmpty(prefix string, values ...string) string {
 	if len(out) == 1 {
 		return ""
 	}
-	return strings.Join(out, "
-")
+	return strings.Join(out, "\n")
 }
 
 func buildCacheKey(
