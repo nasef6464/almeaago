@@ -93,7 +93,6 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("CLASSROOM_PIN_SECRET is required")
 	}
 
-
 	maxUpload, err := int64Value("MEDIA_MAX_UPLOAD_BYTES", 15*1024*1024)
 	if err != nil || maxUpload <= 0 {
 		return Config{}, fmt.Errorf("MEDIA_MAX_UPLOAD_BYTES must be a positive integer")
