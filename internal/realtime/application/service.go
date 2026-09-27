@@ -800,7 +800,7 @@ func (s *Service) StreamSnapshot(
 	if actor.HasRole(identity.RoleStudent) {
 		return s.StudentState(ctx, actor, sessionID)
 	}
-	return s.Aggregate(ctx, actor, sessionID)
+	return s.Presentation(ctx, actor, sessionID)
 }
 
 func selectPublishedQuestions(
