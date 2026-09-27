@@ -167,8 +167,7 @@ func (c *Client) callGemini(
 				parts = append(parts, strings.TrimSpace(part.Text))
 			}
 		}
-		text = strings.TrimSpace(strings.Join(parts, "
-"))
+		text = strings.TrimSpace(strings.Join(parts, "\n"))
 	}
 	if text == "" {
 		return ai.ProviderCallResult{}, errors.New("provider_empty_response")
