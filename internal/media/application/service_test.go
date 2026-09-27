@@ -202,7 +202,6 @@ func TestPresignRejectsUnsupportedImageMime(t *testing.T) {
 	}
 }
 
-
 func TestPresignRejectsNonStaffActor(t *testing.T) {
 	service := NewService(&repoStub{}, &providerStub{available: true}, 1024, 15*time.Minute)
 	_, err := service.Presign(context.Background(), identity.User{
