@@ -38,8 +38,67 @@ func (b *Bus) Publish(ctx context.Context, event realtime.StreamEvent) error {
 	return b.client.Publish(ctx, eventPrefix+event.SessionID, raw).Err()
 }
 
-func (b *Bus) Subscribe(ctx context.Context, sessionID string) *redis.PubSub {
-	return b.client.Subscribe(ctx, eventPrefix+sessionID)
+type subscription struct {
+	pubsub *redis.PubSub
+	events chan realtime.StreamEvent
+	errs   chan error
+	cancel context.CancelFunc
+}
+
+func (s *subscription) Events() <-chan realtime.StreamEvent { return s.events }
+func (s *subscription) Errors() <-chan error                { return s.errs }
+
+func (s *subscription) Close() error {
+	s.cancel()
+	return s.pubsub.Close()
+}
+
+func (b *Bus) Subscribe(ctx context.Context, sessionID string) (realtime.EventSubscription, error) {
+	if b == nil || b.client == nil {
+		return nil, fmt.Errorf("realtime redis bus unavailable")
+	}
+	subCtx, cancel := context.WithCancel(ctx)
+	pubsub := b.client.Subscribe(subCtx, eventPrefix+sessionID)
+	if _, err := pubsub.Receive(subCtx); err != nil {
+		cancel()
+		_ = pubsub.Close()
+		return nil, err
+	}
+	out := &subscription{
+		pubsub: pubsub,
+		events: make(chan realtime.StreamEvent, 32),
+		errs:   make(chan error, 1),
+		cancel: cancel,
+	}
+	go func() {
+		defer close(out.events)
+		defer close(out.errs)
+		channel := pubsub.Channel()
+		for {
+			select {
+			case <-subCtx.Done():
+				return
+			case message, ok := <-channel:
+				if !ok {
+					return
+				}
+				var event realtime.StreamEvent
+				if err := json.Unmarshal([]byte(message.Payload), &event); err != nil {
+					select {
+					case out.errs <- err:
+					default:
+					}
+					continue
+				}
+				select {
+				case out.events <- event:
+				case <-subCtx.Done():
+					return
+				}
+			}
+		}
+	}()
+	return out, nil
 }
 
 func (b *Bus) TouchPresence(
