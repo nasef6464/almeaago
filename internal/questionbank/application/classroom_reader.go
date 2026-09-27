@@ -12,6 +12,7 @@ import (
 var ErrClassroomQuestionUnavailable = errors.New("classroom question unavailable")
 
 type ClassroomQuestionRepository interface {
+	ClassroomList(context.Context, string, string, int, int) (question.ClassroomQuestionPage, error)
 	ClassroomBatch(context.Context, []string, string) ([]question.ClassroomQuestion, error)
 	ClassroomBatchByRefs(context.Context, []question.ReviewRef) ([]question.ClassroomQuestion, error)
 }
@@ -22,6 +23,28 @@ type ClassroomReader struct {
 
 func NewClassroomReader(repo ClassroomQuestionRepository) *ClassroomReader {
 	return &ClassroomReader{repo: repo}
+}
+
+func (r *ClassroomReader) List(
+	ctx context.Context,
+	subjectID, search string,
+	page, limit int,
+) (question.ClassroomQuestionPage, error) {
+	subjectID = strings.TrimSpace(subjectID)
+	search = strings.TrimSpace(search)
+	if !validUUID(subjectID) || len(search) > 160 {
+		return question.ClassroomQuestionPage{}, ErrInvalidInput
+	}
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 30
+	}
+	if page > 10000 || limit > 50 {
+		return question.ClassroomQuestionPage{}, ErrInvalidInput
+	}
+	return r.repo.ClassroomList(ctx, subjectID, search, page, limit)
 }
 
 func (r *ClassroomReader) Resolve(
