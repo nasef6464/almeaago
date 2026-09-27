@@ -84,10 +84,10 @@ func (r *Repository) SetAttendance(
 		return realtime.Participant{}, mapError(err)
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actorID,
-		Action:      "realtime.classroom.attendance.override",
-		ResourceType:"classroom_session",
-		ResourceID:  sessionID,
+		ActorUserID:  actorID,
+		Action:       "realtime.classroom.attendance.override",
+		ResourceType: "classroom_session",
+		ResourceID:   sessionID,
 		Metadata: map[string]any{
 			"studentId": studentID,
 			"status":    status,
