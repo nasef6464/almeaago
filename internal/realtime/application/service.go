@@ -86,7 +86,7 @@ func NewService(
 	return &Service{
 		repo: repo, org: org, questions: questions, events: events,
 		pinSecret: []byte(strings.TrimSpace(pinSecret)),
-		now: time.Now,
+		now:       time.Now,
 	}
 }
 
@@ -298,17 +298,17 @@ func (s *Service) Create(
 	}
 	hash := s.hashPIN(pin)
 	session, err := s.repo.CreateSession(ctx, realtime.CreateRecord{
-		ActorUserID: actor.ID,
-		SchoolID: input.SchoolID,
-		ClassID: input.ClassID,
-		SubjectID: input.SubjectID,
-		TeacherID: actor.ID,
-		Day: input.Day,
-		Period: input.Period,
+		ActorUserID:   actor.ID,
+		SchoolID:      input.SchoolID,
+		ClassID:       input.ClassID,
+		SubjectID:     input.SubjectID,
+		TeacherID:     actor.ID,
+		Day:           input.Day,
+		Period:        input.Period,
 		PublishedMode: input.PublishedMode,
-		PINHash: hash,
-		PINExpiresAt: s.now().UTC().Add(30 * time.Minute),
-		Questions: refs,
+		PINHash:       hash,
+		PINExpiresAt:  s.now().UTC().Add(30 * time.Minute),
+		Questions:     refs,
 	})
 	if err != nil {
 		return CreateResult{}, err
@@ -591,12 +591,12 @@ func (s *Service) StudentState(
 		return realtime.StudentState{}, err
 	}
 	out := realtime.StudentState{
-		SessionID: session.ID,
-		Status: session.Status,
-		PublishedMode: session.PublishedMode,
-		ActiveBatchID: session.ActiveBatchID,
+		SessionID:             session.ID,
+		Status:                session.Status,
+		PublishedMode:         session.PublishedMode,
+		ActiveBatchID:         session.ActiveBatchID,
 		ActiveQuestionOrdinal: session.ActiveQuestionOrdinal,
-		Questions: []realtime.StudentQuestion{},
+		Questions:             []realtime.StudentQuestion{},
 	}
 	for _, item := range selected {
 		row, ok := byRef[item.QuestionID+":"+itoa(item.QuestionVersion)]
@@ -604,20 +604,20 @@ func (s *Service) StudentState(
 			continue
 		}
 		studentQuestion := realtime.StudentQuestion{
-			Ordinal: item.Ordinal,
-			QuestionID: item.QuestionID,
-			QuestionVersion: item.QuestionVersion,
-			Text: row.TextContent,
-			ImageAssetID: row.ImageAssetID,
-			ImageAlt: row.ImageAlt,
+			Ordinal:                item.Ordinal,
+			QuestionID:             item.QuestionID,
+			QuestionVersion:        item.QuestionVersion,
+			Text:                   row.TextContent,
+			ImageAssetID:           row.ImageAssetID,
+			ImageAlt:               row.ImageAlt,
 			OptionsEmbeddedInImage: row.OptionsEmbeddedInImage,
-			Difficulty: row.Difficulty,
-			Revealed: item.RevealedAt != nil,
-			Options: make([]realtime.StudentOption,0,len(row.Options)),
+			Difficulty:             row.Difficulty,
+			Revealed:               item.RevealedAt != nil,
+			Options:                make([]realtime.StudentOption, 0, len(row.Options)),
 		}
 		for _, option := range row.Options {
-			studentQuestion.Options = append(studentQuestion.Options,realtime.StudentOption{
-				Index: option.Index,Text: option.Text,AssetID: option.AssetID,
+			studentQuestion.Options = append(studentQuestion.Options, realtime.StudentOption{
+				Index: option.Index, Text: option.Text, AssetID: option.AssetID,
 			})
 		}
 		if response, ok := responses[item.Ordinal]; ok {
@@ -712,16 +712,16 @@ func (s *Service) Presentation(
 			continue
 		}
 		presented := realtime.StudentQuestion{
-			Ordinal: item.Ordinal,
-			QuestionID: item.QuestionID,
-			QuestionVersion: item.QuestionVersion,
-			Text: row.TextContent,
-			ImageAssetID: row.ImageAssetID,
-			ImageAlt: row.ImageAlt,
+			Ordinal:                item.Ordinal,
+			QuestionID:             item.QuestionID,
+			QuestionVersion:        item.QuestionVersion,
+			Text:                   row.TextContent,
+			ImageAssetID:           row.ImageAssetID,
+			ImageAlt:               row.ImageAlt,
 			OptionsEmbeddedInImage: row.OptionsEmbeddedInImage,
-			Difficulty: row.Difficulty,
-			Revealed: item.RevealedAt != nil,
-			Options: make([]realtime.StudentOption, 0, len(row.Options)),
+			Difficulty:             row.Difficulty,
+			Revealed:               item.RevealedAt != nil,
+			Options:                make([]realtime.StudentOption, 0, len(row.Options)),
 		}
 		for _, option := range row.Options {
 			presented.Options = append(presented.Options, realtime.StudentOption{
@@ -739,13 +739,13 @@ func (s *Service) Presentation(
 		return realtime.Presentation{}, err
 	}
 	return realtime.Presentation{
-		SessionID: session.ID,
-		Status: session.Status,
-		PublishedMode: session.PublishedMode,
-		ActiveBatchID: session.ActiveBatchID,
+		SessionID:             session.ID,
+		Status:                session.Status,
+		PublishedMode:         session.PublishedMode,
+		ActiveBatchID:         session.ActiveBatchID,
 		ActiveQuestionOrdinal: session.ActiveQuestionOrdinal,
-		Questions: questions,
-		Aggregate: aggregate,
+		Questions:             questions,
+		Aggregate:             aggregate,
 	}, nil
 }
 
