@@ -38,7 +38,7 @@ Foundation learning / Content parity only, plus narrowly required shared test/do
 - docs/WORKING_SET.md
 
 ## Guardrails
-- Start Foundation learning / Content parity from current `main` only after PR #72 merges.
+- Start Foundation learning / Content parity from current `main`; PR #72 is merged and its final documentation-inclusive exact head is green.
 - `nasef6464/almeaacodax` remains read-only behavioral/visual reference.
 - Taxonomy owns hierarchy IDs; Content stores references only.
 - Question Bank owns question/version truth; Content does not embed question payloads.
