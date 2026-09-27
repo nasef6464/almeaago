@@ -74,7 +74,7 @@ func adminActor() identity.User {
 func TestSendCampaignResolvesAudienceAndRendersTemplate(t *testing.T) {
 	repo := &repoStub{template: communication.Template{
 		ID: "template-1", Key: "weekly.parent", Title: "مرحبًا {{name}}",
-		Body: "نتيجتك {{score}}", Subject: "تقرير {{name}}", IsActive: true,
+		Body: "نتيجتك {{score}} {{missing}}", Subject: "تقرير {{name}}", IsActive: true,
 	}}
 	audience := &audienceStub{rows: []identity.NotificationRecipient{
 		{ID: "user-1", Name: "سارة", Email: "sara@example.com", Phone: "966500000001"},
