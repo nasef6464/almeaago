@@ -37,7 +37,7 @@ Question Bank / Media parity only, plus narrowly required shared test/documentat
 - docs/WORKING_SET.md
 
 ## Guardrails
-- Start Question Bank / Media parity from current `main` only after PR #71 merges.
+- Start Question Bank / Media parity from current `main` at/after Taxonomy merge `7dd71d75043e39304d340607f84246e7a0b4d525`.
 - `nasef6464/almeaacodax` remains read-only behavioral/visual reference.
 - Taxonomy owns path/level/subject/skill hierarchy; Question Bank stores relational classification links, not copied hierarchy truth.
 - Media owns asset lifecycle/binary storage; Question Bank stores asset references only.
