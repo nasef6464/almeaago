@@ -1,4 +1,4 @@
-import { LogIn } from 'lucide-react';
+import { Bell, LogIn } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Link,
@@ -29,6 +29,8 @@ import { CheckoutPage } from '../features/commerce/pages/CheckoutPage';
 import { ParentDashboardPage } from '../features/parents/pages/ParentDashboardPage';
 import { LiveAssessmentJoinPage } from '../features/assessment/pages/LiveAssessmentJoinPage';
 import { AdminDashboardShell } from '../features/content/components/AdminDashboardShell';
+import { NotificationInboxPage } from '../features/notifications/pages/NotificationInboxPage';
+import { NotificationsAdminPage } from '../features/notifications/pages/NotificationsAdminPage';
 
 type ModalMode = 'login' | 'signup' | null;
 
@@ -51,8 +53,11 @@ function SiteHeader({ onAuth }: { onAuth(mode: Exclude<ModalMode, null>): void }
         </Link>
 
         {user ? (
-          <div className="text-sm font-bold text-gray-700 dark:text-gray-200">
-            {user.name}
+          <div className="flex items-center gap-2">
+            <Link to="/notifications" aria-label="الإشعارات" className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200">
+              <Bell size={18} />
+            </Link>
+            <div className="text-sm font-bold text-gray-700 dark:text-gray-200">{user.name}</div>
           </div>
         ) : (
           <button
@@ -157,11 +162,13 @@ export function App() {
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/terms" element={<PlaceholderPage title="شروط الاستخدام" />} />
         <Route path="/privacy" element={<PlaceholderPage title="سياسة الخصوصية" />} />
+        <Route path="/notifications" element={<NotificationInboxPage />} />
         <Route path="/dashboard" element={<PlaceholderPage title="لوحة الطالب" />} />
         <Route path="/admin-dashboard" element={<AdminDashboardShell><PlaceholderPage title="لوحة الإدارة" /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/content" element={<AdminDashboardShell><ContentAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/assessments" element={<AdminDashboardShell><AssessmentAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/commerce" element={<AdminDashboardShell><CommerceAdminPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/notifications" element={<AdminDashboardShell><NotificationsAdminPage /></AdminDashboardShell>} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/assessments" element={<AssessmentAvailabilityPage />} />
         <Route path="/barcode-test" element={<PublicBarcodeAssessmentPage />} />
