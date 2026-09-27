@@ -5,16 +5,16 @@ import "time"
 type SchoolModule string
 
 const (
-	ModuleSchoolCore          SchoolModule = "SCHOOL_CORE"
-	ModuleQuestionBank        SchoolModule = "QUESTION_BANK"
-	ModuleSchoolAssessments   SchoolModule = "SCHOOL_ASSESSMENTS"
-	ModulePathsAndCourses     SchoolModule = "PATHS_AND_COURSES"
-	ModuleInteractiveVideo    SchoolModule = "INTERACTIVE_VIDEO"
-	ModuleSmartClassroom      SchoolModule = "SMART_CLASSROOM"
-	ModuleSchoolIntelligence  SchoolModule = "SCHOOL_INTELLIGENCE"
-	ModuleInterventionCenter  SchoolModule = "INTERVENTION_CENTER"
-	ModuleLiveTutoring        SchoolModule = "LIVE_TUTORING"
-	ModuleWhiteLabel          SchoolModule = "WHITE_LABEL"
+	ModuleSchoolCore         SchoolModule = "SCHOOL_CORE"
+	ModuleQuestionBank       SchoolModule = "QUESTION_BANK"
+	ModuleSchoolAssessments  SchoolModule = "SCHOOL_ASSESSMENTS"
+	ModulePathsAndCourses    SchoolModule = "PATHS_AND_COURSES"
+	ModuleInteractiveVideo   SchoolModule = "INTERACTIVE_VIDEO"
+	ModuleSmartClassroom     SchoolModule = "SMART_CLASSROOM"
+	ModuleSchoolIntelligence SchoolModule = "SCHOOL_INTELLIGENCE"
+	ModuleInterventionCenter SchoolModule = "INTERVENTION_CENTER"
+	ModuleLiveTutoring       SchoolModule = "LIVE_TUTORING"
+	ModuleWhiteLabel         SchoolModule = "WHITE_LABEL"
 	ModuleExecutiveAnalytics SchoolModule = "EXECUTIVE_ANALYTICS"
 )
 
