@@ -128,7 +128,7 @@ test('student joins by pin and answers without receiving answer key before revea
  await page.goto('/classroom/join');
  await page.getByLabel('رمز الفصل الذكي').fill('654321');
  await page.getByRole('button',{name:'انضمام للحصة'}).click();
- await expect(page).toHaveURL(//classroom/session-1$/);
+ await expect(page).toHaveURL(/\\/classroom\\/session-1$/);
  await expect(page.getByRole('heading',{name:'الحصة التفاعلية'})).toBeVisible();
  await expect(page.getByText('تم كشف الحل بواسطة المعلم')).toHaveCount(0);
  await page.getByRole('button',{name:/٤/}).click();
