@@ -1,5 +1,8 @@
 BEGIN;
 
+CREATE INDEX audit_logs_created_idx
+  ON audit_logs(created_at DESC,id DESC);
+
 CREATE INDEX audit_logs_status_created_idx
   ON audit_logs(status,created_at DESC,id DESC);
 
