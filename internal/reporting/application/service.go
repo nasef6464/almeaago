@@ -32,41 +32,7 @@ const (
 	MaxExportRows       = 5000
 )
 
-var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}package application
-
-import (
-	"context"
-	"encoding/csv"
-	"errors"
-	"fmt"
-	"io"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
-
-	identity "github.com/nasef6464/almeaago/internal/identity/domain"
-	reporting "github.com/nasef6464/almeaago/internal/reporting/domain"
-)
-
-var (
-	ErrForbidden    = reporting.ErrForbidden
-	ErrInvalidInput = errors.New("invalid reporting request")
-	ErrTooLarge     = errors.New("reporting export too large")
-)
-
-const (
-	DefaultStudentLimit = 500
-	DefaultResultLimit  = 2000
-	DefaultAttemptLimit = 3000
-	MaxStudentLimit     = 1000
-	MaxResultLimit      = 5000
-	MaxAttemptLimit     = 5000
-	MaxPageLimit        = 100
-	MaxExportRows       = 5000
-)
-
-)
+var uuidPattern = regexp.MustCompile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
 
 type Repository interface {
 	ResolveScope(context.Context, identity.User, reporting.Query) (reporting.ResolvedScope, error)
