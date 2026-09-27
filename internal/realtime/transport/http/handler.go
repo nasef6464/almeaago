@@ -382,9 +382,9 @@ func (h *Handler) answer(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"response": map[string]any{
-			"questionOrdinal": out.QuestionOrdinal,
+			"questionOrdinal":     out.QuestionOrdinal,
 			"selectedOptionIndex": out.SelectedOptionIndex,
-			"submittedAt": out.SubmittedAt,
+			"submittedAt":         out.SubmittedAt,
 		},
 	})
 }
@@ -617,7 +617,7 @@ func presentPinned(item realtime.PinnedQuestion) map[string]any {
 func presentParticipant(item realtime.Participant) map[string]any {
 	return map[string]any{
 		"sessionId": item.SessionID, "studentId": item.StudentID, "joinedAt": item.JoinedAt,
-		"attendanceStatus": item.AttendanceStatus,
+		"attendanceStatus":       item.AttendanceStatus,
 		"attendanceOverriddenBy": item.AttendanceOverriddenBy,
 		"attendanceOverriddenAt": item.AttendanceOverriddenAt,
 	}
@@ -653,7 +653,7 @@ func presentStudentState(item realtime.StudentState) map[string]any {
 			"questionVersion": item.QuestionVersion, "text": item.Text,
 			"imageAssetId": item.ImageAssetID, "imageAlt": item.ImageAlt,
 			"optionsEmbeddedInImage": item.OptionsEmbeddedInImage,
-			"options": options, "difficulty": item.Difficulty, "revealed": item.Revealed,
+			"options":                options, "difficulty": item.Difficulty, "revealed": item.Revealed,
 			"selectedOptionIndex": item.SelectedOptionIndex,
 		}
 		if item.Revealed {
@@ -692,13 +692,13 @@ func presentPresentation(item realtime.Presentation) map[string]any {
 		questions = append(questions, questionRow)
 	}
 	return map[string]any{
-		"sessionId": item.SessionID,
-		"status": item.Status,
-		"publishedMode": item.PublishedMode,
-		"activeBatchId": item.ActiveBatchID,
+		"sessionId":             item.SessionID,
+		"status":                item.Status,
+		"publishedMode":         item.PublishedMode,
+		"activeBatchId":         item.ActiveBatchID,
 		"activeQuestionOrdinal": item.ActiveQuestionOrdinal,
-		"questions": questions,
-		"aggregate": presentAggregate(item.Aggregate),
+		"questions":             questions,
+		"aggregate":             presentAggregate(item.Aggregate),
 	}
 }
 
@@ -712,8 +712,8 @@ func presentStaffState(item realtimeapp.StaffState) map[string]any {
 		questions = append(questions, presentStaffQuestion(row))
 	}
 	return map[string]any{
-		"session": presentSession(item.Session),
-		"pinned": pinned,
+		"session":   presentSession(item.Session),
+		"pinned":    pinned,
 		"questions": questions,
 		"aggregate": presentAggregate(item.Aggregate),
 	}
@@ -730,7 +730,7 @@ func presentStaffQuestion(item question.ClassroomQuestion) map[string]any {
 		"id": item.ID, "version": item.Version, "type": item.QuestionType, "text": item.TextContent,
 		"imageAssetId": item.ImageAssetID, "imageAlt": item.ImageAlt,
 		"optionsEmbeddedInImage": item.OptionsEmbeddedInImage,
-		"correctOptionIndex": item.CorrectOptionIndex, "explanation": item.Explanation,
+		"correctOptionIndex":     item.CorrectOptionIndex, "explanation": item.Explanation,
 		"difficulty": item.Difficulty, "skillIds": item.SkillIDs, "options": options,
 	}
 }
