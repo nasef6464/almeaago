@@ -36,13 +36,13 @@ type AuditRecord struct {
 }
 
 type AuditPage struct {
-	Items            []AuditRecord `json:"items"`
-	Page             int           `json:"page"`
-	Limit            int           `json:"limit"`
-	Total            int           `json:"total"`
-	HasMore          bool          `json:"hasMore"`
-	BlockedCount24h  int           `json:"blockedCount24h"`
-	FailedCount24h   int           `json:"failedCount24h"`
+	Items           []AuditRecord `json:"items"`
+	Page            int           `json:"page"`
+	Limit           int           `json:"limit"`
+	Total           int           `json:"total"`
+	HasMore         bool          `json:"hasMore"`
+	BlockedCount24h int           `json:"blockedCount24h"`
+	FailedCount24h  int           `json:"failedCount24h"`
 }
 
 type DependencyHealth struct {
@@ -68,11 +68,11 @@ type OperationalCounts struct {
 }
 
 type Readiness struct {
-	CheckedAt            time.Time          `json:"checkedAt"`
-	Status               string             `json:"status"`
-	Dependencies         DependencyHealth   `json:"dependencies"`
-	Integrations         []IntegrationCheck `json:"integrations"`
-	Counts               OperationalCounts  `json:"counts"`
-	BackupRestoreProof   string             `json:"backupRestoreProof"`
-	BackupRestoreDetail  string             `json:"backupRestoreDetail"`
+	CheckedAt           time.Time          `json:"checkedAt"`
+	Status              string             `json:"status"`
+	Dependencies        DependencyHealth   `json:"dependencies"`
+	Integrations        []IntegrationCheck `json:"integrations"`
+	Counts              OperationalCounts  `json:"counts"`
+	BackupRestoreProof  string             `json:"backupRestoreProof"`
+	BackupRestoreDetail string             `json:"backupRestoreDetail"`
 }
