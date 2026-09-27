@@ -2,12 +2,9 @@ package postgres
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
@@ -370,7 +367,7 @@ func resultScopeClause(scope reporting.ResolvedScope, query reporting.Query, sta
 
 	switch scope.Kind {
 	case reporting.ScopeStudent:
-		clauses = append(clauses, "r.student_id="+add(scope.ActorUserID)+"::uuid")
+		clauses = append(clauses, "a.student_id="+add(scope.ActorUserID)+"::uuid")
 	case reporting.ScopePlatform:
 		// Platform admin can report across all canonical result rows.
 	case reporting.ScopeSchool, reporting.ScopeSupervisor, reporting.ScopeTeacher:
@@ -387,8 +384,26 @@ func resultScopeClause(scope reporting.ResolvedScope, query reporting.Query, sta
 			))
 		)`
 		clauses = append(clauses, contextClause)
+		clauses = append(clauses, `EXISTS(
+			SELECT 1
+			FROM school_memberships report_sm
+			WHERE report_sm.school_id=`+school+`::uuid
+			  AND report_sm.user_id=a.student_id
+			  AND report_sm.role='student'
+			  AND report_sm.status='active'
+		)`)
 		if scope.ClassID != "" {
 			classParam := add(scope.ClassID)
+			clauses = append(clauses, `EXISTS(
+				SELECT 1 FROM class_memberships report_cm
+				JOIN classes report_c
+				  ON report_c.id=report_cm.class_id
+				 AND report_c.school_id=`+school+`::uuid
+				 AND report_c.status='active'
+				WHERE report_cm.user_id=a.student_id
+				  AND report_cm.class_id=`+classParam+`::uuid
+				  AND report_cm.status='active'
+			)`)
 			clauses = append(clauses, `(
 				(a.assignment_id IS NOT NULL AND EXISTS(
 					SELECT 1 FROM assessment_assignment_classes aac
@@ -641,7 +656,3 @@ func (r *ReportRepository) ExportResults(
 	if err!=nil{return nil,0,err}
 	return page.Items,page.Total,nil
 }
-
-var _ = errors.Is
-var _ = fmt.Sprintf
-var _ pgx.Row
