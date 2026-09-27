@@ -17,6 +17,7 @@ var (
 
 type Repository interface {
 	PublicBootstrap(ctx context.Context, includeSkills bool) (taxonomy.Bootstrap, error)
+	AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, error)
 	CreatePath(ctx context.Context, actorUserID string, write taxonomy.PathWrite) (taxonomy.Path, error)
 	UpdatePath(ctx context.Context, actorUserID, pathID string, patch taxonomy.PathPatch) (taxonomy.Path, error)
 	CreateLevel(ctx context.Context, actorUserID string, write taxonomy.LevelWrite) (taxonomy.Level, error)
@@ -40,6 +41,13 @@ func (s *Service) PublicBootstrap(ctx context.Context, phase string) (taxonomy.B
 	default:
 		return taxonomy.Bootstrap{}, ErrInvalidPhase
 	}
+}
+
+func (s *Service) AdminBootstrap(ctx context.Context, actor identity.User) (taxonomy.Bootstrap, error) {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return taxonomy.Bootstrap{}, ErrForbidden
+	}
+	return s.repo.AdminBootstrap(ctx)
 }
 
 func (s *Service) CreatePath(ctx context.Context, actor identity.User, write taxonomy.PathWrite) (taxonomy.Path, error) {
