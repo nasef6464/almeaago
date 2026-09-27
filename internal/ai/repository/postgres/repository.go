@@ -427,6 +427,7 @@ func (r *Repository) CountQuestionAssistSince(
 		WHERE user_id=$1::uuid
 		  AND capability='question_tutor'
 		  AND cache_hit=false
+		  AND error_category<>'rate_limited'
 		  AND created_at >= $2
 	`, userID, since).Scan(&count)
 	return count, err
