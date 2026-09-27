@@ -1,0 +1,7 @@
+BEGIN;
+
+DROP TABLE IF EXISTS notification_deliveries;
+DROP TABLE IF EXISTS notification_campaigns;
+DROP TABLE IF EXISTS notification_templates;
+
+COMMIT;

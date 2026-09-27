@@ -133,6 +133,15 @@ jobs:
           check "select exists(select 1 from pg_indexes where tablename='commerce_payment_reversals' and indexname='commerce_payment_reversals_provider_ref_idx')"
           check "select exists(select 1 from information_schema.columns where table_name='commerce_revenue_entries' and column_name='reversal_type')"
           check "select exists(select 1 from pg_constraint where conname='commerce_revenue_reversal_shape')"
+          check "select to_regclass('public.notification_templates') is not null"
+          check "select to_regclass('public.notification_campaigns') is not null"
+          check "select to_regclass('public.notification_deliveries') is not null"
+          check "select exists(select 1 from pg_indexes where tablename='notification_templates' and indexname='notification_templates_active_channel_idx')"
+          check "select exists(select 1 from pg_indexes where tablename='notification_deliveries' and indexname='notification_deliveries_inbox_idx')"
+          check "select exists(select 1 from pg_indexes where tablename='notification_deliveries' and indexname='notification_deliveries_unread_idx')"
+          check "select exists(select 1 from pg_indexes where tablename='notification_deliveries' and indexname='notification_deliveries_worker_idx')"
+          check "select exists(select 1 from pg_constraint where conname='notification_delivery_state_shape')"
+          check "select exists(select 1 from pg_constraint where conname='notification_campaign_channels_shape')"
 
       - name: Roll back every migration
         shell: bash

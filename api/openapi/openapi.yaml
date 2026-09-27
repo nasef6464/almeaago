@@ -1147,6 +1147,92 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Parent role required }
 
+  /api/v1/notifications/me:
+    get:
+      operationId: notificationsInbox
+      description: >
+        Authenticated user's bounded in-app inbox. Delivery rows are scoped by the
+        current session user and expose no other recipient contact data.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200": { description: Current user's bounded in-app notifications }
+        "401": { description: Authentication required }
+
+  /api/v1/notifications/me/unread-count:
+    get:
+      operationId: notificationsUnreadCount
+      responses:
+        "200": { description: Current user's unread in-app count }
+        "401": { description: Authentication required }
+
+  /api/v1/notifications/me/read-all:
+    patch:
+      operationId: notificationsReadAll
+      description: CSRF-protected current-user mutation; never changes another user's delivery.
+      responses:
+        "200": { description: Number of notifications marked read }
+        "401": { description: Authentication required }
+        "403": { description: Invalid CSRF token }
+
+  /api/v1/notifications/{deliveryId}/read:
+    patch:
+      operationId: notificationsReadOne
+      description: CSRF-protected read marker scoped to the current recipient.
+      parameters:
+        - { in: path, name: deliveryId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Updated in-app notification }
+        "401": { description: Authentication required }
+        "403": { description: Invalid CSRF token }
+        "404": { description: Notification does not belong to current user }
+
+  /api/v1/notifications/admin/templates:
+    get:
+      operationId: notificationsAdminTemplates
+      description: Platform-admin bounded template list.
+      responses:
+        "200": { description: Notification templates }
+        "403": { description: Platform admin required }
+    post:
+      operationId: notificationsAdminUpsertTemplate
+      description: >
+        Platform-admin + CSRF template create/update using expectedRevision for optimistic
+        updates. Template variables use simple {{name}} substitution.
+      responses:
+        "201": { description: Created or updated template }
+        "400": { description: Invalid template }
+        "403": { description: Platform admin and valid CSRF required }
+        "409": { description: Template revision conflict }
+
+  /api/v1/notifications/admin/deliveries:
+    get:
+      operationId: notificationsAdminDeliveries
+      description: Platform-admin bounded delivery evidence; filterable by channel/status.
+      parameters:
+        - { in: query, name: status, schema: { type: string, enum: [pending, sent, retrying, failed] } }
+        - { in: query, name: channel, schema: { type: string, enum: [in_app, email, whatsapp] } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        "200": { description: Delivery evidence page }
+        "403": { description: Platform admin required }
+
+  /api/v1/notifications/admin/send:
+    post:
+      operationId: notificationsAdminSend
+      description: >
+        Platform-admin + CSRF bounded campaign creation. Audience is resolved server-side from
+        canonical active Identity users/roles with a hard 500-recipient fail-closed cap.
+        In-app deliveries are immediately sent internally; email/WhatsApp deliveries remain
+        pending for the worker/provider adapter and are never sent inline by this HTTP request.
+      responses:
+        "202": { description: Campaign and delivery rows created }
+        "400": { description: Invalid message/audience/channel request }
+        "403": { description: Platform admin and valid CSRF required }
+        "413": { description: Resolved audience exceeds 500 recipients }
+
   /api/v1/schools/teacher-workspace:
     get:
       operationId: organizationsTeacherWorkspace
