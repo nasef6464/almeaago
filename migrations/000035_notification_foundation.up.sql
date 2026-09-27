@@ -21,14 +21,7 @@ CREATE TABLE notification_templates (
   updated_by uuid REFERENCES users(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT notification_template_variables_shape CHECK (
-    cardinality(variables) <= 50
-    AND NOT EXISTS (
-      SELECT 1
-      FROM unnest(variables) AS variable_name
-      WHERE btrim(variable_name) = '' OR char_length(variable_name) > 80
-    )
-  )
+  CONSTRAINT notification_template_variables_shape CHECK (cardinality(variables) <= 50)
 );
 
 CREATE INDEX notification_templates_active_channel_idx
