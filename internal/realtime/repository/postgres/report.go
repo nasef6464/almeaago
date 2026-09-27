@@ -90,10 +90,10 @@ func (r *Repository) FinalizeSession(
 		return realtime.ReportSnapshot{}, mapError(err)
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: actorID,
-		Action:      "realtime.classroom.end",
-		ResourceType:"classroom_session",
-		ResourceID:  sessionID,
+		ActorUserID:  actorID,
+		Action:       "realtime.classroom.end",
+		ResourceType: "classroom_session",
+		ResourceID:   sessionID,
 		Metadata: map[string]any{
 			"expectedRoster": len(uniqueStrings(rosterIDs)),
 		},
@@ -178,7 +178,7 @@ func buildReportTx(
 	for rows.Next() {
 		var q reportQuestion
 		if err = rows.Scan(
-			&q.Ordinal,&q.QuestionID,&q.QuestionVersion,&q.BatchID,&q.Answered,&q.Correct,
+			&q.Ordinal, &q.QuestionID, &q.QuestionVersion, &q.BatchID, &q.Answered, &q.Correct,
 		); err != nil {
 			return nil, err
 		}
@@ -205,7 +205,7 @@ func buildReportTx(
 	defer distRows.Close()
 	for distRows.Next() {
 		var ordinal, option, count int
-		if err = distRows.Scan(&ordinal,&option,&count); err != nil {
+		if err = distRows.Scan(&ordinal, &option, &count); err != nil {
 			return nil, err
 		}
 		if i, ok := index[ordinal]; ok {
@@ -231,16 +231,16 @@ func buildReportTx(
 		var id, label string
 		var number int
 		var startedAt, endedAt *time.Time
-		if err = batchRows.Scan(&id,&number,&label,&startedAt,&endedAt); err != nil {
+		if err = batchRows.Scan(&id, &number, &label, &startedAt, &endedAt); err != nil {
 			return nil, err
 		}
 		ordinals := []int{}
-		answered, correct, wrong, unanswered := 0,0,0,0
+		answered, correct, wrong, unanswered := 0, 0, 0, 0
 		for _, q := range questions {
 			if q.BatchID != id {
 				continue
 			}
-			ordinals = append(ordinals,q.Ordinal)
+			ordinals = append(ordinals, q.Ordinal)
 			answered += q.Answered
 			correct += q.Correct
 			wrong += q.Wrong
@@ -250,19 +250,19 @@ func buildReportTx(
 		if answered > 0 {
 			accuracy = int(float64(correct)/float64(answered)*100 + 0.5)
 		}
-		batches = append(batches,map[string]any{
-			"batchId": id,
-			"number": number,
-			"label": label,
+		batches = append(batches, map[string]any{
+			"batchId":          id,
+			"number":           number,
+			"label":            label,
 			"questionOrdinals": ordinals,
-			"startedAt": startedAt,
-			"endedAt": endedAt,
+			"startedAt":        startedAt,
+			"endedAt":          endedAt,
 			"totals": map[string]any{
-				"answered": answered,
-				"correct": correct,
-				"wrong": wrong,
+				"answered":   answered,
+				"correct":    correct,
+				"wrong":      wrong,
 				"unanswered": unanswered,
-				"accuracy": accuracy,
+				"accuracy":   accuracy,
 			},
 		})
 	}
@@ -270,20 +270,20 @@ func buildReportTx(
 		return nil, err
 	}
 
-	questionPayload := make([]map[string]any,0,len(questions))
-	totalResponses,totalCorrect := 0,0
+	questionPayload := make([]map[string]any, 0, len(questions))
+	totalResponses, totalCorrect := 0, 0
 	for _, q := range questions {
 		totalResponses += q.Answered
 		totalCorrect += q.Correct
-		questionPayload = append(questionPayload,map[string]any{
-			"ordinal": q.Ordinal,
-			"questionId": q.QuestionID,
+		questionPayload = append(questionPayload, map[string]any{
+			"ordinal":         q.Ordinal,
+			"questionId":      q.QuestionID,
 			"questionVersion": q.QuestionVersion,
-			"answered": q.Answered,
-			"correct": q.Correct,
-			"wrong": q.Wrong,
-			"unanswered": q.Unanswered,
-			"distribution": q.Distribution,
+			"answered":        q.Answered,
+			"correct":         q.Correct,
+			"wrong":           q.Wrong,
+			"unanswered":      q.Unanswered,
+			"distribution":    q.Distribution,
 		})
 	}
 
@@ -296,32 +296,32 @@ func buildReportTx(
 		}
 	}
 	return map[string]any{
-		"sessionId": session.ID,
-		"schoolId": session.SchoolID,
-		"classId": session.ClassID,
-		"subjectId": session.SubjectID,
-		"teacherId": session.TeacherID,
-		"status": realtime.SessionEnded,
-		"startedAt": session.StartedAt,
-		"endedAt": session.EndedAt,
+		"sessionId":       session.ID,
+		"schoolId":        session.SchoolID,
+		"classId":         session.ClassID,
+		"subjectId":       session.SubjectID,
+		"teacherId":       session.TeacherID,
+		"status":          realtime.SessionEnded,
+		"startedAt":       session.StartedAt,
+		"endedAt":         session.EndedAt,
 		"durationMinutes": durationMinutes,
 		"roster": map[string]any{
-			"expected": expected,
-			"joined": joined,
-			"absentFromSession": maxInt(0,expected-joined),
+			"expected":          expected,
+			"joined":            joined,
+			"absentFromSession": maxInt(0, expected-joined),
 		},
-		"batches": batches,
+		"batches":   batches,
 		"questions": questionPayload,
 		"totals": map[string]any{
 			"responses": totalResponses,
-			"correct": totalCorrect,
+			"correct":   totalCorrect,
 		},
 	}, nil
 }
 
 func uniqueStrings(values []string) []string {
 	seen := map[string]struct{}{}
-	out := make([]string,0,len(values))
+	out := make([]string, 0, len(values))
 	for _, value := range values {
 		if value == "" {
 			continue
@@ -329,14 +329,14 @@ func uniqueStrings(values []string) []string {
 		if _, exists := seen[value]; exists {
 			continue
 		}
-		seen[value]=struct{}{}
-		out=append(out,value)
+		seen[value] = struct{}{}
+		out = append(out, value)
 	}
 	return out
 }
 
-func maxInt(a,b int) int {
-	if a>b {
+func maxInt(a, b int) int {
+	if a > b {
 		return a
 	}
 	return b
