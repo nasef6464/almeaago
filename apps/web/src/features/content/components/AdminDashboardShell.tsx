@@ -72,7 +72,7 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
       <nav className="flex-1 overflow-y-auto py-3">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const active = item.href ? location.pathname === item.href : item.active;
+          const active = item.href ? location.pathname === item.href : ('active' in item && Boolean(item.active));
           const classes = active
             ? 'border-r-4 border-amber-500 bg-amber-50 text-amber-700'
             : 'border-r-4 border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-800';
