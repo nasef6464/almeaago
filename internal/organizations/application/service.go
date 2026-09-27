@@ -60,21 +60,15 @@ type PlatformTrainerResolver interface {
 	HasActiveTrainerScope(ctx context.Context, userID string) (bool, error)
 }
 
-type SchoolContractReader interface {
-	SchoolContract(ctx context.Context, schoolID string) (org.SchoolContract, error)
-}
-
 type ServiceOptions struct {
 	DirectorDirectory       DirectorDirectory
 	PlatformTrainerResolver PlatformTrainerResolver
-	SchoolContractReader    SchoolContractReader
 }
 
 type Service struct {
 	repo                    Repository
 	directorDirectory       DirectorDirectory
 	platformTrainerResolver PlatformTrainerResolver
-	schoolContractReader    SchoolContractReader
 }
 
 func NewService(repo Repository, directories ...DirectorDirectory) *Service {
@@ -90,7 +84,6 @@ func NewServiceWithOptions(repo Repository, options ServiceOptions) *Service {
 		repo:                    repo,
 		directorDirectory:       options.DirectorDirectory,
 		platformTrainerResolver: options.PlatformTrainerResolver,
-		schoolContractReader:    options.SchoolContractReader,
 	}
 }
 
