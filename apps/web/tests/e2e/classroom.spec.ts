@@ -31,7 +31,7 @@ test('teacher creates starts publishes reveals and finalizes a classroom session
   subjects:[{id:'subject-1',pathId:'path-1',code:'MATH',name:'الرياضيات'}]
  }));
  await page.route('**/api/v1/classroom/teacher/sessions',route=>json(route,{sessions:[]}));
- await page.route('**/api/v1/classroom/questions?**',route=>json(route,{
+ await page.route('**/api/v1/classroom/questions*',route=>json(route,{
   items:[{id:'question-1',version:3,questionType:'mcq',text:'٢ + ٢ = ؟',difficulty:'easy'}],
   page:1,limit:30,hasMore:false
  }));
