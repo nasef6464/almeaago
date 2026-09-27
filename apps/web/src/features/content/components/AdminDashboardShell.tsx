@@ -31,6 +31,7 @@ const navItems = [
   { label: 'إدارة المحتوى التعليمي', icon: BookOpen, href: '/admin-dashboard/content' },
   { label: 'إدارة المسارات والتصنيف', icon: Boxes, href: '/admin-dashboard/taxonomy' },
   { label: 'اعتماد المحتوى', icon: CheckCircle2 },
+  { label: 'مركز بنك الأسئلة', icon: HelpCircle, href: '/admin-dashboard/questions' },
   { label: 'مركز الدروس', icon: BookOpen },
   { label: 'مركز المكتبة وملفات الدعم', icon: Library },
   { label: 'مركز الاختبارات', icon: HelpCircle, href: '/admin-dashboard/assessments' },

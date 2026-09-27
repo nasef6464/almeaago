@@ -201,3 +201,16 @@ func TestPresignRejectsUnsupportedImageMime(t *testing.T) {
 		t.Fatalf("expected invalid input, got %v", err)
 	}
 }
+
+func TestPresignRejectsNonStaffActor(t *testing.T) {
+	service := NewService(&repoStub{}, &providerStub{available: true}, 1024, 15*time.Minute)
+	_, err := service.Presign(context.Background(), identity.User{
+		ID: "student-1", Roles: []identity.Role{identity.RoleStudent},
+	}, PresignInput{
+		Kind: media.UploadQuestionImage, QuestionCode: "Q-1",
+		SHA256: strings.Repeat("f", 64), MimeType: "image/webp", SizeBytes: 100,
+	})
+	if !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected forbidden, got %v", err)
+	}
+}

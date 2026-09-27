@@ -40,6 +40,7 @@ import { AiAdminPage } from '../features/ai/pages/AiAdminPage';
 import { ReportsPage } from '../features/reporting/pages/ReportsPage';
 import { OperationsAdminPage } from '../features/operations/pages/OperationsAdminPage';
 import { TaxonomyAdminPage } from '../features/taxonomy/pages/TaxonomyAdminPage';
+import { QuestionBankAdminPage } from '../features/questionbank/pages/QuestionBankAdminPage';
 import { SchoolDirectorDashboardPage } from '../features/organizations/pages/SchoolDirectorDashboardPage';
 
 type ModalMode = 'login' | 'signup' | null;
@@ -182,6 +183,7 @@ export function App() {
         <Route path="/admin-dashboard" element={<AdminDashboardShell><PlaceholderPage title="لوحة الإدارة" /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/content" element={<AdminDashboardShell><ContentAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/taxonomy" element={<AdminDashboardShell><TaxonomyAdminPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/questions" element={<AdminDashboardShell><QuestionBankAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/assessments" element={<AdminDashboardShell><AssessmentAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/commerce" element={<AdminDashboardShell><CommerceAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/notifications" element={<AdminDashboardShell><NotificationsAdminPage /></AdminDashboardShell>} />
