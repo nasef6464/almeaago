@@ -72,12 +72,19 @@ Implemented on `feat/identity-oauth-otp`:
 - Google verified email required.
 - external provider configuration remains optional until staging.
 
-## الخطوات التالية داخل Identity
-1. CI verification for Google/WhatsApp slice.
-2. Staging provider credentials and live smoke test.
-3. Auth screenshot visual parity.
-4. Admin account management.
-5. Email delivery adapter when notification provider is selected.
+## حالة الإغلاق الحالية داخل Identity
+تم إنجاز:
+1. Google/WhatsApp implementation + repository CI verification.
+2. Admin account management مع normalized owner-domain scopes.
+3. Auth desktop/mobile E2E + deterministic screenshot evidence للواجهة الجديدة.
+4. Content-owned trainer scopes + platformTrainer directory composition.
+
+ما يبقى كدليل خارجي قبل PARITY_PROVEN:
+1. Staging Google credentials + live OAuth callback smoke.
+2. Staging WhatsApp delivery credentials + live delivery smoke.
+3. تشغيل المرجع القديم والتقاط legacy desktop/mobile screenshots للمقارنة المباشرة مع screenshots V2 المسجلة في CI.
+
+لا يتم اعتبار غياب credentials أو legacy runtime نجاحًا ضمن CI.
 
 ## Security Acceptance
 - Wrong credentials => generic 401.
@@ -127,11 +134,10 @@ Organization-owned account scopes now use explicit domain contracts:
 - parent/student relationship synchronization -> Organizations.
 - supervisor/teacher directory scope -> Reporting read model over canonical Organizations relations.
 
-Still pending:
-- trainer managed paths/subjects -> Catalog/Content ownership.
-- platformTrainer filter/count.
-
-V2 does not silently ignore pending trainer scope fields; those writes fail explicitly until the owning domain is connected.
+Integrated after the original Identity slice:
+- trainer managed paths/subjects are canonical Content-owned relations.
+- platformTrainer filter/count is composed from canonical Content scope.
+- Identity does not own duplicate trainer-scope arrays.
 
 ## Intentional legacy fix
 Legacy single-user PATCH did not consistently protect the last admin while delete/bulk operations did.
