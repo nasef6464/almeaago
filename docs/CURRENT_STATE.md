@@ -1030,5 +1030,54 @@ Still explicit external/policy boundaries:
 
 These are not inferred from adjacent behavior.
 
+## Smart Classroom / Realtime — TESTED / MERGED
+PR #65 passed all required exact-head gates on `a84c389a383991f3f53002bf1199825f95fca3b7` and merged to `main` as `ac4310da776abe64762b3b1a46bfd413e1b8b56d`.
+
+Implemented:
+- Organizations now owns normalized SchoolContract/module truth and gates `SMART_CLASSROOM` by active school, active/valid contract and enabled module.
+- teacher control requires the exact active school/class/subject teaching assignment; student join requires active school and class membership; supervisor/school-admin reads stay Organizations-scoped.
+- platform-admin SchoolContract control is CSRF protected and optimistic through `expectedRevision`.
+- Question Bank remains canonical for approved questions, exact versions, options, private correct keys and explanations. Realtime persists only exact `question_id + question_version` references and presentation state.
+- initial classroom selection is bounded to 1–30 approved MCQ/true-false questions for the exact subject; appended batches are bounded to 1–20.
+- durable PostgreSQL facts are normalized into sessions, batches, pinned questions, participants, latest responses and immutable final report snapshots.
+- a partial unique constraint permits at most one live session for the same school/class; duplicate questions in one session are rejected.
+- six-digit PINs are generated cryptographically, returned only at session creation, stored only as HMAC-SHA256 and expire after 30 minutes.
+- student join is live-session-only and idempotent; joining records durable `present` attendance.
+- single-question and batch publishing are supported. A learner can revise the latest answer while the question remains open; writes are rejected after reveal or batch end.
+- selected option range and correctness are server-owned and resolved from the pinned Question Bank version. The answer response does not expose correctness.
+- learner/projector projections omit correct option and explanation before teacher reveal and expose them only after the durable reveal transition.
+- teacher attendance overrides support `present | late | absent | excused` and are audited; Redis presence is never treated as durable attendance truth.
+- WebSocket authentication/authorization happens before upgrade. On connect/reconnect the client receives a role-safe snapshot, then compact Redis Pub/Sub deltas.
+- Redis is restricted to short-lived fanout/presence with a 45-second presence horizon refreshed every 20 seconds; PostgreSQL remains durable truth.
+- React uses bounded HTTP refresh as a WebSocket reconnect/failure fallback, so socket state is acceleration rather than a second state engine.
+- ending a live session closes started batches, clears active pointers, uses the current canonical Organizations roster and writes one immutable PostgreSQL report snapshot with attendance and response aggregates.
+- responsive teacher, student PIN/join/live room, projector and platform SchoolContract screens are implemented.
+
+Verification:
+- Database CI `36299477569`: PASS migration apply + classroom/contract schema/index/FK/immutable-trigger verification + full rollback + re-apply.
+- Backend CI `36299477645`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36299477556`: PASS typecheck + production build.
+- Frontend E2E `36299477576`: PASS all 39 browser tests including platform contract control, teacher create/start/publish/reveal/finalize and student PIN/join/answer mobile flows.
+- browser evidence artifact `10924508359`, digest `sha256:3fb9e6394a294e9cc76bd9f346abeb357d0f970de7b50d0bd8d9827b2eebf83a`.
+- early failures were corrected without weakening behavior: gofmt/duplicate domain type, malformed URL regex, query mock shape and a literal-plus Playwright locator. The four gates then reran green on the exact final head.
+
+Audit:
+- `docs/domains/realtime/SMART_CLASSROOM_AUDIT.md`.
+
+## Smart Classroom / Realtime phase checkpoint
+The source-backed classroom golden path is now `TESTED`, not `PARITY_PROVEN`: **authorized teacher -> canonical approved questions -> create/start -> student PIN join -> publish/answer/revise -> reveal -> attendance/aggregate -> immutable final report**, with role-safe WebSocket acceleration over durable PostgreSQL truth.
+
+Still explicit policy/evidence boundaries:
+- timed competition scoring and speed bonuses.
+- automatic Learning mastery/Review evidence writes from classroom answers.
+- anonymous/guest or cross-school public PIN participation.
+- attendance inferred only from realtime presence.
+- durable Redis classroom business state.
+- reconnect rules that change response authority.
+- SchoolContract limits beyond the verified module/validity model.
+- exact retention/purge duration for classroom response history.
+
+These are not inferred from adjacent behavior.
+
 ## Next exact action
-Start the Smart Classroom / Realtime phase from current `main`. Re-read the Product Blueprint, current Organizations school/class authority, canonical Question Bank and Assessment boundaries, and legacy classroom session/protocol evidence before choosing the first bounded slice. Keep transient presence/socket state separate from durable classroom records, reuse canonical Question/Skill IDs, and do not invent session scoring, audience or reconnect rules that are not source-backed.
+Start the AI phase from current `main`. Re-read the Product Blueprint, current canonical Content/Question Bank/Assessment/Learning boundaries and legacy AI flows before choosing the first bounded slice. Keep AI outputs advisory and source-backed, preserve owning-domain IDs rather than copied business truth, and do not invent model-provider, safety, approval, grading or automation rules where the source material is silent.
