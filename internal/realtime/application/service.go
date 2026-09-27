@@ -535,21 +535,7 @@ func (s *Service) StudentState(
 	if err != nil {
 		return realtime.StudentState{}, err
 	}
-	selected := make([]realtime.PinnedQuestion, 0, len(pinned))
-	for _, item := range pinned {
-		if item.PublishedAt == nil {
-			continue
-		}
-		if session.PublishedMode == realtime.PublishedSingle {
-			if session.ActiveQuestionOrdinal != nil && item.Ordinal == *session.ActiveQuestionOrdinal {
-				selected = append(selected, item)
-			}
-			continue
-		}
-		if session.ActiveBatchID != "" && item.BatchID == session.ActiveBatchID {
-			selected = append(selected, item)
-		}
-	}
+	selected := selectPublishedQuestions(session, pinned)
 	refs := make([]question.ReviewRef, 0, len(selected))
 	for _, item := range selected {
 		refs = append(refs, question.ReviewRef{QuestionID: item.QuestionID, Version: item.QuestionVersion})
@@ -652,6 +638,79 @@ func (s *Service) Answer(
 	return out, err
 }
 
+func (s *Service) Presentation(
+	ctx context.Context,
+	actor identity.User,
+	sessionID string,
+) (realtime.Presentation, error) {
+	session, err := s.repo.GetSession(ctx, strings.TrimSpace(sessionID))
+	if err != nil {
+		return realtime.Presentation{}, err
+	}
+	if err = s.canView(ctx, actor, session); err != nil {
+		return realtime.Presentation{}, err
+	}
+	pinned, err := s.repo.SessionQuestions(ctx, session.ID)
+	if err != nil {
+		return realtime.Presentation{}, err
+	}
+	selected := selectPublishedQuestions(session, pinned)
+	refs := make([]question.ReviewRef, 0, len(selected))
+	for _, item := range selected {
+		refs = append(refs, question.ReviewRef{QuestionID: item.QuestionID, Version: item.QuestionVersion})
+	}
+	resolved, err := s.questions.ResolveRefs(ctx, refs)
+	if err != nil {
+		return realtime.Presentation{}, err
+	}
+	byRef := map[string]question.ClassroomQuestion{}
+	for _, row := range resolved {
+		byRef[row.ID+":"+itoa(row.Version)] = row
+	}
+	questions := make([]realtime.StudentQuestion, 0, len(selected))
+	for _, item := range selected {
+		row, ok := byRef[item.QuestionID+":"+itoa(item.QuestionVersion)]
+		if !ok {
+			continue
+		}
+		presented := realtime.StudentQuestion{
+			Ordinal: item.Ordinal,
+			QuestionID: item.QuestionID,
+			QuestionVersion: item.QuestionVersion,
+			Text: row.TextContent,
+			ImageAssetID: row.ImageAssetID,
+			ImageAlt: row.ImageAlt,
+			OptionsEmbeddedInImage: row.OptionsEmbeddedInImage,
+			Difficulty: row.Difficulty,
+			Revealed: item.RevealedAt != nil,
+			Options: make([]realtime.StudentOption, 0, len(row.Options)),
+		}
+		for _, option := range row.Options {
+			presented.Options = append(presented.Options, realtime.StudentOption{
+				Index: option.Index, Text: option.Text, AssetID: option.AssetID,
+			})
+		}
+		if item.RevealedAt != nil {
+			presented.CorrectOptionIndex = row.CorrectOptionIndex
+			presented.Explanation = row.Explanation
+		}
+		questions = append(questions, presented)
+	}
+	aggregate, err := s.repo.Aggregate(ctx, session.ID)
+	if err != nil {
+		return realtime.Presentation{}, err
+	}
+	return realtime.Presentation{
+		SessionID: session.ID,
+		Status: session.Status,
+		PublishedMode: session.PublishedMode,
+		ActiveBatchID: session.ActiveBatchID,
+		ActiveQuestionOrdinal: session.ActiveQuestionOrdinal,
+		Questions: questions,
+		Aggregate: aggregate,
+	}, nil
+}
+
 func (s *Service) Aggregate(
 	ctx context.Context,
 	actor identity.User,
@@ -742,6 +801,28 @@ func (s *Service) StreamSnapshot(
 		return s.StudentState(ctx, actor, sessionID)
 	}
 	return s.Aggregate(ctx, actor, sessionID)
+}
+
+func selectPublishedQuestions(
+	session realtime.Session,
+	pinned []realtime.PinnedQuestion,
+) []realtime.PinnedQuestion {
+	selected := make([]realtime.PinnedQuestion, 0, len(pinned))
+	for _, item := range pinned {
+		if item.PublishedAt == nil {
+			continue
+		}
+		if session.PublishedMode == realtime.PublishedSingle {
+			if session.ActiveQuestionOrdinal != nil && item.Ordinal == *session.ActiveQuestionOrdinal {
+				selected = append(selected, item)
+			}
+			continue
+		}
+		if session.ActiveBatchID != "" && item.BatchID == session.ActiveBatchID {
+			selected = append(selected, item)
+		}
+	}
+	return selected
 }
 
 func (s *Service) hashPIN(pin string) string {
