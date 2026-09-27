@@ -15,7 +15,6 @@ type ClassroomQuestion struct {
 	Options                []Option
 }
 
-
 type ClassroomQuestionSummary struct {
 	ID           string
 	Version      int
