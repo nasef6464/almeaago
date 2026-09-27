@@ -282,6 +282,34 @@ Implemented:
 ## Taxonomy checkpoint
 The structural Taxonomy foundation is green for normalized persistence, bounded public bootstrap reads, stable hierarchy identity, and lifecycle-safe admin mutation contracts. Content and Question Bank may now depend on Taxonomy IDs through explicit boundaries.
 
+## Taxonomy integrated parity certification — TESTED
+PR #71 closes the current repository-internal Taxonomy parity batch without reintroducing legacy ownership that the target model intentionally normalized away.
+
+Implemented/verified in this batch:
+- `GET /api/v1/taxonomy/admin/bootstrap` gives platform admin a private/no-store lifecycle view including active, inactive and archived paths, levels, subjects and skills.
+- public `core|compact|full` bootstrap behavior remains active-only.
+- `/admin-dashboard/taxonomy` is a real responsive administration workspace linked from the admin shell.
+- path, level, subject and normalized main/sub-skill create/edit/lifecycle flows use the existing canonical Taxonomy APIs.
+- stable codes and IDs remain immutable after creation.
+- no destructive Taxonomy delete action is exposed; inactive/archived lifecycle is used instead.
+- the legacy `Section` concept is intentionally not recreated as a second canonical table; the target remains path / level / subject / main-sub skill hierarchy.
+- authenticated admin reads are platform-admin-only.
+- unsafe mutations remain platform-admin-only and CSRF protected.
+- the teacher persona does not issue the admin bootstrap request, while server authorization independently fails closed.
+- Database CI now asserts the lifecycle/hierarchy constraints and hot indexes used by the normalized model.
+
+First integrated certification head `efb3290b4f062921a2be2d12f0f7b55bc8338362` passed all four gates:
+- Database CI `36312944722`.
+- Backend CI `36312944713`.
+- Frontend CI `36312944712`.
+- Frontend E2E `36312944720`: 57/57 tests.
+- browser evidence artifact `10928894128`, digest `sha256:15166c4bacc9da83b4240ecb313c0fac4812145d937b9b1915ddb5b6a522ee8c`.
+
+Release boundary:
+- Taxonomy remains `TESTED`, not `PARITY_PROVEN`.
+- deterministic V2 desktop/mobile Taxonomy admin screenshots exist, but direct legacy-runtime side-by-side visual comparison remains external evidence.
+- the final documentation-inclusive PR head must pass the same four gates before merge.
+
 ## Question Bank Foundation Schema — TESTED / MERGED
 PR #22 passed exact-head Database CI and merged as `f93b3e21c66a22c2a4f7d9b19bc81a13c7f53525`.
 
@@ -1215,4 +1243,4 @@ The source-backed implementation order through **Commerce -> Parents -> Communic
 This is **not** equivalent to `PARITY_PROVEN` or production go-live approval. The matrix still records unresolved parity/release evidence, including Identity/provider live proof and visual parity gaps, production load/bandwidth evidence, dated backup/restore proof, exact retention/anonymization policy, external provider credentials/callback proof, observability/rollback/deployment identity proof and several explicitly UNKNOWN business-policy items. Those must stay visible rather than being converted into speculative implementation.
 
 ## Next exact action
-After Organizations certification merges, continue cross-domain parity from Taxonomy. Reconcile its functional, authorization, data, visual/E2E and external-proof requirements on current `main`; close only source-backed internal gaps and keep any production/external evidence explicit.
+After Taxonomy certification merges, continue cross-domain parity from Question Bank / Media. Reconcile its functional, authorization, data, visual/E2E and external-proof requirements on current `main`; close only source-backed internal gaps and preserve Taxonomy/Media ownership boundaries.
