@@ -264,7 +264,7 @@ func (s *Service) Create(
 		(input.Period != nil && (*input.Period < 1 || *input.Period > 12)) {
 		return CreateResult{}, ErrInvalidInput
 	}
-	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) {
+	if !actor.HasRole(identity.RoleTeacher) {
 		return CreateResult{}, ErrForbidden
 	}
 	if len(s.pinSecret) == 0 || s.questions == nil || s.org == nil {
@@ -273,16 +273,14 @@ func (s *Service) Create(
 	if err := s.validateScope(ctx, input.SchoolID, input.ClassID, input.SubjectID); err != nil {
 		return CreateResult{}, err
 	}
-	if actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleAdmin) {
-		ok, err := s.org.CanTeacherControlSmartClassroom(
-			ctx, actor.ID, input.SchoolID, input.ClassID, input.SubjectID,
-		)
-		if err != nil {
-			return CreateResult{}, err
-		}
-		if !ok {
-			return CreateResult{}, ErrForbidden
-		}
+	ok, err := s.org.CanTeacherControlSmartClassroom(
+		ctx, actor.ID, input.SchoolID, input.ClassID, input.SubjectID,
+	)
+	if err != nil {
+		return CreateResult{}, err
+	}
+	if !ok {
+		return CreateResult{}, ErrForbidden
 	}
 	rows, err := s.questions.Resolve(ctx, input.QuestionIDs, input.SubjectID)
 	if err != nil {
@@ -758,10 +756,8 @@ func (s *Service) End(
 	if err != nil {
 		return realtime.ReportSnapshot{}, err
 	}
-	if !actor.HasRole(identity.RoleAdmin) {
-		if !actor.HasRole(identity.RoleTeacher) || actor.ID != session.TeacherID {
-			return realtime.ReportSnapshot{}, ErrForbidden
-		}
+	if err = s.canControl(ctx, actor, session); err != nil {
+		return realtime.ReportSnapshot{}, err
 	}
 	if s.org == nil {
 		return realtime.ReportSnapshot{}, ErrUnavailable
