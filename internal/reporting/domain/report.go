@@ -56,7 +56,7 @@ type AssessmentSummary struct {
 	SampledResultCount  int     `json:"sampledResultCount"`
 	ResultsTruncated    bool    `json:"resultsTruncated"`
 	AttemptCount        int     `json:"attemptCount"`
-	SampledAttemptCount int    `json:"sampledAttemptCount"`
+	SampledAttemptCount int     `json:"sampledAttemptCount"`
 	AttemptsTruncated   bool    `json:"attemptsTruncated"`
 	AverageScore        float64 `json:"averageScore"`
 	Passed              int     `json:"passed"`
