@@ -187,7 +187,7 @@ func (h *Handler) adminDeliveries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out, err := h.service.AdminDeliveries(r.Context(), authenticated.User, communication.DeliveryFilter{
-		Status: communication.DeliveryStatus(strings.TrimSpace(r.URL.Query().Get("status"))),
+		Status:  communication.DeliveryStatus(strings.TrimSpace(r.URL.Query().Get("status"))),
 		Channel: communication.Channel(strings.TrimSpace(r.URL.Query().Get("channel"))),
 		Page:    page,
 		Limit:   limit,
