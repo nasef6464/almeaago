@@ -1079,5 +1079,49 @@ Still explicit policy/evidence boundaries:
 
 These are not inferred from adjacent behavior.
 
+## AI Question Assistant / Provider Policy — TESTED / MERGED
+PR #66 passed all required exact-head gates on `cd7c7ba1f5a77923da45a5ce37f1945c21867c76` and merged to `main` as `4d478fb972445ed66ba6a7270f31c53c454a73df`.
+
+Implemented:
+- normalized provider routing settings plus durable provider health/circuit state for Gemini, OpenRouter, Qwen, DeepSeek, OpenAI, Ollama and LM Studio.
+- all provider routes are seeded disabled; credentials/runtime endpoints remain server deployment secrets and are never exposed to or managed by the browser.
+- external provider URLs are constrained to known source-backed hosts; local Ollama/LM Studio endpoints remain deployment-owned.
+- platform-admin provider enable/model/priority/output-token policy uses optimistic revision and audit evidence.
+- fixed provider health testing plus bounded operational interaction ledger records provider/model/success/fallback/cache/latency/token/error metadata without storing full prompts, learner messages or full generated responses.
+- learner Question Assistant is student-only, CSRF protected and scoped to one canonical owned Learning ReviewCard pinned to one exact Question Bank version.
+- prompt context is bounded to question/options plus trusted hint/strategy/explanation, selected help level and at most 500 characters of learner follow-up.
+- the server-owned correct-option field is not serialized into the AI prompt.
+- progressive help levels are `hint | stronger_hint | concept | steps | follow_up`.
+- deterministic trusted Question Bank fallback is returned when providers are unavailable rather than fabricating provider success.
+- SHA-256 persistent cache and in-process identical-request singleflight suppress duplicate work.
+- cache is evaluated before the provider-call budget.
+- rolling learner provider-call guard defaults to 8 per minute; rate-limit fallback does not recursively consume the provider-call count.
+- configured-provider cache defaults to 30 minutes; deterministic fallback cache is capped at two minutes so provider recovery is not hidden.
+- provider circuit opens after three consecutive failures for 60 seconds and resets on success.
+- responsive Review Library assistant UI and platform AI administration UI are implemented.
+- AI remains advisory: it cannot mutate Assessment scoring, Learning mastery, Review evidence or Study Plan truth.
+
+Verification:
+- Database CI `36304139423`: PASS migration apply + AI schema/index/constraint verification + complete rollback + re-apply.
+- Backend CI `36304139367`: PASS module lock + sqlc compile + gofmt + go vet + go test.
+- Frontend CI `36304139392`: PASS typecheck + production build.
+- Frontend E2E `36304139375`: PASS complete browser suite including platform AI policy and learner Question Assistant flows.
+- browser evidence artifact `10926955841`, digest `sha256:2607c29387452bf87a15f2286d8ca8a49ae49bad765931a31ffe539f49bf97d2`.
+- the first final-head attempt exposed a duplicate output-token config parse at go vet; it was removed without changing policy and all four exact-head gates reran green.
+
+Audit:
+- `docs/domains/ai/AI_QUESTION_ASSISTANT_AUDIT.md`.
+
+## AI phase checkpoint
+The source-backed AI golden path is now `TESTED`, not `PARITY_PROVEN`: **provider policy/health -> owned ReviewCard Question Assistant -> deterministic cache/budget -> provider fallback**, with owning-domain IDs preserved and no AI mutation of canonical scoring/mastery truth.
+
+Still explicit deployment/policy boundaries:
+- live provider success proof requires configured deployment credentials/runtime.
+- provider pricing/cost estimates require maintained provider pricing contracts.
+- vision/image-byte tutoring, voice and long-term tutor memory are not implemented by inference.
+- autonomous Study Plan generation and AI question authoring require separate product rules.
+- distributed singleflight across API replicas and physical retention purge remain operational follow-up.
+- no AI is introduced into active Assessment attempts without a separate source-backed policy.
+
 ## Next exact action
-Start the AI phase from current `main`. Re-read the Product Blueprint, current canonical Content/Question Bank/Assessment/Learning boundaries and legacy AI flows before choosing the first bounded slice. Keep AI outputs advisory and source-backed, preserve owning-domain IDs rather than copied business truth, and do not invent model-provider, safety, approval, grading or automation rules where the source material is silent.
+Start the Reporting / Operations phase from current `main`. Re-read the Product Blueprint, current Operations audit evidence, Commerce/Assessment/Learning/Organizations/Communication/Realtime ownership boundaries and legacy reporting workflows before selecting the first bounded slice. Reporting should compose canonical owner-domain facts into durable/exportable views without becoming a second source of business truth; Operations should surface auditable system/admin evidence without bypassing the existing ownership contracts.
