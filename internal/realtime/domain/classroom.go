@@ -101,11 +101,11 @@ type Response struct {
 }
 
 type QuestionAggregate struct {
-	Ordinal      int
-	QuestionID   string
+	Ordinal       int
+	QuestionID    string
 	ResponseCount int
-	CorrectCount int
-	Distribution map[string]int
+	CorrectCount  int
+	Distribution  map[string]int
 }
 
 type Aggregate struct {
@@ -196,7 +196,6 @@ type StreamEvent struct {
 	At        time.Time
 	Data      any
 }
-
 
 type Presentation struct {
 	SessionID             string
