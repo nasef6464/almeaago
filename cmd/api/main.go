@@ -166,8 +166,9 @@ func main() {
 	aiService := aiapp.NewService(aiRepository, learningRepository, questionRepository, aiProvider, aiapp.Config{
 		CacheTTL:       time.Duration(cfg.AIQuestionAssistantCacheMinutes) * time.Minute,
 		InteractionTTL: time.Duration(cfg.AIInteractionRetentionDays) * 24 * time.Hour,
-		CircuitOpenFor: time.Minute,
-		PerMinuteLimit: cfg.AIQuestionAssistantPerMinute,
+		CircuitOpenFor:  time.Minute,
+		PerMinuteLimit:  cfg.AIQuestionAssistantPerMinute,
+		MaxOutputTokens: cfg.AIQuestionAssistantMaxOutputTokens,
 	})
 	learningService := learningapp.NewService(learningRepository, questionService)
 	masteryGoalService := learningapp.NewMasteryGoalService(learningRepository, taxonomyRepository)
