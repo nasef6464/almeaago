@@ -40,7 +40,7 @@ func New(cfg Config) *Client {
 		cfg.Timeout = 15 * time.Second
 	}
 	return &Client{
-		cfg: cfg,
+		cfg:    cfg,
 		client: &http.Client{Timeout: cfg.Timeout},
 	}
 }
@@ -138,7 +138,7 @@ func (c *Client) callGemini(
 	}
 	endpoint := fmt.Sprintf("%s/v1beta/models/%s:generateContent?key=%s", base, url.PathEscape(model), url.QueryEscape(c.cfg.GeminiAPIKey))
 	body := map[string]any{
-		"contents": []any{map[string]any{"parts": []any{map[string]any{"text": prompt}}}},
+		"contents":         []any{map[string]any{"parts": []any{map[string]any{"text": prompt}}}},
 		"generationConfig": map[string]any{"maxOutputTokens": setting.MaxOutputTokens},
 	}
 	var payload struct {
@@ -173,9 +173,9 @@ func (c *Client) callGemini(
 		return ai.ProviderCallResult{}, errors.New("provider_empty_response")
 	}
 	usage := ai.ProviderUsage{
-		InputTokens: payload.Usage.Prompt,
+		InputTokens:  payload.Usage.Prompt,
 		OutputTokens: payload.Usage.Output,
-		TotalTokens: payload.Usage.Total,
+		TotalTokens:  payload.Usage.Total,
 		CachedTokens: payload.Usage.Cached,
 	}
 	usage = normalizeUsage(usage, prompt, text)
@@ -197,10 +197,10 @@ func (c *Client) callOpenAICompatible(
 	}
 	apiKey := c.apiKey(setting.Provider)
 	body := map[string]any{
-		"model": model,
-		"messages": []any{map[string]any{"role": "user", "content": prompt}},
+		"model":       model,
+		"messages":    []any{map[string]any{"role": "user", "content": prompt}},
 		"temperature": 0.25,
-		"max_tokens": setting.MaxOutputTokens,
+		"max_tokens":  setting.MaxOutputTokens,
 	}
 	headers := map[string]string{"Authorization": "Bearer " + apiKey}
 	if setting.Provider == ai.ProviderOpenRouter {
@@ -213,9 +213,9 @@ func (c *Client) callOpenAICompatible(
 			} `json:"message"`
 		} `json:"choices"`
 		Usage struct {
-			Prompt int `json:"prompt_tokens"`
-			Output int `json:"completion_tokens"`
-			Total  int `json:"total_tokens"`
+			Prompt  int `json:"prompt_tokens"`
+			Output  int `json:"completion_tokens"`
+			Total   int `json:"total_tokens"`
 			Details struct {
 				Cached int `json:"cached_tokens"`
 			} `json:"prompt_tokens_details"`
@@ -229,9 +229,9 @@ func (c *Client) callOpenAICompatible(
 	}
 	text := strings.TrimSpace(payload.Choices[0].Message.Content)
 	usage := normalizeUsage(ai.ProviderUsage{
-		InputTokens: payload.Usage.Prompt,
+		InputTokens:  payload.Usage.Prompt,
 		OutputTokens: payload.Usage.Output,
-		TotalTokens: payload.Usage.Total,
+		TotalTokens:  payload.Usage.Total,
 		CachedTokens: payload.Usage.Details.Cached,
 	}, prompt, text)
 	return ai.ProviderCallResult{Text: text, Usage: usage, Model: model}, nil
@@ -251,14 +251,14 @@ func (c *Client) callOllama(
 		return ai.ProviderCallResult{}, errors.New("provider_not_configured")
 	}
 	var payload struct {
-		Response string `json:"response"`
-		PromptEvalCount int `json:"prompt_eval_count"`
-		EvalCount int `json:"eval_count"`
+		Response        string `json:"response"`
+		PromptEvalCount int    `json:"prompt_eval_count"`
+		EvalCount       int    `json:"eval_count"`
 	}
 	body := map[string]any{
-		"model": model,
-		"prompt": prompt,
-		"stream": false,
+		"model":   model,
+		"prompt":  prompt,
+		"stream":  false,
 		"options": map[string]any{"num_predict": setting.MaxOutputTokens},
 	}
 	if err := c.postJSON(ctx, base+"/api/generate", body, nil, &payload); err != nil {
@@ -269,9 +269,9 @@ func (c *Client) callOllama(
 		return ai.ProviderCallResult{}, errors.New("provider_empty_response")
 	}
 	usage := normalizeUsage(ai.ProviderUsage{
-		InputTokens: payload.PromptEvalCount,
+		InputTokens:  payload.PromptEvalCount,
 		OutputTokens: payload.EvalCount,
-		TotalTokens: payload.PromptEvalCount + payload.EvalCount,
+		TotalTokens:  payload.PromptEvalCount + payload.EvalCount,
 	}, prompt, text)
 	return ai.ProviderCallResult{Text: text, Usage: usage, Model: model}, nil
 }
@@ -302,10 +302,10 @@ func (c *Client) callLMStudio(
 		} `json:"usage"`
 	}
 	body := map[string]any{
-		"model": model,
-		"messages": []any{map[string]any{"role": "user", "content": prompt}},
+		"model":       model,
+		"messages":    []any{map[string]any{"role": "user", "content": prompt}},
 		"temperature": 0.25,
-		"max_tokens": setting.MaxOutputTokens,
+		"max_tokens":  setting.MaxOutputTokens,
 	}
 	if err := c.postJSON(ctx, base+"/chat/completions", body, nil, &payload); err != nil {
 		return ai.ProviderCallResult{}, err
@@ -315,9 +315,9 @@ func (c *Client) callLMStudio(
 	}
 	text := strings.TrimSpace(payload.Choices[0].Message.Content)
 	usage := normalizeUsage(ai.ProviderUsage{
-		InputTokens: payload.Usage.Prompt,
+		InputTokens:  payload.Usage.Prompt,
 		OutputTokens: payload.Usage.Output,
-		TotalTokens: payload.Usage.Total,
+		TotalTokens:  payload.Usage.Total,
 	}, prompt, text)
 	return ai.ProviderCallResult{Text: text, Usage: usage, Model: model}, nil
 }
@@ -391,10 +391,10 @@ func normalizeUsage(usage ai.ProviderUsage, prompt, text string) ai.ProviderUsag
 	input := maxInt(1, (len([]rune(prompt))+2)/3)
 	output := maxInt(1, (len([]rune(text))+2)/3)
 	return ai.ProviderUsage{
-		InputTokens: input,
+		InputTokens:  input,
 		OutputTokens: output,
-		TotalTokens: input + output,
-		Estimated: true,
+		TotalTokens:  input + output,
+		Estimated:    true,
 	}
 }
 
