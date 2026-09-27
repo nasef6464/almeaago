@@ -157,6 +157,10 @@ func Load() (Config, error) {
 	if err != nil || aiMaxOutputTokens < 64 || aiMaxOutputTokens > 2000 {
 		return Config{}, fmt.Errorf("AI_QUESTION_ASSISTANT_MAX_OUTPUT_TOKENS must be between 64 and 2000")
 	}
+	aiMaxOutputTokens, err := intValue("AI_QUESTION_ASSISTANT_MAX_OUTPUT_TOKENS", 450)
+	if err != nil || aiMaxOutputTokens < 64 || aiMaxOutputTokens > 2000 {
+		return Config{}, fmt.Errorf("AI_QUESTION_ASSISTANT_MAX_OUTPUT_TOKENS must be between 64 and 2000")
+	}
 	aiRetentionDays, err := intValue("AI_INTERACTION_RETENTION_DAYS", 30)
 	if err != nil || aiRetentionDays < 1 || aiRetentionDays > 365 {
 		return Config{}, fmt.Errorf("AI_INTERACTION_RETENTION_DAYS must be between 1 and 365")
