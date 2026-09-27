@@ -1,6 +1,6 @@
 # Smart Classroom / Realtime Audit
 
-Status: **IMPLEMENTED — CI REQUIRED BEFORE MERGE**
+Status: **TESTED / MERGED**
 
 ## Source-backed product contract
 The target blueprint assigns Realtime ownership of:
@@ -205,8 +205,14 @@ Not invented in this slice:
 
 These remain later policy/evidence work if required.
 
-## Required exact-head gates
-- Database: migration apply + classroom/contract schema/index/FK/immutable-trigger checks + full rollback + re-apply.
-- Backend: module lock + sqlc compile + gofmt + go vet + all tests, including contract gating, PIN hashing/expiry, roster join denial, answer secrecy and server scoring.
-- Frontend: TypeScript typecheck + production build.
-- Frontend E2E: platform contract control + teacher create/start/publish/reveal/finalize + student PIN/join/answer mobile journey plus the existing suite.
+## Verification checkpoint
+- PR #65 merged from exact tested head `a84c389a383991f3f53002bf1199825f95fca3b7`.
+- squash merge commit: `ac4310da776abe64762b3b1a46bfd413e1b8b56d`.
+- Database CI `36299477569`: PASS — all migrations applied; classroom/contract tables, indexes, foreign-key invariants and immutable report trigger verified; every migration rolled back and re-applied.
+- Backend CI `36299477645`: PASS — module lock, sqlc compile, gofmt, go vet and all Go tests.
+- Frontend CI `36299477556`: PASS — TypeScript typecheck + production build.
+- Frontend E2E `36299477576`: PASS — all 39 browser tests, including platform SchoolContract control, teacher create/start/publish/reveal/finalize and student PIN/join/answer mobile journeys.
+- browser evidence artifact `content-browser-evidence` id `10924508359`, digest `sha256:3fb9e6394a294e9cc76bd9f346abeb357d0f970de7b50d0bd8d9827b2eebf83a`.
+- early Backend runs exposed gofmt-only differences and a duplicate `Presentation` declaration; both were corrected without weakening behavior.
+- early browser runs exposed malformed URL-regex syntax and a literal `+` locator bug. Artifact evidence showed the question was rendered correctly, so the test locator was corrected rather than changing product behavior. The question-picker route mock was also aligned with the actual query family.
+- all four required gates then reran green on the exact final head.
