@@ -15,16 +15,16 @@ import (
 )
 
 type Config struct {
-	EmailProvider        string
-	EmailFrom            string
-	ResendAPIKey         string
-	EmailWebhookURL      string
-	EmailWebhookToken    string
-	WhatsAppProvider     string
-	WhatsAppAccessToken  string
+	EmailProvider         string
+	EmailFrom             string
+	ResendAPIKey          string
+	EmailWebhookURL       string
+	EmailWebhookToken     string
+	WhatsAppProvider      string
+	WhatsAppAccessToken   string
 	WhatsAppPhoneNumberID string
-	WhatsAppWebhookURL   string
-	WhatsAppWebhookToken string
+	WhatsAppWebhookURL    string
+	WhatsAppWebhookToken  string
 }
 
 type Sender struct {
@@ -34,7 +34,7 @@ type Sender struct {
 
 func New(cfg Config) *Sender {
 	return &Sender{
-		cfg: cfg,
+		cfg:    cfg,
 		client: &http.Client{Timeout: 15 * time.Second},
 	}
 }
@@ -85,10 +85,10 @@ func (s *Sender) sendEmail(
 			return failure("resend", "resend_not_configured")
 		}
 		body := map[string]any{
-			"from": s.cfg.EmailFrom,
-			"to": []string{payload.RecipientEmail},
+			"from":    s.cfg.EmailFrom,
+			"to":      []string{payload.RecipientEmail},
 			"subject": firstNonEmpty(payload.Subject, payload.Title),
-			"text": payload.Body,
+			"text":    payload.Body,
 		}
 		data, err := s.postJSON(ctx, "https://api.resend.com/emails", body, map[string]string{
 			"Authorization": "Bearer " + s.cfg.ResendAPIKey,
@@ -136,9 +136,9 @@ func (s *Sender) sendWhatsApp(
 		}
 		body := map[string]any{
 			"messaging_product": "whatsapp",
-			"to": payload.RecipientPhone,
-			"type": "text",
-			"text": map[string]any{"preview_url": false, "body": payload.Body},
+			"to":                payload.RecipientPhone,
+			"type":              "text",
+			"text":              map[string]any{"preview_url": false, "body": payload.Body},
 		}
 		url := "https://graph.facebook.com/v20.0/" + s.cfg.WhatsAppPhoneNumberID + "/messages"
 		data, err := s.postJSON(ctx, url, body, map[string]string{
