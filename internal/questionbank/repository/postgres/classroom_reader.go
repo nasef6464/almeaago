@@ -36,15 +36,15 @@ func (r *Repository) ClassroomList(
 	defer rows.Close()
 	out := question.ClassroomQuestionPage{
 		Items: []question.ClassroomQuestionSummary{},
-		Page: page,
+		Page:  page,
 		Limit: limit,
 	}
 	for rows.Next() {
 		var item question.ClassroomQuestionSummary
-		if err = rows.Scan(&item.ID,&item.Version,&item.QuestionType,&item.TextContent,&item.Difficulty); err != nil {
+		if err = rows.Scan(&item.ID, &item.Version, &item.QuestionType, &item.TextContent, &item.Difficulty); err != nil {
 			return out, err
 		}
-		out.Items = append(out.Items,item)
+		out.Items = append(out.Items, item)
 	}
 	if err = rows.Err(); err != nil {
 		return out, err
@@ -53,7 +53,7 @@ func (r *Repository) ClassroomList(
 		out.HasMore = true
 		out.Items = out.Items[:limit]
 	}
-	return out,nil
+	return out, nil
 }
 
 func (r *Repository) ClassroomBatch(
