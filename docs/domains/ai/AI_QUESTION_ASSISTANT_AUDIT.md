@@ -102,7 +102,7 @@ The source-backed Question Assistant levels implemented are:
 - `steps`.
 - `follow_up`.
 
-The React Review Practice flow exposes these progressively while keeping the canonical ReviewCard/Question boundaries.
+The React Review Library exposes these progressively on each canonical ReviewCard while keeping the canonical ReviewCard/Question boundaries.
 
 ## Cache and duplicate suppression
 The cache key is SHA-256 over:
@@ -160,7 +160,7 @@ It does not store full prompts, learner messages, or full generated response tex
 The UI cannot edit or reveal credentials.
 
 ## Learner UI
-Review Practice includes a responsive Question Assistant panel:
+Review Library includes a responsive Question Assistant panel:
 - one owned ReviewCard at a time.
 - progressive help buttons.
 - optional short follow-up.
