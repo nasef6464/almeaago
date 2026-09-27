@@ -11,6 +11,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
+import { QuestionAssistantPanel } from '../../ai/components/QuestionAssistantPanel';
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
 import type { TaxonomyCore } from '../../content/api/content-types';
@@ -498,6 +499,10 @@ export function ReviewLibraryPage() {
                     {item.question.solvingStrategy ? <p><strong>طريقة الحل:</strong> {item.question.solvingStrategy}</p> : null}
                   </div>
                 ) : null}
+
+                <div className="mt-4">
+                  <QuestionAssistantPanel reviewCardId={item.card.cardId} />
+                </div>
               </article>
             ))}
           </section>
