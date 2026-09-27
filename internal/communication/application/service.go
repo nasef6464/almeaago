@@ -24,6 +24,7 @@ const MaxCampaignRecipients = 500
 
 var templateKeyPattern = regexp.MustCompile("^[A-Za-z0-9_.-]{2,80}$")
 var variableNamePattern = regexp.MustCompile("^[A-Za-z0-9_.-]{1,80}$")
+var templateVariablePattern = regexp.MustCompile("\\{\\{\\s*([A-Za-z0-9_.-]+)\\s*\\}\\}")
 
 type Repository interface {
 	ListTemplates(context.Context, int, int) (communication.TemplatePage, error)
@@ -206,25 +207,29 @@ func render(source string, variables map[string]any) (string, error) {
 	if len(variables) > 100 {
 		return "", ErrInvalidInput
 	}
-	rendered := source
+	values := make(map[string]string, len(variables))
 	for key, value := range variables {
 		if !variableNamePattern.MatchString(key) {
 			return "", ErrInvalidInput
 		}
-		var replacement string
 		switch typed := value.(type) {
 		case nil:
-			replacement = ""
+			values[key] = ""
 		case string:
-			replacement = typed
+			values[key] = typed
 		case float64, bool:
-			replacement = fmt.Sprint(typed)
+			values[key] = fmt.Sprint(typed)
 		default:
 			return "", ErrInvalidInput
 		}
-		pattern := regexp.MustCompile("\\{\\{\\s*" + regexp.QuoteMeta(key) + "\\s*\\}\\}")
-		rendered = pattern.ReplaceAllString(rendered, replacement)
 	}
+	rendered := templateVariablePattern.ReplaceAllStringFunc(source, func(match string) string {
+		parts := templateVariablePattern.FindStringSubmatch(match)
+		if len(parts) != 2 {
+			return ""
+		}
+		return values[parts[1]]
+	})
 	return strings.TrimSpace(rendered), nil
 }
 
