@@ -1233,6 +1233,74 @@ paths:
         "403": { description: Platform admin and valid CSRF required }
         "413": { description: Resolved audience exceeds 500 recipients }
 
+  /api/v1/ai/admin/providers:
+    get:
+      operationId: aiAdminProviders
+      description: >
+        Platform-admin read of the AI fallback chain, model/token policy, circuit state and
+        whether each provider has server-side credentials/runtime configured. Secret values are
+        never returned to the browser.
+      responses:
+        "200": { description: Provider policy and health list }
+        "403": { description: Platform admin required }
+
+  /api/v1/ai/admin/providers/{provider}:
+    patch:
+      operationId: aiAdminProviderUpdate
+      description: >
+        Platform-admin + CSRF optimistic update of non-secret provider policy. External base URLs
+        are restricted to source-backed provider hosts; local Ollama/LM Studio endpoints remain
+        deployment-owned environment settings.
+      parameters:
+        - { in: path, name: provider, required: true, schema: { type: string, enum: [gemini, openrouter, qwen, deepseek, openai, ollama, lmstudio] } }
+      responses:
+        "200": { description: Updated provider policy }
+        "400": { description: Invalid model, priority, token bound or provider URL }
+        "403": { description: Platform admin and valid CSRF required }
+        "409": { description: Optimistic revision or priority conflict }
+
+  /api/v1/ai/admin/providers/{provider}/test:
+    post:
+      operationId: aiAdminProviderTest
+      description: >
+        Platform-admin + CSRF fixed health probe. Uses the configured server-side provider
+        credential/runtime, records usage/latency evidence and updates the circuit breaker.
+      parameters:
+        - { in: path, name: provider, required: true, schema: { type: string, enum: [gemini, openrouter, qwen, deepseek, openai, ollama, lmstudio] } }
+      responses:
+        "200": { description: Provider test response and token usage }
+        "403": { description: Platform admin and valid CSRF required }
+        "503": { description: Provider is not configured or test failed }
+
+  /api/v1/ai/admin/interactions:
+    get:
+      operationId: aiAdminInteractions
+      description: >
+        Platform-admin bounded AI observability ledger. Stores provider/model/status/latency/token
+        metadata and resource IDs but does not persist full prompts, learner messages or responses.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        "200": { description: Bounded AI interaction ledger }
+        "403": { description: Platform admin required }
+
+  /api/v1/ai/question-assistant:
+    post:
+      operationId: aiQuestionAssistant
+      description: >
+        Student-only + CSRF progressive helper for one learner-owned canonical ReviewCard. The
+        server resolves the exact Question Bank version and sends only bounded question/options,
+        trusted hint/strategy/explanation and the learner's short request. It never sends the
+        full Question Bank, full test or learner history. A deterministic trusted fallback is
+        returned if all enabled providers are unavailable. Identical requests are cached and
+        deduplicated; the response is advisory and does not mutate scoring/mastery truth.
+      responses:
+        "200": { description: Progressive question help with provider/fallback/cache metadata }
+        "400": { description: Invalid help level, card identifier or oversized learner message }
+        "403": { description: Student role and valid CSRF required }
+        "404": { description: ReviewCard/question context is not owned/available }
+
   /api/v1/school-contracts/{schoolId}:
     get:
       operationId: schoolContractGet

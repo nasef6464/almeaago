@@ -44,6 +44,22 @@ type Config struct {
 	WhatsAppWebhookToken          string
 
 	ClassroomPINSecret string
+
+	AIRequestTimeoutMS                 int
+	AIQuestionAssistantCacheMinutes    int
+	AIQuestionAssistantPerMinute       int
+	AIQuestionAssistantMaxOutputTokens int
+	AIInteractionRetentionDays         int
+
+	GeminiAPIKey     string
+	OpenRouterAPIKey string
+	QwenAPIKey       string
+	DeepSeekAPIKey   string
+	OpenAIAPIKey     string
+	OllamaBaseURL    string
+	OllamaModel      string
+	LMStudioBaseURL  string
+	LMStudioModel    string
 }
 
 func Load() (Config, error) {
@@ -81,6 +97,16 @@ func Load() (Config, error) {
 		WhatsAppWebhookToken:  os.Getenv("WHATSAPP_WEBHOOK_TOKEN"),
 
 		ClassroomPINSecret: os.Getenv("CLASSROOM_PIN_SECRET"),
+
+		GeminiAPIKey:     os.Getenv("GEMINI_API_KEY"),
+		OpenRouterAPIKey: os.Getenv("OPENROUTER_API_KEY"),
+		QwenAPIKey:       os.Getenv("QWEN_API_KEY"),
+		DeepSeekAPIKey:   os.Getenv("DEEPSEEK_API_KEY"),
+		OpenAIAPIKey:     os.Getenv("OPENAI_API_KEY"),
+		OllamaBaseURL:    value("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
+		OllamaModel:      value("OLLAMA_MODEL", "gemma3:4b"),
+		LMStudioBaseURL:  value("LMSTUDIO_BASE_URL", "http://127.0.0.1:1234/v1"),
+		LMStudioModel:    value("LMSTUDIO_MODEL", "local-model"),
 	}
 
 	if cfg.DatabaseURL == "" {
@@ -114,6 +140,32 @@ func Load() (Config, error) {
 	}
 	cfg.NotificationWorkerBatch = notificationBatch
 	cfg.NotificationWorkerPollSeconds = notificationPoll
+
+	aiTimeoutMS, err := intValue("AI_REQUEST_TIMEOUT_MS", 15000)
+	if err != nil || aiTimeoutMS < 1000 || aiTimeoutMS > 60000 {
+		return Config{}, fmt.Errorf("AI_REQUEST_TIMEOUT_MS must be between 1000 and 60000")
+	}
+	aiCacheMinutes, err := intValue("AI_QUESTION_ASSISTANT_CACHE_MINUTES", 30)
+	if err != nil || aiCacheMinutes < 1 || aiCacheMinutes > 1440 {
+		return Config{}, fmt.Errorf("AI_QUESTION_ASSISTANT_CACHE_MINUTES must be between 1 and 1440")
+	}
+	aiPerMinute, err := intValue("AI_QUESTION_ASSISTANT_PER_MINUTE", 8)
+	if err != nil || aiPerMinute < 1 || aiPerMinute > 60 {
+		return Config{}, fmt.Errorf("AI_QUESTION_ASSISTANT_PER_MINUTE must be between 1 and 60")
+	}
+	aiMaxOutputTokens, err := intValue("AI_QUESTION_ASSISTANT_MAX_OUTPUT_TOKENS", 450)
+	if err != nil || aiMaxOutputTokens < 64 || aiMaxOutputTokens > 2000 {
+		return Config{}, fmt.Errorf("AI_QUESTION_ASSISTANT_MAX_OUTPUT_TOKENS must be between 64 and 2000")
+	}
+	aiRetentionDays, err := intValue("AI_INTERACTION_RETENTION_DAYS", 30)
+	if err != nil || aiRetentionDays < 1 || aiRetentionDays > 365 {
+		return Config{}, fmt.Errorf("AI_INTERACTION_RETENTION_DAYS must be between 1 and 365")
+	}
+	cfg.AIRequestTimeoutMS = aiTimeoutMS
+	cfg.AIQuestionAssistantCacheMinutes = aiCacheMinutes
+	cfg.AIQuestionAssistantPerMinute = aiPerMinute
+	cfg.AIQuestionAssistantMaxOutputTokens = aiMaxOutputTokens
+	cfg.AIInteractionRetentionDays = aiRetentionDays
 
 	return cfg, nil
 }

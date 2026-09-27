@@ -156,6 +156,16 @@ jobs:
           check "select exists(select 1 from pg_trigger where tgname='classroom_report_snapshots_immutable' and not tgisinternal)"
           check "select exists(select 1 from pg_constraint where conname='classroom_sessions_active_question_fkey')"
           check "select exists(select 1 from pg_constraint where conname='classroom_sessions_active_batch_fkey')"
+          check "select to_regclass('public.ai_provider_settings') is not null"
+          check "select to_regclass('public.ai_provider_health') is not null"
+          check "select to_regclass('public.ai_interactions') is not null"
+          check "select to_regclass('public.ai_question_assist_cache') is not null"
+          check "select exists(select 1 from pg_indexes where tablename='ai_provider_settings' and indexname='ai_provider_settings_enabled_priority_idx')"
+          check "select exists(select 1 from pg_indexes where tablename='ai_interactions' and indexname='ai_interactions_provider_status_idx')"
+          check "select exists(select 1 from pg_indexes where tablename='ai_question_assist_cache' and indexname='ai_question_assist_cache_expiry_idx')"
+          check "select count(*)=7 from ai_provider_settings"
+          check "select exists(select 1 from pg_constraint where conname='ai_provider_settings_provider_check')"
+          check "select exists(select 1 from pg_constraint where conname='ai_question_assist_cache_help_level_check')"
 
       - name: Roll back every migration
         shell: bash

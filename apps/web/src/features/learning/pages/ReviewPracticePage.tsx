@@ -8,6 +8,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
+import { QuestionAssistantPanel } from '../../ai/components/QuestionAssistantPanel';
 import { useAuth } from '../../auth/state/AuthProvider';
 import {
   learningClient,
@@ -235,6 +236,8 @@ export function ReviewPracticePage() {
             </div>
           ) : null}
         </section>
+
+        <QuestionAssistantPanel key={current.card.cardId} reviewCardId={current.card.cardId} />
 
         <footer className="flex justify-end">
           {result ? (

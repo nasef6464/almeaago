@@ -11,6 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	aiapp "github.com/nasef6464/almeaago/internal/ai/application"
+	aiprovider "github.com/nasef6464/almeaago/internal/ai/provider"
+	airepo "github.com/nasef6464/almeaago/internal/ai/repository/postgres"
+	aihttp "github.com/nasef6464/almeaago/internal/ai/transport/http"
 	assessmentapp "github.com/nasef6464/almeaago/internal/assessment/application"
 	assessmentrepo "github.com/nasef6464/almeaago/internal/assessment/repository/postgres"
 	assessmenthttp "github.com/nasef6464/almeaago/internal/assessment/transport/http"
@@ -146,6 +150,26 @@ func main() {
 		cfg.ClassroomPINSecret,
 	)
 	learningRepository := learningrepo.New(db, auditWriter)
+	aiRepository := airepo.New(db, auditWriter)
+	aiProvider := aiprovider.New(aiprovider.Config{
+		Timeout:          time.Duration(cfg.AIRequestTimeoutMS) * time.Millisecond,
+		GeminiAPIKey:     cfg.GeminiAPIKey,
+		OpenRouterAPIKey: cfg.OpenRouterAPIKey,
+		QwenAPIKey:       cfg.QwenAPIKey,
+		DeepSeekAPIKey:   cfg.DeepSeekAPIKey,
+		OpenAIAPIKey:     cfg.OpenAIAPIKey,
+		OllamaBaseURL:    cfg.OllamaBaseURL,
+		OllamaModel:      cfg.OllamaModel,
+		LMStudioBaseURL:  cfg.LMStudioBaseURL,
+		LMStudioModel:    cfg.LMStudioModel,
+	})
+	aiService := aiapp.NewService(aiRepository, learningRepository, questionRepository, aiProvider, aiapp.Config{
+		CacheTTL:        time.Duration(cfg.AIQuestionAssistantCacheMinutes) * time.Minute,
+		InteractionTTL:  time.Duration(cfg.AIInteractionRetentionDays) * 24 * time.Hour,
+		CircuitOpenFor:  time.Minute,
+		PerMinuteLimit:  cfg.AIQuestionAssistantPerMinute,
+		MaxOutputTokens: cfg.AIQuestionAssistantMaxOutputTokens,
+	})
 	learningService := learningapp.NewService(learningRepository, questionService)
 	masteryGoalService := learningapp.NewMasteryGoalService(learningRepository, taxonomyRepository)
 	lessonProgressService := learningapp.NewLessonProgressService(learningRepository, contentRepository)
@@ -198,6 +222,7 @@ func main() {
 	studyPlansHandler := learninghttp.NewStudyPlans(studyPlanService, identityService)
 	interventionsHandler := learninghttp.NewInterventions(interventionService, identityService)
 	communicationHandler := communicationhttp.New(communicationService, identityService)
+	aiHandler := aihttp.New(aiService, identityService)
 	commerceHandler := commercehttp.NewWithProviderSecrets(
 		commerceService,
 		checkoutService,
@@ -271,6 +296,7 @@ func main() {
 		StudyPlans:               studyPlansHandler,
 		Interventions:            interventionsHandler,
 		Notifications:            communicationHandler,
+		AI:                       aiHandler,
 		Commerce:                 commerceHandler,
 		LegacySchoolAccess:       legacySchoolAccessHandler,
 	})
