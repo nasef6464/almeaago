@@ -11,13 +11,13 @@ import (
 )
 
 type repoStub struct {
-	template       communication.Template
-	templateWrite  communication.TemplateWrite
-	campaign       communication.CampaignCommand
-	campaignCalls  int
-	inboxUser      string
-	deliveries     communication.DeliveryPage
-	templates      communication.TemplatePage
+	template        communication.Template
+	templateWrite   communication.TemplateWrite
+	campaign        communication.CampaignCommand
+	campaignCalls   int
+	inboxUser       string
+	deliveries      communication.DeliveryPage
+	templates       communication.TemplatePage
 	adminDeliveries communication.DeliveryPage
 }
 
