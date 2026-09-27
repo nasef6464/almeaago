@@ -413,3 +413,21 @@ func (r *Repository) ListInteractions(
 	}
 	return out, nil
 }
+
+
+func (r *Repository) CountQuestionAssistSince(
+	ctx context.Context,
+	userID string,
+	since time.Time,
+) (int, error) {
+	var count int
+	err := r.db.QueryRow(ctx, `
+		SELECT count(*)::int
+		FROM ai_interactions
+		WHERE user_id=$1::uuid
+		  AND capability='question_tutor'
+		  AND cache_hit=false
+		  AND created_at >= $2
+	`, userID, since).Scan(&count)
+	return count, err
+}
