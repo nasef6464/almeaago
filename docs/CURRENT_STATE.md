@@ -224,7 +224,7 @@ The structural Organizations foundation is now green for:
 Commercial school contracts/modules/entitlements are not moved into Organizations. Contract module truth is projected read-only where the school workspace needs to evaluate delegated capabilities; other entitlement/access state remains with its owner domains.
 
 ## Organizations / Schools / Classes integrated parity certification — TESTED
-PR #70 closes the current repository-internal Organizations parity batch.
+PR #70 closed the current repository-internal Organizations parity batch and was squash-merged to `main` as `b7a9ae7a7844e187efec714fcec43b382a6ffa2f`.
 
 Implemented/verified in this batch:
 - `/school-director-dashboard` is a real responsive school-admin workspace instead of a placeholder.
@@ -238,17 +238,17 @@ Implemented/verified in this batch:
 - the UI uses the same permission + module pairing before rendering those optional tools.
 - Reporting, Assessment, Realtime and Learning operations remain in their owner domains and are not copied into Organizations.
 
-First integrated certification head `6048bd10513d025bef336c6c052d2752904bc87d` passed all four gates:
-- Database CI `36311795047`.
-- Backend CI `36311794976`.
-- Frontend CI `36311795033`.
-- Frontend E2E `36311795015`: 54/54 tests.
-- browser evidence artifact `10929725060`, digest `sha256:209817f3ff2506e0fa4cab74b97889418d8eea80d8c7592cf8d4dc8ddb08e621`.
+Final documentation-inclusive head `bfe1cdab22d476080706e0a7ce5884590b05ecda` passed all four gates:
+- Database CI `36311953531`.
+- Backend CI `36311953495`.
+- Frontend CI `36311953492`.
+- Frontend E2E `36311953491`: 54/54 tests.
+- browser evidence artifact `10929288587`, digest `sha256:9b4b24e6ace8a78a5e8495907fc937d88ff8c5a683abd3292bc6639c9bfc1fca`.
 
 Release boundary:
 - Organizations remains `TESTED`, not `PARITY_PROVEN`.
 - deterministic V2 desktop/mobile director screenshots now exist, but direct legacy-runtime side-by-side visual comparison remains external evidence.
-- the final documentation-inclusive PR head must pass the same four gates before merge.
+- PR #70 is merged; the next parity batch starts only from current `main`.
 
 ## Taxonomy Foundation — TESTED / MERGED
 Schema normalization PR #17 passed exact-head Database CI and merged as `968f545727c4bfcbaacd8b2a75fdd951ee65aae1`.
