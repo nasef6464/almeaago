@@ -8,6 +8,7 @@ import {
   Moon,
   Search,
   Settings,
+  Radio,
   ShoppingCart,
   Users,
   X,
@@ -31,6 +32,7 @@ const navItems = [
   { label: 'التجارة والصلاحيات', icon: ShoppingCart, href: '/admin-dashboard/commerce' },
   { label: 'إدارة المستخدمين', icon: Users },
   { label: 'مركز الإشعارات', icon: Bell, href: '/admin-dashboard/notifications' },
+  { label: 'الفصل الذكي', icon: Radio, href: '/admin-dashboard/classroom' },
   { label: 'الإعدادات', icon: Settings },
 ];
 
