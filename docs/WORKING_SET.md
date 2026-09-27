@@ -6,32 +6,37 @@ Cross-domain parity / release certification.
 ## Foundation gate
 GREEN.
 
-## Completed certification checkpoint
-Identity/Auth internal parity — **TESTED** in PR #69.
+## Completed certification checkpoints
+- Identity/Auth internal parity — **TESTED** in PR #69.
+- Organizations / Schools / Classes internal parity — **TESTED** in PR #70.
 
-Evidence in this checkpoint:
-- integrated desktop/mobile Auth browser journeys.
-- deterministic V2 Auth screenshots.
-- Backend + Database + Frontend + Frontend E2E exact-head gates.
-- external Google/WhatsApp live proof and direct legacy-runtime screenshot comparison remain explicit external evidence; they are not treated as CI passes.
+Organizations evidence in the current checkpoint:
+- real responsive school-director workspace.
+- bounded student/class/teacher delegated operations.
+- exact-school context isolation and explicit no-delegation state.
+- active contract modules projected into canonical school context.
+- optional Organizations-owned delegated tools dual-gated by permission + `SCHOOL_CORE`.
+- deterministic director desktop/mobile screenshots.
+- Database + Backend + Frontend + Frontend E2E exact-head gates.
+- direct legacy-runtime side-by-side screenshot comparison remains external visual evidence and is not treated as a CI pass.
 
 ## Next allowed code areas
-Organizations / Schools / Classes parity only, plus narrowly required shared test/documentation files:
-- internal/organizations/**
-- Organizations-owned migrations / queries when an actual gap is proven
-- apps/web Organizations/director/teacher-workspace surfaces required by the parity audit
-- targeted Organizations E2E/visual evidence
-- docs/domains/organizations/**
+Taxonomy parity only, plus narrowly required shared test/documentation files:
+- internal/taxonomy/**
+- Taxonomy-owned migrations / queries when an actual gap is proven
+- apps/web Taxonomy/admin surfaces required by the parity audit
+- targeted Taxonomy E2E/visual evidence
+- docs/domains/taxonomy/**
 - docs/CURRENT_STATE.md
 - docs/PARITY_MATRIX.md
 - docs/WORKING_SET.md
 
 ## Guardrails
-- Start Organizations parity from current `main` at/after Identity merge `274361cc4141567cab51686c246778a1b4e5b0e2`.
+- Start Taxonomy parity from current `main` only after PR #70 merges.
 - `nasef6464/almeaacodax` remains read-only behavioral/visual reference.
-- Do not invent business rules to convert UNKNOWN/external evidence into a pass.
-- Preserve owner-domain boundaries; Identity does not regain Organizations relationship ownership.
+- Do not invent taxonomy levels/hierarchies or business rules absent from source evidence.
+- Preserve owner-domain boundaries; Content/Question Bank/Assessment consume Taxonomy IDs but do not own Taxonomy hierarchy truth.
 - No production go-live claim from CI alone.
 
 ## Next exact action
-Audit Organizations / Schools / Classes against the parity matrix and legacy observable workflows, select the first bounded internal gap, implement only source-backed corrections, then require Database + Backend + Frontend + E2E on the exact documentation-inclusive head before merge.
+Audit Taxonomy against the parity matrix and legacy observable admin/bootstrap workflows, select the first bounded internal gap, implement only source-backed corrections, then require Database + Backend + Frontend + E2E on the exact documentation-inclusive head before merge.

@@ -83,6 +83,7 @@ type SchoolContext struct {
 	SchoolName  string
 	Role        identity.Role
 	Permissions []string
+	Modules     []string
 	Source      string
 }
 

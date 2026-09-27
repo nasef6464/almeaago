@@ -11,6 +11,7 @@ type schoolContextResponse struct {
 	SchoolName  string   `json:"schoolName"`
 	Role        string   `json:"role"`
 	Permissions []string `json:"permissions"`
+	Modules     []string `json:"modules"`
 	Source      string   `json:"source"`
 }
 
@@ -36,11 +37,16 @@ func presentSchoolContext(context orgdomain.SchoolContext) schoolContextResponse
 	if permissions == nil {
 		permissions = []string{}
 	}
+	modules := context.Modules
+	if modules == nil {
+		modules = []string{}
+	}
 	return schoolContextResponse{
 		SchoolID:    context.SchoolID,
 		SchoolName:  context.SchoolName,
 		Role:        string(context.Role),
 		Permissions: permissions,
+		Modules:     modules,
 		Source:      context.Source,
 	}
 }

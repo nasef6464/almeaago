@@ -39,6 +39,7 @@ import { ClassroomContractsAdminPage } from '../features/classroom/pages/Classro
 import { AiAdminPage } from '../features/ai/pages/AiAdminPage';
 import { ReportsPage } from '../features/reporting/pages/ReportsPage';
 import { OperationsAdminPage } from '../features/operations/pages/OperationsAdminPage';
+import { SchoolDirectorDashboardPage } from '../features/organizations/pages/SchoolDirectorDashboardPage';
 
 type ModalMode = 'login' | 'signup' | null;
 
@@ -206,7 +207,7 @@ export function App() {
         <Route path="/classroom/:sessionId/projector" element={<ClassroomProjectorPage />} />
         <Route path="/supervisor-dashboard" element={<PlaceholderPage title="لوحة المشرف" />} />
         <Route path="/supervisor-dashboard/interventions" element={<SchoolInterventionsPage />} />
-        <Route path="/school-director-dashboard" element={<PlaceholderPage title="لوحة مدير المدرسة" />} />
+        <Route path="/school-director-dashboard" element={<SchoolDirectorDashboardPage />} />
         <Route path="/school-director-dashboard/interventions" element={<SchoolInterventionsPage />} />
         <Route path="/parent-dashboard" element={<ParentDashboardPage />} />
         <Route path="*" element={<PlaceholderPage title="الصفحة قيد النقل" />} />
