@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	question "github.com/nasef6464/almeaago/internal/questionbank/domain"
@@ -70,6 +71,38 @@ func (r *ClassroomReader) ResolveOne(
 		return question.ClassroomQuestion{}, err
 	}
 	return rows[0], nil
+}
+
+
+func (r *ClassroomReader) ResolveRefs(
+	ctx context.Context,
+	refs []question.ReviewRef,
+) ([]question.ClassroomQuestion, error) {
+	if len(refs) == 0 {
+		return []question.ClassroomQuestion{}, nil
+	}
+	if len(refs) > 50 {
+		return nil, ErrInvalidInput
+	}
+	seen := make(map[string]struct{}, len(refs))
+	normalized := make([]question.ReviewRef, 0, len(refs))
+	for _, ref := range refs {
+		ref.QuestionID = strings.TrimSpace(ref.QuestionID)
+		if !validUUID(ref.QuestionID) || ref.Version < 1 {
+			return nil, ErrInvalidInput
+		}
+		key := ref.QuestionID + ":" + fmt.Sprint(ref.Version)
+		if _, exists := seen[key]; exists {
+			return nil, ErrInvalidInput
+		}
+		seen[key] = struct{}{}
+		normalized = append(normalized, ref)
+	}
+	rows, err := r.repo.ClassroomBatchByRefs(ctx, normalized)
+	if err != nil {
+		return nil, err
+	}
+	return validateClassroomRows(rows, len(normalized))
 }
 
 func validateClassroomRows(rows []question.ClassroomQuestion, expected int) ([]question.ClassroomQuestion, error) {
