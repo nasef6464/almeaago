@@ -221,7 +221,34 @@ The structural Organizations foundation is now green for:
 - canonical parent/student authority.
 - archive/revocation behavior and supporting read indexes.
 
-Commercial school contracts/modules/entitlements are not moved into Organizations. Commerce owns entitlement/access state and will integrate through explicit contracts.
+Commercial school contracts/modules/entitlements are not moved into Organizations. Contract module truth is projected read-only where the school workspace needs to evaluate delegated capabilities; other entitlement/access state remains with its owner domains.
+
+## Organizations / Schools / Classes integrated parity certification — TESTED
+PR #70 closes the current repository-internal Organizations parity batch.
+
+Implemented/verified in this batch:
+- `/school-director-dashboard` is a real responsive school-admin workspace instead of a placeholder.
+- only active `school_admin` school contexts enter the director selector.
+- the no-delegated-school state is explicit.
+- bounded student search/list, add, idempotent same-school class move, basic edit and reversible activate/deactivate flows are wired to the existing server-authoritative APIs.
+- class create/rename and teacher assignment are exposed only for the exact delegated school.
+- no student hard-delete operation is exposed.
+- active valid school-contract modules are projected into canonical school context.
+- `SCHOOL_STUDENTS_UPDATE_BASIC`, `SCHOOL_STUDENTS_DEACTIVATE`, `SCHOOL_CLASSES_MANAGE` and `SCHOOL_TEACHERS_ASSIGN` require the explicit permission plus active `SCHOOL_CORE` when resolved through Organizations permission authority.
+- the UI uses the same permission + module pairing before rendering those optional tools.
+- Reporting, Assessment, Realtime and Learning operations remain in their owner domains and are not copied into Organizations.
+
+First integrated certification head `6048bd10513d025bef336c6c052d2752904bc87d` passed all four gates:
+- Database CI `36311795047`.
+- Backend CI `36311794976`.
+- Frontend CI `36311795033`.
+- Frontend E2E `36311795015`: 54/54 tests.
+- browser evidence artifact `10929725060`, digest `sha256:209817f3ff2506e0fa4cab74b97889418d8eea80d8c7592cf8d4dc8ddb08e621`.
+
+Release boundary:
+- Organizations remains `TESTED`, not `PARITY_PROVEN`.
+- deterministic V2 desktop/mobile director screenshots now exist, but direct legacy-runtime side-by-side visual comparison remains external evidence.
+- the final documentation-inclusive PR head must pass the same four gates before merge.
 
 ## Taxonomy Foundation — TESTED / MERGED
 Schema normalization PR #17 passed exact-head Database CI and merged as `968f545727c4bfcbaacd8b2a75fdd951ee65aae1`.
@@ -1188,4 +1215,4 @@ The source-backed implementation order through **Commerce -> Parents -> Communic
 This is **not** equivalent to `PARITY_PROVEN` or production go-live approval. The matrix still records unresolved parity/release evidence, including Identity/provider live proof and visual parity gaps, production load/bandwidth evidence, dated backup/restore proof, exact retention/anonymization policy, external provider credentials/callback proof, observability/rollback/deployment identity proof and several explicitly UNKNOWN business-policy items. Those must stay visible rather than being converted into speculative implementation.
 
 ## Next exact action
-After Identity/Auth certification merges, continue cross-domain parity from Organizations / Schools / Classes. Reconcile its functional, authorization, data, visual/E2E and external-proof requirements on current `main`; close only source-backed internal gaps and keep any credential, production-load, backup/restore, legal-retention or owner-policy dependency explicit.
+After Organizations certification merges, continue cross-domain parity from Taxonomy. Reconcile its functional, authorization, data, visual/E2E and external-proof requirements on current `main`; close only source-backed internal gaps and keep any production/external evidence explicit.
