@@ -43,6 +43,8 @@ type Dependencies struct {
 	StudyPlans               http.Handler
 	Interventions            http.Handler
 	Notifications            http.Handler
+	Reports                  http.Handler
+	Operations               http.Handler
 	AI                       http.Handler
 	Commerce                 http.Handler
 	LegacySchoolAccess       http.Handler
@@ -155,6 +157,12 @@ func New(addr string, deps Dependencies) *http.Server {
 	}
 	if deps.Notifications != nil {
 		router.Mount("/api/v1/notifications", deps.Notifications)
+	}
+	if deps.Reports != nil {
+		router.Mount("/api/v1/reports", deps.Reports)
+	}
+	if deps.Operations != nil {
+		router.Mount("/api/v1/operations", deps.Operations)
 	}
 	if deps.AI != nil {
 		router.Mount("/api/v1/ai", deps.AI)
