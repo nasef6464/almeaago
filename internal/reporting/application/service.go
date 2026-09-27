@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	ErrForbidden    = errors.New("reporting operation forbidden")
+	ErrForbidden    = reporting.ErrForbidden
 	ErrInvalidInput = errors.New("invalid reporting request")
 	ErrTooLarge     = errors.New("reporting export too large")
 )
