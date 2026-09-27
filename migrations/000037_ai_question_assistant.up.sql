@@ -43,7 +43,7 @@ CREATE TABLE ai_interactions (
     CHECK (audience IN ('student','admin','teacher','supervisor','school_admin','parent','guest','system')),
   endpoint text NOT NULL DEFAULT '' CHECK (char_length(endpoint) <= 160),
   capability text NOT NULL
-    CHECK (capability IN ('question_tutor','provider_test','admin_status')),
+    CHECK (capability IN ('question_tutor','provider_health','admin_status')),
   provider text NOT NULL DEFAULT 'none'
     CHECK (provider IN ('gemini','openrouter','qwen','deepseek','openai','ollama','lmstudio','none')),
   model text NOT NULL DEFAULT '' CHECK (char_length(model) <= 200),
