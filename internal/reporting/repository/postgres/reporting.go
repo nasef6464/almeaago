@@ -387,7 +387,7 @@ func resultScopeClause(scope reporting.ResolvedScope, query reporting.Query, sta
 		clauses = append(clauses, `EXISTS(
 			SELECT 1
 			FROM school_memberships report_sm
-			WHERE report_sm.school_id=` + school + `::uuid
+			WHERE report_sm.school_id=`+school+`::uuid
 			  AND report_sm.user_id=a.student_id
 			  AND report_sm.role='student'
 			  AND report_sm.status='active'
@@ -398,21 +398,21 @@ func resultScopeClause(scope reporting.ResolvedScope, query reporting.Query, sta
 				SELECT 1 FROM class_memberships report_cm
 				JOIN classes report_c
 				  ON report_c.id=report_cm.class_id
-				 AND report_c.school_id=` + school + `::uuid
+				 AND report_c.school_id=`+school+`::uuid
 				 AND report_c.status='active'
 				WHERE report_cm.user_id=a.student_id
-				  AND report_cm.class_id=` + classParam + `::uuid
+				  AND report_cm.class_id=`+classParam+`::uuid
 				  AND report_cm.status='active'
 			)`)
 			clauses = append(clauses, `(
 				(a.assignment_id IS NOT NULL AND EXISTS(
 					SELECT 1 FROM assessment_assignment_classes aac
-					WHERE aac.assignment_id=a.assignment_id AND aac.class_id=` + classParam + `::uuid
+					WHERE aac.assignment_id=a.assignment_id AND aac.class_id=`+classParam+`::uuid
 				))
 				OR
 				(a.session_id IS NOT NULL AND EXISTS(
 					SELECT 1 FROM assessment_sessions ase
-					WHERE ase.id=a.session_id AND ase.class_id=` + classParam + `::uuid
+					WHERE ase.id=a.session_id AND ase.class_id=`+classParam+`::uuid
 				))
 			)`)
 		}
@@ -421,8 +421,8 @@ func resultScopeClause(scope reporting.ResolvedScope, query reporting.Query, sta
 			clauses = append(clauses, `EXISTS(
 				SELECT 1
 				FROM teaching_assignments ta
-				WHERE ta.teacher_id=` + actor + `::uuid
-				  AND ta.school_id=` + school + `::uuid
+				WHERE ta.teacher_id=`+actor+`::uuid
+				  AND ta.school_id=`+school+`::uuid
 				  AND ta.status='active'
 				  AND (ta.subject_id IS NULL OR ta.subject_id=v.subject_id)
 				  AND (
