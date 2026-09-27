@@ -152,20 +152,20 @@ func main() {
 	learningRepository := learningrepo.New(db, auditWriter)
 	aiRepository := airepo.New(db, auditWriter)
 	aiProvider := aiprovider.New(aiprovider.Config{
-		Timeout:              time.Duration(cfg.AIRequestTimeoutMS) * time.Millisecond,
-		GeminiAPIKey:         cfg.GeminiAPIKey,
-		OpenRouterAPIKey:     cfg.OpenRouterAPIKey,
-		QwenAPIKey:           cfg.QwenAPIKey,
-		DeepSeekAPIKey:       cfg.DeepSeekAPIKey,
-		OpenAIAPIKey:         cfg.OpenAIAPIKey,
-		OllamaBaseURL:        cfg.OllamaBaseURL,
-		OllamaModel:          cfg.OllamaModel,
-		LMStudioBaseURL:      cfg.LMStudioBaseURL,
-		LMStudioModel:        cfg.LMStudioModel,
+		Timeout:          time.Duration(cfg.AIRequestTimeoutMS) * time.Millisecond,
+		GeminiAPIKey:     cfg.GeminiAPIKey,
+		OpenRouterAPIKey: cfg.OpenRouterAPIKey,
+		QwenAPIKey:       cfg.QwenAPIKey,
+		DeepSeekAPIKey:   cfg.DeepSeekAPIKey,
+		OpenAIAPIKey:     cfg.OpenAIAPIKey,
+		OllamaBaseURL:    cfg.OllamaBaseURL,
+		OllamaModel:      cfg.OllamaModel,
+		LMStudioBaseURL:  cfg.LMStudioBaseURL,
+		LMStudioModel:    cfg.LMStudioModel,
 	})
 	aiService := aiapp.NewService(aiRepository, learningRepository, questionRepository, aiProvider, aiapp.Config{
-		CacheTTL:       time.Duration(cfg.AIQuestionAssistantCacheMinutes) * time.Minute,
-		InteractionTTL: time.Duration(cfg.AIInteractionRetentionDays) * 24 * time.Hour,
+		CacheTTL:        time.Duration(cfg.AIQuestionAssistantCacheMinutes) * time.Minute,
+		InteractionTTL:  time.Duration(cfg.AIInteractionRetentionDays) * 24 * time.Hour,
 		CircuitOpenFor:  time.Minute,
 		PerMinuteLimit:  cfg.AIQuestionAssistantPerMinute,
 		MaxOutputTokens: cfg.AIQuestionAssistantMaxOutputTokens,
