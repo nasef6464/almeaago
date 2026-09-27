@@ -47,7 +47,7 @@ func mapError(err error) error {
 
 func scanSetting(row scanner) (ai.ProviderSetting, error) {
 	var out ai.ProviderSetting
-	var healthProvider *ai.Provider
+	var healthProvider *string
 	var failures *int
 	var lastError *string
 	var healthUpdatedAt *time.Time
@@ -74,7 +74,7 @@ func scanSetting(row scanner) (ai.ProviderSetting, error) {
 	}
 	out.Health.Provider = out.Provider
 	if healthProvider != nil {
-		out.Health.Provider = *healthProvider
+		out.Health.Provider = ai.Provider(*healthProvider)
 	}
 	if failures != nil {
 		out.Health.ConsecutiveFailures = *failures
