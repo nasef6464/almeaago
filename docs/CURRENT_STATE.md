@@ -283,7 +283,7 @@ Implemented:
 The structural Taxonomy foundation is green for normalized persistence, bounded public bootstrap reads, stable hierarchy identity, and lifecycle-safe admin mutation contracts. Content and Question Bank may now depend on Taxonomy IDs through explicit boundaries.
 
 ## Taxonomy integrated parity certification — TESTED
-PR #71 closes the current repository-internal Taxonomy parity batch without reintroducing legacy ownership that the target model intentionally normalized away.
+PR #71 closed the current repository-internal Taxonomy parity batch without reintroducing legacy ownership that the target model intentionally normalized away, and was squash-merged to `main` as `7dd71d75043e39304d340607f84246e7a0b4d525`.
 
 Implemented/verified in this batch:
 - `GET /api/v1/taxonomy/admin/bootstrap` gives platform admin a private/no-store lifecycle view including active, inactive and archived paths, levels, subjects and skills.
@@ -298,17 +298,17 @@ Implemented/verified in this batch:
 - the teacher persona does not issue the admin bootstrap request, while server authorization independently fails closed.
 - Database CI now asserts the lifecycle/hierarchy constraints and hot indexes used by the normalized model.
 
-First integrated certification head `efb3290b4f062921a2be2d12f0f7b55bc8338362` passed all four gates:
-- Database CI `36312944722`.
-- Backend CI `36312944713`.
-- Frontend CI `36312944712`.
-- Frontend E2E `36312944720`: 57/57 tests.
-- browser evidence artifact `10928894128`, digest `sha256:15166c4bacc9da83b4240ecb313c0fac4812145d937b9b1915ddb5b6a522ee8c`.
+Final documentation-inclusive head `16e46b0cad521cde40be1228e8bb9be223b8c780` passed all four gates:
+- Database CI `36313203873`.
+- Backend CI `36313203900`.
+- Frontend CI `36313203904`.
+- Frontend E2E `36313203918`: 57/57 tests.
+- browser evidence artifact `10929796659`, digest `sha256:b3b67ea515622b840f1393ac8dfad98af5abccf667d975671ae736499286238c`.
 
 Release boundary:
 - Taxonomy remains `TESTED`, not `PARITY_PROVEN`.
 - deterministic V2 desktop/mobile Taxonomy admin screenshots exist, but direct legacy-runtime side-by-side visual comparison remains external evidence.
-- the final documentation-inclusive PR head must pass the same four gates before merge.
+- PR #71 is merged; the next parity batch starts only from current `main`.
 
 ## Question Bank Foundation Schema — TESTED / MERGED
 PR #22 passed exact-head Database CI and merged as `f93b3e21c66a22c2a4f7d9b19bc81a13c7f53525`.
