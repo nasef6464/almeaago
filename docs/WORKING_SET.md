@@ -50,3 +50,6 @@ Foundation learning / Content parity only, plus narrowly required shared test/do
 
 ## Completed certification checkpoint
 Foundation learning / Content integrated parity — **TESTED / MERGED** in PR #74. Final exact head `ddf8961c606b8f9d3184997cc655f6be2cf3bae5` passed Frontend CI `36371378688` and Frontend E2E `36371378748` (62/62), artifact `10949426615`; squash merge `2596e564854edf41e296998b0b641161d1d60a16`. Backend/database contracts were unchanged by this UI certification slice.
+
+## Active certification batch
+Assessment integrated parity certification is in progress: the missing learner Directed Assignment entry surface now consumes only the server-scoped `assessment-assignments/mine` projection and enters the canonical Attempt runner. Exact-head CI/evidence and final legacy delta re-check remain required before merge.
