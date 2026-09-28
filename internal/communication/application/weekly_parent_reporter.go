@@ -126,13 +126,12 @@ func (r *WeeklyParentReporter) send(
 	if err != nil {
 		return communication.CampaignResult{}, err
 	}
-	if !out.Reused && r.communication.realtime != nil {
-		_ = r.communication.realtime.Publish(ctx, communication.InboxEvent{
-			Type:       "refresh",
-			UserID:     recipient.ID,
-			CampaignID: out.CampaignID,
-			At:         time.Now().UTC(),
-		})
+	if !out.Reused {
+		r.communication.publishInboxRefreshes(
+			ctx,
+			out.CampaignID,
+			[]identity.NotificationRecipient{recipient},
+		)
 	}
 	return out, nil
 }
