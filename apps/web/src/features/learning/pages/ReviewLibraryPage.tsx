@@ -19,6 +19,7 @@ import {
   learningClient,
   type MasteryGoal,
   type MasteryGoalHorizon,
+  type MasteryReadiness,
   type ReviewItem,
   type ReviewTab,
   type SkillProgress,
@@ -60,6 +61,7 @@ export function ReviewLibraryPage() {
   const [hasMore, setHasMore] = useState(false);
   const [nextAction, setNextAction] = useState<SkillProgress | null>(null);
   const [progress, setProgress] = useState<SkillProgress[]>([]);
+  const [readiness,setReadiness]=useState<MasteryReadiness|null>(null);
   const [goals, setGoals] = useState<MasteryGoal[]>([]);
   const [goalsHasMore, setGoalsHasMore] = useState(false);
   const [goalsBusy, setGoalsBusy] = useState(false);
@@ -95,6 +97,7 @@ export function ReviewLibraryPage() {
       setItems([]);
       setProgress([]);
       setNextAction(null);
+      setReadiness(null);
       setHasMore(false);
       return;
     }
@@ -105,12 +108,14 @@ export function ReviewLibraryPage() {
       learningClient.reviewLibrary(tab, pathId, subjectId, page, 20, controller.signal),
       learningClient.progress(pathId, subjectId, 1, 8, controller.signal),
       learningClient.nextAction(pathId, subjectId, controller.signal),
+      learningClient.readiness(pathId,subjectId,controller.signal),
     ])
-      .then(([review, mastery, action]) => {
+      .then(([review, mastery, action,ready]) => {
         setItems(review.items);
         setHasMore(review.hasMore);
         setProgress(mastery.items);
         setNextAction(action.item);
+        setReadiness(ready.readiness);
       })
       .catch((cause: unknown) => {
         if (!controller.signal.aborted) {
@@ -361,6 +366,8 @@ export function ReviewLibraryPage() {
             </div>
           </section>
         ) : null}
+
+        {pathId && readiness ? (<section className="rounded-3xl border border-sky-100 bg-sky-50 p-4 sm:p-5" data-testid="mastery-readiness"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black text-sky-700">جاهزية التعلم</p><h2 className="mt-1 text-lg font-black text-sky-950">{readiness.explanation}</h2><p className="mt-2 text-xs font-bold text-sky-700">التغطية {Math.round(readiness.coverage*100)}% · أدلة موثوقة {readiness.reliableSkills}/{readiness.totalSkills} · إجمالي الأدلة {readiness.totalEvidence}</p></div><div className="min-w-20 rounded-2xl bg-white px-3 py-3 text-center shadow-sm"><div className="text-2xl font-black text-sky-900">{readiness.score.toFixed(0)}</div><div className="text-[10px] font-black text-sky-500">READINESS</div></div></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-sky-100"><div className="h-full rounded-full bg-sky-600" style={{width:`${Math.max(0,Math.min(100,readiness.score))}%`}} /></div><p className="mt-2 text-[11px] font-bold text-sky-700">مؤشر داخلي حتمي من الإتقان والتغطية وكفاية الأدلة وحداثتها؛ ليس توقعًا لدرجة اختبار خارجي.</p></section>):null}
 
         {pathId && nextAction ? (
           <section className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
