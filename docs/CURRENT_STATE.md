@@ -1285,5 +1285,5 @@ The certification batch audits definition/version, assignments, attempts, scorin
 
 Assessment certification PR #76 merged as `43e3c98491aad8ee5a0610ced69d751f7c51fa82`.
 
-## Review / Adaptive Learning integrated certification — IN PROGRESS
-Audited against legacy `8724cd5081df75487e3207bf844e6db470fe0eda`. Added the missing deterministic readiness interpretation over canonical SkillProgress, preserving the legacy evidence/coverage/recency policy and explicitly labeling it as internal routing rather than external score prediction. Final exact-head gates remain.
+## Review / Adaptive Learning integrated certification — FINAL GATE CANDIDATE
+Initial audit used legacy `8724cd5081df75487e3207bf844e6db470fe0eda`; the closure re-check reached `6927f7e6a05447862b4872c5203503fb7296e69c`. The newer legacy commit only repairs FND26 taxonomy mappings and does not change Review/Adaptive contracts. Added deterministic readiness over canonical SkillProgress with an explainable learner card for coverage, evidence confidence and recency; it remains AI-free and explicitly not an external score prediction. Implementation head `b047abb2e594fb82925a9b7a917a2b583452c5c2` passed Database CI `36375848493`, Backend CI `36375848612`, Frontend CI `36375848559`, and Frontend E2E `36375848550` (64/64). Browser artifact `10950244158`, digest `sha256:e8d63c5b58b554747cbd3bad09fd410f3b1edef2ddd04b176301d2d837c0fe2b`. Final documentation-inclusive exact-head gates remain before PR #78 merge.

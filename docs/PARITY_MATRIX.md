@@ -21,4 +21,4 @@ Status values: NOT_STARTED · DISCOVERED · SPECIFIED · IN_PROGRESS · IMPLEMEN
 
 No row becomes PARITY_PROVEN without evidence.
 
-| Review / Adaptive Learning certification | learning | mastery evidence, ReviewCards, remediation, lesson/video progress, goals, Study Plans, school interventions already merged; integrated deterministic readiness added from legacy source-backed policy | mobile review readiness + existing remediation/progress/intervention journeys | certification gates pending | IN_PROGRESS |
+| Review / Adaptive Learning certification | learning | mastery evidence, ReviewCards, remediation, lesson/video progress, goals, Study Plans, school interventions already merged; deterministic readiness + explainability added from source-backed policy | student-only/AI-free readiness; insufficient evidence cannot advance; existing retry/idempotency and scoped intervention boundaries preserved | implementation head b047abb2e594fb82925a9b7a917a2b583452c5c2 passed Database 36375848493 + Backend 36375848612 + Frontend 36375848559 + E2E 36375848550 (64/64), artifact 10950244158; final documentation-inclusive gate pending | IN_PROGRESS |

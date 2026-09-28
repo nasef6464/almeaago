@@ -1,6 +1,6 @@
 # Review / Adaptive Learning Integrated Parity Certification
 
-Status: **CERTIFICATION CANDIDATE — exact-head gates required before closure**
+Status: **FINAL DOCUMENTATION GATE CANDIDATE**
 
 ## Source basis
 Audited against legacy commit `8724cd5081df75487e3207bf844e6db470fe0eda` and the target blueprint `05_STUDENT_LEARNING_FOUNDATION_AR.md`.
@@ -45,3 +45,14 @@ The certification head must itself include this certification document and pass 
 The learner readiness card exposes the policy inputs that are safe to explain: reliable-skill coverage, evidence confidence and evidence recency. This keeps the recommendation inspectable without exposing raw attempt history.
 
 The four certification workflows now include `docs/**` in their pull-request path filters. This intentionally costs more CI on certification/documentation changes, but guarantees that a final documentation-inclusive certification SHA can carry Database, Backend, Frontend and E2E evidence on the exact same commit instead of inheriting stale evidence from an earlier implementation commit.
+
+## Green implementation checkpoint
+Implementation head `b047abb2e594fb82925a9b7a917a2b583452c5c2` passed all four gates on the same SHA:
+- Database CI `36375848493`.
+- Backend CI `36375848612`.
+- Frontend CI `36375848559`.
+- Frontend E2E `36375848550` — 64/64.
+- browser evidence artifact `10950244158`, digest `sha256:e8d63c5b58b554747cbd3bad09fd410f3b1edef2ddd04b176301d2d837c0fe2b`.
+
+## Final legacy delta re-check before documentation gate
+The legacy repository advanced from the initial audit commit to `6927f7e6a05447862b4872c5203503fb7296e69c`. That latest commit changes only the FND26 taxonomy-integrity repair snapshot/report and `server/src/scripts/deployQuantTaxonomy25.ts`; it does not modify the Adaptive/Review contracts audited for this certification. No new same-domain behavior is copied from that commit.
