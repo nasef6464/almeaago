@@ -16,9 +16,13 @@ export interface ClassroomLiveQuestion{
  optionsEmbeddedInImage:boolean;options:ClassroomOption[];difficulty:string;revealed:boolean;
  correctOptionIndex:number|null;explanation:string;selectedOptionIndex:number|null;
 }
+export interface ClassroomChallenge{
+ sessionId:string;activeBatchId:string;competitionEnabled:boolean;challengeDurationSeconds:number|null;
+ timerStartedAt:string|null;timerEndsAt:string|null;expired:boolean;serverNow:string;
+}
 export interface ClassroomStudentState{
  sessionId:string;status:ClassroomSessionStatus;publishedMode:ClassroomPublishedMode;
- activeBatchId:string;activeQuestionOrdinal:number|null;questions:ClassroomLiveQuestion[];
+ activeBatchId:string;activeQuestionOrdinal:number|null;questions:ClassroomLiveQuestion[];challenge:ClassroomChallenge|null;
 }
 export interface ClassroomQuestionAggregate{ordinal:number;questionId:string;responseCount:number;correctCount:number;distribution:Record<string,number>}
 export interface ClassroomAggregate{
@@ -28,9 +32,11 @@ export interface ClassroomAggregate{
 export interface ClassroomPresentation{
  sessionId:string;status:ClassroomSessionStatus;publishedMode:ClassroomPublishedMode;
  activeBatchId:string;activeQuestionOrdinal:number|null;questions:ClassroomLiveQuestion[];aggregate:ClassroomAggregate;
+ challenge:ClassroomChallenge|null;
 }
 export interface ClassroomBatch{
  id:string;sessionId:string;batchNumber:number;label:string;startedAt:string|null;endedAt:string|null;createdAt:string;
+ competitionEnabled:boolean;challengeDurationSeconds:number|null;timerStartedAt:string|null;timerEndsAt:string|null;
  questions:Array<{ordinal:number;batchId:string;questionId:string;questionVersion:number;publishedAt:string|null;revealedAt:string|null}>;
 }
 export interface SchoolContract{
@@ -40,8 +46,24 @@ export interface SchoolContract{
 export interface ClassroomReport{
  sessionId:string;schoolId:string;classId:string;subjectId:string;teacherId:string;status:'ended';
  startedAt:string|null;endedAt:string|null;durationMinutes:number|null;
- roster:{expected:number;joined:number;absentFromSession:number};
+ roster:{expected:number;joined:number;absentFromSession:number;present:number;late:number;absent:number;excused:number};
+ attendance:Array<{studentId:string;status:ClassroomAttendanceStatus;joinedAt:string|null;joinedMethod:string;attendanceOverriddenBy:string;attendanceOverriddenAt:string|null}>;
  batches:Array<{batchId:string;number:number;label:string;questionOrdinals:number[];startedAt:string|null;endedAt:string|null;totals:{answered:number;correct:number;wrong:number;unanswered:number;accuracy:number|null}}>;
  questions:Array<{ordinal:number;questionId:string;questionVersion:number;answered:number;correct:number;wrong:number;unanswered:number;distribution:Record<string,number>}>;
  totals:{responses:number;correct:number};
+}
+
+export interface ClassroomAttendanceRow{
+ studentId:string;joinedAt:string|null;joinedMethod:string;attendanceStatus:ClassroomAttendanceStatus;
+ attendanceOverriddenBy:string;attendanceOverriddenAt:string|null;
+}
+export interface ClassroomAttendance{
+ sessionId:string;expected:number;joined:number;present:number;late:number;absent:number;excused:number;rows:ClassroomAttendanceRow[];
+}
+export interface ClassroomCompetitionStanding{
+ rank:number;studentId:string;answered:number;correct:number;accuracy:number;score:number;lastSubmittedAt:string|null;
+}
+export interface ClassroomCompetition{
+ state:ClassroomChallenge;participantCount:number;leaderboard:ClassroomCompetitionStanding[];podium:ClassroomCompetitionStanding[];
+ scoring:{correctAnswerPoints:number;speedBonus:boolean};
 }
