@@ -1,9 +1,9 @@
 # Smart Classroom / Realtime Integrated Parity Certification
 
-Status: **CERTIFICATION CANDIDATE**
+Status: **FINAL DOCUMENTATION GATE CANDIDATE**
 
 ## Source basis
-Audited against V2 main and read-only legacy checkpoint `a5bcd4a1b43316d6dfc0c75e7f2d91a2e8d294e9`, especially:
+Audited against V2 main and the read-only legacy Smart Classroom contract, with final delta re-check through `95e8cb7399431da481a0d69ef3420a16bbb8c66c`, especially:
 - `docs/architecture/SMART_CLASSROOM_MASTER_SPEC_AR.md`
 - `docs/architecture/SMART_CLASSROOM_EXECUTION_MASTER_AR.md`
 - `docs/architecture/SMART_CLASSROOM_G6_PILOT_RUNBOOK_AR.md`
@@ -46,3 +46,23 @@ Student/projector payloads receive only challenge timer state; the student socke
 The documentation-inclusive exact head must pass Database CI, Backend CI, Frontend CI and Frontend E2E on the same SHA. Browser evidence must cover teacher QR/attendance/challenge, student QR/revision/reconnect, projector QR lobby and platform contract control. Direct legacy-runtime screenshot comparison and production multi-instance/load evidence remain external release evidence.
 
 Status remains TESTED rather than PARITY_PROVEN until the full release-evidence contract is satisfied.
+
+
+## Green implementation checkpoint
+Implementation head `81e6ff5932e54cf3152f201d75507a310c960933` passed all four required gates on the exact same SHA:
+- Database CI `36398067089`.
+- Backend CI `36398066840`.
+- Frontend CI `36398066835`.
+- Frontend E2E `36398067066` — 68/68.
+- browser evidence artifact `10958509925`, digest `sha256:9fc5f79aaa8313838b188b90898b4fd9be10f63730d0de3bb4325be8d3a9cece`.
+
+The browser suite now proves:
+- teacher QR lobby + canonical roster attendance + explicit excused override + timed challenge + reveal + immutable final report;
+- student QR provenance + answer revision + reconnect/reload from server truth without answer-key leakage;
+- projector QR/PIN lobby without student identity exposure;
+- platform-admin SchoolContract module control.
+
+The first E2E attempt caught two evidence-locator defects only: a regular-expression `+` was not escaped and projector PIN text matched multiple intentional UI locations. The locators were made literal/scoped; product behavior was not weakened.
+
+## Final legacy delta re-check
+Legacy advanced by 61 commits from `a5bcd4a1b43316d6dfc0c75e7f2d91a2e8d294e9` to `95e8cb7399431da481a0d69ef3420a16bbb8c66c`. The complete compare is architecture/refactor/content-lock work: App/route/store/SEO/auth/quiz ownership plus FND26 content-audit artifacts and smoke contracts. It changes no Smart Classroom route, model, socket, competition, attendance, report or classroom UI file. Therefore no additional same-domain behavior is imported from that delta.
