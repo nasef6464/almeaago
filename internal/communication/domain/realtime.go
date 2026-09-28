@@ -16,6 +16,10 @@ type InboxEventPublisher interface {
 	Publish(context.Context, InboxEvent) error
 }
 
+type InboxEventBatchPublisher interface {
+	PublishBatch(context.Context, []InboxEvent) error
+}
+
 type InboxEventSubscription interface {
 	Events() <-chan InboxEvent
 	Errors() <-chan error
