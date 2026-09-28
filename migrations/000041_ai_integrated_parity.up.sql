@@ -1,5 +1,13 @@
 BEGIN;
 
+ALTER TABLE ai_interactions
+  ADD COLUMN cached_tokens integer NOT NULL DEFAULT 0 CHECK (cached_tokens >= 0);
+
+ALTER TABLE ai_interactions
+  DROP CONSTRAINT ai_interactions_capability_check,
+  ADD CONSTRAINT ai_interactions_capability_check
+    CHECK (capability IN ('question_tutor','provider_health','admin_status','admin_copilot'));
+
 CREATE TABLE ai_usage_daily (
   day_key date NOT NULL,
   scope_type text NOT NULL CHECK (scope_type IN ('global','user','capability')),
