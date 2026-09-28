@@ -45,3 +45,6 @@ Direct side-by-side legacy-runtime screenshots are external evidence. This docum
 Implementation head `5867c6879540152aa2897507be8fc3fbe9bbcd50` passed Frontend CI `36371918890` and Frontend E2E `36371918901` (64/64). Browser evidence artifact `10949631044`, digest `sha256:e2a41e753f365be13b7bf17aba2303758b6029b05592b766888ca2bc85353d89`.
 
 Final same-domain legacy delta re-check found no newer legacy commit and reconfirmed the source-backed differences: legacy directed audience remains embedded in Quiz and is documented for Assignment migration; PublicBarcodeTest duplicates assessment/settings and is documented for Session migration; legacy QuizResult uses snapshot/submissionKey while V2 pins formal Assessment/question versions and server-owned results. No additional legacy behavior was copied because those differences are exactly the normalized V2 target direction.
+
+## Final certification evidence
+Final documentation-inclusive head `2146b5d61bdfec7a21964d1b4c1713d9878da9af` passed Frontend CI `36372129122` and Frontend E2E `36372128998` (64/64). Final browser artifact `10949945637`, digest `sha256:6340aa424c0c6a42b0135dd5d84ab78c555df9832e3955e36b10dfcc212c9762`. This certification slice changes no Go/database contract; the Assessment schema/backend gates remain those already merged with the underlying Assessment slices.
