@@ -22,12 +22,12 @@ type Repository interface {
 }
 
 type Config struct {
-	Integrations        []operations.IntegrationCheck
-	Environment         string
-	ReleaseSHA          string
-	DeploymentProvider  string
-	SentryConfigured    bool
-	OTelConfigured      bool
+	Integrations       []operations.IntegrationCheck
+	Environment        string
+	ReleaseSHA         string
+	DeploymentProvider string
+	SentryConfigured   bool
+	OTelConfigured     bool
 }
 
 type Service struct {
