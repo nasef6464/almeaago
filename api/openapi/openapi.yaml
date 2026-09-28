@@ -1059,14 +1059,15 @@ paths:
     post:
       operationId: mediaCompleteUpload
       description: >
-        Verify the uploaded R2 object with authenticated HEAD. Size, MIME and signed
-        x-amz-meta-sha256 must match the reserved asset before it becomes active.
+        Verify the uploaded R2 object with authenticated HEAD while the recorded signed PUT
+        authorization is still valid. Size, MIME and signed x-amz-meta-sha256 must match the
+        reserved asset before it becomes active; missing/expired upload authorization fails closed.
       responses:
         "200": { description: Verified active asset }
         "401": { description: Authentication required }
         "403": { description: Asset ownership/admin scope or CSRF denied }
         "404": { description: Asset not found }
-        "409": { description: R2 object missing or metadata verification failed }
+        "409": { description: Signed upload expired/missing, R2 object missing, or metadata verification failed }
         "503": { description: R2 provider unavailable }
 
   /api/v1/media/assets/{id}:
