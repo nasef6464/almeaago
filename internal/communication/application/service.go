@@ -347,6 +347,30 @@ func hasChannel(channels []communication.Channel, target communication.Channel) 
 	return false
 }
 
+func (s *Service) publishInboxRefreshes(
+	ctx context.Context,
+	campaignID string,
+	recipients []identity.NotificationRecipient,
+) {
+	if s.realtime == nil || len(recipients) == 0 {
+		return
+	}
+	now := time.Now().UTC()
+	events := make([]communication.InboxEvent, 0, len(recipients))
+	for _, recipient := range recipients {
+		events = append(events, communication.InboxEvent{
+			Type: "refresh", UserID: recipient.ID, CampaignID: campaignID, At: now,
+		})
+	}
+	if batch, ok := s.realtime.(communication.InboxEventBatchPublisher); ok {
+		_ = batch.PublishBatch(ctx, events)
+		return
+	}
+	for _, event := range events {
+		_ = s.realtime.Publish(ctx, event)
+	}
+}
+
 func (s *Service) sendCampaign(
 	ctx context.Context,
 	actorID string,
@@ -388,13 +412,8 @@ func (s *Service) sendCampaign(
 	if err != nil {
 		return communication.CampaignResult{}, err
 	}
-	if !out.Reused && s.realtime != nil && hasChannel(channels, communication.ChannelInApp) {
-		now := time.Now().UTC()
-		for _, recipient := range recipients {
-			_ = s.realtime.Publish(ctx, communication.InboxEvent{
-				Type: "refresh", UserID: recipient.ID, CampaignID: out.CampaignID, At: now,
-			})
-		}
+	if !out.Reused && hasChannel(channels, communication.ChannelInApp) {
+		s.publishInboxRefreshes(ctx, out.CampaignID, recipients)
 	}
 	return out, nil
 }
