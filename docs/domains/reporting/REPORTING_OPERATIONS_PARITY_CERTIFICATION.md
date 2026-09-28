@@ -1,6 +1,6 @@
 # Reporting / Operations Integrated Parity Certification
 
-Status: **CERTIFICATION CANDIDATE**
+Status: **FINAL DOCUMENTATION GATE CANDIDATE**
 
 ## Source basis
 Re-audited against:
@@ -88,3 +88,29 @@ The final documentation-inclusive head must pass Database CI, Backend CI, Fronte
 - explicit backup/restore and other external evidence gaps.
 
 Latest legacy must be re-checked immediately before merge. Status remains **TESTED**, not `PARITY_PROVEN`, unless all release evidence classes are independently satisfied.
+
+
+## Green implementation checkpoint
+Implementation head `ef3079a150ffd1517f8d21290fd5cffd8a00dbca` passed all four required gates on the same exact SHA:
+- Database CI `36411007939`.
+- Backend CI `36411007954`.
+- Frontend CI `36411007943`.
+- Frontend E2E `36411007956` — 68/68.
+- browser evidence artifact `10964670878`, digest `sha256:204c0779120e2ff7fb2dd8bdbb10c7ef7fd92c9bd950cc898a0b5a9dec2a2207`.
+
+The browser evidence proves:
+- learner mobile reporting remains self-scoped and answer-key safe while an optional date range is applied to both overview/results and CSV;
+- the Operations center exposes a declared staging release SHA without calling it verified;
+- observability configuration is visibly `configured_not_verified`;
+- backup/restore, performance and governance stay explicit external evidence gaps.
+
+CI convergence preserved behavior. Backend initially found only Go formatting drift in three changed files. E2E initially found an ambiguous locator because the intentionally repeated `external_proof_required` state now appears across multiple release-evidence cards; the backup proof received an explicit test id rather than removing or weakening any evidence state.
+
+## Final same-domain legacy delta re-check
+Legacy advanced from `637a205e3c005602cd34ba6f729d6642796384ea` to `851f28ec34504179cbbaf87f5e0642282c01b6d6`. The one-commit PLAN 7 delta changes only:
+- the platform-v3 handover workflow;
+- PLAN 7 AI live-certification evidence;
+- an AI certification smoke contract;
+- the AI failover contract script.
+
+It changes no Reporting route/read model/export, Operations readiness/audit/runtime surface, backup/restore implementation, deployment identity contract or reporting UI. No Reporting / Operations behavior is imported from this delta.
