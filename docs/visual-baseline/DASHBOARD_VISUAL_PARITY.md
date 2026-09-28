@@ -1,6 +1,6 @@
 # Dashboard Visual Parity / Responsive Polish
 
-Status: **CANDIDATE — dashboard-only visual refinement; exact-head four-gate CI pending.**
+Status: **FINAL-GATE CANDIDATE — implementation/UI evidence is green; final documentation-inclusive exact-head gate pending.**
 
 ## Product direction
 
@@ -34,13 +34,13 @@ V2 already had deterministic desktop/mobile screenshots for Content, Question Ba
 ### Question Bank
 - summary metrics use a denser two-column mobile / three-column tablet / six-column desktop layout;
 - filters avoid a cramped four-column tablet arrangement;
-- the question list becomes touch-friendly cards on mobile while retaining the dense table on larger screens;
+- the question list uses one responsive DOM: touch-friendly compact rows/cards on mobile and table-like columns on larger screens, avoiding duplicated hidden markup;
 - no Question Bank ownership, workflow, import, Media or Taxonomy contract changes.
 
 ### School Director
 - overview metrics use two columns on phones and four on larger screens;
 - add-student controls avoid a five-column tablet squeeze;
-- student roster uses cards through tablet widths and the full table only on desktop;
+- the student roster uses one responsive DOM that reads as cards/grid on phone/tablet and as a table-like four-column control surface on desktop;
 - delegated class/status/edit controls remain available in the responsive card layout;
 - no school authority or permission boundary changes.
 
@@ -65,6 +65,22 @@ Horizontal scrolling remains allowed only inside explicitly bounded data regions
 This batch does not redesign the public site, landing/auth flow, learner learning-space presentation, assessment runner, checkout or projector experience.
 
 It also does not claim live-provider/staging proof, production-equivalent load, dated backup/restore or final production certification.
+
+## Pre-final exact-head evidence
+
+PR #95 candidate head `a38903f7eb68ca5ca89fe81847587425867c4647` passed all four standard gates before this final evidence note:
+
+- Database CI `36456231779`: success.
+- Backend CI `36456231816`: success.
+- Frontend CI `36456231895`: success.
+- Frontend E2E `36456231890`: success, **71/71** Playwright tests.
+- Browser evidence artifact `10986220082`, digest `sha256:cd0ba9e091b8aca8f93820e8406cfc600a2ae3980b00b98082490a59b788c184`.
+- Start/final-pre-doc legacy checkpoint is still `983b004d18818166bf97c9096411e2707551a0bd`; no newer legacy delta exists at this checkpoint.
+- Implementation `main` remained `604e4dde0090a28e4056922a909301890e3df038` while the candidate was tested, so no base drift existed at this checkpoint.
+
+The first responsive implementation produced duplicated hidden mobile/desktop roster/list markup, which Playwright correctly rejected through strict locators. The implementation was corrected to single responsive DOMs rather than weakening selectors or tests. A later mobile drawer strict-locator failure was also fixed by scoping the assertion to the visible drawer. These failures are not counted as green evidence.
+
+Because this documentation note changes the PR head, the new documentation-inclusive exact head must pass the same four gates again before merge.
 
 ## Closure rule
 
