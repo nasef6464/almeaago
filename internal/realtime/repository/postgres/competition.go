@@ -9,17 +9,14 @@ import (
 	realtime "github.com/nasef6464/almeaago/internal/realtime/domain"
 )
 
-func scanCompetitionState(
+func (r *Repository) CompetitionState(
 	ctx context.Context,
-	query interface {
-		QueryRow(context.Context, string, ...any) rowScanner
-	},
 	sessionID string,
 ) (*realtime.CompetitionState, error) {
 	var state realtime.CompetitionState
 	state.SessionID = sessionID
 	var enabled bool
-	err := query.QueryRow(ctx, `
+	err := r.db.QueryRow(ctx, `
 		SELECT
 			COALESCE(s.active_batch_id::text,''),
 			COALESCE(b.competition_enabled,false),
@@ -47,17 +44,6 @@ func scanCompetitionState(
 	state.ServerNow = time.Now().UTC()
 	state.Expired = state.TimerEndsAt != nil && !state.ServerNow.Before(*state.TimerEndsAt)
 	return &state, nil
-}
-
-type rowScanner interface {
-	Scan(...any) error
-}
-
-func (r *Repository) CompetitionState(
-	ctx context.Context,
-	sessionID string,
-) (*realtime.CompetitionState, error) {
-	return scanCompetitionState(ctx, r.db, sessionID)
 }
 
 func (r *Repository) ConfigureCompetition(
