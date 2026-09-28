@@ -93,10 +93,19 @@ func (s *Service) Progress(ctx context.Context, actor identity.User, pathID, sub
 }
 
 func (s *Service) Readiness(ctx context.Context, actor identity.User, pathID, subjectID string) (learning.MasteryReadiness, error) {
-	if requireStudent(actor) != nil { return learning.MasteryReadiness{}, ErrForbidden }
-	pathID=strings.TrimSpace(pathID); subjectID=strings.TrimSpace(subjectID); if pathID=="" { return learning.MasteryReadiness{},ErrInvalidInput }
-	page,err:=s.repo.ListSkillProgress(ctx,actor.ID,pathID,subjectID,1,100); if err!=nil{return learning.MasteryReadiness{},err}
-	return learning.MasteryReadinessFrom(page.Items,time.Now().UTC()),nil
+	if requireStudent(actor) != nil {
+		return learning.MasteryReadiness{}, ErrForbidden
+	}
+	pathID = strings.TrimSpace(pathID)
+	subjectID = strings.TrimSpace(subjectID)
+	if pathID == "" {
+		return learning.MasteryReadiness{}, ErrInvalidInput
+	}
+	page, err := s.repo.ListSkillProgress(ctx, actor.ID, pathID, subjectID, 1, 100)
+	if err != nil {
+		return learning.MasteryReadiness{}, err
+	}
+	return learning.MasteryReadinessFrom(page.Items, time.Now().UTC()), nil
 }
 
 func (s *Service) NextAction(ctx context.Context, actor identity.User, pathID, subjectID string) (*learning.SkillProgress, error) {
