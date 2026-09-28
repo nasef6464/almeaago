@@ -24,9 +24,9 @@ type repoStub struct {
 	answerCalls     int
 	finalizeRoster  []string
 	participants    []realtime.Participant
-	competition    realtime.Competition
-	challenge      *realtime.CompetitionState
-	joinMethod     string
+	competition     realtime.Competition
+	challenge       *realtime.CompetitionState
+	joinMethod      string
 }
 
 func (r *repoStub) CreateSession(_ context.Context, record realtime.CreateRecord) (realtime.Session, error) {
@@ -455,7 +455,6 @@ func TestEndUsesCanonicalOrganizationsRoster(t *testing.T) {
 		t.Fatalf("canonical roster was not used: %#v", repo.finalizeRoster)
 	}
 }
-
 
 func TestAttendanceComposesCanonicalRosterIncludingNonJoiners(t *testing.T) {
 	joinedAt := time.Date(2026, 9, 27, 8, 1, 0, 0, time.UTC)
