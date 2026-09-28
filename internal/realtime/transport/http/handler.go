@@ -444,6 +444,85 @@ func (h *Handler) attendance(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"participant": presentParticipant(out)})
 }
 
+func (h *Handler) attendanceSnapshot(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	out, err := h.service.Attendance(r.Context(), authenticated.User, chi.URLParam(r, "sessionId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"attendance": presentAttendance(out)})
+}
+
+type competitionPayload struct {
+	DurationSeconds int
+}
+
+func (h *Handler) configureCompetition(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authenticate(w, r, true)
+	if !ok {
+		return
+	}
+	var payload competitionPayload
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+	out, err := h.service.ConfigureCompetition(
+		r.Context(), authenticated.User, chi.URLParam(r, "sessionId"), payload.DurationSeconds,
+	)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"challenge": presentCompetitionState(out)})
+}
+
+func (h *Handler) endCompetition(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authenticate(w, r, true)
+	if !ok {
+		return
+	}
+	out, err := h.service.EndCompetition(r.Context(), authenticated.User, chi.URLParam(r, "sessionId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"challenge": presentCompetitionState(out)})
+}
+
+func (h *Handler) challengeState(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	out, err := h.service.ChallengeState(r.Context(), authenticated.User, chi.URLParam(r, "sessionId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	if out == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"challenge": nil})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"challenge": presentCompetitionState(*out)})
+}
+
+func (h *Handler) competition(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	out, err := h.service.Competition(r.Context(), authenticated.User, chi.URLParam(r, "sessionId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"competition": presentCompetition(out)})
+}
+
 func (h *Handler) endSession(w http.ResponseWriter, r *http.Request) {
 	authenticated, ok := h.authenticate(w, r, true)
 	if !ok {
