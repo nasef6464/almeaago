@@ -254,7 +254,7 @@ func (s *Service) TestProvider(
 			Status: ai.InteractionError, ErrorCategory: errorCategory(callErr),
 			LatencyMS: latency, ResponseLength: 0,
 			RetentionUntil: timePtr(now.Add(s.cfg.InteractionTTL)),
-			Metadata:       map[string]any{"manualTest": true},
+			Metadata:       map[string]any{"manualTest": true, "billable": true},
 		})
 		return ai.ProviderResponse{}, ErrUnavailable
 	}
@@ -265,9 +265,9 @@ func (s *Service) TestProvider(
 		Capability: "provider_health", Provider: provider, Model: firstNonEmpty(result.Model, setting.Model),
 		Status: ai.InteractionSuccess, LatencyMS: latency,
 		InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens,
-		TotalTokens: result.Usage.TotalTokens, UsageEstimated: result.Usage.Estimated,
+		TotalTokens: result.Usage.TotalTokens, CachedTokens: result.Usage.CachedTokens, UsageEstimated: result.Usage.Estimated,
 		ResponseLength: len([]rune(text)), RetentionUntil: timePtr(now.Add(s.cfg.InteractionTTL)),
-		Metadata: map[string]any{"manualTest": true},
+		Metadata: map[string]any{"manualTest": true, "billable": true},
 	})
 	return ai.ProviderResponse{
 		Text: text, Provider: provider, Model: firstNonEmpty(result.Model, setting.Model), Usage: result.Usage,
@@ -556,6 +556,23 @@ func (s *Service) QuestionAssist(
 	if !errors.Is(cacheErr, ai.ErrNotFound) {
 		return ai.QuestionAssistResult{}, cacheErr
 	}
+	budgetScope, err := s.budgetScope(ctx, actor.ID)
+	if err != nil {
+		return ai.QuestionAssistResult{}, err
+	}
+	if budgetScope != "" {
+		out := ai.QuestionAssistResult{
+			Text:          truncate("تم الوصول إلى حد الاستخدام اليومي للمساعد. استخدم الشرح الموثوق الحالي ويمكنك العودة لاحقًا.\n\n"+trustedFallback(q, input.HelpLevel), 4000),
+			HelpLevel:     input.HelpLevel,
+			Provider:      ai.ProviderNone,
+			Model:         "trusted-fallback",
+			UsedFallback:  true,
+			CacheHit:      false,
+			PromptVersion: PromptVersionQuestionTutor,
+		}
+		_ = s.recordInteraction(ctx, actor, card, input, out, 0, ai.ProviderUsage{}, "daily_budget_limited:"+budgetScope)
+		return out, nil
+	}
 	count, err := s.repo.CountQuestionAssistSince(ctx, actor.ID, now.Add(-time.Minute))
 	if err != nil {
 		return ai.QuestionAssistResult{}, err
@@ -748,12 +765,14 @@ func (s *Service) recordInteraction(
 		InputTokens:     usage.InputTokens,
 		OutputTokens:    usage.OutputTokens,
 		TotalTokens:     usage.TotalTokens,
+		CachedTokens:    usage.CachedTokens,
 		UsageEstimated:  usage.Estimated,
 		ResponseLength:  len([]rune(out.Text)),
 		ErrorCategory:   errorName,
 		Metadata: map[string]any{
 			"helpLevel":       input.HelpLevel,
 			"messageProvided": input.Message != "",
+			"billable":        !out.CacheHit && !strings.HasPrefix(errorName, "rate_limited") && !strings.HasPrefix(errorName, "daily_budget_limited"),
 		},
 		RetentionUntil: timePtr(now.Add(s.cfg.InteractionTTL)),
 	})
