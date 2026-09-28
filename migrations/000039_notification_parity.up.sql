@@ -1,7 +1,8 @@
 BEGIN;
 
 ALTER TABLE notification_campaigns
-  ADD COLUMN idempotency_key text;
+  ADD COLUMN idempotency_key text
+    CHECK (idempotency_key IS NULL OR (char_length(idempotency_key) BETWEEN 1 AND 200));
 
 CREATE UNIQUE INDEX notification_campaigns_idempotency_key_uidx
   ON notification_campaigns(idempotency_key)
