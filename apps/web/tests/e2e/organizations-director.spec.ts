@@ -133,3 +133,16 @@ test('mobile director empty state is explicit when no active school delegation e
   await expect(page.getByText('اطلب من مدير المنصة ربط حسابك بمدرسة وتفعيل الصلاحيات المطلوبة.')).toBeVisible();
   await page.screenshot({path:'test-results/organizations-director-mobile-empty.png',fullPage:true});
 });
+
+
+test('school director populated tablet dashboard uses cards without page overflow',async({page})=>{
+  await mockDirector(page);
+  await page.setViewportSize({width:820,height:1180});
+  await page.goto('/school-director-dashboard');
+
+  await expect(page.getByRole('heading',{name:'لوحة مدير المدرسة'})).toBeVisible();
+  await expect(page.getByText('طالب أول')).toBeVisible();
+  await expect(page.getByLabel('اختيار صف بطاقة طالب أول')).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/organizations-director-tablet.png',fullPage:true});
+});
