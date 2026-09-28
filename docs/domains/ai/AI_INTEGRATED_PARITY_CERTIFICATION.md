@@ -127,7 +127,7 @@ The browser evidence covers:
 CI caught only evidence/formatting defects during convergence: Go formatting and an E2E locator that became ambiguous after the new runtime-certification warning. The product warning was preserved and the test was scoped to the exact badge; no behavior or security boundary was weakened.
 
 ## Final same-domain legacy delta re-check
-Latest legacy remains `95e8cb7399431da481a0d69ef3420a16bbb8c66c`, the same checkpoint used for this integrated audit. No later legacy commit exists at this closure point, so there is no unreviewed AI same-domain delta before the final documentation gate.
+Final legacy re-check advanced to `637a205e3c005602cd34ba6f729d6642796384ea`. The one-commit delta is PLAN 6 student learning-loop certification and changes only the phase handover workflow, student-journey evidence, learning-loop/audit scripts, and `quizSubmissionSkillProgress.ts`; it changes no AI provider, AI route, AI Admin, Question Tutor, AI ledger, budget or copilot file. No AI same-domain behavior is imported from this delta.
 
 ## Final certification evidence
 Final documentation-inclusive PR #88 head `7fbaa4b95d88fa8dda4b3187cb07b08d657a81fe` passed all four required gates on that exact SHA:
