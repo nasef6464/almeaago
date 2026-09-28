@@ -174,11 +174,13 @@ test('teacher mobile gets bounded authoring workspace without admin import contr
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
 
   await page.getByRole('button',{name:'فتح قائمة الإدارة'}).click();
-  await expect(page.getByText('إدارة المحتوى التعليمي')).toBeVisible();
-  await expect(page.getByRole('button',{name:'أقسام قيد النقل (5)'})).toBeVisible();
-  await expect(page.getByText('اعتماد المحتوى')).toHaveCount(0);
-  await page.getByRole('button',{name:'أقسام قيد النقل (5)'}).click();
-  await expect(page.getByText('اعتماد المحتوى')).toBeVisible();
+  const drawer=page.getByTestId('admin-mobile-drawer');
+  await expect(drawer.getByText('إدارة المحتوى التعليمي')).toBeVisible();
+  const planned=drawer.getByRole('button',{name:'أقسام قيد النقل (5)'});
+  await expect(planned).toBeVisible();
+  await expect(drawer.getByText('اعتماد المحتوى')).toHaveCount(0);
+  await planned.click();
+  await expect(drawer.getByText('اعتماد المحتوى')).toBeVisible();
   await page.getByRole('button',{name:'فتح قائمة الإدارة'}).click();
 
   await page.screenshot({path:'test-results/question-bank-teacher-mobile.png',fullPage:true});
