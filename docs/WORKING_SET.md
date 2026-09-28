@@ -20,7 +20,8 @@ Question Bank / Media evidence in the current checkpoint:
 - browser SHA-256 + presign + direct object PUT + server completion verification; Go never receives question image bytes.
 - platform-admin V2 import surface remains dry-run-first and server-preflight authoritative.
 - teacher UI omits admin-only import actions.
-- Database + Backend + Frontend + Frontend E2E exact-head gates.
+- final documentation-inclusive exact head `2a98ad4d4e09c8ed7de0ef1cf0c62a5934f4cf88` passed Database `36334351564`, Backend `36334351596`, Frontend `36334351571`, and Frontend E2E `36334351583` (61/61).
+- final browser evidence artifact `10936483838`, digest `sha256:43e37c2ae7e81be630662d0b4c94a965e184c3aa92c247353e91edceb76e809a`; PR #72 merged as `d5c23a1ee856af77aac3e047ccb795622d1d0eb7`.
 - deterministic Question Bank desktop and teacher-mobile screenshots.
 - live R2/CDN deployment smoke and direct legacy-runtime side-by-side screenshot comparison remain external evidence; neither is treated as a CI pass.
 
