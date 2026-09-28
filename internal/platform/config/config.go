@@ -51,8 +51,8 @@ type Config struct {
 	AIQuestionAssistantPerMinute       int
 	AIQuestionAssistantMaxOutputTokens int
 	AIInteractionRetentionDays         int
-	AIGlobalDailyLimit                int
-	AIUserDailyLimit                  int
+	AIGlobalDailyLimit                 int
+	AIUserDailyLimit                   int
 
 	GeminiAPIKey     string
 	OpenRouterAPIKey string
