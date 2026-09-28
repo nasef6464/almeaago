@@ -1,6 +1,6 @@
 # Review / Adaptive Learning Integrated Parity Certification
 
-Status: **FINAL DOCUMENTATION GATE CANDIDATE**
+Status: **TESTED / MERGED**
 
 ## Source basis
 Audited against legacy commit `8724cd5081df75487e3207bf844e6db470fe0eda` and the target blueprint `05_STUDENT_LEARNING_FOUNDATION_AR.md`.
@@ -56,3 +56,15 @@ Implementation head `b047abb2e594fb82925a9b7a917a2b583452c5c2` passed all four g
 
 ## Final legacy delta re-check before documentation gate
 The legacy repository advanced from the initial audit commit to `6927f7e6a05447862b4872c5203503fb7296e69c`. That latest commit changes only the FND26 taxonomy-integrity repair snapshot/report and `server/src/scripts/deployQuantTaxonomy25.ts`; it does not modify the Adaptive/Review contracts audited for this certification. No new same-domain behavior is copied from that commit.
+
+## Final certification evidence
+Final documentation-inclusive PR #78 head `ba9d44fcd28fc2cfd3759a1a234261dd10e55f96` passed all four required gates on that exact SHA:
+- Database CI `36376123212`.
+- Backend CI `36376123245`.
+- Frontend CI `36376123259`.
+- Frontend E2E `36376123154` — 64/64.
+- browser evidence artifact `10951385237`, digest `sha256:a3a5d19fa8128f122855cb16b9a48e7a709eaaf4674e9ebafd0907d09763b3f7`.
+
+PR #78 squash-merged to `main` as `c21874eeca576241c44fdd08507dfa87dae73121`.
+
+The certification remains **TESTED**, not `PARITY_PROVEN`: direct legacy-runtime visual comparison and other external release evidence remain separate requirements.

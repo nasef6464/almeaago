@@ -56,5 +56,8 @@ Assessment integrated parity certification is in progress: the missing learner D
 
 Assessment certification PR #76 merged as `43e3c98491aad8ee5a0610ced69d751f7c51fa82`.
 
-## Active certification batch — Review / Adaptive Learning
-Integrated audit confirms the underlying evidence/review/remediation/progress/goals/plans/interventions slices are merged. Deterministic readiness plus explainability are implemented on `cert/review-adaptive-parity`. Implementation head `b047abb2e594fb82925a9b7a917a2b583452c5c2` passed Database `36375848493`, Backend `36375848612`, Frontend `36375848559`, and Frontend E2E `36375848550` (64/64), artifact `10950244158`. Legacy re-check reached `6927f7e6a05447862b4872c5203503fb7296e69c`; its new FND26 taxonomy repair is outside this Adaptive domain. Final documentation-inclusive exact-head four-gate rerun remains before merge.
+## Completed certification checkpoint — Review / Adaptive Learning
+PR #78 is **TESTED / MERGED**. Final documentation-inclusive head `ba9d44fcd28fc2cfd3759a1a234261dd10e55f96` passed Database `36376123212`, Backend `36376123245`, Frontend `36376123259`, and Frontend E2E `36376123154` (64/64). Browser artifact `10951385237`, digest `sha256:a3a5d19fa8128f122855cb16b9a48e7a709eaaf4674e9ebafd0907d09763b3f7`; squash merge `c21874eeca576241c44fdd08507dfa87dae73121`. Legacy re-check reached `6927f7e6a05447862b4872c5203503fb7296e69c`; its FND26 taxonomy repair did not change Adaptive/Review behavior.
+
+## Active certification batch — Commerce
+Start from current `main`. Re-audit products/packages, entitlements, checkout, discounts, access codes, school seats, Tap provider flow, revenue/payout and refund/chargeback behavior against the latest legacy reference. Keep live Tap/provider proof, partial-refund/clawback policy and unspecified multi-trainer allocation explicitly external/UNKNOWN unless source evidence resolves them.
