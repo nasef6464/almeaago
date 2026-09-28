@@ -72,7 +72,7 @@ test('admin operations center exposes evidence gaps instead of claiming release 
  await page.goto('/admin-dashboard/operations');
  await expect(page.getByRole('heading',{name:'مركز العمليات والتدقيق'})).toBeVisible();
  await expect(page.getByText('جاهزية مع ملاحظات خارجية')).toBeVisible();
- await expect(page.getByText('external_proof_required')).toBeVisible();
+ await expect(page.getByTestId('backup-restore-proof')).toHaveText('external_proof_required');
  await expect(page.getByText(/no verified backup\/restore drill yet/)).toBeVisible();
  await expect(page.getByText('Tap payment provider')).toBeVisible();
  await expect(page.getByText('غير مثبت',{exact:true})).toBeVisible();
