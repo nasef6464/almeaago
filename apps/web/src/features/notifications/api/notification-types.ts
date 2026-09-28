@@ -24,3 +24,10 @@ export interface NotificationCampaignResult{
  campaign:{campaignId:string;recipients:number;created:number;pending:number;sent:number};
  maxRecipients:number;
 }
+
+export interface NotificationPreferences{
+ userId:string;
+ parentWhatsAppDigestEnabled:boolean;
+ revision:number;
+ updatedAt:string;
+}
