@@ -25,3 +25,15 @@ func TestMasteryReadinessNeedsMeasurement(t *testing.T) {
 		t.Fatalf("insufficient evidence must not advance: %+v", r)
 	}
 }
+
+func TestMasteryReadinessRecencyAffectsScore(t *testing.T) {
+	now := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
+	fresh := MasteryReadinessFrom([]SkillProgress{{Mastery: 70, EvidenceCount: 3, LastEvidenceAt: now}}, now)
+	stale := MasteryReadinessFrom([]SkillProgress{{Mastery: 70, EvidenceCount: 3, LastEvidenceAt: now.Add(-90 * 24 * time.Hour)}}, now)
+	if fresh.Recency != 1 || stale.Recency != .4 {
+		t.Fatalf("unexpected recency factors: fresh=%+v stale=%+v", fresh, stale)
+	}
+	if stale.Score >= fresh.Score {
+		t.Fatalf("stale evidence must reduce readiness score: fresh=%+v stale=%+v", fresh, stale)
+	}
+}

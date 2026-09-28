@@ -38,6 +38,13 @@ const statusLabel: Record<SkillProgress['status'], string> = {
   mastered: 'متقنة',
 };
 
+const readinessStatusLabel: Record<MasteryReadiness['status'], string> = {
+  needs_measurement: 'نحتاج قياسًا إضافيًا',
+  building: 'نبني الجاهزية',
+  ready_for_recheck: 'جاهز لإعادة القياس',
+  ready_to_advance: 'جاهز للانتقال',
+};
+
 const optionLetter = (index: number) =>
   ['أ', 'ب', 'ج', 'د', 'هـ', 'و'][index] || String(index + 1);
 
@@ -367,7 +374,59 @@ export function ReviewLibraryPage() {
           </section>
         ) : null}
 
-        {pathId && readiness ? (<section className="rounded-3xl border border-sky-100 bg-sky-50 p-4 sm:p-5" data-testid="mastery-readiness"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black text-sky-700">جاهزية التعلم</p><h2 className="mt-1 text-lg font-black text-sky-950">{readiness.explanation}</h2><p className="mt-2 text-xs font-bold text-sky-700">التغطية {Math.round(readiness.coverage*100)}% · أدلة موثوقة {readiness.reliableSkills}/{readiness.totalSkills} · إجمالي الأدلة {readiness.totalEvidence}</p></div><div className="min-w-20 rounded-2xl bg-white px-3 py-3 text-center shadow-sm"><div className="text-2xl font-black text-sky-900">{readiness.score.toFixed(0)}</div><div className="text-[10px] font-black text-sky-500">READINESS</div></div></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-sky-100"><div className="h-full rounded-full bg-sky-600" style={{width:`${Math.max(0,Math.min(100,readiness.score))}%`}} /></div><p className="mt-2 text-[11px] font-bold text-sky-700">مؤشر داخلي حتمي من الإتقان والتغطية وكفاية الأدلة وحداثتها؛ ليس توقعًا لدرجة اختبار خارجي.</p></section>):null}
+        {pathId && readiness ? (
+          <section
+            className="rounded-3xl border border-sky-100 bg-sky-50 p-4 sm:p-5"
+            data-testid="mastery-readiness"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs font-black text-sky-700">جاهزية التعلم</p>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-sky-800 shadow-sm">
+                    {readinessStatusLabel[readiness.status]}
+                  </span>
+                </div>
+                <h2 className="mt-2 text-lg font-black leading-7 text-sky-950">
+                  {readiness.explanation}
+                </h2>
+                <p className="mt-2 text-xs font-bold text-sky-700">
+                  أدلة موثوقة {readiness.reliableSkills}/{readiness.totalSkills} · إجمالي الأدلة {readiness.totalEvidence}
+                </p>
+              </div>
+              <div className="min-w-24 rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
+                <div className="text-3xl font-black text-sky-900">{readiness.score.toFixed(0)}</div>
+                <div className="text-[10px] font-black text-sky-500">READINESS</div>
+              </div>
+            </div>
+
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-sky-100">
+              <div
+                className="h-full rounded-full bg-sky-600"
+                style={{ width: `${Math.max(0, Math.min(100, readiness.score))}%` }}
+              />
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-2xl bg-white p-3 text-center shadow-sm">
+                <div className="text-lg font-black text-sky-950">{Math.round(readiness.coverage * 100)}%</div>
+                <div className="text-[10px] font-black text-sky-600">التغطية</div>
+              </div>
+              <div className="rounded-2xl bg-white p-3 text-center shadow-sm">
+                <div className="text-lg font-black text-sky-950">{Math.round(readiness.evidenceConfidence * 100)}%</div>
+                <div className="text-[10px] font-black text-sky-600">ثقة الأدلة</div>
+              </div>
+              <div className="rounded-2xl bg-white p-3 text-center shadow-sm">
+                <div className="text-lg font-black text-sky-950">{Math.round(readiness.recency * 100)}%</div>
+                <div className="text-[10px] font-black text-sky-600">حداثة الأدلة</div>
+              </div>
+            </div>
+
+            <p className="mt-3 text-[11px] font-bold leading-6 text-sky-700">
+              مؤشر داخلي حتمي من الإتقان والتغطية وكفاية الأدلة وحداثتها؛ ليس توقعًا لدرجة اختبار خارجي.
+            </p>
+          </section>
+        ) : null}
 
         {pathId && nextAction ? (
           <section className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">

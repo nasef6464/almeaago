@@ -40,3 +40,8 @@ Deterministic V2 browser screenshots and CI prove implementation behavior, not p
 
 ## Exact-head gate protocol
 The certification head must itself include this certification document and pass Database CI, Backend CI, Frontend CI and Frontend E2E. A green run attached only to an earlier implementation commit is not closure evidence. The legacy reference is re-checked again after the final green head before merge.
+
+## Explainability and CI hardening
+The learner readiness card exposes the policy inputs that are safe to explain: reliable-skill coverage, evidence confidence and evidence recency. This keeps the recommendation inspectable without exposing raw attempt history.
+
+The four certification workflows now include `docs/**` in their pull-request path filters. This intentionally costs more CI on certification/documentation changes, but guarantees that a final documentation-inclusive certification SHA can carry Database, Backend, Frontend and E2E evidence on the exact same commit instead of inheriting stale evidence from an earlier implementation commit.

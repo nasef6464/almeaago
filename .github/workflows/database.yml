@@ -1,10 +1,10 @@
 name: Database CI
 on:
   pull_request:
-    paths: ["migrations/**",".github/workflows/database.yml"]
+    paths: ["migrations/**",".github/workflows/database.yml","docs/**"]
   push:
     branches: [main]
-    paths: ["migrations/**",".github/workflows/database.yml"]
+    paths: ["migrations/**",".github/workflows/database.yml","docs/**"]
   workflow_dispatch:
 concurrency:
   group: database-ci-${{ github.ref }}

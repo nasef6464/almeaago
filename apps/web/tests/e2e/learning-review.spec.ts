@@ -212,6 +212,10 @@ test('mobile review library shows mistake, mastery next action and toggles saved
   await expect(page.getByText('خطأ سابق')).toBeVisible();
   await expect(page.getByText('خطة علاج عاجلة: شرح + تدريب + اختبار موجه')).toBeVisible();
   await expect(page.getByTestId('mastery-readiness')).toContainText('54');
+  await expect(page.getByTestId('mastery-readiness')).toContainText('نبني الجاهزية');
+  await expect(page.getByTestId('mastery-readiness')).toContainText('التغطية');
+  await expect(page.getByTestId('mastery-readiness')).toContainText('ثقة الأدلة');
+  await expect(page.getByTestId('mastery-readiness')).toContainText('حداثة الأدلة');
   await expect(page.getByTestId('mastery-readiness')).toContainText('ليس توقعًا لدرجة اختبار خارجي');
   await expect(page.getByText('الإجابة الصحيحة')).toBeVisible();
 

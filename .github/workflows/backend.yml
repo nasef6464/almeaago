@@ -1,10 +1,10 @@
 name: Backend CI
 on:
   pull_request:
-    paths: ["cmd/**","internal/**","db/**","go.mod","go.sum","sqlc.yaml",".github/workflows/backend.yml"]
+    paths: ["cmd/**","internal/**","db/**","go.mod","go.sum","sqlc.yaml",".github/workflows/backend.yml","docs/**"]
   push:
     branches: [main]
-    paths: ["cmd/**","internal/**","db/**","go.mod","go.sum","sqlc.yaml",".github/workflows/backend.yml"]
+    paths: ["cmd/**","internal/**","db/**","go.mod","go.sum","sqlc.yaml",".github/workflows/backend.yml","docs/**"]
   workflow_dispatch:
 concurrency:
   group: backend-ci-${{ github.ref }}
