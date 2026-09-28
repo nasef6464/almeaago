@@ -62,6 +62,9 @@ test('parent dashboard has an explicit empty state when no active linked child e
 
 
 test('desktop parent follow-up stays observer-only and preserves canonical Learning actions',async({page})=>{
+ await page.addInitScript(()=>{
+  Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async(text:string)=>{(window as unknown as {__parentCopied?:string}).__parentCopied=text}}});
+ });
  await auth(page);
  await page.setViewportSize({width:1365,height:900});
  let parentMutations=0;
@@ -74,7 +77,14 @@ test('desktop parent follow-up stays observer-only and preserves canonical Learn
  await expect(page.getByTestId('parent-follow-up-plan')).toContainText(weak.recommendedAction);
  await expect(page.getByTestId('parent-follow-up-plan')).toContainText('الدليل الحالي: 5');
  await page.getByRole('button',{name:'تقرير الأسبوع'}).click();
- await expect(page.getByTestId('weekly-report-period')).toContainText('2026');
+ await expect(page.getByTestId('weekly-report-period')).toContainText('سبتمبر');
+ await page.getByRole('button',{name:'نسخ ملخص الأسبوع'}).click();
+ await expect(page.getByRole('button',{name:'تم نسخ الملخص'})).toBeVisible();
+ const copied=await page.evaluate(()=>(window as unknown as {__parentCopied?:string}).__parentCopied||'');
+ expect(copied).toContain('ملخص متابعة ولي الأمر');
+ expect(copied).toContain('سارة');
+ expect(copied).toContain(weak.recommendedAction);
+ expect(copied).not.toContain('student@');
  expect(parentMutations).toBe(0);
  await page.screenshot({path:'test-results/parent-dashboard-desktop-follow-up.png',fullPage:true});
 });
