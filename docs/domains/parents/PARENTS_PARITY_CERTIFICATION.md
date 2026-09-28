@@ -40,3 +40,9 @@ No self-service linking/consent flow, parent payment approval, student-learning 
 
 ## Closure gate
 The final documentation-inclusive head must pass Database CI, Backend CI, Frontend CI and Frontend E2E on the same SHA. Status remains TESTED rather than PARITY_PROVEN without direct legacy-runtime visual/external evidence.
+
+## Local copy-ready weekly summary
+Legacy product notes explicitly call for a parent summary that is easy to copy/share. The certification adds a local clipboard action to the weekly report. The text is built only from the already-authorized weekly DTO: period, assessment count, average score, weak-skill labels/mastery and the Learning-owned next action. It contains no email/phone/answer-level data and triggers no Parents mutation or external delivery request. Communication still owns automated email/WhatsApp delivery and consent/preferences.
+
+## Latest legacy delta re-check
+Legacy advanced to `a5bcd4a1b43316d6dfc0c75e7f2d91a2e8d294e9` with PLAN 4 storage hardening. The changed runtime paths normalize LessonProgress and immutable QuestionRevision and adjust `auth/me` progress projection; canonical parent relationship authority, parent-result privacy and parent write boundaries are unchanged. No new Parents behavior is copied from this delta.
