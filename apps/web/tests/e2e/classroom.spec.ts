@@ -165,7 +165,7 @@ test('student joins from QR, revises answer, and restores server truth after rec
  });
 
  await page.goto('/classroom/join?pin=654321');
- await expect(page).toHaveURL(new RegExp('/classroom/session-1
+ await expect.poll(()=>new URL(page.url()).pathname).toBe('/classroom/session-1');
  await expect.poll(()=>qrJoinBody).toMatchObject({pin:'654321',method:'qr'});
  await expect(page.getByRole('heading',{name:'الحصة التفاعلية'})).toBeVisible();
  await expect(page.getByText('تم كشف الحل بواسطة المعلم')).toHaveCount(0);
