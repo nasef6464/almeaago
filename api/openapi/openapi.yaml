@@ -1380,13 +1380,50 @@ paths:
       operationId: aiAdminInteractions
       description: >
         Platform-admin bounded AI observability ledger. Stores provider/model/status/latency/token
-        metadata and resource IDs but does not persist full prompts, learner messages or responses.
+        metadata, cached-token usage and resource IDs but does not persist full prompts, learner messages or responses.
       parameters:
         - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
         - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
       responses:
         "200": { description: Bounded AI interaction ledger }
         "403": { description: Platform admin required }
+
+  /api/v1/ai/admin/usage:
+    get:
+      operationId: aiAdminUsage
+      description: >
+        Platform-admin-only AI usage observability over the PostgreSQL interaction ledger and
+        indexed UTC daily rollups. Returns request/token/cache/fallback/error evidence without
+        prompts, learner messages, generated response bodies or provider secrets.
+      responses:
+        "200": { description: Current global daily usage plus bounded 24-hour provider summaries }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin required }
+
+  /api/v1/ai/admin/readiness:
+    get:
+      operationId: aiAdminReadiness
+      description: >
+        Platform-admin-only readiness projection over enabled/configured provider state, circuit
+        health and daily usage limits. Runtime configured is deployment configuration evidence,
+        not live-provider certification.
+      responses:
+        "200": { description: AI readiness with explicit provider/deployment evidence notes }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin required }
+
+  /api/v1/ai/admin/copilot:
+    post:
+      operationId: aiAdminCopilot
+      description: >
+        Platform-admin + CSRF read-only diagnostic assistant over bounded AI usage/readiness and
+        Operations readiness facts. It can explain evidence but cannot execute administrative
+        changes. Daily-budget/provider failure returns a deterministic diagnostic fallback.
+      responses:
+        "200": { description: Read-only diagnostic response plus AI readiness metadata }
+        "400": { description: Empty or oversized diagnostic request }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin and valid CSRF required }
 
   /api/v1/ai/question-assistant:
     post:
@@ -1397,7 +1434,7 @@ paths:
         trusted hint/strategy/explanation and the learner's short request. It never sends the
         full Question Bank, full test or learner history. A deterministic trusted fallback is
         returned if all enabled providers are unavailable. Identical requests are cached and
-        deduplicated; the response is advisory and does not mutate scoring/mastery truth.
+        deduplicated; persistent global/user daily budgets fail to trusted deterministic help before provider calls; the response is advisory and does not mutate scoring/mastery truth.
       responses:
         "200": { description: Progressive question help with provider/fallback/cache metadata }
         "400": { description: Invalid help level, card identifier or oversized learner message }
