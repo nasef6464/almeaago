@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	reporting "github.com/nasef6464/almeaago/internal/reporting/domain"
@@ -18,10 +19,12 @@ type reportRepoStub struct {
 	exportRows   []reporting.ResultItem
 	exportTotal  int
 	resolveCalls int
+	lastQuery    reporting.Query
 }
 
-func (s *reportRepoStub) ResolveScope(context.Context, identity.User, reporting.Query) (reporting.ResolvedScope, error) {
+func (s *reportRepoStub) ResolveScope(_ context.Context, _ identity.User, query reporting.Query) (reporting.ResolvedScope, error) {
 	s.resolveCalls++
+	s.lastQuery = query
 	return s.scope, nil
 }
 func (s *reportRepoStub) Overview(context.Context, reporting.ResolvedScope, reporting.Query) (reporting.Overview, error) {
@@ -120,5 +123,38 @@ func TestExportCSVContainsOnlySummaryColumns(t *testing.T) {
 		if strings.Contains(text, forbidden) {
 			t.Fatalf("export leaked answer-level field %q", forbidden)
 		}
+	}
+}
+
+
+func TestOverviewRejectsInvertedDateRangeBeforeRepository(t *testing.T) {
+	repo := &reportRepoStub{}
+	s := NewService(repo)
+	from := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
+	to := from.Add(-24 * time.Hour)
+	_, err := s.Overview(context.Background(), reportActor(identity.RoleAdmin), reporting.Query{FromAt: &from, ToAt: &to})
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected invalid date range, got %v", err)
+	}
+	if repo.resolveCalls != 0 {
+		t.Fatal("invalid date range must fail before scope resolution")
+	}
+}
+
+func TestOverviewNormalizesDateRangeToUTC(t *testing.T) {
+	repo := &reportRepoStub{scope: reporting.ResolvedScope{Kind: reporting.ScopePlatform}}
+	s := NewService(repo)
+	loc := time.FixedZone("riyadh", 3*60*60)
+	from := time.Date(2026, 9, 1, 0, 0, 0, 0, loc)
+	to := time.Date(2026, 10, 1, 0, 0, 0, 0, loc)
+	_, err := s.Overview(context.Background(), reportActor(identity.RoleAdmin), reporting.Query{FromAt: &from, ToAt: &to})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repo.lastQuery.FromAt == nil || repo.lastQuery.FromAt.Location() != time.UTC {
+		t.Fatalf("expected UTC-normalized from date: %+v", repo.lastQuery.FromAt)
+	}
+	if repo.lastQuery.ToAt == nil || repo.lastQuery.ToAt.Location() != time.UTC {
+		t.Fatalf("expected UTC-normalized to date: %+v", repo.lastQuery.ToAt)
 	}
 }
