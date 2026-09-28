@@ -1,6 +1,6 @@
 # Commerce Integrated Parity Certification
 
-Status: **FINAL DOCUMENTATION GATE CANDIDATE**
+Status: **TESTED / MERGED**
 
 ## Source basis
 Audited against the latest read-only legacy checkpoint `20a77c62fd2db4ef891a574241f4cfd6946011de`, the merged Commerce audits, and target blueprint `docs/blueprint/07_CONTENT_COURSES_ACCESS_COMMERCE_AR.md`.
@@ -55,3 +55,15 @@ The new browser journey proves a platform admin can:
 
 ## Final same-domain legacy delta re-check
 The latest legacy commit remains `20a77c62fd2db4ef891a574241f4cfd6946011de`. Its changed files are Question Bank/Tahsili import identity, media-presign and question-presentation/pilot files; no Commerce, payment, package, access-code, school-commerce, revenue or reversal contract changed. No additional Commerce behavior is copied from that delta.
+
+## Final certification evidence
+Final documentation-inclusive PR #80 head `01b8df818d74e7a6a0ee1ba647f1e11da6875dae` passed all four required gates on that exact SHA:
+- Database CI `36377437385`.
+- Backend CI `36377437374`.
+- Frontend CI `36377437343`.
+- Frontend E2E `36377437469` — 65/65.
+- browser evidence artifact `10951730943`, digest `sha256:5434e2ffa1df40bb8df4ba92d766fe7c249dcf248e244703b8f6e68ac9043667`.
+
+PR #80 squash-merged to `main` as `de89512d4599f76ebc75365c9556fcbf94ee09d3`.
+
+Commerce remains **TESTED**, not `PARITY_PROVEN`. Live Tap sandbox/provider evidence, direct legacy-runtime visual proof, partial-refund/clawback policy, and Package multi-trainer allocation remain explicit external/UNKNOWN evidence.
