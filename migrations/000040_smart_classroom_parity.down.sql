@@ -8,6 +8,10 @@ ALTER TABLE classroom_batches
   DROP COLUMN IF EXISTS challenge_duration_seconds,
   DROP COLUMN IF EXISTS competition_enabled;
 
+UPDATE classroom_participants
+SET joined_at=COALESCE(joined_at,attendance_overridden_at,now())
+WHERE joined_at IS NULL;
+
 ALTER TABLE classroom_participants
   DROP COLUMN IF EXISTS joined_method,
   ALTER COLUMN joined_at SET NOT NULL;
