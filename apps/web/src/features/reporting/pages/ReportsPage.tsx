@@ -1,4 +1,4 @@
-import{BarChart3,Download,FileText,Loader2,RefreshCcw,Target,Users}from'lucide-react';
+import{BarChart3,CalendarDays,Download,FileText,Loader2,RefreshCcw,Target,Users}from'lucide-react';
 import{useEffect,useMemo,useState}from'react';
 
 import{useAuth}from'../../auth/state/AuthProvider';
@@ -15,6 +15,8 @@ export function ReportsPage(){
  const[classes,setClasses]=useState<SchoolClass[]>([]);
  const[schoolId,setSchoolId]=useState('');
  const[classId,setClassId]=useState('');
+ const[dateFrom,setDateFrom]=useState('');
+ const[dateTo,setDateTo]=useState('');
  const[overview,setOverview]=useState<ReportingOverview|null>(null);
  const[results,setResults]=useState<ReportingResultPage|null>(null);
  const[busy,setBusy]=useState(true);
@@ -49,9 +51,10 @@ export function ReportsPage(){
  },[needsSchool,schoolId]);
 
  const query=useMemo<ReportingQuery>(()=>{
-  if(isAdmin||isStudent)return{};
-  return{schoolId,classId:classId||undefined};
- },[classId,isAdmin,isStudent,schoolId]);
+  const period={dateFrom:dateFrom||undefined,dateTo:dateTo||undefined};
+  if(isAdmin||isStudent)return period;
+  return{...period,schoolId,classId:classId||undefined};
+ },[classId,dateFrom,dateTo,isAdmin,isStudent,schoolId]);
 
  useEffect(()=>{
   if(authLoading||!user||!supported||(needsSchool&&!schoolId))return;
@@ -80,6 +83,15 @@ export function ReportsPage(){
   </header>
 
   {needsSchool?<section className="grid gap-3 rounded-2xl border bg-white p-4 shadow-sm md:grid-cols-2"><label className="text-sm font-black text-gray-700">المدرسة<select aria-label="مدرسة التقرير" value={schoolId} onChange={e=>{setSchoolId(e.target.value);setClassId('')}} className="mt-2 w-full rounded-xl border p-2.5 font-bold"><option value="">اختر مدرسة</option>{contexts.map(row=><option key={row.schoolId} value={row.schoolId}>{row.schoolName}</option>)}</select></label><label className="text-sm font-black text-gray-700">الفصل<select aria-label="فصل التقرير" value={classId} onChange={e=>setClassId(e.target.value)} className="mt-2 w-full rounded-xl border p-2.5 font-bold"><option value="">كل النطاق المسموح</option>{classes.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label></section>:null}
+
+  <section className="rounded-2xl border bg-white p-4 shadow-sm">
+   <div className="flex items-start gap-2"><CalendarDays className="mt-0.5 text-indigo-600" size={18}/><div><h2 className="text-sm font-black text-gray-800">الفترة الزمنية</h2><p className="mt-1 text-xs font-bold leading-6 text-gray-500">اختياري. يطبق النطاق نفسه على النظرة العامة والنتائج وCSV، ويظل التصفية داخل حدود الصلاحية الحالية.</p></div></div>
+   <div className="mt-3 grid gap-3 sm:grid-cols-2">
+    <label className="text-xs font-black text-gray-600">من<input aria-label="بداية فترة التقرير" type="date" value={dateFrom} max={dateTo||undefined} onChange={e=>setDateFrom(e.target.value)} className="mt-1 w-full rounded-xl border p-2.5 font-bold"/></label>
+    <label className="text-xs font-black text-gray-600">إلى<input aria-label="نهاية فترة التقرير" type="date" value={dateTo} min={dateFrom||undefined} onChange={e=>setDateTo(e.target.value)} className="mt-1 w-full rounded-xl border p-2.5 font-bold"/></label>
+   </div>
+   {dateFrom||dateTo?<div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-800"><span>الفترة المطبقة: {dateFrom||'البداية'} — {dateTo||'اليوم'}</span><button type="button" onClick={()=>{setDateFrom('');setDateTo('')}} className="rounded-lg bg-white px-2.5 py-1 font-black">مسح الفترة</button></div>:null}
+  </section>
 
   {error?<div role="alert" className="rounded-2xl bg-rose-50 p-4 font-bold text-rose-700">{error}</div>:null}
   {busy?<div className="flex items-center justify-center gap-2 rounded-3xl border bg-white p-12 font-bold text-gray-500"><Loader2 size={18} className="animate-spin"/>جاري تحميل التقرير...</div>:overview?<>
