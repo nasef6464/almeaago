@@ -22,7 +22,12 @@ type Repository interface {
 }
 
 type Config struct {
-	Integrations []operations.IntegrationCheck
+	Integrations        []operations.IntegrationCheck
+	Environment         string
+	ReleaseSHA          string
+	DeploymentProvider  string
+	SentryConfigured    bool
+	OTelConfigured      bool
 }
 
 type Service struct {
@@ -107,12 +112,59 @@ func (s *Service) Readiness(
 			status = "ready_with_notes"
 		}
 	}
+	releaseSHA := strings.TrimSpace(s.cfg.ReleaseSHA)
+	releaseProvider := strings.TrimSpace(s.cfg.DeploymentProvider)
+	releaseIdentity := operations.ReleaseIdentity{
+		Environment:        strings.TrimSpace(s.cfg.Environment),
+		CommitSHA:          releaseSHA,
+		DeploymentProvider: releaseProvider,
+		Proof:              "external_proof_required",
+		Detail:             "Deployment must publish an exact release SHA and external post-deploy evidence before release identity is certified.",
+	}
+	if releaseSHA != "" {
+		releaseIdentity.Proof = "declared"
+		releaseIdentity.Detail = "Runtime declares an exact release SHA; external deployment verification is still required before certification."
+	}
+	evidence := []operations.ReleaseEvidence{
+		{
+			ID:     "release_identity",
+			Status: releaseIdentity.Proof,
+			Detail: releaseIdentity.Detail,
+		},
+		{
+			ID:     "observability",
+			Status: "external_proof_required",
+			Detail: "Structured application logs are internal evidence; live Sentry/OTel event and alert routing proof must come from deployment operations.",
+		},
+		{
+			ID:     "backup_restore",
+			Status: "external_proof_required",
+			Detail: "A dated isolated restore drill with measured RPO/RTO is not recorded by the application.",
+		},
+		{
+			ID:     "performance_load",
+			Status: "external_proof_required",
+			Detail: "Production-equivalent p50/p95/p99, error-rate and resource evidence is not recorded by this runtime.",
+		},
+		{
+			ID:     "governance",
+			Status: "external_proof_required",
+			Detail: "Repository protection, required checks and deployment approval policy require external control-plane evidence.",
+		},
+	}
+	if s.cfg.SentryConfigured || s.cfg.OTelConfigured {
+		evidence[1].Status = "configured_not_verified"
+		evidence[1].Detail = "Observability export is configured, but live event/trace ingestion and alert routing still require external verification."
+	}
 	return operations.Readiness{
 		CheckedAt:           s.now().UTC(),
 		Status:              status,
 		Dependencies:        dependencies,
 		Integrations:        append([]operations.IntegrationCheck(nil), s.cfg.Integrations...),
 		Counts:              counts,
+		ReleaseIdentity:     releaseIdentity,
+		ReleaseEvidence:     evidence,
+		ReleaseDecision:     "internal_ready_external_evidence_pending",
 		BackupRestoreProof:  "external_proof_required",
 		BackupRestoreDetail: "The application records no verified backup/restore drill yet; deployment infrastructure must supply dated restore evidence.",
 	}, nil
