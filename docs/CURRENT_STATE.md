@@ -1312,3 +1312,15 @@ The global release-certification sweep is re-validating AI against legacy `95e8c
 - Assessment scoring, Learning mastery/readiness and official product truth remain deterministic and non-LLM.
 
 Final documentation-inclusive PR #88 head `7fbaa4b95d88fa8dda4b3187cb07b08d657a81fe` passed Database CI `36406617955`, Backend CI `36406617931`, Frontend CI `36406617939`, and Frontend E2E `36406617974` (68/68). Browser artifact `10961769319`, digest `sha256:91034c3d110c2b1690c7acfd2005381a223eb9f764f31afa6b7f561899b62747`. PR #88 squash-merged as `93725f48f44149eb0a7fdec0e5dd16e4e4e23917`. Final closure re-check reached legacy `637a205e3c005602cd34ba6f729d6642796384ea`; its PLAN 6 student learning-loop delta changes no AI-domain file, so no AI same-domain delta remains unreviewed. Live provider certification, multi-key/quota-pool secret management, maintained provider pricing/cost, live Voice/Vision, Qiyas calibration, physical purge and production concurrency/load remain explicit external/deferred evidence.
+
+
+## Reporting / Operations integrated parity re-certification — IN PROGRESS
+The global release-certification sweep is re-validating Reporting / Operations against legacy `637a205e3c005602cd34ba6f729d6642796384ea` and the V2 release acceptance contract. Existing role-scoped reporting, direct CSV cap, audit/readiness and external backup-proof boundaries remain intact. This batch adds:
+- optional date-only `dateFrom/dateTo` filtering shared by overview, paginated results and CSV after canonical authorization resolution;
+- fail-closed invalid/inverted date handling and an inclusive API `dateTo` implemented as an exclusive next-day UTC bound;
+- a responsive date-range reporting surface for learner/staff/admin views;
+- Operations release identity from optional `APP_RELEASE_SHA` / deployment label, explicitly marked declared rather than verified;
+- a release-evidence matrix for identity, observability, backup/restore, performance/load and governance;
+- `blocked_internal_readiness` when internal dependencies fail, otherwise `internal_ready_external_evidence_pending`; the application never emits a production-ready decision.
+
+Live deployment identity verification, dated isolated restore/RPO-RTO, production-equivalent load, live Sentry/OTel evidence, repository/deployment governance and retention/anonymization policy remain external/deferred. Exact-head gates and final legacy delta re-check remain.
