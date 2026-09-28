@@ -148,7 +148,6 @@ func TestWeeklyReportIsReadOnlySevenDayProjection(t *testing.T) {
 	}
 }
 
-
 type batchAuthorityStub struct {
 	values map[string]org.ParentAuthority
 	calls  int
