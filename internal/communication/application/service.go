@@ -41,6 +41,7 @@ type Repository interface {
 	MarkAllRead(context.Context, string) (int64, error)
 	ListDeliveries(context.Context, communication.DeliveryFilter) (communication.DeliveryPage, error)
 	GetPreferences(context.Context, string) (communication.Preferences, error)
+	PreferencesForUsers(context.Context, []string) (map[string]communication.Preferences, error)
 	UpdatePreferences(context.Context, string, communication.PreferencesWrite) (communication.Preferences, error)
 }
 
