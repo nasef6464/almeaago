@@ -56,6 +56,7 @@ test('student question assistant is scoped to owned review card and can return t
  await page.route('**/api/v1/review/library?**',route=>json(route,{items:[{card:{cardId:'card-1',questionId:'q-1',questionVersion:3,pathId:'path-1',subjectId:'subject-1',reviewType:'error_recovery',savedForReview:false,savedAt:null,hasMistake:true,nextReviewAt:'2026-09-27T09:00:00Z',skillIds:['skill-1'],updatedAt:'2026-09-27T08:00:00Z'},question:{id:'q-1',version:3,type:'mcq',text:'٢ + ٢ = ؟',imageAssetId:'',imageAlt:'',optionsEmbeddedInImage:false,videoUrl:'',difficulty:'easy',correctOptionIndex:1,explanation:'نجمع العددين فنحصل على أربعة.',hint:'اجمع العددين.',solvingStrategy:'جمع مباشر',options:[{index:0,text:'٣',assetId:''},{index:1,text:'٤',assetId:''}]}}],page:1,limit:20,hasMore:false}));
  await page.route('**/api/v1/mastery/progress?**',route=>json(route,{items:[],page:1,limit:8,hasMore:false}));
  await page.route('**/api/v1/mastery/next-action?**',route=>json(route,{item:null}));
+ await page.route('**/api/v1/mastery/readiness?**',route=>json(route,{readiness:{score:0,status:'needs_measurement',mastery:0,coverage:0,evidenceConfidence:0,recency:.5,totalSkills:0,reliableSkills:0,totalEvidence:0,explanation:'نحتاج أدلة أكثر قبل اتخاذ قرار انتقال.'}}));
  await page.route('**/api/v1/mastery/goals?**',route=>json(route,{items:[],page:1,limit:20,hasMore:false}));
  let assistBody:any=null;let assistCSRF='';
  await page.route('**/api/v1/ai/question-assistant',route=>{
