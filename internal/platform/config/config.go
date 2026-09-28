@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -50,6 +51,8 @@ type Config struct {
 	AIQuestionAssistantPerMinute       int
 	AIQuestionAssistantMaxOutputTokens int
 	AIInteractionRetentionDays         int
+	AIGlobalDailyLimit                int
+	AIUserDailyLimit                  int
 
 	GeminiAPIKey     string
 	OpenRouterAPIKey string
@@ -103,9 +106,9 @@ func Load() (Config, error) {
 		QwenAPIKey:       os.Getenv("QWEN_API_KEY"),
 		DeepSeekAPIKey:   os.Getenv("DEEPSEEK_API_KEY"),
 		OpenAIAPIKey:     os.Getenv("OPENAI_API_KEY"),
-		OllamaBaseURL:    value("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
+		OllamaBaseURL:    strings.TrimSpace(os.Getenv("OLLAMA_BASE_URL")),
 		OllamaModel:      value("OLLAMA_MODEL", "gemma3:4b"),
-		LMStudioBaseURL:  value("LMSTUDIO_BASE_URL", "http://127.0.0.1:1234/v1"),
+		LMStudioBaseURL:  strings.TrimSpace(os.Getenv("LMSTUDIO_BASE_URL")),
 		LMStudioModel:    value("LMSTUDIO_MODEL", "local-model"),
 	}
 
@@ -161,11 +164,21 @@ func Load() (Config, error) {
 	if err != nil || aiRetentionDays < 1 || aiRetentionDays > 365 {
 		return Config{}, fmt.Errorf("AI_INTERACTION_RETENTION_DAYS must be between 1 and 365")
 	}
+	aiGlobalDailyLimit, err := intValue("AI_DAILY_LIMIT", 800)
+	if err != nil || aiGlobalDailyLimit < 1 || aiGlobalDailyLimit > 200000 {
+		return Config{}, fmt.Errorf("AI_DAILY_LIMIT must be between 1 and 200000")
+	}
+	aiUserDailyLimit, err := intValue("AI_PER_USER_DAILY_LIMIT", 80)
+	if err != nil || aiUserDailyLimit < 1 || aiUserDailyLimit > 20000 {
+		return Config{}, fmt.Errorf("AI_PER_USER_DAILY_LIMIT must be between 1 and 20000")
+	}
 	cfg.AIRequestTimeoutMS = aiTimeoutMS
 	cfg.AIQuestionAssistantCacheMinutes = aiCacheMinutes
 	cfg.AIQuestionAssistantPerMinute = aiPerMinute
 	cfg.AIQuestionAssistantMaxOutputTokens = aiMaxOutputTokens
 	cfg.AIInteractionRetentionDays = aiRetentionDays
+	cfg.AIGlobalDailyLimit = aiGlobalDailyLimit
+	cfg.AIUserDailyLimit = aiUserDailyLimit
 
 	return cfg, nil
 }
