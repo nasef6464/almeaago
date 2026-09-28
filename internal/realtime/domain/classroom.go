@@ -71,20 +71,25 @@ type PinnedQuestion struct {
 }
 
 type Batch struct {
-	ID          string
-	SessionID   string
-	BatchNumber int
-	Label       string
-	StartedAt   *time.Time
-	EndedAt     *time.Time
-	CreatedAt   time.Time
-	Questions   []PinnedQuestion
+	ID                       string
+	SessionID                string
+	BatchNumber              int
+	Label                    string
+	StartedAt                *time.Time
+	EndedAt                  *time.Time
+	CompetitionEnabled       bool
+	ChallengeDurationSeconds *int
+	TimerStartedAt           *time.Time
+	TimerEndsAt              *time.Time
+	CreatedAt                time.Time
+	Questions                []PinnedQuestion
 }
 
 type Participant struct {
 	SessionID              string
 	StudentID              string
-	JoinedAt               time.Time
+	JoinedAt               *time.Time
+	JoinedMethod           string
 	AttendanceStatus       AttendanceStatus
 	AttendanceOverriddenBy string
 	AttendanceOverriddenAt *time.Time
@@ -146,6 +151,7 @@ type StudentState struct {
 	ActiveBatchID         string
 	ActiveQuestionOrdinal *int
 	Questions             []StudentQuestion
+	Challenge             *CompetitionState
 }
 
 type Presentation struct {
@@ -156,6 +162,7 @@ type Presentation struct {
 	ActiveQuestionOrdinal *int
 	Questions             []StudentQuestion
 	Aggregate             Aggregate
+	Challenge             *CompetitionState
 }
 
 type CreateRecord struct {
@@ -188,6 +195,52 @@ type ReportSnapshot struct {
 	SessionID   string
 	Snapshot    json.RawMessage
 	FinalizedAt time.Time
+}
+
+type AttendanceRow struct {
+	StudentID              string
+	JoinedAt               *time.Time
+	JoinedMethod           string
+	AttendanceStatus       AttendanceStatus
+	AttendanceOverriddenBy string
+	AttendanceOverriddenAt *time.Time
+}
+
+type AttendanceSnapshot struct {
+	SessionID string
+	Expected  int
+	Joined    int
+	Present   int
+	Late      int
+	Absent    int
+	Excused   int
+	Rows      []AttendanceRow
+}
+
+type CompetitionState struct {
+	SessionID                string
+	ActiveBatchID            string
+	CompetitionEnabled       bool
+	ChallengeDurationSeconds *int
+	TimerStartedAt           *time.Time
+	TimerEndsAt              *time.Time
+	Expired                  bool
+	ServerNow                time.Time
+}
+
+type CompetitionStanding struct {
+	StudentID       string
+	Answered        int
+	Correct         int
+	Accuracy        int
+	Score           int
+	LastSubmittedAt *time.Time
+}
+
+type Competition struct {
+	State            CompetitionState
+	ParticipantCount int
+	Leaderboard      []CompetitionStanding
 }
 
 type StreamEvent struct {
