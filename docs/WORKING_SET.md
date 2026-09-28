@@ -49,4 +49,4 @@ Foundation learning / Content parity only, plus narrowly required shared test/do
 - No production go-live claim from CI alone.
 
 ## Completed certification checkpoint
-Foundation learning / Content integrated parity — **TESTED** in PR #74 candidate head `c65fafdf77053b24e8c3a88b638f015cad3e6451`: Frontend CI `36371212663`, Frontend E2E `36371212657` (62/62), artifact `10949715181`. Backend/database contracts were unchanged by this UI certification slice.
+Foundation learning / Content integrated parity — **TESTED / MERGED** in PR #74. Final exact head `ddf8961c606b8f9d3184997cc655f6be2cf3bae5` passed Frontend CI `36371378688` and Frontend E2E `36371378748` (62/62), artifact `10949426615`; squash merge `2596e564854edf41e296998b0b641161d1d60a16`. Backend/database contracts were unchanged by this UI certification slice.
