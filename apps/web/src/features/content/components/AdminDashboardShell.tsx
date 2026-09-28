@@ -67,12 +67,14 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
   const [plannedOpen, setPlannedOpen] = useState(false);
   const availableItems = navItems.filter((item) => Boolean(item.href));
   const plannedItems = navItems.filter((item) => !item.href);
-  const activeItem = availableItems.find((item) =>
-    item.href ? location.pathname === item.href || location.pathname.startsWith(item.href + '/') : false,
-  );
+  const isActiveHref = (href: string) =>
+    href === '/admin-dashboard'
+      ? location.pathname === href
+      : location.pathname === href || location.pathname.startsWith(href + '/');
+  const activeItem = availableItems.find((item) => item.href ? isActiveHref(item.href) : false);
 
   const sidebar = (
-    <aside className="flex h-full w-[270px] flex-col border-l border-gray-100 bg-white">
+    <aside className="flex h-full w-64 flex-col border-l border-gray-100 bg-white sm:w-[270px]">
       <div className="border-b border-gray-100 px-6 py-6">
         <h2 className="text-xl font-black text-gray-900">لوحة الإدارة</h2>
         <p className="mt-1 text-xs font-bold text-gray-400">التحكم الكامل بالمنصة</p>
@@ -81,9 +83,7 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
         <div className="px-5 pb-2 text-[10px] font-black tracking-wide text-gray-400">الأقسام المتاحة</div>
         {availableItems.map((item) => {
           const Icon = item.icon;
-          const active = item.href
-            ? location.pathname === item.href || location.pathname.startsWith(item.href + '/')
-            : false;
+          const active = item.href ? isActiveHref(item.href) : false;
           const classes = active
             ? 'border-r-4 border-amber-500 bg-amber-50 text-amber-800'
             : 'border-r-4 border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-800';
