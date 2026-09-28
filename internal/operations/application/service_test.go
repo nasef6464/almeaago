@@ -82,7 +82,6 @@ func TestReadinessBlocksWhenDependencyFails(t *testing.T) {
 	}
 }
 
-
 func TestReadinessSeparatesDeclaredReleaseIdentityFromCertification(t *testing.T) {
 	repo := &operationsRepoStub{health: operations.DependencyHealth{Postgres: true, Redis: true}}
 	s := NewService(repo, Config{
