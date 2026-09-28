@@ -244,6 +244,101 @@ func (s *Service) Results(ctx context.Context, actor identity.User, studentID st
 	return s.assess.ParentStudentResults(ctx, studentID, page, limit)
 }
 
+func (s *Service) WeeklyReportsForParents(
+	ctx context.Context,
+	parentIDs []string,
+	end time.Time,
+) (map[string]parents.WeeklyReport, error) {
+	if s.authorityBatch == nil || len(parentIDs) > 500 {
+		return nil, ErrInvalidInput
+	}
+	seenParents := make(map[string]struct{}, len(parentIDs))
+	ids := make([]string, 0, len(parentIDs))
+	for _, raw := range parentIDs {
+		id := strings.TrimSpace(raw)
+		if id == "" {
+			continue
+		}
+		if _, exists := seenParents[id]; exists {
+			continue
+		}
+		seenParents[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	authorities, err := s.authorityBatch.ParentAuthorities(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	start := end.UTC().Add(-7 * 24 * time.Hour)
+	end = end.UTC()
+	scopesByParent := make(map[string][]relationshipScope, len(ids))
+	studentSeen := map[string]struct{}{}
+	studentIDs := make([]string, 0)
+	for _, parentID := range ids {
+		scopes := relationshipScopes(authorities[parentID])
+		if len(scopes) > 50 {
+			scopes = scopes[:50]
+		}
+		scopesByParent[parentID] = scopes
+		for _, scope := range scopes {
+			if _, exists := studentSeen[scope.studentID]; exists {
+				continue
+			}
+			studentSeen[scope.studentID] = struct{}{}
+			studentIDs = append(studentIDs, scope.studentID)
+		}
+	}
+	profiles, err := s.students.ParentStudentProfiles(ctx, studentIDs)
+	if err != nil {
+		return nil, err
+	}
+	assessmentRows, err := s.assess.ParentStudentAssessmentSnapshots(ctx, studentIDs, start, 1)
+	if err != nil {
+		return nil, err
+	}
+	learningRows, err := s.learning.ParentStudentLearningSnapshots(ctx, studentIDs, 3)
+	if err != nil {
+		return nil, err
+	}
+	profilesByID := profileMap(profiles)
+	out := make(map[string]parents.WeeklyReport, len(ids))
+	for _, parentID := range ids {
+		report := parents.WeeklyReport{
+			PeriodStart: start,
+			PeriodEnd:   end,
+			Children:    []parents.WeeklyChildReport{},
+			Page:        1,
+			Limit:       50,
+		}
+		for _, scope := range scopesByParent[parentID] {
+			profile, ok := profilesByID[scope.studentID]
+			if !ok {
+				continue
+			}
+			a := assessmentRows[scope.studentID]
+			l := learningRows[scope.studentID]
+			row := parents.WeeklyChildReport{
+				LinkedStudent: parents.LinkedStudent{
+					StudentID: scope.studentID,
+					Name:      profile.Name,
+					AvatarURL: profile.AvatarURL,
+					SchoolIDs: scope.schoolIDs,
+				},
+				AssessmentCount: a.WeeklyAssessmentCount,
+				AverageScore:    a.WeeklyAverageScore,
+				StudyMinutes:    (a.WeeklyStudySeconds + 30) / 60,
+				WeakSkills:      l.WeakSkills,
+			}
+			if len(l.WeakSkills) > 0 {
+				row.NextAction = l.WeakSkills[0].RecommendedAction
+			}
+			report.Children = append(report.Children, row)
+		}
+		out[parentID] = report
+	}
+	return out, nil
+}
+
 func (s *Service) WeeklyReport(ctx context.Context, actor identity.User, page, limit int) (parents.WeeklyReport, error) {
 	page, limit, err := normalizePage(page, limit)
 	if err != nil {
