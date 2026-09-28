@@ -70,3 +70,6 @@ PR #84 is **TESTED / MERGED**. Final documentation-inclusive head `40b29eb12ea24
 
 ## Active certification batch — Smart Classroom / Realtime
 Start from current `main`. Re-audit teacher start, PIN/QR join, attendance, single/batch publish, answer/revision, aggregate, reveal, projector, immutable report, WebSocket/Redis multi-instance behavior and role-safe payloads against the latest legacy reference. Competition/mastery automation and retention remain source-backed only.
+
+## Active certification batch — Smart Classroom / Realtime
+Integrated audit is active against legacy `a5bcd4a1b43316d6dfc0c75e7f2d91a2e8d294e9`. The branch adds source-backed PIN/QR join provenance, canonical roster attendance with auto-late and teacher overrides, server-timed deterministic challenge scoring, reconnect/resume browser evidence and richer immutable attendance reporting while preserving PostgreSQL durable truth and Redis ephemeral fanout. Mastery rollup remains deferred by the legacy execution plan; exact retention policy and production multi-instance/load proof remain external. Exact-head four-gate evidence and final legacy delta re-check remain before merge.
