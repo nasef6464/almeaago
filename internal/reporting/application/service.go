@@ -63,6 +63,17 @@ func normalizeQuery(input reporting.Query) (reporting.Query, error) {
 	if input.ClassID != "" && input.SchoolID == "" {
 		return reporting.Query{}, ErrInvalidInput
 	}
+	if input.FromAt != nil {
+		value := input.FromAt.UTC()
+		input.FromAt = &value
+	}
+	if input.ToAt != nil {
+		value := input.ToAt.UTC()
+		input.ToAt = &value
+	}
+	if input.FromAt != nil && input.ToAt != nil && !input.FromAt.Before(*input.ToAt) {
+		return reporting.Query{}, ErrInvalidInput
+	}
 	if input.StudentLimit == 0 {
 		input.StudentLimit = DefaultStudentLimit
 	}

@@ -9,11 +9,14 @@ async function auth(page:Page,user:typeof admin|typeof student){await page.route
 test('student report is self-scoped, bounded and exposes no answer-level data',async({page})=>{
  await auth(page,student);
  await page.setViewportSize({width:390,height:844});
- await page.route('**/api/v1/reports/overview',route=>json(route,{
+ let lastOverviewUrl='';
+ await page.route('**/api/v1/reports/overview**',route=>{lastOverviewUrl=route.request().url();return json(route,{
   scope:{kind:'student',studentCount:1,sampledStudentCount:1,isTruncated:false,limits:{students:500,results:2000,attempts:3000},canDetail:true,canExport:true},
   assessment:{resultCount:3,sampledResultCount:3,resultsTruncated:false,attemptCount:3,sampledAttemptCount:3,attemptsTruncated:false,averageScore:76.5,passed:2,failed:1,passRate:66.667},
   weakestSkills:[{skillId:'skill-1',skillName:'النسبة والتناسب',evidenceCount:5,affectedStudents:1,mastery:40}],
- }));
+ })});
+ let lastExportUrl='';
+ await page.route('**/api/v1/reports/results.csv**',route=>{lastExportUrl=route.request().url();return route.fulfill({status:200,contentType:'text/csv',body:'attempt_id,score\nattempt-1,78\n'})});
  await page.route('**/api/v1/reports/results?**',route=>json(route,{items:[{
   attemptId:'attempt-1',studentId:'student-1',studentName:'سارة',assessmentId:'assessment-1',assessmentVersion:2,
   title:'اختبار الكمي',pathId:'path-1',subjectId:'subject-1',score:78,passed:true,correctAnswers:8,wrongAnswers:2,
@@ -28,6 +31,14 @@ test('student report is self-scoped, bounded and exposes no answer-level data',a
  await expect(page.locator('body')).not.toContainText('correctOptionIndex');
  await expect(page.locator('body')).not.toContainText('answerKey');
  await expect(page.getByText('مفتاح الإجابة',{exact:true})).toHaveCount(0);
+ await page.getByLabel('بداية فترة التقرير').fill('2026-09-01');
+ await page.getByLabel('نهاية فترة التقرير').fill('2026-09-28');
+ await expect.poll(()=>lastOverviewUrl).toContain('dateFrom=2026-09-01');
+ await expect.poll(()=>lastOverviewUrl).toContain('dateTo=2026-09-28');
+ await expect(page.getByText(/الفترة المطبقة/)).toBeVisible();
+ await page.getByRole('button',{name:'CSV'}).click();
+ await expect.poll(()=>lastExportUrl).toContain('dateFrom=2026-09-01');
+ await expect.poll(()=>lastExportUrl).toContain('dateTo=2026-09-28');
  await page.screenshot({path:'test-results/reporting-student-mobile.png',fullPage:true});
 });
 
@@ -41,6 +52,15 @@ test('admin operations center exposes evidence gaps instead of claiming release 
    {id:'tap',configured:false,required:false,detail:'Tap payment provider'},
   ],
   counts:{notificationPending:2,notificationRetrying:1,notificationFailed:0,auditBlocked24h:1,auditFailed24h:0,liveClassrooms:2,enabledAiProviders:1},
+  releaseIdentity:{environment:'staging',commitSha:'abc123def456',deploymentProvider:'render',proof:'declared',detail:'Runtime declares an exact release SHA; external deployment verification is still required before certification.'},
+  releaseEvidence:[
+   {id:'release_identity',status:'declared',detail:'Runtime declares an exact release SHA; external deployment verification is still required before certification.'},
+   {id:'observability',status:'configured_not_verified',detail:'Observability export is configured, but live event/trace ingestion and alert routing still require external verification.'},
+   {id:'backup_restore',status:'external_proof_required',detail:'A dated isolated restore drill with measured RPO/RTO is not recorded by the application.'},
+   {id:'performance_load',status:'external_proof_required',detail:'Production-equivalent performance evidence is external.'},
+   {id:'governance',status:'external_proof_required',detail:'Repository protection requires external evidence.'},
+  ],
+  releaseDecision:'internal_ready_external_evidence_pending',
   backupRestoreProof:'external_proof_required',
   backupRestoreDetail:'The application records no verified backup/restore drill yet; deployment infrastructure must supply dated restore evidence.',
  }));
@@ -52,11 +72,14 @@ test('admin operations center exposes evidence gaps instead of claiming release 
  await page.goto('/admin-dashboard/operations');
  await expect(page.getByRole('heading',{name:'مركز العمليات والتدقيق'})).toBeVisible();
  await expect(page.getByText('جاهزية مع ملاحظات خارجية')).toBeVisible();
- await expect(page.getByText('external_proof_required')).toBeVisible();
+ await expect(page.getByTestId('backup-restore-proof')).toHaveText('external_proof_required');
  await expect(page.getByText(/no verified backup\/restore drill yet/)).toBeVisible();
  await expect(page.getByText('Tap payment provider')).toBeVisible();
  await expect(page.getByText('غير مثبت',{exact:true})).toBeVisible();
  await expect(page.getByText('commerce.payment.reversal')).toBeVisible();
+ await expect(page.getByTestId('release-evidence')).toContainText('abc123def456');
+ await expect(page.getByTestId('release-evidence')).toContainText('configured_not_verified');
+ await expect(page.getByTestId('release-evidence')).toContainText('internal_ready_external_evidence_pending');
  await expect(page.getByText(/الإجمالي 1/)).toBeVisible();
  await page.screenshot({path:'test-results/operations-admin.png',fullPage:true});
 });

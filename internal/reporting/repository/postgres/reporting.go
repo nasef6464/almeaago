@@ -445,6 +445,12 @@ func resultScopeClause(scope reporting.ResolvedScope, query reporting.Query, sta
 	if query.SubjectID != "" {
 		clauses = append(clauses, "v.subject_id="+add(query.SubjectID)+"::uuid")
 	}
+	if query.FromAt != nil {
+		clauses = append(clauses, "COALESCE(r.finalized_at,a.started_at)>="+add(query.FromAt.UTC()))
+	}
+	if query.ToAt != nil {
+		clauses = append(clauses, "COALESCE(r.finalized_at,a.started_at)<"+add(query.ToAt.UTC()))
+	}
 	if len(clauses) == 0 {
 		return "", args
 	}

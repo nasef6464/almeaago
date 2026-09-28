@@ -107,3 +107,12 @@ These require production evidence, explicit policy or a separately specified wor
 - Frontend E2E `36306943040`: PASS — complete 45-test browser suite including self-scoped student reporting and Operations evidence-gap behavior.
 - browser evidence artifact `content-browser-evidence` id `10928135095`, digest `sha256:d64c8774633136511b88f76336a4940979726d7c5bc90ff339f4adb42aa22078`.
 - early Backend gates exposed gofmt/source corruption and a helper-name collision; UUIDv7 and optional teacher UUID filtering were also hardened. Initial E2E failures were selector false positives only. All corrections retained the intended authorization/data behavior, then all four gates reran green on the exact final head.
+
+
+## Integrated re-certification checkpoint
+The global release-certification sweep re-audited this foundation against legacy production-closure/release-hardening evidence. Two internal gaps were selected without converting external proof into application truth:
+
+1. Reporting now supports optional date-scoped overview/results/CSV using one normalized UTC range after canonical authorization resolution. This restores a source-backed analytics filter while preserving all read/export caps and secrecy boundaries.
+2. Operations now exposes declared release identity and a release-evidence matrix that explicitly separates configuration from certification. A runtime SHA is `declared`, observability configuration is at most `configured_not_verified`, and backup/restore, production load and governance remain `external_proof_required`.
+
+The application still cannot certify its own external deployment, restore drill, provider control plane or production load by assertion.

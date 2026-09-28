@@ -77,4 +77,45 @@ func TestReadinessBlocksWhenDependencyFails(t *testing.T) {
 	if out.Status != "blocked" {
 		t.Fatalf("expected blocked readiness, got %q", out.Status)
 	}
+	if out.ReleaseDecision != "blocked_internal_readiness" {
+		t.Fatalf("blocked dependency must block internal release decision: %q", out.ReleaseDecision)
+	}
+}
+
+func TestReadinessSeparatesDeclaredReleaseIdentityFromCertification(t *testing.T) {
+	repo := &operationsRepoStub{health: operations.DependencyHealth{Postgres: true, Redis: true}}
+	s := NewService(repo, Config{
+		Environment:        "staging",
+		ReleaseSHA:         "abc123",
+		DeploymentProvider: "render",
+		SentryConfigured:   true,
+	})
+	out, err := s.Readiness(context.Background(), operationsActor(identity.RoleAdmin))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.ReleaseIdentity.CommitSHA != "abc123" || out.ReleaseIdentity.Proof != "declared" {
+		t.Fatalf("unexpected release identity: %+v", out.ReleaseIdentity)
+	}
+	if out.ReleaseDecision != "internal_ready_external_evidence_pending" {
+		t.Fatalf("unexpected release decision: %q", out.ReleaseDecision)
+	}
+	if len(out.ReleaseEvidence) != 5 {
+		t.Fatalf("expected five release evidence checks, got %d", len(out.ReleaseEvidence))
+	}
+	if out.ReleaseEvidence[1].Status != "configured_not_verified" {
+		t.Fatalf("observability configuration must not be presented as live proof: %+v", out.ReleaseEvidence[1])
+	}
+}
+
+func TestReadinessKeepsMissingReleaseIdentityExplicit(t *testing.T) {
+	repo := &operationsRepoStub{health: operations.DependencyHealth{Postgres: true, Redis: true}}
+	s := NewService(repo, Config{Environment: "production"})
+	out, err := s.Readiness(context.Background(), operationsActor(identity.RoleAdmin))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.ReleaseIdentity.Proof != "external_proof_required" {
+		t.Fatalf("missing deployment identity must remain explicit: %+v", out.ReleaseIdentity)
+	}
 }

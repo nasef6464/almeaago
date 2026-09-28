@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -61,6 +62,32 @@ func parsePositive(raw string) (int, error) {
 	return value, nil
 }
 
+func parseDateRange(fromRaw, toRaw string) (*time.Time, *time.Time, error) {
+	fromRaw = strings.TrimSpace(fromRaw)
+	toRaw = strings.TrimSpace(toRaw)
+	var fromAt, toAt *time.Time
+	if fromRaw != "" {
+		value, err := time.Parse("2006-01-02", fromRaw)
+		if err != nil {
+			return nil, nil, reportingapp.ErrInvalidInput
+		}
+		value = value.UTC()
+		fromAt = &value
+	}
+	if toRaw != "" {
+		value, err := time.Parse("2006-01-02", toRaw)
+		if err != nil {
+			return nil, nil, reportingapp.ErrInvalidInput
+		}
+		value = value.UTC().Add(24 * time.Hour)
+		toAt = &value
+	}
+	if fromAt != nil && toAt != nil && !fromAt.Before(*toAt) {
+		return nil, nil, reportingapp.ErrInvalidInput
+	}
+	return fromAt, toAt, nil
+}
+
 func queryFromRequest(r *http.Request) (reporting.Query, error) {
 	studentLimit, err := parsePositive(r.URL.Query().Get("studentLimit"))
 	if err != nil {
@@ -74,11 +101,17 @@ func queryFromRequest(r *http.Request) (reporting.Query, error) {
 	if err != nil {
 		return reporting.Query{}, err
 	}
+	fromAt, toAt, err := parseDateRange(r.URL.Query().Get("dateFrom"), r.URL.Query().Get("dateTo"))
+	if err != nil {
+		return reporting.Query{}, err
+	}
 	return reporting.Query{
 		SchoolID:     strings.TrimSpace(r.URL.Query().Get("schoolId")),
 		ClassID:      strings.TrimSpace(r.URL.Query().Get("classId")),
 		PathID:       strings.TrimSpace(r.URL.Query().Get("pathId")),
 		SubjectID:    strings.TrimSpace(r.URL.Query().Get("subjectId")),
+		FromAt:       fromAt,
+		ToAt:         toAt,
 		StudentLimit: studentLimit,
 		ResultLimit:  resultLimit,
 		AttemptLimit: attemptLimit,

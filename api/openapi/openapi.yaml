@@ -430,6 +430,8 @@ paths:
         - { in: query, name: tab, schema: { type: string, enum: [saved, mistakes, all], default: all } }
         - { in: query, name: pathId, required: true, schema: { type: string, format: uuid } }
         - { in: query, name: subjectId, schema: { type: string, format: uuid } }
+        - { in: query, name: dateFrom, schema: { type: string, format: date }, description: Inclusive UTC report date. }
+        - { in: query, name: dateTo, schema: { type: string, format: date }, description: Inclusive UTC report date. }
         - { in: query, name: page, schema: { type: integer, minimum: 1, maximum: 10000, default: 1 } }
         - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
       responses:
@@ -1260,6 +1262,8 @@ paths:
         - { in: query, name: classId, schema: { type: string, format: uuid } }
         - { in: query, name: pathId, schema: { type: string, format: uuid } }
         - { in: query, name: subjectId, schema: { type: string, format: uuid } }
+        - { in: query, name: dateFrom, schema: { type: string, format: date }, description: Inclusive UTC report date. }
+        - { in: query, name: dateTo, schema: { type: string, format: date }, description: Inclusive UTC report date; server converts it to an exclusive next-day bound. }
         - { in: query, name: studentLimit, schema: { type: integer, minimum: 1, maximum: 1000, default: 500 } }
         - { in: query, name: resultLimit, schema: { type: integer, minimum: 1, maximum: 5000, default: 2000 } }
         - { in: query, name: attemptLimit, schema: { type: integer, minimum: 1, maximum: 5000, default: 3000 } }
@@ -1294,10 +1298,17 @@ paths:
     get:
       operationId: reportingResultsCsv
       description: >
-        Direct CSV export of the same scoped result-summary fields. School admin export requires
-        SCHOOL_REPORTS_EXPORT; teacher/supervisor direct export is not granted by inference.
-        Direct export fails closed above 5000 rows instead of silently truncating. Larger exports
-        require a separately designed background export/object-storage workflow.
+        Direct CSV export of the same scoped result-summary fields and optional date range.
+        School admin export requires SCHOOL_REPORTS_EXPORT; teacher/supervisor direct export is
+        not granted by inference. Direct export fails closed above 5000 rows instead of silently
+        truncating. Larger exports require a separately designed background export/object-storage workflow.
+      parameters:
+        - { in: query, name: schoolId, schema: { type: string, format: uuid } }
+        - { in: query, name: classId, schema: { type: string, format: uuid } }
+        - { in: query, name: pathId, schema: { type: string, format: uuid } }
+        - { in: query, name: subjectId, schema: { type: string, format: uuid } }
+        - { in: query, name: dateFrom, schema: { type: string, format: date } }
+        - { in: query, name: dateTo, schema: { type: string, format: date } }
       responses:
         "200": { description: UTF-8 CSV containing authorized result summaries only }
         "403": { description: Export permission denied }
@@ -1327,10 +1338,11 @@ paths:
       operationId: operationsReadiness
       description: >
         Platform-admin-only operational evidence view over PostgreSQL/Redis health, bounded
-        operational counts and deployment integration configuration. This is not a go-live
-        certificate. Backup/restore remains external_proof_required until deployment operations
-        provide dated verified restore evidence, so the endpoint does not claim unconditional
-        release readiness.
+        operational counts, integration configuration, declared runtime release identity and an
+        explicit release-evidence matrix. APP_RELEASE_SHA is treated only as declared identity,
+        never as deployment verification. Backup/restore, production-equivalent load, repository
+        governance and live observability proof remain external_proof_required unless independently
+        verified; therefore this endpoint does not issue a production-ready certificate.
       responses:
         "200": { description: Current operational evidence and explicit external proof gaps }
         "401": { description: Authentication required }

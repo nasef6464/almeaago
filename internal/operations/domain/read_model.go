@@ -57,6 +57,20 @@ type IntegrationCheck struct {
 	Detail     string `json:"detail"`
 }
 
+type ReleaseIdentity struct {
+	Environment        string `json:"environment"`
+	CommitSHA          string `json:"commitSha"`
+	DeploymentProvider string `json:"deploymentProvider"`
+	Proof              string `json:"proof"`
+	Detail             string `json:"detail"`
+}
+
+type ReleaseEvidence struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+	Detail string `json:"detail"`
+}
+
 type OperationalCounts struct {
 	NotificationPending  int `json:"notificationPending"`
 	NotificationRetrying int `json:"notificationRetrying"`
@@ -73,6 +87,9 @@ type Readiness struct {
 	Dependencies        DependencyHealth   `json:"dependencies"`
 	Integrations        []IntegrationCheck `json:"integrations"`
 	Counts              OperationalCounts  `json:"counts"`
+	ReleaseIdentity     ReleaseIdentity    `json:"releaseIdentity"`
+	ReleaseEvidence     []ReleaseEvidence  `json:"releaseEvidence"`
+	ReleaseDecision     string             `json:"releaseDecision"`
 	BackupRestoreProof  string             `json:"backupRestoreProof"`
 	BackupRestoreDetail string             `json:"backupRestoreDetail"`
 }

@@ -17,6 +17,8 @@ type Query struct {
 	ClassID      string
 	PathID       string
 	SubjectID    string
+	FromAt       *time.Time
+	ToAt         *time.Time
 	StudentLimit int
 	ResultLimit  int
 	AttemptLimit int
