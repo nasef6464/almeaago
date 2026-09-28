@@ -178,7 +178,7 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
 
         {menuOpen ? (
           <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={() => setMenuOpen(false)}>
-            <div className="absolute right-0 top-16 h-[calc(100vh-4rem)] max-w-[86vw]" onClick={(event) => event.stopPropagation()}>
+            <div data-testid="admin-mobile-drawer" className="absolute right-0 top-16 h-[calc(100vh-4rem)] max-w-[86vw]" onClick={(event) => event.stopPropagation()}>
               {sidebar}
             </div>
           </div>
