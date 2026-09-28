@@ -271,7 +271,11 @@ func replaceSkillLinksTx(ctx context.Context, tx pgx.Tx, questionID string, link
 	return nil
 }
 
-func (r *Repository) validateTaxonomyTx(ctx context.Context, tx pgx.Tx, pathID, subjectID string, links []question.SkillLink) error {
+type taxonomyQueryRower interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func (r *Repository) validateTaxonomyTx(ctx context.Context, tx taxonomyQueryRower, pathID, subjectID string, links []question.SkillLink) error {
 	var subjectOK bool
 	if err := tx.QueryRow(ctx, `
 		SELECT EXISTS(
