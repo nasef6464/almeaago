@@ -27,6 +27,7 @@ type Repository interface {
 	SchoolContexts(ctx context.Context, userID string) ([]org.SchoolContext, error)
 	TeacherWorkspace(ctx context.Context, userID string) (org.TeacherWorkspace, error)
 	ParentAuthority(ctx context.Context, parentUserID string) (org.ParentAuthority, error)
+	ParentAuthorities(ctx context.Context, parentUserIDs []string) (map[string]org.ParentAuthority, error)
 	ListSchools(ctx context.Context, access org.AccessContext, query org.SchoolListQuery) (org.SchoolPage, error)
 	SchoolByID(ctx context.Context, access org.AccessContext, schoolID string) (org.School, error)
 	CreateSchool(ctx context.Context, actorUserID string, write org.SchoolWrite) (org.School, error)
@@ -148,6 +149,29 @@ func (s *Service) ParentAuthority(
 		return org.ParentAuthority{}, ErrForbidden
 	}
 	return s.repo.ParentAuthority(ctx, actor.ID)
+}
+
+func (s *Service) ParentAuthorities(
+	ctx context.Context,
+	parentUserIDs []string,
+) (map[string]org.ParentAuthority, error) {
+	if len(parentUserIDs) > 500 {
+		return nil, ErrInvalidInput
+	}
+	seen := make(map[string]struct{}, len(parentUserIDs))
+	ids := make([]string, 0, len(parentUserIDs))
+	for _, raw := range parentUserIDs {
+		id := strings.TrimSpace(raw)
+		if id == "" {
+			continue
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	return s.repo.ParentAuthorities(ctx, ids)
 }
 
 func (s *Service) TeacherWorkspace(
