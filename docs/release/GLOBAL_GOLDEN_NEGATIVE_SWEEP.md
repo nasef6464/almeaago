@@ -1,6 +1,6 @@
 # Global cross-domain golden journeys / negative-security sweep
 
-Status: **FINAL-GATE CANDIDATE — PR #92; final documentation-inclusive exact-head gate pending.**
+Status: **TESTED / MERGED — implementation PR #92. Documentation closure gates pending.**
 
 ## Scope and source of truth
 
@@ -89,3 +89,18 @@ the latest legacy delta is reviewed, and the implementation PR is merged. A sepa
 closure PR must then pass the same four gates before merge.
 
 `PARITY_PROVEN` remains forbidden until the later release-evidence phases are complete.
+
+## Implementation closure evidence
+
+Implementation PR #92 is merged.
+
+- Final documentation-inclusive implementation head: `78e3137ef37d20b9198a7c36719b5ef52e4f7c48`.
+- Database CI `36448930041`: success.
+- Backend CI `36448930062`: success.
+- Frontend CI `36448930043`: success.
+- Frontend E2E `36448930059`: success, **69/69** Playwright tests.
+- Browser evidence artifact `10982112322`, digest `sha256:cbfbdd4b651cb690f201686919547755c48afc9cb397c525cf900295b7bef310`.
+- Squash merge: `bc817995b94632adbda5c6572529003c90caf3bf`.
+- Final implementation pre-merge legacy re-check: `983b004d18818166bf97c9096411e2707551a0bd`; legacy had not moved.
+
+The batch is closed as **TESTED / MERGED**, not `PARITY_PROVEN`. The next release-evidence phase is full visual parity; external/staging provider evidence, load/bandwidth, dated backup/restore and unresolved policy closure remain later gates.
