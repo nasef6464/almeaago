@@ -156,6 +156,10 @@ func (s *Service) Readiness(
 		evidence[1].Status = "configured_not_verified"
 		evidence[1].Detail = "Observability export is configured, but live event/trace ingestion and alert routing still require external verification."
 	}
+	releaseDecision := "internal_ready_external_evidence_pending"
+	if status == "blocked" {
+		releaseDecision = "blocked_internal_readiness"
+	}
 	return operations.Readiness{
 		CheckedAt:           s.now().UTC(),
 		Status:              status,
@@ -164,7 +168,7 @@ func (s *Service) Readiness(
 		Counts:              counts,
 		ReleaseIdentity:     releaseIdentity,
 		ReleaseEvidence:     evidence,
-		ReleaseDecision:     "internal_ready_external_evidence_pending",
+		ReleaseDecision:     releaseDecision,
 		BackupRestoreProof:  "external_proof_required",
 		BackupRestoreDetail: "The application records no verified backup/restore drill yet; deployment infrastructure must supply dated restore evidence.",
 	}, nil
