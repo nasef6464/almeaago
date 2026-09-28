@@ -32,6 +32,27 @@ func (b *Bus) Publish(ctx context.Context, event communication.InboxEvent) error
 	return b.client.Publish(ctx, inboxPrefix+event.UserID, raw).Err()
 }
 
+func (b *Bus) PublishBatch(ctx context.Context, events []communication.InboxEvent) error {
+	if b == nil || b.client == nil || len(events) == 0 {
+		return nil
+	}
+	pipe := b.client.Pipeline()
+	for _, event := range events {
+		if strings.TrimSpace(event.UserID) == "" {
+			continue
+		}
+		raw, err := json.Marshal(event)
+		if err != nil {
+			_ = pipe.Close()
+			return err
+		}
+		pipe.Publish(ctx, inboxPrefix+event.UserID, raw)
+	}
+	_, err := pipe.Exec(ctx)
+	_ = pipe.Close()
+	return err
+}
+
 type subscription struct {
 	pubsub *redis.PubSub
 	events chan communication.InboxEvent
