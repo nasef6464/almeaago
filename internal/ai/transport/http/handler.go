@@ -33,6 +33,9 @@ func New(service *aiapp.Service, auth Authenticator) http.Handler {
 	r.Patch("/admin/providers/{provider}", h.adminUpdateProvider)
 	r.Post("/admin/providers/{provider}/test", h.adminTestProvider)
 	r.Get("/admin/interactions", h.adminInteractions)
+	r.Get("/admin/usage", h.adminUsage)
+	r.Get("/admin/readiness", h.adminReadiness)
+	r.Post("/admin/copilot", h.adminCopilot)
 	r.Post("/question-assistant", h.questionAssistant)
 	return r
 }
@@ -109,6 +112,7 @@ func presentInteraction(item ai.Interaction) map[string]any {
 		"inputTokens":     item.InputTokens,
 		"outputTokens":    item.OutputTokens,
 		"totalTokens":     item.TotalTokens,
+		"cachedTokens":    item.CachedTokens,
 		"usageEstimated":  item.UsageEstimated,
 		"responseLength":  item.ResponseLength,
 		"errorCategory":   item.ErrorCategory,
@@ -217,6 +221,50 @@ func (h *Handler) adminInteractions(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items": items, "page": out.Page, "limit": out.Limit, "hasMore": out.HasMore,
 	})
+}
+
+func (h *Handler) adminUsage(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, false)
+	if !ok {
+		return
+	}
+	out, err := h.service.AdminUsage(r.Context(), authenticated.User)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"usage": out})
+}
+
+func (h *Handler) adminReadiness(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, false)
+	if !ok {
+		return
+	}
+	out, err := h.service.AdminReadiness(r.Context(), authenticated.User)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"readiness": out})
+}
+
+func (h *Handler) adminCopilot(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, true)
+	if !ok {
+		return
+	}
+	var payload ai.AdminCopilotInput
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+		return
+	}
+	out, err := h.service.AdminCopilot(r.Context(), authenticated.User, payload)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"result": out})
 }
 
 func (h *Handler) questionAssistant(w http.ResponseWriter, r *http.Request) {
