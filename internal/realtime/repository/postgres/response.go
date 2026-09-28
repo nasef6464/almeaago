@@ -11,20 +11,41 @@ import (
 
 func (r *Repository) JoinSession(
 	ctx context.Context,
-	sessionID, studentID string,
+	sessionID, studentID, method string,
 ) (realtime.Participant, error) {
 	var out realtime.Participant
+	now := time.Now().UTC()
 	err := r.db.QueryRow(ctx, `
-		INSERT INTO classroom_participants(session_id,student_id)
-		VALUES($1::uuid,$2::uuid)
+		INSERT INTO classroom_participants(
+			session_id,student_id,joined_at,joined_method,attendance_status
+		)
+		SELECT
+			$1::uuid,
+			$2::uuid,
+			$3,
+			NULLIF($4,''),
+			CASE WHEN EXISTS(
+				SELECT 1
+				FROM classroom_questions
+				WHERE session_id=$1::uuid
+				  AND published_at IS NOT NULL
+			) THEN 'late' ELSE 'present' END
 		ON CONFLICT(session_id,student_id) DO UPDATE
-		SET joined_at=classroom_participants.joined_at
-		RETURNING session_id::text,student_id::text,joined_at,attendance_status,
+		SET
+			joined_at=COALESCE(classroom_participants.joined_at,EXCLUDED.joined_at),
+			joined_method=COALESCE(classroom_participants.joined_method,EXCLUDED.joined_method),
+			attendance_status=CASE
+				WHEN classroom_participants.attendance_overridden_by IS NULL
+					THEN EXCLUDED.attendance_status
+				ELSE classroom_participants.attendance_status
+			END
+		RETURNING session_id::text,student_id::text,joined_at,COALESCE(joined_method,''),attendance_status,
 		          COALESCE(attendance_overridden_by::text,''),attendance_overridden_at
-	`, sessionID, studentID).Scan(
+	`, sessionID, studentID, now, method).Scan(
 		&out.SessionID,
 		&out.StudentID,
 		&out.JoinedAt,
+		&out.JoinedMethod,
 		&out.AttendanceStatus,
 		&out.AttendanceOverriddenBy,
 		&out.AttendanceOverriddenAt,
@@ -38,7 +59,7 @@ func (r *Repository) Participant(
 ) (realtime.Participant, error) {
 	var out realtime.Participant
 	err := r.db.QueryRow(ctx, `
-		SELECT session_id::text,student_id::text,joined_at,attendance_status,
+		SELECT session_id::text,student_id::text,joined_at,COALESCE(joined_method,''),attendance_status,
 		       COALESCE(attendance_overridden_by::text,''),attendance_overridden_at
 		FROM classroom_participants
 		WHERE session_id=$1::uuid AND student_id=$2::uuid
@@ -46,11 +67,47 @@ func (r *Repository) Participant(
 		&out.SessionID,
 		&out.StudentID,
 		&out.JoinedAt,
+		&out.JoinedMethod,
 		&out.AttendanceStatus,
 		&out.AttendanceOverriddenBy,
 		&out.AttendanceOverriddenAt,
 	)
 	return out, mapError(err)
+}
+
+func (r *Repository) Participants(
+	ctx context.Context,
+	sessionID string,
+) ([]realtime.Participant, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT session_id::text,student_id::text,joined_at,COALESCE(joined_method,''),attendance_status,
+		       COALESCE(attendance_overridden_by::text,''),attendance_overridden_at
+		FROM classroom_participants
+		WHERE session_id=$1::uuid
+		ORDER BY student_id
+	`, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []realtime.Participant{}
+	for rows.Next() {
+		var item realtime.Participant
+		if err = rows.Scan(
+			&item.SessionID,
+			&item.StudentID,
+			&item.JoinedAt,
+			&item.JoinedMethod,
+			&item.AttendanceStatus,
+			&item.AttendanceOverriddenBy,
+			&item.AttendanceOverriddenAt,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
 }
 
 func (r *Repository) SetAttendance(
@@ -67,15 +124,22 @@ func (r *Repository) SetAttendance(
 
 	var out realtime.Participant
 	err = tx.QueryRow(ctx, `
-		UPDATE classroom_participants
-		SET attendance_status=$3,attendance_overridden_by=$4::uuid,attendance_overridden_at=$5
-		WHERE session_id=$1::uuid AND student_id=$2::uuid
-		RETURNING session_id::text,student_id::text,joined_at,attendance_status,
+		INSERT INTO classroom_participants(
+			session_id,student_id,joined_at,joined_method,attendance_status,
+			attendance_overridden_by,attendance_overridden_at
+		)
+		VALUES($1::uuid,$2::uuid,NULL,NULL,$3,$4::uuid,$5)
+		ON CONFLICT(session_id,student_id) DO UPDATE
+		SET attendance_status=EXCLUDED.attendance_status,
+		    attendance_overridden_by=EXCLUDED.attendance_overridden_by,
+		    attendance_overridden_at=EXCLUDED.attendance_overridden_at
+		RETURNING session_id::text,student_id::text,joined_at,COALESCE(joined_method,''),attendance_status,
 		          COALESCE(attendance_overridden_by::text,''),attendance_overridden_at
 	`, sessionID, studentID, status, actorID, now).Scan(
 		&out.SessionID,
 		&out.StudentID,
 		&out.JoinedAt,
+		&out.JoinedMethod,
 		&out.AttendanceStatus,
 		&out.AttendanceOverriddenBy,
 		&out.AttendanceOverriddenAt,
@@ -130,17 +194,23 @@ func (r *Repository) UpsertAnswer(
 	}
 
 	var batchID string
-	var publishedAt, revealedAt, batchEndedAt *time.Time
+	var publishedAt, revealedAt, batchEndedAt, timerEndsAt *time.Time
+	var competitionEnabled bool
 	if err = tx.QueryRow(ctx, `
-		SELECT q.batch_id::text,q.published_at,q.revealed_at,b.ended_at
+		SELECT q.batch_id::text,q.published_at,q.revealed_at,b.ended_at,b.competition_enabled,b.timer_ends_at
 		FROM classroom_questions q
 		JOIN classroom_batches b ON b.id=q.batch_id AND b.session_id=q.session_id
 		WHERE q.session_id=$1::uuid AND q.ordinal=$2
 		FOR UPDATE OF q,b
-	`, sessionID, ordinal).Scan(&batchID, &publishedAt, &revealedAt, &batchEndedAt); err != nil {
+	`, sessionID, ordinal).Scan(
+		&batchID, &publishedAt, &revealedAt, &batchEndedAt, &competitionEnabled, &timerEndsAt,
+	); err != nil {
 		return realtime.Response{}, mapError(err)
 	}
 	if publishedAt == nil || revealedAt != nil || batchEndedAt != nil {
+		return realtime.Response{}, realtime.ErrConflict
+	}
+	if competitionEnabled && timerEndsAt != nil && !time.Now().UTC().Before(*timerEndsAt) {
 		return realtime.Response{}, realtime.ErrConflict
 	}
 	if mode == realtime.PublishedSingle {
@@ -155,7 +225,7 @@ func (r *Repository) UpsertAnswer(
 	if err = tx.QueryRow(ctx, `
 		SELECT EXISTS(
 			SELECT 1 FROM classroom_participants
-			WHERE session_id=$1::uuid AND student_id=$2::uuid
+			WHERE session_id=$1::uuid AND student_id=$2::uuid AND joined_at IS NOT NULL
 		)
 	`, sessionID, studentID).Scan(&participantExists); err != nil {
 		return realtime.Response{}, err
@@ -242,7 +312,7 @@ func (r *Repository) Aggregate(
 	if err = r.db.QueryRow(ctx, `
 		SELECT count(*)::int
 		FROM classroom_participants
-		WHERE session_id=$1::uuid
+		WHERE session_id=$1::uuid AND joined_at IS NOT NULL
 	`, sessionID).Scan(&joined); err != nil {
 		return realtime.Aggregate{}, err
 	}

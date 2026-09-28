@@ -67,8 +67,13 @@ func New(
 	r.Put("/sessions/{sessionId}/answers/{ordinal}", h.answer)
 	r.Get("/sessions/{sessionId}/aggregate", h.aggregate)
 	r.Get("/sessions/{sessionId}/presentation", h.presentation)
+	r.Get("/sessions/{sessionId}/attendance", h.attendanceSnapshot)
 	r.Patch("/sessions/{sessionId}/attendance/{studentId}", h.attendance)
 	r.Patch("/sessions/{sessionId}/participants/{studentId}/attendance", h.attendance)
+	r.Get("/sessions/{sessionId}/challenge-state", h.challengeState)
+	r.Get("/sessions/{sessionId}/competition", h.competition)
+	r.Post("/sessions/{sessionId}/competition/configure", h.configureCompetition)
+	r.Post("/sessions/{sessionId}/competition/end", h.endCompetition)
 	r.Post("/sessions/{sessionId}/end", h.endSession)
 	r.Get("/sessions/{sessionId}/report", h.report)
 	r.Get("/sessions/{sessionId}/stream", h.streamSession)
@@ -305,7 +310,8 @@ func (h *Handler) endBatch(w http.ResponseWriter, r *http.Request) {
 }
 
 type joinPayload struct {
-	PIN string
+	PIN    string
+	Method string
 }
 
 func (h *Handler) joinByPIN(w http.ResponseWriter, r *http.Request) {
@@ -317,7 +323,7 @@ func (h *Handler) joinByPIN(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &payload) {
 		return
 	}
-	participant, session, err := h.service.JoinByPIN(r.Context(), authenticated.User, payload.PIN)
+	participant, session, err := h.service.JoinByPIN(r.Context(), authenticated.User, payload.PIN, payload.Method)
 	if err != nil {
 		writeError(w, err)
 		return
@@ -436,6 +442,85 @@ func (h *Handler) attendance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"participant": presentParticipant(out)})
+}
+
+func (h *Handler) attendanceSnapshot(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	out, err := h.service.Attendance(r.Context(), authenticated.User, chi.URLParam(r, "sessionId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"attendance": presentAttendance(out)})
+}
+
+type competitionPayload struct {
+	DurationSeconds int
+}
+
+func (h *Handler) configureCompetition(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authenticate(w, r, true)
+	if !ok {
+		return
+	}
+	var payload competitionPayload
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+	out, err := h.service.ConfigureCompetition(
+		r.Context(), authenticated.User, chi.URLParam(r, "sessionId"), payload.DurationSeconds,
+	)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"challenge": presentCompetitionState(out)})
+}
+
+func (h *Handler) endCompetition(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authenticate(w, r, true)
+	if !ok {
+		return
+	}
+	out, err := h.service.EndCompetition(r.Context(), authenticated.User, chi.URLParam(r, "sessionId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"challenge": presentCompetitionState(out)})
+}
+
+func (h *Handler) challengeState(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	out, err := h.service.ChallengeState(r.Context(), authenticated.User, chi.URLParam(r, "sessionId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	if out == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"challenge": nil})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"challenge": presentCompetitionState(*out)})
+}
+
+func (h *Handler) competition(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	out, err := h.service.Competition(r.Context(), authenticated.User, chi.URLParam(r, "sessionId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"competition": presentCompetition(out)})
 }
 
 func (h *Handler) endSession(w http.ResponseWriter, r *http.Request) {
@@ -568,7 +653,7 @@ func safeStreamEvent(user identity.User, event realtime.StreamEvent) (realtime.S
 		return event, true
 	}
 	switch event.Type {
-	case "session.started", "question.published", "question.revealed", "batch.ended", "session.ended", "presence.count":
+	case "session.started", "question.published", "question.revealed", "batch.ended", "session.ended", "presence.count", "competition.updated":
 		return event, true
 	default:
 		return realtime.StreamEvent{}, false
@@ -603,6 +688,9 @@ func presentBatch(item realtime.Batch) map[string]any {
 	return map[string]any{
 		"id": item.ID, "sessionId": item.SessionID, "batchNumber": item.BatchNumber,
 		"label": item.Label, "startedAt": item.StartedAt, "endedAt": item.EndedAt,
+		"competitionEnabled":       item.CompetitionEnabled,
+		"challengeDurationSeconds": item.ChallengeDurationSeconds,
+		"timerStartedAt":           item.TimerStartedAt, "timerEndsAt": item.TimerEndsAt,
 		"createdAt": item.CreatedAt, "questions": questions,
 	}
 }
@@ -617,7 +705,7 @@ func presentPinned(item realtime.PinnedQuestion) map[string]any {
 func presentParticipant(item realtime.Participant) map[string]any {
 	return map[string]any{
 		"sessionId": item.SessionID, "studentId": item.StudentID, "joinedAt": item.JoinedAt,
-		"attendanceStatus":       item.AttendanceStatus,
+		"joinedMethod": item.JoinedMethod, "attendanceStatus": item.AttendanceStatus,
 		"attendanceOverriddenBy": item.AttendanceOverriddenBy,
 		"attendanceOverriddenAt": item.AttendanceOverriddenAt,
 	}
@@ -665,7 +753,7 @@ func presentStudentState(item realtime.StudentState) map[string]any {
 	return map[string]any{
 		"sessionId": item.SessionID, "status": item.Status, "publishedMode": item.PublishedMode,
 		"activeBatchId": item.ActiveBatchID, "activeQuestionOrdinal": item.ActiveQuestionOrdinal,
-		"questions": questions,
+		"questions": questions, "challenge": presentOptionalCompetitionState(item.Challenge),
 	}
 }
 
@@ -699,7 +787,81 @@ func presentPresentation(item realtime.Presentation) map[string]any {
 		"activeQuestionOrdinal": item.ActiveQuestionOrdinal,
 		"questions":             questions,
 		"aggregate":             presentAggregate(item.Aggregate),
+		"challenge":             presentOptionalCompetitionState(item.Challenge),
 	}
+}
+
+func presentCompetitionState(item realtime.CompetitionState) map[string]any {
+	return map[string]any{
+		"sessionId":                item.SessionID,
+		"activeBatchId":            item.ActiveBatchID,
+		"competitionEnabled":       item.CompetitionEnabled,
+		"challengeDurationSeconds": item.ChallengeDurationSeconds,
+		"timerStartedAt":           item.TimerStartedAt,
+		"timerEndsAt":              item.TimerEndsAt,
+		"expired":                  item.Expired,
+		"serverNow":                item.ServerNow,
+	}
+}
+
+func presentOptionalCompetitionState(item *realtime.CompetitionState) any {
+	if item == nil {
+		return nil
+	}
+	return presentCompetitionState(*item)
+}
+
+func presentCompetition(item realtime.Competition) map[string]any {
+	leaderboard := make([]map[string]any, 0, len(item.Leaderboard))
+	for index, row := range item.Leaderboard {
+		leaderboard = append(leaderboard, map[string]any{
+			"rank":            index + 1,
+			"studentId":       row.StudentID,
+			"answered":        row.Answered,
+			"correct":         row.Correct,
+			"accuracy":        row.Accuracy,
+			"score":           row.Score,
+			"lastSubmittedAt": row.LastSubmittedAt,
+		})
+	}
+	return map[string]any{
+		"state":            presentCompetitionState(item.State),
+		"participantCount": item.ParticipantCount,
+		"leaderboard":      leaderboard,
+		"podium":           leaderboard[:minInt(3, len(leaderboard))],
+		"scoring":          map[string]any{"correctAnswerPoints": 100, "speedBonus": false},
+	}
+}
+
+func presentAttendance(item realtime.AttendanceSnapshot) map[string]any {
+	rows := make([]map[string]any, 0, len(item.Rows))
+	for _, row := range item.Rows {
+		rows = append(rows, map[string]any{
+			"studentId":              row.StudentID,
+			"joinedAt":               row.JoinedAt,
+			"joinedMethod":           row.JoinedMethod,
+			"attendanceStatus":       row.AttendanceStatus,
+			"attendanceOverriddenBy": row.AttendanceOverriddenBy,
+			"attendanceOverriddenAt": row.AttendanceOverriddenAt,
+		})
+	}
+	return map[string]any{
+		"sessionId": item.SessionID,
+		"expected":  item.Expected,
+		"joined":    item.Joined,
+		"present":   item.Present,
+		"late":      item.Late,
+		"absent":    item.Absent,
+		"excused":   item.Excused,
+		"rows":      rows,
+	}
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func presentStaffState(item realtimeapp.StaffState) map[string]any {

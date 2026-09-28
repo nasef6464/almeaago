@@ -260,7 +260,8 @@ func (r *Repository) GetBatch(
 ) (realtime.Batch, error) {
 	var out realtime.Batch
 	err := r.db.QueryRow(ctx, `
-		SELECT id::text,session_id::text,batch_number,label,started_at,ended_at,created_at
+		SELECT id::text,session_id::text,batch_number,label,started_at,ended_at,
+		       competition_enabled,challenge_duration_seconds,timer_started_at,timer_ends_at,created_at
 		FROM classroom_batches
 		WHERE id=$1::uuid AND session_id=$2::uuid
 	`, batchID, sessionID).Scan(
@@ -270,6 +271,10 @@ func (r *Repository) GetBatch(
 		&out.Label,
 		&out.StartedAt,
 		&out.EndedAt,
+		&out.CompetitionEnabled,
+		&out.ChallengeDurationSeconds,
+		&out.TimerStartedAt,
+		&out.TimerEndsAt,
 		&out.CreatedAt,
 	)
 	if err != nil {

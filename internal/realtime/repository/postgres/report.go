@@ -149,11 +149,81 @@ func buildReportTx(
 	session realtime.Session,
 	rosterIDs []string,
 ) (map[string]any, error) {
-	var joined int
-	if err := tx.QueryRow(ctx, `
-		SELECT count(*)::int FROM classroom_participants WHERE session_id=$1::uuid
-	`, session.ID).Scan(&joined); err != nil {
+	rosterIDs = uniqueStrings(rosterIDs)
+	participantRows, err := tx.Query(ctx, `
+		SELECT
+			student_id::text,joined_at,COALESCE(joined_method,''),attendance_status,
+			COALESCE(attendance_overridden_by::text,''),attendance_overridden_at
+		FROM classroom_participants
+		WHERE session_id=$1::uuid
+		ORDER BY student_id
+	`, session.ID)
+	if err != nil {
 		return nil, err
+	}
+	participants := map[string]realtime.Participant{}
+	for participantRows.Next() {
+		var item realtime.Participant
+		if err = participantRows.Scan(
+			&item.StudentID,
+			&item.JoinedAt,
+			&item.JoinedMethod,
+			&item.AttendanceStatus,
+			&item.AttendanceOverriddenBy,
+			&item.AttendanceOverriddenAt,
+		); err != nil {
+			participantRows.Close()
+			return nil, err
+		}
+		participants[item.StudentID] = item
+	}
+	if err = participantRows.Err(); err != nil {
+		participantRows.Close()
+		return nil, err
+	}
+	participantRows.Close()
+
+	joined := 0
+	presentCount := 0
+	lateCount := 0
+	absentCount := 0
+	excusedCount := 0
+	attendance := make([]map[string]any, 0, len(rosterIDs))
+	for _, studentID := range rosterIDs {
+		item, exists := participants[studentID]
+		status := realtime.AttendanceAbsent
+		var joinedAt *time.Time
+		joinedMethod := ""
+		overrideBy := ""
+		var overrideAt *time.Time
+		if exists {
+			status = item.AttendanceStatus
+			joinedAt = item.JoinedAt
+			joinedMethod = item.JoinedMethod
+			overrideBy = item.AttendanceOverriddenBy
+			overrideAt = item.AttendanceOverriddenAt
+			if item.JoinedAt != nil {
+				joined++
+			}
+		}
+		switch status {
+		case realtime.AttendancePresent:
+			presentCount++
+		case realtime.AttendanceLate:
+			lateCount++
+		case realtime.AttendanceExcused:
+			excusedCount++
+		default:
+			absentCount++
+		}
+		attendance = append(attendance, map[string]any{
+			"studentId":              studentID,
+			"status":                 status,
+			"joinedAt":               joinedAt,
+			"joinedMethod":           joinedMethod,
+			"attendanceOverriddenBy": overrideBy,
+			"attendanceOverriddenAt": overrideAt,
+		})
 	}
 
 	rows, err := tx.Query(ctx, `
@@ -287,7 +357,7 @@ func buildReportTx(
 		})
 	}
 
-	expected := len(uniqueStrings(rosterIDs))
+	expected := len(rosterIDs)
 	durationMinutes := any(nil)
 	if session.StartedAt != nil && session.EndedAt != nil {
 		durationMinutes = int(session.EndedAt.Sub(*session.StartedAt).Minutes() + 0.5)
@@ -309,9 +379,14 @@ func buildReportTx(
 			"expected":          expected,
 			"joined":            joined,
 			"absentFromSession": maxInt(0, expected-joined),
+			"present":           presentCount,
+			"late":              lateCount,
+			"absent":            absentCount,
+			"excused":           excusedCount,
 		},
-		"batches":   batches,
-		"questions": questionPayload,
+		"attendance": attendance,
+		"batches":    batches,
+		"questions":  questionPayload,
 		"totals": map[string]any{
 			"responses": totalResponses,
 			"correct":   totalCorrect,
