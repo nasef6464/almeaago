@@ -22,6 +22,10 @@ type AuthorityResolver interface {
 	ParentAuthority(context.Context, identity.User) (org.ParentAuthority, error)
 }
 
+type BatchAuthorityResolver interface {
+	ParentAuthorities(context.Context, []string) (map[string]org.ParentAuthority, error)
+}
+
 type StudentDirectory interface {
 	ParentStudentProfiles(context.Context, []string) ([]identity.ParentStudentProfile, error)
 }
@@ -36,15 +40,20 @@ type LearningReader interface {
 }
 
 type Service struct {
-	authority AuthorityResolver
-	students  StudentDirectory
-	assess    AssessmentReader
-	learning  LearningReader
-	now       func() time.Time
+	authority      AuthorityResolver
+	authorityBatch BatchAuthorityResolver
+	students       StudentDirectory
+	assess         AssessmentReader
+	learning       LearningReader
+	now            func() time.Time
 }
 
 func NewService(authority AuthorityResolver, students StudentDirectory, assess AssessmentReader, learningReader LearningReader) *Service {
-	return &Service{authority: authority, students: students, assess: assess, learning: learningReader, now: time.Now}
+	service := &Service{authority: authority, students: students, assess: assess, learning: learningReader, now: time.Now}
+	if batch, ok := authority.(BatchAuthorityResolver); ok {
+		service.authorityBatch = batch
+	}
+	return service
 }
 
 func normalizePage(page, limit int) (int, int, error) {
