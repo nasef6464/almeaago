@@ -20,7 +20,10 @@ var (
 	ErrConflict         = communication.ErrConflict
 )
 
-const MaxCampaignRecipients = 500
+const (
+	MaxCampaignRecipients = 10000
+	campaignAudiencePageSize = 500
+)
 
 var templateKeyPattern = regexp.MustCompile("^[A-Za-z0-9_.-]{2,80}$")
 var variableNamePattern = regexp.MustCompile("^[A-Za-z0-9_.-]{1,80}$")
@@ -36,19 +39,27 @@ type Repository interface {
 	MarkRead(context.Context, string, string) (communication.Delivery, error)
 	MarkAllRead(context.Context, string) (int64, error)
 	ListDeliveries(context.Context, communication.DeliveryFilter) (communication.DeliveryPage, error)
+	GetPreferences(context.Context, string) (communication.Preferences, error)
+	UpdatePreferences(context.Context, string, communication.PreferencesWrite) (communication.Preferences, error)
 }
 
 type AudienceResolver interface {
-	ResolveNotificationAudience(context.Context, []string, []identity.Role, int) ([]identity.NotificationRecipient, error)
+	CountNotificationAudience(context.Context, []string, []identity.Role) (int, error)
+	ResolveNotificationAudiencePage(context.Context, []string, []identity.Role, string, int) ([]identity.NotificationRecipient, error)
 }
 
 type Service struct {
 	repo     Repository
 	audience AudienceResolver
+	realtime communication.InboxEventPublisher
 }
 
 func NewService(repo Repository, audience AudienceResolver) *Service {
 	return &Service{repo: repo, audience: audience}
+}
+
+func NewServiceWithRealtime(repo Repository, audience AudienceResolver, realtime communication.InboxEventPublisher) *Service {
+	return &Service{repo: repo, audience: audience, realtime: realtime}
 }
 
 func requireActor(actor identity.User) error {
