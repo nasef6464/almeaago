@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	communication "github.com/nasef6464/almeaago/internal/communication/domain"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
@@ -296,14 +297,61 @@ func (s *Service) resolveMessage(
 	}, nil
 }
 
-func (s *Service) SendCampaign(
+func (s *Service) resolveAudience(
 	ctx context.Context,
-	actor identity.User,
-	input communication.CampaignWrite,
-) (communication.CampaignResult, error) {
-	if requireAdmin(actor) != nil {
-		return communication.CampaignResult{}, ErrForbidden
+	userIDs []string,
+	roles []identity.Role,
+) ([]identity.NotificationRecipient, error) {
+	total, err := s.audience.CountNotificationAudience(ctx, userIDs, roles)
+	if err != nil {
+		return nil, err
 	}
+	if total > MaxCampaignRecipients {
+		return nil, ErrAudienceTooLarge
+	}
+	if total == 0 {
+		return []identity.NotificationRecipient{}, nil
+	}
+
+	out := make([]identity.NotificationRecipient, 0, total)
+	afterID := ""
+	for len(out) < total {
+		remaining := total - len(out)
+		limit := campaignAudiencePageSize
+		if remaining < limit {
+			limit = remaining
+		}
+		page, pageErr := s.audience.ResolveNotificationAudiencePage(ctx, userIDs, roles, afterID, limit)
+		if pageErr != nil {
+			return nil, pageErr
+		}
+		if len(page) == 0 {
+			break
+		}
+		out = append(out, page...)
+		afterID = page[len(page)-1].ID
+	}
+	if len(out) != total {
+		return nil, errors.New("notification audience changed during resolution")
+	}
+	return out, nil
+}
+
+func hasChannel(channels []communication.Channel, target communication.Channel) bool {
+	for _, channel := range channels {
+		if channel == target {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) sendCampaign(
+	ctx context.Context,
+	actorID string,
+	input communication.CampaignWrite,
+	idempotencyKey string,
+) (communication.CampaignResult, error) {
 	if s.audience == nil {
 		return communication.CampaignResult{}, errors.New("notification audience resolver is not configured")
 	}
@@ -320,25 +368,85 @@ func (s *Service) SendCampaign(
 		return communication.CampaignResult{}, err
 	}
 
-	recipients, err := s.audience.ResolveNotificationAudience(ctx, userIDs, roles, MaxCampaignRecipients+1)
+	recipients, err := s.resolveAudience(ctx, userIDs, roles)
 	if err != nil {
 		return communication.CampaignResult{}, err
 	}
-	if len(recipients) > MaxCampaignRecipients {
-		return communication.CampaignResult{}, ErrAudienceTooLarge
-	}
-
 	command := communication.CampaignCommand{
-		ActorUserID: actor.ID,
-		Message:     message,
-		Recipients:  make([]communication.CampaignRecipient, 0, len(recipients)),
+		ActorUserID: actorID,
+		IdempotencyKey: strings.TrimSpace(idempotencyKey),
+		Message: message,
+		Recipients: make([]communication.CampaignRecipient, 0, len(recipients)),
 	}
 	for _, recipient := range recipients {
 		command.Recipients = append(command.Recipients, communication.CampaignRecipient{
 			UserID: recipient.ID, Email: recipient.Email, Phone: recipient.Phone, Name: recipient.Name,
 		})
 	}
-	return s.repo.CreateCampaign(ctx, command)
+	out, err := s.repo.CreateCampaign(ctx, command)
+	if err != nil {
+		return communication.CampaignResult{}, err
+	}
+	if !out.Reused && s.realtime != nil && hasChannel(channels, communication.ChannelInApp) {
+		now := time.Now().UTC()
+		for _, recipient := range recipients {
+			_ = s.realtime.Publish(ctx, communication.InboxEvent{
+				Type: "refresh", UserID: recipient.ID, CampaignID: out.CampaignID, At: now,
+			})
+		}
+	}
+	return out, nil
+}
+
+func (s *Service) SendCampaign(
+	ctx context.Context,
+	actor identity.User,
+	input communication.CampaignWrite,
+) (communication.CampaignResult, error) {
+	if requireAdmin(actor) != nil {
+		return communication.CampaignResult{}, ErrForbidden
+	}
+	return s.sendCampaign(ctx, actor.ID, input, "")
+}
+
+func (s *Service) SendSystemCampaign(
+	ctx context.Context,
+	idempotencyKey string,
+	input communication.CampaignWrite,
+) (communication.CampaignResult, error) {
+	if strings.TrimSpace(idempotencyKey) == "" {
+		return communication.CampaignResult{}, ErrInvalidInput
+	}
+	return s.sendCampaign(ctx, "", input, idempotencyKey)
+}
+
+func (s *Service) Preferences(ctx context.Context, actor identity.User) (communication.Preferences, error) {
+	if requireActor(actor) != nil {
+		return communication.Preferences{}, ErrForbidden
+	}
+	return s.repo.GetPreferences(ctx, actor.ID)
+}
+
+func (s *Service) PreferencesForUser(ctx context.Context, userID string) (communication.Preferences, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return communication.Preferences{}, ErrInvalidInput
+	}
+	return s.repo.GetPreferences(ctx, userID)
+}
+
+func (s *Service) UpdatePreferences(
+	ctx context.Context,
+	actor identity.User,
+	write communication.PreferencesWrite,
+) (communication.Preferences, error) {
+	if requireActor(actor) != nil || !actor.HasRole(identity.RoleParent) {
+		return communication.Preferences{}, ErrForbidden
+	}
+	if write.ExpectedRevision < 0 {
+		return communication.Preferences{}, ErrInvalidInput
+	}
+	return s.repo.UpdatePreferences(ctx, actor.ID, write)
 }
 
 func (s *Service) Inbox(
