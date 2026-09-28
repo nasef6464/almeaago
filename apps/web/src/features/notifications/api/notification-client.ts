@@ -1,4 +1,4 @@
-import type{NotificationCampaignResult,NotificationCampaignWrite,NotificationChannel,NotificationDelivery,NotificationPage,NotificationStatus,NotificationTemplate,NotificationTemplateWrite}from'./notification-types';
+import type{NotificationCampaignResult,NotificationCampaignWrite,NotificationChannel,NotificationDelivery,NotificationPage,NotificationPreferences,NotificationStatus,NotificationTemplate,NotificationTemplateWrite}from'./notification-types';
 
 const BASE=(import.meta.env.VITE_API_BASE_URL??'').replace(/\/$/,'');
 async function request<T>(path:string,init:RequestInit={},signal?:AbortSignal):Promise<T>{
@@ -18,6 +18,9 @@ const query=(values:Record<string,string|number|undefined>)=>{
 export const notificationClient={
  inbox:(page=1,limit=20,signal?:AbortSignal)=>request<NotificationPage<NotificationDelivery>>('/api/v1/notifications/me'+query({page,limit}),{},signal),
  unread:(signal?:AbortSignal)=>request<{unreadCount:number}>('/api/v1/notifications/me/unread-count',{},signal),
+ preferences:(signal?:AbortSignal)=>request<{preferences:NotificationPreferences}>('/api/v1/notifications/me/preferences',{},signal),
+ updatePreferences:(write:{parentWhatsAppDigestEnabled:boolean;expectedRevision:number},csrf:string)=>request<{preferences:NotificationPreferences}>('/api/v1/notifications/me/preferences',{method:'PATCH',headers:{'X-CSRF-Token':csrf},body:JSON.stringify(write)}),
+ streamURL:()=>BASE+'/api/v1/notifications/stream',
  markRead:(id:string,csrf:string)=>request<{notification:NotificationDelivery}>('/api/v1/notifications/'+encodeURIComponent(id)+'/read',{method:'PATCH',headers:{'X-CSRF-Token':csrf}}),
  markAllRead:(csrf:string)=>request<{modifiedCount:number}>('/api/v1/notifications/me/read-all',{method:'PATCH',headers:{'X-CSRF-Token':csrf}}),
  templates:(page=1,limit=50,signal?:AbortSignal)=>request<NotificationPage<NotificationTemplate>>('/api/v1/notifications/admin/templates'+query({page,limit}),{},signal),
