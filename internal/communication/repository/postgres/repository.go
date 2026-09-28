@@ -243,6 +243,34 @@ func (r *Repository) CreateCampaign(
 		Recipients: len(command.Recipients),
 	}
 	now := time.Now().UTC()
+	const deliveryInsert = `
+		INSERT INTO notification_deliveries(
+			campaign_id,template_key,channel,status,title,subject,body,
+			recipient_user_id,recipient_email,recipient_phone,provider,sent_at,created_by,
+			metadata
+		) VALUES(
+			$1::uuid,$2,$3,$4,$5,$6,$7,$8::uuid,$9,$10,$11,$12,NULLIF($13,'')::uuid,
+			jsonb_build_object('recipientName',$14)
+		)
+	`
+	batch := &pgx.Batch{}
+	flush := func() error {
+		if batch.Len() == 0 {
+			return nil
+		}
+		results := tx.SendBatch(ctx, batch)
+		for i := 0; i < batch.Len(); i++ {
+			if _, execErr := results.Exec(); execErr != nil {
+				_ = results.Close()
+				return execErr
+			}
+		}
+		if closeErr := results.Close(); closeErr != nil {
+			return closeErr
+		}
+		batch = &pgx.Batch{}
+		return nil
+	}
 	for _, recipient := range command.Recipients {
 		for _, channel := range command.Message.Channels {
 			status := communication.DeliveryPending
@@ -257,24 +285,22 @@ func (r *Repository) CreateCampaign(
 			} else {
 				result.Pending++
 			}
-			if _, err = tx.Exec(ctx, `
-				INSERT INTO notification_deliveries(
-					campaign_id,template_key,channel,status,title,subject,body,
-					recipient_user_id,recipient_email,recipient_phone,provider,sent_at,created_by,
-					metadata
-				) VALUES(
-					$1::uuid,$2,$3,$4,$5,$6,$7,$8::uuid,$9,$10,$11,$12,NULLIF($13,'')::uuid,
-					jsonb_build_object('recipientName',$14)
-				)
-			`,
+			batch.Queue(
+				deliveryInsert,
 				campaignID, command.Message.TemplateKey, channel, status, command.Message.Title,
 				command.Message.Subject, command.Message.Body, recipient.UserID, recipient.Email,
 				recipient.Phone, provider, sentAt, command.ActorUserID, recipient.Name,
-			); err != nil {
-				return communication.CampaignResult{}, err
-			}
+			)
 			result.Created++
+			if batch.Len() >= 500 {
+				if err = flush(); err != nil {
+					return communication.CampaignResult{}, err
+				}
+			}
 		}
+	}
+	if err = flush(); err != nil {
+		return communication.CampaignResult{}, err
 	}
 
 	if _, err = tx.Exec(ctx, `
