@@ -44,7 +44,7 @@ test('admin manages non-secret AI provider policy and inspects usage evidence',a
 
  await page.goto('/admin-dashboard/ai');
  await expect(page.getByRole('heading',{name:'إدارة المساعد الذكي'})).toBeVisible();
- await expect(page.getByText('Runtime configured')).toBeVisible();
+ await expect(page.getByText('Runtime configured',{exact:true})).toBeVisible();
  await expect(page.getByText(/tokens 30/)).toBeVisible();
  await expect(page.getByTestId('ai-readiness')).toContainText('degraded');
  await expect(page.getByTestId('ai-readiness')).toContainText('12');
