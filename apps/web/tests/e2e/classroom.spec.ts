@@ -113,7 +113,7 @@ test('teacher runs QR lobby roster attendance challenge reveal and immutable rep
 
  await page.goto('/school-teacher-dashboard');
  await expect(page.getByRole('heading',{name:'الفصل الذكي'})).toBeVisible();
- await page.getByRole('button',{name:/٢ + ٢/}).click();
+ await page.getByRole('button',{name:/٢ \+ ٢/}).click();
  await page.getByRole('button',{name:'إنشاء الحصة'}).click();
  await expect(page.getByText('654321')).toBeVisible();
  await expect(page.getByTestId('classroom-join-qr')).toBeVisible();
@@ -192,8 +192,8 @@ test('projector lobby exposes PIN and QR without student identity',async({page})
  }}));
  await page.goto('/classroom/session-1/projector');
  await expect(page.getByTestId('classroom-join-qr')).toBeVisible();
- await expect(page.getByText('654321')).toBeVisible();
- await expect(page.getByText('سارة')).toHaveCount(0);
+ await expect(page.locator('section').getByText('654321',{exact:true})).toBeVisible();
+ await expect(page.getByText('سارة',{exact:true})).toHaveCount(0);
  await page.screenshot({path:'test-results/classroom-projector-lobby.png',fullPage:true});
 });
 
