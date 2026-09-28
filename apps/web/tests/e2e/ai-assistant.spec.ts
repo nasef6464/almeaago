@@ -125,6 +125,23 @@ test('AI admin edits non-secret routing policy and runs a provider health test',
       },
     });
   });
+  await page.route('**/api/v1/ai/admin/usage', (route) =>
+    json(route, {
+      usage: {
+        today: { dayKey: '2026-09-28T00:00:00Z', scopeType: 'global', scopeId: '*', requestCount: 4, inputTokens: 80, outputTokens: 20, totalTokens: 100, cachedTokens: 10, fallbackCount: 0, errorCount: 0, updatedAt: '2026-09-28T08:00:00Z' },
+        last24h: 4, fallback24h: 0, error24h: 0, cacheHit24h: 1, inputTokens24h: 80, outputTokens24h: 20, totalTokens24h: 100, cachedTokens24h: 10, byProvider: [],
+      },
+    }),
+  );
+  await page.route('**/api/v1/ai/admin/readiness', (route) =>
+    json(route, {
+      readiness: {
+        checkedAt: '2026-09-28T08:00:00Z', status: 'ready', enabledProviders: 1, configuredProviders: 1, openCircuits: [],
+        todayRequests: 4, globalDailyLimit: 800, userDailyLimit: 80, fallback24h: 0, error24h: 0,
+        notes: ['Runtime configured لا يساوي live-provider certification؛ الدليل الحي يبقى deployment evidence منفصلًا.'],
+      },
+    }),
+  );
 
   await page.goto('/admin-dashboard/ai');
   await expect(page.getByRole('heading', { name: 'إدارة المساعد الذكي' })).toBeVisible();
