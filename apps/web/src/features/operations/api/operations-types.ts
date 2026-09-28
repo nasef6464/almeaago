@@ -12,6 +12,9 @@ export interface OperationsReadiness{
  dependencies:{postgres:boolean;redis:boolean};
  integrations:Array<{id:string;configured:boolean;required:boolean;detail:string}>;
  counts:{notificationPending:number;notificationRetrying:number;notificationFailed:number;auditBlocked24h:number;auditFailed24h:number;liveClassrooms:number;enabledAiProviders:number};
+ releaseIdentity:{environment:string;commitSha:string;deploymentProvider:string;proof:string;detail:string};
+ releaseEvidence:Array<{id:string;status:string;detail:string}>;
+ releaseDecision:string;
  backupRestoreProof:string;backupRestoreDetail:string;
 }
 export interface AuditQuery{action?:string;status?:AuditStatus|'';resourceType?:string;actorUserId?:string;page?:number;limit?:number}
