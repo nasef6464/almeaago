@@ -18,6 +18,7 @@ import { AssessmentAdminPage } from '../features/assessment/pages/AssessmentAdmi
 import { AssessmentAttemptPage } from '../features/assessment/pages/AssessmentAttemptPage';
 import { AssessmentResultsPage } from '../features/assessment/pages/AssessmentResultsPage';
 import { AssessmentAvailabilityPage } from '../features/assessment/pages/AssessmentAvailabilityPage';
+import { AssessmentAssignmentsPage } from '../features/assessment/pages/AssessmentAssignmentsPage';
 import { ReviewLibraryPage } from '../features/learning/pages/ReviewLibraryPage';
 import { ReviewPracticePage } from '../features/learning/pages/ReviewPracticePage';
 import { CourseLearningPage } from '../features/learning/pages/CourseLearningPage';
@@ -194,6 +195,7 @@ export function App() {
         <Route path="/admin-dashboard/operations" element={<AdminDashboardShell><OperationsAdminPage /></AdminDashboardShell>} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/assessments" element={<AssessmentAvailabilityPage />} />
+        <Route path="/assessment-assignments" element={<AssessmentAssignmentsPage />} />
         <Route path="/barcode-test" element={<PublicBarcodeAssessmentPage />} />
         <Route path="/barcode-test/:code" element={<PublicBarcodeAssessmentPage />} />
         <Route path="/live-assessment" element={<LiveAssessmentJoinPage />} />
