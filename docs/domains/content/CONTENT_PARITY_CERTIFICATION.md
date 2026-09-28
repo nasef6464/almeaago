@@ -26,3 +26,8 @@ Legacy browser-side full-inventory filtering, direct Content-owned purchase auth
 
 ## Required exact-head gates
 Before merge, the documentation-inclusive PR head must pass Database CI, Backend CI, Frontend CI and Frontend E2E. Deterministic browser evidence must include the learner mobile learning-space journey. Direct legacy-runtime side-by-side screenshots remain external visual evidence and do not become a fake `PARITY_PROVEN` claim.
+
+## Implementation checkpoint
+Implementation head `eeea9ef2ee57ba1b0768ee6cefbd351da513f19b` passed Frontend CI `36371070686` and Frontend E2E `36371070688` (62/62). Browser evidence artifact `10949063460`, digest `sha256:4b8dad84f2c1b894406bc44bbd73da446a549d9af04a16aacbd70c522eb6b682`.
+
+The first E2E attempt exposed only a deterministic test setup issue: URL query initialization raced with the taxonomy bootstrap. The test was corrected to select the canonical path/subject through the UI; runtime authorization or product behavior was not weakened.
