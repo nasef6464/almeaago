@@ -15,6 +15,8 @@ test('student report is self-scoped, bounded and exposes no answer-level data',a
   assessment:{resultCount:3,sampledResultCount:3,resultsTruncated:false,attemptCount:3,sampledAttemptCount:3,attemptsTruncated:false,averageScore:76.5,passed:2,failed:1,passRate:66.667},
   weakestSkills:[{skillId:'skill-1',skillName:'النسبة والتناسب',evidenceCount:5,affectedStudents:1,mastery:40}],
  })});
+ let lastExportUrl='';
+ await page.route('**/api/v1/reports/results.csv**',route=>{lastExportUrl=route.request().url();return route.fulfill({status:200,contentType:'text/csv',body:'attempt_id,score\nattempt-1,78\n'})});
  await page.route('**/api/v1/reports/results?**',route=>json(route,{items:[{
   attemptId:'attempt-1',studentId:'student-1',studentName:'سارة',assessmentId:'assessment-1',assessmentVersion:2,
   title:'اختبار الكمي',pathId:'path-1',subjectId:'subject-1',score:78,passed:true,correctAnswers:8,wrongAnswers:2,
@@ -34,6 +36,9 @@ test('student report is self-scoped, bounded and exposes no answer-level data',a
  await expect.poll(()=>lastOverviewUrl).toContain('dateFrom=2026-09-01');
  await expect.poll(()=>lastOverviewUrl).toContain('dateTo=2026-09-28');
  await expect(page.getByText(/الفترة المطبقة/)).toBeVisible();
+ await page.getByRole('button',{name:'CSV'}).click();
+ await expect.poll(()=>lastExportUrl).toContain('dateFrom=2026-09-01');
+ await expect.poll(()=>lastExportUrl).toContain('dateTo=2026-09-28');
  await page.screenshot({path:'test-results/reporting-student-mobile.png',fullPage:true});
 });
 
