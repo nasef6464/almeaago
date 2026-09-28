@@ -59,18 +59,27 @@ func (r *Repository) ConfigureCompetition(
 
 	var status realtime.SessionStatus
 	var batchID string
-	var endedAt *time.Time
 	if err = tx.QueryRow(ctx, `
-		SELECT s.status,COALESCE(s.active_batch_id::text,''),b.ended_at
-		FROM classroom_sessions s
-		LEFT JOIN classroom_batches b
-		  ON b.id=s.active_batch_id AND b.session_id=s.id
-		WHERE s.id=$1::uuid
-		FOR UPDATE OF s,b
-	`, sessionID).Scan(&status, &batchID, &endedAt); err != nil {
+		SELECT status,COALESCE(active_batch_id::text,'')
+		FROM classroom_sessions
+		WHERE id=$1::uuid
+		FOR UPDATE
+	`, sessionID).Scan(&status, &batchID); err != nil {
 		return realtime.CompetitionState{}, mapError(err)
 	}
-	if status != realtime.SessionLive || batchID == "" || endedAt != nil {
+	if status != realtime.SessionLive || batchID == "" {
+		return realtime.CompetitionState{}, realtime.ErrConflict
+	}
+	var endedAt *time.Time
+	if err = tx.QueryRow(ctx, `
+		SELECT ended_at
+		FROM classroom_batches
+		WHERE id=$1::uuid AND session_id=$2::uuid
+		FOR UPDATE
+	`, batchID, sessionID).Scan(&endedAt); err != nil {
+		return realtime.CompetitionState{}, mapError(err)
+	}
+	if endedAt != nil {
 		return realtime.CompetitionState{}, realtime.ErrConflict
 	}
 	now := time.Now().UTC()
@@ -119,19 +128,28 @@ func (r *Repository) EndCompetition(
 
 	var status realtime.SessionStatus
 	var batchID string
+	if err = tx.QueryRow(ctx, `
+		SELECT status,COALESCE(active_batch_id::text,'')
+		FROM classroom_sessions
+		WHERE id=$1::uuid
+		FOR UPDATE
+	`, sessionID).Scan(&status, &batchID); err != nil {
+		return realtime.CompetitionState{}, mapError(err)
+	}
+	if status != realtime.SessionLive || batchID == "" {
+		return realtime.CompetitionState{}, realtime.ErrConflict
+	}
 	var enabled bool
 	var timerEndsAt *time.Time
 	if err = tx.QueryRow(ctx, `
-		SELECT s.status,COALESCE(s.active_batch_id::text,''),COALESCE(b.competition_enabled,false),b.timer_ends_at
-		FROM classroom_sessions s
-		LEFT JOIN classroom_batches b
-		  ON b.id=s.active_batch_id AND b.session_id=s.id
-		WHERE s.id=$1::uuid
-		FOR UPDATE OF s,b
-	`, sessionID).Scan(&status, &batchID, &enabled, &timerEndsAt); err != nil {
+		SELECT competition_enabled,timer_ends_at
+		FROM classroom_batches
+		WHERE id=$1::uuid AND session_id=$2::uuid
+		FOR UPDATE
+	`, batchID, sessionID).Scan(&enabled, &timerEndsAt); err != nil {
 		return realtime.CompetitionState{}, mapError(err)
 	}
-	if status != realtime.SessionLive || batchID == "" || !enabled {
+	if !enabled {
 		return realtime.CompetitionState{}, realtime.ErrConflict
 	}
 	now := time.Now().UTC()
