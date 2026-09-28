@@ -61,3 +61,6 @@ PR #78 is **TESTED / MERGED**. Final documentation-inclusive head `ba9d44fcd28fc
 
 ## Active certification batch — Commerce
 Start from current `main`. Re-audit products/packages, entitlements, checkout, discounts, access codes, school seats, Tap provider flow, revenue/payout and refund/chargeback behavior against the latest legacy reference. Keep live Tap/provider proof, partial-refund/clawback policy and unspecified multi-trainer allocation explicitly external/UNKNOWN unless source evidence resolves them.
+
+## Active certification batch — Commerce
+Integrated Commerce audit is active against legacy `20a77c62fd2db4ef891a574241f4cfd6946011de`. Existing financial/access foundations remain merged. The source-backed UI gap selected for correction is school commerce administration: school-scoped activation codes and capped seats now use canonical Organizations school/class/student selections instead of raw UUID entry, while Commerce still performs the authoritative membership/capacity/grant checks. Live Tap proof, partial refund/clawback policy and multi-trainer Package allocation remain explicit external/UNKNOWN boundaries.

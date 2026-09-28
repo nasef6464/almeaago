@@ -227,3 +227,54 @@ test('admin records a factual full refund and revenue/access reversal state',asy
  await page.screenshot({path:'test-results/commerce-payment-refund-reversal.png',fullPage:true});
 });
 
+
+
+test('admin uses canonical school context for scoped access codes and capped seats without mutating membership',async({page})=>{
+ await auth(page,admin);
+ await page.setViewportSize({width:1280,height:900});
+ const schoolPackage={id:'product-school-1',code:'SCHOOL-PKG',productType:'package',name:'باقة المدرسة',description:'',status:'active',accessMode:'paid',priceMinor:50000,currency:'SAR',courseId:'',isVisible:true,revision:1,package:{id:'package-school-1',productId:'product-school-1',packageKind:'school',seatCapacity:2,validityDays:90,items:[{scopeType:'all',courseId:'',pathId:'',subjectId:'',contentType:''}]},createdAt:'2026-09-28T04:00:00Z',updatedAt:'2026-09-28T04:00:00Z'};
+ const schoolEntitlement={id:'school-entitlement-1',subjectType:'school',userId:'',schoolId:'school-1',productId:'product-school-1',sourceType:'admin_manual',sourceId:'',status:'active',grantedByUserId:'admin-1',startsAt:'2026-09-28T04:00:00Z',expiresAt:null,revokedAt:null,revokeReason:'',idempotencyKey:'school-entitlement-key',revision:1,createdAt:'2026-09-28T04:00:00Z',updatedAt:'2026-09-28T04:00:00Z'};
+ let orgMutations=0,codeCreates=0,seatCreates=0;
+ page.on('request',req=>{if(req.url().includes('/api/v1/schools/')&&req.method()!=='GET')orgMutations++});
+ await page.route('**/api/v1/commerce/products?**',r=>json(r,{items:[schoolPackage],page:1,limit:100,hasMore:false}));
+ await page.route('**/api/v1/commerce/entitlements?**',r=>json(r,{items:[schoolEntitlement],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/discounts?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/payment-requests?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/access-codes?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/commerce/admin/revenue?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/schools/?page=1&limit=100&status=active',r=>json(r,{schools:[{id:'school-1',code:'SCH1',name:'مدرسة الإبداع',status:'active'}],pagination:{page:1,limit:100,total:1,totalPages:1}}));
+ await page.route('**/api/v1/schools/school-1/classes?**',r=>json(r,{classes:[{id:'class-1',schoolId:'school-1',code:'1A',name:'الأول أ',status:'active'}],pagination:{page:1,limit:100,total:1,totalPages:1}}));
+ await page.route('**/api/v1/schools/school-1/roster?**',r=>json(r,{members:[{userId:'student-1',name:'طالب المدرسة',email:'student@school.test',status:'active',roles:['student'],classIds:['class-1']}],pagination:{page:1,limit:100,total:1,totalPages:1}}));
+ await page.route('**/api/v1/commerce/admin/access-codes',async r=>{
+   expect(r.request().method()).toBe('POST');expect(r.request().headers()['x-csrf-token']).toBe('csrf');
+   const body=JSON.parse(r.request().postData()||'{}');
+   expect(body).toMatchObject({code:'SCHOOL2026',productId:'product-school-1',schoolId:'school-1',maxUses:2});
+   codeCreates++;
+   return json(r,{accessCode:{id:'code-school-1',code:body.code,productId:body.productId,schoolId:body.schoolId,status:'active',maxUses:body.maxUses,currentUses:0,startsAt:'2026-09-28T04:00:00Z',expiresAt:body.expiresAt,revision:1,createdAt:'2026-09-28T04:00:00Z',updatedAt:'2026-09-28T04:00:00Z'}},201);
+ });
+ await page.route('**/api/v1/commerce/admin/school-entitlements/school-entitlement-1/seats**',async r=>{
+   if(r.request().method()==='GET')return json(r,{items:[],page:1,limit:50,hasMore:false});
+   expect(r.request().method()).toBe('POST');expect(r.request().headers()['x-csrf-token']).toBe('csrf');
+   expect(JSON.parse(r.request().postData()||'{}')).toEqual({userId:'student-1'});
+   seatCreates++;
+   return json(r,{seat:{id:'seat-1',schoolEntitlementId:'school-entitlement-1',userId:'student-1',userEntitlementId:'user-entitlement-1',status:'active',revision:1,revokedAt:null,revokeReason:'',createdAt:'2026-09-28T04:05:00Z',updatedAt:'2026-09-28T04:05:00Z'}},201);
+ });
+
+ await page.goto('/admin-dashboard/commerce');
+ await expect(page.getByRole('heading',{name:'المنتجات والخصومات وطلبات الدفع'})).toBeVisible();
+ await page.getByLabel('كود التفعيل الإداري').fill('SCHOOL2026');
+ await page.getByLabel('باقة كود التفعيل').selectOption('product-school-1');
+ await page.getByLabel('مدرسة كود التفعيل').selectOption('school-1');
+ await page.getByLabel('عدد استخدامات كود التفعيل').fill('2');
+ await page.getByLabel('انتهاء كود التفعيل').fill('2026-12-31T18:00');
+ await page.getByRole('button',{name:'إنشاء كود تفعيل'}).click();
+ await expect.poll(()=>codeCreates).toBe(1);
+
+ await page.getByLabel('منحة المدرسة للمقاعد').selectOption('school-entitlement-1');
+ await page.getByLabel('فصل المقعد').selectOption('class-1');
+ await page.getByLabel('طالب المقعد').selectOption('student-1');
+ await page.getByRole('button',{name:'تخصيص مقعد'}).click();
+ await expect.poll(()=>seatCreates).toBe(1);
+ expect(orgMutations).toBe(0);
+ await page.screenshot({path:'test-results/commerce-school-access-admin.png',fullPage:true});
+});
