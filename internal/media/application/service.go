@@ -145,6 +145,12 @@ func (s *Service) Complete(ctx context.Context, actor identity.User, assetID str
 	if asset.CreatedBy != actor.ID && !actor.HasRole(identity.RoleAdmin) {
 		return media.Asset{}, ErrForbidden
 	}
+	// A direct-upload authorization is intentionally short-lived. Completion after the
+	// recorded signed PUT window (or without a recorded expiry) must fail closed before
+	// we inspect provider state; otherwise an old leaked URL/object could be promoted.
+	if asset.UploadExpiresAt == nil || !time.Now().UTC().Before(asset.UploadExpiresAt.UTC()) {
+		return media.Asset{}, media.ErrConflict
+	}
 	if s.provider == nil || !s.provider.Available() {
 		return media.Asset{}, media.ErrUnavailable
 	}
