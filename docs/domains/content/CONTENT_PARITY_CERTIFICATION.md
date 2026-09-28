@@ -33,4 +33,4 @@ Implementation head `eeea9ef2ee57ba1b0768ee6cefbd351da513f19b` passed Frontend C
 The first E2E attempt exposed only a deterministic test setup issue: URL query initialization raced with the taxonomy bootstrap. The test was corrected to select the canonical path/subject through the UI; runtime authorization or product behavior was not weakened.
 
 ## Final certification evidence
-Final documentation-inclusive head `c65fafdf77053b24e8c3a88b638f015cad3e6451` passed Frontend CI `36371212663` and Frontend E2E `36371212657` (62/62). Final browser evidence artifact `10949715181`, digest `sha256:2508abd0d0ecf082595437d139e605f94e874b6b830a9876a0ac3f3c56ade2b4`.
+Final documentation-inclusive head `ddf8961c606b8f9d3184997cc655f6be2cf3bae5` passed Frontend CI `36371378688` and Frontend E2E `36371378748` (62/62). Final browser evidence artifact `10949426615`, digest `sha256:c731b5c03f32a9dc8c61c23775e1d5a5f6c19877077c198bf5440d724c1b6375`. PR #74 squash-merged as `2596e564854edf41e296998b0b641161d1d60a16`.
