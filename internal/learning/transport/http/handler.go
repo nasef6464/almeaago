@@ -158,7 +158,18 @@ func (h *Handler) progress(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-func (h *Handler) readiness(w http.ResponseWriter,r *http.Request){ authenticated,ok:=h.authn(w,r,false);if !ok{return};out,err:=h.service.Readiness(r.Context(),authenticated.User,r.URL.Query().Get("pathId"),r.URL.Query().Get("subjectId"));if err!=nil{writeError(w,err);return};writeJSON(w,http.StatusOK,map[string]any{"readiness":out}) }
+func (h *Handler) readiness(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, false)
+	if !ok {
+		return
+	}
+	out, err := h.service.Readiness(r.Context(), authenticated.User, r.URL.Query().Get("pathId"), r.URL.Query().Get("subjectId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"readiness": out})
+}
 
 func (h *Handler) nextAction(w http.ResponseWriter, r *http.Request) {
 	authenticated, ok := h.authn(w, r, false)
