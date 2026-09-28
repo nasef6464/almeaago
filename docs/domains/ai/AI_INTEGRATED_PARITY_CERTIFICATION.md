@@ -1,6 +1,6 @@
 # AI Integrated Parity Certification
 
-Status: **CERTIFICATION CANDIDATE**
+Status: **FINAL DOCUMENTATION GATE CANDIDATE**
 
 ## Source basis
 Re-audited against:
@@ -108,3 +108,23 @@ Those stay external/deferred instead of being inferred from CI.
 The final documentation-inclusive head must pass Database CI, Backend CI, Frontend CI and Frontend E2E on the exact same SHA. Browser evidence must cover the AI Admin readiness/usage/copilot surface and the learner Question Tutor privacy/fallback path. Latest legacy must be re-checked for a same-domain delta immediately before merge.
 
 Status remains **TESTED**, not `PARITY_PROVEN`, until the complete release-evidence contract is satisfied.
+
+
+## Green implementation checkpoint
+Implementation head `6dba31066425b09590e4e4e33ba9cd06bb485333` passed all four required gates on the exact same SHA:
+- Database CI `36406229638`.
+- Backend CI `36406229836`.
+- Frontend CI `36406229625`.
+- Frontend E2E `36406229645` — 68/68.
+- browser evidence artifact `10962741084`, digest `sha256:5ad59d9c8a7de22bfb197e5a862b34b894ed7e8cc79b48fca0d1d0bda2e1f355`.
+
+The browser evidence covers:
+- expanded desktop AI Admin readiness/usage evidence;
+- explicit runtime-vs-live-certification warning;
+- read-only Admin Copilot with CSRF and deterministic fallback evidence;
+- existing learner Question Tutor mobile privacy/fallback behavior.
+
+CI caught only evidence/formatting defects during convergence: Go formatting and an E2E locator that became ambiguous after the new runtime-certification warning. The product warning was preserved and the test was scoped to the exact badge; no behavior or security boundary was weakened.
+
+## Final same-domain legacy delta re-check
+Latest legacy remains `95e8cb7399431da481a0d69ef3420a16bbb8c66c`, the same checkpoint used for this integrated audit. No later legacy commit exists at this closure point, so there is no unreviewed AI same-domain delta before the final documentation gate.
