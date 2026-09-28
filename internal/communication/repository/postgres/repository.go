@@ -198,13 +198,42 @@ func (r *Repository) CreateCampaign(
 	var campaignID string
 	err = tx.QueryRow(ctx, `
 		INSERT INTO notification_campaigns(
-			template_id,template_key,title,subject,body,channels,created_by
-		) VALUES(NULLIF($1,'')::uuid,$2,$3,$4,$5,$6,$7::uuid)
+			template_id,template_key,title,subject,body,channels,idempotency_key,created_by
+		) VALUES(
+			NULLIF($1,'')::uuid,$2,$3,$4,$5,$6,NULLIF($7,''),NULLIF($8,'')::uuid
+		)
+		ON CONFLICT(idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
 		RETURNING id::text
 	`,
 		command.Message.TemplateID, command.Message.TemplateKey, command.Message.Title,
-		command.Message.Subject, command.Message.Body, channelValues, command.ActorUserID,
+		command.Message.Subject, command.Message.Body, channelValues,
+		command.IdempotencyKey, command.ActorUserID,
 	).Scan(&campaignID)
+	if errors.Is(err, pgx.ErrNoRows) && command.IdempotencyKey != "" {
+		var result communication.CampaignResult
+		err = tx.QueryRow(ctx, `
+			SELECT
+				c.id::text,
+				c.recipient_count,
+				c.delivery_count,
+				COUNT(d.id) FILTER(WHERE d.status IN ('pending','retrying'))::int,
+				COUNT(d.id) FILTER(WHERE d.status='sent')::int
+			FROM notification_campaigns c
+			LEFT JOIN notification_deliveries d ON d.campaign_id=c.id
+			WHERE c.idempotency_key=$1
+			GROUP BY c.id,c.recipient_count,c.delivery_count
+		`, command.IdempotencyKey).Scan(
+			&result.CampaignID, &result.Recipients, &result.Created, &result.Pending, &result.Sent,
+		)
+		if err != nil {
+			return communication.CampaignResult{}, err
+		}
+		result.Reused = true
+		if err = tx.Commit(ctx); err != nil {
+			return communication.CampaignResult{}, err
+		}
+		return result, nil
+	}
 	if err != nil {
 		return communication.CampaignResult{}, err
 	}
@@ -234,7 +263,7 @@ func (r *Repository) CreateCampaign(
 					recipient_user_id,recipient_email,recipient_phone,provider,sent_at,created_by,
 					metadata
 				) VALUES(
-					$1::uuid,$2,$3,$4,$5,$6,$7,$8::uuid,$9,$10,$11,$12,$13::uuid,
+					$1::uuid,$2,$3,$4,$5,$6,$7,$8::uuid,$9,$10,$11,$12,NULLIF($13,'')::uuid,
 					jsonb_build_object('recipientName',$14)
 				)
 			`,
@@ -256,16 +285,18 @@ func (r *Repository) CreateCampaign(
 		return communication.CampaignResult{}, err
 	}
 
-	if err = r.writeAuditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: command.ActorUserID, Action: "notification.campaign.create",
-		ResourceType: "notification_campaign", ResourceID: campaignID,
-		Metadata: map[string]any{
-			"recipients": result.Recipients,
-			"deliveries": result.Created,
-			"channels":   channelValues,
-		},
-	}); err != nil {
-		return communication.CampaignResult{}, err
+	if command.ActorUserID != "" {
+		if err = r.writeAuditTx(ctx, tx, operations.AuditEvent{
+			ActorUserID: command.ActorUserID, Action: "notification.campaign.create",
+			ResourceType: "notification_campaign", ResourceID: campaignID,
+			Metadata: map[string]any{
+				"recipients": result.Recipients,
+				"deliveries": result.Created,
+				"channels":   channelValues,
+			},
+		}); err != nil {
+			return communication.CampaignResult{}, err
+		}
 	}
 
 	if err = tx.Commit(ctx); err != nil {
