@@ -171,5 +171,28 @@ test('teacher mobile gets bounded authoring workspace without admin import contr
   await expect(page.getByText('Q-001')).toBeVisible();
   await expect(page.getByText('استيراد إداري بفحص جاف أولًا')).toHaveCount(0);
   await expect(page.getByRole('button',{name:'سؤال جديد'})).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+
+  await page.getByRole('button',{name:'فتح قائمة الإدارة'}).click();
+  await expect(page.getByText('إدارة المحتوى التعليمي')).toBeVisible();
+  await expect(page.getByRole('button',{name:'أقسام قيد النقل (5)'})).toBeVisible();
+  await expect(page.getByText('اعتماد المحتوى')).toHaveCount(0);
+  await page.getByRole('button',{name:'أقسام قيد النقل (5)'}).click();
+  await expect(page.getByText('اعتماد المحتوى')).toBeVisible();
+  await page.getByRole('button',{name:'فتح قائمة الإدارة'}).click();
+
   await page.screenshot({path:'test-results/question-bank-teacher-mobile.png',fullPage:true});
+});
+
+
+test('admin tablet keeps dashboard hierarchy readable without horizontal page overflow',async({page})=>{
+  await auth(page,admin);await mockBase(page);
+  await page.setViewportSize({width:820,height:1180});
+  await page.goto('/admin-dashboard/questions');
+
+  await expect(page.getByRole('heading',{name:'مركز بنك الأسئلة'})).toBeVisible();
+  await expect(page.getByText('Q-001')).toBeVisible();
+  await expect(page.getByText('إجمالي مطابق')).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/question-bank-admin-tablet.png',fullPage:true});
 });
