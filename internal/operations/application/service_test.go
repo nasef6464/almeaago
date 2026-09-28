@@ -77,6 +77,9 @@ func TestReadinessBlocksWhenDependencyFails(t *testing.T) {
 	if out.Status != "blocked" {
 		t.Fatalf("expected blocked readiness, got %q", out.Status)
 	}
+	if out.ReleaseDecision != "blocked_internal_readiness" {
+		t.Fatalf("blocked dependency must block internal release decision: %q", out.ReleaseDecision)
+	}
 }
 
 
