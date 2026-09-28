@@ -48,5 +48,5 @@ Foundation learning / Content parity only, plus narrowly required shared test/do
 - Do not invent approved-content editing/versioning policy that remains explicitly unresolved.
 - No production go-live claim from CI alone.
 
-## Active certification batch
-Foundation learning / Content integrated parity: learner `/learning` subject workspace added over the existing bounded server projection; Course/Foundation/Library owner boundaries preserved. Exact-head four-gate CI and browser evidence are required before merge.
+## Completed certification checkpoint
+Foundation learning / Content integrated parity — **TESTED** in PR #74 candidate head `c65fafdf77053b24e8c3a88b638f015cad3e6451`: Frontend CI `36371212663`, Frontend E2E `36371212657` (62/62), artifact `10949715181`. Backend/database contracts were unchanged by this UI certification slice.
