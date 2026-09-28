@@ -1,6 +1,6 @@
 # Communication / Notifications Integrated Parity Certification
 
-Status: **CERTIFICATION CANDIDATE**
+Status: **FINAL DOCUMENTATION GATE CANDIDATE**
 
 ## Source basis
 Audited against legacy checkpoint `a5bcd4a1b43316d6dfc0c75e7f2d91a2e8d294e9` and the merged V2 Notifications foundation.
@@ -89,3 +89,16 @@ The final documentation-inclusive head must pass Database CI, Backend CI, Fronte
 - parent mobile explicit weekly WhatsApp opt-in.
 
 Status remains TESTED rather than PARITY_PROVEN without live provider/runtime visual evidence.
+
+## Green implementation checkpoint
+Implementation head `953eddda6ea6d8453c9c8f2312122fc1c91f5518` passed all four required gates on the same SHA:
+- Database CI `36387308155`.
+- Backend CI `36387308196`.
+- Frontend CI `36387308152`.
+- Frontend E2E `36387308249` — 67/67.
+- browser evidence artifact `10954488147`, digest `sha256:bfdb5a0ef335a7a0e26ae706854aa390ee00ac960c93b9c4c871ffd49abc9cde`.
+
+The implementation gate also proves the notification parity migration applies, rolls back and reapplies; Go module/vet/tests pass; production frontend builds; and browser coverage exercises bounded admin campaigns, self-scoped realtime inbox refresh, read/read-all safety and parent weekly WhatsApp opt-in.
+
+## Final same-domain legacy delta re-check
+The latest legacy commit remains `a5bcd4a1b43316d6dfc0c75e7f2d91a2e8d294e9`. Its changed runtime paths are LessonProgress/QuestionRevision storage hardening plus auth/quiz storage integration and related scripts. It does not modify notification campaigns, inbox/SSE, weekly parent-report scheduling, notification audience authority or WhatsApp digest preference behavior. No additional Communication behavior is copied from that delta.
