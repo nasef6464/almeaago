@@ -24,6 +24,7 @@ import (
 	commercerepo "github.com/nasef6464/almeaago/internal/commerce/repository/postgres"
 	commercehttp "github.com/nasef6464/almeaago/internal/commerce/transport/http"
 	communicationapp "github.com/nasef6464/almeaago/internal/communication/application"
+	communicationredis "github.com/nasef6464/almeaago/internal/communication/infrastructure/redis"
 	communicationrepo "github.com/nasef6464/almeaago/internal/communication/repository/postgres"
 	communicationhttp "github.com/nasef6464/almeaago/internal/communication/transport/http"
 	contentapp "github.com/nasef6464/almeaago/internal/content/application"
@@ -122,7 +123,12 @@ func main() {
 	commerceRepository := commercerepo.New(db, auditWriter)
 	commerceService := commerceapp.NewService(commerceRepository, contentRepository, taxonomyRepository, organizationsRepository)
 	communicationRepository := communicationrepo.New(db, auditWriter)
-	communicationService := communicationapp.NewService(communicationRepository, identityRepository)
+	communicationRealtime := communicationredis.New(redisClient)
+	communicationService := communicationapp.NewServiceWithRealtime(
+		communicationRepository,
+		identityRepository,
+		communicationRealtime,
+	)
 	checkoutMode := commerce.GatewayManualReview
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("COMMERCE_PAYMENT_GATEWAY_MODE"))) {
 	case string(commerce.GatewayWebhook):
@@ -239,7 +245,11 @@ func main() {
 	lessonProgressHandler := learninghttp.NewLessonProgress(lessonProgressService, identityService)
 	studyPlansHandler := learninghttp.NewStudyPlans(studyPlanService, identityService)
 	interventionsHandler := learninghttp.NewInterventions(interventionService, identityService)
-	communicationHandler := communicationhttp.New(communicationService, identityService)
+	communicationHandler := communicationhttp.NewWithRealtime(
+		communicationService,
+		identityService,
+		communicationRealtime,
+	)
 	reportingHandler := reportinghttp.New(reportService, identityService)
 	operationsHandler := operationshttp.New(operationsService, identityService)
 	aiHandler := aihttp.New(aiService, identityService)

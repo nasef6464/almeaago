@@ -198,13 +198,42 @@ func (r *Repository) CreateCampaign(
 	var campaignID string
 	err = tx.QueryRow(ctx, `
 		INSERT INTO notification_campaigns(
-			template_id,template_key,title,subject,body,channels,created_by
-		) VALUES(NULLIF($1,'')::uuid,$2,$3,$4,$5,$6,$7::uuid)
+			template_id,template_key,title,subject,body,channels,idempotency_key,created_by
+		) VALUES(
+			NULLIF($1,'')::uuid,$2,$3,$4,$5,$6,NULLIF($7,''),NULLIF($8,'')::uuid
+		)
+		ON CONFLICT(idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
 		RETURNING id::text
 	`,
 		command.Message.TemplateID, command.Message.TemplateKey, command.Message.Title,
-		command.Message.Subject, command.Message.Body, channelValues, command.ActorUserID,
+		command.Message.Subject, command.Message.Body, channelValues,
+		command.IdempotencyKey, command.ActorUserID,
 	).Scan(&campaignID)
+	if errors.Is(err, pgx.ErrNoRows) && command.IdempotencyKey != "" {
+		var result communication.CampaignResult
+		err = tx.QueryRow(ctx, `
+			SELECT
+				c.id::text,
+				c.recipient_count,
+				c.delivery_count,
+				COUNT(d.id) FILTER(WHERE d.status IN ('pending','retrying'))::int,
+				COUNT(d.id) FILTER(WHERE d.status='sent')::int
+			FROM notification_campaigns c
+			LEFT JOIN notification_deliveries d ON d.campaign_id=c.id
+			WHERE c.idempotency_key=$1
+			GROUP BY c.id,c.recipient_count,c.delivery_count
+		`, command.IdempotencyKey).Scan(
+			&result.CampaignID, &result.Recipients, &result.Created, &result.Pending, &result.Sent,
+		)
+		if err != nil {
+			return communication.CampaignResult{}, err
+		}
+		result.Reused = true
+		if err = tx.Commit(ctx); err != nil {
+			return communication.CampaignResult{}, err
+		}
+		return result, nil
+	}
 	if err != nil {
 		return communication.CampaignResult{}, err
 	}
@@ -214,6 +243,34 @@ func (r *Repository) CreateCampaign(
 		Recipients: len(command.Recipients),
 	}
 	now := time.Now().UTC()
+	const deliveryInsert = `
+		INSERT INTO notification_deliveries(
+			campaign_id,template_key,channel,status,title,subject,body,
+			recipient_user_id,recipient_email,recipient_phone,provider,sent_at,created_by,
+			metadata
+		) VALUES(
+			$1::uuid,$2,$3,$4,$5,$6,$7,$8::uuid,$9,$10,$11,$12,NULLIF($13,'')::uuid,
+			jsonb_build_object('recipientName',$14)
+		)
+	`
+	batch := &pgx.Batch{}
+	flush := func() error {
+		if batch.Len() == 0 {
+			return nil
+		}
+		results := tx.SendBatch(ctx, batch)
+		for i := 0; i < batch.Len(); i++ {
+			if _, execErr := results.Exec(); execErr != nil {
+				_ = results.Close()
+				return execErr
+			}
+		}
+		if closeErr := results.Close(); closeErr != nil {
+			return closeErr
+		}
+		batch = &pgx.Batch{}
+		return nil
+	}
 	for _, recipient := range command.Recipients {
 		for _, channel := range command.Message.Channels {
 			status := communication.DeliveryPending
@@ -228,24 +285,22 @@ func (r *Repository) CreateCampaign(
 			} else {
 				result.Pending++
 			}
-			if _, err = tx.Exec(ctx, `
-				INSERT INTO notification_deliveries(
-					campaign_id,template_key,channel,status,title,subject,body,
-					recipient_user_id,recipient_email,recipient_phone,provider,sent_at,created_by,
-					metadata
-				) VALUES(
-					$1::uuid,$2,$3,$4,$5,$6,$7,$8::uuid,$9,$10,$11,$12,$13::uuid,
-					jsonb_build_object('recipientName',$14)
-				)
-			`,
+			batch.Queue(
+				deliveryInsert,
 				campaignID, command.Message.TemplateKey, channel, status, command.Message.Title,
 				command.Message.Subject, command.Message.Body, recipient.UserID, recipient.Email,
 				recipient.Phone, provider, sentAt, command.ActorUserID, recipient.Name,
-			); err != nil {
-				return communication.CampaignResult{}, err
-			}
+			)
 			result.Created++
+			if batch.Len() >= 500 {
+				if err = flush(); err != nil {
+					return communication.CampaignResult{}, err
+				}
+			}
 		}
+	}
+	if err = flush(); err != nil {
+		return communication.CampaignResult{}, err
 	}
 
 	if _, err = tx.Exec(ctx, `
@@ -256,16 +311,18 @@ func (r *Repository) CreateCampaign(
 		return communication.CampaignResult{}, err
 	}
 
-	if err = r.writeAuditTx(ctx, tx, operations.AuditEvent{
-		ActorUserID: command.ActorUserID, Action: "notification.campaign.create",
-		ResourceType: "notification_campaign", ResourceID: campaignID,
-		Metadata: map[string]any{
-			"recipients": result.Recipients,
-			"deliveries": result.Created,
-			"channels":   channelValues,
-		},
-	}); err != nil {
-		return communication.CampaignResult{}, err
+	if command.ActorUserID != "" {
+		if err = r.writeAuditTx(ctx, tx, operations.AuditEvent{
+			ActorUserID: command.ActorUserID, Action: "notification.campaign.create",
+			ResourceType: "notification_campaign", ResourceID: campaignID,
+			Metadata: map[string]any{
+				"recipients": result.Recipients,
+				"deliveries": result.Created,
+				"channels":   channelValues,
+			},
+		}); err != nil {
+			return communication.CampaignResult{}, err
+		}
 	}
 
 	if err = tx.Commit(ctx); err != nil {
@@ -408,6 +465,96 @@ func (r *Repository) ListDeliveries(
 	if len(out.Items) > filter.Limit {
 		out.HasMore = true
 		out.Items = out.Items[:filter.Limit]
+	}
+	return out, nil
+}
+
+func (r *Repository) GetPreferences(ctx context.Context, userID string) (communication.Preferences, error) {
+	var out communication.Preferences
+	err := r.db.QueryRow(ctx, `
+		SELECT user_id::text,parent_whatsapp_digest_enabled,revision,updated_at
+		FROM notification_preferences
+		WHERE user_id=$1::uuid
+	`, userID).Scan(
+		&out.UserID, &out.ParentWhatsAppDigestEnabled, &out.Revision, &out.UpdatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return communication.Preferences{UserID: userID}, nil
+	}
+	return out, err
+}
+
+func (r *Repository) PreferencesForUsers(
+	ctx context.Context,
+	userIDs []string,
+) (map[string]communication.Preferences, error) {
+	out := make(map[string]communication.Preferences, len(userIDs))
+	for _, userID := range userIDs {
+		out[userID] = communication.Preferences{UserID: userID}
+	}
+	if len(userIDs) == 0 {
+		return out, nil
+	}
+	rows, err := r.db.Query(ctx, `
+		SELECT user_id::text,parent_whatsapp_digest_enabled,revision,updated_at
+		FROM notification_preferences
+		WHERE user_id::text=ANY($1::text[])
+	`, userIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var item communication.Preferences
+		if err = rows.Scan(
+			&item.UserID, &item.ParentWhatsAppDigestEnabled, &item.Revision, &item.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		out[item.UserID] = item
+	}
+	return out, rows.Err()
+}
+
+func (r *Repository) UpdatePreferences(
+	ctx context.Context,
+	userID string,
+	write communication.PreferencesWrite,
+) (communication.Preferences, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return communication.Preferences{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var out communication.Preferences
+	if write.ExpectedRevision == 0 {
+		err = tx.QueryRow(ctx, `
+			INSERT INTO notification_preferences(user_id,parent_whatsapp_digest_enabled)
+			VALUES($1::uuid,$2)
+			ON CONFLICT(user_id) DO NOTHING
+			RETURNING user_id::text,parent_whatsapp_digest_enabled,revision,updated_at
+		`, userID, write.ParentWhatsAppDigestEnabled).Scan(
+			&out.UserID, &out.ParentWhatsAppDigestEnabled, &out.Revision, &out.UpdatedAt,
+		)
+	} else {
+		err = tx.QueryRow(ctx, `
+			UPDATE notification_preferences
+			SET parent_whatsapp_digest_enabled=$3,revision=revision+1,updated_at=now()
+			WHERE user_id=$1::uuid AND revision=$2
+			RETURNING user_id::text,parent_whatsapp_digest_enabled,revision,updated_at
+		`, userID, write.ExpectedRevision, write.ParentWhatsAppDigestEnabled).Scan(
+			&out.UserID, &out.ParentWhatsAppDigestEnabled, &out.Revision, &out.UpdatedAt,
+		)
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return communication.Preferences{}, communication.ErrConflict
+	}
+	if err != nil {
+		return communication.Preferences{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return communication.Preferences{}, err
 	}
 	return out, nil
 }

@@ -78,6 +78,7 @@ type CampaignResult struct {
 	Created    int    `json:"created"`
 	Pending    int    `json:"pending"`
 	Sent       int    `json:"sent"`
+	Reused     bool   `json:"reused,omitempty"`
 }
 
 type Delivery struct {
@@ -134,9 +135,10 @@ type CampaignRecipient struct {
 }
 
 type CampaignCommand struct {
-	ActorUserID string
-	Message     CampaignMessage
-	Recipients  []CampaignRecipient
+	ActorUserID    string
+	IdempotencyKey string
+	Message        CampaignMessage
+	Recipients     []CampaignRecipient
 }
 
 type DeliveryAttemptResult struct {

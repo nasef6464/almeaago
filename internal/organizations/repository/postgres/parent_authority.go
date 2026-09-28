@@ -6,7 +6,17 @@ import (
 	org "github.com/nasef6464/almeaago/internal/organizations/domain"
 )
 
-func (r *Repository) ParentAuthority(ctx context.Context, parentUserID string) (org.ParentAuthority, error) {
+func (r *Repository) ParentAuthorities(
+	ctx context.Context,
+	parentUserIDs []string,
+) (map[string]org.ParentAuthority, error) {
+	out := make(map[string]org.ParentAuthority, len(parentUserIDs))
+	for _, parentID := range parentUserIDs {
+		out[parentID] = org.ParentAuthority{Relationships: []org.ParentStudentRelationship{}}
+	}
+	if len(parentUserIDs) == 0 {
+		return out, nil
+	}
 	rows, err := r.db.Query(ctx, `
 		SELECT
 			ps.id::text,
@@ -19,7 +29,7 @@ func (r *Repository) ParentAuthority(ctx context.Context, parentUserID string) (
 		JOIN users student
 		  ON student.id = ps.student_user_id
 		 AND student.status = 'active'
-		WHERE ps.parent_user_id = $1::uuid
+		WHERE ps.parent_user_id::text=ANY($1::text[])
 		  AND ps.status = 'active'
 		  AND EXISTS (
 			  SELECT 1
@@ -36,17 +46,16 @@ func (r *Repository) ParentAuthority(ctx context.Context, parentUserID string) (
 				    AND s.status = 'active'
 			  )
 		  )
-		ORDER BY ps.created_at, ps.id
-	`, parentUserID)
+		ORDER BY ps.parent_user_id,ps.created_at,ps.id
+	`, parentUserIDs)
 	if err != nil {
-		return org.ParentAuthority{}, err
+		return nil, err
 	}
 	defer rows.Close()
 
-	authority := org.ParentAuthority{Relationships: []org.ParentStudentRelationship{}}
 	for rows.Next() {
 		var relationship org.ParentStudentRelationship
-		if err := rows.Scan(
+		if err = rows.Scan(
 			&relationship.ID,
 			&relationship.ParentID,
 			&relationship.StudentID,
@@ -54,12 +63,19 @@ func (r *Repository) ParentAuthority(ctx context.Context, parentUserID string) (
 			&relationship.Status,
 			&relationship.Source,
 		); err != nil {
-			return org.ParentAuthority{}, err
+			return nil, err
 		}
+		authority := out[relationship.ParentID]
 		authority.Relationships = append(authority.Relationships, relationship)
+		out[relationship.ParentID] = authority
 	}
-	if err := rows.Err(); err != nil {
+	return out, rows.Err()
+}
+
+func (r *Repository) ParentAuthority(ctx context.Context, parentUserID string) (org.ParentAuthority, error) {
+	rows, err := r.ParentAuthorities(ctx, []string{parentUserID})
+	if err != nil {
 		return org.ParentAuthority{}, err
 	}
-	return authority, nil
+	return rows[parentUserID], nil
 }

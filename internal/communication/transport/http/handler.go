@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -22,15 +23,27 @@ type Authenticator interface {
 }
 
 type Handler struct {
-	service *communicationapp.Service
-	auth    Authenticator
+	service  *communicationapp.Service
+	auth     Authenticator
+	realtime communication.InboxRealtime
 }
 
 func New(service *communicationapp.Service, auth Authenticator) http.Handler {
-	h := &Handler{service: service, auth: auth}
+	return NewWithRealtime(service, auth, nil)
+}
+
+func NewWithRealtime(
+	service *communicationapp.Service,
+	auth Authenticator,
+	realtime communication.InboxRealtime,
+) http.Handler {
+	h := &Handler{service: service, auth: auth, realtime: realtime}
 	r := chi.NewRouter()
 	r.Get("/me", h.inbox)
 	r.Get("/me/unread-count", h.unreadCount)
+	r.Get("/me/preferences", h.preferences)
+	r.Patch("/me/preferences", h.updatePreferences)
+	r.Get("/stream", h.stream)
 	r.Patch("/me/read-all", h.readAll)
 	r.Patch("/{deliveryId}/read", h.readOne)
 	r.Get("/admin/templates", h.adminTemplates)
@@ -102,6 +115,122 @@ func (h *Handler) unreadCount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]int{"unreadCount": count})
+}
+
+func (h *Handler) preferences(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, false)
+	if !ok {
+		return
+	}
+	out, err := h.service.Preferences(r.Context(), authenticated.User)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"preferences": out})
+}
+
+func (h *Handler) updatePreferences(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, true)
+	if !ok {
+		return
+	}
+	var input communication.PreferencesWrite
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10)).Decode(&input); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+		return
+	}
+	out, err := h.service.UpdatePreferences(r.Context(), authenticated.User, input)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"preferences": out})
+}
+
+func writeSSE(w http.ResponseWriter, event string, data any) error {
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	if _, err = w.Write([]byte("event: " + event + "\ndata: " + string(raw) + "\n\n")); err != nil {
+		return err
+	}
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
+	return nil
+}
+
+func (h *Handler) stream(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, false)
+	if !ok {
+		return
+	}
+	if h.realtime == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"message": "Notification realtime unavailable"})
+		return
+	}
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"message": "Streaming unsupported"})
+		return
+	}
+	subscription, err := h.realtime.Subscribe(r.Context(), authenticated.User.ID)
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"message": "Notification realtime unavailable"})
+		return
+	}
+	defer subscription.Close()
+
+	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache, no-transform")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
+	flusher.Flush()
+
+	count, err := h.service.UnreadCount(r.Context(), authenticated.User)
+	if err != nil {
+		count = 0
+	}
+	if writeSSE(w, "connected", map[string]any{"unreadCount": count}) != nil {
+		return
+	}
+
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-ticker.C:
+			if _, err = w.Write([]byte(": keepalive\n\n")); err != nil {
+				return
+			}
+			flusher.Flush()
+		case event, open := <-subscription.Events():
+			if !open {
+				return
+			}
+			if event.UserID != authenticated.User.ID {
+				continue
+			}
+			if writeSSE(w, "notification", map[string]any{
+				"type": event.Type, "campaignId": event.CampaignID, "at": event.At,
+			}) != nil {
+				return
+			}
+			count, countErr := h.service.UnreadCount(r.Context(), authenticated.User)
+			if countErr == nil {
+				if writeSSE(w, "unread_count", map[string]int{"count": count}) != nil {
+					return
+				}
+			}
+		case <-subscription.Errors():
+			return
+		}
+	}
 }
 
 func (h *Handler) readAll(w http.ResponseWriter, r *http.Request) {
