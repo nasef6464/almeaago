@@ -1,6 +1,6 @@
 # Parents Integrated Parity Certification
 
-Status: **CERTIFICATION CANDIDATE**
+Status: **FINAL DOCUMENTATION GATE CANDIDATE**
 
 ## Source basis
 Audited against latest legacy checkpoint `20a77c62fd2db4ef891a574241f4cfd6946011de`, especially canonical parent authority and the parent Dashboard follow-up presentation, plus the target Parents blueprint/audit.
@@ -46,3 +46,13 @@ Legacy product notes explicitly call for a parent summary that is easy to copy/s
 
 ## Latest legacy delta re-check
 Legacy advanced to `a5bcd4a1b43316d6dfc0c75e7f2d91a2e8d294e9` with PLAN 4 storage hardening. The changed runtime paths normalize LessonProgress and immutable QuestionRevision and adjust `auth/me` progress projection; canonical parent relationship authority, parent-result privacy and parent write boundaries are unchanged. No new Parents behavior is copied from this delta.
+
+## Green implementation checkpoint
+Implementation head `19ba7933ee549253174f72fb49797bb061ee79ea` passed all four required gates on the same SHA:
+- Database CI `36383818147`.
+- Backend CI `36383818240`.
+- Frontend CI `36383818282`.
+- Frontend E2E `36383818286` — 66/66.
+- browser evidence artifact `10953707310`, digest `sha256:22a6e7b1fb953035ec0636cd51ed3eb2a368144f19bc18990009c8a6fc150c49`.
+
+The browser evidence covers the existing mobile linked-child/no-link journeys plus the desktop observer-only follow-up journey, canonical Learning action reuse, actual weekly period, local summary copy and a negative assertion that the Parents UI issues no mutation request.
