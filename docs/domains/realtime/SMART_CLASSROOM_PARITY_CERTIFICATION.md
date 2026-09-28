@@ -1,6 +1,6 @@
 # Smart Classroom / Realtime Integrated Parity Certification
 
-Status: **FINAL DOCUMENTATION GATE CANDIDATE**
+Status: **TESTED / MERGED**
 
 ## Source basis
 Audited against V2 main and the read-only legacy Smart Classroom contract, with final delta re-check through `95e8cb7399431da481a0d69ef3420a16bbb8c66c`, especially:
@@ -66,3 +66,16 @@ The first E2E attempt caught two evidence-locator defects only: a regular-expres
 
 ## Final legacy delta re-check
 Legacy advanced by 61 commits from `a5bcd4a1b43316d6dfc0c75e7f2d91a2e8d294e9` to `95e8cb7399431da481a0d69ef3420a16bbb8c66c`. The complete compare is architecture/refactor/content-lock work: App/route/store/SEO/auth/quiz ownership plus FND26 content-audit artifacts and smoke contracts. It changes no Smart Classroom route, model, socket, competition, attendance, report or classroom UI file. Therefore no additional same-domain behavior is imported from that delta.
+
+
+## Final certification evidence
+Final documentation-inclusive PR #86 head `ffe9f4c31b02a9045e19ed833a25b956a743d3fd` passed all four required gates on that exact SHA:
+- Database CI `36398432788`.
+- Backend CI `36398432977`.
+- Frontend CI `36398432717`.
+- Frontend E2E `36398432819` — 68/68.
+- browser evidence artifact `10959556589`, digest `sha256:b0ac1d9eeab956a4c56c800ca6d4f5de071340dac598e732918ae2bbb091c5ff`.
+
+PR #86 squash-merged to `main` as `398340eacbbefdc95d432d648a8d88b275b365a2`.
+
+Smart Classroom / Realtime remains **TESTED**, not `PARITY_PROVEN`. Production multi-instance/load proof, direct legacy-runtime side-by-side visual proof, exact classroom retention/purge policy, and any mastery rollup automation beyond the source-backed legacy contract remain explicit external/deferred evidence.
