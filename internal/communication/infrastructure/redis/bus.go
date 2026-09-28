@@ -43,13 +43,11 @@ func (b *Bus) PublishBatch(ctx context.Context, events []communication.InboxEven
 		}
 		raw, err := json.Marshal(event)
 		if err != nil {
-			_ = pipe.Close()
 			return err
 		}
 		pipe.Publish(ctx, inboxPrefix+event.UserID, raw)
 	}
 	_, err := pipe.Exec(ctx)
-	_ = pipe.Close()
 	return err
 }
 
