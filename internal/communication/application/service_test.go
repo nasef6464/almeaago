@@ -19,6 +19,7 @@ type repoStub struct {
 	deliveries      communication.DeliveryPage
 	templates       communication.TemplatePage
 	adminDeliveries communication.DeliveryPage
+	preferences     map[string]communication.Preferences
 }
 
 func (r *repoStub) ListTemplates(context.Context, int, int) (communication.TemplatePage, error) {
@@ -51,20 +52,76 @@ func (r *repoStub) MarkAllRead(context.Context, string) (int64, error) { return 
 func (r *repoStub) ListDeliveries(context.Context, communication.DeliveryFilter) (communication.DeliveryPage, error) {
 	return r.adminDeliveries, nil
 }
-
-type audienceStub struct {
-	rows  []identity.NotificationRecipient
-	limit int
+func (r *repoStub) GetPreferences(_ context.Context, userID string) (communication.Preferences, error) {
+	if item, ok := r.preferences[userID]; ok {
+		return item, nil
+	}
+	return communication.Preferences{UserID: userID}, nil
+}
+func (r *repoStub) PreferencesForUsers(_ context.Context, userIDs []string) (map[string]communication.Preferences, error) {
+	out := make(map[string]communication.Preferences, len(userIDs))
+	for _, userID := range userIDs {
+		item, _ := r.GetPreferences(context.Background(), userID)
+		out[userID] = item
+	}
+	return out, nil
+}
+func (r *repoStub) UpdatePreferences(_ context.Context, userID string, write communication.PreferencesWrite) (communication.Preferences, error) {
+	if r.preferences == nil {
+		r.preferences = map[string]communication.Preferences{}
+	}
+	item := communication.Preferences{
+		UserID: userID,
+		ParentWhatsAppDigestEnabled: write.ParentWhatsAppDigestEnabled,
+		Revision: write.ExpectedRevision + 1,
+	}
+	r.preferences[userID] = item
+	return item, nil
 }
 
-func (a *audienceStub) ResolveNotificationAudience(
+type audienceStub struct {
+	rows       []identity.NotificationRecipient
+	count      int
+	countCalls int
+	pageCalls  int
+	pageLimits []int
+}
+
+func (a *audienceStub) CountNotificationAudience(
 	_ context.Context,
 	_ []string,
 	_ []identity.Role,
+) (int, error) {
+	a.countCalls++
+	if a.count > 0 {
+		return a.count, nil
+	}
+	return len(a.rows), nil
+}
+
+func (a *audienceStub) ResolveNotificationAudiencePage(
+	_ context.Context,
+	_ []string,
+	_ []identity.Role,
+	afterID string,
 	limit int,
 ) ([]identity.NotificationRecipient, error) {
-	a.limit = limit
-	return a.rows, nil
+	a.pageCalls++
+	a.pageLimits = append(a.pageLimits, limit)
+	start := 0
+	if afterID != "" {
+		for i, row := range a.rows {
+			if row.ID == afterID {
+				start = i + 1
+				break
+			}
+		}
+	}
+	end := start + limit
+	if end > len(a.rows) {
+		end = len(a.rows)
+	}
+	return append([]identity.NotificationRecipient(nil), a.rows[start:end]...), nil
 }
 
 func adminActor() identity.User {
@@ -90,8 +147,8 @@ func TestSendCampaignResolvesAudienceAndRendersTemplate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if audience.limit != MaxCampaignRecipients+1 {
-		t.Fatalf("unexpected audience safety limit %d", audience.limit)
+	if audience.countCalls != 1 || audience.pageCalls != 1 {
+		t.Fatalf("unexpected audience resolution calls count=%d pages=%d", audience.countCalls, audience.pageCalls)
 	}
 	if out.Recipients != 1 || repo.campaignCalls != 1 {
 		t.Fatalf("unexpected result %#v calls=%d", out, repo.campaignCalls)
@@ -110,12 +167,9 @@ func TestSendCampaignResolvesAudienceAndRendersTemplate(t *testing.T) {
 }
 
 func TestSendCampaignFailsClosedAboveAudienceLimit(t *testing.T) {
-	rows := make([]identity.NotificationRecipient, MaxCampaignRecipients+1)
-	for i := range rows {
-		rows[i] = identity.NotificationRecipient{ID: "user"}
-	}
 	repo := &repoStub{}
-	service := NewService(repo, &audienceStub{rows: rows})
+	audience := &audienceStub{count: MaxCampaignRecipients + 1}
+	service := NewService(repo, audience)
 
 	_, err := service.SendCampaign(context.Background(), adminActor(), communication.CampaignWrite{
 		Title: "تنبيه", Body: "رسالة", Channels: []communication.Channel{communication.ChannelInApp},
@@ -126,6 +180,9 @@ func TestSendCampaignFailsClosedAboveAudienceLimit(t *testing.T) {
 	}
 	if repo.campaignCalls != 0 {
 		t.Fatal("campaign persisted despite oversized audience")
+	}
+	if audience.pageCalls != 0 {
+		t.Fatal("oversized audience must fail before paging recipient contacts")
 	}
 }
 
