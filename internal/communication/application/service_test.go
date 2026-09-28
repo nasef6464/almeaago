@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -272,5 +273,73 @@ func TestProcessorTracksSentRetryingAndFailed(t *testing.T) {
 	}
 	if len(repo.results) != 3 || !repo.results[0] || repo.results[1] || repo.results[2] {
 		t.Fatalf("unexpected completion results %#v", repo.results)
+	}
+}
+
+
+type inboxPublisherStub struct {
+	events []communication.InboxEvent
+}
+
+func (p *inboxPublisherStub) Publish(_ context.Context, event communication.InboxEvent) error {
+	p.events = append(p.events, event)
+	return nil
+}
+
+func TestSendCampaignPaginatesLargeAudienceWithoutTruncation(t *testing.T) {
+	rows := make([]identity.NotificationRecipient, 0, 501)
+	for i := 0; i < 501; i++ {
+		rows = append(rows, identity.NotificationRecipient{ID: fmt.Sprintf("user-%03d", i)})
+	}
+	repo := &repoStub{}
+	audience := &audienceStub{rows: rows}
+	realtime := &inboxPublisherStub{}
+	service := NewServiceWithRealtime(repo, audience, realtime)
+
+	out, err := service.SendCampaign(context.Background(), adminActor(), communication.CampaignWrite{
+		Title: "تنبيه",
+		Body: "رسالة bounded",
+		Channels: []communication.Channel{communication.ChannelInApp},
+		Roles: []string{"student"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Recipients != 501 || repo.campaignCalls != 1 {
+		t.Fatalf("unexpected campaign result %#v calls=%d", out, repo.campaignCalls)
+	}
+	if audience.pageCalls != 2 || len(audience.pageLimits) != 2 ||
+		audience.pageLimits[0] != 500 || audience.pageLimits[1] != 1 {
+		t.Fatalf("expected 500+1 keyset pages, got calls=%d limits=%v", audience.pageCalls, audience.pageLimits)
+	}
+	if len(realtime.events) != 501 {
+		t.Fatalf("expected self-scoped refresh event per in-app recipient, got %d", len(realtime.events))
+	}
+	for _, event := range realtime.events {
+		if event.Type != "refresh" || event.UserID == "" {
+			t.Fatalf("unexpected realtime event %#v", event)
+		}
+	}
+}
+
+func TestParentCanOptInToWeeklyWhatsAppDigestWithOptimisticRevision(t *testing.T) {
+	repo := &repoStub{}
+	service := NewService(repo, &audienceStub{})
+	parent := identity.User{ID: "parent-1", Roles: []identity.Role{identity.RoleParent}}
+	out, err := service.UpdatePreferences(context.Background(), parent, communication.PreferencesWrite{
+		ParentWhatsAppDigestEnabled: true,
+		ExpectedRevision: 0,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !out.ParentWhatsAppDigestEnabled || out.Revision != 1 {
+		t.Fatalf("unexpected preference %#v", out)
+	}
+	_, err = service.UpdatePreferences(context.Background(), identity.User{
+		ID: "student-1", Roles: []identity.Role{identity.RoleStudent},
+	}, communication.PreferencesWrite{ParentWhatsAppDigestEnabled: true})
+	if !errors.Is(err, ErrForbidden) {
+		t.Fatalf("student must not gain parent digest preference, got %v", err)
 	}
 }
