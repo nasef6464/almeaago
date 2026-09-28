@@ -42,6 +42,14 @@ func (r *repoStub) ParentAuthority(_ context.Context, _ string) (orgdomain.Paren
 	return r.parentAuthority, nil
 }
 
+func (r *repoStub) ParentAuthorities(_ context.Context, parentIDs []string) (map[string]orgdomain.ParentAuthority, error) {
+	out := make(map[string]orgdomain.ParentAuthority, len(parentIDs))
+	for _, parentID := range parentIDs {
+		out[parentID] = r.parentAuthority
+	}
+	return out, nil
+}
+
 func (r *repoStub) TeacherWorkspace(_ context.Context, _ string) (orgdomain.TeacherWorkspace, error) {
 	return r.teacherWorkspace, nil
 }
