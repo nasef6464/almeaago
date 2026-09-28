@@ -1,6 +1,6 @@
 # Parents Integrated Parity Certification
 
-Status: **FINAL DOCUMENTATION GATE CANDIDATE**
+Status: **TESTED / MERGED**
 
 ## Source basis
 Audited against latest legacy checkpoint `20a77c62fd2db4ef891a574241f4cfd6946011de`, especially canonical parent authority and the parent Dashboard follow-up presentation, plus the target Parents blueprint/audit.
@@ -56,3 +56,15 @@ Implementation head `19ba7933ee549253174f72fb49797bb061ee79ea` passed all four r
 - browser evidence artifact `10953707310`, digest `sha256:22a6e7b1fb953035ec0636cd51ed3eb2a368144f19bc18990009c8a6fc150c49`.
 
 The browser evidence covers the existing mobile linked-child/no-link journeys plus the desktop observer-only follow-up journey, canonical Learning action reuse, actual weekly period, local summary copy and a negative assertion that the Parents UI issues no mutation request.
+
+## Final certification evidence
+Final documentation-inclusive PR #82 head `33bddf91bdc5191c48b44443ec495964cc125985` passed all four required gates on that exact SHA:
+- Database CI `36384065061`.
+- Backend CI `36384065062`.
+- Frontend CI `36384065128`.
+- Frontend E2E `36384065117` — 66/66.
+- browser evidence artifact `10953663005`, digest `sha256:dd650171d5eb38a05445359acfdb9cd50085b904c0d2a3962de9e0eae8489cbe`.
+
+PR #82 squash-merged to `main` as `08c5f6013568913b2693672875ec0be7eb684214`.
+
+Parents remains **TESTED**, not `PARITY_PROVEN`: direct legacy-runtime visual proof and Communication-owned real delivery/consent evidence remain separate.
