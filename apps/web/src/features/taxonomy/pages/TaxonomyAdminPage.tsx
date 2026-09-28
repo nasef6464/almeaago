@@ -128,7 +128,7 @@ export function TaxonomyAdminPage(){
     {notice?<div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 font-bold text-emerald-700">{notice}</div>:null}
     {busy?<div className="flex items-center justify-center gap-2 rounded-2xl border bg-white p-8 font-black text-gray-500"><Loader2 className="animate-spin" size={20}/> جاري تحميل شجرة التصنيف...</div>:null}
 
-    <section className="grid gap-3 sm:grid-cols-4">
+    <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <article className="rounded-2xl border bg-white p-4"><Boxes className="text-indigo-700" size={19}/><p className="mt-2 text-xs font-bold text-gray-500">المسارات</p><p className="text-2xl font-black">{data.paths.length}</p></article>
       <article className="rounded-2xl border bg-white p-4"><GraduationCap className="text-sky-700" size={19}/><p className="mt-2 text-xs font-bold text-gray-500">المراحل</p><p className="text-2xl font-black">{data.levels.length}</p></article>
       <article className="rounded-2xl border bg-white p-4"><BookOpen className="text-amber-700" size={19}/><p className="mt-2 text-xs font-bold text-gray-500">المواد</p><p className="text-2xl font-black">{data.subjects.length}</p></article>
