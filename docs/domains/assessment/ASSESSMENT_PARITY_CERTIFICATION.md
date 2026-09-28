@@ -40,3 +40,8 @@ Legacy mixed directed targeting into Quiz documents and used browser/store compa
 The exact documentation-inclusive head must keep the existing Assessment desktop/mobile builder, attempt, result/review, placement, anonymous barcode and live-session journeys green and add a mobile directed-assignment journey plus a negative non-student inventory assertion.
 
 Direct side-by-side legacy-runtime screenshots are external evidence. This document must not claim `PARITY_PROVEN` from deterministic V2 screenshots alone.
+
+## Implementation checkpoint
+Implementation head `5867c6879540152aa2897507be8fc3fbe9bbcd50` passed Frontend CI `36371918890` and Frontend E2E `36371918901` (64/64). Browser evidence artifact `10949631044`, digest `sha256:e2a41e753f365be13b7bf17aba2303758b6029b05592b766888ca2bc85353d89`.
+
+Final same-domain legacy delta re-check found no newer legacy commit and reconfirmed the source-backed differences: legacy directed audience remains embedded in Quiz and is documented for Assignment migration; PublicBarcodeTest duplicates assessment/settings and is documented for Session migration; legacy QuizResult uses snapshot/submissionKey while V2 pins formal Assessment/question versions and server-owned results. No additional legacy behavior was copied because those differences are exactly the normalized V2 target direction.
