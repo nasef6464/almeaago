@@ -233,24 +233,49 @@ func MasteryReadinessFrom(rows []SkillProgress, now time.Time) MasteryReadiness 
 	weighted := 0.0
 	latest := time.Time{}
 	for _, row := range rows {
-		if row.EvidenceCount >= 3 { reliable++ }
+		if row.EvidenceCount >= 3 {
+			reliable++
+		}
 		evidence += row.EvidenceCount
 		weighted += row.Mastery * float64(row.EvidenceCount)
-		if row.LastEvidenceAt.After(latest) { latest = row.LastEvidenceAt }
+		if row.LastEvidenceAt.After(latest) {
+			latest = row.LastEvidenceAt
+		}
 	}
 	mastery := 0.0
-	if evidence > 0 { mastery = weighted / float64(evidence) }
+	if evidence > 0 {
+		mastery = weighted / float64(evidence)
+	}
 	coverage := 0.0
-	if total > 0 { coverage = float64(reliable) / float64(total) }
+	if total > 0 {
+		coverage = float64(reliable) / float64(total)
+	}
 	confidence := 0.0
-	if denom := total * 3; denom > 0 { confidence = math.Min(1, float64(evidence)/float64(denom)) }
+	if denom := total * 3; denom > 0 {
+		confidence = math.Min(1, float64(evidence)/float64(denom))
+	}
 	recency := 0.5
 	if !latest.IsZero() {
 		days := now.Sub(latest).Hours() / 24
-		switch { case days <= 14: recency = 1; case days <= 30: recency = .8; case days <= 60: recency = .6; default: recency = .4 }
+		switch {
+		case days <= 14:
+			recency = 1
+		case days <= 30:
+			recency = .8
+		case days <= 60:
+			recency = .6
+		default:
+			recency = .4
+		}
 	}
 	score := math.Round(mastery*.55 + coverage*100*.2 + confidence*100*.15 + recency*100*.1)
 	status, explanation := "building", "استمر في العلاج والتدريب قبل إعادة القياس."
-	if total == 0 || reliable == 0 { status, explanation = "needs_measurement", "نحتاج أدلة أكثر قبل اتخاذ قرار انتقال." } else if score >= 80 && coverage >= .7 { status, explanation = "ready_to_advance", "الإتقان والتغطية والأدلة الحديثة تسمح بالانتقال بعد تثبيت قصير." } else if score >= 60 { status, explanation = "ready_for_recheck", "المستوى قريب من الجاهزية؛ أعد القياس بعد تدريب قصير." }
+	if total == 0 || reliable == 0 {
+		status, explanation = "needs_measurement", "نحتاج أدلة أكثر قبل اتخاذ قرار انتقال."
+	} else if score >= 80 && coverage >= .7 {
+		status, explanation = "ready_to_advance", "الإتقان والتغطية والأدلة الحديثة تسمح بالانتقال بعد تثبيت قصير."
+	} else if score >= 60 {
+		status, explanation = "ready_for_recheck", "المستوى قريب من الجاهزية؛ أعد القياس بعد تدريب قصير."
+	}
 	return MasteryReadiness{Score: score, Status: status, Mastery: math.Round(mastery), Coverage: coverage, EvidenceConfidence: confidence, Recency: recency, TotalSkills: total, ReliableSkills: reliable, TotalEvidence: evidence, Explanation: explanation}
 }
