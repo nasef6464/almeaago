@@ -26,16 +26,16 @@ type ProviderUsageSummary struct {
 }
 
 type UsageSummary struct {
-	Today          DailyUsage             `json:"today"`
-	Last24h        int                    `json:"last24h"`
-	Fallback24h    int                    `json:"fallback24h"`
-	Error24h       int                    `json:"error24h"`
-	CacheHit24h    int                    `json:"cacheHit24h"`
-	InputTokens24h int64                  `json:"inputTokens24h"`
-	OutputTokens24h int64                 `json:"outputTokens24h"`
-	TotalTokens24h int64                  `json:"totalTokens24h"`
-	CachedTokens24h int64                 `json:"cachedTokens24h"`
-	ByProvider     []ProviderUsageSummary `json:"byProvider"`
+	Today           DailyUsage             `json:"today"`
+	Last24h         int                    `json:"last24h"`
+	Fallback24h     int                    `json:"fallback24h"`
+	Error24h        int                    `json:"error24h"`
+	CacheHit24h     int                    `json:"cacheHit24h"`
+	InputTokens24h  int64                  `json:"inputTokens24h"`
+	OutputTokens24h int64                  `json:"outputTokens24h"`
+	TotalTokens24h  int64                  `json:"totalTokens24h"`
+	CachedTokens24h int64                  `json:"cachedTokens24h"`
+	ByProvider      []ProviderUsageSummary `json:"byProvider"`
 }
 
 type AdminReadiness struct {
