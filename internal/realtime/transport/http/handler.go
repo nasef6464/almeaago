@@ -688,9 +688,9 @@ func presentBatch(item realtime.Batch) map[string]any {
 	return map[string]any{
 		"id": item.ID, "sessionId": item.SessionID, "batchNumber": item.BatchNumber,
 		"label": item.Label, "startedAt": item.StartedAt, "endedAt": item.EndedAt,
-		"competitionEnabled": item.CompetitionEnabled,
+		"competitionEnabled":       item.CompetitionEnabled,
 		"challengeDurationSeconds": item.ChallengeDurationSeconds,
-		"timerStartedAt": item.TimerStartedAt, "timerEndsAt": item.TimerEndsAt,
+		"timerStartedAt":           item.TimerStartedAt, "timerEndsAt": item.TimerEndsAt,
 		"createdAt": item.CreatedAt, "questions": questions,
 	}
 }
@@ -793,14 +793,14 @@ func presentPresentation(item realtime.Presentation) map[string]any {
 
 func presentCompetitionState(item realtime.CompetitionState) map[string]any {
 	return map[string]any{
-		"sessionId": item.SessionID,
-		"activeBatchId": item.ActiveBatchID,
-		"competitionEnabled": item.CompetitionEnabled,
+		"sessionId":                item.SessionID,
+		"activeBatchId":            item.ActiveBatchID,
+		"competitionEnabled":       item.CompetitionEnabled,
 		"challengeDurationSeconds": item.ChallengeDurationSeconds,
-		"timerStartedAt": item.TimerStartedAt,
-		"timerEndsAt": item.TimerEndsAt,
-		"expired": item.Expired,
-		"serverNow": item.ServerNow,
+		"timerStartedAt":           item.TimerStartedAt,
+		"timerEndsAt":              item.TimerEndsAt,
+		"expired":                  item.Expired,
+		"serverNow":                item.ServerNow,
 	}
 }
 
@@ -815,21 +815,21 @@ func presentCompetition(item realtime.Competition) map[string]any {
 	leaderboard := make([]map[string]any, 0, len(item.Leaderboard))
 	for index, row := range item.Leaderboard {
 		leaderboard = append(leaderboard, map[string]any{
-			"rank": index + 1,
-			"studentId": row.StudentID,
-			"answered": row.Answered,
-			"correct": row.Correct,
-			"accuracy": row.Accuracy,
-			"score": row.Score,
+			"rank":            index + 1,
+			"studentId":       row.StudentID,
+			"answered":        row.Answered,
+			"correct":         row.Correct,
+			"accuracy":        row.Accuracy,
+			"score":           row.Score,
 			"lastSubmittedAt": row.LastSubmittedAt,
 		})
 	}
 	return map[string]any{
-		"state": presentCompetitionState(item.State),
+		"state":            presentCompetitionState(item.State),
 		"participantCount": item.ParticipantCount,
-		"leaderboard": leaderboard,
-		"podium": leaderboard[:minInt(3, len(leaderboard))],
-		"scoring": map[string]any{"correctAnswerPoints": 100, "speedBonus": false},
+		"leaderboard":      leaderboard,
+		"podium":           leaderboard[:minInt(3, len(leaderboard))],
+		"scoring":          map[string]any{"correctAnswerPoints": 100, "speedBonus": false},
 	}
 }
 
@@ -837,23 +837,23 @@ func presentAttendance(item realtime.AttendanceSnapshot) map[string]any {
 	rows := make([]map[string]any, 0, len(item.Rows))
 	for _, row := range item.Rows {
 		rows = append(rows, map[string]any{
-			"studentId": row.StudentID,
-			"joinedAt": row.JoinedAt,
-			"joinedMethod": row.JoinedMethod,
-			"attendanceStatus": row.AttendanceStatus,
+			"studentId":              row.StudentID,
+			"joinedAt":               row.JoinedAt,
+			"joinedMethod":           row.JoinedMethod,
+			"attendanceStatus":       row.AttendanceStatus,
 			"attendanceOverriddenBy": row.AttendanceOverriddenBy,
 			"attendanceOverriddenAt": row.AttendanceOverriddenAt,
 		})
 	}
 	return map[string]any{
 		"sessionId": item.SessionID,
-		"expected": item.Expected,
-		"joined": item.Joined,
-		"present": item.Present,
-		"late": item.Late,
-		"absent": item.Absent,
-		"excused": item.Excused,
-		"rows": rows,
+		"expected":  item.Expected,
+		"joined":    item.Joined,
+		"present":   item.Present,
+		"late":      item.Late,
+		"absent":    item.Absent,
+		"excused":   item.Excused,
+		"rows":      rows,
 	}
 }
 
