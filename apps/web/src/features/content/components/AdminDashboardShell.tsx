@@ -1,6 +1,7 @@
 import {
   Bell,
   BarChart3,
+  ChevronDown,
   BrainCircuit,
   BookOpen,
   Boxes,
@@ -63,6 +64,12 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
   const { user } = useAuth();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [plannedOpen, setPlannedOpen] = useState(false);
+  const availableItems = navItems.filter((item) => Boolean(item.href));
+  const plannedItems = navItems.filter((item) => !item.href);
+  const activeItem = availableItems.find((item) =>
+    item.href ? location.pathname === item.href || location.pathname.startsWith(item.href + '/') : false,
+  );
 
   const sidebar = (
     <aside className="flex h-full w-[270px] flex-col border-l border-gray-100 bg-white">
@@ -71,38 +78,58 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
         <p className="mt-1 text-xs font-bold text-gray-400">التحكم الكامل بالمنصة</p>
       </div>
       <nav className="flex-1 overflow-y-auto py-3">
-        {navItems.map((item) => {
+        <div className="px-5 pb-2 text-[10px] font-black tracking-wide text-gray-400">الأقسام المتاحة</div>
+        {availableItems.map((item) => {
           const Icon = item.icon;
-          const active = item.href ? location.pathname === item.href : ('active' in item && Boolean(item.active));
+          const active = item.href
+            ? location.pathname === item.href || location.pathname.startsWith(item.href + '/')
+            : false;
           const classes = active
-            ? 'border-r-4 border-amber-500 bg-amber-50 text-amber-700'
+            ? 'border-r-4 border-amber-500 bg-amber-50 text-amber-800'
             : 'border-r-4 border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-800';
-          if (item.href) {
-            return (
-              <Link
-                key={item.label}
-                to={item.href}
-                onClick={() => setMenuOpen(false)}
-                className={`flex items-center gap-3 px-5 py-3 text-sm font-bold transition-colors ${classes}`}
-              >
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          }
           return (
-            <button
+            <Link
               key={item.label}
-              type="button"
-              disabled
-              className={`flex w-full cursor-not-allowed items-center gap-3 px-5 py-3 text-right text-sm font-bold opacity-70 ${classes}`}
-              title="هذه الشاشة ستُنقل في مرحلتها."
+              to={item.href!}
+              onClick={() => setMenuOpen(false)}
+              className={`flex items-center gap-3 px-5 py-3 text-sm font-bold transition-colors ${classes}`}
             >
-              <Icon size={18} />
-              <span>{item.label}</span>
-            </button>
+              <Icon size={18} className="shrink-0" />
+              <span className="min-w-0 flex-1">{item.label}</span>
+            </Link>
           );
         })}
+
+        {plannedItems.length ? (
+          <div className="mx-4 mt-3 border-t border-gray-100 pt-3">
+            <button
+              type="button"
+              onClick={() => setPlannedOpen((value) => !value)}
+              className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-xs font-black text-gray-400 hover:bg-gray-50 hover:text-gray-600"
+              aria-expanded={plannedOpen}
+            >
+              <span>أقسام قيد النقل ({plannedItems.length})</span>
+              <ChevronDown size={16} className={`transition-transform ${plannedOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {plannedOpen ? (
+              <div className="mt-1 space-y-0.5">
+                {plannedItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div
+                      key={item.label}
+                      className="flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-bold text-gray-400"
+                      title="هذه الشاشة ستُنقل في مرحلتها."
+                    >
+                      <Icon size={16} className="shrink-0" />
+                      <span>{item.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </nav>
     </aside>
   );
@@ -123,11 +150,11 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
             <Brand />
           </div>
 
-          <div className="hidden flex-1 items-center justify-center gap-3 lg:flex">
-            <span className="h-3 w-20 rounded-full bg-gray-100" />
-            <span className="h-3 w-20 rounded-full bg-gray-100" />
-            <span className="h-3 w-24 rounded-full bg-gray-100" />
-            <span className="h-3 w-20 rounded-full bg-gray-100" />
+          <div className="hidden min-w-0 flex-1 items-center justify-center lg:flex">
+            <div className="min-w-0 rounded-2xl bg-gray-50 px-5 py-2 text-center ring-1 ring-gray-100">
+              <div className="text-[10px] font-black text-gray-400">لوحة الإدارة</div>
+              <div className="mt-0.5 max-w-md truncate text-sm font-black text-gray-800">{activeItem?.label || 'نظرة عامة'}</div>
+            </div>
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
@@ -147,21 +174,26 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
       </header>
 
       <div className="flex min-h-[calc(100vh-4rem)]">
-        <div className="hidden shrink-0 lg:block">{sidebar}</div>
+        <div className="hidden shrink-0 lg:block"><div className="sticky top-16 h-[calc(100vh-4rem)]">{sidebar}</div></div>
 
         {menuOpen ? (
           <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={() => setMenuOpen(false)}>
-            <div className="absolute right-0 top-16 h-[calc(100vh-4rem)]" onClick={(event) => event.stopPropagation()}>
+            <div className="absolute right-0 top-16 h-[calc(100vh-4rem)] max-w-[86vw]" onClick={(event) => event.stopPropagation()}>
               {sidebar}
             </div>
           </div>
         ) : null}
 
         <div className="min-w-0 flex-1">
-          <div className="px-3 py-4 sm:px-5">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white shadow-sm">
-              <span className="inline-block h-2 w-2 rounded-full border border-white/70" />
-              تغيير الدور
+          <div className="px-3 py-4 sm:px-5 lg:px-6 xl:px-8">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <div className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white shadow-sm">
+                <span className="inline-block h-2 w-2 rounded-full border border-white/70" />
+                تغيير الدور
+              </div>
+              <div className="max-w-full truncate rounded-xl border border-gray-100 bg-white px-3 py-2 text-xs font-black text-gray-600 shadow-sm lg:hidden">
+                {activeItem?.label || 'نظرة عامة'}
+              </div>
             </div>
             {children}
           </div>
