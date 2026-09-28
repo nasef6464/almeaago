@@ -40,6 +40,8 @@ export interface SkillProgress {
   recommendedAction: string;
 }
 
+export interface MasteryReadiness{score:number;status:'needs_measurement'|'building'|'ready_for_recheck'|'ready_to_advance';mastery:number;coverage:number;evidenceConfidence:number;recency:number;totalSkills:number;reliableSkills:number;totalEvidence:number;explanation:string}
+
 export interface SkillProgressPage {
   items: SkillProgress[];
   page: number;
@@ -236,6 +238,8 @@ export const learningClient = {
     if (subjectId) params.set('subjectId', subjectId);
     return request<SkillProgressPage>(`/api/v1/mastery/progress?${params.toString()}`, { signal });
   },
+
+  readiness(pathId:string,subjectId:string,signal?:AbortSignal){const params=new URLSearchParams({pathId});if(subjectId)params.set('subjectId',subjectId);return request<{readiness:MasteryReadiness}>(`/api/v1/mastery/readiness?${params.toString()}`,{signal});},
 
   nextAction(pathId: string, subjectId: string, signal?: AbortSignal) {
     const params = new URLSearchParams({ pathId });

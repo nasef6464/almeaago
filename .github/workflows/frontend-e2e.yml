@@ -10,6 +10,7 @@ on:
       - "apps/web/playwright.config.ts"
       - "apps/web/package.json"
       - ".github/workflows/frontend-e2e.yml"
+      - "docs/**"
 
 concurrency:
   group: frontend-e2e-${{ github.ref }}

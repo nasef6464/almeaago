@@ -47,6 +47,7 @@ func NewMasteryWithGoals(service *learningapp.Service, goals *learningapp.Master
 	r := chi.NewRouter()
 	r.Get("/progress", h.progress)
 	r.Get("/next-action", h.nextAction)
+	r.Get("/readiness", h.readiness)
 	r.Get("/goals", h.goalsList)
 	r.Post("/goals", h.goalsCreate)
 	r.Patch("/goals/{goalId}", h.goalsUpdate)
@@ -155,6 +156,19 @@ func (h *Handler) progress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+func (h *Handler) readiness(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, false)
+	if !ok {
+		return
+	}
+	out, err := h.service.Readiness(r.Context(), authenticated.User, r.URL.Query().Get("pathId"), r.URL.Query().Get("subjectId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"readiness": out})
 }
 
 func (h *Handler) nextAction(w http.ResponseWriter, r *http.Request) {

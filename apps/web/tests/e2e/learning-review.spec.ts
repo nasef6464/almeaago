@@ -178,6 +178,8 @@ test('mobile review library shows mistake, mastery next action and toggles saved
     }),
   );
 
+  await page.route('**/api/v1/mastery/readiness?**', (route) => json(route,{readiness:{score:54,status:'building',mastery:40,coverage:1,evidenceConfidence:1,recency:1,totalSkills:1,reliableSkills:1,totalEvidence:3,explanation:'استمر في العلاج والتدريب قبل إعادة القياس.'}}));
+
   await page.route('**/api/v1/mastery/next-action?**', (route) =>
     json(route, {
       item: {
@@ -209,6 +211,12 @@ test('mobile review library shows mistake, mastery next action and toggles saved
   await expect(page.getByText('٢ + ٢ = ؟')).toBeVisible();
   await expect(page.getByText('خطأ سابق')).toBeVisible();
   await expect(page.getByText('خطة علاج عاجلة: شرح + تدريب + اختبار موجه')).toBeVisible();
+  await expect(page.getByTestId('mastery-readiness')).toContainText('54');
+  await expect(page.getByTestId('mastery-readiness')).toContainText('نبني الجاهزية');
+  await expect(page.getByTestId('mastery-readiness')).toContainText('التغطية');
+  await expect(page.getByTestId('mastery-readiness')).toContainText('ثقة الأدلة');
+  await expect(page.getByTestId('mastery-readiness')).toContainText('حداثة الأدلة');
+  await expect(page.getByTestId('mastery-readiness')).toContainText('ليس توقعًا لدرجة اختبار خارجي');
   await expect(page.getByText('الإجابة الصحيحة')).toBeVisible();
 
   const saveRequest = page.waitForRequest(

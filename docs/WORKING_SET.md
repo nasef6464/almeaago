@@ -55,3 +55,6 @@ Foundation learning / Content integrated parity — **TESTED / MERGED** in PR #7
 Assessment integrated parity certification is in progress: the missing learner Directed Assignment entry surface now consumes only the server-scoped `assessment-assignments/mine` projection and enters the canonical Attempt runner. Assessment integrated certification final documentation-inclusive head `5f0f3db3d7f40a2659db47f8f85866f73d1383a1` is green: Frontend CI `36372298444`, E2E `36372298458` (64/64), artifact `10949179677`; same-domain legacy delta re-check complete. Ready to merge PR #76.
 
 Assessment certification PR #76 merged as `43e3c98491aad8ee5a0610ced69d751f7c51fa82`.
+
+## Active certification batch — Review / Adaptive Learning
+Integrated audit confirms the underlying evidence/review/remediation/progress/goals/plans/interventions slices are merged. Deterministic readiness plus explainability are implemented on `cert/review-adaptive-parity`. Implementation head `b047abb2e594fb82925a9b7a917a2b583452c5c2` passed Database `36375848493`, Backend `36375848612`, Frontend `36375848559`, and Frontend E2E `36375848550` (64/64), artifact `10950244158`. Legacy re-check reached `6927f7e6a05447862b4872c5203503fb7296e69c`; its new FND26 taxonomy repair is outside this Adaptive domain. Final documentation-inclusive exact-head four-gate rerun remains before merge.
