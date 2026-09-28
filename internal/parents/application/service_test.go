@@ -147,3 +147,67 @@ func TestWeeklyReportIsReadOnlySevenDayProjection(t *testing.T) {
 		t.Fatalf("unexpected weekly report: %#v", out)
 	}
 }
+
+
+type batchAuthorityStub struct {
+	values map[string]org.ParentAuthority
+	calls  int
+}
+
+func (s *batchAuthorityStub) ParentAuthority(_ context.Context, actor identity.User) (org.ParentAuthority, error) {
+	return s.values[actor.ID], nil
+}
+
+func (s *batchAuthorityStub) ParentAuthorities(_ context.Context, ids []string) (map[string]org.ParentAuthority, error) {
+	s.calls++
+	out := make(map[string]org.ParentAuthority, len(ids))
+	for _, id := range ids {
+		out[id] = s.values[id]
+	}
+	return out, nil
+}
+
+func TestWeeklyReportsForParentsUsesOneBulkAuthorityAndOwnerDomainBatches(t *testing.T) {
+	authority := &batchAuthorityStub{values: map[string]org.ParentAuthority{
+		"parent-1": {Relationships: []org.ParentStudentRelationship{
+			{ID: "r1", StudentID: "student-1", Status: "active"},
+		}},
+		"parent-2": {Relationships: []org.ParentStudentRelationship{
+			{ID: "r2", StudentID: "student-2", Status: "active"},
+			{ID: "r3", StudentID: "student-1", Status: "active"},
+		}},
+	}}
+	students := &studentDirectoryStub{rows: []identity.ParentStudentProfile{
+		{ID: "student-1", Name: "سارة"},
+		{ID: "student-2", Name: "أحمد"},
+	}}
+	assess := &assessmentReaderStub{snapshots: map[string]assessment.ParentStudentAssessmentSnapshot{
+		"student-1": {StudentID: "student-1", WeeklyAssessmentCount: 2, WeeklyAverageScore: 80},
+		"student-2": {StudentID: "student-2", WeeklyAssessmentCount: 1, WeeklyAverageScore: 60},
+	}}
+	learningReader := &learningReaderStub{snapshots: map[string]learning.ParentStudentLearningSnapshot{
+		"student-1": {StudentID: "student-1"},
+		"student-2": {StudentID: "student-2"},
+	}}
+	service := NewService(authority, students, assess, learningReader)
+	end := time.Date(2026, 9, 27, 5, 0, 0, 0, time.UTC)
+	out, err := service.WeeklyReportsForParents(
+		context.Background(),
+		[]string{"parent-1", "parent-2"},
+		end,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if authority.calls != 1 {
+		t.Fatalf("expected one bulk authority read, got %d", authority.calls)
+	}
+	if !reflect.DeepEqual(students.ids, []string{"student-1", "student-2"}) ||
+		!reflect.DeepEqual(assess.snapshotIDs, []string{"student-1", "student-2"}) ||
+		!reflect.DeepEqual(learningReader.ids, []string{"student-1", "student-2"}) {
+		t.Fatalf("owner-domain readers were not batched/deduplicated: students=%v assess=%v learning=%v", students.ids, assess.snapshotIDs, learningReader.ids)
+	}
+	if len(out["parent-1"].Children) != 1 || len(out["parent-2"].Children) != 2 {
+		t.Fatalf("unexpected parent report composition %#v", out)
+	}
+}
