@@ -72,9 +72,9 @@ func (r *repoStub) UpdatePreferences(_ context.Context, userID string, write com
 		r.preferences = map[string]communication.Preferences{}
 	}
 	item := communication.Preferences{
-		UserID: userID,
+		UserID:                      userID,
 		ParentWhatsAppDigestEnabled: write.ParentWhatsAppDigestEnabled,
-		Revision: write.ExpectedRevision + 1,
+		Revision:                    write.ExpectedRevision + 1,
 	}
 	r.preferences[userID] = item
 	return item, nil
@@ -276,7 +276,6 @@ func TestProcessorTracksSentRetryingAndFailed(t *testing.T) {
 	}
 }
 
-
 type inboxPublisherStub struct {
 	events []communication.InboxEvent
 }
@@ -297,10 +296,10 @@ func TestSendCampaignPaginatesLargeAudienceWithoutTruncation(t *testing.T) {
 	service := NewServiceWithRealtime(repo, audience, realtime)
 
 	out, err := service.SendCampaign(context.Background(), adminActor(), communication.CampaignWrite{
-		Title: "تنبيه",
-		Body: "رسالة bounded",
+		Title:    "تنبيه",
+		Body:     "رسالة bounded",
 		Channels: []communication.Channel{communication.ChannelInApp},
-		Roles: []string{"student"},
+		Roles:    []string{"student"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -328,7 +327,7 @@ func TestParentCanOptInToWeeklyWhatsAppDigestWithOptimisticRevision(t *testing.T
 	parent := identity.User{ID: "parent-1", Roles: []identity.Role{identity.RoleParent}}
 	out, err := service.UpdatePreferences(context.Background(), parent, communication.PreferencesWrite{
 		ParentWhatsAppDigestEnabled: true,
-		ExpectedRevision: 0,
+		ExpectedRevision:            0,
 	})
 	if err != nil {
 		t.Fatal(err)
