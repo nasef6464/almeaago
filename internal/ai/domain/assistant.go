@@ -80,6 +80,7 @@ type Interaction struct {
 	InputTokens     int
 	OutputTokens    int
 	TotalTokens     int
+	CachedTokens    int
 	UsageEstimated  bool
 	ResponseLength  int
 	ErrorCategory   string
