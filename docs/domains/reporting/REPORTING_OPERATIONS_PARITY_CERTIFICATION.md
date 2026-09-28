@@ -1,6 +1,6 @@
 # Reporting / Operations Integrated Parity Certification
 
-Status: **FINAL DOCUMENTATION GATE CANDIDATE**
+Status: **TESTED / MERGED**
 
 ## Source basis
 Re-audited against:
@@ -114,3 +114,16 @@ Legacy advanced from `637a205e3c005602cd34ba6f729d6642796384ea` to `851f28ec3450
 - the AI failover contract script.
 
 It changes no Reporting route/read model/export, Operations readiness/audit/runtime surface, backup/restore implementation, deployment identity contract or reporting UI. No Reporting / Operations behavior is imported from this delta.
+
+
+## Final certification evidence
+Final documentation-inclusive PR #90 head `70aaa214b628888613bcee30200c24f9080d5400` passed all four required gates on that exact SHA:
+- Database CI `36411507787`.
+- Backend CI `36411507803`.
+- Frontend CI `36411507801`.
+- Frontend E2E `36411507814` — 68/68.
+- browser evidence artifact `10964481531`, digest `sha256:3ec35b4f6b91cad7a27db5119aa70dea06383e7362fb34eb09b377081471d01a`.
+
+PR #90 squash-merged to `main` as `2b84e69791db70fea36695674c9d1877c24691f8`.
+
+Reporting / Operations integrated parity remains **TESTED**, not `PARITY_PROVEN`. The application now makes release evidence gaps harder to misread as success, but it still does not possess the external evidence required to certify production: dated isolated restore/RPO-RTO, independently verified deployment identity, live Sentry/OTel ingestion and alert routing, production-equivalent load/resource evidence, repository/deployment governance proof, and final retention/anonymization policy.
