@@ -1,6 +1,6 @@
 # Review / Adaptive Learning Integrated Parity Certification
 
-Status: **CERTIFICATION CANDIDATE**
+Status: **CERTIFICATION CANDIDATE — exact-head gates required before closure**
 
 ## Source basis
 Audited against legacy commit `8724cd5081df75487e3207bf844e6db470fe0eda` and the target blueprint `05_STUDENT_LEARNING_FOUNDATION_AR.md`.
@@ -37,3 +37,6 @@ The readiness card closes an important UX gap: a learner previously saw only the
 
 ## External evidence boundary
 Deterministic V2 browser screenshots and CI prove implementation behavior, not pixel-perfect legacy-runtime parity. Do not claim PARITY_PROVEN without the required external/runtime evidence.
+
+## Exact-head gate protocol
+The certification head must itself include this certification document and pass Database CI, Backend CI, Frontend CI and Frontend E2E. A green run attached only to an earlier implementation commit is not closure evidence. The legacy reference is re-checked again after the final green head before merge.
