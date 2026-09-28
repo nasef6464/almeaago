@@ -494,7 +494,6 @@ func (r *Repository) CountQuestionAssistSince(
 	return count, err
 }
 
-
 func scanDailyUsage(row scanner) (ai.DailyUsage, error) {
 	var out ai.DailyUsage
 	err := row.Scan(
@@ -526,9 +525,9 @@ func (r *Repository) DailyUsage(
 	`, day.UTC().Format("2006-01-02"), scopeType, scopeID))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ai.DailyUsage{
-			DayKey: day.UTC(),
+			DayKey:    day.UTC(),
 			ScopeType: scopeType,
-			ScopeID: scopeID,
+			ScopeID:   scopeID,
 		}, nil
 	}
 	return out, err
