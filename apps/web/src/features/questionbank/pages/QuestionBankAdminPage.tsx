@@ -202,7 +202,7 @@ export function QuestionBankAdminPage(){
     {error?<div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 font-bold text-rose-700">{error}</div>:null}
     {notice?<div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 font-bold text-emerald-700">{notice}</div>:null}
 
-    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+    <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
       <Stat icon={<BarChart3 size={18}/>} label="إجمالي مطابق" value={coverage.questionsTotal}/>
       <Stat icon={<CheckCircle2 size={18}/>} label="معتمد" value={coverage.approved}/>
       <Stat icon={<Send size={18}/>} label="بانتظار المراجعة" value={coverage.pendingReview}/>
@@ -213,7 +213,7 @@ export function QuestionBankAdminPage(){
 
     <section className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5">
       <div className="flex items-center gap-2"><Filter size={18} className="text-violet-700"/><h2 className="font-black">بحث وفلاتر خادمية محدودة</h2></div>
-      <div className="mt-4 grid gap-2 md:grid-cols-4">
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <label className="relative md:col-span-2"><Search className="absolute right-3 top-3 text-gray-400" size={16}/><input aria-label="بحث بنك الأسئلة" value={filters.search||''} onChange={e=>setFilters(x=>({...x,search:e.target.value,page:1}))} placeholder="الكود أو بيانات السؤال" className="w-full rounded-xl border py-2.5 pr-9 pl-3"/></label>
         <select aria-label="مسار فلتر الأسئلة" value={filters.pathId||''} onChange={e=>setFilters(x=>({...x,pathId:e.target.value,subjectId:'',mainSkillId:'',page:1}))} className="rounded-xl border p-2.5"><option value="">كل المسارات</option>{taxonomy.paths.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>
         <select aria-label="مادة فلتر الأسئلة" value={filters.subjectId||''} onChange={e=>setFilters(x=>({...x,subjectId:e.target.value,mainSkillId:'',page:1}))} className="rounded-xl border p-2.5"><option value="">كل المواد</option>{subjects.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>
@@ -247,7 +247,7 @@ export function QuestionBankAdminPage(){
     <section className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
       <article className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5">
         <div className="flex items-center justify-between"><h2 className="font-black">الأسئلة المطابقة</h2>{busy?<Loader2 className="animate-spin text-violet-700" size={18}/>:<span className="text-xs font-bold text-gray-400">{rows.length}{hasMore?'+' : ''}</span>}</div>
-        <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[760px] text-right text-sm"><thead className="border-b bg-gray-50 text-xs text-gray-500"><tr><th className="p-3">الكود</th><th className="p-3">النوع</th><th className="p-3">الحالة</th><th className="p-3">النسخة</th><th className="p-3">أدلة</th><th className="p-3"></th></tr></thead><tbody className="divide-y">{rows.map(row=><tr key={row.id}><td className="p-3 font-black">{row.questionCode}</td><td className="p-3">{typeLabel[row.type]}</td><td className="p-3">{statusLabel[row.workflowStatus]}</td><td className="p-3">v{row.currentVersion}</td><td className="p-3 text-xs text-gray-500">{row.hasImage?'صورة · ':''}{row.hasVideo?'فيديو · ':''}{row.hasExplanation?'شرح':''}</td><td className="p-3"><button type="button" onClick={()=>void openQuestion(row.id)} className="rounded-lg border px-3 py-1.5 text-xs font-black">فتح</button></td></tr>)}</tbody></table>{!busy&&rows.length===0?<div className="p-8 text-center text-sm text-gray-500">لا توجد أسئلة مطابقة.</div>:null}</div>
+        <div className="mt-4 overflow-hidden rounded-2xl border"><div className="hidden bg-gray-50 px-3 py-2 text-xs font-black text-gray-500 md:grid md:grid-cols-[1.2fr_1fr_1fr_auto_1fr_auto] md:items-center md:gap-3"><span>الكود</span><span>النوع</span><span>الحالة</span><span>النسخة</span><span>أدلة</span><span /></div><div className="divide-y">{rows.map(row=><article key={row.id} className="grid grid-cols-2 gap-2 p-3 text-sm md:grid-cols-[1.2fr_1fr_1fr_auto_1fr_auto] md:items-center md:gap-3"><div className="min-w-0 truncate font-black text-gray-900">{row.questionCode}</div><div className="text-xs font-bold text-gray-500 md:text-sm md:font-normal">{typeLabel[row.type]}</div><span className="w-fit rounded-full bg-gray-50 px-2 py-1 text-[11px] font-black text-gray-600 ring-1 ring-gray-200">{statusLabel[row.workflowStatus]}</span><div className="text-xs font-black text-gray-500 md:text-sm">v{row.currentVersion}</div><div className="min-w-0 truncate text-[11px] font-bold text-gray-400">{row.hasImage?'صورة · ':''}{row.hasVideo?'فيديو · ':''}{row.hasExplanation?'شرح':''}{!row.hasImage&&!row.hasVideo&&!row.hasExplanation?'بدون وسائط إضافية':''}</div><button type="button" onClick={()=>void openQuestion(row.id)} className="justify-self-end rounded-xl border bg-white px-3 py-2 text-xs font-black">فتح</button></article>)}</div></div>{!busy&&rows.length===0?<div className="p-8 text-center text-sm text-gray-500">لا توجد أسئلة مطابقة.</div>:null}
       </article>
 
       <article className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5">
