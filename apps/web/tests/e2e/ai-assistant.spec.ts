@@ -145,7 +145,7 @@ test('AI admin edits non-secret routing policy and runs a provider health test',
 
   await page.goto('/admin-dashboard/ai');
   await expect(page.getByRole('heading', { name: 'إدارة المساعد الذكي' })).toBeVisible();
-  await expect(page.getByText('Runtime configured')).toBeVisible();
+  await expect(page.getByText('Runtime configured',{exact:true})).toBeVisible();
   await expect(page.getByText('question_tutor')).toBeVisible();
 
   await page.getByLabel('حد إخراج Gemini').fill('900');
