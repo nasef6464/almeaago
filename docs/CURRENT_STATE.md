@@ -1330,3 +1330,7 @@ PR #92 is **TESTED / MERGED**. Final documentation-inclusive implementation head
 
 ## Next exact action
 Advance to **full visual parity** from current `main`. Compare the V2 responsive routes against the legacy reference with deterministic screenshots/viewport coverage and close only source-backed visual/UX gaps. Do not treat visual CI as live staging/provider, production load, dated restore, governance, or final release certification. Those evidence classes remain separate later gates, and `PARITY_PROVEN` remains prohibited until all are complete.
+
+## Full visual parity — dashboard responsive polish (candidate)
+The active visual batch is intentionally dashboard-only. Public/general site presentation remains unchanged by explicit product direction. The branch `cert/full-visual-parity-dashboards` starts from `main@604e4dde0090a28e4056922a909301890e3df038` and focuses on clearer control-panel hierarchy plus mobile/tablet/desktop usability: real active-section context in the Admin shell, collapsed future navigation, responsive Question Bank list/cards and filters, tablet-safe School Director roster/forms, and small responsive density fixes in Taxonomy/Assessment/Notifications. These are approved dashboard UX refinements, not changes to owner-domain contracts. The batch remains **CANDIDATE** until the final documentation-inclusive exact head passes Database/Backend/Frontend/E2E and independent documentation closure is merged.
+
