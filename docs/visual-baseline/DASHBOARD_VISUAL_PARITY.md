@@ -1,6 +1,6 @@
 # Dashboard Visual Parity / Responsive Polish
 
-Status: **FINAL-GATE CANDIDATE — implementation/UI evidence is green; final documentation-inclusive exact-head gate pending.**
+Status: **TESTED / MERGED — dashboard visual/responsive implementation closed in PR #95.**
 
 ## Product direction
 
@@ -93,3 +93,21 @@ Change this document to **TESTED / MERGED** only after the same final documentat
 Then re-check the latest legacy delta, merge the implementation PR, and close with an independent documentation PR that itself passes all four gates.
 
 `PARITY_PROVEN` remains prohibited until the remaining external release-evidence phases are complete.
+
+## Implementation closure evidence
+
+PR #95 is **TESTED / MERGED**.
+
+- Final documentation-inclusive implementation head: `a433317689e7b1d72a8c49c72efb6de959bf8556`.
+- Database CI `36456757788`: success.
+- Backend CI `36456757826`: success.
+- Frontend CI `36456757781`: success.
+- Frontend E2E `36456757889`: success, **71/71** Playwright tests.
+- Browser evidence artifact `10986680576`, digest `sha256:1c734174c2eb76d7eeaddbbf31f11b42d73ae2ccb500093a090ced068e7a87fc`.
+- Squash merge: `02cbe52ee69f786b925c50284b4eb864ff2305f1`.
+- Final pre-merge legacy re-check: `983b004d18818166bf97c9096411e2707551a0bd`; legacy had not moved.
+- `main` had no base drift before the exact-head merge.
+
+This closes the user-requested **dashboard/control-panel visual phase**. The public/general site was intentionally not redesigned. The result is `TESTED / MERGED`, not `PARITY_PROVEN`; live external/staging provider proof, production-equivalent load/bandwidth, dated backup/restore and unresolved policy/release evidence remain separate gates.
+
+This file is part of the required independent documentation-closure PR. That documentation PR must itself pass Database CI, Backend CI, Frontend CI and Frontend E2E before merge.
