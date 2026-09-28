@@ -396,17 +396,16 @@ func TestQuestionAssistMinuteLimitUsesTrustedFallbackWithoutProvider(t *testing.
 	}
 }
 
-
 func TestQuestionAssistDailyBudgetFailsToTrustedFallbackBeforeProvider(t *testing.T) {
 	repo := &repoStub{dailyGlobal: ai.DailyUsage{RequestCount: 2}}
 	providers := &providerStub{
 		configured: map[ai.Provider]bool{ai.ProviderGemini: true},
-		results: map[ai.Provider]ai.ProviderCallResult{ai.ProviderGemini: {Text: "provider"}},
-		errors: map[ai.Provider]error{},
+		results:    map[ai.Provider]ai.ProviderCallResult{ai.ProviderGemini: {Text: "provider"}},
+		errors:     map[ai.Provider]error{},
 	}
 	service := NewService(repo, &learningStub{card: reviewCard()}, &questionStub{row: reviewQuestion()}, providers, Config{
 		GlobalDailyLimit: 2,
-		UserDailyLimit: 10,
+		UserDailyLimit:   10,
 	})
 	out, err := service.QuestionAssist(context.Background(), student(), ai.QuestionAssistInput{
 		ReviewCardID: "card-1", HelpLevel: ai.HelpHint,
@@ -428,13 +427,13 @@ func TestAdminReadinessReportsExplicitRuntimeTruthAndExternalProofBoundary(t *te
 			{Provider: ai.ProviderGemini, Enabled: true},
 			{Provider: ai.ProviderOllama, Enabled: true},
 		},
-		dailyGlobal: ai.DailyUsage{RequestCount: 12},
+		dailyGlobal:  ai.DailyUsage{RequestCount: 12},
 		usageSummary: ai.UsageSummary{Fallback24h: 2, Error24h: 1},
 	}
 	providers := &providerStub{
 		configured: map[ai.Provider]bool{ai.ProviderGemini: true, ai.ProviderOllama: false},
-		results: map[ai.Provider]ai.ProviderCallResult{},
-		errors: map[ai.Provider]error{},
+		results:    map[ai.Provider]ai.ProviderCallResult{},
+		errors:     map[ai.Provider]error{},
 	}
 	service := NewService(repo, &learningStub{}, &questionStub{}, providers, Config{GlobalDailyLimit: 100, UserDailyLimit: 20})
 	out, err := service.AdminReadiness(context.Background(), admin())
@@ -462,11 +461,11 @@ func TestAdminCopilotUsesBoundedOperationsFactsAndIsReadOnlyFallbackSafe(t *test
 		errors: map[ai.Provider]error{},
 	}
 	ops := &operationsStub{readiness: operations.Readiness{
-		Status: "ready_with_notes",
-		Dependencies: operations.DependencyHealth{Postgres: true, Redis: true},
-		Counts: operations.OperationalCounts{NotificationFailed: 3, AuditFailed24h: 1, LiveClassrooms: 2},
+		Status:             "ready_with_notes",
+		Dependencies:       operations.DependencyHealth{Postgres: true, Redis: true},
+		Counts:             operations.OperationalCounts{NotificationFailed: 3, AuditFailed24h: 1, LiveClassrooms: 2},
 		BackupRestoreProof: "external_proof_required",
-		Integrations: []operations.IntegrationCheck{{ID: "ai_remote", Configured: true}},
+		Integrations:       []operations.IntegrationCheck{{ID: "ai_remote", Configured: true}},
 	}}
 	service := NewServiceWithOperations(repo, &learningStub{}, &questionStub{}, providers, ops, Config{})
 	out, err := service.AdminCopilot(context.Background(), admin(), ai.AdminCopilotInput{Message: "ما الذي يحتاج انتباهي؟"})
