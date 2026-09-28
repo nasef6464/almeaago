@@ -31,3 +31,6 @@ Before merge, the documentation-inclusive PR head must pass Database CI, Backend
 Implementation head `eeea9ef2ee57ba1b0768ee6cefbd351da513f19b` passed Frontend CI `36371070686` and Frontend E2E `36371070688` (62/62). Browser evidence artifact `10949063460`, digest `sha256:4b8dad84f2c1b894406bc44bbd73da446a549d9af04a16aacbd70c522eb6b682`.
 
 The first E2E attempt exposed only a deterministic test setup issue: URL query initialization raced with the taxonomy bootstrap. The test was corrected to select the canonical path/subject through the UI; runtime authorization or product behavior was not weakened.
+
+## Final certification evidence
+Final documentation-inclusive head `c65fafdf77053b24e8c3a88b638f015cad3e6451` passed Frontend CI `36371212663` and Frontend E2E `36371212657` (62/62). Final browser evidence artifact `10949715181`, digest `sha256:2508abd0d0ecf082595437d139e605f94e874b6b830a9876a0ac3f3c56ade2b4`.
