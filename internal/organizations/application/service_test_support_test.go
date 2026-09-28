@@ -34,6 +34,14 @@ func (m *repositoryMock) ParentAuthority(_ context.Context, _ string) (org.Paren
 	return m.parentAuthority, nil
 }
 
+func (m *repositoryMock) ParentAuthorities(_ context.Context, parentIDs []string) (map[string]org.ParentAuthority, error) {
+	out := make(map[string]org.ParentAuthority, len(parentIDs))
+	for _, parentID := range parentIDs {
+		out[parentID] = m.parentAuthority
+	}
+	return out, nil
+}
+
 func (m *repositoryMock) TeacherWorkspace(_ context.Context, _ string) (org.TeacherWorkspace, error) {
 	return m.teacherWorkspace, nil
 }
