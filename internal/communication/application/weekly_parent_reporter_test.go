@@ -40,9 +40,9 @@ func TestWeeklyParentScheduleUsesSundayEightRiyadh(t *testing.T) {
 func TestWeeklyParentReporterUsesCanonicalReportAndExplicitWhatsAppOptIn(t *testing.T) {
 	repo := &repoStub{preferences: map[string]communication.Preferences{
 		"parent-1": {
-			UserID: "parent-1",
+			UserID:                      "parent-1",
 			ParentWhatsAppDigestEnabled: true,
-			Revision: 1,
+			Revision:                    1,
 		},
 	}}
 	audience := &audienceStub{rows: []identity.NotificationRecipient{
@@ -53,13 +53,13 @@ func TestWeeklyParentReporterUsesCanonicalReportAndExplicitWhatsAppOptIn(t *test
 	parentReader := &weeklyParentReaderStub{reports: map[string]parents.WeeklyReport{
 		"parent-1": {
 			Children: []parents.WeeklyChildReport{{
-				LinkedStudent: parents.LinkedStudent{StudentID: "student-1", Name: "سارة"},
+				LinkedStudent:   parents.LinkedStudent{StudentID: "student-1", Name: "سارة"},
 				AssessmentCount: 2,
-				AverageScore: 71.5,
+				AverageScore:    71.5,
 				WeakSkills: []learning.ParentWeakSkill{{
-					SkillID: "skill-1",
-					SkillName: "النسبة",
-					Mastery: 42,
+					SkillID:           "skill-1",
+					SkillName:         "النسبة",
+					Mastery:           42,
 					RecommendedAction: "شرح + تدريب + إعادة قياس",
 				}},
 				NextAction: "شرح + تدريب + إعادة قياس",
