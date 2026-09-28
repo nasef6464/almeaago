@@ -488,22 +488,33 @@ func (s *Service) EndBatch(
 	return out, err
 }
 
+func validJoinMethod(method string) bool {
+	return method == "pin" || method == "qr" || method == "dashboard_cta"
+}
+
 func (s *Service) JoinByPIN(
 	ctx context.Context,
 	actor identity.User,
-	pin string,
+	pin, method string,
 ) (realtime.Participant, realtime.Session, error) {
-	if !actor.HasRole(identity.RoleStudent) || !regexp.MustCompile("^[0-9]{6}$").MatchString(strings.TrimSpace(pin)) {
+	pin = strings.TrimSpace(pin)
+	method = strings.TrimSpace(method)
+	if method == "" {
+		method = "pin"
+	}
+	if !actor.HasRole(identity.RoleStudent) ||
+		!regexp.MustCompile("^[0-9]{6}$").MatchString(pin) ||
+		!validJoinMethod(method) {
 		return realtime.Participant{}, realtime.Session{}, ErrForbidden
 	}
 	if len(s.pinSecret) == 0 || s.org == nil {
 		return realtime.Participant{}, realtime.Session{}, ErrUnavailable
 	}
-	session, err := s.repo.FindLiveByPINHash(ctx, s.hashPIN(strings.TrimSpace(pin)))
+	session, err := s.repo.FindLiveByPINHash(ctx, s.hashPIN(pin))
 	if err != nil {
 		return realtime.Participant{}, realtime.Session{}, err
 	}
-	participant, err := s.joinSession(ctx, actor, session)
+	participant, err := s.joinSession(ctx, actor, session, method)
 	return participant, session, err
 }
 
@@ -522,7 +533,7 @@ func (s *Service) Join(
 	if session.Status != realtime.SessionLive {
 		return realtime.Participant{}, realtime.Session{}, ErrNotFound
 	}
-	participant, err := s.joinSession(ctx, actor, session)
+	participant, err := s.joinSession(ctx, actor, session, "dashboard_cta")
 	return participant, session, err
 }
 
@@ -530,6 +541,7 @@ func (s *Service) joinSession(
 	ctx context.Context,
 	actor identity.User,
 	session realtime.Session,
+	method string,
 ) (realtime.Participant, error) {
 	enabled, err := s.moduleEnabled(ctx, session.SchoolID)
 	if err != nil {
@@ -545,9 +557,13 @@ func (s *Service) joinSession(
 	if !ok {
 		return realtime.Participant{}, ErrForbidden
 	}
-	participant, err := s.repo.JoinSession(ctx, session.ID, actor.ID)
+	participant, err := s.repo.JoinSession(ctx, session.ID, actor.ID, method)
 	if err == nil {
-		s.emit(ctx, "participant.joined", session.ID, map[string]any{"studentId": actor.ID})
+		s.emit(ctx, "participant.joined", session.ID, map[string]any{
+			"studentId": actor.ID,
+			"method":    method,
+			"status":    participant.AttendanceStatus,
+		})
 	}
 	return participant, err
 }
@@ -564,7 +580,8 @@ func (s *Service) StudentState(
 	if err != nil {
 		return realtime.StudentState{}, err
 	}
-	if _, err = s.repo.Participant(ctx, session.ID, actor.ID); err != nil {
+	participant, participantErr := s.repo.Participant(ctx, session.ID, actor.ID)
+	if participantErr != nil || participant.JoinedAt == nil {
 		return realtime.StudentState{}, ErrForbidden
 	}
 	enabled, err := s.moduleEnabled(ctx, session.SchoolID)
@@ -635,6 +652,11 @@ func (s *Service) StudentState(
 		}
 		out.Questions = append(out.Questions, studentQuestion)
 	}
+	challenge, err := s.repo.CompetitionState(ctx, session.ID)
+	if err != nil {
+		return realtime.StudentState{}, err
+	}
+	out.Challenge = challenge
 	return out, nil
 }
 
@@ -743,6 +765,10 @@ func (s *Service) Presentation(
 	if err != nil {
 		return realtime.Presentation{}, err
 	}
+	challenge, err := s.repo.CompetitionState(ctx, session.ID)
+	if err != nil {
+		return realtime.Presentation{}, err
+	}
 	return realtime.Presentation{
 		SessionID:             session.ID,
 		Status:                session.Status,
@@ -751,6 +777,7 @@ func (s *Service) Presentation(
 		ActiveQuestionOrdinal: session.ActiveQuestionOrdinal,
 		Questions:             questions,
 		Aggregate:             aggregate,
+		Challenge:             challenge,
 	}, nil
 }
 
@@ -769,13 +796,74 @@ func (s *Service) Aggregate(
 	return s.repo.Aggregate(ctx, session.ID)
 }
 
+func (s *Service) Attendance(
+	ctx context.Context,
+	actor identity.User,
+	sessionID string,
+) (realtime.AttendanceSnapshot, error) {
+	session, err := s.repo.GetSession(ctx, strings.TrimSpace(sessionID))
+	if err != nil {
+		return realtime.AttendanceSnapshot{}, err
+	}
+	if err = s.canView(ctx, actor, session); err != nil {
+		return realtime.AttendanceSnapshot{}, err
+	}
+	if s.org == nil {
+		return realtime.AttendanceSnapshot{}, ErrUnavailable
+	}
+	roster, err := s.org.SmartClassroomRoster(ctx, session.SchoolID, session.ClassID)
+	if err != nil {
+		return realtime.AttendanceSnapshot{}, err
+	}
+	participants, err := s.repo.Participants(ctx, session.ID)
+	if err != nil {
+		return realtime.AttendanceSnapshot{}, err
+	}
+	byStudent := make(map[string]realtime.Participant, len(participants))
+	for _, participant := range participants {
+		byStudent[participant.StudentID] = participant
+	}
+	out := realtime.AttendanceSnapshot{
+		SessionID: session.ID,
+		Expected:  len(roster),
+		Rows:      make([]realtime.AttendanceRow, 0, len(roster)),
+	}
+	for _, studentID := range roster {
+		participant, exists := byStudent[studentID]
+		row := realtime.AttendanceRow{StudentID: studentID, AttendanceStatus: realtime.AttendanceAbsent}
+		if exists {
+			row.JoinedAt = participant.JoinedAt
+			row.JoinedMethod = participant.JoinedMethod
+			row.AttendanceStatus = participant.AttendanceStatus
+			row.AttendanceOverriddenBy = participant.AttendanceOverriddenBy
+			row.AttendanceOverriddenAt = participant.AttendanceOverriddenAt
+			if participant.JoinedAt != nil {
+				out.Joined++
+			}
+		}
+		switch row.AttendanceStatus {
+		case realtime.AttendancePresent:
+			out.Present++
+		case realtime.AttendanceLate:
+			out.Late++
+		case realtime.AttendanceExcused:
+			out.Excused++
+		default:
+			out.Absent++
+		}
+		out.Rows = append(out.Rows, row)
+	}
+	return out, nil
+}
+
 func (s *Service) SetAttendance(
 	ctx context.Context,
 	actor identity.User,
 	sessionID, studentID string,
 	status realtime.AttendanceStatus,
 ) (realtime.Participant, error) {
-	if !realtime.ValidAttendanceStatus(status) || strings.TrimSpace(studentID) == "" {
+	studentID = strings.TrimSpace(studentID)
+	if !realtime.ValidAttendanceStatus(status) || studentID == "" {
 		return realtime.Participant{}, ErrInvalidInput
 	}
 	session, err := s.repo.GetSession(ctx, strings.TrimSpace(sessionID))
@@ -785,11 +873,108 @@ func (s *Service) SetAttendance(
 	if err = s.canControl(ctx, actor, session); err != nil {
 		return realtime.Participant{}, err
 	}
-	out, err := s.repo.SetAttendance(ctx, session.ID, strings.TrimSpace(studentID), actor.ID, status)
+	if s.org == nil {
+		return realtime.Participant{}, ErrUnavailable
+	}
+	allowed, err := s.org.CanStudentJoinSmartClassroom(ctx, studentID, session.SchoolID, session.ClassID)
+	if err != nil {
+		return realtime.Participant{}, err
+	}
+	if !allowed {
+		return realtime.Participant{}, ErrForbidden
+	}
+	out, err := s.repo.SetAttendance(ctx, session.ID, studentID, actor.ID, status)
 	if err == nil {
-		s.emit(ctx, "attendance.updated", session.ID, map[string]any{"studentId": studentID, "status": status})
+		s.emit(ctx, "attendance.updated", session.ID, map[string]any{
+			"studentId": studentID,
+			"status":    status,
+		})
 	}
 	return out, err
+}
+
+func (s *Service) ConfigureCompetition(
+	ctx context.Context,
+	actor identity.User,
+	sessionID string,
+	durationSeconds int,
+) (realtime.CompetitionState, error) {
+	if durationSeconds < 10 || durationSeconds > 600 {
+		return realtime.CompetitionState{}, ErrInvalidInput
+	}
+	session, err := s.repo.GetSession(ctx, strings.TrimSpace(sessionID))
+	if err != nil {
+		return realtime.CompetitionState{}, err
+	}
+	if err = s.canControl(ctx, actor, session); err != nil {
+		return realtime.CompetitionState{}, err
+	}
+	out, err := s.repo.ConfigureCompetition(ctx, session.ID, actor.ID, durationSeconds)
+	if err == nil {
+		s.emit(ctx, "competition.updated", session.ID, out)
+	}
+	return out, err
+}
+
+func (s *Service) EndCompetition(
+	ctx context.Context,
+	actor identity.User,
+	sessionID string,
+) (realtime.CompetitionState, error) {
+	session, err := s.repo.GetSession(ctx, strings.TrimSpace(sessionID))
+	if err != nil {
+		return realtime.CompetitionState{}, err
+	}
+	if err = s.canControl(ctx, actor, session); err != nil {
+		return realtime.CompetitionState{}, err
+	}
+	out, err := s.repo.EndCompetition(ctx, session.ID, actor.ID)
+	if err == nil {
+		s.emit(ctx, "competition.updated", session.ID, out)
+	}
+	return out, err
+}
+
+func (s *Service) Competition(
+	ctx context.Context,
+	actor identity.User,
+	sessionID string,
+) (realtime.Competition, error) {
+	session, err := s.repo.GetSession(ctx, strings.TrimSpace(sessionID))
+	if err != nil {
+		return realtime.Competition{}, err
+	}
+	if err = s.canView(ctx, actor, session); err != nil {
+		return realtime.Competition{}, err
+	}
+	return s.repo.Competition(ctx, session.ID)
+}
+
+func (s *Service) ChallengeState(
+	ctx context.Context,
+	actor identity.User,
+	sessionID string,
+) (*realtime.CompetitionState, error) {
+	session, err := s.repo.GetSession(ctx, strings.TrimSpace(sessionID))
+	if err != nil {
+		return nil, err
+	}
+	if actor.HasRole(identity.RoleStudent) {
+		participant, participantErr := s.repo.Participant(ctx, session.ID, actor.ID)
+		if participantErr != nil || participant.JoinedAt == nil {
+			return nil, ErrForbidden
+		}
+		enabled, enabledErr := s.moduleEnabled(ctx, session.SchoolID)
+		if enabledErr != nil {
+			return nil, enabledErr
+		}
+		if !enabled {
+			return nil, ErrForbidden
+		}
+	} else if err = s.canView(ctx, actor, session); err != nil {
+		return nil, err
+	}
+	return s.repo.CompetitionState(ctx, session.ID)
 }
 
 func (s *Service) End(
