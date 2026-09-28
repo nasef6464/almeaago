@@ -386,7 +386,7 @@ func buildReportTx(
 		},
 		"attendance": attendance,
 		"batches":    batches,
-		"questions": questionPayload,
+		"questions":  questionPayload,
 		"totals": map[string]any{
 			"responses": totalResponses,
 			"correct":   totalCorrect,
