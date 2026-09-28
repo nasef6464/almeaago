@@ -13,6 +13,7 @@ import (
 	ai "github.com/nasef6464/almeaago/internal/ai/domain"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	learning "github.com/nasef6464/almeaago/internal/learning/domain"
+	operations "github.com/nasef6464/almeaago/internal/operations/domain"
 	question "github.com/nasef6464/almeaago/internal/questionbank/domain"
 )
 
@@ -40,6 +41,8 @@ type Repository interface {
 	InsertInteraction(context.Context, ai.Interaction) error
 	ListInteractions(context.Context, int, int) (ai.InteractionPage, error)
 	CountQuestionAssistSince(context.Context, string, time.Time) (int, error)
+	DailyUsage(context.Context, time.Time, string, string) (ai.DailyUsage, error)
+	UsageSummary(context.Context, time.Time) (ai.UsageSummary, error)
 }
 
 type LearningReader interface {
@@ -50,26 +53,33 @@ type QuestionReader interface {
 	ReviewBatch(context.Context, []question.ReviewRef) ([]question.ReviewProjection, error)
 }
 
+type OperationsReader interface {
+	Readiness(context.Context, identity.User) (operations.Readiness, error)
+}
+
 type ProviderClient interface {
 	SecretConfigured(ai.Provider) bool
 	Call(context.Context, ai.ProviderSetting, string) (ai.ProviderCallResult, error)
 }
 
 type Config struct {
-	CacheTTL        time.Duration
-	InteractionTTL  time.Duration
-	CircuitOpenFor  time.Duration
-	PerMinuteLimit  int
-	MaxOutputTokens int
+	CacheTTL          time.Duration
+	InteractionTTL    time.Duration
+	CircuitOpenFor    time.Duration
+	PerMinuteLimit    int
+	MaxOutputTokens   int
+	GlobalDailyLimit  int
+	UserDailyLimit    int
 }
 
 type Service struct {
-	repo      Repository
-	learning  LearningReader
-	questions QuestionReader
-	providers ProviderClient
-	cfg       Config
-	now       func() time.Time
+	repo       Repository
+	learning   LearningReader
+	questions  QuestionReader
+	providers  ProviderClient
+	operations OperationsReader
+	cfg        Config
+	now        func() time.Time
 
 	mu      sync.Mutex
 	flights map[string]*assistFlight
@@ -106,6 +116,12 @@ func NewService(
 	if cfg.MaxOutputTokens > 2000 {
 		cfg.MaxOutputTokens = 2000
 	}
+	if cfg.GlobalDailyLimit <= 0 {
+		cfg.GlobalDailyLimit = 800
+	}
+	if cfg.UserDailyLimit <= 0 {
+		cfg.UserDailyLimit = 80
+	}
 	return &Service{
 		repo:      repo,
 		learning:  learningReader,
@@ -115,6 +131,19 @@ func NewService(
 		now:       time.Now,
 		flights:   map[string]*assistFlight{},
 	}
+}
+
+func NewServiceWithOperations(
+	repo Repository,
+	learningReader LearningReader,
+	questionReader QuestionReader,
+	providers ProviderClient,
+	operationsReader OperationsReader,
+	cfg Config,
+) *Service {
+	service := NewService(repo, learningReader, questionReader, providers, cfg)
+	service.operations = operationsReader
+	return service
 }
 
 func normalizePage(page, limit int) (int, int, error) {
