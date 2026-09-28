@@ -65,13 +65,13 @@ type ProviderClient interface {
 }
 
 type Config struct {
-	CacheTTL          time.Duration
-	InteractionTTL    time.Duration
-	CircuitOpenFor    time.Duration
-	PerMinuteLimit    int
-	MaxOutputTokens   int
-	GlobalDailyLimit  int
-	UserDailyLimit    int
+	CacheTTL         time.Duration
+	InteractionTTL   time.Duration
+	CircuitOpenFor   time.Duration
+	PerMinuteLimit   int
+	MaxOutputTokens  int
+	GlobalDailyLimit int
+	UserDailyLimit   int
 }
 
 type Service struct {
@@ -468,7 +468,7 @@ func (s *Service) AdminCopilot(
 			Status: ai.InteractionFallback, UsedFallback: true, PromptVersion: PromptVersionAdminCopilot,
 			ResponseLength: len([]rune(out.Text)), ErrorCategory: "daily_budget_limited",
 			RetentionUntil: timePtr(now.Add(s.cfg.InteractionTTL)),
-			Metadata: map[string]any{"billable": false, "budgetScope": scope, "messageProvided": true},
+			Metadata:       map[string]any{"billable": false, "budgetScope": scope, "messageProvided": true},
 		})
 		return out, nil
 	}
