@@ -67,8 +67,13 @@ func New(
 	r.Put("/sessions/{sessionId}/answers/{ordinal}", h.answer)
 	r.Get("/sessions/{sessionId}/aggregate", h.aggregate)
 	r.Get("/sessions/{sessionId}/presentation", h.presentation)
+	r.Get("/sessions/{sessionId}/attendance", h.attendanceSnapshot)
 	r.Patch("/sessions/{sessionId}/attendance/{studentId}", h.attendance)
 	r.Patch("/sessions/{sessionId}/participants/{studentId}/attendance", h.attendance)
+	r.Get("/sessions/{sessionId}/challenge-state", h.challengeState)
+	r.Get("/sessions/{sessionId}/competition", h.competition)
+	r.Post("/sessions/{sessionId}/competition/configure", h.configureCompetition)
+	r.Post("/sessions/{sessionId}/competition/end", h.endCompetition)
 	r.Post("/sessions/{sessionId}/end", h.endSession)
 	r.Get("/sessions/{sessionId}/report", h.report)
 	r.Get("/sessions/{sessionId}/stream", h.streamSession)
@@ -305,7 +310,8 @@ func (h *Handler) endBatch(w http.ResponseWriter, r *http.Request) {
 }
 
 type joinPayload struct {
-	PIN string
+	PIN    string
+	Method string
 }
 
 func (h *Handler) joinByPIN(w http.ResponseWriter, r *http.Request) {
@@ -317,7 +323,7 @@ func (h *Handler) joinByPIN(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &payload) {
 		return
 	}
-	participant, session, err := h.service.JoinByPIN(r.Context(), authenticated.User, payload.PIN)
+	participant, session, err := h.service.JoinByPIN(r.Context(), authenticated.User, payload.PIN, payload.Method)
 	if err != nil {
 		writeError(w, err)
 		return
