@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -22,15 +23,27 @@ type Authenticator interface {
 }
 
 type Handler struct {
-	service *communicationapp.Service
-	auth    Authenticator
+	service  *communicationapp.Service
+	auth     Authenticator
+	realtime communication.InboxRealtime
 }
 
 func New(service *communicationapp.Service, auth Authenticator) http.Handler {
-	h := &Handler{service: service, auth: auth}
+	return NewWithRealtime(service, auth, nil)
+}
+
+func NewWithRealtime(
+	service *communicationapp.Service,
+	auth Authenticator,
+	realtime communication.InboxRealtime,
+) http.Handler {
+	h := &Handler{service: service, auth: auth, realtime: realtime}
 	r := chi.NewRouter()
 	r.Get("/me", h.inbox)
 	r.Get("/me/unread-count", h.unreadCount)
+	r.Get("/me/preferences", h.preferences)
+	r.Patch("/me/preferences", h.updatePreferences)
+	r.Get("/stream", h.stream)
 	r.Patch("/me/read-all", h.readAll)
 	r.Patch("/{deliveryId}/read", h.readOne)
 	r.Get("/admin/templates", h.adminTemplates)
