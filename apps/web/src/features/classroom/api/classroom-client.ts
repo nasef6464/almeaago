@@ -1,6 +1,7 @@
 import type{
- ClassroomAggregate,ClassroomAttendanceStatus,ClassroomBatch,ClassroomPresentation,ClassroomPublishedMode,
- ClassroomQuestionPage,ClassroomReport,ClassroomSession,ClassroomStudentState,SchoolContract
+ ClassroomAggregate,ClassroomAttendance,ClassroomAttendanceStatus,ClassroomBatch,ClassroomChallenge,
+ ClassroomCompetition,ClassroomPresentation,ClassroomPublishedMode,ClassroomQuestionPage,ClassroomReport,
+ ClassroomSession,ClassroomStudentState,SchoolContract
 }from'./classroom-types';
 
 const BASE=(import.meta.env.VITE_API_BASE_URL??'').replace(/\/$/,'');
@@ -25,13 +26,18 @@ export const classroomClient={
  publish(id:string,ordinal:number,csrf:string){return request<{session:ClassroomSession}>(`/api/v1/classroom/sessions/${encodeURIComponent(id)}/publish/${ordinal}`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:'{}'})},
  reveal(id:string,ordinal:number,csrf:string){return request<{question:unknown}>(`/api/v1/classroom/sessions/${encodeURIComponent(id)}/reveal/${ordinal}`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:'{}'})},
  endBatch(id:string,batchId:string,csrf:string){return request<{batch:ClassroomBatch}>(`/api/v1/classroom/sessions/${encodeURIComponent(id)}/batches/${encodeURIComponent(batchId)}/end`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:'{}'})},
- joinByPin(pin:string,csrf:string){return request<{joined:boolean;session:ClassroomSession}>(`/api/v1/classroom/join-by-pin`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify({pin})})},
+ joinByPin(pin:string,csrf:string,method:'pin'|'qr'='pin'){return request<{participant:unknown;session:ClassroomSession}>(`/api/v1/classroom/join-by-pin`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify({pin,method})})},
  join(id:string,csrf:string){return request<{joined:boolean;session:ClassroomSession}>(`/api/v1/classroom/sessions/${encodeURIComponent(id)}/join`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:'{}'})},
  current(id:string,signal?:AbortSignal){return request<{state:ClassroomStudentState}>(`/api/v1/classroom/sessions/${encodeURIComponent(id)}/current`,{},signal)},
  answer(id:string,ordinal:number,selectedOptionIndex:number,csrf:string){return request<{response:{questionOrdinal:number;selectedOptionIndex:number;submittedAt:string;updatedAt:string}}>(`/api/v1/classroom/sessions/${encodeURIComponent(id)}/answers/${ordinal}`,{method:'PUT',headers:{'X-CSRF-Token':csrf},body:JSON.stringify({selectedOptionIndex})})},
  aggregate(id:string,signal?:AbortSignal){return request<{aggregate:ClassroomAggregate}>(`/api/v1/classroom/sessions/${encodeURIComponent(id)}/aggregate`,{},signal)},
  presentation(id:string,signal?:AbortSignal){return request<{presentation:ClassroomPresentation}>(`/api/v1/classroom/sessions/${encodeURIComponent(id)}/presentation`,{},signal)},
+ attendanceSnapshot(id:string,signal?:AbortSignal){return request<{attendance:ClassroomAttendance}>(`/api/v1/classroom/sessions/${encodeURIComponent(id)}/attendance`,{},signal)},
  attendance(id:string,studentId:string,status:ClassroomAttendanceStatus,csrf:string){return request<{participant:unknown}>(`/api/v1/classroom/sessions/${encodeURIComponent(id)}/participants/${encodeURIComponent(studentId)}/attendance`,{method:'PATCH',headers:{'X-CSRF-Token':csrf},body:JSON.stringify({status})})},
+ challengeState(id:string,signal?:AbortSignal){return request<{challenge:ClassroomChallenge|null}>(`/api/v1/classroom/sessions/${encodeURIComponent(id)}/challenge-state`,{},signal)},
+ configureCompetition(id:string,durationSeconds:number,csrf:string){return request<{challenge:ClassroomChallenge}>(`/api/v1/classroom/sessions/${encodeURIComponent(id)}/competition/configure`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify({durationSeconds})})},
+ endCompetition(id:string,csrf:string){return request<{challenge:ClassroomChallenge}>(`/api/v1/classroom/sessions/${encodeURIComponent(id)}/competition/end`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:'{}'})},
+ competition(id:string,signal?:AbortSignal){return request<{competition:ClassroomCompetition}>(`/api/v1/classroom/sessions/${encodeURIComponent(id)}/competition`,{},signal)},
  end(id:string,csrf:string){return request<{report:ClassroomReport;finalizedAt:string}>(`/api/v1/classroom/sessions/${encodeURIComponent(id)}/end`,{method:'POST',headers:{'X-CSRF-Token':csrf},body:'{}'})},
  report(id:string,signal?:AbortSignal){return request<{report:ClassroomReport;finalizedAt:string}>(`/api/v1/classroom/sessions/${encodeURIComponent(id)}/report`,{},signal)},
  contract(schoolId:string,signal?:AbortSignal){return request<{contract:SchoolContract}>(`/api/v1/school-contracts/${encodeURIComponent(schoolId)}`,{},signal)},
