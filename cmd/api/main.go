@@ -107,6 +107,11 @@ func main() {
 			{ID: "ai_remote", Configured: cfg.GeminiAPIKey != "" || cfg.OpenRouterAPIKey != "" || cfg.QwenAPIKey != "" || cfg.DeepSeekAPIKey != "" || cfg.OpenAIAPIKey != "", Detail: "Remote AI provider credentials"},
 			{ID: "google_oauth", Configured: cfg.GoogleClientID != "" && cfg.GoogleClientSecret != "" && cfg.GoogleRedirectURI != "", Detail: "Google OAuth"},
 		},
+		Environment:        cfg.Environment,
+		ReleaseSHA:         strings.TrimSpace(os.Getenv("APP_RELEASE_SHA")),
+		DeploymentProvider: strings.TrimSpace(os.Getenv("DEPLOYMENT_PROVIDER")),
+		SentryConfigured:   strings.TrimSpace(os.Getenv("SENTRY_DSN")) != "",
+		OTelConfigured:     strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")) != "",
 	})
 	reportRepository := reportingrepo.NewReportRepository(db)
 	reportService := reportingapp.NewService(reportRepository)
