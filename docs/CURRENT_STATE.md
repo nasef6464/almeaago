@@ -1279,3 +1279,6 @@ After Question Bank / Media certification merges, continue cross-domain parity f
 
 ## Foundation Learning / Content integrated parity certification — TESTED
 PR #74 adds the authenticated learner `/learning` subject workspace over the existing bounded Content projection while preserving Taxonomy, Commerce, Assessment and Media ownership boundaries. Final documentation-inclusive head `ddf8961c606b8f9d3184997cc655f6be2cf3bae5` passed Frontend CI `36371378688` and Frontend E2E `36371378748` (62/62). Browser evidence artifact `10949426615`, digest `sha256:c731b5c03f32a9dc8c61c23775e1d5a5f6c19877077c198bf5440d724c1b6375`. PR #74 squash-merged as `2596e564854edf41e296998b0b641161d1d60a16`. Direct legacy-runtime side-by-side comparison remains external evidence; status is TESTED, not PARITY_PROVEN.
+
+## Assessment integrated parity certification — IN PROGRESS
+The certification batch audits definition/version, assignments, attempts, scoring, result/review, placements and public/barcode/live Session distribution against legacy commit `8724cd5081df75487e3207bf844e6db470fe0eda`. The source-backed learner Directed Assignment entry gap is implemented without exposing broad assignment inventory or moving audience authority into the browser. Exact-head CI and final evidence are pending.
