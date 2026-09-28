@@ -1,6 +1,6 @@
 # AI Integrated Parity Certification
 
-Status: **FINAL DOCUMENTATION GATE CANDIDATE**
+Status: **TESTED / MERGED**
 
 ## Source basis
 Re-audited against:
@@ -127,4 +127,16 @@ The browser evidence covers:
 CI caught only evidence/formatting defects during convergence: Go formatting and an E2E locator that became ambiguous after the new runtime-certification warning. The product warning was preserved and the test was scoped to the exact badge; no behavior or security boundary was weakened.
 
 ## Final same-domain legacy delta re-check
-Latest legacy remains `95e8cb7399431da481a0d69ef3420a16bbb8c66c`, the same checkpoint used for this integrated audit. No later legacy commit exists at this closure point, so there is no unreviewed AI same-domain delta before the final documentation gate.
+Final legacy re-check advanced to `637a205e3c005602cd34ba6f729d6642796384ea`. The one-commit delta is PLAN 6 student learning-loop certification and changes only the phase handover workflow, student-journey evidence, learning-loop/audit scripts, and `quizSubmissionSkillProgress.ts`; it changes no AI provider, AI route, AI Admin, Question Tutor, AI ledger, budget or copilot file. No AI same-domain behavior is imported from this delta.
+
+## Final certification evidence
+Final documentation-inclusive PR #88 head `7fbaa4b95d88fa8dda4b3187cb07b08d657a81fe` passed all four required gates on that exact SHA:
+- Database CI `36406617955`.
+- Backend CI `36406617931`.
+- Frontend CI `36406617939`.
+- Frontend E2E `36406617974` — 68/68.
+- browser evidence artifact `10961769319`, digest `sha256:91034c3d110c2b1690c7acfd2005381a223eb9f764f31afa6b7f561899b62747`.
+
+PR #88 squash-merged to `main` as `93725f48f44149eb0a7fdec0e5dd16e4e4e23917`.
+
+AI integrated parity remains **TESTED**, not `PARITY_PROVEN`. Live provider certification, approved multi-key/quota-pool secret management, maintained provider pricing/cost, live Voice/Vision, Qiyas calibration, physical purge/retention execution and production concurrency/load evidence remain explicit external/deferred release evidence.
