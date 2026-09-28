@@ -126,7 +126,6 @@ func TestExportCSVContainsOnlySummaryColumns(t *testing.T) {
 	}
 }
 
-
 func TestOverviewRejectsInvertedDateRangeBeforeRepository(t *testing.T) {
 	repo := &reportRepoStub{}
 	s := NewService(repo)
