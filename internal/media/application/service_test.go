@@ -70,6 +70,7 @@ func (r *repoStub) Activate(_ context.Context, _ string, _ string, _ media.Objec
 type providerStub struct {
 	available    bool
 	presignCalls int
+	headCalls    int
 	head         media.ObjectInfo
 	headErr      error
 }
@@ -86,6 +87,7 @@ func (p *providerStub) PresignPut(key, mimeType, sha256 string, expires time.Dur
 }
 
 func (p *providerStub) Head(context.Context, string) (media.ObjectInfo, error) {
+	p.headCalls++
 	return p.head, p.headErr
 }
 
@@ -151,10 +153,11 @@ func TestPresignReusesVerifiedHashWithoutReupload(t *testing.T) {
 
 func TestCompleteRejectsR2MetadataMismatch(t *testing.T) {
 	hash := strings.Repeat("c", 64)
+	expires := time.Now().UTC().Add(5 * time.Minute)
 	repo := &repoStub{asset: media.Asset{
 		ID: "asset-1", ObjectKey: "questions/v2/Q-1/" + hash + ".webp",
 		MimeType: "image/webp", SizeBytes: 100, SHA256: hash,
-		Status: media.StatusPendingUpload, CreatedBy: mediaAdmin().ID,
+		Status: media.StatusPendingUpload, CreatedBy: mediaAdmin().ID, UploadExpiresAt: &expires,
 	}}
 	provider := &providerStub{available: true, head: media.ObjectInfo{
 		Exists: true, SizeBytes: 101, MimeType: "image/webp", SHA256: hash,
@@ -172,10 +175,11 @@ func TestCompleteRejectsR2MetadataMismatch(t *testing.T) {
 
 func TestCompleteActivatesOnlyVerifiedObject(t *testing.T) {
 	hash := strings.Repeat("d", 64)
+	expires := time.Now().UTC().Add(5 * time.Minute)
 	repo := &repoStub{asset: media.Asset{
 		ID: "asset-1", ObjectKey: "questions/v2/Q-1/" + hash + ".webp",
 		MimeType: "image/webp", SizeBytes: 100, SHA256: hash,
-		Status: media.StatusPendingUpload, CreatedBy: mediaAdmin().ID,
+		Status: media.StatusPendingUpload, CreatedBy: mediaAdmin().ID, UploadExpiresAt: &expires,
 	}}
 	provider := &providerStub{available: true, head: media.ObjectInfo{
 		Exists: true, SizeBytes: 100, MimeType: "image/webp", SHA256: hash,
@@ -188,6 +192,58 @@ func TestCompleteActivatesOnlyVerifiedObject(t *testing.T) {
 	}
 	if !repo.activated || asset.Status != media.StatusActive {
 		t.Fatalf("expected active verified asset: %#v", asset)
+	}
+}
+
+func TestCompleteRejectsExpiredSignedUploadBeforeProviderHead(t *testing.T) {
+	hash := strings.Repeat("9", 64)
+	expires := time.Now().UTC().Add(-time.Minute)
+	repo := &repoStub{asset: media.Asset{
+		ID: "asset-expired", ObjectKey: "questions/v2/Q-EXPIRED/" + hash + ".webp",
+		MimeType: "image/webp", SizeBytes: 100, SHA256: hash,
+		Status: media.StatusPendingUpload, CreatedBy: mediaAdmin().ID, UploadExpiresAt: &expires,
+	}}
+	provider := &providerStub{available: true, head: media.ObjectInfo{
+		Exists: true, SizeBytes: 100, MimeType: "image/webp", SHA256: hash,
+	}}
+	service := NewService(repo, provider, 1024, 15*time.Minute)
+
+	_, err := service.Complete(context.Background(), mediaAdmin(), "asset-expired")
+	if !errors.Is(err, media.ErrConflict) {
+		t.Fatalf("expected expired upload conflict, got %v", err)
+	}
+	if provider.headCalls != 0 || repo.activated {
+		t.Fatalf("expired authorization must fail before provider HEAD/activation: head=%d active=%v", provider.headCalls, repo.activated)
+	}
+}
+
+func TestCompleteRejectsPendingUploadWithoutRecordedExpiry(t *testing.T) {
+	hash := strings.Repeat("8", 64)
+	repo := &repoStub{asset: media.Asset{
+		ID: "asset-no-expiry", ObjectKey: "questions/v2/Q-NOEXP/" + hash + ".webp",
+		MimeType: "image/webp", SizeBytes: 100, SHA256: hash,
+		Status: media.StatusPendingUpload, CreatedBy: mediaAdmin().ID,
+	}}
+	provider := &providerStub{available: true}
+	service := NewService(repo, provider, 1024, 15*time.Minute)
+
+	_, err := service.Complete(context.Background(), mediaAdmin(), "asset-no-expiry")
+	if !errors.Is(err, media.ErrConflict) {
+		t.Fatalf("expected missing-expiry conflict, got %v", err)
+	}
+	if provider.headCalls != 0 || repo.activated {
+		t.Fatalf("missing expiry must fail before provider HEAD/activation: head=%d active=%v", provider.headCalls, repo.activated)
+	}
+}
+
+func TestPresignRejectsOversizedUpload(t *testing.T) {
+	service := NewService(&repoStub{}, &providerStub{available: true}, 1024, 15*time.Minute)
+	_, err := service.Presign(context.Background(), mediaAdmin(), PresignInput{
+		Kind: media.UploadQuestionImage, QuestionCode: "Q-LARGE",
+		SHA256: strings.Repeat("7", 64), MimeType: "image/webp", SizeBytes: 1025,
+	})
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected oversized input rejection, got %v", err)
 	}
 }
 
