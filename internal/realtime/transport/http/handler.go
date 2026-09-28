@@ -653,7 +653,7 @@ func safeStreamEvent(user identity.User, event realtime.StreamEvent) (realtime.S
 		return event, true
 	}
 	switch event.Type {
-	case "session.started", "question.published", "question.revealed", "batch.ended", "session.ended", "presence.count":
+	case "session.started", "question.published", "question.revealed", "batch.ended", "session.ended", "presence.count", "competition.updated":
 		return event, true
 	default:
 		return realtime.StreamEvent{}, false
@@ -688,6 +688,9 @@ func presentBatch(item realtime.Batch) map[string]any {
 	return map[string]any{
 		"id": item.ID, "sessionId": item.SessionID, "batchNumber": item.BatchNumber,
 		"label": item.Label, "startedAt": item.StartedAt, "endedAt": item.EndedAt,
+		"competitionEnabled": item.CompetitionEnabled,
+		"challengeDurationSeconds": item.ChallengeDurationSeconds,
+		"timerStartedAt": item.TimerStartedAt, "timerEndsAt": item.TimerEndsAt,
 		"createdAt": item.CreatedAt, "questions": questions,
 	}
 }
@@ -702,7 +705,7 @@ func presentPinned(item realtime.PinnedQuestion) map[string]any {
 func presentParticipant(item realtime.Participant) map[string]any {
 	return map[string]any{
 		"sessionId": item.SessionID, "studentId": item.StudentID, "joinedAt": item.JoinedAt,
-		"attendanceStatus":       item.AttendanceStatus,
+		"joinedMethod": item.JoinedMethod, "attendanceStatus": item.AttendanceStatus,
 		"attendanceOverriddenBy": item.AttendanceOverriddenBy,
 		"attendanceOverriddenAt": item.AttendanceOverriddenAt,
 	}
@@ -750,7 +753,7 @@ func presentStudentState(item realtime.StudentState) map[string]any {
 	return map[string]any{
 		"sessionId": item.SessionID, "status": item.Status, "publishedMode": item.PublishedMode,
 		"activeBatchId": item.ActiveBatchID, "activeQuestionOrdinal": item.ActiveQuestionOrdinal,
-		"questions": questions,
+		"questions": questions, "challenge": presentOptionalCompetitionState(item.Challenge),
 	}
 }
 
@@ -784,7 +787,81 @@ func presentPresentation(item realtime.Presentation) map[string]any {
 		"activeQuestionOrdinal": item.ActiveQuestionOrdinal,
 		"questions":             questions,
 		"aggregate":             presentAggregate(item.Aggregate),
+		"challenge":             presentOptionalCompetitionState(item.Challenge),
 	}
+}
+
+func presentCompetitionState(item realtime.CompetitionState) map[string]any {
+	return map[string]any{
+		"sessionId": item.SessionID,
+		"activeBatchId": item.ActiveBatchID,
+		"competitionEnabled": item.CompetitionEnabled,
+		"challengeDurationSeconds": item.ChallengeDurationSeconds,
+		"timerStartedAt": item.TimerStartedAt,
+		"timerEndsAt": item.TimerEndsAt,
+		"expired": item.Expired,
+		"serverNow": item.ServerNow,
+	}
+}
+
+func presentOptionalCompetitionState(item *realtime.CompetitionState) any {
+	if item == nil {
+		return nil
+	}
+	return presentCompetitionState(*item)
+}
+
+func presentCompetition(item realtime.Competition) map[string]any {
+	leaderboard := make([]map[string]any, 0, len(item.Leaderboard))
+	for index, row := range item.Leaderboard {
+		leaderboard = append(leaderboard, map[string]any{
+			"rank": index + 1,
+			"studentId": row.StudentID,
+			"answered": row.Answered,
+			"correct": row.Correct,
+			"accuracy": row.Accuracy,
+			"score": row.Score,
+			"lastSubmittedAt": row.LastSubmittedAt,
+		})
+	}
+	return map[string]any{
+		"state": presentCompetitionState(item.State),
+		"participantCount": item.ParticipantCount,
+		"leaderboard": leaderboard,
+		"podium": leaderboard[:minInt(3, len(leaderboard))],
+		"scoring": map[string]any{"correctAnswerPoints": 100, "speedBonus": false},
+	}
+}
+
+func presentAttendance(item realtime.AttendanceSnapshot) map[string]any {
+	rows := make([]map[string]any, 0, len(item.Rows))
+	for _, row := range item.Rows {
+		rows = append(rows, map[string]any{
+			"studentId": row.StudentID,
+			"joinedAt": row.JoinedAt,
+			"joinedMethod": row.JoinedMethod,
+			"attendanceStatus": row.AttendanceStatus,
+			"attendanceOverriddenBy": row.AttendanceOverriddenBy,
+			"attendanceOverriddenAt": row.AttendanceOverriddenAt,
+		})
+	}
+	return map[string]any{
+		"sessionId": item.SessionID,
+		"expected": item.Expected,
+		"joined": item.Joined,
+		"present": item.Present,
+		"late": item.Late,
+		"absent": item.Absent,
+		"excused": item.Excused,
+		"rows": rows,
+	}
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func presentStaffState(item realtimeapp.StaffState) map[string]any {
