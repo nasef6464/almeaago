@@ -48,5 +48,5 @@ Foundation learning / Content parity only, plus narrowly required shared test/do
 - Do not invent approved-content editing/versioning policy that remains explicitly unresolved.
 - No production go-live claim from CI alone.
 
-## Next exact action
-Audit Foundation learning / Content against the parity matrix and legacy observable course/lesson/foundation/library learner + admin workflows, select the first bounded internal gap, implement only source-backed corrections, then require Database + Backend + Frontend + E2E on the exact documentation-inclusive head before merge.
+## Active certification batch
+Foundation learning / Content integrated parity: learner `/learning` subject workspace added over the existing bounded server projection; Course/Foundation/Library owner boundaries preserved. Exact-head four-gate CI and browser evidence are required before merge.
