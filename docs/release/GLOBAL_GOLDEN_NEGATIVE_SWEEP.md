@@ -1,6 +1,6 @@
 # Global cross-domain golden journeys / negative-security sweep
 
-Status: **CANDIDATE — implementation and evidence assembled; exact-head four-gate CI pending.**
+Status: **FINAL-GATE CANDIDATE — PR #92; final documentation-inclusive exact-head gate pending.**
 
 ## Scope and source of truth
 
@@ -67,6 +67,19 @@ now rejects a pending asset when `UploadExpiresAt` is absent or not in the futur
 before provider HEAD and before activation, so an expired authorization cannot promote an object.
 
 No production/staging proof was invented to close this gap.
+
+## Pre-final exact-head gate evidence
+
+PR #92 candidate head `7acd07a99675bf9bfe84e52d3dfd6079d450111c` passed all four gates before this final evidence note:
+
+- Database CI `36448575881`: success.
+- Backend CI `36448575648`: success.
+- Frontend CI `36448575652`: success.
+- Frontend E2E `36448575689`: success, **69/69** Playwright tests.
+- Browser artifact `10982880121`, digest `sha256:c010a0e3b5de6145790978caaf83fa7322d1ea9146065be1397b63833d4f0f3f`.
+- Final pre-merge legacy re-check still resolves to `983b004d18818166bf97c9096411e2707551a0bd`; no newer legacy delta exists at this checkpoint.
+
+Because this documentation note changes the PR head, these runs are supporting evidence only. The new exact documentation-inclusive head must pass the same four gates again before merge.
 
 ## Closure rule
 
