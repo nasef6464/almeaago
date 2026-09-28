@@ -48,5 +48,5 @@ Foundation learning / Content parity only, plus narrowly required shared test/do
 - Do not invent approved-content editing/versioning policy that remains explicitly unresolved.
 - No production go-live claim from CI alone.
 
-## Next exact action
-Audit Foundation learning / Content against the parity matrix and legacy observable course/lesson/foundation/library learner + admin workflows, select the first bounded internal gap, implement only source-backed corrections, then require Database + Backend + Frontend + E2E on the exact documentation-inclusive head before merge.
+## Completed certification checkpoint
+Foundation learning / Content integrated parity — **TESTED** in PR #74 candidate head `c65fafdf77053b24e8c3a88b638f015cad3e6451`: Frontend CI `36371212663`, Frontend E2E `36371212657` (62/62), artifact `10949715181`. Backend/database contracts were unchanged by this UI certification slice.

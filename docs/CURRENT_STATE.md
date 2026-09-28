@@ -1276,3 +1276,6 @@ This is **not** equivalent to `PARITY_PROVEN` or production go-live approval. Th
 
 ## Next exact action
 After Question Bank / Media certification merges, continue cross-domain parity from Foundation learning / Content. Reconcile its functional, authorization, data, visual/E2E and external-proof requirements on current `main`; close only source-backed internal gaps and preserve Taxonomy/Question Bank/Media/Commerce ownership boundaries.
+
+## Foundation Learning / Content integrated parity certification — TESTED
+PR #74 adds the authenticated learner `/learning` subject workspace over the existing bounded Content projection while preserving Taxonomy, Commerce, Assessment and Media ownership boundaries. Final documentation-inclusive head `c65fafdf77053b24e8c3a88b638f015cad3e6451` passed Frontend CI `36371212663` and Frontend E2E `36371212657` (62/62). Browser evidence artifact `10949715181`, digest `sha256:2508abd0d0ecf082595437d139e605f94e874b6b830a9876a0ac3f3c56ade2b4`. Direct legacy-runtime side-by-side comparison remains external evidence; status is TESTED, not PARITY_PROVEN.
