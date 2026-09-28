@@ -286,21 +286,39 @@ func (r *Repository) PutCacheEntry(ctx context.Context, entry ai.CacheEntry) err
 	return mapError(err)
 }
 
+func interactionBillable(item ai.Interaction) bool {
+	if item.CacheHit {
+		return false
+	}
+	if raw, ok := item.Metadata["billable"]; ok {
+		if value, ok := raw.(bool); ok && !value {
+			return false
+		}
+	}
+	return true
+}
+
 func (r *Repository) InsertInteraction(ctx context.Context, item ai.Interaction) error {
 	metadata, err := json.Marshal(item.Metadata)
 	if err != nil {
 		return err
 	}
-	_, err = r.db.Exec(ctx, `
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	_, err = tx.Exec(ctx, `
 		INSERT INTO ai_interactions(
 			user_id,audience,endpoint,capability,provider,model,status,used_fallback,cache_hit,
 			question_id,question_version,review_card_id,prompt_version,latency_ms,
-			input_tokens,output_tokens,total_tokens,usage_estimated,response_length,
+			input_tokens,output_tokens,total_tokens,cached_tokens,usage_estimated,response_length,
 			error_category,metadata,retention_until
 		) VALUES(
 			NULLIF($1,'')::uuid,$2,$3,$4,$5,$6,$7,$8,$9,
 			NULLIF($10,'')::uuid,$11,NULLIF($12,'')::uuid,$13,$14,
-			$15,$16,$17,$18,$19,$20,$21::jsonb,$22
+			$15,$16,$17,$18,$19,$20,$21,$22::jsonb,$23
 		)
 	`,
 		item.UserID,
@@ -320,13 +338,56 @@ func (r *Repository) InsertInteraction(ctx context.Context, item ai.Interaction)
 		item.InputTokens,
 		item.OutputTokens,
 		item.TotalTokens,
+		item.CachedTokens,
 		item.UsageEstimated,
 		item.ResponseLength,
 		item.ErrorCategory,
 		metadata,
 		item.RetentionUntil,
 	)
-	return mapError(err)
+	if err != nil {
+		return mapError(err)
+	}
+
+	if interactionBillable(item) {
+		fallback := 0
+		if item.UsedFallback {
+			fallback = 1
+		}
+		errorCount := 0
+		if item.Status == ai.InteractionError {
+			errorCount = 1
+		}
+		scopes := [][2]string{{"global", "*"}}
+		if item.UserID != "" {
+			scopes = append(scopes, [2]string{"user", item.UserID})
+		}
+		if item.Capability != "" {
+			scopes = append(scopes, [2]string{"capability", item.Capability})
+		}
+		for _, scope := range scopes {
+			if _, err = tx.Exec(ctx, `
+				INSERT INTO ai_usage_daily(
+					day_key,scope_type,scope_id,request_count,input_tokens,output_tokens,total_tokens,
+					cached_tokens,fallback_count,error_count,updated_at
+				) VALUES(
+					(now() AT TIME ZONE 'UTC')::date,$1,$2,1,$3,$4,$5,$6,$7,$8,now()
+				)
+				ON CONFLICT(day_key,scope_type,scope_id) DO UPDATE SET
+					request_count=ai_usage_daily.request_count+1,
+					input_tokens=ai_usage_daily.input_tokens+EXCLUDED.input_tokens,
+					output_tokens=ai_usage_daily.output_tokens+EXCLUDED.output_tokens,
+					total_tokens=ai_usage_daily.total_tokens+EXCLUDED.total_tokens,
+					cached_tokens=ai_usage_daily.cached_tokens+EXCLUDED.cached_tokens,
+					fallback_count=ai_usage_daily.fallback_count+EXCLUDED.fallback_count,
+					error_count=ai_usage_daily.error_count+EXCLUDED.error_count,
+					updated_at=now()
+			`, scope[0], scope[1], item.InputTokens, item.OutputTokens, item.TotalTokens, item.CachedTokens, fallback, errorCount); err != nil {
+				return mapError(err)
+			}
+		}
+	}
+	return tx.Commit(ctx)
 }
 
 func nullableVersion(questionID string, version int) any {
@@ -358,6 +419,7 @@ func scanInteraction(row scanner) (ai.Interaction, error) {
 		&out.InputTokens,
 		&out.OutputTokens,
 		&out.TotalTokens,
+		&out.CachedTokens,
 		&out.UsageEstimated,
 		&out.ResponseLength,
 		&out.ErrorCategory,
@@ -386,7 +448,7 @@ func (r *Repository) ListInteractions(
 			id::text,COALESCE(user_id::text,''),audience,endpoint,capability,provider,model,status,
 			used_fallback,cache_hit,COALESCE(question_id::text,''),COALESCE(question_version,0),
 			COALESCE(review_card_id::text,''),prompt_version,latency_ms,input_tokens,output_tokens,
-			total_tokens,usage_estimated,response_length,error_category,metadata,retention_until,created_at
+			total_tokens,cached_tokens,usage_estimated,response_length,error_category,metadata,retention_until,created_at
 		FROM ai_interactions
 		ORDER BY created_at DESC,id DESC
 		LIMIT $1 OFFSET $2
@@ -430,4 +492,108 @@ func (r *Repository) CountQuestionAssistSince(
 		  AND created_at >= $2
 	`, userID, since).Scan(&count)
 	return count, err
+}
+
+func scanDailyUsage(row scanner) (ai.DailyUsage, error) {
+	var out ai.DailyUsage
+	err := row.Scan(
+		&out.DayKey,
+		&out.ScopeType,
+		&out.ScopeID,
+		&out.RequestCount,
+		&out.InputTokens,
+		&out.OutputTokens,
+		&out.TotalTokens,
+		&out.CachedTokens,
+		&out.FallbackCount,
+		&out.ErrorCount,
+		&out.UpdatedAt,
+	)
+	return out, err
+}
+
+func (r *Repository) DailyUsage(
+	ctx context.Context,
+	day time.Time,
+	scopeType, scopeID string,
+) (ai.DailyUsage, error) {
+	out, err := scanDailyUsage(r.db.QueryRow(ctx, `
+		SELECT day_key,scope_type,scope_id,request_count,input_tokens,output_tokens,total_tokens,
+		       cached_tokens,fallback_count,error_count,updated_at
+		FROM ai_usage_daily
+		WHERE day_key=$1::date AND scope_type=$2 AND scope_id=$3
+	`, day.UTC().Format("2006-01-02"), scopeType, scopeID))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ai.DailyUsage{
+			DayKey:    day.UTC(),
+			ScopeType: scopeType,
+			ScopeID:   scopeID,
+		}, nil
+	}
+	return out, err
+}
+
+func (r *Repository) UsageSummary(ctx context.Context, now time.Time) (ai.UsageSummary, error) {
+	today, err := r.DailyUsage(ctx, now, "global", "*")
+	if err != nil {
+		return ai.UsageSummary{}, err
+	}
+	out := ai.UsageSummary{Today: today, ByProvider: []ai.ProviderUsageSummary{}}
+	since := now.UTC().Add(-24 * time.Hour)
+	err = r.db.QueryRow(ctx, `
+		SELECT
+			count(*)::int,
+			count(*) FILTER(WHERE used_fallback)::int,
+			count(*) FILTER(WHERE status='error')::int,
+			count(*) FILTER(WHERE cache_hit)::int,
+			COALESCE(sum(input_tokens),0)::bigint,
+			COALESCE(sum(output_tokens),0)::bigint,
+			COALESCE(sum(total_tokens),0)::bigint,
+			COALESCE(sum(cached_tokens),0)::bigint
+		FROM ai_interactions
+		WHERE created_at >= $1
+	`, since).Scan(
+		&out.Last24h,
+		&out.Fallback24h,
+		&out.Error24h,
+		&out.CacheHit24h,
+		&out.InputTokens24h,
+		&out.OutputTokens24h,
+		&out.TotalTokens24h,
+		&out.CachedTokens24h,
+	)
+	if err != nil {
+		return ai.UsageSummary{}, err
+	}
+	rows, err := r.db.Query(ctx, `
+		SELECT provider,
+		       count(*)::int,
+		       COALESCE(sum(total_tokens),0)::bigint,
+		       count(*) FILTER(WHERE used_fallback)::int,
+		       count(*) FILTER(WHERE status='error')::int,
+		       COALESCE(round(avg(latency_ms)),0)::int
+		FROM ai_interactions
+		WHERE created_at >= $1
+		GROUP BY provider
+		ORDER BY count(*) DESC,provider
+	`, since)
+	if err != nil {
+		return ai.UsageSummary{}, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var item ai.ProviderUsageSummary
+		if err = rows.Scan(
+			&item.Provider,
+			&item.Requests,
+			&item.TotalTokens,
+			&item.Fallbacks,
+			&item.Errors,
+			&item.AvgLatencyMS,
+		); err != nil {
+			return ai.UsageSummary{}, err
+		}
+		out.ByProvider = append(out.ByProvider, item)
+	}
+	return out, rows.Err()
 }

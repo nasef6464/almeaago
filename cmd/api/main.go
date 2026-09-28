@@ -187,12 +187,14 @@ func main() {
 		LMStudioBaseURL:  cfg.LMStudioBaseURL,
 		LMStudioModel:    cfg.LMStudioModel,
 	})
-	aiService := aiapp.NewService(aiRepository, learningRepository, questionRepository, aiProvider, aiapp.Config{
-		CacheTTL:        time.Duration(cfg.AIQuestionAssistantCacheMinutes) * time.Minute,
-		InteractionTTL:  time.Duration(cfg.AIInteractionRetentionDays) * 24 * time.Hour,
-		CircuitOpenFor:  time.Minute,
-		PerMinuteLimit:  cfg.AIQuestionAssistantPerMinute,
-		MaxOutputTokens: cfg.AIQuestionAssistantMaxOutputTokens,
+	aiService := aiapp.NewServiceWithOperations(aiRepository, learningRepository, questionRepository, aiProvider, operationsService, aiapp.Config{
+		CacheTTL:         time.Duration(cfg.AIQuestionAssistantCacheMinutes) * time.Minute,
+		InteractionTTL:   time.Duration(cfg.AIInteractionRetentionDays) * 24 * time.Hour,
+		CircuitOpenFor:   time.Minute,
+		PerMinuteLimit:   cfg.AIQuestionAssistantPerMinute,
+		MaxOutputTokens:  cfg.AIQuestionAssistantMaxOutputTokens,
+		GlobalDailyLimit: cfg.AIGlobalDailyLimit,
+		UserDailyLimit:   cfg.AIUserDailyLimit,
 	})
 	learningService := learningapp.NewService(learningRepository, questionService)
 	masteryGoalService := learningapp.NewMasteryGoalService(learningRepository, taxonomyRepository)

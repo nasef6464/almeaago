@@ -13,6 +13,7 @@ import (
 	ai "github.com/nasef6464/almeaago/internal/ai/domain"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	learning "github.com/nasef6464/almeaago/internal/learning/domain"
+	operations "github.com/nasef6464/almeaago/internal/operations/domain"
 	question "github.com/nasef6464/almeaago/internal/questionbank/domain"
 )
 
@@ -26,7 +27,9 @@ var (
 
 const (
 	PromptVersionQuestionTutor = "question_tutor.v1"
+	PromptVersionAdminCopilot  = "admin_copilot.v1"
 	CapabilityQuestionTutor    = "question_tutor"
+	CapabilityAdminCopilot     = "admin_copilot"
 )
 
 type Repository interface {
@@ -40,6 +43,8 @@ type Repository interface {
 	InsertInteraction(context.Context, ai.Interaction) error
 	ListInteractions(context.Context, int, int) (ai.InteractionPage, error)
 	CountQuestionAssistSince(context.Context, string, time.Time) (int, error)
+	DailyUsage(context.Context, time.Time, string, string) (ai.DailyUsage, error)
+	UsageSummary(context.Context, time.Time) (ai.UsageSummary, error)
 }
 
 type LearningReader interface {
@@ -50,26 +55,33 @@ type QuestionReader interface {
 	ReviewBatch(context.Context, []question.ReviewRef) ([]question.ReviewProjection, error)
 }
 
+type OperationsReader interface {
+	Readiness(context.Context, identity.User) (operations.Readiness, error)
+}
+
 type ProviderClient interface {
 	SecretConfigured(ai.Provider) bool
 	Call(context.Context, ai.ProviderSetting, string) (ai.ProviderCallResult, error)
 }
 
 type Config struct {
-	CacheTTL        time.Duration
-	InteractionTTL  time.Duration
-	CircuitOpenFor  time.Duration
-	PerMinuteLimit  int
-	MaxOutputTokens int
+	CacheTTL         time.Duration
+	InteractionTTL   time.Duration
+	CircuitOpenFor   time.Duration
+	PerMinuteLimit   int
+	MaxOutputTokens  int
+	GlobalDailyLimit int
+	UserDailyLimit   int
 }
 
 type Service struct {
-	repo      Repository
-	learning  LearningReader
-	questions QuestionReader
-	providers ProviderClient
-	cfg       Config
-	now       func() time.Time
+	repo       Repository
+	learning   LearningReader
+	questions  QuestionReader
+	providers  ProviderClient
+	operations OperationsReader
+	cfg        Config
+	now        func() time.Time
 
 	mu      sync.Mutex
 	flights map[string]*assistFlight
@@ -106,6 +118,12 @@ func NewService(
 	if cfg.MaxOutputTokens > 2000 {
 		cfg.MaxOutputTokens = 2000
 	}
+	if cfg.GlobalDailyLimit <= 0 {
+		cfg.GlobalDailyLimit = 800
+	}
+	if cfg.UserDailyLimit <= 0 {
+		cfg.UserDailyLimit = 80
+	}
 	return &Service{
 		repo:      repo,
 		learning:  learningReader,
@@ -115,6 +133,19 @@ func NewService(
 		now:       time.Now,
 		flights:   map[string]*assistFlight{},
 	}
+}
+
+func NewServiceWithOperations(
+	repo Repository,
+	learningReader LearningReader,
+	questionReader QuestionReader,
+	providers ProviderClient,
+	operationsReader OperationsReader,
+	cfg Config,
+) *Service {
+	service := NewService(repo, learningReader, questionReader, providers, cfg)
+	service.operations = operationsReader
+	return service
 }
 
 func normalizePage(page, limit int) (int, int, error) {
@@ -223,7 +254,7 @@ func (s *Service) TestProvider(
 			Status: ai.InteractionError, ErrorCategory: errorCategory(callErr),
 			LatencyMS: latency, ResponseLength: 0,
 			RetentionUntil: timePtr(now.Add(s.cfg.InteractionTTL)),
-			Metadata:       map[string]any{"manualTest": true},
+			Metadata:       map[string]any{"manualTest": true, "billable": true},
 		})
 		return ai.ProviderResponse{}, ErrUnavailable
 	}
@@ -234,9 +265,9 @@ func (s *Service) TestProvider(
 		Capability: "provider_health", Provider: provider, Model: firstNonEmpty(result.Model, setting.Model),
 		Status: ai.InteractionSuccess, LatencyMS: latency,
 		InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens,
-		TotalTokens: result.Usage.TotalTokens, UsageEstimated: result.Usage.Estimated,
+		TotalTokens: result.Usage.TotalTokens, CachedTokens: result.Usage.CachedTokens, UsageEstimated: result.Usage.Estimated,
 		ResponseLength: len([]rune(text)), RetentionUntil: timePtr(now.Add(s.cfg.InteractionTTL)),
-		Metadata: map[string]any{"manualTest": true},
+		Metadata: map[string]any{"manualTest": true, "billable": true},
 	})
 	return ai.ProviderResponse{
 		Text: text, Provider: provider, Model: firstNonEmpty(result.Model, setting.Model), Usage: result.Usage,
@@ -256,6 +287,227 @@ func (s *Service) AdminInteractions(
 		return ai.InteractionPage{}, err
 	}
 	return s.repo.ListInteractions(ctx, page, limit)
+}
+
+func (s *Service) budgetScope(
+	ctx context.Context,
+	userID string,
+) (string, error) {
+	now := s.now().UTC()
+	global, err := s.repo.DailyUsage(ctx, now, "global", "*")
+	if err != nil {
+		return "", err
+	}
+	if global.RequestCount >= s.cfg.GlobalDailyLimit {
+		return "global", nil
+	}
+	if strings.TrimSpace(userID) != "" {
+		user, userErr := s.repo.DailyUsage(ctx, now, "user", userID)
+		if userErr != nil {
+			return "", userErr
+		}
+		if user.RequestCount >= s.cfg.UserDailyLimit {
+			return "user", nil
+		}
+	}
+	return "", nil
+}
+
+func (s *Service) AdminUsage(
+	ctx context.Context,
+	actor identity.User,
+) (ai.UsageSummary, error) {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return ai.UsageSummary{}, ErrForbidden
+	}
+	return s.repo.UsageSummary(ctx, s.now().UTC())
+}
+
+func (s *Service) AdminReadiness(
+	ctx context.Context,
+	actor identity.User,
+) (ai.AdminReadiness, error) {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return ai.AdminReadiness{}, ErrForbidden
+	}
+	settings, err := s.AdminProviders(ctx, actor)
+	if err != nil {
+		return ai.AdminReadiness{}, err
+	}
+	usage, err := s.repo.UsageSummary(ctx, s.now().UTC())
+	if err != nil {
+		return ai.AdminReadiness{}, err
+	}
+	out := ai.AdminReadiness{
+		CheckedAt:        s.now().UTC(),
+		Status:           "fallback_only",
+		OpenCircuits:     []ai.Provider{},
+		TodayRequests:    usage.Today.RequestCount,
+		GlobalDailyLimit: s.cfg.GlobalDailyLimit,
+		UserDailyLimit:   s.cfg.UserDailyLimit,
+		Fallback24h:      usage.Fallback24h,
+		Error24h:         usage.Error24h,
+		Notes:            []string{},
+	}
+	healthyConfigured := 0
+	for _, setting := range settings {
+		if setting.Enabled {
+			out.EnabledProviders++
+		}
+		if setting.SecretConfigured {
+			out.ConfiguredProviders++
+		}
+		if setting.Health.OpenUntil != nil && setting.Health.OpenUntil.After(out.CheckedAt) {
+			out.OpenCircuits = append(out.OpenCircuits, setting.Provider)
+			continue
+		}
+		if setting.Enabled && setting.SecretConfigured {
+			healthyConfigured++
+		}
+	}
+	if healthyConfigured > 0 {
+		out.Status = "ready"
+	}
+	if len(out.OpenCircuits) > 0 || usage.Error24h > 0 {
+		if out.Status == "ready" {
+			out.Status = "degraded"
+		}
+	}
+	if out.ConfiguredProviders == 0 {
+		out.Notes = append(out.Notes, "لا يوجد مزود AI مهيأ صراحة؛ التجربة ستبقى على trusted fallback.")
+	}
+	if out.EnabledProviders > out.ConfiguredProviders {
+		out.Notes = append(out.Notes, "يوجد مزود مفعّل بدون runtime/credential مهيأ صراحة.")
+	}
+	if len(out.OpenCircuits) > 0 {
+		out.Notes = append(out.Notes, "يوجد Circuit مفتوح؛ fallback chain ستتجاوز المزود المتعثر.")
+	}
+	if s.cfg.GlobalDailyLimit > 0 && usage.Today.RequestCount*100 >= s.cfg.GlobalDailyLimit*80 {
+		out.Notes = append(out.Notes, "الاستخدام اليومي تجاوز 80% من الحد العالمي.")
+	}
+	out.Notes = append(out.Notes, "Runtime configured لا يساوي live-provider certification؛ الدليل الحي يبقى deployment evidence منفصلًا.")
+	return out, nil
+}
+
+func adminFallback(readiness ai.AdminReadiness, ops operations.Readiness) string {
+	parts := []string{
+		"تشخيص آمن من بيانات التشغيل الحالية:",
+		"- حالة AI: " + readiness.Status,
+		fmt.Sprintf("- طلبات AI اليوم: %d من حد %d", readiness.TodayRequests, readiness.GlobalDailyLimit),
+		fmt.Sprintf("- مزودات مفعلة/مهيأة: %d/%d", readiness.EnabledProviders, readiness.ConfiguredProviders),
+		"- حالة المنصة التشغيلية: " + ops.Status,
+		fmt.Sprintf("- PostgreSQL: %t · Redis: %t", ops.Dependencies.Postgres, ops.Dependencies.Redis),
+		fmt.Sprintf("- إشعارات فاشلة: %d · Audit failed 24h: %d · فصول live: %d",
+			ops.Counts.NotificationFailed, ops.Counts.AuditFailed24h, ops.Counts.LiveClassrooms),
+	}
+	if ops.BackupRestoreProof != "" {
+		parts = append(parts, "- Backup/restore: "+ops.BackupRestoreProof)
+	}
+	parts = append(parts, "هذا تشخيص للقراءة فقط؛ لا ينفذ تغييرات أو أوامر إدارية.")
+	return strings.Join(parts, "\n")
+}
+
+func buildAdminCopilotPrompt(message string, readiness ai.AdminReadiness, ops operations.Readiness) string {
+	integrations := make([]string, 0, len(ops.Integrations))
+	for _, item := range ops.Integrations {
+		integrations = append(integrations, fmt.Sprintf("%s=%t", item.ID, item.Configured))
+	}
+	parts := []string{
+		"أنت مساعد تشخيص إداري لمنصة ALMEAA. استخدم الحقائق التشغيلية المعطاة فقط.",
+		"لا تنفذ أو تقترح تنفيذًا تلقائيًا لأوامر مدمرة. ميّز بين دليل التطبيق ودليل deployment الخارجي.",
+		"لا تخترع مزودًا ناجحًا أو backup proof أو production proof غير موجود.",
+		"سؤال المدير: " + truncate(message, 800),
+		"AI status: " + readiness.Status,
+		fmt.Sprintf("AI today requests: %d/%d; fallback24h=%d; errors24h=%d",
+			readiness.TodayRequests, readiness.GlobalDailyLimit, readiness.Fallback24h, readiness.Error24h),
+		fmt.Sprintf("AI enabled/configured providers: %d/%d", readiness.EnabledProviders, readiness.ConfiguredProviders),
+		"Operations status: " + ops.Status,
+		fmt.Sprintf("Dependencies: postgres=%t redis=%t", ops.Dependencies.Postgres, ops.Dependencies.Redis),
+		fmt.Sprintf("Operational counts: notificationFailed=%d auditBlocked24h=%d auditFailed24h=%d liveClassrooms=%d",
+			ops.Counts.NotificationFailed, ops.Counts.AuditBlocked24h, ops.Counts.AuditFailed24h, ops.Counts.LiveClassrooms),
+		"Integrations: " + strings.Join(integrations, ","),
+		"Backup/restore evidence: " + ops.BackupRestoreProof,
+	}
+	return truncate(strings.Join(parts, "\n"), 6000)
+}
+
+func (s *Service) AdminCopilot(
+	ctx context.Context,
+	actor identity.User,
+	input ai.AdminCopilotInput,
+) (ai.AdminCopilotResult, error) {
+	if !actor.HasRole(identity.RoleAdmin) || s.operations == nil {
+		return ai.AdminCopilotResult{}, ErrForbidden
+	}
+	input.Message = strings.TrimSpace(input.Message)
+	if input.Message == "" || len([]rune(input.Message)) > 800 {
+		return ai.AdminCopilotResult{}, ErrInvalidInput
+	}
+	readiness, err := s.AdminReadiness(ctx, actor)
+	if err != nil {
+		return ai.AdminCopilotResult{}, err
+	}
+	ops, err := s.operations.Readiness(ctx, actor)
+	if err != nil {
+		return ai.AdminCopilotResult{}, err
+	}
+	fallback := adminFallback(readiness, ops)
+	scope, err := s.budgetScope(ctx, actor.ID)
+	if err != nil {
+		return ai.AdminCopilotResult{}, err
+	}
+	now := s.now().UTC()
+	if scope != "" {
+		out := ai.AdminCopilotResult{
+			Text: fallback, Provider: ai.ProviderNone, Model: "trusted-fallback",
+			UsedFallback: true, PromptVersion: PromptVersionAdminCopilot, Readiness: readiness,
+		}
+		_ = s.repo.InsertInteraction(ctx, ai.Interaction{
+			UserID: actor.ID, Audience: "admin", Endpoint: "/ai/admin/copilot",
+			Capability: CapabilityAdminCopilot, Provider: ai.ProviderNone, Model: "trusted-fallback",
+			Status: ai.InteractionFallback, UsedFallback: true, PromptVersion: PromptVersionAdminCopilot,
+			ResponseLength: len([]rune(out.Text)), ErrorCategory: "daily_budget_limited",
+			RetentionUntil: timePtr(now.Add(s.cfg.InteractionTTL)),
+			Metadata:       map[string]any{"billable": false, "budgetScope": scope, "messageProvided": true},
+		})
+		return out, nil
+	}
+
+	started := time.Now()
+	response, providerErr := s.callProviderChain(ctx, buildAdminCopilotPrompt(input.Message, readiness, ops))
+	latency := int(time.Since(started).Milliseconds())
+	out := ai.AdminCopilotResult{
+		Text: fallback, Provider: ai.ProviderNone, Model: "trusted-fallback",
+		UsedFallback: true, PromptVersion: PromptVersionAdminCopilot, Readiness: readiness,
+	}
+	usage := ai.ProviderUsage{}
+	errorName := ""
+	if providerErr == nil && strings.TrimSpace(response.Text) != "" {
+		out.Text = truncate(strings.TrimSpace(response.Text), 4000)
+		out.Provider = response.Provider
+		out.Model = response.Model
+		out.UsedFallback = false
+		usage = response.Usage
+	} else if providerErr != nil {
+		errorName = errorCategory(providerErr)
+	}
+	status := ai.InteractionSuccess
+	if out.UsedFallback {
+		status = ai.InteractionFallback
+	}
+	_ = s.repo.InsertInteraction(ctx, ai.Interaction{
+		UserID: actor.ID, Audience: "admin", Endpoint: "/ai/admin/copilot",
+		Capability: CapabilityAdminCopilot, Provider: out.Provider, Model: out.Model,
+		Status: status, UsedFallback: out.UsedFallback, PromptVersion: PromptVersionAdminCopilot,
+		LatencyMS: latency, InputTokens: usage.InputTokens, OutputTokens: usage.OutputTokens,
+		TotalTokens: usage.TotalTokens, CachedTokens: usage.CachedTokens, UsageEstimated: usage.Estimated,
+		ResponseLength: len([]rune(out.Text)), ErrorCategory: errorName,
+		RetentionUntil: timePtr(now.Add(s.cfg.InteractionTTL)),
+		Metadata: map[string]any{
+			"billable": true, "messageProvided": true, "operationsStatus": ops.Status,
+		},
+	})
+	return out, nil
 }
 
 func (s *Service) QuestionAssist(
@@ -303,6 +555,23 @@ func (s *Service) QuestionAssist(
 	}
 	if !errors.Is(cacheErr, ai.ErrNotFound) {
 		return ai.QuestionAssistResult{}, cacheErr
+	}
+	budgetScope, err := s.budgetScope(ctx, actor.ID)
+	if err != nil {
+		return ai.QuestionAssistResult{}, err
+	}
+	if budgetScope != "" {
+		out := ai.QuestionAssistResult{
+			Text:          truncate("تم الوصول إلى حد الاستخدام اليومي للمساعد. استخدم الشرح الموثوق الحالي ويمكنك العودة لاحقًا.\n\n"+trustedFallback(q, input.HelpLevel), 4000),
+			HelpLevel:     input.HelpLevel,
+			Provider:      ai.ProviderNone,
+			Model:         "trusted-fallback",
+			UsedFallback:  true,
+			CacheHit:      false,
+			PromptVersion: PromptVersionQuestionTutor,
+		}
+		_ = s.recordInteraction(ctx, actor, card, input, out, 0, ai.ProviderUsage{}, "daily_budget_limited:"+budgetScope)
+		return out, nil
 	}
 	count, err := s.repo.CountQuestionAssistSince(ctx, actor.ID, now.Add(-time.Minute))
 	if err != nil {
@@ -496,12 +765,14 @@ func (s *Service) recordInteraction(
 		InputTokens:     usage.InputTokens,
 		OutputTokens:    usage.OutputTokens,
 		TotalTokens:     usage.TotalTokens,
+		CachedTokens:    usage.CachedTokens,
 		UsageEstimated:  usage.Estimated,
 		ResponseLength:  len([]rune(out.Text)),
 		ErrorCategory:   errorName,
 		Metadata: map[string]any{
 			"helpLevel":       input.HelpLevel,
 			"messageProvided": input.Message != "",
+			"billable":        !out.CacheHit && !strings.HasPrefix(errorName, "rate_limited") && !strings.HasPrefix(errorName, "daily_budget_limited"),
 		},
 		RetentionUntil: timePtr(now.Add(s.cfg.InteractionTTL)),
 	})

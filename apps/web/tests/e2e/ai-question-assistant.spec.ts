@@ -11,7 +11,7 @@ async function auth(page:Page,user:typeof admin|typeof student){
 
 test('admin manages non-secret AI provider policy and inspects usage evidence',async({page})=>{
  await auth(page,admin);
- let patchBody:any=null;let patchCSRF='';let testCSRF='';
+ let patchBody:any=null;let patchCSRF='';let testCSRF='';let copilotBody:any=null;let copilotCSRF='';
  const provider={provider:'gemini',enabled:false,model:'gemini-2.5-flash',baseUrl:'',priority:10,maxOutputTokens:450,revision:1,secretConfigured:true,health:{consecutiveFailures:0,openUntil:null,lastError:'',lastSuccessAt:null,lastFailureAt:null,updatedAt:'2026-09-27T08:00:00Z'},createdAt:'2026-09-27T08:00:00Z',updatedAt:'2026-09-27T08:00:00Z'};
  await page.route('**/api/v1/ai/admin/providers',async route=>{
   if(route.request().method()==='GET')return json(route,{items:[provider]});
@@ -29,11 +29,25 @@ test('admin manages non-secret AI provider policy and inspects usage evidence',a
   testCSRF=route.request().headers()['x-csrf-token']||'';
   return json(route,{result:{text:'OK',provider:'gemini',model:'gemini-2.5-flash',usage:{inputTokens:2,outputTokens:1,totalTokens:3,cachedTokens:0,estimated:false}}});
  });
+ await page.route('**/api/v1/ai/admin/usage',route=>json(route,{usage:{
+  today:{dayKey:'2026-09-28T00:00:00Z',scopeType:'global',scopeId:'*',requestCount:12,inputTokens:120,outputTokens:40,totalTokens:160,cachedTokens:20,fallbackCount:2,errorCount:1,updatedAt:'2026-09-28T08:00:00Z'},
+  last24h:14,fallback24h:2,error24h:1,cacheHit24h:3,inputTokens24h:140,outputTokens24h:50,totalTokens24h:190,cachedTokens24h:20,byProvider:[]
+ }}));
+ await page.route('**/api/v1/ai/admin/readiness',route=>json(route,{readiness:{
+  checkedAt:'2026-09-28T08:00:00Z',status:'degraded',enabledProviders:1,configuredProviders:1,openCircuits:[],todayRequests:12,globalDailyLimit:800,userDailyLimit:80,fallback24h:2,error24h:1,
+  notes:['Runtime configured لا يساوي live-provider certification؛ الدليل الحي يبقى deployment evidence منفصلًا.']
+ }}));
+ await page.route('**/api/v1/ai/admin/copilot',route=>{
+  copilotCSRF=route.request().headers()['x-csrf-token']||'';copilotBody=route.request().postDataJSON();
+  return json(route,{result:{text:'راجع فشل الإشعارات أولًا، وابقِ backup/restore كدليل خارجي.',provider:'none',model:'trusted-fallback',usedFallback:true,promptVersion:'admin_copilot.v1',readiness:{checkedAt:'2026-09-28T08:00:00Z',status:'degraded',enabledProviders:1,configuredProviders:1,openCircuits:[],todayRequests:12,globalDailyLimit:800,userDailyLimit:80,fallback24h:2,error24h:1,notes:[]}}});
+ });
 
  await page.goto('/admin-dashboard/ai');
  await expect(page.getByRole('heading',{name:'إدارة المساعد الذكي'})).toBeVisible();
- await expect(page.getByText('Runtime configured')).toBeVisible();
+ await expect(page.getByText('Runtime configured',{exact:true})).toBeVisible();
  await expect(page.getByText(/tokens 30/)).toBeVisible();
+ await expect(page.getByTestId('ai-readiness')).toContainText('degraded');
+ await expect(page.getByTestId('ai-readiness')).toContainText('12');
 
  await page.getByLabel('تفعيل Gemini').check();
  await page.getByLabel('حد إخراج Gemini').fill('500');
@@ -47,6 +61,13 @@ test('admin manages non-secret AI provider policy and inspects usage evidence',a
  await page.getByRole('button',{name:'اختبار المزود'}).click();
  await expect.poll(()=>testCSRF).toBe('csrf-ai');
  await expect(page.getByText(/اختبار Gemini نجح/)).toBeVisible();
+
+ await page.getByRole('button',{name:'شخّص'}).click();
+ await expect.poll(()=>copilotCSRF).toBe('csrf-ai');
+ expect(copilotBody).toEqual({message:'ما أهم شيء يحتاج انتباهي الآن؟'});
+ await expect(page.getByTestId('ai-admin-copilot')).toContainText('Trusted diagnostic fallback');
+ await expect(page.getByTestId('ai-admin-copilot')).toContainText('backup/restore');
+ await page.screenshot({path:'test-results/ai-admin-integrated-desktop.png',fullPage:true});
 });
 
 test('student question assistant is scoped to owned review card and can return trusted fallback',async({page})=>{

@@ -211,6 +211,10 @@ jobs:
           check "select count(*)=7 from ai_provider_settings"
           check "select exists(select 1 from pg_constraint where conname='ai_provider_settings_provider_check')"
           check "select exists(select 1 from pg_constraint where conname='ai_question_assist_cache_help_level_check')"
+          check "select exists(select 1 from information_schema.columns where table_name='ai_interactions' and column_name='cached_tokens')"
+          check "select to_regclass('public.ai_usage_daily') is not null"
+          check "select exists(select 1 from pg_indexes where tablename='ai_usage_daily' and indexname='ai_usage_daily_scope_recent_idx')"
+          check "select exists(select 1 from pg_constraint where conname='ai_usage_daily_scope_type_check')"
 
       - name: Roll back every migration
         shell: bash
