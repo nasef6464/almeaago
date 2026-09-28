@@ -442,7 +442,9 @@ Release boundary:
 - Question Bank / Media remains `TESTED`, not `PARITY_PROVEN`.
 - live R2 account/bucket, bucket CORS, `R2_PUBLIC_BASE_URL`/CDN delivery and real upload -> HEAD verify -> render smoke remain external deployment evidence.
 - deterministic V2 desktop/mobile screenshots exist, but direct legacy-runtime side-by-side visual comparison remains external evidence.
-- the final documentation-inclusive PR head must pass the same four gates before merge.
+- final documentation-inclusive head `2a98ad4d4e09c8ed7de0ef1cf0c62a5934f4cf88` passed all four gates: Database CI `36334351564`, Backend CI `36334351596`, Frontend CI `36334351571`, and Frontend E2E `36334351583` (61/61).
+- final browser evidence artifact `10936483838`, digest `sha256:43e37c2ae7e81be630662d0b4c94a965e184c3aa92c247353e91edceb76e809a`.
+- PR #72 was merged after that exact head was green; merge commit `d5c23a1ee856af77aac3e047ccb795622d1d0eb7`.
 
 ## Content Core Management — TESTED / MERGED
 PR #37 passed exact-head Backend CI and Database CI on `0c493741ccae5e241b1eadb9555bf3a49ce573e8` and merged to `main` as `3a13259401f6328ce65e4b74532ed46dfe635302`.
