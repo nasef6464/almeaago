@@ -11,6 +11,7 @@ import (
 	ai "github.com/nasef6464/almeaago/internal/ai/domain"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	learning "github.com/nasef6464/almeaago/internal/learning/domain"
+	operations "github.com/nasef6464/almeaago/internal/operations/domain"
 	question "github.com/nasef6464/almeaago/internal/questionbank/domain"
 )
 
@@ -23,6 +24,9 @@ type repoStub struct {
 	updateWrite    ai.ProviderSettingWrite
 	updateProvider ai.Provider
 	minuteCount    int
+	dailyGlobal    ai.DailyUsage
+	dailyUsers     map[string]ai.DailyUsage
+	usageSummary   ai.UsageSummary
 }
 
 type failureRecord struct {
@@ -85,6 +89,34 @@ func (r *repoStub) CountQuestionAssistSince(context.Context, string, time.Time) 
 	return r.minuteCount, nil
 }
 
+func (r *repoStub) DailyUsage(_ context.Context, day time.Time, scopeType, scopeID string) (ai.DailyUsage, error) {
+	if scopeType == "global" {
+		out := r.dailyGlobal
+		out.DayKey = day
+		out.ScopeType = scopeType
+		out.ScopeID = scopeID
+		return out, nil
+	}
+	if scopeType == "user" && r.dailyUsers != nil {
+		out := r.dailyUsers[scopeID]
+		out.DayKey = day
+		out.ScopeType = scopeType
+		out.ScopeID = scopeID
+		return out, nil
+	}
+	return ai.DailyUsage{DayKey: day, ScopeType: scopeType, ScopeID: scopeID}, nil
+}
+func (r *repoStub) UsageSummary(_ context.Context, now time.Time) (ai.UsageSummary, error) {
+	out := r.usageSummary
+	if out.Today.ScopeType == "" {
+		out.Today = r.dailyGlobal
+		out.Today.DayKey = now
+		out.Today.ScopeType = "global"
+		out.Today.ScopeID = "*"
+	}
+	return out, nil
+}
+
 type learningStub struct {
 	card        learning.ReviewCard
 	lastStudent string
@@ -112,6 +144,15 @@ func (q *questionStub) ReviewBatch(_ context.Context, refs []question.ReviewRef)
 		return nil, q.err
 	}
 	return []question.ReviewProjection{q.row}, nil
+}
+
+type operationsStub struct {
+	readiness operations.Readiness
+	err       error
+}
+
+func (o *operationsStub) Readiness(context.Context, identity.User) (operations.Readiness, error) {
+	return o.readiness, o.err
 }
 
 type providerStub struct {
@@ -352,5 +393,93 @@ func TestQuestionAssistMinuteLimitUsesTrustedFallbackWithoutProvider(t *testing.
 	}
 	if !out.UsedFallback || !strings.Contains(out.Text, "حد المحاولات") || len(providers.calls) != 0 {
 		t.Fatalf("minute policy did not fail to trusted fallback: out=%#v calls=%#v", out, providers.calls)
+	}
+}
+
+
+func TestQuestionAssistDailyBudgetFailsToTrustedFallbackBeforeProvider(t *testing.T) {
+	repo := &repoStub{dailyGlobal: ai.DailyUsage{RequestCount: 2}}
+	providers := &providerStub{
+		configured: map[ai.Provider]bool{ai.ProviderGemini: true},
+		results: map[ai.Provider]ai.ProviderCallResult{ai.ProviderGemini: {Text: "provider"}},
+		errors: map[ai.Provider]error{},
+	}
+	service := NewService(repo, &learningStub{card: reviewCard()}, &questionStub{row: reviewQuestion()}, providers, Config{
+		GlobalDailyLimit: 2,
+		UserDailyLimit: 10,
+	})
+	out, err := service.QuestionAssist(context.Background(), student(), ai.QuestionAssistInput{
+		ReviewCardID: "card-1", HelpLevel: ai.HelpHint,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !out.UsedFallback || !strings.Contains(out.Text, "حد الاستخدام اليومي") || len(providers.calls) != 0 {
+		t.Fatalf("daily budget did not stop provider: out=%#v calls=%#v", out, providers.calls)
+	}
+	if len(repo.interactions) != 1 || repo.interactions[0].Metadata["billable"] != false {
+		t.Fatalf("budget fallback should be non-billable: %#v", repo.interactions)
+	}
+}
+
+func TestAdminReadinessReportsExplicitRuntimeTruthAndExternalProofBoundary(t *testing.T) {
+	repo := &repoStub{
+		settings: []ai.ProviderSetting{
+			{Provider: ai.ProviderGemini, Enabled: true},
+			{Provider: ai.ProviderOllama, Enabled: true},
+		},
+		dailyGlobal: ai.DailyUsage{RequestCount: 12},
+		usageSummary: ai.UsageSummary{Fallback24h: 2, Error24h: 1},
+	}
+	providers := &providerStub{
+		configured: map[ai.Provider]bool{ai.ProviderGemini: true, ai.ProviderOllama: false},
+		results: map[ai.Provider]ai.ProviderCallResult{},
+		errors: map[ai.Provider]error{},
+	}
+	service := NewService(repo, &learningStub{}, &questionStub{}, providers, Config{GlobalDailyLimit: 100, UserDailyLimit: 20})
+	out, err := service.AdminReadiness(context.Background(), admin())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.EnabledProviders != 2 || out.ConfiguredProviders != 1 || out.TodayRequests != 12 {
+		t.Fatalf("unexpected readiness %#v", out)
+	}
+	if out.Status != "degraded" || len(out.Notes) == 0 {
+		t.Fatalf("expected degraded/external-proof notes %#v", out)
+	}
+}
+
+func TestAdminCopilotUsesBoundedOperationsFactsAndIsReadOnlyFallbackSafe(t *testing.T) {
+	repo := &repoStub{
+		settings: []ai.ProviderSetting{{Provider: ai.ProviderGemini, Enabled: true, Model: "m", Priority: 10, MaxOutputTokens: 300}},
+	}
+	providers := &providerStub{
+		configured: map[ai.Provider]bool{ai.ProviderGemini: true},
+		results: map[ai.Provider]ai.ProviderCallResult{ai.ProviderGemini: {
+			Text: "راجع فشل الإشعارات أولًا ولا تعتبر backup مثبتًا.", Model: "m",
+			Usage: ai.ProviderUsage{InputTokens: 12, OutputTokens: 8, TotalTokens: 20},
+		}},
+		errors: map[ai.Provider]error{},
+	}
+	ops := &operationsStub{readiness: operations.Readiness{
+		Status: "ready_with_notes",
+		Dependencies: operations.DependencyHealth{Postgres: true, Redis: true},
+		Counts: operations.OperationalCounts{NotificationFailed: 3, AuditFailed24h: 1, LiveClassrooms: 2},
+		BackupRestoreProof: "external_proof_required",
+		Integrations: []operations.IntegrationCheck{{ID: "ai_remote", Configured: true}},
+	}}
+	service := NewServiceWithOperations(repo, &learningStub{}, &questionStub{}, providers, ops, Config{})
+	out, err := service.AdminCopilot(context.Background(), admin(), ai.AdminCopilotInput{Message: "ما الذي يحتاج انتباهي؟"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.UsedFallback || out.Provider != ai.ProviderGemini {
+		t.Fatalf("expected provider-backed diagnostic %#v", out)
+	}
+	if len(providers.prompts) != 1 || !strings.Contains(providers.prompts[0], "external_proof_required") || !strings.Contains(providers.prompts[0], "notificationFailed=3") {
+		t.Fatalf("copilot did not receive bounded operational facts: %#v", providers.prompts)
+	}
+	if len(repo.interactions) != 1 || repo.interactions[0].Capability != CapabilityAdminCopilot {
+		t.Fatalf("copilot interaction not recorded: %#v", repo.interactions)
 	}
 }
