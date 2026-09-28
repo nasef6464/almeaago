@@ -24,6 +24,7 @@ export function ParentDashboardPage(){
  const[busy,setBusy]=useState(true);
  const[detailBusy,setDetailBusy]=useState(false);
  const[error,setError]=useState('');
+ const[copied,setCopied]=useState(false);
  const[reload,setReload]=useState(0);
 
  useEffect(()=>{
@@ -58,6 +59,28 @@ export function ParentDashboardPage(){
 
  const selected=useMemo(()=>data?.children.find(x=>x.studentId===selectedId)||data?.children[0]||null,[data,selectedId]);
  const priority=useMemo(()=>data?.children.flatMap(child=>child.weakSkills.map(skill=>({child,skill}))).sort((a,b)=>a.skill.mastery-b.skill.mastery).slice(0,3)||[],[data]);
+ const weeklySummaryText=useMemo(()=>{
+  if(!weekly)return'';
+  return [
+   'ملخص متابعة ولي الأمر',
+   `الفترة: ${date(weekly.periodStart)} — ${date(weekly.periodEnd)}`,
+   ...weekly.children.flatMap(row=>[
+    `${row.name}: ${row.assessmentCount} اختبار · متوسط ${score(row.averageScore)} · ${row.studyMinutes} دقيقة تقييم`,
+    row.weakSkills.length?`أولوية المهارات: ${row.weakSkills.slice(0,3).map(skill=>`${skill.skillName} ${score(skill.mastery)}`).join('، ')}`:'لا توجد مهارات ضعيفة مسجلة حاليًا.',
+    `الخطوة التالية: ${row.nextAction||'استمرار المتابعة الهادئة وإعادة القياس عند توفر دليل جديد.'}`,
+   ]),
+  ].join('\n');
+ },[weekly]);
+ async function copyWeeklySummary(){
+  if(!weeklySummaryText)return;
+  try{
+   await navigator.clipboard.writeText(weeklySummaryText);
+   setCopied(true);
+   window.setTimeout(()=>setCopied(false),1800);
+  }catch{
+   setError('تعذر نسخ الملخص على هذا المتصفح.');
+  }
+ }
 
  if(authLoading||busy)return <main dir="rtl" className="p-10 text-center font-black">جاري تحميل لوحة ولي الأمر...</main>;
  if(!user||!user.roles.includes('parent'))return <main dir="rtl" className="p-10 text-center font-black text-rose-700">هذه الصفحة مخصصة لولي الأمر.</main>;
@@ -96,7 +119,7 @@ export function ParentDashboardPage(){
 
    {tab==='skills'?<section className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5"><div><h2 className="text-xl font-black">المهارات التي تحتاج متابعة</h2><p className="mt-1 text-sm text-gray-500">مبنية على الحالة الحالية في Learning، وتعرض الخطوة الحتمية المسجلة بدل إنشاء توصية جديدة في الواجهة.</p><ChildSelector children={data.children} selectedId={selectedId} onSelect={setSelectedId}/></div>{selected?.weakSkills.length?<div className="mt-5 grid gap-3 md:grid-cols-2">{selected.weakSkills.map(item=><article key={item.skillId} className="rounded-2xl border bg-slate-50 p-4"><div className="flex items-start justify-between gap-3"><div><div className="font-black">{item.skillName}</div><div className="mt-1 text-xs font-bold text-gray-500">{item.status} · {item.evidenceCount} دليل</div></div><span className={`rounded-xl border px-3 py-2 font-black ${scoreTone(item.mastery)}`}>{score(item.mastery)}</span></div><div className="mt-3 rounded-xl bg-white p-3 text-sm font-bold leading-7 text-indigo-800">{item.recommendedAction}</div></article>)}</div>:<div className="mt-5 rounded-2xl bg-emerald-50 p-5 text-sm font-bold text-emerald-700">لا توجد مهارات أقل من 75% لهذا الطالب في الحالة الحالية.</div>}</section>:null}
 
-   {tab==='report'?<section className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div className="flex items-start gap-3"><CalendarDays className="mt-1 text-indigo-600" size={20}/><div><h2 className="text-xl font-black">التقرير الأسبوعي المبسط</h2><p className="mt-1 text-sm leading-7 text-gray-500">نافذة آخر 7 أيام من البيانات الموثقة. هذه المرحلة تعرض التقرير فقط؛ إرسال البريد/واتساب يتبع Communication ولا يتم تنفيذه من Parents.</p></div></div>{weekly?<div data-testid="weekly-report-period" className="self-start rounded-xl bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700">{date(weekly.periodStart)} — {date(weekly.periodEnd)}</div>:null}</div>{detailBusy?<Loading/>:<div className="mt-5 space-y-3">{weekly?.children.length?weekly.children.map(row=><article key={row.studentId} className="rounded-2xl border p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="font-black">{row.name}</div><div className="mt-1 text-xs font-bold text-gray-500">{row.assessmentCount} اختبار · {row.studyMinutes} دقيقة تقييم خلال الأسبوع</div></div><div className={`self-start rounded-xl border px-3 py-2 font-black sm:self-auto ${scoreTone(row.averageScore)}`}>{score(row.averageScore)}</div></div>{row.weakSkills.length?<div className="mt-3 flex flex-wrap gap-2">{row.weakSkills.map(skill=><span key={skill.skillId} className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-800">{skill.skillName} {score(skill.mastery)}</span>)}</div>:null}<div className="mt-3 rounded-xl bg-indigo-50 p-3 text-sm font-bold text-indigo-800">{row.nextAction||'استمرار المتابعة الهادئة وإعادة القياس عند توفر دليل جديد.'}</div></article>):<div className="p-8 text-center text-sm font-bold text-gray-500">لا توجد بيانات أسبوعية للأبناء المرتبطين.</div>}</div>}</section>:null}
+   {tab==='report'?<section className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div className="flex items-start gap-3"><CalendarDays className="mt-1 text-indigo-600" size={20}/><div><h2 className="text-xl font-black">التقرير الأسبوعي المبسط</h2><p className="mt-1 text-sm leading-7 text-gray-500">نافذة آخر 7 أيام من البيانات الموثقة. هذه المرحلة تعرض التقرير فقط؛ إرسال البريد/واتساب يتبع Communication ولا يتم تنفيذه من Parents.</p></div></div>{weekly?<div className="flex flex-col items-start gap-2"><div data-testid="weekly-report-period" className="rounded-xl bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700">{date(weekly.periodStart)} — {date(weekly.periodEnd)}</div><button type="button" onClick={()=>void copyWeeklySummary()} className="rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs font-black text-indigo-700">{copied?'تم نسخ الملخص':'نسخ ملخص الأسبوع'}</button><div className="max-w-56 text-[10px] font-bold leading-5 text-gray-400">النسخ محلي فقط؛ لا يتم إرسال التقرير تلقائيًا لأي خدمة.</div></div>:null}</div>{detailBusy?<Loading/>:<div className="mt-5 space-y-3">{weekly?.children.length?weekly.children.map(row=><article key={row.studentId} className="rounded-2xl border p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="font-black">{row.name}</div><div className="mt-1 text-xs font-bold text-gray-500">{row.assessmentCount} اختبار · {row.studyMinutes} دقيقة تقييم خلال الأسبوع</div></div><div className={`self-start rounded-xl border px-3 py-2 font-black sm:self-auto ${scoreTone(row.averageScore)}`}>{score(row.averageScore)}</div></div>{row.weakSkills.length?<div className="mt-3 flex flex-wrap gap-2">{row.weakSkills.map(skill=><span key={skill.skillId} className="rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-800">{skill.skillName} {score(skill.mastery)}</span>)}</div>:null}<div className="mt-3 rounded-xl bg-indigo-50 p-3 text-sm font-bold text-indigo-800">{row.nextAction||'استمرار المتابعة الهادئة وإعادة القياس عند توفر دليل جديد.'}</div></article>):<div className="p-8 text-center text-sm font-bold text-gray-500">لا توجد بيانات أسبوعية للأبناء المرتبطين.</div>}</div>}</section>:null}
   </>}
  </div></main>;
 }
