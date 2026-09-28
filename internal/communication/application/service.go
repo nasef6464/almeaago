@@ -22,7 +22,7 @@ var (
 )
 
 const (
-	MaxCampaignRecipients = 10000
+	MaxCampaignRecipients    = 10000
 	campaignAudiencePageSize = 500
 )
 
@@ -398,10 +398,10 @@ func (s *Service) sendCampaign(
 		return communication.CampaignResult{}, err
 	}
 	command := communication.CampaignCommand{
-		ActorUserID: actorID,
+		ActorUserID:    actorID,
 		IdempotencyKey: strings.TrimSpace(idempotencyKey),
-		Message: message,
-		Recipients: make([]communication.CampaignRecipient, 0, len(recipients)),
+		Message:        message,
+		Recipients:     make([]communication.CampaignRecipient, 0, len(recipients)),
 	}
 	for _, recipient := range recipients {
 		command.Recipients = append(command.Recipients, communication.CampaignRecipient{
