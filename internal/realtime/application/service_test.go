@@ -23,6 +23,10 @@ type repoStub struct {
 	answerSelection int
 	answerCalls     int
 	finalizeRoster  []string
+	participants    []realtime.Participant
+	competition    realtime.Competition
+	challenge      *realtime.CompetitionState
+	joinMethod     string
 }
 
 func (r *repoStub) CreateSession(_ context.Context, record realtime.CreateRecord) (realtime.Session, error) {
@@ -78,8 +82,13 @@ func (r *repoStub) RevealQuestion(context.Context, string, string, int) (realtim
 func (r *repoStub) EndBatch(context.Context, string, string, string) (realtime.Batch, error) {
 	return realtime.Batch{ID: "batch-1", SessionID: r.session.ID, BatchNumber: 1}, nil
 }
-func (r *repoStub) JoinSession(_ context.Context, sessionID, studentID string) (realtime.Participant, error) {
-	r.participant = realtime.Participant{SessionID: sessionID, StudentID: studentID, AttendanceStatus: realtime.AttendancePresent}
+func (r *repoStub) JoinSession(_ context.Context, sessionID, studentID, method string) (realtime.Participant, error) {
+	now := time.Date(2026, 9, 27, 8, 0, 0, 0, time.UTC)
+	r.joinMethod = method
+	r.participant = realtime.Participant{
+		SessionID: sessionID, StudentID: studentID, JoinedAt: &now, JoinedMethod: method,
+		AttendanceStatus: realtime.AttendancePresent,
+	}
 	return r.participant, nil
 }
 func (r *repoStub) Participant(context.Context, string, string) (realtime.Participant, error) {
@@ -87,6 +96,9 @@ func (r *repoStub) Participant(context.Context, string, string) (realtime.Partic
 		return realtime.Participant{}, realtime.ErrNotFound
 	}
 	return r.participant, nil
+}
+func (r *repoStub) Participants(context.Context, string) ([]realtime.Participant, error) {
+	return append([]realtime.Participant(nil), r.participants...), nil
 }
 func (r *repoStub) SetAttendance(_ context.Context, sessionID, studentID, _ string, status realtime.AttendanceStatus) (realtime.Participant, error) {
 	return realtime.Participant{SessionID: sessionID, StudentID: studentID, AttendanceStatus: status}, nil
@@ -108,6 +120,32 @@ func (r *repoStub) StudentResponses(context.Context, string, string) (map[int]re
 }
 func (r *repoStub) Aggregate(context.Context, string) (realtime.Aggregate, error) {
 	return r.aggregate, nil
+}
+func (r *repoStub) CompetitionState(context.Context, string) (*realtime.CompetitionState, error) {
+	return r.challenge, nil
+}
+func (r *repoStub) ConfigureCompetition(_ context.Context, sessionID, _ string, duration int) (realtime.CompetitionState, error) {
+	now := time.Date(2026, 9, 27, 8, 0, 0, 0, time.UTC)
+	end := now.Add(time.Duration(duration) * time.Second)
+	state := realtime.CompetitionState{
+		SessionID: sessionID, ActiveBatchID: "batch-1", CompetitionEnabled: true,
+		ChallengeDurationSeconds: &duration, TimerStartedAt: &now, TimerEndsAt: &end, ServerNow: now,
+	}
+	r.challenge = &state
+	return state, nil
+}
+func (r *repoStub) EndCompetition(_ context.Context, sessionID, _ string) (realtime.CompetitionState, error) {
+	if r.challenge == nil {
+		return realtime.CompetitionState{}, realtime.ErrConflict
+	}
+	state := *r.challenge
+	state.SessionID = sessionID
+	state.Expired = true
+	r.challenge = &state
+	return state, nil
+}
+func (r *repoStub) Competition(context.Context, string) (realtime.Competition, error) {
+	return r.competition, nil
 }
 func (r *repoStub) FinalizeSession(_ context.Context, sessionID, _ string, roster []string) (realtime.ReportSnapshot, error) {
 	r.finalizeRoster = append([]string(nil), roster...)
@@ -199,6 +237,8 @@ func classroomQuestion() question.ClassroomQuestion {
 		Options: []question.Option{{Index: 0, Text: "3"}, {Index: 1, Text: "4"}},
 	}
 }
+func timePtr(value time.Time) *time.Time { return &value }
+
 func liveSession() realtime.Session {
 	active := 0
 	return realtime.Session{
@@ -274,11 +314,29 @@ func TestStudentJoinRequiresCanonicalClassMembership(t *testing.T) {
 	}
 }
 
+func TestQRJoinPersistsSourceMethod(t *testing.T) {
+	repo := &repoStub{session: liveSession()}
+	service := NewService(
+		repo,
+		&orgStub{moduleEnabled: true, studentOK: true},
+		&questionStub{},
+		nil,
+		"test-secret",
+	)
+	_, _, err := service.JoinByPIN(context.Background(), student(), "123456", "qr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repo.joinMethod != "qr" {
+		t.Fatalf("expected qr join source, got %q", repo.joinMethod)
+	}
+}
+
 func TestStudentStateHidesAnswerUntilReveal(t *testing.T) {
 	published := time.Date(2026, 9, 27, 8, 1, 0, 0, time.UTC)
 	repo := &repoStub{
 		session:     liveSession(),
-		participant: realtime.Participant{SessionID: "session-1", StudentID: "student-1"},
+		participant: realtime.Participant{SessionID: "session-1", StudentID: "student-1", JoinedAt: timePtr(time.Date(2026, 9, 27, 8, 0, 0, 0, time.UTC))},
 		pinned: []realtime.PinnedQuestion{{
 			Ordinal: 0, BatchID: "batch-1", QuestionID: "question-1", QuestionVersion: 3,
 			PublishedAt: &published,
@@ -395,5 +453,66 @@ func TestEndUsesCanonicalOrganizationsRoster(t *testing.T) {
 	}
 	if len(repo.finalizeRoster) != 2 || repo.finalizeRoster[0] != "student-1" {
 		t.Fatalf("canonical roster was not used: %#v", repo.finalizeRoster)
+	}
+}
+
+
+func TestAttendanceComposesCanonicalRosterIncludingNonJoiners(t *testing.T) {
+	joinedAt := time.Date(2026, 9, 27, 8, 1, 0, 0, time.UTC)
+	repo := &repoStub{
+		session: liveSession(),
+		participants: []realtime.Participant{{
+			SessionID: "session-1", StudentID: "student-1", JoinedAt: &joinedAt,
+			JoinedMethod: "pin", AttendanceStatus: realtime.AttendancePresent,
+		}},
+	}
+	service := NewService(
+		repo,
+		&orgStub{moduleEnabled: true, teacherOK: true, roster: []string{"student-1", "student-2"}},
+		&questionStub{}, nil, "test-secret",
+	)
+	out, err := service.Attendance(context.Background(), teacher(), "session-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Expected != 2 || out.Joined != 1 || out.Present != 1 || out.Absent != 1 || len(out.Rows) != 2 {
+		t.Fatalf("unexpected attendance snapshot %#v", out)
+	}
+	if out.Rows[1].StudentID != "student-2" || out.Rows[1].AttendanceStatus != realtime.AttendanceAbsent || out.Rows[1].JoinedAt != nil {
+		t.Fatalf("non-joiner was not projected as absent: %#v", out.Rows[1])
+	}
+}
+
+func TestAttendanceOverrideRejectsStudentOutsideCanonicalRoster(t *testing.T) {
+	repo := &repoStub{session: liveSession()}
+	service := NewService(
+		repo,
+		&orgStub{moduleEnabled: true, teacherOK: true, studentOK: false},
+		&questionStub{}, nil, "test-secret",
+	)
+	_, err := service.SetAttendance(
+		context.Background(), teacher(), "session-1", "student-other", realtime.AttendanceExcused,
+	)
+	if !errors.Is(err, ErrForbidden) {
+		t.Fatalf("foreign attendance override should fail closed, got %v", err)
+	}
+}
+
+func TestTimedChallengeUsesServerOwnedStateAndSafeScoringContract(t *testing.T) {
+	repo := &repoStub{session: liveSession()}
+	service := NewService(
+		repo,
+		&orgStub{moduleEnabled: true, teacherOK: true},
+		&questionStub{}, &eventStub{}, "test-secret",
+	)
+	state, err := service.ConfigureCompetition(context.Background(), teacher(), "session-1", 60)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !state.CompetitionEnabled || state.ChallengeDurationSeconds == nil || *state.ChallengeDurationSeconds != 60 {
+		t.Fatalf("unexpected challenge state %#v", state)
+	}
+	if _, err = service.ConfigureCompetition(context.Background(), teacher(), "session-1", 9); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected bounded duration denial, got %v", err)
 	}
 }
