@@ -1,6 +1,6 @@
 # Communication / Notifications Integrated Parity Certification
 
-Status: **FINAL DOCUMENTATION GATE CANDIDATE**
+Status: **TESTED / MERGED**
 
 ## Source basis
 Audited against legacy checkpoint `a5bcd4a1b43316d6dfc0c75e7f2d91a2e8d294e9` and the merged V2 Notifications foundation.
@@ -102,3 +102,15 @@ The implementation gate also proves the notification parity migration applies, r
 
 ## Final same-domain legacy delta re-check
 The latest legacy commit remains `a5bcd4a1b43316d6dfc0c75e7f2d91a2e8d294e9`. Its changed runtime paths are LessonProgress/QuestionRevision storage hardening plus auth/quiz storage integration and related scripts. It does not modify notification campaigns, inbox/SSE, weekly parent-report scheduling, notification audience authority or WhatsApp digest preference behavior. No additional Communication behavior is copied from that delta.
+
+## Final certification evidence
+Final documentation-inclusive PR #84 head `40b29eb12ea2412c86d0860cdbbce26bb4d65afe` passed all four required gates on that exact SHA:
+- Database CI `36387587378`.
+- Backend CI `36387587330`.
+- Frontend CI `36387587371`.
+- Frontend E2E `36387587337` — 67/67.
+- browser evidence artifact `10954888610`, digest `sha256:8a0bfeac1bf6f8d915ffe198a40e060ab4ef5693fa36fd4fbf5f5d6c3e0d693c`.
+
+PR #84 squash-merged to `main` as `78f248272fc62dd6c951dad1e3f17c8ae3d5223c`.
+
+Communication / Notifications remains **TESTED**, not `PARITY_PROVEN`. Live email/WhatsApp provider proof, provider callbacks/read receipts, generic marketing consent/unsubscribe policy, retention/purge policy and direct legacy-runtime visual comparison remain explicit external/UNKNOWN evidence.
