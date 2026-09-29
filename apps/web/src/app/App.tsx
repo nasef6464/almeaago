@@ -15,6 +15,7 @@ import { VerifyEmailPage } from '../features/auth/pages/VerifyEmailPage';
 import { useAuth } from '../features/auth/state/AuthProvider';
 import { dashboardPathFor } from '../features/auth/utils/dashboard-path';
 import { ContentAdminPage } from '../features/content/pages/ContentAdminPage';
+import { AdminOverviewPage } from '../features/content/pages/AdminOverviewPage';
 import { AssessmentAdminPage } from '../features/assessment/pages/AssessmentAdminPage';
 import { AssessmentAttemptPage } from '../features/assessment/pages/AssessmentAttemptPage';
 import { AssessmentResultsPage } from '../features/assessment/pages/AssessmentResultsPage';
@@ -220,7 +221,7 @@ export function App() {
         <Route path="/notifications" element={<NotificationInboxPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/dashboard" element={<StudentDashboardPage />} />
-        <Route path="/admin-dashboard" element={<AdminDashboardShell><PlaceholderPage title="لوحة الإدارة" /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard" element={<AdminDashboardShell><AdminOverviewPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/content" element={<AdminDashboardShell><ContentAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/taxonomy" element={<AdminDashboardShell><TaxonomyAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/questions" element={<AdminDashboardShell><QuestionBankAdminPage /></AdminDashboardShell>} />
