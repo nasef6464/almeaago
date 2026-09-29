@@ -70,10 +70,11 @@ test('student dashboard is a real workspace hub instead of a placeholder',async(
   await page.goto('/dashboard');
 
   await expect(page.getByRole('heading',{name:'أهلًا طالب المئة'})).toBeVisible();
-  await expect(page.locator('a[href="/learning"]')).toBeVisible();
-  await expect(page.locator('a[href="/assessments"]')).toBeVisible();
-  await expect(page.locator('a[href="/review"]')).toBeVisible();
-  await expect(page.locator('a[href="/classroom/join"]')).toBeVisible();
+  const studentMain=page.locator('main');
+  await expect(studentMain.locator('a[href="/learning"]')).toBeVisible();
+  await expect(studentMain.locator('a[href="/assessments"]')).toBeVisible();
+  await expect(studentMain.locator('a[href="/review"]')).toBeVisible();
+  await expect(studentMain.locator('a[href="/classroom/join"]')).toBeVisible();
   await expect(page.getByText('هذه الوجهة ستُنقل من الواجهة المرجعية في مرحلتها.')).toHaveCount(0);
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/student-dashboard-mobile.png',fullPage:true});
