@@ -65,6 +65,7 @@ test('public landing stays bounded on tablet and source-backed info pages are re
   await expect(page.getByRole('heading',{name:'كل ما تحتاجه للتفوق'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'محطات التفوق الذكي في منصة المئة'})).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/public-landing-tablet.png',fullPage:true});
   await page.goto('/privacy');
   await expect(page.getByRole('heading',{name:'سياسة الخصوصية'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'بيانات الحساب'})).toBeVisible();
