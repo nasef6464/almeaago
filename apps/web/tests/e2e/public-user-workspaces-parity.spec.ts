@@ -31,9 +31,15 @@ test('public landing restores the real platform identity on desktop',async({page
   await expect(page.getByRole('heading',{name:'حقق المئة في اختباراتك'})).toBeVisible();
   await expect(page.getByText('المنصة الأولى للقدرات والتحصيلي')).toBeVisible();
   await expect(page.getByRole('button',{name:'ابدأ التدريب مجانًا'})).toBeVisible();
-  await expect(page.getByRole('heading',{name:'من التأسيس إلى يوم الاختبار'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'كل ما تحتاجه للتفوق'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'الدورات الأكثر طلبًا'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'مقالات ومراجعات مهمة'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'لماذا يختار الطلاب منصة المئة؟'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'محطات التفوق الذكي في منصة المئة'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'قصص نجاح نعتز بها'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'الصورة التالية'})).toBeVisible();
+  await page.getByRole('button',{name:/النمط السيبراني الليلي/}).click();
+  await expect(page.getByText('بطل القدرات العامة')).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/public-landing-desktop.png',fullPage:true});
 });
@@ -56,7 +62,8 @@ test('public landing stays bounded on tablet and source-backed info pages are re
   await page.setViewportSize({width:820,height:1180});
   await page.goto('/');
 
-  await expect(page.getByRole('heading',{name:'من التأسيس إلى يوم الاختبار'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'كل ما تحتاجه للتفوق'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'محطات التفوق الذكي في منصة المئة'})).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.goto('/privacy');
   await expect(page.getByRole('heading',{name:'سياسة الخصوصية'})).toBeVisible();
