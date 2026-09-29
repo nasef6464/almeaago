@@ -79,4 +79,20 @@ Pre-documentation implementation checkpoint:
 - browser evidence artifact `11023457284`
 - digest `sha256:c8ee0da78b9a3c253aa232cd9582b144b8e45195b081bb930414baf414592bd8`
 
-The final documentation-inclusive PR head must independently pass all four gates before merge.
+## Final implementation closure
+
+PR #98 final documentation-inclusive head `6dc99794739d2e92c4804c4662265106c36ace47` passed:
+- Database CI `36548862250`
+- Backend CI `36548862299`
+- Frontend CI `36548862270`
+- Frontend E2E `36548862300` — **76/76**
+
+Final browser evidence:
+- artifact `11023742671`
+- digest `sha256:1a74e913ac7ef939df8e5f76a80bdb22d26fe2d2c78768d721d6d7c64d2d1fa5`
+
+PR #98 squash-merged as `1eec97776b27f22a77a6a9a743ea3a6be45000a4`.
+
+Final legacy delta re-check reached `4602952a6f68a61494227b945c3f534d7f36413a`. The delta is confined to Question Bank counters/canonical taxonomy integrity and does not change the public landing, static public pages, Student/Supervisor/Admin root workspace contracts, or typography baseline closed by this batch.
+
+Status: **TESTED / MERGED**. This is not `PARITY_PROVEN`; external/staging provider evidence and the later release gates remain open.
