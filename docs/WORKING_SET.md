@@ -88,3 +88,36 @@ Final documentation-inclusive head `6dc99794739d2e92c4804c4662265106c36ace47` pa
 
 ## Next global release-certification batch — External / staging provider evidence
 Verify only real externally observable evidence that internal CI cannot certify: configured provider connectivity/callback behavior, R2/CDN smoke where credentials exist, deployment release identity and live observability ingestion/alert path. Do not invent unavailable credentials or convert configuration into proof. Production-equivalent load/bandwidth, dated backup/restore/RPO-RTO and unresolved policy closure remain later independent gates.
+
+
+## ACTIVE OVERRIDE — Exact Legacy UI Transplant
+
+The previously listed next batch `External / staging provider evidence` is temporarily deferred until the owner-facing UI transplant is complete and accepted.
+
+Authoritative plan:
+`docs/visual-baseline/EXACT_LEGACY_UI_TRANSPLANT_PLAN.md`
+
+Evidence baseline:
+`docs/visual-baseline/exact-legacy-public-ui/`
+
+Current active sequence:
+1. UI-1 Shared visual foundation.
+2. UI-2 Public landing exact transplant.
+3. UI-3 Learning experience parity (**high priority; preserve the invested legacy learning UI**).
+4. UI-4 Learner workspace.
+5. UI-5 Teacher / Parent / School Director / Supervisor workspaces.
+6. UI-6 Admin/control panels.
+7. UI-7 Public/static/auth completeness.
+8. UI-8 Cross-page visual certification and cleanup.
+9. Resume External / Staging Provider Evidence only after owner-facing UI acceptance.
+
+Execution invariant:
+- Legacy UI/presentation is the visual source of truth.
+- Existing V2 Go/PostgreSQL/Redis/domain contracts are the functional source of truth.
+- Prefer frontend adapters/view-models over changing backend contracts.
+- No redesign, no simplified reinterpretation, no CSS patch stack.
+- Small accessibility/performance/responsive fixes are allowed only when the recognizable legacy interface remains unchanged.
+- Any backend gap must be independently source-proven and documented before changing a domain contract.
+
+Handoff requirement:
+Every agent (ChatGPT, Codex, Gemini/Antigravity, or another agent) must read the authoritative plan plus CURRENT_STATE/PARITY_MATRIX/WORKING_SET before modifying code, and continue from the first incomplete UI phase rather than inventing a new order.
