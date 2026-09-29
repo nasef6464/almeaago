@@ -1371,3 +1371,15 @@ Contract:
 - backend changes require a separately proven source-backed functional gap.
 
 Active order: shared visual foundation -> public landing -> Learning -> learner workspace -> role workspaces -> admin/control panels -> public/auth completeness -> cross-page visual certification -> resume staging.
+
+
+## Exact Legacy UI Transplant — UI-1/UI-2 implementation candidate
+PR #102 is the first source-transplant implementation slice under the authoritative Exact Legacy UI plan. It reads the legacy frontend itself (`Landing.tsx`, `Header.tsx`, `MainLayout.tsx`, `defaultArticles.ts`) and uses Antigravity PR #100 only as measurement/evidence support.
+
+The simplified V2 public landing is replaced by the legacy-compatible hero/carousel geometry, floating overlays, dark stats ribbon, Taxonomy path cards, course-shaped presentation area, article modal, Why Choose split layout, Daylight/Neon showcase switcher, dark testimonials and richer footer. Missing Daylight/Neon legacy WebP assets are copied into V2 runtime. No backend/schema/auth/RBAC/Commerce/Assessment owner contract is changed.
+
+Data-boundary exceptions remain explicit rather than fabricated: runtime HomepageSettings/PlatformFontSettings are still not a current V2 owner; public live student/rating/course-price truth is not invented where no canonical guest catalog exists. Full details: `docs/visual-baseline/EXACT_LEGACY_PUBLIC_UI_IMPLEMENTATION.md`.
+
+Pre-documentation candidate `671ac48b76507bc204f0b9200e0f66021fffbe46` passed Frontend CI `36613429864` and Frontend E2E `36613429627` (**76/76**), artifact `11054736391`, digest `sha256:436ca62d619095a196b5c9dbe416dd51cf7e1a213aeb5937d7fd9604397c4c9a`. Latest legacy re-check is `b93923cfdb1cd5bcb9bbb51e35422d1f9d52b400`; the delta after evidence snapshot changes no public Landing/Header/MainLayout/article source.
+
+Status remains **IMPLEMENTATION CANDIDATE** until the exact documentation-inclusive PR head passes Database CI, Backend CI, Frontend CI and Frontend E2E. After merge + closure docs, the first incomplete phase becomes **UI-3 Learning experience parity**.

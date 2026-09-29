@@ -121,3 +121,11 @@ Execution invariant:
 
 Handoff requirement:
 Every agent (ChatGPT, Codex, Gemini/Antigravity, or another agent) must read the authoritative plan plus CURRENT_STATE/PARITY_MATRIX/WORKING_SET before modifying code, and continue from the first incomplete UI phase rather than inventing a new order.
+
+
+## Active Exact Legacy UI checkpoint — UI-1/UI-2 public transplant
+PR #102 is active. The implementation is now based directly on the legacy frontend code rather than reinterpreting screenshots. Source files audited: `pages/Landing.tsx`, `components/Header.tsx`, `components/MainLayout.tsx`, `data/defaultArticles.ts`. PR #100 remains the geometry/screenshot baseline.
+
+Pre-doc candidate `671ac48b76507bc204f0b9200e0f66021fffbe46` passed Frontend CI `36613429864` and E2E `36613429627` (76/76; artifact `11054736391`, digest `436ca62d619095a196b5c9dbe416dd51cf7e1a213aeb5937d7fd9604397c4c9a`). Current legacy re-check `b93923cfdb1cd5bcb9bbb51e35422d1f9d52b400` changes no public visual source.
+
+Do not start a parallel redesign. Complete PR #102 on one exact documentation-inclusive SHA across all four gates, merge, create closure-doc PR, then start UI-3 Learning. Learning is the next high-priority protected interface and must be transplanted from its legacy source components over existing V2 Learning/Content APIs.

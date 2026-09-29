@@ -1,4 +1,3 @@
-import { Bell, LogIn, Menu, Radio, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Link,
@@ -13,7 +12,6 @@ import { ForgotPasswordPage } from '../features/auth/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '../features/auth/pages/ResetPasswordPage';
 import { VerifyEmailPage } from '../features/auth/pages/VerifyEmailPage';
 import { useAuth } from '../features/auth/state/AuthProvider';
-import { dashboardPathFor } from '../features/auth/utils/dashboard-path';
 import { ContentAdminPage } from '../features/content/pages/ContentAdminPage';
 import { AdminOverviewPage } from '../features/content/pages/AdminOverviewPage';
 import { AssessmentAdminPage } from '../features/assessment/pages/AssessmentAdminPage';
@@ -49,109 +47,10 @@ import { SchoolDirectorDashboardPage } from '../features/organizations/pages/Sch
 import { SupervisorDashboardPage } from '../features/organizations/pages/SupervisorDashboardPage';
 import { StudentDashboardPage } from '../features/learning/pages/StudentDashboardPage';
 import { PublicLandingPage } from '../features/public/pages/PublicLandingPage';
+import { LegacySiteHeader } from '../features/public/components/LegacySiteHeader';
 import { StaticInfoPage } from '../features/public/pages/StaticInfoPage';
 
 type ModalMode = 'login' | 'signup' | null;
-
-function SiteHeader({ onAuth }: { onAuth(mode: Exclude<ModalMode, null>): void }) {
-  const { user } = useAuth();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const dashboardHref = user ? dashboardPathFor(user) : '';
-
-  const navItems = user
-    ? [
-        { to: '/', label: 'الرئيسية' },
-        { to: '/learning', label: 'التعلم' },
-        { to: '/assessments', label: 'الاختبارات' },
-        { to: '/review', label: 'المراجعة' },
-        { to: '/reports', label: 'التقارير' },
-      ]
-    : [
-        { to: '/', label: 'الرئيسية' },
-        { to: '/#tracks', label: 'المسارات' },
-        { to: '/#why', label: 'لماذا المئة؟' },
-        { to: '/about', label: 'من نحن' },
-        { to: '/faq', label: 'الأسئلة الشائعة' },
-      ];
-
-  return (
-    <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/95 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-950/95">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-3 sm:h-20 sm:px-6 lg:px-8">
-        <Link to="/" className="flex min-w-0 items-center gap-2.5" onClick={() => setMenuOpen(false)}>
-          <div className="flex min-w-0 flex-col justify-center leading-tight">
-            <div className="flex min-w-0 items-center text-lg font-black text-amber-500 sm:text-2xl">
-              <span className="text-blue-900 dark:text-blue-400">منصة</span>
-              <span className="mx-1">المئة</span>
-            </div>
-            <span className="mt-0.5 text-[10px] font-bold leading-none tracking-tight text-gray-400 sm:text-xs">
-              قدرات & تحصيلي
-            </span>
-          </div>
-        </Link>
-
-        <nav aria-label="التنقل الرئيسي" className="hidden items-center gap-1 lg:flex">
-          {navItems.map((item) => (
-            <Link key={item.to} to={item.to} className="rounded-xl px-3 py-2 text-sm font-black text-slate-600 transition hover:bg-slate-50 hover:text-indigo-700">
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="flex items-center gap-2">
-          {user ? (
-            <>
-              <Link to={dashboardHref} className="hidden rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-black text-white sm:inline-flex">
-                لوحتي
-              </Link>
-              <Link to={user.roles.includes('teacher') ? '/school-teacher-dashboard' : '/classroom/join'} aria-label="الفصل الذكي" className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200">
-                <Radio size={18} />
-              </Link>
-              <Link to="/notifications" aria-label="الإشعارات" className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200">
-                <Bell size={18} />
-              </Link>
-              <div className="hidden max-w-32 truncate text-sm font-bold text-gray-700 xl:block dark:text-gray-200">{user.name}</div>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => onAuth('login')}
-              className="flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-3 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-600 sm:px-4"
-            >
-              <LogIn size={18} />
-              <span>تسجيل الدخول</span>
-            </button>
-          )}
-          <button
-            type="button"
-            aria-label={menuOpen ? 'إغلاق القائمة' : 'فتح القائمة'}
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((value) => !value)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 lg:hidden"
-          >
-            {menuOpen ? <X size={20}/> : <Menu size={20}/>}
-          </button>
-        </div>
-      </div>
-
-      {menuOpen ? (
-        <nav aria-label="التنقل الرئيسي للجوال" className="border-t border-slate-100 bg-white px-3 py-3 lg:hidden">
-          <div className="mx-auto grid max-w-7xl gap-1">
-            {user ? (
-              <Link to={dashboardHref} onClick={() => setMenuOpen(false)} className="rounded-xl bg-indigo-50 px-4 py-3 text-sm font-black text-indigo-700">
-                لوحتي
-              </Link>
-            ) : null}
-            {navItems.map((item) => (
-              <Link key={item.to} to={item.to} onClick={() => setMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50">
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        </nav>
-      ) : null}
-    </header>
-  );
-}
 
 function NotFoundPage() {
   return (
@@ -218,7 +117,7 @@ export function App() {
 
   return (
     <>
-      {!hideSiteHeader ? <SiteHeader onAuth={setManualMode} /> : null}
+      {!hideSiteHeader ? <LegacySiteHeader onAuth={setManualMode} /> : null}
 
       <Routes>
         <Route path="/" element={<PublicLandingPage onAuth={setManualMode} />} />
