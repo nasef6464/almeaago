@@ -176,3 +176,21 @@ PR #104 is **TESTED / MERGED**.
 
 ### Next active UI-3 surface
 Continue directly with `/review` using the exact legacy review components and interaction model over the current V2 Review/Learning/Assessment APIs. Do not reopen the Learning Space/Course Player slice unless a regression is proven.
+
+
+## Active UI-3 checkpoint — Review Library
+
+PR #106 is the active `/review` transplant batch.
+
+Protected legacy source:
+- `pages/Favorites.tsx` at legacy `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`.
+
+Pre-documentation implementation evidence:
+- head `6f97c071444dea524018864b3984060097c2ffe3`;
+- Frontend CI `36626299723`: PASS;
+- Frontend E2E `36626299755`: PASS 80/80;
+- artifact `11060292454`, digest `sha256:500cb9ef0cf8b6922f21d6b65bc22181918b1c823802ec4fef309d12c039b405`.
+
+Merge gate now: exact documentation-inclusive four-gate verification, then latest legacy re-check.
+
+Do not reopen the merged Learning Space/Course Player slice. After this Review Library slice closes, continue UI-3 directly with `/review/practice`.
