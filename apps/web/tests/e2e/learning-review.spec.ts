@@ -217,7 +217,10 @@ test('mobile review library shows mistake, mastery next action and toggles saved
   await expect(page.getByTestId('mastery-readiness')).toContainText('ثقة الأدلة');
   await expect(page.getByTestId('mastery-readiness')).toContainText('حداثة الأدلة');
   await expect(page.getByTestId('mastery-readiness')).toContainText('ليس توقعًا لدرجة اختبار خارجي');
+  await expect(page.getByText('الإجابة الصحيحة')).toHaveCount(0);
+  await page.getByRole('button', { name: 'إظهار الحل' }).click();
   await expect(page.getByText('الإجابة الصحيحة')).toBeVisible();
+  await expect(page.getByText('نجمع العددين.')).toBeVisible();
 
   const saveRequest = page.waitForRequest(
     (request) =>
@@ -229,4 +232,75 @@ test('mobile review library shows mistake, mastery next action and toggles saved
   await expect.poll(() => saveCalls).toBe(1);
 
   await page.screenshot({ path: 'test-results/learning-review-mobile.png', fullPage: true });
+});
+
+
+test('legacy favorites alias preserves review-library shell and scoped V2 truth on tablet', async ({ page }) => {
+  await auth(page);
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await page.route('**/api/v1/taxonomy/bootstrap?phase=core', (route) =>
+    json(route, {
+      paths: [{ id: 'path-1', code: 'QDR', name: 'القدرات', description: '', sortOrder: 1 }],
+      subjects: [{ id: 'subject-1', pathId: 'path-1', code: 'QNT', name: 'الكمي', sortOrder: 1 }],
+    }),
+  );
+  await page.route('**/api/v1/review/library?**', (route) =>
+    json(route, {
+      items: [{
+        card: {
+          cardId: 'card-legacy',
+          questionId: 'q-legacy',
+          questionVersion: 1,
+          pathId: 'path-1',
+          subjectId: 'subject-1',
+          reviewType: 'saved_review',
+          savedForReview: true,
+          savedAt: '2026-09-29T08:00:00Z',
+          hasMistake: false,
+          nextReviewAt: '2026-09-30T08:00:00Z',
+          skillIds: ['skill-1'],
+          updatedAt: '2026-09-29T08:00:00Z',
+        },
+        question: {
+          id: 'q-legacy',
+          version: 1,
+          type: 'mcq',
+          text: 'سؤال المراجعة المحفوظ',
+          imageAssetId: '',
+          imageAlt: '',
+          optionsEmbeddedInImage: false,
+          videoUrl: '',
+          difficulty: 'easy',
+          options: [{ index: 0, text: 'أ', assetId: '' }, { index: 1, text: 'ب', assetId: '' }],
+          correctOptionIndex: 1,
+          explanation: 'شرح محفوظ',
+          hint: '',
+          solvingStrategy: '',
+        },
+      }],
+      page: 1,
+      limit: 20,
+      hasMore: false,
+    }),
+  );
+  await page.route('**/api/v1/mastery/progress?**', (route) =>
+    json(route, { items: [], page: 1, limit: 8, hasMore: false }),
+  );
+  await page.route('**/api/v1/mastery/next-action?**', (route) => json(route, { item: null }));
+  await page.route('**/api/v1/mastery/readiness?**', (route) =>
+    json(route, { readiness: { score: 0, status: 'needs_measurement', mastery: 0, coverage: 0, evidenceConfidence: 0, recency: .5, totalSkills: 0, reliableSkills: 0, totalEvidence: 0, explanation: 'نحتاج أدلة أكثر.' } }),
+  );
+  await page.route('**/api/v1/mastery/goals?**', (route) =>
+    json(route, { items: [], page: 1, limit: 20, hasMore: false }),
+  );
+
+  await page.goto('/favorites?pathId=path-1&subjectId=subject-1&mode=saved');
+  await expect(page.getByTestId('legacy-review-library')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'أسئلتي للمراجعة' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'حفظتها للمراجعة' })).toHaveClass(/bg-white/);
+  await expect(page.getByText('سؤال المراجعة المحفوظ')).toBeVisible();
+  await expect(page.getByText('الإجابة الصحيحة')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'تدرّب على هذه الأسئلة' })).toHaveAttribute('href', '/review/practice?pathId=path-1&subjectId=subject-1&tab=saved');
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: 'test-results/learning-review-legacy-tablet.png', fullPage: true });
 });
