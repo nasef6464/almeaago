@@ -70,10 +70,10 @@ export function LearningSpacePage() {
   const currentSubject = taxonomy.subjects.find((item) => item.id === subjectId);
 
   useEffect(() => {
-    if (subjectId && !subjects.some((item) => item.id === subjectId)) {
+    if (subjectId && taxonomy.subjects.length > 0 && !subjects.some((item) => item.id === subjectId)) {
       setSubjectId('');
     }
-  }, [subjectId, subjects]);
+  }, [subjectId, subjects, taxonomy.subjects.length]);
 
   useEffect(() => {
     if (legacyPathId) return;
