@@ -214,9 +214,11 @@ export function PublicLandingPage({
             <div className="mt-1 text-xs font-bold text-slate-400">قدرات & تحصيلي</div>
           </div>
           <div className="flex flex-wrap gap-4 text-xs font-bold text-slate-500">
+            <Link to="/about" className="hover:text-indigo-700">من نحن</Link>
+            <Link to="/faq" className="hover:text-indigo-700">الأسئلة الشائعة</Link>
+            <Link to="/contact" className="hover:text-indigo-700">تواصل معنا</Link>
             <Link to="/privacy" className="hover:text-indigo-700">سياسة الخصوصية</Link>
             <Link to="/terms" className="hover:text-indigo-700">شروط الاستخدام</Link>
-            <Link to="/reports" className="hover:text-indigo-700">التقارير</Link>
           </div>
         </div>
       </footer>
