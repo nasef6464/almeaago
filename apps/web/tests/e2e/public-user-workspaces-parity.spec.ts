@@ -45,7 +45,7 @@ test('public landing is bounded on phone and opens the responsive menu',async({p
   await expect(page.getByRole('heading',{name:'حقق المئة في اختباراتك'})).toBeVisible();
   await page.getByRole('button',{name:'فتح القائمة'}).click();
   await expect(page.getByRole('navigation',{name:'التنقل الرئيسي للجوال'})).toBeVisible();
-  await expect(page.getByRole('link',{name:'التعلم'})).toBeVisible();
+  await expect(page.getByRole('navigation',{name:'التنقل الرئيسي للجوال'}).getByRole('link',{name:'التعلم',exact:true})).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/public-landing-mobile.png',fullPage:true});
 });
@@ -69,10 +69,10 @@ test('student dashboard is a real workspace hub instead of a placeholder',async(
   await page.goto('/dashboard');
 
   await expect(page.getByRole('heading',{name:'أهلًا طالب المئة'})).toBeVisible();
-  await expect(page.getByRole('link',{name:/مساحة التعلم/})).toBeVisible();
-  await expect(page.getByRole('link',{name:/الاختبارات/})).toBeVisible();
-  await expect(page.getByRole('link',{name:/المراجعة والإتقان/})).toBeVisible();
-  await expect(page.getByRole('link',{name:/الفصل الذكي/})).toBeVisible();
+  await expect(page.locator('a[href="/learning"]')).toBeVisible();
+  await expect(page.locator('a[href="/assessments"]')).toBeVisible();
+  await expect(page.locator('a[href="/review"]')).toBeVisible();
+  await expect(page.locator('a[href="/classroom/join"]')).toBeVisible();
   await expect(page.getByText('هذه الوجهة ستُنقل من الواجهة المرجعية في مرحلتها.')).toHaveCount(0);
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/student-dashboard-mobile.png',fullPage:true});
@@ -94,7 +94,7 @@ test('supervisor and admin roots expose real scoped workspaces',async({page})=>{
   await page.goto('/admin-dashboard');
 
   await expect(page.getByRole('heading',{name:'مركز إدارة منصة المئة'})).toBeVisible();
-  await expect(page.getByRole('link',{name:/المحتوى التعليمي/})).toBeVisible();
-  await expect(page.getByRole('link',{name:/العمليات والتدقيق/})).toBeVisible();
+  await expect(page.locator('main').getByRole('link',{name:/المحتوى التعليمي/})).toBeVisible();
+  await expect(page.locator('main').getByRole('link',{name:/العمليات والتدقيق/})).toBeVisible();
   await expect(page.getByText('هذه الوجهة ستُنقل من الواجهة المرجعية في مرحلتها.')).toHaveCount(0);
 });
