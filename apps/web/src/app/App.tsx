@@ -156,7 +156,9 @@ export function App() {
         <Route path="/assessment-results" element={<AssessmentResultsPage />} />
         <Route path="/assessment-results/:attemptId" element={<AssessmentResultsPage />} />
         <Route path="/learning" element={<LearningSpacePage />} />
+        <Route path="/category/:pathId" element={<LearningSpacePage />} />
         <Route path="/learning/courses/:courseId" element={<CourseLearningPage />} />
+        <Route path="/course/:courseId" element={<CourseLearningPage />} />
         <Route path="/review" element={<ReviewLibraryPage />} />
         <Route path="/review/practice" element={<ReviewPracticePage />} />
         <Route path="/plan" element={<StudyPlanPage />} />

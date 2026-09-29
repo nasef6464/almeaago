@@ -61,3 +61,20 @@ test('locked non-preview lesson is not opened and no progress request is sent',a
  await expect(page.getByRole('button',{name:/فيديو النسب/})).toBeDisabled();
  expect(progressRequests).toBe(0);
 });
+
+
+test('legacy course route renders transplanted player shell and remains bounded on desktop',async({page})=>{
+ await auth(page);
+ await page.setViewportSize({width:1440,height:1000});
+ await page.route('**/api/v1/learning-spaces/courses/course-1',r=>json(r,{course}));
+ await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-1',r=>json(r,{lesson}));
+ await page.route('**/api/v1/learning-progress/lessons/lesson-1?**',r=>json(r,{progress:{lessonId:'lesson-1',contextType:'course',courseId:'course-1',topicId:'',status:'in_progress',positionSeconds:25,completedAt:null,updatedAt:'2026-09-26T04:00:00Z'}}));
+ await page.route('**/media/sample.mp4',r=>r.fulfill({status:200,headers:{'Content-Type':'video/mp4'},body:''}));
+
+ await page.goto('/course/course-1?learn=1');
+ await expect(page.getByTestId('legacy-course-player')).toBeVisible();
+ await expect(page.getByRole('heading',{name:'فيديو النسب'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'تفعيل الوضع الليلي'})).toBeVisible();
+ await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+ await page.screenshot({path:'test-results/learning-course-legacy-desktop.png',fullPage:true});
+});
