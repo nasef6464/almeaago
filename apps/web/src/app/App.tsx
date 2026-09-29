@@ -1,4 +1,4 @@
-import { Bell, LogIn, Radio } from 'lucide-react';
+import { Bell, LogIn, Menu, Radio, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Link,
@@ -13,6 +13,7 @@ import { ForgotPasswordPage } from '../features/auth/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '../features/auth/pages/ResetPasswordPage';
 import { VerifyEmailPage } from '../features/auth/pages/VerifyEmailPage';
 import { useAuth } from '../features/auth/state/AuthProvider';
+import { dashboardPathFor } from '../features/auth/utils/dashboard-path';
 import { ContentAdminPage } from '../features/content/pages/ContentAdminPage';
 import { AssessmentAdminPage } from '../features/assessment/pages/AssessmentAdminPage';
 import { AssessmentAttemptPage } from '../features/assessment/pages/AssessmentAttemptPage';
@@ -44,16 +45,29 @@ import { OperationsAdminPage } from '../features/operations/pages/OperationsAdmi
 import { TaxonomyAdminPage } from '../features/taxonomy/pages/TaxonomyAdminPage';
 import { QuestionBankAdminPage } from '../features/questionbank/pages/QuestionBankAdminPage';
 import { SchoolDirectorDashboardPage } from '../features/organizations/pages/SchoolDirectorDashboardPage';
+import { SupervisorDashboardPage } from '../features/organizations/pages/SupervisorDashboardPage';
+import { StudentDashboardPage } from '../features/learning/pages/StudentDashboardPage';
+import { PublicLandingPage } from '../features/public/pages/PublicLandingPage';
 
 type ModalMode = 'login' | 'signup' | null;
 
 function SiteHeader({ onAuth }: { onAuth(mode: Exclude<ModalMode, null>): void }) {
   const { user } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const dashboardHref = user ? dashboardPathFor(user) : '';
+
+  const navItems = [
+    { to: '/', label: 'الرئيسية' },
+    { to: '/learning', label: 'التعلم' },
+    { to: '/assessments', label: 'الاختبارات' },
+    { to: '/review', label: 'المراجعة' },
+    { to: '/reports', label: 'التقارير' },
+  ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
+    <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/95 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-950/95">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-3 sm:h-20 sm:px-6 lg:px-8">
-        <Link to="/" className="flex min-w-0 items-center gap-2.5">
+        <Link to="/" className="flex min-w-0 items-center gap-2.5" onClick={() => setMenuOpen(false)}>
           <div className="flex min-w-0 flex-col justify-center leading-tight">
             <div className="flex min-w-0 items-center text-lg font-black text-amber-500 sm:text-2xl">
               <span className="text-blue-900 dark:text-blue-400">منصة</span>
@@ -65,43 +79,67 @@ function SiteHeader({ onAuth }: { onAuth(mode: Exclude<ModalMode, null>): void }
           </div>
         </Link>
 
-        {user ? (
-          <div className="flex items-center gap-2">
-            <Link to={user.roles.includes('teacher') ? '/school-teacher-dashboard' : '/classroom/join'} aria-label="الفصل الذكي" className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200">
-              <Radio size={18} />
+        <nav aria-label="التنقل الرئيسي" className="hidden items-center gap-1 lg:flex">
+          {navItems.map((item) => (
+            <Link key={item.to} to={item.to} className="rounded-xl px-3 py-2 text-sm font-black text-slate-600 transition hover:bg-slate-50 hover:text-indigo-700">
+              {item.label}
             </Link>
-            <Link to="/notifications" aria-label="الإشعارات" className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200">
-              <Bell size={18} />
-            </Link>
-            <div className="text-sm font-bold text-gray-700 dark:text-gray-200">{user.name}</div>
-          </div>
-        ) : (
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-2">
+          {user ? (
+            <>
+              <Link to={dashboardHref} className="hidden rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-black text-white sm:inline-flex">
+                لوحتي
+              </Link>
+              <Link to={user.roles.includes('teacher') ? '/school-teacher-dashboard' : '/classroom/join'} aria-label="الفصل الذكي" className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200">
+                <Radio size={18} />
+              </Link>
+              <Link to="/notifications" aria-label="الإشعارات" className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200">
+                <Bell size={18} />
+              </Link>
+              <div className="hidden max-w-32 truncate text-sm font-bold text-gray-700 xl:block dark:text-gray-200">{user.name}</div>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onAuth('login')}
+              className="flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-3 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-600 sm:px-4"
+            >
+              <LogIn size={18} />
+              <span>تسجيل الدخول</span>
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => onAuth('login')}
-            className="flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2.5 font-bold text-white transition-colors hover:bg-emerald-600"
+            aria-label={menuOpen ? 'إغلاق القائمة' : 'فتح القائمة'}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((value) => !value)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 lg:hidden"
           >
-            <LogIn size={18} />
-            <span>تسجيل الدخول</span>
+            {menuOpen ? <X size={20}/> : <Menu size={20}/>}
           </button>
-        )}
+        </div>
       </div>
-    </header>
-  );
-}
 
-function HomePage() {
-  return (
-    <main className="min-h-[calc(100vh-5rem)] bg-gray-50 px-4 py-12">
-      <section className="mx-auto max-w-5xl rounded-3xl border border-gray-100 bg-white p-8 shadow-sm">
-        <p className="text-sm font-black text-emerald-600">ALMEAA V2</p>
-        <h1 className="mt-2 text-3xl font-black text-gray-900">واجهة المنصة</h1>
-        <p className="mt-3 max-w-2xl leading-8 text-gray-500">
-          يتم نقل الواجهة الحالية شاشة بشاشة مع الحفاظ على الشكل والسلوك،
-          بينما يُعاد بناء المحرك الداخلي على Go وPostgreSQL.
-        </p>
-      </section>
-    </main>
+      {menuOpen ? (
+        <nav aria-label="التنقل الرئيسي للجوال" className="border-t border-slate-100 bg-white px-3 py-3 lg:hidden">
+          <div className="mx-auto grid max-w-7xl gap-1">
+            {user ? (
+              <Link to={dashboardHref} onClick={() => setMenuOpen(false)} className="rounded-xl bg-indigo-50 px-4 py-3 text-sm font-black text-indigo-700">
+                لوحتي
+              </Link>
+            ) : null}
+            {navItems.map((item) => (
+              <Link key={item.to} to={item.to} onClick={() => setMenuOpen(false)} className="rounded-xl px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50">
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </nav>
+      ) : null}
+    </header>
   );
 }
 
@@ -171,9 +209,9 @@ export function App() {
       {!hideSiteHeader ? <SiteHeader onAuth={setManualMode} /> : null}
 
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<HomePage />} />
-        <Route path="/signup" element={<HomePage />} />
+        <Route path="/" element={<PublicLandingPage onAuth={setManualMode} />} />
+        <Route path="/login" element={<PublicLandingPage onAuth={setManualMode} />} />
+        <Route path="/signup" element={<PublicLandingPage onAuth={setManualMode} />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
@@ -181,7 +219,7 @@ export function App() {
         <Route path="/privacy" element={<PlaceholderPage title="سياسة الخصوصية" />} />
         <Route path="/notifications" element={<NotificationInboxPage />} />
         <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/dashboard" element={<PlaceholderPage title="لوحة الطالب" />} />
+        <Route path="/dashboard" element={<StudentDashboardPage />} />
         <Route path="/admin-dashboard" element={<AdminDashboardShell><PlaceholderPage title="لوحة الإدارة" /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/content" element={<AdminDashboardShell><ContentAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/taxonomy" element={<AdminDashboardShell><TaxonomyAdminPage /></AdminDashboardShell>} />
@@ -213,7 +251,7 @@ export function App() {
         <Route path="/classroom/join" element={<ClassroomJoinPage />} />
         <Route path="/classroom/:sessionId" element={<ClassroomStudentPage />} />
         <Route path="/classroom/:sessionId/projector" element={<ClassroomProjectorPage />} />
-        <Route path="/supervisor-dashboard" element={<PlaceholderPage title="لوحة المشرف" />} />
+        <Route path="/supervisor-dashboard" element={<SupervisorDashboardPage />} />
         <Route path="/supervisor-dashboard/interventions" element={<SchoolInterventionsPage />} />
         <Route path="/school-director-dashboard" element={<SchoolDirectorDashboardPage />} />
         <Route path="/school-director-dashboard/interventions" element={<SchoolInterventionsPage />} />
