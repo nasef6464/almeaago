@@ -129,3 +129,10 @@ PR #102 is active. The implementation is now based directly on the legacy fronte
 Pre-doc candidate `671ac48b76507bc204f0b9200e0f66021fffbe46` passed Frontend CI `36613429864` and E2E `36613429627` (76/76; artifact `11054736391`, digest `436ca62d619095a196b5c9dbe416dd51cf7e1a213aeb5937d7fd9604397c4c9a`). Current legacy re-check `b93923cfdb1cd5bcb9bbb51e35422d1f9d52b400` changes no public visual source.
 
 Do not start a parallel redesign. Complete PR #102 on one exact documentation-inclusive SHA across all four gates, merge, create closure-doc PR, then start UI-3 Learning. Learning is the next high-priority protected interface and must be transplanted from its legacy source components over existing V2 Learning/Content APIs.
+
+
+## Closed Exact Legacy UI checkpoint — UI-1/UI-2
+PR #102 is **TESTED / MERGED**. Final docs-inclusive head `092e6031814311145fb8de94e2109bfef042bc8d` passed Database `36614045042`, Backend `36614044782`, Frontend `36614045115`, E2E `36614044693` (76/76). Artifact `11053883839`, digest `76a0c7184ba0192b7b906d07138005feecd1305c8916779545737372109c9515`; squash merge `9e60ec3fd2de52c07d999c6ffb51309035d0f4c9`. Legacy remained `b93923cfdb1cd5bcb9bbb51e35422d1f9d52b400`.
+
+### Next active UI phase — UI-3 Learning experience parity
+Do not redesign Learning. Read the legacy Learning source first, identify the exact route/component pair for each learner surface, and transplant presentation/interaction over canonical V2 Learning/Content APIs using frontend adapters. Priority surfaces begin with the legacy subject learning space and course/player journey, then review/results/study-plan/assessment learner flows. Preserve existing V2 server authorization, Commerce access authority, progress truth and assessment scoring.

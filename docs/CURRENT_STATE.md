@@ -1383,3 +1383,9 @@ Data-boundary exceptions remain explicit rather than fabricated: runtime Homepag
 Pre-documentation candidate `671ac48b76507bc204f0b9200e0f66021fffbe46` passed Frontend CI `36613429864` and Frontend E2E `36613429627` (**76/76**), artifact `11054736391`, digest `sha256:436ca62d619095a196b5c9dbe416dd51cf7e1a213aeb5937d7fd9604397c4c9a`. Latest legacy re-check is `b93923cfdb1cd5bcb9bbb51e35422d1f9d52b400`; the delta after evidence snapshot changes no public Landing/Header/MainLayout/article source.
 
 Status remains **IMPLEMENTATION CANDIDATE** until the exact documentation-inclusive PR head passes Database CI, Backend CI, Frontend CI and Frontend E2E. After merge + closure docs, the first incomplete phase becomes **UI-3 Learning experience parity**.
+
+
+## Exact Legacy UI Transplant — UI-1/UI-2 TESTED / MERGED
+PR #102 final documentation-inclusive head `092e6031814311145fb8de94e2109bfef042bc8d` passed Database CI `36614045042`, Backend CI `36614044782`, Frontend CI `36614045115`, and Frontend E2E `36614044693` (**76/76**). Browser artifact `11053883839`, digest `sha256:76a0c7184ba0192b7b906d07138005feecd1305c8916779545737372109c9515`. Final legacy re-check `b93923cfdb1cd5bcb9bbb51e35422d1f9d52b400` was identical to the implementation audit checkpoint. PR #102 squash-merged as `9e60ec3fd2de52c07d999c6ffb51309035d0f4c9`.
+
+The public source transplant is therefore **TESTED / MERGED**, not `PARITY_PROVEN`. Runtime HomepageSettings/PlatformFontSettings and guest public live Commerce/catalog metrics remain explicit capability/data-boundary gaps rather than fabricated truth. The first incomplete UI phase is now **UI-3 Learning experience parity**.
