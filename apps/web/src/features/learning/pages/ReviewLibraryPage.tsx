@@ -99,10 +99,14 @@ export function ReviewLibraryPage() {
   );
 
   useEffect(() => {
-    if (subjectId && !subjects.some((subject) => subject.id === subjectId)) {
+    if (
+      subjectId &&
+      taxonomy.subjects.length > 0 &&
+      !subjects.some((subject) => subject.id === subjectId)
+    ) {
       setSubjectId('');
     }
-  }, [subjectId, subjects]);
+  }, [subjectId, subjects, taxonomy.subjects.length]);
 
   useEffect(() => {
     setPage(1);
