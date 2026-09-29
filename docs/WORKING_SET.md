@@ -160,3 +160,19 @@ After PR #104 closes, continue UI-3 from the first incomplete protected surface:
 6. `/reports`.
 
 All remain presentation-transplant work unless a separately proven source-backed backend gap is recorded.
+
+
+## Closed UI-3 checkpoint — Learning Space + Course Player
+
+PR #104 is **TESTED / MERGED**.
+- final implementation head: `9429a08e53b0709eb0eda4916759628db4605cb4`;
+- Database `36624605777`: PASS;
+- Backend `36624605736`: PASS;
+- Frontend `36624605743`: PASS;
+- E2E `36624605925`: PASS 79/79;
+- artifact `11059419668`, digest `sha256:640f0c1fd3a32d9cd693320f6a85a741fe0c8856c72daadfe2c820b1a97282c0`;
+- merge: `b7d0ec811f4ddf5cb8547572b2ccfdda3bc1308c`;
+- final legacy re-check: `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`.
+
+### Next active UI-3 surface
+Continue directly with `/review` using the exact legacy review components and interaction model over the current V2 Review/Learning/Assessment APIs. Do not reopen the Learning Space/Course Player slice unless a regression is proven.

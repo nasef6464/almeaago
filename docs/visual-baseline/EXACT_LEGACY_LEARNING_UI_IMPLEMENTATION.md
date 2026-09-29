@@ -1,6 +1,6 @@
 # Exact Legacy Learning UI — UI-3 Implementation Certificate
 
-Status: **IMPLEMENTATION CANDIDATE — FINAL FOUR-GATE EXACT-HEAD VERIFICATION PENDING**
+Status: **TESTED / MERGED — UI-3 FIRST LEARNING SLICE**
 
 Authoritative plan:
 `docs/visual-baseline/EXACT_LEGACY_UI_TRANSPLANT_PLAN.md`
@@ -107,3 +107,23 @@ Before PR #104 can merge:
 6. PR must remain mergeable.
 
 Do not mark this slice TESTED / MERGED until those conditions are actually satisfied.
+
+
+## Final implementation closure
+
+The documentation-inclusive implementation head `9429a08e53b0709eb0eda4916759628db4605cb4` passed all required gates on the exact same SHA:
+- Database CI `36624605777`: **PASS**.
+- Backend CI `36624605736`: **PASS**.
+- Frontend CI `36624605743`: **PASS**.
+- Frontend E2E `36624605925`: **PASS — 79/79**.
+- final browser artifact `11059419668`.
+- artifact digest `sha256:640f0c1fd3a32d9cd693320f6a85a741fe0c8856c72daadfe2c820b1a97282c0`.
+
+Immediately before merge:
+- V2 main remained `f847bb6f1c3790f6804d4bd9e3698990cf88bf2e` with no base drift.
+- latest legacy main remained `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`; no newer Learning presentation delta appeared after the audited source checkpoint.
+- PR #104 remained mergeable.
+
+PR #104 squash-merged as `b7d0ec811f4ddf5cb8547572b2ccfdda3bc1308c`.
+
+This closes only the first UI-3 slice (Learning Space + Course Player). The next protected incomplete surface is `/review`; UI-3 as a whole remains active.
