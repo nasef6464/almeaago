@@ -30,12 +30,6 @@ import {
   type SkillProgress,
 } from '../api/learning-client';
 
-const tabLabels: Record<ReviewTab, string> = {
-  all: 'الكل',
-  mistakes: 'أخطأت فيها',
-  saved: 'حفظتها للمراجعة',
-};
-
 const legacyReviewTabs: Array<[ReviewTab, string]> = [
   ['saved', 'حفظتها للمراجعة'],
   ['mistakes', 'أخطأت فيها'],
