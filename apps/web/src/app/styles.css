@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 :root {
+  --platform-font-body: "Tajawal";
+  --platform-font-heading: "Tajawal";
+  --platform-font-navigation: "Tajawal";
+  --platform-font-button: "Tajawal";
   font-family: var(--platform-font-body), "Tajawal", ui-sans-serif, system-ui, sans-serif;
   color: #111827;
   background: #f9fafb;
@@ -37,4 +41,23 @@ select {
 
 button {
   -webkit-tap-highlight-color: transparent;
+}
+
+
+h1,
+h2,
+h3,
+.platform-heading-font {
+  font-family: var(--platform-font-heading), var(--platform-font-body), "Tajawal", ui-sans-serif, system-ui, sans-serif;
+}
+
+header,
+header a,
+header button {
+  font-family: var(--platform-font-navigation), var(--platform-font-body), "Tajawal", ui-sans-serif, system-ui, sans-serif;
+}
+
+button,
+.platform-button-font {
+  font-family: var(--platform-font-button), var(--platform-font-body), "Tajawal", ui-sans-serif, system-ui, sans-serif;
 }
