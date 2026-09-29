@@ -61,3 +61,48 @@ button,
 .platform-button-font {
   font-family: var(--platform-font-button), var(--platform-font-body), "Tajawal", ui-sans-serif, system-ui, sans-serif;
 }
+
+
+@keyframes legacy-blob-motion {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(24px, -32px) scale(1.08); }
+  66% { transform: translate(-20px, 18px) scale(0.94); }
+}
+
+@keyframes legacy-float-motion {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes legacy-bounce-motion {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.legacy-blob {
+  animation: legacy-blob-motion 8s ease-in-out infinite;
+}
+
+.legacy-delay-2000 {
+  animation-delay: 2s;
+}
+
+.legacy-delay-4000 {
+  animation-delay: 4s;
+}
+
+.legacy-float {
+  animation: legacy-float-motion 4s ease-in-out infinite;
+}
+
+.legacy-bounce {
+  animation: legacy-bounce-motion 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .legacy-blob,
+  .legacy-float,
+  .legacy-bounce {
+    animation: none;
+  }
+}
