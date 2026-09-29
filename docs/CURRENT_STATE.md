@@ -1350,3 +1350,24 @@ Pre-documentation candidate head `62f6008c8960d6027ef5f356c398263a5289af26` pass
 Boundary: this visual migration does **not** claim the legacy runtime-configurable HomepageSettings / PlatformFontSettings administration has been rebuilt in V2; unavailable admin presentation-management routes remain explicit future/source-backed work rather than fake controls. It also does not change auth, owner-domain rules, database schema, scoring, commerce or external-provider evidence.
 
 Final documentation-inclusive PR #98 head `6dc99794739d2e92c4804c4662265106c36ace47` passed Database CI `36548862250`, Backend CI `36548862299`, Frontend CI `36548862270`, and Frontend E2E `36548862300` (**76/76**). Browser artifact `11023742671`, digest `sha256:1a74e913ac7ef939df8e5f76a80bdb22d26fe2d2c78768d721d6d7c64d2d1fa5`; PR #98 squash-merged as `1eec97776b27f22a77a6a9a743ea3a6be45000a4`. Final legacy re-check reached `4602952a6f68a61494227b945c3f534d7f36413a`; that one-commit delta is Question Bank counter/canonical-taxonomy hardening only and does not change this public/workspace visual contract. Status is **TESTED / MERGED**, not `PARITY_PROVEN`.
+
+
+## Active owner-acceptance phase — Exact Legacy UI Transplant
+The release sequence is temporarily prioritizing exact owner-facing UI restoration before External/Staging Provider Evidence.
+
+Authoritative plan:
+`docs/visual-baseline/EXACT_LEGACY_UI_TRANSPLANT_PLAN.md`
+
+Evidence baseline:
+`docs/visual-baseline/exact-legacy-public-ui/`
+
+Contract:
+- legacy presentation is the visual source of truth;
+- current V2 Go/PostgreSQL/Redis/domain APIs remain the functional source of truth;
+- use frontend adapters/view-models where legacy presentation shape differs from V2 DTOs;
+- do not redesign or simplify invested legacy interfaces, especially Learning surfaces;
+- small accessibility/performance/responsive fixes are allowed only when they preserve the recognizable legacy interface;
+- runtime HomepageSettings/PlatformFontSettings are not claimed as current V2 capabilities and must not be fabricated;
+- backend changes require a separately proven source-backed functional gap.
+
+Active order: shared visual foundation -> public landing -> Learning -> learner workspace -> role workspaces -> admin/control panels -> public/auth completeness -> cross-page visual certification -> resume staging.

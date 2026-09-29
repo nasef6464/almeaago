@@ -95,15 +95,24 @@ In the legacy architecture, the homepage dynamically merges three tiers of confi
 
 ---
 
-## 3. Data Flow Diagram
+## 3. Legacy data flow vs V2 target boundary
+
+> Important: the diagram below describes the **legacy behavior / potential future V2 presentation-management target**. It is **not evidence that current ALMEAA Go already exposes a canonical `GET /api/v1/homepage/settings` endpoint or a HomepageSettings persistence owner**.
 
 ```mermaid
 graph TD
-    A[Admin Dashboard / Homepage Manager] -->|Save Settings| B[(PostgreSQL / Config Store)]
-    B -->|GET /api/v1/homepage/settings| C[Landing Page State]
+    A[Legacy Admin Dashboard / Homepage Manager] -->|Legacy save behavior| B[(Legacy settings owner)]
+    B -->|Legacy homepage settings read| C[Legacy Landing Page State]
     D[Local Code Defaults] -->|Fallback| C
-    E[Taxonomy API] -->|Paths & Subjects| C
-    F[Courses API] -->|Published Courses| C
-    G[Question Bank API] -->|Question Counters| C
-    C --> H[Rendered Exact UI]
+    E[Taxonomy/Course/Content data] --> C
+    C --> H[Rendered Legacy UI]
+
+    V[V2 canonical domain APIs] --> P[V2 presentation adapters]
+    P --> N[Transplanted legacy-looking UI]
 ```
+
+Current V2 rule:
+- preserve the source-backed default visual result;
+- consume existing canonical V2 APIs for real business data;
+- do not fabricate HomepageSettings persistence or admin controls;
+- if runtime homepage presentation management is implemented later, it requires an explicit V2 owner/API and its own evidence.
