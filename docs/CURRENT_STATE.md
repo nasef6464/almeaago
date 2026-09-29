@@ -1424,3 +1424,24 @@ Merge status:
 - the same final documentation-inclusive SHA must still pass Database, Backend, Frontend and Frontend E2E.
 - latest legacy must be re-checked immediately before merge.
 - after this slice, the first incomplete protected Learning surface is `/review`.
+
+
+## Exact Legacy UI — UI-3 Learning first slice — TESTED / MERGED
+
+PR #104 final documentation-inclusive head `9429a08e53b0709eb0eda4916759628db4605cb4` passed the required exact-head gates:
+- Database CI `36624605777`: PASS.
+- Backend CI `36624605736`: PASS.
+- Frontend CI `36624605743`: PASS.
+- Frontend E2E `36624605925`: PASS 79/79.
+- browser artifact `11059419668`, digest `sha256:640f0c1fd3a32d9cd693320f6a85a741fe0c8856c72daadfe2c820b1a97282c0`.
+
+Final legacy re-check remained `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`; V2 main had no pre-merge drift. PR #104 squash-merged as `b7d0ec811f4ddf5cb8547572b2ccfdda3bc1308c`.
+
+Closed in this slice:
+- legacy-compatible subject Learning Space and five-tab learner vocabulary over bounded V2 APIs;
+- legacy `/category/:pathId` compatibility;
+- legacy-compatible Course Player shell and `/course/:courseId` compatibility;
+- responsive 390 / 820 / 1440 evidence;
+- current V2 Commerce locking and Learning progress authority preserved.
+
+UI-3 remains active. First incomplete protected surface: `/review`, then `/review/practice`, `/plan`, learner Assessment/results, and `/reports`.
