@@ -160,6 +160,7 @@ export function App() {
         <Route path="/learning/courses/:courseId" element={<CourseLearningPage />} />
         <Route path="/course/:courseId" element={<CourseLearningPage />} />
         <Route path="/review" element={<ReviewLibraryPage />} />
+        <Route path="/favorites" element={<ReviewLibraryPage />} />
         <Route path="/review/practice" element={<ReviewPracticePage />} />
         <Route path="/plan" element={<StudyPlanPage />} />
         <Route path="/school-teacher-dashboard" element={<ClassroomTeacherPage />} />
