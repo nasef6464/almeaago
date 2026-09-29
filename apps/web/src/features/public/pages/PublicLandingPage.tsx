@@ -167,9 +167,9 @@ export function PublicLandingPage({
           <div className="grid gap-8 lg:grid-cols-[.85fr_1.15fr] lg:items-start">
             <div>
               <div className="inline-flex items-center gap-2 text-xs font-black text-emerald-700"><GraduationCap size={17}/>لماذا منصة المئة؟</div>
-              <h2 className="mt-3 text-3xl font-black leading-tight">تجربة عربية واضحة للطالب والمدرسة وولي الأمر</h2>
+              <h2 className="mt-3 text-3xl font-black leading-tight">لماذا يختار الطلاب منصة المئة؟</h2>
               <p className="mt-4 text-sm font-medium leading-8 text-slate-600">
-                لا نقدم شاشة واحدة معزولة؛ كل مساحة تقود إلى وظيفة فعلية في المنصة مع حدود صلاحية واضحة واستجابة مناسبة للجوال والتابلت والكمبيوتر.
+                نحن لا نقدم مجرد دورات، بل نقدم نظامًا تعليميًا متكاملًا يساعدك على الفهم العميق، التدريب المستمر، وتحليل الأداء بطريقة بسيطة وفعالة.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -182,6 +182,30 @@ export function PublicLandingPage({
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl text-center">
+          <div className="text-xs font-black text-amber-600">تجارب الطلاب</div>
+          <h2 className="mt-2 text-3xl font-black text-slate-950">قصص نجاح نعتز بها</h2>
+          <p className="mt-2 text-sm font-bold text-slate-500">انضم لآلاف الطلاب الذين حققوا أحلامهم معنا</p>
+        </div>
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          {[
+            { name: 'سارة العتيبي', degree: '98% قدرات', text: 'المنصة غيرت طريقة مذاكرتي تمامًا. تحليل نقاط الضعف ساعدني أركز جهدي في المكان الصح.' },
+            { name: 'فهد الشمري', degree: '96% تحصيلي', text: 'الشروحات والتدريبات كانت مرتبة جدًا وواضحة، وحسيت فعلًا أن عندي خطة كاملة وليست مجرد دروس.' },
+            { name: 'نورة السالم', degree: '99% قدرات', text: 'الاختبارات المحاكية كانت قريبة جدًا من الاختبار الحقيقي، وهذا رفع ثقتي قبل يوم الاختبار.' },
+          ].map((item) => (
+            <article key={item.name} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+              <div className="text-4xl font-black leading-none text-indigo-100">“</div>
+              <p className="mt-2 text-sm font-bold leading-7 text-slate-600">{item.text}</p>
+              <div className="mt-5 border-t border-slate-100 pt-4">
+                <div className="font-black text-slate-900">{item.name}</div>
+                <div className="mt-1 text-xs font-black text-amber-600">{item.degree}</div>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
 
