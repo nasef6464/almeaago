@@ -11,7 +11,7 @@ import {
   Target,
   User,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
@@ -47,6 +47,7 @@ export function LearningSpacePage() {
   const [space, setSpace] = useState<LearningSpace | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const learningRequestRef = useRef<{ key: string; promise: Promise<LearningSpace> } | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -93,22 +94,36 @@ export function LearningSpacePage() {
       return;
     }
 
-    const controller = new AbortController();
+    let active = true;
+    const requestKey = `${pathId}:${subjectId}`;
+    const request = learningRequestRef.current?.key === requestKey
+      ? learningRequestRef.current.promise
+      : contentClient.learningSpace(pathId, subjectId, 50);
+
+    learningRequestRef.current = { key: requestKey, promise: request };
     setBusy(true);
     setError('');
-    contentClient.learningSpace(pathId, subjectId, 50, controller.signal)
-      .then(setSpace)
+
+    request
+      .then((nextSpace) => {
+        if (active) setSpace(nextSpace);
+      })
       .catch((reason) => {
-        if (!controller.signal.aborted) {
+        if (active) {
           setSpace(null);
           setError(reason instanceof Error ? reason.message : 'تعذر تحميل مساحة التعلم');
         }
       })
       .finally(() => {
-        if (!controller.signal.aborted) setBusy(false);
+        if (learningRequestRef.current?.promise === request) {
+          learningRequestRef.current = null;
+        }
+        if (active) setBusy(false);
       });
 
-    return () => controller.abort();
+    return () => {
+      active = false;
+    };
   }, [pathId, subjectId]);
 
   if (authLoading) {
