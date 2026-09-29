@@ -46,7 +46,7 @@ test('public landing is bounded on phone and opens the responsive menu',async({p
   await expect(page.getByRole('heading',{name:'حقق المئة في اختباراتك'})).toBeVisible();
   await page.getByRole('button',{name:'فتح القائمة'}).click();
   await expect(page.getByRole('navigation',{name:'التنقل الرئيسي للجوال'})).toBeVisible();
-  await expect(page.getByRole('navigation',{name:'التنقل الرئيسي للجوال'}).getByRole('link',{name:'التعلم',exact:true})).toBeVisible();
+  await expect(page.getByRole('navigation',{name:'التنقل الرئيسي للجوال'}).getByRole('link',{name:'المسارات',exact:true})).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/public-landing-mobile.png',fullPage:true});
 });
