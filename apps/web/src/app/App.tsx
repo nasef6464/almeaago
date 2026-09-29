@@ -49,6 +49,7 @@ import { SchoolDirectorDashboardPage } from '../features/organizations/pages/Sch
 import { SupervisorDashboardPage } from '../features/organizations/pages/SupervisorDashboardPage';
 import { StudentDashboardPage } from '../features/learning/pages/StudentDashboardPage';
 import { PublicLandingPage } from '../features/public/pages/PublicLandingPage';
+import { StaticInfoPage } from '../features/public/pages/StaticInfoPage';
 
 type ModalMode = 'login' | 'signup' | null;
 
@@ -144,12 +145,14 @@ function SiteHeader({ onAuth }: { onAuth(mode: Exclude<ModalMode, null>): void }
   );
 }
 
-function PlaceholderPage({ title }: { title: string }) {
+function NotFoundPage() {
   return (
-    <main className="min-h-[calc(100vh-5rem)] bg-gray-50 px-4 py-10">
-      <section className="mx-auto max-w-xl rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-black text-gray-900">{title}</h1>
-        <p className="mt-2 text-sm text-gray-500">هذه الوجهة ستُنقل من الواجهة المرجعية في مرحلتها.</p>
+    <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 px-4 py-16">
+      <section className="mx-auto max-w-xl rounded-3xl border border-slate-100 bg-white p-7 text-center shadow-sm">
+        <div className="text-xs font-black text-indigo-600">404</div>
+        <h1 className="mt-2 text-2xl font-black text-slate-950">الصفحة غير موجودة</h1>
+        <p className="mt-2 text-sm font-bold leading-7 text-slate-500">تحقق من الرابط أو ارجع للصفحة الرئيسية.</p>
+        <Link to="/" className="mt-5 inline-flex rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white">العودة للرئيسية</Link>
       </section>
     </main>
   );
@@ -216,8 +219,11 @@ export function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
-        <Route path="/terms" element={<PlaceholderPage title="شروط الاستخدام" />} />
-        <Route path="/privacy" element={<PlaceholderPage title="سياسة الخصوصية" />} />
+        <Route path="/terms" element={<StaticInfoPage kind="terms" />} />
+        <Route path="/privacy" element={<StaticInfoPage kind="privacy" />} />
+        <Route path="/about" element={<StaticInfoPage kind="about" />} />
+        <Route path="/contact" element={<StaticInfoPage kind="contact" />} />
+        <Route path="/faq" element={<StaticInfoPage kind="faq" />} />
         <Route path="/notifications" element={<NotificationInboxPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/dashboard" element={<StudentDashboardPage />} />
@@ -257,7 +263,7 @@ export function App() {
         <Route path="/school-director-dashboard" element={<SchoolDirectorDashboardPage />} />
         <Route path="/school-director-dashboard/interventions" element={<SchoolInterventionsPage />} />
         <Route path="/parent-dashboard" element={<ParentDashboardPage />} />
-        <Route path="*" element={<PlaceholderPage title="الصفحة قيد النقل" />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
 
       <AuthModal
