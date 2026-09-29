@@ -58,13 +58,21 @@ function SiteHeader({ onAuth }: { onAuth(mode: Exclude<ModalMode, null>): void }
   const [menuOpen, setMenuOpen] = useState(false);
   const dashboardHref = user ? dashboardPathFor(user) : '';
 
-  const navItems = [
-    { to: '/', label: 'الرئيسية' },
-    { to: '/learning', label: 'التعلم' },
-    { to: '/assessments', label: 'الاختبارات' },
-    { to: '/review', label: 'المراجعة' },
-    { to: '/reports', label: 'التقارير' },
-  ];
+  const navItems = user
+    ? [
+        { to: '/', label: 'الرئيسية' },
+        { to: '/learning', label: 'التعلم' },
+        { to: '/assessments', label: 'الاختبارات' },
+        { to: '/review', label: 'المراجعة' },
+        { to: '/reports', label: 'التقارير' },
+      ]
+    : [
+        { to: '/', label: 'الرئيسية' },
+        { to: '/#tracks', label: 'المسارات' },
+        { to: '/#why', label: 'لماذا المئة؟' },
+        { to: '/about', label: 'من نحن' },
+        { to: '/faq', label: 'الأسئلة الشائعة' },
+      ];
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/95 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-950/95">
