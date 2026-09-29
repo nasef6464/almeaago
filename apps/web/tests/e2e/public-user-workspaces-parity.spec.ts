@@ -32,7 +32,8 @@ test('public landing restores the real platform identity on desktop',async({page
   await expect(page.getByText('المنصة الأولى للقدرات والتحصيلي')).toBeVisible();
   await expect(page.getByRole('button',{name:'ابدأ التدريب مجانًا'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'من التأسيس إلى يوم الاختبار'})).toBeVisible();
-  await expect(page.getByRole('heading',{name:'تجربة عربية واضحة للطالب والمدرسة وولي الأمر'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'لماذا يختار الطلاب منصة المئة؟'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'قصص نجاح نعتز بها'})).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/public-landing-desktop.png',fullPage:true});
 });
