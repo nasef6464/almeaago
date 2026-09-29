@@ -1389,3 +1389,38 @@ Status remains **IMPLEMENTATION CANDIDATE** until the exact documentation-inclus
 PR #102 final documentation-inclusive head `092e6031814311145fb8de94e2109bfef042bc8d` passed Database CI `36614045042`, Backend CI `36614044782`, Frontend CI `36614045115`, and Frontend E2E `36614044693` (**76/76**). Browser artifact `11053883839`, digest `sha256:76a0c7184ba0192b7b906d07138005feecd1305c8916779545737372109c9515`. Final legacy re-check `b93923cfdb1cd5bcb9bbb51e35422d1f9d52b400` was identical to the implementation audit checkpoint. PR #102 squash-merged as `9e60ec3fd2de52c07d999c6ffb51309035d0f4c9`.
 
 The public source transplant is therefore **TESTED / MERGED**, not `PARITY_PROVEN`. Runtime HomepageSettings/PlatformFontSettings and guest public live Commerce/catalog metrics remain explicit capability/data-boundary gaps rather than fabricated truth. The first incomplete UI phase is now **UI-3 Learning experience parity**.
+
+
+## Exact Legacy UI — UI-3 Learning first slice — IMPLEMENTATION CANDIDATE
+
+PR #104 transplants the first protected Learning presentation slice directly from the audited legacy sources while retaining current V2 ownership.
+
+Checkpoint:
+- base main: `f847bb6f1c3790f6804d4bd9e3698990cf88bf2e`;
+- legacy source checkpoint used by the slice: `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`;
+- implementation head before documentation: `36919c417574b48a2a80d57336ac79530e8d3822`;
+- change type: presentation-only; no backend/schema/auth/RBAC/Commerce scoring change.
+
+Implemented:
+- legacy-compatible `/category/:pathId` Learning Space route over existing bounded V2 Taxonomy/Content APIs;
+- five protected learner areas: courses, foundation, training, assessments and library;
+- legacy-compatible `/course/:courseId` route over the existing V2 Course Learning runtime;
+- transplanted sticky player header, responsive module sidebar/drawer, module accordion, night mode, locked lesson treatment and previous/next navigation;
+- existing Learning progress remains server-owned, including resume position and explicit completion;
+- existing Commerce projection remains authoritative for paid/locked content;
+- in-flight dedupe prevents React development StrictMode from issuing a duplicate Learning Space read for the same deep link.
+
+Pre-documentation verification on `36919c417574b48a2a80d57336ac79530e8d3822`:
+- Frontend CI `36624050679`: PASS.
+- Frontend E2E `36624050812`: PASS 79/79.
+- artifact `11058834343`, digest `sha256:047c7deb7f3c13faf0a401df472c1d9267242f062d1e4ee083dfc65d82f22423`.
+- deterministic evidence covers 390 / 820 / 1440 changed surfaces and horizontal-overflow checks.
+
+Certificate:
+`docs/visual-baseline/EXACT_LEGACY_LEARNING_UI_IMPLEMENTATION.md`.
+
+Merge status:
+- **NOT YET TESTED/MERGED** at this checkpoint.
+- the same final documentation-inclusive SHA must still pass Database, Backend, Frontend and Frontend E2E.
+- latest legacy must be re-checked immediately before merge.
+- after this slice, the first incomplete protected Learning surface is `/review`.
