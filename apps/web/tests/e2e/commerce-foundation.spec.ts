@@ -69,12 +69,14 @@ test('mobile learner gets preview only until Commerce grants the paid course',as
 
  await page.goto('/learning/courses/course-1');
  await expect(page.getByTestId('course-commerce-lock')).toBeVisible();
+ await page.getByRole('button',{name:'فتح قائمة الدروس'}).click();
  await expect(page.getByRole('button',{name:/الدرس المدفوع/})).toBeDisabled();
  await expect(page.getByText('محتوى معاينة')).toBeVisible();
 
  granted=true;
  await page.reload();
  await expect(page.getByTestId('course-commerce-lock')).toHaveCount(0);
+ await page.getByRole('button',{name:'فتح قائمة الدروس'}).click();
  await expect(page.getByRole('button',{name:/الدرس المدفوع/})).toBeEnabled();
  await page.getByRole('button',{name:/الدرس المدفوع/}).click();
  await expect(page.getByText('محتوى مدفوع')).toBeVisible();
