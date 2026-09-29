@@ -16,13 +16,11 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/state/AuthProvider';
 import { dashboardPathFor } from '../../auth/utils/dashboard-path';
 
-const LEGACY_ASSET_BASE = 'https://almeaacodax.vercel.app/images';
-
 const showcase = [
   {
     title: 'استوديو التعلم والانطلاق الذكي',
     description: 'مساحة موحدة للدورات والتأسيس وملفات الدعم المعتمدة، مع انتقال مباشر من التعلم إلى القياس والمراجعة.',
-    image: LEGACY_ASSET_BASE + '/smart-learning-tablet.webp',
+    image: '/images/smart-learning-tablet.webp',
     alt: 'طالب منصة المئة يتدرب على التابلت مع مؤشرات حية',
     href: '/learning',
     label: 'مساحة التعلم',
@@ -30,7 +28,7 @@ const showcase = [
   {
     title: 'إتقان القدرات والمسائل الكمية',
     description: 'تأسيس وتدريب منظم حسب المسار والمادة، مع قياس يحافظ على مرجعية السؤال والمهارة.',
-    image: LEGACY_ASSET_BASE + '/daylight-qudrat-math.webp',
+    image: '/images/daylight-qudrat-math.webp',
     alt: 'إتقان القدرات العامة والمسائل الكمية - منصة المئة',
     href: '/learning',
     label: 'مسار القدرات',
@@ -38,7 +36,7 @@ const showcase = [
   {
     title: 'مختبر التحصيلي العلمي',
     description: 'مساحة تعلم للرياضيات والفيزياء والكيمياء والأحياء مرتبطة بالمحتوى والاختبارات والمراجعة.',
-    image: LEGACY_ASSET_BASE + '/daylight-tahsili-science.webp',
+    image: '/images/daylight-tahsili-science.webp',
     alt: 'مختبر التحصيلي العلمي - منصة المئة',
     href: '/learning',
     label: 'مسار التحصيلي',
@@ -46,7 +44,7 @@ const showcase = [
   {
     title: 'محاكاة الاختبارات والقياس',
     description: 'اختبارات ومحاولات ونتائج ومراجعة في رحلة واحدة، مع تصحيح ودرجة مصدرهما الخادم.',
-    image: LEGACY_ASSET_BASE + '/daylight-mock-simulation.webp',
+    image: '/images/daylight-mock-simulation.webp',
     alt: 'محاكاة اختبارات قياس - منصة المئة',
     href: '/assessments',
     label: 'الاختبارات',
@@ -118,7 +116,7 @@ export function PublicLandingPage({
               <div className="absolute inset-5 rounded-[2.5rem] bg-gradient-to-tr from-indigo-500/20 to-amber-400/30 blur-2xl" />
               <div className="relative overflow-hidden rounded-[2rem] border border-white bg-white p-2 shadow-2xl shadow-slate-200">
                 <img
-                  src={LEGACY_ASSET_BASE + '/homepage-hero-boy-platform.webp'}
+                  src={'/images/homepage-hero-boy-platform.webp'}
                   alt="طالب يستخدم منصة المئة"
                   className="aspect-[4/3] w-full rounded-[1.6rem] object-cover object-center"
                 />
