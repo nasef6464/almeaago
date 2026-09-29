@@ -1334,3 +1334,17 @@ The requested visual phase was narrowed explicitly to control panels: the public
 ## Next exact action
 Proceed to **external/staging provider evidence** only after this independent documentation closure is green/merged. The purpose of that phase is to verify real staging/deployment integrations and evidence that CI mocks cannot prove—provider connectivity/callbacks where configured, R2/CDN behavior, release identity/observability ingestion and other explicitly external proof—without fabricating credentials or production success. Load/bandwidth, dated restore/RPO-RTO and unresolved policy closure remain separate later gates.
 
+
+## Public site + user workspace visual migration — IMPLEMENTED / FINAL CERTIFICATION RUN PENDING
+PR #98 replaces the V2 public placeholder debt that was intentionally outside the earlier dashboard-only visual batch. The implementation is source-backed from the read-only legacy public presentation and V2 UI workflow map:
+- the root public page now restores the Platform identity, source-backed hero copy, showcase imagery, why-choose section, testimonials, CTA and public footer instead of the temporary `ALMEAA V2 / واجهة المنصة` card;
+- the five legacy presentation images used by the restored landing are copied into V2 static assets, so the new runtime does not depend on the legacy deployment;
+- Tajawal is again actually loaded at weights 300/400/500/700/800/900 and remains the default body/heading/navigation/button family;
+- guest navigation remains public-only; authenticated users receive the canonical learning/assessment/review/report links;
+- source-backed About / Contact / FAQ / Privacy / Terms routes replace generic placeholders, and an unknown route now has an explicit 404;
+- Student, Supervisor and Admin root placeholders are replaced with role-guarded workspace hubs that point only to already-implemented V2 routes and do not invent metrics or backend truth;
+- School Director, Parent and Teacher/Smart-Classroom workspaces keep their previously implemented domain-owned screens.
+
+Pre-documentation candidate head `938bba7f1f3351165f85d59afda9ecf096ab7b35` passed Frontend CI `36540239205` and Frontend E2E `36540239190` (**76/76**). Browser artifact `11019869349`, digest `sha256:7e583c0182903d44961821948d3a41d33ca8fe99e11087cb295d1769ab645bb8`. Deterministic browser checkpoints cover 390px phone, 820px tablet and 1440px desktop with horizontal-overflow assertions. Legacy remained `cc359e5fb77e4a1fbb77e86d6fd986bf555878de` during the implementation re-check.
+
+Boundary: this visual migration does **not** claim the legacy runtime-configurable HomepageSettings / PlatformFontSettings administration has been rebuilt in V2; unavailable admin presentation-management routes remain explicit future/source-backed work rather than fake controls. It also does not change auth, owner-domain rules, database schema, scoring, commerce or external-provider evidence. Final status stays **IN CERTIFICATION** until the documentation-inclusive PR #98 head passes Database + Backend + Frontend + E2E on that exact SHA.
