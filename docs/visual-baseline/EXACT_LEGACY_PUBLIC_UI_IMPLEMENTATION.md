@@ -1,6 +1,6 @@
 # Exact Legacy Public UI Transplant — UI-1 / UI-2 Certificate
 
-Status: **IMPLEMENTATION CANDIDATE — FINAL FOUR-GATE SHA PENDING**
+Status: **TESTED / MERGED**
 
 Authoritative plan:
 `docs/visual-baseline/EXACT_LEGACY_UI_TRANSPLANT_PLAN.md`
@@ -160,3 +160,30 @@ After the documentation-inclusive implementation SHA passes all four required ga
 4. then proceed through learner workspace, role workspaces, control panels, public/auth completeness and final cross-page visual certification.
 
 This certificate does **not** claim `PARITY_PROVEN`.
+
+
+## Final implementation closure
+
+PR #102 final documentation-inclusive head:
+`092e6031814311145fb8de94e2109bfef042bc8d`
+
+Required gates on that exact head:
+- Database CI `36614045042` — PASS
+- Backend CI `36614044782` — PASS
+- Frontend CI `36614045115` — PASS
+- Frontend E2E `36614044693` — PASS (**76/76**)
+
+Final browser evidence artifact:
+- ID `11053883839`
+- SHA256 `76a0c7184ba0192b7b906d07138005feecd1305c8916779545737372109c9515`
+
+Final pre-merge legacy re-check:
+`b93923cfdb1cd5bcb9bbb51e35422d1f9d52b400`
+
+No newer legacy delta existed at merge time.
+
+PR #102 squash merge:
+`9e60ec3fd2de52c07d999c6ffb51309035d0f4c9`
+
+Closure status: **TESTED / MERGED**, not `PARITY_PROVEN`.
+The next active phase is **UI-3 Learning experience parity**.
