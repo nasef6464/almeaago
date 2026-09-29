@@ -101,13 +101,11 @@ export function CourseLearningPage() {
           allLessons.find((item) => item.id === requested && ((!item.isLocked && !item.commerceLocked) || item.isPreview)) ||
           allLessons.find((item) => (!item.isLocked && !item.commerceLocked) || item.isPreview);
 
-        if (firstAvailable) {
-          setLessonId(firstAvailable.id);
-          const owningModule = result.course.modules.find((module) =>
-            module.lessons.some((item) => item.id === firstAvailable.id),
-          );
-          if (owningModule) setExpandedModules([owningModule.id]);
-        }
+        const owningModule = firstAvailable
+          ? result.course.modules.find((module) => module.lessons.some((item) => item.id === firstAvailable.id))
+          : result.course.modules.find((module) => module.lessons.length > 0);
+        if (owningModule) setExpandedModules([owningModule.id]);
+        if (firstAvailable) setLessonId(firstAvailable.id);
       })
       .catch((reason) => {
         if (!controller.signal.aborted) {
