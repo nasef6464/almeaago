@@ -1506,3 +1506,7 @@ PR #109 is **TESTED / MERGED**. Final exact head `af4e1c6b37873d5761e21d0ea098bb
 ## Exact Legacy UI — UI-3 Assessment Results — ACTIVE
 
 Protected source `pages/Results.tsx` at legacy `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b` was read before implementation. The V2 result history and result-detail surfaces now restore the legacy `اختباراتي`/result-center visual vocabulary, compact score cards, assessment-center navigation and responsive review presentation while retaining server-controlled `showResultsReport`, `allowQuestionReview`, `showAnswers`, `showExplanations` and canonical ReviewCard save authority.
+
+
+### Assessment Results latest-legacy re-check
+Before merge, legacy advanced from `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b` to `77761835d464687283f7ca9d65f43799ccd43962`. The same-domain `pages/Results.tsx` delta removes legacy Foundation recommendation heuristics and delegates recommendation routing to the shared Reports recommendation view-model. The V2 Assessment Results slice does not synthesize skill/content recommendation routes in the browser, so no code transplant is required from this delta. Presentation and server result/review authority remain unchanged.
