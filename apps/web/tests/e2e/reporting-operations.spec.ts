@@ -9,6 +9,7 @@ async function auth(page:Page,user:typeof admin|typeof student){await page.route
 test('student report is self-scoped, bounded and exposes no answer-level data',async({page})=>{
  await auth(page,student);
  await page.setViewportSize({width:390,height:844});
+ await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{paths:[{id:'path-1',code:'QDR',name:'القدرات',description:'',sortOrder:1}],subjects:[{id:'subject-1',pathId:'path-1',code:'QNT',name:'الكمي',sortOrder:1}]}));
  let lastOverviewUrl='';
  await page.route('**/api/v1/reports/overview**',route=>{lastOverviewUrl=route.request().url();return json(route,{
   scope:{kind:'student',studentCount:1,sampledStudentCount:1,isTruncated:false,limits:{students:500,results:2000,attempts:3000},canDetail:true,canExport:true},
@@ -24,13 +25,18 @@ test('student report is self-scoped, bounded and exposes no answer-level data',a
  }],page:1,limit:20,total:1,hasMore:false}));
 
  await page.goto('/reports');
- await expect(page.getByRole('heading',{name:'تقريري'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'تقارير الأداء'})).toBeVisible();
+ await page.getByLabel('مسار التقرير').selectOption('path-1');
+ await page.getByLabel('مادة التقرير').selectOption('subject-1');
+ await expect.poll(()=>lastOverviewUrl).toContain('pathId=path-1');
+ await expect.poll(()=>lastOverviewUrl).toContain('subjectId=subject-1');
  await expect(page.getByText('النسبة والتناسب')).toBeVisible();
  await expect(page.getByText('اختبار الكمي')).toBeVisible();
  await expect(page.getByText('78%')).toBeVisible();
  await expect(page.locator('body')).not.toContainText('correctOptionIndex');
  await expect(page.locator('body')).not.toContainText('answerKey');
  await expect(page.getByText('مفتاح الإجابة',{exact:true})).toHaveCount(0);
+ await page.getByText('فترة مخصصة',{exact:true}).click();
  await page.getByLabel('بداية فترة التقرير').fill('2026-09-01');
  await page.getByLabel('نهاية فترة التقرير').fill('2026-09-28');
  await expect.poll(()=>lastOverviewUrl).toContain('dateFrom=2026-09-01');
@@ -40,6 +46,10 @@ test('student report is self-scoped, bounded and exposes no answer-level data',a
  await expect.poll(()=>lastExportUrl).toContain('dateFrom=2026-09-01');
  await expect.poll(()=>lastExportUrl).toContain('dateTo=2026-09-28');
  await page.screenshot({path:'test-results/reporting-student-mobile.png',fullPage:true});
+ await page.setViewportSize({width:820,height:1180});
+ await expect(page.getByRole('heading',{name:'تقارير الأداء'})).toBeVisible();
+ await expect(page.getByText('المهارات التي تبدأ بها')).toBeVisible();
+ await page.screenshot({path:'test-results/reporting-student-tablet.png',fullPage:true});
 });
 
 test('admin operations center exposes evidence gaps instead of claiming release proof',async({page})=>{
