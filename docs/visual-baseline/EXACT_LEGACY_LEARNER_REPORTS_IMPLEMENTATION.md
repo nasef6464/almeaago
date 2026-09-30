@@ -1,6 +1,6 @@
 # Exact Legacy Learner Reports — UI-3 Implementation Certificate
 
-Status: **IMPLEMENTATION CANDIDATE — FINAL FOUR-GATE EXACT-HEAD VERIFICATION PENDING**
+Status: **TESTED / MERGED**
 
 ## Identity
 - UI phase: UI-3 Learning experience parity.
@@ -54,14 +54,8 @@ Updated Playwright coverage certifies:
 - weak-skill and latest-result summaries render;
 - answer-key / answer-level data is absent.
 
-## Merge gate
-Do not mark complete until the same final documentation-inclusive SHA passes:
-- Database CI;
-- Backend CI;
-- Frontend CI;
-- Frontend E2E.
-
-Then re-check latest legacy before merge.
+## Closure
+Final documentation-inclusive head `63d85620381fe0295372b44341289f74f1022355` passed Database `36760136582`, Backend `36760136661`, Frontend `36760136488`, and Frontend E2E `36760136494`; PR #111 squash merged as `f8b48cbef6572727aca5cb8d63988b48f19ff6e4`. Final latest-legacy checkpoint was `db0c09da042f8ef3ef76b5b1baa298042799e0d4`; its post-Reports delta was documentation-only.
 
 ## Sequence
 This is the final listed protected UI-3 surface. After merge, read CURRENT_STATE / PARITY_MATRIX / WORKING_SET and continue from the first incomplete next UI phase without reopening closed UI-3 slices.
