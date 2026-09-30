@@ -1534,3 +1534,12 @@ PR #111 is **TESTED / MERGED**. Final documentation-inclusive head `63d85620381f
 UI-3 is now closed across the protected learner journey: Learning Space/Course Player, Review Library, Review Practice, Study Plan, learner Assessments, Assessment Results, and learner Reports. Each slice was merged only after its documentation-inclusive exact head passed Database CI, Backend CI, Frontend CI, and Frontend E2E, with a latest-legacy re-check before merge. Canonical V2 authorization, Commerce, Assessment scoring/result secrecy, Learning/Review authority, Study Plan concurrency, and Reporting scope remained server-owned throughout.
 
 The first incomplete visual phase is now **UI-4 — Learner workspace**, beginning with the student dashboard and its navigation/entry states. Closed UI-3 slices must not be reopened unless a concrete regression is proven.
+
+
+## Exact Legacy UI — UI-3 Closure Record — MERGED
+
+Closure PR #112 is **TESTED / MERGED**. Documentation head `da4322ae8480201b0579c90ca5cced158947e284` passed Database `36760929429`, Backend `36760929116`, Frontend `36760929211`, and Frontend E2E `36760929207`; squash merge `347201c87fb73e380e7de7f9b059df991ed30ab7`. UI-3 is formally closed in `main`.
+
+## Exact Legacy UI — UI-4 Learner Workspace — Student Dashboard ACTIVE
+
+Protected legacy source is `pages/Dashboard.tsx` at latest legacy `db0c09da042f8ef3ef76b5b1baa298042799e0d4`, specifically the student menu/sidebar shell and `OverviewTab`. The V2 `/dashboard` candidate now restores the legacy grouped learner navigation, mobile drawer, student identity block, welcome strip, `خطوتك اليوم` hierarchy, and learner entry cards while linking only to real V2 routes. No streak, recommendation, notification count, or progress metric is fabricated in React; data-owning destination pages remain canonical.
