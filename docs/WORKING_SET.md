@@ -245,3 +245,21 @@ Branch `feat/exact-legacy-learner-reports-parity` starts from merged #110. Prote
 
 
 Learner Reports final legacy re-check: latest legacy is `db0c09da042f8ef3ef76b5b1baa298042799e0d4`. The delta after protected Reports source `77761835...` changes only MASTER_CONTROL documentation and contains no Reports code. PR #111 may proceed through its final exact-head four-gate merge check without an additional code transplant.
+
+
+## Closed UI-3 checkpoint — Learner Reports
+
+PR #111 is **TESTED / MERGED**. Final documentation-inclusive head `63d85620381fe0295372b44341289f74f1022355` passed Database `36760136582`, Backend `36760136661`, Frontend `36760136488`, and Frontend E2E `36760136494`; squash merge `f8b48cbef6572727aca5cb8d63988b48f19ff6e4`. Final latest-legacy checkpoint: `db0c09da042f8ef3ef76b5b1baa298042799e0d4`. The post-`777618...` legacy delta was MASTER_CONTROL documentation only and did not change Reports code.
+
+## UI-3 Learning Experience Parity — CLOSED
+
+Protected learner surfaces completed and merged in sequence:
+1. Learning Space + Course Player — PR #104;
+2. Review Library — PR #106;
+3. Review Practice — PR #107;
+4. Study Plan — PR #108;
+5. learner Assessments — PR #109;
+6. Assessment Results — PR #110;
+7. learner Reports — PR #111.
+
+Do not reopen these slices unless a real regression is demonstrated. The next incomplete phase from the authoritative transplant plan is **UI-4 — Learner workspace**. Start with the student dashboard and its navigation, then learner notifications/reporting entry states, while preserving V2 data truth and matching the exact legacy source-backed layout/density.
