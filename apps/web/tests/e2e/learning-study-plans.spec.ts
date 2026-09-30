@@ -157,7 +157,7 @@ test('mobile student creates deterministic study plan and archives it with optim
   });
 
   await page.goto('/plan');
-  await expect(page.getByRole('heading', { name: 'خطتي الدراسية' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'خططي' })).toBeVisible();
   await expect(page.getByText('لا توجد خطة نشطة لهذا المسار بعد.')).toBeVisible();
   expect(learningSpaceCalls).toBe(0);
 
@@ -173,21 +173,22 @@ test('mobile student creates deterministic study plan and archives it with optim
   await page.getByLabel('تاريخ النهاية').fill('2026-09-28');
   await page.getByLabel('الدقائق اليومية').fill('60');
   await page.getByLabel('وقت البدء').fill('17:00');
-  await page.getByRole('button', { name: 'إنشاء الخطة' }).click();
+  await page.getByRole('button', { name: 'إنشاء الخطة الدراسية' }).click();
 
   await expect.poll(() => createCalls).toBe(1);
   await expect(page.getByRole('heading', { name: 'خطة الكمي' })).toBeVisible();
   await page.getByRole('button', { name: 'الكل' }).click();
   await expect(page.getByText('درس النسبة')).toBeVisible();
   await expect(page.getByText('تدريب النسبة')).toBeVisible();
-  await expect(page.getByText('17:00')).toBeVisible();
-  await expect(page.getByText('17:30')).toBeVisible();
+  await expect(page.getByText('درس النسبة').locator('..').getByText('17:00', { exact: true })).toBeVisible();
+  await expect(page.getByText('تدريب النسبة').locator('..').getByText('17:30', { exact: true })).toBeVisible();
 
   // Reload after create must hydrate only the first bounded plan detail, not N details.
   await expect.poll(() => detailCalls).toBeGreaterThanOrEqual(1);
   expect(detailCalls).toBe(1);
 
-  await page.getByRole('button', { name: 'أرشفة' }).click();
+  await page.getByText('⚙️ إعدادات الخطة (إنشاء وتعديل)').click();
+  await page.getByRole('button', { name: 'أرشفة الخطة' }).click();
   await expect.poll(() => patchCalls).toBe(1);
   await expect(page.getByText('لا توجد خطة نشطة لهذا المسار بعد.')).toBeVisible();
 

@@ -255,7 +255,7 @@ test('mobile student sees school intervention linked to generated study plan', a
   );
 
   await page.goto('/plan');
-  await expect(page.getByRole('heading', { name: 'خطتي الدراسية' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'خططي' })).toBeVisible();
   await expect(page.getByText('خطط علاج المدرسة')).toBeVisible();
   await expect(page.getByText('Baseline: 40.0%')).toBeVisible();
   await expect(page.getByText(/خطة الدراسة: plan-school-1/)).toBeVisible();

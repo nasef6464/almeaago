@@ -1479,3 +1479,12 @@ PR #106 is **TESTED / MERGED**. Final documentation-inclusive head `2dd5003556d6
 ## Exact Legacy UI — UI-3 Review Practice — ACTIVE
 
 PR #107 transplants exact legacy `pages/ReviewSession.tsx` presentation/interaction over canonical V2 review practice APIs. The V2 server remains authoritative for scoring, answer reveal, SM2/review scheduling, CSRF, optimistic `expectedUpdatedAt`, and retry-safe `submissionKey`. The legacy compact question card, review-type badge, responsive option layout and indigo action panel are restored without reintroducing legacy client authority. Responsive remediation E2E is updated for the transplanted interaction. No backend/schema/auth/RBAC/scoring change.
+
+
+## Exact Legacy UI — UI-3 Review Practice — CLOSED
+
+PR #107 is **TESTED / MERGED**. Final exact head `48b0ebe9d7bf9a32436281ab1b07eb3dd98f1ef9` passed Database `36673735488`, Backend `36673735457`, Frontend `36673735543`, and Frontend E2E `36673735402`; squash merge `5f565454ddd34868d18391951a4a59a7838bf109`. Final legacy re-check remained `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`.
+
+## Exact Legacy UI — UI-3 Study Plan — ACTIVE
+
+The exact legacy `pages/Plan.tsx` source at `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b` was read before implementation. The current `/plan` surface now restores the recognizable legacy `خططي` shell, path master switch, collapsible plan settings, emerald/indigo plan cards, progress hero and today/week/all timeline while retaining canonical V2 Study Plan APIs, CSRF, optimistic concurrency, bounded lazy Course reads and server-generated plan items. No backend/schema/auth/RBAC change.
