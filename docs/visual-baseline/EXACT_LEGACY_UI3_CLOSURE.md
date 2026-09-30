@@ -1,6 +1,6 @@
 # Exact Legacy UI — UI-3 Learning Experience Closure Certificate
 
-Status: **CLOSURE CANDIDATE — DOCUMENTATION GATES PENDING**
+Status: **TESTED / MERGED — CLOSURE RECORD AWAITING ITS OWN DOC-ONLY MERGE GATE**
 
 ## Scope closed
 UI-3 protected learner experience is complete through:
