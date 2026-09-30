@@ -233,3 +233,12 @@ Branch `feat/exact-legacy-assessment-results-parity` starts from merged #109. Pr
 
 
 Assessment Results pre-merge legacy re-check: latest legacy is `77761835d464687283f7ca9d65f43799ccd43962`. Its Results delta only replaces client-side skill recommendation heuristics with the canonical Reports recommendation view-model. Current V2 Assessment Results exposes no equivalent browser-owned recommendation resolver, so the active #110 implementation needs no authority change. Use `77761835d464687283f7ca9d65f43799ccd43962` as the final legacy checkpoint for this slice.
+
+
+## Closed UI-3 checkpoint — Assessment Results
+
+PR #110 is **TESTED / MERGED**. Final documentation-inclusive head `a8968499b5742e6f8fd0b75a19a77ecf55deda80` passed Database `36696586582`, Backend `36696586571`, Frontend `36696586523`, Frontend E2E `36696586862`; squash merge `c7f38824caec537d0903f6a732af378b321e52fa`. Final legacy re-check: `77761835d464687283f7ca9d65f43799ccd43962`.
+
+## Active UI-3 checkpoint — Learner Reports
+
+Branch `feat/exact-legacy-learner-reports-parity` starts from merged #110. Protected legacy source is `pages/Reports.tsx` and latest Reports view-models at `77761835d464687283f7ca9d65f43799ccd43962`. Student-only presentation transplant is implemented over canonical V2 Reporting APIs; staff/admin view remains unchanged. Latest legacy explicitly removed subskill recommendation heuristics, so this slice must not invent browser-owned Foundation routing. Merge gate: exact documentation-inclusive Database + Backend + Frontend + Frontend E2E green on one SHA, final latest-legacy re-check, then merge. This is the final listed UI-3 protected surface; after closure read the authoritative working set before entering the next UI phase.
