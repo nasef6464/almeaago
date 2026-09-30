@@ -1,6 +1,6 @@
 # Exact Legacy Learner Assessments — UI-3 Implementation Certificate
 
-Status: **IMPLEMENTATION CANDIDATE — FINAL FOUR-GATE EXACT-HEAD VERIFICATION PENDING**
+Status: **TESTED / MERGED**
 
 ## Identity
 - UI phase: UI-3 Learning experience parity.
@@ -42,8 +42,8 @@ The same journey retains:
 - available placement start;
 - transition into the canonical server-created attempt runner.
 
-## Merge gate
-Do not mark this slice complete until one documentation-inclusive SHA passes Database CI, Backend CI, Frontend CI and Frontend E2E on the same commit, followed by a latest legacy re-check.
+## Closure
+Final documentation-inclusive head `af4e1c6b37873d5761e21d0ea098bbc814c714e2` passed Database `36695589159`, Backend `36695589131`, Frontend `36695589156`, and Frontend E2E `36695589219`; PR #109 squash merged as `c5a4c0c1d835fae31aa6c479c3b6ab37e9ef74b9`. Final legacy re-check remained `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`.
 
 ## Next protected surfaces
 After learner `/assessments` closes:

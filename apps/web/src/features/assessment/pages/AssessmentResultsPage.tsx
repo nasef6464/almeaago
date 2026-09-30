@@ -1,11 +1,14 @@
 import {
   AlertCircle,
+  ArrowRight,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Bookmark,
+  Eye,
   Flag,
   History,
+  Target,
   XCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -33,37 +36,33 @@ function scoreTone(passed: boolean) {
 
 function ResultSummary({ item }: { item: ResultListItem }) {
   return (
-    <article className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="font-black text-gray-900">{item.title}</h2>
-          <p className="mt-1 text-xs font-bold text-gray-500">
-            المحاولة {item.attemptNumber} · {new Date(item.finalizedAt).toLocaleString('ar-SA')}
-          </p>
+    <article className="rounded-2xl border-2 border-slate-200/90 bg-white p-4 shadow-sm transition-colors hover:border-indigo-300">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-black text-indigo-700">محاولة {item.attemptNumber}</span>
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-black text-slate-600">v{item.assessmentVersion}</span>
+          </div>
+          <h2 className="mt-2 text-base font-black leading-tight text-gray-900">{item.title}</h2>
+          <p className="mt-1 text-[11px] font-bold text-gray-500">{new Date(item.finalizedAt).toLocaleString('ar-SA')}</p>
         </div>
         {item.showResultsReport ? (
-          <span className={`rounded-full border px-3 py-1 text-sm font-black ${scoreTone(item.passed)}`}>
-            {item.score.toFixed(1)}%
-          </span>
-        ) : (
-          <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-black text-gray-600">
-            تم الإكمال
-          </span>
-        )}
+          <div className="flex items-center gap-3">
+            <div className="text-center"><div className="text-[10px] font-bold text-gray-500">الدرجة</div><div className={`text-xl font-black ${item.passed?'text-emerald-600':'text-rose-600'}`}>{item.score.toFixed(1)}%</div></div>
+            <div className="border-r border-gray-100 pr-3 text-center"><div className="text-[10px] font-bold text-gray-500">صحيح</div><div className="text-lg font-black text-indigo-700">{item.correctAnswers}/{item.totalQuestions}</div></div>
+          </div>
+        ) : <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-black text-gray-600">تم الإكمال</span>}
       </div>
-      {item.showResultsReport ? (
-        <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs font-bold">
-          <div className="rounded-xl bg-emerald-50 p-2 text-emerald-800">{item.correctAnswers} صحيحة</div>
-          <div className="rounded-xl bg-rose-50 p-2 text-rose-800">{item.wrongAnswers} خاطئة</div>
-          <div className="rounded-xl bg-gray-50 p-2 text-gray-700">{item.unanswered} بدون إجابة</div>
-        </div>
-      ) : null}
-      <Link
-        to={`/assessment-results/${item.attemptId}`}
-        className="mt-4 inline-flex rounded-xl border border-slate-200 px-3 py-2 text-sm font-black text-slate-700"
-      >
-        عرض النتيجة
-      </Link>
+      {item.showResultsReport ? <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px] font-bold">
+        <div className="rounded-xl bg-emerald-50 p-2 text-emerald-800">{item.correctAnswers} صحيحة</div>
+        <div className="rounded-xl bg-rose-50 p-2 text-rose-800">{item.wrongAnswers} خاطئة</div>
+        <div className="rounded-xl bg-amber-50 p-2 text-amber-800">{item.unanswered} بدون إجابة</div>
+      </div> : null}
+      <div className="mt-3 flex justify-end border-t border-slate-100 pt-3">
+        <Link to={`/assessment-results/${item.attemptId}`} className="inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-3.5 py-2 text-xs font-black text-white hover:bg-gray-800">
+          <Eye size={15} className="text-amber-400"/>عرض النتيجة
+        </Link>
+      </div>
     </article>
   );
 }
@@ -254,49 +253,38 @@ export function AssessmentResultsPage() {
   }
 
   if (!attemptId) {
+    const passedOnPage = history.filter((item) => item.showResultsReport && item.passed).length;
+    const visibleScores = history.filter((item) => item.showResultsReport).map((item) => item.score);
+    const bestOnPage = visibleScores.length ? Math.max(...visibleScores) : null;
     return (
-      <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-gray-50 px-4 py-6">
-        <div className="mx-auto max-w-4xl space-y-4">
-          <header className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2 text-indigo-700">
-              <History size={20} />
-              <span className="text-xs font-black">Assessment History</span>
+      <main dir="rtl" className="mx-auto max-w-4xl space-y-5 px-3 pb-20 pt-5 sm:px-6">
+        <header className="rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 via-white to-sky-50/40 p-5 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <Link to="/" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="العودة للوحة الطالب"><ArrowRight size={20}/></Link>
+              <div>
+                <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-black text-gray-900 sm:text-2xl">اختباراتي</h1><span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-black text-indigo-700">سجل الإنجاز</span></div>
+                <p className="mt-1 text-xs font-bold text-gray-500 sm:text-sm">محاولاتك ونتائجك المحفوظة من الخادم، مرتبة من الأحدث.</p>
+              </div>
             </div>
-            <h1 className="mt-2 text-2xl font-black text-gray-900">سجل النتائج</h1>
-            <p className="mt-2 text-sm font-medium text-gray-500">
-              نتائجك فقط، مرتبة من الأحدث، مع تحميل 20 نتيجة في الصفحة.
-            </p>
-          </header>
-
-          {history.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center font-bold text-gray-500">
-              لا توجد نتائج حتى الآن.
-            </div>
-          ) : (
-            <div className="grid gap-3">{history.map((item) => <ResultSummary key={item.attemptId} item={item} />)}</div>
-          )}
-
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage((value) => Math.max(1, value - 1))}
-              className="inline-flex items-center gap-1 rounded-xl border bg-white px-3 py-2 text-sm font-black disabled:opacity-40"
-            >
-              <ChevronRight size={16} />
-              السابق
-            </button>
-            <span className="text-xs font-black text-gray-500">صفحة {page}</span>
-            <button
-              type="button"
-              disabled={!hasMore}
-              onClick={() => setPage((value) => value + 1)}
-              className="inline-flex items-center gap-1 rounded-xl border bg-white px-3 py-2 text-sm font-black disabled:opacity-40"
-            >
-              التالي
-              <ChevronLeft size={16} />
-            </button>
+            <Link to="/assessments" className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800"><Target size={16}/>مركز الاختبارات</Link>
           </div>
+        </header>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 text-center shadow-sm"><div className="text-2xl font-black text-indigo-700">{history.length}</div><div className="text-[11px] font-bold text-gray-500">محاولات الصفحة</div></div>
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 text-center shadow-sm"><div className="text-2xl font-black text-emerald-700">{passedOnPage}</div><div className="text-[11px] font-bold text-emerald-700">ناجحة</div></div>
+          <div className="rounded-2xl border border-purple-100 bg-purple-50/60 p-4 text-center shadow-sm"><div className="text-2xl font-black text-purple-700">{bestOnPage==null?'—':`${bestOnPage.toFixed(1)}%`}</div><div className="text-[11px] font-bold text-purple-700">أفضل درجة بالصفحة</div></div>
+        </div>
+
+        {history.length === 0 ? <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center">
+          <History className="mx-auto text-indigo-400" size={28}/><h2 className="mt-3 font-black text-gray-900">لا توجد محاولات بعد</h2><p className="mt-1 text-sm font-bold text-gray-500">ابدأ اختبارًا واحدًا، وبعد التسليم ستظهر النتيجة هنا.</p>
+        </div> : <div className="space-y-3">{history.map((item)=><ResultSummary key={item.attemptId} item={item}/>)}</div>}
+
+        <div className="flex items-center justify-between">
+          <button type="button" disabled={page<=1} onClick={()=>setPage((value)=>Math.max(1,value-1))} className="inline-flex items-center gap-1 rounded-xl border bg-white px-3 py-2 text-sm font-black disabled:opacity-40"><ChevronRight size={16}/>السابق</button>
+          <span className="text-xs font-black text-gray-500">صفحة {page}</span>
+          <button type="button" disabled={!hasMore} onClick={()=>setPage((value)=>value+1)} className="inline-flex items-center gap-1 rounded-xl border bg-white px-3 py-2 text-sm font-black disabled:opacity-40">التالي<ChevronLeft size={16}/></button>
         </div>
       </main>
     );
@@ -308,51 +296,23 @@ export function AssessmentResultsPage() {
 
   const result = detail.result;
   return (
-    <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-gray-50 px-3 py-6 sm:px-6">
-      <div className="mx-auto max-w-4xl space-y-4">
-        <header className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-          <div className="flex flex-wrap items-center gap-3">
-            <Link to="/assessment-results" className="text-sm font-black text-indigo-700">
-              ← سجل النتائج
-            </Link>
-            <Link to="/review" className="text-sm font-black text-amber-700">
-              أسئلتي للمراجعة
-            </Link>
+    <main dir="rtl" className="mx-auto max-w-5xl space-y-5 px-3 pb-20 pt-5 sm:px-6">
+      <header className="rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 via-white to-sky-50/40 p-5 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <Link to="/assessment-results" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="العودة لسجل النتائج"><ArrowRight size={20}/></Link>
+            <div><div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-black text-gray-900 sm:text-2xl">{detail.title}</h1><span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-black text-indigo-700">المحاولة {detail.attemptNumber}</span></div><p className="mt-1 text-xs font-bold text-gray-500">{new Date(result.finalizedAt).toLocaleString('ar-SA')}</p></div>
           </div>
-          <h1 className="mt-3 text-2xl font-black text-gray-900">{detail.title}</h1>
-          <p className="mt-1 text-xs font-bold text-gray-500">
-            المحاولة {detail.attemptNumber} · {new Date(result.finalizedAt).toLocaleString('ar-SA')}
-          </p>
+          <div className="flex flex-wrap gap-2"><Link to="/review" className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-black text-purple-700">أسئلتي للمراجعة</Link><Link to="/assessments" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">اختبار جديد</Link></div>
+        </div>
 
-          {detail.showResultsReport ? (
-            <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <div className={`rounded-2xl border p-3 text-center ${scoreTone(result.passed)}`}>
-                <div className="text-2xl font-black">{result.score.toFixed(1)}%</div>
-                <div className="text-xs font-bold">الدرجة</div>
-              </div>
-              <div className="rounded-2xl bg-emerald-50 p-3 text-center text-emerald-800">
-                <CheckCircle2 className="mx-auto" size={20} />
-                <div className="mt-1 font-black">{result.correctAnswers}</div>
-                <div className="text-xs font-bold">صحيحة</div>
-              </div>
-              <div className="rounded-2xl bg-rose-50 p-3 text-center text-rose-800">
-                <XCircle className="mx-auto" size={20} />
-                <div className="mt-1 font-black">{result.wrongAnswers}</div>
-                <div className="text-xs font-bold">خاطئة</div>
-              </div>
-              <div className="rounded-2xl bg-gray-100 p-3 text-center text-gray-700">
-                <AlertCircle className="mx-auto" size={20} />
-                <div className="mt-1 font-black">{result.unanswered}</div>
-                <div className="text-xs font-bold">بدون إجابة</div>
-              </div>
-            </div>
-          ) : (
-            <div className="mt-4 rounded-xl bg-gray-50 p-4 text-sm font-bold text-gray-600">
-              تم تسجيل إكمال الاختبار. تقرير الدرجات التفصيلي غير معروض وفق إعدادات هذا الاختبار.
-            </div>
-          )}
-        </header>
-
+        {detail.showResultsReport ? <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className={`rounded-2xl border p-3 text-center ${scoreTone(result.passed)}`}><div className="text-3xl font-black">{result.score.toFixed(1)}%</div><div className="text-xs font-bold">الدرجة</div></div>
+          <div className="rounded-2xl bg-emerald-50 p-3 text-center text-emerald-800"><CheckCircle2 className="mx-auto" size={20}/><div className="mt-1 font-black">{result.correctAnswers}</div><div className="text-xs font-bold">صحيحة</div></div>
+          <div className="rounded-2xl bg-rose-50 p-3 text-center text-rose-800"><XCircle className="mx-auto" size={20}/><div className="mt-1 font-black">{result.wrongAnswers}</div><div className="text-xs font-bold">خاطئة</div></div>
+          <div className="rounded-2xl bg-amber-50 p-3 text-center text-amber-800"><AlertCircle className="mx-auto" size={20}/><div className="mt-1 font-black">{result.unanswered}</div><div className="text-xs font-bold">بدون إجابة</div></div>
+        </div> : <div className="mt-4 rounded-xl bg-gray-50 p-4 text-sm font-bold text-gray-600">تم تسجيل إكمال الاختبار. تقرير الدرجات التفصيلي غير معروض وفق إعدادات هذا الاختبار.</div>}
+      </header>
         {!detail.allowQuestionReview ? (
           <section className="rounded-2xl border border-amber-100 bg-amber-50 p-5 text-sm font-bold leading-7 text-amber-900">
             مراجعة الأسئلة غير متاحة لهذا الاختبار وفق إعدادات النسخة التي أجريت عليها المحاولة.
@@ -399,7 +359,6 @@ export function AssessmentResultsPage() {
             )}
           </>
         )}
-      </div>
     </main>
   );
 }

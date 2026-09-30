@@ -43,6 +43,7 @@ const historyItem = {
 
 test('learner history is bounded and disabled review exposes no question content', async ({ page }) => {
   await auth(page);
+  await page.setViewportSize({ width: 820, height: 1180 });
   await page.route('**/api/v1/assessment-attempts/results?**', (route) =>
     json(route, { items: [historyItem], page: 1, limit: 20, hasMore: false }),
   );
@@ -63,8 +64,9 @@ test('learner history is bounded and disabled review exposes no question content
   );
 
   await page.goto('/assessment-results');
-  await expect(page.getByRole('heading', { name: 'سجل النتائج' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'اختباراتي' })).toBeVisible();
   await expect(page.getByText('محاكي كمي')).toBeVisible();
+  await page.screenshot({ path: 'test-results/assessment-results-history-tablet.png', fullPage: true });
   await page.getByRole('link', { name: 'عرض النتيجة' }).click();
   await expect(
     page.getByText('مراجعة الأسئلة غير متاحة لهذا الاختبار وفق إعدادات النسخة التي أجريت عليها المحاولة.'),

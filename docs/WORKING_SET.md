@@ -221,3 +221,15 @@ PR #108 is **TESTED / MERGED**. Final exact head `a0758e224f0d5cca1456aa1f04b196
 ## Active UI-3 checkpoint — Learner Assessments
 
 Branch `feat/exact-legacy-learner-assessments-parity` starts from merged #108. Protected source: `pages/Quizzes.tsx` at legacy `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`. Presentation transplant is implemented over canonical Assessment placement/attempt authority. Merge gate: exact documentation-inclusive Database + Backend + Frontend + Frontend E2E green on one SHA, latest legacy re-check, then merge. After closure continue directly to assessment results, then `/reports`.
+
+
+## Closed UI-3 checkpoint — Learner Assessments
+
+PR #109 is **TESTED / MERGED**. Final exact head `af4e1c6b37873d5761e21d0ea098bbc814c714e2` passed Database `36695589159`, Backend `36695589131`, Frontend `36695589156`, Frontend E2E `36695589219`; squash merge `c5a4c0c1d835fae31aa6c479c3b6ab37e9ef74b9`. Final legacy re-check: `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`.
+
+## Active UI-3 checkpoint — Assessment Results
+
+Branch `feat/exact-legacy-assessment-results-parity` starts from merged #109. Protected source: `pages/Results.tsx` at legacy `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`. Presentation transplant is implemented over canonical V2 result/review authority. Merge gate: exact documentation-inclusive Database + Backend + Frontend + Frontend E2E green on one SHA, latest legacy re-check, then merge. After closure continue directly to `/reports`.
+
+
+Assessment Results pre-merge legacy re-check: latest legacy is `77761835d464687283f7ca9d65f43799ccd43962`. Its Results delta only replaces client-side skill recommendation heuristics with the canonical Reports recommendation view-model. Current V2 Assessment Results exposes no equivalent browser-owned recommendation resolver, so the active #110 implementation needs no authority change. Use `77761835d464687283f7ca9d65f43799ccd43962` as the final legacy checkpoint for this slice.
