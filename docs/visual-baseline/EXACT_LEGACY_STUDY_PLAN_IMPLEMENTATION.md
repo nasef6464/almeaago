@@ -1,6 +1,6 @@
 # Exact Legacy Study Plan — UI-3 Implementation Certificate
 
-Status: **IMPLEMENTATION CANDIDATE — FINAL FOUR-GATE EXACT-HEAD VERIFICATION PENDING**
+Status: **TESTED / MERGED**
 
 ## Identity
 - UI phase: UI-3 Learning experience parity.
@@ -39,16 +39,10 @@ Updated Playwright coverage keeps:
 - school-intervention visibility on the learner Plan surface;
 - screenshot capture after the mobile journey.
 
-The current implementation/test checkpoint is `e0172be7794b895bd4fe9c46a5ff1c90a47c71b1`. Documentation commits follow it and are part of the required final exact-head gate.
+The final documentation-inclusive head `a0758e224f0d5cca1456aa1f04b196f4e1dbc6fb` passed Database `36694901842`, Backend `36694901668`, Frontend `36694901654`, and Frontend E2E `36694901748`; PR #108 squash merged as `867b72db2182d3313ac516281ea1154a1ee8098d`. Final legacy re-check remained `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`.
 
-## Merge gate
-Do not mark this slice complete until one documentation-inclusive SHA passes:
-- Database CI;
-- Backend CI;
-- Frontend CI;
-- Frontend E2E.
-
-Then re-check latest legacy `almeaacodax` before merge.
+## Closure
+The exact-head gate and final legacy re-check are complete; this slice is closed.
 
 ## Next protected surfaces
 After `/plan` closes:

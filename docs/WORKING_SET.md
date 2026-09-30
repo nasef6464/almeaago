@@ -212,3 +212,12 @@ PR #107 is **TESTED / MERGED**. Final exact head `48b0ebe9d7bf9a32436281ab1b07eb
 ## Active UI-3 checkpoint — Study Plan
 
 Branch `feat/exact-legacy-study-plan-parity` starts from merged #107. Protected source: `pages/Plan.tsx` at legacy `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`. Presentation transplant is implemented over current V2 Study Plan authority. Merge gate: exact documentation-inclusive Database + Backend + Frontend + Frontend E2E green on one SHA, latest legacy re-check, then merge. After closure continue directly to learner `/assessments`, assessment results, then `/reports`.
+
+
+## Closed UI-3 checkpoint — Study Plan
+
+PR #108 is **TESTED / MERGED**. Final exact head `a0758e224f0d5cca1456aa1f04b196f4e1dbc6fb` passed Database `36694901842`, Backend `36694901668`, Frontend `36694901654`, Frontend E2E `36694901748`; squash merge `867b72db2182d3313ac516281ea1154a1ee8098d`. Final legacy re-check: `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`.
+
+## Active UI-3 checkpoint — Learner Assessments
+
+Branch `feat/exact-legacy-learner-assessments-parity` starts from merged #108. Protected source: `pages/Quizzes.tsx` at legacy `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`. Presentation transplant is implemented over canonical Assessment placement/attempt authority. Merge gate: exact documentation-inclusive Database + Backend + Frontend + Frontend E2E green on one SHA, latest legacy re-check, then merge. After closure continue directly to assessment results, then `/reports`.
