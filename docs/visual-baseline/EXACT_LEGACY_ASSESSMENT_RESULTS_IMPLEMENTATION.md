@@ -43,3 +43,6 @@ Do not mark this slice complete until one documentation-inclusive SHA passes Dat
 
 ## Next protected surface
 After assessment results close: `/reports`.
+
+## Latest legacy pre-merge re-check
+Legacy advanced to `77761835d464687283f7ca9d65f43799ccd43962` before merge. Its `pages/Results.tsx` delta removes browser heuristics for Foundation skill recommendations and delegates that concern to the canonical Reports recommendation view-model. This V2 Assessment Results implementation does not own or synthesize skill recommendation routes, so no additional code transplant is required from that delta. Final exact-head verification must run after this documentation note.
