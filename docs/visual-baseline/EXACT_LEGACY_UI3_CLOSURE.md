@@ -1,6 +1,6 @@
 # Exact Legacy UI — UI-3 Learning Experience Closure Certificate
 
-Status: **TESTED / MERGED — CLOSURE RECORD AWAITING ITS OWN DOC-ONLY MERGE GATE**
+Status: **TESTED / MERGED — FORMALLY CLOSED IN MAIN**
 
 ## Scope closed
 UI-3 protected learner experience is complete through:
@@ -45,5 +45,5 @@ Per `EXACT_LEGACY_UI_TRANSPLANT_PLAN.md`, the first incomplete phase after this 
 
 Closed UI-3 surfaces must not be reopened unless a concrete regression is proven.
 
-## Closure-doc merge gate
-This closure documentation itself must pass Database CI, Backend CI, Frontend CI and Frontend E2E on one SHA before merge. After that merge, UI-3 is formally closed in `main`.
+## Closure record
+Closure documentation head `da4322ae8480201b0579c90ca5cced158947e284` passed Database `36760929429`, Backend `36760929116`, Frontend `36760929211`, and Frontend E2E `36760929207`; closure PR #112 squash merged as `347201c87fb73e380e7de7f9b059df991ed30ab7`. UI-3 is formally closed in `main`.
