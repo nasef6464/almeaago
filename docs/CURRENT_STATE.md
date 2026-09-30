@@ -1510,3 +1510,12 @@ Protected source `pages/Results.tsx` at legacy `9f01b5fb603313247a4e4133e7a72d9b
 
 ### Assessment Results latest-legacy re-check
 Before merge, legacy advanced from `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b` to `77761835d464687283f7ca9d65f43799ccd43962`. The same-domain `pages/Results.tsx` delta removes legacy Foundation recommendation heuristics and delegates recommendation routing to the shared Reports recommendation view-model. The V2 Assessment Results slice does not synthesize skill/content recommendation routes in the browser, so no code transplant is required from this delta. Presentation and server result/review authority remain unchanged.
+
+
+## Exact Legacy UI — UI-3 Assessment Results — CLOSED
+
+PR #110 is **TESTED / MERGED**. Final documentation-inclusive head `a8968499b5742e6f8fd0b75a19a77ecf55deda80` passed Database `36696586582`, Backend `36696586571`, Frontend `36696586523`, and Frontend E2E `36696586862`; squash merge `c7f38824caec537d0903f6a732af378b321e52fa`. Final legacy re-check: `77761835d464687283f7ca9d65f43799ccd43962`. The new legacy Results delta canonicalized skill recommendation routing; V2 Results owns no browser recommendation resolver, so no extra authority change was required.
+
+## Exact Legacy UI — UI-3 Learner Reports — ACTIVE
+
+Protected legacy source is `pages/Reports.tsx` plus its latest student analytics/taxonomy/recommendation view-models at legacy `77761835d464687283f7ca9d65f43799ccd43962`. The V2 student `/reports` presentation now restores the recognizable `تقارير الأداء` header, path/subject scope controls, period presets, emerald quick-read summary, weak-skill priority cards and recent-results list. All numbers still come from canonical bounded Reporting APIs. No answer-level data is requested. No Foundation recommendation route is synthesized in the browser. Staff/Admin reporting presentation and authority remain unchanged.
