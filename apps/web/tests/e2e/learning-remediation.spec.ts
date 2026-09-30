@@ -103,13 +103,14 @@ test('mobile due review hides answer key until server-scored submission and adva
   });
 
   await page.goto('/review/practice?pathId=path-1&subjectId=subject-1&tab=mistakes');
-  await expect(page.getByRole('heading', { name: 'جلسة المراجعة' })).toBeVisible();
+  await expect(page.getByText('السؤال 1 من 1')).toBeVisible();
+  await expect(page.getByText('استعادة خطأ')).toBeVisible();
   await expect(page.getByText('٢ + ٢ = ؟')).toBeVisible();
   await expect(page.getByText('الإجابة الصحيحة')).toHaveCount(0);
   await expect(page.getByText('نجمع العددين فنحصل على أربعة.')).toHaveCount(0);
 
   await page.getByRole('button', { name: /٣/ }).click();
-  await page.getByRole('button', { name: 'تحقق من الإجابة' }).click();
+  await page.getByRole('button', { name: 'تحقق وسجّل المراجعة' }).click();
 
   await expect.poll(() => answerCalls).toBe(1);
   await expect(page.getByText('إجابة غير صحيحة')).toBeVisible();
