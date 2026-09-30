@@ -1488,3 +1488,12 @@ PR #107 is **TESTED / MERGED**. Final exact head `48b0ebe9d7bf9a32436281ab1b07eb
 ## Exact Legacy UI — UI-3 Study Plan — ACTIVE
 
 The exact legacy `pages/Plan.tsx` source at `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b` was read before implementation. The current `/plan` surface now restores the recognizable legacy `خططي` shell, path master switch, collapsible plan settings, emerald/indigo plan cards, progress hero and today/week/all timeline while retaining canonical V2 Study Plan APIs, CSRF, optimistic concurrency, bounded lazy Course reads and server-generated plan items. No backend/schema/auth/RBAC change.
+
+
+## Exact Legacy UI — UI-3 Study Plan — CLOSED
+
+PR #108 is **TESTED / MERGED**. Final exact head `a0758e224f0d5cca1456aa1f04b196f4e1dbc6fb` passed Database `36694901842`, Backend `36694901668`, Frontend `36694901654`, and Frontend E2E `36694901748`; squash merge `867b72db2182d3313ac516281ea1154a1ee8098d`. Final legacy re-check remained `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`.
+
+## Exact Legacy UI — UI-3 Learner Assessments — ACTIVE
+
+Protected source `pages/Quizzes.tsx` at legacy `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b` was read before implementation. The canonical V2 `/assessments` surface now uses the recognizable legacy learner assessment vocabulary: dashboard return, `اختبارات المنصة` heading/badge, direct links to directed assessments and results, context selectors inside a framed catalog, and indigo/emerald assessment cards. V2 placement scope, Commerce access, max-attempt enforcement, CSRF and server-side attempt creation remain authoritative.
