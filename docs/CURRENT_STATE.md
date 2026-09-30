@@ -1523,3 +1523,14 @@ Protected legacy source is `pages/Reports.tsx` plus its latest student analytics
 
 ### Learner Reports final legacy re-check
 Latest legacy advanced from `77761835d464687283f7ca9d65f43799ccd43962` to `db0c09da042f8ef3ef76b5b1baa298042799e0d4` before merge. The two intervening commits change only MASTER_CONTROL documentation (`FOUNDATION_SUBTOPIC_SKILL_CANONICAL_STATUS_AR.md` and `STUDENT_RESULT_SKILL_INTEGRITY_STATUS_AR.md`); no `pages/Reports*` source changed. Therefore the implemented learner Reports presentation remains current against the latest legacy source checkpoint, with no code delta required.
+
+
+## Exact Legacy UI — UI-3 Learner Reports — CLOSED
+
+PR #111 is **TESTED / MERGED**. Final documentation-inclusive head `63d85620381fe0295372b44341289f74f1022355` passed Database `36760136582`, Backend `36760136661`, Frontend `36760136488`, and Frontend E2E `36760136494`; squash merge `f8b48cbef6572727aca5cb8d63988b48f19ff6e4`. Final latest-legacy checkpoint is `db0c09da042f8ef3ef76b5b1baa298042799e0d4`; the delta after the protected Reports source was documentation-only and required no code transplant.
+
+## Exact Legacy UI — UI-3 Learning Experience Parity — CLOSED
+
+UI-3 is now closed across the protected learner journey: Learning Space/Course Player, Review Library, Review Practice, Study Plan, learner Assessments, Assessment Results, and learner Reports. Each slice was merged only after its documentation-inclusive exact head passed Database CI, Backend CI, Frontend CI, and Frontend E2E, with a latest-legacy re-check before merge. Canonical V2 authorization, Commerce, Assessment scoring/result secrecy, Learning/Review authority, Study Plan concurrency, and Reporting scope remained server-owned throughout.
+
+The first incomplete visual phase is now **UI-4 — Learner workspace**, beginning with the student dashboard and its navigation/entry states. Closed UI-3 slices must not be reopened unless a concrete regression is proven.
