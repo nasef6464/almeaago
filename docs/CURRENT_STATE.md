@@ -1519,3 +1519,7 @@ PR #110 is **TESTED / MERGED**. Final documentation-inclusive head `a8968499b574
 ## Exact Legacy UI — UI-3 Learner Reports — ACTIVE
 
 Protected legacy source is `pages/Reports.tsx` plus its latest student analytics/taxonomy/recommendation view-models at legacy `77761835d464687283f7ca9d65f43799ccd43962`. The V2 student `/reports` presentation now restores the recognizable `تقارير الأداء` header, path/subject scope controls, period presets, emerald quick-read summary, weak-skill priority cards and recent-results list. All numbers still come from canonical bounded Reporting APIs. No answer-level data is requested. No Foundation recommendation route is synthesized in the browser. Staff/Admin reporting presentation and authority remain unchanged.
+
+
+### Learner Reports final legacy re-check
+Latest legacy advanced from `77761835d464687283f7ca9d65f43799ccd43962` to `db0c09da042f8ef3ef76b5b1baa298042799e0d4` before merge. The two intervening commits change only MASTER_CONTROL documentation (`FOUNDATION_SUBTOPIC_SKILL_CANONICAL_STATUS_AR.md` and `STUDENT_RESULT_SKILL_INTEGRITY_STATUS_AR.md`); no `pages/Reports*` source changed. Therefore the implemented learner Reports presentation remains current against the latest legacy source checkpoint, with no code delta required.
