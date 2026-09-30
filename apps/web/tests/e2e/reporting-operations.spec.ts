@@ -30,9 +30,9 @@ test('student report is self-scoped, bounded and exposes no answer-level data',a
  await page.getByLabel('مادة التقرير').selectOption('subject-1');
  await expect.poll(()=>lastOverviewUrl).toContain('pathId=path-1');
  await expect.poll(()=>lastOverviewUrl).toContain('subjectId=subject-1');
- await expect(page.getByText('النسبة والتناسب')).toBeVisible();
+ await expect(page.getByText('النسبة والتناسب',{exact:true}).first()).toBeVisible();
  await expect(page.getByText('اختبار الكمي')).toBeVisible();
- await expect(page.getByText('78%')).toBeVisible();
+ await expect(page.getByText('78%',{exact:true}).first()).toBeVisible();
  await expect(page.locator('body')).not.toContainText('correctOptionIndex');
  await expect(page.locator('body')).not.toContainText('answerKey');
  await expect(page.getByText('مفتاح الإجابة',{exact:true})).toHaveCount(0);
