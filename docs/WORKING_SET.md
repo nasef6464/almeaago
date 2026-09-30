@@ -242,3 +242,6 @@ PR #110 is **TESTED / MERGED**. Final documentation-inclusive head `a8968499b574
 ## Active UI-3 checkpoint — Learner Reports
 
 Branch `feat/exact-legacy-learner-reports-parity` starts from merged #110. Protected legacy source is `pages/Reports.tsx` and latest Reports view-models at `77761835d464687283f7ca9d65f43799ccd43962`. Student-only presentation transplant is implemented over canonical V2 Reporting APIs; staff/admin view remains unchanged. Latest legacy explicitly removed subskill recommendation heuristics, so this slice must not invent browser-owned Foundation routing. Merge gate: exact documentation-inclusive Database + Backend + Frontend + Frontend E2E green on one SHA, final latest-legacy re-check, then merge. This is the final listed UI-3 protected surface; after closure read the authoritative working set before entering the next UI phase.
+
+
+Learner Reports final legacy re-check: latest legacy is `db0c09da042f8ef3ef76b5b1baa298042799e0d4`. The delta after protected Reports source `77761835...` changes only MASTER_CONTROL documentation and contains no Reports code. PR #111 may proceed through its final exact-head four-gate merge check without an additional code transplant.
