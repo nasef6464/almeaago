@@ -1,6 +1,6 @@
 # Exact Legacy Assessment Results — UI-3 Implementation Certificate
 
-Status: **IMPLEMENTATION CANDIDATE — FINAL FOUR-GATE EXACT-HEAD VERIFICATION PENDING**
+Status: **TESTED / MERGED**
 
 ## Identity
 - UI phase: UI-3 Learning experience parity.
@@ -38,8 +38,8 @@ Playwright coverage includes:
 - hidden-answer assertion when `showAnswers=false`;
 - wrong/unanswered/marked filters without answer-key leakage.
 
-## Merge gate
-Do not mark this slice complete until one documentation-inclusive SHA passes Database CI, Backend CI, Frontend CI and Frontend E2E on the same commit, followed by a latest legacy re-check.
+## Closure
+Final documentation-inclusive head `a8968499b5742e6f8fd0b75a19a77ecf55deda80` passed Database `36696586582`, Backend `36696586571`, Frontend `36696586523`, and Frontend E2E `36696586862`; PR #110 squash merged as `c7f38824caec537d0903f6a732af378b321e52fa`. Final legacy re-check was `77761835d464687283f7ca9d65f43799ccd43962`.
 
 ## Next protected surface
 After assessment results close: `/reports`.
