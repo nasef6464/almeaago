@@ -180,7 +180,7 @@ test('mobile student creates deterministic study plan and archives it with optim
   await page.getByRole('button', { name: 'الكل' }).click();
   await expect(page.getByText('درس النسبة')).toBeVisible();
   await expect(page.getByText('تدريب النسبة')).toBeVisible();
-  await expect(page.getByText('17:00')).toBeVisible();
+  await expect(page.getByText('17:00', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('17:30')).toBeVisible();
 
   // Reload after create must hydrate only the first bounded plan detail, not N details.
