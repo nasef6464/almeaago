@@ -234,7 +234,7 @@ test('student question assistant sends only review-card help intent and displays
 
   await page.goto('/review/practice?pathId=path-1&subjectId=subject-1&tab=mistakes');
 
-  await expect(page.getByRole('heading', { name: 'جلسة المراجعة' })).toBeVisible();
+  await expect(page.getByText('السؤال 1 من 1')).toBeVisible();
   await expect(page.getByTestId('question-assistant')).toBeVisible();
   await page.getByRole('button', { name: 'تلميح', exact: true }).click();
 
