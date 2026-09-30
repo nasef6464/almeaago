@@ -203,3 +203,12 @@ PR #106 is **TESTED / MERGED**. Final documentation-inclusive head `2dd5003556d6
 ## Active UI-3 checkpoint — Review Practice
 
 PR #107 is active from merged #106. Protected legacy source: `pages/ReviewSession.tsx` at `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`. Presentation transplant is implemented over the canonical V2 practice/answer contract; backend authority and answer secrecy are unchanged. Merge gate: exact documentation-inclusive Database + Backend + Frontend + Frontend E2E green on one SHA, latest legacy re-check, then merge. After closure continue directly to `/plan`.
+
+
+## Closed UI-3 checkpoint — Review Practice
+
+PR #107 is **TESTED / MERGED**. Final exact head `48b0ebe9d7bf9a32436281ab1b07eb3dd98f1ef9` passed Database `36673735488`, Backend `36673735457`, Frontend `36673735543`, Frontend E2E `36673735402`; squash merge `5f565454ddd34868d18391951a4a59a7838bf109`. Final legacy re-check: `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`.
+
+## Active UI-3 checkpoint — Study Plan
+
+Branch `feat/exact-legacy-study-plan-parity` starts from merged #107. Protected source: `pages/Plan.tsx` at legacy `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`. Presentation transplant is implemented over current V2 Study Plan authority. Merge gate: exact documentation-inclusive Database + Backend + Frontend + Frontend E2E green on one SHA, latest legacy re-check, then merge. After closure continue directly to learner `/assessments`, assessment results, then `/reports`.
