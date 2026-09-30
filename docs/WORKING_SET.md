@@ -263,3 +263,12 @@ Protected learner surfaces completed and merged in sequence:
 7. learner Reports — PR #111.
 
 Do not reopen these slices unless a real regression is demonstrated. The next incomplete phase from the authoritative transplant plan is **UI-4 — Learner workspace**. Start with the student dashboard and its navigation, then learner notifications/reporting entry states, while preserving V2 data truth and matching the exact legacy source-backed layout/density.
+
+
+## UI-3 closure record — MERGED
+
+PR #112 is **TESTED / MERGED**. Documentation head `da4322ae8480201b0579c90ca5cced158947e284` passed Database `36760929429`, Backend `36760929116`, Frontend `36760929211`, Frontend E2E `36760929207`; squash merge `347201c87fb73e380e7de7f9b059df991ed30ab7`.
+
+## Active UI-4 checkpoint — Student Dashboard + learner navigation
+
+Branch `feat/exact-legacy-student-dashboard-parity` starts from merged UI-3 closure. Protected source: `pages/Dashboard.tsx` at legacy `db0c09da042f8ef3ef76b5b1baa298042799e0d4` (student menu/sidebar + `OverviewTab`). Candidate restores the exact legacy workspace hierarchy over real V2 routes only. Missing legacy-only tabs are not fabricated. Merge gate: exact documentation-inclusive Database + Backend + Frontend + Frontend E2E green on one SHA, latest legacy re-check, then merge. After closure continue UI-4 with learner notification/reporting entry-state parity that is not already covered by this dashboard slice.
