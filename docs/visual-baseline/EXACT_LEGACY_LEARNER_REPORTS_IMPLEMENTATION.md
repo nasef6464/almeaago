@@ -65,3 +65,6 @@ Then re-check latest legacy before merge.
 
 ## Sequence
 This is the final listed protected UI-3 surface. After merge, read CURRENT_STATE / PARITY_MATRIX / WORKING_SET and continue from the first incomplete next UI phase without reopening closed UI-3 slices.
+
+## Final latest-legacy re-check
+Latest legacy is `db0c09da042f8ef3ef76b5b1baa298042799e0d4`. Compared with the protected Reports source checkpoint `77761835d464687283f7ca9d65f43799ccd43962`, the only changed files are MASTER_CONTROL documentation; no `pages/Reports*` implementation changed. No additional code transplant is required. The final documentation-inclusive head must pass all four gates after this note before merge.
