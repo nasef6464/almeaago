@@ -194,3 +194,12 @@ Pre-documentation implementation evidence:
 Merge gate now: exact documentation-inclusive four-gate verification, then latest legacy re-check.
 
 Do not reopen the merged Learning Space/Course Player slice. After this Review Library slice closes, continue UI-3 directly with `/review/practice`.
+
+
+## Closed UI-3 checkpoint — Review Library
+
+PR #106 is **TESTED / MERGED**. Final documentation-inclusive head `2dd5003556d6ee4869003b24cf8e325deb8bd09c` passed Database `36626689392`, Backend `36626689362`, Frontend `36626689390`, and Frontend E2E `36626689383`; squash merge `1699665703b29837704492a5136861da44d80d16`. Final legacy re-check: `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`.
+
+## Active UI-3 checkpoint — Review Practice
+
+PR #107 is active from merged #106. Protected legacy source: `pages/ReviewSession.tsx` at `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`. Presentation transplant is implemented over the canonical V2 practice/answer contract; backend authority and answer secrecy are unchanged. Merge gate: exact documentation-inclusive Database + Backend + Frontend + Frontend E2E green on one SHA, latest legacy re-check, then merge. After closure continue directly to `/plan`.

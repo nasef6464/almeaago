@@ -80,10 +80,10 @@ test('student golden journey crosses content assessment result review remediatio
  await expect.poll(()=>saveCalls).toBe(1);
 
  await page.goto('/review/practice?pathId=path-1&subjectId=subject-1&tab=mistakes');
- await expect(page.getByRole('heading',{name:'جلسة المراجعة'})).toBeVisible();
+ await expect(page.getByText('السؤال 1 من 1')).toBeVisible();
  await expect(page.getByText('الإجابة الصحيحة')).toHaveCount(0);
  await page.getByRole('button',{name:/٣/}).click();
- await page.getByRole('button',{name:'تحقق من الإجابة'}).click();
+ await page.getByRole('button',{name:'تحقق وسجّل المراجعة'}).click();
  await expect.poll(()=>remediationCalls).toBe(1);
  await expect(page.getByText('الإجابة الصحيحة')).toBeVisible();
 
