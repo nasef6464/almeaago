@@ -1470,3 +1470,12 @@ Implemented:
 - subject deep links survive asynchronous taxonomy bootstrap.
 
 Status remains **NOT YET TESTED/MERGED** until the exact documentation-inclusive head passes all four gates and the latest legacy delta is re-checked.
+
+
+## Exact Legacy UI — UI-3 Review Library — CLOSED
+
+PR #106 is **TESTED / MERGED**. Final documentation-inclusive head `2dd5003556d6ee4869003b24cf8e325deb8bd09c` passed Database `36626689392`, Backend `36626689362`, Frontend `36626689390`, and Frontend E2E `36626689383`; squash merge `1699665703b29837704492a5136861da44d80d16`. Final legacy re-check remained `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`.
+
+## Exact Legacy UI — UI-3 Review Practice — ACTIVE
+
+PR #107 transplants exact legacy `pages/ReviewSession.tsx` presentation/interaction over canonical V2 review practice APIs. The V2 server remains authoritative for scoring, answer reveal, SM2/review scheduling, CSRF, optimistic `expectedUpdatedAt`, and retry-safe `submissionKey`. The legacy compact question card, review-type badge, responsive option layout and indigo action panel are restored without reintroducing legacy client authority. Responsive remediation E2E is updated for the transplanted interaction. No backend/schema/auth/RBAC/scoring change.
