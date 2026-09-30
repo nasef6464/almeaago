@@ -230,3 +230,6 @@ PR #109 is **TESTED / MERGED**. Final exact head `af4e1c6b37873d5761e21d0ea098bb
 ## Active UI-3 checkpoint — Assessment Results
 
 Branch `feat/exact-legacy-assessment-results-parity` starts from merged #109. Protected source: `pages/Results.tsx` at legacy `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`. Presentation transplant is implemented over canonical V2 result/review authority. Merge gate: exact documentation-inclusive Database + Backend + Frontend + Frontend E2E green on one SHA, latest legacy re-check, then merge. After closure continue directly to `/reports`.
+
+
+Assessment Results pre-merge legacy re-check: latest legacy is `77761835d464687283f7ca9d65f43799ccd43962`. Its Results delta only replaces client-side skill recommendation heuristics with the canonical Reports recommendation view-model. Current V2 Assessment Results exposes no equivalent browser-owned recommendation resolver, so the active #110 implementation needs no authority change. Use `77761835d464687283f7ca9d65f43799ccd43962` as the final legacy checkpoint for this slice.
