@@ -1445,3 +1445,28 @@ Closed in this slice:
 - current V2 Commerce locking and Learning progress authority preserved.
 
 UI-3 remains active. First incomplete protected surface: `/review`, then `/review/practice`, `/plan`, learner Assessment/results, and `/reports`.
+
+
+## Exact Legacy UI — UI-3 Review Library — IMPLEMENTATION CANDIDATE
+
+PR #106 transplants the legacy `pages/Favorites.tsx` review-library presentation over the current V2 ReviewCard/Learning/AI authority.
+
+Implementation checkpoint:
+- base main `deed289a1c76081ae7c39414f8e6c3226af53af8`;
+- legacy `9f01b5fb603313247a4e4133e7a72d9b80dcfa4b`;
+- implementation head before docs `6f97c071444dea524018864b3984060097c2ffe3`;
+- Frontend CI `36626299723`: PASS;
+- Frontend E2E `36626299755`: PASS 80/80;
+- artifact `11060292454`, digest `sha256:500cb9ef0cf8b6922f21d6b65bc22181918b1c823802ec4fef309d12c039b405`.
+
+Implemented:
+- legacy-style saved/mistakes review tabs;
+- one-question focus with explicit answer reveal and previous/next;
+- legacy `/favorites` presentation alias;
+- current `/review` canonical route retained;
+- current path/subject scope retained because V2 API intentionally requires path ownership;
+- practice CTA maps to canonical V2 `/review/practice`;
+- current mastery/readiness/goals and AI ReviewCard capabilities preserved below the legacy flow;
+- subject deep links survive asynchronous taxonomy bootstrap.
+
+Status remains **NOT YET TESTED/MERGED** until the exact documentation-inclusive head passes all four gates and the latest legacy delta is re-checked.

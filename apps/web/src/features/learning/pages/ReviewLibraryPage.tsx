@@ -1,12 +1,17 @@
 import {
+  ArrowRight,
   Bookmark,
-  BrainCircuit,
+  BookOpen,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  CircleAlert,
+  Eye,
+  EyeOff,
   Loader2,
-  PlayCircle,
+  RotateCcw,
+  Sparkles,
   Target,
+  Trash2,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -25,11 +30,10 @@ import {
   type SkillProgress,
 } from '../api/learning-client';
 
-const tabLabels: Record<ReviewTab, string> = {
-  all: 'الكل',
-  mistakes: 'أخطائي',
-  saved: 'المحفوظة',
-};
+const legacyReviewTabs: Array<[ReviewTab, string]> = [
+  ['saved', 'حفظتها للمراجعة'],
+  ['mistakes', 'أخطأت فيها'],
+];
 
 const statusLabel: Record<SkillProgress['status'], string> = {
   weak: 'تحتاج دعمًا',
@@ -62,8 +66,13 @@ export function ReviewLibraryPage() {
   const [taxonomy, setTaxonomy] = useState<TaxonomyCore>({ paths: [], subjects: [] });
   const [pathId, setPathId] = useState(searchParams.get('pathId') || '');
   const [subjectId, setSubjectId] = useState(searchParams.get('subjectId') || '');
-  const [tab, setTab] = useState<ReviewTab>('all');
+  const requestedTab = (searchParams.get('mode') || searchParams.get('tab') || 'saved') as ReviewTab;
+  const [tab, setTab] = useState<ReviewTab>(
+    requestedTab === 'saved' || requestedTab === 'mistakes' ? requestedTab : 'saved',
+  );
   const [page, setPage] = useState(1);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [showAnswer, setShowAnswer] = useState(false);
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [nextAction, setNextAction] = useState<SkillProgress | null>(null);
@@ -90,10 +99,14 @@ export function ReviewLibraryPage() {
   );
 
   useEffect(() => {
-    if (subjectId && !subjects.some((subject) => subject.id === subjectId)) {
+    if (
+      subjectId &&
+      taxonomy.subjects.length > 0 &&
+      !subjects.some((subject) => subject.id === subjectId)
+    ) {
       setSubjectId('');
     }
-  }, [subjectId, subjects]);
+  }, [subjectId, subjects, taxonomy.subjects.length]);
 
   useEffect(() => {
     setPage(1);
@@ -119,6 +132,8 @@ export function ReviewLibraryPage() {
     ])
       .then(([review, mastery, action,ready]) => {
         setItems(review.items);
+        setCurrentIndex(0);
+        setShowAnswer(false);
         setHasMore(review.hasMore);
         setProgress(mastery.items);
         setNextAction(action.item);
@@ -162,6 +177,7 @@ export function ReviewLibraryPage() {
     return () => controller.abort();
   }, [authLoading, pathId, subjectId, user]);
 
+  const currentReview = items[currentIndex] || null;
   const canCreateShort = pathId !== '' && !goals.some((goal) => goal.horizon === 'short');
   const canCreateLong = pathId !== '' && !goals.some((goal) => goal.horizon === 'long');
 
@@ -238,19 +254,29 @@ export function ReviewLibraryPage() {
 
   return (
     <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-gray-50 px-3 py-6 sm:px-6">
-      <div className="mx-auto max-w-5xl space-y-4">
-        <header className="rounded-3xl bg-slate-950 p-5 text-white">
-          <div className="flex items-center gap-2 text-amber-400">
-            <BrainCircuit size={20} />
-            <span className="text-xs font-black">REVIEW & MASTERY</span>
+      <div className="mx-auto flex max-w-5xl flex-col gap-4">
+        <header className="order-1 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between" data-testid="legacy-review-library">
+          <div className="flex items-center gap-3">
+            <Link to="/dashboard" className="text-gray-500 transition hover:text-gray-700" aria-label="العودة للوحة الطالب">
+              <ArrowRight />
+            </Link>
+            <div>
+              <h1 className="text-xl font-black text-emerald-700 sm:text-2xl">أسئلتي للمراجعة</h1>
+              <p className="mt-1 text-xs font-bold text-gray-500 sm:text-sm">المحفوظة والأخطاء في مكان واحد.</p>
+            </div>
           </div>
-          <h1 className="mt-2 text-2xl font-black">أسئلتي للمراجعة</h1>
-          <p className="mt-1 text-sm text-slate-300">
-            الأخطاء والمحفوظات في بطاقة واحدة لكل سؤال، مع خطوة تالية محسوبة من أدلة إجاباتك فقط.
-          </p>
+          {pathId ? (
+            <Link
+              to={`/review/practice?pathId=${encodeURIComponent(pathId)}&subjectId=${encodeURIComponent(subjectId)}&tab=${encodeURIComponent(tab)}`}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white transition hover:bg-emerald-700"
+            >
+              <Sparkles size={16} />
+              تدرّب على هذه الأسئلة
+            </Link>
+          ) : null}
         </header>
 
-        <section className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-2">
+        <section className="order-2 grid gap-3 rounded-2xl border bg-white p-4 shadow-sm sm:grid-cols-2">
           <label className="space-y-1">
             <span className="text-xs font-black text-gray-600">المسار</span>
             <select
@@ -286,7 +312,7 @@ export function ReviewLibraryPage() {
         </section>
 
         {pathId ? (
-          <section className="rounded-3xl border border-indigo-100 bg-white p-4 shadow-sm sm:p-5">
+          <section className="order-8 rounded-3xl border border-indigo-100 bg-white p-4 shadow-sm sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <div className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700">
@@ -376,7 +402,7 @@ export function ReviewLibraryPage() {
 
         {pathId && readiness ? (
           <section
-            className="rounded-3xl border border-sky-100 bg-sky-50 p-4 sm:p-5"
+            className="order-9 rounded-3xl border border-sky-100 bg-sky-50 p-4 sm:p-5"
             data-testid="mastery-readiness"
           >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -429,7 +455,7 @@ export function ReviewLibraryPage() {
         ) : null}
 
         {pathId && nextAction ? (
-          <section className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
+          <section className="order-10 rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-black text-indigo-600">الخطوة التالية</p>
@@ -447,7 +473,7 @@ export function ReviewLibraryPage() {
         ) : null}
 
         {pathId && progress.length > 1 ? (
-          <section className="rounded-2xl border bg-white p-4">
+          <section className="order-11 rounded-2xl border bg-white p-4">
             <p className="text-xs font-black text-gray-500">أدلة الإتقان الحالية</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {progress.slice(0, 4).map((item, index) => (
@@ -461,24 +487,14 @@ export function ReviewLibraryPage() {
           </section>
         ) : null}
 
-        {pathId ? (
-          <Link
-            to={`/review/practice?pathId=${encodeURIComponent(pathId)}&subjectId=${encodeURIComponent(subjectId)}&tab=${encodeURIComponent(tab)}`}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-500 px-4 py-3 font-black text-slate-950 shadow-sm sm:w-auto"
-          >
-            <PlayCircle size={19} />
-            ابدأ جلسة المراجعة المستحقة
-          </Link>
-        ) : null}
-
-        <section className="grid grid-cols-3 gap-2 rounded-2xl border bg-white p-2">
-          {(Object.entries(tabLabels) as Array<[ReviewTab, string]>).map(([value, label]) => (
+        <section className="order-3 grid grid-cols-2 gap-2 rounded-2xl bg-gray-100 p-1">
+          {legacyReviewTabs.map(([value, label]) => (
             <button
               key={value}
               type="button"
               onClick={() => setTab(value)}
               className={`rounded-xl px-3 py-2.5 text-sm font-black ${
-                tab === value ? 'bg-slate-950 text-white' : 'text-gray-600 hover:bg-gray-50'
+                tab === value ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:bg-white/70'
               }`}
             >
               {label}
@@ -487,37 +503,41 @@ export function ReviewLibraryPage() {
         </section>
 
         {error ? (
-          <div className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700">{error}</div>
+          <div className="order-4 rounded-xl bg-rose-50 p-3 font-bold text-rose-700">{error}</div>
         ) : null}
 
         {!pathId ? (
-          <div className="rounded-2xl border border-dashed bg-white p-10 text-center font-bold text-gray-500">
-            اختر مسارًا لعرض أسئلتك بدون خلط أدلة مسارات مختلفة.
+          <div className="order-5 rounded-2xl border border-dashed bg-white p-10 text-center font-bold text-gray-500">
+            <BookOpen className="mx-auto mb-3 text-gray-300" size={46} />
+            اختر المسار لعرض أسئلتك بنفس مصدر ReviewCard الموحّد بدون خلط أدلة المسارات.
           </div>
         ) : busy ? (
-          <div className="rounded-2xl bg-white p-10 text-center font-bold text-gray-500">
+          <div className="order-5 rounded-2xl bg-white p-10 text-center font-bold text-gray-500">
             <Loader2 className="mx-auto mb-2 animate-spin" size={22} />
             جاري تحميل المراجعة...
           </div>
         ) : items.length === 0 ? (
-          <div className="rounded-2xl border border-dashed bg-white p-10 text-center font-bold text-gray-500">
-            لا توجد أسئلة في هذا التصنيف.
+          <div className="order-5 rounded-2xl border-2 border-dashed border-gray-200 bg-white p-10 text-center font-bold text-gray-500">
+            <BookOpen className="mx-auto mb-3 text-gray-300" size={46} />
+            <h2 className="font-black text-gray-800">{tab === 'saved' ? 'لم تحفظ أسئلة للمراجعة حتى الآن.' : 'لا توجد أسئلة أخطأت فيها محفوظة للمراجعة.'}</h2>
+            <p className="mt-2 text-sm font-bold text-gray-500">السؤال لا يُنسخ هنا؛ يتم استدعاؤه من بنك الأسئلة بنفس الهوية.</p>
           </div>
         ) : (
-          <section className="space-y-3">
-            {items.map((item) => (
+          <section className="order-5 space-y-3">
+            {items.slice(currentIndex, currentIndex + 1).map((item) => (
               <article key={item.card.cardId} className="rounded-2xl border bg-white p-4 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="flex flex-wrap gap-2">
                     {item.card.hasMistake ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-black text-rose-700">
-                        <CircleAlert size={13} />
+                        <RotateCcw size={13} />
                         خطأ سابق
                       </span>
                     ) : null}
                     {item.card.savedForReview ? (
-                      <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-black text-indigo-700">
-                        محفوظ
+                      <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-black text-indigo-700">
+                        <Bookmark size={13} />
+                        محفوظ للمراجعة
                       </span>
                     ) : null}
                   </div>
@@ -528,7 +548,7 @@ export function ReviewLibraryPage() {
                     className="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-black disabled:opacity-40"
                   >
                     {saving === item.card.questionId ? <Loader2 size={14} className="animate-spin" /> : <Bookmark size={14} />}
-                    {item.card.savedForReview ? 'إزالة من المحفوظة' : 'حفظ للمراجعة'}
+                    {item.card.savedForReview ? <><Trash2 size={14} />إزالة من المحفوظة</> : <>حفظ للمراجعة</>}
                   </button>
                 </div>
 
@@ -543,7 +563,7 @@ export function ReviewLibraryPage() {
                       <div
                         key={option.index}
                         className={`rounded-xl border p-3 text-sm font-bold ${
-                          correct
+                          correct && showAnswer
                             ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
                             : 'border-gray-100 bg-gray-50 text-gray-700'
                         }`}
@@ -552,19 +572,54 @@ export function ReviewLibraryPage() {
                           {optionLetter(option.index)}
                         </span>
                         {item.question.optionsEmbeddedInImage ? '' : option.text}
-                        {correct ? <span className="mr-2 text-xs">الإجابة الصحيحة</span> : null}
+                        {correct && showAnswer ? <span className="mr-2 inline-flex items-center gap-1 text-xs"><CheckCircle2 size={14} />الإجابة الصحيحة</span> : null}
                       </div>
                     );
                   })}
                 </div>
 
-                {item.question.explanation || item.question.hint || item.question.solvingStrategy ? (
-                  <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm leading-7 text-amber-950">
+                {showAnswer && (item.question.explanation || item.question.hint || item.question.solvingStrategy) ? (
+                  <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-sm font-bold leading-7 text-emerald-950">
                     {item.question.explanation ? <p><strong>الشرح:</strong> {item.question.explanation}</p> : null}
                     {item.question.hint ? <p><strong>تلميح:</strong> {item.question.hint}</p> : null}
                     {item.question.solvingStrategy ? <p><strong>طريقة الحل:</strong> {item.question.solvingStrategy}</p> : null}
                   </div>
                 ) : null}
+
+                <div className="mt-4 flex flex-wrap gap-2 border-t pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAnswer((value) => !value)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-black text-white"
+                  >
+                    {showAnswer ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showAnswer ? 'إخفاء الحل' : 'إظهار الحل'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={currentIndex === 0}
+                    onClick={() => {
+                      setCurrentIndex((value) => Math.max(0, value - 1));
+                      setShowAnswer(false);
+                    }}
+                    className="rounded-xl border bg-white px-4 py-2 text-sm font-black disabled:opacity-40"
+                  >
+                    <ChevronRight size={15} className="ml-1 inline" />
+                    السابق
+                  </button>
+                  <button
+                    type="button"
+                    disabled={currentIndex >= items.length - 1}
+                    onClick={() => {
+                      setCurrentIndex((value) => Math.min(items.length - 1, value + 1));
+                      setShowAnswer(false);
+                    }}
+                    className="rounded-xl border bg-white px-4 py-2 text-sm font-black disabled:opacity-40"
+                  >
+                    التالي
+                    <ChevronLeft size={15} className="mr-1 inline" />
+                  </button>
+                </div>
 
                 <div className="mt-4">
                   <QuestionAssistantPanel reviewCardId={item.card.cardId} />
@@ -574,7 +629,7 @@ export function ReviewLibraryPage() {
           </section>
         )}
 
-        <div className="flex items-center justify-between">
+        <div className="order-6 flex items-center justify-between">
           <button
             type="button"
             disabled={page <= 1}
@@ -584,7 +639,7 @@ export function ReviewLibraryPage() {
             <ChevronRight size={17} />
             السابق
           </button>
-          <span className="text-sm font-black text-gray-500">صفحة {page}</span>
+          <span className="text-sm font-black text-gray-500">السؤال {currentReview ? currentIndex + 1 : 0} من {items.length} · صفحة {page}</span>
           <button
             type="button"
             disabled={!hasMore}
