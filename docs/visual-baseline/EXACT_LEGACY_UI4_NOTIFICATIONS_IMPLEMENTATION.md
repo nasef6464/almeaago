@@ -25,3 +25,7 @@ Playwright covers 390px empty learner state and 1440px unread state, including n
 
 ## Merge gate
 Database CI, Backend CI, Frontend CI and Frontend E2E must all pass on one documentation-inclusive exact head, followed by final latest-legacy re-check.
+
+## Final latest-legacy re-check
+- Re-checked legacy `almeaacodax/main` at `5fe7a49af0241ec7532a1678fb68e616631a837a` immediately before the exact-head gate run.
+- `components/NotificationBell.tsx` remains the protected source read for this slice; no later legacy commit exists at this checkpoint, so there is no additional notification delta to transplant.
