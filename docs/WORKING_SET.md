@@ -289,3 +289,7 @@ UI-4 is CLOSED via PR #115. Branch `feat/ui5-teacher-workspace-parity` starts fr
 
 ## Active UI-5 checkpoint — Parent
 Teacher PR #116 is merged at `3775b4a6b32eb4d9806d6fb57e4c963dc8d932fc`. Parent is active. Latest legacy `pages/Dashboard.tsx` shows the simple follow-up shell plus grouped follow-up/account entries and legacy WhatsApp/approval actions. V2 already has stronger canonical Parents read models; candidate restores only source-backed presentation/entries and routes digest/account state to existing owner surfaces. Do not invent legacy approval/send mutations. Merge only after exact-head four-gate green + latest legacy re-check, then continue School Director → Supervisor.
+
+
+## Active UI-5 checkpoint — School Director
+Parent PR #117 merged as `f6bf96186ed384c5fa59b2eff5e1dbe6b1fd1ed9`. Director V2 is already close to exact Legacy and is not blindly rewritten. Candidate restores only the missing academic operations entry hierarchy over the existing permission/module-gated, CSRF-backed Organizations workspace. Exact-head four-gate + latest legacy re-check required, then Supervisor.
