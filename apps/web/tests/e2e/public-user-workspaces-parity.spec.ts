@@ -110,6 +110,23 @@ test('student dashboard restores the legacy workspace shell over real V2 routes'
 });
 
 
+test('learner reporting entry opens the already-certified report without duplicating reporting authority',async({page})=>{
+  await page.route('**/api/v1/auth/me',route=>json(route,{user:student}));
+  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{paths:[],subjects:[]}));
+  await page.route('**/api/v1/reports/overview',route=>json(route,{scope:{canExport:false,isTruncated:false},assessment:{averageScore:0,passRate:0,passed:0,resultCount:0,resultsTruncated:false,attemptsTruncated:false},weakestSkills:[]}));
+  await page.route('**/api/v1/reports/results?page=1&limit=20',route=>json(route,{items:[],page:1,limit:20,total:0}));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/dashboard');
+  await page.locator('main a[href="/reports"]').first().click();
+  await expect(page).toHaveURL(/\/reports$/);
+  await expect(page.getByRole('heading',{name:'تقارير الأداء'})).toBeVisible();
+  await expect(page.getByText('قراءة سريعة للتقرير')).toBeVisible();
+  await expect(page.getByText('لا توجد نتائج في النطاق الحالي.')).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/ui4-reporting-entry-mobile.png',fullPage:true});
+});
+
+
 test('learner notifications preserve legacy entry states over canonical V2 authority',async({page})=>{
   await page.route('**/api/v1/auth/me',route=>json(route,{user:student}));
   await page.route('**/api/v1/notifications/me?page=1&limit=50',route=>json(route,{items:[],page:1,limit:50,total:0}));
