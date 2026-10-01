@@ -72,20 +72,41 @@ test('public landing stays bounded on tablet and source-backed info pages are re
   await page.screenshot({path:'test-results/public-info-tablet.png',fullPage:true});
 });
 
-test('student dashboard is a real workspace hub instead of a placeholder',async({page})=>{
+test('student dashboard restores the legacy workspace shell over real V2 routes',async({page})=>{
   await page.route('**/api/v1/auth/me',route=>json(route,{user:student}));
   await page.setViewportSize({width:390,height:844});
   await page.goto('/dashboard');
 
-  await expect(page.getByRole('heading',{name:'أهلًا طالب المئة'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'مرحباً يا بطل! 👋'})).toBeVisible();
+  await expect(page.getByTestId('student-today-focus')).toContainText('خطوتك اليوم');
+
   const studentMain=page.locator('main');
-  await expect(studentMain.locator('a[href="/learning"]')).toBeVisible();
-  await expect(studentMain.locator('a[href="/assessments"]')).toBeVisible();
-  await expect(studentMain.locator('a[href="/review"]')).toBeVisible();
-  await expect(studentMain.locator('a[href="/classroom/join"]')).toBeVisible();
+  await expect(studentMain.locator('a[href="/learning"]').first()).toBeVisible();
+  await expect(studentMain.locator('a[href="/assessments"]').first()).toBeVisible();
+  await expect(studentMain.locator('a[href="/review"]').first()).toBeVisible();
+  await expect(studentMain.locator('a[href="/reports"]').first()).toBeVisible();
+  await expect(studentMain.locator('a[href="/notifications"]').first()).toBeVisible();
+
+  await page.getByRole('button',{name:'فتح قائمة لوحة الطالب'}).click();
+  const navigation=page.getByRole('navigation',{name:'تنقل لوحة الطالب'});
+  await expect(navigation).toBeVisible();
+  await expect(page.getByTestId('student-menu-group-learning')).toContainText('التعلم');
+  await expect(page.getByTestId('student-menu-group-exams')).toContainText('الاختبارات');
+  await expect(page.getByTestId('student-menu-group-tools')).toContainText('الأدوات');
+  await expect(page.getByTestId('student-menu-group-support')).toContainText('الدعم والمتابعة');
+  await expect(navigation.locator('a[href="/assessment-assignments"]')).toBeVisible();
+  await expect(navigation.locator('a[href="/classroom/join"]')).toBeVisible();
+
   await expect(page.getByText('هذه الوجهة ستُنقل من الواجهة المرجعية في مرحلتها.')).toHaveCount(0);
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
-  await page.screenshot({path:'test-results/student-dashboard-mobile.png',fullPage:true});
+  await page.screenshot({path:'test-results/student-dashboard-mobile-menu.png',fullPage:true});
+
+  await page.getByRole('button',{name:'إغلاق قائمة لوحة الطالب'}).last().click();
+  await page.setViewportSize({width:1440,height:1000});
+  await expect(navigation).toBeVisible();
+  await expect(page.locator('aside[aria-label="تنقل لوحة الطالب"]').getByText('طالب المئة',{exact:true})).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/student-dashboard-desktop.png',fullPage:true});
 });
 
 test('supervisor and admin roots expose real scoped workspaces',async({page})=>{
