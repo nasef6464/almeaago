@@ -32,6 +32,9 @@ test('parent dashboard shows only canonical linked-child summary and determinist
 
  await page.goto('/parent-dashboard');
  await expect(page.getByRole('heading',{name:'متابعة الأبناء ببساطة'})).toBeVisible();
+ await expect(page.getByRole('region',{name:'وصول سريع لولي الأمر'})).toContainText('فتح التقرير');
+ await expect(page.getByRole('region',{name:'وصول سريع لولي الأمر'})).toContainText('الإشعارات والملخصات');
+ await expect(page.getByRole('region',{name:'وصول سريع لولي الأمر'})).toContainText('الملف الشخصي');
  await expect(page.getByTestId('parent-child-card')).toHaveCount(1);
  await expect(page.getByRole('heading',{name:'سارة',exact:true})).toBeVisible();
  await expect(page.getByText('خطة علاج عاجلة: شرح + تدريب + اختبار موجه',{exact:true}).first()).toBeVisible();
@@ -49,6 +52,7 @@ test('parent dashboard shows only canonical linked-child summary and determinist
  await page.getByRole('button',{name:'تقرير الأسبوع'}).click();
  await expect(page.getByText('التقرير الأسبوعي المبسط')).toBeVisible();
  await expect(page.getByText(/هذه المرحلة تعرض التقرير فقط/)).toBeVisible();
+ await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
  await page.screenshot({path:'test-results/parent-dashboard-mobile.png',fullPage:true});
 });
 
@@ -73,6 +77,7 @@ test('desktop parent follow-up stays observer-only and preserves canonical Learn
  await page.route('**/api/v1/parents/weekly-report?**',route=>json(route,{periodStart:'2026-09-21T12:00:00Z',periodEnd:'2026-09-28T12:00:00Z',children:[{studentId:'student-1',name:'سارة',avatarUrl:'',schoolIds:['school-1'],assessmentCount:2,averageScore:71.5,studyMinutes:24,weakSkills:[weak],nextAction:weak.recommendedAction}],page:1,limit:20,hasMore:false}));
  await page.goto('/parent-dashboard');
  await expect(page.getByText('متابعة للعرض فقط')).toBeVisible();
+ await expect(page.getByRole('region',{name:'وصول سريع لولي الأمر'})).toBeVisible();
  await expect(page.getByTestId('parent-follow-up-plan')).toContainText('الخطوة 1');
  await expect(page.getByTestId('parent-follow-up-plan')).toContainText(weak.recommendedAction);
  await expect(page.getByTestId('parent-follow-up-plan')).toContainText('الدليل الحالي: 5');
