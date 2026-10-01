@@ -285,3 +285,7 @@ Student Dashboard PR #113 is merged. Learner Notifications PR #114 final head `e
 
 ## Active UI-5 checkpoint — Teacher
 UI-4 is CLOSED via PR #115. Branch `feat/ui5-teacher-workspace-parity` starts from merge `ee15f91a2eb3f8d1c1b70371389c4983fd2128e7`. Protected source: latest legacy `dashboards/SchoolTeacherDashboard.tsx`. The V2 root previously jumped directly to Smart Classroom; candidate restores the teacher role-workspace shell while retaining canonical owner-domain destinations. Merge gate: exact documentation-inclusive four-gate green, latest legacy re-check, merge/read-back. Then continue UI-5 Parent → School Director → Supervisor.
+
+
+## Active UI-5 checkpoint — Parent
+Teacher PR #116 is merged at `3775b4a6b32eb4d9806d6fb57e4c963dc8d932fc`. Parent is active. Latest legacy `pages/Dashboard.tsx` shows the simple follow-up shell plus grouped follow-up/account entries and legacy WhatsApp/approval actions. V2 already has stronger canonical Parents read models; candidate restores only source-backed presentation/entries and routes digest/account state to existing owner surfaces. Do not invent legacy approval/send mutations. Merge only after exact-head four-gate green + latest legacy re-check, then continue School Director → Supervisor.
