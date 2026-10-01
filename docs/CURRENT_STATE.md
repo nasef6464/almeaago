@@ -1560,3 +1560,7 @@ UI-4 is closed. Teacher is the first UI-5 protected slice. Exact legacy `dashboa
 
 ## UI-5 Parent Workspace — ACTIVE
 Teacher is closed via PR #116. Parent exact legacy `pages/Dashboard.tsx` was read first at `d4e5c831...`. V2 already owns canonical linked-child/results/skills/report facts; this slice restores the missing Parent quick-entry hierarchy without reviving legacy browser mutations. Exact-head four-gate verification pending.
+
+
+## UI-5 School Director — ACTIVE
+Parent PR #117 is merged. School Director exact legacy source was read first. V2 already matches the delegated operational workspace closely; candidate restores the academic operations entry hierarchy only and retains Organizations authority/CSRF/RBAC. Four-gate pending.
