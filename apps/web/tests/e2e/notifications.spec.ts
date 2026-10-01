@@ -81,11 +81,11 @@ test('user inbox is self-scoped, realtime-refreshed and read mutations require c
  await expect(page.getByText('3 جديد')).toBeVisible();
  await page.getByText('نتيجتك جاهزة').click();
  await expect.poll(()=>readOneHeader).toBe('csrf-token');
- await expect(page.getByText('2 غير مقروء')).toBeVisible();
+ await expect(page.getByText('2 جديد')).toBeVisible();
 
  await page.getByRole('button',{name:'تعليم الكل مقروء'}).click();
  await expect.poll(()=>readAllHeader).toBe('csrf-token');
- await expect(page.getByText('0 غير مقروء')).toBeVisible();
+ await expect(page.getByText('لا توجد إشعارات جديدة')).toBeVisible();
 });
 
 
