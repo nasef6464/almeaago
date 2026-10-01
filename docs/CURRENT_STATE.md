@@ -1556,3 +1556,7 @@ Student Dashboard PR #113 and learner Notifications PR #114 are merged. Learner 
 
 ## UI-5 Teacher Workspace — ACTIVE
 UI-4 is closed. Teacher is the first UI-5 protected slice. Exact legacy `dashboards/SchoolTeacherDashboard.tsx` was read first; V2 teacher root now restores its role-workspace shell while owner-domain APIs remain authoritative. Exact-head four-gate verification pending.
+
+
+## UI-5 Parent Workspace — ACTIVE
+Teacher is closed via PR #116. Parent exact legacy `pages/Dashboard.tsx` was read first at `d4e5c831...`. V2 already owns canonical linked-child/results/skills/report facts; this slice restores the missing Parent quick-entry hierarchy without reviving legacy browser mutations. Exact-head four-gate verification pending.

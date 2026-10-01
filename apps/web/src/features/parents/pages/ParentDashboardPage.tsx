@@ -1,5 +1,6 @@
-import{BookOpen,CalendarDays,ChevronLeft,Clock3,FileText,Loader2,RefreshCcw,ShieldCheck,Target,Users}from'lucide-react';
+import{Bell,BookOpen,CalendarDays,ChevronLeft,Clock3,FileText,Loader2,RefreshCcw,ShieldCheck,Target,User,Users}from'lucide-react';
 import{useEffect,useMemo,useState}from'react';
+import{Link}from'react-router-dom';
 import{useAuth}from'../../auth/state/AuthProvider';
 import{parentsClient}from'../api/parents-client';
 import type{ParentChildSummary,ParentDashboard,ParentResultPage,ParentWeeklyReport}from'../api/parents-types';
@@ -85,12 +86,14 @@ export function ParentDashboardPage(){
  if(authLoading||busy)return <main dir="rtl" className="p-10 text-center font-black">جاري تحميل لوحة ولي الأمر...</main>;
  if(!user||!user.roles.includes('parent'))return <main dir="rtl" className="p-10 text-center font-black text-rose-700">هذه الصفحة مخصصة لولي الأمر.</main>;
 
- return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-gray-50 px-3 py-5 sm:px-6"><div className="mx-auto max-w-6xl space-y-5">
+ return <main dir="rtl" data-testid="parent-workspace" className="min-h-[calc(100vh-5rem)] bg-gray-50 px-3 py-5 sm:px-6"><div className="mx-auto max-w-6xl space-y-5">
   <header className="rounded-3xl bg-gradient-to-br from-emerald-600 to-slate-950 p-5 text-white shadow-lg sm:p-7">
    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between"><div><div className="flex flex-wrap items-center gap-2"><div className="text-xs font-black text-emerald-100">لوحة ولي الأمر</div><span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-black text-emerald-50"><ShieldCheck size={13}/>متابعة للعرض فقط</span></div><h1 className="mt-2 text-2xl font-black sm:text-3xl">متابعة الأبناء ببساطة</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-emerald-50">درجة، مهارة تحتاج متابعة، وخطوة واحدة واضحة. البيانات هنا تخص الأبناء المرتبطين بحسابك فقط، ولا تمنح ولي الأمر صلاحية تعديل تعلم الطالب أو اختباراته.</p></div><button type="button" aria-label="تحديث لوحة ولي الأمر" onClick={()=>setReload(x=>x+1)} className="inline-flex self-start items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-black hover:bg-white/20"><RefreshCcw size={16}/>تحديث</button></div>
   </header>
 
   {error?<div role="alert" className="rounded-2xl bg-rose-50 p-4 font-bold text-rose-700">{error}</div>:null}
+
+  <section aria-label="وصول سريع لولي الأمر" className="grid gap-2 sm:grid-cols-3"><button type="button" onClick={()=>setTab('report')} className="inline-flex items-center justify-between rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-right text-sm font-black text-emerald-800"><span className="inline-flex items-center gap-2"><FileText size={17}/>فتح التقرير</span><ChevronLeft size={16}/></button><Link to="/notifications" className="inline-flex items-center justify-between rounded-2xl border bg-white px-4 py-3 text-sm font-black text-gray-700"><span className="inline-flex items-center gap-2"><Bell size={17}/>الإشعارات والملخصات</span><ChevronLeft size={16}/></Link><Link to="/profile" className="inline-flex items-center justify-between rounded-2xl border bg-white px-4 py-3 text-sm font-black text-gray-700"><span className="inline-flex items-center gap-2"><User size={17}/>الملف الشخصي</span><ChevronLeft size={16}/></Link></section>
 
   <nav aria-label="أقسام لوحة ولي الأمر" className="grid grid-cols-2 gap-2 rounded-2xl border bg-white p-2 shadow-sm sm:grid-cols-4">
    {([
