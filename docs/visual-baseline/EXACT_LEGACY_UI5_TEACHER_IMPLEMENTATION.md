@@ -23,3 +23,6 @@ Playwright covers 390px and 1440px teacher workspace states, school/assignment p
 
 ## Merge gate
 Database CI + Backend CI + Frontend CI + Frontend E2E must pass on the same documentation-inclusive SHA, then latest legacy must be re-checked before merge.
+
+## Regression correction
+The pre-existing Classroom E2E previously entered the teacher root because that root used to alias Smart Classroom. With the restored source-backed workspace, the test now targets the canonical `/school-teacher-dashboard/classroom` route. Classroom behavior itself is unchanged.
