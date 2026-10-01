@@ -2,11 +2,16 @@ import {
   Activity,
   BarChart3,
   Bell,
+  BookOpen,
   Building2,
   ChevronLeft,
+  ClipboardList,
+  FileText,
   Loader2,
   ShieldCheck,
   Target,
+  Users,
+  Video,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -43,6 +48,9 @@ export function SupervisorDashboardPage() {
   const [contexts, setContexts] = useState<SchoolContext[]>([]);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
+  const schoolCount = contexts.length;
+  const permissionCount = new Set(contexts.flatMap((item) => item.permissions)).size;
+  const moduleCount = new Set(contexts.flatMap((item) => item.modules)).size;
 
   useEffect(() => {
     if (authLoading || !user || !user.roles.includes('supervisor')) return;
@@ -85,6 +93,26 @@ export function SupervisorDashboardPage() {
         </header>
 
         {error ? <div role="alert" className="rounded-2xl bg-rose-50 p-4 font-bold text-rose-700">{error}</div> : null}
+
+        <section aria-label="ملخص نطاق المشرف" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <article className="rounded-2xl border bg-white p-4 shadow-sm"><Building2 size={19} className="text-indigo-700"/><div className="mt-2 text-xs font-bold text-slate-500">نطاقات المدرسة</div><div className="mt-1 text-2xl font-black">{schoolCount}</div></article>
+          <article className="rounded-2xl border bg-white p-4 shadow-sm"><ShieldCheck size={19} className="text-emerald-700"/><div className="mt-2 text-xs font-bold text-slate-500">الصلاحيات الفعلية</div><div className="mt-1 text-2xl font-black">{permissionCount}</div></article>
+          <article className="rounded-2xl border bg-white p-4 shadow-sm"><Target size={19} className="text-amber-700"/><div className="mt-2 text-xs font-bold text-slate-500">الوحدات المفعلة</div><div className="mt-1 text-2xl font-black">{moduleCount}</div></article>
+          <article className="rounded-2xl border bg-white p-4 shadow-sm"><Users size={19} className="text-sky-700"/><div className="mt-2 text-xs font-bold text-slate-500">حالة النطاق</div><div className="mt-1 text-sm font-black">{busy?'جار التحقق':schoolCount?'مفوض من الخادم':'غير مسند'}</div></article>
+        </section>
+
+        <nav aria-label="أقسام لوحة المشرف" className="rounded-3xl border bg-white p-3 shadow-sm">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
+            <span className="rounded-xl bg-indigo-600 px-3 py-2.5 text-center text-xs font-black text-white">نظرة عامة</span>
+            <span className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs font-black text-slate-700"><Users size={15} className="mx-auto mb-1"/>الطلاب</span>
+            <Link to="/supervisor-dashboard/interventions" className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs font-black text-slate-700"><Target size={15} className="mx-auto mb-1"/>المهارات</Link>
+            <Link to="/reports" className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs font-black text-slate-700"><FileText size={15} className="mx-auto mb-1"/>التقارير</Link>
+            <span aria-disabled="true" className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs font-black text-slate-400"><Video size={15} className="mx-auto mb-1"/>الحصص المباشرة</span>
+            <span aria-disabled="true" className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs font-black text-slate-400"><ClipboardList size={15} className="mx-auto mb-1"/>الاختبارات</span>
+            <span aria-disabled="true" className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs font-black text-slate-400"><BookOpen size={15} className="mx-auto mb-1"/>المراقبة الحية</span>
+          </div>
+          <p className="mt-3 text-[11px] font-bold leading-5 text-slate-400">الأقسام الرمادية تحفظ خريطة Legacy البصرية فقط إلى أن يوجد لها owner flow قانوني في V2؛ لا تُعرض بيانات أو عمليات وهمية.</p>
+        </nav>
 
         <section className="rounded-3xl border bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2">
