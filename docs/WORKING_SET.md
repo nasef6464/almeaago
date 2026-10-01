@@ -272,3 +272,8 @@ PR #112 is **TESTED / MERGED**. Documentation head `da4322ae8480201b0579c90ca5cc
 ## Active UI-4 checkpoint — Student Dashboard + learner navigation
 
 Branch `feat/exact-legacy-student-dashboard-parity` starts from merged UI-3 closure. Protected source: `pages/Dashboard.tsx` at legacy `db0c09da042f8ef3ef76b5b1baa298042799e0d4` (student menu/sidebar + `OverviewTab`). Candidate restores the exact legacy workspace hierarchy over real V2 routes only. Missing legacy-only tabs are not fabricated. Merge gate: exact documentation-inclusive Database + Backend + Frontend + Frontend E2E green on one SHA, latest legacy re-check, then merge. After closure continue UI-4 with learner notification/reporting entry-state parity that is not already covered by this dashboard slice.
+
+
+## Active UI-4 checkpoint — Learner notification entry states
+
+Student Dashboard PR #113 is merged at `ce2cf0482b97af5c24b88f87e48b0b83d04739c6`. Active branch `feat/ui4-learner-notification-entry-parity` protects `/notifications`. Exact latest legacy `components/NotificationBell.tsx` was read first. V2 inbox/unread/SSE/CSRF authority remains canonical; this slice restores only learner-facing entry-state vocabulary/density and responsive evidence. Merge gate: one documentation-inclusive SHA green on Database + Backend + Frontend + Frontend E2E, final legacy re-check, then merge.
