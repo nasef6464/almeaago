@@ -112,8 +112,8 @@ test('student dashboard restores the legacy workspace shell over real V2 routes'
 
 test('learner notifications preserve legacy entry states over canonical V2 authority',async({page})=>{
   await page.route('**/api/v1/auth/me',route=>json(route,{user:student}));
-  await page.route('**/api/v1/notifications/inbox**',route=>json(route,{items:[],page:1,limit:50,total:0}));
-  await page.route('**/api/v1/notifications/unread-count',route=>json(route,{unreadCount:0}));
+  await page.route('**/api/v1/notifications/me?page=1&limit=50',route=>json(route,{items:[],page:1,limit:50,total:0}));
+  await page.route('**/api/v1/notifications/me/unread-count',route=>json(route,{unreadCount:0}));
   await page.setViewportSize({width:390,height:844});
   await page.goto('/notifications');
 
@@ -125,10 +125,10 @@ test('learner notifications preserve legacy entry states over canonical V2 autho
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/learner-notifications-mobile-empty.png',fullPage:true});
 
-  await page.unroute('**/api/v1/notifications/inbox**');
-  await page.unroute('**/api/v1/notifications/unread-count');
-  await page.route('**/api/v1/notifications/inbox**',route=>json(route,{items:[{id:'n-1',title:'اختبار جديد',body:'تمت إضافة اختبار جديد لك.',createdAt:'2026-10-01T00:00:00Z',readAt:null}],page:1,limit:50,total:1}));
-  await page.route('**/api/v1/notifications/unread-count',route=>json(route,{unreadCount:1}));
+  await page.unroute('**/api/v1/notifications/me?page=1&limit=50');
+  await page.unroute('**/api/v1/notifications/me/unread-count');
+  await page.route('**/api/v1/notifications/me?page=1&limit=50',route=>json(route,{items:[{id:'n-1',title:'اختبار جديد',body:'تمت إضافة اختبار جديد لك.',createdAt:'2026-10-01T00:00:00Z',readAt:null}],page:1,limit:50,total:1}));
+  await page.route('**/api/v1/notifications/me/unread-count',route=>json(route,{unreadCount:1}));
   await page.setViewportSize({width:1440,height:1000});
   await page.goto('/notifications');
   await expect(page.getByText('1 جديد')).toBeVisible();
