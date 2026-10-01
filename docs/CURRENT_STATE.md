@@ -1552,3 +1552,7 @@ The Student Dashboard slice is merged via PR #113. The next protected learner su
 
 ## UI-4 Learner Workspace — CLOSURE CANDIDATE
 Student Dashboard PR #113 and learner Notifications PR #114 are merged. Learner Reports content remains closed under UI-3 PR #111 and is not reopened. The final UI-4 closure adds only a responsive dashboard → `/reports` entry-state E2E proof and closure records. Merge gate: exact-head Database + Backend + Frontend + Frontend E2E. After closure advance to UI-5 Teacher → Parent → School Director → Supervisor.
+
+
+## UI-5 Teacher Workspace — ACTIVE
+UI-4 is closed. Teacher is the first UI-5 protected slice. Exact legacy `dashboards/SchoolTeacherDashboard.tsx` was read first; V2 teacher root now restores its role-workspace shell while owner-domain APIs remain authoritative. Exact-head four-gate verification pending.
