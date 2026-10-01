@@ -117,7 +117,10 @@ test('learner reporting entry opens the already-certified report without duplica
   await page.route('**/api/v1/reports/results?page=1&limit=20',route=>json(route,{items:[],page:1,limit:20,total:0}));
   await page.setViewportSize({width:390,height:844});
   await page.goto('/dashboard');
-  await page.locator('main a[href="/reports"]').first().click();
+  await page.getByRole('button',{name:'فتح قائمة لوحة الطالب'}).click();
+  const reportingEntry=page.getByRole('navigation',{name:'تنقل لوحة الطالب'}).locator('a[href="/reports"]');
+  await expect(reportingEntry).toBeVisible();
+  await reportingEntry.click();
   await expect(page).toHaveURL(/\/reports$/);
   await expect(page.getByRole('heading',{name:'تقارير الأداء'})).toBeVisible();
   await expect(page.getByText('قراءة سريعة للتقرير')).toBeVisible();
