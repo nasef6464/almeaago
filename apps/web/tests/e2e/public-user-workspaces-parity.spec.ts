@@ -109,6 +109,34 @@ test('student dashboard restores the legacy workspace shell over real V2 routes'
   await page.screenshot({path:'test-results/student-dashboard-desktop.png',fullPage:true});
 });
 
+
+test('learner notifications preserve legacy entry states over canonical V2 authority',async({page})=>{
+  await page.route('**/api/v1/auth/me',route=>json(route,{user:student}));
+  await page.route('**/api/v1/notifications/me?page=1&limit=50',route=>json(route,{items:[],page:1,limit:50,total:0}));
+  await page.route('**/api/v1/notifications/me/unread-count',route=>json(route,{unreadCount:0}));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/notifications');
+
+  await expect(page.getByTestId('learner-notification-inbox')).toBeVisible();
+  await expect(page.getByRole('heading',{name:'الإشعارات'})).toBeVisible();
+  await expect(page.getByText('لوحة الطالب / الدعم والمتابعة')).toBeVisible();
+  await expect(page.getByText('لا توجد إشعارات جديدة')).toBeVisible();
+  await expect(page.getByRole('region',{name:'قائمة الإشعارات'})).toContainText('لا توجد إشعارات');
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/learner-notifications-mobile-empty.png',fullPage:true});
+
+  await page.unroute('**/api/v1/notifications/me?page=1&limit=50');
+  await page.unroute('**/api/v1/notifications/me/unread-count');
+  await page.route('**/api/v1/notifications/me?page=1&limit=50',route=>json(route,{items:[{id:'n-1',title:'اختبار جديد',body:'تمت إضافة اختبار جديد لك.',createdAt:'2026-10-01T00:00:00Z',readAt:null}],page:1,limit:50,total:1}));
+  await page.route('**/api/v1/notifications/me/unread-count',route=>json(route,{unreadCount:1}));
+  await page.setViewportSize({width:1440,height:1000});
+  await page.goto('/notifications');
+  await expect(page.getByText('1 جديد')).toBeVisible();
+  await expect(page.getByRole('region',{name:'قائمة الإشعارات'})).toContainText('اختبار جديد');
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/learner-notifications-desktop-unread.png',fullPage:true});
+});
+
 test('supervisor and admin roots expose real scoped workspaces',async({page})=>{
   await page.route('**/api/v1/auth/me',route=>json(route,{user:supervisor}));
   await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[

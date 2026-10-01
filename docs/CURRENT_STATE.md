@@ -1543,3 +1543,8 @@ Closure PR #112 is **TESTED / MERGED**. Documentation head `da4322ae8480201b0579
 ## Exact Legacy UI — UI-4 Learner Workspace — Student Dashboard ACTIVE
 
 Protected legacy source is `pages/Dashboard.tsx` at latest legacy `db0c09da042f8ef3ef76b5b1baa298042799e0d4`, specifically the student menu/sidebar shell and `OverviewTab`. The V2 `/dashboard` candidate now restores the legacy grouped learner navigation, mobile drawer, student identity block, welcome strip, `خطوتك اليوم` hierarchy, and learner entry cards while linking only to real V2 routes. No streak, recommendation, notification count, or progress metric is fabricated in React; data-owning destination pages remain canonical.
+
+
+## UI-4 learner workspace — notifications active slice
+
+The Student Dashboard slice is merged via PR #113. The next protected learner surface is `/notifications`: exact legacy NotificationBell presentation is being transplanted only where it improves learner entry-state parity, while canonical V2 inbox, unread, SSE and CSRF behavior remains authoritative. Status: implementation candidate; exact-head four-gate verification pending.
