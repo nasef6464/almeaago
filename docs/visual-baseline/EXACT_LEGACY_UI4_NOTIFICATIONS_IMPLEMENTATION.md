@@ -29,3 +29,7 @@ Database CI, Backend CI, Frontend CI and Frontend E2E must all pass on one docum
 ## Final latest-legacy re-check
 - Re-checked legacy `almeaacodax/main` at `5fe7a49af0241ec7532a1678fb68e616631a837a` immediately before the exact-head gate run.
 - `components/NotificationBell.tsx` remains the protected source read for this slice; no later legacy commit exists at this checkpoint, so there is no additional notification delta to transplant.
+
+
+## Merge evidence
+PR #114 final documentation-inclusive head `e9609de9a356f9e0bd5a3d36f9d39c282466b9aa` passed Database CI, Backend CI, Frontend CI and Frontend E2E on that exact SHA and squash-merged to main as `6dc78ced2b56ffeb8cba0a4ae9c244614dac0a5c`. This notification slice is CLOSED; later UI-4 work must not reopen it without a concrete regression.
