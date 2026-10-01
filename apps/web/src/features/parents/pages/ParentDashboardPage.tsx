@@ -1,5 +1,6 @@
-import{BookOpen,CalendarDays,ChevronLeft,Clock3,FileText,Loader2,RefreshCcw,ShieldCheck,Target,User,Users}from'lucide-react';
+import{Bell,BookOpen,CalendarDays,ChevronLeft,Clock3,FileText,Loader2,RefreshCcw,ShieldCheck,Target,User,Users}from'lucide-react';
 import{useEffect,useMemo,useState}from'react';
+import{Link}from'react-router-dom';
 import{useAuth}from'../../auth/state/AuthProvider';
 import{parentsClient}from'../api/parents-client';
 import type{ParentChildSummary,ParentDashboard,ParentResultPage,ParentWeeklyReport}from'../api/parents-types';
@@ -92,7 +93,9 @@ export function ParentDashboardPage(){
 
   {error?<div role="alert" className="rounded-2xl bg-rose-50 p-4 font-bold text-rose-700">{error}</div>:null}
 
-  <section aria-label="وصول سريع لولي الأمر" className="grid gap-2 sm:grid-cols-2"><button type="button" onClick={()=>setTab('report')} className="inline-flex items-center justify-between rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-right text-sm font-black text-emerald-800"><span className="inline-flex items-center gap-2"><FileText size={17}/>فتح التقرير</span><ChevronLeft size={16}/></button><a href="/profile" className="inline-flex items-center justify-between rounded-2xl border bg-white px-4 py-3 text-sm font-black text-gray-700"><span className="inline-flex items-center gap-2"><User size={17}/>الملف الشخصي</span><ChevronLeft size={16}/></a></section>\n\n  <nav aria-label="أقسام لوحة ولي الأمر" className="grid grid-cols-2 gap-2 rounded-2xl border bg-white p-2 shadow-sm sm:grid-cols-4">
+  <section aria-label="وصول سريع لولي الأمر" className="grid gap-2 sm:grid-cols-3"><button type="button" onClick={()=>setTab('report')} className="inline-flex items-center justify-between rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-right text-sm font-black text-emerald-800"><span className="inline-flex items-center gap-2"><FileText size={17}/>فتح التقرير</span><ChevronLeft size={16}/></button><Link to="/notifications" className="inline-flex items-center justify-between rounded-2xl border bg-white px-4 py-3 text-sm font-black text-gray-700"><span className="inline-flex items-center gap-2"><Bell size={17}/>الإشعارات والملخصات</span><ChevronLeft size={16}/></Link><Link to="/profile" className="inline-flex items-center justify-between rounded-2xl border bg-white px-4 py-3 text-sm font-black text-gray-700"><span className="inline-flex items-center gap-2"><User size={17}/>الملف الشخصي</span><ChevronLeft size={16}/></Link></section>
+
+  <nav aria-label="أقسام لوحة ولي الأمر" className="grid grid-cols-2 gap-2 rounded-2xl border bg-white p-2 shadow-sm sm:grid-cols-4">
    {([
     ['overview','متابعة الأبناء',Users],['results','نتائج الأبناء',FileText],['skills','المهارات الضعيفة',Target],['report','تقرير الأسبوع',CalendarDays],
    ] as const).map(([id,label,Icon])=><button key={id} type="button" onClick={()=>setTab(id)} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black transition ${tab===id?'bg-emerald-600 text-white':'text-gray-600 hover:bg-gray-50'}`}><Icon size={16}/>{label}</button>)}
