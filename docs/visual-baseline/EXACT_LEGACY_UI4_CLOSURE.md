@@ -14,7 +14,7 @@ UI-4 adds only a browser journey proving the source-backed learner dashboard rep
 Legacy presentation remains the visual source. V2 Go/PostgreSQL/domain contracts remain functional authority. Reporting self-scope, bounds and result/mastery facts stay server-owned.
 
 ## Responsive evidence
-The closure journey runs from the 390px learner dashboard into `/reports`, asserts the certified report heading/quick-read/empty-result state and no horizontal overflow, and captures `ui4-reporting-entry-mobile.png`.
+The closure journey runs from the 390px learner dashboard, opens the source-backed mobile learner navigation, and follows its visible `تقاريري` entry into `/reports`, asserts the certified report heading/quick-read/empty-result state and no horizontal overflow, and captures `ui4-reporting-entry-mobile.png`.
 
 ## Final legacy checkpoint
 Latest legacy main at closure preparation: `5fe7a49af0241ec7532a1678fb68e616631a837a`. `pages/Reports.tsx` is present there, but the protected learner Reports content was already closed by PR #111 and is not reopened. UI-4 only certifies the dashboard entry transition.
