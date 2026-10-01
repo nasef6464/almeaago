@@ -153,7 +153,7 @@ export function StudentDashboardPage() {
               </div>
             </div>
 
-            <nav className="space-y-3">
+            <nav aria-label="تنقل لوحة الطالب" className="space-y-3">
               <div data-testid="student-menu-overview">
                 <a
                   href="#overview"
