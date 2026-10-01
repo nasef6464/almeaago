@@ -104,7 +104,7 @@ test('student dashboard restores the legacy workspace shell over real V2 routes'
   await page.getByRole('button',{name:'إغلاق قائمة لوحة الطالب'}).last().click();
   await page.setViewportSize({width:1440,height:1000});
   await expect(navigation).toBeVisible();
-  await expect(page.getByText('طالب المئة',{exact:true})).toBeVisible();
+  await expect(navigation.getByText('طالب المئة',{exact:true})).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/student-dashboard-desktop.png',fullPage:true});
 });
