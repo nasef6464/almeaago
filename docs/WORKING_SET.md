@@ -297,3 +297,7 @@ Parent PR #117 merged as `f6bf96186ed384c5fa59b2eff5e1dbe6b1fd1ed9`. Director V2
 
 ## Active UI-5 checkpoint — Supervisor
 School Director PR #118 is merged as `66641b11b5c27d4e18d780e8e6654d9eb4cb35dd`. Supervisor is the final UI-5 role slice. Exact legacy source exposes seven operational sections; V2 previously exposed only contexts/shortcuts. Candidate restores the hierarchy using Organizations context facts only, links canonical Reporting/Interventions, and marks unsupported live/test monitoring owner flows unavailable rather than inventing data. Merge only after one exact-head four-gate green + final Legacy re-check. Then close UI-5 and advance UI-6 Admin.
+
+
+## UI-5 closure candidate
+Teacher (#116), Parent (#117), School Director (#118) and Supervisor (#119) are merged. Latest legacy checkpoint remains `d4e5c831b632447e8b25009ffc17fee2076c67e5`. Do not reopen these role slices without a proven regression. This documentation closure must pass the exact-head four-gate rule; once merged, mark UI-5 CLOSED and advance directly to UI-6 Admin.
