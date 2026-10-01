@@ -69,6 +69,8 @@ test('school director desktop runs bounded student class and teacher operations'
   await expect(page.getByText('نطاق مفوض من مدير المنصة')).toBeVisible();
   await expect(page.getByText('طلاب مدرسة المئة')).toBeVisible();
   await expect(page.getByText('طالب أول')).toBeVisible();
+  await expect(page.getByRole('region',{name:'مركز تشغيل مدير المدرسة'})).toContainText('التدخلات والخطط العلاجية');
+  await expect(page.getByRole('region',{name:'مركز تشغيل مدير المدرسة'})).toContainText('التقارير');
 
   await page.getByRole('button',{name:'إضافة طالب'}).click();
   await page.getByLabel('اسم الطالب الجديد').fill('طالب جديد');
@@ -143,6 +145,7 @@ test('school director populated tablet dashboard uses cards without page overflo
   await expect(page.getByRole('heading',{name:'لوحة مدير المدرسة'})).toBeVisible();
   await expect(page.getByText('طالب أول')).toBeVisible();
   await expect(page.getByLabel('فصل طالب أول')).toBeVisible();
+  await expect(page.getByRole('region',{name:'مركز تشغيل مدير المدرسة'})).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/organizations-director-tablet.png',fullPage:true});
 });
