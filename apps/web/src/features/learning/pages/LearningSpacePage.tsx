@@ -2,9 +2,12 @@ import {
   Award,
   BookOpen,
   Clock,
+  CreditCard,
   FileCheck,
+  FileQuestion,
   FileText,
   HelpCircle,
+  Layers,
   Lock,
   PlayCircle,
   Search,
@@ -172,66 +175,123 @@ export function LearningSpacePage() {
       </section>
 
       <div className="mx-auto mt-7 max-w-7xl px-4 sm:px-6 lg:px-8">
-        <section className="grid gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:grid-cols-2">
-          <label className="relative">
-            <Search className="pointer-events-none absolute right-3 top-3 text-gray-400" size={17} />
-            <select
-              aria-label="المسار"
-              value={pathId}
-              onChange={(event) => {
-                setPathId(event.target.value);
-                setSubjectId('');
-              }}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-3 pr-10 font-bold outline-none focus:border-amber-400"
-            >
-              <option value="">اختر المسار</option>
-              {taxonomy.paths.map((item) => (
-                <option key={item.id} value={item.id}>{item.name}</option>
-              ))}
-            </select>
-          </label>
-
-          <select
-            aria-label="المادة"
-            value={subjectId}
-            disabled={!pathId}
-            onChange={(event) => setSubjectId(event.target.value)}
-            className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 font-bold outline-none focus:border-amber-400 disabled:opacity-50"
-          >
-            <option value="">اختر المادة</option>
-            {subjects.map((item) => (
-              <option key={item.id} value={item.id}>{item.name}</option>
+        {!legacyPathId && !pathId ? (
+          <section data-testid="legacy-path-entry-grid" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {taxonomy.paths.map((item) => (
+              <Link
+                key={item.id}
+                to={`/category/${encodeURIComponent(item.id)}`}
+                className="group relative min-h-40 overflow-hidden rounded-3xl bg-[#2e2b70] p-6 text-white shadow-md transition hover:-translate-y-1 hover:shadow-xl"
+              >
+                <div className="relative z-10">
+                  <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-white/15">
+                    <Layers size={24} />
+                  </div>
+                  <h2 className="text-xl font-black">{item.name}</h2>
+                  <p className="mt-2 text-sm font-bold text-indigo-100">افتح المسار ثم اختر المادة</p>
+                </div>
+              </Link>
             ))}
-          </select>
-        </section>
-
-        <section className="mb-10 mt-7 flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white/95 p-1.5 shadow-sm">
-          {tabs.map(([id, label, Icon]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTab(id)}
-              className={`flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black transition-all sm:px-5 ${
-                tab === id
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-700'
-              }`}
-            >
-              <Icon size={17} />
-              {label}
-            </button>
-          ))}
-        </section>
-
-        {!pathId || !subjectId ? (
-          <section className="rounded-3xl border border-dashed border-gray-200 bg-white p-10 text-center shadow-sm">
-            <Target className="mx-auto text-indigo-300" size={34} />
-            <h2 className="mt-3 text-lg font-black text-gray-800">اختر المسار ثم المادة</h2>
-            <p className="mt-2 text-sm font-bold leading-7 text-gray-500">
-              بعدها تظهر لك نفس أقسام مساحة التعلم: الدورات، التأسيس، التدريب، الاختبارات والمكتبة.
-            </p>
+            <Link to="/assessments?kind=mock" className="group min-h-40 rounded-3xl bg-amber-500 p-6 text-white shadow-md transition hover:-translate-y-1 hover:shadow-xl">
+              <FileQuestion size={28} />
+              <h2 className="mt-4 text-xl font-black">اختبارات محاكية</h2>
+              <p className="mt-2 text-sm font-bold text-amber-50">محاكاة الاختبار على مستوى المسار.</p>
+            </Link>
+            <Link to="/pricing" className="group min-h-40 rounded-3xl bg-emerald-600 p-6 text-white shadow-md transition hover:-translate-y-1 hover:shadow-xl">
+              <CreditCard size={28} />
+              <h2 className="mt-4 text-xl font-black">الباقات</h2>
+              <p className="mt-2 text-sm font-bold text-emerald-50">استعرض الباقات والعضويات المتاحة.</p>
+            </Link>
           </section>
-        ) : busy ? (
+        ) : pathId && !subjectId ? (
+          <section data-testid="legacy-subject-entry-grid">
+            <div className="mb-6 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-black text-indigo-600">مسار {currentPath?.name || ''}</div>
+                <h2 className="mt-1 text-2xl font-black text-gray-900">اختر المادة للبدء في التدريب</h2>
+              </div>
+              {!legacyPathId ? (
+                <button type="button" onClick={() => setPathId('')} className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-700">
+                  تغيير المسار
+                </button>
+              ) : null}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {subjects.map((item) => (
+                <Link
+                  key={item.id}
+                  to={`/category/${encodeURIComponent(pathId)}?subject=${encodeURIComponent(item.id)}`}
+                  className="group relative min-h-40 overflow-hidden rounded-3xl bg-[#2e2b70] p-6 text-center text-white shadow-md transition hover:-translate-y-1 hover:shadow-xl"
+                >
+                  <BookOpen className="mx-auto" size={30} />
+                  <h3 className="mt-4 text-xl font-black">{item.name}</h3>
+                  <p className="mt-2 text-xs font-bold text-indigo-100">تأسيس وتدريب واختبارات المادة</p>
+                </Link>
+              ))}
+              <Link
+                to={`/assessments?pathId=${encodeURIComponent(pathId)}&kind=mock`}
+                className="min-h-40 rounded-3xl bg-amber-500 p-6 text-center text-white shadow-md transition hover:-translate-y-1 hover:shadow-xl"
+              >
+                <FileQuestion className="mx-auto" size={30} />
+                <h3 className="mt-4 text-xl font-black">اختبارات محاكية</h3>
+                <p className="mt-2 text-xs font-bold text-amber-50">اختبارات محاكاة خاصة بهذا المسار</p>
+              </Link>
+              <Link
+                to={`/pricing?pathId=${encodeURIComponent(pathId)}`}
+                className="min-h-40 rounded-3xl bg-emerald-600 p-6 text-center text-white shadow-md transition hover:-translate-y-1 hover:shadow-xl"
+              >
+                <CreditCard className="mx-auto" size={30} />
+                <h3 className="mt-4 text-xl font-black">الباقات</h3>
+                <p className="mt-2 text-xs font-bold text-emerald-50">باقات وعضويات المسار</p>
+              </Link>
+            </div>
+          </section>
+        ) : (
+          <>
+            {!legacyPathId ? (
+              <section className="grid gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:grid-cols-2">
+                <label className="relative">
+                  <Search className="pointer-events-none absolute right-3 top-3 text-gray-400" size={17} />
+                  <select
+                    aria-label="المسار"
+                    value={pathId}
+                    onChange={(event) => {
+                      setPathId(event.target.value);
+                      setSubjectId('');
+                    }}
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-3 pr-10 font-bold outline-none focus:border-amber-400"
+                  >
+                    <option value="">اختر المسار</option>
+                    {taxonomy.paths.map((item) => (
+                      <option key={item.id} value={item.id}>{item.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <select aria-label="المادة" value={subjectId} onChange={(event) => setSubjectId(event.target.value)} className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 font-bold outline-none focus:border-amber-400">
+                  {subjects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </select>
+              </section>
+            ) : null}
+
+            <section className="mb-10 mt-7 flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white/95 p-1.5 shadow-sm">
+              {tabs.map(([id, label, Icon]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTab(id)}
+                  className={`flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black transition-all sm:px-5 ${
+                    tab === id
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:bg-indigo-50 hover:text-indigo-700'
+                  }`}
+                >
+                  <Icon size={17} />
+                  {label}
+                </button>
+              ))}
+            </section>
+
+            {busy ? (
           <section className="rounded-2xl border bg-white p-10 text-center font-black text-gray-500">
             جاري تحميل المحتوى...
           </section>
@@ -376,7 +436,9 @@ export function LearningSpacePage() {
               </div>
             ) : null}
           </section>
-        ) : null}
+            ) : null}
+          </>
+        )}
       </div>
     </main>
   );
