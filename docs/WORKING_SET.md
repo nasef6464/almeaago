@@ -301,3 +301,7 @@ School Director PR #118 is merged as `66641b11b5c27d4e18d780e8e6654d9eb4cb35dd`.
 
 ## UI-5 closure candidate
 Teacher (#116), Parent (#117), School Director (#118) and Supervisor (#119) are merged. Latest legacy checkpoint remains `d4e5c831b632447e8b25009ffc17fee2076c67e5`. Do not reopen these role slices without a proven regression. This documentation closure must pass the exact-head four-gate rule; once merged, mark UI-5 CLOSED and advance directly to UI-6 Admin.
+
+
+## Active UI-6 checkpoint — Admin/control panels
+UI-5 is CLOSED via PR #120, merge `4b8e220a2205269b2dd37cc5afbcddfd3a5bb651`. UI-6 official scope has eleven real V2 routes: admin root, Content, Taxonomy, Question Bank, Assessment, Commerce, Notifications, Classroom contracts, AI, Reports and Operations. Exact legacy AdminDashboard and supporting managers were read first at latest Legacy `d4e5c831...`. Candidate certifies the source-backed admin shell hierarchy and relies on the full exact-head E2E gate to exercise each existing domain suite. Do not recreate Legacy client stores or noncanonical managers. After four-gate green + final Legacy re-check + merge, close UI-6 and advance UI-7 Public/static/auth completeness.
