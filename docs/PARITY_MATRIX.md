@@ -88,3 +88,5 @@ Learner Reports final pre-merge legacy checkpoint: `db0c09da042f8ef3ef76b5b1baa2
 
 
 | UI-4 Learner notifications | `/notifications` | Legacy `components/NotificationBell.tsx` | V2 Notification Inbox + server unread/SSE/CSRF | IMPLEMENTATION CANDIDATE | 390px empty + 1440px unread E2E added; four-gate exact-head pending |
+
+| Exact Legacy UI — UI-4 Learner Workspace closure candidate | learner workspace | Dashboard/navigation PR #113 + Notifications PR #114 + reporting entry transition to already-certified PR #111 report | V2 auth/notifications/reporting authority unchanged; no browser-owned reporting facts | no backend/schema change | 390px dashboard→reports entry E2E + prior dashboard/notification responsive evidence; exact-head four-gate pending | closure certificate `EXACT_LEGACY_UI4_CLOSURE.md` | IN_PROGRESS |

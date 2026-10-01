@@ -1548,3 +1548,7 @@ Protected legacy source is `pages/Dashboard.tsx` at latest legacy `db0c09da042f8
 ## UI-4 learner workspace — notifications active slice
 
 The Student Dashboard slice is merged via PR #113. The next protected learner surface is `/notifications`: exact legacy NotificationBell presentation is being transplanted only where it improves learner entry-state parity, while canonical V2 inbox, unread, SSE and CSRF behavior remains authoritative. Status: implementation candidate; exact-head four-gate verification pending.
+
+
+## UI-4 Learner Workspace — CLOSURE CANDIDATE
+Student Dashboard PR #113 and learner Notifications PR #114 are merged. Learner Reports content remains closed under UI-3 PR #111 and is not reopened. The final UI-4 closure adds only a responsive dashboard → `/reports` entry-state E2E proof and closure records. Merge gate: exact-head Database + Backend + Frontend + Frontend E2E. After closure advance to UI-5 Teacher → Parent → School Director → Supervisor.

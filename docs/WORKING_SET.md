@@ -277,3 +277,7 @@ Branch `feat/exact-legacy-student-dashboard-parity` starts from merged UI-3 clos
 ## Active UI-4 checkpoint — Learner notification entry states
 
 Student Dashboard PR #113 is merged at `ce2cf0482b97af5c24b88f87e48b0b83d04739c6`. Active branch `feat/ui4-learner-notification-entry-parity` protects `/notifications`. Exact latest legacy `components/NotificationBell.tsx` was read first. V2 inbox/unread/SSE/CSRF authority remains canonical; this slice restores only learner-facing entry-state vocabulary/density and responsive evidence. Merge gate: one documentation-inclusive SHA green on Database + Backend + Frontend + Frontend E2E, final legacy re-check, then merge.
+
+
+## UI-4 closure candidate
+Student Dashboard PR #113 is merged. Learner Notifications PR #114 final head `e9609de9a356f9e0bd5a3d36f9d39c282466b9aa` passed the four exact-head gates and squash-merged as `6dc78ced2b56ffeb8cba0a4ae9c244614dac0a5c`. Learner Reports content remains closed under UI-3 PR #111; do not reopen it. The closure branch adds only the missing responsive dashboard→`/reports` entry-state journey plus closure documentation. Once its exact documentation-inclusive head passes Database + Backend + Frontend + Frontend E2E and merges, UI-4 is CLOSED and the first incomplete phase is UI-5 Teacher → Parent → School Director → Supervisor.
