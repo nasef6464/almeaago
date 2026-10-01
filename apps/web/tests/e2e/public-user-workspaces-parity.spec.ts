@@ -12,6 +12,11 @@ const student={
   id:'student-ui-1',email:'student@example.com',name:'طالب المئة',status:'active',avatarUrl:'',emailVerified:true,
   role:'student',roles:['student'],
 };
+
+const teacher={
+  id:'teacher-ui-1',email:'teacher@example.com',name:'معلم المئة',status:'active',avatarUrl:'',emailVerified:true,
+  role:'teacher',roles:['teacher'],
+};
 const supervisor={
   id:'supervisor-ui-1',email:'supervisor@example.com',name:'مشرف المدرسة',status:'active',avatarUrl:'',emailVerified:true,
   role:'supervisor',roles:['supervisor'],
@@ -155,6 +160,23 @@ test('learner notifications preserve legacy entry states over canonical V2 autho
   await expect(page.getByRole('region',{name:'قائمة الإشعارات'})).toContainText('اختبار جديد');
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/learner-notifications-desktop-unread.png',fullPage:true});
+});
+
+test('teacher root restores the legacy school workspace shell before smart classroom',async({page})=>{
+  await page.route('**/api/v1/auth/me',route=>json(route,{user:teacher}));
+  await page.route('**/api/v1/schools/teacher-workspace',route=>json(route,{personas:{platformTrainer:false,schoolTeacher:true},schools:[{schoolId:'school-1',schoolName:'مدرسة المئة',source:'membership',assignments:[{assignmentId:'a-1',classId:'class-1',className:'الصف الأول',subjectId:'subject-1',studentCount:24}]}]}));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/school-teacher-dashboard');
+  await expect(page.getByTestId('teacher-workspace')).toBeVisible();
+  await expect(page.getByRole('heading',{name:'لوحة معلم المدرسة'})).toBeVisible();
+  await expect(page.getByRole('navigation',{name:'تنقل لوحة معلم المدرسة'})).toContainText('إدارة الحصص والجدول');
+  await expect(page.getByText('الصف الأول')).toBeVisible();
+  await expect(page.getByText('24 طالب',{exact:true})).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/ui5-teacher-workspace-mobile.png',fullPage:true});
+  await page.setViewportSize({width:1440,height:1000});
+  await expect(page.getByRole('navigation',{name:'تنقل لوحة معلم المدرسة'})).toBeVisible();
+  await page.screenshot({path:'test-results/ui5-teacher-workspace-desktop.png',fullPage:true});
 });
 
 test('supervisor and admin roots expose real scoped workspaces',async({page})=>{
