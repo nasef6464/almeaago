@@ -1564,3 +1564,7 @@ Teacher is closed via PR #116. Parent exact legacy `pages/Dashboard.tsx` was rea
 
 ## UI-5 School Director — ACTIVE
 Parent PR #117 is merged. School Director exact legacy source was read first. V2 already matches the delegated operational workspace closely; candidate restores the academic operations entry hierarchy only and retains Organizations authority/CSRF/RBAC. Four-gate pending.
+
+
+## UI-5 Supervisor Workspace — ACTIVE
+Teacher, Parent and School Director are closed. Supervisor exact legacy `dashboards/admin/SupervisorDashboard.tsx` was read first at `d4e5c831...`. Candidate restores the seven-part supervisor hierarchy over server-issued Organizations scope while unsupported legacy owner flows remain explicitly unavailable. Exact-head four-gate verification pending.

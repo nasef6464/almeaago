@@ -293,3 +293,7 @@ Teacher PR #116 is merged at `3775b4a6b32eb4d9806d6fb57e4c963dc8d932fc`. Parent 
 
 ## Active UI-5 checkpoint — School Director
 Parent PR #117 merged as `f6bf96186ed384c5fa59b2eff5e1dbe6b1fd1ed9`. Director V2 is already close to exact Legacy and is not blindly rewritten. Candidate restores only the missing academic operations entry hierarchy over the existing permission/module-gated, CSRF-backed Organizations workspace. Exact-head four-gate + latest legacy re-check required, then Supervisor.
+
+
+## Active UI-5 checkpoint — Supervisor
+School Director PR #118 is merged as `66641b11b5c27d4e18d780e8e6654d9eb4cb35dd`. Supervisor is the final UI-5 role slice. Exact legacy source exposes seven operational sections; V2 previously exposed only contexts/shortcuts. Candidate restores the hierarchy using Organizations context facts only, links canonical Reporting/Interventions, and marks unsupported live/test monitoring owner flows unavailable rather than inventing data. Merge only after one exact-head four-gate green + final Legacy re-check. Then close UI-5 and advance UI-6 Admin.

@@ -179,6 +179,31 @@ test('teacher root restores the legacy school workspace shell before smart class
   await page.screenshot({path:'test-results/ui5-teacher-workspace-desktop.png',fullPage:true});
 });
 
+test('supervisor root restores legacy section hierarchy without inventing unsupported owner flows',async({page})=>{
+  await page.route('**/api/v1/auth/me',route=>json(route,{user:supervisor}));
+  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[
+    {schoolId:'school-1',schoolName:'مدرسة المئة',role:'supervisor',permissions:['SCHOOL_REPORTS_AGGREGATE_VIEW','SCHOOL_INTERVENTIONS_VIEW'],modules:['SCHOOL_CORE','REPORTING'],source:'scope'},
+  ]}));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/supervisor-dashboard');
+  await expect(page.getByRole('heading',{name:'لوحة المشرف'})).toBeVisible();
+  await expect(page.getByRole('region',{name:'ملخص نطاق المشرف'})).toContainText('نطاقات المدرسة');
+  const nav=page.getByRole('navigation',{name:'أقسام لوحة المشرف'});
+  await expect(nav).toContainText('نظرة عامة');
+  await expect(nav).toContainText('الطلاب');
+  await expect(nav).toContainText('المهارات');
+  await expect(nav).toContainText('التقارير');
+  await expect(nav).toContainText('الحصص المباشرة');
+  await expect(nav).toContainText('الاختبارات');
+  await expect(nav).toContainText('المراقبة الحية');
+  await expect(nav.locator('[aria-disabled="true"]')).toHaveCount(3);
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/ui5-supervisor-workspace-mobile.png',fullPage:true});
+  await page.setViewportSize({width:1440,height:1000});
+  await expect(nav).toBeVisible();
+  await page.screenshot({path:'test-results/ui5-supervisor-workspace-desktop.png',fullPage:true});
+});
+
 test('supervisor and admin roots expose real scoped workspaces',async({page})=>{
   await page.route('**/api/v1/auth/me',route=>json(route,{user:supervisor}));
   await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[
