@@ -281,3 +281,7 @@ Student Dashboard PR #113 is merged at `ce2cf0482b97af5c24b88f87e48b0b83d04739c6
 
 ## UI-4 closure candidate
 Student Dashboard PR #113 is merged. Learner Notifications PR #114 final head `e9609de9a356f9e0bd5a3d36f9d39c282466b9aa` passed the four exact-head gates and squash-merged as `6dc78ced2b56ffeb8cba0a4ae9c244614dac0a5c`. Learner Reports content remains closed under UI-3 PR #111; do not reopen it. The closure branch adds only the missing responsive dashboard→`/reports` entry-state journey plus closure documentation. Once its exact documentation-inclusive head passes Database + Backend + Frontend + Frontend E2E and merges, UI-4 is CLOSED and the first incomplete phase is UI-5 Teacher → Parent → School Director → Supervisor.
+
+
+## Active UI-5 checkpoint — Teacher
+UI-4 is CLOSED via PR #115. Branch `feat/ui5-teacher-workspace-parity` starts from merge `ee15f91a2eb3f8d1c1b70371389c4983fd2128e7`. Protected source: latest legacy `dashboards/SchoolTeacherDashboard.tsx`. The V2 root previously jumped directly to Smart Classroom; candidate restores the teacher role-workspace shell while retaining canonical owner-domain destinations. Merge gate: exact documentation-inclusive four-gate green, latest legacy re-check, merge/read-back. Then continue UI-5 Parent → School Director → Supervisor.

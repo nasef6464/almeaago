@@ -111,7 +111,7 @@ test('teacher runs QR lobby roster attendance challenge reveal and immutable rep
   },finalizedAt:'2026-09-28T09:10:00Z'});
  });
 
- await page.goto('/school-teacher-dashboard');
+ await page.goto('/school-teacher-dashboard/classroom');
  await expect(page.getByRole('heading',{name:'الفصل الذكي'})).toBeVisible();
  await page.getByRole('button',{name:/٢ \+ ٢/}).click();
  await page.getByRole('button',{name:'إنشاء الحصة'}).click();

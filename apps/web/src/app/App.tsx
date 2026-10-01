@@ -45,6 +45,7 @@ import { TaxonomyAdminPage } from '../features/taxonomy/pages/TaxonomyAdminPage'
 import { QuestionBankAdminPage } from '../features/questionbank/pages/QuestionBankAdminPage';
 import { SchoolDirectorDashboardPage } from '../features/organizations/pages/SchoolDirectorDashboardPage';
 import { SupervisorDashboardPage } from '../features/organizations/pages/SupervisorDashboardPage';
+import { TeacherWorkspacePage } from '../features/organizations/pages/TeacherWorkspacePage';
 import { StudentDashboardPage } from '../features/learning/pages/StudentDashboardPage';
 import { PublicLandingPage } from '../features/public/pages/PublicLandingPage';
 import { LegacySiteHeader } from '../features/public/components/LegacySiteHeader';
@@ -163,7 +164,7 @@ export function App() {
         <Route path="/favorites" element={<ReviewLibraryPage />} />
         <Route path="/review/practice" element={<ReviewPracticePage />} />
         <Route path="/plan" element={<StudyPlanPage />} />
-        <Route path="/school-teacher-dashboard" element={<ClassroomTeacherPage />} />
+        <Route path="/school-teacher-dashboard" element={<TeacherWorkspacePage />} />
         <Route path="/school-teacher-dashboard/classroom" element={<ClassroomTeacherPage />} />
         <Route path="/classroom/join" element={<ClassroomJoinPage />} />
         <Route path="/classroom/:sessionId" element={<ClassroomStudentPage />} />
