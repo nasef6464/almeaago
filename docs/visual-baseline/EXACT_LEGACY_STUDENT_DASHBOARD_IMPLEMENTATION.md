@@ -53,8 +53,14 @@ Updated Playwright coverage certifies:
 - student identity visibility;
 - mobile and desktop screenshots.
 
+## Final legacy re-check before merge
+- Re-checked legacy `almeaacodax/main` at `5fe7a49af0241ec7532a1678fb68e616631a837a` after the E2E locator correction.
+- The legacy repository is 4 commits ahead of the recorded dashboard checkpoint, but the compare contains **no change to `pages/Dashboard.tsx`**.
+- The delta is limited to AI/Admin, school-reporting, workflow/audit and related server files; none changes the protected learner-dashboard presentation contract.
+- Therefore there is no learner-dashboard delta to transplant, and canonical V2 route/data authority remains unchanged.
+
 ## Merge gate
-Do not mark this slice complete until one documentation-inclusive SHA passes Database CI, Backend CI, Frontend CI and Frontend E2E on the same commit, followed by a latest legacy re-check.
+Do not mark this slice complete until this documentation-inclusive head passes Database CI, Backend CI, Frontend CI and Frontend E2E on the same commit.
 
 ## Next UI-4 work
 After this dashboard slice closes, continue with the remaining learner notification/reporting entry-state parity identified by the authoritative working set without reopening closed UI-3 surfaces.
