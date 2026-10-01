@@ -105,7 +105,7 @@ test('school director school switch never reuses the previous school roster',asy
   await page.goto('/school-director-dashboard');
   await expect(page.getByText('طالب أول')).toBeVisible();
 
-  await page.getByLabel('المدرسة').selectOption('school-2');
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
   await expect(page.getByText('طلاب مدرسة ثانية')).toBeVisible();
   await expect(page.getByText('طالب أول')).toHaveCount(0);
   await expect(page.getByText('لا يوجد طلاب مطابقون حاليًا.')).toBeVisible();
