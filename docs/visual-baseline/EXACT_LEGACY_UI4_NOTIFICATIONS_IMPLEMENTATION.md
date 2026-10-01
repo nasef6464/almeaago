@@ -1,0 +1,27 @@
+# Exact Legacy Learner Notifications — UI-4 Implementation Certificate
+
+Status: **IMPLEMENTATION CANDIDATE — EXACT-HEAD FOUR-GATE VERIFICATION PENDING**
+
+## Identity
+- UI phase: UI-4 Learner workspace.
+- Protected surface: `/notifications`.
+- Legacy source read first: `almeaacodax/components/NotificationBell.tsx` on latest legacy `main`.
+- V2 base: merged Student Dashboard PR #113, main `ce2cf0482b97af5c24b88f87e48b0b83d04739c6`.
+- Change type: presentation / learner entry-state parity only.
+- Backend/schema/auth/RBAC changes: **NO**.
+
+## Authority retained
+Canonical V2 remains authoritative for inbox pagination, unread count, SSE refresh, CSRF-protected read mutations and parent preferences. No browser-owned unread count, delivery state or external-delivery success is fabricated.
+
+## Source-backed parity restored
+- learner workspace context above the notification title;
+- legacy vocabulary for unread entry state: `N جديد`;
+- explicit zero-unread state: `لا توجد إشعارات جديدة`;
+- accessible notification-list region;
+- existing V2 empty state retained.
+
+## Responsive evidence
+Playwright covers 390px empty learner state and 1440px unread state, including no-horizontal-overflow assertions and screenshots.
+
+## Merge gate
+Database CI, Backend CI, Frontend CI and Frontend E2E must all pass on one documentation-inclusive exact head, followed by final latest-legacy re-check.
