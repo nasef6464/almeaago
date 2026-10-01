@@ -33,6 +33,21 @@ test('mobile learner browses bounded legacy-shaped learning tabs without content
  await page.screenshot({path:'test-results/content-learning-mobile.png',fullPage:true});
 });
 
+
+test('dashboard learning entry reaches working learning content',async({page})=>{
+ const calls=await mockLearning(page);
+ await page.setViewportSize({width:390,height:844});
+ await page.goto('/dashboard');
+ await page.locator('main a[href="/learning"]').first().click();
+ await expect(page).toHaveURL(/\\/learning$/);
+ await expect(page.getByTestId('legacy-learning-space')).toBeVisible();
+ await page.getByLabel('المسار').selectOption('p1');
+ await page.getByLabel('المادة').selectOption('s1');
+ await expect(page.getByText('دورة الكمي')).toBeVisible();
+ expect(calls()).toBe(1);
+ await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+});
+
 test('legacy category deep link maps subject and tab onto canonical V2 learning data',async({page})=>{
  const calls=await mockLearning(page);
  await page.setViewportSize({width:820,height:1180});
