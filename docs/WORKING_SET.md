@@ -305,3 +305,7 @@ Teacher (#116), Parent (#117), School Director (#118) and Supervisor (#119) are 
 
 ## Active UI-6 checkpoint — Admin/control panels
 UI-5 is CLOSED via PR #120, merge `4b8e220a2205269b2dd37cc5afbcddfd3a5bb651`. UI-6 official scope has eleven real V2 routes: admin root, Content, Taxonomy, Question Bank, Assessment, Commerce, Notifications, Classroom contracts, AI, Reports and Operations. Exact legacy AdminDashboard and supporting managers were read first at latest Legacy `d4e5c831...`. Candidate certifies the source-backed admin shell hierarchy and relies on the full exact-head E2E gate to exercise each existing domain suite. Do not recreate Legacy client stores or noncanonical managers. After four-gate green + final Legacy re-check + merge, close UI-6 and advance UI-7 Public/static/auth completeness.
+
+
+## Student Journey regression audit — ACTIVE after UI-6
+UI-6 merged as `9f7953d137c25d3b344a762961bb8814e89188c9`. This branch resumes the protected learner regression audit from current main. Dashboard → Learning and Learning → Course Player are exercised by real browser navigation, not href-only assertions. Continue remaining Assessments → Review → Plan → Results → Reports → Notifications and Learning/Course Player visual-functional parity before UI-7 closure work. Latest Legacy checkpoint observed before this carry-forward: `42581e40fc95fbd3a16341bdcc715d6ba184fa43`.
