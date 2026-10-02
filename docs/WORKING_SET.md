@@ -313,3 +313,5 @@ UI-6 merged as `9f7953d137c25d3b344a762961bb8814e89188c9`. This branch resumes t
 
 ## Student Journey click-through completion candidate — 2026-10-02
 Dashboard mobile navigation now exercises real browser clicks for Assessments → Review → Plan → Results → Reports → Notifications, in addition to the already-certified Dashboard → Learning → Course Player path. Each destination asserts the canonical URL, its certified heading, absence of generic placeholder/application-error text, and no horizontal overflow at 390px. Existing domain E2E remains the deeper API/authority proof. Candidate awaits exact-head four-gate verification; do not mark CLOSED before all four gates pass on the same documentation-inclusive SHA and latest Legacy is rechecked.
+
+Latest Legacy re-check for this candidate: `8741c7b889cd8ebd099d06770e1540f8b496edc1`. Delta from prior `42581e40...` touches CI, package metadata and admin `UnifiedQuizBuilder` only; no Learning, Course Player, Student Dashboard or learner-destination source changed, so no source-backed learner presentation delta was introduced.
