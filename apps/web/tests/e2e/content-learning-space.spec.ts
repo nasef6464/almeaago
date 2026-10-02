@@ -33,6 +33,21 @@ test('mobile learner browses bounded legacy-shaped learning tabs without content
  await page.screenshot({path:'test-results/content-learning-mobile.png',fullPage:true});
 });
 
+
+test('dashboard learning entry reaches working learning content',async({page})=>{
+ const calls=await mockLearning(page);
+ await page.setViewportSize({width:390,height:844});
+ await page.goto('/dashboard');
+ await page.locator('main a[href="/learning"]').first().click();
+ await expect(page).toHaveURL(/\\/learning$/);
+ await expect(page.getByTestId('legacy-learning-space')).toBeVisible();
+ await page.getByLabel('المسار').selectOption('p1');
+ await page.getByLabel('المادة').selectOption('s1');
+ await expect(page.getByText('دورة الكمي')).toBeVisible();
+ expect(calls()).toBe(1);
+ await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+});
+
 test('legacy category deep link maps subject and tab onto canonical V2 learning data',async({page})=>{
  const calls=await mockLearning(page);
  await page.setViewportSize({width:820,height:1180});
@@ -45,11 +60,22 @@ test('legacy category deep link maps subject and tab onto canonical V2 learning 
  await page.screenshot({path:'test-results/content-learning-legacy-tablet.png',fullPage:true});
 });
 
-test('legacy learning course CTA keeps the old route shape while using V2 course runtime',async({page})=>{
+test('legacy learning course CTA navigates into a working V2 course runtime',async({page})=>{
  await mockLearning(page);
+ const course={id:'c1',title:'دورة الكمي',description:'تدريب منظم',instructorName:'المدرب',durationMinutes:90,level:'متوسط',thumbnailAssetId:'',dripContentEnabled:false,certificateEnabled:false,access:{allowed:true,configured:true,reason:'free_product'},modules:[{id:'m1',title:'الوحدة الأولى',description:'',sortOrder:1,lessons:[{id:'lesson-1',title:'درس النسب',description:'شرح مباشر',type:'video',durationSeconds:120,isLocked:false,isPreview:false,commerceLocked:false,sortOrder:1}]}]};
+ const lesson={id:'lesson-1',title:'درس النسب',description:'شرح مباشر',type:'video',durationSeconds:120,isLocked:false,isPreview:false,commerceLocked:false,sortOrder:1,contentText:'',videoUrl:'/media/sample.mp4',videoSource:'upload'};
+ await page.route('**/api/v1/auth/csrf',r=>json(r,{csrfToken:'csrf'}));
+ await page.route('**/api/v1/learning-spaces/courses/c1',r=>json(r,{course}));
+ await page.route('**/api/v1/learning-spaces/courses/c1/lessons/lesson-1',r=>json(r,{lesson}));
+ await page.route('**/api/v1/learning-progress/lessons/lesson-1?**',r=>json(r,{progress:{lessonId:'lesson-1',contextType:'course',courseId:'c1',topicId:'',status:'in_progress',positionSeconds:0,completedAt:null,updatedAt:'2026-10-02T00:00:00Z'}}));
+ await page.route('**/media/sample.mp4',r=>r.fulfill({status:200,headers:{'Content-Type':'video/mp4'},body:''}));
  await page.goto('/category/p1?subject=s1');
- const preview=page.getByRole('link',{name:'معاينة'});
- await expect(preview).toHaveAttribute('href','/course/c1');
  const start=page.getByRole('link',{name:/ابدأ/});
  await expect(start).toHaveAttribute('href','/course/c1?learn=1');
+ await start.click();
+ await expect(page).toHaveURL(/\\/course\\/c1\\?learn=1$/);
+ await expect(page.getByTestId('legacy-course-player')).toBeVisible();
+ await expect(page.getByRole('heading',{name:'درس النسب'})).toBeVisible();
+ await expect(page.getByTestId('lesson-video')).toBeVisible();
+ await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
 });
