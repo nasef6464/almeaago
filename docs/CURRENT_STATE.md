@@ -1572,3 +1572,7 @@ Teacher, Parent and School Director are closed. Supervisor exact legacy `dashboa
 
 ## UI-5 Role Workspaces — CLOSURE CANDIDATE
 Teacher PR #116, Parent PR #117, School Director PR #118 and Supervisor PR #119 are merged, each after exact-head four-gate green and latest-Legacy verification. This closure branch records the completed role-workspace phase only. After its own exact-head four-gate green and merge, UI-5 is CLOSED and UI-6 Admin becomes the first incomplete phase.
+
+
+## UI-6 Admin / Control Panels — ACTIVE
+UI-5 is closed. Latest Legacy AdminDashboard and supporting manager sources were read first at `d4e5c831...`. Every official UI-6 surface in the transplant plan already has a real V2 route and domain-specific E2E. This protected slice aligns/certifies the legacy admin shell navigation over those canonical owner domains; no Legacy store/business authority is restored. Exact-head four-gate verification pending.

@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   HelpCircle,
   Library,
+  LayoutDashboard,
   Menu,
   Moon,
   Search,
@@ -28,7 +29,7 @@ interface AdminDashboardShellProps {
 }
 
 const navItems = [
-  { label: 'نظرة عامة', icon: BookOpen, href: '/admin-dashboard' },
+  { label: 'نظرة عامة', icon: LayoutDashboard, href: '/admin-dashboard' },
   { label: 'إدارة المحتوى التعليمي', icon: BookOpen, href: '/admin-dashboard/content' },
   { label: 'إدارة المسارات والتصنيف', icon: Boxes, href: '/admin-dashboard/taxonomy' },
   { label: 'اعتماد المحتوى', icon: CheckCircle2 },
@@ -74,12 +75,12 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
   const activeItem = availableItems.find((item) => item.href ? isActiveHref(item.href) : false);
 
   const sidebar = (
-    <aside className="flex h-full w-64 flex-col border-l border-gray-100 bg-white sm:w-[270px]">
+    <aside data-testid="admin-dashboard-sidebar" className="flex h-full w-64 flex-col border-l border-gray-100 bg-white sm:w-[270px]">
       <div className="border-b border-gray-100 px-6 py-6">
         <h2 className="text-xl font-black text-gray-900">لوحة الإدارة</h2>
         <p className="mt-1 text-xs font-bold text-gray-400">التحكم الكامل بالمنصة</p>
       </div>
-      <nav className="flex-1 overflow-y-auto py-3">
+      <nav aria-label="تنقل لوحة الإدارة" className="flex-1 overflow-y-auto py-3">
         <div className="px-5 pb-2 text-[10px] font-black tracking-wide text-gray-400">الأقسام المتاحة</div>
         {availableItems.map((item) => {
           const Icon = item.icon;

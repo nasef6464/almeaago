@@ -179,6 +179,25 @@ test('teacher root restores the legacy school workspace shell before smart class
   await page.screenshot({path:'test-results/ui5-teacher-workspace-desktop.png',fullPage:true});
 });
 
+test('admin shell exposes every official UI-6 control panel on mobile and desktop',async({page})=>{
+  await page.route('**/api/v1/auth/me',route=>json(route,{user:admin}));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/admin-dashboard');
+  await expect(page.getByRole('heading',{name:'مركز إدارة منصة المئة'})).toBeVisible();
+  await page.getByRole('button',{name:'فتح قائمة الإدارة'}).click();
+  const nav=page.getByRole('navigation',{name:'تنقل لوحة الإدارة'});
+  for(const label of ['نظرة عامة','إدارة المحتوى التعليمي','إدارة المسارات والتصنيف','مركز بنك الأسئلة','مركز الاختبارات','التجارة والصلاحيات','مركز الإشعارات','الفصل الذكي','إدارة الذكاء الاصطناعي','التقارير والتحليلات','مركز العمليات والتدقيق']){
+    await expect(nav.getByText(label,{exact:true})).toBeVisible();
+  }
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:'test-results/ui6-admin-shell-mobile.png',fullPage:true});
+  await page.setViewportSize({width:1440,height:1000});
+  await page.reload();
+  await expect(page.getByTestId('admin-dashboard-sidebar')).toBeVisible();
+  await expect(page.getByRole('navigation',{name:'تنقل لوحة الإدارة'})).toBeVisible();
+  await page.screenshot({path:'test-results/ui6-admin-shell-desktop.png',fullPage:true});
+});
+
 test('supervisor root restores legacy section hierarchy without inventing unsupported owner flows',async({page})=>{
   await page.route('**/api/v1/auth/me',route=>json(route,{user:supervisor}));
   await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[
