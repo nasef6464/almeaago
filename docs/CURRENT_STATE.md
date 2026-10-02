@@ -1576,3 +1576,7 @@ Teacher PR #116, Parent PR #117, School Director PR #118 and Supervisor PR #119 
 
 ## UI-6 Admin / Control Panels — ACTIVE
 UI-5 is closed. Latest Legacy AdminDashboard and supporting manager sources were read first at `d4e5c831...`. Every official UI-6 surface in the transplant plan already has a real V2 route and domain-specific E2E. This protected slice aligns/certifies the legacy admin shell navigation over those canonical owner domains; no Legacy store/business authority is restored. Exact-head four-gate verification pending.
+
+
+## Student Journey click-through completion candidate — 2026-10-02
+Dashboard mobile navigation now exercises real browser clicks for Assessments → Review → Plan → Results → Reports → Notifications, in addition to the already-certified Dashboard → Learning → Course Player path. Each destination asserts the canonical URL, its certified heading, absence of generic placeholder/application-error text, and no horizontal overflow at 390px. Existing domain E2E remains the deeper API/authority proof. Candidate awaits exact-head four-gate verification; do not mark CLOSED before all four gates pass on the same documentation-inclusive SHA and latest Legacy is rechecked.

@@ -24,3 +24,12 @@ Continue the same click-through rule across Assessments, Review, Plan, Results, 
 
 ## Merge rule
 Database CI + Backend CI + Frontend CI + Frontend E2E must all pass on the same final documentation-inclusive SHA, followed by a latest-Legacy re-check.
+
+
+## Remaining click-through completion
+Dashboard entries for Assessments, Review, Plan, Results, Reports and Notifications must be exercised by real browser clicks on the mobile learner navigation. Each destination must prove its canonical route, certified heading, no legacy placeholder, and no horizontal overflow. Existing domain E2E remains authoritative for deeper API behavior.
+
+## Dashboard click-through completion candidate
+The remaining learner entries are now covered by one mobile browser journey that returns to the Dashboard and clicks Assessments, Review, Plan, Results, Reports and Notifications. The proof requires the canonical route and certified destination heading, rejects generic Placeholder/Application Error states, and checks horizontal overflow. Domain suites continue to prove bounded API behavior, answer secrecy, CSRF and server authority. Exact-head four-gate verification and latest-Legacy re-check remain required before closure.
+
+Latest Legacy re-check for this candidate: `8741c7b889cd8ebd099d06770e1540f8b496edc1`. Delta from prior `42581e40...` touches CI, package metadata and admin `UnifiedQuizBuilder` only; no Learning, Course Player, Student Dashboard or learner-destination source changed, so no source-backed learner presentation delta was introduced.
