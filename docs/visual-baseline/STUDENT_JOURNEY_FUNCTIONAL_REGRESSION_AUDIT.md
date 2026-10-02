@@ -24,3 +24,7 @@ Continue the same click-through rule across Assessments, Review, Plan, Results, 
 
 ## Merge rule
 Database CI + Backend CI + Frontend CI + Frontend E2E must all pass on the same final documentation-inclusive SHA, followed by a latest-Legacy re-check.
+
+
+## Remaining click-through completion
+Dashboard entries for Assessments, Review, Plan, Results, Reports and Notifications must be exercised by real browser clicks on the mobile learner navigation. Each destination must prove its canonical route, certified heading, no legacy placeholder, and no horizontal overflow. Existing domain E2E remains authoritative for deeper API behavior.
