@@ -81,3 +81,34 @@ test('legacy learning course CTA navigates into a working V2 course runtime',asy
  await expect(page.getByTestId('lesson-video')).toBeVisible();
  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
 });
+
+
+test('student dashboard click-through reaches all remaining certified learner destinations',async({page})=>{
+ await page.route('**/api/v1/taxonomy/bootstrap?phase=core',r=>json(r,taxonomy));
+ await page.route('**/api/v1/assessment-placements/available?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/assessment-attempts/results?**',r=>json(r,{items:[],page:1,limit:20,hasMore:false}));
+ await page.route('**/api/v1/notifications/me?page=1&limit=50',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route('**/api/v1/notifications/me/unread-count',r=>json(r,{unreadCount:0}));
+ await auth(page);
+ await page.setViewportSize({width:390,height:844});
+
+ const destinations=[
+  {label:/اختبارات المنصة/,url:/\/assessments$/,heading:'اختبارات المنصة'},
+  {label:/أسئلتي للمراجعة/,url:/\/review$/,heading:'أسئلتي للمراجعة'},
+  {label:/خططي/,url:/\/plan$/,heading:'خططي'},
+  {label:/اختباراتي ونتائجي/,url:/\/assessment-results$/,heading:'اختباراتي'},
+  {label:/تقاريري/,url:/\/reports$/,heading:'تقارير الأداء'},
+  {label:/الإشعارات/,url:/\/notifications$/,heading:'الإشعارات'},
+ ];
+
+ for(const destination of destinations){
+  await page.goto('/dashboard');
+  await page.getByRole('button',{name:'فتح قائمة لوحة الطالب'}).click();
+  const nav=page.getByRole('navigation',{name:'تنقل لوحة الطالب'}).last();
+  await nav.getByRole('link',{name:destination.label}).click();
+  await expect(page).toHaveURL(destination.url);
+  await expect(page.getByRole('heading',{name:destination.heading}).first()).toBeVisible();
+  await expect(page.getByText(/Placeholder|Something went wrong|Application error/i)).toHaveCount(0);
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+ }
+});
