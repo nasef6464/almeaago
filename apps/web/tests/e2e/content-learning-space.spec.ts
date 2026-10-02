@@ -38,7 +38,9 @@ test('dashboard learning entry reaches working learning content',async({page})=>
  const calls=await mockLearning(page);
  await page.setViewportSize({width:390,height:844});
  await page.goto('/dashboard');
- await page.locator('main a[href="/learning"]').first().click();
+ await page.getByRole('button',{name:'فتح قائمة لوحة الطالب'}).click();
+ const studentNav=page.getByRole('navigation',{name:'تنقل لوحة الطالب'});
+ await studentNav.getByRole('link',{name:/مساراتي ودوراتي/}).click();
  await expect(page).toHaveURL(/\/learning$/);
  await expect(page.getByTestId('legacy-learning-space')).toBeVisible();
  await page.getByLabel('المسار').selectOption('p1');
