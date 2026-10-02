@@ -39,7 +39,7 @@ test('dashboard learning entry reaches working learning content',async({page})=>
  await page.setViewportSize({width:390,height:844});
  await page.goto('/dashboard');
  await page.locator('main a[href="/learning"]').first().click();
- await expect(page).toHaveURL(/\\/learning$/);
+ await expect(page).toHaveURL(/\/learning$/);
  await expect(page.getByTestId('legacy-learning-space')).toBeVisible();
  await page.getByLabel('المسار').selectOption('p1');
  await page.getByLabel('المادة').selectOption('s1');
@@ -73,7 +73,7 @@ test('legacy learning course CTA navigates into a working V2 course runtime',asy
  const start=page.getByRole('link',{name:/ابدأ/});
  await expect(start).toHaveAttribute('href','/course/c1?learn=1');
  await start.click();
- await expect(page).toHaveURL(/\\/course\\/c1\\?learn=1$/);
+ await expect(page).toHaveURL(/\/course\/c1\?learn=1$/);
  await expect(page.getByTestId('legacy-course-player')).toBeVisible();
  await expect(page.getByRole('heading',{name:'درس النسب'})).toBeVisible();
  await expect(page.getByTestId('lesson-video')).toBeVisible();
