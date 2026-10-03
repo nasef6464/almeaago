@@ -1576,3 +1576,7 @@ Teacher PR #116, Parent PR #117, School Director PR #118 and Supervisor PR #119 
 
 ## UI-6 Admin / Control Panels — ACTIVE
 UI-5 is closed. Latest Legacy AdminDashboard and supporting manager sources were read first at `d4e5c831...`. Every official UI-6 surface in the transplant plan already has a real V2 route and domain-specific E2E. This protected slice aligns/certifies the legacy admin shell navigation over those canonical owner domains; no Legacy store/business authority is restored. Exact-head four-gate verification pending.
+
+
+## UI-7 Public/static/auth — ACTIVE
+Source-backed 404 parity delta restored: the canonical V2 404 now exposes both `العودة للرئيسية` and `لوحة التحكم` → `/dashboard`, matching Legacy recovery actions without changing auth/server authority. Public/static and auth routes remain canonical. Exact-head four-gate verification pending.
