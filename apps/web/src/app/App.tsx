@@ -60,7 +60,7 @@ function NotFoundPage() {
         <div className="text-xs font-black text-indigo-600">404</div>
         <h1 className="mt-2 text-2xl font-black text-slate-950">الصفحة غير موجودة</h1>
         <p className="mt-2 text-sm font-bold leading-7 text-slate-500">تحقق من الرابط أو ارجع للصفحة الرئيسية.</p>
-        <Link to="/" className="mt-5 inline-flex rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white">العودة للرئيسية</Link>
+        <div className="mt-5 flex flex-wrap justify-center gap-3">\n          <Link to="/" className="inline-flex rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white">العودة للرئيسية</Link>\n          <Link to="/dashboard" className="inline-flex rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-black text-slate-700">لوحة التحكم</Link>\n        </div>
       </section>
     </main>
   );
