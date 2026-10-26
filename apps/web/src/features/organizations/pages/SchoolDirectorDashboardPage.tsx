@@ -1,10 +1,11 @@
 import { BarChart3, Building2, GraduationCap, Loader2, Pencil, Plus, Power, Search, ShieldCheck, Users } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
 import type { TaxonomySubject } from '../../content/api/content-types';
+import { DirectorTeacherAssignments } from '../components/DirectorTeacherAssignments';
 import {
   organizationsClient,
   type DirectorAssignment,
@@ -38,6 +39,8 @@ export function SchoolDirectorDashboardPage(){
   const [newClassName,setNewClassName]=useState('');
   const [rename,setRename]=useState({classId:'',name:''});
   const [assignment,setAssignment]=useState({teacherId:'',classId:'',subjectId:'',status:'active' as 'active'|'inactive'});
+  const loadEpoch=useRef(0);
+  const activeSchoolId=useRef('');
 
   const selectedSchool=useMemo(()=>schools.find(x=>x.schoolId===schoolId)||schools[0], [schoolId,schools]);
   const has=(p:string)=>Boolean(selectedSchool?.permissions.includes(p));
@@ -68,7 +71,8 @@ export function SchoolDirectorDashboardPage(){
   },[authLoading,user]);
 
   async function refresh(query=search){
-    if(!selectedSchool)return;
+    if(!selectedSchool||activeSchoolId.current!==selectedSchool.schoolId)return;
+    const epoch=++loadEpoch.current;
     setBusy(true);setError('');
     try{
       const [classResult,studentResult,teacherResult]=await Promise.all([
@@ -76,6 +80,7 @@ export function SchoolDirectorDashboardPage(){
         has('SCHOOL_STUDENTS_VIEW')?organizationsClient.directorStudents(selectedSchool.schoolId,query):Promise.resolve({students:[],total:0}),
         canOptional('SCHOOL_TEACHERS_ASSIGN')?organizationsClient.directorTeachers(selectedSchool.schoolId):Promise.resolve({teachers:[],assignments:[]}),
       ]);
+      if(epoch!==loadEpoch.current)return;
       setClasses(classResult.classes);
       setStudents(studentResult.students);
       setStudentTotal(studentResult.total);
@@ -83,27 +88,34 @@ export function SchoolDirectorDashboardPage(){
       setAssignments(teacherResult.assignments);
       setDraft(x=>({...x,classId:classResult.classes.some(v=>v.id===x.classId)?x.classId:(classResult.classes[0]?.id||'')}));
       setAssignment(x=>({...x,classId:classResult.classes.some(v=>v.id===x.classId)?x.classId:(classResult.classes[0]?.id||'')}));
-    }catch(e){setError(e instanceof Error?e.message:'تعذر تحديث المدرسة')}
-    finally{setBusy(false)}
+    }catch(e){if(epoch===loadEpoch.current)setError(e instanceof Error?e.message:'تعذر تحديث المدرسة')}
+    finally{if(epoch===loadEpoch.current)setBusy(false)}
   }
 
   useEffect(()=>{
     if(!selectedSchool)return;
-    setSearch('');setNotice('');setError('');
+    activeSchoolId.current=selectedSchool.schoolId;
+    ++loadEpoch.current;
+    setSearch('');setNotice('');setError('');setPending('');
+    setClasses([]);setStudents([]);setStudentTotal(0);setTeachers([]);setAssignments([]);
+    setAssignment({teacherId:'',classId:'',subjectId:'',status:'active'});
+    setDraft(d=>({...d,classId:''}));
     void refresh('');
   },[selectedSchool?.schoolId]);
 
   async function run(key:string, action:(csrf:string)=>Promise<void>, success:string){
+    const startedFor=selectedSchool?.schoolId;
     setPending(key);setError('');setNotice('');
-    try{const csrf=await getCsrfToken();await action(csrf);if(success)setNotice(success)}
-    catch(e){setError(e instanceof Error?e.message:'تعذر تنفيذ العملية')}
-    finally{setPending('')}
+    try{const csrf=await getCsrfToken();await action(csrf);if(success&&activeSchoolId.current===startedFor)setNotice(success)}
+    catch(e){if(activeSchoolId.current===startedFor)setError(e instanceof Error?e.message:'تعذر تنفيذ العملية')}
+    finally{if(activeSchoolId.current===startedFor)setPending('')}
   }
 
   async function addStudent(){
     if(!selectedSchool||!draft.classId)return;
     await run('add',async csrf=>{
       const result=await organizationsClient.addDirectorStudent(selectedSchool.schoolId,draft,csrf);
+      if(activeSchoolId.current!==selectedSchool.schoolId)return;
       setShowAdd(false);setDraft({name:'',email:'',password:'',classId:classes[0]?.id||''});
       await refresh(search);
       setNotice(result.created?'تم إنشاء الطالب وربطه بالمدرسة والفصل.':'الطالب موجود وتم تأكيد ربطه بالفصل المحدد.');
@@ -151,12 +163,22 @@ export function SchoolDirectorDashboardPage(){
     await run('assignment',async csrf=>{await organizationsClient.upsertDirectorAssignment(selectedSchool.schoolId,assignment,csrf);const r=await organizationsClient.directorTeachers(selectedSchool.schoolId);setTeachers(r.teachers);setAssignments(r.assignments)},'تم حفظ تكليف المعلم.');
   }
 
+  async function stopAssignment(row:Pick<DirectorAssignment,'teacherId'|'classId'|'subjectId'> & {status:'inactive'}){
+    if(!selectedSchool)return;
+    await run('assignment',async csrf=>{
+      await organizationsClient.upsertDirectorAssignment(selectedSchool.schoolId,row,csrf);
+      const result=await organizationsClient.directorTeachers(selectedSchool.schoolId);
+      setTeachers(result.teachers);
+      setAssignments(result.assignments);
+    },'تم إيقاف التكليف دون تغيير التقارير السابقة.');
+  }
+
   if(authLoading||busy&&schools.length===0)return <main dir="rtl" className="flex min-h-[calc(100vh-5rem)] items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-indigo-600" size={38}/></main>;
   if(!user?.roles.includes('school_admin'))return <main dir="rtl" className="p-10 text-center font-black text-rose-700">هذه المساحة مخصصة لمدير المدرسة.</main>;
   if(!selectedSchool)return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 p-6"><div className="mx-auto mt-20 max-w-xl rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center"><ShieldCheck className="mx-auto text-slate-400" size={40}/><h1 className="mt-4 text-xl font-black">لا توجد مدرسة مفوضة</h1><p className="mt-2 text-sm text-slate-500">اطلب من مدير المنصة ربط حسابك بمدرسة وتفعيل الصلاحيات المطلوبة.</p></div></main>;
 
   return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 px-4 py-6 text-slate-900 sm:px-8" data-testid="school-director-dashboard"><div className="mx-auto max-w-7xl">
-    <header className="rounded-3xl bg-gradient-to-l from-indigo-700 via-indigo-800 to-slate-900 p-6 text-white shadow-xl sm:p-8"><div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="flex items-center gap-2 text-sm font-bold text-indigo-200"><ShieldCheck size={17}/> نطاق مفوض من مدير المنصة</p><h1 className="mt-2 text-3xl font-black">لوحة مدير المدرسة</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-indigo-100">رؤية تشغيلية وعمليات طلاب وفصول ومعلمين داخل المدارس المصرح بها فقط.</p></div><label className="text-sm font-bold">المدرسة<select aria-label="المدرسة" value={selectedSchool.schoolId} onChange={e=>setSchoolId(e.target.value)} className="mt-2 block w-full min-w-56 rounded-xl border-0 bg-white px-4 py-3 text-slate-900">{schools.map(s=><option key={s.schoolId} value={s.schoolId}>{s.schoolName}</option>)}</select></label></div></header>
+    <header className="rounded-3xl bg-gradient-to-l from-indigo-700 via-indigo-800 to-slate-900 p-6 text-white shadow-xl sm:p-8"><div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="flex items-center gap-2 text-sm font-bold text-indigo-200"><ShieldCheck size={17}/> نطاق مفوض من مدير المنصة</p><h1 className="mt-2 text-3xl font-black">لوحة مدير المدرسة</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-indigo-100">رؤية تشغيلية وعمليات طلاب وفصول ومعلمين داخل المدارس المصرح بها فقط.</p></div><label className="text-sm font-bold">المدرسة<select aria-label="المدرسة" value={selectedSchool.schoolId} onChange={e=>{activeSchoolId.current=e.target.value;++loadEpoch.current;setSchoolId(e.target.value)}} className="mt-2 block w-full min-w-56 rounded-xl border-0 bg-white px-4 py-3 text-slate-900">{schools.map(s=><option key={s.schoolId} value={s.schoolId}>{s.schoolName}</option>)}</select></label></div></header>
 
     {error?<div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{error}</div>:null}
     {notice?<div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{notice}</div>:null}
@@ -178,7 +200,18 @@ export function SchoolDirectorDashboardPage(){
 
     {canOptional('SCHOOL_CLASSES_MANAGE')||canOptional('SCHOOL_TEACHERS_ASSIGN')?<section className="mt-7 grid gap-4 lg:grid-cols-2">
       {canOptional('SCHOOL_CLASSES_MANAGE')?<article className="rounded-3xl border bg-white p-5 shadow-sm"><h2 className="font-black">إدارة الفصول</h2><div className="mt-3 flex gap-2"><input aria-label="اسم فصل جديد" value={newClassName} onChange={e=>setNewClassName(e.target.value)} placeholder="اسم فصل جديد" className="min-w-0 flex-1 rounded-xl border px-3 py-2"/><button aria-label="إنشاء الفصل" type="button" onClick={()=>void createClass()} className="rounded-xl bg-sky-700 px-3 text-white"><Plus size={17}/></button></div><div className="mt-3 space-y-2">{classes.map(c=>rename.classId===c.id?<div key={c.id} className="flex gap-2"><input aria-label="اسم الفصل المعدل" value={rename.name} onChange={e=>setRename({...rename,name:e.target.value})} className="flex-1 rounded-lg border px-2"/><button type="button" onClick={()=>void renameClass()} className="font-black text-sky-700">حفظ</button></div>:<div key={c.id} className="flex items-center rounded-xl bg-slate-50 px-3 py-2"><span className="flex-1 font-bold">{c.name}</span><button type="button" aria-label={`تعديل ${c.name}`} onClick={()=>setRename({classId:c.id,name:c.name})}><Pencil size={15}/></button></div>)}</div></article>:null}
-      {canOptional('SCHOOL_TEACHERS_ASSIGN')?<article className="rounded-3xl border bg-white p-5 shadow-sm"><h2 className="font-black">تكليف المعلمين</h2><div className="mt-3 grid gap-2"><select aria-label="المعلم" value={assignment.teacherId} onChange={e=>setAssignment({...assignment,teacherId:e.target.value,subjectId:''})} className="rounded-xl border px-3 py-2"><option value="">اختر المعلم</option>{teachers.map(t=><option key={t.teacherId} value={t.teacherId}>{t.name}</option>)}</select><select aria-label="فصل التكليف" value={assignment.classId} onChange={e=>setAssignment({...assignment,classId:e.target.value})} className="rounded-xl border px-3 py-2"><option value="">اختر الفصل</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><select aria-label="مادة التكليف" value={assignment.subjectId} onChange={e=>setAssignment({...assignment,subjectId:e.target.value})} className="rounded-xl border px-3 py-2"><option value="">اختر المادة</option>{subjects.map(subject=><option key={subject.id} value={subject.id}>{subject.name}</option>)}</select>{subjectsError?<p className="text-xs font-bold text-rose-700">تعذر تحميل قائمة المواد؛ أعد فتح الصفحة قبل حفظ التكليف.</p>:null}<button type="button" disabled={!assignment.teacherId||!assignment.classId||!subjects.some(subject=>subject.id===assignment.subjectId)||Boolean(pending)} onClick={()=>void saveAssignment()} className="rounded-xl bg-emerald-700 py-2 font-black text-white disabled:opacity-40">حفظ التكليف</button></div><p className="mt-3 text-xs text-slate-500">التكليفات الفعالة: {assignments.filter(a=>a.status==='active').length}</p></article>:null}
+      {canOptional('SCHOOL_TEACHERS_ASSIGN')?<article className="rounded-3xl border bg-white p-5 shadow-sm">
+        <h2 className="font-black">تكليف المعلمين</h2>
+        <div className="mt-3 grid gap-2">
+          <select aria-label="المعلم" value={assignment.teacherId} onChange={e=>setAssignment({...assignment,teacherId:e.target.value,subjectId:''})} className="rounded-xl border px-3 py-2"><option value="">اختر المعلم</option>{teachers.map(t=><option key={t.teacherId} value={t.teacherId}>{t.name}</option>)}</select>
+          <select aria-label="فصل التكليف" value={assignment.classId} onChange={e=>setAssignment({...assignment,classId:e.target.value})} className="rounded-xl border px-3 py-2"><option value="">اختر الفصل</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
+          <select aria-label="مادة التكليف" value={assignment.subjectId} onChange={e=>setAssignment({...assignment,subjectId:e.target.value})} className="rounded-xl border px-3 py-2"><option value="">اختر المادة</option>{subjects.map(subject=><option key={subject.id} value={subject.id}>{subject.name}</option>)}</select>
+          {subjectsError?<p className="text-xs font-bold text-rose-700">تعذر تحميل قائمة المواد؛ أعد فتح الصفحة قبل حفظ التكليف.</p>:null}
+          <button type="button" disabled={!assignment.teacherId||!assignment.classId||!subjects.some(subject=>subject.id===assignment.subjectId)||Boolean(pending)} onClick={()=>void saveAssignment()} className="rounded-xl bg-emerald-700 py-2 font-black text-white disabled:opacity-40">حفظ التكليف</button>
+        </div>
+        <p className="mt-3 text-xs text-slate-500">التكليفات الفعالة: {assignments.filter(a=>a.status==='active').length}</p>
+        <DirectorTeacherAssignments teacherId={assignment.teacherId} assignments={assignments} classes={classes} subjects={subjects} busy={Boolean(pending)} onDeactivate={row=>void stopAssignment(row)}/>
+      </article>:null}
     </section>:null}
 
     <section aria-label="مركز تشغيل مدير المدرسة" className="mt-7 rounded-3xl border bg-white p-5 shadow-sm"><div className="flex items-center gap-2"><BarChart3 size={18} className="text-indigo-700"/><h2 className="font-black">مركز التشغيل الأكاديمي</h2></div><p className="mt-1 text-xs font-bold leading-6 text-slate-500">انتقل إلى التقارير أو خطط التدخل من نفس نطاق المدرسة المفوض؛ البيانات والصلاحيات تبقى من خدمات V2.</p><div className="mt-4 flex flex-wrap gap-2 text-sm font-bold"><Link to="/school-director-dashboard/interventions" className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-2 text-indigo-800">التدخلات والخطط العلاجية</Link><Link to="/reports" className="rounded-xl border bg-white px-4 py-2">التقارير</Link></div></section>
