@@ -211,6 +211,23 @@ test('late student mutation from previous school cannot refresh the new school u
   await expect(page.getByText('لا يوجد طلاب مطابقون حاليًا.')).toBeVisible();
 });
 
+test('switching school clears student draft and closes the previous school editor',async({page})=>{
+  await mockDirector(page);
+  await page.goto('/school-director-dashboard');
+  await page.getByRole('button',{name:'إضافة طالب'}).click();
+  await page.getByLabel('اسم الطالب الجديد').fill('بيانات تخص المدرسة الأولى');
+  await page.getByLabel('بريد الطالب الجديد').fill('old-school@example.com');
+  await page.getByLabel('كلمة مرور الطالب الجديد').fill('OldPassword1');
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await expect(page.getByLabel('اسم الطالب الجديد')).toHaveCount(0);
+  await expect(page.getByLabel('كلمة مرور الطالب الجديد')).toHaveCount(0);
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-1');
+  await page.getByRole('button',{name:'إضافة طالب'}).click();
+  await expect(page.getByLabel('اسم الطالب الجديد')).toHaveValue('');
+  await expect(page.getByLabel('بريد الطالب الجديد')).toHaveValue('');
+  await expect(page.getByLabel('كلمة مرور الطالب الجديد')).toHaveValue('');
+});
+
 test('optional school-core tools require both permission and active module in the UI',async({page})=>{
   await mockDirector(page,[]);
   await page.goto('/school-director-dashboard');
