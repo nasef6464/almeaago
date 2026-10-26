@@ -99,7 +99,11 @@ export function SchoolDirectorDashboardPage(){
     setSearch('');setNotice('');setError('');setPending('');
     setClasses([]);setStudents([]);setStudentTotal(0);setTeachers([]);setAssignments([]);
     setAssignment({teacherId:'',classId:'',subjectId:'',status:'active'});
-    setDraft(d=>({...d,classId:''}));
+    setShowAdd(false);
+    setDraft({name:'',email:'',password:'',classId:''});
+    setEditing({studentId:'',name:'',phone:''});
+    setNewClassName('');
+    setRename({classId:'',name:''});
     void refresh('');
   },[selectedSchool?.schoolId]);
 
