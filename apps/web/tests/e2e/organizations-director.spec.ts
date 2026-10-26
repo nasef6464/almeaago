@@ -104,6 +104,46 @@ test('school director desktop runs bounded student class and teacher operations'
   await page.screenshot({path:'test-results/organizations-director-desktop.png',fullPage:true});
 });
 
+test('school director lists active teacher materials and ends the exact assignment with CSRF',async({page})=>{
+  await mockDirector(page);
+  let activeAssignments=[
+    {assignmentId:'assignment-1',teacherId:'teacher-1',classId:'class-1',subjectId:'subject-1',status:'active'},
+    {assignmentId:'assignment-2',teacherId:'teacher-1',classId:'class-2',subjectId:'',status:'active'},
+    {assignmentId:'assignment-3',teacherId:'teacher-1',classId:'class-1',subjectId:'subject-1',status:'inactive'},
+  ];
+  let deactivated:unknown;
+  let schoolScope='';
+  let csrf='';
+  await page.route('**/api/school-access/director/schools/school-1/teachers',route=>json(route,{
+    teachers:[{teacherId:'teacher-1',name:'معلم المدرسة',email:'teacher@example.com',isActive:true}],
+    assignments:activeAssignments,
+  }));
+  await page.route('**/api/school-access/director/schools/*/assignments',route=>{
+    const payload=route.request().postDataJSON();
+    schoolScope=route.request().url();
+    csrf=route.request().headers()['x-csrf-token']||'';
+    deactivated=payload;
+    activeAssignments=activeAssignments.map(a=>a.classId===payload.classId&&a.subjectId===payload.subjectId?{...a,status:'inactive'}:a);
+    return json(route,{assignment:{...payload,assignmentId:'assignment-2'}});
+  });
+  await page.goto('/school-director-dashboard');
+  await page.getByLabel('المعلم').selectOption('teacher-1');
+  const listing=page.getByRole('region',{name:'تكليفات المعلم الحالية'});
+  await expect(listing).toContainText('الأول أ');
+  await expect(listing).toContainText('الرياضيات');
+  await expect(listing).toContainText('الأول ب');
+  await expect(listing).toContainText('مادة غير محددة');
+  await expect(listing).toContainText('يلزم توحيد التكليفات');
+  await expect(listing.getByRole('button',{name:'إيقاف التكليف'})).toHaveCount(2);
+  await listing.getByRole('button',{name:'إيقاف التكليف'}).nth(1).click();
+  await expect(page.getByText('تم إيقاف التكليف دون تغيير التقارير السابقة.')).toBeVisible();
+  expect(deactivated).toEqual({teacherId:'teacher-1',classId:'class-2',subjectId:'',status:'inactive'});
+  expect(schoolScope).toContain('/schools/school-1/assignments');
+  expect(csrf).toBe('csrf-director');
+  await expect(listing.getByRole('button',{name:'إيقاف التكليف'})).toHaveCount(1);
+  await expect(listing).not.toContainText('مادة غير محددة');
+});
+
 test('school director school switch never reuses the previous school roster',async({page})=>{
   await mockDirector(page);
   await page.goto('/school-director-dashboard');
