@@ -92,7 +92,7 @@ test('school director desktop runs bounded student class and teacher operations'
   await expect(page.getByText('تم إنشاء الفصل داخل المدرسة.')).toBeVisible();
   expect(classCsrf).toBe('csrf-director');
 
-  await page.getByLabel('المعلم').selectOption('teacher-1');
+  await page.getByLabel('المعلم',{exact:true}).selectOption('teacher-1');
   await page.getByLabel('فصل التكليف').selectOption('class-1');
   await expect(page.getByRole('button',{name:'حفظ التكليف'})).toBeDisabled();
   await page.getByLabel('مادة التكليف').selectOption('subject-1');
@@ -102,6 +102,46 @@ test('school director desktop runs bounded student class and teacher operations'
 
   await expect(page.getByRole('button',{name:/حذف/})).toHaveCount(0);
   await page.screenshot({path:'test-results/organizations-director-desktop.png',fullPage:true});
+});
+
+test('school director lists active teacher materials and ends the exact assignment with CSRF',async({page})=>{
+  await mockDirector(page);
+  let activeAssignments=[
+    {assignmentId:'assignment-1',teacherId:'teacher-1',classId:'class-1',subjectId:'subject-1',status:'active'},
+    {assignmentId:'assignment-2',teacherId:'teacher-1',classId:'class-2',subjectId:'',status:'active'},
+    {assignmentId:'assignment-3',teacherId:'teacher-1',classId:'class-1',subjectId:'subject-1',status:'inactive'},
+  ];
+  let deactivated:unknown;
+  let schoolScope='';
+  let csrf='';
+  await page.route('**/api/school-access/director/schools/school-1/teachers',route=>json(route,{
+    teachers:[{teacherId:'teacher-1',name:'معلم المدرسة',email:'teacher@example.com',isActive:true}],
+    assignments:activeAssignments,
+  }));
+  await page.route('**/api/school-access/director/schools/*/assignments',route=>{
+    const payload=route.request().postDataJSON();
+    schoolScope=route.request().url();
+    csrf=route.request().headers()['x-csrf-token']||'';
+    deactivated=payload;
+    activeAssignments=activeAssignments.map(a=>a.classId===payload.classId&&a.subjectId===payload.subjectId?{...a,status:'inactive'}:a);
+    return json(route,{assignment:{...payload,assignmentId:'assignment-2'}});
+  });
+  await page.goto('/school-director-dashboard');
+  await page.getByLabel('المعلم',{exact:true}).selectOption('teacher-1');
+  const listing=page.getByRole('region',{name:'تكليفات المعلم الحالية'});
+  await expect(listing).toContainText('الأول أ');
+  await expect(listing).toContainText('الرياضيات');
+  await expect(listing).toContainText('الأول ب');
+  await expect(listing).toContainText('مادة غير محددة');
+  await expect(listing).toContainText('يلزم توحيد التكليفات');
+  await expect(listing.getByRole('button',{name:'إيقاف التكليف'})).toHaveCount(2);
+  await listing.getByRole('button',{name:'إيقاف التكليف'}).nth(1).click();
+  await expect(page.getByText('تم إيقاف التكليف دون تغيير التقارير السابقة.')).toBeVisible();
+  expect(deactivated).toEqual({teacherId:'teacher-1',classId:'class-2',subjectId:'',status:'inactive'});
+  expect(schoolScope).toContain('/schools/school-1/assignments');
+  expect(csrf).toBe('csrf-director');
+  await expect(listing.getByRole('button',{name:'إيقاف التكليف'})).toHaveCount(1);
+  await expect(listing).not.toContainText('مادة غير محددة');
 });
 
 test('school director school switch never reuses the previous school roster',async({page})=>{
@@ -114,6 +154,219 @@ test('school director school switch never reuses the previous school roster',asy
   await expect(page.getByText('طالب أول')).toHaveCount(0);
   await expect(page.getByText('لا يوجد طلاب مطابقون حاليًا.')).toBeVisible();
   await expect(page.getByRole('button',{name:'إضافة طالب'})).toHaveCount(0);
+});
+
+test('late school-one response cannot overwrite school-two roster or assignment selection',async({page})=>{
+  await mockDirector(page);
+  let releaseOldResponse:(()=>void)|undefined;
+  let oldRequestStarted:(()=>void)|undefined;
+  const oldRequestSeen=new Promise<void>(resolve=>{oldRequestStarted=resolve});
+  await page.route('**/api/school-access/director/schools/school-1/students*',async route=>{
+    if(!route.request().url().includes('search=delayed'))return json(route,{students:[student],total:1});
+    oldRequestStarted?.();
+    await new Promise<void>(resolve=>{releaseOldResponse=resolve});
+    return json(route,{students:[{...student,studentId:'late-1',name:'طالب متأخر من المدرسة الأولى'}],total:1});
+  });
+  await page.goto('/school-director-dashboard');
+  await expect(page.getByText('طالب أول')).toBeVisible();
+  await page.getByLabel('المعلم',{exact:true}).selectOption('teacher-1');
+  await page.getByLabel('بحث الطلاب').fill('delayed');
+  await page.getByLabel('بحث الطلاب').press('Enter');
+  await oldRequestSeen;
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await expect(page.getByText('طلاب مدرسة ثانية')).toBeVisible();
+  await expect(page.getByText('لا يوجد طلاب مطابقون حاليًا.')).toBeVisible();
+  releaseOldResponse?.();
+  await page.waitForTimeout(250);
+  await expect(page.getByText('طالب متأخر من المدرسة الأولى')).toHaveCount(0);
+  await expect(page.getByLabel('بحث الطلاب')).toHaveValue('');
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-1');
+  await expect(page.getByLabel('المعلم',{exact:true})).toHaveValue('');
+});
+
+test('late student mutation from previous school cannot refresh the new school using stale scope',async({page})=>{
+  await mockDirector(page);
+  let releaseCreate:(()=>void)|undefined;
+  let creationStarted:(()=>void)|undefined;
+  const creating=new Promise<void>(resolve=>{creationStarted=resolve});
+  await page.route('**/api/school-access/director/schools/school-1/students',async route=>{
+    if(route.request().method()!=='POST')return route.fallback();
+    creationStarted?.();
+    await new Promise<void>(resolve=>{releaseCreate=resolve});
+    return json(route,{student:{...student,studentId:'new-1',name:'طالب قادم من الأولى'},created:true},201);
+  });
+  await page.goto('/school-director-dashboard');
+  await page.getByRole('button',{name:'إضافة طالب'}).click();
+  await page.getByLabel('اسم الطالب الجديد').fill('طالب قادم من الأولى');
+  await page.getByLabel('بريد الطالب الجديد').fill('from-first@example.com');
+  await page.getByLabel('كلمة مرور الطالب الجديد').fill('Password1');
+  await page.getByLabel('فصل الطالب الجديد').selectOption('class-1');
+  await page.getByRole('button',{name:'إنشاء وربط'}).click();
+  await creating;
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await expect(page.getByText('لا يوجد طلاب مطابقون حاليًا.')).toBeVisible();
+  releaseCreate?.();
+  await page.waitForTimeout(350);
+  await expect(page.getByText('طالب أول')).toHaveCount(0);
+  await expect(page.getByText('لا يوجد طلاب مطابقون حاليًا.')).toBeVisible();
+});
+
+test('late refresh after a successful student create cannot display the old-school success notice',async({page})=>{
+  await mockDirector(page);
+  let schoolOneStudentLoads=0;
+  let releaseRefresh:(()=>void)|undefined;
+  let refreshStarted:(()=>void)|undefined;
+  const refreshing=new Promise<void>(resolve=>{refreshStarted=resolve});
+  await page.route('**/api/school-access/director/schools/school-1/students*',async route=>{
+    if(route.request().method()==='POST')return json(route,{student:{...student,studentId:'new-1'},created:true},201);
+    schoolOneStudentLoads++;
+    if(schoolOneStudentLoads===2){
+      refreshStarted?.();
+      await new Promise<void>(resolve=>{releaseRefresh=resolve});
+    }
+    return json(route,{students:[student],total:1});
+  });
+  await page.goto('/school-director-dashboard');
+  await expect(page.getByText('طالب أول')).toBeVisible();
+  await page.getByRole('button',{name:'إضافة طالب'}).click();
+  await page.getByLabel('اسم الطالب الجديد').fill('طالب جديد');
+  await page.getByLabel('بريد الطالب الجديد').fill('new@example.com');
+  await page.getByLabel('كلمة مرور الطالب الجديد').fill('Password1');
+  await page.getByLabel('فصل الطالب الجديد').selectOption('class-1');
+  await page.getByRole('button',{name:'إنشاء وربط'}).click();
+  await refreshing;
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await expect(page.getByText('لا يوجد طلاب مطابقون حاليًا.')).toBeVisible();
+  releaseRefresh?.();
+  await page.waitForTimeout(300);
+  await expect(page.getByText('تم إنشاء الطالب وربطه بالمدرسة والفصل.')).toHaveCount(0);
+});
+
+test('switching school clears student draft and closes the previous school editor',async({page})=>{
+  await mockDirector(page);
+  await page.goto('/school-director-dashboard');
+  await page.getByRole('button',{name:'إضافة طالب'}).click();
+  await page.getByLabel('اسم الطالب الجديد').fill('بيانات تخص المدرسة الأولى');
+  await page.getByLabel('بريد الطالب الجديد').fill('old-school@example.com');
+  await page.getByLabel('كلمة مرور الطالب الجديد').fill('OldPassword1');
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await expect(page.getByLabel('اسم الطالب الجديد')).toHaveCount(0);
+  await expect(page.getByLabel('كلمة مرور الطالب الجديد')).toHaveCount(0);
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-1');
+  await page.getByRole('button',{name:'إضافة طالب'}).click();
+  await expect(page.getByLabel('اسم الطالب الجديد')).toHaveValue('');
+  await expect(page.getByLabel('بريد الطالب الجديد')).toHaveValue('');
+  await expect(page.getByLabel('كلمة مرور الطالب الجديد')).toHaveValue('');
+});
+
+test('completed stop-assignment request from former school cannot replace new school teachers',async({page})=>{
+  await mockDirector(page);
+  let releaseStop:(()=>void)|undefined;
+  let stopStarted:(()=>void)|undefined;
+  const stopping=new Promise<void>(resolve=>{stopStarted=resolve});
+  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[
+    {schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',permissions,modules:['SCHOOL_CORE'],source:'membership'},
+    {schoolId:'school-2',schoolName:'مدرسة ثانية',role:'school_admin',permissions,modules:['SCHOOL_CORE'],source:'membership'},
+  ]}));
+  await page.route('**/api/school-access/director/schools/school-1/teachers',route=>json(route,{
+    teachers:[{teacherId:'teacher-1',name:'معلم الأولى',email:'first@example.com',isActive:true}],
+    assignments:[{assignmentId:'first-a',teacherId:'teacher-1',classId:'class-1',subjectId:'subject-1',status:'active'}],
+  }));
+  await page.route('**/api/school-access/director/schools/school-2/teachers',route=>json(route,{
+    teachers:[{teacherId:'teacher-2',name:'معلم الثانية',email:'second@example.com',isActive:true}],assignments:[],
+  }));
+  await page.route('**/api/school-access/director/schools/school-1/assignments',async route=>{
+    stopStarted?.();
+    await new Promise<void>(resolve=>{releaseStop=resolve});
+    return json(route,{assignment:{...route.request().postDataJSON(),assignmentId:'first-a'}});
+  });
+  await page.goto('/school-director-dashboard');
+  await page.getByLabel('المعلم',{exact:true}).selectOption('teacher-1');
+  await page.getByRole('button',{name:'إيقاف التكليف'}).click();
+  await stopping;
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await expect(page.getByLabel('المعلم',{exact:true}).locator('option')).toContainText(['اختر المعلم','معلم الثانية']);
+  releaseStop?.();
+  await page.waitForTimeout(350);
+  await expect(page.getByLabel('المعلم',{exact:true}).locator('option')).toContainText(['اختر المعلم','معلم الثانية']);
+  await expect(page.getByText('تم إيقاف التكليف دون تغيير التقارير السابقة.')).toHaveCount(0);
+});
+
+test('late student move from former school cannot show its completion notice in the new school',async({page})=>{
+  await mockDirector(page);
+  let releaseMove:(()=>void)|undefined;
+  let moveStarted:(()=>void)|undefined;
+  const moving=new Promise<void>(resolve=>{moveStarted=resolve});
+  await page.route('**/api/school-access/director/schools/school-1/students/student-1/class',async route=>{
+    moveStarted?.();
+    await new Promise<void>(resolve=>{releaseMove=resolve});
+    return json(route,{student:{...student,classId:'class-2',className:'الأول ب'},idempotent:false});
+  });
+  await page.goto('/school-director-dashboard');
+  await page.getByLabel('فصل طالب أول').selectOption('class-2');
+  await moving;
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await expect(page.getByText('لا يوجد طلاب مطابقون حاليًا.')).toBeVisible();
+  releaseMove?.();
+  await page.waitForTimeout(300);
+  await expect(page.getByText('تم نقل الطالب داخل المدرسة وحفظ الفصل الجديد.')).toHaveCount(0);
+});
+
+test('late roster refresh cannot restore an already ended teacher assignment',async({page})=>{
+  await mockDirector(page);
+  let activeAssignments=[{assignmentId:'assignment-1',teacherId:'teacher-1',classId:'class-1',subjectId:'subject-1',status:'active'}];
+  let releaseStudents:(()=>void)|undefined;
+  let requestStarted:(()=>void)|undefined;
+  const requesting=new Promise<void>(resolve=>{requestStarted=resolve});
+  await page.route('**/api/school-access/director/schools/school-1/teachers',route=>json(route,{
+    teachers:[{teacherId:'teacher-1',name:'معلم المدرسة',email:'teacher@example.com',isActive:true}],
+    assignments:activeAssignments,
+  }));
+  await page.route('**/api/school-access/director/schools/school-1/students*',async route=>{
+    if(!route.request().url().includes('search=delayed'))return json(route,{students:[student],total:1});
+    requestStarted?.();
+    await new Promise<void>(resolve=>{releaseStudents=resolve});
+    return json(route,{students:[student],total:1});
+  });
+  await page.route('**/api/school-access/director/schools/school-1/assignments',route=>{
+    activeAssignments=activeAssignments.map(a=>({...a,status:'inactive'}));
+    return json(route,{assignment:{...activeAssignments[0]}});
+  });
+  await page.goto('/school-director-dashboard');
+  await page.getByLabel('المعلم',{exact:true}).selectOption('teacher-1');
+  const listing=page.getByRole('region',{name:'تكليفات المعلم الحالية'});
+  await expect(listing.getByRole('button',{name:'إيقاف التكليف'})).toHaveCount(1);
+  await page.getByLabel('بحث الطلاب').fill('delayed');
+  await page.getByLabel('بحث الطلاب').press('Enter');
+  await requesting;
+  await listing.getByRole('button',{name:'إيقاف التكليف'}).click();
+  await expect(listing.getByRole('button',{name:'إيقاف التكليف'})).toHaveCount(0);
+  releaseStudents?.();
+  await page.waitForTimeout(300);
+  await expect(listing.getByRole('button',{name:'إيقاف التكليف'})).toHaveCount(0);
+});
+
+test('returning to school A does not accept a mutation from its previous visit',async({page})=>{
+  await mockDirector(page);
+  let releaseMove:(()=>void)|undefined;
+  let moveStarted:(()=>void)|undefined;
+  const moving=new Promise<void>(resolve=>{moveStarted=resolve});
+  await page.route('**/api/school-access/director/schools/school-1/students/student-1/class',async route=>{
+    moveStarted?.();
+    await new Promise<void>(resolve=>{releaseMove=resolve});
+    return json(route,{student:{...student,classId:'class-2',className:'الأول ب'},idempotent:false});
+  });
+  await page.goto('/school-director-dashboard');
+  await page.getByLabel('فصل طالب أول').selectOption('class-2');
+  await moving;
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await expect(page.getByText('لا يوجد طلاب مطابقون حاليًا.')).toBeVisible();
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-1');
+  await expect(page.getByText('طالب أول')).toBeVisible();
+  releaseMove?.();
+  await page.waitForTimeout(350);
+  await expect(page.getByText('تم نقل الطالب داخل المدرسة وحفظ الفصل الجديد.')).toHaveCount(0);
+  await expect(page.getByLabel('فصل طالب أول')).toHaveValue('class-1');
 });
 
 test('optional school-core tools require both permission and active module in the UI',async({page})=>{
@@ -131,6 +384,7 @@ test('optional school-core tools require both permission and active module in th
 
 test('mobile director empty state is explicit when no active school delegation exists',async({page})=>{
   await auth(page);
+  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{paths:[],subjects:[]}));
   await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[]}));
   await page.setViewportSize({width:390,height:844});
   await page.goto('/school-director-dashboard');
