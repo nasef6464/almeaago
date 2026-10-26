@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
+import { contentClient } from '../../content/api/content-client';
+import type { TaxonomySubject } from '../../content/api/content-types';
 import {
   organizationsClient,
   type DirectorAssignment,
@@ -23,6 +25,8 @@ export function SchoolDirectorDashboardPage(){
   const [studentTotal,setStudentTotal]=useState(0);
   const [teachers,setTeachers]=useState<DirectorTeacher[]>([]);
   const [assignments,setAssignments]=useState<DirectorAssignment[]>([]);
+  const [subjects,setSubjects]=useState<TaxonomySubject[]>([]);
+  const [subjectsError,setSubjectsError]=useState(false);
   const [search,setSearch]=useState('');
   const [busy,setBusy]=useState(true);
   const [pending,setPending]=useState('');
@@ -51,6 +55,16 @@ export function SchoolDirectorDashboardPage(){
     }).catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل مساحة مدير المدرسة')})
       .finally(()=>{if(!c.signal.aborted)setBusy(false)});
     return()=>c.abort();
+  },[authLoading,user]);
+
+  useEffect(()=>{
+    if(authLoading||!user?.roles.includes('school_admin'))return;
+    const controller=new AbortController();
+    contentClient.taxonomyCore(controller.signal).then(result=>{
+      setSubjects(result.subjects);
+      setSubjectsError(false);
+    }).catch(()=>{if(!controller.signal.aborted)setSubjectsError(true)});
+    return()=>controller.abort();
   },[authLoading,user]);
 
   async function refresh(query=search){
@@ -133,7 +147,7 @@ export function SchoolDirectorDashboardPage(){
   }
 
   async function saveAssignment(){
-    if(!selectedSchool||!assignment.teacherId||!assignment.classId)return;
+    if(!selectedSchool||!assignment.teacherId||!assignment.classId||!subjects.some(subject=>subject.id===assignment.subjectId))return;
     await run('assignment',async csrf=>{await organizationsClient.upsertDirectorAssignment(selectedSchool.schoolId,assignment,csrf);const r=await organizationsClient.directorTeachers(selectedSchool.schoolId);setTeachers(r.teachers);setAssignments(r.assignments)},'تم حفظ تكليف المعلم.');
   }
 
@@ -164,7 +178,7 @@ export function SchoolDirectorDashboardPage(){
 
     {canOptional('SCHOOL_CLASSES_MANAGE')||canOptional('SCHOOL_TEACHERS_ASSIGN')?<section className="mt-7 grid gap-4 lg:grid-cols-2">
       {canOptional('SCHOOL_CLASSES_MANAGE')?<article className="rounded-3xl border bg-white p-5 shadow-sm"><h2 className="font-black">إدارة الفصول</h2><div className="mt-3 flex gap-2"><input aria-label="اسم فصل جديد" value={newClassName} onChange={e=>setNewClassName(e.target.value)} placeholder="اسم فصل جديد" className="min-w-0 flex-1 rounded-xl border px-3 py-2"/><button aria-label="إنشاء الفصل" type="button" onClick={()=>void createClass()} className="rounded-xl bg-sky-700 px-3 text-white"><Plus size={17}/></button></div><div className="mt-3 space-y-2">{classes.map(c=>rename.classId===c.id?<div key={c.id} className="flex gap-2"><input aria-label="اسم الفصل المعدل" value={rename.name} onChange={e=>setRename({...rename,name:e.target.value})} className="flex-1 rounded-lg border px-2"/><button type="button" onClick={()=>void renameClass()} className="font-black text-sky-700">حفظ</button></div>:<div key={c.id} className="flex items-center rounded-xl bg-slate-50 px-3 py-2"><span className="flex-1 font-bold">{c.name}</span><button type="button" aria-label={`تعديل ${c.name}`} onClick={()=>setRename({classId:c.id,name:c.name})}><Pencil size={15}/></button></div>)}</div></article>:null}
-      {canOptional('SCHOOL_TEACHERS_ASSIGN')?<article className="rounded-3xl border bg-white p-5 shadow-sm"><h2 className="font-black">تكليف المعلمين</h2><div className="mt-3 grid gap-2"><select aria-label="المعلم" value={assignment.teacherId} onChange={e=>setAssignment({...assignment,teacherId:e.target.value})} className="rounded-xl border px-3 py-2"><option value="">اختر المعلم</option>{teachers.map(t=><option key={t.teacherId} value={t.teacherId}>{t.name}</option>)}</select><select aria-label="فصل التكليف" value={assignment.classId} onChange={e=>setAssignment({...assignment,classId:e.target.value})} className="rounded-xl border px-3 py-2"><option value="">اختر الفصل</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><input aria-label="معرف مادة التكليف" value={assignment.subjectId} onChange={e=>setAssignment({...assignment,subjectId:e.target.value})} placeholder="معرّف المادة (اختياري)" className="rounded-xl border px-3 py-2"/><button type="button" disabled={!assignment.teacherId||!assignment.classId} onClick={()=>void saveAssignment()} className="rounded-xl bg-emerald-700 py-2 font-black text-white disabled:opacity-40">حفظ التكليف</button></div><p className="mt-3 text-xs text-slate-500">التكليفات الفعالة: {assignments.filter(a=>a.status==='active').length}</p></article>:null}
+      {canOptional('SCHOOL_TEACHERS_ASSIGN')?<article className="rounded-3xl border bg-white p-5 shadow-sm"><h2 className="font-black">تكليف المعلمين</h2><div className="mt-3 grid gap-2"><select aria-label="المعلم" value={assignment.teacherId} onChange={e=>setAssignment({...assignment,teacherId:e.target.value,subjectId:''})} className="rounded-xl border px-3 py-2"><option value="">اختر المعلم</option>{teachers.map(t=><option key={t.teacherId} value={t.teacherId}>{t.name}</option>)}</select><select aria-label="فصل التكليف" value={assignment.classId} onChange={e=>setAssignment({...assignment,classId:e.target.value})} className="rounded-xl border px-3 py-2"><option value="">اختر الفصل</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><select aria-label="مادة التكليف" value={assignment.subjectId} onChange={e=>setAssignment({...assignment,subjectId:e.target.value})} className="rounded-xl border px-3 py-2"><option value="">اختر المادة</option>{subjects.map(subject=><option key={subject.id} value={subject.id}>{subject.name}</option>)}</select>{subjectsError?<p className="text-xs font-bold text-rose-700">تعذر تحميل قائمة المواد؛ أعد فتح الصفحة قبل حفظ التكليف.</p>:null}<button type="button" disabled={!assignment.teacherId||!assignment.classId||!subjects.some(subject=>subject.id===assignment.subjectId)||Boolean(pending)} onClick={()=>void saveAssignment()} className="rounded-xl bg-emerald-700 py-2 font-black text-white disabled:opacity-40">حفظ التكليف</button></div><p className="mt-3 text-xs text-slate-500">التكليفات الفعالة: {assignments.filter(a=>a.status==='active').length}</p></article>:null}
     </section>:null}
 
     <section aria-label="مركز تشغيل مدير المدرسة" className="mt-7 rounded-3xl border bg-white p-5 shadow-sm"><div className="flex items-center gap-2"><BarChart3 size={18} className="text-indigo-700"/><h2 className="font-black">مركز التشغيل الأكاديمي</h2></div><p className="mt-1 text-xs font-bold leading-6 text-slate-500">انتقل إلى التقارير أو خطط التدخل من نفس نطاق المدرسة المفوض؛ البيانات والصلاحيات تبقى من خدمات V2.</p><div className="mt-4 flex flex-wrap gap-2 text-sm font-bold"><Link to="/school-director-dashboard/interventions" className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-2 text-indigo-800">التدخلات والخطط العلاجية</Link><Link to="/reports" className="rounded-xl border bg-white px-4 py-2">التقارير</Link></div></section>
