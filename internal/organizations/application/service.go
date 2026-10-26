@@ -691,6 +691,9 @@ func (s *Service) UpsertAssignment(
 	if !org.ValidAssignmentStatus(status) {
 		return org.TeachingAssignment{}, ErrInvalidInput
 	}
+	if status == org.AssignmentStatusActive && subjectID == "" {
+		return org.TeachingAssignment{}, ErrInvalidInput
+	}
 
 	return s.repo.UpsertAssignment(ctx, actor.ID, schoolID, org.AssignmentWrite{
 		TeacherID: teacherID,

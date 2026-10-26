@@ -389,7 +389,7 @@ func TestExplicitEmptyDirectorPermissionsArePreserved(t *testing.T) {
 	}
 }
 
-func TestAssignmentAllowsLegacySubjectAgnosticPayload(t *testing.T) {
+func TestAssignmentRejectsActiveSubjectAgnosticPayload(t *testing.T) {
 	repo := &repoStub{}
 	service := orgapp.NewService(repo)
 	handler := New(service, authStub{auth: adminAuth()})
@@ -403,11 +403,11 @@ func TestAssignmentAllowsLegacySubjectAgnosticPayload(t *testing.T) {
 
 	handler.ServeHTTP(response, request)
 
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d body=%s", response.Code, response.Body.String())
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", response.Code, response.Body.String())
 	}
-	if repo.assignmentWrite.SubjectID != "" {
-		t.Fatalf("expected subject-agnostic assignment, got %q", repo.assignmentWrite.SubjectID)
+	if repo.assignmentWrite.TeacherID != "" {
+		t.Fatal("invalid assignment must not reach repository")
 	}
 }
 

@@ -24,6 +24,7 @@ const permissions=[
 
 async function mockDirector(page:Page,modules=['SCHOOL_CORE']){
   await auth(page);
+  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{paths:[{id:'path-1',name:'قدرات'}],subjects:[{id:'subject-1',pathId:'path-1',name:'الرياضيات',code:'MATH',sortOrder:1}]}));
   await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[
     {schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',permissions,modules,source:'membership'},
     {schoolId:'school-2',schoolName:'مدرسة ثانية',role:'school_admin',permissions:['SCHOOL_OVERVIEW_VIEW','SCHOOL_STUDENTS_VIEW'],modules:['SCHOOL_CORE'],source:'membership'},
@@ -59,7 +60,8 @@ test('school director desktop runs bounded student class and teacher operations'
   });
   await page.route('**/api/school-access/director/schools/school-1/assignments',route=>{
     assignmentCsrf=route.request().headers()['x-csrf-token']||'';
-    return json(route,{assignment:{assignmentId:'assignment-1',teacherId:'teacher-1',classId:'class-1',subjectId:'',status:'active'}});
+    expect(route.request().postDataJSON().subjectId).toBe('subject-1');
+    return json(route,{assignment:{assignmentId:'assignment-1',teacherId:'teacher-1',classId:'class-1',subjectId:'subject-1',status:'active'}});
   });
 
   await page.setViewportSize({width:1440,height:1000});
@@ -92,6 +94,8 @@ test('school director desktop runs bounded student class and teacher operations'
 
   await page.getByLabel('المعلم').selectOption('teacher-1');
   await page.getByLabel('فصل التكليف').selectOption('class-1');
+  await expect(page.getByRole('button',{name:'حفظ التكليف'})).toBeDisabled();
+  await page.getByLabel('مادة التكليف').selectOption('subject-1');
   await page.getByRole('button',{name:'حفظ التكليف'}).click();
   await expect(page.getByText('تم حفظ تكليف المعلم.')).toBeVisible();
   expect(assignmentCsrf).toBe('csrf-director');

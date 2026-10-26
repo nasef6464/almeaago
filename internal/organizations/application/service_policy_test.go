@@ -279,6 +279,20 @@ func TestDirectorDefaultsMatchLegacyPermissionSet(t *testing.T) {
 	}
 }
 
+func TestActiveTeacherAssignmentRequiresExplicitSubject(t *testing.T) {
+	repo := &repositoryMock{permissionAllowed: true}
+	service := NewService(repo)
+	_, err := service.UpsertAssignment(context.Background(), actor("director-1", identity.RoleSchoolAdmin), "school-1", UpsertAssignmentInput{
+		TeacherID: "teacher-1", ClassID: "class-1", Status: org.AssignmentStatusActive,
+	})
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("active subjectless assignment should be invalid, got %v", err)
+	}
+	if repo.assignmentWrite.TeacherID != "" {
+		t.Fatal("invalid assignment reached repository")
+	}
+}
+
 func TestSchoolDirectorAssignmentRequiresTeacherAssignPermission(t *testing.T) {
 	repo := &repositoryMock{}
 	service := NewService(repo)
@@ -286,6 +300,7 @@ func TestSchoolDirectorAssignmentRequiresTeacherAssignPermission(t *testing.T) {
 	input := UpsertAssignmentInput{
 		TeacherID: "teacher-1",
 		ClassID:   "class-1",
+		SubjectID: "subject-1",
 	}
 
 	if _, err := service.UpsertAssignment(
@@ -310,8 +325,8 @@ func TestSchoolDirectorAssignmentRequiresTeacherAssignPermission(t *testing.T) {
 	if assignment.Status != org.AssignmentStatusActive {
 		t.Fatalf("expected active assignment default, got %#v", assignment)
 	}
-	if repo.assignmentWrite.SubjectID != "" {
-		t.Fatalf("legacy subject-agnostic assignment must remain empty, got %q", repo.assignmentWrite.SubjectID)
+	if repo.assignmentWrite.SubjectID != "subject-1" {
+		t.Fatalf("expected scoped subject, got %q", repo.assignmentWrite.SubjectID)
 	}
 }
 

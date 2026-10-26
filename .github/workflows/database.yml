@@ -1,10 +1,10 @@
 name: Database CI
 on:
   pull_request:
-    paths: ["migrations/**",".github/workflows/database.yml","docs/**"]
+    paths: ["migrations/**",".github/workflows/database.yml","docs/**","internal/organizations/repository/postgres/**"]
   push:
     branches: [main]
-    paths: ["migrations/**",".github/workflows/database.yml","docs/**"]
+    paths: ["migrations/**",".github/workflows/database.yml","docs/**","internal/organizations/repository/postgres/**"]
   workflow_dispatch:
 concurrency:
   group: database-ci-${{ github.ref }}
@@ -39,6 +39,15 @@ jobs:
             psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f "$file"
             echo "::endgroup::"
           done
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Verify teacher material serialization against PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/organizations/repository/postgres -run '^TestAssignmentMaterialGuardConcurrentTransactionsPostgres$' -count=1 -v
 
       - name: Verify current schema constraints
         shell: bash
