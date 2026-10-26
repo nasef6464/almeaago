@@ -164,16 +164,22 @@ export function SchoolDirectorDashboardPage(){
 
   async function saveAssignment(){
     if(!selectedSchool||!assignment.teacherId||!assignment.classId||!subjects.some(subject=>subject.id===assignment.subjectId))return;
-    await run('assignment',async csrf=>{await organizationsClient.upsertDirectorAssignment(selectedSchool.schoolId,assignment,csrf);const r=await organizationsClient.directorTeachers(selectedSchool.schoolId);setTeachers(r.teachers);setAssignments(r.assignments)},'تم حفظ تكليف المعلم.');
+    await run('assignment',async csrf=>{await organizationsClient.upsertDirectorAssignment(selectedSchool.schoolId,assignment,csrf);await reloadTeachersForSchool(selectedSchool.schoolId)},'تم حفظ تكليف المعلم.');
+  }
+
+  async function reloadTeachersForSchool(requestedSchoolId:string){
+    if(activeSchoolId.current!==requestedSchoolId)return;
+    const result=await organizationsClient.directorTeachers(requestedSchoolId);
+    if(activeSchoolId.current!==requestedSchoolId)return;
+    setTeachers(result.teachers);
+    setAssignments(result.assignments);
   }
 
   async function stopAssignment(row:Pick<DirectorAssignment,'teacherId'|'classId'|'subjectId'> & {status:'inactive'}){
     if(!selectedSchool)return;
     await run('assignment',async csrf=>{
       await organizationsClient.upsertDirectorAssignment(selectedSchool.schoolId,row,csrf);
-      const result=await organizationsClient.directorTeachers(selectedSchool.schoolId);
-      setTeachers(result.teachers);
-      setAssignments(result.assignments);
+      await reloadTeachersForSchool(selectedSchool.schoolId);
     },'تم إيقاف التكليف دون تغيير التقارير السابقة.');
   }
 
