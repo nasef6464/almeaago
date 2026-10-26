@@ -698,3 +698,160 @@ func (s *Service) UpsertAssignment(
 	return s.repo.UpsertAssignment(ctx, actor.ID, schoolID, org.AssignmentWrite{
 		TeacherID: teacherID,
 		ClassID:   classID,
+		SubjectID: subjectID,
+		Status:    status,
+	})
+}
+
+func (s *Service) requireSchoolManagement(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+) error {
+	if actor.HasRole(identity.RoleAdmin) {
+		return nil
+	}
+	if !actor.HasRole(identity.RoleSupervisor) {
+		return ErrForbidden
+	}
+	allowed, err := s.repo.CanManageSchool(ctx, actor.ID, schoolID)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return ErrForbidden
+	}
+	return nil
+}
+
+func (s *Service) requireClassManagement(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+) error {
+	if actor.HasRole(identity.RoleAdmin) {
+		return nil
+	}
+	if actor.HasRole(identity.RoleSupervisor) {
+		allowed, err := s.repo.CanManageSchool(ctx, actor.ID, schoolID)
+		if err != nil {
+			return err
+		}
+		if allowed {
+			return nil
+		}
+	}
+	if actor.HasRole(identity.RoleSchoolAdmin) {
+		allowed, err := s.repo.HasSchoolPermission(ctx, actor.ID, schoolID, permissionSchoolClassesManage)
+		if err != nil {
+			return err
+		}
+		if allowed {
+			return nil
+		}
+	}
+	return ErrForbidden
+}
+
+func canReadOrganizations(actor identity.User) bool {
+	return actor.HasRole(identity.RoleAdmin) ||
+		actor.HasRole(identity.RoleSupervisor) ||
+		actor.HasRole(identity.RoleTeacher) ||
+		actor.HasRole(identity.RoleSchoolAdmin)
+}
+
+func accessOf(actor identity.User) org.AccessContext {
+	return org.AccessContext{
+		ActorUserID: actor.ID,
+		ActorRoles:  append([]identity.Role(nil), actor.Roles...),
+	}
+}
+
+func normalizeSchoolQuery(query org.SchoolListQuery) org.SchoolListQuery {
+	query.Page = clampPage(query.Page)
+	query.Limit = clampLimit(query.Limit)
+	query.Search = strings.TrimSpace(query.Search)
+	return query
+}
+
+func normalizeClassQuery(query org.ClassListQuery) org.ClassListQuery {
+	query.Page = clampPage(query.Page)
+	query.Limit = clampLimit(query.Limit)
+	query.Search = strings.TrimSpace(query.Search)
+	return query
+}
+
+func clampPage(page int) int {
+	if page < 1 {
+		return 1
+	}
+	return page
+}
+
+func clampLimit(limit int) int {
+	if limit < 1 {
+		return 50
+	}
+	if limit > 100 {
+		return 100
+	}
+	return limit
+}
+
+func normalizeCode(value string) string {
+	value = strings.ToUpper(strings.TrimSpace(value))
+	if len(value) > 64 {
+		return ""
+	}
+	return value
+}
+
+func randomCode(prefix string) (string, error) {
+	buf := make([]byte, 6)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return prefix + "-" + strings.ToUpper(hex.EncodeToString(buf)), nil
+}
+
+func normalizeMetadata(raw json.RawMessage) (json.RawMessage, error) {
+	raw = json.RawMessage(strings.TrimSpace(string(raw)))
+	if len(raw) == 0 {
+		return json.RawMessage(`{}`), nil
+	}
+	if len(raw) > maxMetadataBytes {
+		return nil, ErrInvalidInput
+	}
+	var object map[string]any
+	if err := json.Unmarshal(raw, &object); err != nil || object == nil {
+		return nil, ErrInvalidInput
+	}
+	normalized, err := json.Marshal(object)
+	if err != nil {
+		return nil, err
+	}
+	return normalized, nil
+}
+
+func normalizeDirectorPermissions(values []string) ([]string, error) {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		permission := strings.TrimSpace(value)
+		if permission == "" {
+			continue
+		}
+		if !org.ValidSchoolDirectorPermission(permission) {
+			return nil, ErrInvalidInput
+		}
+		if _, exists := seen[permission]; exists {
+			continue
+		}
+		seen[permission] = struct{}{}
+		result = append(result, permission)
+		if len(result) > len(org.SchoolDirectorPermissions) {
+			return nil, ErrInvalidInput
+		}
+	}
+	return result, nil
+}
