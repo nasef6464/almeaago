@@ -228,6 +228,39 @@ test('switching school clears student draft and closes the previous school edito
   await expect(page.getByLabel('كلمة مرور الطالب الجديد')).toHaveValue('');
 });
 
+test('completed stop-assignment request from former school cannot replace new school teachers',async({page})=>{
+  await mockDirector(page);
+  let releaseStop:(()=>void)|undefined;
+  let stopStarted:(()=>void)|undefined;
+  const stopping=new Promise<void>(resolve=>{stopStarted=resolve});
+  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[
+    {schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',permissions,modules:['SCHOOL_CORE'],source:'membership'},
+    {schoolId:'school-2',schoolName:'مدرسة ثانية',role:'school_admin',permissions,modules:['SCHOOL_CORE'],source:'membership'},
+  ]}));
+  await page.route('**/api/school-access/director/schools/school-1/teachers',route=>json(route,{
+    teachers:[{teacherId:'teacher-1',name:'معلم الأولى',email:'first@example.com',isActive:true}],
+    assignments:[{assignmentId:'first-a',teacherId:'teacher-1',classId:'class-1',subjectId:'subject-1',status:'active'}],
+  }));
+  await page.route('**/api/school-access/director/schools/school-2/teachers',route=>json(route,{
+    teachers:[{teacherId:'teacher-2',name:'معلم الثانية',email:'second@example.com',isActive:true}],assignments:[],
+  }));
+  await page.route('**/api/school-access/director/schools/school-1/assignments',async route=>{
+    stopStarted?.();
+    await new Promise<void>(resolve=>{releaseStop=resolve});
+    return json(route,{assignment:{...route.request().postDataJSON(),assignmentId:'first-a'}});
+  });
+  await page.goto('/school-director-dashboard');
+  await page.getByLabel('المعلم',{exact:true}).selectOption('teacher-1');
+  await page.getByRole('button',{name:'إيقاف التكليف'}).click();
+  await stopping;
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await expect(page.getByLabel('المعلم',{exact:true}).locator('option')).toContainText(['اختر المعلم','معلم الثانية']);
+  releaseStop?.();
+  await page.waitForTimeout(350);
+  await expect(page.getByLabel('المعلم',{exact:true}).locator('option')).toContainText(['اختر المعلم','معلم الثانية']);
+  await expect(page.getByText('تم إيقاف التكليف دون تغيير التقارير السابقة.')).toHaveCount(0);
+});
+
 test('optional school-core tools require both permission and active module in the UI',async({page})=>{
   await mockDirector(page,[]);
   await page.goto('/school-director-dashboard');
