@@ -13,6 +13,32 @@ import (
 	org "github.com/nasef6464/almeaago/internal/organizations/domain"
 )
 
+type assignmentMaterialQuerier interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+// Locking the teacher row serializes active assignment mutations. The next
+// statement observes any material committed by the previous transaction.
+func ensureAssignmentMaterialTx(ctx context.Context, q assignmentMaterialQuerier, schoolID, teacherID, subjectID string) error {
+	var lockedTeacherID string
+	if err := q.QueryRow(ctx, "SELECT id::text FROM users WHERE id = $1::uuid FOR UPDATE", teacherID).Scan(&lockedTeacherID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return org.ErrNotFound
+		}
+		return err
+	}
+	var conflict bool
+	if err := q.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM teaching_assignments "+
+		"WHERE school_id = $1::uuid AND teacher_id = $2::uuid AND status = 'active' "+
+		"AND (subject_id IS NULL OR subject_id <> $3::uuid))", schoolID, teacherID, subjectID).Scan(&conflict); err != nil {
+		return err
+	}
+	if conflict {
+		return org.ErrConflict
+	}
+	return nil
+}
+
 func (r *Repository) ListAssignments(
 	ctx context.Context,
 	access org.AccessContext,
@@ -116,6 +142,14 @@ func (r *Repository) UpsertAssignment(
 		return org.TeachingAssignment{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if write.Status == org.AssignmentStatusActive {
+		if write.SubjectID == "" {
+			return org.TeachingAssignment{}, org.ErrConflict
+		}
+		if err := ensureAssignmentMaterialTx(ctx, tx, schoolID, write.TeacherID, write.SubjectID); err != nil {
+			return org.TeachingAssignment{}, err
+		}
+	}
 
 	const insertSQL = "INSERT INTO teaching_assignments " +
 		"(school_id, teacher_id, class_id, subject_id, status) " +
