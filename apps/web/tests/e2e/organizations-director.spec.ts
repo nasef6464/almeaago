@@ -17,6 +17,8 @@ const classes=[
   {id:'class-2',schoolId:'school-1',code:'A2',name:'الأول ب',status:'active'},
 ];
 const student={studentId:'student-1',name:'طالب أول',email:'s1@example.com',phone:'0501234567',isActive:true,classId:'class-1',className:'الأول أ'};
+const schoolOneOverview={school:{schoolId:'school-1',schoolName:'مدرسة المئة'},metrics:{students:12,classes:2,teachers:1,supervisors:3,schoolAssessments:7,completedSmartClasses:4},classes:[{classId:'class-1',className:'الأول أ'},{classId:'class-2',className:'الأول ب'}]};
+const schoolTwoOverview={school:{schoolId:'school-2',schoolName:'مدرسة ثانية'},metrics:{students:21,classes:1,teachers:2,supervisors:1,schoolAssessments:5,completedSmartClasses:8},classes:[{classId:'class-b',className:'الثاني أ'}]};
 const permissions=[
   'SCHOOL_OVERVIEW_VIEW','SCHOOL_STUDENTS_VIEW','SCHOOL_STUDENTS_ADD','SCHOOL_STUDENTS_MOVE_CLASS',
   'SCHOOL_STUDENTS_UPDATE_BASIC','SCHOOL_STUDENTS_DEACTIVATE','SCHOOL_CLASSES_MANAGE','SCHOOL_TEACHERS_ASSIGN',
@@ -31,12 +33,18 @@ async function mockDirector(page:Page,modules=['SCHOOL_CORE']){
   ]}));
   await page.route('**/api/v1/schools/school-1/classes*',route=>json(route,{classes,pagination:{page:1,limit:100,total:2,totalPages:1}}));
   await page.route('**/api/v1/schools/school-2/classes*',route=>json(route,{classes:[{id:'class-b',schoolId:'school-2',code:'B1',name:'الثاني أ',status:'active'}],pagination:{page:1,limit:100,total:1,totalPages:1}}));
+  await page.route('**/api/school-access/director/schools/school-1/overview',route=>json(route,schoolOneOverview));
+  await page.route('**/api/school-access/director/schools/school-2/overview',route=>json(route,schoolTwoOverview));
   await page.route('**/api/school-access/director/schools/school-1/students*',route=>json(route,{students:[student],total:1}));
   await page.route('**/api/school-access/director/schools/school-2/students*',route=>json(route,{students:[],total:0}));
   await page.route('**/api/school-access/director/schools/school-1/teachers',route=>json(route,{
     teachers:[{teacherId:'teacher-1',name:'معلم المدرسة',email:'teacher@example.com',isActive:true}],
     assignments:[],
   }));
+}
+
+async function openDirectorSection(page:Page,label:string){
+  await page.getByRole('navigation',{name:'أقسام لوحة مدير المدرسة'}).getByRole('button',{name:label,exact:true}).click();
 }
 
 test('school director desktop runs bounded student class and teacher operations',async({page})=>{
@@ -69,11 +77,12 @@ test('school director desktop runs bounded student class and teacher operations'
 
   await expect(page.getByRole('heading',{name:'لوحة مدير المدرسة'})).toBeVisible();
   await expect(page.getByText('نطاق مفوض من مدير المنصة')).toBeVisible();
-  await expect(page.getByText('طلاب مدرسة المئة')).toBeVisible();
-  await expect(page.getByText('طالب أول')).toBeVisible();
   await expect(page.getByRole('region',{name:'مركز تشغيل مدير المدرسة'})).toContainText('التدخلات والخطط العلاجية');
   await expect(page.getByRole('region',{name:'مركز تشغيل مدير المدرسة'})).toContainText('التقارير');
 
+  await openDirectorSection(page,'الطلاب');
+  await expect(page.getByText('طلاب مدرسة المئة')).toBeVisible();
+  await expect(page.getByText('طالب أول')).toBeVisible();
   await page.getByRole('button',{name:'إضافة طالب'}).click();
   await page.getByLabel('اسم الطالب الجديد').fill('طالب جديد');
   await page.getByLabel('بريد الطالب الجديد').fill('new@example.com');
@@ -87,11 +96,13 @@ test('school director desktop runs bounded student class and teacher operations'
   await expect(page.getByText('تم نقل الطالب داخل المدرسة وحفظ الفصل الجديد.')).toBeVisible();
   expect(moveCsrf).toBe('csrf-director');
 
+  await openDirectorSection(page,'الفصول');
   await page.getByLabel('اسم فصل جديد').fill('الأول ج');
   await page.getByRole('button',{name:'إنشاء الفصل'}).click();
   await expect(page.getByText('تم إنشاء الفصل داخل المدرسة.')).toBeVisible();
   expect(classCsrf).toBe('csrf-director');
 
+  await openDirectorSection(page,'المعلمون والتكليفات');
   await page.getByLabel('المعلم',{exact:true}).selectOption('teacher-1');
   await page.getByLabel('فصل التكليف').selectOption('class-1');
   await expect(page.getByRole('button',{name:'حفظ التكليف'})).toBeDisabled();
@@ -102,6 +113,68 @@ test('school director desktop runs bounded student class and teacher operations'
 
   await expect(page.getByRole('button',{name:/حذف/})).toHaveCount(0);
   await page.screenshot({path:'test-results/organizations-director-desktop.png',fullPage:true});
+});
+
+test('overview-only school admin sees all six authorized metrics without private roster requests',async({page})=>{
+  await mockDirector(page,[]);
+  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[
+    {schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',permissions:['SCHOOL_OVERVIEW_VIEW'],modules:[],source:'membership'},
+  ]}));
+  let forbiddenCalls=0;
+  await page.route('**/api/v1/schools/school-1/classes*',route=>{forbiddenCalls++;return json(route,{message:'not delegated'},403)});
+  await page.route('**/api/school-access/director/schools/school-1/students*',route=>{forbiddenCalls++;return json(route,{message:'not delegated'},403)});
+  await page.route('**/api/school-access/director/schools/school-1/teachers',route=>{forbiddenCalls++;return json(route,{message:'not delegated'},403)});
+  await page.goto('/school-director-dashboard');
+  const metrics=page.getByRole('region',{name:'مؤشرات المدرسة'});
+  for(const [label,value] of [['الطلاب','12'],['الفصول','2'],['المعلمون','1'],['المشرفون','3'],['اختبارات المدرسة','7'],['فصول ذكية مكتملة','4']]){
+    await expect(metrics.locator('article').filter({hasText:label})).toContainText(value);
+  }
+  await expect(page.getByRole('heading',{name:'طلاب مدرسة المئة'})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'إضافة طالب'})).toHaveCount(0);
+  expect(forbiddenCalls).toBe(0);
+});
+
+test('director follows legacy section order with only implemented permitted links',async({page})=>{
+  await mockDirector(page);
+  await page.goto('/school-director-dashboard');
+  const nav=page.getByRole('navigation',{name:'أقسام لوحة مدير المدرسة'});
+  const labels=await nav.getByRole('button').allTextContents();
+  expect(labels.map(x=>x.trim())).toEqual(['الملخص العام','الطلاب','الفصول','المعلمون والتكليفات']);
+  await nav.getByRole('button',{name:'الطلاب'}).click();
+  await expect(page.getByRole('heading',{name:'طلاب مدرسة المئة'})).toBeVisible();
+  await expect(page.getByRole('region',{name:'مؤشرات المدرسة'})).toHaveCount(0);
+  await nav.getByRole('button',{name:'الفصول'}).click();
+  await expect(page.getByRole('heading',{name:'إدارة الفصول'})).toBeVisible();
+  await nav.getByRole('button',{name:'الملخص العام'}).click();
+  await expect(page.getByRole('region',{name:'مؤشرات المدرسة'})).toBeVisible();
+});
+
+test('school A to B to A ignores stale overview numbers from B',async({page})=>{
+  await mockDirector(page);
+  let firstSchoolLoads=0;
+  let releaseSchoolB:(()=>void)|undefined;
+  let schoolBStarted:(()=>void)|undefined;
+  const seenB=new Promise<void>(resolve=>{schoolBStarted=resolve});
+  await page.route('**/api/school-access/director/schools/school-1/overview',route=>{
+    firstSchoolLoads++;
+    return json(route,{...schoolOneOverview,metrics:{...schoolOneOverview.metrics,students:firstSchoolLoads===1?12:44}});
+  });
+  await page.route('**/api/school-access/director/schools/school-2/overview',async route=>{
+    schoolBStarted?.();
+    await new Promise<void>(resolve=>{releaseSchoolB=resolve});
+    return json(route,schoolTwoOverview);
+  });
+  await page.goto('/school-director-dashboard');
+  const metrics=page.getByRole('region',{name:'مؤشرات المدرسة'});
+  await expect(metrics.locator('article').filter({hasText:'الطلاب'})).toContainText('12');
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await seenB;
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-1');
+  await expect(metrics.locator('article').filter({hasText:'الطلاب'})).toContainText('44');
+  releaseSchoolB?.();
+  await page.waitForTimeout(250);
+  await expect(metrics.locator('article').filter({hasText:'الطلاب'})).toContainText('44');
+  await expect(page.getByLabel('المدرسة',{exact:true})).toHaveValue('school-1');
 });
 
 test('school director lists active teacher materials and ends the exact assignment with CSRF',async({page})=>{
@@ -127,6 +200,7 @@ test('school director lists active teacher materials and ends the exact assignme
     return json(route,{assignment:{...payload,assignmentId:'assignment-2'}});
   });
   await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'المعلمون والتكليفات');
   await page.getByLabel('المعلم',{exact:true}).selectOption('teacher-1');
   const listing=page.getByRole('region',{name:'تكليفات المعلم الحالية'});
   await expect(listing).toContainText('الأول أ');
@@ -147,6 +221,7 @@ test('school director lists active teacher materials and ends the exact assignme
 test('school director school switch never reuses the previous school roster',async({page})=>{
   await mockDirector(page);
   await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'الطلاب');
   await expect(page.getByText('طالب أول')).toBeVisible();
 
   await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
@@ -168,8 +243,10 @@ test('late school-one response cannot overwrite school-two roster or assignment 
     return json(route,{students:[{...student,studentId:'late-1',name:'طالب متأخر من المدرسة الأولى'}],total:1});
   });
   await page.goto('/school-director-dashboard');
-  await expect(page.getByText('طالب أول')).toBeVisible();
+  await openDirectorSection(page,'المعلمون والتكليفات');
   await page.getByLabel('المعلم',{exact:true}).selectOption('teacher-1');
+  await openDirectorSection(page,'الطلاب');
+  await expect(page.getByText('طالب أول')).toBeVisible();
   await page.getByLabel('بحث الطلاب').fill('delayed');
   await page.getByLabel('بحث الطلاب').press('Enter');
   await oldRequestSeen;
@@ -181,6 +258,7 @@ test('late school-one response cannot overwrite school-two roster or assignment 
   await expect(page.getByText('طالب متأخر من المدرسة الأولى')).toHaveCount(0);
   await expect(page.getByLabel('بحث الطلاب')).toHaveValue('');
   await page.getByLabel('المدرسة',{exact:true}).selectOption('school-1');
+  await openDirectorSection(page,'المعلمون والتكليفات');
   await expect(page.getByLabel('المعلم',{exact:true})).toHaveValue('');
 });
 
@@ -196,6 +274,7 @@ test('late student mutation from previous school cannot refresh the new school u
     return json(route,{student:{...student,studentId:'new-1',name:'طالب قادم من الأولى'},created:true},201);
   });
   await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'الطلاب');
   await page.getByRole('button',{name:'إضافة طالب'}).click();
   await page.getByLabel('اسم الطالب الجديد').fill('طالب قادم من الأولى');
   await page.getByLabel('بريد الطالب الجديد').fill('from-first@example.com');
@@ -227,6 +306,7 @@ test('late refresh after a successful student create cannot display the old-scho
     return json(route,{students:[student],total:1});
   });
   await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'الطلاب');
   await expect(page.getByText('طالب أول')).toBeVisible();
   await page.getByRole('button',{name:'إضافة طالب'}).click();
   await page.getByLabel('اسم الطالب الجديد').fill('طالب جديد');
@@ -245,6 +325,7 @@ test('late refresh after a successful student create cannot display the old-scho
 test('switching school clears student draft and closes the previous school editor',async({page})=>{
   await mockDirector(page);
   await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'الطلاب');
   await page.getByRole('button',{name:'إضافة طالب'}).click();
   await page.getByLabel('اسم الطالب الجديد').fill('بيانات تخص المدرسة الأولى');
   await page.getByLabel('بريد الطالب الجديد').fill('old-school@example.com');
@@ -281,6 +362,7 @@ test('completed stop-assignment request from former school cannot replace new sc
     return json(route,{assignment:{...route.request().postDataJSON(),assignmentId:'first-a'}});
   });
   await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'المعلمون والتكليفات');
   await page.getByLabel('المعلم',{exact:true}).selectOption('teacher-1');
   await page.getByRole('button',{name:'إيقاف التكليف'}).click();
   await stopping;
@@ -303,6 +385,7 @@ test('late student move from former school cannot show its completion notice in 
     return json(route,{student:{...student,classId:'class-2',className:'الأول ب'},idempotent:false});
   });
   await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'الطلاب');
   await page.getByLabel('فصل طالب أول').selectOption('class-2');
   await moving;
   await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
@@ -333,12 +416,15 @@ test('late roster refresh cannot restore an already ended teacher assignment',as
     return json(route,{assignment:{...activeAssignments[0]}});
   });
   await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'المعلمون والتكليفات');
   await page.getByLabel('المعلم',{exact:true}).selectOption('teacher-1');
   const listing=page.getByRole('region',{name:'تكليفات المعلم الحالية'});
   await expect(listing.getByRole('button',{name:'إيقاف التكليف'})).toHaveCount(1);
+  await openDirectorSection(page,'الطلاب');
   await page.getByLabel('بحث الطلاب').fill('delayed');
   await page.getByLabel('بحث الطلاب').press('Enter');
   await requesting;
+  await openDirectorSection(page,'المعلمون والتكليفات');
   await listing.getByRole('button',{name:'إيقاف التكليف'}).click();
   await expect(listing.getByRole('button',{name:'إيقاف التكليف'})).toHaveCount(0);
   releaseStudents?.();
@@ -357,6 +443,7 @@ test('returning to school A does not accept a mutation from its previous visit',
     return json(route,{student:{...student,classId:'class-2',className:'الأول ب'},idempotent:false});
   });
   await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'الطلاب');
   await page.getByLabel('فصل طالب أول').selectOption('class-2');
   await moving;
   await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
@@ -372,6 +459,7 @@ test('returning to school A does not accept a mutation from its previous visit',
 test('optional school-core tools require both permission and active module in the UI',async({page})=>{
   await mockDirector(page,[]);
   await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'الطلاب');
 
   await expect(page.getByText('طالب أول')).toBeVisible();
   await expect(page.getByRole('button',{name:'إضافة طالب'})).toBeVisible();
@@ -401,9 +489,26 @@ test('school director populated tablet dashboard uses cards without page overflo
   await page.goto('/school-director-dashboard');
 
   await expect(page.getByRole('heading',{name:'لوحة مدير المدرسة'})).toBeVisible();
+  await expect(page.getByRole('region',{name:'مؤشرات المدرسة'})).toBeVisible();
+  await expect(page.getByRole('region',{name:'مركز تشغيل مدير المدرسة'})).toBeVisible();
+  await openDirectorSection(page,'الطلاب');
   await expect(page.getByText('طالب أول')).toBeVisible();
   await expect(page.getByLabel('فصل طالب أول')).toBeVisible();
-  await expect(page.getByRole('region',{name:'مركز تشغيل مدير المدرسة'})).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/organizations-director-tablet.png',fullPage:true});
+});
+
+test('director section navigation and six metrics stay reachable on eight legacy comparison widths',async({page})=>{
+  await mockDirector(page);
+  await page.goto('/school-director-dashboard');
+  for(const width of [360,390,430,768,1024,1366,1440,1920]){
+    await page.setViewportSize({width,height:900});
+    await expect(page.getByRole('navigation',{name:'أقسام لوحة مدير المدرسة'}).getByRole('button',{name:'الملخص العام'})).toBeVisible();
+    await expect(page.getByRole('region',{name:'مؤشرات المدرسة'}).locator('article')).toHaveCount(6);
+    await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),{message:`horizontal overflow at ${width}px`}).toBe(true);
+  }
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:'test-results/organizations-director-overview-mobile.png',fullPage:true});
+  await page.setViewportSize({width:1440,height:900});
+  await page.screenshot({path:'test-results/organizations-director-overview-desktop.png',fullPage:true});
 });
