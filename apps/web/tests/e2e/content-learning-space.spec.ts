@@ -75,7 +75,9 @@ test('legacy learning course CTA navigates into a working V2 course runtime',asy
  const start=page.getByRole('link',{name:/ابدأ/});
  await expect(start).toHaveAttribute('href','/course/c1?learn=1');
  await start.click();
- await expect(page).toHaveURL(/\/course\/c1\?learn=1$/);
+ // The runtime may immediately select its first lesson and persist that deep
+ // link; both states preserve the legacy CTA's requested learning mode.
+ await expect(page).toHaveURL(/\/course\/c1\?learn=1(?:&lesson=lesson-1)?$/);
  await expect(page.getByTestId('legacy-course-player')).toBeVisible();
  await expect(page.getByRole('heading',{name:'درس النسب'})).toBeVisible();
  await expect(page.getByTestId('lesson-video')).toBeVisible();

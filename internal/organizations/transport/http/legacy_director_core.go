@@ -26,6 +26,19 @@ func (h *LegacyHandler) directorOverviewAccess(w http.ResponseWriter, r *http.Re
 	})
 }
 
+func (h *LegacyHandler) directorOverview(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	overview, err := h.service.DirectorOverview(r.Context(), auth.User, chi.URLParam(r, "schoolId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, overview)
+}
+
 func (h *LegacyHandler) directorStudents(w http.ResponseWriter, r *http.Request) {
 	auth, ok := h.authenticate(w, r, false)
 	if !ok {

@@ -77,3 +77,40 @@ func TestDirectorOverviewAccessRequiresSchoolAdminRole(t *testing.T) {
 		t.Fatalf("expected forbidden, got %v", err)
 	}
 }
+
+func TestDirectorOverviewReturnsScopedSixMetricsOnlyWhenPermitted(t *testing.T) {
+	const school = "00000000-0000-0000-0000-000000000101"
+	repo := &repositoryMock{
+		permissionAllowed: true,
+		allowedSchoolID:   school,
+		directorOverview: org.DirectorOverview{
+			School:  org.DirectorOverviewSchool{SchoolID: school, SchoolName: "مدرسة المئة"},
+			Metrics: org.DirectorOverviewMetrics{Students: 12, Classes: 3, Teachers: 2, Supervisors: 1, SchoolAssessments: 5, CompletedSmartClasses: 4},
+		},
+	}
+	service := NewService(repo, repo)
+	got, err := service.DirectorOverview(context.Background(), schoolAdminActor(), school)
+	if err != nil || got.Metrics.SchoolAssessments != 5 || got.Metrics.CompletedSmartClasses != 4 || repo.lastDirectorOverviewSchool != school {
+		t.Fatalf("authorized director did not receive scoped overview: %+v error=%v", got, err)
+	}
+	if _, err := service.DirectorOverview(context.Background(), schoolAdminActor(), "00000000-0000-0000-0000-000000000102"); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("cross-school request must be rejected: %v", err)
+	}
+	if repo.lastDirectorOverviewSchool != school {
+		t.Fatalf("denied request reached directory: %s", repo.lastDirectorOverviewSchool)
+	}
+	if _, err := service.DirectorOverview(context.Background(), actor("teacher-1", identity.RoleTeacher), school); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("teacher must be denied even if permissions are configured: %v", err)
+	}
+	repo.permissionAllowed = false
+	if _, err := service.DirectorOverview(context.Background(), schoolAdminActor(), school); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("school admin without overview permission must be denied: %v", err)
+	}
+	repo.permissionAllowed = true
+	if _, err := service.DirectorOverview(context.Background(), schoolAdminActor(), " "); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("empty school ID must fail input validation: %v", err)
+	}
+	if _, err := service.DirectorOverview(context.Background(), schoolAdminActor(), "not-a-school-uuid"); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("malformed school ID must fail before database authorization: %v", err)
+	}
+}

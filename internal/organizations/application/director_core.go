@@ -3,13 +3,20 @@ package application
 import (
 	"context"
 	"net/mail"
+	"regexp"
 	"strings"
 
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	org "github.com/nasef6464/almeaago/internal/organizations/domain"
 )
 
+var directorSchoolUUIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
 type DirectorDirectory interface {
+	DirectorOverview(
+		ctx context.Context,
+		schoolID string,
+	) (org.DirectorOverview, error)
 	ListDirectorStudents(
 		ctx context.Context,
 		schoolID string,
@@ -19,6 +26,24 @@ type DirectorDirectory interface {
 		ctx context.Context,
 		schoolID string,
 	) (org.DirectorTeacherWorkspace, error)
+}
+
+func (s *Service) DirectorOverview(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+) (org.DirectorOverview, error) {
+	schoolID = strings.TrimSpace(schoolID)
+	if !directorSchoolUUIDPattern.MatchString(schoolID) {
+		return org.DirectorOverview{}, ErrInvalidInput
+	}
+	if err := s.requireDirectorPermission(ctx, actor, schoolID, org.PermissionSchoolOverviewView); err != nil {
+		return org.DirectorOverview{}, err
+	}
+	if s.directorDirectory == nil {
+		return org.DirectorOverview{}, ErrForbidden
+	}
+	return s.directorDirectory.DirectorOverview(ctx, schoolID)
 }
 
 func (s *Service) DirectorStudents(

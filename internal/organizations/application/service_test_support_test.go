@@ -10,24 +10,27 @@ import (
 )
 
 type repositoryMock struct {
-	contexts          []org.SchoolContext
-	accessAllowed     bool
-	manageAllowed     bool
-	permissionAllowed bool
-	lastSchoolQuery   org.SchoolListQuery
-	lastClassQuery    org.ClassListQuery
-	lastRosterQuery   org.RosterQuery
-	createdSchool     org.SchoolWrite
-	updatedSchool     org.SchoolPatch
-	createdClass      org.ClassWrite
-	updatedClass      org.ClassPatch
-	membershipWrite   org.MembershipWrite
-	directorQuery     org.DirectorQuery
-	directorWrite     org.DirectorWrite
-	assignmentQuery   org.AssignmentQuery
-	assignmentWrite   org.AssignmentWrite
-	teacherWorkspace  org.TeacherWorkspace
-	parentAuthority   org.ParentAuthority
+	contexts                   []org.SchoolContext
+	accessAllowed              bool
+	manageAllowed              bool
+	permissionAllowed          bool
+	allowedSchoolID            string
+	directorOverview           org.DirectorOverview
+	lastDirectorOverviewSchool string
+	lastSchoolQuery            org.SchoolListQuery
+	lastClassQuery             org.ClassListQuery
+	lastRosterQuery            org.RosterQuery
+	createdSchool              org.SchoolWrite
+	updatedSchool              org.SchoolPatch
+	createdClass               org.ClassWrite
+	updatedClass               org.ClassPatch
+	membershipWrite            org.MembershipWrite
+	directorQuery              org.DirectorQuery
+	directorWrite              org.DirectorWrite
+	assignmentQuery            org.AssignmentQuery
+	assignmentWrite            org.AssignmentWrite
+	teacherWorkspace           org.TeacherWorkspace
+	parentAuthority            org.ParentAuthority
 }
 
 func (m *repositoryMock) ParentAuthority(_ context.Context, _ string) (org.ParentAuthority, error) {
@@ -248,6 +251,11 @@ func (m *repositoryMock) DirectorTeachers(
 	return org.DirectorTeacherWorkspace{}, nil
 }
 
+func (m *repositoryMock) DirectorOverview(_ context.Context, schoolID string) (org.DirectorOverview, error) {
+	m.lastDirectorOverviewSchool = schoolID
+	return m.directorOverview, nil
+}
+
 func (m *repositoryMock) CanAccessSchool(context.Context, org.AccessContext, string) (bool, error) {
 	return m.accessAllowed, nil
 }
@@ -256,8 +264,8 @@ func (m *repositoryMock) CanManageSchool(context.Context, string, string) (bool,
 	return m.manageAllowed, nil
 }
 
-func (m *repositoryMock) HasSchoolPermission(context.Context, string, string, string) (bool, error) {
-	return m.permissionAllowed, nil
+func (m *repositoryMock) HasSchoolPermission(_ context.Context, _ string, schoolID string, _ string) (bool, error) {
+	return m.permissionAllowed && (m.allowedSchoolID == "" || m.allowedSchoolID == schoolID), nil
 }
 
 func actor(id string, role identity.Role) identity.User {
