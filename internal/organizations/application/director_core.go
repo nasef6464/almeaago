@@ -215,6 +215,51 @@ func (s *Service) requireDirectorPermission(
 	return nil
 }
 
+// A school contract module is part of the capability, not merely a UI flag.
+// SchoolContexts is assembled from active memberships and active contracts;
+// never trust permissions or modules submitted by the browser.
+func (s *Service) requireDirectorCapability(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+	permission string,
+	module org.SchoolModule,
+) error {
+	schoolID = strings.TrimSpace(schoolID)
+	if !directorSchoolUUIDPattern.MatchString(schoolID) || !org.ValidSchoolModule(module) {
+		return ErrInvalidInput
+	}
+	if actor.Status != "active" || !actor.HasRole(identity.RoleSchoolAdmin) || strings.TrimSpace(actor.ID) == "" {
+		return ErrForbidden
+	}
+	contexts, err := s.repo.SchoolContexts(ctx, actor.ID)
+	if err != nil {
+		return err
+	}
+	for _, school := range contexts {
+		if school.SchoolID != schoolID || school.Role != identity.RoleSchoolAdmin {
+			continue
+		}
+		permissionFound := false
+		for _, current := range school.Permissions {
+			if current == permission {
+				permissionFound = true
+				break
+			}
+		}
+		if !permissionFound {
+			return ErrForbidden
+		}
+		for _, current := range school.Modules {
+			if current == string(module) {
+				return nil
+			}
+		}
+		return ErrForbidden
+	}
+	return ErrForbidden
+}
+
 func validDirectorEmail(value string) bool {
 	address, err := mail.ParseAddress(value)
 	return err == nil && strings.EqualFold(address.Address, value)
