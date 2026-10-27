@@ -1,6 +1,5 @@
 import { BarChart3, BookOpenCheck, Building2, GraduationCap, Loader2, Pencil, Plus, Power, Search, ShieldCheck, Sparkles, Users, UsersRound } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
@@ -239,12 +238,31 @@ export function SchoolDirectorDashboardPage(){
     },'تم إيقاف التكليف دون تغيير التقارير السابقة.');
   }
 
+  function changeSchool(nextSchoolId:string){
+    activeSchoolId.current=nextSchoolId;
+    ++schoolVisitEpoch.current;
+    ++loadEpoch.current;
+    ++teacherReadVersion.current;
+    ++overviewReadEpoch.current;
+    setClasses([]);
+    setStudents([]);
+    setStudentTotal(0);
+    setTeachers([]);
+    setAssignments([]);
+    setBusy(true);
+    setOverview(null);
+    setOverviewError('');
+    setOverviewLoading(true);
+    setActiveSection('overview');
+    setSchoolId(nextSchoolId);
+  }
+
   if(authLoading||busy&&schools.length===0)return <main dir="rtl" className="flex min-h-[calc(100vh-5rem)] items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-indigo-600" size={38}/></main>;
   if(!user?.roles.includes('school_admin'))return <main dir="rtl" className="p-10 text-center font-black text-rose-700">هذه المساحة مخصصة لمدير المدرسة.</main>;
   if(!selectedSchool)return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 p-6"><div className="mx-auto mt-20 max-w-xl rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center"><ShieldCheck className="mx-auto text-slate-400" size={40}/><h1 className="mt-4 text-xl font-black">لا توجد مدرسة مفوضة</h1><p className="mt-2 text-sm text-slate-500">اطلب من مدير المنصة ربط حسابك بمدرسة وتفعيل الصلاحيات المطلوبة.</p></div></main>;
 
   return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 px-4 py-6 text-slate-900 sm:px-8" data-testid="school-director-dashboard"><div className="mx-auto max-w-7xl">
-    <header className="rounded-3xl bg-gradient-to-l from-indigo-700 via-indigo-800 to-slate-900 p-6 text-white shadow-xl sm:p-8"><div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="flex items-center gap-2 text-sm font-bold text-indigo-200"><ShieldCheck size={17}/> نطاق مفوض من مدير المنصة</p><h1 className="mt-2 text-3xl font-black">لوحة مدير المدرسة</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-indigo-100">رؤية تشغيلية وعمليات طلاب وفصول ومعلمين داخل المدارس المصرح بها فقط.</p></div><label className="text-sm font-bold">المدرسة<select aria-label="المدرسة" value={selectedSchool.schoolId} onChange={e=>{activeSchoolId.current=e.target.value;++schoolVisitEpoch.current;++loadEpoch.current;setSchoolId(e.target.value)}} className="mt-2 block w-full min-w-56 rounded-xl border-0 bg-white px-4 py-3 text-slate-900">{schools.map(s=><option key={s.schoolId} value={s.schoolId}>{s.schoolName}</option>)}</select></label></div></header>
+    <header className="rounded-3xl bg-gradient-to-l from-indigo-700 via-indigo-800 to-slate-900 p-6 text-white shadow-xl sm:p-8"><div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="flex items-center gap-2 text-sm font-bold text-indigo-200"><ShieldCheck size={17}/> نطاق مفوض من مدير المنصة</p><h1 className="mt-2 text-3xl font-black">لوحة مدير المدرسة</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-indigo-100">رؤية تشغيلية وعمليات طلاب وفصول ومعلمين داخل المدارس المصرح بها فقط.</p></div><label className="text-sm font-bold">المدرسة<select aria-label="المدرسة" value={selectedSchool.schoolId} onChange={e=>changeSchool(e.target.value)} className="mt-2 block w-full min-w-56 rounded-xl border-0 bg-white px-4 py-3 text-slate-900">{schools.map(s=><option key={s.schoolId} value={s.schoolId}>{s.schoolName}</option>)}</select></label></div></header>
 
     <div className="mt-6 grid min-w-0 gap-5 xl:grid-cols-[15rem_minmax(0,1fr)]">
       <aside className="min-w-0 xl:sticky xl:top-6 xl:self-start">
@@ -258,7 +276,7 @@ export function SchoolDirectorDashboardPage(){
     {section==='overview'&&has('SCHOOL_OVERVIEW_VIEW')?<section aria-label="مؤشرات المدرسة" className="mt-6">
       {overviewError?<div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm font-bold text-rose-700">{overviewError}</div>:null}
       {overviewLoading?<p role="status" className="rounded-2xl border bg-white p-5 text-sm font-bold text-slate-500">جار تحميل مؤشرات المدرسة…</p>:null}
-      {overview&&!overviewError?<div className="grid grid-cols-2 gap-3 lg:grid-cols-3">{[
+      {overview?.school.schoolId===selectedSchool.schoolId&&!overviewError?<div className="grid grid-cols-2 gap-3 lg:grid-cols-3">{[
         {label:'الطلاب',value:overview.metrics.students,icon:Users,tone:'text-indigo-700 bg-indigo-50'},
         {label:'الفصول',value:overview.metrics.classes,icon:Building2,tone:'text-sky-700 bg-sky-50'},
         {label:'المعلمون',value:overview.metrics.teachers,icon:GraduationCap,tone:'text-amber-700 bg-amber-50'},
@@ -297,7 +315,7 @@ export function SchoolDirectorDashboardPage(){
       </>:null}
     </section>:null}
 
-    {section==='overview'?<section aria-label="مركز تشغيل مدير المدرسة" className="mt-7 rounded-3xl border bg-white p-5 shadow-sm"><div className="flex items-center gap-2"><BarChart3 size={18} className="text-indigo-700"/><h2 className="font-black">مركز التشغيل الأكاديمي</h2></div><p className="mt-1 text-xs font-bold leading-6 text-slate-500">انتقل إلى التقارير أو خطط التدخل من نفس نطاق المدرسة المفوض؛ البيانات والصلاحيات تبقى من خدمات V2.</p><div className="mt-4 flex flex-wrap gap-2 text-sm font-bold"><Link to="/school-director-dashboard/interventions" className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-2 text-indigo-800">التدخلات والخطط العلاجية</Link><Link to="/reports" className="rounded-xl border bg-white px-4 py-2">التقارير</Link></div></section>:null}
+    {section==='overview'?<section aria-label="مركز تشغيل مدير المدرسة" className="mt-7 rounded-3xl border bg-white p-5 shadow-sm"><div className="flex items-center gap-2"><BarChart3 size={18} className="text-indigo-700"/><h2 className="font-black">مركز التشغيل الأكاديمي</h2></div><p className="mt-2 text-xs font-bold leading-6 text-slate-500">أقسام التقارير والتدخلات والحصص الذكية والاختبارات قيد النقل والتحقق من صلاحياتها في نسخة Go؛ ستظهر روابطها هنا بعد اكتمال خدماتها، دون فتح صفحة لا يملك مدير المدرسة تفويضها.</p></section>:null}
     {navItems.length===0?<p className="mt-6 rounded-2xl border bg-white p-6 text-sm font-bold text-slate-600">ليس لديك أقسام مفعّلة في لوحة هذه المدرسة حاليًا.</p>:null}
       </div>
     </div>
