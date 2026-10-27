@@ -44,3 +44,13 @@ DEBUG=pw:browser npm run e2e:local
 ```
 
 See the [Playwright browser installation](https://playwright.dev/docs/browsers), [CI](https://playwright.dev/docs/ci), and [Docker](https://playwright.dev/docs/docker) documentation.
+
+## Verified runtime proof — 27 October 2026
+
+GitHub Actions [Frontend E2E run 40455027932](https://github.com/nasef6464/almeaago/actions/runs/40455027932) (commit `3b9a6b114bbad4a6d53400158dd051d2b775b706`) performed **both** browser paths:
+
+- **Preinstalled-browser fallback:** `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` was set to the installed executable returned by `@playwright/test`; `npm run e2e:local` reported `Using preinstalled Chromium-compatible browser`. The real director workspace browser test passed **1/1** in 5.4 seconds.
+- **Normal Playwright suite:** `npm run e2e` passed **101/101** browser tests in 1.7 minutes.
+- Browser evidence upload finished successfully.
+
+This confirms the fallback **when a compatible browser is available**. It does not imply the restricted agent can download the browser from a blocked network or that every runtime already has the compatible binary. Preserve the regular GitHub CI browser installation and the four acceptance gates.
