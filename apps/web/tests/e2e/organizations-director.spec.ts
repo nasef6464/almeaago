@@ -153,6 +153,7 @@ test('director follows legacy section order with only implemented permitted link
   await mockDirector(page);
   await page.goto('/school-director-dashboard');
   const nav=page.getByRole('navigation',{name:'أقسام لوحة مدير المدرسة'});
+  await expect(nav.getByRole('button')).toHaveCount(4);
   const labels=await nav.getByRole('button').allTextContents();
   expect(labels.map(x=>x.trim())).toEqual(['الملخص العام','الطلاب','الفصول','المعلمون والتكليفات']);
   await nav.getByRole('button',{name:'الطلاب'}).click();
