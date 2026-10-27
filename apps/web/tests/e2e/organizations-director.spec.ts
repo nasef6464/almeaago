@@ -365,6 +365,24 @@ test('switching school clears student draft and closes the previous school edito
   await expect(page.getByLabel('كلمة مرور الطالب الجديد')).toHaveValue('');
 });
 
+test('school switch cannot flash previous-school student password when destination has students but no overview',async({page})=>{
+  await mockDirector(page);
+  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[
+    {schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',permissions,modules:['SCHOOL_CORE'],source:'membership'},
+    {schoolId:'school-2',schoolName:'مدرسة ثانية',role:'school_admin',permissions:['SCHOOL_STUDENTS_VIEW'],modules:['SCHOOL_CORE'],source:'membership'},
+  ]}));
+  await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'الطلاب');
+  await page.getByRole('button',{name:'إضافة طالب'}).click();
+  await page.getByLabel('كلمة مرور الطالب الجديد').fill('PreviousSchoolSecret');
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await expect(page.getByRole('heading',{name:'طلاب مدرسة ثانية'})).toBeVisible();
+  await expect(page.getByLabel('كلمة مرور الطالب الجديد')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'إضافة طالب'})).toHaveCount(0);
+  await expect(page.getByText('PreviousSchoolSecret')).toHaveCount(0);
+  await expect(page.getByRole('region',{name:'مؤشرات المدرسة'})).toHaveCount(0);
+});
+
 test('completed stop-assignment request from former school cannot replace new school teachers',async({page})=>{
   await mockDirector(page);
   let releaseStop:(()=>void)|undefined;
