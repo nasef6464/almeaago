@@ -2,17 +2,15 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// DATABASE_URL is supplied by Database CI. Isolated tables prevent test data
-// from affecting the migrated public schema or other tests.
+// DATABASE_URL is supplied by Database CI after real migrations are applied.
+// The fixture uses the actual migrated schema and rolls back all test rows.
 func TestDirectorOverviewCountsRealSchoolAudiencePostgres(t *testing.T) {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
@@ -20,44 +18,16 @@ func TestDirectorOverviewCountsRealSchoolAudiencePostgres(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	admin, err := pgx.Connect(ctx, dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer admin.Close(context.Background())
-	schema := fmt.Sprintf("director_overview_%d", time.Now().UnixNano())
-	if _, err := admin.Exec(ctx, "CREATE SCHEMA "+schema); err != nil {
-		t.Fatal(err)
-	}
-	defer admin.Exec(context.Background(), "DROP SCHEMA "+schema+" CASCADE")
-
-	config, err := pgxpool.ParseConfig(dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	config.ConnConfig.RuntimeParams["search_path"] = schema
-	db, err := pgxpool.NewWithConfig(ctx, config)
+	db, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
-
-	for _, sql := range []string{
-		`CREATE TABLE schools(id uuid PRIMARY KEY, name text NOT NULL, status text NOT NULL)`,
-		`CREATE TABLE classes(id uuid PRIMARY KEY, school_id uuid NOT NULL, name text NOT NULL, status text NOT NULL)`,
-		`CREATE TABLE school_memberships(school_id uuid NOT NULL, user_id uuid NOT NULL, role text NOT NULL, status text NOT NULL)`,
-		`CREATE TABLE teaching_assignments(school_id uuid NOT NULL, teacher_id uuid NOT NULL, class_id uuid NOT NULL, status text NOT NULL)`,
-		`CREATE TABLE school_supervisor_scopes(school_id uuid NOT NULL, supervisor_user_id uuid NOT NULL, status text NOT NULL)`,
-		`CREATE TABLE classroom_sessions(school_id uuid NOT NULL, status text NOT NULL)`,
-		`CREATE TABLE assessments(id uuid PRIMARY KEY, owner_school_id uuid, is_published boolean NOT NULL)`,
-		`CREATE TABLE assessment_assignments(id uuid PRIMARY KEY, assessment_id uuid NOT NULL, school_id uuid, status text NOT NULL)`,
-		`CREATE TABLE assessment_assignment_classes(assignment_id uuid NOT NULL, class_id uuid NOT NULL)`,
-		`CREATE TABLE assessment_assignment_users(assignment_id uuid NOT NULL, user_id uuid NOT NULL)`,
-	} {
-		if _, err := db.Exec(ctx, sql); err != nil {
-			t.Fatal(err)
-		}
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
 	}
+	defer tx.Rollback(context.Background())
 
 	const schoolA = "00000000-0000-0000-0000-000000000101"
 	const schoolB = "00000000-0000-0000-0000-000000000102"
@@ -70,26 +40,61 @@ func TestDirectorOverviewCountsRealSchoolAudiencePostgres(t *testing.T) {
 	const teacher = "00000000-0000-0000-0000-000000000401"
 	const supervisorSchool = "00000000-0000-0000-0000-000000000501"
 	const supervisorClass = "00000000-0000-0000-0000-000000000502"
+	const pathID = "00000000-0000-0000-0000-000000000801"
+	const subjectID = "00000000-0000-0000-0000-000000000802"
 
 	fixtures := []string{
-		`INSERT INTO schools VALUES ('` + schoolA + `','مدرسة المئة','active'),('` + schoolB + `','مدرسة أخرى','active')`,
-		`INSERT INTO classes VALUES ('` + classA + `','` + schoolA + `','الأول أ','active'),('` + classB + `','` + schoolA + `','الأول ب','active'),('` + otherClass + `','` + schoolB + `','الثاني أ','active')`,
-		`INSERT INTO school_memberships VALUES ('` + schoolA + `','` + studentA + `','student','active'),('` + schoolA + `','` + studentSuspended + `','student','suspended'),('` + schoolB + `','` + studentOther + `','student','active')`,
-		`INSERT INTO teaching_assignments VALUES ('` + schoolA + `','` + teacher + `','` + classA + `','active'),('` + schoolA + `','` + teacher + `','` + classB + `','active'),('` + schoolB + `','` + teacher + `','` + otherClass + `','active')`,
-		`INSERT INTO school_supervisor_scopes VALUES ('` + schoolA + `','` + supervisorSchool + `','active'),('` + schoolA + `','` + supervisorSchool + `','active'),('` + schoolA + `','` + supervisorClass + `','active'),('` + schoolB + `','` + supervisorClass + `','active')`,
-		`INSERT INTO classroom_sessions VALUES ('` + schoolA + `','ended'),('` + schoolA + `','archived'),('` + schoolB + `','ended')`,
-		`INSERT INTO assessments VALUES ('00000000-0000-0000-0000-000000000601',NULL,true),('00000000-0000-0000-0000-000000000602','` + schoolB + `',true),('00000000-0000-0000-0000-000000000603','` + schoolA + `',false),('00000000-0000-0000-0000-000000000604','` + schoolB + `',true)`,
-		`INSERT INTO assessment_assignments VALUES ('00000000-0000-0000-0000-000000000701','00000000-0000-0000-0000-000000000601','` + schoolA + `','active'),('00000000-0000-0000-0000-000000000702','00000000-0000-0000-0000-000000000602','` + schoolA + `','active'),('00000000-0000-0000-0000-000000000703','00000000-0000-0000-0000-000000000603','` + schoolA + `','active'),('00000000-0000-0000-0000-000000000704','00000000-0000-0000-0000-000000000604','` + schoolB + `','active')`,
-		`INSERT INTO assessment_assignment_classes VALUES ('00000000-0000-0000-0000-000000000701','` + classA + `'),('00000000-0000-0000-0000-000000000701','` + classB + `'),('00000000-0000-0000-0000-000000000703','` + classA + `'),('00000000-0000-0000-0000-000000000704','` + otherClass + `')`,
-		`INSERT INTO assessment_assignment_users VALUES ('00000000-0000-0000-0000-000000000702','` + studentA + `')`,
+		`INSERT INTO users(id,email,name,password_hash) VALUES
+		 ('` + studentA + `','director-overview-a@example.invalid','طالب أ','test-only'),
+		 ('` + studentSuspended + `','director-overview-suspended@example.invalid','طالب موقوف','test-only'),
+		 ('` + studentOther + `','director-overview-other@example.invalid','طالب ب','test-only'),
+		 ('` + teacher + `','director-overview-teacher@example.invalid','معلم','test-only'),
+		 ('` + supervisorSchool + `','director-overview-supervisor-school@example.invalid','مشرف مدرسة','test-only'),
+		 ('` + supervisorClass + `','director-overview-supervisor-class@example.invalid','مشرف فصل','test-only')`,
+		`INSERT INTO schools(id,code,name) VALUES ('` + schoolA + `','OVERVIEW-A','مدرسة المئة'),('` + schoolB + `','OVERVIEW-B','مدرسة أخرى')`,
+		`INSERT INTO classes(id,school_id,code,name) VALUES ('` + classA + `','` + schoolA + `','A1','الأول أ'),('` + classB + `','` + schoolA + `','A2','الأول ب'),('` + otherClass + `','` + schoolB + `','B1','الثاني أ')`,
+		`INSERT INTO paths(id,code,name) VALUES ('` + pathID + `','OVERVIEW-PATH','مسار الاختبار')`,
+		`INSERT INTO subjects(id,path_id,code,name) VALUES ('` + subjectID + `','` + pathID + `','OVERVIEW-SUBJECT','الرياضيات')`,
+		`INSERT INTO school_memberships(school_id,user_id,role,status) VALUES ('` + schoolA + `','` + studentA + `','student','active'),('` + schoolA + `','` + studentSuspended + `','student','suspended'),('` + schoolB + `','` + studentOther + `','student','active')`,
+		`INSERT INTO teaching_assignments(school_id,teacher_id,class_id,subject_id,status) VALUES ('` + schoolA + `','` + teacher + `','` + classA + `','` + subjectID + `','active'),('` + schoolA + `','` + teacher + `','` + classB + `','` + subjectID + `','active'),('` + schoolB + `','` + teacher + `','` + otherClass + `','` + subjectID + `','active')`,
+		`INSERT INTO school_supervisor_scopes(school_id,supervisor_user_id,scope_type,class_id,status) VALUES
+		 ('` + schoolA + `','` + supervisorSchool + `','school',NULL,'active'),
+		 ('` + schoolA + `','` + supervisorSchool + `','class','` + classA + `','active'),
+		 ('` + schoolA + `','` + supervisorClass + `','class','` + classB + `','active'),
+		 ('` + schoolB + `','` + supervisorClass + `','school',NULL,'active')`,
+		`INSERT INTO classroom_sessions(school_id,class_id,subject_id,teacher_id,status,pin_hash,pin_expires_at,ended_at) VALUES
+		 ('` + schoolA + `','` + classA + `','` + subjectID + `','` + teacher + `','ended',repeat('a',64),now()+interval '1 hour',now()),
+		 ('` + schoolA + `','` + classB + `','` + subjectID + `','` + teacher + `','archived',repeat('b',64),now()+interval '1 hour',now()),
+		 ('` + schoolB + `','` + otherClass + `','` + subjectID + `','` + teacher + `','ended',repeat('c',64),now()+interval '1 hour',now())`,
+		`INSERT INTO assessments(id,assessment_code,owner_type,owner_school_id,workflow_status,current_version,published_version,is_published) VALUES
+		 ('00000000-0000-0000-0000-000000000601','OVERVIEW-601','platform',NULL,'approved',1,1,true),
+		 ('00000000-0000-0000-0000-000000000602','OVERVIEW-602','school','` + schoolB + `','approved',1,1,true),
+		 ('00000000-0000-0000-0000-000000000603','OVERVIEW-603','school','` + schoolA + `','draft',1,NULL,false),
+		 ('00000000-0000-0000-0000-000000000604','OVERVIEW-604','school','` + schoolB + `','approved',1,1,true)`,
+		`INSERT INTO assessment_versions(assessment_id,version,title,path_id,assessment_kind,normal_mode,version_status,published_at) VALUES
+		 ('00000000-0000-0000-0000-000000000601',1,'اختبار صفوف','` + pathID + `','normal','exam','published',now()),
+		 ('00000000-0000-0000-0000-000000000602',1,'اختبار طالب','` + pathID + `','normal','exam','published',now()),
+		 ('00000000-0000-0000-0000-000000000603',1,'مسودة','` + pathID + `','normal','exam','draft',NULL),
+		 ('00000000-0000-0000-0000-000000000604',1,'اختبار مدرسة ب','` + pathID + `','normal','exam','published',now())`,
+		`INSERT INTO assessment_assignments(id,assessment_id,assessment_version,school_id,status,created_by) VALUES
+		 ('00000000-0000-0000-0000-000000000701','00000000-0000-0000-0000-000000000601',1,'` + schoolA + `','active','` + teacher + `'),
+		 ('00000000-0000-0000-0000-000000000702','00000000-0000-0000-0000-000000000602',1,'` + schoolA + `','active','` + teacher + `'),
+		 ('00000000-0000-0000-0000-000000000703','00000000-0000-0000-0000-000000000603',1,'` + schoolA + `','active','` + teacher + `'),
+		 ('00000000-0000-0000-0000-000000000704','00000000-0000-0000-0000-000000000604',1,'` + schoolB + `','active','` + teacher + `')`,
+		`INSERT INTO assessment_assignment_classes(assignment_id,class_id) VALUES ('00000000-0000-0000-0000-000000000701','` + classA + `'),('00000000-0000-0000-0000-000000000701','` + classB + `'),('00000000-0000-0000-0000-000000000703','` + classA + `'),('00000000-0000-0000-0000-000000000704','` + otherClass + `')`,
+		`INSERT INTO assessment_assignment_users(assignment_id,user_id) VALUES ('00000000-0000-0000-0000-000000000702','` + studentA + `')`,
 	}
 	for _, sql := range fixtures {
-		if _, err := db.Exec(ctx, sql); err != nil {
+		if _, err := tx.Exec(ctx, sql); err != nil {
 			t.Fatal(err)
 		}
 	}
+	// Validate deferred version FKs before rollback hides commit-time mistakes.
+	if _, err := tx.Exec(ctx, `SET CONSTRAINTS ALL IMMEDIATE`); err != nil {
+		t.Fatal(err)
+	}
 
-	directory := NewSchoolDirectorDirectory(db)
+	directory := &SchoolDirectorDirectory{db: tx}
 	overview, err := directory.DirectorOverview(ctx, schoolA)
 	if err != nil {
 		t.Fatal(err)
