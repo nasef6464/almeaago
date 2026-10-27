@@ -15,6 +15,11 @@ export interface SchoolSummary{id:string;code:string;name:string;status:string}
 export interface DirectorStudent{studentId:string;name:string;email:string;phone:string;isActive:boolean;classId:string|null;className:string|null}
 export interface DirectorTeacher{teacherId:string;name:string;email:string;isActive:boolean}
 export interface DirectorAssignment{assignmentId:string;teacherId:string;classId:string;subjectId:string;status:string}
+export interface DirectorOverview{
+  school:{schoolId:string;schoolName:string};
+  metrics:{students:number;classes:number;teachers:number;supervisors:number;schoolAssessments:number;completedSmartClasses:number};
+  classes:{classId:string;className:string}[];
+}
 const BASE=(import.meta.env.VITE_API_BASE_URL??'').replace(/\/$/,'');
 async function request<T>(path:string,init:RequestInit={}):Promise<T>{
   const r=await fetch(BASE+path,{...init,credentials:'include',headers:{Accept:'application/json',...(init.body?{'Content-Type':'application/json'}:{}),...init.headers}});
@@ -31,6 +36,9 @@ export const organizationsClient={
     return request<TeacherWorkspace>('/api/v1/schools/teacher-workspace',{signal});
   },
   contexts(signal?:AbortSignal){return request<{contexts:SchoolContext[]}>('/api/v1/schools/context',{signal})},
+  directorOverview(schoolId:string,signal?:AbortSignal){
+    return request<DirectorOverview>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/overview`,{signal});
+  },
   classes(schoolId:string,signal?:AbortSignal){
     return request<{classes:SchoolClass[];pagination:{page:number;limit:number;total:number;totalPages:number}}>(
       `/api/v1/schools/${encodeURIComponent(schoolId)}/classes?page=1&limit=100&status=active`,{signal});

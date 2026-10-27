@@ -1,14 +1,15 @@
-import { BarChart3, Building2, GraduationCap, Loader2, Pencil, Plus, Power, Search, ShieldCheck, Users } from 'lucide-react';
+import { BarChart3, BookOpenCheck, Building2, GraduationCap, Loader2, Pencil, Plus, Power, Search, ShieldCheck, Sparkles, Users, UsersRound } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
 import type { TaxonomySubject } from '../../content/api/content-types';
 import { DirectorTeacherAssignments } from '../components/DirectorTeacherAssignments';
+import { SchoolDirectorBreadcrumb, SchoolDirectorSectionNav, directorNavItems, type DirectorSectionID } from '../components/SchoolDirectorSectionNav';
 import {
   organizationsClient,
   type DirectorAssignment,
+  type DirectorOverview,
   type DirectorStudent,
   type DirectorTeacher,
   type SchoolClass,
@@ -26,6 +27,11 @@ export function SchoolDirectorDashboardPage(){
   const [studentTotal,setStudentTotal]=useState(0);
   const [teachers,setTeachers]=useState<DirectorTeacher[]>([]);
   const [assignments,setAssignments]=useState<DirectorAssignment[]>([]);
+  const [overview,setOverview]=useState<DirectorOverview|null>(null);
+  const [overviewLoading,setOverviewLoading]=useState(false);
+  const [overviewError,setOverviewError]=useState('');
+  const [overviewReload,setOverviewReload]=useState(0);
+  const [activeSection,setActiveSection]=useState<DirectorSectionID>('overview');
   const [subjects,setSubjects]=useState<TaxonomySubject[]>([]);
   const [subjectsError,setSubjectsError]=useState(false);
   const [search,setSearch]=useState('');
@@ -43,11 +49,34 @@ export function SchoolDirectorDashboardPage(){
   const activeSchoolId=useRef('');
   const teacherReadVersion=useRef(0);
   const schoolVisitEpoch=useRef(0);
+  const overviewReadEpoch=useRef(0);
 
   const selectedSchool=useMemo(()=>schools.find(x=>x.schoolId===schoolId)||schools[0], [schoolId,schools]);
   const has=(p:string)=>Boolean(selectedSchool?.permissions.includes(p));
   const hasCore=Boolean(selectedSchool?.modules.includes(CORE));
   const canOptional=(p:string)=>has(p)&&hasCore;
+  const navItems=useMemo(()=>selectedSchool?directorNavItems(selectedSchool):[],[selectedSchool]);
+  const section=navItems.some(item=>item.id===activeSection)?activeSection:(navItems[0]?.id||'overview');
+
+  useEffect(()=>{
+    const controller=new AbortController();
+    const readEpoch=++overviewReadEpoch.current;
+    const visit=schoolVisitEpoch.current;
+    const requestedSchool=selectedSchool?.schoolId;
+    setOverview(null);setOverviewError('');setOverviewLoading(false);
+    if(!requestedSchool||!selectedSchool?.permissions.includes('SCHOOL_OVERVIEW_VIEW'))return ()=>controller.abort();
+    setOverviewLoading(true);
+    organizationsClient.directorOverview(requestedSchool,controller.signal).then(result=>{
+      if(controller.signal.aborted||readEpoch!==overviewReadEpoch.current||activeSchoolId.current!==requestedSchool||schoolVisitEpoch.current!==visit)return;
+      setOverview(result);
+    }).catch(e=>{
+      if(controller.signal.aborted||readEpoch!==overviewReadEpoch.current||activeSchoolId.current!==requestedSchool||schoolVisitEpoch.current!==visit)return;
+      setOverviewError(e instanceof Error?e.message:'تعذر تحميل مؤشرات المدرسة');
+    }).finally(()=>{
+      if(!controller.signal.aborted&&readEpoch===overviewReadEpoch.current&&activeSchoolId.current===requestedSchool&&schoolVisitEpoch.current===visit)setOverviewLoading(false);
+    });
+    return()=>controller.abort();
+  },[selectedSchool?.schoolId,overviewReload]);
 
   useEffect(()=>{
     if(authLoading||!user)return;
@@ -63,23 +92,24 @@ export function SchoolDirectorDashboardPage(){
   },[authLoading,user]);
 
   useEffect(()=>{
-    if(authLoading||!user?.roles.includes('school_admin'))return;
+    if(authLoading||!user?.roles.includes('school_admin')||!schools.some(s=>s.permissions.includes('SCHOOL_TEACHERS_ASSIGN')&&s.modules.includes(CORE)))return;
     const controller=new AbortController();
     contentClient.taxonomyCore(controller.signal).then(result=>{
       setSubjects(result.subjects);
       setSubjectsError(false);
     }).catch(()=>{if(!controller.signal.aborted)setSubjectsError(true)});
     return()=>controller.abort();
-  },[authLoading,user]);
+  },[authLoading,user,schools]);
 
   async function refresh(query=search){
     if(!selectedSchool||activeSchoolId.current!==selectedSchool.schoolId)return;
     const epoch=++loadEpoch.current;
     const teacherVersion=teacherReadVersion.current;
+    const needsClasses=has('SCHOOL_STUDENTS_ADD')||has('SCHOOL_STUDENTS_MOVE_CLASS')||canOptional('SCHOOL_CLASSES_MANAGE')||canOptional('SCHOOL_TEACHERS_ASSIGN');
     setBusy(true);setError('');
     try{
       const [classResult,studentResult,teacherResult]=await Promise.all([
-        organizationsClient.classes(selectedSchool.schoolId),
+        needsClasses?organizationsClient.classes(selectedSchool.schoolId):Promise.resolve({classes:[] as SchoolClass[]}),
         has('SCHOOL_STUDENTS_VIEW')?organizationsClient.directorStudents(selectedSchool.schoolId,query):Promise.resolve({students:[],total:0}),
         canOptional('SCHOOL_TEACHERS_ASSIGN')?organizationsClient.directorTeachers(selectedSchool.schoolId):Promise.resolve({teachers:[],assignments:[]}),
       ]);
@@ -117,7 +147,7 @@ export function SchoolDirectorDashboardPage(){
     const startedFor=selectedSchool?.schoolId;
     const startedVisit=schoolVisitEpoch.current;
     setPending(key);setError('');setNotice('');
-    try{const csrf=await getCsrfToken();await action(csrf);if(success&&activeSchoolId.current===startedFor&&schoolVisitEpoch.current===startedVisit)setNotice(success)}
+    try{const csrf=await getCsrfToken();await action(csrf);if(activeSchoolId.current===startedFor&&schoolVisitEpoch.current===startedVisit){if(success)setNotice(success);setOverviewReload(x=>x+1)}}
     catch(e){if(activeSchoolId.current===startedFor&&schoolVisitEpoch.current===startedVisit)setError(e instanceof Error?e.message:'تعذر تنفيذ العملية')}
     finally{if(activeSchoolId.current===startedFor&&schoolVisitEpoch.current===startedVisit)setPending('')}
   }
@@ -208,33 +238,78 @@ export function SchoolDirectorDashboardPage(){
     },'تم إيقاف التكليف دون تغيير التقارير السابقة.');
   }
 
+  function changeSchool(nextSchoolId:string){
+    activeSchoolId.current=nextSchoolId;
+    ++schoolVisitEpoch.current;
+    ++loadEpoch.current;
+    ++teacherReadVersion.current;
+    ++overviewReadEpoch.current;
+    setClasses([]);
+    setStudents([]);
+    setStudentTotal(0);
+    setTeachers([]);
+    setAssignments([]);
+    setBusy(true);
+    setSearch('');
+    setNotice('');
+    setError('');
+    setPending('');
+    setShowAdd(false);
+    setDraft({name:'',email:'',password:'',classId:''});
+    setEditing({studentId:'',name:'',phone:''});
+    setAssignment({teacherId:'',classId:'',subjectId:'',status:'active'});
+    setNewClassName('');
+    setRename({classId:'',name:''});
+    setOverview(null);
+    setOverviewError('');
+    setOverviewLoading(true);
+    setActiveSection('overview');
+    setSchoolId(nextSchoolId);
+  }
+
   if(authLoading||busy&&schools.length===0)return <main dir="rtl" className="flex min-h-[calc(100vh-5rem)] items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-indigo-600" size={38}/></main>;
   if(!user?.roles.includes('school_admin'))return <main dir="rtl" className="p-10 text-center font-black text-rose-700">هذه المساحة مخصصة لمدير المدرسة.</main>;
   if(!selectedSchool)return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 p-6"><div className="mx-auto mt-20 max-w-xl rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center"><ShieldCheck className="mx-auto text-slate-400" size={40}/><h1 className="mt-4 text-xl font-black">لا توجد مدرسة مفوضة</h1><p className="mt-2 text-sm text-slate-500">اطلب من مدير المنصة ربط حسابك بمدرسة وتفعيل الصلاحيات المطلوبة.</p></div></main>;
 
   return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 px-4 py-6 text-slate-900 sm:px-8" data-testid="school-director-dashboard"><div className="mx-auto max-w-7xl">
-    <header className="rounded-3xl bg-gradient-to-l from-indigo-700 via-indigo-800 to-slate-900 p-6 text-white shadow-xl sm:p-8"><div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="flex items-center gap-2 text-sm font-bold text-indigo-200"><ShieldCheck size={17}/> نطاق مفوض من مدير المنصة</p><h1 className="mt-2 text-3xl font-black">لوحة مدير المدرسة</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-indigo-100">رؤية تشغيلية وعمليات طلاب وفصول ومعلمين داخل المدارس المصرح بها فقط.</p></div><label className="text-sm font-bold">المدرسة<select aria-label="المدرسة" value={selectedSchool.schoolId} onChange={e=>{activeSchoolId.current=e.target.value;++schoolVisitEpoch.current;++loadEpoch.current;setSchoolId(e.target.value)}} className="mt-2 block w-full min-w-56 rounded-xl border-0 bg-white px-4 py-3 text-slate-900">{schools.map(s=><option key={s.schoolId} value={s.schoolId}>{s.schoolName}</option>)}</select></label></div></header>
+    <header className="rounded-3xl bg-gradient-to-l from-indigo-700 via-indigo-800 to-slate-900 p-6 text-white shadow-xl sm:p-8"><div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="flex items-center gap-2 text-sm font-bold text-indigo-200"><ShieldCheck size={17}/> نطاق مفوض من مدير المنصة</p><h1 className="mt-2 text-3xl font-black">لوحة مدير المدرسة</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-indigo-100">رؤية تشغيلية وعمليات طلاب وفصول ومعلمين داخل المدارس المصرح بها فقط.</p></div><label className="text-sm font-bold">المدرسة<select aria-label="المدرسة" value={selectedSchool.schoolId} onChange={e=>changeSchool(e.target.value)} className="mt-2 block w-full min-w-56 rounded-xl border-0 bg-white px-4 py-3 text-slate-900">{schools.map(s=><option key={s.schoolId} value={s.schoolId}>{s.schoolName}</option>)}</select></label></div></header>
 
+    <div className="mt-6 grid min-w-0 gap-5 xl:grid-cols-[15rem_minmax(0,1fr)]">
+      <aside className="min-w-0 xl:sticky xl:top-6 xl:self-start">
+        <SchoolDirectorSectionNav items={navItems} active={section} onSelect={setActiveSection}/>
+      </aside>
+      <div className="min-w-0">
+    <SchoolDirectorBreadcrumb items={navItems} active={section} onHome={()=>setActiveSection('overview')}/>
     {error?<div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{error}</div>:null}
     {notice?<div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{notice}</div>:null}
 
-    {has('SCHOOL_OVERVIEW_VIEW')?<section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <article className="rounded-2xl border bg-white p-4 shadow-sm"><Users className="text-indigo-700" size={20}/><p className="mt-3 text-xs font-bold text-slate-500">الطلاب</p><p className="text-2xl font-black">{has('SCHOOL_STUDENTS_VIEW')?studentTotal:'—'}</p></article>
-      <article className="rounded-2xl border bg-white p-4 shadow-sm"><Building2 className="text-sky-700" size={20}/><p className="mt-3 text-xs font-bold text-slate-500">الفصول</p><p className="text-2xl font-black">{classes.length}</p></article>
-      <article className="rounded-2xl border bg-white p-4 shadow-sm"><GraduationCap className="text-amber-700" size={20}/><p className="mt-3 text-xs font-bold text-slate-500">المعلمون المتاحون للتكليف</p><p className="text-2xl font-black">{canOptional('SCHOOL_TEACHERS_ASSIGN')?teachers.length:'—'}</p></article>
-      <article className="rounded-2xl border bg-white p-4 shadow-sm"><ShieldCheck className="text-violet-700" size={20}/><p className="mt-3 text-xs font-bold text-slate-500">الصلاحيات المفوضة</p><p className="text-2xl font-black">{selectedSchool.permissions.length}</p></article>
+    {section==='overview'&&has('SCHOOL_OVERVIEW_VIEW')?<section aria-label="مؤشرات المدرسة" className="mt-6">
+      {overviewError?<div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm font-bold text-rose-700">{overviewError}</div>:null}
+      {overviewLoading?<p role="status" className="rounded-2xl border bg-white p-5 text-sm font-bold text-slate-500">جار تحميل مؤشرات المدرسة…</p>:null}
+      {overview?.school.schoolId===selectedSchool.schoolId&&!overviewError?<div className="grid grid-cols-2 gap-3 lg:grid-cols-3">{[
+        {label:'الطلاب',value:overview.metrics.students,icon:Users,tone:'text-indigo-700 bg-indigo-50'},
+        {label:'الفصول',value:overview.metrics.classes,icon:Building2,tone:'text-sky-700 bg-sky-50'},
+        {label:'المعلمون',value:overview.metrics.teachers,icon:GraduationCap,tone:'text-amber-700 bg-amber-50'},
+        {label:'المشرفون',value:overview.metrics.supervisors,icon:UsersRound,tone:'text-purple-700 bg-purple-50'},
+        {label:'اختبارات المدرسة',value:overview.metrics.schoolAssessments,icon:BookOpenCheck,tone:'text-emerald-700 bg-emerald-50'},
+        {label:'فصول ذكية مكتملة',value:overview.metrics.completedSmartClasses,icon:Sparkles,tone:'text-rose-700 bg-rose-50'},
+      ].map(({label,value,icon:Icon,tone})=><article key={label} className="min-w-0 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"><div className={`flex h-9 w-9 items-center justify-center rounded-xl ${tone}`}><Icon size={18}/></div><p className="mt-3 text-xs font-bold text-slate-500">{label}</p><p className="mt-1 text-2xl font-black">{value}</p></article>)}</div>:null}
     </section>:null}
 
-    <section className="mt-7 rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
+    {section==='students'&&has('SCHOOL_STUDENTS_VIEW')?<section className="mt-7 rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-xs font-black text-indigo-600">تشغيل الطلاب</p><h2 className="mt-1 text-xl font-black">طلاب {selectedSchool.schoolName}</h2></div><div className="flex flex-col gap-2 sm:flex-row"><div className="relative"><Search className="absolute right-3 top-2.5 text-slate-400" size={17}/><input aria-label="بحث الطلاب" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')void refresh(search)}} placeholder="ابحث بالاسم أو البريد" className="w-full rounded-xl border py-2 pr-9 pl-3 text-sm"/></div>{has('SCHOOL_STUDENTS_ADD')?<button type="button" onClick={()=>setShowAdd(x=>!x)} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white"><Plus size={17}/> إضافة طالب</button>:null}</div></div>
 
-      {showAdd?<div className="mt-5 grid gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 sm:grid-cols-2 xl:grid-cols-5"><input aria-label="اسم الطالب الجديد" value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})} placeholder="اسم الطالب" className="rounded-xl border px-3 py-2 text-sm"/><input aria-label="بريد الطالب الجديد" value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} placeholder="البريد الإلكتروني" className="rounded-xl border px-3 py-2 text-sm"/><input aria-label="كلمة مرور الطالب الجديد" type="password" value={draft.password} onChange={e=>setDraft({...draft,password:e.target.value})} placeholder="كلمة مرور مؤقتة" className="rounded-xl border px-3 py-2 text-sm"/><select aria-label="فصل الطالب الجديد" value={draft.classId} onChange={e=>setDraft({...draft,classId:e.target.value})} className="rounded-xl border px-3 py-2 text-sm"><option value="">اختر الفصل</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><button type="button" disabled={pending==='add'} onClick={()=>void addStudent()} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white disabled:opacity-50">إنشاء وربط</button></div>:null}
+      <p className="mt-2 text-xs font-bold text-slate-500">عدد الطلاب في القائمة: {studentTotal}</p>
+      {showAdd&&has('SCHOOL_STUDENTS_ADD')?<div className="mt-5 grid gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 sm:grid-cols-2 xl:grid-cols-5"><input aria-label="اسم الطالب الجديد" value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})} placeholder="اسم الطالب" className="rounded-xl border px-3 py-2 text-sm"/><input aria-label="بريد الطالب الجديد" value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} placeholder="البريد الإلكتروني" className="rounded-xl border px-3 py-2 text-sm"/><input aria-label="كلمة مرور الطالب الجديد" type="password" value={draft.password} onChange={e=>setDraft({...draft,password:e.target.value})} placeholder="كلمة مرور مؤقتة" className="rounded-xl border px-3 py-2 text-sm"/><select aria-label="فصل الطالب الجديد" value={draft.classId} onChange={e=>setDraft({...draft,classId:e.target.value})} className="rounded-xl border px-3 py-2 text-sm"><option value="">اختر الفصل</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><button type="button" disabled={pending==='add'} onClick={()=>void addStudent()} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white disabled:opacity-50">إنشاء وربط</button></div>:null}
 
       {!has('SCHOOL_STUDENTS_VIEW')?<div className="mt-6 rounded-2xl border border-dashed p-8 text-center text-sm text-slate-500">صلاحية عرض الطلاب غير مفعلة لهذا الربط.</div>:students.length===0&&!busy?<div className="mt-6 rounded-2xl border border-dashed p-8 text-center text-sm text-slate-500">لا يوجد طلاب مطابقون حاليًا.</div>:<div className="mt-5 overflow-hidden rounded-2xl border"><div className="hidden bg-slate-50 px-4 py-3 text-xs font-black text-slate-500 lg:grid lg:grid-cols-[1.4fr_.55fr_1fr_auto] lg:items-center lg:gap-3"><span>الطالب</span><span>الحالة</span><span>الفصل</span><span>عمليات مفوضة</span></div><div className="divide-y">{students.map(student=>editing.studentId===student.studentId?<article key={student.studentId} className="grid gap-3 p-4 lg:grid-cols-[1fr_auto] lg:items-center"><div className="grid gap-2 sm:grid-cols-2"><input aria-label="تعديل اسم الطالب" value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})} className="rounded-xl border px-3 py-2"/><input aria-label="تعديل جوال الطالب" value={editing.phone} onChange={e=>setEditing({...editing,phone:e.target.value})} className="rounded-xl border px-3 py-2" placeholder="رقم الجوال"/><p className="text-xs font-bold text-slate-500 sm:col-span-2">تعديل بيانات أساسية فقط؛ لا تغيير للبريد أو الدور.</p></div><div className="flex gap-2"><button type="button" onClick={()=>void saveStudent()} className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white">حفظ</button><button type="button" onClick={()=>setEditing({studentId:'',name:'',phone:''})} className="rounded-xl border bg-white px-4 py-2 text-xs font-black text-slate-600">إلغاء</button></div></article>:<article key={student.studentId} className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[1.4fr_.55fr_1fr_auto] lg:items-center"><div className="min-w-0"><b className="block truncate">{student.name}</b><span className="mt-1 block break-all text-xs font-bold text-slate-500">{student.email}{student.phone?` · ${student.phone}`:''}</span></div><span className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-black ${student.isActive?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}`}>{student.isActive?'نشط':'موقوف'}</span><div>{has('SCHOOL_STUDENTS_MOVE_CLASS')?<select aria-label={`فصل ${student.name}`} value={student.classId||''} disabled={pending===student.studentId} onChange={e=>void moveStudent(student.studentId,e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm"><option value="">بدون فصل</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>:<span className="text-sm font-bold">{student.className||'بدون فصل'}</span>}</div><div className="flex gap-2 sm:justify-end">{canOptional('SCHOOL_STUDENTS_UPDATE_BASIC')?<button aria-label={`تعديل ${student.name}`} type="button" onClick={()=>setEditing({studentId:student.studentId,name:student.name,phone:student.phone||''})} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border bg-white text-indigo-700"><Pencil size={15}/></button>:null}{canOptional('SCHOOL_STUDENTS_DEACTIVATE')?<button aria-label={student.isActive?`تعطيل ${student.name}`:`تفعيل ${student.name}`} type="button" onClick={()=>void toggleStudent(student)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border bg-white"><Power size={15}/></button>:null}</div></article>)}</div></div>}
-    </section>
+    </section>:null}
 
-    {canOptional('SCHOOL_CLASSES_MANAGE')||canOptional('SCHOOL_TEACHERS_ASSIGN')?<section className="mt-7 grid gap-4 lg:grid-cols-2">
+    {(section==='classes'&&canOptional('SCHOOL_CLASSES_MANAGE')||section==='teachers'&&canOptional('SCHOOL_TEACHERS_ASSIGN'))?<section className="mt-7 grid min-w-0 gap-4">
+      {section==='classes'?<>
       {canOptional('SCHOOL_CLASSES_MANAGE')?<article className="rounded-3xl border bg-white p-5 shadow-sm"><h2 className="font-black">إدارة الفصول</h2><div className="mt-3 flex gap-2"><input aria-label="اسم فصل جديد" value={newClassName} onChange={e=>setNewClassName(e.target.value)} placeholder="اسم فصل جديد" className="min-w-0 flex-1 rounded-xl border px-3 py-2"/><button aria-label="إنشاء الفصل" type="button" onClick={()=>void createClass()} className="rounded-xl bg-sky-700 px-3 text-white"><Plus size={17}/></button></div><div className="mt-3 space-y-2">{classes.map(c=>rename.classId===c.id?<div key={c.id} className="flex gap-2"><input aria-label="اسم الفصل المعدل" value={rename.name} onChange={e=>setRename({...rename,name:e.target.value})} className="flex-1 rounded-lg border px-2"/><button type="button" onClick={()=>void renameClass()} className="font-black text-sky-700">حفظ</button></div>:<div key={c.id} className="flex items-center rounded-xl bg-slate-50 px-3 py-2"><span className="flex-1 font-bold">{c.name}</span><button type="button" aria-label={`تعديل ${c.name}`} onClick={()=>setRename({classId:c.id,name:c.name})}><Pencil size={15}/></button></div>)}</div></article>:null}
+      </>:null}
+      {section==='teachers'?<>
       {canOptional('SCHOOL_TEACHERS_ASSIGN')?<article className="rounded-3xl border bg-white p-5 shadow-sm">
         <h2 className="font-black">تكليف المعلمين</h2>
         <div className="mt-3 grid gap-2">
@@ -247,8 +322,12 @@ export function SchoolDirectorDashboardPage(){
         <p className="mt-3 text-xs text-slate-500">التكليفات الفعالة: {assignments.filter(a=>a.status==='active').length}</p>
         <DirectorTeacherAssignments teacherId={assignment.teacherId} assignments={assignments} classes={classes} subjects={subjects} busy={Boolean(pending)} onDeactivate={row=>void stopAssignment(row)}/>
       </article>:null}
+      </>:null}
     </section>:null}
 
-    <section aria-label="مركز تشغيل مدير المدرسة" className="mt-7 rounded-3xl border bg-white p-5 shadow-sm"><div className="flex items-center gap-2"><BarChart3 size={18} className="text-indigo-700"/><h2 className="font-black">مركز التشغيل الأكاديمي</h2></div><p className="mt-1 text-xs font-bold leading-6 text-slate-500">انتقل إلى التقارير أو خطط التدخل من نفس نطاق المدرسة المفوض؛ البيانات والصلاحيات تبقى من خدمات V2.</p><div className="mt-4 flex flex-wrap gap-2 text-sm font-bold"><Link to="/school-director-dashboard/interventions" className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-2 text-indigo-800">التدخلات والخطط العلاجية</Link><Link to="/reports" className="rounded-xl border bg-white px-4 py-2">التقارير</Link></div></section>
+    {section==='overview'?<section aria-label="مركز تشغيل مدير المدرسة" className="mt-7 rounded-3xl border bg-white p-5 shadow-sm"><div className="flex items-center gap-2"><BarChart3 size={18} className="text-indigo-700"/><h2 className="font-black">مركز التشغيل الأكاديمي</h2></div><p className="mt-2 text-xs font-bold leading-6 text-slate-500">أقسام التقارير والتدخلات والحصص الذكية والاختبارات قيد النقل والتحقق من صلاحياتها في نسخة Go؛ ستظهر روابطها هنا بعد اكتمال خدماتها، دون فتح صفحة لا يملك مدير المدرسة تفويضها.</p></section>:null}
+    {navItems.length===0?<p className="mt-6 rounded-2xl border bg-white p-6 text-sm font-bold text-slate-600">ليس لديك أقسام مفعّلة في لوحة هذه المدرسة حاليًا.</p>:null}
+      </div>
+    </div>
   </div></main>;
 }
