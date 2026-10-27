@@ -165,6 +165,95 @@ test('director follows legacy section order with only implemented permitted link
   await expect(page.getByRole('region',{name:'مؤشرات المدرسة'})).toBeVisible();
 });
 
+test('school assessments list is readable only with permission and active contract module',async({page})=>{
+  await mockDirector(page,['SCHOOL_CORE','SCHOOL_ASSESSMENTS']);
+  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[
+    {schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',permissions:[...permissions,'SCHOOL_ASSESSMENTS_MANAGE'],modules:['SCHOOL_CORE','SCHOOL_ASSESSMENTS'],source:'membership'},
+    {schoolId:'school-2',schoolName:'مدرسة ثانية',role:'school_admin',permissions:['SCHOOL_OVERVIEW_VIEW','SCHOOL_ASSESSMENTS_MANAGE'],modules:['SCHOOL_CORE'],source:'membership'},
+  ]}));
+  let reads=0;
+  await page.route('**/api/school-access/director/schools/*/academic/assessments',route=>{
+    reads++;
+    return json(route,{assessments:[
+      {id:'assessment-1',title:'اختبار الرياضيات',subjectId:'subject-1',isPublished:true,targetGroupIds:['class-1']},
+      {id:'assessment-2',title:'مسودة اختبار العلوم',isPublished:false,targetGroupIds:[]},
+    ],classes:[{classId:'class-1',className:'الأول أ'}]});
+  });
+  await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'اختبارات المدرسة');
+  const listing=page.getByRole('region',{name:'اختبارات المدرسة'});
+  await expect(listing).toContainText('اختبار الرياضيات');
+  await expect(listing).toContainText('مسودة اختبار العلوم');
+  await expect(listing).toContainText('الأول أ');
+  await expect(listing).toContainText('2');
+  await expect(listing.getByRole('button',{name:/نشر|حذف|تعديل|استنساخ|نتائج/})).toHaveCount(0);
+  expect(reads).toBe(1);
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await expect(page.getByRole('navigation',{name:'أقسام لوحة مدير المدرسة'}).getByRole('button',{name:'اختبارات المدرسة'})).toHaveCount(0);
+  await expect(page.getByText('اختبار الرياضيات')).toHaveCount(0);
+  expect(reads).toBe(1);
+});
+
+test('school assessments require the module as well as the permission at mobile width',async({page})=>{
+  await mockDirector(page);
+  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[
+    {schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',permissions:[...permissions,'SCHOOL_ASSESSMENTS_MANAGE'],modules:['SCHOOL_CORE'],source:'membership'},
+  ]}));
+  let calls=0;
+  await page.route('**/api/school-access/director/schools/*/academic/assessments',route=>{calls++;return json(route,{},403)});
+  await page.setViewportSize({width:360,height:780});
+  await page.goto('/school-director-dashboard');
+  await expect(page.getByRole('navigation',{name:'أقسام لوحة مدير المدرسة'}).getByRole('button',{name:'اختبارات المدرسة'})).toHaveCount(0);
+  expect(calls).toBe(0);
+});
+
+test('assessment cards ignore a late A response after A to B to A, on all target widths',async({page})=>{
+  await mockDirector(page,['SCHOOL_CORE','SCHOOL_ASSESSMENTS']);
+  const context=(schoolId:string,schoolName:string)=>({
+    schoolId,schoolName,role:'school_admin',
+    permissions:['SCHOOL_OVERVIEW_VIEW','SCHOOL_ASSESSMENTS_MANAGE'],
+    modules:['SCHOOL_CORE','SCHOOL_ASSESSMENTS'],source:'membership',
+  });
+  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[
+    context('school-1','مدرسة المئة'),context('school-2','مدرسة ثانية'),
+  ]}));
+  let aCalls=0;
+  let releaseOld:(()=>void)|undefined;
+  let oldStarted:(()=>void)|undefined;
+  const firstA=new Promise<void>(resolve=>{oldStarted=resolve});
+  await page.route('**/api/school-access/director/schools/school-1/academic/assessments',async route=>{
+    aCalls++;
+    if(aCalls===1){
+      oldStarted?.();
+      await new Promise<void>(resolve=>{releaseOld=resolve});
+      try{await json(route,{assessments:[{id:'old',title:'قائمة قديمة',isPublished:true,targetGroupIds:[]}],classes:[]});}catch{/* aborted old-school request */}
+      return;
+    }
+    return json(route,{assessments:[{id:'new',title:'قائمة محدثة للمدرسة أ',isPublished:true,targetGroupIds:['school-1']}],classes:[]});
+  });
+  await page.route('**/api/school-access/director/schools/school-2/academic/assessments',route=>json(route,{
+    assessments:[{id:'b',title:'اختبار المدرسة ب',isPublished:true,targetGroupIds:['school-2']}],classes:[],
+  }));
+  await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'اختبارات المدرسة');
+  await firstA;
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await openDirectorSection(page,'اختبارات المدرسة');
+  await expect(page.getByText('اختبار المدرسة ب')).toBeVisible();
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-1');
+  await openDirectorSection(page,'اختبارات المدرسة');
+  await expect(page.getByText('قائمة محدثة للمدرسة أ')).toBeVisible();
+  releaseOld?.();
+  await expect(page.getByText('قائمة قديمة')).toHaveCount(0);
+  await expect(page.getByText('اختبار المدرسة ب')).toHaveCount(0);
+  for(const width of [360,390,430,768,1024,1366,1440,1920]){
+    await page.setViewportSize({width,height:850});
+    await expect(page.getByRole('region',{name:'اختبارات المدرسة'})).toBeVisible();
+    const overflows=await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth);
+    expect(overflows,`horizontal overflow at ${width}px`).toBe(false);
+  }
+});
+
 test('school A to B to A ignores stale overview numbers from B',async({page})=>{
   await mockDirector(page);
   let firstSchoolLoads=0;
