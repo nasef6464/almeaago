@@ -77,8 +77,8 @@ test('school director desktop runs bounded student class and teacher operations'
 
   await expect(page.getByRole('heading',{name:'لوحة مدير المدرسة'})).toBeVisible();
   await expect(page.getByText('نطاق مفوض من مدير المنصة')).toBeVisible();
-  await expect(page.getByRole('region',{name:'مركز تشغيل مدير المدرسة'})).toContainText('التدخلات والخطط العلاجية');
-  await expect(page.getByRole('region',{name:'مركز تشغيل مدير المدرسة'})).toContainText('التقارير');
+  await expect(page.getByRole('region',{name:'مركز تشغيل مدير المدرسة'})).toContainText('قيد النقل');
+  await expect(page.getByRole('region',{name:'مركز تشغيل مدير المدرسة'}).getByRole('link')).toHaveCount(0);
 
   await openDirectorSection(page,'الطلاب');
   await expect(page.getByText('طلاب مدرسة المئة')).toBeVisible();
@@ -131,7 +131,22 @@ test('overview-only school admin sees all six authorized metrics without private
   }
   await expect(page.getByRole('heading',{name:'طلاب مدرسة المئة'})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'إضافة طالب'})).toHaveCount(0);
+  await expect(page.getByRole('region',{name:'مركز تشغيل مدير المدرسة'}).getByRole('link')).toHaveCount(0);
   expect(forbiddenCalls).toBe(0);
+});
+
+test('school admin with no delegated director permissions gets no metrics or route shortcuts',async({page})=>{
+  await mockDirector(page,[]);
+  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[
+    {schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',permissions:[],modules:[],source:'membership'},
+  ]}));
+  let overviewCalls=0;
+  await page.route('**/api/school-access/director/schools/school-1/overview',route=>{overviewCalls++;return json(route,{message:'forbidden'},403)});
+  await page.goto('/school-director-dashboard');
+  await expect(page.getByText('ليس لديك أقسام مفعّلة في لوحة هذه المدرسة حاليًا.')).toBeVisible();
+  await expect(page.getByRole('region',{name:'مؤشرات المدرسة'})).toHaveCount(0);
+  await expect(page.getByRole('region',{name:'مركز تشغيل مدير المدرسة'}).getByRole('link')).toHaveCount(0);
+  expect(overviewCalls).toBe(0);
 });
 
 test('director follows legacy section order with only implemented permitted links',async({page})=>{
@@ -154,7 +169,9 @@ test('school A to B to A ignores stale overview numbers from B',async({page})=>{
   let firstSchoolLoads=0;
   let releaseSchoolB:(()=>void)|undefined;
   let schoolBStarted:(()=>void)|undefined;
+  let schoolBFinished:(()=>void)|undefined;
   const seenB=new Promise<void>(resolve=>{schoolBStarted=resolve});
+  const finishedB=new Promise<void>(resolve=>{schoolBFinished=resolve});
   await page.route('**/api/school-access/director/schools/school-1/overview',route=>{
     firstSchoolLoads++;
     return json(route,{...schoolOneOverview,metrics:{...schoolOneOverview.metrics,students:firstSchoolLoads===1?12:44}});
@@ -162,17 +179,20 @@ test('school A to B to A ignores stale overview numbers from B',async({page})=>{
   await page.route('**/api/school-access/director/schools/school-2/overview',async route=>{
     schoolBStarted?.();
     await new Promise<void>(resolve=>{releaseSchoolB=resolve});
-    return json(route,schoolTwoOverview);
+    try{await json(route,schoolTwoOverview)}catch{/* Client abandoned the old-school request. */}
+    finally{schoolBFinished?.()}
   });
   await page.goto('/school-director-dashboard');
   const metrics=page.getByRole('region',{name:'مؤشرات المدرسة'});
   await expect(metrics.locator('article').filter({hasText:'الطلاب'})).toContainText('12');
   await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
   await seenB;
+  await expect(page.getByLabel('المدرسة',{exact:true})).toHaveValue('school-2');
+  await expect(metrics.locator('article')).toHaveCount(0);
   await page.getByLabel('المدرسة',{exact:true}).selectOption('school-1');
   await expect(metrics.locator('article').filter({hasText:'الطلاب'})).toContainText('44');
   releaseSchoolB?.();
-  await page.waitForTimeout(250);
+  await finishedB;
   await expect(metrics.locator('article').filter({hasText:'الطلاب'})).toContainText('44');
   await expect(page.getByLabel('المدرسة',{exact:true})).toHaveValue('school-1');
 });
@@ -225,6 +245,7 @@ test('school director school switch never reuses the previous school roster',asy
   await expect(page.getByText('طالب أول')).toBeVisible();
 
   await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await openDirectorSection(page,'الطلاب');
   await expect(page.getByText('طلاب مدرسة ثانية')).toBeVisible();
   await expect(page.getByText('طالب أول')).toHaveCount(0);
   await expect(page.getByText('لا يوجد طلاب مطابقون حاليًا.')).toBeVisible();
@@ -251,6 +272,7 @@ test('late school-one response cannot overwrite school-two roster or assignment 
   await page.getByLabel('بحث الطلاب').press('Enter');
   await oldRequestSeen;
   await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await openDirectorSection(page,'الطلاب');
   await expect(page.getByText('طلاب مدرسة ثانية')).toBeVisible();
   await expect(page.getByText('لا يوجد طلاب مطابقون حاليًا.')).toBeVisible();
   releaseOldResponse?.();
@@ -283,6 +305,7 @@ test('late student mutation from previous school cannot refresh the new school u
   await page.getByRole('button',{name:'إنشاء وربط'}).click();
   await creating;
   await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await openDirectorSection(page,'الطلاب');
   await expect(page.getByText('لا يوجد طلاب مطابقون حاليًا.')).toBeVisible();
   releaseCreate?.();
   await page.waitForTimeout(350);
@@ -316,6 +339,7 @@ test('late refresh after a successful student create cannot display the old-scho
   await page.getByRole('button',{name:'إنشاء وربط'}).click();
   await refreshing;
   await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await openDirectorSection(page,'الطلاب');
   await expect(page.getByText('لا يوجد طلاب مطابقون حاليًا.')).toBeVisible();
   releaseRefresh?.();
   await page.waitForTimeout(300);
@@ -334,6 +358,7 @@ test('switching school clears student draft and closes the previous school edito
   await expect(page.getByLabel('اسم الطالب الجديد')).toHaveCount(0);
   await expect(page.getByLabel('كلمة مرور الطالب الجديد')).toHaveCount(0);
   await page.getByLabel('المدرسة',{exact:true}).selectOption('school-1');
+  await openDirectorSection(page,'الطلاب');
   await page.getByRole('button',{name:'إضافة طالب'}).click();
   await expect(page.getByLabel('اسم الطالب الجديد')).toHaveValue('');
   await expect(page.getByLabel('بريد الطالب الجديد')).toHaveValue('');
@@ -367,6 +392,7 @@ test('completed stop-assignment request from former school cannot replace new sc
   await page.getByRole('button',{name:'إيقاف التكليف'}).click();
   await stopping;
   await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await openDirectorSection(page,'المعلمون والتكليفات');
   await expect(page.getByLabel('المعلم',{exact:true}).locator('option')).toContainText(['اختر المعلم','معلم الثانية']);
   releaseStop?.();
   await page.waitForTimeout(350);
@@ -389,6 +415,7 @@ test('late student move from former school cannot show its completion notice in 
   await page.getByLabel('فصل طالب أول').selectOption('class-2');
   await moving;
   await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await openDirectorSection(page,'الطلاب');
   await expect(page.getByText('لا يوجد طلاب مطابقون حاليًا.')).toBeVisible();
   releaseMove?.();
   await page.waitForTimeout(300);
@@ -447,8 +474,10 @@ test('returning to school A does not accept a mutation from its previous visit',
   await page.getByLabel('فصل طالب أول').selectOption('class-2');
   await moving;
   await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await openDirectorSection(page,'الطلاب');
   await expect(page.getByText('لا يوجد طلاب مطابقون حاليًا.')).toBeVisible();
   await page.getByLabel('المدرسة',{exact:true}).selectOption('school-1');
+  await openDirectorSection(page,'الطلاب');
   await expect(page.getByText('طالب أول')).toBeVisible();
   releaseMove?.();
   await page.waitForTimeout(350);
