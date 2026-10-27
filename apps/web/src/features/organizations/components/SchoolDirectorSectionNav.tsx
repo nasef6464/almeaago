@@ -2,7 +2,7 @@ import { ChevronLeft } from 'lucide-react';
 
 import type { SchoolContext } from '../api/organizations-client';
 
-export type DirectorSectionID = 'overview' | 'students' | 'classes' | 'teachers';
+export type DirectorSectionID = 'overview' | 'students' | 'classes' | 'teachers' | 'assessments';
 type DirectorNavigationItem = { id: DirectorSectionID; label: string };
 
 // The four working sections retain their identifiers, order, and group names
@@ -11,6 +11,7 @@ type DirectorNavigationItem = { id: DirectorSectionID; label: string };
 export const directorSectionGroups: { label: string; ids: DirectorSectionID[] }[] = [
   { label: 'البداية', ids: ['overview'] },
   { label: 'إدارة المدرسة', ids: ['students', 'classes', 'teachers'] },
+  { label: 'التعلم والمتابعة', ids: ['assessments'] },
 ];
 
 export function directorNavItems(school: SchoolContext): DirectorNavigationItem[] {
@@ -21,6 +22,7 @@ export function directorNavItems(school: SchoolContext): DirectorNavigationItem[
     { id: 'students', label: 'الطلاب', visible: has('SCHOOL_STUDENTS_VIEW') },
     { id: 'classes', label: 'الفصول', visible: has('SCHOOL_CLASSES_MANAGE', 'SCHOOL_CORE') },
     { id: 'teachers', label: 'المعلمون والتكليفات', visible: has('SCHOOL_TEACHERS_ASSIGN', 'SCHOOL_CORE') },
+    { id: 'assessments', label: 'اختبارات المدرسة', visible: has('SCHOOL_ASSESSMENTS_MANAGE', 'SCHOOL_ASSESSMENTS') },
   ].filter(item => item.visible).map(({ id, label }) => ({ id: id as DirectorSectionID, label }));
 }
 
