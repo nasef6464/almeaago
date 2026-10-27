@@ -29,13 +29,16 @@ func (a authStub) VerifyCSRF(identityapp.Authenticated, string) error {
 }
 
 type repoStub struct {
-	contexts         []orgdomain.SchoolContext
-	page             orgdomain.SchoolPage
-	membershipWrite  orgdomain.MembershipWrite
-	directorWrite    orgdomain.DirectorWrite
-	assignmentWrite  orgdomain.AssignmentWrite
-	teacherWorkspace orgdomain.TeacherWorkspace
-	parentAuthority  orgdomain.ParentAuthority
+	contexts                   []orgdomain.SchoolContext
+	page                       orgdomain.SchoolPage
+	membershipWrite            orgdomain.MembershipWrite
+	directorWrite              orgdomain.DirectorWrite
+	assignmentWrite            orgdomain.AssignmentWrite
+	teacherWorkspace           orgdomain.TeacherWorkspace
+	parentAuthority            orgdomain.ParentAuthority
+	allowedSchoolID            string
+	directorOverview           orgdomain.DirectorOverview
+	lastDirectorOverviewSchool string
 }
 
 func (r *repoStub) ParentAuthority(_ context.Context, _ string) (orgdomain.ParentAuthority, error) {
@@ -267,14 +270,19 @@ func (r *repoStub) DirectorTeachers(
 	}, nil
 }
 
+func (r *repoStub) DirectorOverview(_ context.Context, schoolID string) (orgdomain.DirectorOverview, error) {
+	r.lastDirectorOverviewSchool = schoolID
+	return r.directorOverview, nil
+}
+
 func (r *repoStub) CanAccessSchool(context.Context, orgdomain.AccessContext, string) (bool, error) {
 	return true, nil
 }
 func (r *repoStub) CanManageSchool(context.Context, string, string) (bool, error) {
 	return true, nil
 }
-func (r *repoStub) HasSchoolPermission(context.Context, string, string, string) (bool, error) {
-	return true, nil
+func (r *repoStub) HasSchoolPermission(_ context.Context, _ string, schoolID string, _ string) (bool, error) {
+	return r.allowedSchoolID == "" || r.allowedSchoolID == schoolID, nil
 }
 
 func adminAuth() identityapp.Authenticated {
