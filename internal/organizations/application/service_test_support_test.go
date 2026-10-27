@@ -10,27 +10,28 @@ import (
 )
 
 type repositoryMock struct {
-	contexts                   []org.SchoolContext
-	accessAllowed              bool
-	manageAllowed              bool
-	permissionAllowed          bool
-	allowedSchoolID            string
-	directorOverview           org.DirectorOverview
-	lastDirectorOverviewSchool string
-	lastSchoolQuery            org.SchoolListQuery
-	lastClassQuery             org.ClassListQuery
-	lastRosterQuery            org.RosterQuery
-	createdSchool              org.SchoolWrite
-	updatedSchool              org.SchoolPatch
-	createdClass               org.ClassWrite
-	updatedClass               org.ClassPatch
-	membershipWrite            org.MembershipWrite
-	directorQuery              org.DirectorQuery
-	directorWrite              org.DirectorWrite
-	assignmentQuery            org.AssignmentQuery
-	assignmentWrite            org.AssignmentWrite
-	teacherWorkspace           org.TeacherWorkspace
-	parentAuthority            org.ParentAuthority
+	contexts                      []org.SchoolContext
+	accessAllowed                 bool
+	manageAllowed                 bool
+	permissionAllowed             bool
+	allowedSchoolID               string
+	directorOverview              org.DirectorOverview
+	lastDirectorAssessmentsSchool string
+	lastDirectorOverviewSchool    string
+	lastSchoolQuery               org.SchoolListQuery
+	lastClassQuery                org.ClassListQuery
+	lastRosterQuery               org.RosterQuery
+	createdSchool                 org.SchoolWrite
+	updatedSchool                 org.SchoolPatch
+	createdClass                  org.ClassWrite
+	updatedClass                  org.ClassPatch
+	membershipWrite               org.MembershipWrite
+	directorQuery                 org.DirectorQuery
+	directorWrite                 org.DirectorWrite
+	assignmentQuery               org.AssignmentQuery
+	assignmentWrite               org.AssignmentWrite
+	teacherWorkspace              org.TeacherWorkspace
+	parentAuthority               org.ParentAuthority
 }
 
 func (m *repositoryMock) ParentAuthority(_ context.Context, _ string) (org.ParentAuthority, error) {
@@ -254,6 +255,11 @@ func (m *repositoryMock) DirectorTeachers(
 func (m *repositoryMock) DirectorOverview(_ context.Context, schoolID string) (org.DirectorOverview, error) {
 	m.lastDirectorOverviewSchool = schoolID
 	return m.directorOverview, nil
+}
+
+func (m *repositoryMock) DirectorAssessments(_ context.Context, schoolID string) (org.DirectorAssessmentWorkspace, error) {
+	m.lastDirectorAssessmentsSchool = schoolID
+	return org.DirectorAssessmentWorkspace{Assessments: []org.SchoolDirectorAssessment{}, Classes: []org.DirectorOverviewClass{}}, nil
 }
 
 func (m *repositoryMock) CanAccessSchool(context.Context, org.AccessContext, string) (bool, error) {

@@ -10,6 +10,7 @@ import {
   organizationsClient,
   type DirectorAssignment,
   type DirectorOverview,
+  type DirectorAssessmentWorkspace,
   type DirectorStudent,
   type DirectorTeacher,
   type SchoolClass,
@@ -31,6 +32,9 @@ export function SchoolDirectorDashboardPage(){
   const [overviewLoading,setOverviewLoading]=useState(false);
   const [overviewError,setOverviewError]=useState('');
   const [overviewReload,setOverviewReload]=useState(0);
+  const [assessmentWorkspace,setAssessmentWorkspace]=useState<DirectorAssessmentWorkspace|null>(null);
+  const [assessmentLoading,setAssessmentLoading]=useState(false);
+  const [assessmentError,setAssessmentError]=useState('');
   const [activeSection,setActiveSection]=useState<DirectorSectionID>('overview');
   const [subjects,setSubjects]=useState<TaxonomySubject[]>([]);
   const [subjectsError,setSubjectsError]=useState(false);
@@ -50,6 +54,7 @@ export function SchoolDirectorDashboardPage(){
   const teacherReadVersion=useRef(0);
   const schoolVisitEpoch=useRef(0);
   const overviewReadEpoch=useRef(0);
+  const assessmentReadEpoch=useRef(0);
 
   const selectedSchool=useMemo(()=>schools.find(x=>x.schoolId===schoolId)||schools[0], [schoolId,schools]);
   const has=(p:string)=>Boolean(selectedSchool?.permissions.includes(p));
@@ -57,6 +62,31 @@ export function SchoolDirectorDashboardPage(){
   const canOptional=(p:string)=>has(p)&&hasCore;
   const navItems=useMemo(()=>selectedSchool?directorNavItems(selectedSchool):[],[selectedSchool]);
   const section=navItems.some(item=>item.id===activeSection)?activeSection:(navItems[0]?.id||'overview');
+
+  useEffect(()=>{
+    const controller=new AbortController();
+    const epoch=++assessmentReadEpoch.current;
+    const requestedSchool=selectedSchool?.schoolId;
+    const visit=schoolVisitEpoch.current;
+    setAssessmentWorkspace(null);setAssessmentError('');setAssessmentLoading(false);
+    if(section!=='assessments'||!requestedSchool||
+      !selectedSchool?.permissions.includes('SCHOOL_ASSESSMENTS_MANAGE')||
+      !selectedSchool?.modules.includes('SCHOOL_ASSESSMENTS'))return ()=>controller.abort();
+    setAssessmentLoading(true);
+    organizationsClient.directorAssessments(requestedSchool,controller.signal).then(result=>{
+      if(controller.signal.aborted||epoch!==assessmentReadEpoch.current||
+        activeSchoolId.current!==requestedSchool||visit!==schoolVisitEpoch.current)return;
+      setAssessmentWorkspace(result);
+    }).catch(e=>{
+      if(controller.signal.aborted||epoch!==assessmentReadEpoch.current||
+        activeSchoolId.current!==requestedSchool||visit!==schoolVisitEpoch.current)return;
+      setAssessmentError(e instanceof Error?e.message:'تعذر تحميل اختبارات المدرسة');
+    }).finally(()=>{
+      if(!controller.signal.aborted&&epoch===assessmentReadEpoch.current&&
+        activeSchoolId.current===requestedSchool&&visit===schoolVisitEpoch.current)setAssessmentLoading(false);
+    });
+    return ()=>controller.abort();
+  },[selectedSchool?.schoolId,selectedSchool?.modules,selectedSchool?.permissions,section]);
 
   useEffect(()=>{
     const controller=new AbortController();
@@ -244,6 +274,10 @@ export function SchoolDirectorDashboardPage(){
     ++loadEpoch.current;
     ++teacherReadVersion.current;
     ++overviewReadEpoch.current;
+    ++assessmentReadEpoch.current;
+    setAssessmentWorkspace(null);
+    setAssessmentLoading(false);
+    setAssessmentError('');
     setClasses([]);
     setStudents([]);
     setStudentTotal(0);
@@ -294,6 +328,20 @@ export function SchoolDirectorDashboardPage(){
         {label:'اختبارات المدرسة',value:overview.metrics.schoolAssessments,icon:BookOpenCheck,tone:'text-emerald-700 bg-emerald-50'},
         {label:'فصول ذكية مكتملة',value:overview.metrics.completedSmartClasses,icon:Sparkles,tone:'text-rose-700 bg-rose-50'},
       ].map(({label,value,icon:Icon,tone})=><article key={label} className="min-w-0 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"><div className={`flex h-9 w-9 items-center justify-center rounded-xl ${tone}`}><Icon size={18}/></div><p className="mt-3 text-xs font-bold text-slate-500">{label}</p><p className="mt-1 text-2xl font-black">{value}</p></article>)}</div>:null}
+    </section>:null}
+
+    {section==='assessments'&&has('SCHOOL_ASSESSMENTS_MANAGE')&&selectedSchool.modules.includes('SCHOOL_ASSESSMENTS')?<section aria-label="اختبارات المدرسة" className="mt-7 min-w-0 rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black text-indigo-600">التعلم والمتابعة</p><h2 className="mt-1 text-xl font-black">اختبارات المدرسة</h2></div><span className="rounded-xl bg-indigo-50 px-4 py-2 text-sm font-black text-indigo-800">{assessmentWorkspace?.assessments.length??'—'} اختبار</span></div>
+      {assessmentLoading?<p role="status" className="mt-5 text-sm font-bold text-slate-500">جار تحميل اختبارات المدرسة…</p>:null}
+      {assessmentError?<p role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{assessmentError}</p>:null}
+      {!assessmentLoading&&!assessmentError&&assessmentWorkspace?.assessments.length===0?<p className="mt-5 rounded-xl border border-dashed p-5 text-sm text-slate-500">لا توجد اختبارات موجهة لهذه المدرسة حاليًا.</p>:null}
+      {assessmentWorkspace&&!assessmentError?<div className="mt-5 grid min-w-0 gap-3 sm:grid-cols-2">{assessmentWorkspace.assessments.map(item=>{
+        const audience=item.targetGroupIds.includes(selectedSchool.schoolId)?'المدرسة كاملة':
+          item.targetGroupIds.map(id=>assessmentWorkspace.classes.find(c=>c.classId===id)?.className).filter(Boolean).join('، ')||
+          (item.isPublished?'طلاب محددون':'مسودة مركزية');
+        return <article key={item.id} className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-2"><h3 className="min-w-0 flex-1 break-words font-black text-slate-900">{item.title}</h3><span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${item.isPublished?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-amber-800'}`}>{item.isPublished?'منشور':'غير منشور'}</span></div><p className="mt-3 break-words text-xs font-bold text-slate-600">الاستهداف: {audience}</p></article>;
+      })}</div>:null}
+      <p className="mt-5 text-xs leading-6 text-slate-500">عرض مخصص للمدرسة وصلاحياتها. إنشاء الاختبار والنتائج والإدارة ستُفعّل بعد اكتمال واجهاتها الآمنة.</p>
     </section>:null}
 
     {section==='students'&&has('SCHOOL_STUDENTS_VIEW')?<section className="mt-7 rounded-3xl border bg-white p-5 shadow-sm sm:p-6">

@@ -35,7 +35,9 @@ func (d *SchoolDirectorDirectory) DirectorOverview(ctx context.Context, schoolID
 			 JOIN assessment_assignments aa ON aa.assessment_id=a.id
 			 WHERE a.is_published
 			   AND aa.status<>'cancelled'
+			   AND (aa.school_id=s.id OR aa.school_id IS NULL)
 			   AND (
+			     (aa.targets_entire_school AND aa.school_id=s.id) OR
 			     EXISTS (
 			       SELECT 1 FROM assessment_assignment_classes ac
 			       JOIN classes c ON c.id=ac.class_id
