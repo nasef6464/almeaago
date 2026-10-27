@@ -2,7 +2,7 @@
 
 **مرجع الدراسة:** 2026-10-27. **مصدر الحقيقة:** `almeaacodax` (Node/React/MongoDB). **الهدف:** `almeaago` (Go/React/PostgreSQL) بعد دمج SCHOOL-004 في `30b584474ab68036ebaf478fc01108b1f935d7cc`.
 
-**الحالة:** `ANALYZED / IMPLEMENTATION NOT STARTED` — هذه خريطة تنفيذ مبنية على ملفات فعلية، وليست إعلان نقل أو تطابق.
+**الحالة:** `005A STARTED / CAPABILITY GATE IMPLEMENTED; LISTING NOT STARTED` — هذه خريطة تنفيذ مبنية على ملفات فعلية، وليست إعلان نقل أو تطابق. سجل التنفيذ في `10_SCHOOL_005A_EXECUTION_LOG_AR.md`.
 
 ## 1. ما الذي يعده المستخدم «اختبارات المدرسة»؟
 
