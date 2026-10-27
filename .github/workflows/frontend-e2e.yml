@@ -33,6 +33,13 @@ jobs:
           node-version: "22"
       - run: npm install --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
+      - name: Verify local preinstalled Chromium fallback with a real E2E test
+        shell: bash
+        run: |
+          set -euo pipefail
+          BROWSER_PATH="$(node -e 'console.log(require("@playwright/test").chromium.executablePath())')"
+          test -x "$BROWSER_PATH"
+          PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$BROWSER_PATH" npm run e2e:local -- tests/e2e/organizations-director.spec.ts --grep "school director desktop runs bounded student class and teacher operations"
       - run: npm run e2e
       - name: Upload browser evidence
         if: always()
