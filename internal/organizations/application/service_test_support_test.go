@@ -10,6 +10,8 @@ import (
 )
 
 type repositoryMock struct {
+	lastDirectorAssessmentCreate  *org.DirectorAssessmentCreate
+	lastDirectorAssessmentSchool  string
 	contexts                      []org.SchoolContext
 	accessAllowed                 bool
 	manageAllowed                 bool
@@ -32,6 +34,16 @@ type repositoryMock struct {
 	assignmentWrite               org.AssignmentWrite
 	teacherWorkspace              org.TeacherWorkspace
 	parentAuthority               org.ParentAuthority
+}
+
+func (m *repositoryMock) DirectorCreateAssessment(_ context.Context, _ string, schoolID string, input org.DirectorAssessmentCreate) (org.DirectorAssessmentCreated, error) {
+	m.lastDirectorAssessmentCreate = &input
+	m.lastDirectorAssessmentSchool = schoolID
+	return org.DirectorAssessmentCreated{AssessmentID: "00000000-0000-0000-0000-000000000999", Title: input.Title, ClassID: input.ClassID, TargetScope: input.TargetScope}, nil
+}
+
+func (m *repositoryMock) DirectorAssessmentQuestions(_ context.Context, _, _, _, _, _ string, _, _ int) (org.DirectorAssessmentQuestionPage, error) {
+	return org.DirectorAssessmentQuestionPage{Items: []org.DirectorAssessmentQuestion{}}, nil
 }
 
 func (m *repositoryMock) ParentAuthority(_ context.Context, _ string) (org.ParentAuthority, error) {

@@ -1,10 +1,10 @@
 name: Database CI
 on:
   pull_request:
-    paths: ["migrations/**",".github/workflows/database.yml","docs/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**"]
+    paths: ["migrations/**",".github/workflows/database.yml","docs/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**"]
   push:
     branches: [main]
-    paths: ["migrations/**",".github/workflows/database.yml","docs/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**"]
+    paths: ["migrations/**",".github/workflows/database.yml","docs/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**"]
   workflow_dispatch:
 concurrency:
   group: database-ci-${{ github.ref }}
@@ -54,6 +54,16 @@ jobs:
           DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
         run: go test ./internal/reporting/repository/postgres -run '^TestDirectorOverviewCountsRealSchoolAudiencePostgres$' -count=1 -v
 
+      - name: Verify school director assessment publication and audiences against PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/organizations/repository/postgres -run '^TestDirectorCreateAssessmentPostgres$' -count=1 -v
+
+      - name: Verify students can see and start only their school-wide assessments
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/assessment/repository/postgres -run '^TestSchoolWideAssignmentLearnerAudiencePostgres$' -count=1 -v
+
       - name: Verify current schema constraints
         shell: bash
         run: |
@@ -84,6 +94,8 @@ jobs:
           check "select exists(select 1 from pg_indexes where tablename='school_membership_permissions' and indexname='school_membership_permissions_permission_idx')"
           check "select to_regclass('public.school_contracts') is not null"
           check "select to_regclass('public.school_contract_modules') is not null"
+          check "select to_regclass('public.school_assessment_create_requests') is not null"
+          check "select exists(select 1 from pg_indexes where tablename='school_assessment_create_requests' and indexname='school_assessment_create_requests_assessment_idx')"
           check "select exists(select 1 from pg_indexes where tablename='school_contracts' and indexname='school_contracts_status_valid_until_idx')"
           check "select exists(select 1 from pg_indexes where tablename='school_contract_modules' and indexname='school_contract_modules_enabled_idx')"
           check "select to_regclass('public.parent_student_relationships') is not null"

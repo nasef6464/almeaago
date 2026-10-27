@@ -2,7 +2,7 @@
 
 **مرجع الدراسة:** 2026-10-27. **مصدر الحقيقة:** `almeaacodax` (Node/React/MongoDB). **الهدف:** `almeaago` (Go/React/PostgreSQL) بعد دمج SCHOOL-004 في `30b584474ab68036ebaf478fc01108b1f935d7cc`.
 
-**الحالة:** `005A IMPLEMENTED IN DRAFT PR / DATABASE AND BROWSER CI VERIFICATION PENDING` — نُفذت واجهة القراءة والقائمة وSQL في الفرع، ولم يثبت بعد تطابق الإنتاج أو نجاح PostgreSQL الفعلي حتى تظهر نتيجة CI. سجل التنفيذ في `10_SCHOOL_005A_EXECUTION_LOG_AR.md`.
+**الحالة:** `005A MERGED / 005B IN DEVELOPMENT / 005C-D PENDING` — دُمجت القراءة الآمنة في `main` (PR #131، SHA `0c1701a`). يجري تنفيذ إنشاء الاختبار في 005B؛ **لا يُدّعى التكافؤ الكامل مع Node أو الإنتاج بعد**. سجل 005A في `10_SCHOOL_005A_EXECUTION_LOG_AR.md` وخطة 005B في `docs/superpowers/plans/2026-10-27-school-assessment-create-005b.md`.
 
 ## 1. ما الذي يعده المستخدم «اختبارات المدرسة»؟
 
@@ -82,4 +82,4 @@
 
 ## 6. استئناف العمل الدقيق
 
-ابدأ بـ`SCHOOL-005A`: اكتب اختبار transport سلبي، ثم integration على schema PostgreSQL الحقيقي، ثم query/read service، ثم القسم في React مع test navigation، ثم CI الأربع؛ وثّق HEAD وPR ونتيجة كل بوابة. لا تبدأ 005B قبل وجود عقد جمهور صريح وفحصه.
+أُغلقت `SCHOOL-005A` بعد فحص عقد الجمهور الحقيقي و104 اختبار متصفح ناجح، ثم دُمج PR #131. الدفعة الحالية `SCHOOL-005B` تكتب إنشاء الاختبار في معاملة واحدة من الأسئلة المعتمدة عبر picker محكوم بالدور/الإذن/الوحدة، مع `Idempotency-Key` ومخطط `000043`. لا تُعتبر مغلقة إلا بعد نجاح Database CI على المخطط الحقيقي وE2E في GitHub على SHA واحد. تبدأ `SCHOOL-005C` بعدها بأذونات كل اختبار وتقارير المحاولات.

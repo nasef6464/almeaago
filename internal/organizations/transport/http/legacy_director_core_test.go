@@ -167,3 +167,87 @@ func TestLegacyDirectorAcademicAssessmentsRequiresModuleAndSchoolPermission(t *t
 		t.Fatalf("missing permission: %d", denied.Code)
 	}
 }
+
+func TestLegacyDirectorCreateAssessmentEnforcesScopePermissionAndCSRF(t *testing.T) {
+	const schoolA = "00000000-0000-0000-0000-000000000101"
+	const schoolB = "00000000-0000-0000-0000-000000000102"
+	const classroom = "00000000-0000-0000-0000-000000000201"
+	const path = "00000000-0000-0000-0000-000000000301"
+	const subject = "00000000-0000-0000-0000-000000000302"
+	const question = "00000000-0000-0000-0000-000000000401"
+	const key = "00000000-0000-0000-0000-000000000501"
+	repo := &repoStub{contexts: []orgdomain.SchoolContext{{
+		SchoolID: schoolA, Role: identitydomain.RoleSchoolAdmin,
+		Permissions: []string{orgdomain.PermissionSchoolAssessmentsManage},
+		Modules:     []string{string(orgdomain.ModuleSchoolAssessments)},
+	}}}
+	body := `{"title":"اختبار مدرسي","classId":"` + classroom + `","targetScope":"class","pathId":"` + path + `","subjectId":"` + subject + `","questionIds":["` + question + `"]}`
+	request := func(auth authStub, schoolID, payload, token string) *httptest.ResponseRecorder {
+		t.Helper()
+		handler := NewLegacy(orgapp.NewService(repo, repo), auth)
+		req := httptest.NewRequest(http.MethodPost, "/director/schools/"+schoolID+"/academic/assessments", strings.NewReader(payload))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Idempotency-Key", token)
+		resp := httptest.NewRecorder()
+		handler.ServeHTTP(resp, req)
+		return resp
+	}
+	good := request(authStub{auth: schoolAdminAuth()}, schoolA, body, key)
+	if good.Code != http.StatusCreated || !strings.Contains(good.Body.String(), `"assessmentId"`) || !strings.Contains(good.Body.String(), `"targetScope":"class"`) {
+		t.Fatalf("expected school assessment 201; got %d %s", good.Code, good.Body.String())
+	}
+	if forbidden := request(authStub{auth: schoolAdminAuth()}, schoolB, body, key); forbidden.Code != http.StatusForbidden {
+		t.Fatalf("wrong school must not create: %d", forbidden.Code)
+	}
+	if denied := request(authStub{auth: schoolAdminAuth(), csrfErr: identityapp.ErrCSRF}, schoolA, body, key); denied.Code != http.StatusForbidden {
+		t.Fatalf("CSRF bypassed: %d", denied.Code)
+	}
+	if invalid := request(authStub{auth: schoolAdminAuth()}, schoolA, body, "invalid"); invalid.Code != http.StatusBadRequest {
+		t.Fatalf("missing idempotency token validation: %d", invalid.Code)
+	}
+	if invalid := request(authStub{auth: schoolAdminAuth()}, schoolA, `{"title":"اختبار","targetScope":"class","pathId":"`+path+`","subjectId":"`+subject+`","questionIds":["`+question+`"]}`, key); invalid.Code != http.StatusBadRequest {
+		t.Fatalf("class without classId must fail: %d", invalid.Code)
+	}
+	schoolPayload := `{"title":"اختبار المدرسة","targetScope":"school","pathId":"` + path + `","subjectId":"` + subject + `","questionIds":["` + question + `"]}`
+	if created := request(authStub{auth: schoolAdminAuth()}, schoolA, schoolPayload, key); created.Code != http.StatusCreated || !strings.Contains(created.Body.String(), `"targetScope":"school"`) {
+		t.Fatalf("whole-school explicit target failed: %d %s", created.Code, created.Body.String())
+	}
+	repo.contexts[0].Modules = nil
+	if denied := request(authStub{auth: schoolAdminAuth()}, schoolA, body, key); denied.Code != http.StatusForbidden {
+		t.Fatalf("module gate bypassed: %d", denied.Code)
+	}
+}
+
+func TestLegacyDirectorAssessmentPickerDoesNotExposeGlobalStaffQuestionBank(t *testing.T) {
+	const school = "00000000-0000-0000-0000-000000000101"
+	const path = "00000000-0000-0000-0000-000000000301"
+	const subject = "00000000-0000-0000-0000-000000000302"
+	repo := &repoStub{contexts: []orgdomain.SchoolContext{{
+		SchoolID: school, Role: identitydomain.RoleSchoolAdmin,
+		Permissions: []string{orgdomain.PermissionSchoolAssessmentsManage},
+		Modules:     []string{string(orgdomain.ModuleSchoolAssessments)},
+	}}}
+	handler := NewLegacy(orgapp.NewService(repo, repo), authStub{auth: schoolAdminAuth()})
+	request := func(url string) *httptest.ResponseRecorder {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, url, nil))
+		return response
+	}
+	url := "/director/schools/" + school + "/academic/available-questions?pathId=" + path + "&subjectId=" + subject + "&limit=30"
+	if response := request(url); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"items":[]`) {
+		t.Fatalf("scoped approved picker should be accessible: %d %s", response.Code, response.Body.String())
+	}
+	if denied := request(strings.Replace(url, "limit=30", "limit=999", 1)); denied.Code != http.StatusBadRequest {
+		t.Fatalf("unbounded picker must fail: %d", denied.Code)
+	}
+	if denied := request(url + "&page=0"); denied.Code != http.StatusBadRequest {
+		t.Fatalf("invalid page must fail: %d", denied.Code)
+	}
+	if denied := request(strings.Replace(url, school, "00000000-0000-0000-0000-000000000102", 1)); denied.Code != http.StatusForbidden {
+		t.Fatalf("wrong-school picker must fail: %d", denied.Code)
+	}
+	repo.contexts[0].Permissions = nil
+	if denied := request(url); denied.Code != http.StatusForbidden {
+		t.Fatalf("missing school permission must fail: %d", denied.Code)
+	}
+}

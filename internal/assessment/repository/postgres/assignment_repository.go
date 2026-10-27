@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -169,7 +170,31 @@ func (r *Repository) SetAssignmentStatus(ctx context.Context, actor string, role
 	return r.getAssignment(ctx, id)
 }
 func (r *Repository) ListLearnerAssignments(ctx context.Context, student string, page, limit int) ([]assessment.LearnerAssignment, bool, error) {
-	rows, e := r.db.Query(ctx, `SELECT a.id::text,a.assessment_id::text,a.assessment_version,v.title,COALESCE(a.school_id::text,''),a.opens_at,a.closes_at,a.supervisor_message,(SELECT count(*)::int FROM assessment_attempts x WHERE x.assignment_id=a.id AND x.student_id=$1::uuid),COALESCE(a.max_attempts_override,v.max_attempts) FROM assessment_assignments a JOIN assessment_versions v ON v.assessment_id=a.assessment_id AND v.version=a.assessment_version JOIN assessments d ON d.id=a.assessment_id WHERE a.status='active' AND d.workflow_status='approved' AND d.is_published AND d.is_visible AND (a.opens_at IS NULL OR a.opens_at<=now()) AND (a.closes_at IS NULL OR a.closes_at>now()) AND (EXISTS(SELECT 1 FROM assessment_assignment_users au WHERE au.assignment_id=a.id AND au.user_id=$1::uuid) OR EXISTS(SELECT 1 FROM assessment_assignment_classes ac JOIN class_memberships cm ON cm.class_id=ac.class_id WHERE ac.assignment_id=a.id AND cm.user_id=$1::uuid AND cm.status='active')) ORDER BY a.created_at DESC,a.id DESC LIMIT $2 OFFSET $3`, student, limit+1, (page-1)*limit)
+	return listLearnerAssignmentsFrom(ctx, r.db, student, page, limit)
+}
+
+// Same audience contract in browsing and attempt-starting. A school_id is
+// scope only; whole-school eligibility needs an explicit audience flag AND
+// an active student membership at that exact school.
+func learnerAssignmentAudienceSQL(studentPlaceholder string) string {
+	return fmt.Sprintf(`(
+		EXISTS (SELECT 1 FROM assessment_assignment_users au WHERE au.assignment_id=a.id AND au.user_id=%[1]s::uuid)
+		OR EXISTS (SELECT 1 FROM assessment_assignment_classes ac JOIN class_memberships cm ON cm.class_id=ac.class_id WHERE ac.assignment_id=a.id AND cm.user_id=%[1]s::uuid AND cm.status='active')
+		OR (a.targets_entire_school AND EXISTS (
+			SELECT 1 FROM school_memberships sm JOIN schools s ON s.id=sm.school_id
+			WHERE sm.school_id=a.school_id AND sm.user_id=%[1]s::uuid
+			  AND sm.role='student' AND sm.status='active' AND s.status='active'
+		))
+	)`, studentPlaceholder)
+}
+
+type learnerAssignmentQueryer interface {
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+}
+
+func listLearnerAssignmentsFrom(ctx context.Context, q learnerAssignmentQueryer, student string, page, limit int) ([]assessment.LearnerAssignment, bool, error) {
+	statement := `SELECT a.id::text,a.assessment_id::text,a.assessment_version,v.title,COALESCE(a.school_id::text,''),a.opens_at,a.closes_at,a.supervisor_message,(SELECT count(*)::int FROM assessment_attempts x WHERE x.assignment_id=a.id AND x.student_id=$1::uuid),COALESCE(a.max_attempts_override,v.max_attempts) FROM assessment_assignments a JOIN assessment_versions v ON v.assessment_id=a.assessment_id AND v.version=a.assessment_version JOIN assessments d ON d.id=a.assessment_id WHERE a.status='active' AND d.workflow_status='approved' AND d.is_published AND d.is_visible AND (a.opens_at IS NULL OR a.opens_at<=now()) AND (a.closes_at IS NULL OR a.closes_at>now()) AND ` + learnerAssignmentAudienceSQL("$1") + ` ORDER BY a.created_at DESC,a.id DESC LIMIT $2 OFFSET $3`
+	rows, e := q.Query(ctx, statement, student, limit+1, (page-1)*limit)
 	if e != nil {
 		return nil, false, e
 	}
@@ -188,6 +213,16 @@ func (r *Repository) ListLearnerAssignments(ctx context.Context, student string,
 		out = out[:limit]
 	}
 	return out, more, rows.Err()
+}
+
+type learnerAssignmentRowQueryer interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func loadStartAssignedTarget(ctx context.Context, q learnerAssignmentRowQueryer, student, assignmentID string) (aid string, version, max int, limit *int, err error) {
+	statement := `SELECT a.assessment_id::text,a.assessment_version,COALESCE(a.max_attempts_override,v.max_attempts),v.time_limit_seconds FROM assessment_assignments a JOIN assessment_versions v ON v.assessment_id=a.assessment_id AND v.version=a.assessment_version JOIN assessments d ON d.id=a.assessment_id WHERE a.id=$1::uuid AND a.status='active' AND d.workflow_status='approved' AND d.is_published AND d.is_visible AND (a.opens_at IS NULL OR a.opens_at<=now()) AND (a.closes_at IS NULL OR a.closes_at>now()) AND ` + learnerAssignmentAudienceSQL("$2") + ` FOR UPDATE OF a`
+	err = q.QueryRow(ctx, statement, assignmentID, student).Scan(&aid, &version, &max, &limit)
+	return
 }
 func (r *Repository) StartAssigned(ctx context.Context, student, assignmentID, startKey string) (assessment.Attempt, error) {
 	tx, e := r.db.Begin(ctx)
@@ -212,7 +247,7 @@ func (r *Repository) StartAssigned(ctx context.Context, student, assignmentID, s
 	var aid string
 	var ver, max int
 	var limit *int
-	e = tx.QueryRow(ctx, `SELECT a.assessment_id::text,a.assessment_version,COALESCE(a.max_attempts_override,v.max_attempts),v.time_limit_seconds FROM assessment_assignments a JOIN assessment_versions v ON v.assessment_id=a.assessment_id AND v.version=a.assessment_version JOIN assessments d ON d.id=a.assessment_id WHERE a.id=$1::uuid AND a.status='active' AND d.workflow_status='approved' AND d.is_published AND d.is_visible AND (a.opens_at IS NULL OR a.opens_at<=now()) AND (a.closes_at IS NULL OR a.closes_at>now()) AND (EXISTS(SELECT 1 FROM assessment_assignment_users au WHERE au.assignment_id=a.id AND au.user_id=$2::uuid) OR EXISTS(SELECT 1 FROM assessment_assignment_classes ac JOIN class_memberships cm ON cm.class_id=ac.class_id WHERE ac.assignment_id=a.id AND cm.user_id=$2::uuid AND cm.status='active')) FOR UPDATE OF a`, assignmentID, student).Scan(&aid, &ver, &max, &limit)
+	aid, ver, max, limit, e = loadStartAssignedTarget(ctx, tx, student, assignmentID)
 	if e != nil {
 		return assessment.Attempt{}, mapError(e)
 	}

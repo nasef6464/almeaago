@@ -207,6 +207,84 @@ test('school assessments require the module as well as the permission at mobile 
   expect(calls).toBe(0);
 });
 
+test('director creates a private class assessment from approved school picker on mobile',async({page})=>{
+  await mockDirector(page,['SCHOOL_CORE','SCHOOL_ASSESSMENTS']);
+  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[{
+    schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',
+    permissions:[...permissions,'SCHOOL_ASSESSMENTS_MANAGE'],modules:['SCHOOL_CORE','SCHOOL_ASSESSMENTS'],source:'membership',
+  }]}));
+  let published=false;
+  let sent:Record<string,unknown>|undefined;
+  await page.route('**/api/school-access/director/schools/school-1/academic/assessments',route=>{
+    if(route.request().method()==='POST'){
+      sent=route.request().postDataJSON() as Record<string,unknown>;
+      expect(route.request().headers()['idempotency-key']).toMatch(/^[0-9a-f-]{36}$/);
+      expect(route.request().headers()['x-csrf-token']).toBe('csrf-director');
+      published=true;
+      return json(route,{assessment:{assessmentId:'assessment-created',title:sent.title,classId:sent.classId,targetScope:sent.targetScope}},201);
+    }
+    return json(route,{assessments:published?[{id:'assessment-created',title:'اختبار الفصل التجريبي',isPublished:true,targetGroupIds:['class-1']}]:[],classes:[{classId:'class-1',className:'الأول أ'}]});
+  });
+  let pickerCalls=0;
+  await page.route('**/api/school-access/director/schools/school-1/academic/available-questions?*',route=>{
+    pickerCalls++;
+    const url=new URL(route.request().url());
+    expect(url.searchParams.get('subjectId')).toBe('subject-1');
+    return json(route,{items:[
+      {id:'question-approved',questionCode:'MATH-014',text:'سؤال رياضيات معتمد',type:'mcq',imageUrl:'',imageAlt:'',currentVersion:3},
+    ],hasMore:false});
+  });
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'اختبارات المدرسة');
+  await page.getByRole('button',{name:'إنشاء اختبار',exact:true}).click();
+  await page.getByLabel('عنوان الاختبار المدرسي').fill('اختبار الفصل التجريبي');
+  await page.getByLabel('فصل الاختبار المدرسي').selectOption('class-1');
+  await page.getByLabel('مسار الاختبار المدرسي').selectOption('path-1');
+  await page.getByLabel('مادة الاختبار المدرسي').selectOption('subject-1');
+  await expect(page.getByText('سؤال رياضيات معتمد')).toBeVisible();
+  await page.getByLabel('اختيار السؤال MATH-014').check();
+  await page.getByRole('button',{name:'إنشاء ونشر للطلاب المستهدفين'}).click();
+  await expect(page.getByRole('region',{name:'اختبارات المدرسة'})).toContainText('اختبار الفصل التجريبي');
+  expect(sent).toMatchObject({title:'اختبار الفصل التجريبي',targetScope:'class',classId:'class-1',pathId:'path-1',subjectId:'subject-1',questionIds:['question-approved']});
+  expect(pickerCalls).toBeGreaterThan(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth)).toBe(false);
+});
+
+test('whole-school assessment needs an explicit school audience and no class',async({page})=>{
+  await mockDirector(page,['SCHOOL_CORE','SCHOOL_ASSESSMENTS']);
+  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[{
+    schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',permissions:[...permissions,'SCHOOL_ASSESSMENTS_MANAGE'],modules:['SCHOOL_CORE','SCHOOL_ASSESSMENTS'],source:'membership',
+  }]}));
+  let payload:Record<string,unknown>|undefined;
+  await page.route('**/api/school-access/director/schools/school-1/academic/assessments',route=>{
+    if(route.request().method()==='POST'){
+      payload=route.request().postDataJSON() as Record<string,unknown>;
+      return json(route,{assessment:{assessmentId:'school-assessment',title:payload.title,classId:'',targetScope:'school'}},201);
+    }
+    return json(route,{assessments:[],classes:[]});
+  });
+  await page.route('**/api/school-access/director/schools/school-1/academic/available-questions?*',route=>{
+    const pageNumber=new URL(route.request().url()).searchParams.get('page');
+    return json(route,pageNumber==='2'?{items:[{id:'q-2',questionCode:'MATH-101',text:'سؤال الصفحة التالية',type:'mcq',imageUrl:'',imageAlt:'',currentVersion:1}],hasMore:false}:{items:[{id:'q-1',questionCode:'MATH-100',text:'سؤال مصدق',type:'mcq',imageUrl:'',imageAlt:'',currentVersion:1}],hasMore:true});
+  });
+  await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'اختبارات المدرسة');
+  await page.getByRole('button',{name:'إنشاء اختبار',exact:true}).click();
+  await page.getByLabel('عنوان الاختبار المدرسي').fill('اختبار المدرسة الكامل');
+  await page.getByLabel('نطاق اختبار المدرسة').selectOption('school');
+  await expect(page.getByLabel('فصل الاختبار المدرسي')).toHaveCount(0);
+  await page.getByLabel('مسار الاختبار المدرسي').selectOption('path-1');
+  await page.getByLabel('مادة الاختبار المدرسي').selectOption('subject-1');
+  await page.getByLabel('اختيار السؤال MATH-100').check();
+  await page.getByRole('button',{name:'التالي'}).click();
+  await expect(page.getByText('سؤال الصفحة التالية')).toBeVisible();
+  await page.getByLabel('اختيار السؤال MATH-101').check();
+  await page.getByRole('button',{name:'إنشاء ونشر للطلاب المستهدفين'}).click();
+  await expect(page.getByRole('button',{name:'إنشاء اختبار',exact:true})).toBeVisible();
+  expect(payload).toMatchObject({targetScope:'school',classId:'',questionIds:['q-1','q-2']});
+});
+
 test('assessment cards ignore a late A response after A to B to A, on all target widths',async({page})=>{
   await mockDirector(page,['SCHOOL_CORE','SCHOOL_ASSESSMENTS']);
   const context=(schoolId:string,schoolName:string)=>({
