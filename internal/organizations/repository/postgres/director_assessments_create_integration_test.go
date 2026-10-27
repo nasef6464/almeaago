@@ -86,17 +86,21 @@ func TestDirectorCreateAssessmentPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The picker must not leak drafts, other paths, or another school's bank.
-	page, err := listDirectorAssessmentQuestions(ctx, tx, director, school, path, subject, "", 10)
+	page, err := listDirectorAssessmentQuestions(ctx, tx, director, school, path, subject, "", 1, 10)
 	if err != nil || len(page.Items) != 1 || page.Items[0].ID != goodQuestion || page.HasMore {
 		t.Fatalf("incorrect approved picker scope: %+v err=%v", page, err)
 	}
-	deniedPage, err := listDirectorAssessmentQuestions(ctx, tx, director, otherSchool, path, subject, "", 10)
+	deniedPage, err := listDirectorAssessmentQuestions(ctx, tx, director, otherSchool, path, subject, "", 1, 10)
 	if err != nil || len(deniedPage.Items) != 0 {
 		t.Fatalf("cross-school picker disclosed items: %+v err=%v", deniedPage, err)
 	}
-	filtered, err := listDirectorAssessmentQuestions(ctx, tx, director, school, path, subject, "not-matching", 10)
+	filtered, err := listDirectorAssessmentQuestions(ctx, tx, director, school, path, subject, "not-matching", 1, 10)
 	if err != nil || len(filtered.Items) != 0 {
 		t.Fatalf("picker search filter bypassed: %+v err=%v", filtered, err)
+	}
+	secondPage, err := listDirectorAssessmentQuestions(ctx, tx, director, school, path, subject, "", 2, 1)
+	if err != nil || len(secondPage.Items) != 0 {
+		t.Fatalf("picker pagination leaked earlier page: %+v err=%v", secondPage, err)
 	}
 
 	probe := &directorAssessmentAuditProbe{}

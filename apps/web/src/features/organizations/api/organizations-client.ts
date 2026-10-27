@@ -60,8 +60,8 @@ export const organizationsClient={
   directorAssessments(schoolId:string,signal?:AbortSignal){
     return request<DirectorAssessmentWorkspace>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/assessments`,{signal});
   },
-  directorAssessmentQuestions(schoolId:string,pathId:string,subjectId:string,search:string,signal?:AbortSignal){
-    const q=new URLSearchParams({pathId,subjectId,search,limit:'30'});
+  directorAssessmentQuestions(schoolId:string,pathId:string,subjectId:string,search:string,page:number,signal?:AbortSignal){
+    const q=new URLSearchParams({pathId,subjectId,search,page:String(page),limit:'20'});
     return request<DirectorAssessmentQuestionPage>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/available-questions?${q}`,{signal});
   },
   createDirectorAssessment(schoolId:string,input:DirectorAssessmentCreateInput,csrf:string,requestKey:string){

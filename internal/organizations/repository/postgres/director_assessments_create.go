@@ -39,16 +39,16 @@ func (r *Repository) DirectorCreateAssessment(
 func (r *Repository) DirectorAssessmentQuestions(
 	ctx context.Context,
 	actorUserID, schoolID, pathID, subjectID, search string,
-	limit int,
+	page, limit int,
 ) (org.DirectorAssessmentQuestionPage, error) {
-	return listDirectorAssessmentQuestions(ctx, r.db, actorUserID, schoolID, pathID, subjectID, search, limit)
+	return listDirectorAssessmentQuestions(ctx, r.db, actorUserID, schoolID, pathID, subjectID, search, page, limit)
 }
 
 type directorAssessmentQueryer interface {
 	Query(context.Context, string, ...any) (pgx.Rows, error)
 }
 
-func listDirectorAssessmentQuestions(ctx context.Context, q directorAssessmentQueryer, actorUserID, schoolID, pathID, subjectID, search string, limit int) (org.DirectorAssessmentQuestionPage, error) {
+func listDirectorAssessmentQuestions(ctx context.Context, q directorAssessmentQueryer, actorUserID, schoolID, pathID, subjectID, search string, page, limit int) (org.DirectorAssessmentQuestionPage, error) {
 	rows, err := q.Query(ctx, `
 		SELECT q.id::text,q.question_code,qv.text_content,qv.question_type,
 		       COALESCE(a.public_url,''),qv.image_alt,q.current_version
@@ -73,8 +73,8 @@ func listDirectorAssessmentQuestions(ctx context.Context, q directorAssessmentQu
 		      AND scm.module_code='SCHOOL_ASSESSMENTS' AND scm.enabled=true
 		  )
 		ORDER BY q.question_code,q.id
-		LIMIT $6
-	`, schoolID, actorUserID, pathID, subjectID, search, limit+1)
+		LIMIT $6 OFFSET $7
+	`, schoolID, actorUserID, pathID, subjectID, search, limit+1, (page-1)*limit)
 	if err != nil {
 		return org.DirectorAssessmentQuestionPage{}, err
 	}

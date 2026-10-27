@@ -240,6 +240,9 @@ func TestLegacyDirectorAssessmentPickerDoesNotExposeGlobalStaffQuestionBank(t *t
 	if denied := request(strings.Replace(url, "limit=30", "limit=999", 1)); denied.Code != http.StatusBadRequest {
 		t.Fatalf("unbounded picker must fail: %d", denied.Code)
 	}
+	if denied := request(url + "&page=0"); denied.Code != http.StatusBadRequest {
+		t.Fatalf("invalid page must fail: %d", denied.Code)
+	}
 	if denied := request(strings.Replace(url, school, "00000000-0000-0000-0000-000000000102", 1)); denied.Code != http.StatusForbidden {
 		t.Fatalf("wrong-school picker must fail: %d", denied.Code)
 	}

@@ -264,7 +264,10 @@ test('whole-school assessment needs an explicit school audience and no class',as
     }
     return json(route,{assessments:[],classes:[]});
   });
-  await page.route('**/api/school-access/director/schools/school-1/academic/available-questions?*',route=>json(route,{items:[{id:'q-1',questionCode:'MATH-100',text:'سؤال مصدق',type:'mcq',imageUrl:'',imageAlt:'',currentVersion:1}],hasMore:false}));
+  await page.route('**/api/school-access/director/schools/school-1/academic/available-questions?*',route=>{
+    const pageNumber=new URL(route.request().url()).searchParams.get('page');
+    return json(route,pageNumber==='2'?{items:[{id:'q-2',questionCode:'MATH-101',text:'سؤال الصفحة التالية',type:'mcq',imageUrl:'',imageAlt:'',currentVersion:1}],hasMore:false}:{items:[{id:'q-1',questionCode:'MATH-100',text:'سؤال مصدق',type:'mcq',imageUrl:'',imageAlt:'',currentVersion:1}],hasMore:true});
+  });
   await page.goto('/school-director-dashboard');
   await openDirectorSection(page,'اختبارات المدرسة');
   await page.getByRole('button',{name:'إنشاء اختبار',exact:true}).click();
@@ -274,9 +277,12 @@ test('whole-school assessment needs an explicit school audience and no class',as
   await page.getByLabel('مسار الاختبار المدرسي').selectOption('path-1');
   await page.getByLabel('مادة الاختبار المدرسي').selectOption('subject-1');
   await page.getByLabel('اختيار السؤال MATH-100').check();
+  await page.getByRole('button',{name:'التالي'}).click();
+  await expect(page.getByText('سؤال الصفحة التالية')).toBeVisible();
+  await page.getByLabel('اختيار السؤال MATH-101').check();
   await page.getByRole('button',{name:'إنشاء ونشر للطلاب المستهدفين'}).click();
   await expect(page.getByRole('button',{name:'إنشاء اختبار',exact:true})).toBeVisible();
-  expect(payload).toMatchObject({targetScope:'school',classId:'',questionIds:['q-1']});
+  expect(payload).toMatchObject({targetScope:'school',classId:'',questionIds:['q-1','q-2']});
 });
 
 test('assessment cards ignore a late A response after A to B to A, on all target widths',async({page})=>{

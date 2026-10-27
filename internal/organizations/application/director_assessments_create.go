@@ -58,15 +58,15 @@ func (s *Service) DirectorCreateAssessment(
 
 // Do not widen the staff question-bank endpoint to the school_admin role.
 func (s *Service) DirectorAssessmentQuestions(
-	ctx context.Context, actor identity.User, schoolID, pathID, subjectID, search string, limit int,
+	ctx context.Context, actor identity.User, schoolID, pathID, subjectID, search string, page, limit int,
 ) (org.DirectorAssessmentQuestionPage, error) {
 	if !directorSchoolUUIDPattern.MatchString(strings.TrimSpace(pathID)) ||
 		!directorSchoolUUIDPattern.MatchString(strings.TrimSpace(subjectID)) ||
-		limit < 1 || limit > 50 || len(search) > 120 {
+		page < 1 || page > 10000 || limit < 1 || limit > 50 || len(search) > 120 {
 		return org.DirectorAssessmentQuestionPage{}, ErrInvalidInput
 	}
 	if err := s.requireDirectorCapability(ctx, actor, schoolID, org.PermissionSchoolAssessmentsManage, org.ModuleSchoolAssessments); err != nil {
 		return org.DirectorAssessmentQuestionPage{}, err
 	}
-	return s.repo.DirectorAssessmentQuestions(ctx, actor.ID, strings.TrimSpace(schoolID), strings.TrimSpace(pathID), strings.TrimSpace(subjectID), strings.TrimSpace(search), limit)
+	return s.repo.DirectorAssessmentQuestions(ctx, actor.ID, strings.TrimSpace(schoolID), strings.TrimSpace(pathID), strings.TrimSpace(subjectID), strings.TrimSpace(search), page, limit)
 }

@@ -94,6 +94,7 @@ func (h *LegacyHandler) directorAvailableAssessmentQuestions(w http.ResponseWrit
 		return
 	}
 	limit := 30
+	pageNumber := 1
 	if value := r.URL.Query().Get("limit"); value != "" {
 		parsed, err := strconv.Atoi(value)
 		if err != nil {
@@ -102,9 +103,17 @@ func (h *LegacyHandler) directorAvailableAssessmentQuestions(w http.ResponseWrit
 		}
 		limit = parsed
 	}
+	if value := r.URL.Query().Get("page"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil {
+			writeError(w, orgapp.ErrInvalidInput)
+			return
+		}
+		pageNumber = parsed
+	}
 	page, err := h.service.DirectorAssessmentQuestions(r.Context(), auth.User,
 		chi.URLParam(r, "schoolId"), r.URL.Query().Get("pathId"),
-		r.URL.Query().Get("subjectId"), r.URL.Query().Get("search"), limit)
+		r.URL.Query().Get("subjectId"), r.URL.Query().Get("search"), pageNumber, limit)
 	if err != nil {
 		writeError(w, err)
 		return
