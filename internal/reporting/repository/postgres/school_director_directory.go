@@ -5,13 +5,19 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	org "github.com/nasef6464/almeaago/internal/organizations/domain"
 )
 
+type directorQueryer interface {
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
 type SchoolDirectorDirectory struct {
-	db *pgxpool.Pool
+	db directorQueryer
 }
 
 func NewSchoolDirectorDirectory(db *pgxpool.Pool) *SchoolDirectorDirectory {
