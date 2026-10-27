@@ -90,6 +90,20 @@ func TestLegacyDirectorOverviewHasSixCanonicalMetricsAndSchoolScope(t *testing.T
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body=%s", response.Code, response.Body.String())
 	}
+	var raw struct {
+		Metrics map[string]json.RawMessage `json:"metrics"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &raw); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"students", "classes", "teachers", "supervisors", "schoolAssessments", "completedSmartClasses"} {
+		if _, ok := raw.Metrics[key]; !ok {
+			t.Fatalf("missing literal Node-compatible JSON metric %q in %s", key, response.Body.String())
+		}
+	}
+	if len(raw.Metrics) != 6 {
+		t.Fatalf("unexpected extra metrics: %v", raw.Metrics)
+	}
 	var parsed struct {
 		School  orgdomain.DirectorOverviewSchool  `json:"school"`
 		Metrics orgdomain.DirectorOverviewMetrics `json:"metrics"`
