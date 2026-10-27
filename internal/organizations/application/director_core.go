@@ -13,6 +13,7 @@ import (
 var directorSchoolUUIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 type DirectorDirectory interface {
+	DirectorAssessments(ctx context.Context, schoolID string) (org.DirectorAssessmentWorkspace, error)
 	DirectorOverview(
 		ctx context.Context,
 		schoolID string,
@@ -26,6 +27,20 @@ type DirectorDirectory interface {
 		ctx context.Context,
 		schoolID string,
 	) (org.DirectorTeacherWorkspace, error)
+}
+
+func (s *Service) DirectorAcademicAssessments(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+) (org.DirectorAssessmentWorkspace, error) {
+	if err := s.requireDirectorCapability(ctx, actor, schoolID, org.PermissionSchoolAssessmentsManage, org.ModuleSchoolAssessments); err != nil {
+		return org.DirectorAssessmentWorkspace{}, err
+	}
+	if s.directorDirectory == nil {
+		return org.DirectorAssessmentWorkspace{}, ErrForbidden
+	}
+	return s.directorDirectory.DirectorAssessments(ctx, strings.TrimSpace(schoolID))
 }
 
 func (s *Service) DirectorOverview(
