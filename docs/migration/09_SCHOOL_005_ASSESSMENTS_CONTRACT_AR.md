@@ -2,7 +2,7 @@
 
 **مرجع الدراسة:** 2026-10-27. **مصدر الحقيقة:** `almeaacodax` (Node/React/MongoDB). **الهدف:** `almeaago` (Go/React/PostgreSQL) بعد دمج SCHOOL-004 في `30b584474ab68036ebaf478fc01108b1f935d7cc`.
 
-**الحالة:** `005A STARTED / CAPABILITY GATE IMPLEMENTED; LISTING NOT STARTED` — هذه خريطة تنفيذ مبنية على ملفات فعلية، وليست إعلان نقل أو تطابق. سجل التنفيذ في `10_SCHOOL_005A_EXECUTION_LOG_AR.md`.
+**الحالة:** `005A IMPLEMENTED IN DRAFT PR / DATABASE AND BROWSER CI VERIFICATION PENDING` — نُفذت واجهة القراءة والقائمة وSQL في الفرع، ولم يثبت بعد تطابق الإنتاج أو نجاح PostgreSQL الفعلي حتى تظهر نتيجة CI. سجل التنفيذ في `10_SCHOOL_005A_EXECUTION_LOG_AR.md`.
 
 ## 1. ما الذي يعده المستخدم «اختبارات المدرسة»؟
 
@@ -36,11 +36,12 @@
 | --- | --- | --- |
 | `Quiz` وتاريخ النشر | `assessments`, `assessment_versions`, `workflow_status`, `published_version` | الدومين موجود لكن لا يسمح حاليًا بدور `school_admin` في خدمة الكتابة العامة |
 | `questionIds` المعتمدة | `questions`, `question_versions`, `assessment_version_questions` | `validateRefs` الحالي يتحقق من أن السؤال غير مؤرشف، **وليس أن workflow_status = approved**؛ يجب فرض شرط المصدر في أمر إنشاء المدرسة |
-| `targetGroupIds=[schoolId/classId]` | `assessment_assignments.school_id`, `assessment_assignment_classes` | `school_id` نطاق المؤسسة وليس دليلًا كافيًا على «كل الطلاب مستهدفون». يحتاج تمثيل جمهور `school` صريحًا مع اختبار رفض widening |
+| `targetGroupIds=[schoolId/classId]` | `assessment_assignments.school_id`, `assessment_assignment_classes` + migration `000042` | أُضيف `targets_entire_school` المنفصل؛ قائمة المدير لا تعتبر `school_id` وحده استهدافًا، واختبار PostgreSQL على CI هو بوابة التحقق |
 | `targetUserIds` | `assessment_assignment_users` | قائمة/تقرير مدير المدرسة لا تعرض طالبًا خارج عضويته الصحيحة ولو استُهدف بمعرف مباشر |
 | قفل المحتوى بعد النشر/المحاولات | `assessment_attempts`, `assessment_results`, version/revision | يلزم خدمة سياق وإذن مخصصة لإعادة استخدام API المدرسة، لا فتح محرر المنصة خامًا |
 | مسار/مادة وأسئلة | `paths`, `subjects`, `questions` والعلاقات | تحقق server-side من التطابق الحقيقي والتصريح، وليس مجرد select في React |
 | التذكير/إعادة الفتح | خدمات assignment/session الحالية | يلزم mapping أوامر هوية وتدقيق وتوقيت مستقل؛ **لم يُثبت تكافؤها بعد** |
+| مسودة اختبار مركزي بلا مستهدفين | `assessments.is_school_central_draft` في migration `000042` | التمثيل صريح، والقيمة الافتراضية false؛ يجب تعيينها أثناء إنشاء أو استيراد المسودة فقط بعد التحقق من `mode: central` في المصدر |
 
 **قرار هندسي أولي:** الاحتفاظ بواجهة React القديمة قدر الإمكان والهوية/الألوان/التسميات، مع خدمة `SchoolDirectorAssessment` في Go تُستخدم من مسارات `/api/school-access/director/...`، وتستدعي primitives الدومين الموجود بدل تكرار قواعد التصحيح/الدرجات. أي تغيير مخطط PostgreSQL يظل migration إصدار جديد additive مع فحوص rollback، لا إعادة كتابة بيانات المستخدم.
 
@@ -49,6 +50,7 @@
 ### SCHOOL-005A — إظهار القائمة ونطاقها
 
 - اختبار سلبي أولًا: دور آخر أو مدرسة بلا إذن/وحدة → `403`؛ مدير أ لا يرى مسودات خاصة بمدرسة ب؛ المستخدم المستهدف مباشرة من خارج المدرسة لا يدخل القائمة؛ UUID غير صالح → `4xx`.
+- التنفيذ الحالي: `GET /api/school-access/director/schools/{schoolId}/academic/assessments` مفوض بالخادم، وبطاقات قراءة فقط دون أزرار تحرير/نتائج شكلية؛ `dueDate` غير مضمن مؤقتًا لأن PostgreSQL يدعم أكثر من موعد لنفس الاختبار.
 - تثبيت Query يدمج استهداف المدرسة والفصول والأفراد، ومسودات المدرسة الخالصة، مع `DISTINCT` و`ORDER BY created_at DESC` وحد Node. اختبارات PostgreSQL ضد **المخطط الحقيقي المهاجر** وليس mock schema.
 - إظهار القائمة والعدد في تبويب مع شرط صلاحية، حفظ ترتيب الأقسام، وعدم إرسال طلب بلا إذن. Playwright للتبديل المتأخر وأحجام 360–1920px.
 
