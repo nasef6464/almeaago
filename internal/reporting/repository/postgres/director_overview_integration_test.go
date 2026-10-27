@@ -116,4 +116,93 @@ func TestDirectorOverviewCountsRealSchoolAudiencePostgres(t *testing.T) {
 	if other.Metrics.Students != 1 || other.Metrics.Classes != 1 || other.Metrics.Teachers != 1 || other.Metrics.Supervisors != 1 || other.Metrics.SchoolAssessments != 1 || other.Metrics.CompletedSmartClasses != 1 {
 		t.Fatalf("cross-school leak or wrong school B counters: %+v", other.Metrics)
 	}
+
+	// Source Node lists targeted school assessments (including unpublished
+	// targeted school drafts) and excludes the other school's private items.
+	workspace, err := directory.DirectorAssessments(ctx, schoolA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(workspace.Assessments) != 3 || len(workspace.Classes) != 2 {
+		t.Fatalf("school A assessment workspace has incorrect audience: %+v", workspace)
+	}
+	for _, item := range workspace.Assessments {
+		if item.ID == "00000000-0000-0000-0000-000000000604" {
+			t.Fatalf("school B private assessment leaked to A: %+v", item)
+		}
+	}
+	workspaceB, err := directory.DirectorAssessments(ctx, schoolB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(workspaceB.Assessments) != 1 || workspaceB.Assessments[0].ID != "00000000-0000-0000-0000-000000000604" {
+		t.Fatalf("school B assessment workspace incorrect: %+v", workspaceB)
+	}
+
+	// Negative audiences: scope-only assignment, wrong-school classroom,
+	// outside-school student; positive explicit whole-school and central draft.
+	if _, err := tx.Exec(ctx, `SET CONSTRAINTS ALL DEFERRED`); err != nil {
+		t.Fatal(err)
+	}
+	additional := []string{
+		`INSERT INTO assessments(id,assessment_code,owner_type,owner_school_id,workflow_status,current_version,published_version,is_published,is_school_central_draft) VALUES
+		 ('00000000-0000-0000-0000-000000000605','OVERVIEW-605','school','` + schoolA + `','approved',1,1,true,false),
+		 ('00000000-0000-0000-0000-000000000606','OVERVIEW-606','school','` + schoolA + `','draft',1,NULL,false,true),
+		 ('00000000-0000-0000-0000-000000000607','OVERVIEW-607','platform',NULL,'approved',1,1,true,false),
+		 ('00000000-0000-0000-0000-000000000608','OVERVIEW-608','platform',NULL,'approved',1,1,true,false),
+		 ('00000000-0000-0000-0000-000000000609','OVERVIEW-609','platform',NULL,'approved',1,1,true,false)`,
+		`INSERT INTO assessment_versions(assessment_id,version,title,path_id,subject_id,assessment_kind,normal_mode,version_status,published_at) VALUES
+		 ('00000000-0000-0000-0000-000000000605',1,'نطاق بلا جمهور','` + pathID + `','` + subjectID + `','normal','exam','published',now()),
+		 ('00000000-0000-0000-0000-000000000606',1,'مسودة مركزية','` + pathID + `','` + subjectID + `','normal','exam','draft',NULL),
+		 ('00000000-0000-0000-0000-000000000607',1,'فصل في مدرسة أخرى','` + pathID + `','` + subjectID + `','normal','exam','published',now()),
+		 ('00000000-0000-0000-0000-000000000608',1,'اختبار المدرسة كلها','` + pathID + `','` + subjectID + `','normal','exam','published',now()),
+		 ('00000000-0000-0000-0000-000000000609',1,'طالب خارج المدرسة','` + pathID + `','` + subjectID + `','normal','exam','published',now())`,
+		`INSERT INTO assessment_assignments(id,assessment_id,assessment_version,school_id,status,created_by,targets_entire_school) VALUES
+		 ('00000000-0000-0000-0000-000000000705','00000000-0000-0000-0000-000000000605',1,'` + schoolA + `','active','` + teacher + `',false),
+		 ('00000000-0000-0000-0000-000000000707','00000000-0000-0000-0000-000000000607',1,'` + schoolB + `','active','` + teacher + `',false),
+		 ('00000000-0000-0000-0000-000000000708','00000000-0000-0000-0000-000000000608',1,'` + schoolA + `','active','` + teacher + `',true),
+		 ('00000000-0000-0000-0000-000000000709','00000000-0000-0000-0000-000000000609',1,'` + schoolA + `','active','` + teacher + `',false),
+		 ('00000000-0000-0000-0000-000000000710','00000000-0000-0000-0000-000000000608',1,'` + schoolA + `','active','` + teacher + `',true)`,
+		`INSERT INTO assessment_assignment_classes(assignment_id,class_id) VALUES ('00000000-0000-0000-0000-000000000707','` + classA + `')`,
+		`INSERT INTO assessment_assignment_users(assignment_id,user_id) VALUES ('00000000-0000-0000-0000-000000000709','` + studentOther + `')`,
+	}
+	for _, sql := range additional {
+		if _, err := tx.Exec(ctx, sql); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := tx.Exec(ctx, `SET CONSTRAINTS ALL IMMEDIATE`); err != nil {
+		t.Fatal(err)
+	}
+	updated, err := directory.DirectorAssessments(ctx, schoolA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(updated.Assessments) != 5 {
+		t.Fatalf("expected 3 targeted, 1 whole-school, 1 central draft; got %+v", updated.Assessments)
+	}
+	seen := map[string]orgDirectorAssessmentProbe{}
+	for _, item := range updated.Assessments {
+		seen[item.ID] = orgDirectorAssessmentProbe{groups: item.TargetGroupIDs, published: item.IsPublished}
+	}
+	for _, forbidden := range []string{"605", "607", "609"} {
+		if _, exists := seen["00000000-0000-0000-0000-000000000"+forbidden]; exists {
+			t.Fatalf("assessment %s widened school audience", forbidden)
+		}
+	}
+	if len(seen["00000000-0000-0000-0000-000000000608"].groups) != 1 || seen["00000000-0000-0000-0000-000000000608"].groups[0] != schoolA {
+		t.Fatalf("whole school target not explicit: %+v", seen)
+	}
+	if seen["00000000-0000-0000-0000-000000000606"].published {
+		t.Fatal("central school draft must remain unpublished")
+	}
+	updatedOverview, err := directory.DirectorOverview(ctx, schoolA)
+	if err != nil || updatedOverview.Metrics.SchoolAssessments != 3 {
+		t.Fatalf("overview published audience count must include explicit school once: %+v err=%v", updatedOverview.Metrics, err)
+	}
+}
+
+type orgDirectorAssessmentProbe struct {
+	groups    []string
+	published bool
 }
