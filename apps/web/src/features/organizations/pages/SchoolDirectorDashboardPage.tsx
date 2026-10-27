@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
-import type { TaxonomySubject } from '../../content/api/content-types';
+import type { TaxonomyPath, TaxonomySubject } from '../../content/api/content-types';
+import { DirectorAssessmentCreator } from '../components/DirectorAssessmentCreator';
 import { DirectorTeacherAssignments } from '../components/DirectorTeacherAssignments';
 import { SchoolDirectorBreadcrumb, SchoolDirectorSectionNav, directorNavItems, type DirectorSectionID } from '../components/SchoolDirectorSectionNav';
 import {
@@ -35,8 +36,11 @@ export function SchoolDirectorDashboardPage(){
   const [assessmentWorkspace,setAssessmentWorkspace]=useState<DirectorAssessmentWorkspace|null>(null);
   const [assessmentLoading,setAssessmentLoading]=useState(false);
   const [assessmentError,setAssessmentError]=useState('');
+  const [assessmentReload,setAssessmentReload]=useState(0);
+  const [showAssessmentCreator,setShowAssessmentCreator]=useState(false);
   const [activeSection,setActiveSection]=useState<DirectorSectionID>('overview');
   const [subjects,setSubjects]=useState<TaxonomySubject[]>([]);
+  const [paths,setPaths]=useState<TaxonomyPath[]>([]);
   const [subjectsError,setSubjectsError]=useState(false);
   const [search,setSearch]=useState('');
   const [busy,setBusy]=useState(true);
@@ -86,7 +90,7 @@ export function SchoolDirectorDashboardPage(){
         activeSchoolId.current===requestedSchool&&visit===schoolVisitEpoch.current)setAssessmentLoading(false);
     });
     return ()=>controller.abort();
-  },[selectedSchool?.schoolId,selectedSchool?.modules,selectedSchool?.permissions,section]);
+  },[selectedSchool?.schoolId,selectedSchool?.modules,selectedSchool?.permissions,section,assessmentReload]);
 
   useEffect(()=>{
     const controller=new AbortController();
@@ -122,10 +126,13 @@ export function SchoolDirectorDashboardPage(){
   },[authLoading,user]);
 
   useEffect(()=>{
-    if(authLoading||!user?.roles.includes('school_admin')||!schools.some(s=>s.permissions.includes('SCHOOL_TEACHERS_ASSIGN')&&s.modules.includes(CORE)))return;
+    if(authLoading||!user?.roles.includes('school_admin')||!schools.some(s=>
+      (s.permissions.includes('SCHOOL_TEACHERS_ASSIGN')&&s.modules.includes(CORE))||
+      (s.permissions.includes('SCHOOL_ASSESSMENTS_MANAGE')&&s.modules.includes('SCHOOL_ASSESSMENTS'))))return;
     const controller=new AbortController();
     contentClient.taxonomyCore(controller.signal).then(result=>{
       setSubjects(result.subjects);
+      setPaths(result.paths);
       setSubjectsError(false);
     }).catch(()=>{if(!controller.signal.aborted)setSubjectsError(true)});
     return()=>controller.abort();
@@ -166,6 +173,7 @@ export function SchoolDirectorDashboardPage(){
     setClasses([]);setStudents([]);setStudentTotal(0);setTeachers([]);setAssignments([]);
     setAssignment({teacherId:'',classId:'',subjectId:'',status:'active'});
     setShowAdd(false);
+    setShowAssessmentCreator(false);
     setDraft({name:'',email:'',password:'',classId:''});
     setEditing({studentId:'',name:'',phone:''});
     setNewClassName('');
@@ -331,7 +339,11 @@ export function SchoolDirectorDashboardPage(){
     </section>:null}
 
     {section==='assessments'&&has('SCHOOL_ASSESSMENTS_MANAGE')&&selectedSchool.modules.includes('SCHOOL_ASSESSMENTS')?<section aria-label="اختبارات المدرسة" className="mt-7 min-w-0 rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black text-indigo-600">التعلم والمتابعة</p><h2 className="mt-1 text-xl font-black">اختبارات المدرسة</h2></div><span className="rounded-xl bg-indigo-50 px-4 py-2 text-sm font-black text-indigo-800">{assessmentWorkspace?.assessments.length??'—'} اختبار</span></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black text-indigo-600">التعلم والمتابعة</p><h2 className="mt-1 text-xl font-black">اختبارات المدرسة</h2></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-xl bg-indigo-50 px-4 py-2 text-sm font-black text-indigo-800">{assessmentWorkspace?.assessments.length??'—'} اختبار</span><button type="button" onClick={()=>setShowAssessmentCreator(x=>!x)} className="inline-flex items-center gap-1 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-black text-white"><Plus size={16}/> {showAssessmentCreator?'إغلاق النموذج':'إنشاء اختبار'}</button></div></div>
+      {showAssessmentCreator&&assessmentWorkspace?<DirectorAssessmentCreator key={`${selectedSchool.schoolId}-${schoolVisitEpoch.current}`} schoolId={selectedSchool.schoolId} classes={assessmentWorkspace.classes} paths={paths} subjects={subjects} getCsrfToken={getCsrfToken} onCreated={()=>{
+        if(activeSchoolId.current!==selectedSchool.schoolId)return;
+        setShowAssessmentCreator(false);setAssessmentReload(x=>x+1);setOverviewReload(x=>x+1);setNotice('تم إنشاء اختبار المدرسة ونشره للطلاب المستهدفين.');
+      }} onClose={()=>setShowAssessmentCreator(false)}/>:null}
       {assessmentLoading?<p role="status" className="mt-5 text-sm font-bold text-slate-500">جار تحميل اختبارات المدرسة…</p>:null}
       {assessmentError?<p role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{assessmentError}</p>:null}
       {!assessmentLoading&&!assessmentError&&assessmentWorkspace?.assessments.length===0?<p className="mt-5 rounded-xl border border-dashed p-5 text-sm text-slate-500">لا توجد اختبارات موجهة لهذه المدرسة حاليًا.</p>:null}
@@ -341,7 +353,7 @@ export function SchoolDirectorDashboardPage(){
           (item.isPublished?'طلاب محددون':'مسودة مركزية');
         return <article key={item.id} className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-2"><h3 className="min-w-0 flex-1 break-words font-black text-slate-900">{item.title}</h3><span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${item.isPublished?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-amber-800'}`}>{item.isPublished?'منشور':'غير منشور'}</span></div><p className="mt-3 break-words text-xs font-bold text-slate-600">الاستهداف: {audience}</p></article>;
       })}</div>:null}
-      <p className="mt-5 text-xs leading-6 text-slate-500">عرض مخصص للمدرسة وصلاحياتها. إنشاء الاختبار والنتائج والإدارة ستُفعّل بعد اكتمال واجهاتها الآمنة.</p>
+      <p className="mt-5 text-xs leading-6 text-slate-500">اختبارات المدرسة وإنشاؤها موجّهة للطلاب المستهدفين فقط. إدارة النتائج وتحرير الاختبارات ستُفعّل بعد اكتمال صلاحياتها الآمنة.</p>
     </section>:null}
 
     {section==='students'&&has('SCHOOL_STUDENTS_VIEW')?<section className="mt-7 rounded-3xl border bg-white p-5 shadow-sm sm:p-6">

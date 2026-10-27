@@ -31,6 +31,13 @@ export interface DirectorAssessmentWorkspace{
   assessments:DirectorAssessment[];
   classes:{classId:string;className:string}[];
 }
+export interface DirectorAssessmentQuestion{
+  id:string;questionCode:string;text:string;type:string;imageUrl:string;imageAlt:string;currentVersion:number;
+}
+export interface DirectorAssessmentQuestionPage{items:DirectorAssessmentQuestion[];hasMore:boolean}
+export interface DirectorAssessmentCreateInput{
+  title:string;targetScope:'school'|'class';classId:string;pathId:string;subjectId:string;questionIds:string[];
+}
 const BASE=(import.meta.env.VITE_API_BASE_URL??'').replace(/\/$/,'');
 async function request<T>(path:string,init:RequestInit={}):Promise<T>{
   const r=await fetch(BASE+path,{...init,credentials:'include',headers:{Accept:'application/json',...(init.body?{'Content-Type':'application/json'}:{}),...init.headers}});
@@ -52,6 +59,15 @@ export const organizationsClient={
   },
   directorAssessments(schoolId:string,signal?:AbortSignal){
     return request<DirectorAssessmentWorkspace>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/assessments`,{signal});
+  },
+  directorAssessmentQuestions(schoolId:string,pathId:string,subjectId:string,search:string,signal?:AbortSignal){
+    const q=new URLSearchParams({pathId,subjectId,search,limit:'30'});
+    return request<DirectorAssessmentQuestionPage>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/available-questions?${q}`,{signal});
+  },
+  createDirectorAssessment(schoolId:string,input:DirectorAssessmentCreateInput,csrf:string,requestKey:string){
+    return request<{assessment:{assessmentId:string;title:string;classId:string;targetScope:'school'|'class'}}>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/assessments`,{
+      method:'POST',headers:{...csrfHeaders(csrf),'Idempotency-Key':requestKey},body:JSON.stringify(input),
+    });
   },
   classes(schoolId:string,signal?:AbortSignal){
     return request<{classes:SchoolClass[];pagination:{page:number;limit:number;total:number;totalPages:number}}>(

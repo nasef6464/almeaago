@@ -41,6 +41,14 @@ type repoStub struct {
 	lastDirectorOverviewSchool string
 }
 
+func (r *repoStub) DirectorCreateAssessment(_ context.Context, _ string, _ string, input orgdomain.DirectorAssessmentCreate) (orgdomain.DirectorAssessmentCreated, error) {
+	return orgdomain.DirectorAssessmentCreated{AssessmentID: "00000000-0000-0000-0000-000000000999", Title: input.Title, ClassID: input.ClassID, TargetScope: input.TargetScope}, nil
+}
+
+func (r *repoStub) DirectorAssessmentQuestions(_ context.Context, _, _, _, _, _ string, _ int) (orgdomain.DirectorAssessmentQuestionPage, error) {
+	return orgdomain.DirectorAssessmentQuestionPage{Items: []orgdomain.DirectorAssessmentQuestion{}}, nil
+}
+
 func (r *repoStub) ParentAuthority(_ context.Context, _ string) (orgdomain.ParentAuthority, error) {
 	return r.parentAuthority, nil
 }

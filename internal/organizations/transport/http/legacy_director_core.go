@@ -2,6 +2,7 @@ package organizationshttp
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -50,6 +51,65 @@ func (h *LegacyHandler) directorAcademicAssessments(w http.ResponseWriter, r *ht
 		return
 	}
 	writeJSON(w, http.StatusOK, workspace)
+}
+
+func (h *LegacyHandler) directorCreateAcademicAssessment(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authenticate(w, r, true)
+	if !ok {
+		return
+	}
+	var payload struct {
+		Title       string   `json:"title"`
+		ClassID     string   `json:"classId"`
+		TargetScope string   `json:"targetScope"`
+		PathID      string   `json:"pathId"`
+		SubjectID   string   `json:"subjectId"`
+		QuestionIDs []string `json:"questionIds"`
+	}
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+	created, err := h.service.DirectorCreateAssessment(
+		r.Context(), auth.User, chi.URLParam(r, "schoolId"),
+		orgdomain.DirectorAssessmentCreate{
+			Title:       payload.Title,
+			ClassID:     payload.ClassID,
+			TargetScope: payload.TargetScope,
+			PathID:      payload.PathID,
+			SubjectID:   payload.SubjectID,
+			QuestionIDs: payload.QuestionIDs,
+			RequestKey:  r.Header.Get("Idempotency-Key"),
+		},
+	)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"assessment": created})
+}
+
+func (h *LegacyHandler) directorAvailableAssessmentQuestions(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	limit := 30
+	if value := r.URL.Query().Get("limit"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil {
+			writeError(w, orgapp.ErrInvalidInput)
+			return
+		}
+		limit = parsed
+	}
+	page, err := h.service.DirectorAssessmentQuestions(r.Context(), auth.User,
+		chi.URLParam(r, "schoolId"), r.URL.Query().Get("pathId"),
+		r.URL.Query().Get("subjectId"), r.URL.Query().Get("search"), limit)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, page)
 }
 
 func (h *LegacyHandler) directorStudents(w http.ResponseWriter, r *http.Request) {
