@@ -153,3 +153,32 @@ func TestDirectorAssessmentCapabilityRequiresRolePermissionAndActiveModule(t *te
 		})
 	}
 }
+
+func TestDirectorAcademicAssessmentsDelegatesOnlyAfterExactSchoolCapability(t *testing.T) {
+	const schoolA = "00000000-0000-0000-0000-000000000101"
+	const schoolB = "00000000-0000-0000-0000-000000000102"
+	ctx := org.SchoolContext{
+		SchoolID: schoolA, Role: identity.RoleSchoolAdmin,
+		Permissions: []string{org.PermissionSchoolAssessmentsManage},
+		Modules:     []string{string(org.ModuleSchoolAssessments)},
+	}
+	repo := &repositoryMock{contexts: []org.SchoolContext{ctx}}
+	service := NewService(repo, repo)
+	got, err := service.DirectorAcademicAssessments(context.Background(), schoolAdminActor(), schoolA)
+	if err != nil || repo.lastDirectorAssessmentsSchool != schoolA || got.Assessments == nil {
+		t.Fatalf("authorized read failed: %+v, err=%v, directory=%q", got, err, repo.lastDirectorAssessmentsSchool)
+	}
+	if _, err := service.DirectorAcademicAssessments(context.Background(), schoolAdminActor(), schoolB); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("cross-school read was not denied: %v", err)
+	}
+	if repo.lastDirectorAssessmentsSchool != schoolA {
+		t.Fatalf("denied read reached database: %s", repo.lastDirectorAssessmentsSchool)
+	}
+	repo.contexts[0].Modules = nil
+	if _, err := service.DirectorAcademicAssessments(context.Background(), schoolAdminActor(), schoolA); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expired module did not deny request: %v", err)
+	}
+	if _, err := service.DirectorAcademicAssessments(context.Background(), schoolAdminActor(), "invalid-uuid"); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("bad UUID should fail before database request: %v", err)
+	}
+}
