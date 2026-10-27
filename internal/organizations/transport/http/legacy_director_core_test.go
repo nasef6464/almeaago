@@ -125,3 +125,45 @@ func TestLegacyDirectorOverviewHasSixCanonicalMetricsAndSchoolScope(t *testing.T
 		t.Fatalf("cross-school read was not denied: status=%d directorySchool=%q", denied.Code, repo.lastDirectorOverviewSchool)
 	}
 }
+
+func TestLegacyDirectorAcademicAssessmentsRequiresModuleAndSchoolPermission(t *testing.T) {
+	const schoolA = "00000000-0000-0000-0000-000000000101"
+	const schoolB = "00000000-0000-0000-0000-000000000102"
+	repo := &repoStub{contexts: []orgdomain.SchoolContext{{
+		SchoolID: schoolA, Role: identitydomain.RoleSchoolAdmin,
+		Permissions: []string{orgdomain.PermissionSchoolAssessmentsManage},
+		Modules:     []string{string(orgdomain.ModuleSchoolAssessments)},
+	}}}
+	handler := NewLegacy(orgapp.NewService(repo, repo), authStub{auth: schoolAdminAuth()})
+	request := func(school string) *httptest.ResponseRecorder {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/director/schools/"+school+"/academic/assessments", nil))
+		return response
+	}
+	authorized := request(schoolA)
+	if authorized.Code != http.StatusOK {
+		t.Fatalf("authorized GET: status %d: %s", authorized.Code, authorized.Body.String())
+	}
+	var body map[string]json.RawMessage
+	if err := json.Unmarshal(authorized.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if string(body["assessments"]) != "[]" || string(body["classes"]) != "[]" {
+		t.Fatalf("wrong empty workspace response: %s", authorized.Body.String())
+	}
+	if denied := request(schoolB); denied.Code != http.StatusForbidden {
+		t.Fatalf("cross-school access: %d", denied.Code)
+	}
+	if denied := request("bad-uuid"); denied.Code != http.StatusBadRequest {
+		t.Fatalf("malformed UUID: %d", denied.Code)
+	}
+	repo.contexts[0].Modules = nil
+	if denied := request(schoolA); denied.Code != http.StatusForbidden {
+		t.Fatalf("missing contract: %d", denied.Code)
+	}
+	repo.contexts[0].Modules = []string{string(orgdomain.ModuleSchoolAssessments)}
+	repo.contexts[0].Permissions = nil
+	if denied := request(schoolA); denied.Code != http.StatusForbidden {
+		t.Fatalf("missing permission: %d", denied.Code)
+	}
+}
