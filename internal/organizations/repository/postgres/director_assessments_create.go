@@ -56,7 +56,7 @@ func listDirectorAssessmentQuestions(ctx context.Context, q directorAssessmentQu
 		JOIN question_versions qv ON qv.question_id=q.id AND qv.version=q.current_version
 		LEFT JOIN assets a ON a.id=qv.image_asset_id AND a.status='active'
 		WHERE q.workflow_status='approved' AND q.path_id=$3::uuid AND q.subject_id=$4::uuid
-		  AND (qv.question_type='essay' OR qv.correct_option_index IS NOT NULL)
+		  AND qv.question_type IN ('mcq','true_false') AND qv.correct_option_index IS NOT NULL
 		  AND ($5='' OR q.question_code ILIKE '%'||$5||'%' OR qv.text_content ILIKE '%'||$5||'%')
 		  AND EXISTS (
 		    SELECT 1 FROM schools s
@@ -231,7 +231,7 @@ func createDirectorAssessmentTx(
 			JOIN question_versions qv ON qv.question_id=q.id AND qv.version=q.current_version
 			WHERE q.id=$1::uuid AND q.path_id=$2::uuid AND q.subject_id=$3::uuid
 			  AND q.workflow_status='approved'
-			  AND (qv.question_type='essay' OR qv.correct_option_index IS NOT NULL)
+			  AND qv.question_type IN ('mcq','true_false') AND qv.correct_option_index IS NOT NULL
 			FOR SHARE OF q,qv
 		`, questionID, input.PathID, input.SubjectID).Scan(&currentVersion)
 		if errors.Is(err, pgx.ErrNoRows) {

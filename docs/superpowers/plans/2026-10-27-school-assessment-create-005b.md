@@ -39,9 +39,9 @@
 
 **Interfaces:** `DirectorAssessmentCreate{Title,ClassID,TargetScope,PathID,SubjectID,QuestionIDs,RequestKey}` and `Service.DirectorCreateAssessment(ctx,actor,schoolID,input)` return `{AssessmentID,Title,ClassID,TargetScope}`.
 
-- [ ] RED: invalid role/school/permission/module, blank title, invalid path ID, no questions, invalid targetScope, class-without-classId, duplicates normalized in stable order, invalid request key.
-- [ ] GREEN: strictly normalize/validate before delegation; apply `requireDirectorCapability`; keep schoolID server-validated, never adopt client-provided owner.
-- [ ] Run Go application and HTTP tests, commit.
+- [x] RED: invalid role/school/permission/module, blank title, invalid path ID, no questions, invalid targetScope, class-without-classId, duplicates normalized in stable order, invalid request key.
+- [x] GREEN: strictly normalize/validate before delegation; apply `requireDirectorCapability`; keep schoolID server-validated, never adopt client-provided owner.
+- [x] Run Go application and HTTP tests, commit.
 
 ### Task 2: Transactional PostgreSQL write and deduplication
 
@@ -49,8 +49,8 @@
 
 **Interfaces:** repository `DirectorCreateAssessment(ctx,actorID,schoolID,input)`; all SQL in a single serializable/locked transaction with rollback-on-error. Reuse `assessments`, `assessment_versions`, `assessment_version_questions`, `assessment_assignments`, `assessment_assignment_classes`, `targets_entire_school`, audit writer. ID fields and target group map to SCHOOL-005A read model.
 
-- [ ] RED on actual migrated public schema: invalid path/subject, unapproved/revoked/wrong-path questions, stale class, all-school branch, duplicate token, duplicate questions, no rows on failed transaction.
-- [ ] GREEN: validate refs with `FOR SHARE`/appropriate locks, choose real current question version, publish version after insert, append exactly one assignment and audit event, use idempotency key with fingerprint.
+- [x] RED on actual migrated public schema: invalid path/subject, unapproved/revoked/wrong-path questions, stale class, all-school branch, duplicate token, duplicate questions, no rows on failed transaction.
+- [x] GREEN: validate refs with `FOR SHARE`/appropriate locks, choose real current question version, publish version after insert, append exactly one assignment and audit event, use idempotency key with fingerprint.
 - [ ] Verify `go test ./internal/organizations/repository/postgres -run '^TestDirectorCreateAssessmentPostgres$' -v` in Database CI, plus negative constraints; commit.
 
 ### Task 3: Node-compatible HTTP API
@@ -59,15 +59,20 @@
 
 **Interface:** `POST /api/school-access/director/schools/{schoolId}/academic/assessments`, body `{title, classId, targetScope, pathId, subjectId, questionIds}`, idempotency key header; response 201 with `{assessment:{assessmentId,title,classId,targetScope}}` and safe 409 duplicate conflict.
 
-- [ ] RED 201 success, 400 invalid selection, 403 wrong school/module/permission, CSRF denial, no same-school-wide inference from empty class.
-- [ ] GREEN with server context and transaction, `go test ./internal/organizations/transport/http/...`; commit.
+- [x] RED 201 success, 400 invalid selection, 403 wrong school/module/permission, CSRF denial, no same-school-wide inference from empty class.
+- [x] GREEN with server context and transaction, `go test ./internal/organizations/transport/http/...`; commit.
 
 ### Task 4: Legacy-compatible question picker and creation UI
 
 **Files:** `apps/web/src/features/organizations/pages/SchoolDirectorDashboardPage.tsx`, separate picker form component, `organizations-client.ts`, E2E tests.
 
-- [ ] RED: school/class mode selection, only approved bank questions, image-based content, form validation; reject hidden module and stale A→B→A response; full 360/390/430/768/1024/1366/1440/1920 responsive.
-- [ ] GREEN: source-aligned form, real bank query and submission only; after create refresh authorized list and overview, no fake edit/results actions; commit.
+- [x] RED: school/class mode selection, only approved bank questions, image-based content, form validation; reject hidden module and stale A→B→A list response. The create form is browser-tested at 390px and existing card layouts at 360/390/430/768/1024/1366/1440/1920; full create-form screenshot parity remains a SCHOOL-005D gate.
+- [x] GREEN: source-aligned form, real bank query and submission only; after create refresh authorized list and overview, no fake edit/results actions; commit.
+
+### Safety fix discovered during review
+
+- [x] School-wide `targets_entire_school` must be accepted by **both** learner list and attempt-start only if active student membership exists in the target school; SQL branch is shared to prevent drift. Added actual database test `TestSchoolWideAssignmentLearnerAudiencePostgres` and its CI gate.
+- [ ] Reverify new HEAD in all four GitHub CI workflows after this safety fix.
 
 ### Task 5: Acceptance and evidence
 
