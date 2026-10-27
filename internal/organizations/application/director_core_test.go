@@ -102,6 +102,11 @@ func TestDirectorOverviewReturnsScopedSixMetricsOnlyWhenPermitted(t *testing.T) 
 	if _, err := service.DirectorOverview(context.Background(), actor("teacher-1", identity.RoleTeacher), school); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("teacher must be denied even if permissions are configured: %v", err)
 	}
+	repo.permissionAllowed = false
+	if _, err := service.DirectorOverview(context.Background(), schoolAdminActor(), school); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("school admin without overview permission must be denied: %v", err)
+	}
+	repo.permissionAllowed = true
 	if _, err := service.DirectorOverview(context.Background(), schoolAdminActor(), " "); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("empty school ID must fail input validation: %v", err)
 	}
