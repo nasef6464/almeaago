@@ -275,6 +275,10 @@ func (r *repoStub) DirectorOverview(_ context.Context, schoolID string) (orgdoma
 	return r.directorOverview, nil
 }
 
+func (r *repoStub) DirectorAssessments(_ context.Context, _ string) (orgdomain.DirectorAssessmentWorkspace, error) {
+	return orgdomain.DirectorAssessmentWorkspace{Assessments: []orgdomain.SchoolDirectorAssessment{}, Classes: []orgdomain.DirectorOverviewClass{}}, nil
+}
+
 func (r *repoStub) CanAccessSchool(context.Context, orgdomain.AccessContext, string) (bool, error) {
 	return true, nil
 }
