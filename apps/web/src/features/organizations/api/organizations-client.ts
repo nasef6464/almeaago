@@ -31,6 +31,13 @@ export interface DirectorAssessmentWorkspace{
   assessments:DirectorAssessment[];
   classes:{classId:string;className:string}[];
 }
+export interface DirectorAssessmentReport{
+  coverage:{complete:boolean;missingEvidence:string[];subjects:{completed:number;withEvidence:number;complete:boolean}};
+  audience:{targeted:number};
+  participation:{completed:number;notCompleted:number;started:number|null};
+  scores:{average:number|null;passRate:number|null;highest:number|null;lowest:number|null};
+  subjects:unknown[];sections:unknown[];skills:unknown[];subjectBreakdowns:unknown[];
+}
 export interface DirectorAssessmentQuestion{
   id:string;questionCode:string;text:string;type:string;imageUrl:string;imageAlt:string;currentVersion:number;
 }
@@ -59,6 +66,9 @@ export const organizationsClient={
   },
   directorAssessments(schoolId:string,signal?:AbortSignal){
     return request<DirectorAssessmentWorkspace>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/assessments`,{signal});
+  },
+  directorAssessmentReport(schoolId:string,assessmentId:string,signal?:AbortSignal){
+    return request<DirectorAssessmentReport>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/assessments/${encodeURIComponent(assessmentId)}/report`,{signal});
   },
   directorAssessmentQuestions(schoolId:string,pathId:string,subjectId:string,search:string,page:number,signal?:AbortSignal){
     const q=new URLSearchParams({pathId,subjectId,search,page:String(page),limit:'20'});

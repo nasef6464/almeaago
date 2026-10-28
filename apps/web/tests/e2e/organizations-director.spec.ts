@@ -186,12 +186,53 @@ test('school assessments list is readable only with permission and active contra
   await expect(listing).toContainText('مسودة اختبار العلوم');
   await expect(listing).toContainText('الأول أ');
   await expect(listing).toContainText('2');
-  await expect(listing.getByRole('button',{name:/نشر|حذف|تعديل|استنساخ|نتائج/})).toHaveCount(0);
+  await expect(listing.getByRole('button',{name:'النتائج والإدارة'})).toHaveCount(2);
+  await expect(listing.getByRole('button',{name:/نشر|حذف|تعديل|استنساخ/})).toHaveCount(0);
   expect(reads).toBe(1);
   await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
   await expect(page.getByRole('navigation',{name:'أقسام لوحة مدير المدرسة'}).getByRole('button',{name:'اختبارات المدرسة'})).toHaveCount(0);
   await expect(page.getByText('اختبار الرياضيات')).toHaveCount(0);
   expect(reads).toBe(1);
+});
+
+test('director report shows only persisted aggregate scores on mobile and clears across school visits',async({page})=>{
+  await mockDirector(page,['SCHOOL_CORE','SCHOOL_ASSESSMENTS']);
+  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[
+    {schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',permissions:[...permissions,'SCHOOL_ASSESSMENTS_MANAGE'],modules:['SCHOOL_CORE','SCHOOL_ASSESSMENTS'],source:'membership'},
+    {schoolId:'school-2',schoolName:'مدرسة ثانية',role:'school_admin',permissions:['SCHOOL_OVERVIEW_VIEW'],modules:['SCHOOL_CORE'],source:'membership'},
+  ]}));
+  await page.route('**/api/school-access/director/schools/school-1/academic/assessments',route=>json(route,{
+    assessments:[{id:'assessment-1',title:'اختبار النسبة',subjectId:'subject-1',isPublished:true,targetGroupIds:['class-1']}],
+    classes:[{classId:'class-1',className:'الأول أ'}],
+  }));
+  let reportCalls=0;
+  await page.route('**/api/school-access/director/schools/school-1/academic/assessments/assessment-1/report',route=>{
+    reportCalls++;
+    return json(route,{
+      coverage:{complete:false,missingEvidence:['started_attempts','subject_totals'],subjects:{completed:1,withEvidence:0,complete:false}},
+      audience:{targeted:2},participation:{completed:1,notCompleted:1,started:null},
+      scores:{average:80,passRate:100,highest:80,lowest:80},
+      subjects:[],sections:[],skills:[],subjectBreakdowns:[],
+    });
+  });
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'اختبارات المدرسة');
+  await page.getByRole('button',{name:'النتائج والإدارة'}).click();
+  const dialog=page.getByRole('dialog',{name:'النتائج والإدارة — اختبار النسبة'});
+  await expect(dialog).toBeVisible();
+  const metrics=dialog.getByLabel('ملخص نتائج الاختبار');
+  await expect(metrics.getByText('الطلاب المستهدفون').locator('..')).toContainText('٢');
+  await expect(metrics.getByText('أكملوا الاختبار',{exact:true}).locator('..')).toContainText('١');
+  await expect(metrics.getByText('متوسط الدرجات').locator('..')).toContainText('٨٠%');
+  await expect(dialog).toContainText('بيانات من بدأوا الاختبار وتحليل المواد والمهارات ليست مكتملة');
+  await expect(dialog.getByText('تفاصيل الطلاب وإجراءات تعديل أو نسخ أو إعادة فتح الاختبار')).toBeVisible();
+  expect(reportCalls).toBe(1);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await expect(page.getByRole('button',{name:'النتائج والإدارة'})).toHaveCount(0);
+  expect(reportCalls).toBe(1);
 });
 
 test('school assessments require the module as well as the permission at mobile width',async({page})=>{

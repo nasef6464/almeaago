@@ -184,4 +184,80 @@ func TestDirectorCreateAssessmentPostgres(t *testing.T) {
 	if err := tx.QueryRow(ctx, `SELECT targets_entire_school FROM assessment_assignments WHERE assessment_id=$1::uuid`, schoolCreated.AssessmentID).Scan(&wholeSchool); err != nil || !wholeSchool {
 		t.Fatalf("whole-school assignment flag missing: %v", err)
 	}
+
+	// SCHOOL-005C: the report shares the exact current school audience, but
+	// counts at most the latest submitted assigned result per learner.
+	const learnerA = "00000000-0000-0000-0000-000000001501"
+	const learnerB = "00000000-0000-0000-0000-000000001502"
+	const learnerC = "00000000-0000-0000-0000-000000001503"
+	const outside = "00000000-0000-0000-0000-000000001504"
+	const disabled = "00000000-0000-0000-0000-000000001505"
+	_, err = tx.Exec(ctx, `INSERT INTO users(id,email,name,password_hash,status) VALUES
+	 ($1,'report-a@ci.invalid','متعلم أ','test','active'),
+	 ($2,'report-b@ci.invalid','متعلم ب','test','active'),
+	 ($3,'report-c@ci.invalid','متعلم ج','test','active'),
+	 ($4,'report-out@ci.invalid','خارج المدرسة','test','active'),
+	 ($5,'report-disabled@ci.invalid','معطل','test','disabled')`, learnerA, learnerB, learnerC, outside, disabled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO school_memberships(school_id,user_id,role,status) VALUES
+	 ($1,$3,'student','active'),($1,$4,'student','active'),($1,$5,'student','active'),
+	 ($2,$6,'student','active'),($1,$7,'student','active')`, school, otherSchool, learnerA, learnerB, learnerC, outside, disabled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO class_memberships(class_id,user_id,status) VALUES
+	 ($1,$2,'active'),($1,$3,'active'),($1,$4,'active'),($1,$5,'active')`, classA, learnerA, learnerB, outside, disabled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var classAssignment, wholeAssignment string
+	if err := tx.QueryRow(ctx, `SELECT id::text FROM assessment_assignments WHERE assessment_id=$1::uuid`, created.AssessmentID).Scan(&classAssignment); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.QueryRow(ctx, `SELECT id::text FROM assessment_assignments WHERE assessment_id=$1::uuid`, schoolCreated.AssessmentID).Scan(&wholeAssignment); err != nil {
+		t.Fatal(err)
+	}
+	const attemptOld = "00000000-0000-0000-0000-000000001601"
+	const attemptNew = "00000000-0000-0000-0000-000000001602"
+	const attemptSchoolB = "00000000-0000-0000-0000-000000001603"
+	const foreignAssignment = "00000000-0000-0000-0000-000000001604"
+	_, err = tx.Exec(ctx, `INSERT INTO assessment_assignments(id,assessment_id,assessment_version,school_id,created_by)
+	 VALUES ($1,$2,1,$3,$4)`, foreignAssignment, created.AssessmentID, otherSchool, director)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO assessment_attempts(id,assessment_id,assessment_version,student_id,assignment_id,attempt_number,status,submitted_at) VALUES
+	 ($1,$4,1,$5,$6,1,'submitted',now()),($2,$4,1,$5,$6,2,'submitted',now()),
+	 ($3,$4,1,$5,$7,1,'submitted',now())`, attemptOld, attemptNew, attemptSchoolB, created.AssessmentID, learnerA, classAssignment, foreignAssignment)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO assessment_results(attempt_id,assessment_id,assessment_version,student_id,score,total_questions,correct_answers,wrong_answers,unanswered,passed,finalized_at) VALUES
+	 ($1,$4,1,$5,20,1,0,1,0,false,now()-interval '2 minutes'),
+	 ($2,$4,1,$5,80,1,1,0,0,true,now()-interval '1 minute'),
+	 ($3,$4,1,$5,5,1,0,1,0,false,now())`, attemptOld, attemptNew, attemptSchoolB, created.AssessmentID, learnerA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	classReport, err := readDirectorAssessmentReport(ctx, tx, director, school, created.AssessmentID)
+	if err != nil || classReport.Audience.Targeted != 2 || classReport.Participation.Completed != 1 || classReport.Participation.NotCompleted != 1 ||
+		classReport.Scores.Average == nil || *classReport.Scores.Average != 80 || classReport.Scores.PassRate == nil || *classReport.Scores.PassRate != 100 ||
+		classReport.Coverage.Complete || classReport.Participation.Started != nil {
+		t.Fatalf("wrong scoped/latest class report: %+v error=%v", classReport, err)
+	}
+	wholeReport, err := readDirectorAssessmentReport(ctx, tx, director, school, schoolCreated.AssessmentID)
+	if err != nil || wholeReport.Audience.Targeted != 3 || wholeReport.Participation.Completed != 0 || wholeReport.Scores.Average != nil {
+		t.Fatalf("wrong whole-school report: %+v error=%v", wholeReport, err)
+	}
+	if _, err := readDirectorAssessmentReport(ctx, tx, director, otherSchool, created.AssessmentID); !errors.Is(err, org.ErrNotFound) {
+		t.Fatalf("cross-school assessment disclosure: %v", err)
+	}
+	if _, err := tx.Exec(ctx, `UPDATE school_contract_modules SET enabled=false WHERE module_code='SCHOOL_ASSESSMENTS'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readDirectorAssessmentReport(ctx, tx, director, school, created.AssessmentID); !errors.Is(err, org.ErrNotFound) {
+		t.Fatalf("revoked contract still exposes results: %v", err)
+	}
 }

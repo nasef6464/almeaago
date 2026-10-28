@@ -5,11 +5,13 @@ import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
 import type { TaxonomyPath, TaxonomySubject } from '../../content/api/content-types';
 import { DirectorAssessmentCreator } from '../components/DirectorAssessmentCreator';
+import { DirectorAssessmentReportPanel } from '../components/DirectorAssessmentReportPanel';
 import { DirectorTeacherAssignments } from '../components/DirectorTeacherAssignments';
 import { SchoolDirectorBreadcrumb, SchoolDirectorSectionNav, directorNavItems, type DirectorSectionID } from '../components/SchoolDirectorSectionNav';
 import {
   organizationsClient,
   type DirectorAssignment,
+  type DirectorAssessment,
   type DirectorOverview,
   type DirectorAssessmentWorkspace,
   type DirectorStudent,
@@ -38,6 +40,7 @@ export function SchoolDirectorDashboardPage(){
   const [assessmentError,setAssessmentError]=useState('');
   const [assessmentReload,setAssessmentReload]=useState(0);
   const [showAssessmentCreator,setShowAssessmentCreator]=useState(false);
+  const [selectedAssessment,setSelectedAssessment]=useState<{schoolId:string;assessment:DirectorAssessment}|null>(null);
   const [activeSection,setActiveSection]=useState<DirectorSectionID>('overview');
   const [subjects,setSubjects]=useState<TaxonomySubject[]>([]);
   const [paths,setPaths]=useState<TaxonomyPath[]>([]);
@@ -174,6 +177,7 @@ export function SchoolDirectorDashboardPage(){
     setAssignment({teacherId:'',classId:'',subjectId:'',status:'active'});
     setShowAdd(false);
     setShowAssessmentCreator(false);
+    setSelectedAssessment(null);
     setDraft({name:'',email:'',password:'',classId:''});
     setEditing({studentId:'',name:'',phone:''});
     setNewClassName('');
@@ -278,6 +282,7 @@ export function SchoolDirectorDashboardPage(){
 
   function changeSchool(nextSchoolId:string){
     activeSchoolId.current=nextSchoolId;
+    setSelectedAssessment(null);
     ++schoolVisitEpoch.current;
     ++loadEpoch.current;
     ++teacherReadVersion.current;
@@ -351,10 +356,12 @@ export function SchoolDirectorDashboardPage(){
         const audience=item.targetGroupIds.includes(selectedSchool.schoolId)?'المدرسة كاملة':
           item.targetGroupIds.map(id=>assessmentWorkspace.classes.find(c=>c.classId===id)?.className).filter(Boolean).join('، ')||
           (item.isPublished?'طلاب محددون':'مسودة مركزية');
-        return <article key={item.id} className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-2"><h3 className="min-w-0 flex-1 break-words font-black text-slate-900">{item.title}</h3><span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${item.isPublished?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-amber-800'}`}>{item.isPublished?'منشور':'غير منشور'}</span></div><p className="mt-3 break-words text-xs font-bold text-slate-600">الاستهداف: {audience}</p></article>;
+        return <article key={item.id} className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-2"><h3 className="min-w-0 flex-1 break-words font-black text-slate-900">{item.title}</h3><span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${item.isPublished?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-emerald-800'}`}>{item.isPublished?'منشور':'غير منشور'}</span></div><p className="mt-3 break-words text-xs font-bold text-slate-600">الاستهداف: {audience}</p><button type="button" onClick={()=>setSelectedAssessment({schoolId:selectedSchool.schoolId,assessment:item})} className="mt-3 rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm font-bold text-indigo-700">النتائج والإدارة</button></article>;
       })}</div>:null}
-      <p className="mt-5 text-xs leading-6 text-slate-500">اختبارات المدرسة وإنشاؤها موجّهة للطلاب المستهدفين فقط. إدارة النتائج وتحرير الاختبارات ستُفعّل بعد اكتمال صلاحياتها الآمنة.</p>
+      <p className="mt-5 text-xs leading-6 text-slate-500">اختبارات المدرسة موجّهة للطلاب المستهدفين فقط. ملخص النتائج متاح الآن؛ تفاصيل الطلاب والتحرير والنسخ والإجراءات الإدارية قيد النقل الآمن.</p>
     </section>:null}
+
+    {selectedAssessment?.schoolId===selectedSchool.schoolId&&section==='assessments'&&has('SCHOOL_ASSESSMENTS_MANAGE')&&selectedSchool.modules.includes('SCHOOL_ASSESSMENTS')?<DirectorAssessmentReportPanel key={`${selectedAssessment.schoolId}-${selectedAssessment.assessment.id}`} schoolId={selectedAssessment.schoolId} assessmentId={selectedAssessment.assessment.id} title={selectedAssessment.assessment.title} onClose={()=>setSelectedAssessment(null)}/>:null}
 
     {section==='students'&&has('SCHOOL_STUDENTS_VIEW')?<section className="mt-7 rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-xs font-black text-indigo-600">تشغيل الطلاب</p><h2 className="mt-1 text-xl font-black">طلاب {selectedSchool.schoolName}</h2></div><div className="flex flex-col gap-2 sm:flex-row"><div className="relative"><Search className="absolute right-3 top-2.5 text-slate-400" size={17}/><input aria-label="بحث الطلاب" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')void refresh(search)}} placeholder="ابحث بالاسم أو البريد" className="w-full rounded-xl border py-2 pr-9 pl-3 text-sm"/></div>{has('SCHOOL_STUDENTS_ADD')?<button type="button" onClick={()=>setShowAdd(x=>!x)} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white"><Plus size={17}/> إضافة طالب</button>:null}</div></div>
