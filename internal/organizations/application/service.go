@@ -25,6 +25,7 @@ const (
 
 type Repository interface {
 	DirectorCreateAssessment(ctx context.Context, actorUserID, schoolID string, input org.DirectorAssessmentCreate) (org.DirectorAssessmentCreated, error)
+	DirectorAssessmentDefinition(ctx context.Context, actorUserID, schoolID, assessmentID string) (org.DirectorAssessmentDefinition, error)
 	DirectorAssessmentQuestions(ctx context.Context, actorUserID, schoolID, pathID, subjectID, search string, page, limit int) (org.DirectorAssessmentQuestionPage, error)
 	DirectorAssessmentEligibleStudents(ctx context.Context, actorUserID, schoolID, search string, page, limit int) (org.DirectorAssessmentStudentPage, error)
 	DirectorAssessmentReport(ctx context.Context, actorUserID, schoolID, assessmentID string) (org.DirectorAssessmentReport, error)

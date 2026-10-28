@@ -63,3 +63,11 @@
 - Legacy: 33 mount تسجيلًا، 30 جذرًا مميزًا؛ Go: 31 mount مختلفًا؛ الجذر الحرفي المشترك `/api/school-access`. الغالبية تتغير من `/api` إلى `/api/v1`؛ **ليس قياسًا لفقد الخصائص**.
 - مسار إنشاء اختبار المدرسة تم تتبعه حتى SQL والجداول المشتركة؛ توجد صلاحية مكررة في transaction وحجز idempotency. أما تحرير/نسخ الاختبار المدرسي مقابل Legacy فحالة `GAP-CANDIDATE / UNKNOWN` إلى أن تثبت وظائف Go المكافئة أو غيابها.
 - **الخطوة التالية:** التحقق من `clone/commands/definition` عبر الواجهة والخدمة واختبار golden لقرار النطاق، ثم توسيع الجرد إلى الهوية، التعلم، التقرير، والدفع؛ لا تعديل production data.
+
+## P0-C — تعريف الاختبار المنشأ وإمكاناته (2026-10-28)
+
+- PR #142 دُمج في Go main عند `fec689b32ae442c72586133f4cc511efc9f91c54` بعد Backend/Database/Frontend/E2E خضراء، وتحقق SHA `main` مطابق تمامًا؛ راجع `19_API_MOUNTS_AND_ASSESSMENT_OWNERSHIP_AR.md`.
+- بدأ فرع معزول `feat/school-assessment-definition-read-20261028` من SHA السابق. نطاقه `GET school director definition/context`، وعقد read-only موثق في `20_SCHOOL_ASSESSMENT_DEFINITION_READ_AR.md`؛ **لا تكرر خدمة الإنشاء/التقرير القائمة**.
+- ثبت غياب clone/edit/commands المماثل في Go: لا توجد routes أو خدمات مماثلة في module المدرسي المدروس؛ قراءة التعريف ليست بديلًا عن تنفيذها. أعلام الإجراءات غير المنفذة تُبقي `false`؛ بعد نشر المدرسة الاختبار لا يحق تعديل محتواه مباشرة.
+- Local TDD: اختبار application فشل أولًا لغياب method ثم نجح، واختبار HTTP فشل `404` للroute قبل إنشائه ثم نجح، واختبار SQL أُضيف في `TestDirectorCreateAssessmentPostgres` وبانتظار Database CI الفعلي؛ Go 1.27.1 الرسمي ثُبّت مؤقتًا في `/tmp` بعد مطابقة SHA256، و`go test ./...` نجح حين سمحت البيئة بـloopback.
+- **الخطوة التالية الموثقة:** تحقق SQL من Database CI ثم قم بدمج PR فقط إذا كانت البوابات كلها خضراء. بعدها clone draft المستقل/عدم النشر، تتبّع الأوامر، و golden E2E لإعادة فتح المنشئ والنتيجة ضمن التفويض.

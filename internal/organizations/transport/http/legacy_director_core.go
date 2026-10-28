@@ -53,6 +53,50 @@ func (h *LegacyHandler) directorAcademicAssessments(w http.ResponseWriter, r *ht
 	writeJSON(w, http.StatusOK, workspace)
 }
 
+func (h *LegacyHandler) directorAssessmentDefinition(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	if r.URL.RawQuery != "" {
+		writeError(w, orgapp.ErrInvalidInput)
+		return
+	}
+	auth, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	definition, err := h.service.DirectorAssessmentDefinition(r.Context(), auth.User,
+		chi.URLParam(r, "schoolId"), chi.URLParam(r, "assessmentId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, definition)
+}
+
+func (h *LegacyHandler) directorAssessmentContext(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	if r.URL.RawQuery != "" {
+		writeError(w, orgapp.ErrInvalidInput)
+		return
+	}
+	auth, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	schoolID := chi.URLParam(r, "schoolId")
+	definition, err := h.service.DirectorAssessmentDefinition(r.Context(), auth.User,
+		schoolID, chi.URLParam(r, "assessmentId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"id": definition.AssessmentID, "schoolId": schoolID,
+		"canManage": definition.CanManage, "canClone": definition.CanClone,
+		"canEditContent":      definition.CanEditContent,
+		"canManageDefinition": false, "isPublished": definition.IsPublished,
+	})
+}
+
 func (h *LegacyHandler) directorAssessmentReport(w http.ResponseWriter, r *http.Request) {
 	auth, ok := h.authenticate(w, r, false)
 	if !ok {

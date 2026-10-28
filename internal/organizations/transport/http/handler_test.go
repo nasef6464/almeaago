@@ -45,6 +45,10 @@ func (r *repoStub) DirectorCreateAssessment(_ context.Context, _ string, _ strin
 	return orgdomain.DirectorAssessmentCreated{AssessmentID: "00000000-0000-0000-0000-000000000999", Title: input.Title, ClassID: input.ClassID, TargetScope: input.TargetScope}, nil
 }
 
+func (r *repoStub) DirectorAssessmentDefinition(_ context.Context, _, _, assessmentID string) (orgdomain.DirectorAssessmentDefinition, error) {
+	return orgdomain.DirectorAssessmentDefinition{AssessmentID: assessmentID, Title: "اختبار مركزي", IsPublished: true, CanManage: true, ClassIDs: []string{}, StudentIDs: []string{}, QuestionIDs: []string{}, QuestionVersions: []int{}}, nil
+}
+
 func (r *repoStub) DirectorAssessmentQuestions(_ context.Context, _, _, _, _, _ string, _, _ int) (orgdomain.DirectorAssessmentQuestionPage, error) {
 	return orgdomain.DirectorAssessmentQuestionPage{Items: []orgdomain.DirectorAssessmentQuestion{}}, nil
 }

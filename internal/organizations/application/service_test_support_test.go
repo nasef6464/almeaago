@@ -19,6 +19,9 @@ type repositoryMock struct {
 	reportCallCount               int
 	learnerListCalls              int
 	learnerDetailCalls            int
+	definitionCallCount           int
+	lastDefinitionSchool          string
+	lastDefinitionAssessment      string
 	contexts                      []org.SchoolContext
 	accessAllowed                 bool
 	manageAllowed                 bool
@@ -78,6 +81,20 @@ func (m *repositoryMock) DirectorAssessmentLearnerResult(_ context.Context, _, _
 	var detail org.DirectorAssessmentLearnerResult
 	detail.Result.ID = attemptID
 	return detail, nil
+}
+
+func (m *repositoryMock) DirectorAssessmentDefinition(_ context.Context, _, schoolID, assessmentID string) (org.DirectorAssessmentDefinition, error) {
+	m.definitionCallCount++
+	m.lastDefinitionSchool = schoolID
+	m.lastDefinitionAssessment = assessmentID
+	maxAttempts := 3
+	return org.DirectorAssessmentDefinition{
+		AssessmentID: assessmentID, Title: "اختبار مركزي", IsPublished: true,
+		CanManage: true, CanClone: false, CanEditContent: false,
+		TargetScope: "classes", ClassIDs: []string{"00000000-0000-0000-0000-000000000404", "00000000-0000-0000-0000-000000000405"},
+		StudentIDs: []string{}, QuestionIDs: []string{"00000000-0000-0000-0000-000000000303"},
+		QuestionVersions: []int{1}, Settings: org.DirectorAssessmentSettings{MaxAttempts: &maxAttempts},
+	}, nil
 }
 
 func (m *repositoryMock) ParentAuthority(_ context.Context, _ string) (org.ParentAuthority, error) {
