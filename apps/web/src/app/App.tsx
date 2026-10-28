@@ -52,6 +52,9 @@ import { LegacySiteFooter, showPublicFooter } from '../features/public/component
 import { LegacySiteHeader } from '../features/public/components/LegacySiteHeader';
 import { StaticInfoPage } from '../features/public/pages/StaticInfoPage';
 
+import { PlatformFontBootstrap } from '../features/presentation/PlatformFontBootstrap';
+import { PlatformFontsPage } from '../features/presentation/PlatformFontsPage';
+
 type ModalMode = 'login' | 'signup' | null;
 
 function NotFoundPage() {
@@ -120,6 +123,7 @@ export function App() {
 
   return (
     <>
+      <PlatformFontBootstrap />
       {!hideSiteHeader ? <LegacySiteHeader onAuth={setManualMode} /> : null}
 
       <Routes>
@@ -138,6 +142,7 @@ export function App() {
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/dashboard" element={<StudentDashboardPage />} />
         <Route path="/admin-dashboard" element={<AdminDashboardShell><AdminOverviewPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/platform-fonts" element={<AdminDashboardShell><PlatformFontsPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/content" element={<AdminDashboardShell><ContentAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/taxonomy" element={<AdminDashboardShell><TaxonomyAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/questions" element={<AdminDashboardShell><QuestionBankAdminPage /></AdminDashboardShell>} />

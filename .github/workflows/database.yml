@@ -1,10 +1,10 @@
 name: Database CI
 on:
   pull_request:
-    paths: ["migrations/**",".github/workflows/database.yml","docs/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**"]
+    paths: ["migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**"]
   push:
     branches: [main]
-    paths: ["migrations/**",".github/workflows/database.yml","docs/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**"]
+    paths: ["migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**"]
   workflow_dispatch:
 concurrency:
   group: database-ci-${{ github.ref }}
@@ -78,6 +78,29 @@ jobs:
         env:
           DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
         run: go test ./internal/learning/repository/postgres -run '^TestReadinessSingleQueryPostgres$' -count=1 -v
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install browser integration dependencies
+        working-directory: apps/web
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Verify persisted font editor through real Go sessions and PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+          FONT_BROWSER_E2E: "1"
+        run: go test ./internal/content/repository/postgres -run '^TestPlatformFontsHTTPPostgres$' -count=1 -v
+      - name: Upload font integration browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: persisted-fonts-browser-evidence
+          path: |
+            apps/web/test-results
+            apps/web/playwright-report
+          retention-days: 7
 
       - name: Verify current schema constraints
         shell: bash

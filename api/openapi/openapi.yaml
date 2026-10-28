@@ -3007,3 +3007,84 @@ paths:
         "401": { description: Authentication required }
         "404": { description: Foundation topic unavailable }
         "409": { description: Stored placement set exceeds safety bounds }
+
+  /api/v1/content/platform-font-settings:
+    get:
+      operationId: contentPublicPlatformFonts
+      description: Public singleton font settings. Missing document returns approved source defaults without writing on GET.
+      responses:
+        "200": { description: Settings document with key=default and four font families, optional size/weight/color overrides and body/heading uploads }
+        "500": { description: Settings storage unavailable }
+    patch:
+      operationId: contentAdminPatchPlatformFonts
+      description: >
+        Platform admin session and X-CSRF-Token required. Atomic top-level merge.
+        Missing bodyFont/headingFont/navigationFont/buttonFont default to tajawal per source;
+        omitted optional overrides retain stored values and empty strings clear overrides.
+        Unknown metadata is stripped. Size matches digit{1,2}(.digit)?(px|rem), colors are
+        six-digit hex, weights are 300/400/500/600/700/800/900/normal/bold. Body/heading
+        custom fonts accept font woff/woff2/ttf/otf base64 up to700000characters and size<=500000.
+        Request limit1500000bytes accommodates both uploads. Updates produce an audit event
+        without font bytes in audit metadata.
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bodyFont:
+                  type: string
+                  enum: [tajawal, cairo, almarai, readex-pro, ibm-plex-sans-arabic, noto-naskh-arabic, noto-kufi-arabic, system, custom]
+                  default: tajawal
+                bodySize: { type: string }
+                bodyWeight: { type: string }
+                bodyColor: { type: string }
+                headingFont:
+                  type: string
+                  enum: [tajawal, cairo, almarai, readex-pro, ibm-plex-sans-arabic, noto-naskh-arabic, noto-kufi-arabic, system, custom]
+                  default: tajawal
+                headingSize: { type: string }
+                headingWeight: { type: string }
+                headingColor: { type: string }
+                navigationFont:
+                  type: string
+                  enum: [tajawal, cairo, almarai, readex-pro, ibm-plex-sans-arabic, noto-naskh-arabic, noto-kufi-arabic, system, custom]
+                  default: tajawal
+                navigationSize: { type: string }
+                navigationWeight: { type: string }
+                navigationColor: { type: string }
+                buttonFont:
+                  type: string
+                  enum: [tajawal, cairo, almarai, readex-pro, ibm-plex-sans-arabic, noto-naskh-arabic, noto-kufi-arabic, system, custom]
+                  default: tajawal
+                buttonSize: { type: string }
+                buttonWeight: { type: string }
+                buttonColor: { type: string }
+                bodyCustomFont:
+                  type: object
+                  properties:
+                    name: { type: string, maxLength: 80, default: "" }
+                    fileName: { type: string, maxLength: 160, default: "" }
+                    mimeType: { type: string, maxLength: 80, default: "" }
+                    dataUrl: { type: string, maxLength: 700000 }
+                    size: { type: number, minimum: 0, maximum: 500000, default: 0 }
+                headingCustomFont:
+                  type: object
+                  properties:
+                    name: { type: string, maxLength: 80, default: "" }
+                    fileName: { type: string, maxLength: 160, default: "" }
+                    mimeType: { type: string, maxLength: 80, default: "" }
+                    dataUrl: { type: string, maxLength: 700000 }
+                    size: { type: number, minimum: 0, maximum: 500000, default: 0 }
+      responses:
+        "200": { description: Persisted merged settings including updatedAt }
+        "400": { description: Invalid font settings or malformed/oversized request }
+        "401": { description: Authentication required }
+        "403": { description: Admin role or CSRF required }
+        "500": { description: Settings write failed; previous settings retained }

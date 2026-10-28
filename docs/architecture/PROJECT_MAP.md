@@ -20,3 +20,6 @@ Domains: identity, organizations, taxonomy, content, media, questionbank, assess
 
 ## Contracts
 `api/openapi` is the HTTP contract.
+
+## Persisted presentation settings
+`internal/content/{domain,application,repository/postgres,transport/http}/fonts*` owns the public font document and admin mutation. `content_platform_font_settings` (migration000044) stores a singleton JSONB patch merged atomically; audit shares the write transaction. `apps/web/src/features/presentation` reuses the approved Legacy font editor/bootstrap/utility with current Go auth/client adapters. It is presentation owned by content, not a new auth or operations domain.

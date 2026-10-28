@@ -21,6 +21,7 @@ type Authenticator interface {
 
 type Handler struct {
 	service *contentapp.Service
+	fonts   *contentapp.FontService
 	auth    Authenticator
 }
 
