@@ -31,3 +31,19 @@ paired runtime evidence. Keep completed backend work; no wholesale rebuild.
 
 ## Plan reconciliation and path/subject priority (owner report, 2026-10-28)
 `docs/migration/03_EXECUTION_AND_HANDOFF_PLAN_AR.md` is the only active Go execution plan. Read its reconciliation section and the matrix in26 before new work. Slice specs/plans are subordinate. Preserve public fixes#150/#151 and the current font slice before starting another branch. Complete public dynamic settings/header gaps, then restore original path-card→path-workspace→subject-card→subject-workspace as one usable flow with real learner visibility. Reuse current Go domains. Do not import Legacy0–9 closure statuses, merge stale PRs wholesale, or allow two implementation writers on one branch. Explicit Topic/skill links and no-autostart video/training policy remain binding.
+
+## Independent engineering handoff accepted — 2026-10-28
+Read `docs/migration/reviews/ALMEAA_GO_INDEPENDENT_ENGINEERING_HANDOFF_AR_2026-10-28.md`
+as an independent review subordinate to plan03, not a second roadmap. Its PR/head
+snapshot is historical: #152 is merged at98d5cd519455e0775cf6b868f7c6e388ef4ef739.
+Before implementation recover current HEAD/PR/local changes; retain verified work.
+Use a Modular Monolith with explicit domain ownership and Vertical Capability
+Slices across every consuming role. Do not duplicate assessment/scoring/mastery
+or permission decisions in adapters, UI or another module. Infrastructure in
+`internal/platform` remains cross-cutting; content presentation stays in content.
+Track each screen/control/state through HTTP→service→storage→consumer with
+source/head/evidence and UNKNOWN/PARTIAL/BLOCKED until actually proved. See the
+current-action register and acceptance checklist in26. MERGED/TESTED is scoped
+evidence, never a whole-platform parity certificate. Keep report findings from
+code distinct from browser reproductions; preserve source failure/false/empty
+semantics and explicit Topic scope. No production writes, deployment or cutover.
