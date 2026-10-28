@@ -22,6 +22,8 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run typecheck
       - run: npm run build
-      - name: Route parity inventory contract
+      - name: Platform parity inventory contracts
         working-directory: .
-        run: node scripts/parity/route-inventory.test.mjs
+        run: |
+          node scripts/parity/route-inventory.test.mjs
+          node scripts/parity/api-mount-inventory.test.mjs
