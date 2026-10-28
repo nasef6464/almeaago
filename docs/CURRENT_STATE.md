@@ -1588,3 +1588,37 @@ Order: finish the preserved public-settings slice and remaining dynamic homepage
 ### Font slice bounded verification checkpoint (PR#152)
 
 Code head c91bdda82f407dd29075ad3c0dd7155d485aab1f passed all four gates (Database40747074186 / Backend40747073278 / Frontend40747073479 / E2E40747073243). Real identity sessions→Go HTTP→PostgreSQL browser journey passed at390/820/1440, including exact paired source-component/Go screenshots under shared CSS/shell constraints. Full original-application/screens/roles parity remains PARTIAL, not100%. Artifact12841678505 and scope/limits are in migration28. Final documentation-inclusive head and merge status must be read from PR#152; do not assume this historical code-head record is a merge certificate. Next public gap: persisted homepage/header/brand/navigation contract; then the original path/subject admin workflow and real learner visibility, preserving existing domain work. The active ordering is unified in03 and AGENTS, not a new master plan.
+
+
+## Current independent engineering handoff — 2026-10-28
+
+This entry supersedes the earlier PR#152-open checkpoints above. Live recheck:
+Legacy main `bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7`; Go main
+`98d5cd519455e0775cf6b868f7c6e388ef4ef739`. PR#152 is MERGED, final tested
+head `a17ad3480c0fc289564576435ac8572a1dbf1552`. Preserve its bounded font
+persistence/component/navigation proof; 130 browser tests and the separate real
+DB journey are historical evidence for that head, not a whole-app certificate.
+PR#123 (`e2f59072`) and#144 (`ef48f25e`) remain OPEN; no wholesale merge.
+
+The owner's independent report is preserved verbatim under
+`migration/reviews/ALMEAA_GO_INDEPENDENT_ENGINEERING_HANDOFF_AR_2026-10-28.md`.
+It is a subordinate review, not a new Master Plan. Plan03 and AGENTS now state
+Modular Monolith + Vertical Capability Slices with one owner per domain fact.
+Matrix26 has the current source-level public action trace, evidence boundaries
+and the all-state register format. Historical discovery/closure records remain
+historical; they do not override the current checkpoint.
+
+Current deliverable: report/plan/instructions/state reconciliation and verified
+source tracing; **documentation only, no new runtime feature**. Nine existing
+font/footer/inventory tests passed locally. No new DB/browser/visual proof or
+production changes in this reconciliation. Exact PR/head/check status belongs
+to this branch's GitHub PR and must be verified before merging.
+
+Next: original HomepageManager → persisted Go/content settings → guest
+Header/Landing consumer, preserving source defaults, false/empty/omission,
+featured relations, session/CSRF, failed-save drafts, URL context, cache refresh
+and responsive original design. Real Go/PostgreSQL and paired screenshots gate
+acceptance. Then original path-card→path-workspace→subject-card→subject-workspace
+→publish→learner visibility; then learning/assessment/reports, remaining roles,
+services/data trial/restore and final acceptance. Full platform parity remains
+PARTIAL/UNKNOWN; production readiness NOT PROVEN. Do not restart verified work.
