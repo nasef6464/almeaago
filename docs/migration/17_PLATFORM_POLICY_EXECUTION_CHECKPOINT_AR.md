@@ -69,3 +69,7 @@
 - دُمج PR #142 بعد نجاح Frontend CI / Backend CI / Database CI / Frontend E2E على SHA `dcfc1847ee9189fe66ac5e5180012c19f08ad901`، فأصبح `main@fec689b32ae442c72586133f4cc511efc9f91c54`. أضيفت خريطة API mounts والملكية المدرسية في `19_API_MOUNTS_AND_ASSESSMENT_OWNERSHIP_AR.md`، ولا تعني تكافؤ endpoints.
 - فحص لاحق لمسار `Readiness` كشف احتمال تكرار skill بين صفحات `LIMIT/OFFSET` المرتبة بالـmastery أثناء تغيّر الأدلة. توثيق `20_READINESS_PAGE_INTEGRITY_AR.md` مع اختبار رفض التكرار والنطاق الخاطئ، دون تغيير المعادلة أو قاعدة البيانات. **الاعتماد النهائي ينتظر CI على PR الجديد**.
 - التالي: إثبات الاستقرار عبر PostgreSQL snapshot/aggregation (ببيئة اختبار فقط)، ثم مقارنة golden behavior مع Legacy في نطاق المسار/المادة ومقام المهارات غير المقاسة.
+
+## متابعة P1 — single-query readiness
+
+من Go `778be2c` وLegacy `bf7281f`: استبدال تجميع صفحات الجاهزية بقراءة SQL واحدة بحد 10000، مع رفض overflow والمحافظة على التحقق من النطاق والتكرار. التفاصيل والدليل والحدود: `21_READINESS_SINGLE_QUERY_AR.md`. اختبارات Go المحلية ناجحة؛ integration الحقيقي في Database CI ينتظر تشغيل الفرع. لا تغيير production أو schema أو scoring. الحالة PARTIAL إلى تحقق CI؛ التالي golden denominator/policy comparisons، مع حفظ فرع school-definition الجاري دون تكرار عمله.

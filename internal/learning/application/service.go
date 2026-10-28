@@ -102,44 +102,40 @@ func (s *Service) Readiness(ctx context.Context, actor identity.User, pathID, su
 	if pathID == "" {
 		return learning.MasteryReadiness{}, ErrInvalidInput
 	}
-	const pageLimit, maxPages = 100, 100
-	rows := make([]learning.SkillProgress, 0, pageLimit)
-	// OFFSET pagination can revisit a skill when its mastery changes between
-	// reads. Reject duplicates and foreign-scope rows instead of double-counting
-	// evidence or reporting a misleading readiness score.
-	seenSkills := make(map[string]struct{}, pageLimit)
-	for pageNumber := 1; pageNumber <= maxPages; pageNumber++ {
-		if err := ctx.Err(); err != nil {
-			return learning.MasteryReadiness{}, err
-		}
-		page, err := s.repo.ListSkillProgress(ctx, actor.ID, pathID, subjectID, pageNumber, pageLimit)
-		if err != nil {
-			return learning.MasteryReadiness{}, err
-		}
-		if page.HasMore && len(page.Items) == 0 {
+	// One SQL statement uses one PostgreSQL MVCC snapshot. Separate OFFSET
+	// reads can silently skip rows when evidence changes between requests.
+	const maxSkills = 10000
+	if err := ctx.Err(); err != nil {
+		return learning.MasteryReadiness{}, err
+	}
+	page, err := s.repo.ListSkillProgress(ctx, actor.ID, pathID, subjectID, 1, maxSkills)
+	if err != nil {
+		return learning.MasteryReadiness{}, err
+	}
+	if page.HasMore || len(page.Items) > maxSkills {
+		return learning.MasteryReadiness{}, ErrIncompleteReadiness
+	}
+	seenSkills := make(map[string]struct{}, len(page.Items))
+	for _, row := range page.Items {
+		if row.PathID != "" && row.PathID != pathID {
 			return learning.MasteryReadiness{}, ErrIncompleteReadiness
 		}
-		for _, row := range page.Items {
-			if row.PathID != "" && row.PathID != pathID {
-				return learning.MasteryReadiness{}, ErrIncompleteReadiness
-			}
-			if subjectID != "" && row.SubjectID != "" && row.SubjectID != subjectID {
-				return learning.MasteryReadiness{}, ErrIncompleteReadiness
-			}
-			if row.SkillID != "" {
-				key := row.SubjectID + "\x00" + row.SkillID
-				if _, duplicate := seenSkills[key]; duplicate {
-					return learning.MasteryReadiness{}, ErrIncompleteReadiness
-				}
-				seenSkills[key] = struct{}{}
-			}
+		if subjectID != "" && row.SubjectID != "" && row.SubjectID != subjectID {
+			return learning.MasteryReadiness{}, ErrIncompleteReadiness
 		}
-		rows = append(rows, page.Items...)
-		if !page.HasMore {
-			return learning.MasteryReadinessFrom(rows, time.Now().UTC()), nil
+		if row.SkillID != "" {
+			key := row.SubjectID + "\x00" + row.SkillID
+			if _, duplicate := seenSkills[key]; duplicate {
+				return learning.MasteryReadiness{}, ErrIncompleteReadiness
+			}
+			seenSkills[key] = struct{}{}
 		}
 	}
-	return learning.MasteryReadiness{}, ErrIncompleteReadiness
+	result := learning.MasteryReadinessFrom(page.Items, time.Now().UTC())
+	if err := ctx.Err(); err != nil {
+		return learning.MasteryReadiness{}, err
+	}
+	return result, nil
 }
 
 func (s *Service) NextAction(ctx context.Context, actor identity.User, pathID, subjectID string) (*learning.SkillProgress, error) {
