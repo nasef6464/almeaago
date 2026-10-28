@@ -1,0 +1,89 @@
+{
+  "source_sha": "bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7",
+  "tested_head": "2623572e983b4d538c73da7415d738777175f4af",
+  "artifact_id": 12850200174,
+  "artifact_expires": "2026-11-04",
+  "artifact_sha256": "00952cd47c21e204e531725f66ff50744294d683c13fc47a6298796d05e433cb",
+  "comparisons": [
+    {
+      "section": "brand",
+      "viewport_width": 390,
+      "image_dimensions": [
+        366,
+        642
+      ],
+      "source_sha256": "55e12c8980098a43755daf992ce150e2ab15db99ce86d64b1f1c4964efe1b923",
+      "go_sha256": "55e12c8980098a43755daf992ce150e2ab15db99ce86d64b1f1c4964efe1b923",
+      "equal": true,
+      "role": "admin",
+      "scope": "isolated JSX section, shared CSS and shell; full section inside canvas; no full-page parity claim"
+    },
+    {
+      "section": "hero",
+      "viewport_width": 390,
+      "image_dimensions": [
+        366,
+        5459
+      ],
+      "source_sha256": "dde8733ac212456f253bad6d6363f39e4cf6e13af9a8e7da3926ec592c209b86",
+      "go_sha256": "dde8733ac212456f253bad6d6363f39e4cf6e13af9a8e7da3926ec592c209b86",
+      "equal": true,
+      "role": "admin",
+      "scope": "isolated JSX section, shared CSS and shell; full section inside canvas; no full-page parity claim"
+    },
+    {
+      "section": "brand",
+      "viewport_width": 820,
+      "image_dimensions": [
+        780,
+        508
+      ],
+      "source_sha256": "a437efa53b894c741872192c5cc74aca480f723ae18b6e0f41b07574ed0b63ca",
+      "go_sha256": "a437efa53b894c741872192c5cc74aca480f723ae18b6e0f41b07574ed0b63ca",
+      "equal": true,
+      "role": "admin",
+      "scope": "isolated JSX section, shared CSS and shell; full section inside canvas; no full-page parity claim"
+    },
+    {
+      "section": "hero",
+      "viewport_width": 820,
+      "image_dimensions": [
+        780,
+        4049
+      ],
+      "source_sha256": "795a2b55978e03fdfda15f20761b4ec06cc0dd730fec4d70007af61fd69b86f1",
+      "go_sha256": "795a2b55978e03fdfda15f20761b4ec06cc0dd730fec4d70007af61fd69b86f1",
+      "equal": true,
+      "role": "admin",
+      "scope": "isolated JSX section, shared CSS and shell; full section inside canvas; no full-page parity claim"
+    },
+    {
+      "section": "brand",
+      "viewport_width": 1440,
+      "image_dimensions": [
+        1106,
+        458
+      ],
+      "source_sha256": "62079f8198f759c2e65b78a9d64195f42494e0f33a1371374eac8d72ab4c0ee0",
+      "go_sha256": "62079f8198f759c2e65b78a9d64195f42494e0f33a1371374eac8d72ab4c0ee0",
+      "equal": true,
+      "role": "admin",
+      "scope": "isolated JSX section, shared CSS and shell; full section inside canvas; no full-page parity claim"
+    },
+    {
+      "section": "hero",
+      "viewport_width": 1440,
+      "image_dimensions": [
+        1106,
+        3278
+      ],
+      "source_sha256": "ea206e9deb75aea00106b00c168b0e3eb2595c64a022cfb6d6c2da240ed135cb",
+      "go_sha256": "ea206e9deb75aea00106b00c168b0e3eb2595c64a022cfb6d6c2da240ed135cb",
+      "equal": true,
+      "role": "admin",
+      "scope": "isolated JSX section, shared CSS and shell; full section inside canvas; no full-page parity claim"
+    }
+  ],
+  "actual_public_screens_role_at_this_head": "authenticated admin; separate cookie-free guest assert on 1440 passed; next test revision adds actual anonymous captures at every width",
+  "whole_editor_and_header_parity": "NOT_PROVEN"
+}

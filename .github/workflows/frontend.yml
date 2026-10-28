@@ -27,6 +27,7 @@ jobs:
         run: |
           node scripts/parity/public-footer.test.mjs
           node scripts/parity/platform-fonts.test.mjs
+          node scripts/parity/homepage-ui.test.mjs
           node scripts/parity/screen-inventory.test.mjs
           node scripts/parity/route-inventory.test.mjs
           node scripts/parity/api-mount-inventory.test.mjs
