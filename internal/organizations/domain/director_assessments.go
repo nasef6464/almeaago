@@ -28,6 +28,24 @@ type DirectorAssessmentCreate struct {
 	SubjectID   string
 	QuestionIDs []string
 	RequestKey  string
+	Settings    *DirectorAssessmentSettings
+}
+
+// Optional settings match the legacy unified test creator. Pointer fields
+// preserve explicit false/zero independently of the PostgreSQL defaults.
+type DirectorAssessmentSettings struct {
+	MaxAttempts             *int     `json:"maxAttempts,omitempty"`
+	PassingScore            *float64 `json:"passingScore,omitempty"`
+	TimeLimitMinutes        *int     `json:"timeLimitMinutes,omitempty"`
+	OptionLayout            *string  `json:"optionLayout,omitempty"`
+	RandomizeQuestions      *bool    `json:"randomizeQuestions,omitempty"`
+	RandomizeOptions        *bool    `json:"randomizeOptions,omitempty"`
+	ShowProgressBar         *bool    `json:"showProgressBar,omitempty"`
+	RequireAnswerBeforeNext *bool    `json:"requireAnswerBeforeNext,omitempty"`
+	AllowQuestionReview     *bool    `json:"allowQuestionReview,omitempty"`
+	ShowAnswers             *bool    `json:"showAnswers,omitempty"`
+	ShowResultsReport       *bool    `json:"showResultsReport,omitempty"`
+	ShowExplanations        *bool    `json:"showExplanations,omitempty"`
 }
 
 type DirectorAssessmentCreated struct {

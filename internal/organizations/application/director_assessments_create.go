@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"math"
 	"sort"
 	"strings"
 
@@ -76,6 +77,14 @@ func (s *Service) DirectorCreateAssessment(
 		}
 		sort.Strings(input.StudentIDs)
 		if len(input.StudentIDs) == 0 && len(input.ClassIDs) == 0 {
+			return org.DirectorAssessmentCreated{}, ErrInvalidInput
+		}
+	}
+	if settings := input.Settings; settings != nil {
+		if (settings.MaxAttempts != nil && (*settings.MaxAttempts < 1 || *settings.MaxAttempts > 100)) ||
+			(settings.PassingScore != nil && (math.IsNaN(*settings.PassingScore) || math.IsInf(*settings.PassingScore, 0) || *settings.PassingScore < 0 || *settings.PassingScore > 100)) ||
+			(settings.TimeLimitMinutes != nil && (*settings.TimeLimitMinutes < 0 || *settings.TimeLimitMinutes > 1440)) ||
+			(settings.OptionLayout != nil && *settings.OptionLayout != "auto" && *settings.OptionLayout != "horizontal" && *settings.OptionLayout != "two_columns") {
 			return org.DirectorAssessmentCreated{}, ErrInvalidInput
 		}
 	}

@@ -273,9 +273,21 @@ func TestDirectorCreateAssessmentPostgres(t *testing.T) {
 	selected.ClassID = ""
 	selected.ClassIDs = []string{classA}
 	selected.StudentIDs = []string{learnerC}
+	attemptLimit, scoreLimit, minuteLimit := 2, 75.0, 25
+	noShuffle, hideAnswers, layout := false, false, "two_columns"
+	selected.Settings = &org.DirectorAssessmentSettings{MaxAttempts: &attemptLimit, PassingScore: &scoreLimit, TimeLimitMinutes: &minuteLimit, RandomizeQuestions: &noShuffle, ShowAnswers: &hideAnswers, OptionLayout: &layout}
 	selectedCreated, err := createDirectorAssessmentTx(ctx, tx, probe, director, school, selected)
 	if err != nil || selectedCreated.TargetScope != "selected" || len(selectedCreated.StudentIDs) != 1 || selectedCreated.StudentIDs[0] != learnerC {
 		t.Fatalf("cannot publish selected school audience: %+v err=%v", selectedCreated, err)
+	}
+	var savedAttempts, savedSeconds int
+	var savedScore float64
+	var savedShuffle, savedAnswers bool
+	var savedLayout string
+	if err := tx.QueryRow(ctx, `SELECT max_attempts,passing_score::float8,time_limit_seconds,randomize_questions,show_answers,option_layout
+	 FROM assessment_versions WHERE assessment_id=$1::uuid AND version=1`, selectedCreated.AssessmentID).
+		Scan(&savedAttempts, &savedScore, &savedSeconds, &savedShuffle, &savedAnswers, &savedLayout); err != nil || savedAttempts != 2 || savedScore != 75 || savedSeconds != 1500 || savedShuffle || savedAnswers || savedLayout != "two_columns" {
+		t.Fatalf("school exam settings were not persisted: attempts=%d score=%f seconds=%d shuffle=%v answers=%v layout=%q err=%v", savedAttempts, savedScore, savedSeconds, savedShuffle, savedAnswers, savedLayout, err)
 	}
 	var targetedClasses, targetedUsers int
 	if err := tx.QueryRow(ctx, `SELECT (SELECT count(*) FROM assessment_assignment_classes ac WHERE ac.assignment_id=aa.id),

@@ -22,3 +22,21 @@ func TestDirectorAssessmentFingerprintIncludesExplicitLearnerTargets(t *testing.
 		t.Fatal("different explicitly targeted learners must never share an idempotency fingerprint")
 	}
 }
+
+func TestDirectorAssessmentFingerprintDistinguishesSettings(t *testing.T) {
+	base := org.DirectorAssessmentCreate{Title: "اختبار", TargetScope: "school", PathID: "path", SubjectID: "subject", QuestionIDs: []string{"question"}}
+	unlimited := 0
+	short := 15
+	a, b := base, base
+	a.Settings = &org.DirectorAssessmentSettings{TimeLimitMinutes: &unlimited}
+	b.Settings = &org.DirectorAssessmentSettings{TimeLimitMinutes: &short}
+	ha, _ := directorAssessmentFingerprint(a)
+	hb, _ := directorAssessmentFingerprint(b)
+	if ha == hb {
+		t.Fatal("changing exam duration must invalidate old idempotency key")
+	}
+	legacy, _ := directorAssessmentFingerprint(base)
+	if legacy == ha {
+		t.Fatal("explicit custom settings must have distinct fingerprint")
+	}
+}
