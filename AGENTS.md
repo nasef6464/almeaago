@@ -19,8 +19,8 @@ Never write the source repository or production data.
 
 Execution order: comprehensive screen/action/state/role/relation inventory;
 paired same-role/data/viewport screenshots; focused complete correction slices.
-P0: public site → student → path/subject learning spaces → courses/player →
-assessment/results/review → admin. P1: all remaining roles, school, commerce,
+P0: public site → original admin path/subject workspace with learner visibility →
+student/learning/course/player/assessment/results/review → remaining admin. P1: all remaining roles, school, commerce,
 settings and operations. Priority is not permission to omit original functions.
 Record PARTIAL/MISSING/BLOCKED/UNKNOWN until evidence proves each contract.
 Route counts, a build, mocked E2E or green CI alone cannot establish parity.
