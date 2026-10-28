@@ -17,6 +17,8 @@ func TestDirectorAssessmentCreateValidatesInputAndAuthorizesSchool(t *testing.T)
 	const other = "00000000-0000-0000-0000-000000000902"
 	const classroom = "00000000-0000-0000-0000-000000000201"
 	const otherClassroom = "00000000-0000-0000-0000-000000000202"
+	const learnerA = "00000000-0000-0000-0000-000000000301"
+	const learnerB = "00000000-0000-0000-0000-000000000302"
 	const requestKey = "00000000-0000-0000-0000-000000000701"
 	allowed := org.SchoolContext{
 		SchoolID: school, Role: identity.RoleSchoolAdmin,
@@ -37,6 +39,42 @@ func TestDirectorAssessmentCreateValidatesInputAndAuthorizesSchool(t *testing.T)
 		called  bool
 	}{
 		{name: "normalized duplicate IDs", input: valid, actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, called: true},
+		{name: "selected classes and learners with canonical IDs", input: func() org.DirectorAssessmentCreate {
+			i := valid
+			i.TargetScope = "selected"
+			i.ClassID = ""
+			i.ClassIDs = []string{otherClassroom, classroom, otherClassroom}
+			i.StudentIDs = []string{learnerB, learnerA, learnerB}
+			return i
+		}(), actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, called: true},
+		{name: "selected learner without class", input: func() org.DirectorAssessmentCreate {
+			i := valid
+			i.TargetScope = "selected"
+			i.ClassID = ""
+			i.StudentIDs = []string{learnerA}
+			return i
+		}(), actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, called: true},
+		{name: "selected audience cannot be empty", input: func() org.DirectorAssessmentCreate { i := valid; i.TargetScope = "selected"; i.ClassID = ""; return i }(), actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, want: ErrInvalidInput},
+		{name: "selected audience rejects singular class ID", input: func() org.DirectorAssessmentCreate {
+			i := valid
+			i.TargetScope = "selected"
+			i.StudentIDs = []string{learnerA}
+			return i
+		}(), actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, want: ErrInvalidInput},
+		{name: "selected audience rejects malformed learner ID", input: func() org.DirectorAssessmentCreate {
+			i := valid
+			i.TargetScope = "selected"
+			i.ClassID = ""
+			i.StudentIDs = []string{learnerA, "not-uuid"}
+			return i
+		}(), actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, want: ErrInvalidInput},
+		{name: "whole school rejects student selection", input: func() org.DirectorAssessmentCreate {
+			i := valid
+			i.TargetScope = "school"
+			i.ClassID = ""
+			i.StudentIDs = []string{learnerA}
+			return i
+		}(), actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, want: ErrInvalidInput},
 		{name: "whole school with no class", input: func() org.DirectorAssessmentCreate { i := valid; i.TargetScope = "school"; i.ClassID = ""; return i }(), actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, called: true},
 		{name: "central exam to several classrooms", input: func() org.DirectorAssessmentCreate {
 			i := valid
@@ -103,6 +141,12 @@ func TestDirectorAssessmentCreateValidatesInputAndAuthorizesSchool(t *testing.T)
 				}
 				if tt.input.TargetScope == "classes" && (len(repo.lastDirectorAssessmentCreate.ClassIDs) != 2 || repo.lastDirectorAssessmentCreate.ClassIDs[0] != classroom || repo.lastDirectorAssessmentCreate.ClassIDs[1] != otherClassroom) {
 					t.Fatalf("class IDs not sorted/deduplicated: %+v", repo.lastDirectorAssessmentCreate.ClassIDs)
+				}
+				if tt.input.TargetScope == "selected" && len(tt.input.StudentIDs) > 1 {
+					got := repo.lastDirectorAssessmentCreate
+					if len(got.StudentIDs) != 2 || got.StudentIDs[0] != learnerA || got.StudentIDs[1] != learnerB || len(got.ClassIDs) != 2 || got.ClassIDs[0] != classroom || got.ClassIDs[1] != otherClassroom {
+						t.Fatalf("selected audience not canonical: students=%+v classes=%+v", got.StudentIDs, got.ClassIDs)
+					}
 				}
 			}
 		})

@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -249,6 +250,51 @@ func TestDirectorCreateAssessmentPostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	eligible, err := readDirectorAssessmentEligibleStudents(ctx, tx, director, school, "", 1, 2)
+	if err != nil || eligible.Total != 3 || len(eligible.Items) != 2 || !eligible.HasMore || eligible.Items[0].Name == "" || eligible.Items[0].StudentID == outside || eligible.Items[0].StudentID == disabled {
+		t.Fatalf("eligible student picker leaked/missed school learners: %+v error=%v", eligible, err)
+	}
+	searchEligible, err := readDirectorAssessmentEligibleStudents(ctx, tx, director, school, "متعلم ج", 1, 20)
+	if err != nil || searchEligible.Total != 1 || len(searchEligible.Items) != 1 || searchEligible.Items[0].StudentID != learnerC || searchEligible.Items[0].ClassName != "فصل آخر" {
+		t.Fatalf("named student search/class projection incorrect: %+v %v", searchEligible, err)
+	}
+	if escapedEligible, err := readDirectorAssessmentEligibleStudents(ctx, tx, director, school, "%", 1, 20); err != nil || escapedEligible.Total != 0 {
+		t.Fatalf("wildcard student search was not escaped: %+v %v", escapedEligible, err)
+	}
+	if _, err := readDirectorAssessmentEligibleStudents(ctx, tx, director, otherSchool, "", 1, 20); !errors.Is(err, org.ErrNotFound) {
+		t.Fatalf("cross-school candidate picker leaked student data: %v", err)
+	}
+	// SCHOOL-005C3B: one published assessment targets the union of class A
+	// and one explicit learner in class C; foreign, disabled and staff-only
+	// accounts must never become student targets.
+	selected := valid
+	selected.RequestKey = "00000000-0000-0000-0000-000000001410"
+	selected.TargetScope = "selected"
+	selected.ClassID = ""
+	selected.ClassIDs = []string{classA}
+	selected.StudentIDs = []string{learnerC}
+	selectedCreated, err := createDirectorAssessmentTx(ctx, tx, probe, director, school, selected)
+	if err != nil || selectedCreated.TargetScope != "selected" || len(selectedCreated.StudentIDs) != 1 || selectedCreated.StudentIDs[0] != learnerC {
+		t.Fatalf("cannot publish selected school audience: %+v err=%v", selectedCreated, err)
+	}
+	var targetedClasses, targetedUsers int
+	if err := tx.QueryRow(ctx, `SELECT (SELECT count(*) FROM assessment_assignment_classes ac WHERE ac.assignment_id=aa.id),
+	 (SELECT count(*) FROM assessment_assignment_users au WHERE au.assignment_id=aa.id)
+	 FROM assessment_assignments aa WHERE aa.assessment_id=$1::uuid`, selectedCreated.AssessmentID).Scan(&targetedClasses, &targetedUsers); err != nil || targetedClasses != 1 || targetedUsers != 1 {
+		t.Fatalf("selected audience persistence mismatch: classes=%d users=%d err=%v", targetedClasses, targetedUsers, err)
+	}
+	selectedAgain, err := createDirectorAssessmentTx(ctx, tx, probe, director, school, selected)
+	if err != nil || selectedAgain.AssessmentID != selectedCreated.AssessmentID || selectedAgain.TargetScope != "selected" || len(selectedAgain.StudentIDs) != 1 {
+		t.Fatalf("selected audience idempotency failed: %+v %v", selectedAgain, err)
+	}
+	for index, studentID := range []string{outside, disabled, director} {
+		bad := selected
+		bad.StudentIDs = []string{studentID}
+		bad.RequestKey = fmt.Sprintf("00000000-0000-0000-0000-00000000141%d", index+1)
+		if _, err := createDirectorAssessmentTx(ctx, tx, probe, director, school, bad); !errors.Is(err, org.ErrNotFound) {
+			t.Fatalf("invalid explicit learner target %s was allowed: %v", studentID, err)
+		}
+	}
 	var classAssignment, wholeAssignment string
 	if err := tx.QueryRow(ctx, `SELECT id::text FROM assessment_assignments WHERE assessment_id=$1::uuid`, created.AssessmentID).Scan(&classAssignment); err != nil {
 		t.Fatal(err)
@@ -287,6 +333,10 @@ func TestDirectorCreateAssessmentPostgres(t *testing.T) {
 	wholeReport, err := readDirectorAssessmentReport(ctx, tx, director, school, schoolCreated.AssessmentID)
 	if err != nil || wholeReport.Audience.Targeted != 3 || wholeReport.Participation.Completed != 0 || wholeReport.Scores.Average != nil {
 		t.Fatalf("wrong whole-school report: %+v error=%v", wholeReport, err)
+	}
+	selectedReport, err := readDirectorAssessmentReport(ctx, tx, director, school, selectedCreated.AssessmentID)
+	if err != nil || selectedReport.Audience.Targeted != 3 || selectedReport.Participation.Completed != 0 {
+		t.Fatalf("selected classes and named learner union is wrong: %+v %v", selectedReport, err)
 	}
 	centralReport, err := readDirectorAssessmentReport(ctx, tx, director, school, centralCreated.AssessmentID)
 	if err != nil || centralReport.Audience.Targeted != 3 || centralReport.Participation.Completed != 0 {
@@ -377,6 +427,9 @@ func TestDirectorCreateAssessmentPostgres(t *testing.T) {
 	}
 	if _, err := tx.Exec(ctx, `UPDATE school_contract_modules SET enabled=false WHERE module_code='SCHOOL_ASSESSMENTS'`); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := readDirectorAssessmentEligibleStudents(ctx, tx, director, school, "", 1, 20); !errors.Is(err, org.ErrNotFound) {
+		t.Fatalf("revoked assessments contract left candidate picker open: %v", err)
 	}
 	if _, err := readDirectorAssessmentReport(ctx, tx, director, school, created.AssessmentID); !errors.Is(err, org.ErrNotFound) {
 		t.Fatalf("revoked contract still exposes results: %v", err)

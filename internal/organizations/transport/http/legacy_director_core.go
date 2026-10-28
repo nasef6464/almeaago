@@ -131,6 +131,7 @@ func (h *LegacyHandler) directorCreateAcademicAssessment(w http.ResponseWriter, 
 		Title       string   `json:"title"`
 		ClassID     string   `json:"classId"`
 		ClassIDs    []string `json:"classIds"`
+		StudentIDs  []string `json:"studentIds"`
 		TargetScope string   `json:"targetScope"`
 		PathID      string   `json:"pathId"`
 		SubjectID   string   `json:"subjectId"`
@@ -145,6 +146,7 @@ func (h *LegacyHandler) directorCreateAcademicAssessment(w http.ResponseWriter, 
 			Title:       payload.Title,
 			ClassID:     payload.ClassID,
 			ClassIDs:    payload.ClassIDs,
+			StudentIDs:  payload.StudentIDs,
 			TargetScope: payload.TargetScope,
 			PathID:      payload.PathID,
 			SubjectID:   payload.SubjectID,
@@ -190,6 +192,37 @@ func (h *LegacyHandler) directorAvailableAssessmentQuestions(w http.ResponseWrit
 		return
 	}
 	writeJSON(w, http.StatusOK, page)
+}
+
+func (h *LegacyHandler) directorAssessmentEligibleStudents(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	auth, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	page, limit := 1, 20
+	if value := r.URL.Query().Get("page"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil {
+			writeError(w, orgapp.ErrInvalidInput)
+			return
+		}
+		page = parsed
+	}
+	if value := r.URL.Query().Get("limit"); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil {
+			writeError(w, orgapp.ErrInvalidInput)
+			return
+		}
+		limit = parsed
+	}
+	result, err := h.service.DirectorAssessmentEligibleStudents(r.Context(), auth.User, chi.URLParam(r, "schoolId"), r.URL.Query().Get("search"), page, limit)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (h *LegacyHandler) directorStudents(w http.ResponseWriter, r *http.Request) {

@@ -252,6 +252,39 @@ func TestLegacyDirectorAssessmentPickerDoesNotExposeGlobalStaffQuestionBank(t *t
 	}
 }
 
+func TestLegacyDirectorEligibleStudentsRestrictsSchoolAndDisablesCaching(t *testing.T) {
+	const school = "00000000-0000-0000-0000-000000000101"
+	repo := &repoStub{contexts: []orgdomain.SchoolContext{{
+		SchoolID: school, Role: identitydomain.RoleSchoolAdmin,
+		Permissions: []string{orgdomain.PermissionSchoolAssessmentsManage},
+		Modules:     []string{string(orgdomain.ModuleSchoolAssessments)},
+	}}}
+	handler := NewLegacy(orgapp.NewService(repo, repo), authStub{auth: schoolAdminAuth()})
+	request := func(url string) *httptest.ResponseRecorder {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, url, nil))
+		return recorder
+	}
+	url := "/director/schools/" + school + "/academic/eligible-students?limit=20&page=1"
+	allowed := request(url)
+	if allowed.Code != http.StatusOK || allowed.Header().Get("Cache-Control") != "private, no-store" || !strings.Contains(allowed.Body.String(), `"items":[]`) {
+		t.Fatalf("candidate endpoint incorrect: %d %s", allowed.Code, allowed.Body.String())
+	}
+	if denied := request(url + "&search=%25"); denied.Code != http.StatusOK {
+		t.Fatalf("literal search should remain valid: %d", denied.Code)
+	}
+	if denied := request(strings.Replace(url, "limit=20", "limit=51", 1)); denied.Code != http.StatusBadRequest {
+		t.Fatalf("unbounded candidate list: %d", denied.Code)
+	}
+	if denied := request(strings.Replace(url, school, "00000000-0000-0000-0000-000000000102", 1)); denied.Code != http.StatusForbidden {
+		t.Fatalf("foreign school candidate list: %d", denied.Code)
+	}
+	repo.contexts[0].Permissions = nil
+	if denied := request(url); denied.Code != http.StatusForbidden {
+		t.Fatalf("revoked candidate permission: %d", denied.Code)
+	}
+}
+
 func TestLegacySchoolAssessmentReportRequiresScopedCapabilityAndAvoidsCaching(t *testing.T) {
 	const schoolA = "00000000-0000-0000-0000-000000000101"
 	const schoolB = "00000000-0000-0000-0000-000000000102"

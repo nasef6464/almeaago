@@ -57,8 +57,10 @@ export interface DirectorAssessmentQuestion{
   id:string;questionCode:string;text:string;type:string;imageUrl:string;imageAlt:string;currentVersion:number;
 }
 export interface DirectorAssessmentQuestionPage{items:DirectorAssessmentQuestion[];hasMore:boolean}
+export interface DirectorAssessmentCandidate{studentId:string;name:string;className:string}
+export interface DirectorAssessmentStudentPage{items:DirectorAssessmentCandidate[];total:number;page:number;limit:number;hasMore:boolean}
 export interface DirectorAssessmentCreateInput{
-  title:string;targetScope:'school'|'class'|'classes';classId:string;classIds?:string[];pathId:string;subjectId:string;questionIds:string[];
+  title:string;targetScope:'school'|'class'|'classes'|'selected';classId:string;classIds?:string[];studentIds?:string[];pathId:string;subjectId:string;questionIds:string[];
 }
 const BASE=(import.meta.env.VITE_API_BASE_URL??'').replace(/\/$/,'');
 async function request<T>(path:string,init:RequestInit={}):Promise<T>{
@@ -96,8 +98,12 @@ export const organizationsClient={
     const q=new URLSearchParams({pathId,subjectId,search,page:String(page),limit:'20'});
     return request<DirectorAssessmentQuestionPage>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/available-questions?${q}`,{signal});
   },
+  directorAssessmentEligibleStudents(schoolId:string,search:string,page:number,signal?:AbortSignal){
+    const q=new URLSearchParams({search,page:String(page),limit:'20'});
+    return request<DirectorAssessmentStudentPage>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/eligible-students?${q}`,{signal});
+  },
   createDirectorAssessment(schoolId:string,input:DirectorAssessmentCreateInput,csrf:string,requestKey:string){
-    return request<{assessment:{assessmentId:string;title:string;classId:string;classIds?:string[];targetScope:'school'|'class'|'classes'}}>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/assessments`,{
+    return request<{assessment:{assessmentId:string;title:string;classId:string;classIds?:string[];studentIds?:string[];targetScope:'school'|'class'|'classes'|'selected'}}>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/assessments`,{
       method:'POST',headers:{...csrfHeaders(csrf),'Idempotency-Key':requestKey},body:JSON.stringify(input),
     });
   },

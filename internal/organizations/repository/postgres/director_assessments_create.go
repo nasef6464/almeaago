@@ -101,11 +101,12 @@ func directorAssessmentFingerprint(write org.DirectorAssessmentCreate) (string, 
 		Title       string   `json:"title"`
 		ClassID     string   `json:"classId"`
 		ClassIDs    []string `json:"classIds,omitempty"`
+		StudentIDs  []string `json:"studentIds,omitempty"`
 		TargetScope string   `json:"targetScope"`
 		PathID      string   `json:"pathId"`
 		SubjectID   string   `json:"subjectId"`
 		QuestionIDs []string `json:"questionIds"`
-	}{write.Title, write.ClassID, write.ClassIDs, write.TargetScope, write.PathID, write.SubjectID, write.QuestionIDs})
+	}{write.Title, write.ClassID, write.ClassIDs, write.StudentIDs, write.TargetScope, write.PathID, write.SubjectID, write.QuestionIDs})
 	if err != nil {
 		return "", err
 	}
@@ -194,10 +195,13 @@ func createDirectorAssessmentTx(
 		if oldActor != actorUserID || oldFingerprint != fingerprint {
 			return empty, org.ErrConflict
 		}
-		if oldScope == "classes" {
+		if input.TargetScope == "selected" {
+			oldScope = "selected"
+		}
+		if oldScope == "classes" || oldScope == "selected" {
 			oldClassID = ""
 		}
-		return org.DirectorAssessmentCreated{AssessmentID: oldAssessmentID, Title: oldTitle, ClassID: oldClassID, ClassIDs: input.ClassIDs, TargetScope: oldScope}, nil
+		return org.DirectorAssessmentCreated{AssessmentID: oldAssessmentID, Title: oldTitle, ClassID: oldClassID, ClassIDs: input.ClassIDs, StudentIDs: input.StudentIDs, TargetScope: oldScope}, nil
 	}
 
 	if input.TargetScope == "class" {
@@ -213,7 +217,7 @@ func createDirectorAssessmentTx(
 		if err != nil {
 			return empty, err
 		}
-	} else if input.TargetScope == "classes" {
+	} else if input.TargetScope == "classes" || input.TargetScope == "selected" {
 		// Lock every selected class while publishing. Partial matches cannot
 		// create a test: all classes must be active in this one school.
 		for _, classID := range input.ClassIDs {
@@ -232,6 +236,24 @@ func createDirectorAssessmentTx(
 		}
 	} else if input.TargetScope != "school" {
 		return empty, org.ErrConflict
+	}
+	if input.TargetScope == "selected" {
+		for _, studentID := range input.StudentIDs {
+			var eligibleStudent string
+			err = tx.QueryRow(ctx, `
+				SELECT membership.user_id::text FROM school_memberships membership
+				JOIN users student ON student.id=membership.user_id
+				WHERE membership.school_id=$1::uuid AND membership.user_id=$2::uuid
+				 AND membership.role='student' AND membership.status='active' AND student.status='active'
+				FOR SHARE OF membership,student
+			`, schoolID, studentID).Scan(&eligibleStudent)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return empty, org.ErrNotFound
+			}
+			if err != nil {
+				return empty, err
+			}
+		}
 	}
 
 	var selectedSubject string
@@ -320,12 +342,22 @@ func createDirectorAssessmentTx(
 		`, assignmentID, input.ClassID); err != nil {
 			return empty, err
 		}
-	} else if input.TargetScope == "classes" {
+	} else if input.TargetScope == "classes" || input.TargetScope == "selected" {
 		for _, classID := range input.ClassIDs {
 			if _, err = tx.Exec(ctx, `
 				INSERT INTO assessment_assignment_classes(assignment_id,class_id)
 				VALUES ($1::uuid,$2::uuid)
 			`, assignmentID, classID); err != nil {
+				return empty, err
+			}
+		}
+	}
+	if input.TargetScope == "selected" {
+		for _, studentID := range input.StudentIDs {
+			if _, err = tx.Exec(ctx, `
+				INSERT INTO assessment_assignment_users(assignment_id,user_id)
+				VALUES ($1::uuid,$2::uuid)
+			`, assignmentID, studentID); err != nil {
 				return empty, err
 			}
 		}
@@ -345,7 +377,8 @@ func createDirectorAssessmentTx(
 		ResourceID:   assessmentID,
 		Metadata: map[string]any{
 			"schoolId": schoolID, "classId": input.ClassID, "classIds": input.ClassIDs,
-			"targetScope": input.TargetScope, "questionCount": len(input.QuestionIDs),
+			"studentCount": len(input.StudentIDs),
+			"targetScope":  input.TargetScope, "questionCount": len(input.QuestionIDs),
 		},
 	}); err != nil {
 		return empty, err
@@ -355,6 +388,7 @@ func createDirectorAssessmentTx(
 		Title:        input.Title,
 		ClassID:      input.ClassID,
 		ClassIDs:     input.ClassIDs,
+		StudentIDs:   input.StudentIDs,
 		TargetScope:  input.TargetScope,
 	}, nil
 }
