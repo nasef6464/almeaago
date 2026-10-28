@@ -59,8 +59,13 @@ export interface DirectorAssessmentQuestion{
 export interface DirectorAssessmentQuestionPage{items:DirectorAssessmentQuestion[];hasMore:boolean}
 export interface DirectorAssessmentCandidate{studentId:string;name:string;className:string}
 export interface DirectorAssessmentStudentPage{items:DirectorAssessmentCandidate[];total:number;page:number;limit:number;hasMore:boolean}
+export interface DirectorAssessmentSettings{
+  maxAttempts:number;passingScore:number;timeLimitMinutes:number;optionLayout:'auto'|'horizontal'|'two_columns';
+  randomizeQuestions:boolean;randomizeOptions:boolean;showProgressBar:boolean;requireAnswerBeforeNext:boolean;
+  allowQuestionReview:boolean;showAnswers:boolean;showResultsReport:boolean;showExplanations:boolean;
+}
 export interface DirectorAssessmentCreateInput{
-  title:string;targetScope:'school'|'class'|'classes'|'selected';classId:string;classIds?:string[];studentIds?:string[];pathId:string;subjectId:string;questionIds:string[];
+  title:string;targetScope:'school'|'class'|'classes'|'selected';classId:string;classIds?:string[];studentIds?:string[];pathId:string;subjectId:string;questionIds:string[];settings?:DirectorAssessmentSettings;
 }
 const BASE=(import.meta.env.VITE_API_BASE_URL??'').replace(/\/$/,'');
 async function request<T>(path:string,init:RequestInit={}):Promise<T>{

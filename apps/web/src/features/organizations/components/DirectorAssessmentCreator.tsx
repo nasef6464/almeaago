@@ -5,6 +5,7 @@ import {
   organizationsClient,
   type DirectorAssessmentQuestion,
   type DirectorAssessmentCandidate,
+  type DirectorAssessmentSettings,
 } from '../api/organizations-client';
 
 interface Props {
@@ -38,6 +39,10 @@ export function DirectorAssessmentCreator({schoolId,classes,paths,subjects,getCs
   const [page,setPage]=useState(1);
   const [questions,setQuestions]=useState<DirectorAssessmentQuestion[]>([]);
   const [selected,setSelected]=useState<string[]>([]);
+  const [settings,setSettings]=useState<DirectorAssessmentSettings>({
+    maxAttempts:3,passingScore:60,timeLimitMinutes:60,optionLayout:'auto',randomizeQuestions:true,randomizeOptions:false,
+    showProgressBar:true,requireAnswerBeforeNext:false,allowQuestionReview:true,showAnswers:true,showResultsReport:true,showExplanations:true,
+  });
   const [loading,setLoading]=useState(false);
   const [hasMore,setHasMore]=useState(false);
   const [saving,setSaving]=useState(false);
@@ -93,7 +98,7 @@ export function DirectorAssessmentCreator({schoolId,classes,paths,subjects,getCs
     try{
       const csrf=await getCsrfToken();
       await organizationsClient.createDirectorAssessment(schoolId,{
-        title:title.trim(),targetScope,classId:targetScope==='class'?classId:'',classIds:targetScope==='classes'||targetScope==='selected'?classIds:[],studentIds:targetScope==='selected'?studentIds:[],pathId,subjectId,questionIds:selected,
+        title:title.trim(),targetScope,classId:targetScope==='class'?classId:'',classIds:targetScope==='classes'||targetScope==='selected'?classIds:[],studentIds:targetScope==='selected'?studentIds:[],pathId,subjectId,questionIds:selected,settings,
       },csrf,requestKey.current);
       if(!alive.current)return;
       requestKey.current=crypto.randomUUID();
@@ -122,6 +127,27 @@ export function DirectorAssessmentCreator({schoolId,classes,paths,subjects,getCs
       <label className="min-w-0 text-xs font-black text-slate-700">المادة<select aria-label="مادة الاختبار المدرسي" required value={subjectId} onChange={e=>changeSubject(e.target.value)} disabled={!pathId} className="mt-1.5 w-full rounded-xl border bg-white px-3 py-2 text-sm"><option value="">اختر المادة</option>{subjects.filter(s=>s.pathId===pathId).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
       <label className="min-w-0 text-xs font-black text-slate-700">بحث عن السؤال<input aria-label="بحث الأسئلة المعتمدة" value={search} onChange={e=>{setSearch(e.target.value);setPage(1)}} disabled={!subjectId} className="mt-1.5 w-full rounded-xl border bg-white px-3 py-2 text-sm" placeholder="الكود أو جزء من السؤال"/></label>
     </div>
+    <fieldset aria-label="إعدادات الاختبار المدرسي" className="min-w-0 space-y-3 rounded-xl border border-indigo-200 bg-white p-3"><legend className="px-1 text-xs font-black text-slate-800">إعدادات الاختبار — مثل منشئ الاختبارات القديم</legend>
+      <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <label className="text-xs font-bold text-slate-700">درجة النجاح (%)<input aria-label="درجة النجاح للاختبار" type="number" min={0} max={100} step={1} required value={settings.passingScore} onChange={e=>setSettings(prev=>({...prev,passingScore:Number(e.target.value)}))} className="mt-1 w-full min-w-0 rounded-lg border px-3 py-2 text-sm"/></label>
+        <label className="text-xs font-bold text-slate-700">الوقت (دقائق؛ 0 بلا حد)<input aria-label="مدة الاختبار بالدقائق" type="number" min={0} max={1440} required value={settings.timeLimitMinutes} onChange={e=>setSettings(prev=>({...prev,timeLimitMinutes:Number(e.target.value)}))} className="mt-1 w-full min-w-0 rounded-lg border px-3 py-2 text-sm"/></label>
+        <label className="text-xs font-bold text-slate-700">المحاولات المسموحة<input aria-label="عدد محاولات الاختبار" type="number" min={1} max={100} required value={settings.maxAttempts} onChange={e=>setSettings(prev=>({...prev,maxAttempts:Number(e.target.value)}))} className="mt-1 w-full min-w-0 rounded-lg border px-3 py-2 text-sm"/></label>
+        <label className="text-xs font-bold text-slate-700">توزيع الاختيارات<select aria-label="طريقة عرض اختيارات الاختبار" value={settings.optionLayout} onChange={e=>setSettings(prev=>({...prev,optionLayout:e.target.value as DirectorAssessmentSettings['optionLayout']}))} className="mt-1 w-full min-w-0 rounded-lg border bg-white px-3 py-2 text-sm"><option value="auto">تلقائي</option><option value="two_columns">اختياران في الصف</option><option value="horizontal">أفقي للشاشات الواسعة</option></select></label>
+      </div>
+      <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {([
+          ['randomizeQuestions','خلط ترتيب أسئلة الاختبار'],
+          ['randomizeOptions','خلط ترتيب الإجابات'],
+          ['showProgressBar','إظهار شريط التقدم'],
+          ['requireAnswerBeforeNext','منع تخطي السؤال دون إجابة'],
+          ['allowQuestionReview','السماح بمراجعة الأسئلة'],
+          ['showAnswers','إظهار الإجابات بعد الاختبار'],
+          ['showResultsReport','إظهار تقرير الطالب بعد الانتهاء'],
+          ['showExplanations','إظهار الشرح بعد الاختبار'],
+        ] as const).map(([key,label])=><label key={key} className="flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold text-slate-700"><input type="checkbox" aria-label={label} checked={settings[key]} onChange={e=>setSettings(prev=>({...prev,[key]:e.target.checked}))} className="h-4 w-4 shrink-0"/><span className="min-w-0 break-words">{label}</span></label>)}
+      </div>
+      <p className="text-xs text-slate-500">عرض اختيارين أو عرض أفقي يطبّق على المساحات المناسبة؛ على الجوال تظل الاختيارات عمودية.</p>
+    </fieldset>
     <div className="min-w-0 rounded-xl border border-indigo-100 bg-white p-3">
       <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-black">الأسئلة المعتمدة فقط</p><span className="text-xs font-black text-indigo-700">تم اختيار {selected.length} سؤال</span></div>
       {loading?<p role="status" className="mt-3 text-xs text-slate-500">جار تحميل الأسئلة…</p>:null}

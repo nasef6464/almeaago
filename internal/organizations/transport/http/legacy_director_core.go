@@ -128,14 +128,15 @@ func (h *LegacyHandler) directorCreateAcademicAssessment(w http.ResponseWriter, 
 		return
 	}
 	var payload struct {
-		Title       string   `json:"title"`
-		ClassID     string   `json:"classId"`
-		ClassIDs    []string `json:"classIds"`
-		StudentIDs  []string `json:"studentIds"`
-		TargetScope string   `json:"targetScope"`
-		PathID      string   `json:"pathId"`
-		SubjectID   string   `json:"subjectId"`
-		QuestionIDs []string `json:"questionIds"`
+		Title       string                                `json:"title"`
+		ClassID     string                                `json:"classId"`
+		ClassIDs    []string                              `json:"classIds"`
+		StudentIDs  []string                              `json:"studentIds"`
+		TargetScope string                                `json:"targetScope"`
+		PathID      string                                `json:"pathId"`
+		SubjectID   string                                `json:"subjectId"`
+		QuestionIDs []string                              `json:"questionIds"`
+		Settings    *orgdomain.DirectorAssessmentSettings `json:"settings"`
 	}
 	if !decodeJSON(w, r, &payload) {
 		return
@@ -152,6 +153,7 @@ func (h *LegacyHandler) directorCreateAcademicAssessment(w http.ResponseWriter, 
 			SubjectID:   payload.SubjectID,
 			QuestionIDs: payload.QuestionIDs,
 			RequestKey:  r.Header.Get("Idempotency-Key"),
+			Settings:    payload.Settings,
 		},
 	)
 	if err != nil {

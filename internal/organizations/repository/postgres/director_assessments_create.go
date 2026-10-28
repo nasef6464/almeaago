@@ -98,15 +98,16 @@ func directorAssessmentFingerprint(write org.DirectorAssessmentCreate) (string, 
 	// Stable typed serialization: question order is significant and normalized by
 	// the application layer before reaching the transaction.
 	data, err := json.Marshal(struct {
-		Title       string   `json:"title"`
-		ClassID     string   `json:"classId"`
-		ClassIDs    []string `json:"classIds,omitempty"`
-		StudentIDs  []string `json:"studentIds,omitempty"`
-		TargetScope string   `json:"targetScope"`
-		PathID      string   `json:"pathId"`
-		SubjectID   string   `json:"subjectId"`
-		QuestionIDs []string `json:"questionIds"`
-	}{write.Title, write.ClassID, write.ClassIDs, write.StudentIDs, write.TargetScope, write.PathID, write.SubjectID, write.QuestionIDs})
+		Title       string                          `json:"title"`
+		ClassID     string                          `json:"classId"`
+		ClassIDs    []string                        `json:"classIds,omitempty"`
+		StudentIDs  []string                        `json:"studentIds,omitempty"`
+		TargetScope string                          `json:"targetScope"`
+		PathID      string                          `json:"pathId"`
+		SubjectID   string                          `json:"subjectId"`
+		QuestionIDs []string                        `json:"questionIds"`
+		Settings    *org.DirectorAssessmentSettings `json:"settings,omitempty"`
+	}{write.Title, write.ClassID, write.ClassIDs, write.StudentIDs, write.TargetScope, write.PathID, write.SubjectID, write.QuestionIDs, write.Settings})
 	if err != nil {
 		return "", err
 	}
@@ -305,14 +306,30 @@ func createDirectorAssessmentTx(
 	if err != nil {
 		return empty, err
 	}
+	var settings org.DirectorAssessmentSettings
+	if input.Settings != nil {
+		settings = *input.Settings
+	}
 	_, err = tx.Exec(ctx, `
 		INSERT INTO assessment_versions(
 		  assessment_id,version,title,path_id,subject_id,
 		  assessment_kind,normal_mode,version_status,
-		  access_type,created_by,published_by,published_at
+		  access_type,created_by,published_by,published_at,
+		  max_attempts,passing_score,time_limit_seconds,option_layout,
+		  randomize_questions,randomize_options,show_progress_bar,
+		  require_answer_before_next,allow_question_review,show_answers,
+		  show_results_report,show_explanations
 		) VALUES ($1::uuid,1,$2,$3::uuid,$4::uuid,
-		  'normal','exam','published','private',$5::uuid,$5::uuid,now())
-	`, assessmentID, input.Title, input.PathID, input.SubjectID, actorUserID)
+		  'normal','exam','published','private',$5::uuid,$5::uuid,now(),
+		  COALESCE($6::integer,3),COALESCE($7::numeric,60),NULLIF($8::integer*60,0),
+		  COALESCE($9::text,'auto'),COALESCE($10::boolean,true),COALESCE($11::boolean,false),
+		  COALESCE($12::boolean,true),COALESCE($13::boolean,false),COALESCE($14::boolean,true),
+		  COALESCE($15::boolean,true),COALESCE($16::boolean,true),COALESCE($17::boolean,true))
+	`, assessmentID, input.Title, input.PathID, input.SubjectID, actorUserID,
+		settings.MaxAttempts, settings.PassingScore, settings.TimeLimitMinutes, settings.OptionLayout,
+		settings.RandomizeQuestions, settings.RandomizeOptions, settings.ShowProgressBar,
+		settings.RequireAnswerBeforeNext, settings.AllowQuestionReview, settings.ShowAnswers,
+		settings.ShowResultsReport, settings.ShowExplanations)
 	if err != nil {
 		return empty, err
 	}

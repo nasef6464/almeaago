@@ -488,6 +488,12 @@ test('selected school assessment combines named students and a class without lea
   await page.getByRole('button',{name:'التالي للطلاب'}).click();
   await page.getByLabel('اختيار الطالب مريم خالد').check();
   await page.getByLabel('اختيار الفصل الأول أ').check();
+  await page.getByLabel('درجة النجاح للاختبار').fill('75');
+  await page.getByLabel('مدة الاختبار بالدقائق').fill('25');
+  await page.getByLabel('عدد محاولات الاختبار').fill('2');
+  await page.getByLabel('طريقة عرض اختيارات الاختبار').selectOption('two_columns');
+  await page.getByLabel('خلط ترتيب أسئلة الاختبار').uncheck();
+  await page.getByLabel('إظهار الإجابات بعد الاختبار').uncheck();
   await page.getByLabel('مسار الاختبار المدرسي').selectOption('path-1');
   await page.getByLabel('مادة الاختبار المدرسي').selectOption('subject-1');
   await page.getByLabel('اختيار السؤال MATH-001').check();
@@ -497,7 +503,7 @@ test('selected school assessment combines named students and a class without lea
   expect(await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth)).toBe(false);
   await page.getByRole('button',{name:'إنشاء ونشر للطلاب المستهدفين'}).click();
   await expect(page.getByText('اختبار المجموعة المختارة')).toBeVisible();
-  expect(created).toMatchObject({targetScope:'selected',classId:'',classIds:['class-1'],studentIds:['learner-1','learner-2'],questionIds:['q-1']});
+  expect(created).toMatchObject({targetScope:'selected',classId:'',classIds:['class-1'],studentIds:['learner-1','learner-2'],questionIds:['q-1'],settings:{passingScore:75,timeLimitMinutes:25,maxAttempts:2,optionLayout:'two_columns',randomizeQuestions:false,showAnswers:false}});
 });
 
 test('assessment cards ignore a late A response after A to B to A, on all target widths',async({page})=>{
