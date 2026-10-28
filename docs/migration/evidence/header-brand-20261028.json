@@ -1,0 +1,82 @@
+{
+  "sourceHeaderBlob": "c4e45e5d9bd485538036e98f70eac42471a8fa71",
+  "codeHead": "fdde1c424bcc24239c8d7a4193d90906279207c6",
+  "databaseWorkflowRun": 40765588520,
+  "artifactId": 12850577148,
+  "artifactDigest": "sha256:7a5870e8997f1781469673caf311e44a989cb700acd9dc707181a1a5b29bc8f0",
+  "boundary": "brand anchor only; real Go/PostgreSQL save and reload; same CSS and sticky scroll conditions; not whole header or platform",
+  "comparisons": [
+    {
+      "role": "admin",
+      "viewportWidth": 390,
+      "pixelComparison": "byte-identical",
+      "imageSize": [
+        211,
+        40
+      ],
+      "sha256": "af9709f4aaffd560ef267ef0da9bd0ad80c2ff56e20c9eb4a3ae19a703210f08",
+      "source": "test-results/header-brand-admin-390-source.png",
+      "target": "test-results/header-brand-admin-390-go.png"
+    },
+    {
+      "role": "admin",
+      "viewportWidth": 820,
+      "pixelComparison": "byte-identical",
+      "imageSize": [
+        267,
+        50
+      ],
+      "sha256": "fbe3a8c5df75be10716061f26dd4839deae57f32eb784866f43ae574d97d17fc",
+      "source": "test-results/header-brand-admin-820-source.png",
+      "target": "test-results/header-brand-admin-820-go.png"
+    },
+    {
+      "role": "admin",
+      "viewportWidth": 1440,
+      "pixelComparison": "byte-identical",
+      "imageSize": [
+        267,
+        50
+      ],
+      "sha256": "fbe3a8c5df75be10716061f26dd4839deae57f32eb784866f43ae574d97d17fc",
+      "source": "test-results/header-brand-admin-1440-source.png",
+      "target": "test-results/header-brand-admin-1440-go.png"
+    },
+    {
+      "role": "guest",
+      "viewportWidth": 390,
+      "pixelComparison": "byte-identical",
+      "imageSize": [
+        211,
+        40
+      ],
+      "sha256": "af9709f4aaffd560ef267ef0da9bd0ad80c2ff56e20c9eb4a3ae19a703210f08",
+      "source": "test-results/header-brand-guest-390-source.png",
+      "target": "test-results/header-brand-guest-390-go.png"
+    },
+    {
+      "role": "guest",
+      "viewportWidth": 820,
+      "pixelComparison": "byte-identical",
+      "imageSize": [
+        267,
+        50
+      ],
+      "sha256": "fbe3a8c5df75be10716061f26dd4839deae57f32eb784866f43ae574d97d17fc",
+      "source": "test-results/header-brand-guest-820-source.png",
+      "target": "test-results/header-brand-guest-820-go.png"
+    },
+    {
+      "role": "guest",
+      "viewportWidth": 1440,
+      "pixelComparison": "byte-identical",
+      "imageSize": [
+        267,
+        50
+      ],
+      "sha256": "fbe3a8c5df75be10716061f26dd4839deae57f32eb784866f43ae574d97d17fc",
+      "source": "test-results/header-brand-guest-1440-source.png",
+      "target": "test-results/header-brand-guest-1440-go.png"
+    }
+  ]
+}
