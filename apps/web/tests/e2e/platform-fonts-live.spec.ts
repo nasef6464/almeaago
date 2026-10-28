@@ -39,8 +39,16 @@ test('original font editor persists through real Go identity and PostgreSQL',asy
   await expect(sourceNavigation.getByRole('textbox',{name:'حجم القوائم والتنقل',exact:true})).toHaveValue('18px');
   const panel=(p:typeof page)=>p.getByRole('heading',{name:'إدارة خطوط المنصة',exact:true}).locator('xpath=../../..');
   await page.mouse.move(0,0);await original.mouse.move(0,0);
-  const expected=await panel(original).screenshot({path:`test-results/font-source-component-${width}.png`,animations:'disabled'});
-  const actual=await panel(page).screenshot({path:`test-results/font-go-component-${width}.png`,animations:'disabled'});
+  // Locator.screenshot scrolls this tall panel under the sticky site header.
+  // Capture its document rectangle at scroll0 instead, so all panel pixels are
+  // visible and no unrelated shell title is painted over the component.
+  const capture=async(p:typeof page,name:string)=>{
+   await p.evaluate(()=>window.scrollTo(0,0));
+   const clip=await panel(p).boundingBox();expect(clip).not.toBeNull();
+   return p.screenshot({path:`test-results/font-${name}-component-${width}.png`,fullPage:true,clip:clip!,animations:'disabled'});
+  };
+  const expected=await capture(original,'source');
+  const actual=await capture(page,'go');
   const metrics=async(p:typeof page)=>p.locator('select').evaluateAll(elements=>elements.map(element=>{
    const style=getComputedStyle(element);const rect=element.getBoundingClientRect();
    return {font:style.font,fontFamily:style.fontFamily,lineHeight:style.lineHeight,x:rect.x,y:rect.y,width:rect.width,height:rect.height};
