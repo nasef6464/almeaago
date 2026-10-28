@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -66,6 +67,8 @@ func newEvidenceFixture(t *testing.T) *evidenceFixture {
 		t.Fatal(err)
 	}
 	cfg.MaxConns = 4
+	// Writers must request fresh snapshots even when the deployment default differs.
+	cfg.ConnConfig.RuntimeParams["default_transaction_isolation"] = "repeatable read"
 	cfg.ConnConfig.RuntimeParams["search_path"] = schema + ",public"
 	cfg.ConnConfig.RuntimeParams["application_name"] = schema
 	db, err := pgxpool.NewWithConfig(ctx, cfg)
@@ -192,7 +195,7 @@ func TestEvidenceSerializationPostgres(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			f := newEvidenceFixture(t)
 			a := f.assessment(evidenceStudent, 1, true)
-			b := f.assessment(evidenceStudent, 2, false)
+			b := f.assessment(strings.ReplaceAll(evidenceStudent, "-", ""), 2, false)
 			var first, second func() error
 			if kind == "review_review" {
 				r := f.review(t, 1, true)

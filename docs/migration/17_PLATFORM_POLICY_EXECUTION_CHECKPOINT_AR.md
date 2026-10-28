@@ -73,3 +73,7 @@
 ## متابعة P1 — single-query readiness
 
 من Go `778be2c` وLegacy `bf7281f`: استبدال تجميع صفحات الجاهزية بقراءة SQL واحدة بحد 10000، مع رفض overflow والمحافظة على التحقق من النطاق والتكرار. التفاصيل والدليل والحدود: `21_READINESS_SINGLE_QUERY_AR.md`. اختبارات Go المحلية ناجحة؛ integration الحقيقي في Database CI ينتظر تشغيل الفرع. لا تغيير production أو schema أو scoring. الحالة PARTIAL إلى تحقق CI؛ التالي golden denominator/policy comparisons، مع حفظ فرع school-definition الجاري دون تكرار عمله.
+
+## متابعة P1 — concurrent evidence integrity / PR #148
+
+على أساس Go `935998650d2183bd9a8c95c154384ff4754b3197` وبعد تأكيد Legacy `bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7`، #145/#146 مدمجان. فحص مساري حفظ الاختبار والمراجعة كشف aggregate قبل upsert بلا قفل مشترك. RED على `7e0d104` في Database CI [40679673484](https://github.com/nasef6464/almeaago/actions/runs/40679673484): 3 حالات تحفظ دليلين بينما التقدم يحتسب واحدًا؛ إعادة review متزامنة متطابقة تعيد conflict؛ الإلغاء سليم أصلًا. يُضاف قفل transaction لكل طالب قبل أي قفل بطاقة/كتابة، مع READ COMMITTED صريح؛ لا تغيير سياسة أو تقريب أو schema. التفاصيل `23_LEARNING_EVIDENCE_SERIALIZATION_AR.md`. Go suite المحلية وsource oracle نجحت؛ اعتماد GREEN والدمج ينتظر فحوص الرأس النهائي، ولا إثبات إنتاج أو تكافؤ شامل. التالي مقارنة سياسة التجميع المتتابع/التقريب مع الأصل، ثم مقام المنهج والتوصية التكيفية.
