@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http/httptest"
 	"strings"
+	"testing"
+	"time"
 
 	identityapp "github.com/nasef6464/almeaago/internal/identity/application"
 	learning "github.com/nasef6464/almeaago/internal/learning/domain"
 	learninghttp "github.com/nasef6464/almeaago/internal/learning/transport/http"
-	"testing"
-	"time"
 
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	"github.com/nasef6464/almeaago/internal/learning/application"
@@ -157,3 +158,75 @@ func (a adaptiveHTTPAuth) Authenticate(context.Context, string) (identityapp.Aut
 	return identityapp.Authenticated{User: a.actor}, nil
 }
 func (a adaptiveHTTPAuth) VerifyCSRF(identityapp.Authenticated, string) error { return nil }
+
+func TestAdaptiveSelectionHistoryPostgres(t *testing.T) {
+	for _, scenario := range []string{"event grouping", "latest five", "missing timestamp", "candidate cap", "optional subject"} {
+		t.Run(scenario, func(t *testing.T) {
+			f := newEvidenceFixture(t)
+			const skill = "00000000-0000-0000-0000-000000000082"
+			_, err := f.db.Exec(f.ctx, `INSERT INTO skill_progress(student_id,path_id,subject_id,skill_id,mastery,status,attempts,evidence_count,last_evidence_at,recommended_action)
+   VALUES($1,$2,$3,$4,60,'average',3,3,$5,'stored')`, evidenceStudent, evidencePath, evidenceSubject, skill, f.now)
+			if err != nil {
+				t.Fatal(err)
+			}
+			add := func(event string, n int, correct bool, at time.Time) {
+				t.Helper()
+				_, err := f.db.Exec(f.ctx, `WITH e AS (INSERT INTO mastery_evidence
+    (student_id,evidence_type,source_attempt_id,assessment_id,assessment_version,question_id,question_version,path_id,subject_id,answered,is_correct,occurred_at)
+    VALUES($1,'assessment',md5($2)::uuid,$3,1,md5($4)::uuid,1,$5,$6,true,$7,$8) RETURNING id)
+    INSERT INTO mastery_evidence_skills(evidence_id,skill_id) SELECT id,$9 FROM e`, evidenceStudent, event, evidencePath, event+fmt.Sprint(n), evidencePath, evidenceSubject, correct, at, skill)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			subject := evidenceSubject
+			wantTrend := "stable"
+			switch scenario {
+			case "event grouping":
+				add("first", 0, false, f.now.Add(-5*time.Hour))
+				add("first", 1, true, f.now.Add(-4*time.Hour))
+				add("second", 0, true, f.now.Add(-3*time.Hour))
+				add("second", 1, false, f.now.Add(-2*time.Hour))
+				add("second", 2, false, f.now.Add(-time.Hour))
+				wantTrend = "declining"
+			case "latest five":
+				for i, correct := range []bool{true, false, false, false, false, true} {
+					add(fmt.Sprint(i), 0, correct, f.now.Add(time.Duration(i-6)*time.Hour))
+				}
+				wantTrend = "improving"
+			case "missing timestamp":
+				_, err = f.db.Exec(f.ctx, "UPDATE skill_progress SET last_evidence_at=NULL WHERE student_id=$1", evidenceStudent)
+				if err != nil {
+					t.Fatal(err)
+				}
+			case "candidate cap":
+				_, err = f.db.Exec(f.ctx, `INSERT INTO skill_progress(student_id,path_id,subject_id,skill_id,mastery,status,attempts,evidence_count,last_evidence_at,recommended_action)
+    SELECT $1,$2,$3,md5(n::text)::uuid,59,'good',3,3,$4,'stored' FROM generate_series(1,100)n`, evidenceStudent, evidencePath, evidenceSubject, f.now)
+				if err != nil {
+					t.Fatal(err)
+				}
+			case "optional subject":
+				subject = ""
+			}
+			got, err := f.repo.WeakestSkillProgress(f.ctx, evidenceStudent, evidencePath, subject)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got == nil {
+				t.Fatal("missing recommendation")
+			}
+			if scenario == "candidate cap" {
+				if got.SkillID == skill {
+					t.Fatal("ranked outside source first-100 window")
+				}
+				return
+			}
+			if got.SkillID != skill || got.Trend != wantTrend {
+				t.Fatalf("history: %+v want trend=%s", got, wantTrend)
+			}
+			if scenario == "missing timestamp" && !got.LastEvidenceAt.IsZero() {
+				t.Fatal("fabricated evidence timestamp")
+			}
+		})
+	}
+}

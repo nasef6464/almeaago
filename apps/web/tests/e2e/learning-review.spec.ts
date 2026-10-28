@@ -310,3 +310,53 @@ test('legacy favorites alias preserves review-library shell and scoped V2 truth 
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: 'test-results/learning-review-legacy-tablet.png', fullPage: true });
 });
+
+for (const width of [390, 820, 1440]) {
+  test(`adaptive recommendation shows selected priority and clears old scope at ${width}`, async ({ page }) => {
+    await auth(page);
+    await page.setViewportSize({ width, height: 1000 });
+    await page.route('**/api/v1/taxonomy/bootstrap?phase=core', route => json(route, {
+      paths: [{ id: 'path-1', code: 'QDR', name: 'القدرات', sortOrder: 1 }],
+      subjects: [
+        { id: 'subject-1', pathId: 'path-1', code: 'QNT', name: 'الكمي', sortOrder: 1 },
+        { id: 'subject-2', pathId: 'path-1', code: 'VRB', name: 'اللفظي', sortOrder: 2 },
+      ],
+    }));
+    await page.route('**/api/v1/review/library?**', route => json(route, { items: [], page: 1, limit: 20, hasMore: false }));
+    await page.route('**/api/v1/mastery/progress?**', route => json(route, { items: [], page: 1, limit: 8, hasMore: false }));
+    await page.route('**/api/v1/mastery/goals?**', route => json(route, { items: [], page: 1, limit: 20, hasMore: false }));
+    await page.route('**/api/v1/mastery/readiness?**', route => json(route, { readiness: null }));
+    let release: () => void = () => {};
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    let slow = false;
+    let calls = 0;
+    await page.route('**/api/v1/mastery/next-action?**', async route => {
+      const subjectId = new URL(route.request().url()).searchParams.get('subjectId');
+      calls++;
+      if (slow && subjectId === 'subject-2') await pending;
+      return json(route, { item: {
+        pathId: 'path-1', subjectId, skillId: `priority-${subjectId}`, mastery: subjectId === 'subject-1' ? 60 : 82,
+        status: 'average', attempts: 3, evidenceCount: 3, lastEvidenceAt: '2026-10-28T00:00:00Z',
+        action: subjectId === 'subject-1' ? 'alternate_support_then_recheck' : 'mastery_review',
+        trend: subjectId === 'subject-1' ? 'declining' : 'stable',
+        recommendedAction: subjectId === 'subject-1' ? 'دعم بديل ثم إعادة القياس' : 'مراجعة الإتقان',
+      } });
+    });
+    await page.goto('/review?pathId=path-1&subjectId=subject-1');
+    await expect(page.getByRole('heading', { name: 'دعم بديل ثم إعادة القياس' })).toBeVisible();
+    await expect(page.getByText('إتقان المهارة المختارة: 60.0%', { exact: false })).toBeVisible();
+    await expect(page.getByText('اتجاه الأدلة: متراجع')).toBeVisible();
+    await expect(page.getByText('أقل إتقان حالي:', { exact: false })).toHaveCount(0);
+    await page.screenshot({ path: `test-results/adaptive-priority-${width}.png`, fullPage: true });
+    slow = true;
+    const before = calls;
+    await page.getByLabel('مادة المراجعة').selectOption('subject-2');
+    await expect.poll(() => calls).toBeGreaterThan(before);
+    // The old subject's recommendation must disappear while the new scope loads.
+    await expect(page.getByRole('heading', { name: 'دعم بديل ثم إعادة القياس' })).toHaveCount(0);
+    release();
+    await expect(page.getByRole('heading', { name: 'مراجعة الإتقان' })).toBeVisible();
+    await expect(page.getByText('إتقان المهارة المختارة: 82.0%', { exact: false })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
