@@ -182,6 +182,14 @@
 **غير منجز:** inventory آلي شامل، صور UI حديثة كاملة، اختبار مرئي طرفي، إصلاح Go، PR/CI/نشر، تصدير DB.  
 **الخطوة التالية وقت السجل التاريخي (استُبدلت بالبوابات أعلاه):** ثبّت الميثاق التربوي وبوابات محرك التعلّم/الاختبار والمقارنات عبر كل المنصة؛ عالج الفجوة المثبتة في جمع أدلة الجاهزية على كل صفحات المهارات (راجع خطة `../superpowers/plans/2026-10-28-educational-policy-readiness.md`)؛ ثم أكمل فحص فجوات المدارس والواجهات ضمن الترتيب المعتمد. شرائح SCHOOL السابقة لا تُلغى ولا تُعاد من البداية.
 
+### بوابة1 — checkpoint عقد حفظ الرئيسية (غير مغلق)
+
+بعد دمج#153 عند `6baf9f1159c682f70062455eb9fcedc57469abf5` بدأ فرع
+`feat/persisted-homepage-contract`. أول خطوة داخل الدفعة هي API/storage تحت content:
+GET عام وPATCH مدير/CSRF، عقد الحقول الأصلي، references بعلاقات PostgreSQL،
+atomic audit وقراءة متسقة. التفاصيل والأدلة في29. شاشة المدير والهيدر والرئيسية
+ما زالت تالية؛ لا تغلق بوابة1 ولا تضع PARITY_PROVEN من هذا العقد وحده.
+
 ### قالب تحديث كل دفعة
 
 `date | legacy SHA | go base/head SHA | area/slice | verified evidence | tests & CI run IDs | source changes | gap status | PR | blockers | next exact action`.

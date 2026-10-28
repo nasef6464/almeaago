@@ -20,9 +20,10 @@ type Authenticator interface {
 }
 
 type Handler struct {
-	service *contentapp.Service
-	fonts   *contentapp.FontService
-	auth    Authenticator
+	service  *contentapp.Service
+	fonts    *contentapp.FontService
+	homepage *contentapp.HomepageService
+	auth     Authenticator
 }
 
 func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request, csrf bool) (identityapp.Authenticated, bool) {

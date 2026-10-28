@@ -245,7 +245,7 @@ func main() {
 	lessonsHandler := contenthttp.NewLessons(contentService, identityService)
 	foundationHandler := contenthttp.NewFoundation(contentService, identityService)
 	libraryHandler := contenthttp.NewLibrary(contentService, identityService)
-	contentManagementHandler := contenthttp.NewManagement(contentService, identityService, contentapp.NewFontService(contentRepository))
+	contentManagementHandler := contenthttp.NewManagementWithPresentation(contentService, identityService, contentapp.NewFontService(contentRepository), contentapp.NewHomepageService(contentRepository))
 	learningSpacesHandler := contenthttp.NewLearningSpaces(contentService, identityService)
 	learningReviewHandler := learninghttp.NewReview(learningService, identityService)
 	masteryHandler := learninghttp.NewMasteryWithGoals(learningService, masteryGoalService, identityService)
