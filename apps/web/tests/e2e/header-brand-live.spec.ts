@@ -29,6 +29,8 @@ test('saved logo retains original brand image and name for admin and guest',asyn
       const capture=async(p:typeof page,link:typeof brand,name:string)=>{
         await p.mouse.move(0,999);await p.evaluate(()=>document.fonts.ready);
         await expect.poll(()=>link.locator('img').evaluate((image:HTMLImageElement)=>image.complete&&image.naturalWidth>0)).toBe(true);
+        const metrics=await link.evaluate(element=>[element,...element.querySelectorAll('span,img')].map(e=>{const s=getComputedStyle(e);const r=e.getBoundingClientRect();return {text:e.textContent,box:{x:r.x,y:r.y,width:r.width,height:r.height},font:s.font,fontFamily:s.fontFamily,letterSpacing:s.letterSpacing,color:s.color};}));
+        await testInfo.attach(`header-brand-metrics-${role}-${width}-${name}`,{body:JSON.stringify(metrics),contentType:'application/json'});
         const bytes=await link.screenshot({path:`test-results/header-brand-${role}-${width}-${name}.png`,animations:'disabled'});
         await testInfo.attach(`header-brand-${role}-${width}-${name}`,{body:bytes,contentType:'image/png'});return bytes;
       };

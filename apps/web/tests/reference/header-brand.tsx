@@ -5,6 +5,7 @@
 import {createRoot} from 'react-dom/client';
 import {BrowserRouter,Link} from 'react-router-dom';
 import {useHomepageSettings} from '../../src/features/presentation/useHomepageSettings';
+import {PlatformFontBootstrap} from '../../src/features/presentation/PlatformFontBootstrap';
 import '../../src/app/styles.css';
 function Reference(){
   const homepageSettings=useHomepageSettings();
@@ -12,7 +13,7 @@ function Reference(){
   const brandLogoAlt=String(homepageSettings?.brand?.logoAlt || 'منصة المئة').trim();
   const brandLogoText=String(homepageSettings?.brand?.logoText || 'منصة').trim();
   const brandLogoAccentText=String(homepageSettings?.brand?.logoAccentText || 'المئة').trim();
-  return <header className="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm font-sans dark:bg-gray-950 dark:border-gray-800"><div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8"><div className="flex justify-between items-center h-16 sm:h-20 gap-3"><div className="flex items-center gap-2 sm:gap-4 min-w-0"><span className="md:hidden w-10 shrink-0"/>
+  return <><PlatformFontBootstrap/><header className="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm font-sans dark:bg-gray-950 dark:border-gray-800"><div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8"><div className="flex justify-between items-center h-16 sm:h-20 gap-3"><div className="flex items-center gap-2 sm:gap-4 min-w-0"><span className="md:hidden w-10 shrink-0"/>
             <Link to="/" className="flex items-center gap-2.5 min-w-0 group">
               {brandLogoUrl ? (
                 <img
@@ -31,6 +32,6 @@ function Reference(){
                 </span>
               </div>
             </Link>
-  </div></div></div></header>;
+  </div></div></div></header></>;
 }
 createRoot(document.getElementById('root')!).render(<BrowserRouter><Reference/></BrowserRouter>);
