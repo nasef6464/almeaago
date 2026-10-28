@@ -11,3 +11,14 @@ test('records action locations and leaves parity and roles unproven',()=>{
 test('does not invent dynamic navigation values',()=>{
  assert.deepEqual(inspect('<Link to={getPath(id)}/>').navigation,[]);
 });
+test('compact discovery is reproducible from detailed records', async()=>{
+ const { summarize }=await import('./screen-inventory.mjs');
+ const full={sha:'abc',files:[{file:'a.tsx',...inspect('<button onClick={save}/>')}]};
+ assert.equal(typeof summarize,'function');
+ const compact=summarize(full);
+ assert.equal(compact.files[0].controlsCount,1);
+ assert.equal(compact.files[0].eventsCount,1);
+ assert.equal(compact.files[0].status,'UNKNOWN');
+ assert.equal(compact.files[0].controls,undefined);
+ assert.equal(full.files[0].controls.length,1);
+});

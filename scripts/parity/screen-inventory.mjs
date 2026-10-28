@@ -17,6 +17,15 @@ export function inspect(source) {
     remaining:['Resolve dynamic routes/menus/guards and component call graph','Trace each action to HTTP, Go and PostgreSQL','Inspect success/error/loading/empty states','Capture equivalent role/data/viewport screenshots'],
   };
 }
+export function summarize(inventory) {
+ return {...inventory,files:inventory.files.map(record=>{
+  const result={...record};
+  for(const key of ['navigation','events','controls','apiCandidates','labels','componentImports']) {
+   result[key+'Count']=result[key].length; delete result[key];
+  }
+  delete result.remaining; return result;
+ })};
+}
 export function inventory(root, roots) {
  const files=[];
  function walk(dir) { for(const entry of readdirSync(dir,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name))) { const path=resolve(dir,entry.name); if(entry.isDirectory()) walk(path); else if(/\.(?:tsx|jsx)$/.test(entry.name)) files.push(path); } }
@@ -26,5 +35,6 @@ export function inventory(root, roots) {
 if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
  const legacy=process.argv[2]; if(!legacy) throw Error('Explicit read-only Legacy checkout required');
  const root=resolve(fileURLToPath(new URL('../..',import.meta.url)));
- process.stdout.write(JSON.stringify({kind:'STATIC_DISCOVERY_NOT_PARITY_CERTIFICATION',legacy:inventory(resolve(legacy),['app','pages','dashboards','components']),target:inventory(root,['apps/web/src'])},null,2)+'\n');
+ const output = process.argv.includes('--summary') ? summarize : value=>value;
+ process.stdout.write(JSON.stringify({kind:'STATIC_DISCOVERY_NOT_PARITY_CERTIFICATION',legacy:output(inventory(resolve(legacy),['app','pages','dashboards','components'])),target:output(inventory(root,['apps/web/src']))},null,process.argv.includes('--summary') ? undefined : 2)+'\n');
 }

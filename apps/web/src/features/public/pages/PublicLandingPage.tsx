@@ -170,7 +170,7 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
   },[isHeroHovered]);
 
   const paths=useMemo(()=>[...taxonomy.paths].sort((a,b)=>a.sortOrder-b.sortOrder),[taxonomy.paths]);
-  const visiblePaths=paths.slice(0,6);
+  const visiblePaths=paths;
   const showcase=showcaseTab==='daylight'?PLATFORM_DAYLIGHT_IMAGES:PLATFORM_SHOWCASE_IMAGES;
   const dashboardHref=user?dashboardPathFor(user):'/dashboard';
 
