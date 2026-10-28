@@ -130,6 +130,7 @@ func (h *LegacyHandler) directorCreateAcademicAssessment(w http.ResponseWriter, 
 	var payload struct {
 		Title       string   `json:"title"`
 		ClassID     string   `json:"classId"`
+		ClassIDs    []string `json:"classIds"`
 		TargetScope string   `json:"targetScope"`
 		PathID      string   `json:"pathId"`
 		SubjectID   string   `json:"subjectId"`
@@ -143,6 +144,7 @@ func (h *LegacyHandler) directorCreateAcademicAssessment(w http.ResponseWriter, 
 		orgdomain.DirectorAssessmentCreate{
 			Title:       payload.Title,
 			ClassID:     payload.ClassID,
+			ClassIDs:    payload.ClassIDs,
 			TargetScope: payload.TargetScope,
 			PathID:      payload.PathID,
 			SubjectID:   payload.SubjectID,

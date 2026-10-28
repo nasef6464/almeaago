@@ -21,6 +21,7 @@ type DirectorAssessmentWorkspace struct {
 type DirectorAssessmentCreate struct {
 	Title       string
 	ClassID     string
+	ClassIDs    []string
 	TargetScope string
 	PathID      string
 	SubjectID   string
@@ -29,10 +30,11 @@ type DirectorAssessmentCreate struct {
 }
 
 type DirectorAssessmentCreated struct {
-	AssessmentID string `json:"assessmentId"`
-	Title        string `json:"title"`
-	ClassID      string `json:"classId"`
-	TargetScope  string `json:"targetScope"`
+	AssessmentID string   `json:"assessmentId"`
+	Title        string   `json:"title"`
+	ClassID      string   `json:"classId"`
+	ClassIDs     []string `json:"classIds,omitempty"`
+	TargetScope  string   `json:"targetScope"`
 }
 
 // School question picker never discloses answer keys or explanations.

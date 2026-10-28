@@ -20,8 +20,9 @@ interface Props {
 // into B (or A again after an intervening visit).
 export function DirectorAssessmentCreator({schoolId,classes,paths,subjects,getCsrfToken,onCreated,onClose}:Props){
   const [title,setTitle]=useState('');
-  const [targetScope,setTargetScope]=useState<'class'|'school'>('class');
+  const [targetScope,setTargetScope]=useState<'class'|'classes'|'school'>('class');
   const [classId,setClassId]=useState('');
+  const [classIds,setClassIds]=useState<string[]>([]);
   const [pathId,setPathId]=useState('');
   const [subjectId,setSubjectId]=useState('');
   const [search,setSearch]=useState('');
@@ -54,15 +55,18 @@ export function DirectorAssessmentCreator({schoolId,classes,paths,subjects,getCs
   function changePath(next:string){setPathId(next);setSubjectId('');setSelected([]);setSearch('');setPage(1)}
   function changeSubject(next:string){setSubjectId(next);setSelected([]);setSearch('');setPage(1)}
   function toggle(id:string){setSelected(prev=>prev.includes(id)?prev.filter(q=>q!==id):[...prev,id])}
+  function toggleClass(id:string){setClassIds(prev=>prev.includes(id)?prev.filter(value=>value!==id):[...prev,id])}
+
+  const validAudience=targetScope==='school'||(targetScope==='class'&&Boolean(classId))||(targetScope==='classes'&&classIds.length>=2);
 
   async function submit(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
-    if(saving||!title.trim()||!pathId||!subjectId||selected.length===0||(targetScope==='class'&&!classId))return;
+    if(saving||!title.trim()||!pathId||!subjectId||selected.length===0||!validAudience)return;
     setSaving(true);setError('');
     try{
       const csrf=await getCsrfToken();
       await organizationsClient.createDirectorAssessment(schoolId,{
-        title:title.trim(),targetScope,classId:targetScope==='school'?'':classId,pathId,subjectId,questionIds:selected,
+        title:title.trim(),targetScope,classId:targetScope==='class'?classId:'',classIds:targetScope==='classes'?classIds:[],pathId,subjectId,questionIds:selected,
       },csrf,requestKey.current);
       if(!alive.current)return;
       requestKey.current=crypto.randomUUID();
@@ -75,8 +79,9 @@ export function DirectorAssessmentCreator({schoolId,classes,paths,subjects,getCs
     <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-black text-indigo-950">إنشاء اختبار من الأسئلة المعتمدة</h3><button type="button" onClick={onClose} className="rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-bold">إلغاء</button></div>
     <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
       <label className="min-w-0 text-xs font-black text-slate-700">عنوان الاختبار<input aria-label="عنوان الاختبار المدرسي" required minLength={2} maxLength={240} value={title} onChange={e=>setTitle(e.target.value)} className="mt-1.5 w-full min-w-0 rounded-xl border bg-white px-3 py-2 text-sm" placeholder="مثال: اختبار الرياضيات - الفصل الأول"/></label>
-      <label className="min-w-0 text-xs font-black text-slate-700">المستهدف<select aria-label="نطاق اختبار المدرسة" value={targetScope} onChange={e=>setTargetScope(e.target.value as 'class'|'school')} className="mt-1.5 w-full rounded-xl border bg-white px-3 py-2 text-sm"><option value="class">فصل محدد</option><option value="school">طلاب المدرسة كاملة</option></select></label>
+      <label className="min-w-0 text-xs font-black text-slate-700">المستهدف<select aria-label="نطاق اختبار المدرسة" value={targetScope} onChange={e=>setTargetScope(e.target.value as 'class'|'classes'|'school')} className="mt-1.5 w-full rounded-xl border bg-white px-3 py-2 text-sm"><option value="class">فصل محدد</option><option value="classes">فصول متعددة — اختبار مركزي</option><option value="school">طلاب المدرسة كاملة</option></select></label>
       {targetScope==='class'?<label className="min-w-0 text-xs font-black text-slate-700">الفصل<select aria-label="فصل الاختبار المدرسي" required value={classId} onChange={e=>setClassId(e.target.value)} className="mt-1.5 w-full rounded-xl border bg-white px-3 py-2 text-sm"><option value="">اختر الفصل</option>{classes.map(c=><option key={c.classId} value={c.classId}>{c.className}</option>)}</select></label>:null}
+      {targetScope==='classes'?<fieldset aria-label="الفصول المستهدفة للاختبار المركزي" className="min-w-0 space-y-2 rounded-xl border border-indigo-200 bg-white p-3 sm:col-span-2 xl:col-span-3"><legend className="px-1 text-xs font-black text-slate-700">اختر فصلين على الأقل — {classIds.length} محدد</legend><div className="grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-3">{classes.map(c=><label key={c.classId} className="flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm"><input aria-label={`اختيار الفصل ${c.className}`} type="checkbox" checked={classIds.includes(c.classId)} onChange={()=>toggleClass(c.classId)} className="h-4 w-4 shrink-0"/><span className="min-w-0 break-words">{c.className}</span></label>)}</div>{classes.length<2?<p role="status" className="text-xs text-amber-800">يلزم وجود فصلين نشطين على الأقل لإنشاء اختبار مركزي لعدة فصول.</p>:null}</fieldset>:null}
       <label className="min-w-0 text-xs font-black text-slate-700">المسار<select aria-label="مسار الاختبار المدرسي" required value={pathId} onChange={e=>changePath(e.target.value)} className="mt-1.5 w-full rounded-xl border bg-white px-3 py-2 text-sm"><option value="">اختر المسار</option>{paths.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
       <label className="min-w-0 text-xs font-black text-slate-700">المادة<select aria-label="مادة الاختبار المدرسي" required value={subjectId} onChange={e=>changeSubject(e.target.value)} disabled={!pathId} className="mt-1.5 w-full rounded-xl border bg-white px-3 py-2 text-sm"><option value="">اختر المادة</option>{subjects.filter(s=>s.pathId===pathId).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
       <label className="min-w-0 text-xs font-black text-slate-700">بحث عن السؤال<input aria-label="بحث الأسئلة المعتمدة" value={search} onChange={e=>{setSearch(e.target.value);setPage(1)}} disabled={!subjectId} className="mt-1.5 w-full rounded-xl border bg-white px-3 py-2 text-sm" placeholder="الكود أو جزء من السؤال"/></label>
@@ -91,6 +96,6 @@ export function DirectorAssessmentCreator({schoolId,classes,paths,subjects,getCs
       {subjectId?<div className="mt-3 flex items-center justify-between gap-2 text-xs font-bold"><button type="button" disabled={page===1||loading} onClick={()=>setPage(v=>v-1)} className="rounded-lg border px-3 py-2 disabled:opacity-40">السابق</button><span>صفحة {page}</span><button type="button" disabled={!hasMore||loading} onClick={()=>setPage(v=>v+1)} className="rounded-lg border px-3 py-2 disabled:opacity-40">التالي</button></div>:null}
     </div>
     {error?<p role="alert" className="rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-700">{error}</p>:null}
-    <div className="flex flex-wrap items-center gap-3"><button type="submit" disabled={saving||!title.trim()||!pathId||!subjectId||selected.length===0||(targetScope==='class'&&!classId)} className="rounded-xl bg-indigo-700 px-5 py-2.5 text-sm font-black text-white disabled:opacity-40">{saving?'جار نشر اختبار المدرسة…':'إنشاء ونشر للطلاب المستهدفين'}</button><p className="text-xs text-slate-600">الاختبار خاص بالمدرسة؛ لا يُنشر على المنصة العامة.</p></div>
+    <div className="flex flex-wrap items-center gap-3"><button type="submit" disabled={saving||!title.trim()||!pathId||!subjectId||selected.length===0||!validAudience} className="rounded-xl bg-indigo-700 px-5 py-2.5 text-sm font-black text-white disabled:opacity-40">{saving?'جار نشر اختبار المدرسة…':'إنشاء ونشر للطلاب المستهدفين'}</button><p className="text-xs text-slate-600">الاختبار خاص بالمدرسة؛ لا يُنشر على المنصة العامة.</p></div>
   </form>;
 }

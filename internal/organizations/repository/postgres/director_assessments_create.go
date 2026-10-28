@@ -100,11 +100,12 @@ func directorAssessmentFingerprint(write org.DirectorAssessmentCreate) (string, 
 	data, err := json.Marshal(struct {
 		Title       string   `json:"title"`
 		ClassID     string   `json:"classId"`
+		ClassIDs    []string `json:"classIds,omitempty"`
 		TargetScope string   `json:"targetScope"`
 		PathID      string   `json:"pathId"`
 		SubjectID   string   `json:"subjectId"`
 		QuestionIDs []string `json:"questionIds"`
-	}{write.Title, write.ClassID, write.TargetScope, write.PathID, write.SubjectID, write.QuestionIDs})
+	}{write.Title, write.ClassID, write.ClassIDs, write.TargetScope, write.PathID, write.SubjectID, write.QuestionIDs})
 	if err != nil {
 		return "", err
 	}
@@ -171,11 +172,16 @@ func createDirectorAssessmentTx(
 		err = tx.QueryRow(ctx, `
 			SELECT r.actor_user_id::text,r.request_fingerprint,r.assessment_id::text,
 			       av.title,COALESCE(aac.class_id::text,''),
-			       CASE WHEN aa.targets_entire_school THEN 'school' ELSE 'class' END
+			       CASE WHEN aa.targets_entire_school THEN 'school'
+			            WHEN (SELECT COUNT(*) FROM assessment_assignment_classes classes WHERE classes.assignment_id=aa.id)>1 THEN 'classes'
+			            ELSE 'class' END
 			FROM school_assessment_create_requests r
 			JOIN assessment_versions av ON av.assessment_id=r.assessment_id AND av.version=1
 			JOIN assessment_assignments aa ON aa.assessment_id=r.assessment_id AND aa.assessment_version=1
-			LEFT JOIN assessment_assignment_classes aac ON aac.assignment_id=aa.id
+			LEFT JOIN LATERAL (
+			  SELECT class_id FROM assessment_assignment_classes
+			  WHERE assignment_id=aa.id ORDER BY class_id LIMIT 1
+			) aac ON true
 			WHERE r.school_id=$1::uuid AND r.request_key=$2::uuid
 			FOR SHARE OF r
 		`, schoolID, input.RequestKey).Scan(&oldActor, &oldFingerprint, &oldAssessmentID, &oldTitle, &oldClassID, &oldScope)
@@ -188,7 +194,10 @@ func createDirectorAssessmentTx(
 		if oldActor != actorUserID || oldFingerprint != fingerprint {
 			return empty, org.ErrConflict
 		}
-		return org.DirectorAssessmentCreated{AssessmentID: oldAssessmentID, Title: oldTitle, ClassID: oldClassID, TargetScope: oldScope}, nil
+		if oldScope == "classes" {
+			oldClassID = ""
+		}
+		return org.DirectorAssessmentCreated{AssessmentID: oldAssessmentID, Title: oldTitle, ClassID: oldClassID, ClassIDs: input.ClassIDs, TargetScope: oldScope}, nil
 	}
 
 	if input.TargetScope == "class" {
@@ -203,6 +212,23 @@ func createDirectorAssessmentTx(
 		}
 		if err != nil {
 			return empty, err
+		}
+	} else if input.TargetScope == "classes" {
+		// Lock every selected class while publishing. Partial matches cannot
+		// create a test: all classes must be active in this one school.
+		for _, classID := range input.ClassIDs {
+			var activeClass string
+			err = tx.QueryRow(ctx, `
+				SELECT id::text FROM classes
+				WHERE id=$1::uuid AND school_id=$2::uuid AND status='active'
+				FOR SHARE
+			`, classID, schoolID).Scan(&activeClass)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return empty, org.ErrNotFound
+			}
+			if err != nil {
+				return empty, err
+			}
 		}
 	} else if input.TargetScope != "school" {
 		return empty, org.ErrConflict
@@ -294,6 +320,15 @@ func createDirectorAssessmentTx(
 		`, assignmentID, input.ClassID); err != nil {
 			return empty, err
 		}
+	} else if input.TargetScope == "classes" {
+		for _, classID := range input.ClassIDs {
+			if _, err = tx.Exec(ctx, `
+				INSERT INTO assessment_assignment_classes(assignment_id,class_id)
+				VALUES ($1::uuid,$2::uuid)
+			`, assignmentID, classID); err != nil {
+				return empty, err
+			}
+		}
 	}
 	_, err = tx.Exec(ctx, `
 		UPDATE school_assessment_create_requests
@@ -309,7 +344,7 @@ func createDirectorAssessmentTx(
 		ResourceType: "assessment",
 		ResourceID:   assessmentID,
 		Metadata: map[string]any{
-			"schoolId": schoolID, "classId": input.ClassID,
+			"schoolId": schoolID, "classId": input.ClassID, "classIds": input.ClassIDs,
 			"targetScope": input.TargetScope, "questionCount": len(input.QuestionIDs),
 		},
 	}); err != nil {
@@ -319,6 +354,7 @@ func createDirectorAssessmentTx(
 		AssessmentID: assessmentID,
 		Title:        input.Title,
 		ClassID:      input.ClassID,
+		ClassIDs:     input.ClassIDs,
 		TargetScope:  input.TargetScope,
 	}, nil
 }

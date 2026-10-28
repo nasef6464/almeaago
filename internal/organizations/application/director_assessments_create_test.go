@@ -16,6 +16,7 @@ func TestDirectorAssessmentCreateValidatesInputAndAuthorizesSchool(t *testing.T)
 	const question = "00000000-0000-0000-0000-000000000901"
 	const other = "00000000-0000-0000-0000-000000000902"
 	const classroom = "00000000-0000-0000-0000-000000000201"
+	const otherClassroom = "00000000-0000-0000-0000-000000000202"
 	const requestKey = "00000000-0000-0000-0000-000000000701"
 	allowed := org.SchoolContext{
 		SchoolID: school, Role: identity.RoleSchoolAdmin,
@@ -37,6 +38,38 @@ func TestDirectorAssessmentCreateValidatesInputAndAuthorizesSchool(t *testing.T)
 	}{
 		{name: "normalized duplicate IDs", input: valid, actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, called: true},
 		{name: "whole school with no class", input: func() org.DirectorAssessmentCreate { i := valid; i.TargetScope = "school"; i.ClassID = ""; return i }(), actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, called: true},
+		{name: "central exam to several classrooms", input: func() org.DirectorAssessmentCreate {
+			i := valid
+			i.TargetScope = "classes"
+			i.ClassID = ""
+			i.ClassIDs = []string{otherClassroom, classroom, otherClassroom}
+			return i
+		}(), actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, called: true},
+		{name: "central exam needs two distinct classrooms", input: func() org.DirectorAssessmentCreate {
+			i := valid
+			i.TargetScope = "classes"
+			i.ClassID = ""
+			i.ClassIDs = []string{classroom, classroom}
+			return i
+		}(), actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, want: ErrInvalidInput},
+		{name: "central exam rejects malformed classroom", input: func() org.DirectorAssessmentCreate {
+			i := valid
+			i.TargetScope = "classes"
+			i.ClassID = ""
+			i.ClassIDs = []string{classroom, "not-uuid"}
+			return i
+		}(), actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, want: ErrInvalidInput},
+		{name: "central exam rejects conflicting singular classroom", input: func() org.DirectorAssessmentCreate {
+			i := valid
+			i.TargetScope = "classes"
+			i.ClassIDs = []string{classroom, otherClassroom}
+			return i
+		}(), actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, want: ErrInvalidInput},
+		{name: "single classroom rejects group list", input: func() org.DirectorAssessmentCreate {
+			i := valid
+			i.ClassIDs = []string{classroom, otherClassroom}
+			return i
+		}(), actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, want: ErrInvalidInput},
 		{name: "blank title", input: func() org.DirectorAssessmentCreate { i := valid; i.Title = " "; return i }(), actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, want: ErrInvalidInput},
 		{name: "class mode needs class", input: func() org.DirectorAssessmentCreate { i := valid; i.ClassID = ""; return i }(), actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, want: ErrInvalidInput},
 		{name: "unknown target", input: func() org.DirectorAssessmentCreate { i := valid; i.TargetScope = "public"; return i }(), actor: schoolAdminActor(), context: []org.SchoolContext{allowed}, school: school, want: ErrInvalidInput},
@@ -67,6 +100,9 @@ func TestDirectorAssessmentCreateValidatesInputAndAuthorizesSchool(t *testing.T)
 				}
 				if tt.input.TargetScope == "class" && (len(repo.lastDirectorAssessmentCreate.QuestionIDs) != 2 || repo.lastDirectorAssessmentCreate.QuestionIDs[0] != question || repo.lastDirectorAssessmentCreate.QuestionIDs[1] != other) {
 					t.Fatalf("question IDs not deduplicated in stable order: %+v", repo.lastDirectorAssessmentCreate.QuestionIDs)
+				}
+				if tt.input.TargetScope == "classes" && (len(repo.lastDirectorAssessmentCreate.ClassIDs) != 2 || repo.lastDirectorAssessmentCreate.ClassIDs[0] != classroom || repo.lastDirectorAssessmentCreate.ClassIDs[1] != otherClassroom) {
+					t.Fatalf("class IDs not sorted/deduplicated: %+v", repo.lastDirectorAssessmentCreate.ClassIDs)
 				}
 			}
 		})
