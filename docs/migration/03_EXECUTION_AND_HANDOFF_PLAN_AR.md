@@ -1,5 +1,10 @@
 # خطة نسخ ALMEAA من Node.js إلى Go — التنفيذ والتسليم
 
+## استلام تنفيذي حديث — PR #155 / 28 أكتوبر 2026
+
+#154 مدمج عند `3c439699`؛ لم يعد حفظ homepage مفقودًا. الشريحة الجارية تستعيد محرر الهوية والهيرو وأثرهما للزائر، مع تعطيل صريح للضوابط التابعة غير المنقولة. الدليل وحدود الصور في [30_HOMEPAGE_IDENTITY_EDITOR_AR.md](30_HOMEPAGE_IDENTITY_EDITOR_AR.md). بوابة1 وP0–P7 غير مغلقة. لا تبدأ المسارات قبل استكمال مستهلكات الرئيسية؛ لا تعد #152–#154 ولا تمس #123/#144. البوابات النهائية وقرار الدمج في PR #155. اللقطات الأقدم أدناه تاريخية حيث تتعارض مع هذا الاستلام.
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Each code slice follows test-driven development and the repository's CI/PR rules.
 
 **الحالة:** PLAN / ACTIVE — تعاقد تعليمي شامل + دفعات Go منفصلة؛ لم يتحقق التكافؤ الكلي أو ترحيل البيانات.
