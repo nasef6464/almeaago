@@ -64,10 +64,16 @@
 - مسار إنشاء اختبار المدرسة تم تتبعه حتى SQL والجداول المشتركة؛ توجد صلاحية مكررة في transaction وحجز idempotency. أما تحرير/نسخ الاختبار المدرسي مقابل Legacy فحالة `GAP-CANDIDATE / UNKNOWN` إلى أن تثبت وظائف Go المكافئة أو غيابها.
 - **الخطوة التالية:** التحقق من `clone/commands/definition` عبر الواجهة والخدمة واختبار golden لقرار النطاق، ثم توسيع الجرد إلى الهوية، التعلم، التقرير، والدفع؛ لا تعديل production data.
 
+## تحديث 2026-10-28 — P0-B / P1 integrity
+
+- دُمج PR #142 بعد نجاح Frontend CI / Backend CI / Database CI / Frontend E2E على SHA `dcfc1847ee9189fe66ac5e5180012c19f08ad901`، فأصبح `main@fec689b32ae442c72586133f4cc511efc9f91c54`. أضيفت خريطة API mounts والملكية المدرسية في `19_API_MOUNTS_AND_ASSESSMENT_OWNERSHIP_AR.md`، ولا تعني تكافؤ endpoints.
+- فحص لاحق لمسار `Readiness` كشف احتمال تكرار skill بين صفحات `LIMIT/OFFSET` المرتبة بالـmastery أثناء تغيّر الأدلة. توثيق `20_READINESS_PAGE_INTEGRITY_AR.md` مع اختبار رفض التكرار والنطاق الخاطئ، دون تغيير المعادلة أو قاعدة البيانات. دُمج إصلاح PR #143 في `main@778be2c1aa361513a769845dfa0bf3f37a7e0cba`، ولا يعني ذلك اكتمال معايرة التعلم.
+- التالي: إثبات الاستقرار عبر PostgreSQL snapshot/aggregation (ببيئة اختبار فقط)، ثم مقارنة golden behavior مع Legacy في نطاق المسار/المادة ومقام المهارات غير المقاسة.
+
 ## P0-C — تعريف الاختبار المنشأ وإمكاناته (2026-10-28)
 
-- PR #142 دُمج في Go main عند `fec689b32ae442c72586133f4cc511efc9f91c54` بعد Backend/Database/Frontend/E2E خضراء، وتحقق SHA `main` مطابق تمامًا؛ راجع `19_API_MOUNTS_AND_ASSESSMENT_OWNERSHIP_AR.md`.
-- بدأ فرع معزول `feat/school-assessment-definition-read-20261028` من SHA السابق. نطاقه `GET school director definition/context`، وعقد read-only موثق في `20_SCHOOL_ASSESSMENT_DEFINITION_READ_AR.md`؛ **لا تكرر خدمة الإنشاء/التقرير القائمة**.
+- PR #142 دُمج في Go main عند `fec689b32ae442c72586133f4cc511efc9f91c54` بعد Backend/Database/Frontend/E2E خضراء؛ راجع `19_API_MOUNTS_AND_ASSESSMENT_OWNERSHIP_AR.md`.
+- بدأ فرع معزول `feat/school-assessment-definition-read-20261028` من SHA السابق ودمج تغييرات PR #143 اللاحقة في الفرع دون فقدها. نطاقه `GET school director definition/context`، وعقد read-only موثق في `20_SCHOOL_ASSESSMENT_DEFINITION_READ_AR.md`؛ **لا تكرر خدمة الإنشاء/التقرير القائمة**.
 - ثبت غياب clone/edit/commands المماثل في Go: لا توجد routes أو خدمات مماثلة في module المدرسي المدروس؛ قراءة التعريف ليست بديلًا عن تنفيذها. أعلام الإجراءات غير المنفذة تُبقي `false`؛ بعد نشر المدرسة الاختبار لا يحق تعديل محتواه مباشرة.
 - Local TDD: اختبار application فشل أولًا لغياب method ثم نجح، واختبار HTTP فشل `404` للroute قبل إنشائه ثم نجح، واختبار SQL أُضيف في `TestDirectorCreateAssessmentPostgres` وبانتظار Database CI الفعلي؛ Go 1.27.1 الرسمي ثُبّت مؤقتًا في `/tmp` بعد مطابقة SHA256، و`go test ./...` نجح حين سمحت البيئة بـloopback.
 - **الخطوة التالية الموثقة:** تحقق SQL من Database CI ثم قم بدمج PR فقط إذا كانت البوابات كلها خضراء. بعدها clone draft المستقل/عدم النشر، تتبّع الأوامر، و golden E2E لإعادة فتح المنشئ والنتيجة ضمن التفويض.
