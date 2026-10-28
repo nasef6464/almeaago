@@ -1,4 +1,4 @@
-import { identifyLoginInput } from '../utils/identify-login-input';
+import { identifyLoginInput, normalizeArabicIndicDigits } from '../utils/identify-login-input';
 
 interface Props {
   value: string;
@@ -21,7 +21,7 @@ const badgeLabels = {
 
 export function SmartLoginInput({ value, onChange }: Props) {
   const type = identifyLoginInput(value);
-  const onlyDigits = /^\d+$/.test(value.trim());
+  const onlyDigits = /^\d+$/.test(normalizeArabicIndicDigits(value.trim()));
 
   return (
     <div>
