@@ -21,10 +21,10 @@
 - UUID spellings must resolve to the same lock; lock release must survive rollback/errors.
 
 ### Task 1: Reproduce and repair lost evidence aggregates
-**Files:** internal/learning/repository/postgres/{evidence_serialization_integration_test.go,evidence_lock.go,repository.go,review_practice.go}; .github/workflows/database.yml; docs/migration/23_LEARNING_EVIDENCE_SERIALIZATION_AR.md.
+**Files:** internal/learning/repository/postgres/{evidence_serialization_integration_test.go,evidence_lock.go,repository.go,review_practice.go}; .github/workflows/database.yml; docs/migration/24_LEARNING_EVIDENCE_SERIALIZATION_AR.md.
 **Interfaces:** Existing ApplyAssessmentEvidence and ApplyReviewAnswer; new internal lockStudentEvidenceTx(context.Context, pgx.Tx, string) error.
-- [ ] Write PostgreSQL tests using a controlled BEFORE INSERT progress trigger and observed lock waits, forcing overlapping aggregates without sleeps as correctness evidence. Assert 2 evidence rows, progress evidence_count=2, attempts=2, mastery=50, status=average, correct action; retry unchanged. Include identical review retry, cancellation, foreign-student independence.
-- [ ] Run integration test against PostgreSQL 18. Expected RED: stale evidence_count=1 or retry conflict before fix. Record actual failure.
-- [ ] Add shared transaction lock before either writer reads/writes; canonicalize student via PostgreSQL UUID cast; explicit READ COMMITTED for fresh post-wait reads. Expected GREEN: all integration cases pass.
-- [ ] Wire same test into existing Database CI; run gofmt, go test ./..., source oracle, integration repeated run, go vet. Expected PASS, with skipped DB tests distinguished from executed tests.
+- [x] Write PostgreSQL tests using a controlled BEFORE INSERT progress trigger and observed lock waits, forcing overlapping aggregates without sleeps as correctness evidence. Assert 2 evidence rows, progress evidence_count=2, attempts=2, mastery=50, status=average, correct action; retry unchanged. Include identical review retry, cancellation, foreign-student independence.
+- [x] Run integration test against PostgreSQL 18. Expected RED: stale evidence_count=1 or retry conflict before fix. Record actual failure.
+- [x] Add shared transaction lock before either writer reads/writes; canonicalize student via PostgreSQL UUID cast; explicit READ COMMITTED for fresh post-wait reads. Expected GREEN: all integration cases pass.
+- [x] Wire same test into existing Database CI; run gofmt, go test ./..., source oracle, integration repeated run, go vet. Expected PASS, with skipped DB tests distinguished from executed tests.
 - [ ] Independent whole-branch review, fix concrete blockers via RED/GREEN, document decisions and limits, focused commit/PR, exact-head CI before merge.

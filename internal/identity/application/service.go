@@ -199,8 +199,20 @@ func (s *Service) Login(ctx context.Context, email, password string) (AuthResult
 	return s.loginUser(ctx, user, password)
 }
 
+// normalizeArabicIndicDigits mirrors the Legacy nationalIdLoginSchema input
+// preprocessor. Only U+0660..U+0669 are converted; other characters remain
+// invalid under nationalIDPattern, including Persian numerals.
+func normalizeArabicIndicDigits(value string) string {
+	return strings.Map(func(r rune) rune {
+		if r >= '٠' && r <= '٩' {
+			return '0' + (r - '٠')
+		}
+		return r
+	}, value)
+}
+
 func (s *Service) LoginNationalID(ctx context.Context, nationalID, password string) (AuthResult, error) {
-	nationalID = strings.TrimSpace(nationalID)
+	nationalID = strings.TrimSpace(normalizeArabicIndicDigits(nationalID))
 	if !nationalIDPattern.MatchString(nationalID) {
 		return AuthResult{}, ErrInvalidCredentials
 	}
