@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
@@ -29,13 +30,34 @@ func (s *Service) DirectorCreateAssessment(
 		!directorSchoolUUIDPattern.MatchString(input.PathID) ||
 		!directorSchoolUUIDPattern.MatchString(input.SubjectID) ||
 		!directorSchoolUUIDPattern.MatchString(input.RequestKey) ||
-		(input.TargetScope != "school" && input.TargetScope != "class") ||
+		(input.TargetScope != "school" && input.TargetScope != "class" && input.TargetScope != "classes") ||
 		(input.TargetScope == "class" && !directorSchoolUUIDPattern.MatchString(input.ClassID)) ||
+		(input.TargetScope != "classes" && len(input.ClassIDs) != 0) ||
+		(input.TargetScope == "classes" && input.ClassID != "") ||
+		(input.TargetScope == "classes" && (len(input.ClassIDs) < 2 || len(input.ClassIDs) > 50)) ||
 		len(input.QuestionIDs) == 0 || len(input.QuestionIDs) > 500 {
 		return org.DirectorAssessmentCreated{}, ErrInvalidInput
 	}
 	if input.TargetScope == "school" {
 		input.ClassID = ""
+	}
+	if input.TargetScope == "classes" {
+		unique := make(map[string]struct{}, len(input.ClassIDs))
+		for _, raw := range input.ClassIDs {
+			id := strings.TrimSpace(raw)
+			if !directorSchoolUUIDPattern.MatchString(id) {
+				return org.DirectorAssessmentCreated{}, ErrInvalidInput
+			}
+			unique[id] = struct{}{}
+		}
+		if len(unique) < 2 {
+			return org.DirectorAssessmentCreated{}, ErrInvalidInput
+		}
+		input.ClassIDs = make([]string, 0, len(unique))
+		for id := range unique {
+			input.ClassIDs = append(input.ClassIDs, id)
+		}
+		sort.Strings(input.ClassIDs)
 	}
 	seen := make(map[string]bool, len(input.QuestionIDs))
 	questions := make([]string, 0, len(input.QuestionIDs))

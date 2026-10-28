@@ -45,6 +45,8 @@ func TestDirectorCreateAssessmentPostgres(t *testing.T) {
 	const director = "00000000-0000-0000-0000-000000001003"
 	const classA = "00000000-0000-0000-0000-000000001101"
 	const classB = "00000000-0000-0000-0000-000000001102"
+	const classC = "00000000-0000-0000-0000-000000001103"
+	const inactiveClass = "00000000-0000-0000-0000-000000001104"
 	const path = "00000000-0000-0000-0000-000000001201"
 	const otherPath = "00000000-0000-0000-0000-000000001202"
 	const subject = "00000000-0000-0000-0000-000000001203"
@@ -60,7 +62,7 @@ func TestDirectorCreateAssessmentPostgres(t *testing.T) {
 	}{
 		{`INSERT INTO users(id,email,name,password_hash) VALUES ($1,'assessment-director@ci.invalid','مدير اختبارات','test-only')`, []any{director}},
 		{`INSERT INTO schools(id,code,name) VALUES ($1,'ASSESS-A','مدرسة أ'),($2,'ASSESS-B','مدرسة ب')`, []any{school, otherSchool}},
-		{`INSERT INTO classes(id,school_id,code,name) VALUES ($1,$2,'ASSESS-A1','فصل أ'),($3,$4,'ASSESS-B1','فصل ب')`, []any{classA, school, classB, otherSchool}},
+		{`INSERT INTO classes(id,school_id,code,name,status) VALUES ($1,$2,'ASSESS-A1','فصل أ','active'),($3,$4,'ASSESS-B1','فصل ب','active'),($5,$2,'ASSESS-A2','فصل آخر','active'),($6,$2,'ASSESS-A3','فصل غير نشط','archived')`, []any{classA, school, classB, otherSchool, classC, inactiveClass}},
 		{`INSERT INTO paths(id,code,name) VALUES ($1,'ASSESS-P1','قدرات'),($2,'ASSESS-P2','تحصيلي')`, []any{path, otherPath}},
 		{`INSERT INTO subjects(id,path_id,code,name) VALUES ($1,$2,'ASSESS-S1','رياضيات'),($3,$4,'ASSESS-S2','علوم')`, []any{subject, path, otherSubject, otherPath}},
 		{`INSERT INTO school_memberships(school_id,user_id,role,status) VALUES ($1,$2,'school_admin','active')`, []any{school, director}},
@@ -185,6 +187,41 @@ func TestDirectorCreateAssessmentPostgres(t *testing.T) {
 		t.Fatalf("whole-school assignment flag missing: %v", err)
 	}
 
+	// SCHOOL-005C3: one central assessment with two authorized class targets.
+	central := valid
+	central.RequestKey = "00000000-0000-0000-0000-000000001407"
+	central.TargetScope = "classes"
+	central.ClassID = ""
+	central.ClassIDs = []string{classA, classC}
+	centralCreated, err := createDirectorAssessmentTx(ctx, tx, probe, director, school, central)
+	if err != nil || centralCreated.TargetScope != "classes" || len(centralCreated.ClassIDs) != 2 || centralCreated.ClassID != "" {
+		t.Fatalf("wrong central assignment result: %+v %v", centralCreated, err)
+	}
+	var centralClassCount int
+	if err := tx.QueryRow(ctx, `SELECT COUNT(*) FROM assessment_assignment_classes classes
+	  JOIN assessment_assignments aa ON aa.id=classes.assignment_id
+	  WHERE aa.assessment_id=$1::uuid`, centralCreated.AssessmentID).Scan(&centralClassCount); err != nil || centralClassCount != 2 {
+		t.Fatalf("one school assignment must contain exactly two classes: count=%d err=%v", centralClassCount, err)
+	}
+	centralRepeat, err := createDirectorAssessmentTx(ctx, tx, probe, director, school, central)
+	if err != nil || centralRepeat.AssessmentID != centralCreated.AssessmentID || centralRepeat.TargetScope != "classes" || centralRepeat.ClassID != "" {
+		t.Fatalf("central request must be idempotent: %+v err=%v", centralRepeat, err)
+	}
+	for _, tc := range []struct {
+		classIDs []string
+		key      string
+	}{
+		{[]string{classA, classB}, "00000000-0000-0000-0000-000000001408"},
+		{[]string{classA, inactiveClass}, "00000000-0000-0000-0000-000000001409"},
+	} {
+		unauthorized := central
+		unauthorized.ClassIDs = tc.classIDs
+		unauthorized.RequestKey = tc.key
+		if _, err := createDirectorAssessmentTx(ctx, tx, probe, director, school, unauthorized); !errors.Is(err, org.ErrNotFound) {
+			t.Fatalf("central exam admitted foreign/inactive class: %+v, error=%v", tc.classIDs, err)
+		}
+	}
+
 	// SCHOOL-005C: the report shares the exact current school audience, but
 	// counts at most the latest submitted assigned result per learner.
 	const learnerA = "00000000-0000-0000-0000-000000001501"
@@ -208,7 +245,7 @@ func TestDirectorCreateAssessmentPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = tx.Exec(ctx, `INSERT INTO class_memberships(class_id,user_id,status) VALUES
-	 ($1,$2,'active'),($1,$3,'active'),($1,$4,'active'),($1,$5,'active')`, classA, learnerA, learnerB, outside, disabled)
+	 ($1,$2,'active'),($1,$3,'active'),($1,$4,'active'),($1,$5,'active'),($6,$7,'active')`, classA, learnerA, learnerB, outside, disabled, classC, learnerC)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,6 +288,10 @@ func TestDirectorCreateAssessmentPostgres(t *testing.T) {
 	if err != nil || wholeReport.Audience.Targeted != 3 || wholeReport.Participation.Completed != 0 || wholeReport.Scores.Average != nil {
 		t.Fatalf("wrong whole-school report: %+v error=%v", wholeReport, err)
 	}
+	centralReport, err := readDirectorAssessmentReport(ctx, tx, director, school, centralCreated.AssessmentID)
+	if err != nil || centralReport.Audience.Targeted != 3 || centralReport.Participation.Completed != 0 {
+		t.Fatalf("central exam must target the union of two classes without inventing results: %+v error=%v", centralReport, err)
+	}
 	if _, err := readDirectorAssessmentReport(ctx, tx, director, otherSchool, created.AssessmentID); !errors.Is(err, org.ErrNotFound) {
 		t.Fatalf("cross-school assessment disclosure: %v", err)
 	}
@@ -272,6 +313,10 @@ func TestDirectorCreateAssessmentPostgres(t *testing.T) {
 	list, err := readDirectorAssessmentLearners(ctx, tx, director, school, created.AssessmentID, query)
 	if err != nil || list.Pagination.Total != 2 || len(list.Learners) != 2 || list.Learners[0].StudentID != learnerA || list.Learners[0].Result == nil || list.Learners[0].Result.ID != attemptNew || list.Learners[0].Result.Score != 80 || list.Learners[1].StudentID != learnerB || list.Learners[1].Result != nil {
 		t.Fatalf("incorrect scoped/latest student roster: %+v err=%v", list, err)
+	}
+	centralRoster, err := readDirectorAssessmentLearners(ctx, tx, director, school, centralCreated.AssessmentID, query)
+	if err != nil || centralRoster.Pagination.Total != 3 || len(centralRoster.Learners) != 3 {
+		t.Fatalf("central multi-class roster lost a class or duplicated learners: %+v err=%v", centralRoster, err)
 	}
 	for _, tt := range []struct {
 		status string

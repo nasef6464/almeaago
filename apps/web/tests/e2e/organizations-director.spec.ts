@@ -419,6 +419,44 @@ test('whole-school assessment needs an explicit school audience and no class',as
   expect(payload).toMatchObject({targetScope:'school',classId:'',questionIds:['q-1','q-2']});
 });
 
+test('school central assessment directs one exam to multiple checked classes on mobile and desktop',async({page})=>{
+  await mockDirector(page,['SCHOOL_CORE','SCHOOL_ASSESSMENTS']);
+  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[{
+    schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',permissions:[...permissions,'SCHOOL_ASSESSMENTS_MANAGE'],modules:['SCHOOL_CORE','SCHOOL_ASSESSMENTS'],source:'membership',
+  }]}));
+  let created:Record<string,unknown>|undefined;
+  await page.route('**/api/school-access/director/schools/school-1/academic/assessments',route=>{
+    if(route.request().method()==='POST'){
+      created=route.request().postDataJSON() as Record<string,unknown>;
+      return json(route,{assessment:{assessmentId:'central-1',title:created.title,classId:'',classIds:created.classIds,targetScope:'classes'}},201);
+    }
+    return json(route,{assessments:created?[{id:'central-1',title:'اختبار موحد بين الفصول',isPublished:true,targetGroupIds:['class-1','class-2']}]:[],classes:[{classId:'class-1',className:'الأول أ'},{classId:'class-2',className:'الأول ب'},{classId:'class-3',className:'الثاني أ'}]});
+  });
+  await page.route('**/api/school-access/director/schools/school-1/academic/available-questions?*',route=>json(route,{items:[
+    {id:'q-1',questionCode:'MATH-001',text:'سؤال مركزي معتمد',type:'mcq',imageUrl:'',imageAlt:'',currentVersion:1},
+  ],hasMore:false}));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'اختبارات المدرسة');
+  await page.getByRole('button',{name:'إنشاء اختبار',exact:true}).click();
+  await page.getByLabel('عنوان الاختبار المدرسي').fill('اختبار موحد بين الفصول');
+  await page.getByLabel('نطاق اختبار المدرسة').selectOption('classes');
+  await expect(page.getByLabel('فصل الاختبار المدرسي')).toHaveCount(0);
+  await page.getByLabel('اختيار الفصل الأول أ').check();
+  await expect(page.getByRole('button',{name:'إنشاء ونشر للطلاب المستهدفين'})).toBeDisabled();
+  await page.getByLabel('اختيار الفصل الأول ب').check();
+  await page.getByLabel('مسار الاختبار المدرسي').selectOption('path-1');
+  await page.getByLabel('مادة الاختبار المدرسي').selectOption('subject-1');
+  await page.getByLabel('اختيار السؤال MATH-001').check();
+  await expect(page.getByRole('button',{name:'إنشاء ونشر للطلاب المستهدفين'})).toBeEnabled();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth)).toBe(false);
+  await page.setViewportSize({width:1440,height:900});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth)).toBe(false);
+  await page.getByRole('button',{name:'إنشاء ونشر للطلاب المستهدفين'}).click();
+  await expect(page.getByRole('region',{name:'اختبارات المدرسة'})).toContainText('اختبار موحد بين الفصول');
+  expect(created).toMatchObject({title:'اختبار موحد بين الفصول',targetScope:'classes',classId:'',classIds:['class-1','class-2'],questionIds:['q-1']});
+});
+
 test('assessment cards ignore a late A response after A to B to A, on all target widths',async({page})=>{
   await mockDirector(page,['SCHOOL_CORE','SCHOOL_ASSESSMENTS']);
   const context=(schoolId:string,schoolName:string)=>({
