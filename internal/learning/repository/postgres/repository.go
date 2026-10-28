@@ -39,11 +39,15 @@ func (r *Repository) writeAuditTx(ctx context.Context, tx pgx.Tx, event operatio
 }
 
 func (r *Repository) ApplyAssessmentEvidence(ctx context.Context, event learning.SubmissionEvidence) (learning.ApplyResult, error) {
-	tx, err := r.db.Begin(ctx)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
 	if err != nil {
 		return learning.ApplyResult{}, err
 	}
 	defer tx.Rollback(ctx)
+
+	if err = lockStudentEvidenceTx(ctx, tx, event.StudentID); err != nil {
+		return learning.ApplyResult{}, err
+	}
 
 	affected := map[string]struct{}{}
 	inserted := 0

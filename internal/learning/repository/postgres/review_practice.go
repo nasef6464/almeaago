@@ -121,11 +121,15 @@ func (r *Repository) ApplyReviewAnswer(
 	ctx context.Context,
 	event learning.ReviewAnswerEvent,
 ) (learning.ReviewSubmission, error) {
-	tx, err := r.db.Begin(ctx)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
 	if err != nil {
 		return learning.ReviewSubmission{}, err
 	}
 	defer tx.Rollback(ctx)
+
+	if err = lockStudentEvidenceTx(ctx, tx, event.StudentID); err != nil {
+		return learning.ReviewSubmission{}, err
+	}
 
 	var existing learning.ReviewSubmission
 	err = tx.QueryRow(ctx, `
