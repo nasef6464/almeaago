@@ -86,9 +86,9 @@ test('original admin font tab links preserve hash priority, refresh, back and fo
   await page.reload();
   await expect(page.getByRole('heading',{name:'إدارة خطوط المنصة',exact:true})).toBeVisible();
  }
- await page.goto('/admin-dashboard');
+ await page.goto('/admin-dashboard?path=p1&subject=s1&tab=overview');
  await page.getByRole('link',{name:'إدارة خطوط المنصة',exact:true}).click();
- await expect(page).toHaveURL(/\/admin-dashboard#\/admin-dashboard\?tab=platform-fonts$/);
+ await expect(page).toHaveURL(/\/admin-dashboard\?path=p1&subject=s1#\/admin-dashboard\?tab=platform-fonts$/);
  await expect(page.getByRole('heading',{name:'إدارة خطوط المنصة',exact:true})).toBeVisible();
  await page.goBack();
  await expect(page.getByRole('heading',{name:'إدارة خطوط المنصة',exact:true})).toHaveCount(0);

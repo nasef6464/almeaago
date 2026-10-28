@@ -52,7 +52,9 @@ test('custom font CSS escapes names so an uploaded name cannot inject declaratio
 test('original font tab URLs retain source hash priority and direct Go compatibility',()=>{
  const file=new URL('../../apps/web/src/features/presentation/navigation.ts',import.meta.url);
  assert.ok(existsSync(file),'original font tab navigation adapter missing');
- const {isPlatformFontsLocation:matches}=load(readFileSync(file,'utf8'));
+ const {isPlatformFontsLocation:matches,buildPlatformFontsHref:href}=load(readFileSync(file,'utf8'));
+ assert.equal(typeof href,'function','source font navigation must preserve outer path/subject context');
+ assert.equal(href({pathname:'/admin-dashboard',search:'?path=p1&tab=paths&subject=s1',hash:'#/admin-dashboard?tab=paths'}),'/admin-dashboard?path=p1&subject=s1#/admin-dashboard?tab=platform-fonts');
  for(const [pathname,search,hash,want] of [
   ['/admin-dashboard','?tab=platform-fonts','',true],
   ['/admin-dashboard/','','#/admin-dashboard?tab=platform-fonts',true],

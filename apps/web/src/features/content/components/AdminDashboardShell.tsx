@@ -24,7 +24,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
-import { PLATFORM_FONTS_ADMIN_HREF, isPlatformFontsLocation } from '../../presentation/navigation';
+import { PLATFORM_FONTS_ADMIN_HREF, isPlatformFontsLocation, buildPlatformFontsHref } from '../../presentation/navigation';
 
 interface AdminDashboardShellProps {
   children: ReactNode;
@@ -97,7 +97,7 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
           return (
             <Link
               key={item.label}
-              to={item.href!}
+              to={item.href === PLATFORM_FONTS_ADMIN_HREF ? buildPlatformFontsHref(location) : item.href!}
               onClick={() => setMenuOpen(false)}
               className={`flex items-center gap-3 px-5 py-3 text-sm font-bold transition-colors ${classes}`}
             >

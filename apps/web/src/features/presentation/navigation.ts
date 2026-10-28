@@ -9,3 +9,11 @@ export function isPlatformFontsLocation(location: {pathname: string; search: str
  const hashQuery=location.hash.includes('?')?location.hash.split('?')[1]:'';
  return new URLSearchParams(hashQuery || location.search).get('tab')==='platform-fonts';
 }
+
+export function buildPlatformFontsHref(location: {pathname: string; search: string; hash: string}): string {
+ const query=new URLSearchParams(location.search);query.delete('tab');
+ const requestedHashPath=(location.hash.split('?')[0] || '#/admin-dashboard').trim() || '#/admin-dashboard';
+ const hashPath=requestedHashPath.includes('/admin-dashboard')?requestedHashPath:'#/admin-dashboard';
+ const path=/^\/admin-dashboard\/?$/.test(location.pathname)?location.pathname:'/admin-dashboard';
+ return `${path}${query.size?'?'+query.toString():''}${hashPath}?tab=platform-fonts`;
+}
