@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../state/AuthProvider';
 import { dashboardPathFor } from '../utils/dashboard-path';
-import { identifyLoginInput } from '../utils/identify-login-input';
+import { identifyLoginInput, normalizeArabicIndicDigits } from '../utils/identify-login-input';
 import { AuthErrorBanner } from './AuthErrorBanner';
 import { GoogleButton } from './GoogleButton';
 import { PasswordField } from './PasswordField';
@@ -87,7 +87,7 @@ export function AuthModal({ open, initialSignUp = false, onClose }: Props) {
     if (submitting) return;
 
     const identity = smartInput.trim();
-    const digits = identity.replace(/\D/g, '');
+    const digits = normalizeArabicIndicDigits(identity).replace(/\D/g, '');
     const enteredPassword = smartPassword.trim();
 
     if (!enteredPassword) {
