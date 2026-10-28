@@ -48,6 +48,7 @@ import { SupervisorDashboardPage } from '../features/organizations/pages/Supervi
 import { TeacherWorkspacePage } from '../features/organizations/pages/TeacherWorkspacePage';
 import { StudentDashboardPage } from '../features/learning/pages/StudentDashboardPage';
 import { PublicLandingPage } from '../features/public/pages/PublicLandingPage';
+import { LegacySiteFooter } from '../features/public/components/LegacySiteFooter';
 import { LegacySiteHeader } from '../features/public/components/LegacySiteHeader';
 import { StaticInfoPage } from '../features/public/pages/StaticInfoPage';
 
@@ -113,6 +114,8 @@ export function App() {
     }
   }
 
+  const showPublicFooter = ['/', '/login', '/signup', '/about', '/contact', '/faq', '/privacy', '/terms', '/forgot-password', '/reset-password'].includes(location.pathname);
+
   const inAdminWorkspace = location.pathname.startsWith('/admin-dashboard');
   const hideSiteHeader = inAdminWorkspace || location.pathname.endsWith('/projector');
 
@@ -176,6 +179,8 @@ export function App() {
         <Route path="/parent-dashboard" element={<ParentDashboardPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+
+      {showPublicFooter ? <LegacySiteFooter /> : null}
 
       <AuthModal
         open={modalMode !== null}
