@@ -53,6 +53,24 @@ func (r *repoStub) DirectorAssessmentReport(_ context.Context, _, _, _ string) (
 	return orgdomain.DirectorAssessmentReport{}, nil
 }
 
+func (r *repoStub) DirectorAssessmentLearners(_ context.Context, _, _, _ string, query orgdomain.DirectorAssessmentLearnerQuery) (orgdomain.DirectorAssessmentLearnerPage, error) {
+	var page orgdomain.DirectorAssessmentLearnerPage
+	page.Learners = []orgdomain.DirectorAssessmentLearner{{StudentID: "student-1", Name: "طالبة أ"}}
+	page.Pagination.Page = query.Page
+	page.Pagination.Limit = query.Limit
+	page.Pagination.Total = 1
+	page.Pagination.TotalPages = 1
+	return page, nil
+}
+
+func (r *repoStub) DirectorAssessmentLearnerResult(_ context.Context, _, _, _, attemptID string) (orgdomain.DirectorAssessmentLearnerResult, error) {
+	var result orgdomain.DirectorAssessmentLearnerResult
+	result.Result.ID = attemptID
+	result.Result.Sections = []orgdomain.DirectorAssessmentResultDimension{}
+	result.Result.Skills = []orgdomain.DirectorAssessmentResultDimension{}
+	return result, nil
+}
+
 func (r *repoStub) ParentAuthority(_ context.Context, _ string) (orgdomain.ParentAuthority, error) {
 	return r.parentAuthority, nil
 }

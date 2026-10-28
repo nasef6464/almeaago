@@ -239,6 +239,95 @@ test('director report shows only persisted aggregate scores on mobile and clears
   expect(reportCalls).toBe(beforeSchoolSwitch);
 });
 
+test('detailed school assessment roster filters real results and opens redacted learner evidence on mobile',async({page})=>{
+  await mockDirector(page,['SCHOOL_CORE','SCHOOL_ASSESSMENTS','SCHOOL_INTELLIGENCE']);
+  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[
+    {schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',permissions:[...permissions,'SCHOOL_ASSESSMENTS_MANAGE','SCHOOL_REPORTS_DETAILED_VIEW'],modules:['SCHOOL_CORE','SCHOOL_ASSESSMENTS','SCHOOL_INTELLIGENCE'],source:'membership'},
+    {schoolId:'school-2',schoolName:'مدرسة ثانية',role:'school_admin',permissions:['SCHOOL_OVERVIEW_VIEW'],modules:['SCHOOL_CORE'],source:'membership'},
+  ]}));
+  await page.route('**/api/school-access/director/schools/school-1/academic/assessments',route=>json(route,{
+    assessments:[{id:'assessment-1',title:'الاختبار المركزي',subjectId:'subject-1',isPublished:true,targetGroupIds:['class-1']}],classes:[],
+  }));
+  const base='**/api/school-access/director/schools/school-1/academic/assessments/assessment-1';
+  await page.route(base+'/report',route=>json(route,{
+    coverage:{complete:false,missingEvidence:['started_attempts'],subjects:{completed:1,withEvidence:0,complete:false}},
+    audience:{targeted:13},participation:{completed:2,notCompleted:11,started:null},
+    scores:{average:67.5,passRate:50,highest:90,lowest:45},subjects:[],sections:[],skills:[],subjectBreakdowns:[],
+  }));
+  const first={studentId:'student-1',name:'متعلم أ',result:{id:'attempt-1',score:45,passed:false,date:'2026-10-28T00:00:00Z',attemptNumber:2}};
+  const second={studentId:'student-2',name:'متعلم ب',result:null};
+  const seenQueries:string[]=[];
+  await page.route(base+'/learners*',route=>{
+    const url=new URL(route.request().url());const params=url.searchParams;
+    seenQueries.push(params.toString());
+    const status=params.get('status')||'all';const search=params.get('search')||'';const number=Number(params.get('page')||1);
+    let learners=number===1?[first,second]:[{studentId:'student-13',name:'متعلم م',result:null}];
+    let total=13;
+    if(status==='needs_support'){learners=[first];total=1}
+    if(search){learners=search==='متعلم ب'?[second]:[];total=learners.length}
+    return json(route,{learners,pagination:{page:number,limit:12,total,totalPages:Math.ceil(total/12)}});
+  });
+  await page.route(base+'/results/attempt-1',route=>json(route,{result:{
+    id:'attempt-1',studentId:'student-1',score:45,passed:false,attemptNumber:2,date:'2026-10-28T00:00:00Z',
+    totalQuestions:20,correctAnswers:9,wrongAnswers:11,unanswered:0,timeSpentSeconds:800,
+    sectionResults:[{id:'sec-1',name:'الجبر',score:60,totalQuestions:10,correctAnswers:6,wrongAnswers:4,unanswered:0}],
+    skillsAnalysis:[{id:'skill-1',name:'المعادلات',score:40,totalQuestions:5,correctAnswers:2,wrongAnswers:3,unanswered:0}],
+  }}));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'اختبارات المدرسة');
+  await page.getByRole('button',{name:'النتائج والإدارة'}).click();
+  const dialog=page.getByRole('dialog',{name:'النتائج والإدارة — الاختبار المركزي'});
+  await dialog.getByRole('button',{name:'نتائج الطلاب'}).click();
+  const roster=dialog.getByRole('region',{name:'نتائج الطلاب'});
+  await expect(roster.getByText('متعلم أ')).toBeVisible();
+  await expect(roster.getByText('متعلم ب')).toBeVisible();
+  await roster.getByRole('button',{name:'عرض النتيجة'}).click();
+  await expect(dialog.getByRole('region',{name:'تفاصيل نتيجة الطالب'})).toContainText('المعادلات');
+  await expect(dialog.getByRole('region',{name:'تفاصيل نتيجة الطالب'})).toContainText('الجبر');
+  await expect(dialog).not.toContainText('مفتاح الإجابة');
+  await roster.getByLabel('حالة الأداء').selectOption('needs_support');
+  await expect(roster).toContainText('١ طالب مطابق');
+  await roster.getByLabel('حالة الأداء').selectOption('all');
+  await roster.getByLabel('بحث عن طالب').fill('متعلم ب');
+  await roster.getByRole('button',{name:'بحث'}).click();
+  await expect(roster.getByText('متعلم ب')).toBeVisible();
+  await expect(roster.getByText('متعلم أ')).toHaveCount(0);
+  await roster.getByLabel('بحث عن طالب').fill('');
+  await roster.getByRole('button',{name:'بحث'}).click();
+  await roster.getByRole('button',{name:'التالي'}).click();
+  await expect(roster.getByText('متعلم م')).toBeVisible();
+  expect(seenQueries.some(query=>query.includes('status=needs_support'))).toBe(true);
+  expect(seenQueries.some(query=>query.includes('search=%D9'))).toBe(true);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.setViewportSize({width:1440,height:900});
+  await expect(roster.getByText('متعلم م')).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.keyboard.press('Escape');
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await expect(page.getByText('متعلم أ')).toHaveCount(0);
+});
+
+test('aggregate-only school report never requests private learner rows',async({page})=>{
+  await mockDirector(page,['SCHOOL_CORE','SCHOOL_ASSESSMENTS']);
+  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[
+    {schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',permissions:[...permissions,'SCHOOL_ASSESSMENTS_MANAGE'],modules:['SCHOOL_CORE','SCHOOL_ASSESSMENTS'],source:'membership'},
+  ]}));
+  await page.route('**/api/school-access/director/schools/school-1/academic/assessments',route=>json(route,{
+    assessments:[{id:'assessment-1',title:'اختبار النسبة',isPublished:true,targetGroupIds:[]}],classes:[],
+  }));
+  await page.route('**/api/school-access/director/schools/school-1/academic/assessments/assessment-1/report',route=>json(route,{
+    coverage:{complete:false,missingEvidence:['started_attempts'],subjects:{completed:0,withEvidence:0,complete:false}},audience:{targeted:0},
+    participation:{completed:0,notCompleted:0,started:null},scores:{average:null,passRate:null,highest:null,lowest:null},subjects:[],sections:[],skills:[],subjectBreakdowns:[],
+  }));
+  let privateReads=0;
+  await page.route('**/learners*',route=>{privateReads++;return json(route,{message:'forbidden'},403)});
+  await page.goto('/school-director-dashboard');await openDirectorSection(page,'اختبارات المدرسة');
+  await page.getByRole('button',{name:'النتائج والإدارة'}).click();
+  await expect(page.getByRole('dialog').getByRole('button',{name:'نتائج الطلاب'})).toHaveCount(0);
+  expect(privateReads).toBe(0);
+});
+
 test('school assessments require the module as well as the permission at mobile width',async({page})=>{
   await mockDirector(page);
   await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[

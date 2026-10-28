@@ -38,6 +38,21 @@ export interface DirectorAssessmentReport{
   scores:{average:number|null;passRate:number|null;highest:number|null;lowest:number|null};
   subjects:unknown[];sections:unknown[];skills:unknown[];subjectBreakdowns:unknown[];
 }
+export type DirectorAssessmentLearnerStatus='all'|'completed'|'not_completed'|'needs_support';
+export interface DirectorAssessmentLearnerEvidence{id:string;score:number;passed:boolean;date:string;attemptNumber:number}
+export interface DirectorAssessmentLearner{studentId:string;name:string;result:DirectorAssessmentLearnerEvidence|null}
+export interface DirectorAssessmentLearnerPage{
+  learners:DirectorAssessmentLearner[];
+  pagination:{page:number;limit:number;total:number;totalPages:number};
+}
+export interface DirectorAssessmentResultDimension{
+  id:string;name:string;score:number;totalQuestions:number;correctAnswers:number;wrongAnswers:number;unanswered:number;
+}
+export interface DirectorAssessmentLearnerResult{
+  result:{id:string;studentId:string;score:number;passed:boolean;attemptNumber:number;date:string;
+    totalQuestions:number;correctAnswers:number;wrongAnswers:number;unanswered:number;timeSpentSeconds:number;
+    sectionResults:DirectorAssessmentResultDimension[];skillsAnalysis:DirectorAssessmentResultDimension[]};
+}
 export interface DirectorAssessmentQuestion{
   id:string;questionCode:string;text:string;type:string;imageUrl:string;imageAlt:string;currentVersion:number;
 }
@@ -69,6 +84,13 @@ export const organizationsClient={
   },
   directorAssessmentReport(schoolId:string,assessmentId:string,signal?:AbortSignal){
     return request<DirectorAssessmentReport>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/assessments/${encodeURIComponent(assessmentId)}/report`,{signal});
+  },
+  directorAssessmentLearners(schoolId:string,assessmentId:string,filters:{page:number;limit:number;status:DirectorAssessmentLearnerStatus;search:string},signal?:AbortSignal){
+    const query=new URLSearchParams({page:String(filters.page),limit:String(filters.limit),status:filters.status,search:filters.search});
+    return request<DirectorAssessmentLearnerPage>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/assessments/${encodeURIComponent(assessmentId)}/learners?${query}`,{signal});
+  },
+  directorAssessmentLearnerResult(schoolId:string,assessmentId:string,attemptId:string,signal?:AbortSignal){
+    return request<DirectorAssessmentLearnerResult>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/assessments/${encodeURIComponent(assessmentId)}/results/${encodeURIComponent(attemptId)}`,{signal});
   },
   directorAssessmentQuestions(schoolId:string,pathId:string,subjectId:string,search:string,page:number,signal?:AbortSignal){
     const q=new URLSearchParams({pathId,subjectId,search,page:String(page),limit:'20'});

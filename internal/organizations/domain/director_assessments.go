@@ -82,3 +82,63 @@ type DirectorAssessmentReport struct {
 	Skills            []any `json:"skills"`
 	SubjectBreakdowns []any `json:"subjectBreakdowns"`
 }
+
+// DirectorAssessmentLearnerQuery mirrors the bounded legacy learner roster.
+type DirectorAssessmentLearnerQuery struct {
+	Page   int
+	Limit  int
+	Status string
+	Search string
+}
+
+type DirectorAssessmentLearnerEvidence struct {
+	ID            string  `json:"id"`
+	Score         float64 `json:"score"`
+	Passed        bool    `json:"passed"`
+	Date          string  `json:"date"`
+	AttemptNumber int     `json:"attemptNumber"`
+}
+
+type DirectorAssessmentLearner struct {
+	StudentID string                             `json:"studentId"`
+	Name      string                             `json:"name"`
+	Result    *DirectorAssessmentLearnerEvidence `json:"result"`
+}
+
+type DirectorAssessmentLearnerPage struct {
+	Learners   []DirectorAssessmentLearner `json:"learners"`
+	Pagination struct {
+		Page       int `json:"page"`
+		Limit      int `json:"limit"`
+		Total      int `json:"total"`
+		TotalPages int `json:"totalPages"`
+	} `json:"pagination"`
+}
+
+type DirectorAssessmentLearnerResult struct {
+	Result struct {
+		ID               string                              `json:"id"`
+		StudentID        string                              `json:"studentId"`
+		Score            float64                             `json:"score"`
+		Passed           bool                                `json:"passed"`
+		AttemptNumber    int                                 `json:"attemptNumber"`
+		Date             string                              `json:"date"`
+		TotalQuestions   int                                 `json:"totalQuestions"`
+		CorrectAnswers   int                                 `json:"correctAnswers"`
+		WrongAnswers     int                                 `json:"wrongAnswers"`
+		Unanswered       int                                 `json:"unanswered"`
+		TimeSpentSeconds int                                 `json:"timeSpentSeconds"`
+		Sections         []DirectorAssessmentResultDimension `json:"sectionResults"`
+		Skills           []DirectorAssessmentResultDimension `json:"skillsAnalysis"`
+	} `json:"result"`
+}
+
+type DirectorAssessmentResultDimension struct {
+	ID             string  `json:"id"`
+	Name           string  `json:"name"`
+	Score          float64 `json:"score"`
+	TotalQuestions int     `json:"totalQuestions"`
+	CorrectAnswers int     `json:"correctAnswers"`
+	WrongAnswers   int     `json:"wrongAnswers"`
+	Unanswered     int     `json:"unanswered"`
+}

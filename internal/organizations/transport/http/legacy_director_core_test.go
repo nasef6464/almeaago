@@ -280,3 +280,48 @@ func TestLegacySchoolAssessmentReportRequiresScopedCapabilityAndAvoidsCaching(t 
 		t.Fatalf("disabled module exposed report: %d", denied.Code)
 	}
 }
+
+func TestLegacySchoolAssessmentLearnersAndDetailRequireStrongerCapability(t *testing.T) {
+	const schoolA = "00000000-0000-0000-0000-000000000101"
+	const schoolB = "00000000-0000-0000-0000-000000000102"
+	const assessment = "00000000-0000-0000-0000-000000000103"
+	const attempt = "00000000-0000-0000-0000-000000000104"
+	repo := &repoStub{contexts: []orgdomain.SchoolContext{{SchoolID: schoolA, Role: identitydomain.RoleSchoolAdmin,
+		Permissions: []string{orgdomain.PermissionSchoolReportsDetailedView},
+		Modules:     []string{string(orgdomain.ModuleSchoolAssessments), string(orgdomain.ModuleSchoolIntelligence)}}}}
+	handler := NewLegacy(orgapp.NewService(repo, repo), authStub{auth: schoolAdminAuth()})
+	base := "/director/schools/" + schoolA + "/academic/assessments/" + assessment
+	get := func(path string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+		return w
+	}
+	list := get(base + "/learners?status=all&page=1&limit=12")
+	if list.Code != http.StatusOK || list.Header().Get("Cache-Control") != "private, no-store" || !strings.Contains(list.Body.String(), `"studentId":"student-1"`) || !strings.Contains(list.Body.String(), `"total":1`) {
+		t.Fatalf("roster response wrong: %d %s", list.Code, list.Body.String())
+	}
+	detail := get(base + "/results/" + attempt)
+	if detail.Code != http.StatusOK || detail.Header().Get("Cache-Control") != "private, no-store" || !strings.Contains(detail.Body.String(), `"sectionResults":[]`) || strings.Contains(detail.Body.String(), "correctOptionIndex") {
+		t.Fatalf("detail leaked or malformed: %d %s", detail.Code, detail.Body.String())
+	}
+	for _, url := range []string{
+		base + "/learners?status=missing", base + "/learners?page=0", base + "/learners?limit=101", base + "/learners?search=" + strings.Repeat("a", 121), base + "/results/not-uuid",
+	} {
+		if response := get(url); response.Code != http.StatusBadRequest {
+			t.Fatalf("invalid roster input %s -> %d %s", url, response.Code, response.Body.String())
+		}
+	}
+	foreign := strings.Replace(base, schoolA, schoolB, 1)
+	if denied := get(foreign + "/learners"); denied.Code != http.StatusForbidden {
+		t.Fatalf("foreign school roster: %d", denied.Code)
+	}
+	repo.contexts[0].Permissions = []string{orgdomain.PermissionSchoolReportsAggregateView}
+	if denied := get(base + "/learners"); denied.Code != http.StatusForbidden {
+		t.Fatalf("summary-only roster disclosure: %d", denied.Code)
+	}
+	repo.contexts[0].Permissions = []string{orgdomain.PermissionSchoolReportsDetailedView}
+	repo.contexts[0].Modules = []string{string(orgdomain.ModuleSchoolAssessments)}
+	if denied := get(base + "/results/" + attempt); denied.Code != http.StatusForbidden {
+		t.Fatalf("intelligence-disabled detail: %d", denied.Code)
+	}
+}
