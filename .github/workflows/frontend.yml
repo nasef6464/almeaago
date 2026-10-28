@@ -25,6 +25,8 @@ jobs:
       - name: Platform parity inventory contracts
         working-directory: .
         run: |
+          node scripts/parity/public-footer.test.mjs
+          node scripts/parity/screen-inventory.test.mjs
           node scripts/parity/route-inventory.test.mjs
           node scripts/parity/api-mount-inventory.test.mjs
           node --experimental-strip-types scripts/parity/identity-login-digits.test.mjs

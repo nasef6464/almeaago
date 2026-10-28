@@ -17,3 +17,8 @@ export function LegacySiteFooter() {
             </footer>
   );
 }
+
+export function showPublicFooter(pathname: string): boolean {
+  const normalized = pathname.replace(/\/+$/, '') || '/';
+  return ['/', '/login', '/signup', '/about', '/contact', '/faq', '/privacy', '/terms', '/forgot-password', '/reset-password'].includes(normalized);
+}

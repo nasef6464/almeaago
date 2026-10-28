@@ -20,3 +20,11 @@ test('shared footer renders exact approved source markup and routes',()=>{
  const source=readFileSync(new URL('../../docs/migration/baselines/legacy-public-footer.tsx.txt',import.meta.url),'utf8');
  assert.equal(render(load(readFileSync(file,'utf8'))),render(load(source)));
 });
+test('shared footer scope matches public routes including trailing slash',()=>{
+ const source=readFileSync(file,'utf8');
+ const output=ts.transpileModule(source,{compilerOptions:{jsx:ts.JsxEmit.React,esModuleInterop:true,module:ts.ModuleKind.CommonJS}}).outputText;
+ const module={exports:{}};new Function('require','module','exports',output)(require,module,module.exports);
+ assert.equal(typeof module.exports.showPublicFooter,'function');
+ for(const path of ['/','/about','/about/','/faq/','/privacy/','/terms/','/contact/','/login/','/signup/','/forgot-password/','/reset-password/']) assert.equal(module.exports.showPublicFooter(path),true,path);
+ for(const path of ['/admin-dashboard','/classroom/x/projector','/course/x','/about-more']) assert.equal(module.exports.showPublicFooter(path),false,path);
+});

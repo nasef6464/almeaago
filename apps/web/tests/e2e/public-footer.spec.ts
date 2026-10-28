@@ -22,6 +22,8 @@ for (const width of [390,820,1440]) {
    await expect(page).toHaveURL(/\/$/);
   }
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.goto('/about/');
+  await expect(page.getByRole('contentinfo')).toHaveCount(1);
   await footer.screenshot({path:`test-results/original-public-footer-${width}.png`});
  });
 }

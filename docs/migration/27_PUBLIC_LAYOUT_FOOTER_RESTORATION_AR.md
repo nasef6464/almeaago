@@ -20,3 +20,5 @@ Actor visitor → shared footer → React Router public URL → existing StaticI
 PARTIAL على مستوى الموقع، وليس PARITY_PROVEN. مطابقة SSR تثبت markup لهذه القطعة؛ لا تثبت screenshots مقترنة لصفحة Legacy كاملة، ولا dynamic homepage settings أو navigation أو مكونات الطالب. لا تغيير صلاحيات أو تصحيح أو مدفوعات أو بيانات إنتاج.
 
 التالي: عقد إعدادات homepage/font/navigation وحفظها، ثم ربط أصل العرض بدل القيم الثابتة. لا الاستعاضة ببيانات وهمية عن اتصال Go/PostgreSQL.
+
+المراجعة المستقلة: أُضيف اختبار العقد إلى Frontend CI القائم؛ أُصلحت مطابقة المسارات ذات الشرطة الختامية باختبار RED→GREEN مع استبعاد مساحات الإدارة/المشغل. لا workflow جديد.
