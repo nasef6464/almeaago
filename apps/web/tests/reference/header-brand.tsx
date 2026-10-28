@@ -32,6 +32,6 @@ function Reference(){
                 </span>
               </div>
             </Link>
-  </div></div></div></header></>;
+  </div></div></div></header><main style={{minHeight:'200vh'}}/></>;
 }
 createRoot(document.getElementById('root')!).render(<BrowserRouter><Reference/></BrowserRouter>);

@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-test('original homepage editor persists brand and hero through Go sessions/PostgreSQL to a guest',async({page,context},testInfo)=>{
+test('original homepage editor persists brand and hero through Go sessions/PostgreSQL to a guest',async({page,context,browser},testInfo)=>{
  test.skip(process.env.HOMEPAGE_LIVE!=='1','isolated PostgreSQL integration only');test.setTimeout(180000);
  // Catalog endpoints are outside this isolated presentation server. Empty fixtures
  // are explicit; homepage/auth/CSRF/database persistence are never mocked.
@@ -37,7 +37,12 @@ test('original homepage editor persists brand and hero through Go sessions/Postg
    const source=await capture(frames[0],'source');const go=await capture(frames[1],'go');await testInfo.attach(`homepage-${section}-source-${width}`,{body:source,contentType:'image/png'});await testInfo.attach(`homepage-${section}-go-${width}`,{body:go,contentType:'image/png'});expect(Buffer.compare(go,source),`${section} component pixels at ${width}`).toBe(0);
    for(const frame of frames)await frame.close();
   }
-  await page.goto('/');await expect(page.locator('header').getByText('هوية محفوظة',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{level:1})).toContainText('تعلم بثقة');await page.screenshot({path:`test-results/homepage-guest-actual-${width}.png`,animations:'disabled'});
+  await page.goto('/');await expect(page.locator('header').getByText('هوية محفوظة',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{level:1})).toContainText('تعلم بثقة');await page.screenshot({path:`test-results/homepage-public-authenticated-${width}.png`,animations:'disabled'});
+  const guestContext=await browser.newContext({viewport:{width,height:1000}});
+  await guestContext.route('**/api/v1/taxonomy/bootstrap?*',r=>r.fulfill({json:{paths:[],subjects:[]}}));
+  const guest=await guestContext.newPage();await guest.goto('http://127.0.0.1:4173/');
+  await expect(guest.locator('header').getByText('هوية محفوظة',{exact:true})).toBeVisible();await expect(guest.getByRole('heading',{level:1})).toContainText('تعلم بثقة');await expect(guest.locator('header').getByRole('link',{name:'لوحتي',exact:true})).toHaveCount(0);
+  await guest.screenshot({path:`test-results/homepage-guest-actual-${width}.png`,animations:'disabled'});await guestContext.close();
   await page.goBack();await expect(page.getByRole('heading',{name:'إدارة الصفحة الرئيسية',exact:true})).toBeVisible();await page.goForward();await expect(page.getByRole('heading',{level:1})).toContainText('تعلم بثقة');
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  }

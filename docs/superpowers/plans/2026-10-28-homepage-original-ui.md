@@ -9,7 +9,7 @@ Spec: plan03 Gate1, matrix26 and contract29; original bf7281fc.
 - [x] RED API, browser regression suite: original tab loads editor; saved brand reaches guest header and hero after reload; failed save retains draft; nonadmin denied; delayed load cannot overwrite save.
 - [x] Reuse original editor/types/sanitizer and original student fields, with Go catalog pagination, real CSRF, explicit catalog-load errors. Retain unavailable dependencies as PARTIAL, never fabricate counts/access.
 - [x] Bind public brand/hero/section settings, preserving false/empty/order and existing access checks.
-- [ ] Real isolated PG browser journey plus source-component screenshot comparison 390/820/1440. Keep whole-header/whole-homepage parity UNKNOWN where untested.
+- [x] Real isolated PG browser journey plus source-component screenshot comparison 390/820/1440. Keep whole-header/whole-homepage parity UNKNOWN where untested.
 - [ ] Independent review; Go/vet/build/unit/E2E; four exact-SHA CI gates; merge only after passing; document remainder.
 
 Review focus: stale response after save; failed initial load must not permit destructive save; draft while saving; forbidden links; unavailable catalog must not erase stored IDs. No production/source writes.
