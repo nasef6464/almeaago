@@ -1,6 +1,6 @@
 import {expect,test} from '@playwright/test';
 
-test('original font editor persists through real Go identity and PostgreSQL',async({page,context})=>{
+test('original font editor persists through real Go identity and PostgreSQL',async({page,context},testInfo)=>{
  test.skip(process.env.FONT_LIVE !== '1','isolated PostgreSQL integration only');
  test.setTimeout(90_000);
  const login=await page.request.post('/api/v1/auth/login',{data:{email:process.env.FONT_TEST_ADMIN_EMAIL,password:'Fonts-test-pass-42!'}});
@@ -41,6 +41,11 @@ test('original font editor persists through real Go identity and PostgreSQL',asy
   await page.mouse.move(0,0);await original.mouse.move(0,0);
   const expected=await panel(original).screenshot({path:`test-results/font-source-component-${width}.png`,animations:'disabled'});
   const actual=await panel(page).screenshot({path:`test-results/font-go-component-${width}.png`,animations:'disabled'});
+  const metrics=async(p:typeof page)=>p.locator('select').evaluateAll(elements=>elements.map(element=>{
+   const style=getComputedStyle(element);const rect=element.getBoundingClientRect();
+   return {font:style.font,fontFamily:style.fontFamily,lineHeight:style.lineHeight,x:rect.x,y:rect.y,width:rect.width,height:rect.height};
+  }));
+  await testInfo.attach(`font-component-metrics-${width}`,{body:JSON.stringify({source:await metrics(original),go:await metrics(page)}),contentType:'application/json'});
   expect(Buffer.compare(actual,expected),`source/Go component pixels differ at ${width}px`).toBe(0);
   await original.close();
   await page.goto('/about');
