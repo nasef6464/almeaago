@@ -63,3 +63,9 @@
 - Legacy: 33 mount تسجيلًا، 30 جذرًا مميزًا؛ Go: 31 mount مختلفًا؛ الجذر الحرفي المشترك `/api/school-access`. الغالبية تتغير من `/api` إلى `/api/v1`؛ **ليس قياسًا لفقد الخصائص**.
 - مسار إنشاء اختبار المدرسة تم تتبعه حتى SQL والجداول المشتركة؛ توجد صلاحية مكررة في transaction وحجز idempotency. أما تحرير/نسخ الاختبار المدرسي مقابل Legacy فحالة `GAP-CANDIDATE / UNKNOWN` إلى أن تثبت وظائف Go المكافئة أو غيابها.
 - **الخطوة التالية:** التحقق من `clone/commands/definition` عبر الواجهة والخدمة واختبار golden لقرار النطاق، ثم توسيع الجرد إلى الهوية، التعلم، التقرير، والدفع؛ لا تعديل production data.
+
+## تحديث 2026-10-28 — P0-B / P1 integrity
+
+- دُمج PR #142 بعد نجاح Frontend CI / Backend CI / Database CI / Frontend E2E على SHA `dcfc1847ee9189fe66ac5e5180012c19f08ad901`، فأصبح `main@fec689b32ae442c72586133f4cc511efc9f91c54`. أضيفت خريطة API mounts والملكية المدرسية في `19_API_MOUNTS_AND_ASSESSMENT_OWNERSHIP_AR.md`، ولا تعني تكافؤ endpoints.
+- فحص لاحق لمسار `Readiness` كشف احتمال تكرار skill بين صفحات `LIMIT/OFFSET` المرتبة بالـmastery أثناء تغيّر الأدلة. توثيق `20_READINESS_PAGE_INTEGRITY_AR.md` مع اختبار رفض التكرار والنطاق الخاطئ، دون تغيير المعادلة أو قاعدة البيانات. **الاعتماد النهائي ينتظر CI على PR الجديد**.
+- التالي: إثبات الاستقرار عبر PostgreSQL snapshot/aggregation (ببيئة اختبار فقط)، ثم مقارنة golden behavior مع Legacy في نطاق المسار/المادة ومقام المهارات غير المقاسة.
