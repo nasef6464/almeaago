@@ -13,11 +13,12 @@ import (
 )
 
 var (
-	ErrInvalidInput = errors.New("invalid learning request")
-	ErrForbidden    = errors.New("learning operation forbidden")
-	ErrNotFound     = learning.ErrNotFound
-	ErrConflict     = learning.ErrConflict
-	ErrNotDue       = learning.ErrNotDue
+	ErrInvalidInput        = errors.New("invalid learning request")
+	ErrForbidden           = errors.New("learning operation forbidden")
+	ErrNotFound            = learning.ErrNotFound
+	ErrConflict            = learning.ErrConflict
+	ErrNotDue              = learning.ErrNotDue
+	ErrIncompleteReadiness = errors.New("incomplete mastery readiness evidence")
 )
 
 type Repository interface {
@@ -101,11 +102,25 @@ func (s *Service) Readiness(ctx context.Context, actor identity.User, pathID, su
 	if pathID == "" {
 		return learning.MasteryReadiness{}, ErrInvalidInput
 	}
-	page, err := s.repo.ListSkillProgress(ctx, actor.ID, pathID, subjectID, 1, 100)
-	if err != nil {
-		return learning.MasteryReadiness{}, err
+	const pageLimit, maxPages = 100, 100
+	rows := make([]learning.SkillProgress, 0, pageLimit)
+	for pageNumber := 1; pageNumber <= maxPages; pageNumber++ {
+		if err := ctx.Err(); err != nil {
+			return learning.MasteryReadiness{}, err
+		}
+		page, err := s.repo.ListSkillProgress(ctx, actor.ID, pathID, subjectID, pageNumber, pageLimit)
+		if err != nil {
+			return learning.MasteryReadiness{}, err
+		}
+		if page.HasMore && len(page.Items) == 0 {
+			return learning.MasteryReadiness{}, ErrIncompleteReadiness
+		}
+		rows = append(rows, page.Items...)
+		if !page.HasMore {
+			return learning.MasteryReadinessFrom(rows, time.Now().UTC()), nil
+		}
 	}
-	return learning.MasteryReadinessFrom(page.Items, time.Now().UTC()), nil
+	return learning.MasteryReadiness{}, ErrIncompleteReadiness
 }
 
 func (s *Service) NextAction(ctx context.Context, actor identity.User, pathID, subjectID string) (*learning.SkillProgress, error) {
