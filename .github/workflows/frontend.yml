@@ -27,3 +27,4 @@ jobs:
         run: |
           node scripts/parity/route-inventory.test.mjs
           node scripts/parity/api-mount-inventory.test.mjs
+          node --experimental-strip-types scripts/parity/learning-golden.test.mjs
