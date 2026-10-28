@@ -17,7 +17,7 @@ test('original homepage editor persists brand and hero through Go sessions/Postg
   const original=await context.newPage();await original.setViewportSize({width,height:1000});await original.goto('/tests/reference/homepage.html');
   await expect(original.getByRole('heading',{name:'إدارة الصفحة الرئيسية',exact:true})).toBeVisible();
   for(const section of ['brand-section','hero-section']){
-   const capture=async(p:typeof page,name:string)=>{await p.mouse.move(0,0);await p.evaluate(()=>document.fonts.ready);const locator=p.locator(`#${section}`);return locator.screenshot({path:`test-results/homepage-${section}-${name}-${width}.png`,animations:'disabled'});};
+   const capture=async(p:typeof page,name:string)=>{await p.mouse.move(0,0);await p.evaluate(()=>document.fonts.ready);await p.evaluate(()=>scrollTo(0,0));const locator=p.locator(`#${section}`);const clip=await locator.boundingBox();expect(clip).not.toBeNull();const metrics=await locator.evaluate(e=>{const box=e.getBoundingClientRect();return {x:box.x,y:box.y,width:box.width,height:box.height,scrollY,devicePixelRatio}});await testInfo.attach(`metrics-${section}-${name}-${width}`,{body:JSON.stringify(metrics),contentType:'application/json'});return p.screenshot({path:`test-results/homepage-${section}-${name}-${width}.png`,fullPage:true,clip:clip!,animations:'disabled'});};
    const source=await capture(original,'source');const go=await capture(page,'go');await testInfo.attach(`homepage-${section}-source-${width}`,{body:source,contentType:'image/png'});await testInfo.attach(`homepage-${section}-go-${width}`,{body:go,contentType:'image/png'});expect(Buffer.compare(go,source),`${section} source pixels at ${width}`).toBe(0);
   }
   await original.close();

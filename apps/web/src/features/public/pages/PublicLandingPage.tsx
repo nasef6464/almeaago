@@ -26,7 +26,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import {useHomepageSettings} from '../../presentation/useHomepageSettings';
-import {heroGallery as buildHeroGallery,heroRotateSeconds} from '../../presentation/homepageHero';
+import {heroGallery as buildHeroGallery,heroRotateSeconds,resolveHomepageHeroImage} from '../../presentation/homepageHero';
 import {homepageHref} from '../../presentation/homepageLinks';
 import { contentClient } from '../../content/api/content-client';
 import type { TaxonomyCore, TaxonomyPath } from '../../content/api/content-types';
@@ -240,7 +240,7 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
                 >
                   {heroGallery.map((item,index)=>{
                     const active=index===currentHeroIndex%heroGallery.length;
-                    return <img key={item.url} src={item.url} alt={item.alt} loading={index===0?'eager':'lazy'} className={`absolute inset-0 h-full w-full object-cover transition-all duration-1000 ease-in-out ${active?'z-10 scale-100 opacity-100':'z-0 scale-105 opacity-0'}`}/>;
+                    return <img key={item.url} src={resolveHomepageHeroImage(item.url)} alt={item.alt} loading={index===0?'eager':'lazy'} className={`absolute inset-0 h-full w-full object-cover transition-all duration-1000 ease-in-out ${active?'z-10 scale-100 opacity-100':'z-0 scale-105 opacity-0'}`}/>;
                   })}
                   <div className="absolute bottom-3.5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/20 bg-slate-950/60 px-3 py-1 shadow-lg backdrop-blur-md">
                     {heroGallery.map((_,index)=>(
@@ -254,7 +254,7 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
                 <div className="mt-3.5 flex items-center justify-center gap-2 overflow-x-auto px-1 pb-1">
                   {heroGallery.map((thumb,index)=>(
                     <button key={thumb.url} type="button" onClick={()=>setCurrentHeroIndex(index)} className={`relative h-[38px] w-[56px] shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 shadow-sm transition-all duration-300 ${index===currentHeroIndex?'scale-105 border-amber-500 ring-2 ring-amber-400/50':'border-white/90 bg-white opacity-70 hover:border-indigo-300 hover:opacity-100'}`}>
-                      <img src={thumb.url} alt="" className="h-full w-full object-cover" loading="lazy"/>
+                      <img src={resolveHomepageHeroImage(thumb.url)} alt="" className="h-full w-full object-cover" loading="lazy"/>
                     </button>
                   ))}
                 </div>
