@@ -243,3 +243,19 @@ test('supervisor and admin roots expose real scoped workspaces',async({page})=>{
   await expect(page.locator('main').getByRole('link',{name:/العمليات والتدقيق/})).toBeVisible();
   await expect(page.getByText('هذه الوجهة ستُنقل من الواجهة المرجعية في مرحلتها.')).toHaveCount(0);
 });
+
+// Presentation fixture only; not a Go/PostgreSQL integration certificate.
+for (const width of [390, 820, 1440]) {
+  test(`homepage preserves all server-returned paths at ${width}px`, async ({page}) => {
+    await signedOut(page);
+    await page.setViewportSize({width,height:1000});
+    await page.route('**/api/v1/taxonomy/bootstrap?phase=core', route => json(route, {
+      paths: Array.from({length:8},(_,i)=>({id:`path-${i}`,code:`P${i}`,name:`مسار اختبار ${i}`,description:'',sortOrder:i})),subjects:[],
+    }));
+    await page.goto('/');
+    await expect(page.getByRole('heading',{name:'مسار اختبار 7',exact:true})).toBeVisible();
+    await expect(page.locator('main a[href^="/learning?pathId="]')).toHaveCount(8);
+    await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.screenshot({path:`test-results/homepage-all-paths-${width}.png`,fullPage:true});
+  });
+}
