@@ -1,4 +1,10 @@
 import {test,expect} from '@playwright/test';
+// JPEG edge resampling differed by one RGB level across otherwise identical
+// captures. Use Chromium's software compositing/raster path for this pixel
+// comparison; keep byte equality, source images, CSS and interactions intact.
+// https://www.chromium.org/developers/testing/memorysanitizer/
+const localChromium=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?.trim();
+test.use({launchOptions:{args:['--disable-gpu'],...(localChromium?{executablePath:localChromium}:{})}});
 test('original homepage editor persists brand and hero through Go sessions/PostgreSQL to a guest',async({page,context,browser},testInfo)=>{
  test.skip(process.env.HOMEPAGE_LIVE!=='1','isolated PostgreSQL integration only');test.setTimeout(180000);
  // Catalog endpoints are outside this isolated presentation server. Empty fixtures

@@ -15,7 +15,7 @@ export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}){
   const homepage=useHomepageSettings();
   const brand=homepage.brand;
   const logoUrl=String(brand?.logoUrl || '').trim();
-  const logoAlt=String(brand?.logoAlt || 'شعار منصة المئة').trim();
+  const logoAlt=String(brand?.logoAlt || 'منصة المئة').trim();
   const logoText=String(brand?.logoText || 'منصة').trim();
   const logoAccentText=String(brand?.logoAccentText || 'المئة').trim();
   const nav=homepage.navigation;
@@ -62,12 +62,13 @@ export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}){
             </button>
 
             <Link to="/" className="group flex min-w-0 items-center gap-2.5">
-              {logoUrl?<img src={logoUrl} alt={logoAlt} className="h-10 max-w-[160px] object-contain sm:h-12"/>:<div className="flex min-w-0 flex-col justify-center leading-tight">
+              {logoUrl?<img src={logoUrl} alt={logoAlt} className="h-9 w-9 sm:h-11 sm:w-11 rounded-full object-contain bg-white border border-amber-100 shadow-sm shrink-0"/>:null}
+              <div className="flex min-w-0 flex-col justify-center leading-tight">
                 <div className="flex min-w-0 items-center text-lg font-black text-amber-500 sm:text-2xl">
-                  <span className="text-blue-900">{logoText}</span><span className="mx-1">{logoAccentText}</span>
+                  <span className="text-blue-900 dark:text-blue-400">{logoText}</span><span className="mx-1">{logoAccentText}</span>
                 </div>
                 <span className="mt-0.5 text-[10px] font-bold leading-none tracking-tight text-gray-400 sm:text-xs">قدرات & تحصيلي</span>
-              </div>}
+              </div>
             </Link>
           </div>
 

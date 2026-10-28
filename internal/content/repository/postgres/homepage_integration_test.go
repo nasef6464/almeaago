@@ -249,7 +249,8 @@ func TestHomepageSettingsHTTPPostgres(t *testing.T) {
 		if output, err := reference.CombinedOutput(); err != nil {
 			t.Fatalf("homepage reference: %v %s", err, output)
 		}
-		cmd := exec.CommandContext(ctx, "npm", "run", "e2e", "--", "tests/e2e/homepage-settings-live.spec.ts")
+		// Both journeys edit the same isolated settings singleton; serialize files too.
+		cmd := exec.CommandContext(ctx, "npm", "run", "e2e", "--", "--workers=1", "tests/e2e/homepage-settings-live.spec.ts", "tests/e2e/header-brand-live.spec.ts")
 		cmd.Dir = web
 		cmd.Env = append(os.Environ(), "HOMEPAGE_LIVE=1", "HOMEPAGE_TEST_ADMIN_EMAIL="+admin.Email, "E2E_API_TARGET="+server.URL)
 		output, err := cmd.CombinedOutput()
