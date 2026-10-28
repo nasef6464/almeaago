@@ -4,7 +4,13 @@ import {buildServerNextBestAction} from './learning-source/nextBestAction.ts';
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 const source={repository:'nasef6464/almeaacodax',commit:'bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7',files:{}};
-for(const name of ['skillAnalytics','nextBestAction'])source.files[name]=createHash('sha256').update(readFileSync(new URL(`./learning-source/${name}.ts`,import.meta.url))).digest('hex');
+const pinnedBlobs={skillAnalytics:'853e8461d2110931ce1c9c8d61982b5131d036b7',nextBestAction:'0ebf7b2a08011e8f9bd66aa90ff41b348ede54dc'};
+for(const name of ['skillAnalytics','nextBestAction']){
+ const bytes=readFileSync(new URL(`./learning-source/${name}.ts`,import.meta.url));
+ const blob=createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+ if(blob!==pinnedBlobs[name])throw new Error(`Pinned source changed: ${name}; review source commit and blob pins before regenerating`);
+ source.files[name]=createHash('sha256').update(bytes).digest('hex');
+}
 const cases=[];
 for(const mastery of [0,44,44.999,45,49.999,50,64.999,65,74.499,74.5,74.999,75,79.999,80,89.999,90,100])for(const attempts of [0,2,3])cases.push({mastery,attempts,status:buildSkillStatus(mastery),action:buildRecommendedAction(mastery,attempts)});
 const adaptive=[];

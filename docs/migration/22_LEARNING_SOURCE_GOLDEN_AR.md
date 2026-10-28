@@ -7,7 +7,7 @@
 - حفظ نسختين حرفيتين من TypeScript في `scripts/parity/learning-source`، وGit blob مطابق للمصدر: `skillAnalytics.ts` = `853e8461d2110931ce1c9c8d61982b5131d036b7`؛ `nextBestAction.ts` = `0ebf7b2a08011e8f9bd66aa90ff41b348ede54dc`.
 - `learning-golden.mjs` ينفذ دوال المصدر مباشرة عبر Node الداعم لمحو أنواع TypeScript؛ لا يعيد صياغة خوارزميتها. ينتج JSON متكررًا ثابتًا مع SHA256 لكل ملف، 51 حالة مشتركة و12 ملاحظة adaptive.
 - `TestLegacySkillPolicyGolden` يقارن ناتج Go الحقيقي بتوقعات المصدر المستقلة: 17 قيمة mastery ×3 قيم attempts، حول 45/50/65/75/80/90، بما فيها القيم الكسرية. **51/51 متطابقة** للتصنيف والتوصية النصية المشتركة فقط.
-- اختباران للأداة: fixture مطابق، ورفض fixture مفقود/تالف. اختبار الرفض فشل قبل تنفيذ `--check` ثم نجح؛ هذا RED→GREEN للأداة، وليس دليل إصلاح runtime. أُضيف التحقق إلى Frontend CI القائم؛ Go golden يدخل Backend CI تلقائيًا.
+- ثلاثة اختبارات للأداة: رفض تغيير مصدر pinned حتى عند regenerate، fixture مطابق، ورفض fixture مفقود/تالف. اختبار الرفض فشل قبل تنفيذ `--check` ثم نجح؛ هذا RED→GREEN للأداة، وليس دليل إصلاح runtime. أُضيف التحقق إلى Frontend CI القائم؛ Go golden يدخل Backend CI تلقائيًا.
 
 ## فصل العقود قبل إصلاح السياسة
 
@@ -31,3 +31,5 @@
 `go test ./...`
 
 تحديث المصدر يتطلب فحص SHA جديد، جلب الملفين، تشغيل generator إلى fixture، ومراجعة كل فرق؛ لا regenerate تلقائيًا في CI لإخفاء تغير السياسة. لا حاجة للوصول للإنتاج أو MongoDB. الخطوة التالية: trace endpoint الحقيقي الذي يستهلك adaptive في Legacy، مع golden رتبة/إجراء/نطاق متعددة المهارات وقرار مقام المنهج، ثم إصلاح Go المناسب؛ لا نسخ عتبات عمياء أو استبدال صلاحيات/DTO بصمت. شريحة المدارس #144 تُترك لصاحبها.
+
+مراجعة مستقلة: أُضيف تحقق Git blob ثابت قبل توليد fixture (اختبار تبديل مصدر RED→GREEN)، وتوسعت paths في Frontend CI لتشمل domain وfixture حتى لا يتجاوز تغيير fixture وحده فحص المصدر. ملاحظة تحريرية صغيرة مؤجلة: تعليق الأداة يقول Node>=24، بينما CI يستخدم Node22 مع type stripping؛ التنفيذ الفعلي على Node22 تحسمه CI.
