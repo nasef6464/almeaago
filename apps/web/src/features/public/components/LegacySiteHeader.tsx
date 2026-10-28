@@ -1,4 +1,5 @@
 import {Bell,BookOpen,ChevronDown,LogIn,Menu,Radio,X} from 'lucide-react';
+import {useHomepageSettings} from '../../presentation/useHomepageSettings';
 import {useEffect,useMemo,useState} from 'react';
 import {Link,useLocation} from 'react-router-dom';
 
@@ -11,6 +12,12 @@ type AuthMode='login'|'signup';
 
 export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}){
   const{user}=useAuth();
+  const homepage=useHomepageSettings();
+  const brand=homepage.brand;
+  const nav=homepage.navigation;
+  const navItem=(id:string)=>nav?.items?.find(i=>i.id===id);
+  const visible=(id:string)=>navItem(id)?.visible!==false;
+  const label=(id:string,fallback:string)=>navItem(id)?.label?.trim()||fallback;
   const location=useLocation();
   const[menuOpen,setMenuOpen]=useState(false);
   const[activeDropdown,setActiveDropdown]=useState<string|null>(null);
@@ -31,8 +38,8 @@ export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}){
   },[location.pathname,location.search]);
 
   const paths=useMemo(
-    ()=>[...taxonomy.paths].sort((a,b)=>a.sortOrder-b.sortOrder).slice(0,4),
-    [taxonomy.paths],
+    ()=>(nav?.showAutoPaths===false?[]:[...taxonomy.paths]).sort((a,b)=>a.sortOrder-b.sortOrder).slice(0,4),
+    [taxonomy.paths,nav?.showAutoPaths],
   );
 
   return (
@@ -51,26 +58,26 @@ export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}){
             </button>
 
             <Link to="/" className="group flex min-w-0 items-center gap-2.5">
-              <div className="flex min-w-0 flex-col justify-center leading-tight">
+              {brand?.logoUrl?<img src={brand.logoUrl} alt={brand.logoAlt || 'شعار منصة المئة'} className="h-10 max-w-[160px] object-contain sm:h-12"/>:<div className="flex min-w-0 flex-col justify-center leading-tight">
                 <div className="flex min-w-0 items-center text-lg font-black text-amber-500 sm:text-2xl">
-                  <span className="text-blue-900">منصة</span><span className="mx-1">المئة</span>
+                  <span className="text-blue-900">{brand?.logoText || 'منصة'}</span><span className="mx-1">{brand?.logoAccentText || 'المئة'}</span>
                 </div>
                 <span className="mt-0.5 text-[10px] font-bold leading-none tracking-tight text-gray-400 sm:text-xs">قدرات & تحصيلي</span>
-              </div>
+              </div>}
             </Link>
           </div>
 
           <nav aria-label="التنقل الرئيسي" className="hidden items-center gap-1 md:flex">
-            <div className="relative px-3 py-2">
-              <Link to="/" className="flex items-center gap-2 text-sm font-bold text-gray-700 transition-colors hover:text-amber-500">الرئيسية</Link>
-            </div>
+            {visible('home')?<div className="relative px-3 py-2" style={{order:navItem('home')?.order ?? 0}}>
+              <Link to="/" className="flex items-center gap-2 text-sm font-bold text-gray-700 transition-colors hover:text-amber-500">{label('home','الرئيسية')}</Link>
+            </div>:null}
 
             {paths.map(path=>{
               const subjects=taxonomy.subjects.filter(subject=>subject.pathId===path.id).slice(0,8);
               return (
                 <div
                   key={path.id}
-                  className="group relative px-3 py-2"
+                  className="group relative px-3 py-2" style={{order:navItem(path.id)?.order ?? 50}}
                   onMouseEnter={()=>setActiveDropdown(path.id)}
                   onMouseLeave={()=>setActiveDropdown(null)}
                 >
@@ -100,7 +107,7 @@ export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}){
               );
             })}
 
-            <div className="relative px-3 py-2"><Link to="/assessments" className="flex items-center gap-2 text-sm font-bold text-gray-700 transition-colors hover:text-amber-500">اختبارات</Link></div>
+            {visible('mock-exams')?<div className="relative px-3 py-2" style={{order:navItem('mock-exams')?.order ?? 20}}><Link to="/assessments" className="flex items-center gap-2 text-sm font-bold text-gray-700 transition-colors hover:text-amber-500">{label('mock-exams','اختبارات')}</Link></div>:null}
             <div className="relative px-3 py-2"><Link to="/about" className="flex items-center gap-2 text-sm font-bold text-gray-700 transition-colors hover:text-amber-500">عن المنصة</Link></div>
           </nav>
 
@@ -125,7 +132,7 @@ export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}){
         <nav aria-label="التنقل الرئيسي للجوال" className="fixed inset-0 top-16 z-40 overflow-y-auto bg-white pb-20 animate-fade-in sm:top-20 md:hidden">
           <div className="mx-auto max-w-7xl p-4">
             {user?<Link to={dashboardHref} className="mb-4 block rounded-xl bg-indigo-50 px-4 py-3 text-sm font-black text-indigo-700">لوحتي</Link>:null}
-            <Link to="/" className="mb-2 block rounded-xl px-4 py-3 text-base font-black text-gray-800 hover:bg-gray-50">الرئيسية</Link>
+            {visible('home')?<Link to="/" className="mb-2 block rounded-xl px-4 py-3 text-base font-black text-gray-800 hover:bg-gray-50">{label('home','الرئيسية')}</Link>:null}
             {paths.map(path=>{
               const subjects=taxonomy.subjects.filter(subject=>subject.pathId===path.id).slice(0,10);
               const open=expandedPath===path.id;
@@ -143,7 +150,7 @@ export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}){
                 </div>
               );
             })}
-            <Link to="/assessments" className="mb-2 block rounded-xl px-4 py-3 text-base font-black text-gray-800 hover:bg-gray-50">اختبارات</Link>
+            {visible('mock-exams')?<Link to="/assessments" className="mb-2 block rounded-xl px-4 py-3 text-base font-black text-gray-800 hover:bg-gray-50">{label('mock-exams','اختبارات')}</Link>:null}
             <Link to="/about" className="mb-2 block rounded-xl px-4 py-3 text-base font-black text-gray-800 hover:bg-gray-50">عن المنصة</Link>
             <Link to="/faq" className="mb-2 block rounded-xl px-4 py-3 text-base font-black text-gray-800 hover:bg-gray-50">الأسئلة الشائعة</Link>
             {!user?<button type="button" onClick={()=>{setMenuOpen(false);onAuth('login')}} className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-3 font-bold text-white"><LogIn size={18}/>تسجيل الدخول</button>:null}

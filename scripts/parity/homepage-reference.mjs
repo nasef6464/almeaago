@@ -1,0 +1,5 @@
+import {mkdirSync,readFileSync,writeFileSync} from 'node:fs';
+const output=new URL('../../apps/web/tests/reference/generated/',import.meta.url);mkdirSync(output,{recursive:true});
+let source=readFileSync(new URL('../../docs/migration/baselines/legacy-HomepageManager.tsx.txt',import.meta.url),'utf8');
+source=source.replace("from '../../services/api'","from '../homepage-api-adapter'").replace("from '../../contexts/AuthContext'","from '../auth-adapter'").replace("from '../../store/useStore'","from '../homepage-store-adapter'").replace("from '../../types'","from '../../../src/features/presentation/homepage-types'").replace("from '../../utils/sanitizeMojibakeArabic'","from '../../../src/features/presentation/homepageSanitizer'").replace("from './components/StudentExperienceSettings'","from '../../../src/features/presentation/StudentExperienceSettings'").replace("from '../../utils/defaultAvatar'","from '../../../src/features/presentation/defaultAvatar'").replace("NonNullable<HomepageSettings['navigation']>['items'][number]","NonNullable<NonNullable<HomepageSettings['navigation']>['items']>[number]");
+writeFileSync(new URL('HomepageManager.tsx',output),source);

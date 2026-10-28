@@ -9,6 +9,8 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -41,7 +43,7 @@ func TestHomepageSettingsHTTPPostgres(t *testing.T) {
 	if os.Getenv("HOMEPAGE_TEST_DB") != "1" || os.Getenv("DATABASE_URL") == "" {
 		t.Skip("HOMEPAGE_TEST_DB=1 and isolated DATABASE_URL required")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	adminDB, err := pgxpool.New(ctx, os.Getenv("DATABASE_URL"))
 	if err != nil {
@@ -233,4 +235,32 @@ func TestHomepageSettingsHTTPPostgres(t *testing.T) {
 	if count(`SELECT count(*) FROM content_homepage_featured_paths`) != 0 || count(`SELECT count(*) FROM content_homepage_featured_courses`) != 1 {
 		t.Fatal("clearing one reference set cleared another")
 	}
+	if os.Getenv("HOMEPAGE_BROWSER_E2E") == "1" {
+		// Reset isolated presentation data, leaving the real relational/security tests above intact.
+		if _, err := db.Exec(ctx, `TRUNCATE content_homepage_settings CASCADE`); err != nil {
+			t.Fatal(err)
+		}
+		web, err := filepath.Abs("../../../../apps/web")
+		if err != nil {
+			t.Fatal(err)
+		}
+		reference := exec.CommandContext(ctx, "node", "scripts/parity/homepage-reference.mjs")
+		reference.Dir = filepath.Dir(filepath.Dir(web))
+		if output, err := reference.CombinedOutput(); err != nil {
+			t.Fatalf("homepage reference: %v %s", err, output)
+		}
+		cmd := exec.CommandContext(ctx, "npm", "run", "e2e", "--", "tests/e2e/homepage-settings-live.spec.ts")
+		cmd.Dir = web
+		cmd.Env = append(os.Environ(), "HOMEPAGE_LIVE=1", "HOMEPAGE_TEST_ADMIN_EMAIL="+admin.Email, "E2E_API_TARGET="+server.URL)
+		output, err := cmd.CombinedOutput()
+		t.Log(string(output))
+		if err != nil {
+			t.Fatal(err)
+		}
+		fresh = call("GET", endpoint, "", "", 200)
+		if fresh["brand"].(map[string]any)["logoText"] != "هوية محفوظة" {
+			t.Fatal("browser did not persist brand", fresh)
+		}
+	}
+
 }

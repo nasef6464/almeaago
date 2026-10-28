@@ -35,7 +35,7 @@ test('public landing restores the real platform identity on desktop',async({page
   await expect(page.getByTestId('public-landing')).toBeVisible();
   await expect(page.getByRole('heading',{name:'حقق المئة في اختباراتك'})).toBeVisible();
   await expect(page.getByText('المنصة الأولى للقدرات والتحصيلي')).toBeVisible();
-  await expect(page.getByRole('button',{name:'ابدأ التدريب مجانًا'})).toBeVisible();
+  await expect(page.getByRole('link',{name:'ابدأ التدريب مجانًا'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'كل ما تحتاجه للتفوق'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'الدورات الأكثر طلبًا'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'مقالات ومراجعات مهمة'})).toBeVisible();

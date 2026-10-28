@@ -1,0 +1,3 @@
+import type {HomepageHeroSettings} from './homepage-types';
+export function heroRotateSeconds(value?:number){return Math.max(3,Math.min(60,Number(value)||6));}
+export function heroGallery(hero:HomepageHeroSettings,presets:{url:string;alt:string}[]){const primary=hero.imageUrl?.trim() || '/images/homepage-hero-boy-platform.webp?v=20260512';const alt=hero.imageAlt || 'طالب يستخدم منصة المئة';const result=[{url:primary,alt}];if(hero.galleryImages?.length){hero.galleryImages.forEach((url,index)=>{if(url?.trim()&&url!==primary)result.push({url,alt:presets.find(p=>p.url===url)?.alt || `${alt} - ${index+2}`});});}else{presets.forEach(p=>{if(!result.some(item=>item.url===p.url))result.push(p);});}return result;}

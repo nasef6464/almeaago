@@ -54,7 +54,8 @@ import { StaticInfoPage } from '../features/public/pages/StaticInfoPage';
 
 import { PlatformFontBootstrap } from '../features/presentation/PlatformFontBootstrap';
 import { PlatformFontsPage } from '../features/presentation/PlatformFontsPage';
-import { isPlatformFontsLocation } from '../features/presentation/navigation';
+import {HomepagePage} from '../features/presentation/HomepagePage';
+import {isHomepageLocation, isPlatformFontsLocation } from '../features/presentation/navigation';
 
 type ModalMode = 'login' | 'signup' | null;
 
@@ -142,7 +143,8 @@ export function App() {
         <Route path="/notifications" element={<NotificationInboxPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/dashboard" element={<StudentDashboardPage />} />
-        <Route path="/admin-dashboard" element={<AdminDashboardShell>{isPlatformFontsLocation(location) ? <PlatformFontsPage /> : <AdminOverviewPage />}</AdminDashboardShell>} />
+        <Route path="/admin-dashboard" element={<AdminDashboardShell>{isHomepageLocation(location) ? <HomepagePage /> : isPlatformFontsLocation(location) ? <PlatformFontsPage /> : <AdminOverviewPage />}</AdminDashboardShell>} />
+        <Route path="/admin-dashboard/homepage" element={<AdminDashboardShell><HomepagePage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/platform-fonts" element={<AdminDashboardShell><PlatformFontsPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/content" element={<AdminDashboardShell><ContentAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/taxonomy" element={<AdminDashboardShell><TaxonomyAdminPage /></AdminDashboardShell>} />
