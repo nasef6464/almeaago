@@ -19,8 +19,8 @@ Never write the source repository or production data.
 
 Execution order: comprehensive screen/action/state/role/relation inventory;
 paired same-role/data/viewport screenshots; focused complete correction slices.
-P0: public site → student → path/subject learning spaces → courses/player →
-assessment/results/review → admin. P1: all remaining roles, school, commerce,
+P0: public site → original admin path/subject workspace with learner visibility →
+student/learning/course/player/assessment/results/review → remaining admin. P1: all remaining roles, school, commerce,
 settings and operations. Priority is not permission to omit original functions.
 Record PARTIAL/MISSING/BLOCKED/UNKNOWN until evidence proves each contract.
 Route counts, a build, mocked E2E or green CI alone cannot establish parity.
@@ -28,3 +28,6 @@ Acceptance includes all controls, back navigation, retained scope, persistence
 on reload, relationships, RBAC, real Go/PostgreSQL integration, responsive RTL
 and loading/empty/error/dialog states. Target 100%; never claim it without
 paired runtime evidence. Keep completed backend work; no wholesale rebuild.
+
+## Plan reconciliation and path/subject priority (owner report, 2026-10-28)
+`docs/migration/03_EXECUTION_AND_HANDOFF_PLAN_AR.md` is the only active Go execution plan. Read its reconciliation section and the matrix in26 before new work. Slice specs/plans are subordinate. Preserve public fixes#150/#151 and the current font slice before starting another branch. Complete public dynamic settings/header gaps, then restore original path-card→path-workspace→subject-card→subject-workspace as one usable flow with real learner visibility. Reuse current Go domains. Do not import Legacy0–9 closure statuses, merge stale PRs wholesale, or allow two implementation writers on one branch. Explicit Topic/skill links and no-autostart video/training policy remain binding.

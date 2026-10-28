@@ -9,9 +9,14 @@ import (
 	content "github.com/nasef6464/almeaago/internal/content/domain"
 )
 
-func NewManagement(service *contentapp.Service, auth Authenticator) http.Handler {
+func NewManagement(service *contentapp.Service, auth Authenticator, fonts ...*contentapp.FontService) http.Handler {
 	h := &Handler{service: service, auth: auth}
 	r := chi.NewRouter()
+	if len(fonts) > 0 && fonts[0] != nil {
+		h.fonts = fonts[0]
+		r.Get("/platform-font-settings", h.getFontSettings)
+		r.Patch("/platform-font-settings", h.patchFontSettings)
+	}
 	r.Get("/trainer-scopes/{userId}", h.getTrainerScope)
 	r.Put("/trainer-scopes/{userId}", h.setTrainerScope)
 	return r
