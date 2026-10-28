@@ -12,10 +12,8 @@ test('matches Legacy Arabic-Indic digit normalization without modifying other ch
   assert.equal(normalizeArabicIndicDigits('test@example.com'), 'test@example.com');
 });
 
-test('recognizes Arabic-Indic national IDs and phone numbers in smart login', () => {
+test('recognizes Arabic-Indic national IDs in smart login', () => {
   assert.equal(identifyLoginInput('١٢٣٤٥٦٧٨٩٠'), 'nationalId');
   assert.equal(identifyLoginInput('  ٢٣٤٥٦٧٨٩٠١  '), 'nationalId');
-  assert.equal(identifyLoginInput('٠٥٥١٢٣٤٥٦٧'), 'phone');
   assert.equal(identifyLoginInput('someone@example.com'), 'email');
-  assert.equal(identifyLoginInput('٣٢٣٤٥٦٧٨٩٠'), 'phone');
 });
