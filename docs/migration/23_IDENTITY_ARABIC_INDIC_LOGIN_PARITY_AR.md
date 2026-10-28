@@ -18,7 +18,7 @@ The tests were committed before the fix; early test-only CI runs were canceled b
 
 - `internal/identity/application/national_id_digits_test.go`: repository-spy tests for ASCII, Arabic-Indic, mixed, padded national IDs; rejects invalid prefix, Persian digits and lengths before SQL lookup. No credentials or real students.
 - `scripts/parity/identity-login-digits.test.mjs`: source-compatible numeral conversion and React smart-input classification. Wired into `.github/workflows/frontend.yml`.
-- `apps/web/tests/e2e/auth-arabic-indic.spec.ts`: Chromium UI assertion and screenshot at **390×844**, **768×1024**, **1366×768**, checking RTL and the national-ID hint. These use a mocked signed-out `/me` endpoint; screenshots are Go-only, not Legacy-vs-Go visual certification.
+- `apps/web/tests/e2e/auth-arabic-indic.spec.ts`: Chromium UI assertion and screenshot at **390×844**, **768×1024**, **1366×768**, checking RTL and the national-ID hint, then intercepting the React form's POST to assert the canonical ASCII national ID and navigation. Auth responses are fixtures, not a real PostgreSQL session; screenshots are Go-only, not Legacy-vs-Go visual certification.
 - Backend CI and Frontend CI are required for the exact final PR head; Frontend E2E runs because an E2E test file changed. Database CI is still a required merge gate by repository policy even though no SQL changed. Record run URLs and conclusions in PR after completion.
 
 ## Adjacent P0 identity route inventory (not a parity claim)
