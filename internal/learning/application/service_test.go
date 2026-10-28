@@ -15,6 +15,9 @@ import (
 
 type repoStub struct {
 	progress      learning.SkillProgressPage
+	progressPages map[int]learning.SkillProgressPage
+	progressErrAt int
+	progressCalls []int
 	weakest       *learning.SkillProgress
 	cards         []learning.ReviewCard
 	hasMore       bool
@@ -43,6 +46,13 @@ func (r *repoStub) ApplyAssessmentEvidence(_ context.Context, event learning.Sub
 }
 func (r *repoStub) ListSkillProgress(_ context.Context, student, path, subject string, page, limit int) (learning.SkillProgressPage, error) {
 	r.lastStudent, r.lastPath, r.lastSubject, r.lastPage, r.lastLimit = student, path, subject, page, limit
+	r.progressCalls = append(r.progressCalls, page)
+	if r.progressErrAt == page {
+		return learning.SkillProgressPage{}, errors.New("repository page unavailable")
+	}
+	if r.progressPages != nil {
+		return r.progressPages[page], r.err
+	}
 	return r.progress, r.err
 }
 func (r *repoStub) WeakestSkillProgress(_ context.Context, student, path, subject string) (*learning.SkillProgress, error) {
@@ -145,6 +155,61 @@ func TestProgressAndReviewReadsAreStudentOwnedAndBounded(t *testing.T) {
 	}
 	if len(reader.refs) != 1 || reader.refs[0].Version != 2 || len(page.Items) != 1 || !page.HasMore {
 		t.Fatalf("review composition mismatch: refs=%#v page=%#v", reader.refs, page)
+	}
+}
+
+func TestReadinessIncludesAllScopedPages(t *testing.T) {
+	rows := make([]learning.SkillProgress, 100)
+	for i := range rows {
+		rows[i] = learning.SkillProgress{PathID: "path-1", SubjectID: "subject-1", Mastery: 90, EvidenceCount: 3}
+	}
+	repo := &repoStub{progressPages: map[int]learning.SkillProgressPage{
+		1: {Items: rows, HasMore: true},
+		2: {Items: []learning.SkillProgress{{PathID: "path-1", SubjectID: "subject-1", Mastery: 0, EvidenceCount: 3}}},
+	}}
+	actual, err := NewService(repo, nil).Readiness(context.Background(), learner("student-1"), " path-1 ", " subject-1 ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual.TotalSkills != 101 || actual.TotalEvidence != 303 || actual.ReliableSkills != 101 || actual.Score != 89 {
+		t.Fatalf("readiness excluded evidence after first page: %+v", actual)
+	}
+	if len(repo.progressCalls) != 2 || repo.progressCalls[0] != 1 || repo.progressCalls[1] != 2 ||
+		repo.lastStudent != "student-1" || repo.lastPath != "path-1" || repo.lastSubject != "subject-1" || repo.lastLimit != 100 {
+		t.Fatalf("readiness pages must retain exact actor/path/subject scope: %+v", repo)
+	}
+}
+
+func TestReadinessRejectsEmptyContinuation(t *testing.T) {
+	repo := &repoStub{progressPages: map[int]learning.SkillProgressPage{
+		1: {Items: []learning.SkillProgress{{Mastery: 90, EvidenceCount: 3}}, HasMore: true},
+		2: {HasMore: true},
+	}}
+	_, err := NewService(repo, nil).Readiness(context.Background(), learner("student-1"), "path-1", "")
+	if !errors.Is(err, ErrIncompleteReadiness) || len(repo.progressCalls) != 2 {
+		t.Fatalf("empty continuation must fail closed without retries: calls=%v err=%v", repo.progressCalls, err)
+	}
+}
+
+func TestReadinessRejectsTruncatedScope(t *testing.T) {
+	pages := make(map[int]learning.SkillProgressPage)
+	for page := 1; page <= 100; page++ {
+		pages[page] = learning.SkillProgressPage{Items: []learning.SkillProgress{{Mastery: 90, EvidenceCount: 3}}, HasMore: true}
+	}
+	repo := &repoStub{progressPages: pages}
+	_, err := NewService(repo, nil).Readiness(context.Background(), learner("student-1"), "path-1", "")
+	if !errors.Is(err, ErrIncompleteReadiness) || len(repo.progressCalls) != 100 {
+		t.Fatalf("truncated readiness must not return a partial success: calls=%d err=%v", len(repo.progressCalls), err)
+	}
+}
+
+func TestReadinessPropagatesLaterPageFailure(t *testing.T) {
+	repo := &repoStub{progressPages: map[int]learning.SkillProgressPage{
+		1: {Items: []learning.SkillProgress{{Mastery: 90, EvidenceCount: 3}}, HasMore: true},
+	}, progressErrAt: 2}
+	_, err := NewService(repo, nil).Readiness(context.Background(), learner("student-1"), "path-1", "")
+	if err == nil || !strings.Contains(err.Error(), "repository page unavailable") {
+		t.Fatalf("page failure must not produce partial readiness: %v", err)
 	}
 }
 
