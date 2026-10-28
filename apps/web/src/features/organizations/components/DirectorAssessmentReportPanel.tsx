@@ -2,11 +2,13 @@ import { X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { organizationsClient, type DirectorAssessmentReport } from '../api/organizations-client';
+import { DirectorAssessmentLearnersPanel } from './DirectorAssessmentLearnersPanel';
 
-export function DirectorAssessmentReportPanel({schoolId,assessmentId,title,onClose}:{
-  schoolId:string;assessmentId:string;title:string;onClose:()=>void;
+export function DirectorAssessmentReportPanel({schoolId,assessmentId,title,canViewLearners,onClose}:{
+  schoolId:string;assessmentId:string;title:string;canViewLearners:boolean;onClose:()=>void;
 }){
   const [report,setReport]=useState<DirectorAssessmentReport|null>(null);
+  const [tab,setTab]=useState<'summary'|'learners'>('summary');
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(true);
   const closeButton=useRef<HTMLButtonElement>(null);
@@ -34,7 +36,11 @@ export function DirectorAssessmentReportPanel({schoolId,assessmentId,title,onClo
         <button ref={closeButton} type="button" aria-label="إغلاق نتائج الاختبار" onClick={onClose} className="rounded-xl border p-2 text-slate-700 hover:bg-slate-50"><X size={20}/></button>
       </header>
       <div className="min-w-0 space-y-4 overflow-y-auto p-4 sm:p-5">
-        <h4 className="text-base font-black text-indigo-800">الملخص</h4>
+        {canViewLearners?<nav aria-label="أقسام نتائج الاختبار" className="flex flex-wrap gap-2 border-b pb-3">
+          <button type="button" aria-pressed={tab==='summary'} onClick={()=>setTab('summary')} className={`rounded-xl px-4 py-2 text-sm font-bold ${tab==='summary'?'bg-indigo-700 text-white':'border bg-white text-indigo-700'}`}>الملخص</button>
+          <button type="button" aria-pressed={tab==='learners'} onClick={()=>setTab('learners')} className={`rounded-xl px-4 py-2 text-sm font-bold ${tab==='learners'?'bg-indigo-700 text-white':'border bg-white text-indigo-700'}`}>نتائج الطلاب</button>
+        </nav>:null}
+        {tab==='summary'?<><h4 className="text-base font-black text-indigo-800">الملخص</h4>
         {loading?<p role="status" className="rounded-xl border bg-slate-50 p-4 text-sm">جار تحميل نتائج الاختبار…</p>:null}
         {error?<p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</p>:null}
         {report&&!loading&&!error?<>
@@ -50,8 +56,9 @@ export function DirectorAssessmentReportPanel({schoolId,assessmentId,title,onClo
             ].map(metric=><article key={metric.label} className="min-w-0 rounded-xl border bg-slate-50 p-3 sm:p-4"><p className="text-xs font-bold text-slate-600">{metric.label}</p><p className="mt-2 break-words text-lg font-black text-slate-900">{metric.value}</p></article>)}
           </div>
           {!report.coverage.complete?<p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-900">التقرير يعرض النتائج المحفوظة فقط. بيانات من بدأوا الاختبار وتحليل المواد والمهارات ليست مكتملة بعد؛ لذلك لا نعرض أرقامًا تقديرية لها.</p>:null}
-          <p className="text-xs leading-6 text-slate-500">تفاصيل الطلاب وإجراءات تعديل أو نسخ أو إعادة فتح الاختبار تُنقل في الدفعة التالية بعد اعتماد صلاحياتها.</p>
+          <p className="text-xs leading-6 text-slate-500">{canViewLearners?'نتائج الطلاب متاحة عبر التبويب الخاص بها. إجراءات تعديل أو نسخ أو إعادة فتح الاختبار تُنقل في الدفعة التالية.':'تفاصيل الطلاب وإجراءات تعديل أو نسخ أو إعادة فتح الاختبار تُنقل في الدفعة التالية بعد اعتماد صلاحياتها.'}</p>
         </>:null}
+        </>:canViewLearners?<DirectorAssessmentLearnersPanel key={`${schoolId}:${assessmentId}`} schoolId={schoolId} assessmentId={assessmentId}/>:null}
       </div>
     </section>
   </div>;

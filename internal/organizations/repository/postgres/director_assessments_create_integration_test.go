@@ -254,6 +254,82 @@ func TestDirectorCreateAssessmentPostgres(t *testing.T) {
 	if _, err := readDirectorAssessmentReport(ctx, tx, director, otherSchool, created.AssessmentID); !errors.Is(err, org.ErrNotFound) {
 		t.Fatalf("cross-school assessment disclosure: %v", err)
 	}
+	// SCHOOL-005C2: aggregate permissions do not authorize named student
+	// outcomes. Both the detailed capability and intelligence module are needed.
+	const learnerQueryLimit = 12
+	query := org.DirectorAssessmentLearnerQuery{Page: 1, Limit: learnerQueryLimit, Status: "all"}
+	if _, err := readDirectorAssessmentLearners(ctx, tx, director, school, created.AssessmentID, query); !errors.Is(err, org.ErrNotFound) {
+		t.Fatalf("aggregate-only director saw learner identities: %v", err)
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO school_membership_permissions(membership_id,permission)
+	 SELECT id,'SCHOOL_REPORTS_DETAILED_VIEW' FROM school_memberships WHERE school_id=$1 AND user_id=$2 AND role='school_admin'`, school, director); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO school_contract_modules(contract_id,module_code,enabled)
+	 SELECT id,'SCHOOL_INTELLIGENCE',true FROM school_contracts WHERE school_id=$1`, school); err != nil {
+		t.Fatal(err)
+	}
+	list, err := readDirectorAssessmentLearners(ctx, tx, director, school, created.AssessmentID, query)
+	if err != nil || list.Pagination.Total != 2 || len(list.Learners) != 2 || list.Learners[0].StudentID != learnerA || list.Learners[0].Result == nil || list.Learners[0].Result.ID != attemptNew || list.Learners[0].Result.Score != 80 || list.Learners[1].StudentID != learnerB || list.Learners[1].Result != nil {
+		t.Fatalf("incorrect scoped/latest student roster: %+v err=%v", list, err)
+	}
+	for _, tt := range []struct {
+		status string
+		total  int
+	}{
+		{"completed", 1}, {"not_completed", 1}, {"needs_support", 0},
+	} {
+		query.Status = tt.status
+		filtered, err := readDirectorAssessmentLearners(ctx, tx, director, school, created.AssessmentID, query)
+		if err != nil || filtered.Pagination.Total != tt.total || len(filtered.Learners) != tt.total {
+			t.Fatalf("wrong %s filter: %+v %v", tt.status, filtered, err)
+		}
+	}
+	query.Status = "all"
+	query.Search = "متعلم ب"
+	searched, err := readDirectorAssessmentLearners(ctx, tx, director, school, created.AssessmentID, query)
+	if err != nil || searched.Pagination.Total != 1 || searched.Learners[0].StudentID != learnerB {
+		t.Fatalf("wrong named search: %+v %v", searched, err)
+	}
+	query.Search = "%"
+	if escaped, err := readDirectorAssessmentLearners(ctx, tx, director, school, created.AssessmentID, query); err != nil || escaped.Pagination.Total != 0 {
+		t.Fatalf("wildcard injected into search: %+v %v", escaped, err)
+	}
+	query.Search = ""
+	query.Limit = 1
+	query.Page = 2
+	second, err := readDirectorAssessmentLearners(ctx, tx, director, school, created.AssessmentID, query)
+	if err != nil || second.Pagination.Total != 2 || second.Pagination.TotalPages != 2 || len(second.Learners) != 1 || second.Learners[0].StudentID != learnerB {
+		t.Fatalf("broken bounded pagination: %+v %v", second, err)
+	}
+	query.Page = 1
+	query.Limit = 12
+	studentResult, err := readDirectorAssessmentLearnerResult(ctx, tx, director, school, created.AssessmentID, attemptNew)
+	if err != nil || studentResult.Result.ID != attemptNew || studentResult.Result.StudentID != learnerA || studentResult.Result.Score != 80 || studentResult.Result.TotalQuestions != 1 || studentResult.Result.AttemptNumber != 2 {
+		t.Fatalf("wrong persisted learner evidence: %+v %v", studentResult, err)
+	}
+	for _, attemptID := range []string{attemptSchoolB, "00000000-0000-0000-0000-000000001999"} {
+		if _, err := readDirectorAssessmentLearnerResult(ctx, tx, director, school, created.AssessmentID, attemptID); !errors.Is(err, org.ErrNotFound) {
+			t.Fatalf("unauthorized/absent learner detail %s disclosed: %v", attemptID, err)
+		}
+	}
+	if _, err := tx.Exec(ctx, `UPDATE assessment_results SET passed=false,score=45 WHERE attempt_id=$1::uuid`, attemptNew); err != nil {
+		t.Fatal(err)
+	}
+	query.Status = "needs_support"
+	support, err := readDirectorAssessmentLearners(ctx, tx, director, school, created.AssessmentID, query)
+	if err != nil || support.Pagination.Total != 1 || support.Learners[0].Result == nil || support.Learners[0].Result.Score != 45 {
+		t.Fatalf("support must use latest saved passing decision: %+v %v", support, err)
+	}
+	if _, err := tx.Exec(ctx, `UPDATE school_contract_modules SET enabled=false WHERE module_code='SCHOOL_INTELLIGENCE'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readDirectorAssessmentLearners(ctx, tx, director, school, created.AssessmentID, query); !errors.Is(err, org.ErrNotFound) {
+		t.Fatalf("revoked intelligence module exposed roster: %v", err)
+	}
+	if _, err := readDirectorAssessmentLearnerResult(ctx, tx, director, school, created.AssessmentID, attemptNew); !errors.Is(err, org.ErrNotFound) {
+		t.Fatalf("revoked intelligence module exposed detail: %v", err)
+	}
 	if _, err := tx.Exec(ctx, `UPDATE school_contract_modules SET enabled=false WHERE module_code='SCHOOL_ASSESSMENTS'`); err != nil {
 		t.Fatal(err)
 	}

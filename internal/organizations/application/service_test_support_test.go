@@ -15,6 +15,8 @@ type repositoryMock struct {
 	lastDirectorReportSchool      string
 	lastDirectorReportAssessment  string
 	reportCallCount               int
+	learnerListCalls              int
+	learnerDetailCalls            int
 	contexts                      []org.SchoolContext
 	accessAllowed                 bool
 	manageAllowed                 bool
@@ -56,6 +58,18 @@ func (m *repositoryMock) DirectorAssessmentReport(_ context.Context, _, schoolID
 	var result org.DirectorAssessmentReport
 	result.Audience.Targeted = 3
 	return result, nil
+}
+
+func (m *repositoryMock) DirectorAssessmentLearners(_ context.Context, _, _, _ string, query org.DirectorAssessmentLearnerQuery) (org.DirectorAssessmentLearnerPage, error) {
+	m.learnerListCalls++
+	return org.DirectorAssessmentLearnerPage{Learners: []org.DirectorAssessmentLearner{}}, nil
+}
+
+func (m *repositoryMock) DirectorAssessmentLearnerResult(_ context.Context, _, _, _, attemptID string) (org.DirectorAssessmentLearnerResult, error) {
+	m.learnerDetailCalls++
+	var detail org.DirectorAssessmentLearnerResult
+	detail.Result.ID = attemptID
+	return detail, nil
 }
 
 func (m *repositoryMock) ParentAuthority(_ context.Context, _ string) (org.ParentAuthority, error) {

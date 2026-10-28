@@ -68,6 +68,60 @@ func (h *LegacyHandler) directorAssessmentReport(w http.ResponseWriter, r *http.
 	writeJSON(w, http.StatusOK, report)
 }
 
+func (h *LegacyHandler) directorAssessmentLearners(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	params := r.URL.Query()
+	for key, values := range params {
+		if len(values) != 1 || (key != "page" && key != "limit" && key != "status" && key != "search") {
+			writeError(w, orgapp.ErrInvalidInput)
+			return
+		}
+	}
+	query := orgdomain.DirectorAssessmentLearnerQuery{Page: 1, Limit: 12, Status: params.Get("status"), Search: params.Get("search")}
+	if raw, exists := params["page"]; exists {
+		value, err := strconv.Atoi(raw[0])
+		if err != nil || value < 1 {
+			writeError(w, orgapp.ErrInvalidInput)
+			return
+		}
+		query.Page = value
+	}
+	if raw, exists := params["limit"]; exists {
+		value, err := strconv.Atoi(raw[0])
+		if err != nil || value < 1 {
+			writeError(w, orgapp.ErrInvalidInput)
+			return
+		}
+		query.Limit = value
+	}
+	result, err := h.service.DirectorAssessmentLearners(r.Context(), auth.User,
+		chi.URLParam(r, "schoolId"), chi.URLParam(r, "assessmentId"), query)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *LegacyHandler) directorAssessmentLearnerResult(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	result, err := h.service.DirectorAssessmentLearnerResult(r.Context(), auth.User,
+		chi.URLParam(r, "schoolId"), chi.URLParam(r, "assessmentId"), chi.URLParam(r, "attemptId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
+	writeJSON(w, http.StatusOK, result)
+}
+
 func (h *LegacyHandler) directorCreateAcademicAssessment(w http.ResponseWriter, r *http.Request) {
 	auth, ok := h.authenticate(w, r, true)
 	if !ok {
