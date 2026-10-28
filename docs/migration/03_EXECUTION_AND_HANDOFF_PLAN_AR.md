@@ -8,6 +8,8 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Each code slice follows test-driven development and the repository's CI/PR rules.
 
 **الحالة:** PLAN / ACTIVE — تعاقد تعليمي شامل + دفعات Go منفصلة؛ لم يتحقق التكافؤ الكلي أو ترحيل البيانات.
+
+**عقد تنفيذ كل جولة:** `OWNER_BATCH_DELIVERY_CONTRACT_AR.md` ملزم للعمل المباشر والمجدول. لا تعد رسالة حالة أو تشغيل مهمة دفعة مكتملة. تطابق الهيدر الكامل غير مثبت؛ يبقى ضمن بوابة الموقع العام حتى إصلاح فجوات شجرة التنقل والروابط والإعدادات وإثباتها بصريًا ووظيفيًا.
 **التاريخ:** 2026-10-26؛ تصحيح أولوية البرنامج واعتماد السياسة التعليمية: 2026-10-28.
 **الهدف:** نقل أحدث واجهات وسلوك وبيانات وعلاقات `almeaacodax` إلى `almeaago` مع تجنب إعادة العمل في الوظائف المكتملة، وإثبات تكافؤ كل رحلة مستخدم.
 

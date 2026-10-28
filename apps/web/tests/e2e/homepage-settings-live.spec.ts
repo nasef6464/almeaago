@@ -19,7 +19,21 @@ test('original homepage editor persists brand and hero through Go sessions/Postg
    for(const variant of ['source','go']){
     const frame=await context.newPage();await frame.setViewportSize({width,height:1000});await frame.goto(`/tests/reference/homepage-section.html?variant=${variant}&section=${section}`);await expect(frame.locator(`#${section}-section`)).toBeVisible();frames.push(frame);
    }
-   const capture=async(p:typeof page,name:string)=>{await p.mouse.move(0,0);await p.evaluate(()=>document.fonts.ready);await p.evaluate(()=>scrollTo(0,0));const locator=p.locator(`#${section}-section`);const clip=await locator.boundingBox();expect(clip).not.toBeNull();await testInfo.attach(`metrics-${section}-${name}-${width}`,{body:JSON.stringify(clip),contentType:'application/json'});return p.screenshot({path:`test-results/homepage-${section}-${name}-${width}.png`,fullPage:true,clip:clip!,animations:'disabled'});};
+   const capture=async(p:typeof page,name:string)=>{
+    await p.mouse.move(0,0);
+    await p.evaluate(()=>document.fonts.ready);
+    const locator=p.locator(`#${section}-section`);
+    // Decode every original image and place the complete section inside the
+    // viewport before capture. No masks, altered image CSS or pixel tolerance.
+    await locator.locator('img').evaluateAll(async elements=>{await Promise.all(elements.map(element=>(element as HTMLImageElement).decode()));});
+    const initial=await locator.boundingBox();expect(initial).not.toBeNull();
+    await p.setViewportSize({width,height:Math.ceil(initial!.y+initial!.height+20)});
+    await p.evaluate(()=>scrollTo(0,0));
+    await p.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+    const clip=await locator.boundingBox();expect(clip).not.toBeNull();
+    await testInfo.attach(`metrics-${section}-${name}-${width}`,{body:JSON.stringify({clip,viewport:p.viewportSize()}),contentType:'application/json'});
+    return p.screenshot({path:`test-results/homepage-${section}-${name}-${width}.png`,clip:clip!,animations:'disabled'});
+   };
    const source=await capture(frames[0],'source');const go=await capture(frames[1],'go');await testInfo.attach(`homepage-${section}-source-${width}`,{body:source,contentType:'image/png'});await testInfo.attach(`homepage-${section}-go-${width}`,{body:go,contentType:'image/png'});expect(Buffer.compare(go,source),`${section} component pixels at ${width}`).toBe(0);
    for(const frame of frames)await frame.close();
   }
