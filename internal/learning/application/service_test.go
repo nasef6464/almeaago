@@ -352,3 +352,59 @@ func TestReviewAnswerIdempotentRetryDoesNotApplyEvidenceAgain(t *testing.T) {
 		t.Fatalf("idempotent retry applied evidence again: %d", repo.answerCalls)
 	}
 }
+
+func TestReadinessRejectsDuplicateSkillAcrossPages(t *testing.T) {
+	row := learning.SkillProgress{
+		PathID: "path-1", SubjectID: "subject-1", SkillID: "skill-1",
+		Mastery: 90, EvidenceCount: 3,
+	}
+	repo := &repoStub{progressPages: map[int]learning.SkillProgressPage{
+		1: {Items: []learning.SkillProgress{row}, HasMore: true},
+		2: {Items: []learning.SkillProgress{row}},
+	}}
+	_, err := NewService(repo, nil).Readiness(context.Background(), learner("student-1"), "path-1", "subject-1")
+	if !errors.Is(err, ErrIncompleteReadiness) || len(repo.progressCalls) != 2 {
+		t.Fatalf("duplicate skill must not inflate evidence: pages=%v err=%v", repo.progressCalls, err)
+	}
+}
+
+func TestReadinessRejectsForeignScopeRows(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		path    string
+		subject string
+	}{
+		{name: "foreign path", path: "path-2", subject: "subject-1"},
+		{name: "foreign subject", path: "path-1", subject: "subject-2"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &repoStub{progressPages: map[int]learning.SkillProgressPage{
+				1: {Items: []learning.SkillProgress{{
+					PathID: tc.path, SubjectID: tc.subject, SkillID: "skill-1",
+					Mastery: 90, EvidenceCount: 3,
+				}}},
+			}}
+			_, err := NewService(repo, nil).Readiness(context.Background(), learner("student-1"), "path-1", "subject-1")
+			if !errors.Is(err, ErrIncompleteReadiness) {
+				t.Fatalf("foreign-scope progress must not enter readiness: %v", err)
+			}
+		})
+	}
+}
+
+func TestReadinessKeepsSameSkillIDInDifferentSubjectsDistinct(t *testing.T) {
+	repo := &repoStub{progressPages: map[int]learning.SkillProgressPage{
+		1: {Items: []learning.SkillProgress{{
+			PathID: "path-1", SubjectID: "subject-1", SkillID: "skill-1",
+			Mastery: 90, EvidenceCount: 3,
+		}}, HasMore: true},
+		2: {Items: []learning.SkillProgress{{
+			PathID: "path-1", SubjectID: "subject-2", SkillID: "skill-1",
+			Mastery: 60, EvidenceCount: 3,
+		}}},
+	}}
+	result, err := NewService(repo, nil).Readiness(context.Background(), learner("student-1"), "path-1", "")
+	if err != nil || result.TotalSkills != 2 || result.TotalEvidence != 6 {
+		t.Fatalf("cross-subject skills must remain distinct: %+v err=%v", result, err)
+	}
+}

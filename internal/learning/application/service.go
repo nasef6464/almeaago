@@ -104,6 +104,10 @@ func (s *Service) Readiness(ctx context.Context, actor identity.User, pathID, su
 	}
 	const pageLimit, maxPages = 100, 100
 	rows := make([]learning.SkillProgress, 0, pageLimit)
+	// OFFSET pagination can revisit a skill when its mastery changes between
+	// reads. Reject duplicates and foreign-scope rows instead of double-counting
+	// evidence or reporting a misleading readiness score.
+	seenSkills := make(map[string]struct{}, pageLimit)
 	for pageNumber := 1; pageNumber <= maxPages; pageNumber++ {
 		if err := ctx.Err(); err != nil {
 			return learning.MasteryReadiness{}, err
@@ -114,6 +118,21 @@ func (s *Service) Readiness(ctx context.Context, actor identity.User, pathID, su
 		}
 		if page.HasMore && len(page.Items) == 0 {
 			return learning.MasteryReadiness{}, ErrIncompleteReadiness
+		}
+		for _, row := range page.Items {
+			if row.PathID != "" && row.PathID != pathID {
+				return learning.MasteryReadiness{}, ErrIncompleteReadiness
+			}
+			if subjectID != "" && row.SubjectID != "" && row.SubjectID != subjectID {
+				return learning.MasteryReadiness{}, ErrIncompleteReadiness
+			}
+			if row.SkillID != "" {
+				key := row.SubjectID + "\x00" + row.SkillID
+				if _, duplicate := seenSkills[key]; duplicate {
+					return learning.MasteryReadiness{}, ErrIncompleteReadiness
+				}
+				seenSkills[key] = struct{}{}
+			}
 		}
 		rows = append(rows, page.Items...)
 		if !page.HasMore {
