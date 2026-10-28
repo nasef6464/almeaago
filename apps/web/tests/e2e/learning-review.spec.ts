@@ -170,6 +170,8 @@ test('mobile review library shows mistake, mastery next action and toggles saved
           evidenceCount: 3,
           lastEvidenceAt: '2026-09-26T03:10:00Z',
           recommendedAction: 'خطة علاج عاجلة: شرح + تدريب + اختبار موجه',
+        action: 'alternate_support_then_recheck',
+        trend: 'declining',
         },
       ],
       page: 1,
@@ -192,6 +194,8 @@ test('mobile review library shows mistake, mastery next action and toggles saved
         evidenceCount: 3,
         lastEvidenceAt: '2026-09-26T03:10:00Z',
         recommendedAction: 'خطة علاج عاجلة: شرح + تدريب + اختبار موجه',
+        action: 'alternate_support_then_recheck',
+        trend: 'declining',
       },
     }),
   );
@@ -211,6 +215,8 @@ test('mobile review library shows mistake, mastery next action and toggles saved
   await expect(page.getByText('٢ + ٢ = ؟')).toBeVisible();
   await expect(page.getByText('خطأ سابق')).toBeVisible();
   await expect(page.getByText('خطة علاج عاجلة: شرح + تدريب + اختبار موجه')).toBeVisible();
+  await expect(page.getByText('إتقان المهارة المختارة: 40.0%', { exact: false })).toBeVisible();
+  await expect(page.getByText('اتجاه الأدلة: متراجع')).toBeVisible();
   await expect(page.getByTestId('mastery-readiness')).toContainText('54');
   await expect(page.getByTestId('mastery-readiness')).toContainText('نبني الجاهزية');
   await expect(page.getByTestId('mastery-readiness')).toContainText('التغطية');

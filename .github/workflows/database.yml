@@ -72,7 +72,7 @@ jobs:
       - name: Verify adaptive recommendation selection against PostgreSQL
         env:
           DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
-        run: go test ./internal/learning/repository/postgres -run '^TestAdaptiveSelectionPostgres$' -count=1 -v
+        run: go test ./internal/learning/repository/postgres -run '^TestAdaptiveSelection.*Postgres$' -count=1 -v
 
       - name: Verify bounded readiness against PostgreSQL
         env:

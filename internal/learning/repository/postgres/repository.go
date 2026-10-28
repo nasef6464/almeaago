@@ -267,34 +267,6 @@ func (r *Repository) ListSkillProgress(ctx context.Context, student, pathID, sub
 	return out, nil
 }
 
-func (r *Repository) WeakestSkillProgress(ctx context.Context, student, pathID, subjectID string) (*learning.SkillProgress, error) {
-	args := []any{student, pathID}
-	subjectFilter := ""
-	if strings.TrimSpace(subjectID) != "" {
-		args = append(args, subjectID)
-		subjectFilter = fmt.Sprintf(" AND subject_id=$%d::uuid", len(args))
-	}
-	var item learning.SkillProgress
-	err := r.db.QueryRow(ctx, `
-		SELECT path_id::text,subject_id::text,skill_id::text,mastery::float8,status,
-		       attempts,evidence_count,COALESCE(last_evidence_at,created_at),recommended_action
-		FROM skill_progress
-		WHERE student_id=$1::uuid AND path_id=$2::uuid`+subjectFilter+`
-		ORDER BY mastery ASC,last_evidence_at DESC NULLS LAST,skill_id
-		LIMIT 1
-	`, args...).Scan(
-		&item.PathID, &item.SubjectID, &item.SkillID, &item.Mastery, &item.Status,
-		&item.Attempts, &item.EvidenceCount, &item.LastEvidenceAt, &item.RecommendedAction,
-	)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &item, nil
-}
-
 func (r *Repository) ListReviewCards(ctx context.Context, student string, tab learning.ReviewTab, pathID, subjectID string, page, limit int) ([]learning.ReviewCard, bool, error) {
 	args := []any{student, pathID, limit + 1, (page - 1) * limit}
 	filter := " AND (saved_for_review=true OR has_mistake=true OR review_type='error_recovery')"
