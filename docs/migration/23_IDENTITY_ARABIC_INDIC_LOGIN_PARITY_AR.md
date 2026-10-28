@@ -14,6 +14,8 @@ The helper intentionally converts **only** U+0660–U+0669 (matching the source)
 
 ## Tests and evidence
 
+The tests were committed before the fix; early test-only CI runs were canceled by the repository's concurrency policy as subsequent commits arrived. Therefore a failed RED execution has **not** been observed and must not be claimed. Exact-head GREEN is required below.
+
 - `internal/identity/application/national_id_digits_test.go`: repository-spy tests for ASCII, Arabic-Indic, mixed, padded national IDs; rejects invalid prefix, Persian digits and lengths before SQL lookup. No credentials or real students.
 - `scripts/parity/identity-login-digits.test.mjs`: source-compatible numeral conversion and React smart-input classification. Wired into `.github/workflows/frontend.yml`.
 - `apps/web/tests/e2e/auth-arabic-indic.spec.ts`: Chromium UI assertion and screenshot at **390×844**, **768×1024**, **1366×768**, checking RTL and the national-ID hint. These use a mocked signed-out `/me` endpoint; screenshots are Go-only, not Legacy-vs-Go visual certification.
