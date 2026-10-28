@@ -1622,3 +1622,19 @@ acceptance. Then original path-card→path-workspace→subject-card→subject-wo
 →publish→learner visibility; then learning/assessment/reports, remaining roles,
 services/data trial/restore and final acceptance. Full platform parity remains
 PARTIAL/UNKNOWN; production readiness NOT PROVEN. Do not restart verified work.
+
+
+### Gate1 dependent contract slice — homepage storage/API in progress
+
+Plan reconciliation PR#153 merged at `6baf9f1159c682f70062455eb9fcedc57469abf5`
+after all four exact-head gates. Next branch: `feat/persisted-homepage-contract`.
+Homepage display settings remain content-owned; migration000045 separates
+ordered featured path/course/lesson references with real FKs from scalar JSONB.
+Public GET, admin/CSRF PATCH, original validation/default/replace semantics,
+transactional audit and consistent read are implemented. Source schema/default
+snapshots and tests are retained. No frontend/runtime visual changes here.
+Full local Go tests and vet passed; database evidence and final CI remain
+pending until linked in PR/migration29. No skipped DB test is counted as proof.
+Next dependent work is original HomepageManager + Header/Landing consumers,
+real UI persistence/denials/reload/back and paired pictures. Gate1 is PARTIAL;
+platform parity/production readiness NOT PROVEN. No production deployment.
