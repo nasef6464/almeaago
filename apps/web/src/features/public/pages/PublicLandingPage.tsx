@@ -437,15 +437,7 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
         <div className="pointer-events-none absolute bottom-0 right-0 h-96 w-96 translate-x-1/3 translate-y-1/3 rounded-full bg-amber-500/10 blur-3xl"/>
       </section>
 
-      <footer className="border-t border-slate-800 bg-slate-950 text-slate-200">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
-          <div><div className="text-2xl font-black"><span className="text-blue-300">منصة</span> <span className="text-amber-400">المئة</span></div><div className="mt-1 text-xs font-bold text-slate-400">قدرات & تحصيلي</div><p className="mt-4 text-sm font-medium leading-7 text-slate-400">رحلة تعلم وقياس ومراجعة للطلاب والمدارس، مبنية على واجهة منصة المئة التي تعرفها.</p></div>
-          <div><h3 className="font-black text-white">روابط سريعة</h3><div className="mt-4 grid gap-3 text-sm font-bold text-slate-400"><Link to="/" className="hover:text-white">الرئيسية</Link><Link to="/learning" className="hover:text-white">مساحة التعلم</Link><Link to="/assessments" className="hover:text-white">الاختبارات</Link><Link to="/review" className="hover:text-white">المراجعة</Link></div></div>
-          <div><h3 className="font-black text-white">عن المنصة</h3><div className="mt-4 grid gap-3 text-sm font-bold text-slate-400"><Link to="/about" className="hover:text-white">من نحن</Link><Link to="/faq" className="hover:text-white">الأسئلة الشائعة</Link><Link to="/contact" className="hover:text-white">تواصل معنا</Link></div></div>
-          <div><h3 className="font-black text-white">السياسات</h3><div className="mt-4 grid gap-3 text-sm font-bold text-slate-400"><Link to="/privacy" className="hover:text-white">سياسة الخصوصية</Link><Link to="/terms" className="hover:text-white">الشروط والأحكام</Link></div></div>
-        </div>
-        <div className="border-t border-slate-800 px-4 py-5 text-center text-xs font-bold text-slate-500">منصة المئة للقدرات والتحصيلي</div>
-      </footer>
+
 
       {selectedArticle?<ArticleModal article={selectedArticle} onClose={()=>setSelectedArticle(null)}/>:null}
     </main>
