@@ -123,6 +123,7 @@ export function ReviewLibraryPage() {
     }
     const controller = new AbortController();
     setBusy(true);
+    setNextAction(null);
     setError('');
     Promise.all([
       learningClient.reviewLibrary(tab, pathId, subjectId, page, 20, controller.signal),
@@ -131,6 +132,7 @@ export function ReviewLibraryPage() {
       learningClient.readiness(pathId,subjectId,controller.signal),
     ])
       .then(([review, mastery, action,ready]) => {
+        if (controller.signal.aborted) return;
         setItems(review.items);
         setCurrentIndex(0);
         setShowAnswer(false);
@@ -461,8 +463,13 @@ export function ReviewLibraryPage() {
                 <p className="text-xs font-black text-indigo-600">الخطوة التالية</p>
                 <h2 className="mt-1 font-black text-indigo-950">{nextAction.recommendedAction}</h2>
                 <p className="mt-1 text-xs font-bold text-indigo-700">
-                  أقل إتقان حالي: {nextAction.mastery.toFixed(1)}% · {statusLabel[nextAction.status]} · {nextAction.evidenceCount} دليل
+                  إتقان المهارة المختارة: {nextAction.mastery.toFixed(1)}% · {statusLabel[nextAction.status]} · {nextAction.evidenceCount} دليل
                 </p>
+                {nextAction.trend ? (
+                  <p className="mt-1 text-xs font-bold text-indigo-700">
+                    اتجاه الأدلة: {{ improving: 'متحسن', stable: 'مستقر', declining: 'متراجع' }[nextAction.trend]}
+                  </p>
+                ) : null}
               </div>
               <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
                 <div className="text-2xl font-black text-indigo-900">{nextAction.mastery.toFixed(0)}%</div>

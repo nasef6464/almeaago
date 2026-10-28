@@ -49,6 +49,8 @@ type SkillProgress struct {
 	EvidenceCount     int       `json:"evidenceCount"`
 	LastEvidenceAt    time.Time `json:"lastEvidenceAt"`
 	RecommendedAction string    `json:"recommendedAction"`
+	Action            string    `json:"action,omitempty"`
+	Trend             string    `json:"trend,omitempty"`
 }
 
 type SkillProgressPage struct {

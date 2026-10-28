@@ -29,3 +29,5 @@ jobs:
           node scripts/parity/api-mount-inventory.test.mjs
           node --experimental-strip-types scripts/parity/identity-login-digits.test.mjs
           node --experimental-strip-types scripts/parity/learning-golden.test.mjs
+          node --experimental-strip-types scripts/parity/adaptive-ranking.test.mjs
+          node --experimental-strip-types scripts/parity/adaptive-selection-golden.mjs --check
