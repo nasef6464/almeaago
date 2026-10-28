@@ -7,7 +7,7 @@ test('original font editor persists through real Go identity and PostgreSQL',asy
  expect(login.status()).toBe(200);
  for(const width of [390,820,1440]) {
   await page.setViewportSize({width,height:1000});
-  await page.goto('/admin-dashboard/platform-fonts');
+  await page.goto('/admin-dashboard?tab=platform-fonts');
   await expect(page.getByRole('heading',{name:'إدارة خطوط المنصة',exact:true})).toBeVisible();
   const navigation=page.locator('section').filter({has:page.getByRole('heading',{name:'القوائم والتنقل',exact:true})});
   await navigation.getByRole('combobox').nth(0).selectOption('system');

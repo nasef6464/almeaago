@@ -48,3 +48,17 @@ test('custom font CSS escapes names so an uploaded name cannot inject declaratio
   assert.ok(properties.get('--platform-font-body').includes('\\27 '));
  } finally {delete globalThis.document;}
 });
+
+test('original font tab URLs retain source hash priority and direct Go compatibility',()=>{
+ const file=new URL('../../apps/web/src/features/presentation/navigation.ts',import.meta.url);
+ assert.ok(existsSync(file),'original font tab navigation adapter missing');
+ const {isPlatformFontsLocation:matches}=load(readFileSync(file,'utf8'));
+ for(const [pathname,search,hash,want] of [
+  ['/admin-dashboard','?tab=platform-fonts','',true],
+  ['/admin-dashboard/','','#/admin-dashboard?tab=platform-fonts',true],
+  ['/admin-dashboard','?tab=paths','#/admin-dashboard?tab=platform-fonts',true],
+  ['/admin-dashboard','?tab=platform-fonts','#/admin-dashboard?tab=paths',false],
+  ['/admin-dashboard/platform-fonts','','',true],
+  ['/about','','#/admin-dashboard?tab=platform-fonts',false],
+ ]) assert.equal(matches({pathname,search,hash}),want,`${pathname}${search}${hash}`);
+});

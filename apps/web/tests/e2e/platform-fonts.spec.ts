@@ -76,3 +76,24 @@ test('late bootstrap response cannot overwrite a locally saved font',async({page
  const late=page.waitForResponse(r=>r.url().endsWith('/api/v1/content/platform-font-settings')&&r.request().method()==='GET');
  release();await late;await expect(page.locator('body')).toHaveCSS('font-size','18px');
 });
+
+test('original admin font tab links preserve hash priority, refresh, back and forward',async({page})=>{
+ await page.setViewportSize({width:1440,height:1000});await auth(page);
+ await page.route('**/api/v1/content/platform-font-settings',r=>r.fulfill({json:{}}));
+ for(const url of ['/admin-dashboard?tab=platform-fonts','/admin-dashboard?tab=paths#/admin-dashboard?tab=platform-fonts']) {
+  await page.goto(url);
+  await expect(page.getByRole('heading',{name:'إدارة خطوط المنصة',exact:true})).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading',{name:'إدارة خطوط المنصة',exact:true})).toBeVisible();
+ }
+ await page.goto('/admin-dashboard');
+ await page.getByRole('link',{name:'إدارة خطوط المنصة',exact:true}).click();
+ await expect(page).toHaveURL(/\/admin-dashboard#\/admin-dashboard\?tab=platform-fonts$/);
+ await expect(page.getByRole('heading',{name:'إدارة خطوط المنصة',exact:true})).toBeVisible();
+ await page.goBack();
+ await expect(page.getByRole('heading',{name:'إدارة خطوط المنصة',exact:true})).toHaveCount(0);
+ await page.goForward();
+ await expect(page.getByRole('heading',{name:'إدارة خطوط المنصة',exact:true})).toBeVisible();
+ await page.goto('/admin-dashboard?tab=platform-fonts#/admin-dashboard?tab=paths');
+ await expect(page.getByRole('heading',{name:'إدارة خطوط المنصة',exact:true})).toHaveCount(0);
+});

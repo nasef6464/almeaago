@@ -24,6 +24,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
+import { PLATFORM_FONTS_ADMIN_HREF, isPlatformFontsLocation } from '../../presentation/navigation';
 
 interface AdminDashboardShellProps {
   children: ReactNode;
@@ -45,7 +46,7 @@ const navItems = [
   { label: 'إدارة الذكاء الاصطناعي', icon: BrainCircuit, href: '/admin-dashboard/ai' },
   { label: 'التقارير والتحليلات', icon: BarChart3, href: '/admin-dashboard/reports' },
   { label: 'مركز العمليات والتدقيق', icon: ShieldCheck, href: '/admin-dashboard/operations' },
-  { label: 'إدارة خطوط المنصة', icon: Type, href: '/admin-dashboard/platform-fonts' },
+  { label: 'إدارة خطوط المنصة', icon: Type, href: PLATFORM_FONTS_ADMIN_HREF },
   { label: 'الإعدادات', icon: Settings },
 ];
 
@@ -68,13 +69,15 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [plannedOpen, setPlannedOpen] = useState(false);
-  const visibleItems = navItems.filter((item) => item.href !== '/admin-dashboard/platform-fonts' || user?.roles.includes('admin'));
+  const visibleItems = navItems.filter((item) => item.href !== PLATFORM_FONTS_ADMIN_HREF || user?.roles.includes('admin'));
   const availableItems = visibleItems.filter((item) => Boolean(item.href));
   const plannedItems = visibleItems.filter((item) => !item.href);
   const isActiveHref = (href: string) =>
-    href === '/admin-dashboard'
-      ? location.pathname === href
-      : location.pathname === href || location.pathname.startsWith(href + '/');
+    href === PLATFORM_FONTS_ADMIN_HREF
+      ? isPlatformFontsLocation(location)
+      : href === '/admin-dashboard'
+        ? location.pathname === href && !isPlatformFontsLocation(location)
+        : location.pathname === href || location.pathname.startsWith(href + '/');
   const activeItem = availableItems.find((item) => item.href ? isActiveHref(item.href) : false);
 
   const sidebar = (
