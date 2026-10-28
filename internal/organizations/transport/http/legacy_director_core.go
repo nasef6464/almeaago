@@ -53,6 +53,21 @@ func (h *LegacyHandler) directorAcademicAssessments(w http.ResponseWriter, r *ht
 	writeJSON(w, http.StatusOK, workspace)
 }
 
+func (h *LegacyHandler) directorAssessmentReport(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	report, err := h.service.DirectorAssessmentReport(r.Context(), auth.User,
+		chi.URLParam(r, "schoolId"), chi.URLParam(r, "assessmentId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
+	writeJSON(w, http.StatusOK, report)
+}
+
 func (h *LegacyHandler) directorCreateAcademicAssessment(w http.ResponseWriter, r *http.Request) {
 	auth, ok := h.authenticate(w, r, true)
 	if !ok {

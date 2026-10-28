@@ -49,6 +49,10 @@ func (r *repoStub) DirectorAssessmentQuestions(_ context.Context, _, _, _, _, _ 
 	return orgdomain.DirectorAssessmentQuestionPage{Items: []orgdomain.DirectorAssessmentQuestion{}}, nil
 }
 
+func (r *repoStub) DirectorAssessmentReport(_ context.Context, _, _, _ string) (orgdomain.DirectorAssessmentReport, error) {
+	return orgdomain.DirectorAssessmentReport{}, nil
+}
+
 func (r *repoStub) ParentAuthority(_ context.Context, _ string) (orgdomain.ParentAuthority, error) {
 	return r.parentAuthority, nil
 }

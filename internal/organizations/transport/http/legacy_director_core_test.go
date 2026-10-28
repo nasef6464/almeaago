@@ -251,3 +251,32 @@ func TestLegacyDirectorAssessmentPickerDoesNotExposeGlobalStaffQuestionBank(t *t
 		t.Fatalf("missing school permission must fail: %d", denied.Code)
 	}
 }
+
+func TestLegacySchoolAssessmentReportRequiresScopedCapabilityAndAvoidsCaching(t *testing.T) {
+	const schoolA = "00000000-0000-0000-0000-000000000101"
+	const schoolB = "00000000-0000-0000-0000-000000000102"
+	const assessment = "00000000-0000-0000-0000-000000000103"
+	repo := &repoStub{contexts: []orgdomain.SchoolContext{{
+		SchoolID: schoolA, Role: identitydomain.RoleSchoolAdmin,
+		Permissions: []string{orgdomain.PermissionSchoolReportsAggregateView},
+		Modules:     []string{string(orgdomain.ModuleSchoolAssessments)},
+	}}}
+	handler := NewLegacy(orgapp.NewService(repo, repo), authStub{auth: schoolAdminAuth()})
+	request := func(schoolID string) *httptest.ResponseRecorder {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet,
+			"/director/schools/"+schoolID+"/academic/assessments/"+assessment+"/report", nil))
+		return response
+	}
+	allowed := request(schoolA)
+	if allowed.Code != http.StatusOK || allowed.Header().Get("Cache-Control") != "private, no-store" || !strings.Contains(allowed.Body.String(), `"coverage"`) {
+		t.Fatalf("authorized report contract invalid: %d %s", allowed.Code, allowed.Body.String())
+	}
+	if denied := request(schoolB); denied.Code != http.StatusForbidden {
+		t.Fatalf("cross-school report was allowed: %d", denied.Code)
+	}
+	repo.contexts[0].Modules = nil
+	if denied := request(schoolA); denied.Code != http.StatusForbidden {
+		t.Fatalf("disabled module exposed report: %d", denied.Code)
+	}
+}

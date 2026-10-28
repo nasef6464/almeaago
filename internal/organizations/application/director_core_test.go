@@ -154,6 +154,41 @@ func TestDirectorAssessmentCapabilityRequiresRolePermissionAndActiveModule(t *te
 	}
 }
 
+func TestSchoolAssessmentSummaryAllowsOnlyAuthorizedSchoolReportStaff(t *testing.T) {
+	const schoolA = "00000000-0000-0000-0000-000000000101"
+	const schoolB = "00000000-0000-0000-0000-000000000102"
+	const assessment = "00000000-0000-0000-0000-000000000103"
+	ctx := org.SchoolContext{SchoolID: schoolA, Role: identity.RoleSchoolAdmin,
+		Permissions: []string{org.PermissionSchoolReportsAggregateView},
+		Modules:     []string{string(org.ModuleSchoolAssessments)}}
+	repo := &repositoryMock{contexts: []org.SchoolContext{ctx}}
+	service := NewService(repo)
+	got, err := service.DirectorAssessmentReport(context.Background(), schoolAdminActor(), schoolA, assessment)
+	if err != nil || got.Audience.Targeted != 3 || repo.lastDirectorReportSchool != schoolA || repo.lastDirectorReportAssessment != assessment {
+		t.Fatalf("authorized school report failed: %+v, err=%v, requested=%s/%s", got, err, repo.lastDirectorReportSchool, repo.lastDirectorReportAssessment)
+	}
+	if _, err := service.DirectorAssessmentReport(context.Background(), schoolAdminActor(), schoolB, assessment); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("cross-school report must be denied: %v", err)
+	}
+	if _, err := service.DirectorAssessmentReport(context.Background(), actor("teacher", identity.RoleTeacher), schoolA, assessment); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("teacher report must be denied: %v", err)
+	}
+	if _, err := service.DirectorAssessmentReport(context.Background(), schoolAdminActor(), schoolA, "not-a-uuid"); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("assessment UUID invalid: %v", err)
+	}
+	if repo.reportCallCount != 1 {
+		t.Fatalf("denied report reached DB: %d calls", repo.reportCallCount)
+	}
+	repo.contexts[0].Permissions = []string{org.PermissionSchoolAssessmentsManage}
+	if _, err := service.DirectorAssessmentReport(context.Background(), schoolAdminActor(), schoolA, assessment); err != nil {
+		t.Fatalf("school director with management capability also reads report: %v", err)
+	}
+	repo.contexts[0].Modules = nil
+	if _, err := service.DirectorAssessmentReport(context.Background(), schoolAdminActor(), schoolA, assessment); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("disabled assessments module must deny report: %v", err)
+	}
+}
+
 func TestDirectorAcademicAssessmentsDelegatesOnlyAfterExactSchoolCapability(t *testing.T) {
 	const schoolA = "00000000-0000-0000-0000-000000000101"
 	const schoolB = "00000000-0000-0000-0000-000000000102"

@@ -50,3 +50,35 @@ type DirectorAssessmentQuestionPage struct {
 	Items   []DirectorAssessmentQuestion `json:"items"`
 	HasMore bool                         `json:"hasMore"`
 }
+
+// AssessmentReport is intentionally evidence-aware. No started-attempt or
+// subject breakdown estimates may be substituted for unavailable results.
+type DirectorAssessmentReport struct {
+	Coverage struct {
+		Complete        bool     `json:"complete"`
+		MissingEvidence []string `json:"missingEvidence"`
+		Subjects        struct {
+			Completed    int  `json:"completed"`
+			WithEvidence int  `json:"withEvidence"`
+			Complete     bool `json:"complete"`
+		} `json:"subjects"`
+	} `json:"coverage"`
+	Audience struct {
+		Targeted int `json:"targeted"`
+	} `json:"audience"`
+	Participation struct {
+		Completed    int  `json:"completed"`
+		NotCompleted int  `json:"notCompleted"`
+		Started      *int `json:"started"`
+	} `json:"participation"`
+	Scores struct {
+		Average  *float64 `json:"average"`
+		PassRate *float64 `json:"passRate"`
+		Highest  *float64 `json:"highest"`
+		Lowest   *float64 `json:"lowest"`
+	} `json:"scores"`
+	Subjects          []any `json:"subjects"`
+	Sections          []any `json:"sections"`
+	Skills            []any `json:"skills"`
+	SubjectBreakdowns []any `json:"subjectBreakdowns"`
+}

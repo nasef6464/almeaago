@@ -12,6 +12,9 @@ import (
 type repositoryMock struct {
 	lastDirectorAssessmentCreate  *org.DirectorAssessmentCreate
 	lastDirectorAssessmentSchool  string
+	lastDirectorReportSchool      string
+	lastDirectorReportAssessment  string
+	reportCallCount               int
 	contexts                      []org.SchoolContext
 	accessAllowed                 bool
 	manageAllowed                 bool
@@ -44,6 +47,15 @@ func (m *repositoryMock) DirectorCreateAssessment(_ context.Context, _ string, s
 
 func (m *repositoryMock) DirectorAssessmentQuestions(_ context.Context, _, _, _, _, _ string, _, _ int) (org.DirectorAssessmentQuestionPage, error) {
 	return org.DirectorAssessmentQuestionPage{Items: []org.DirectorAssessmentQuestion{}}, nil
+}
+
+func (m *repositoryMock) DirectorAssessmentReport(_ context.Context, _, schoolID, assessmentID string) (org.DirectorAssessmentReport, error) {
+	m.lastDirectorReportSchool = schoolID
+	m.lastDirectorReportAssessment = assessmentID
+	m.reportCallCount++
+	var result org.DirectorAssessmentReport
+	result.Audience.Targeted = 3
+	return result, nil
 }
 
 func (m *repositoryMock) ParentAuthority(_ context.Context, _ string) (org.ParentAuthority, error) {
