@@ -22,6 +22,7 @@ type DirectorAssessmentCreate struct {
 	Title       string
 	ClassID     string
 	ClassIDs    []string
+	StudentIDs  []string
 	TargetScope string
 	PathID      string
 	SubjectID   string
@@ -34,6 +35,7 @@ type DirectorAssessmentCreated struct {
 	Title        string   `json:"title"`
 	ClassID      string   `json:"classId"`
 	ClassIDs     []string `json:"classIds,omitempty"`
+	StudentIDs   []string `json:"studentIds,omitempty"`
 	TargetScope  string   `json:"targetScope"`
 }
 
@@ -51,6 +53,22 @@ type DirectorAssessmentQuestion struct {
 type DirectorAssessmentQuestionPage struct {
 	Items   []DirectorAssessmentQuestion `json:"items"`
 	HasMore bool                         `json:"hasMore"`
+}
+
+// Minimal identity projection for securely selecting school assessment learners.
+// Contact details and credentials must never be exposed by this endpoint.
+type DirectorAssessmentCandidate struct {
+	StudentID string `json:"studentId"`
+	Name      string `json:"name"`
+	ClassName string `json:"className,omitempty"`
+}
+
+type DirectorAssessmentStudentPage struct {
+	Items   []DirectorAssessmentCandidate `json:"items"`
+	Total   int                           `json:"total"`
+	Page    int                           `json:"page"`
+	Limit   int                           `json:"limit"`
+	HasMore bool                          `json:"hasMore"`
 }
 
 // AssessmentReport is intentionally evidence-aware. No started-attempt or

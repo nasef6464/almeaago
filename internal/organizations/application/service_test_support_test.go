@@ -10,6 +10,8 @@ import (
 )
 
 type repositoryMock struct {
+	lastEligibleStudentsCalled    bool
+	lastEligibleStudentsSearch    string
 	lastDirectorAssessmentCreate  *org.DirectorAssessmentCreate
 	lastDirectorAssessmentSchool  string
 	lastDirectorReportSchool      string
@@ -39,6 +41,12 @@ type repositoryMock struct {
 	assignmentWrite               org.AssignmentWrite
 	teacherWorkspace              org.TeacherWorkspace
 	parentAuthority               org.ParentAuthority
+}
+
+func (m *repositoryMock) DirectorAssessmentEligibleStudents(_ context.Context, _, _, search string, _, _ int) (org.DirectorAssessmentStudentPage, error) {
+	m.lastEligibleStudentsCalled = true
+	m.lastEligibleStudentsSearch = search
+	return org.DirectorAssessmentStudentPage{Items: []org.DirectorAssessmentCandidate{}}, nil
 }
 
 func (m *repositoryMock) DirectorCreateAssessment(_ context.Context, _ string, schoolID string, input org.DirectorAssessmentCreate) (org.DirectorAssessmentCreated, error) {

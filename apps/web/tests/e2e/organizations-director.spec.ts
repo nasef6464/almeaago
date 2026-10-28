@@ -457,6 +457,49 @@ test('school central assessment directs one exam to multiple checked classes on 
   expect(created).toMatchObject({title:'اختبار موحد بين الفصول',targetScope:'classes',classId:'',classIds:['class-1','class-2'],questionIds:['q-1']});
 });
 
+test('selected school assessment combines named students and a class without leaking contact details',async({page})=>{
+  await mockDirector(page,['SCHOOL_CORE','SCHOOL_ASSESSMENTS']);
+  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[{
+    schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',permissions:[...permissions,'SCHOOL_ASSESSMENTS_MANAGE'],modules:['SCHOOL_CORE','SCHOOL_ASSESSMENTS'],source:'membership',
+  }]}));
+  let created:Record<string,unknown>|undefined;
+  await page.route('**/api/school-access/director/schools/school-1/academic/assessments',route=>{
+    if(route.request().method()==='POST'){
+      created=route.request().postDataJSON() as Record<string,unknown>;
+      return json(route,{assessment:{assessmentId:'selected-1',title:created.title,classIds:created.classIds,studentIds:created.studentIds,targetScope:'selected'}},201);
+    }
+    return json(route,{assessments:created?[{id:'selected-1',title:'اختبار المجموعة المختارة',isPublished:true,targetGroupIds:['class-1']}]:[],classes:[{classId:'class-1',className:'الأول أ'},{classId:'class-2',className:'الأول ب'}]});
+  });
+  await page.route('**/api/school-access/director/schools/school-1/academic/eligible-students?*',route=>{
+    const q=new URL(route.request().url()).searchParams;
+    return json(route,q.get('page')==='2'?{items:[{studentId:'learner-2',name:'مريم خالد',className:'الأول ب'}],total:2,page:2,limit:1,hasMore:false}:
+      {items:[{studentId:'learner-1',name:'ليلى أحمد',className:'الأول أ'}],total:2,page:1,limit:1,hasMore:true});
+  });
+  await page.route('**/api/school-access/director/schools/school-1/academic/available-questions?*',route=>json(route,{items:[
+    {id:'q-1',questionCode:'MATH-001',text:'سؤال المجموعة المختارة',type:'mcq',imageUrl:'',imageAlt:'',currentVersion:1},
+  ],hasMore:false}));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'اختبارات المدرسة');
+  await page.getByRole('button',{name:'إنشاء اختبار',exact:true}).click();
+  await page.getByLabel('عنوان الاختبار المدرسي').fill('اختبار المجموعة المختارة');
+  await page.getByLabel('نطاق اختبار المدرسة').selectOption('selected');
+  await page.getByLabel('اختيار الطالب ليلى أحمد').check();
+  await page.getByRole('button',{name:'التالي للطلاب'}).click();
+  await page.getByLabel('اختيار الطالب مريم خالد').check();
+  await page.getByLabel('اختيار الفصل الأول أ').check();
+  await page.getByLabel('مسار الاختبار المدرسي').selectOption('path-1');
+  await page.getByLabel('مادة الاختبار المدرسي').selectOption('subject-1');
+  await page.getByLabel('اختيار السؤال MATH-001').check();
+  await expect(page.getByText('تم اختيار 2 طالب')).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth)).toBe(false);
+  await page.setViewportSize({width:1440,height:900});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth)).toBe(false);
+  await page.getByRole('button',{name:'إنشاء ونشر للطلاب المستهدفين'}).click();
+  await expect(page.getByText('اختبار المجموعة المختارة')).toBeVisible();
+  expect(created).toMatchObject({targetScope:'selected',classId:'',classIds:['class-1'],studentIds:['learner-1','learner-2'],questionIds:['q-1']});
+});
+
 test('assessment cards ignore a late A response after A to B to A, on all target widths',async({page})=>{
   await mockDirector(page,['SCHOOL_CORE','SCHOOL_ASSESSMENTS']);
   const context=(schoolId:string,schoolName:string)=>({

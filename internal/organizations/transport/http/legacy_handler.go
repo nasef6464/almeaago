@@ -35,6 +35,7 @@ func NewLegacy(service *orgapp.Service, auth Authenticator) http.Handler {
 	r.Get("/director/schools/{schoolId}/academic/assessments/{assessmentId}/learners", h.directorAssessmentLearners)
 	r.Get("/director/schools/{schoolId}/academic/assessments/{assessmentId}/results/{attemptId}", h.directorAssessmentLearnerResult)
 	r.Get("/director/schools/{schoolId}/academic/available-questions", h.directorAvailableAssessmentQuestions)
+	r.Get("/director/schools/{schoolId}/academic/eligible-students", h.directorAssessmentEligibleStudents)
 	r.Post("/director/schools/{schoolId}/academic/assessments", h.directorCreateAcademicAssessment)
 	r.Get("/director/schools/{schoolId}/students", h.directorStudents)
 	r.Post("/director/schools/{schoolId}/students", h.directorAddStudent)
