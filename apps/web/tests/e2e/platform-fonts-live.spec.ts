@@ -1,6 +1,6 @@
 import {expect,test} from '@playwright/test';
 
-test('original font editor persists through real Go identity and PostgreSQL',async({page})=>{
+test('original font editor persists through real Go identity and PostgreSQL',async({page,context})=>{
  test.skip(process.env.FONT_LIVE !== '1','isolated PostgreSQL integration only');
  test.setTimeout(90_000);
  const login=await page.request.post('/api/v1/auth/login',{data:{email:process.env.FONT_TEST_ADMIN_EMAIL,password:'Fonts-test-pass-42!'}});
@@ -28,6 +28,21 @@ test('original font editor persists through real Go identity and PostgreSQL',asy
   await expect(navigation.getByRole('textbox',{name:'حجم القوائم والتنقل',exact:true})).toHaveValue('18px');
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:`test-results/persisted-font-editor-${width}.png`,fullPage:true});
+  // Compare the actual pinned source component, not a manually recreated image.
+  // Both use the same real Go document/session and shared shell/CSS constraints;
+  // this is component-only parity, not original whole-application certification.
+  const original=await context.newPage();
+  await original.setViewportSize({width,height:1000});
+  await original.goto('/tests/reference/fonts.html');
+  await expect(original.getByRole('heading',{name:'إدارة خطوط المنصة',exact:true})).toBeVisible();
+  const sourceNavigation=original.locator('section').filter({has:original.getByRole('heading',{name:'القوائم والتنقل',exact:true})});
+  await expect(sourceNavigation.getByRole('textbox',{name:'حجم القوائم والتنقل',exact:true})).toHaveValue('18px');
+  const panel=(p:typeof page)=>p.getByRole('heading',{name:'إدارة خطوط المنصة',exact:true}).locator('xpath=../../..');
+  await page.mouse.move(0,0);await original.mouse.move(0,0);
+  const expected=await panel(original).screenshot({path:`test-results/font-source-component-${width}.png`,animations:'disabled'});
+  const actual=await panel(page).screenshot({path:`test-results/font-go-component-${width}.png`,animations:'disabled'});
+  expect(Buffer.compare(actual,expected),`source/Go component pixels differ at ${width}px`).toBe(0);
+  await original.close();
   await page.goto('/about');
   await expect(page.locator('header')).toHaveCSS('font-size','18px');
   await page.goBack();

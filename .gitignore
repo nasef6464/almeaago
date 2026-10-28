@@ -10,3 +10,5 @@ coverage/
 .idea/
 .vscode/
 .tmp/
+
+/apps/web/tests/reference/generated/

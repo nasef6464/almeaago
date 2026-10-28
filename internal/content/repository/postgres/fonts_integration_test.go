@@ -140,6 +140,11 @@ func TestPlatformFontsHTTPPostgres(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		reference := exec.CommandContext(ctx, "node", "scripts/parity/font-reference.mjs")
+		reference.Dir = filepath.Dir(filepath.Dir(web))
+		if output, err := reference.CombinedOutput(); err != nil {
+			t.Fatalf("reference generation: %v %s", err, output)
+		}
 		cmd := exec.CommandContext(ctx, "npm", "run", "e2e", "--", "tests/e2e/platform-fonts-live.spec.ts")
 		cmd.Dir = web
 		cmd.Env = append(os.Environ(), "FONT_LIVE=1", "FONT_TEST_ADMIN_EMAIL="+admin.Email, "E2E_API_TARGET="+server.URL)
