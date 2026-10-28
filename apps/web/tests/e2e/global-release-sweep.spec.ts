@@ -1,4 +1,4 @@
-import{expect,test,type Page,type Route}from'@playwright/test';
+import{expect,test,type Page,type Route}from'./fixtures/header-test';
 
 const student={id:'student-1',email:'student@example.com',name:'طالب',status:'active',avatarUrl:'',emailVerified:true,role:'student',roles:['student']};
 
@@ -13,7 +13,7 @@ test('student golden journey crosses content assessment result review remediatio
  await auth(page);
  await page.setViewportSize({width:390,height:844});
 
- await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{
+ await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{levels:[],
   paths:[{id:'path-1',code:'QDR',name:'القدرات',slug:'abilities',description:'',sortOrder:1,status:'active'}],
   subjects:[{id:'subject-1',pathId:'path-1',code:'QNT',name:'الكمي',slug:'quant',sortOrder:1,status:'active'}],
  }));

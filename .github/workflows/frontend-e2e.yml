@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - "apps/web/src/app/App.tsx"
+      - "apps/web/src/**"
       - "apps/web/src/features/content/**"
       - "apps/web/src/features/presentation/**"
       - "apps/web/tests/e2e/**"

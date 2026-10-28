@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from './fixtures/header-test';
 
 const adminUser = {
   id: 'admin-1',
@@ -113,7 +113,7 @@ async function mockContentAPI(page: Page, user = adminUser) {
   await page.route('**/api/v1/taxonomy/bootstrap**', (route) => {
     const url = new URL(route.request().url());
     return json(route, url.searchParams.get('phase') === 'core'
-      ? { paths: taxonomy.paths, subjects: taxonomy.subjects }
+      ? {levels:[], paths: taxonomy.paths, subjects: taxonomy.subjects }
       : taxonomy);
   });
 

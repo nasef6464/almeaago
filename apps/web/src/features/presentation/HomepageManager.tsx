@@ -625,7 +625,7 @@ export const HomepageManager: React.FC = () => {
 
             <fieldset disabled={isSaving} className="contents">
             {/* Announcement Ads Spotlight Card */}
-            <p className="text-xs text-gray-500">تجربة الطالب والعدادات والخطوط المحلية واختيار الدورات والمقالات والشريط العلوي غير متاحة للتعديل حاليًا.</p>
+            <p className="text-xs text-gray-500">تجربة الطالب والعدادات والخطوط المحلية واختيار الدورات والمقالات غير متاحة للتعديل حاليًا.</p>
             <StudentSiteExperienceFields value={settings.studentExperience} disabled={true} onChange={studentExperience => { setSettings(prev => ({ ...prev, studentExperience })); setSuccess(null); }} />
             <div className="rounded-3xl border border-amber-200/90 bg-gradient-to-r from-amber-500/10 via-amber-400/5 to-indigo-500/10 p-5 shadow-xs backdrop-blur-sm">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -750,7 +750,7 @@ export const HomepageManager: React.FC = () => {
                         </div>
                     </section>
 
-                    <fieldset disabled className="contents"><section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+                    <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
                         <div className="flex items-center justify-between gap-3">
                             <div>
                                 <h2 className="font-bold text-gray-900">الشريط العلوي</h2>
@@ -799,7 +799,7 @@ export const HomepageManager: React.FC = () => {
                                 </div>
                             ))}
                         </div>
-                    </section></fieldset>
+                    </section>
 
                     <section id="hero-section" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 scroll-mt-6">
                         <div className="flex items-center gap-3">

@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from './fixtures/header-test';
 
 function json(route:Route,body:unknown,status=200){
   return route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
@@ -56,8 +56,8 @@ test('public landing is bounded on phone and opens the responsive menu',async({p
 
   await expect(page.getByRole('heading',{name:'حقق المئة في اختباراتك'})).toBeVisible();
   await page.getByRole('button',{name:'فتح القائمة'}).click();
-  await expect(page.getByRole('navigation',{name:'التنقل الرئيسي للجوال'})).toBeVisible();
-  await expect(page.getByRole('navigation',{name:'التنقل الرئيسي للجوال'}).getByRole('link',{name:'اختبارات',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'إغلاق القائمة',exact:true})).toBeVisible();
+  await expect(page.locator('header [data-mobile-nav="home"]')).toHaveText('الرئيسية');
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/public-landing-mobile.png',fullPage:true});
 });
@@ -117,7 +117,7 @@ test('student dashboard restores the legacy workspace shell over real V2 routes'
 
 test('learner reporting entry opens the already-certified report without duplicating reporting authority',async({page})=>{
   await page.route('**/api/v1/auth/me',route=>json(route,{user:student}));
-  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{paths:[],subjects:[]}));
+  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{levels:[],paths:[],subjects:[]}));
   await page.route('**/api/v1/reports/overview',route=>json(route,{scope:{canExport:false,isTruncated:false},assessment:{averageScore:0,passRate:0,passed:0,resultCount:0,resultsTruncated:false,attemptsTruncated:false},weakestSkills:[]}));
   await page.route('**/api/v1/reports/results?page=1&limit=20',route=>json(route,{items:[],page:1,limit:20,total:0}));
   await page.setViewportSize({width:390,height:844});
@@ -249,7 +249,7 @@ for (const width of [390, 820, 1440]) {
   test(`homepage preserves all server-returned paths at ${width}px`, async ({page}) => {
     await signedOut(page);
     await page.setViewportSize({width,height:1000});
-    await page.route('**/api/v1/taxonomy/bootstrap?phase=core', route => json(route, {
+    await page.route('**/api/v1/taxonomy/bootstrap?phase=core', route => json(route, {levels:[],
       paths: Array.from({length:8},(_,i)=>({id:`path-${i}`,code:`P${i}`,name:`مسار اختبار ${i}`,description:'',sortOrder:i})),subjects:[],
     }));
     await page.goto('/');

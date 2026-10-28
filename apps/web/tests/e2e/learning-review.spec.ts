@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from './fixtures/header-test';
 
 const student = {
   id: 'student-1',
@@ -103,7 +103,7 @@ test('mobile review library shows mistake, mastery next action and toggles saved
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.route('**/api/v1/taxonomy/bootstrap?phase=core', (route) =>
-    json(route, {
+    json(route, {levels:[],
       paths: [{ id: 'path-1', code: 'QDR', name: 'القدرات', description: '', sortOrder: 1 }],
       subjects: [{ id: 'subject-1', pathId: 'path-1', code: 'QNT', name: 'الكمي', sortOrder: 1 }],
     }),
@@ -245,7 +245,7 @@ test('legacy favorites alias preserves review-library shell and scoped V2 truth 
   await auth(page);
   await page.setViewportSize({ width: 820, height: 1180 });
   await page.route('**/api/v1/taxonomy/bootstrap?phase=core', (route) =>
-    json(route, {
+    json(route, {levels:[],
       paths: [{ id: 'path-1', code: 'QDR', name: 'القدرات', description: '', sortOrder: 1 }],
       subjects: [{ id: 'subject-1', pathId: 'path-1', code: 'QNT', name: 'الكمي', sortOrder: 1 }],
     }),
@@ -315,7 +315,7 @@ for (const width of [390, 820, 1440]) {
   test(`adaptive recommendation shows selected priority and clears old scope at ${width}`, async ({ page }) => {
     await auth(page);
     await page.setViewportSize({ width, height: 1000 });
-    await page.route('**/api/v1/taxonomy/bootstrap?phase=core', route => json(route, {
+    await page.route('**/api/v1/taxonomy/bootstrap?phase=core', route => json(route, {levels:[],
       paths: [{ id: 'path-1', code: 'QDR', name: 'القدرات', sortOrder: 1 }],
       subjects: [
         { id: 'subject-1', pathId: 'path-1', code: 'QNT', name: 'الكمي', sortOrder: 1 },

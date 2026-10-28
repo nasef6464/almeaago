@@ -1,4 +1,4 @@
-import{expect,test,type Page,type Route}from'@playwright/test';
+import{expect,test,type Page,type Route}from'./fixtures/header-test';
 
 const admin={id:'admin-1',email:'admin@example.com',name:'مدير المنصة',status:'active',avatarUrl:'',emailVerified:true,role:'admin',roles:['admin']};
 const student={id:'student-1',email:'student@example.com',name:'سارة',status:'active',avatarUrl:'',emailVerified:true,role:'student',roles:['student']};
@@ -9,7 +9,7 @@ async function auth(page:Page,user:typeof admin|typeof student){await page.route
 test('student report is self-scoped, bounded and exposes no answer-level data',async({page})=>{
  await auth(page,student);
  await page.setViewportSize({width:390,height:844});
- await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{paths:[{id:'path-1',code:'QDR',name:'القدرات',description:'',sortOrder:1}],subjects:[{id:'subject-1',pathId:'path-1',code:'QNT',name:'الكمي',sortOrder:1}]}));
+ await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{levels:[],paths:[{id:'path-1',code:'QDR',name:'القدرات',description:'',sortOrder:1}],subjects:[{id:'subject-1',pathId:'path-1',code:'QNT',name:'الكمي',sortOrder:1}]}));
  let lastOverviewUrl='';
  await page.route('**/api/v1/reports/overview**',route=>{lastOverviewUrl=route.request().url();return json(route,{
   scope:{kind:'student',studentCount:1,sampledStudentCount:1,isTruncated:false,limits:{students:500,results:2000,attempts:3000},canDetail:true,canExport:true},

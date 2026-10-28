@@ -1,10 +1,10 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/header-test';
 
 for (const width of [390,820,1440]) {
  test(`original shared footer links and return navigation at ${width}px`,async({page})=>{
   await page.setViewportSize({width,height:1000});
   await page.route('**/api/v1/auth/me',route=>route.fulfill({status:401,contentType:'application/json',body:'{}'}));
-  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>route.fulfill({contentType:'application/json',body:'{"paths":[],"subjects":[]}'}));
+  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>route.fulfill({contentType:'application/json',body:'{"paths":[],"levels":[],"subjects":[]}'}));
   await page.goto('/');
   const footer=page.getByRole('contentinfo');
   await expect(footer).toHaveCount(1);

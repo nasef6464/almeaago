@@ -49,3 +49,19 @@ current-action register and acceptance checklist in26. MERGED/TESTED is scoped
 evidence, never a whole-platform parity certificate. Keep report findings from
 code distinct from browser reproductions; preserve source failure/false/empty
 semantics and explicit Topic scope. No production writes, deployment or cutover.
+
+## Owner acceleration directive accepted — continuation, not restart
+Read `docs/migration/reviews/OWNER_ACCELERATION_DIRECTIVE_AR_2026-10-29.txt`
+as the owner's execution update subordinate to plan03. Retain #150–#157 and
+current in-progress work. Use 4–6 subagents where independent ownership improves
+throughput: source read-only exploration, Go/storage, presentation, integration,
+and independent review. One integration owner coordinates the branch; delegate
+explicit non-overlapping file sets, never concurrent writers to the same file.
+Deliver usable vertical journeys, beginning with the remaining public site gate,
+then the original admin path→subject workspace and learner visibility. A logo,
+status report or route alone is not a complete public-site delivery. Run focused
+checks while implementing and the integrated gates on the final revision; repeat
+only for changed code or unresolved failures. Record verified source differences
+and genuine blockers without fabricating completion, redesigning, bypassing CI,
+or spawning another master plan. Broad routine project decisions and independent
+agents/review are already authorized; preserve production/source restrictions.

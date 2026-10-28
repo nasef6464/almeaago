@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from './fixtures/header-test';
 
 const student = {
   id: 'student-1',
@@ -24,7 +24,7 @@ test('mobile student creates deterministic study plan and archives it with optim
   await auth(page);
   await page.setViewportSize({ width: 390, height: 844 });
 
-  const taxonomy = {
+  const taxonomy = {levels:[],
     paths: [{ id: 'path-1', code: 'QDR', name: 'القدرات', description: '', sortOrder: 1 }],
     subjects: [{ id: 'subject-1', pathId: 'path-1', code: 'QNT', name: 'الكمي', sortOrder: 1 }],
   };

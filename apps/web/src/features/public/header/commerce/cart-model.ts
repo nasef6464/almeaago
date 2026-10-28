@@ -1,0 +1,6 @@
+export interface CartItem {id:string;type:'course'|'package'|'skill'|'test'|'bank';title:string;price:number;currency:string;}
+export const CART_KEY='almeaa-header-cart-v1';
+function normalize(value:unknown):CartItem|null {if(!value||typeof value!=='object')return null;const v=value as Partial<CartItem>;const id=String(v.id||'');const title=String(v.title||'');const type=v.type||'course';const price=Number(v.price||0);if(!id||!title||!['course','package','skill','test','bank'].includes(type)||!Number.isFinite(price)||price<0)return null;return{id,title,type,price,currency:String(v.currency||'SAR')};}
+export function addCartItem(items:CartItem[],value:CartItem):CartItem[]{const row=normalize(value);if(!row)return items;return [...items.filter(x=>!(x.id===row.id&&x.type===row.type)),row].slice(-50)}
+export function removeCartItem(items:CartItem[],id:string,type?:CartItem['type']):CartItem[]{return items.filter(x=>x.id!==id||(type!==undefined&&x.type!==type))}
+export function readCartItems(raw:string|null):CartItem[]{try{const value=JSON.parse(raw||'{}');if(!Array.isArray(value.items))return [];return value.items.map(normalize).filter((x:CartItem|null):x is CartItem=>x!==null).slice(0,50)}catch{return []}}

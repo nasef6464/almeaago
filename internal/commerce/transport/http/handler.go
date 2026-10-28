@@ -45,6 +45,7 @@ func NewWithAccess(service *commerceapp.Service, checkout *commerceapp.CheckoutS
 func NewWithProviderSecrets(service *commerceapp.Service, checkout *commerceapp.CheckoutService, access *commerceapp.AccessService, auth Authenticator, webhookSecret []byte, tapSecretKey string) http.Handler {
 	h := &Handler{service: service, checkout: checkout, access: access, auth: auth, webhookSecret: webhookSecret, tapSecretKey: strings.TrimSpace(tapSecretKey)}
 	r := chi.NewRouter()
+	r.Get("/catalog/products", h.publicCatalog)
 	r.Get("/products", h.listProducts)
 	r.Post("/products", h.createProduct)
 	r.Get("/products/{id}", h.getProduct)
@@ -63,6 +64,7 @@ func NewWithProviderSecrets(service *commerceapp.Service, checkout *commerceapp.
 		r.Patch("/admin/school-seats/{id}/revoke", h.revokeSchoolSeat)
 	}
 	if checkout != nil {
+		r.Get("/catalog/payment-options", h.publicPaymentOptions)
 		r.Get("/catalog/products/{id}", h.catalogProduct)
 		r.Post("/discounts/preview", h.previewDiscount)
 		r.Get("/checkout/requests", h.myPaymentRequests)

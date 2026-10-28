@@ -1,3 +1,9 @@
+import {StudentNavigationProvider,StudentPathBar} from '../features/learning/navigation';
+import {MockExamsPage} from '../features/public/header/pages/MockExamsPage';
+import {BlogPage} from '../features/public/header/pages/BlogPage';
+import {LegacyCategoryPage} from '../features/public/header/pages/LegacyCategoryPage';
+import {CartPage} from '../features/public/header/commerce/CartPage';
+import {PricingPage} from '../features/public/header/commerce/PricingPage';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Link,
@@ -12,6 +18,8 @@ import { ForgotPasswordPage } from '../features/auth/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '../features/auth/pages/ResetPasswordPage';
 import { VerifyEmailPage } from '../features/auth/pages/VerifyEmailPage';
 import { useAuth } from '../features/auth/state/AuthProvider';
+import { dashboardPathFor } from '../features/auth/utils/dashboard-path';
+import { oauthReturnPath } from '../features/auth/utils/oauth-return';
 import { ContentAdminPage } from '../features/content/pages/ContentAdminPage';
 import { AdminOverviewPage } from '../features/content/pages/AdminOverviewPage';
 import { AssessmentAdminPage } from '../features/assessment/pages/AssessmentAdminPage';
@@ -99,17 +107,7 @@ export function App() {
       return;
     }
 
-    const returnTo = params.get('oauth_return') || '/';
-    if (
-      returnTo.startsWith('/') &&
-      !returnTo.startsWith('//') &&
-      !returnTo.includes('\\') &&
-      !/[\r\n]/.test(returnTo)
-    ) {
-      navigate(returnTo, { replace: true });
-    } else {
-      navigate('/', { replace: true });
-    }
+    navigate(oauthReturnPath(params.get('oauth_return'), dashboardPathFor(user)), { replace: true });
   }, [loading, location.pathname, location.search, navigate, user]);
 
   function closeModal() {
@@ -124,10 +122,11 @@ export function App() {
   const hideSiteHeader = inAdminWorkspace || location.pathname.endsWith('/projector');
 
   return (
-    <>
+    <StudentNavigationProvider>
       <PlatformFontBootstrap />
-      {!hideSiteHeader ? <LegacySiteHeader onAuth={setManualMode} /> : null}
+      {!hideSiteHeader ? <LegacySiteHeader requestedAuthMode={manualMode} onAuthIntentConsumed={()=>setManualMode(null)} /> : null}
 
+      {!hideSiteHeader ? <StudentPathBar/> : null}
       <Routes>
         <Route path="/" element={<PublicLandingPage onAuth={setManualMode} />} />
         <Route path="/login" element={<PublicLandingPage onAuth={setManualMode} />} />
@@ -156,7 +155,11 @@ export function App() {
         <Route path="/admin-dashboard/ai" element={<AdminDashboardShell><AiAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/reports" element={<AdminDashboardShell><ReportsPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/operations" element={<AdminDashboardShell><OperationsAdminPage /></AdminDashboardShell>} />
-        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/cart" element={<CartPage/>}/>
+        <Route path="/pricing" element={<PricingPage/>}/>
+        <Route path="/mock-exams" element={<MockExamsPage/>}/>
+        <Route path="/blog" element={<BlogPage/>}/>
+        <Route path="/checkout" element={new URLSearchParams(location.search).has("productId")?<CheckoutPage />:<CartPage/>} />
         <Route path="/assessments" element={<AssessmentAvailabilityPage />} />
         <Route path="/assessment-assignments" element={<AssessmentAssignmentsPage />} />
         <Route path="/barcode-test" element={<PublicBarcodeAssessmentPage />} />
@@ -167,7 +170,7 @@ export function App() {
         <Route path="/assessment-results" element={<AssessmentResultsPage />} />
         <Route path="/assessment-results/:attemptId" element={<AssessmentResultsPage />} />
         <Route path="/learning" element={<LearningSpacePage />} />
-        <Route path="/category/:pathId" element={<LearningSpacePage />} />
+        <Route path="/category/:pathId" element={<LegacyCategoryPage />} />
         <Route path="/learning/courses/:courseId" element={<CourseLearningPage />} />
         <Route path="/course/:courseId" element={<CourseLearningPage />} />
         <Route path="/review" element={<ReviewLibraryPage />} />
@@ -189,11 +192,11 @@ export function App() {
 
       {showPublicFooter(location.pathname) ? <LegacySiteFooter /> : null}
 
-      <AuthModal
+      {hideSiteHeader ? <AuthModal
         open={modalMode !== null}
         initialSignUp={modalMode === 'signup'}
         onClose={closeModal}
-      />
-    </>
+      /> : null}
+    </StudentNavigationProvider>
   );
 }

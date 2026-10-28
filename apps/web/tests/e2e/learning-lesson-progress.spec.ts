@@ -1,4 +1,4 @@
-import{expect,test,type Page,type Route}from'@playwright/test';
+import{expect,test,type Page,type Route}from'./fixtures/header-test';
 
 const student={id:'student-1',email:'student@example.com',name:'طالب',status:'active',avatarUrl:'',emailVerified:true,role:'student',roles:['student']};
 const course={id:'course-1',title:'دورة الكمي',description:'تدريب منظم',instructorName:'فريق المنصة',durationMinutes:20,level:'beginner',thumbnailAssetId:'',dripContentEnabled:false,certificateEnabled:true,access:{allowed:true,configured:true,reason:'free_product'},modules:[{id:'module-1',title:'الوحدة الأولى',description:'',sortOrder:1,lessons:[{id:'lesson-1',title:'فيديو النسب',description:'شرح مباشر',type:'video',durationSeconds:120,isLocked:false,isPreview:false,commerceLocked:false,sortOrder:1}]}]};

@@ -97,7 +97,13 @@ export interface TaxonomyPath {
   parentPathId?: string;
   description: string;
   sortOrder: number;
+  isActive?: boolean;
+  showInNavbar?: boolean;
+  showInHome?: boolean;
+  settings?: {showMockExamCard?:boolean;stageSelection?:'auto'|'required'|'none';stageLabel?:string};
 }
+
+export interface TaxonomyLevel {id:string;pathId:string;code:string;name:string;sortOrder:number}
 
 export interface TaxonomySubject {
   id: string;
@@ -106,6 +112,8 @@ export interface TaxonomySubject {
   code: string;
   name: string;
   sortOrder: number;
+  icon?:string;
+  color?:string;
 }
 
 export interface TaxonomySkill {
@@ -122,6 +130,7 @@ export interface TaxonomySkill {
 export interface TaxonomyCore {
   paths: TaxonomyPath[];
   subjects: TaxonomySubject[];
+  levels?:TaxonomyLevel[];
 }
 
 export interface TaxonomyFull extends TaxonomyCore {

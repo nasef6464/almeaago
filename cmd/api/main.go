@@ -16,6 +16,7 @@ import (
 	airepo "github.com/nasef6464/almeaago/internal/ai/repository/postgres"
 	aihttp "github.com/nasef6464/almeaago/internal/ai/transport/http"
 	assessmentapp "github.com/nasef6464/almeaago/internal/assessment/application"
+	assessmentcatalog "github.com/nasef6464/almeaago/internal/assessment/catalog"
 	assessmentrepo "github.com/nasef6464/almeaago/internal/assessment/repository/postgres"
 	assessmenthttp "github.com/nasef6464/almeaago/internal/assessment/transport/http"
 	commerceapp "github.com/nasef6464/almeaago/internal/commerce/application"
@@ -30,12 +31,15 @@ import (
 	contentapp "github.com/nasef6464/almeaago/internal/content/application"
 	contentrepo "github.com/nasef6464/almeaago/internal/content/repository/postgres"
 	contenthttp "github.com/nasef6464/almeaago/internal/content/transport/http"
+	discoveryapp "github.com/nasef6464/almeaago/internal/discovery/application"
+	discoveryhttp "github.com/nasef6464/almeaago/internal/discovery/transport/http"
 	"github.com/nasef6464/almeaago/internal/identity/application"
 	googleprovider "github.com/nasef6464/almeaago/internal/identity/provider/google"
 	whatsappprovider "github.com/nasef6464/almeaago/internal/identity/provider/whatsapp"
 	identityrepo "github.com/nasef6464/almeaago/internal/identity/repository/postgres"
 	identityhttp "github.com/nasef6464/almeaago/internal/identity/transport/http"
 	learningapp "github.com/nasef6464/almeaago/internal/learning/application"
+	learningnavigation "github.com/nasef6464/almeaago/internal/learning/navigation"
 	learningrepo "github.com/nasef6464/almeaago/internal/learning/repository/postgres"
 	learninghttp "github.com/nasef6464/almeaago/internal/learning/transport/http"
 	mediaapp "github.com/nasef6464/almeaago/internal/media/application"
@@ -313,6 +317,10 @@ func main() {
 		Classroom:                classroomHandler,
 		Parents:                  parentsHandler,
 		Taxonomy:                 taxonomyHandler,
+		Search:                   discoveryhttp.New(discoveryapp.NewService(contentRepository, questionRepository)),
+		PublicArticles:           discoveryhttp.NewArticles(discoveryapp.NewArticleService(contentRepository)),
+		PublicMockExams:          assessmentcatalog.NewHandler(assessmentcatalog.NewService(assessmentcatalog.NewPostgres(db))),
+		NavigationPreferences:    learningnavigation.NewHandler(learningnavigation.NewService(learningnavigation.NewPostgres(db)), identityService),
 		QuestionBank:             questionHandler,
 		Assessments:              assessmentHandler,
 		AssessmentAttempts:       assessmentAttemptsHandler,

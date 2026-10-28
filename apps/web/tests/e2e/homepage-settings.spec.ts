@@ -1,10 +1,10 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures/header-test';
 const admin={id:'homepage-admin',email:'admin@example.test',name:'مدير المنصة',status:'active',roles:['admin'],role:'admin'};
 for(const width of [390,820,1440]) test(`homepage saves original editor to public identity at ${width}`,async({page})=>{
  await page.setViewportSize({width,height:1000});
  await page.route('**/api/v1/auth/me',r=>r.fulfill({json:{user:admin}}));
  await page.route('**/api/v1/auth/csrf',r=>r.fulfill({json:{csrfToken:'homepage-csrf'}}));
- await page.route('**/api/v1/taxonomy/bootstrap?*',r=>r.fulfill({json:{paths:[],subjects:[]}}));
+ await page.route('**/api/v1/taxonomy/bootstrap?*',r=>r.fulfill({json:{levels:[],paths:[],subjects:[]}}));
  for(const name of ['courses','lessons']) await page.route(`**/api/v1/${name}?*`,r=>r.fulfill({json:{items:[],hasMore:false}}));
  let settings:Record<string,unknown>={hero:{}};let fail=false;
  await page.route('**/api/v1/content/homepage-settings',r=>{
@@ -37,7 +37,7 @@ test('failed initial settings load cannot save fallback defaults over persisted 
 });
 test('slow homepage save freezes edits against a late response',async({page})=>{
  await page.route('**/api/v1/auth/me',r=>r.fulfill({json:{user:admin}}));await page.route('**/api/v1/auth/csrf',r=>r.fulfill({json:{csrfToken:'homepage-csrf'}}));
- await page.route('**/api/v1/taxonomy/bootstrap?*',r=>r.fulfill({json:{paths:[],subjects:[]}}));for(const name of ['courses','lessons'])await page.route(`**/api/v1/${name}?*`,r=>r.fulfill({json:{items:[],hasMore:false}}));
+ await page.route('**/api/v1/taxonomy/bootstrap?*',r=>r.fulfill({json:{levels:[],paths:[],subjects:[]}}));for(const name of ['courses','lessons'])await page.route(`**/api/v1/${name}?*`,r=>r.fulfill({json:{items:[],hasMore:false}}));
  let release:()=>void=()=>{};const gate=new Promise<void>(r=>release=r);let patch=false;
  await page.route('**/api/v1/content/homepage-settings',async r=>{if(r.request().method()==='PATCH'){patch=true;await gate;return r.fulfill({json:r.request().postDataJSON()});}return r.fulfill({json:{hero:{}}});});
  await page.goto('/admin-dashboard?tab=homepage');const field=page.getByRole('textbox',{name:'نص الشعار الأول',exact:true});await field.fill('هوية نهائية');await page.getByRole('button',{name:'حفظ التعديلات',exact:true}).click();await expect.poll(()=>patch).toBe(true);await expect(field).toBeDisabled();release();await expect(page.getByText('تم حفظ إعدادات الصفحة الرئيسية بنجاح.',{exact:true})).toBeVisible();await expect(field).toHaveValue('هوية نهائية');

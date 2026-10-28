@@ -1,4 +1,4 @@
-import{expect,test,type Page,type Route}from'@playwright/test';
+import{expect,test,type Page,type Route}from'./fixtures/header-test';
 const student={id:'student-1',email:'student@example.com',name:'طالب',status:'active',avatarUrl:'',emailVerified:true,role:'student',roles:['student']};
 const attempt={id:'directed-attempt-1',assessmentId:'assessment-1',assessmentVersion:3,attemptNumber:1,status:'in_progress',title:'اختبار موجه',startedAt:'2026-09-28T03:00:00Z',expiresAt:null,submittedAt:null,showProgressBar:true,requireAnswerBeforeNext:false,allowQuestionReview:true,randomizeOptions:false,questions:[],answers:[]};
 function json(r:Route,b:unknown,s=200){return r.fulfill({status:s,contentType:'application/json',body:JSON.stringify(b)})}

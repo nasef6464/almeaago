@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from './fixtures/header-test';
 
 const director={
   id:'director-1',email:'director@example.com',name:'مدير المدرسة',status:'active',avatarUrl:'',emailVerified:true,
@@ -26,7 +26,7 @@ const permissions=[
 
 async function mockDirector(page:Page,modules=['SCHOOL_CORE']){
   await auth(page);
-  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{paths:[{id:'path-1',name:'قدرات'}],subjects:[{id:'subject-1',pathId:'path-1',name:'الرياضيات',code:'MATH',sortOrder:1}]}));
+  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{levels:[],paths:[{id:'path-1',name:'قدرات'}],subjects:[{id:'subject-1',pathId:'path-1',name:'الرياضيات',code:'MATH',sortOrder:1}]}));
   await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[
     {schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',permissions,modules,source:'membership'},
     {schoolId:'school-2',schoolName:'مدرسة ثانية',role:'school_admin',permissions:['SCHOOL_OVERVIEW_VIEW','SCHOOL_STUDENTS_VIEW'],modules:['SCHOOL_CORE'],source:'membership'},
@@ -908,7 +908,7 @@ test('optional school-core tools require both permission and active module in th
 
 test('mobile director empty state is explicit when no active school delegation exists',async({page})=>{
   await auth(page);
-  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{paths:[],subjects:[]}));
+  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{levels:[],paths:[],subjects:[]}));
   await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[]}));
   await page.setViewportSize({width:390,height:844});
   await page.goto('/school-director-dashboard');

@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from './fixtures/header-test';
 
 const admin={
   id:'admin-1',email:'admin@example.com',name:'مدير المنصة',status:'active',avatarUrl:'',emailVerified:true,
@@ -13,7 +13,7 @@ async function auth(page:Page,user:typeof admin|typeof teacher){
   await page.route('**/api/v1/auth/me',r=>json(r,{user}));
   await page.route('**/api/v1/auth/csrf',r=>json(r,{csrfToken:'csrf-question-bank'}));
 }
-const taxonomy={
+const taxonomy={levels:[],
   paths:[{id:'path-1',code:'QDR',name:'القدرات',description:'',sortOrder:1}],
   subjects:[{id:'subject-1',pathId:'path-1',code:'QNT',name:'الكمي',sortOrder:1}],
   skills:[

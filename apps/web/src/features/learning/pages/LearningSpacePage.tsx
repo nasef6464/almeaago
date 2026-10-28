@@ -1,3 +1,4 @@
+import {resolveLearningRoute,updateLearningQuery,type LearningTab} from './learning-route';
 import {
   Award,
   BookOpen,
@@ -12,38 +13,28 @@ import {
   User,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
 import type { LearningSpace, TaxonomyCore } from '../../content/api/content-types';
 
-type Tab = 'courses' | 'foundation' | 'questions' | 'exams' | 'library';
-
-const legacyTabMap: Record<string, Tab> = {
-  courses: 'courses',
-  skills: 'foundation',
-  foundation: 'foundation',
-  banks: 'questions',
-  questions: 'questions',
-  tests: 'exams',
-  exams: 'exams',
-  library: 'library',
-};
+type Tab = LearningTab;
 
 export function LearningSpacePage() {
   const { user, loading: authLoading } = useAuth();
+  const navigate=useNavigate();
   const { pathId: legacyPathId = '' } = useParams<{ pathId?: string }>();
   const [params, setParams] = useSearchParams();
 
-  const initialPathId = legacyPathId || params.get('pathId') || '';
-  const initialSubjectId = params.get('subjectId') || params.get('subject') || '';
-  const initialTab = legacyTabMap[params.get('tab') || 'courses'] || 'courses';
-
   const [taxonomy, setTaxonomy] = useState<TaxonomyCore>({ paths: [], subjects: [] });
-  const [pathId, setPathId] = useState(initialPathId);
-  const [subjectId, setSubjectId] = useState(initialSubjectId);
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const route=resolveLearningRoute(legacyPathId,params,taxonomy);
+  const pathId=route.pathId;const subjectId=route.subjectId;const tab:Tab=route.tab;
+  function select(field:'pathId'|'subjectId'|'tab',value:string){
+    const next=updateLearningQuery(params,field,value,Boolean(legacyPathId));
+    if(legacyPathId&&field==='pathId')navigate(`/category/${encodeURIComponent(value)}${next.toString()?'?'+next.toString():''}`);
+    else setParams(next);
+  }
   const [space, setSpace] = useState<LearningSpace | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -55,38 +46,12 @@ export function LearningSpacePage() {
     return () => controller.abort();
   }, []);
 
-  useEffect(() => {
-    if (legacyPathId && legacyPathId !== pathId) {
-      setPathId(legacyPathId);
-      setSubjectId(params.get('subjectId') || params.get('subject') || '');
-      setTab(legacyTabMap[params.get('tab') || 'courses'] || 'courses');
-    }
-  }, [legacyPathId, params, pathId]);
-
   const subjects = useMemo(
-    () => taxonomy.subjects.filter((item) => !pathId || item.pathId === pathId),
-    [pathId, taxonomy.subjects],
+    () => taxonomy.subjects.filter((item) => (!pathId || item.pathId === pathId)&&(!route.levelId||item.levelId===route.levelId)),
+    [pathId,route.levelId,taxonomy.subjects],
   );
   const currentPath = taxonomy.paths.find((item) => item.id === pathId);
   const currentSubject = taxonomy.subjects.find((item) => item.id === subjectId);
-
-  useEffect(() => {
-    if (subjectId && taxonomy.subjects.length > 0 && !subjects.some((item) => item.id === subjectId)) {
-      setSubjectId('');
-    }
-  }, [subjectId, subjects, taxonomy.subjects.length]);
-
-  useEffect(() => {
-    if (legacyPathId) return;
-    setParams((previous) => {
-      const next = new URLSearchParams(previous);
-      pathId ? next.set('pathId', pathId) : next.delete('pathId');
-      subjectId ? next.set('subjectId', subjectId) : next.delete('subjectId');
-      next.delete('subject');
-      next.set('tab', tab);
-      return next;
-    }, { replace: true });
-  }, [legacyPathId, pathId, setParams, subjectId, tab]);
 
   useEffect(() => {
     if (!pathId || !subjectId) {
@@ -179,8 +144,7 @@ export function LearningSpacePage() {
               aria-label="المسار"
               value={pathId}
               onChange={(event) => {
-                setPathId(event.target.value);
-                setSubjectId('');
+                select('pathId',event.target.value);
               }}
               className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-3 pr-10 font-bold outline-none focus:border-amber-400"
             >
@@ -195,7 +159,7 @@ export function LearningSpacePage() {
             aria-label="المادة"
             value={subjectId}
             disabled={!pathId}
-            onChange={(event) => setSubjectId(event.target.value)}
+            onChange={(event) => select('subjectId',event.target.value)}
             className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 font-bold outline-none focus:border-amber-400 disabled:opacity-50"
           >
             <option value="">اختر المادة</option>
@@ -210,7 +174,7 @@ export function LearningSpacePage() {
             <button
               key={id}
               type="button"
-              onClick={() => setTab(id)}
+              onClick={() => select('tab',id)}
               className={`flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black transition-all sm:px-5 ${
                 tab === id
                   ? 'bg-indigo-600 text-white shadow-sm'

@@ -10,6 +10,7 @@ import {
   type AdminTaxonomySubject,
   type TaxonomyStatus,
 } from '../api/taxonomy-admin-client';
+import { TaxonomyDisplayEditor } from './TaxonomyDisplayEditor';
 
 const EMPTY:AdminTaxonomyBootstrap={paths:[],levels:[],subjects:[],skills:[]};
 const statusLabels:Record<TaxonomyStatus,string>={active:'نشط',inactive:'غير نشط',archived:'مؤرشف'};
@@ -74,7 +75,8 @@ export function TaxonomyAdminPage(){
       await action(csrf);
       setNotice(success);
       setReload(x=>x+1);
-    }catch(e){setError(e instanceof Error?e.message:'تعذر تنفيذ عملية التصنيف')}
+      return true;
+    }catch(e){setError(e instanceof Error?e.message:'تعذر تنفيذ عملية التصنيف');return false;}
     finally{setPending('')}
   }
 
@@ -161,6 +163,7 @@ export function TaxonomyAdminPage(){
             {edit?.type==='path'&&edit.id===selectedPath.id?<div className="mt-4 grid gap-2 rounded-2xl bg-gray-50 p-3 sm:grid-cols-[1fr_2fr_auto]"><input aria-label="اسم المسار المعدل" value={edit.name} onChange={e=>setEdit({...edit,name:e.target.value})} className="rounded-xl border p-2"/><input aria-label="وصف المسار المعدل" value={edit.description} onChange={e=>setEdit({...edit,description:e.target.value})} className="rounded-xl border p-2"/><button type="button" onClick={()=>void saveEdit()} className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-950 px-4 text-sm font-black text-white"><Save size={15}/> حفظ</button></div>:null}
           </article>
 
+          <TaxonomyDisplayEditor key={selectedPath.id} path={selectedPath} subject={selectedSubject} pending={!!pending} savePath={input=>run('path-display',csrf=>taxonomyAdminClient.updatePath(selectedPath.id,input,csrf).then(()=>undefined),'تم حفظ إعدادات عرض المسار.')} saveSubject={input=>selectedSubject?run('subject-display',csrf=>taxonomyAdminClient.updateSubject(selectedSubject.id,input,csrf).then(()=>undefined),'تم حفظ إعدادات عرض المادة.'):Promise.resolve(false)}/>
           <section className="grid gap-4 lg:grid-cols-2">
             <article className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5">
               <div className="flex items-center justify-between"><h3 className="font-black">المراحل الدراسية</h3><GraduationCap size={18} className="text-sky-700"/></div>

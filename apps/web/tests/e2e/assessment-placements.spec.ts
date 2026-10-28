@@ -1,8 +1,8 @@
-import{expect,test,type Page,type Route}from'@playwright/test';
+import{expect,test,type Page,type Route}from'./fixtures/header-test';
 
 const admin={id:'admin-1',email:'admin@example.com',name:'مدير',status:'active',avatarUrl:'',emailVerified:true,role:'admin',roles:['admin']};
 const student={id:'student-1',email:'student@example.com',name:'طالب',status:'active',avatarUrl:'',emailVerified:true,role:'student',roles:['student']};
-const taxonomy={paths:[{id:'path-1',code:'QDR',name:'القدرات',description:'',sortOrder:1}],subjects:[{id:'subject-1',pathId:'path-1',code:'QNT',name:'الكمي',sortOrder:1}]};
+const taxonomy={levels:[],paths:[{id:'path-1',code:'QDR',name:'القدرات',description:'',sortOrder:1}],subjects:[{id:'subject-1',pathId:'path-1',code:'QNT',name:'الكمي',sortOrder:1}]};
 const summary={id:'assessment-1',code:'QNT-1',title:'اختبار الكمي',pathId:'path-1',subjectId:'subject-1',kind:'normal',workflowStatus:'approved',ownerType:'platform',revision:3,currentVersion:2,isPublished:true,updatedAt:'2026-09-26T02:00:00Z'};
 const attempt={id:'attempt-placement-1',assessmentId:'assessment-1',assessmentVersion:2,attemptNumber:1,status:'in_progress',title:'اختبار الكمي',startedAt:'2026-09-26T02:05:00Z',expiresAt:null,submittedAt:null,showProgressBar:true,requireAnswerBeforeNext:false,allowQuestionReview:true,randomizeOptions:false,questions:[{id:'q-1',version:1,sectionId:'',sortOrder:0,points:1,type:'mcq',text:'١ + ١ = ؟',imageAssetId:'',imageAlt:'',optionsEmbeddedInImage:false,videoUrl:'',difficulty:'easy',options:[{index:0,text:'١',assetId:''},{index:1,text:'٢',assetId:''}]}],answers:[]};
 function json(r:Route,b:unknown,s=200){return r.fulfill({status:s,contentType:'application/json',body:JSON.stringify(b)})}

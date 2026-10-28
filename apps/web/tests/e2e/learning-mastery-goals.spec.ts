@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from './fixtures/header-test';
 
 const student = {
   id: 'student-1',
@@ -25,7 +25,7 @@ test('mobile student creates and achieves a bounded self-owned mastery goal', as
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.route('**/api/v1/taxonomy/bootstrap?phase=core', (route) =>
-    json(route, {
+    json(route, {levels:[],
       paths: [{ id: 'path-1', code: 'QDR', name: 'القدرات', description: '', sortOrder: 1 }],
       subjects: [{ id: 'subject-1', pathId: 'path-1', code: 'QNT', name: 'الكمي', sortOrder: 1 }],
     }),

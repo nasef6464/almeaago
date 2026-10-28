@@ -1,7 +1,7 @@
-import{expect,test,type Page,type Route}from'@playwright/test';
+import{expect,test,type Page,type Route}from'./fixtures/header-test';
 function json(route:Route,body:unknown,status=200){return route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)})}
 async function auth(page:Page){await page.route('**/api/v1/auth/me',r=>json(r,{user:{id:'student-1',name:'طالب',email:'student@example.com',roles:['student']}}));}
-const taxonomy={paths:[{id:'p1',name:'قدرات'}],subjects:[{id:'s1',pathId:'p1',name:'كمي'}]};
+const taxonomy={levels:[],paths:[{id:'p1',name:'قدرات'}],subjects:[{id:'s1',pathId:'p1',name:'كمي'}]};
 const learningSpace={pathId:'p1',subjectId:'s1',courses:{items:[{id:'c1',title:'دورة الكمي',description:'تدريب منظم',instructorName:'المدرب',durationMinutes:90,level:'متوسط',thumbnailAssetId:'',dripContentEnabled:false,certificateEnabled:false}],hasMore:false},foundation:{items:[{id:'t1',parentTopicId:'',title:'أساسيات النسب',description:'تأسيس قصير',sortOrder:1,isLocked:true}],hasMore:false},library:{items:[{id:'l1',title:'ملف دعم النسب',description:'ملخص',type:'pdf',isLocked:false}],hasMore:false}};
 
 async function mockLearning(page:Page){

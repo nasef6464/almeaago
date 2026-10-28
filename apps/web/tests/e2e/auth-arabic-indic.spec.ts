@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/header-test';
 
 for (const viewport of [
   { name: 'mobile', width: 390, height: 844 },

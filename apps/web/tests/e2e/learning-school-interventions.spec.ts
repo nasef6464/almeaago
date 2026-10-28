@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from './fixtures/header-test';
 
 const schoolAdmin = {
   id: 'director-1',
@@ -40,7 +40,7 @@ async function auth(page: Page, user: typeof schoolAdmin | typeof supervisor | t
   await page.route('**/api/v1/auth/csrf', (route) => json(route, { csrfToken: 'csrf-intervention' }));
 }
 
-const taxonomy = {
+const taxonomy = {levels:[],
   paths: [{ id: 'path-1', code: 'QDR', name: 'القدرات', description: '', sortOrder: 1 }],
   subjects: [{ id: 'subject-1', pathId: 'path-1', code: 'QNT', name: 'الكمي', sortOrder: 1 }],
   skills: [{ id: 'skill-1', subjectId: 'subject-1', parentSkillId: '', code: 'RATIO', name: 'النسبة', description: '', kind: 'main', sortOrder: 1 }],
@@ -205,7 +205,7 @@ test('mobile student sees school intervention linked to generated study plan', a
   await auth(page, student);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/api/v1/taxonomy/bootstrap?phase=core', (route) =>
-    json(route, { paths: taxonomy.paths, subjects: taxonomy.subjects }),
+    json(route, {levels:[], paths: taxonomy.paths, subjects: taxonomy.subjects }),
   );
   await page.route('**/api/v1/interventions/mine?**', (route) =>
     json(route, { items: [baseIntervention], page: 1, limit: 20, hasMore: false }),

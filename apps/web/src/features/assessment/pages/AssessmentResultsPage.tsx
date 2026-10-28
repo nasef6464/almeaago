@@ -12,7 +12,8 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { safeAssessmentReturn, assessmentResultsHref } from './assessment-return';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { learningClient } from '../../learning/api/learning-client';
@@ -34,7 +35,7 @@ function scoreTone(passed: boolean) {
     : 'border-rose-100 bg-rose-50 text-rose-800';
 }
 
-function ResultSummary({ item }: { item: ResultListItem }) {
+function ResultSummary({ item, journeySearch }: { item: ResultListItem; journeySearch: string }) {
   return (
     <article className="rounded-2xl border-2 border-slate-200/90 bg-white p-4 shadow-sm transition-colors hover:border-indigo-300">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -59,7 +60,7 @@ function ResultSummary({ item }: { item: ResultListItem }) {
         <div className="rounded-xl bg-amber-50 p-2 text-amber-800">{item.unanswered} بدون إجابة</div>
       </div> : null}
       <div className="mt-3 flex justify-end border-t border-slate-100 pt-3">
-        <Link to={`/assessment-results/${item.attemptId}`} className="inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-3.5 py-2 text-xs font-black text-white hover:bg-gray-800">
+        <Link to={assessmentResultsHref(item.attemptId, journeySearch)} className="inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-3.5 py-2 text-xs font-black text-white hover:bg-gray-800">
           <Eye size={15} className="text-amber-400"/>عرض النتيجة
         </Link>
       </div>
@@ -171,6 +172,8 @@ function ReviewQuestionCard({
 
 export function AssessmentResultsPage() {
   const { attemptId = '' } = useParams();
+  const location = useLocation();
+  const returnTo = safeAssessmentReturn(location.search);
   const { user, loading: authLoading, getCsrfToken } = useAuth();
   const [history, setHistory] = useState<ResultListItem[]>([]);
   const [detail, setDetail] = useState<ResultDetail | null>(null);
@@ -249,7 +252,7 @@ export function AssessmentResultsPage() {
     return <main className="p-10 text-center font-black text-rose-700">يلزم تسجيل الدخول.</main>;
   }
   if (error) {
-    return <main className="p-10 text-center font-black text-rose-700">{error}</main>;
+    return <main className="p-10 text-center font-black text-rose-700">{error}{returnTo ? <Link to={returnTo} className="mt-4 block text-indigo-700">العودة إلى الاختبارات المحاكية</Link> : null}</main>;
   }
 
   if (!attemptId) {
@@ -258,6 +261,7 @@ export function AssessmentResultsPage() {
     const bestOnPage = visibleScores.length ? Math.max(...visibleScores) : null;
     return (
       <main dir="rtl" className="mx-auto max-w-4xl space-y-5 px-3 pb-20 pt-5 sm:px-6">
+        {returnTo ? <Link to={returnTo} className="inline-flex rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 font-bold text-indigo-700">العودة إلى الاختبارات المحاكية</Link> : null}
         <header className="rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 via-white to-sky-50/40 p-5 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
@@ -279,7 +283,7 @@ export function AssessmentResultsPage() {
 
         {history.length === 0 ? <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center">
           <History className="mx-auto text-indigo-400" size={28}/><h2 className="mt-3 font-black text-gray-900">لا توجد محاولات بعد</h2><p className="mt-1 text-sm font-bold text-gray-500">ابدأ اختبارًا واحدًا، وبعد التسليم ستظهر النتيجة هنا.</p>
-        </div> : <div className="space-y-3">{history.map((item)=><ResultSummary key={item.attemptId} item={item}/>)}</div>}
+        </div> : <div className="space-y-3">{history.map((item)=><ResultSummary key={item.attemptId} item={item} journeySearch={location.search}/>)}</div>}
 
         <div className="flex items-center justify-between">
           <button type="button" disabled={page<=1} onClick={()=>setPage((value)=>Math.max(1,value-1))} className="inline-flex items-center gap-1 rounded-xl border bg-white px-3 py-2 text-sm font-black disabled:opacity-40"><ChevronRight size={16}/>السابق</button>
@@ -291,7 +295,7 @@ export function AssessmentResultsPage() {
   }
 
   if (!detail) {
-    return <main className="p-10 text-center font-black">النتيجة غير متاحة.</main>;
+    return <main className="p-10 text-center font-black">النتيجة غير متاحة.{returnTo ? <Link to={returnTo} className="mt-4 block text-indigo-700">العودة إلى الاختبارات المحاكية</Link> : null}</main>;
   }
 
   const result = detail.result;
@@ -300,10 +304,10 @@ export function AssessmentResultsPage() {
       <header className="rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 via-white to-sky-50/40 p-5 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
-            <Link to="/assessment-results" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="العودة لسجل النتائج"><ArrowRight size={20}/></Link>
+            <Link to={assessmentResultsHref(undefined, location.search)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="العودة لسجل النتائج"><ArrowRight size={20}/></Link>
             <div><div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-black text-gray-900 sm:text-2xl">{detail.title}</h1><span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-black text-indigo-700">المحاولة {detail.attemptNumber}</span></div><p className="mt-1 text-xs font-bold text-gray-500">{new Date(result.finalizedAt).toLocaleString('ar-SA')}</p></div>
           </div>
-          <div className="flex flex-wrap gap-2"><Link to="/review" className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-black text-purple-700">أسئلتي للمراجعة</Link><Link to="/assessments" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">اختبار جديد</Link></div>
+          <div className="flex flex-wrap gap-2">{returnTo ? <Link to={returnTo} className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700">العودة إلى الاختبارات المحاكية</Link> : null}<Link to="/review" className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-black text-purple-700">أسئلتي للمراجعة</Link><Link to="/assessments" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">اختبار جديد</Link></div>
         </div>
 
         {detail.showResultsReport ? <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">

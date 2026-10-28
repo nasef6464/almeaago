@@ -1,4 +1,4 @@
-import {expect,test,type Page} from '@playwright/test';
+import {expect,test,type Page} from './fixtures/header-test';
 const admin={id:'fonts-admin',email:'admin@example.test',name:'مدير المنصة',status:'active',avatarUrl:'',emailVerified:true,role:'admin',roles:['admin']};
 async function auth(page:Page,roles=['admin']) {
  await page.route('**/api/v1/auth/me',r=>r.fulfill({json:{user:{...admin,role:roles[0],roles}}}));

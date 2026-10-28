@@ -1,4 +1,4 @@
-import{expect,test,type Page,type Route}from'@playwright/test';
+import{expect,test,type Page,type Route}from'./fixtures/header-test';
 
 const teacher={id:'teacher-1',email:'teacher@example.com',name:'معلم الفصل',status:'active',avatarUrl:'',emailVerified:true,role:'teacher',roles:['teacher']};
 const student={id:'student-1',email:'student@example.com',name:'طالب الفصل',status:'active',avatarUrl:'',emailVerified:true,role:'student',roles:['student']};
@@ -26,7 +26,7 @@ test('teacher runs QR lobby roster attendance challenge reveal and immutable rep
    assignmentId:'assignment-1',classId:'class-1',className:'الصف الأول',subjectId:'subject-1',studentCount:2
   }]}]
  }));
- await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{
+ await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{levels:[],
   paths:[{id:'path-1',code:'PATH',name:'المسار'}],
   subjects:[{id:'subject-1',pathId:'path-1',code:'MATH',name:'الرياضيات'}]
  }));

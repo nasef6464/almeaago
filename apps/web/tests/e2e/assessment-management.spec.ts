@@ -1,7 +1,7 @@
-import {expect,test,type Page,type Route} from '@playwright/test';
+import {expect,test,type Page,type Route} from './fixtures/header-test';
 const admin={id:'admin-1',email:'admin@example.com',name:'مدير المنصة',status:'active',avatarUrl:'',emailVerified:true,role:'admin',roles:['admin']};
 const teacher={...admin,id:'teacher-1',role:'teacher',roles:['teacher'],name:'معلم'};
-const taxonomy={paths:[{id:'path-1',code:'QDR',name:'القدرات',description:'',sortOrder:1}],subjects:[{id:'subject-1',pathId:'path-1',code:'QNT',name:'الكمي',sortOrder:1}]};
+const taxonomy={levels:[],paths:[{id:'path-1',code:'QDR',name:'القدرات',description:'',sortOrder:1}],subjects:[{id:'subject-1',pathId:'path-1',code:'QNT',name:'الكمي',sortOrder:1}]};
 const summary={id:'assessment-1',code:'QNT-MOCK-1',title:'محاكي القدرات الكمي',pathId:'path-1',subjectId:'subject-1',kind:'normal',workflowStatus:'draft',ownerType:'platform',revision:2,currentVersion:1,isPublished:false,updatedAt:'2026-09-26T10:00:00Z'};
 const detail={...summary,ownerUserId:'',ownerSchoolId:'',assignedTeacherId:'',reviewerNotes:'',isVisible:true,version:{version:1,accessType:'free',title:summary.title,description:'اختبار تجريبي',pathId:'path-1',subjectId:'subject-1',kind:'normal',normalMode:'practice',showExplanations:true,showAnswers:true,showResultsReport:true,returnToSourceOnFinish:false,maxAttempts:2,passingScore:60,timeLimitSeconds:null,randomizeQuestions:false,randomizeOptions:false,showProgressBar:true,requireAnswerBeforeNext:false,allowQuestionReview:true,optionLayout:'vertical',mockCategory:'',mockTargetScore:null,mockStrictSectionLock:null,mockPresentationMode:'',presentation:{},revisionNote:''},sections:[],questions:[{questionId:'q-1',questionVersion:3,sectionId:'',sortOrder:1,points:1}]};
 function json(r:Route,b:unknown,s=200){return r.fulfill({status:s,contentType:'application/json',body:JSON.stringify(b)})}

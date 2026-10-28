@@ -1,4 +1,4 @@
-import{expect,test,type Page,type Route}from'@playwright/test';
+import{expect,test,type Page,type Route}from'./fixtures/header-test';
 
 const admin={id:'admin-1',email:'admin@example.com',name:'مدير المنصة',status:'active',avatarUrl:'',emailVerified:true,role:'admin',roles:['admin']};
 const student={id:'student-1',email:'student@example.com',name:'طالب',status:'active',avatarUrl:'',emailVerified:true,role:'student',roles:['student']};
@@ -73,7 +73,7 @@ test('admin manages non-secret AI provider policy and inspects usage evidence',a
 test('student question assistant is scoped to owned review card and can return trusted fallback',async({page})=>{
  await auth(page,student);
  await page.setViewportSize({width:390,height:844});
- await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{paths:[{id:'path-1',name:'القدرات',slug:'abilities',status:'active'}],subjects:[{id:'subject-1',pathId:'path-1',name:'كمي',slug:'quant',status:'active'}]}));
+ await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{levels:[],paths:[{id:'path-1',name:'القدرات',slug:'abilities',status:'active'}],subjects:[{id:'subject-1',pathId:'path-1',name:'كمي',slug:'quant',status:'active'}]}));
  await page.route('**/api/v1/review/library?**',route=>json(route,{items:[{card:{cardId:'card-1',questionId:'q-1',questionVersion:3,pathId:'path-1',subjectId:'subject-1',reviewType:'error_recovery',savedForReview:false,savedAt:null,hasMistake:true,nextReviewAt:'2026-09-27T09:00:00Z',skillIds:['skill-1'],updatedAt:'2026-09-27T08:00:00Z'},question:{id:'q-1',version:3,type:'mcq',text:'٢ + ٢ = ؟',imageAssetId:'',imageAlt:'',optionsEmbeddedInImage:false,videoUrl:'',difficulty:'easy',correctOptionIndex:1,explanation:'نجمع العددين فنحصل على أربعة.',hint:'اجمع العددين.',solvingStrategy:'جمع مباشر',options:[{index:0,text:'٣',assetId:''},{index:1,text:'٤',assetId:''}]}}],page:1,limit:20,hasMore:false}));
  await page.route('**/api/v1/mastery/progress?**',route=>json(route,{items:[],page:1,limit:8,hasMore:false}));
  await page.route('**/api/v1/mastery/next-action?**',route=>json(route,{item:null}));

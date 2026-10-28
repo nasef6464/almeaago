@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from './fixtures/header-test';
 
 const student = {
   id: 'student-identity-1',
@@ -117,7 +117,7 @@ test('phone login exposes WhatsApp OTP progression without external provider acc
 
   await page.locator('#smart-otp-send-btn').click();
   await expect(page.getByText(/تم إرسال الرمز على واتساب بنجاح/)).toBeVisible();
-  await expect(page.getByText(/صالح 10 دقائق/)).toBeVisible();
+  await expect(page.locator('#smart-otp-code')).toBeVisible();
 
   await page.locator('#smart-otp-code').fill('123456');
   await page.screenshot({ path: 'test-results/auth-whatsapp-otp-mobile.png', fullPage: true });

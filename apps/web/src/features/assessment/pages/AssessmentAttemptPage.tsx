@@ -1,9 +1,10 @@
 import { CheckCircle2, Clock3, Flag, Send } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { attemptClient, type Attempt, type Result } from '../api/attempt-client';
+import { safeAssessmentReturn, assessmentResultsHref } from './assessment-return';
 
 const key = (prefix: string, id: string) => {
   const storageKey = `${prefix}:${id}`;
@@ -17,6 +18,8 @@ const key = (prefix: string, id: string) => {
 
 export function AssessmentAttemptPage() {
   const { assessmentId = '', attemptId = '' } = useParams();
+  const location = useLocation();
+  const returnTo = safeAssessmentReturn(location.search);
   const { user, loading, getCsrfToken } = useAuth();
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [result, setResult] = useState<Result | null>(null);
@@ -120,7 +123,7 @@ export function AssessmentAttemptPage() {
     return <main className="p-10 text-center font-black">جاري فتح الاختبار...</main>;
   }
   if (error && !attempt) {
-    return <main className="p-10 text-center font-black text-rose-700">{error}</main>;
+    return <main className="p-10 text-center font-black text-rose-700">{error}{returnTo ? <Link to={returnTo} className="mt-4 block text-indigo-700">العودة إلى الاختبارات المحاكية</Link> : null}</main>;
   }
   if (result) {
     return (
@@ -134,28 +137,30 @@ export function AssessmentAttemptPage() {
           </p>
           <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
             <Link
-              to={`/assessment-results/${result.attemptId}`}
+              to={assessmentResultsHref(result.attemptId, location.search)}
               className="rounded-xl bg-slate-950 px-4 py-2.5 font-black text-white"
             >
               عرض النتيجة والمراجعة
             </Link>
             <Link
-              to="/assessment-results"
+              to={assessmentResultsHref(undefined, location.search)}
               className="rounded-xl border px-4 py-2.5 font-black text-slate-700"
             >
               سجل النتائج
             </Link>
+            {returnTo ? <Link to={returnTo} className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 font-black text-indigo-700">العودة إلى الاختبارات المحاكية</Link> : null}
           </div>
         </section>
       </main>
     );
   }
   if (!attempt || !question) {
-    return <main className="p-10 text-center font-black">لا توجد أسئلة متاحة.</main>;
+    return <main className="p-10 text-center font-black">لا توجد أسئلة متاحة.{returnTo ? <Link to={returnTo} className="mt-4 block text-indigo-700">العودة إلى الاختبارات المحاكية</Link> : null}</main>;
   }
 
   return (
     <main dir="rtl" className="mx-auto max-w-3xl space-y-4 p-4">
+      {returnTo ? <Link to={returnTo} className="inline-flex rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 font-bold text-indigo-700">العودة إلى الاختبارات المحاكية</Link> : null}
       <header className="rounded-2xl bg-slate-950 p-4 text-white">
         <div className="flex items-center justify-between">
           <div>

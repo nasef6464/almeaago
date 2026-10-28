@@ -1,10 +1,10 @@
 name: Database CI
 on:
   pull_request:
-    paths: ["apps/web/src/features/presentation/**","apps/web/tests/e2e/platform-fonts*","apps/web/tests/reference/**","scripts/parity/font-reference.mjs","apps/web/vite.config.ts","migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**"]
+    paths: ["apps/web/src/features/presentation/**","apps/web/tests/e2e/platform-fonts*","apps/web/tests/reference/**","scripts/parity/font-reference.mjs","apps/web/vite.config.ts","internal/discovery/**","internal/taxonomy/**","internal/commerce/**","internal/assessment/catalog/**","internal/platform/httpserver/**","apps/web/src/features/public/header/**","scripts/parity/header-reference.mjs","apps/web/tests/e2e/original-header-live.spec.ts","migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**"]
   push:
     branches: [main]
-    paths: ["apps/web/src/features/presentation/**","apps/web/tests/e2e/platform-fonts*","apps/web/tests/reference/**","scripts/parity/font-reference.mjs","apps/web/vite.config.ts","migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**"]
+    paths: ["apps/web/src/features/presentation/**","apps/web/tests/e2e/platform-fonts*","apps/web/tests/reference/**","scripts/parity/font-reference.mjs","apps/web/vite.config.ts","internal/discovery/**","internal/taxonomy/**","internal/commerce/**","internal/assessment/catalog/**","internal/platform/httpserver/**","apps/web/src/features/public/header/**","scripts/parity/header-reference.mjs","apps/web/tests/e2e/original-header-live.spec.ts","migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**"]
   workflow_dispatch:
 concurrency:
   group: database-ci-${{ github.ref }}
@@ -14,7 +14,7 @@ permissions: { contents: read }
 jobs:
   database:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:18
@@ -85,6 +85,19 @@ jobs:
           HOMEPAGE_TEST_DB: "1"
         run: go test ./internal/content/repository/postgres -run '^TestHomepageSettingsHTTPPostgres$' -count=1 -v
 
+      - name: Verify header domain persistence and public read boundaries
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+          TAXONOMY_TEST_DB: "1"
+          NAVIGATION_TEST_DB: "1"
+          PUBLIC_MOCKS_TEST_DB: "1"
+        run: |
+          go test ./internal/taxonomy/repository/postgres -run '^(TestDisplayPostgresSaveReloadAndAuditRollback|TestPublicCommerceScopePostgresArchivedTaxonomyHidesPublishedCourse)$' -count=1 -v
+          go test ./internal/learning/navigation -run '^TestPostgresSaveReloadIsolationForeignLevelAndAuditRollback$' -count=1 -v
+          go test ./internal/commerce/repository/postgres -run '^TestPublicCatalogHTTPPostgres$' -count=1 -v
+          go test ./internal/discovery/transport/http -run '^TestPublicSearchHTTPPostgres$' -count=1 -v
+          go test ./internal/assessment/catalog -run '^TestPublicMockCatalogPostgresVisibilityAndPublishedSnapshot$' -count=1 -v
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -93,6 +106,21 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
+      - name: Verify original header through real Go sessions and PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+          HEADER_TEST_DB: "1"
+          HEADER_BROWSER_E2E: "1"
+        run: go test -v -count=1 ./internal/platform/httpserver -run '^TestOriginalHeaderHTTPPostgresBrowser$' -timeout 10m
+      - name: Upload header integration browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: original-header-integration-evidence
+          path: |
+            apps/web/test-results/
+            apps/web/playwright-report/
+          retention-days: 7
       - name: Verify homepage editor through real Go sessions and PostgreSQL
         env:
           DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
