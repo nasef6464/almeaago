@@ -25,6 +25,7 @@ func TestFontPatchSourceContract(t *testing.T) {
 		t.Fatalf("nested defaults: %#v", upload)
 	}
 	for _, input := range []map[string]any{
+		{"bodyCustomFont": map[string]any{"name": strings.Repeat("😀", 41)}},
 		{"bodyFont": "serif"}, {"bodyFont": nil}, {"headingSize": "100px"}, {"bodySize": "16px;display:none"},
 		{"buttonWeight": "100"}, {"bodyColor": "red"}, {"headingColor": nil}, {"bodyCustomFont": nil},
 		{"bodyCustomFont": map[string]any{"size": float64(500001)}},

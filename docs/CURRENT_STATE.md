@@ -1576,3 +1576,10 @@ Teacher PR #116, Parent PR #117, School Director PR #118 and Supervisor PR #119 
 
 ## UI-6 Admin / Control Panels — ACTIVE
 UI-5 is closed. Latest Legacy AdminDashboard and supporting manager sources were read first at `d4e5c831...`. Every official UI-6 surface in the transplant plan already has a real V2 route and domain-specific E2E. This protected slice aligns/certifies the legacy admin shell navigation over those canonical owner domains; no Legacy store/business authority is restored. Exact-head four-gate verification pending.
+
+
+## Owner plan reconciliation — 2026-10-28 / whole-platform restoration remains PARTIAL
+
+The single active Go execution plan is `migration/03_EXECUTION_AND_HANDOFF_PLAN_AR.md`; Legacy's 0–9 delivery statuses are historical source evidence, not Go closure. Current source bf7281fc and target main671fbadf were rechecked. Preserve #150/#151 and all implemented Go domains. The current isolated font restoration slice is PR#152; no production deployment or data migration. The reconciliation matrix in `migration/26_WHOLE_PLATFORM_UI_RESTORATION_AR.md` distinguishes verified bounded changes from partial/missing/unknown contracts. Existing UI-3/UI-4/UI-5 closure labels do not certify current whole-platform 100% visual/functional parity.
+
+Order: finish the preserved public-settings slice and remaining dynamic homepage/header gaps; restore the original path→subject administrative workspace as a complete workflow with learner visibility; audit/reuse student/learning/player/assessments/results/review; then all remaining roles/tools; finally data/performance/integration/security/trial migration and restore acceptance. Open stale PR#123/#144 are preserved for comparison, not merged wholesale. No concurrent implementation writer on the current branch.

@@ -3,7 +3,7 @@ package domain
 import (
 	"errors"
 	"regexp"
-	"unicode/utf8"
+	"unicode/utf16"
 )
 
 type FontSettings map[string]any
@@ -65,7 +65,7 @@ func ParseFontPatch(input map[string]any) (FontSettings, error) {
 			for field, max := range map[string]int{"name": 80, "fileName": 160, "mimeType": 80, "dataUrl": 700000} {
 				if value, exists := upload[field]; exists {
 					s, valid := value.(string)
-					if !valid || utf8.RuneCountInString(s) > max {
+					if !valid || len(utf16.Encode([]rune(s))) > max {
 						return nil, ErrInvalidFontSettings
 					}
 					if field == "dataUrl" && s != "" && !fontDataPattern.MatchString(s) {

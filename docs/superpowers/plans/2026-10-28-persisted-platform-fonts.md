@@ -1,5 +1,7 @@
 # Persisted platform fonts implementation plan
 
+Subordinate slice of the single active `docs/migration/03_EXECUTION_AND_HANDOFF_PLAN_AR.md`; not a competing master plan.
+
 > **For agentic workers:** Use superpowers:executing-plans inline. Tests precede implementation.
 
 **Goal:** Restore original font editor and persisted global font application.
@@ -34,3 +36,9 @@ Interfaces: api.getPlatformFontSettings(), updatePlatformFontSettings(settings,c
 - [ ] Build and source contract tests PASS; browser 390/820/1440 preview/save/reload/reset/upload/errors/screenshots.
 - [ ] Add real identity session + Go HTTP + PostgreSQL browser journey to Database CI, using isolated test user and test-only server. No routed/mocked font responses in that journey.
 - [ ] Commit; independent review and resolve important findings with reproductions; final full suites and four CI gates exact SHA; record evidence/limits and PR.
+
+## Execution ledger
+- Task1: domain contract RED (missing ParseFontPatch) → GREEN; content suite and full local Go suite PASS. PostgreSQL/browser verification remains pending CI.
+- Task2: source utility contract RED (missing component) → GREEN; normalization/options, complete editor SSR (loading/loaded), CSS escaping3/3PASS; buildPASS. Local ChromiumSIGTRAP blocks browser execution before tests; CI required.
+- Final independent review: no important/critical code defects in c8834fd. UTF-16 discrepancy reproduced RED and fixed GREEN; CI presentation path filters repaired. Inherited FileReader closure race is recorded as a deferred minor in migration28; no unapproved presentation redesign.
+- Owner report reconciled into the existing plan03, matrix26, CURRENT_STATE and AGENTS; no new competing master plan. Preserved open stale PR123/144 and unrelated worktrees without merging or deleting.
