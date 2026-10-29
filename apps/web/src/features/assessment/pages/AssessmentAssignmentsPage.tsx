@@ -99,7 +99,7 @@ export function AssessmentAssignmentsPage() {
         <header className="rounded-3xl bg-slate-950 p-5 text-white">
           <div className="flex items-center gap-2 text-amber-400">
             <ClipboardList size={20} />
-            <h1 className="text-2xl font-black">الاختبارات الموجهة إليك</h1>
+            <h1 className="text-2xl font-black">الاختبارات الموجهة لك</h1>
           </div>
           <p className="mt-1 text-sm text-slate-300">
             تظهر فقط التكليفات التي يثبت الخادم أنها موجهة لك أو لفصلك وفي نافذة زمنية فعالة.
