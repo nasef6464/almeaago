@@ -190,10 +190,11 @@ export function AssessmentResultsPage() {
   useEffect(() => {
     setSaveError('');
     setSavingQuestion('');
+    setFilter('all');
   }, [activeContext]);
 
   useEffect(() => {
-    setSavedQuestions(new Set());
+    setSavedQuestions(new Set<string>());
   }, [user?.id]);
 
   useEffect(() => {
@@ -231,7 +232,7 @@ export function AssessmentResultsPage() {
     return () => {
       active = false;
     };
-  }, [attemptId, authLoading, page, user]);
+  }, [activeContext, attemptId, authLoading, page, user]);
 
   async function saveForReview(questionId: string) {
     if (savedQuestions.has(questionId) || savingQuestion) return;
