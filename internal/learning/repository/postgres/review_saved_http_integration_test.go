@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	identityapp "github.com/nasef6464/almeaago/internal/identity/application"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	learningapp "github.com/nasef6464/almeaago/internal/learning/application"
@@ -220,5 +221,73 @@ func TestReviewSavedManualCardLinkedSkillsPostgres(t *testing.T) {
 	}
 	if cards != 0 || links != 0 {
 		t.Fatalf("manual-only card must be removed with its links: cards=%d links=%d", cards, links)
+	}
+}
+
+func TestReviewSavedConcurrentEvidencePostgres(t *testing.T) {
+	f := newEvidenceFixture(t)
+	const questionID = "00000000-0000-0000-0000-000000000189"
+	const cardID = "00000000-0000-0000-0000-000000000190"
+	_, err := f.db.Exec(f.ctx, `INSERT INTO review_cards
+		(id,student_id,question_id,question_version,path_id,subject_id,review_type,
+		 saved_for_review,saved_at,has_mistake,next_review_at,updated_at)
+		VALUES($1,$2,$3,1,$4,$5,'saved_review',true,$6,false,$6,$6)`,
+		cardID, reviewSavedStudent, questionID, reviewSavedPath, reviewSavedSubject, f.now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.db.Exec(f.ctx, `INSERT INTO review_card_skills(review_card_id,skill_id)
+		VALUES($1::uuid,$2::uuid)`, cardID, evidenceSkill); err != nil {
+		t.Fatal(err)
+	}
+
+	// Hold the row while an assessment/review writer promotes this card to
+	// evidence. Unsave must observe the committed new state, not delete it
+	// based on an earlier unlocked read.
+	tx, err := f.db.BeginTx(f.ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(f.ctx)
+	var locked string
+	if err = tx.QueryRow(f.ctx, `SELECT id::text FROM review_cards WHERE id=$1::uuid FOR UPDATE`,
+		cardID).Scan(&locked); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- f.repo.SetSavedReview(f.ctx, reviewSavedStudent, questionID, false) }()
+	f.waitBlocked(t, 1)
+	if _, err = tx.Exec(f.ctx, `UPDATE review_cards
+		SET review_type='mastery_review',has_mistake=true,updated_at=now()
+		WHERE id=$1::uuid`, cardID); err != nil {
+		t.Fatal(err)
+	}
+	if err = tx.Commit(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err = <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-f.ctx.Done():
+		t.Fatal(f.ctx.Err())
+	}
+	var saved, mistake bool
+	var reviewType string
+	if err = f.db.QueryRow(f.ctx, `SELECT saved_for_review,has_mistake,review_type
+		FROM review_cards WHERE id=$1::uuid`, cardID).Scan(&saved, &mistake, &reviewType); err != nil {
+		t.Fatalf("evidence card lost during concurrent unsave: %v", err)
+	}
+	if saved || !mistake || reviewType != "mastery_review" {
+		t.Fatalf("concurrent unsave corrupted evidence: saved=%v mistake=%v type=%s", saved, mistake, reviewType)
+	}
+	var links int
+	if err = f.db.QueryRow(f.ctx, `SELECT count(*) FROM review_card_skills
+		WHERE review_card_id=$1::uuid`, cardID).Scan(&links); err != nil {
+		t.Fatal(err)
+	}
+	if links != 1 {
+		t.Fatalf("skill link lost during concurrent unsave: %d", links)
 	}
 }
