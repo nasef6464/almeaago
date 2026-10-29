@@ -22,7 +22,7 @@ test('the entire information-page source equals approved Legacy blob after expor
     .replace('export type StaticInfoPageKind =','type StaticInfoPageKind =')
     .replace('export const StaticInfoPage: React.FC','const StaticInfoPage: React.FC')+
     'export default StaticInfoPage;\n';
-  const gitBlob=createHash('sha1').update(`blob ${Buffer.byteLength(original)}\\0`).update(original).digest('hex');
+  const gitBlob=createHash('sha1').update(`blob ${Buffer.byteLength(original)}\0`).update(original).digest('hex');
   assert.equal(gitBlob,'80013eb98dcddf0454a4a43f22720a91239a4248');
 });
 
