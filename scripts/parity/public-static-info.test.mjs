@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
+import {createHash} from 'node:crypto';
 
 const require=createRequire(new URL('../../apps/web/package.json',import.meta.url));
 const ts=require('typescript');
@@ -12,6 +13,18 @@ const {MemoryRouter}=require('react-router-dom');
 const source=readFileSync(new URL('../../apps/web/src/features/public/pages/StaticInfoPage.tsx',import.meta.url),'utf8');
 const mod={exports:{}};
 new Function('require','module','exports',ts.transpileModule(source,{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,esModuleInterop:true}}).outputText)(require,mod,mod.exports);
+
+
+// Verify every source byte, not only the representative text assertions.
+// The two export changes are the only permitted adapter delta.
+test('the entire information-page source equals approved Legacy blob after export adaptation',()=>{
+  const original=source
+    .replace('export type StaticInfoPageKind =','type StaticInfoPageKind =')
+    .replace('export const StaticInfoPage: React.FC','const StaticInfoPage: React.FC')+
+    'export default StaticInfoPage;\n';
+  const gitBlob=createHash('sha1').update(`blob ${Buffer.byteLength(original)}\\0`).update(original).digest('hex');
+  assert.equal(gitBlob,'80013eb98dcddf0454a4a43f22720a91239a4248');
+});
 
 const pages=[
   ['about','من نحن','مهمتنا','ما نقدمه','نساعد الطالب على فهم مستواه'],
