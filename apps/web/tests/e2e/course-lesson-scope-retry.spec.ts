@@ -57,8 +57,14 @@ for (const width of [390, 820, 1440]) {
       return json(route, { lesson: detail('lesson-b') });
     });
     const completed: string[] = [];
+    let persisted = false;
+    await page.route('**/api/v1/learning-progress/lessons/lesson-b?**', route =>
+      json(route, { progress: progress('lesson-b', persisted ? 'completed' : 'not_started') }),
+    );
     await page.route('**/api/v1/learning-progress/lessons/*/complete', route => {
       completed.push(route.request().url().split('/').at(-2) || '');
+      if (completed.length === 1) return json(route, { message: 'تعذر الحفظ مؤقتًا' }, 503);
+      persisted = true;
       return json(route, { progress: progress('lesson-b', 'completed') });
     });
 
@@ -73,13 +79,18 @@ for (const width of [390, 820, 1440]) {
     await expect(page.getByText('نص الدرس الثاني الحصري')).toBeVisible();
     await expect(page.getByRole('button', { name: 'تحديد كمكتمل' })).toBeEnabled();
     await page.getByRole('button', { name: 'تحديد كمكتمل' }).click();
+    await expect(page.getByText('تعذر الحفظ مؤقتًا')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'تحديد كمكتمل' })).toBeEnabled();
+    await expect(page.getByText('نص الدرس الثاني الحصري')).toBeVisible();
+    await page.getByRole('button', { name: 'تحديد كمكتمل' }).click();
     await expect(page.getByText('تم تسجيل الدرس كمكتمل.')).toBeVisible();
-    expect(completed).toEqual(['lesson-b']);
+    expect(completed).toEqual(['lesson-b', 'lesson-b']);
     await expect(page).toHaveURL(/lesson=lesson-b/);
     await page.screenshot({ path: `test-results/course-lesson-scope-${width}.png`, fullPage: true });
     await page.reload();
     await expect(page.getByText('نص الدرس الثاني الحصري')).toBeVisible();
     await expect(page.getByText('نص الدرس الأول الحصري')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'تحديد كمكتمل' })).toBeDisabled();
   });
 }
 
