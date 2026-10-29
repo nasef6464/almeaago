@@ -157,6 +157,11 @@ func TestTaxonomyAdminWriteImmediatelyVisibleToFreshPublicRead(t *testing.T) {
 	if admin.Code != http.StatusOK || !strings.Contains(admin.Body.String(), "inactive") {
 		t.Fatalf("admin must retain disabled path for reactivation: %d %s", admin.Code, admin.Body.String())
 	}
+	rec = taxonomyHTTPCall(handler, http.MethodPatch, "/admin/paths/path-1", `{"status":"active"}`, "valid-csrf")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("reactivate: %d %s", rec.Code, rec.Body.String())
+	}
+	read(1)
 }
 
 func TestTaxonomyMutationRejectsUnauthenticatedCSRFAndNonAdmin(t *testing.T) {
@@ -179,5 +184,14 @@ func TestTaxonomyMutationRejectsUnauthenticatedCSRFAndNonAdmin(t *testing.T) {
 				t.Fatalf("status=%d writes=%d, want %d and zero writes", rec.Code, repo.writes, tc.want)
 			}
 		})
+	}
+}
+
+func TestTaxonomyUpdateRejectsTrailingJSONWithoutWrite(t *testing.T) {
+	repo := &taxonomyHTTPRepo{path: taxonomy.Path{ID: "path-1", Name: "قدرات", Status: taxonomy.StatusActive}}
+	handler := New(taxonomyapp.NewService(repo), taxonomyHTTPAuth{role: identity.RoleAdmin})
+	rec := taxonomyHTTPCall(handler, http.MethodPatch, "/admin/paths/path-1", `{"status":"inactive"}{"status":"active"}`, "valid-csrf")
+	if rec.Code != http.StatusBadRequest || repo.writes != 0 || repo.path.Status != taxonomy.StatusActive {
+		t.Fatalf("invalid PATCH must not change path: status=%d writes=%d path=%+v", rec.Code, repo.writes, repo.path)
 	}
 }
