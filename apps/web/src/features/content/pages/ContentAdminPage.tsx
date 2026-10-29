@@ -113,6 +113,7 @@ export function ContentAdminPage() {
   const [mutatingLessonId, setMutatingLessonId] = useState('');
   const [mutatingLibraryId, setMutatingLibraryId] = useState('');
   const [actionError, setActionError] = useState('');
+  const [actionErrorScope, setActionErrorScope] = useState('');
 
   const listScope = JSON.stringify([
     tab, page, pathId, subjectId, debouncedSearch,
@@ -185,6 +186,7 @@ export function ContentAdminPage() {
     };
 
     setLoading(true);
+    setActionError('');
     setRows([]);
     setHasMore(false);
     setError('');
@@ -258,6 +260,7 @@ export function ContentAdminPage() {
       );
       setReloadKey((value) => value + 1);
     } catch (cause) {
+      setActionErrorScope(listScope);
       setActionError(cause instanceof Error ? cause.message : 'تعذر تحديث حالة الدورة.');
     } finally {
       setMutatingCourseId('');
@@ -277,6 +280,7 @@ export function ContentAdminPage() {
       );
       setReloadKey((value) => value + 1);
     } catch (cause) {
+      setActionErrorScope(listScope);
       setActionError(cause instanceof Error ? cause.message : 'تعذر تحديث نشر الدورة.');
     } finally {
       setMutatingCourseId('');
@@ -307,6 +311,7 @@ export function ContentAdminPage() {
       );
       setReloadKey((value) => value + 1);
     } catch (cause) {
+      setActionErrorScope(listScope);
       setActionError(cause instanceof Error ? cause.message : 'تعذر تحديث حالة الدرس.');
     } finally {
       setMutatingLessonId('');
@@ -337,6 +342,7 @@ export function ContentAdminPage() {
       );
       setReloadKey((value) => value + 1);
     } catch (cause) {
+      setActionErrorScope(listScope);
       setActionError(cause instanceof Error ? cause.message : 'تعذر تحديث حالة عنصر المكتبة.');
     } finally {
       setMutatingLibraryId('');
@@ -610,8 +616,8 @@ export function ContentAdminPage() {
               })}
             </section>
 
-            {error ? <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-800">{error}</div> : null}
-            {actionError ? <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-800">{actionError}</div> : null}
+            {error && loadedListScope === listScope ? <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-800">{error}</div> : null}
+            {actionError && actionErrorScope === listScope ? <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-800">{actionError}</div> : null}
 
             <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
               <div className="flex items-center justify-between border-b border-gray-100 px-4 py-4">
