@@ -147,7 +147,7 @@ export function SupervisorDashboardPage(){
     {tab==='overview'?<div className="rounded-xl border p-4">
      <h2 className="font-bold">الملخص العام</h2>
      <p className="mt-2 text-sm">{currentSchool?.schoolName}</p>
-     <button type="button" onClick={()=>selectTab('students')} className="mt-3 rounded-lg border px-3 py-2 text-sm font-bold">تعلم الطلاب وجاهزيتهم</button>
+     <button type="button" onClick={()=>selectTab('students')} className="mt-3 rounded-lg border px-3 py-2 text-sm font-bold">افتح التعلم والجاهزية</button>
     </div>:null}
     {tab==='students'?<div className="space-y-3">
      <h2 className="text-lg font-bold">تعلم الطلاب وجاهزيتهم</h2>
