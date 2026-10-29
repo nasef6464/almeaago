@@ -9,7 +9,7 @@ import {
   Save,
   Trash2,
 } from 'lucide-react';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
 import { contentClient } from '../api/content-client';
 import type {
@@ -56,6 +56,8 @@ export function CourseEditorPanel({
   const [taxonomy, setTaxonomy] = useState<TaxonomyFull>({ ...coreTaxonomy, skills: [] });
   const [lessonOptions, setLessonOptions] = useState<LessonSummary[]>([]);
   const [lessonHasMore, setLessonHasMore] = useState(false);
+  const [lessonLoading, setLessonLoading] = useState(false);
+  const latestLessonSearch = useRef('');
   const [lessonSearch, setLessonSearch] = useState('');
   const [debouncedLessonSearch, setDebouncedLessonSearch] = useState('');
   const [selectedLessonByModule, setSelectedLessonByModule] = useState<Record<string, string>>({});
@@ -101,6 +103,15 @@ export function CourseEditorPanel({
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
+    setCourse(null);
+    setModules([]);
+    setLessonOptions([]);
+    setLessonHasMore(false);
+    setSelectedLessonByModule({});
+    setPreviewByModule({});
+    setLessonSearch('');
+    setDebouncedLessonSearch('');
+    latestLessonSearch.current = '';
     setError('');
     Promise.all([
       contentClient.course(courseId, controller.signal),
@@ -130,6 +141,10 @@ export function CourseEditorPanel({
   useEffect(() => {
     if (!course) return;
     const controller = new AbortController();
+    setLessonLoading(true);
+    setLessonOptions([]);
+    setLessonHasMore(false);
+    setSelectedLessonByModule({});
     contentClient
       .lessons(
         {
@@ -142,12 +157,18 @@ export function CourseEditorPanel({
         controller.signal,
       )
       .then((result) => {
+        if (controller.signal.aborted || latestLessonSearch.current !== debouncedLessonSearch) return;
         setLessonOptions(result.items);
         setLessonHasMore(result.hasMore);
       })
       .catch((cause: unknown) => {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || latestLessonSearch.current !== debouncedLessonSearch) return;
+        setLessonOptions([]);
+        setLessonHasMore(false);
         setError(cause instanceof Error ? cause.message : 'تعذر تحميل دروس المادة.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted && latestLessonSearch.current === debouncedLessonSearch) setLessonLoading(false);
       });
     return () => controller.abort();
   }, [course?.pathId, course?.subjectId, debouncedLessonSearch]);
@@ -289,7 +310,7 @@ export function CourseEditorPanel({
   async function attachLesson(module: CourseModule) {
     if (!course || !canMutate) return;
     const lessonId = selectedLessonByModule[module.id] || '';
-    if (!lessonId) {
+    if (!lessonId || lessonLoading || !lessonOptions.some((item) => item.id === lessonId)) {
       setError('اختر درسًا لربطه بالقسم.');
       return;
     }
@@ -524,7 +545,14 @@ export function CourseEditorPanel({
             <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
               <label className="space-y-2">
                 <span className="text-xs font-black text-gray-500">ابحث في دروس نفس المسار والمادة</span>
-                <input value={lessonSearch} onChange={(event) => setLessonSearch(event.target.value)} placeholder="اسم درس..." className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold" />
+                <input value={lessonSearch} onChange={(event) => {
+                  latestLessonSearch.current = event.target.value.trim();
+                  setLessonSearch(event.target.value);
+                  setLessonOptions([]);
+                  setLessonHasMore(false);
+                  setSelectedLessonByModule({});
+                  setError('');
+                }} placeholder="اسم درس..." className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold" />
               </label>
               {lessonHasMore ? <p className="mt-2 text-xs font-bold text-amber-700">هناك نتائج أخرى؛ استخدم البحث لتضييق القائمة بدل تحميل كل الدروس.</p> : null}
             </div>
@@ -576,7 +604,7 @@ export function CourseEditorPanel({
 
                   {module.status === 'active' ? (
                     <div className="grid gap-2 border-t border-gray-100 pt-3 md:grid-cols-[1fr_auto_auto] md:items-center">
-                      <select disabled={!canMutate || mutating} value={selectedLessonByModule[module.id] || ''} onChange={(event) => setSelectedLessonByModule((current) => ({ ...current, [module.id]: event.target.value }))} className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold disabled:bg-gray-50">
+                      <select disabled={!canMutate || mutating || lessonLoading} value={selectedLessonByModule[module.id] || ''} onChange={(event) => setSelectedLessonByModule((current) => ({ ...current, [module.id]: event.target.value }))} className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold disabled:bg-gray-50">
                         <option value="">استدعاء درس موجود...</option>
                         {lessonOptions
                           .filter((lesson) => !module.lessons.some((placement) => placement.lessonId === lesson.id))
@@ -586,7 +614,7 @@ export function CourseEditorPanel({
                         <input disabled={!canMutate || mutating} type="checkbox" checked={Boolean(previewByModule[module.id])} onChange={(event) => setPreviewByModule((current) => ({ ...current, [module.id]: event.target.checked }))} />
                         معاينة مجانية
                       </label>
-                      <button type="button" disabled={!canMutate || mutating || !selectedLessonByModule[module.id]} onClick={() => void attachLesson(module)} className="inline-flex items-center justify-center gap-1 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-50">
+                      <button type="button" disabled={!canMutate || mutating || lessonLoading || !selectedLessonByModule[module.id] || !lessonOptions.some((item) => item.id === selectedLessonByModule[module.id])} onClick={() => void attachLesson(module)} className="inline-flex items-center justify-center gap-1 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-50">
                         <Link2 size={15} />
                         ربط الدرس
                       </button>
