@@ -1,6 +1,13 @@
 name: Review Saved HTTP PostgreSQL
 
 on:
+  push:
+    branches:
+      - fix/student-review-saved-idempotency-20261029
+    paths:
+      - "internal/learning/repository/postgres/**"
+      - ".github/workflows/review-saved-http.yml"
+      - "docs/migration/48_STUDENT_REVIEW_SAVED_HTTP_POSTGRES_AR.md"
   pull_request:
     paths:
       - "internal/learning/repository/postgres/**"
