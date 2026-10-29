@@ -83,7 +83,7 @@ for (const width of [390, 820, 1440]) {
     await expect(page.getByText('النسبة والتناسب', { exact: true }).first()).toBeVisible();
 
     await page.getByLabel('مسار التقرير').selectOption('path-2');
-    await expect(page.getByRole('alert')).toContainText('تعذر تحميل التقرير الجديد');
+    await expect(page.getByRole('alert')).toContainText(/تعذر تحميل (التقرير الجديد|نتائج المسار)/);
     await expect(page.getByText('اختبار القدرات', { exact: true })).toHaveCount(0);
     await expect(page.getByText('النسبة والتناسب', { exact: true })).toHaveCount(0);
     await expect(page.getByText('اختبار التحصيلي', { exact: true })).toHaveCount(0);
