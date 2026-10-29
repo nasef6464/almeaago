@@ -58,10 +58,11 @@ for (const width of [390, 820, 1440]) {
     // Re-entering the same assignment after a confirmed start is a new
     // explicit attempt, never a replay of the previous idempotency key.
     await page.goto('/assessment-assignments');
+    await expect(page.getByRole('button', { name: 'ابدأ التكليف' })).toBeVisible();
+    await page.screenshot({ path: `test-results/directed-assignment-retry-${width}.png`, fullPage: true });
     await page.getByRole('button', { name: 'ابدأ التكليف' }).click();
     await expect(page).toHaveURL(/assessment-attempts\/directed-attempt-3/);
     expect(keys[2]).not.toBe(keys[1]);
-    await page.screenshot({ path: `test-results/directed-assignment-retry-${width}.png`, fullPage: true });
   });
 }
 
