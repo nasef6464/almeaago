@@ -44,8 +44,7 @@ jobs:
           trap 'cp /tmp/content-placement-green.go "$FILE"' EXIT
           git fetch --no-tags --depth=1 origin "$BASE"
           git show "$BASE:$FILE" > "$FILE"
-          if go test ./internal/content/repository/postgres -run '^TestLearnerPlacementScopePostgres
- -count=1 -v > /tmp/content-placement-red.log 2>&1; then
+          if go test ./internal/content/repository/postgres -run TestLearnerPlacementScopePostgres -count=1 -v > /tmp/content-placement-red.log 2>&1; then
             cat /tmp/content-placement-red.log
             echo "::error::The uncorrected base unexpectedly passed the regression"
             exit 1
@@ -54,5 +53,4 @@ jobs:
           grep -q "course leaked foreign-subject lesson" /tmp/content-placement-red.log
           echo "RED confirmed against unmodified Go main"
           cp /tmp/content-placement-green.go "$FILE"
-          go test ./internal/content/repository/postgres -run '^TestLearnerPlacementScopePostgres
- -count=1 -v
+          go test ./internal/content/repository/postgres -run TestLearnerPlacementScopePostgres -count=1 -v
