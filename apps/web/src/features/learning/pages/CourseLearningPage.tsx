@@ -151,18 +151,26 @@ export function CourseLearningPage() {
     ])
       .then(([lessonResult, progressResult]) => {
         if (controller.signal.aborted || selectedScopeRef.current !== requestScope) return;
-        // Fail closed if a response belongs to a different lesson or course.
-        if (lessonResult.lesson.id !== lessonId ||
-            progressResult.progress.lessonId !== lessonId ||
-            progressResult.progress.contextType !== 'course' ||
-            progressResult.progress.courseId !== courseId) {
+        // Content access is already decided by the course/lesson API. An
+        // incorrectly scoped progress payload must never replace this lesson's
+        // progress, but must not hide an otherwise accessible lesson body.
+        if (lessonResult.lesson.id.toLowerCase() !== lessonId.toLowerCase()) {
           setError('تعذر التحقق من سياق الدرس. أعد المحاولة.');
           return;
         }
+        const scopedProgress =
+          progressResult.progress.lessonId.toLowerCase() === lessonId.toLowerCase() &&
+          progressResult.progress.contextType === 'course' &&
+          progressResult.progress.courseId.toLowerCase() === courseId.toLowerCase()
+            ? progressResult.progress
+            : null;
         setDetail(lessonResult.lesson);
-        setProgress(progressResult.progress);
+        setProgress(scopedProgress);
         setLoadedScope(requestScope);
-        lastSaved.current = progressResult.progress.positionSeconds || 0;
+        lastSaved.current = scopedProgress?.positionSeconds || 0;
+        if (!scopedProgress) {
+          setNotice('تعذر التحقق من تقدم هذا الدرس؛ لم تُعرض بيانات درس آخر.');
+        }
       })
       .catch((reason) => {
         if (!controller.signal.aborted && selectedScopeRef.current === requestScope) {
