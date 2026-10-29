@@ -16,6 +16,12 @@ const tabs:{id:SupervisorTab;label:string;icon:typeof Users}[]=[
  {id:'reports',label:'تقارير الأداء',icon:ClipboardList},
 ];
 const enabledTabs=new Set<SupervisorTab>(['overview','students']);
+const groups=[
+ {label:'الرئيسية',ids:['overview']},
+ {label:'الطلاب والحصص',ids:['students','live-sessions']},
+ {label:'الاختبارات والمراقبة',ids:['tests','live-monitoring']},
+ {label:'المهارات والتقارير',ids:['skills','reports']},
+];
 const PAGE_SIZE=20;
 
 export function SupervisorDashboardPage(){
@@ -25,6 +31,7 @@ export function SupervisorDashboardPage(){
  const tab:SupervisorTab=tabs.some(item=>item.id===requested)?requested as SupervisorTab:'students';
  const authorized=Boolean(user?.roles.includes('supervisor'));
  const [contexts,setContexts]=useState<SchoolContext[]>([]);
+ const [scopeOwner,setScopeOwner]=useState('');
  const [schoolId,setSchoolId]=useState('');
  const [scopeBusy,setScopeBusy]=useState(true);
  const [scopeError,setScopeError]=useState('');
@@ -37,26 +44,27 @@ export function SupervisorDashboardPage(){
  const [search,setSearch]=useState('');
  const [page,setPage]=useState(1);
  const [total,setTotal]=useState(0);
- const currentSchool=contexts.find(item=>item.schoolId===schoolId);
+ const visibleContexts=scopeOwner===user?.id?contexts:[];
+ const currentSchool=visibleContexts.find(item=>item.schoolId===schoolId);
  const visibleRoster=!scopeBusy&&!scopeError&&!rosterBusy&&!rosterError&&rosterSchoolId===schoolId?roster:[];
 
  useEffect(()=>{
   // A refreshed role/relationship scope invalidates every previously fetched student.
   const controller=new AbortController();
-  setContexts([]);setSchoolId('');setRoster([]);setRosterSchoolId('');
+  setContexts([]);setScopeOwner('');setRoster([]);setRosterSchoolId('');
   setTotal(0);setRosterError('');setScopeError('');
-  if(authLoading||!authorized){setScopeBusy(false);return()=>controller.abort();}
+  if(authLoading||!authorized){setSchoolId('');setScopeBusy(false);return()=>controller.abort();}
   setScopeBusy(true);
   organizationsClient.contexts(controller.signal)
    .then(response=>{
     if(controller.signal.aborted)return;
     const allowed=response.contexts.filter(item=>item.role==='supervisor');
-    setContexts(allowed);
+    setContexts(allowed);setScopeOwner(user?.id||'');
     setSchoolId(current=>allowed.some(item=>item.schoolId===current)?current:allowed[0]?.schoolId||'');
    })
    .catch(cause=>{
     if(controller.signal.aborted)return;
-    setContexts([]);setSchoolId('');
+    setContexts([]);setScopeOwner('');
     setScopeError(cause instanceof Error?cause.message:'تعذر تحميل نطاق الإشراف');
    })
    .finally(()=>{if(!controller.signal.aborted)setScopeBusy(false);});
@@ -104,8 +112,11 @@ export function SupervisorDashboardPage(){
     <p className="mt-1 text-xs text-gray-500">متابعة الفصول والمهارات والتقارير</p>
    </header>
    <nav aria-label="أقسام لوحة المشرف" className="rounded-2xl border bg-white p-3">
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
-     {tabs.map(item=>{
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+     {groups.map(group=><div key={group.label} className="space-y-2">
+      <h2 className="text-xs font-bold text-gray-500">{group.label}</h2>
+      <div className="grid gap-2">
+      {tabs.filter(item=>group.ids.includes(item.id)).map(item=>{
       const Icon=item.icon;
       return <button key={item.id} type="button" onClick={()=>selectTab(item.id)}
        disabled={!enabledTabs.has(item.id)}
@@ -114,18 +125,20 @@ export function SupervisorDashboardPage(){
        <Icon size={16} className="mx-auto mb-1" />{item.label}
       </button>;
      })}
+      </div>
+     </div>)}
     </div>
    </nav>
    {scopeError?<div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">
     {scopeError}<button type="button" onClick={()=>setScopeReload(n=>n+1)} className="ms-3 rounded-lg border px-3 py-1">إعادة المحاولة</button>
    </div>:null}
    {scopeBusy?<div className="flex items-center gap-2 p-5 text-sm"><Loader2 size={16} className="animate-spin" />جاري تحميل النطاقات...</div>:null}
-   {!scopeBusy&&!scopeError&&!contexts.length?<div className="rounded-xl border bg-white p-5 text-sm">لا توجد مدرسة أو فصول مسندة لهذا الحساب حاليًا.</div>:null}
-   {!scopeBusy&&!scopeError&&contexts.length>0?<section className="space-y-4 rounded-2xl border bg-white p-4 sm:p-6">
+   {!scopeBusy&&!scopeError&&!visibleContexts.length?<div className="rounded-xl border bg-white p-5 text-sm">لا توجد مدرسة أو فصول مسندة لهذا الحساب حاليًا.</div>:null}
+   {!scopeBusy&&!scopeError&&visibleContexts.length>0?<section className="space-y-4 rounded-2xl border bg-white p-4 sm:p-6">
     <label className="block text-sm font-bold text-gray-800">المدرسة
      <select aria-label="المدرسة" value={schoolId} onChange={event=>{setSchoolId(event.target.value);setRosterSchoolId('');setRoster([]);setTotal(0);setPage(1);}}
       className="mt-2 block w-full rounded-xl border border-gray-300 bg-white p-2 sm:max-w-sm">
-      {contexts.map(context=><option key={context.schoolId} value={context.schoolId}>{context.schoolName}</option>)}
+      {visibleContexts.map(context=><option key={context.schoolId} value={context.schoolId}>{context.schoolName}</option>)}
      </select>
     </label>
     {tab==='overview'?<div className="rounded-xl border p-4">
