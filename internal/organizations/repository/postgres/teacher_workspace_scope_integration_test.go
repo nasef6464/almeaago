@@ -74,7 +74,7 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		{"INSERT INTO classes VALUES ($1,$2,'الأول ألف','active'),($3,$4,'الثاني باء','active')", []any{classA, schoolA, classB, schoolB}},
 		{"INSERT INTO school_memberships VALUES ($1,$3,'teacher','active'),($2,$3,'teacher','active'),($1,$4,'student','active'),($2,$5,'student','active')", []any{schoolA, schoolB, teacher, studentA, studentB}},
 		{"INSERT INTO class_memberships VALUES ($1,$3,'active'),($2,$4,'active')", []any{classA, classB, studentA, studentB}},
-		{"INSERT INTO teaching_assignments VALUES ($1,$3,$5,$7,$9,'active'),($2,$4,$5,$8,$9,'active')", []any{assignmentA, assignmentB, schoolA, schoolB, teacher, studentA, classA, classB, subject}},
+		{"INSERT INTO teaching_assignments VALUES ($1,$3,$5,$6,$8,'active'),($2,$4,$5,$7,$8,'active')", []any{assignmentA, assignmentB, schoolA, schoolB, teacher, classA, classB, subject}},
 	}
 	for _, f := range fixtures {
 		if _, err := pool.Exec(ctx, f.sql, f.args...); err != nil {
