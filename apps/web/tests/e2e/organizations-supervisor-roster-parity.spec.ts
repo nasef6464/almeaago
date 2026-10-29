@@ -50,6 +50,26 @@ for(const width of [390,820,1440]){
   await test.info().attach('supervisor-'+width,{body:await page.screenshot({fullPage:true}),contentType:'image/png'});
  });
 }
+test('supervisor student list uses original show-more and show-less controls without losing scope',async({page})=>{
+ await auth(page);
+ await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[contexts[0]]}));
+ await page.route('**/api/v1/schools/*/roster?*',route=>{
+  const url=new URL(route.request().url());
+  const current=Number(url.searchParams.get('page')||1);
+  const start=(current-1)*20;
+  const members=Array.from({length:25},(_,i)=>({userId:'s-'+i,name:'طالب رقم '+(i+1),email:'s'+i+'@school.test',status:'active',roles:['student'],classIds:['class-a']})).slice(start,start+20);
+  return json(route,{members,pagination:{page:current,limit:20,total:25,totalPages:2}});
+ });
+ await page.goto('/supervisor-dashboard');
+ await expect(page.getByText('طالب رقم 1',{exact:true})).toBeVisible();
+ await expect(page.getByText('طالب رقم 21',{exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'عرض المزيد'}).click();
+ await expect(page.getByText('طالب رقم 21',{exact:true})).toBeVisible();
+ await expect(page.getByText('طالب رقم 1',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'عرض أقل'}).click();
+ await expect(page.getByText('طالب رقم 21',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('طالب رقم 1',{exact:true})).toBeVisible();
+});
 test('supervisor failed context and roster reads fail closed, preserve search and retry',async({page})=>{
  await auth(page);
  let contextFail=true;
