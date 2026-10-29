@@ -80,7 +80,7 @@ for (const width of [390, 820, 1440]) {
     await page.goto('/reports');
     await expect(page.locator('main[dir="rtl"]')).toBeVisible();
     await expect(page.getByText('اختبار القدرات', { exact: true })).toBeVisible();
-    await expect(page.getByText('النسبة والتناسب', { exact: true })).toBeVisible();
+    await expect(page.getByText('النسبة والتناسب', { exact: true }).first()).toBeVisible();
 
     await page.getByLabel('مسار التقرير').selectOption('path-2');
     await expect(page.getByRole('alert')).toContainText('تعذر تحميل التقرير الجديد');
@@ -93,7 +93,7 @@ for (const width of [390, 820, 1440]) {
     await expect.poll(() => secondPathOverviewCalls).toBeGreaterThanOrEqual(2);
     await expect(page.getByRole('alert')).toHaveCount(0);
     await expect(page.getByText('اختبار التحصيلي', { exact: true })).toBeVisible();
-    await expect(page.getByText('التفاضل', { exact: true })).toBeVisible();
+    await expect(page.getByText('التفاضل', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('اختبار القدرات', { exact: true })).toHaveCount(0);
     await page.screenshot({ path: `test-results/student-report-scope-recovery-${width}.png`, fullPage: true });
   });
