@@ -123,3 +123,18 @@ test('late video save from the previous lesson cannot replace the newly selected
   await expect(page.getByText(/آخر موضع 42 ثانية/)).toHaveCount(0);
   await expect(page.getByText('نص الدرس الأول الحصري')).toHaveCount(0);
 });
+
+test('a mismatched progress response is discarded without hiding an authorized lesson', async ({ page }) => {
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-b', route => json(route, { lesson: detail('lesson-b') }));
+  await page.route('**/api/v1/learning-progress/lessons/lesson-b?**', route =>
+    json(route, { progress: progress('lesson-a', 'completed', 42) }),
+  );
+  await page.goto('/learning/courses/course-1');
+  await expect(page.getByText('نص الدرس الأول الحصري')).toBeVisible();
+  await page.getByRole('button', { name: /الدرس الثاني/ }).click();
+  await expect(page.getByText('نص الدرس الثاني الحصري')).toBeVisible();
+  await expect(page.getByText('تعذر التحقق من تقدم هذا الدرس؛ لم تُعرض بيانات درس آخر.')).toBeVisible();
+  await expect(page.getByText('مكتمل', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'تحديد كمكتمل' })).toBeEnabled();
+});
