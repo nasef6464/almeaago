@@ -58,3 +58,47 @@ for (const width of [390, 820, 1440]) {
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }
+
+
+for (const width of [390, 820, 1440]) {
+  test(`public homepage retains saved fields when an admin update precedes a delayed GET at ${width}px RTL`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.route('**/api/v1/auth/me', (route) => route.fulfill({ json: { user: null } }));
+    await page.route('**/api/v1/taxonomy/bootstrap?*', (route) =>
+      route.fulfill({ json: { paths: [], subjects: [] } }),
+    );
+
+    let releaseGet: (() => void) | undefined;
+    let notifyGet: (() => void) | undefined;
+    const heldGet = new Promise<void>((resolve) => { releaseGet = resolve; });
+    const getStarted = new Promise<void>((resolve) => { notifyGet = resolve; });
+    await page.route('**/api/v1/content/homepage-settings', async (route) => {
+      notifyGet?.();
+      await heldGet;
+      await route.fulfill({
+        json: {
+          hero: {
+            titlePrefix: mojibake('عنوان قديم من الخادم'),
+            description: mojibake('وصف محفوظ من الخادم قبل التحديث'),
+          },
+        },
+      });
+    });
+
+    await page.goto('/');
+    await getStarted;
+    await page.evaluate(() => {
+      window.dispatchEvent(new CustomEvent('homepage-settings-updated', {
+        detail: { hero: { titlePrefix: 'عنوان المدير الأحدث' } },
+      }));
+    });
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('عنوان المدير الأحدث');
+
+    releaseGet?.();
+    // The late response is older for titlePrefix, but it still contains
+    // unrelated saved description that must not disappear from the visitor UI.
+    await expect(page.getByText('وصف محفوظ من الخادم قبل التحديث')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('عنوان المدير الأحدث');
+    await expect(page.locator('main[data-testid="public-landing"]')).toHaveAttribute('dir', 'rtl');
+  });
+}
