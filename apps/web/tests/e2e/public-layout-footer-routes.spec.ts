@@ -31,7 +31,7 @@ for (const width of [390, 820, 1440]) {
       await footer.getByRole('link', { name: 'من نحن', exact: true }).click();
       await expect(page).toHaveURL(/\/about$/);
       await page.goBack();
-      await expect(page).toHaveURL(new RegExp(`${route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
+      await expect.poll(() => new URL(page.url()).pathname).toBe(route);
       await expect(page.getByRole('contentinfo')).toHaveCount(1);
       await page.getByRole('contentinfo').screenshot({
         path: `test-results/public-layout-footer-${width}-${route.slice(1).replace(/\//g, '-')}.png`,
