@@ -108,6 +108,14 @@ export interface TaxonomySubject {
   sortOrder: number;
 }
 
+export interface TaxonomyLevel {
+  id: string;
+  pathId: string;
+  code: string;
+  name: string;
+  sortOrder: number;
+}
+
 export interface TaxonomySkill {
   id: string;
   subjectId: string;
@@ -121,6 +129,7 @@ export interface TaxonomySkill {
 
 export interface TaxonomyCore {
   paths: TaxonomyPath[];
+  levels?: TaxonomyLevel[];
   subjects: TaxonomySubject[];
 }
 

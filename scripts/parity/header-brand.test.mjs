@@ -11,11 +11,15 @@ const {MemoryRouter}=require('react-router-dom');
 
 function render(brand,user=null){
   const source=readFileSync(new URL('../../apps/web/src/features/public/components/LegacySiteHeader.tsx',import.meta.url),'utf8');
+  const navigationSource=readFileSync(new URL('../../apps/web/src/features/public/components/headerNavigation.ts',import.meta.url),'utf8');
+  const navigationModule={exports:{}};
+  new Function('module','exports',ts.transpileModule(navigationSource,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(navigationModule,navigationModule.exports);
   const mod={exports:{}};
   const resolve=id=>id.endsWith('/useHomepageSettings')?{useHomepageSettings:()=>({brand})}:
     id.endsWith('/AuthProvider')?{useAuth:()=>({user})}:
     id.endsWith('/content-client')?{contentClient:{}}:
-    id.endsWith('/dashboard-path')?{dashboardPathFor:()=>'/dashboard'}:require(id);
+    id.endsWith('/dashboard-path')?{dashboardPathFor:()=>'/dashboard'}:
+    id.endsWith('/headerNavigation')?navigationModule.exports:require(id);
   new Function('require','module','exports',ts.transpileModule(source,{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS}}).outputText)(resolve,mod,mod.exports);
   return renderToStaticMarkup(React.createElement(MemoryRouter,null,React.createElement(mod.exports.LegacySiteHeader,{onAuth:()=>{}})));
 }

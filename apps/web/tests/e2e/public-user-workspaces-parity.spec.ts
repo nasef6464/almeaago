@@ -51,13 +51,16 @@ test('public landing restores the real platform identity on desktop',async({page
 
 test('public landing is bounded on phone and opens the responsive menu',async({page})=>{
   await signedOut(page);
+  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{
+    paths:[{id:'q',code:'Q',name:'القدرات',sortOrder:1}],levels:[],subjects:[],
+  }));
   await page.setViewportSize({width:390,height:844});
   await page.goto('/');
 
   await expect(page.getByRole('heading',{name:'حقق المئة في اختباراتك'})).toBeVisible();
   await page.getByRole('button',{name:'فتح القائمة'}).click();
   await expect(page.getByRole('navigation',{name:'التنقل الرئيسي للجوال'})).toBeVisible();
-  await expect(page.getByRole('navigation',{name:'التنقل الرئيسي للجوال'}).getByRole('link',{name:'اختبارات',exact:true})).toBeVisible();
+  await expect(page.getByRole('navigation',{name:'التنقل الرئيسي للجوال'}).getByRole('link',{name:'اختبارات محاكية',exact:true})).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/public-landing-mobile.png',fullPage:true});
 });
