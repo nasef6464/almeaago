@@ -33,13 +33,13 @@ for (const width of [390, 820, 1440]) {
       .toHaveAttribute('href', '/category/p_tahsili');
 
     await page.getByRole('link', { name: 'ابدأ تدريب القدرات', exact: true }).click();
-    await expect(page).toHaveURL(/\\/category\\/p_qudrat$/);
+    await expect(page).toHaveURL(/\/category\/p_qudrat$/);
     await expect(page.getByText('سجّل الدخول لفتح مساحة التعلم.')).toBeVisible();
     await page.reload();
-    await expect(page).toHaveURL(/\\/category\\/p_qudrat$/);
+    await expect(page).toHaveURL(/\/category\/p_qudrat$/);
     await expect(page.getByText('سجّل الدخول لفتح مساحة التعلم.')).toBeVisible();
     await page.goBack();
-    await expect(page).toHaveURL(/\\/$/);
+    await expect(page).toHaveURL(/\/$/);
     await expect(page.getByTestId('public-landing')).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
       .toBe(true);
