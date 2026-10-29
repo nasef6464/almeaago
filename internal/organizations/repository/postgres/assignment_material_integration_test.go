@@ -113,9 +113,11 @@ func testArchivedAssignmentStopAndReactivation(
 ) {
 	t.Helper()
 	const archivedClass = "00000000-0000-0000-0000-000000000015"
+	const activeClass = "00000000-0000-0000-0000-000000000017"
 	const otherSchool = "00000000-0000-0000-0000-000000000016"
 	statements := []string{
 		"ALTER TABLE " + schema + ".teaching_assignments ADD COLUMN id uuid PRIMARY KEY DEFAULT gen_random_uuid(), ADD COLUMN class_id uuid, ADD COLUMN created_at timestamptz NOT NULL DEFAULT now(), ADD COLUMN updated_at timestamptz NOT NULL DEFAULT now()",
+		"ALTER TABLE " + schema + ".teaching_assignments ADD CONSTRAINT unique_teacher_class_subject UNIQUE (school_id,teacher_id,class_id,subject_id)",
 		"CREATE TABLE " + schema + ".schools (id uuid PRIMARY KEY, status text NOT NULL)",
 		"CREATE TABLE " + schema + ".classes (id uuid PRIMARY KEY, school_id uuid NOT NULL, status text NOT NULL)",
 		"CREATE TABLE " + schema + ".subjects (id uuid PRIMARY KEY)",
@@ -132,11 +134,11 @@ func testArchivedAssignmentStopAndReactivation(
 		args []any
 	}{
 		{"INSERT INTO " + schema + ".schools (id,status) VALUES ($1,'active'),($2,'active')", []any{school, otherSchool}},
-		{"INSERT INTO " + schema + ".classes (id,school_id,status) VALUES ($1,$2,'archived')", []any{archivedClass, school}},
+		{"INSERT INTO " + schema + ".classes (id,school_id,status) VALUES ($1,$3,'archived'),($2,$3,'active')", []any{archivedClass, activeClass, school}},
 		{"INSERT INTO " + schema + ".subjects (id) VALUES ($1)", []any{subject}},
 		{"INSERT INTO " + schema + ".user_roles (user_id,role) VALUES ($1,'teacher')", []any{teacher}},
 		{"INSERT INTO " + schema + ".school_memberships (school_id,user_id,role,status) VALUES ($1,$2,'teacher','active')", []any{school, teacher}},
-		{"INSERT INTO " + schema + ".teaching_assignments (school_id,teacher_id,class_id,subject_id,status) VALUES ($1,$2,$3,$4,'ended')", []any{school, teacher, archivedClass, subject}},
+		{"INSERT INTO " + schema + ".teaching_assignments (school_id,teacher_id,class_id,subject_id,status) VALUES ($1,$2,$3,$5,'ended'),($1,$2,$4,$5,'ended')", []any{school, teacher, archivedClass, activeClass, subject}},
 	}
 	for _, fixture := range fixtures {
 		if _, err := setup.Exec(ctx, fixture.sql, fixture.args...); err != nil {
@@ -182,7 +184,30 @@ func testArchivedAssignmentStopAndReactivation(
 	if _, err := repo.UpsertAssignment(ctx, teacher, otherSchool, write); !errors.Is(err, org.ErrNotFound) {
 		t.Fatalf("other school must not mutate archived assignment: %v", err)
 	}
-	if probe.calls != 2 {
-		t.Fatalf("only two valid stop operations may be audited, got %d", probe.calls)
+	// Existing inactive assignment in a valid class may be reactivated.
+	write.ClassID = activeClass
+	write.Status = org.AssignmentStatusActive
+	activated, err := repo.UpsertAssignment(ctx, teacher, school, write)
+	if err != nil || activated.Status != org.AssignmentStatusActive {
+		t.Fatalf("valid class reactivation must still work: %+v err=%v", activated, err)
+	}
+	write.Status = org.AssignmentStatusEnded
+	if _, err := repo.UpsertAssignment(ctx, teacher, school, write); err != nil {
+		t.Fatalf("valid class stop failed: %v", err)
+	}
+	// The fallback UPDATE must not silently reactivate a teacher after their
+	// school membership is revoked, even when an assignment row already exists.
+	if _, err := setup.Exec(ctx, "UPDATE "+schema+".school_memberships SET status='revoked' WHERE school_id=$1 AND user_id=$2", school, teacher); err != nil {
+		t.Fatal(err)
+	}
+	write.Status = org.AssignmentStatusActive
+	if _, err := repo.UpsertAssignment(ctx, teacher, school, write); !errors.Is(err, org.ErrNotFound) {
+		t.Fatalf("revoked teacher membership must block reactivation: %v", err)
+	}
+	if err := setup.QueryRow(ctx, "SELECT status FROM "+schema+".teaching_assignments WHERE class_id=$1", activeClass).Scan(&state); err != nil || state != "ended" {
+		t.Fatalf("denied reactivation must preserve ended state: %s err=%v", state, err)
+	}
+	if probe.calls != 4 {
+		t.Fatalf("only four valid stop/reactivation operations may be audited, got %d", probe.calls)
 	}
 }
