@@ -64,3 +64,47 @@ test('student cannot submit while answer persistence is in flight', async ({ pag
   await expect(page.getByRole('heading', { name: 'السؤال الثاني' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'تسليم الاختبار' })).toBeEnabled();
 });
+
+test('student keeps submitted answers and the same submission key after HTTP 503', async ({ page }) => {
+  await setup(page);
+  await page.route('**/api/v1/assessment-attempts/attempt-save-1/answers/q-1', route => json(route, { attempt: savedAttempt }));
+  let submissions = 0;
+  const keys: string[] = [];
+  await page.unroute('**/api/v1/assessment-attempts/attempt-save-1/submit');
+  await page.route('**/api/v1/assessment-attempts/attempt-save-1/submit', async route => {
+    const body = route.request().postDataJSON() as { submissionKey: string };
+    keys.push(body.submissionKey);
+    submissions += 1;
+    return submissions === 1
+      ? json(route, { message: 'تعذر تسليم الاختبار' }, 503)
+      : json(route, { result: { attemptId: 'attempt-save-1', score: 50, totalQuestions: 2, correctAnswers: 1, wrongAnswers: 0, unanswered: 1, passed: true, timeSpentSeconds: 12, finalizedAt: '2026-10-29T10:02:00Z' } });
+  });
+  await page.goto('/assessment-attempts/attempt-save-1');
+  await page.getByRole('button', { name: /ثان/ }).click();
+  await expect(page.getByRole('heading', { name: 'السؤال الثاني' })).toBeVisible();
+  await page.getByRole('button', { name: 'تسليم الاختبار' }).click();
+  await expect(page.getByText('تعذر تسليم الاختبار')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'السؤال الثاني' })).toBeVisible();
+  await page.getByRole('button', { name: 'تسليم الاختبار' }).click();
+  await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible();
+  expect(submissions).toBe(2);
+  expect(keys[0]).toBeTruthy();
+  expect(keys[1]).toBe(keys[0]);
+});
+
+test('reloading the attempt restores only server-confirmed answers', async ({ page }) => {
+  await setup(page);
+  let server = attempt;
+  await page.unroute('**/api/v1/assessment-attempts/attempt-save-1');
+  await page.route('**/api/v1/assessment-attempts/attempt-save-1', route => json(route, { attempt: server }));
+  await page.route('**/api/v1/assessment-attempts/attempt-save-1/answers/q-1', route => {
+    server = savedAttempt;
+    return json(route, { attempt: server });
+  });
+  await page.goto('/assessment-attempts/attempt-save-1');
+  await page.getByRole('button', { name: /ثان/ }).click();
+  await expect(page.getByRole('heading', { name: 'السؤال الثاني' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'السؤال الأول' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /ثان/ })).toHaveClass(/border-amber-500/);
+});
