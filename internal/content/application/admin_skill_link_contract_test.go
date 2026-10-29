@@ -16,12 +16,12 @@ import (
 // the explicit list through application -> repository.
 type adminSkillLinkRepo struct {
 	*repoStub
-	library content.LibraryItem
-	topic   content.FoundationTopic
-	savedLibrary content.LibraryWrite
-	savedTopic   content.TopicWrite
+	library         content.LibraryItem
+	topic           content.FoundationTopic
+	savedLibrary    content.LibraryWrite
+	savedTopic      content.TopicWrite
 	libraryRevision int
-	topicRevision int
+	topicRevision   int
 }
 
 func (r *adminSkillLinkRepo) GetLibraryItem(context.Context, string) (content.LibraryItem, error) {
