@@ -270,3 +270,36 @@ func TestPresignRejectsNonStaffActor(t *testing.T) {
 		t.Fatalf("expected forbidden, got %v", err)
 	}
 }
+
+
+func TestGetAllowsStudentToReadActiveQuestionImage(t *testing.T) {
+	asset := media.Asset{
+		ID: "asset-question", Status: media.StatusActive, MimeType: "image/png",
+		PublicURL: "https://cdn.example/questions/v2/Q-1/image.png",
+		CreatedBy: mediaAdmin().ID,
+	}
+	service := NewService(&repoStub{live: asset}, &providerStub{available: true}, 1024, 15*time.Minute)
+	student := identity.User{ID: "student-1", Roles: []identity.Role{identity.RoleStudent}}
+
+	got, err := service.Get(context.Background(), student, asset.ID)
+	if err != nil {
+		t.Fatalf("student must read active question media: %v", err)
+	}
+	if got.ID != asset.ID || got.PublicURL != asset.PublicURL {
+		t.Fatalf("unexpected asset projection: %#v", got)
+	}
+}
+
+func TestGetHidesPendingQuestionImageFromOtherStudent(t *testing.T) {
+	asset := media.Asset{
+		ID: "asset-pending", Status: media.StatusPendingUpload, MimeType: "image/png",
+		CreatedBy: mediaAdmin().ID,
+	}
+	service := NewService(&repoStub{live: asset}, &providerStub{available: true}, 1024, 15*time.Minute)
+	student := identity.User{ID: "student-1", Roles: []identity.Role{identity.RoleStudent}}
+
+	_, err := service.Get(context.Background(), student, asset.ID)
+	if !errors.Is(err, media.ErrNotFound) {
+		t.Fatalf("pending question media must not be exposed to a student: %v", err)
+	}
+}
