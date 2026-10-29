@@ -71,3 +71,48 @@ test('non-parent role receives explicit forbidden UI and no parent API requests'
   await expect(page.getByText('هذه الصفحة مخصصة لولي الأمر.')).toBeVisible();
   expect(parentRequests).toBe(0);
 });
+
+test('failed dashboard refresh removes formerly visible linked-child data rather than presenting an empty relationship list', async ({ page }) => {
+  await auth(page);
+  let dashboardReads = 0;
+  await page.route('**/api/v1/parents/dashboard?**', route => {
+    dashboardReads += 1;
+    return dashboardReads === 1 ? json(route, dashboard) : json(route, { message: 'تعذر تحديث العلاقات' }, 503);
+  });
+  await page.goto('/parent-dashboard');
+  await expect(page.getByTestId('parent-child-card')).toHaveCount(2);
+  await page.getByRole('button', { name: 'تحديث لوحة ولي الأمر' }).click();
+  await expect(page.getByRole('alert')).toContainText('تعذر تحديث العلاقات');
+  await expect(page.getByTestId('parent-child-card')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'تعذر تحميل بيانات الأبناء' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'لا يوجد أبناء مرتبطون بالحساب' })).toHaveCount(0);
+});
+
+test('relationship revocation on refresh removes child selection and results without requesting the revoked child again', async ({ page }) => {
+  await auth(page);
+  let dashboardReads = 0;
+  await page.route('**/api/v1/parents/dashboard?**', route => {
+    dashboardReads += 1;
+    return json(route, dashboardReads === 1 ? dashboard : {
+      ...dashboard, children: [children[0]],
+      summary: { ...dashboard.summary, totalChildren: 1, visibleChildren: 1 },
+    });
+  });
+  await page.route('**/api/v1/parents/children/student-1/results?**', route =>
+    json(route, { items: [result('student-1', 'اختبار سارة')], page: 1, limit: 20, hasMore: false }));
+  let revokedChildReads = 0;
+  await page.route('**/api/v1/parents/children/student-2/results?**', route => {
+    revokedChildReads += 1;
+    return json(route, { items: [result('student-2', 'اختبار أحمد')], page: 1, limit: 20, hasMore: false });
+  });
+  await page.goto('/parent-dashboard');
+  await page.getByRole('button', { name: 'نتائج الأبناء' }).click();
+  await page.getByRole('button', { name: 'أحمد', exact: true }).click();
+  await expect(page.getByText('اختبار أحمد')).toBeVisible();
+  expect(revokedChildReads).toBe(1);
+  await page.getByRole('button', { name: 'تحديث لوحة ولي الأمر' }).click();
+  await expect(page.getByText('اختبار سارة')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'أحمد', exact: true })).toHaveCount(0);
+  await expect(page.getByText('اختبار أحمد')).toHaveCount(0);
+  expect(revokedChildReads).toBe(1);
+});
