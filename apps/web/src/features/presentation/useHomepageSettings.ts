@@ -30,25 +30,26 @@ export function useHomepageSettings() {
 
   useEffect(() => {
     let cancelled = false;
-    let revision = 0;
+    // A same-tab admin save may arrive before the initial visitor GET resolves.
+    // Keep the newer fields, but still hydrate unrelated saved fields from GET.
+    let pendingPatch: Partial<HomepageSettings> = {};
     const receive = (event: Event) => {
       const patch = (event as CustomEvent<Partial<HomepageSettings> | null>).detail;
       if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
         return;
       }
 
-      revision++;
+      pendingPatch = mergeHomepageEvent(pendingPatch, patch);
       setSettings((previous) =>
         sanitizeHomepageSettings(mergeHomepageEvent(previous, patch)),
       );
     };
 
     window.addEventListener(HOMEPAGE_SETTINGS_UPDATED, receive);
-    const started = revision;
     api.getHomepageSettings()
       .then((value) => {
-        if (!cancelled && started === revision) {
-          setSettings(sanitizeHomepageSettings(value));
+        if (!cancelled) {
+          setSettings(sanitizeHomepageSettings(mergeHomepageEvent(value, pendingPatch)));
         }
       })
       .catch(() => {});
