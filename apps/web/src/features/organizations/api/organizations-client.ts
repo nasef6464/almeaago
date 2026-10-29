@@ -116,6 +116,13 @@ export const organizationsClient={
     return request<{classes:SchoolClass[];pagination:{page:number;limit:number;total:number;totalPages:number}}>(
       `/api/v1/schools/${encodeURIComponent(schoolId)}/classes?page=1&limit=100&status=active`,{signal});
   },
+  supervisorRoster(schoolId:string,search:string,page:number,signal?:AbortSignal){
+    // The Go roster query enforces school/class supervisor scopes in PostgreSQL.
+    // Never broaden the request to an admin/director endpoint.
+    const q=new URLSearchParams({page:String(page),limit:'20',role:'student',isActive:'true',search:search.trim()});
+    return request<{members:RosterMember[];pagination:{page:number;limit:number;total:number;totalPages:number}}>(
+      `/api/v1/schools/${encodeURIComponent(schoolId)}/roster?${q.toString()}`,{signal});
+  },
   students(schoolId:string,classId:string,signal?:AbortSignal){
     const p=new URLSearchParams({page:'1',limit:'100',role:'student',isActive:'true',classId});
     return request<{members:RosterMember[];pagination:{page:number;limit:number;total:number;totalPages:number}}>(
