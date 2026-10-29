@@ -57,7 +57,7 @@ for (const width of [390, 820, 1440]) {
     await expect(page.getByText('تعذر بدء التكليف')).toBeVisible();
     await expect(button).toBeEnabled();
     await button.click();
-    await expect(page).toHaveURL(/assessment-attempts\\/directed-attempt-1/);
+    await expect(page).toHaveURL(/assessment-attempts\/directed-attempt-1/);
     expect(keys).toHaveLength(2);
     expect(keys[0]).toBeTruthy();
     expect(keys[1]).toBe(keys[0]);
