@@ -35,20 +35,20 @@ async function mockStudent(page: Page) {
   await page.route('**/api/v1/mastery/goals?**', route => json(route, { items: [], page: 1, limit: 20, hasMore: false }));
   await page.route('https://cdn.example.test/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: png }));
 }
-async function mockMedia(page: Page, failFirst = false) {
+async function mockMedia(page: Page, startUnavailable = false) {
   let attempts = 0;
-  const attemptsById = new Map<string, number>();
+  let unavailable = startUnavailable;
   await page.route('**/api/v1/media/assets/*', route => {
     attempts += 1;
     const id = route.request().url().split('/').pop() || '';
-    const count = (attemptsById.get(id) || 0) + 1;
-    attemptsById.set(id, count);
-    if (failFirst && id === 'img-question' && count === 1) {
+    // StrictMode may mount and abort a request twice. Keep the failure active
+    // until the test explicitly recovers the provider, not for N requests.
+    if (unavailable && id === 'img-question') {
       return json(route, { message: 'Media temporarily unavailable' }, 503);
     }
     return json(route, { asset: { id, publicUrl: `https://cdn.example.test/${id}.png`, status: 'active', mimeType: 'image/png' } });
   });
-  return () => attempts;
+  return { calls: () => attempts, recover: () => { unavailable = false; } };
 }
 
 for (const width of [390, 820, 1440]) {
@@ -64,7 +64,7 @@ for (const width of [390, 820, 1440]) {
     await expect(page.getByRole('img', { name: 'صورة الخيار أ' })).toBeVisible();
     await expect(page.getByText('اختر الشكل الصحيح')).toBeVisible();
     await expect(page.getByText('الإجابة الصحيحة')).toHaveCount(0);
-    expect(calls()).toBeGreaterThanOrEqual(2);
+    expect(calls.calls()).toBeGreaterThanOrEqual(2);
     await page.getByRole('img', { name: 'صورة السؤال' }).scrollIntoViewIfNeeded();
     await expect.poll(() => page.getByRole('img', { name: 'صورة السؤال' }).evaluate(node => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
     await page.getByRole('img', { name: 'صورة الخيار أ' }).scrollIntoViewIfNeeded();
@@ -89,7 +89,7 @@ test('review practice displays embedded-option question image before answering',
 
 test('failed media lookup preserves review and retries without losing the question', async ({ page }) => {
   await mockStudent(page);
-  await mockMedia(page, true);
+  const media = await mockMedia(page, true);
   await page.route('**/api/v1/review/library?**', route => json(route, {
     items: [{ card, question: { ...question, options: question.options.map(option => ({ ...option, assetId: '' })) } }],
     page: 1, limit: 20, hasMore: false,
@@ -97,6 +97,7 @@ test('failed media lookup preserves review and retries without losing the questi
   await page.goto('/review?pathId=path-1&subjectId=subject-1');
   await expect(page.getByText('تعذر تحميل صورة السؤال')).toBeVisible();
   await expect(page.getByText('اختر الشكل الصحيح')).toBeVisible();
+  media.recover();
   await page.getByRole('button', { name: 'إعادة تحميل الصورة' }).click();
   await expect(page.getByRole('img', { name: 'صورة السؤال' })).toBeVisible();
   await page.reload();
