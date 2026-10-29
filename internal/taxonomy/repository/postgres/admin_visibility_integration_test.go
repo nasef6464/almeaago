@@ -2,12 +2,21 @@ package postgres
 
 import (
     "context"
+    "errors"
+    "net/http"
+    "net/http/httptest"
+    "strings"
     "fmt"
     "os"
     "testing"
     "time"
 
     "github.com/jackc/pgx/v5/pgxpool"
+
+    identityapp "github.com/nasef6464/almeaago/internal/identity/application"
+    identity "github.com/nasef6464/almeaago/internal/identity/domain"
+    taxonomyapp "github.com/nasef6464/almeaago/internal/taxonomy/application"
+    taxonomyhttp "github.com/nasef6464/almeaago/internal/taxonomy/transport/http"
 )
 
 // TestAdminVisibilityReachesLearnerPostgres covers the admin change -> persisted
@@ -46,13 +55,15 @@ func TestAdminVisibilityReachesLearnerPostgres(t *testing.T) {
         `CREATE TABLE levels (
             id uuid PRIMARY KEY, path_id uuid NOT NULL REFERENCES paths(id),
             code text NOT NULL, name text NOT NULL, sort_order integer NOT NULL DEFAULT 0,
-            status text NOT NULL DEFAULT 'active'
+            status text NOT NULL DEFAULT 'active', updated_at timestamptz NOT NULL DEFAULT now()
         )`,
         `CREATE TABLE subjects (
             id uuid PRIMARY KEY, path_id uuid NOT NULL REFERENCES paths(id),
             level_id uuid REFERENCES levels(id), code text NOT NULL, name text NOT NULL,
             sort_order integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'active'
         )`,
+        `CREATE TABLE users(id uuid PRIMARY KEY)`,
+        `CREATE TABLE audit_logs(actor_user_id uuid, action text, resource_type text, resource_id text, status text, metadata jsonb)`,
         `CREATE TABLE skills (
             id uuid PRIMARY KEY, subject_id uuid NOT NULL REFERENCES subjects(id),
             parent_skill_id uuid REFERENCES skills(id), code text NOT NULL,
@@ -65,6 +76,7 @@ func TestAdminVisibilityReachesLearnerPostgres(t *testing.T) {
     }
 
     const (
+        actor = "01900000-0000-7000-8000-000000009100"
         path = "01900000-0000-7000-8000-000000009101"
         levelActive = "01900000-0000-7000-8000-000000009102"
         levelInactive = "01900000-0000-7000-8000-000000009103"
@@ -77,6 +89,7 @@ func TestAdminVisibilityReachesLearnerPostgres(t *testing.T) {
         subActive = "01900000-0000-7000-8000-000000009110"
     )
     for _, stmt := range []struct{ sql string; args []any }{
+        {`INSERT INTO users(id) VALUES($1)`, []any{actor}},
         {`INSERT INTO paths(id,code,name) VALUES($1,'PATH','Path')`, []any{path}},
         {`INSERT INTO levels(id,path_id,code,name,status) VALUES
             ($1,$3,'ACTIVE','Active','active'),($2,$3,'INACTIVE','Inactive','inactive')`,
@@ -138,14 +151,50 @@ func TestAdminVisibilityReachesLearnerPostgres(t *testing.T) {
 
     // The same admin records are changed and re-read: no stale Go cache or
     // phantom client-side entitlement. This is a read-scope check, not RBAC.
-    if _, err := db.Exec(ctx, "UPDATE levels SET status='active' WHERE id=$1", levelInactive); err != nil { t.Fatal(err) }
+    adminHandler := taxonomyhttp.New(taxonomyapp.NewService(r), taxonomyVisibilityAuth{actor: actor, role: identity.RoleAdmin})
+    guestHandler := taxonomyhttp.New(taxonomyapp.NewService(r))
+    patchLevel := func(handler http.Handler, status, csrf string, want int) {
+        t.Helper()
+        req := httptest.NewRequest(http.MethodPatch, "/admin/levels/"+levelInactive, strings.NewReader(fmt.Sprintf("{%q:%q}", "status", status)))
+        req.Header.Set("X-CSRF-Token", csrf)
+        response := httptest.NewRecorder()
+        handler.ServeHTTP(response, req)
+        if response.Code != want { t.Fatalf("PATCH level %s: status=%d want=%d body=%s", status, response.Code, want, response.Body.String()) }
+    }
+    patchLevel(adminHandler, "active", "", http.StatusForbidden)
+    patchLevel(taxonomyhttp.New(taxonomyapp.NewService(r), taxonomyVisibilityAuth{actor: actor, role: identity.RoleTeacher}), "active", "test-csrf", http.StatusForbidden)
+    if hasSubject(subjectInactiveLevel) { t.Fatal("denied admin writes must not change visibility") }
+    patchLevel(adminHandler, "active", "test-csrf", http.StatusOK)
+    publicResponse := httptest.NewRecorder()
+    guestHandler.ServeHTTP(publicResponse, httptest.NewRequest(http.MethodGet, "/bootstrap?phase=full", nil))
+    if publicResponse.Code != http.StatusOK || !strings.Contains(publicResponse.Body.String(), subjectInactiveLevel) {
+        t.Fatalf("public HTTP GET must reflect saved admin level status: %d %s", publicResponse.Code, publicResponse.Body.String())
+    }
     if !hasSubject(subjectInactiveLevel) { t.Fatal("activated level must reveal its subject") }
     ok, err = r.ValidateMasteryGoalScope(ctx, path, subjectInactiveLevel)
     if err != nil || !ok { t.Fatalf("activated level must permit goal: %v %v", ok, err) }
     ok, err = r.ValidateStudyPlanScope(ctx, path, []string{subjectInactiveLevel})
     if err != nil || !ok { t.Fatalf("activated level must permit plan: %v %v", ok, err) }
+    patchLevel(adminHandler, "inactive", "test-csrf", http.StatusOK)
+    if hasSubject(subjectInactiveLevel) { t.Fatal("saved admin deactivation must hide subject on reload") }
+    ok, err = r.ValidateStudyPlanScope(ctx, path, []string{subjectInactiveLevel})
+    if err != nil || ok { t.Fatalf("deactivated level must reject study plan: %v %v", ok, err) }
     if _, err := db.Exec(ctx, "UPDATE skills SET status='active' WHERE id=$1", mainInactive); err != nil { t.Fatal(err) }
     if !hasSkill(subOrphan) { t.Fatal("activating main skill must reveal its sub-skill") }
     if _, err := db.Exec(ctx, "UPDATE skills SET status='inactive' WHERE id=$1", mainInactive); err != nil { t.Fatal(err) }
     if hasSkill(subOrphan) { t.Fatal("deactivating main skill must hide its sub-skill again") }
+}
+
+type taxonomyVisibilityAuth struct {
+    actor string
+    role identity.Role
+}
+
+func (a taxonomyVisibilityAuth) Authenticate(context.Context, string) (identityapp.Authenticated, error) {
+    return identityapp.Authenticated{User: identity.User{ID: a.actor, Roles: []identity.Role{a.role}}}, nil
+}
+
+func (a taxonomyVisibilityAuth) VerifyCSRF(_ identityapp.Authenticated, token string) error {
+    if token != "test-csrf" { return errors.New("invalid CSRF") }
+    return nil
 }
