@@ -172,3 +172,53 @@ func TestReviewSavedHTTPPostgres(t *testing.T) {
 	handler = newHandler()
 	assertLibrary(0)
 }
+
+func TestReviewSavedManualCardLinkedSkillsPostgres(t *testing.T) {
+	f := newEvidenceFixture(t)
+	// LIKE INCLUDING ALL does not copy foreign keys. Recreate the actual
+	// review_card_skills -> review_cards RESTRICT constraint for this case.
+	_, err := f.observer.Exec(f.ctx, "ALTER TABLE "+f.app+".review_card_skills "+
+		"ADD CONSTRAINT review_card_fk FOREIGN KEY(review_card_id) REFERENCES "+
+		f.app+".review_cards(id) ON DELETE RESTRICT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const questionID = "00000000-0000-0000-0000-000000000187"
+	const cardID = "00000000-0000-0000-0000-000000000188"
+	_, err = f.db.Exec(f.ctx, `INSERT INTO review_cards
+		(id,student_id,question_id,question_version,path_id,subject_id,review_type,
+		 saved_for_review,saved_at,has_mistake,next_review_at,updated_at)
+		VALUES($1,$2,$3,1,$4,$5,'saved_review',true,$6,false,$6,$6)`,
+		cardID, reviewSavedStudent, questionID, reviewSavedPath, reviewSavedSubject, f.now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.db.Exec(f.ctx, `INSERT INTO review_card_skills(review_card_id,skill_id)
+		VALUES($1::uuid,$2::uuid)`, cardID, evidenceSkill); err != nil {
+		t.Fatal(err)
+	}
+	auth := &reviewSavedAuth{actor: identity.User{ID: reviewSavedStudent, Roles: []identity.Role{identity.RoleStudent}}}
+	handler := learninghttp.NewReview(learningapp.NewService(f.repo, reviewSavedQuestions{}), auth)
+	deleteCard := func() {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodDelete, "/questions/"+questionID+"/saved", nil).WithContext(f.ctx)
+		req.Header.Set("X-CSRF-Token", "valid-csrf")
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("manual-only unsave HTTP %d: %s", rec.Code, rec.Body.String())
+		}
+	}
+	deleteCard()
+	deleteCard() // repeated DELETE must remain successful.
+	var cards, links int
+	if err = f.db.QueryRow(f.ctx, `SELECT count(*) FROM review_cards WHERE id=$1::uuid`, cardID).Scan(&cards); err != nil {
+		t.Fatal(err)
+	}
+	if err = f.db.QueryRow(f.ctx, `SELECT count(*) FROM review_card_skills WHERE review_card_id=$1::uuid`, cardID).Scan(&links); err != nil {
+		t.Fatal(err)
+	}
+	if cards != 0 || links != 0 {
+		t.Fatalf("manual-only card must be removed with its links: cards=%d links=%d", cards, links)
+	}
+}
