@@ -53,7 +53,7 @@ export function ParentDashboardPage(){
    .catch(e=>{if(!controller.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل النتائج')})
    .finally(()=>{if(!controller.signal.aborted)setDetailBusy(false)});
   return()=>controller.abort();
- },[data,selectedId,tab,reload]);
+ },[data,selectedId,tab]);
 
  useEffect(()=>{
   if(tab!=='report')return;
