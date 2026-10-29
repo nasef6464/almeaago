@@ -349,16 +349,32 @@ func (r *Repository) ListReviewCards(ctx context.Context, student string, tab le
 
 func (r *Repository) SetSavedReview(ctx context.Context, student, questionID string, saved bool) error {
 	if saved {
+		// A repeated PUT must not rotate updated_at: review practice uses that
+		// value as an optimistic token when submitting the student's answer.
 		tag, err := r.db.Exec(ctx, `
 			UPDATE review_cards
 			SET saved_for_review=true,saved_at=COALESCE(saved_at,now()),updated_at=now()
-			WHERE student_id=$1::uuid AND question_id=$2::uuid
+			WHERE student_id=$1::uuid AND question_id=$2::uuid AND saved_for_review=false
 		`, student, questionID)
 		if err != nil {
 			return err
 		}
 		if tag.RowsAffected() == 0 {
-			return learning.ErrNotFound
+			// Distinguish a retry of an already-saved card from an unknown
+			// question, preserving the existing 404 for the latter.
+			var exists bool
+			err = r.db.QueryRow(ctx, `
+				SELECT EXISTS(
+					SELECT 1 FROM review_cards
+					WHERE student_id=$1::uuid AND question_id=$2::uuid
+				)
+			`, student, questionID).Scan(&exists)
+			if err != nil {
+				return err
+			}
+			if !exists {
+				return learning.ErrNotFound
+			}
 		}
 		return nil
 	}
@@ -383,10 +399,12 @@ func (r *Repository) SetSavedReview(ctx context.Context, student, questionID str
 		`, student, questionID)
 		return err
 	}
+	// Repeated DELETE is a no-op for an already-unsaved evidence card.
+	// Keep its optimistic token and any mistake/mastery evidence intact.
 	_, err = r.db.Exec(ctx, `
 		UPDATE review_cards
 		SET saved_for_review=false,saved_at=NULL,updated_at=now()
-		WHERE student_id=$1::uuid AND question_id=$2::uuid
+		WHERE student_id=$1::uuid AND question_id=$2::uuid AND saved_for_review=true
 	`, student, questionID)
 	return err
 }
