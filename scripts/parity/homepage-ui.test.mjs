@@ -15,8 +15,9 @@ test('saved homepage event wins over an older bootstrap read',async()=>{
  const oldWindow=globalThis.window;globalThis.window=new EventTarget();let effect;let state={};let resolve;
  const pending=new Promise(r=>resolve=r);
  const hooks={useState:()=>[{},v=>state=v],useEffect:fn=>effect=fn};
- const {useHomepageSettings,HOMEPAGE_SETTINGS_UPDATED}=load(readFileSync(new URL('../../apps/web/src/features/presentation/useHomepageSettings.ts',import.meta.url),'utf8'),id=>id==='react'?hooks:id==='./api'?{api:{getHomepageSettings:()=>pending}}:require(id));
- try{useHomepageSettings();const cleanup=effect();window.dispatchEvent(new CustomEvent(HOMEPAGE_SETTINGS_UPDATED,{detail:{brand:{logoText:'saved'}}}));resolve({brand:{logoText:'stale'}});await pending;await Promise.resolve();assert.equal(state.brand.logoText,'saved');cleanup();}finally{globalThis.window=oldWindow;}
+ const sanitizer=load(readFileSync(new URL('../../apps/web/src/features/presentation/homepageSanitizer.ts',import.meta.url),'utf8'));
+ const {useHomepageSettings,HOMEPAGE_SETTINGS_UPDATED}=load(readFileSync(new URL('../../apps/web/src/features/presentation/useHomepageSettings.ts',import.meta.url),'utf8'),id=>id==='react'?hooks:id==='./api'?{api:{getHomepageSettings:()=>pending}}:id==='./homepageSanitizer'?sanitizer:require(id));
+ try{useHomepageSettings();const cleanup=effect();window.dispatchEvent(new CustomEvent(HOMEPAGE_SETTINGS_UPDATED,{detail:{hero:{},brand:{logoText:'saved'}}}));resolve({hero:{},brand:{logoText:'stale'}});await pending;await Promise.resolve();assert.equal(state.brand.logoText,'saved');cleanup();}finally{globalThis.window=oldWindow;}
 });
 test('original legacy hero-image recovery replaces historical image hints',()=>{
  const {resolveHomepageHeroImage}=load(readFileSync(new URL('../../apps/web/src/features/presentation/homepageHero.ts',import.meta.url),'utf8'));
