@@ -80,7 +80,7 @@ for (const width of [390, 820, 1440]) {
     await page.getByRole('button', { name: 'تعديل / المنهج' }).click();
     await expect(page.getByRole('heading', { name: 'تعديل الدورة (Master Builder)' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'المناهج الدراسية' })).toBeVisible();
-    await expect(page.getByText(/Revision \\d+/)).toHaveCount(0);
+    await expect(page.getByText('Revision 3')).toHaveCount(0);
     const picker = page.locator('select:has(option[value="lesson-a"])');
     await expect(picker).toBeVisible();
     await picker.selectOption('lesson-a');
