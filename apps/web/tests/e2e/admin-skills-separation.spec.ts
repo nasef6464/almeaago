@@ -63,3 +63,48 @@ test('admin Skills Center is independent from paths and preserves failed subskil
   await expect(page.getByRole('button', { name: 'إضافة المهارة' })).toHaveCount(0);
   await expect(page.getByText('شجرة المهارات')).toHaveCount(0);
 });
+
+test('subskill questions open the canonical question bank scoped to that exact subskill and can return to all questions', async ({ page }) => {
+  await page.route('**/api/v1/auth/me', (route) => json(route, { user: admin }));
+  await page.route('**/api/v1/auth/csrf', (route) => json(route, { csrfToken: 'csrf' }));
+  await page.route('**/api/v1/taxonomy/admin/bootstrap', (route) => json(route, taxonomy));
+  await page.route('**/api/v1/taxonomy/bootstrap?phase=full', (route) => json(route, taxonomy));
+  const requestedSkillIds: string[] = [];
+  const makeQuestion = (code: string, skillId: string) => ({
+    id: code, questionCode: code, currentVersion: 1, workflowStatus: 'approved',
+    ownerType: 'platform', ownerId: '', pathId: 'p1', subjectId: 's1', assignedTeacherId: '',
+    type: 'mcq', difficulty: 'medium', examType: '', source: 'manual', year: null,
+    hasImage: false, hasVideo: false, hasExplanation: true, mainSkillId: 'm1',
+    skillIds: ['m1', skillId], updatedAt: '2026-10-29T00:00:00Z',
+  });
+  await page.route('**/api/v1/questions?**', (route) => {
+    const requestUrl = new URL(route.request().url());
+    const skillId = requestUrl.searchParams.get('skillId') || '';
+    requestedSkillIds.push(skillId);
+    const items = skillId ? [makeQuestion('Q-LINKED', 'sub1')] : [makeQuestion('Q-LINKED', 'sub1'), makeQuestion('Q-OTHER', 'sub-other')];
+    return json(route, { items, page: 1, limit: Number(requestUrl.searchParams.get('limit')), hasMore: false });
+  });
+  await page.route('**/api/v1/questions/coverage?**', (route) => {
+    const skillId = new URL(route.request().url()).searchParams.get('skillId') || '';
+    requestedSkillIds.push(skillId);
+    return json(route, { questionsTotal: skillId ? 1 : 2, approved: skillId ? 1 : 2, pendingReview: 0, unlinked: 0, mainSkillCoverage: 1, subSkillCoverage: 1, skills: [], skillPage: 1, skillLimit: 50, skillsHasMore: false });
+  });
+
+  await page.goto('/admin-dashboard?tab=skills');
+  await page.getByRole('button', { name: 'فتح المهارة الرئيسة الجبر' }).click();
+  await page.getByRole('button', { name: 'فتح المهارة الفرعية المعادلات' }).click();
+  await expect(page.getByRole('region', { name: 'تفاصيل مهارة المعادلات' })).toBeVisible();
+  await expect(page.getByTestId('subskill-question-count-sub1')).toContainText('1 سؤال');
+  await expect(page.getByRole('region', { name: 'تفاصيل مهارة المعادلات' }).getByText('Q-LINKED')).toBeVisible();
+  await page.getByRole('link', { name: 'فتح بنك الأسئلة لهذه المهارة' }).click();
+  await expect(page).toHaveURL(/\/admin-dashboard\/questions\?skillId=sub1$/);
+  await expect(page.getByRole('region', { name: 'نطاق المهارة المحددة' })).toContainText('المعادلات');
+  await expect(page.getByTestId('question-bank-admin').getByText('Q-LINKED')).toBeVisible();
+  await expect(page.getByTestId('question-bank-admin').getByText('Q-OTHER')).toHaveCount(0);
+  expect(requestedSkillIds).toContain('sub1');
+
+  await page.getByRole('link', { name: 'عرض جميع الأسئلة' }).click();
+  await expect(page).toHaveURL(/\/admin-dashboard\/questions$/);
+  await expect(page.getByTestId('question-bank-admin').getByText('Q-OTHER')).toBeVisible();
+  expect(requestedSkillIds).toContain('');
+});

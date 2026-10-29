@@ -32,6 +32,7 @@ function load(relative, initialStates = []) {
     if (id === 'react') return seededReact;
     if (id.endsWith('/AuthProvider')) return { useAuth: () => ({ user: { roles: ['admin'], name: 'مدير المنصة' }, loading: false, getCsrfToken: async () => 'test' }) };
     if (id.endsWith('/taxonomy-admin-client')) return { taxonomyAdminClient: {} };
+    if (id.endsWith('/questionbank-client')) return { questionBankClient: {} };
     if (id.endsWith('/navigation')) return {
       HOMEPAGE_ADMIN_HREF: '/admin-dashboard?tab=homepage', PLATFORM_FONTS_ADMIN_HREF: '/admin-dashboard?tab=platform-fonts',
       isHomepageLocation: () => false, isPlatformFontsLocation: () => false,
@@ -80,4 +81,38 @@ test('skill save error is visible inside the open editor and the draft survives'
   const dialog = html.slice(html.indexOf('role="dialog"'));
   assert.match(dialog, /role="alert"[^>]*>تعارض مؤقت/);
   assert.match(dialog, /value="حل المعادلات"/);
+});
+
+test('expanded subskill exposes its own question workspace linked to the canonical question bank', () => {
+  const states = [fixture, '', '', false, false, '', '', 0, 'main', null, 'sub'];
+  const { SkillsAdminPage } = load('features/taxonomy/pages/SkillsAdminPage.tsx', states);
+  const html = renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(SkillsAdminPage)));
+  assert.match(html, /الأسئلة المرتبطة/);
+  assert.match(html, /href="\/admin-dashboard\/questions\?skillId=sub"/);
+  assert.match(html, /مهارة المعادلات/);
+});
+
+test('question-bank client uses exact skill ID and omits unselected optional filters', async () => {
+  const source = readFileSync(new URL('../../apps/web/src/features/questionbank/api/questionbank-client.ts', import.meta.url), 'utf8');
+  const javascript = ts.transpileModule(source.replaceAll('import.meta.env', '({ VITE_API_BASE_URL: "" })'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const mod = { exports: {} };
+  new Function('module', 'exports', javascript)(mod, mod.exports);
+  const previous = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async (url) => {
+    urls.push(new URL(url, 'https://example.test'));
+    return { ok: true, json: async () => ({ items: [], page: 1, limit: 6, hasMore: false }) };
+  };
+  try {
+    await mod.exports.questionBankClient.list({ page: 1, limit: 6, skillIds: ['sub'] });
+    assert.equal(urls.length, 1);
+    assert.equal(urls[0].searchParams.get('skillId'), 'sub');
+    assert.equal(urls[0].searchParams.has('linked'), false);
+    assert.equal(urls[0].searchParams.has('withVideo'), false);
+    assert.equal(urls[0].searchParams.has('withExplanation'), false);
+  } finally {
+    globalThis.fetch = previous;
+  }
 });

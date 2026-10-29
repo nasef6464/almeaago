@@ -1,7 +1,9 @@
-import { ChevronDown, ChevronUp, Edit2, Loader2, Plus, RefreshCcw, Target, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Edit2, HelpCircle, Loader2, Plus, RefreshCcw, Target, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
+import { questionBankClient, type QuestionSummary } from '../../questionbank/api/questionbank-client';
 import {
   taxonomyAdminClient,
   type AdminTaxonomyBootstrap,
@@ -12,6 +14,7 @@ import {
 const EMPTY: AdminTaxonomyBootstrap = { paths: [], levels: [], subjects: [], skills: [] };
 const statuses: Record<TaxonomyStatus, string> = { active: 'نشط', inactive: 'غير نشط', archived: 'مؤرشف' };
 type SkillDraft = { id?: string; kind: 'main' | 'sub'; subjectId: string; parentSkillId: string; code: string; name: string; description: string; sortOrder: number };
+type LinkedQuestions = { skillId: string; rows: QuestionSummary[]; total: number | null; loading: boolean; error: string };
 
 export function SkillsAdminPage() {
   const { user, loading: authLoading, getCsrfToken } = useAuth();
@@ -25,6 +28,8 @@ export function SkillsAdminPage() {
   const [refresh, setRefresh] = useState(0);
   const [expandedMainId, setExpandedMainId] = useState<string | null>(null);
   const [draft, setDraft] = useState<SkillDraft | null>(null);
+  const [expandedSubSkillId, setExpandedSubSkillId] = useState<string | null>(null);
+  const [linkedQuestions, setLinkedQuestions] = useState<LinkedQuestions>({ skillId: '', rows: [], total: null, loading: false, error: '' });
   const isAdmin = user?.roles.includes('admin') ?? false;
 
   useEffect(() => {
@@ -46,6 +51,22 @@ export function SkillsAdminPage() {
   const subSkills = useMemo(() => visibleSkills.filter((skill) => skill.kind === 'sub'), [visibleSkills]);
   const subjectName = (id: string) => data.subjects.find((subject) => subject.id === id)?.name || 'غير محدد';
   const pathName = (subjectId: string) => data.paths.find((path) => path.id === data.subjects.find((subject) => subject.id === subjectId)?.pathId)?.name || 'غير محدد';
+
+  useEffect(() => {
+    if (!isAdmin || !expandedSubSkillId || !subSkills.some((skill) => skill.id === expandedSubSkillId)) return;
+    const controller = new AbortController();
+    const skillId = expandedSubSkillId;
+    setLinkedQuestions({ skillId, rows: [], total: null, loading: true, error: '' });
+    Promise.all([
+      questionBankClient.list({ page: 1, limit: 6, skillIds: [skillId] }, controller.signal),
+      questionBankClient.coverage({ page: 1, limit: 6, skillIds: [skillId] }, controller.signal),
+    ]).then(([page, coverage]) => {
+      if (!controller.signal.aborted) setLinkedQuestions({ skillId, rows: page.items, total: coverage.questionsTotal, loading: false, error: '' });
+    }).catch((reason) => {
+      if (!controller.signal.aborted) setLinkedQuestions({ skillId, rows: [], total: null, loading: false, error: reason instanceof Error ? reason.message : 'تعذر تحميل الأسئلة المرتبطة' });
+    });
+    return () => controller.abort();
+  }, [expandedSubSkillId, isAdmin, subSkills]);
 
   const openCreate = (kind: 'main' | 'sub', parent?: AdminTaxonomySkill) => {
     setError('');
@@ -114,11 +135,11 @@ export function SkillsAdminPage() {
     {busy ? <div role="status" className="flex items-center gap-2 rounded-xl border bg-white p-5 font-bold text-slate-600"><Loader2 size={18} className="animate-spin"/> جاري تحميل المهارات...</div> : null}
 
     <section className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm md:flex-row" aria-label="فلاتر المهارات">
-      <select data-testid="skills-filter-path" aria-label="فلتر المسار" value={pathFilter} onChange={(event) => {setPathFilter(event.target.value); setSubjectFilter(''); setExpandedMainId(null);}} className="flex-1 rounded-lg border border-gray-200 px-4 py-2 focus:ring-2 focus:ring-indigo-500">
+      <select data-testid="skills-filter-path" aria-label="فلتر المسار" value={pathFilter} onChange={(event) => {setPathFilter(event.target.value); setSubjectFilter(''); setExpandedMainId(null); setExpandedSubSkillId(null);}} className="flex-1 rounded-lg border border-gray-200 px-4 py-2 focus:ring-2 focus:ring-indigo-500">
         <option value="">كل المسارات</option>
         {data.paths.map((path) => <option key={path.id} value={path.id}>{path.name}</option>)}
       </select>
-      <select data-testid="skills-filter-subject" aria-label="فلتر المادة - اختر المسار أولا" value={subjectFilter} onChange={(event) => {setSubjectFilter(event.target.value); setExpandedMainId(null);}} disabled={!pathFilter} className="flex-1 rounded-lg border border-gray-200 px-4 py-2 disabled:opacity-50">
+      <select data-testid="skills-filter-subject" aria-label="فلتر المادة - اختر المسار أولا" value={subjectFilter} onChange={(event) => {setSubjectFilter(event.target.value); setExpandedMainId(null); setExpandedSubSkillId(null);}} disabled={!pathFilter} className="flex-1 rounded-lg border border-gray-200 px-4 py-2 disabled:opacity-50">
         <option value="">كل المواد</option>
         {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
       </select>
@@ -136,7 +157,7 @@ export function SkillsAdminPage() {
         const expanded = expandedMainId === main.id;
         return <article key={main.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className={`flex items-center gap-3 p-4 ${expanded ? 'border-b border-indigo-100 bg-indigo-50/50' : 'bg-gray-50'}`}>
-            <button type="button" onClick={() => setExpandedMainId(expanded ? null : main.id)} aria-label={`${expanded ? 'طي' : 'فتح'} المهارة الرئيسة ${main.name}`} aria-expanded={expanded} className="flex min-w-0 flex-1 items-center gap-3 text-right">
+            <button type="button" onClick={() => { setExpandedMainId(expanded ? null : main.id); setExpandedSubSkillId(null); }} aria-label={`${expanded ? 'طي' : 'فتح'} المهارة الرئيسة ${main.name}`} aria-expanded={expanded} className="flex min-w-0 flex-1 items-center gap-3 text-right">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white"><Target size={23}/></span>
               <span className="min-w-0"><b className="block text-lg text-gray-900">{main.name}</b><span className="text-sm text-gray-500">{children.length} مهارات فرعية · {subjectName(main.subjectId)} · {pathName(main.subjectId)}</span></span>
               {expanded ? <ChevronUp size={19} className="text-indigo-600"/> : <ChevronDown size={19} className="text-gray-400"/>}
@@ -147,7 +168,34 @@ export function SkillsAdminPage() {
           {expanded ? <div className="space-y-3 p-5">
             <div className="flex items-center justify-between"><h2 className="font-bold text-gray-800">المهارات الفرعية ({main.name})</h2><button type="button" onClick={() => openCreate('sub', main)} className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700"><Plus size={16}/> إضافة مهارة فرعية</button></div>
             {children.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-center text-sm text-gray-500">لا توجد مهارات فرعية بعد.</p> : null}
-            {children.map((sub) => <div key={sub.id} className="flex items-center gap-2 rounded-xl border bg-gray-50 p-3"><Target size={16} className="shrink-0 text-indigo-600"/><div className="min-w-0 flex-1"><b className="block truncate">{sub.name}</b><span className="text-xs text-gray-500">{sub.code}</span></div><button type="button" onClick={() => openEdit(sub)} aria-label={`تعديل المهارة الفرعية ${sub.name}`} className="rounded-lg p-2 text-blue-600"><Edit2 size={16}/></button><select aria-label={`حالة المهارة ${sub.name}`} value={sub.status} onChange={(event) => void changeStatus(sub, event.target.value as TaxonomyStatus)} className="rounded-lg border bg-white p-2 text-xs">{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>)}
+            {children.map((sub) => {
+              const subExpanded = expandedSubSkillId === sub.id;
+              const questions = linkedQuestions.skillId === sub.id ? linkedQuestions : null;
+              return <article key={sub.id} className="overflow-hidden rounded-xl border bg-white">
+                <div className="flex items-center gap-2 bg-gray-50 p-3">
+                  <button type="button" onClick={() => setExpandedSubSkillId(subExpanded ? null : sub.id)} aria-label={`${subExpanded ? 'طي' : 'فتح'} المهارة الفرعية ${sub.name}`} aria-expanded={subExpanded} className="flex min-w-0 flex-1 items-center gap-2 text-right">
+                    <Target size={16} className="shrink-0 text-indigo-600"/>
+                    <span className="min-w-0"><b className="block truncate">{sub.name}</b><span className="text-xs text-gray-500">{sub.code}</span></span>
+                    {subExpanded ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+                  </button>
+                  <button type="button" onClick={() => openEdit(sub)} aria-label={`تعديل المهارة الفرعية ${sub.name}`} className="rounded-lg p-2 text-blue-600"><Edit2 size={16}/></button>
+                  <select aria-label={`حالة المهارة ${sub.name}`} value={sub.status} onChange={(event) => void changeStatus(sub, event.target.value as TaxonomyStatus)} className="rounded-lg border bg-white p-2 text-xs">{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+                </div>
+                {subExpanded ? <section className="space-y-3 border-t p-4" aria-label={`تفاصيل مهارة ${sub.name}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="inline-flex items-center gap-2 font-bold text-gray-800"><HelpCircle size={17} className="text-indigo-600"/> الأسئلة المرتبطة</h3>
+                    <Link to={`/admin-dashboard/questions?skillId=${encodeURIComponent(sub.id)}`} className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">فتح بنك الأسئلة لهذه المهارة</Link>
+                  </div>
+                  {questions?.loading || !questions ? <p role="status" className="text-sm text-gray-500">جاري تحميل الأسئلة المرتبطة...</p> : null}
+                  {questions?.error ? <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{questions.error}</p> : null}
+                  {questions && !questions.loading && !questions.error ? <>
+                    <p data-testid={`subskill-question-count-${sub.id}`} className="text-xs font-bold text-gray-500">{questions.total} سؤال مرتبط بهذه المهارة</p>
+                    {questions.rows.length ? <ul className="space-y-2">{questions.rows.map((question) => <li key={question.id} className="flex items-center justify-between gap-3 rounded-lg border bg-slate-50 px-3 py-2"><span className="font-bold text-gray-700">{question.questionCode}</span><span className="text-xs text-gray-500">{question.workflowStatus === 'approved' ? 'معتمد' : question.workflowStatus === 'draft' ? 'مسودة' : 'قيد المراجعة'}</span></li>)}</ul> : <p className="text-sm text-gray-500">لا توجد أسئلة مرتبطة بهذه المهارة.</p>}
+                    {questions.total !== null && questions.total > questions.rows.length ? <p className="text-xs text-gray-500">تظهر أول {questions.rows.length} أسئلة؛ افتح بنك الأسئلة لمشاهدة الباقي.</p> : null}
+                  </> : null}
+                </section> : null}
+              </article>;
+            })}
           </div> : null}
         </article>;
       })}

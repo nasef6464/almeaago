@@ -17,6 +17,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
@@ -43,6 +44,8 @@ const statusLabel:Record<QuestionWorkflowStatus,string>={
 const typeLabel:Record<QuestionType,string>={mcq:'اختيار من متعدد',true_false:'صح / خطأ',essay:'مقالي'};
 
 export function QuestionBankAdminPage(){
+  const [searchParams] = useSearchParams();
+  const selectedSkillId = searchParams.get('skillId')?.trim() || '';
   const {user,loading:authLoading,getCsrfToken}=useAuth();
   const isAdmin=user?.roles.includes('admin')??false;
   const isTeacher=user?.roles.includes('teacher')??false;
@@ -78,6 +81,8 @@ export function QuestionBankAdminPage(){
   const createSkills=useMemo(()=>taxonomy.skills.filter(x=>x.subjectId===create.subjectId),[create.subjectId,taxonomy.skills]);
   const createMainSkills=useMemo(()=>createSkills.filter(x=>x.kind==='main'),[createSkills]);
   const createSubSkills=useMemo(()=>createSkills.filter(x=>x.kind==='sub'&&x.parentSkillId===create.mainSkillId),[create.mainSkillId,createSkills]);
+  const scopedFilters=useMemo(()=>selectedSkillId?{...filters,skillIds:[selectedSkillId]}:filters,[filters,selectedSkillId]);
+  const selectedSkillName=taxonomy.skills.find(x=>x.id===selectedSkillId)?.name;
 
   useEffect(()=>{
     if(authLoading||!user||(!isAdmin&&!isTeacher))return;
@@ -91,8 +96,8 @@ export function QuestionBankAdminPage(){
     const c=new AbortController();
     setBusy(true);setError('');
     Promise.all([
-      questionBankClient.list(filters,c.signal),
-      questionBankClient.coverage(filters,c.signal),
+      questionBankClient.list(scopedFilters,c.signal),
+      questionBankClient.coverage(scopedFilters,c.signal),
     ]).then(([page,cov])=>{
       setRows(page.items);setHasMore(page.hasMore);
       setCoverage({
@@ -102,7 +107,7 @@ export function QuestionBankAdminPage(){
     }).catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل بنك الأسئلة')})
       .finally(()=>{if(!c.signal.aborted)setBusy(false)});
     return()=>c.abort();
-  },[authLoading,filters,isAdmin,isTeacher,reload,user]);
+  },[authLoading,scopedFilters,isAdmin,isTeacher,reload,user]);
 
   useEffect(()=>{
     if(filters.subjectId&&!subjects.some(x=>x.id===filters.subjectId))setFilters(x=>({...x,subjectId:'',mainSkillId:''}));
@@ -198,6 +203,11 @@ export function QuestionBankAdminPage(){
         <div className="flex flex-wrap gap-2"><button type="button" onClick={()=>setReload(x=>x+1)} className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-black"><RefreshCcw size={17}/> تحديث</button><button type="button" onClick={()=>setShowCreate(x=>!x)} className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2 text-sm font-black text-slate-950"><Plus size={17}/> سؤال جديد</button></div>
       </div>
     </header>
+
+    {selectedSkillId?<section aria-label="نطاق المهارة المحددة" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm font-bold text-indigo-900">
+      <span>الأسئلة المرتبطة بالمهارة: {selectedSkillName || 'مهارة محددة'}</span>
+      <Link to="/admin-dashboard/questions" className="rounded-xl border border-indigo-300 bg-white px-3 py-2 text-indigo-700">عرض جميع الأسئلة</Link>
+    </section>:null}
 
     {error?<div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 font-bold text-rose-700">{error}</div>:null}
     {notice?<div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 font-bold text-emerald-700">{notice}</div>:null}
