@@ -18,7 +18,7 @@ Actor: school director → existing school selector and student search → `GET 
 
 - On context revalidation, invalidate school/visit/read epochs and clear sensitive rows, overview, assessments and stale forms before the next authorized context arrives. Aborted and late context reads cannot restore old scopes.
 - Resolve selected school by exact authorized ID only, with no silent fallback to an unrelated school.
-- On roster search/refresh, clear previous classes/students/teachers while the new scope is pending; guard every result and error by school ID, visit epoch and request epoch.
+- On student roster search/refresh, clear previous student rows and total while the new query is pending, but keep independent same-school classes and teacher assignments interactive (a director may revoke a teacher assignment during a delayed student search); guard every result and error by school ID, visit epoch and request epoch.
 - Preserve the existing search input after failed reads. Failed context reads use the existing empty-state panel to display an error rather than suggesting the director lacks a school.
 - No new cards, actions, routes, or entitlement decisions. Go, PostgreSQL schema, scoring, RBAC, commerce and production are unchanged.
 
@@ -26,6 +26,6 @@ Actor: school director → existing school selector and student search → `GET 
 - Browser tests: `apps/web/tests/e2e/school-director-scope-failed-read.spec.ts` covers failed roster reads at 390/820/1440 RTL and failed context read.
 - Existing director tests and backend/database CI are regression gates, not proof of new database writes.
 - RED test-only commit `9e9edc5ad9e7486055ecf86373fbc62180a92baf` was created first; its workflow was cancelled by a subsequent push, so RED is **NOT PROVEN** unless a completed failure artifact is recovered.
-- Final browser/CI results and exact final SHA must be read from GitHub Actions after this checkpoint commit.
+- The first full browser run on e2eb0467 exposed an existing director regression test failure: a delayed student search must not hide the independent teacher assignment's deactivation control. The implementation was corrected on 3530754d without weakening the test. Final browser/CI results and exact final SHA must be read from GitHub Actions after this checkpoint commit.
 - PARTIAL: paired live Legacy↔Go screenshots with identical actor/data, actual Go/PostgreSQL end-to-end browser session, all director/teacher/supervisor tabs, permission revocation mid-session and save-draft failure semantics remain to be proven.
 - Next safe slice: implement original supervisor students/skills tabs backed by scoped Go evidence, without invented KPI cards or unauthorized cross-school reads; coordinate API ownership with school reporting.
