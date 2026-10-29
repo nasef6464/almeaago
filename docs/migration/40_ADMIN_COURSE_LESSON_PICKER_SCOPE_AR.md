@@ -16,8 +16,9 @@ Admin → course list → edit curriculum → search lesson → `GET /api/v1/les
 
 ## Tests
 - New `admin-course-lesson-picker-scope.spec.ts`: 390/820/1440 RTL, failed lesson search, stale option/selection removal, next-search recovery and screenshot; save 503 → retained draft → retry → reload, payload retains path/subject/skillIds.
+- Original header/tab assertions: existing tab label, absence of raw Revision metadata, plus the scoped search tests.
 - Test-first commit `eefe25f9ec28fb7dbfe08cc01016871b28eba69c`. A measured RED is **not proven** unless an actual completed failing CI run is linked; avoid interpreting a pending/cancelled run as RED.
-- Frontend fix commit `db566ba8ce573d9cd7c8051bb9be7483a757dce3`; test contract method correction `65ebc0eeb1f47a8a14acc8c6cfe85a63768ea9de`.
+- Frontend fix commit `db566ba8ce573d9cd7c8051bb9be7483a757dce3`; test contract method correction `65ebc0eeb1f47a8a14acc8c6cfe85a63768ea9de`; original header fix `c384cf21c36164c7a8dc5e1bf736840c8742ef1b`, browser assertion `af8b74a8f8c4019561f1b84fb2a5c88ba3abfa97`.
 - CI links and exact-head results belong in PR #175 and must be rechecked after this documentation commit. Browser tests use mocked HTTP, not a real PostgreSQL session.
 
 ## Remaining / next
