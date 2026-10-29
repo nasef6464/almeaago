@@ -271,7 +271,6 @@ func TestPresignRejectsNonStaffActor(t *testing.T) {
 	}
 }
 
-
 func TestGetAllowsStudentToReadActiveQuestionImage(t *testing.T) {
 	asset := media.Asset{
 		ID: "asset-question", Status: media.StatusActive, MimeType: "image/png",
