@@ -22,9 +22,9 @@
 
 ## التحقق والحالة
 - اختبار E2E جديد `student-report-scope-failure.spec.ts` عند 390/820/1440 RTL: بيانات مسار A، فشل HTTP 503 لمسار B، غياب بيانات A، ثم نجاح إعادة المحاولة لمسار B وصور Go.
-- RED commit: `c8a1486dcec75edc8967e096c036bfa8ae904e90`، وGREEN code commit: `f14068c85ff9c4b67c96cbc3384e4786a00bce5f`. تُوثّق نتائج CI النهائية في PR.
+- RED proof branch: `test/student-report-scope-red-20261029@4d33c28d6e0bae60302949b83812c565e543075d` (after selector corrections)، وGREEN fix: `f14068c85ff9c4b67c96cbc3384e4786a00bce5f` مع اختبار نهائي `21acf54739a84f2726b1317908ddc0b784adbb66`. تُوثّق نتائج CI النهائية في PR.
 - VERIFIED: اختلاف state من الكود والإصلاح المحفوظ في commit. 
-- PARTIAL: نتائج المتصفح/CI حتى تشغيلها على SHA النهائي، ومواءمة صفحة تقارير الطالب بالكامل مع Legacy.
+- PARTIAL: نتائج المتصفح/CI حتى تشغيلها على SHA النهائي، ومواءمة صفحة تقارير الطالب بالكامل مع Legacy. فشل التشغيل الأول للمتصفح بسبب locator صارم يطابق اسم المهارة مرتين؛ صُحح locator دون تغيير شرط إخفاء الأدلة.
 - NOT PROVEN: زوج صور Legacy↔Go بنفس الدور والبيانات، ورحلة حية عبر Go/PostgreSQL؛ الاختبار الحالي يحاكي HTTP فقط.
 - BLOCKED: اعتماد parity النهائي دون بيانات بيئة اختبار متطابقة ولقطات المصدر.
 - التالي: اختبار E2E على SHA النهائي، ثم تشغيل رحلة API/Go/PostgreSQL المعزولة وربط إجراءات فيديو/تدريب/ملف الدعم canonical بالمهارة بعد تنسيق مالك التأسيس.
