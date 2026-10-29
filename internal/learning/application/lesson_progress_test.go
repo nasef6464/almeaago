@@ -125,3 +125,18 @@ func TestLessonProgressRejectsRepositoryResponseFromOtherCourse(t *testing.T) {
 		t.Fatalf("completion must not return another course's progress: %v", err)
 	}
 }
+
+func TestLessonProgressAcceptsCanonicalUUIDCase(t *testing.T) {
+	repo := &lessonProgressRepoStub{row: learning.LessonProgress{
+		LessonID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+		ContextType: learning.LessonProgressCourse,
+		CourseID: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+		Status: learning.LessonInProgress,
+	}}
+	s := NewLessonProgressService(repo, lessonTargetStub{ok: true, lessonType: "video", duration: 120})
+	out, err := s.Get(context.Background(), progressStudent(), "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
+		learning.LessonProgressContextInput{ContextType: learning.LessonProgressCourse, CourseID: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"})
+	if err != nil || out.LessonID != repo.row.LessonID {
+		t.Fatalf("PostgreSQL canonical UUID casing should not change the scope: progress=%+v err=%v", out, err)
+	}
+}
