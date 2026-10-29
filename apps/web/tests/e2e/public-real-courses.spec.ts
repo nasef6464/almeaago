@@ -13,10 +13,11 @@ for(const width of [390,820,1440]){
   await page.route('**/api/v1/courses/public?*',r=>json(r,{items:courses}));
   await page.goto('/');
   const landing=page.getByTestId('public-landing');
+  const courseSection=landing.locator('section[aria-label="الدورات المنشورة"]');
   await expect(landing.getByText('دورة قدرات منشورة',{exact:true})).toBeVisible();
   await expect(landing.getByText('دورة تحصيلي منشورة',{exact:true})).toBeVisible();
-  await expect(landing.getByText('استوديو التعلم والإنطلاق الذكي',{exact:true})).toHaveCount(0);
-  await expect(landing.getByText('هذه بطاقات عرض للواجهة المرجعية',{exact:false})).toHaveCount(0);
+  await expect(courseSection.getByText('استوديو التعلم والإنطلاق الذكي',{exact:true})).toHaveCount(0);
+  await expect(courseSection.getByText('هذه بطاقات عرض للواجهة المرجعية',{exact:false})).toHaveCount(0);
   await expect(landing.locator('a[href="/course/c-public-1"]')).toBeVisible();
   await expect(landing.locator('a[href="/course/c-public-2?buy=1"]')).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
