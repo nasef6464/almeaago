@@ -44,7 +44,7 @@ for(const width of [390,820,1440]){
     await expect(page.getByLabel('فصل الاختبار المدرسي')).toHaveValue('class-1');
     await page.getByLabel('مسار الاختبار المدرسي').selectOption('path-1');
     await page.getByLabel('مادة الاختبار المدرسي').selectOption('subject-1');
-    await expect(page.getByRole('alert').filter({hasText:'تعذر'})).toBeVisible();
+    await expect(page.getByRole('alert').filter({hasText:'temporarily unavailable'})).toBeVisible();
     await page.getByRole('button',{name:'إعادة المحاولة'}).click();
     await expect(page.getByText('سؤال رياضيات معتمد')).toBeVisible();
     expect(questionReads).toBe(2);
