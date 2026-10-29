@@ -379,13 +379,24 @@ func (r *Repository) SetSavedReview(ctx context.Context, student, questionID str
 		return nil
 	}
 
-	var reviewType string
+
+	// A single row lock keeps a concurrent review answer from being deleted
+	// after it has become mistake/mastery evidence. The legacy manual-only
+	// saved card can be deleted, but its skill links must go first (RESTRICT FK).
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var cardID, reviewType string
 	var mistake bool
-	err := r.db.QueryRow(ctx, `
-		SELECT review_type,has_mistake
+	err = tx.QueryRow(ctx, `
+		SELECT id::text,review_type,has_mistake
 		FROM review_cards
 		WHERE student_id=$1::uuid AND question_id=$2::uuid
-	`, student, questionID).Scan(&reviewType, &mistake)
+		FOR UPDATE
+	`, student, questionID).Scan(&cardID, &reviewType, &mistake)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
@@ -393,20 +404,27 @@ func (r *Repository) SetSavedReview(ctx context.Context, student, questionID str
 		return err
 	}
 	if reviewType == "saved_review" && !mistake {
-		_, err = r.db.Exec(ctx, `
-			DELETE FROM review_cards
-			WHERE student_id=$1::uuid AND question_id=$2::uuid
-		`, student, questionID)
-		return err
+		if _, err = tx.Exec(ctx, `
+			DELETE FROM review_card_skills WHERE review_card_id=$1::uuid
+		`, cardID); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(ctx, `
+			DELETE FROM review_cards WHERE id=$1::uuid AND student_id=$2::uuid
+		`, cardID, student); err != nil {
+			return err
+		}
+	} else {
+		// Repeated DELETE must not rotate the optimistic review token.
+		if _, err = tx.Exec(ctx, `
+			UPDATE review_cards
+			SET saved_for_review=false,saved_at=NULL,updated_at=now()
+			WHERE id=$1::uuid AND student_id=$2::uuid AND saved_for_review=true
+		`, cardID, student); err != nil {
+			return err
+		}
 	}
-	// Repeated DELETE is a no-op for an already-unsaved evidence card.
-	// Keep its optimistic token and any mistake/mastery evidence intact.
-	_, err = r.db.Exec(ctx, `
-		UPDATE review_cards
-		SET saved_for_review=false,saved_at=NULL,updated_at=now()
-		WHERE student_id=$1::uuid AND question_id=$2::uuid AND saved_for_review=true
-	`, student, questionID)
-	return err
+	return tx.Commit(ctx)
 }
 
 func uniqueStrings(values []string) []string {
