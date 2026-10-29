@@ -41,9 +41,10 @@ for(const width of [390,820,1440]){
     await setup(page);
     await page.setViewportSize({width,height:900});
     let calls=0;
+    let allowSuccess=false;
     await page.route(reportUrl,route=>{
       calls++;
-      return calls===1?json(route,{message:'temporary read failure'},503):json(route,report);
+      return allowSuccess?json(route,report):json(route,{message:'temporary read failure'},503);
     });
     const statuses:string[]=[];
     await page.route(learnerUrl,route=>{
@@ -56,6 +57,7 @@ for(const width of [390,820,1440]){
     await page.getByRole('button',{name:'النتائج والإدارة'}).click();
     const dialog=page.getByRole('dialog',{name:'النتائج والإدارة — اختبار النسبة'});
     await expect(dialog.getByRole('alert')).toContainText('تعذر تحميل');
+    allowSuccess=true;
     await dialog.getByRole('button',{name:'إعادة المحاولة'}).click();
     await expect(dialog.getByText('متوسط الدرجات')).toBeVisible();
     expect(calls).toBeGreaterThanOrEqual(2);
