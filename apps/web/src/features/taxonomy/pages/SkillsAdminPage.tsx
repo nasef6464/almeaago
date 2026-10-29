@@ -1,8 +1,11 @@
-import { ChevronDown, ChevronUp, Edit2, HelpCircle, Loader2, Plus, RefreshCcw, Target, X } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, Edit2, HelpCircle, Link2, Loader2, Plus, RefreshCcw, Target, Unlink, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
+import { contentClient } from '../../content/api/content-client';
+import type { LessonSummary } from '../../content/api/content-types';
+import { lessonLinkWrite } from '../../content/api/lesson-link-write';
 import { questionBankClient, type QuestionSummary } from '../../questionbank/api/questionbank-client';
 import {
   taxonomyAdminClient,
@@ -15,6 +18,7 @@ const EMPTY: AdminTaxonomyBootstrap = { paths: [], levels: [], subjects: [], ski
 const statuses: Record<TaxonomyStatus, string> = { active: 'نشط', inactive: 'غير نشط', archived: 'مؤرشف' };
 type SkillDraft = { id?: string; kind: 'main' | 'sub'; subjectId: string; parentSkillId: string; code: string; name: string; description: string; sortOrder: number };
 type LinkedQuestions = { skillId: string; rows: QuestionSummary[]; total: number | null; loading: boolean; error: string };
+type LinkedLessons = { skillId: string; rows: LessonSummary[]; loading: boolean; hasMore: boolean; error: string };
 
 export function SkillsAdminPage() {
   const { user, loading: authLoading, getCsrfToken } = useAuth();
@@ -30,6 +34,13 @@ export function SkillsAdminPage() {
   const [draft, setDraft] = useState<SkillDraft | null>(null);
   const [expandedSubSkillId, setExpandedSubSkillId] = useState<string | null>(null);
   const [linkedQuestions, setLinkedQuestions] = useState<LinkedQuestions>({ skillId: '', rows: [], total: null, loading: false, error: '' });
+  const [linkedLessons, setLinkedLessons] = useState<LinkedLessons>({ skillId: '', rows: [], loading: false, hasMore: false, error: '' });
+  const [lessonPage, setLessonPage] = useState(1);
+  const [lessonRefresh, setLessonRefresh] = useState(0);
+  const [linkTarget, setLinkTarget] = useState<AdminTaxonomySkill | null>(null);
+  const [lessonPendingId, setLessonPendingId] = useState('');
+  const [lessonError, setLessonError] = useState('');
+  const [lessonNotice, setLessonNotice] = useState('');
   const isAdmin = user?.roles.includes('admin') ?? false;
 
   useEffect(() => {
@@ -67,6 +78,40 @@ export function SkillsAdminPage() {
     });
     return () => controller.abort();
   }, [expandedSubSkillId, isAdmin, subSkills]);
+
+  useEffect(() => {
+    if (!isAdmin || !expandedSubSkillId) return;
+    const sub = subSkills.find((skill) => skill.id === expandedSubSkillId);
+    if (!sub) return;
+    const controller = new AbortController();
+    setLinkedLessons((current) => ({ skillId: sub.id, rows: lessonPage > 1 && current.skillId === sub.id ? current.rows : [], loading: true, hasMore: false, error: '' }));
+    contentClient.lessons({ page: lessonPage, limit: 50, subjectId: sub.subjectId, skillId: sub.id }, controller.signal)
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        setLinkedLessons((current) => ({ skillId: sub.id, rows: lessonPage > 1 && current.skillId === sub.id ? [...current.rows, ...result.items] : result.items, loading: false, hasMore: result.hasMore, error: '' }));
+      })
+      .catch((reason) => {
+        if (!controller.signal.aborted) setLinkedLessons((current) => ({ ...current, loading: false, error: reason instanceof Error ? reason.message : 'تعذر تحميل الدروس المرتبطة' }));
+      });
+    return () => controller.abort();
+  }, [expandedSubSkillId, isAdmin, lessonPage, lessonRefresh, subSkills]);
+
+  async function detachLesson(sub: AdminTaxonomySkill, lesson: LessonSummary) {
+    if (lessonPendingId) return;
+    setLessonPendingId(lesson.id); setLessonError(''); setLessonNotice('');
+    try {
+      const detail = (await contentClient.lesson(lesson.id)).lesson;
+      if (detail.subjectId !== sub.subjectId || detail.pathId !== data.subjects.find((subject) => subject.id === sub.subjectId)?.pathId) throw new Error('الدرس لا ينتمي إلى مادة المهارة.');
+      if (detail.workflowStatus === 'approved' || detail.workflowStatus === 'archived') throw new Error('لا يمكن تعديل درس معتمد أو مؤرشف؛ أعده لمسودة من إدارة المحتوى أولًا.');
+      const next = detail.skillIds.filter((skillId) => skillId !== sub.id);
+      if (next.length === 0) throw new Error('لا يمكن فصل المهارة الوحيدة عن الدرس. اربط الدرس بمهارة بديلة أولًا.');
+      await contentClient.updateLesson(detail.id, lessonLinkWrite(detail, next), await getCsrfToken());
+      setLessonNotice('تم فصل الدرس عن المهارة دون حذف محتواه.');
+      setLessonPage(1); setLessonRefresh((value) => value + 1);
+    } catch (reason) {
+      setLessonError(reason instanceof Error ? reason.message : 'تعذر فصل الدرس');
+    } finally { setLessonPendingId(''); }
+  }
 
   const openCreate = (kind: 'main' | 'sub', parent?: AdminTaxonomySkill) => {
     setError('');
@@ -171,9 +216,10 @@ export function SkillsAdminPage() {
             {children.map((sub) => {
               const subExpanded = expandedSubSkillId === sub.id;
               const questions = linkedQuestions.skillId === sub.id ? linkedQuestions : null;
+              const lessons = linkedLessons.skillId === sub.id ? linkedLessons : null;
               return <article key={sub.id} className="overflow-hidden rounded-xl border bg-white">
                 <div className="flex items-center gap-2 bg-gray-50 p-3">
-                  <button type="button" onClick={() => setExpandedSubSkillId(subExpanded ? null : sub.id)} aria-label={`${subExpanded ? 'طي' : 'فتح'} المهارة الفرعية ${sub.name}`} aria-expanded={subExpanded} className="flex min-w-0 flex-1 items-center gap-2 text-right">
+                  <button type="button" onClick={() => { setExpandedSubSkillId(subExpanded ? null : sub.id); setLessonPage(1); setLessonError(''); setLessonNotice(''); }} aria-label={`${subExpanded ? 'طي' : 'فتح'} المهارة الفرعية ${sub.name}`} aria-expanded={subExpanded} className="flex min-w-0 flex-1 items-center gap-2 text-right">
                     <Target size={16} className="shrink-0 text-indigo-600"/>
                     <span className="min-w-0"><b className="block truncate">{sub.name}</b><span className="text-xs text-gray-500">{sub.code}</span></span>
                     {subExpanded ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
@@ -192,6 +238,21 @@ export function SkillsAdminPage() {
                     <p data-testid={`subskill-question-count-${sub.id}`} className="text-xs font-bold text-gray-500">{questions.total} سؤال مرتبط بهذه المهارة</p>
                     {questions.rows.length ? <ul className="space-y-2">{questions.rows.map((question) => <li key={question.id} className="flex items-center justify-between gap-3 rounded-lg border bg-slate-50 px-3 py-2"><span className="font-bold text-gray-700">{question.questionCode}</span><span className="text-xs text-gray-500">{question.workflowStatus === 'approved' ? 'معتمد' : question.workflowStatus === 'draft' ? 'مسودة' : 'قيد المراجعة'}</span></li>)}</ul> : <p className="text-sm text-gray-500">لا توجد أسئلة مرتبطة بهذه المهارة.</p>}
                     {questions.total !== null && questions.total > questions.rows.length ? <p className="text-xs text-gray-500">تظهر أول {questions.rows.length} أسئلة؛ افتح بنك الأسئلة لمشاهدة الباقي.</p> : null}
+                  </> : null}
+                  <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+                    <h3 className="inline-flex items-center gap-2 font-bold text-gray-800"><BookOpen size={17} className="text-indigo-600"/> الدروس المرتبطة</h3>
+                    <button type="button" onClick={() => { setLessonError(''); setLinkTarget(sub); }} className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700"><Link2 size={14}/> ربط درس موجود</button>
+                  </div>
+                  {lessonError ? <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{lessonError}</p> : null}
+                  {lessonNotice ? <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{lessonNotice}</p> : null}
+                  {lessons?.loading || !lessons ? <p role="status" className="text-sm text-gray-500">جاري تحميل الدروس المرتبطة...</p> : null}
+                  {lessons?.error ? <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{lessons.error}</p> : null}
+                  {lessons && !lessons.loading && !lessons.error ? <>
+                    {lessons.rows.length ? <ul className="space-y-2">{lessons.rows.map((lesson) => <li key={lesson.id} className="flex flex-wrap items-center gap-2 rounded-xl border bg-slate-50 p-3">
+                      <span className="min-w-0 flex-1"><b className="block truncate text-sm text-gray-800">{lesson.title}</b><span className="text-xs text-gray-500">{lesson.type} · {lesson.workflowStatus === 'approved' ? 'معتمد' : lesson.workflowStatus === 'archived' ? 'مؤرشف' : 'قابل للتحرير بحسب الصلاحية'}</span></span>
+                      <button type="button" aria-label={`فصل الدرس ${lesson.title} عن المهارة`} disabled={!!lessonPendingId || lesson.workflowStatus === 'approved' || lesson.workflowStatus === 'archived'} title={lesson.workflowStatus === 'approved' || lesson.workflowStatus === 'archived' ? 'الدرس المعتمد أو المؤرشف محمي من تعديل الروابط' : 'فصل الارتباط فقط دون حذف الدرس'} onClick={() => void detachLesson(sub, lesson)} className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"><Unlink size={14}/> فصل</button>
+                    </li>)}</ul> : <p className="text-sm text-gray-500">لا توجد دروس مرتبطة بهذه المهارة.</p>}
+                    {lessons.hasMore ? <button type="button" onClick={() => setLessonPage((page) => page + 1)} className="rounded-lg border px-3 py-2 text-xs font-bold text-indigo-700">عرض المزيد من الدروس</button> : null}
                   </> : null}
                 </section> : null}
               </article>;
@@ -212,5 +273,70 @@ export function SkillsAdminPage() {
         <button type="button" disabled={pending} onClick={() => void saveSkill()} className="w-full rounded-xl bg-indigo-600 px-4 py-3 font-bold text-white disabled:opacity-50">{pending ? 'جاري الحفظ...' : 'حفظ المهارة'}</button>
       </section>
     </div> : null}
+    {linkTarget ? <LinkLessonDialog
+      skill={linkTarget}
+      pathId={data.subjects.find((subject) => subject.id === linkTarget.subjectId)?.pathId || ''}
+      getCsrfToken={getCsrfToken}
+      onClose={() => setLinkTarget(null)}
+      onLinked={() => { setLinkTarget(null); setLessonNotice('تم ربط الدرس بالمهارة.'); setLessonPage(1); setLessonRefresh((value) => value + 1); }}
+    /> : null}
   </main>;
+}
+
+function LinkLessonDialog({ skill, pathId, getCsrfToken, onClose, onLinked }: {
+  skill: AdminTaxonomySkill;
+  pathId: string;
+  getCsrfToken(): Promise<string>;
+  onClose(): void;
+  onLinked(): void;
+}) {
+  const [page, setPage] = useState(1);
+  const [rows, setRows] = useState<LessonSummary[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [pendingId, setPendingId] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true); setError('');
+    contentClient.lessons({ page, limit: 50, pathId, subjectId: skill.subjectId }, controller.signal)
+      .then((result) => {
+        if (!controller.signal.aborted) {
+          setRows((current) => page === 1 ? result.items : [...current, ...result.items]);
+          setHasMore(result.hasMore);
+        }
+      })
+      .catch((reason) => {
+        if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'تعذر تحميل الدروس المتاحة للربط');
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [page, pathId, skill.subjectId]);
+
+  async function linkLesson(row: LessonSummary) {
+    if (pendingId) return;
+    setPendingId(row.id); setError('');
+    try {
+      const detail = (await contentClient.lesson(row.id)).lesson;
+      if (detail.subjectId !== skill.subjectId || detail.pathId !== pathId) throw new Error('لا يمكن ربط درس من مادة أو مسار مختلف.');
+      if (detail.workflowStatus === 'approved' || detail.workflowStatus === 'archived') throw new Error('لا يمكن تعديل درس معتمد أو مؤرشف؛ أعده لمسودة أولًا.');
+      if (detail.skillIds.includes(skill.id)) throw new Error('هذا الدرس مرتبط بالفعل بهذه المهارة.');
+      await contentClient.updateLesson(detail.id, lessonLinkWrite(detail, [...detail.skillIds, skill.id]), await getCsrfToken());
+      onLinked();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'تعذر ربط الدرس');
+    } finally { setPendingId(''); }
+  }
+
+  return <div role="presentation" className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-950/60 p-3">
+    <section role="dialog" aria-modal="true" aria-label="ربط درس موجود" className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl" dir="rtl">
+      <div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-bold text-gray-900">ربط درس موجود</h2><p className="mt-1 text-sm text-gray-500">مهارة: {skill.name} · الدروس من المادة نفسها فقط</p></div><button type="button" aria-label="إغلاق ربط الدرس" disabled={!!pendingId} onClick={onClose}><X size={20}/></button></div>
+      {error ? <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p> : null}
+      {loading && rows.length === 0 ? <p role="status" className="text-sm text-gray-500">جاري تحميل الدروس...</p> : null}
+      {!loading && !error && rows.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-center text-sm text-gray-500">لا توجد دروس في هذه المادة للربط.</p> : null}
+      <ul className="space-y-2">{rows.map((row) => <li key={row.id} className="flex flex-wrap items-center gap-3 rounded-xl border p-3"><span className="min-w-0 flex-1"><b className="block truncate text-sm">{row.title}</b><span className="text-xs text-gray-500">{row.workflowStatus}</span></span><button type="button" disabled={!!pendingId || row.workflowStatus === 'approved' || row.workflowStatus === 'archived'} onClick={() => void linkLesson(row)} aria-label={`ربط الدرس ${row.title}`} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">{pendingId === row.id ? 'جارٍ الربط...' : 'ربط'}</button></li>)}</ul>
+      {hasMore ? <button type="button" disabled={loading || !!pendingId} onClick={() => setPage((current) => current + 1)} className="rounded-lg border px-3 py-2 text-sm font-bold text-indigo-700">عرض المزيد من الدروس</button> : null}
+    </section>
+  </div>;
 }

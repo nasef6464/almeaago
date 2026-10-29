@@ -191,6 +191,23 @@ func TestListRejectsUnboundedLimit(t *testing.T) {
 	}
 }
 
+func TestLessonListValidatesExactSkillFilter(t *testing.T) {
+	service := NewService(&repoStub{})
+	_, err := service.ListLessons(context.Background(), staffActor(identity.RoleAdmin), content.ListQuery{SkillID: "not-a-uuid"})
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("invalid skill filter must fail with 400-level input error, got %v", err)
+	}
+	const skillID = "22222222-2222-4222-8222-222222222222"
+	repo := &repoStub{}
+	service = NewService(repo)
+	if _, err := service.ListLessons(context.Background(), staffActor(identity.RoleAdmin), content.ListQuery{SkillID: skillID}); err != nil {
+		t.Fatalf("valid skill filter must be accepted: %v", err)
+	}
+	if repo.listQuery.SkillID != skillID {
+		t.Fatalf("skill ID must remain attached to repository query: %#v", repo.listQuery)
+	}
+}
+
 func TestTeacherUpdatePreservesExistingAssignment(t *testing.T) {
 	repo := &repoStub{canAuthor: true, course: content.Course{
 		ID:                     "course-1",

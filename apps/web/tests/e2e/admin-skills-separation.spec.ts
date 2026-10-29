@@ -108,3 +108,64 @@ test('subskill questions open the canonical question bank scoped to that exact s
   await expect(page.getByTestId('question-bank-admin').getByText('Q-OTHER')).toBeVisible();
   expect(requestedSkillIds).toContain('');
 });
+
+test('admin links and detaches a draft lesson from a subskill without deleting the lesson or losing other links', async ({ page }) => {
+  await page.route('**/api/v1/auth/me', (route) => json(route, { user: admin }));
+  await page.route('**/api/v1/auth/csrf', (route) => json(route, { csrfToken: 'lesson-csrf' }));
+  await page.route('**/api/v1/taxonomy/admin/bootstrap', (route) => json(route, taxonomy));
+  await page.route('**/api/v1/questions?**', (route) => json(route, { items: [], page: 1, limit: 6, hasMore: false }));
+  await page.route('**/api/v1/questions/coverage?**', (route) => json(route, { questionsTotal: 0, approved: 0, pendingReview: 0, unlinked: 0, mainSkillCoverage: 0, subSkillCoverage: 0, skills: [], skillPage: 1, skillLimit: 50, skillsHasMore: false }));
+
+  let skillLinks = ['m1'];
+  let revision = 3;
+  const writes: Array<Record<string, unknown>> = [];
+  const lessonSummary = () => ({
+    id: 'lesson-42', pathId: 'p1', subjectId: 's1', title: 'شرح المعادلات', type: 'video', durationSeconds: 600,
+    ownerType: 'platform', ownerUserId: '', ownerSchoolId: '', assignedTeacherId: '', workflowStatus: 'draft',
+    isVisible: true, isLocked: false, revision, updatedAt: '2026-10-29T00:00:00Z',
+  });
+  const lessonDetail = () => ({
+    ...lessonSummary(), description: 'درس محفوظ', contentText: 'نص الدرس', videoUrl: 'https://youtu.be/example',
+    videoSource: 'youtube', meetingUrl: '', meetingAt: null, recordingUrl: '', joinInstructions: '', showRecording: false,
+    createdBy: 'admin-skills-1', approvedBy: '', approvedAt: null, reviewerNotes: '', revenueSharePercentage: null,
+    skillIds: [...skillLinks], assetIds: ['asset-original'], createdAt: '2026-10-29T00:00:00Z',
+  });
+  await page.route('**/api/v1/lessons?**', (route) => {
+    const url = new URL(route.request().url());
+    expect(url.searchParams.get('subjectId')).toBe('s1');
+    const skillId = url.searchParams.get('skillId');
+    return json(route, { items: !skillId || skillLinks.includes(skillId) ? [lessonSummary()] : [], page: 1, limit: 50, hasMore: false });
+  });
+  await page.route('**/api/v1/lessons/lesson-42', async (route) => {
+    if (route.request().method() === 'GET') return json(route, { lesson: lessonDetail() });
+    expect(route.request().method()).toBe('PUT');
+    expect(route.request().headers()['x-csrf-token']).toBe('lesson-csrf');
+    const payload = route.request().postDataJSON() as Record<string, unknown>;
+    writes.push(payload);
+    expect(payload.expectedRevision).toBe(revision);
+    expect(payload.videoUrl).toBe('https://youtu.be/example');
+    expect(payload.assetIds).toEqual(['asset-original']);
+    skillLinks = payload.skillIds as string[];
+    revision++;
+    return json(route, { lesson: lessonDetail() });
+  });
+
+  await page.goto('/admin-dashboard?tab=skills');
+  await page.getByRole('button', { name: 'فتح المهارة الرئيسة الجبر' }).click();
+  await page.getByRole('button', { name: 'فتح المهارة الفرعية المعادلات' }).click();
+  const detail = page.getByRole('region', { name: 'تفاصيل مهارة المعادلات' });
+  await expect(detail.getByText('لا توجد دروس مرتبطة بهذه المهارة.')).toBeVisible();
+  await detail.getByRole('button', { name: 'ربط درس موجود' }).click();
+  const dialog = page.getByRole('dialog', { name: 'ربط درس موجود' });
+  await expect(dialog.getByText('شرح المعادلات')).toBeVisible();
+  await dialog.getByRole('button', { name: 'ربط الدرس شرح المعادلات' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(detail.getByText('شرح المعادلات')).toBeVisible();
+  expect(skillLinks).toEqual(['m1', 'sub1']);
+
+  await detail.getByRole('button', { name: 'فصل الدرس شرح المعادلات عن المهارة' }).click();
+  await expect(detail.getByText('لا توجد دروس مرتبطة بهذه المهارة.')).toBeVisible();
+  await expect(detail.getByText('تم فصل الدرس عن المهارة دون حذف محتواه.')).toBeVisible();
+  expect(skillLinks).toEqual(['m1']);
+  expect(writes).toHaveLength(2);
+});

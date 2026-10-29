@@ -33,6 +33,8 @@ function load(relative, initialStates = []) {
     if (id.endsWith('/AuthProvider')) return { useAuth: () => ({ user: { roles: ['admin'], name: 'مدير المنصة' }, loading: false, getCsrfToken: async () => 'test' }) };
     if (id.endsWith('/taxonomy-admin-client')) return { taxonomyAdminClient: {} };
     if (id.endsWith('/questionbank-client')) return { questionBankClient: {} };
+    if (id.endsWith('/content-client')) return { contentClient: {} };
+    if (id.endsWith('/lesson-link-write')) return load('features/content/api/lesson-link-write.ts');
     if (id.endsWith('/navigation')) return {
       HOMEPAGE_ADMIN_HREF: '/admin-dashboard?tab=homepage', PLATFORM_FONTS_ADMIN_HREF: '/admin-dashboard?tab=platform-fonts',
       isHomepageLocation: () => false, isPlatformFontsLocation: () => false,
@@ -115,4 +117,37 @@ test('question-bank client uses exact skill ID and omits unselected optional fil
   } finally {
     globalThis.fetch = previous;
   }
+});
+
+test('expanded subskill shows its linked lessons with a safe link and detach workspace', () => {
+  const questions = { skillId: 'sub', rows: [], total: 0, loading: false, error: '' };
+  const lesson = { id: 'lesson-1', pathId: 'p', subjectId: 's', title: 'درس المعادلات', type: 'video', workflowStatus: 'draft', revision: 1 };
+  const lessons = { skillId: 'sub', rows: [lesson], loading: false, hasMore: false, error: '' };
+  const states = [fixture, '', '', false, false, '', '', 0, 'main', null, 'sub', questions, lessons];
+  const { SkillsAdminPage } = load('features/taxonomy/pages/SkillsAdminPage.tsx', states);
+  const html = renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(SkillsAdminPage)));
+  assert.match(html, /الدروس المرتبطة/);
+  assert.match(html, /درس المعادلات/);
+  assert.match(html, /ربط درس موجود/);
+  assert.match(html, /فصل الدرس درس المعادلات عن المهارة/);
+});
+
+test('skill lesson link updates preserve every existing lesson field and optimistic revision', () => {
+  const { lessonLinkWrite } = load('features/content/api/lesson-link-write.ts');
+  const lesson = {
+    id: 'l1', revision: 4, pathId: 'p1', subjectId: 's1', title: 'معادلات', description: 'شرح',
+    type: 'video', contentText: 'المحتوى', durationSeconds: 480, videoUrl: 'https://youtu.be/abc', videoSource: 'youtube',
+    meetingUrl: '', meetingAt: null, recordingUrl: '', joinInstructions: '', showRecording: false,
+    ownerType: 'platform', ownerUserId: '', ownerSchoolId: '', assignedTeacherId: '', revenueSharePercentage: null,
+    isVisible: true, isLocked: false, skillIds: ['s-old'], assetIds: ['media-1'],
+  };
+  const result = lessonLinkWrite(lesson, ['s-old', 's-new']);
+  assert.deepEqual(result.skillIds, ['s-old', 's-new']);
+  assert.equal(result.expectedRevision, 4);
+  assert.equal(result.videoUrl, 'https://youtu.be/abc');
+  assert.equal(result.title, 'معادلات');
+  assert.equal(result.contentText, 'المحتوى');
+  assert.deepEqual(result.assetIds, ['media-1']);
+  assert.equal(result.ownerType, 'platform');
+  assert.equal(result.isVisible, true);
 });
