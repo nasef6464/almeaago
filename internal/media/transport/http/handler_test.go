@@ -123,6 +123,7 @@ func TestPresignReturnsDirectUploadMetadataOnly(t *testing.T) {
 		t.Fatalf("internal provider data leaked: %s", got)
 	}
 }
+
 func TestStudentMediaGetReturnsActiveImageMetadataWithoutCSRF(t *testing.T) {
 	repo := &repoStub{asset: media.Asset{
 		ID: "asset-1", Status: media.StatusActive, MimeType: "image/png",
