@@ -119,8 +119,8 @@ export function TeacherWorkspacePage() {
             </header>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               <div className="rounded-2xl border bg-white p-5"><UsersRound size={20} className="text-emerald-600" /><div className="mt-2 text-xs font-bold text-slate-500">طلاب فصولي</div><div className="mt-2 text-2xl font-black">{students}</div></div>
-              <div className="rounded-2xl border bg-white p-5"><Presentation size={20} className="text-indigo-600" /><div className="mt-2 text-xs font-bold text-slate-500">الحصص الذكية</div><div className="mt-2 text-sm font-black">{school.assignments.length ? 'متاحة لفصولي' : 'لا توجد فصول مسندة'}</div></div>
-              <div className="rounded-2xl border bg-white p-5"><BookOpenCheck size={20} className="text-amber-600" /><div className="mt-2 text-xs font-bold text-slate-500">اختبارات المدرسة</div><div className="mt-2 text-sm font-black text-slate-500">غير متاحة في هذا العرض</div></div>
+              <div className="rounded-2xl border bg-white p-5"><Presentation size={20} className="text-indigo-600" /><div className="mt-2 text-xs font-bold text-slate-500">الحصص الذكية</div><div className="mt-2 text-sm font-black">—</div></div>
+              <div className="rounded-2xl border bg-white p-5"><BookOpenCheck size={20} className="text-amber-600" /><div className="mt-2 text-xs font-bold text-slate-500">اختبارات المدرسة</div><div className="mt-2 text-sm font-black text-slate-500">—</div></div>
               <div className="rounded-2xl border bg-white p-5"><School size={20} className="text-purple-600" /><div className="mt-2 text-xs font-bold text-slate-500">المدرسة الحالية</div><div className="mt-2 truncate text-sm font-black">{school.schoolName}</div></div>
             </div>
             <section className="rounded-3xl border bg-white p-6">
