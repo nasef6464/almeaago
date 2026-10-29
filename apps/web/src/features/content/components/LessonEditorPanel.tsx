@@ -16,6 +16,9 @@ interface LessonEditorPanelProps {
   coreTaxonomy: TaxonomyCore;
   initialPathId: string;
   initialSubjectId: string;
+  initialSkillIds?: string[];
+  requiredSkillIds?: string[];
+  scopeContext?: 'teacher' | 'skill';
   lockScope: boolean;
   getCsrfToken(): Promise<string>;
   onCancel(): void;
@@ -46,6 +49,9 @@ export function LessonEditorPanel({
   coreTaxonomy,
   initialPathId,
   initialSubjectId,
+  initialSkillIds = [],
+  requiredSkillIds = [],
+  scopeContext = 'teacher',
   lockScope,
   getCsrfToken,
   onCancel,
@@ -75,7 +81,7 @@ export function LessonEditorPanel({
   const [showRecording, setShowRecording] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
-  const [skillIds, setSkillIds] = useState<string[]>([]);
+  const [skillIds, setSkillIds] = useState<string[]>(() => [...new Set([...initialSkillIds, ...requiredSkillIds])]);
 
   function applyLesson(row: LessonDetail) {
     setExisting(row);
@@ -146,20 +152,34 @@ export function LessonEditorPanel({
   }, [subjectId, subjects]);
 
   useEffect(() => {
+    if (taxonomyLoading) return;
     setSkillIds((current) => current.filter((id) => skills.some((skill) => skill.id === id)));
-  }, [skills]);
+  }, [skills, taxonomyLoading]);
 
   const lockedByWorkflow = Boolean(
     existing &&
       (existing.workflowStatus === 'approved' || existing.workflowStatus === 'archived'),
   );
-  const canMutate = !lockedByWorkflow;
+  const scopeMismatch = Boolean(existing && lockScope && (
+    existing.pathId !== initialPathId || existing.subjectId !== initialSubjectId ||
+    requiredSkillIds.some((id) => !existing.skillIds.includes(id))
+  ));
+  const canMutate = !lockedByWorkflow && !scopeMismatch;
+  const requiredSkillName = taxonomy.skills.find((skill) => skill.id === requiredSkillIds[0])?.name;
   const liveType = ['live_youtube', 'zoom', 'google_meet', 'teams'].includes(type);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError('');
 
+    if (scopeMismatch) {
+      setError('الدرس لا ينتمي إلى هذه المهارة أو مادتها. حدّث البيانات قبل التعديل.');
+      return;
+    }
+    if (requiredSkillIds.some((id) => !skills.some((skill) => skill.id === id) || !skillIds.includes(id))) {
+      setError('المهارة المحددة لم تعد متاحة ضمن مادة الدرس؛ أعد فتح منشئ الدرس.');
+      return;
+    }
     if (!pathId || !subjectId || !title.trim() || skillIds.length === 0) {
       setError('أكمل المسار والمادة والعنوان ومهارة واحدة على الأقل.');
       return;
@@ -245,7 +265,8 @@ export function LessonEditorPanel({
         </div>
 
         <div className="flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
-        {lockScope ? <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">نطاق المعلم مثبت على المسار والمادة المختارين.</div> : null}
+        {lockScope ? <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">{scopeContext === 'skill' ? `نطاق الدرس مثبت على المسار والمادة للمهارة ${requiredSkillName || 'المحددة'}.` : 'نطاق المعلم مثبت على المسار والمادة المختارين.'}</div> : null}
+        {scopeMismatch ? <div role="alert" className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">الدرس لا ينتمي إلى هذه المهارة أو مادتها. لا يمكن حفظه من هنا.</div> : null}
         {lockedByWorkflow ? <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">الدرس معتمد أو مؤرشف؛ التعديل المباشر مقفول في الـBackend.</div> : null}
         {error ? <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">{error}</div> : null}
 
@@ -349,7 +370,7 @@ export function LessonEditorPanel({
               const checked = skillIds.includes(skill.id);
               return (
                 <label key={skill.id} className={`flex items-start gap-3 rounded-xl border p-3 text-sm ${checked ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200'}`}>
-                  <input disabled={!canMutate} type="checkbox" checked={checked} onChange={() => setSkillIds((current) => checked ? current.filter((id) => id !== skill.id) : [...current, skill.id])} className="mt-1" />
+                  <input disabled={!canMutate || requiredSkillIds.includes(skill.id)} type="checkbox" checked={checked} onChange={() => setSkillIds((current) => checked ? current.filter((id) => id !== skill.id) : [...current, skill.id])} className="mt-1" />
                   <span className="font-bold text-gray-800">{skill.name}</span>
                 </label>
               );

@@ -169,3 +169,80 @@ test('admin links and detaches a draft lesson from a subskill without deleting t
   expect(skillLinks).toEqual(['m1']);
   expect(writes).toHaveLength(2);
 });
+
+test('admin creates and edits a subskill lesson with its canonical editor, anchored scope and retryable failure', async ({ page }) => {
+  await page.route('**/api/v1/auth/me', (route) => json(route, { user: admin }));
+  await page.route('**/api/v1/auth/csrf', (route) => json(route, { csrfToken: 'editor-csrf' }));
+  await page.route('**/api/v1/taxonomy/admin/bootstrap', (route) => json(route, taxonomy));
+  await page.route('**/api/v1/taxonomy/bootstrap?phase=full', (route) => json(route, taxonomy));
+  await page.route('**/api/v1/questions?**', (route) => json(route, { items: [], page: 1, limit: 6, hasMore: false }));
+  await page.route('**/api/v1/questions/coverage?**', (route) => json(route, { questionsTotal: 0, approved: 0, pendingReview: 0, unlinked: 0, mainSkillCoverage: 0, subSkillCoverage: 0, skills: [], skillPage: 1, skillLimit: 50, skillsHasMore: false }));
+
+  let lessonExists = false;
+  let lessonTitle = 'درس جديد للمعادلات';
+  let revision = 1;
+  let createAttempts = 0;
+  let editWrites = 0;
+  const summary = () => ({ id: 'new-lesson', pathId: 'p1', subjectId: 's1', title: lessonTitle,
+    type: 'video', durationSeconds: 600, workflowStatus: 'draft', ownerType: 'platform',
+    ownerUserId: '', ownerSchoolId: '', assignedTeacherId: '', isVisible: false, isLocked: false,
+    revision, updatedAt: '2026-10-29T00:00:00Z' });
+  const detail = () => ({ ...summary(), description: '', contentText: '', videoUrl: 'https://youtu.be/lesson',
+    videoSource: 'youtube', meetingUrl: '', meetingAt: null, recordingUrl: '', joinInstructions: '', showRecording: false,
+    createdBy: admin.id, approvedBy: '', approvedAt: null, reviewerNotes: '', revenueSharePercentage: null,
+    skillIds: ['sub1'], assetIds: [], createdAt: '2026-10-29T00:00:00Z' });
+  await page.route('**/api/v1/lessons?**', (route) => {
+    const url = new URL(route.request().url());
+    expect(url.searchParams.get('subjectId')).toBe('s1');
+    return json(route, { items: lessonExists ? [summary()] : [], page: 1, limit: 50, hasMore: false });
+  });
+  await page.route('**/api/v1/lessons', (route) => {
+    expect(route.request().method()).toBe('POST');
+    expect(route.request().headers()['x-csrf-token']).toBe('editor-csrf');
+    const input = route.request().postDataJSON() as Record<string, unknown>;
+    expect(input).toMatchObject({ pathId: 'p1', subjectId: 's1', skillIds: ['sub1'], title: lessonTitle, type: 'video' });
+    createAttempts++;
+    if (createAttempts === 1) return json(route, { message: 'تعذر الحفظ مؤقتًا' }, 409);
+    lessonExists = true;
+    return json(route, { lesson: detail() }, 201);
+  });
+  await page.route('**/api/v1/lessons/new-lesson', (route) => {
+    if (route.request().method() === 'GET') return json(route, { lesson: detail() });
+    expect(route.request().method()).toBe('PUT');
+    expect(route.request().headers()['x-csrf-token']).toBe('editor-csrf');
+    const input = route.request().postDataJSON() as Record<string, unknown>;
+    expect(input).toMatchObject({ pathId: 'p1', subjectId: 's1', skillIds: ['sub1'], expectedRevision: revision, title: 'درس المعادلات المعدل' });
+    editWrites++;
+    lessonTitle = String(input.title);
+    revision++;
+    return json(route, { lesson: detail() });
+  });
+
+  await page.goto('/admin-dashboard?tab=skills');
+  await page.getByRole('button', { name: 'فتح المهارة الرئيسة الجبر' }).click();
+  await page.getByRole('button', { name: 'فتح المهارة الفرعية المعادلات' }).click();
+  const detailRegion = page.getByRole('region', { name: 'تفاصيل مهارة المعادلات' });
+  await detailRegion.getByRole('button', { name: 'إضافة درس جديد' }).click();
+  const editor = page.getByRole('heading', { name: 'إضافة درس جديد' }).locator('xpath=ancestor::form');
+  await expect(editor.getByRole('combobox', { name: 'المسار *' })).toHaveValue('p1');
+  await expect(editor.getByRole('combobox', { name: 'المادة *' })).toHaveValue('s1');
+  await expect(editor.getByRole('checkbox', { name: 'المعادلات' })).toBeChecked();
+  await expect(editor.getByRole('checkbox', { name: 'المعادلات' })).toBeDisabled();
+  await editor.getByRole('textbox', { name: 'عنوان الدرس *' }).fill(lessonTitle);
+  await editor.getByRole('textbox', { name: 'رابط الفيديو' }).fill('https://youtu.be/lesson');
+  await editor.getByRole('button', { name: 'حفظ كمسودة' }).click();
+  await expect(editor.getByText('تعذر الحفظ مؤقتًا')).toBeVisible();
+  await expect(editor.getByRole('textbox', { name: 'عنوان الدرس *' })).toHaveValue(lessonTitle);
+  await editor.getByRole('button', { name: 'حفظ كمسودة' }).click();
+  await expect(editor).toHaveCount(0);
+  await expect(detailRegion.getByText(lessonTitle)).toBeVisible();
+  await detailRegion.getByRole('button', { name: `تعديل الدرس ${lessonTitle}` }).click();
+  const editEditor = page.getByRole('heading', { name: 'تعديل الدرس' }).locator('xpath=ancestor::form');
+  await expect(editEditor.getByRole('checkbox', { name: 'المعادلات' })).toBeChecked();
+  await editEditor.getByRole('textbox', { name: 'عنوان الدرس *' }).fill('درس المعادلات المعدل');
+  await editEditor.getByRole('button', { name: 'حفظ الدرس' }).click();
+  await expect(editEditor).toHaveCount(0);
+  await expect(detailRegion.getByText('درس المعادلات المعدل')).toBeVisible();
+  expect(createAttempts).toBe(2);
+  expect(editWrites).toBe(1);
+});

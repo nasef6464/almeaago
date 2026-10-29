@@ -35,6 +35,7 @@ function load(relative, initialStates = []) {
     if (id.endsWith('/questionbank-client')) return { questionBankClient: {} };
     if (id.endsWith('/content-client')) return { contentClient: {} };
     if (id.endsWith('/lesson-link-write')) return load('features/content/api/lesson-link-write.ts');
+    if (id.endsWith('/LessonEditorPanel')) return load('features/content/components/LessonEditorPanel.tsx');
     if (id.endsWith('/navigation')) return {
       HOMEPAGE_ADMIN_HREF: '/admin-dashboard?tab=homepage', PLATFORM_FONTS_ADMIN_HREF: '/admin-dashboard?tab=platform-fonts',
       isHomepageLocation: () => false, isPlatformFontsLocation: () => false,
@@ -150,4 +151,30 @@ test('skill lesson link updates preserve every existing lesson field and optimis
   assert.deepEqual(result.assetIds, ['media-1']);
   assert.equal(result.ownerType, 'platform');
   assert.equal(result.isVisible, true);
+});
+
+test('canonical lesson editor pins the initiating subskill only for the skills workflow', () => {
+  const props = { coreTaxonomy: fixture, initialPathId: 'p', initialSubjectId: 's', lockScope: true,
+    getCsrfToken: async () => 'token', onCancel: () => {}, onSaved: () => {} };
+  const seed = [null, fixture, false, false];
+  const { LessonEditorPanel } = load('features/content/components/LessonEditorPanel.tsx', seed);
+  const anchored = renderToStaticMarkup(React.createElement(LessonEditorPanel, {
+    ...props, initialSkillIds: ['sub'], requiredSkillIds: ['sub'], scopeContext: 'skill',
+  }));
+  assert.match(anchored, /مهارة المعادلات/);
+  assert.match(anchored, /<input(?=[^>]*type="checkbox")(?=[^>]*checked="")(?=[^>]*disabled="")[^>]*\/?><span[^>]*>المعادلات/s);
+  const { LessonEditorPanel: PlainEditor } = load('features/content/components/LessonEditorPanel.tsx', seed);
+  const plain = renderToStaticMarkup(React.createElement(PlainEditor, { ...props, lockScope: false }));
+  assert.doesNotMatch(plain, /مهارة المعادلات/);
+  assert.match(plain, /المعادلات/);
+});
+
+test('expanded subskill preserves original add and edit lesson controls beside link/detach', () => {
+  const questions = { skillId: 'sub', rows: [], total: 0, loading: false, error: '' };
+  const lessons = { skillId: 'sub', rows: [{ id: 'lesson-1', pathId: 'p', subjectId: 's', title: 'درس المعادلات', type: 'text', workflowStatus: 'draft', revision: 1 }], loading: false, hasMore: false, error: '' };
+  const states = [fixture, '', '', false, false, '', '', 0, 'main', null, 'sub', questions, lessons];
+  const { SkillsAdminPage } = load('features/taxonomy/pages/SkillsAdminPage.tsx', states);
+  const html = renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(SkillsAdminPage)));
+  assert.match(html, /إضافة درس جديد/);
+  assert.match(html, /تعديل الدرس درس المعادلات/);
 });

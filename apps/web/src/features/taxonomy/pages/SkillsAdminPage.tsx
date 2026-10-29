@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
 import type { LessonSummary } from '../../content/api/content-types';
 import { lessonLinkWrite } from '../../content/api/lesson-link-write';
+import { LessonEditorPanel } from '../../content/components/LessonEditorPanel';
 import { questionBankClient, type QuestionSummary } from '../../questionbank/api/questionbank-client';
 import {
   taxonomyAdminClient,
@@ -41,6 +42,7 @@ export function SkillsAdminPage() {
   const [lessonPendingId, setLessonPendingId] = useState('');
   const [lessonError, setLessonError] = useState('');
   const [lessonNotice, setLessonNotice] = useState('');
+  const [lessonEditor, setLessonEditor] = useState<{ skill: AdminTaxonomySkill; lessonId?: string } | null>(null);
   const isAdmin = user?.roles.includes('admin') ?? false;
 
   useEffect(() => {
@@ -241,7 +243,10 @@ export function SkillsAdminPage() {
                   </> : null}
                   <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t pt-4">
                     <h3 className="inline-flex items-center gap-2 font-bold text-gray-800"><BookOpen size={17} className="text-indigo-600"/> الدروس المرتبطة</h3>
-                    <button type="button" onClick={() => { setLessonError(''); setLinkTarget(sub); }} className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700"><Link2 size={14}/> ربط درس موجود</button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button type="button" onClick={() => { setLessonError(''); setLinkTarget(sub); }} className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700"><Link2 size={14}/> ربط درس موجود</button>
+                      <button type="button" onClick={() => { setLessonError(''); setLessonEditor({ skill: sub }); }} className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700"><Plus size={14}/> إضافة درس جديد</button>
+                    </div>
                   </div>
                   {lessonError ? <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{lessonError}</p> : null}
                   {lessonNotice ? <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{lessonNotice}</p> : null}
@@ -250,6 +255,7 @@ export function SkillsAdminPage() {
                   {lessons && !lessons.loading && !lessons.error ? <>
                     {lessons.rows.length ? <ul className="space-y-2">{lessons.rows.map((lesson) => <li key={lesson.id} className="flex flex-wrap items-center gap-2 rounded-xl border bg-slate-50 p-3">
                       <span className="min-w-0 flex-1"><b className="block truncate text-sm text-gray-800">{lesson.title}</b><span className="text-xs text-gray-500">{lesson.type} · {lesson.workflowStatus === 'approved' ? 'معتمد' : lesson.workflowStatus === 'archived' ? 'مؤرشف' : 'قابل للتحرير بحسب الصلاحية'}</span></span>
+                      <button type="button" aria-label={`تعديل الدرس ${lesson.title}`} disabled={!!lessonPendingId || lesson.workflowStatus === 'approved' || lesson.workflowStatus === 'archived'} title={lesson.workflowStatus === 'approved' || lesson.workflowStatus === 'archived' ? 'الدرس المعتمد أو المؤرشف محمي من التعديل' : 'تعديل الدرس'} onClick={() => setLessonEditor({ skill: sub, lessonId: lesson.id })} className="rounded-lg p-2 text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"><Edit2 size={16}/></button>
                       <button type="button" aria-label={`فصل الدرس ${lesson.title} عن المهارة`} disabled={!!lessonPendingId || lesson.workflowStatus === 'approved' || lesson.workflowStatus === 'archived'} title={lesson.workflowStatus === 'approved' || lesson.workflowStatus === 'archived' ? 'الدرس المعتمد أو المؤرشف محمي من تعديل الروابط' : 'فصل الارتباط فقط دون حذف الدرس'} onClick={() => void detachLesson(sub, lesson)} className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"><Unlink size={14}/> فصل</button>
                     </li>)}</ul> : <p className="text-sm text-gray-500">لا توجد دروس مرتبطة بهذه المهارة.</p>}
                     {lessons.hasMore ? <button type="button" onClick={() => setLessonPage((page) => page + 1)} className="rounded-lg border px-3 py-2 text-xs font-bold text-indigo-700">عرض المزيد من الدروس</button> : null}
@@ -279,6 +285,26 @@ export function SkillsAdminPage() {
       getCsrfToken={getCsrfToken}
       onClose={() => setLinkTarget(null)}
       onLinked={() => { setLinkTarget(null); setLessonNotice('تم ربط الدرس بالمهارة.'); setLessonPage(1); setLessonRefresh((value) => value + 1); }}
+    /> : null}
+    {lessonEditor ? <LessonEditorPanel
+      key={`${lessonEditor.skill.id}:${lessonEditor.lessonId || 'new'}`}
+      lessonId={lessonEditor.lessonId}
+      coreTaxonomy={data}
+      initialPathId={data.subjects.find((subject) => subject.id === lessonEditor.skill.subjectId)?.pathId || ''}
+      initialSubjectId={lessonEditor.skill.subjectId}
+      initialSkillIds={[lessonEditor.skill.id]}
+      requiredSkillIds={[lessonEditor.skill.id]}
+      scopeContext="skill"
+      lockScope
+      getCsrfToken={getCsrfToken}
+      onCancel={() => setLessonEditor(null)}
+      onSaved={() => {
+        setLessonEditor(null);
+        setLessonError('');
+        setLessonNotice(lessonEditor.lessonId ? 'تم حفظ تعديلات الدرس.' : 'تم إنشاء الدرس وربطه بالمهارة كمسودة.');
+        setLessonPage(1);
+        setLessonRefresh((value) => value + 1);
+      }}
     /> : null}
   </main>;
 }
