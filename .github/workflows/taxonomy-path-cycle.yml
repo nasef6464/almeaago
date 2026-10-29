@@ -38,8 +38,7 @@ jobs:
           set -euo pipefail
           cp internal/taxonomy/repository/postgres/mutations.go /tmp/taxonomy-mutations-fixed.go
           git show 98b0f6d9ad0bba031936d950d087c0bd3d19b7bb:internal/taxonomy/repository/postgres/mutations.go > internal/taxonomy/repository/postgres/mutations.go
-          if go test ./internal/taxonomy/repository/postgres -run '^TestAdminPathParentCyclePostgres
- -count=1 -v > /tmp/taxonomy-red.log 2>&1; then
+          if go test ./internal/taxonomy/repository/postgres -run TestAdminPathParentCyclePostgres -count=1 -v > /tmp/taxonomy-red.log 2>&1; then
             cat /tmp/taxonomy-red.log
             echo "::error::Original implementation unexpectedly passed the cycle regression"
             exit 1
@@ -48,5 +47,4 @@ jobs:
           grep -q 'descendant parent must conflict' /tmp/taxonomy-red.log
           cp /tmp/taxonomy-mutations-fixed.go internal/taxonomy/repository/postgres/mutations.go
       - name: GREEN — hierarchy and concurrent updates in isolated PostgreSQL schema
-        run: go test ./internal/taxonomy/repository/postgres -run '^TestAdminPathParentCyclePostgres
- -count=1 -v
+        run: go test ./internal/taxonomy/repository/postgres -run TestAdminPathParentCyclePostgres -count=1 -v
