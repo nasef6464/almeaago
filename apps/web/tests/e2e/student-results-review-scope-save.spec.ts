@@ -63,7 +63,7 @@ test('saved question remains globally saved across two attempts for the same lea
   await expect(page.getByRole('heading', { name: 'attempt-1' })).toBeVisible();
   await page.getByRole('button', { name: 'للمراجعة', exact: true }).click();
   await expect(page.getByText(question.text)).not.toBeVisible();
-  await page.getByRole('button', { name: 'حفظ للمراجعة' }).count().then(count => expect(count).toBe(0));
+  await expect(page.getByRole('button', { name: 'حفظ للمراجعة' })).toHaveCount(0);
   await page.getByRole('button', { name: 'الكل', exact: true }).click();
   await page.getByRole('button', { name: 'حفظ للمراجعة' }).click();
   await expect(page.getByRole('button', { name: 'تم الحفظ' })).toBeDisabled();
