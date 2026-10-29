@@ -37,12 +37,15 @@ async function mockStudent(page: Page) {
 }
 async function mockMedia(page: Page, failFirst = false) {
   let attempts = 0;
+  const attemptsById = new Map<string, number>();
   await page.route('**/api/v1/media/assets/*', route => {
     attempts += 1;
-    if (failFirst && route.request().url().endsWith('/img-question') && attempts === 1) {
+    const id = route.request().url().split('/').pop() || '';
+    const count = (attemptsById.get(id) || 0) + 1;
+    attemptsById.set(id, count);
+    if (failFirst && id === 'img-question' && count === 1) {
       return json(route, { message: 'Media temporarily unavailable' }, 503);
     }
-    const id = route.request().url().split('/').pop();
     return json(route, { asset: { id, publicUrl: `https://cdn.example.test/${id}.png`, status: 'active', mimeType: 'image/png' } });
   });
   return () => attempts;
@@ -80,7 +83,7 @@ test('review practice displays embedded-option question image before answering',
   }));
   await page.goto('/review/practice?pathId=path-1&subjectId=subject-1&tab=saved');
   await expect(page.getByRole('img', { name: 'صورة السؤال' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'أ' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'أ', exact: true })).toBeVisible();
   await expect(page.getByText('الإجابة الصحيحة')).toHaveCount(0);
 });
 
