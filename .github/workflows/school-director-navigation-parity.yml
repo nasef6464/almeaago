@@ -1,0 +1,38 @@
+name: School Director Navigation Parity
+on:
+  pull_request:
+    paths:
+      - "apps/web/src/features/organizations/components/SchoolDirectorSectionNav.tsx"
+      - "apps/web/tests/e2e/organizations-director-collapsible-navigation.spec.ts"
+      - ".github/workflows/school-director-navigation-parity.yml"
+  workflow_dispatch:
+permissions: { contents: read }
+concurrency:
+  group: school-director-nav-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  director-nav:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Original director nav at 390, 820 and 1440 RTL
+        run: npm run e2e -- tests/e2e/organizations-director-collapsible-navigation.spec.ts
+      - name: Upload nav screenshots and failure traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: school-director-nav-evidence
+          path: |
+            apps/web/test-results
+            apps/web/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
