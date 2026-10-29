@@ -124,3 +124,24 @@ for (const width of [390, 820, 1440]) {
     await expect(shownCount(page)).toHaveText('١');
   });
 }
+
+for (const width of [390, 820, 1440]) {
+  test(`failed course mutation keeps its error in the originating tab at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await setup(page);
+    await page.route('**/api/v1/courses/course-a/workflow', route =>
+      json(route, { message: 'تعارض تعديل الدورة' }, 409));
+    await page.route('**/api/v1/lessons?**', route =>
+      json(route, { items: [lesson], page: 1, limit: 50, hasMore: false }));
+
+    await page.goto('/admin-dashboard/content');
+    await expect(page.getByText(course.title)).toBeVisible();
+    await page.getByRole('button', { name: 'إرسال للمراجعة' }).click();
+    await expect(page.getByText('تعارض تعديل الدورة')).toBeVisible();
+    // Failed writes must not remove the draft or show their error in another list.
+    await expect(page.getByText(course.title)).toBeVisible();
+    await page.getByRole('button', { name: 'الدروس', exact: true }).click();
+    await expect(page.getByText(lesson.title)).toBeVisible();
+    await expect(page.getByText('تعارض تعديل الدورة')).toHaveCount(0);
+  });
+}
