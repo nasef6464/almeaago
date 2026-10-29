@@ -41,8 +41,16 @@ for (const width of [390, 820, 1440]) {
       if (keys.length === 1) return respond(route, { message: 'تعذر بدء التكليف' }, 503);
       return respond(route, { attempt: { id: `directed-attempt-${keys.length}` } }, 201);
     });
-    await page.route('**/api/v1/assessment-attempts/**', (route) =>
-      respond(route, { message: 'test attempt route' }, 404));
+    await page.route('**/api/v1/assessment-attempts/**', (route) => {
+      const id = new URL(route.request().url()).pathname.split('/').pop();
+      return respond(route, { attempt: {
+        id, assessmentId: 'assessment-a', assessmentVersion: 3, attemptNumber: 1,
+        status: 'in_progress', title: 'اختبار موجه', startedAt: '2026-10-29T16:00:00Z',
+        expiresAt: null, submittedAt: null, showProgressBar: true,
+        requireAnswerBeforeNext: false, allowQuestionReview: true,
+        randomizeOptions: false, questions: [], answers: [],
+      } });
+    });
 
     await page.goto('/assessment-assignments');
     await expect(page.getByRole('heading', { name: 'الاختبارات الموجهة إليك' })).toBeVisible();
