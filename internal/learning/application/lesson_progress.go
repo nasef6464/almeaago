@@ -71,6 +71,16 @@ func emptyLessonProgress(lessonID string, in learning.LessonProgressContextInput
 	}
 }
 
+// Never expose a repository result from another reusable lesson placement.
+// PostgreSQL already filters these keys; this application guard keeps the
+// learner-facing contract fail-closed if a repository implementation regresses.
+func progressMatchesScope(out learning.LessonProgress, lessonID string, in learning.LessonProgressContextInput) bool {
+	return out.LessonID == lessonID &&
+		out.ContextType == in.ContextType &&
+		out.CourseID == in.CourseID &&
+		out.TopicID == in.TopicID
+}
+
 func (s *LessonProgressService) Get(ctx context.Context, actor identity.User, lessonID string, in learning.LessonProgressContextInput) (learning.LessonProgress, error) {
 	if requireStudent(actor) != nil {
 		return learning.LessonProgress{}, ErrForbidden
@@ -91,7 +101,13 @@ func (s *LessonProgressService) Get(ctx context.Context, actor identity.User, le
 	if errors.Is(err, learning.ErrNotFound) {
 		return emptyLessonProgress(lessonID, in), nil
 	}
-	return out, err
+	if err != nil {
+		return out, err
+	}
+	if !progressMatchesScope(out, lessonID, in) {
+		return learning.LessonProgress{}, ErrNotFound
+	}
+	return out, nil
 }
 
 func (s *LessonProgressService) SaveVideo(ctx context.Context, actor identity.User, lessonID string, in learning.VideoProgressWrite) (learning.LessonProgress, error) {
@@ -116,7 +132,14 @@ func (s *LessonProgressService) SaveVideo(ctx context.Context, actor identity.Us
 	if duration > 0 && in.PositionSeconds > duration {
 		in.PositionSeconds = duration
 	}
-	return s.repo.SaveVideoProgress(ctx, actor.ID, lessonID, ctxInput.ContextType, ctxInput.CourseID, ctxInput.TopicID, in.PositionSeconds)
+	out, err := s.repo.SaveVideoProgress(ctx, actor.ID, lessonID, ctxInput.ContextType, ctxInput.CourseID, ctxInput.TopicID, in.PositionSeconds)
+	if err != nil {
+		return out, err
+	}
+	if !progressMatchesScope(out, lessonID, ctxInput) {
+		return learning.LessonProgress{}, ErrNotFound
+	}
+	return out, nil
 }
 
 func (s *LessonProgressService) Complete(ctx context.Context, actor identity.User, lessonID string, in learning.LessonProgressContextInput) (learning.LessonProgress, error) {
@@ -135,5 +158,12 @@ func (s *LessonProgressService) Complete(ctx context.Context, actor identity.Use
 	if _, _, err = s.validateTarget(ctx, lessonID, in); err != nil {
 		return learning.LessonProgress{}, err
 	}
-	return s.repo.CompleteLesson(ctx, actor.ID, lessonID, in.ContextType, in.CourseID, in.TopicID)
+	out, err := s.repo.CompleteLesson(ctx, actor.ID, lessonID, in.ContextType, in.CourseID, in.TopicID)
+	if err != nil {
+		return out, err
+	}
+	if !progressMatchesScope(out, lessonID, in) {
+		return learning.LessonProgress{}, ErrNotFound
+	}
+	return out, nil
 }
