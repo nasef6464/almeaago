@@ -84,11 +84,7 @@ func TestFoundationParentCycleConcurrentPostgres(t *testing.T) {
 		}
 		defer tx.Rollback(ctx)
 		for _, parent := range []string{firstID, archivedID, foreignID} {
-			topic := firstID
-			if parent == firstID {
-				topic = firstID // self-parent
-			}
-			if err := validateTopicParentTx(ctx, tx, topic, parent, pathID, subjectID); !errors.Is(err, content.ErrConflict) {
+			if err := validateTopicParentTx(ctx, tx, firstID, parent, pathID, subjectID); !errors.Is(err, content.ErrConflict) {
 				t.Fatalf("parent %s: expected conflict, got %v", parent, err)
 			}
 		}
@@ -144,5 +140,17 @@ func TestFoundationParentCycleConcurrentPostgres(t *testing.T) {
 	}
 	if cycle {
 		t.Fatal("foundation topic parent cycle persisted")
+	}
+	// A fresh SQL read must preserve the first committed edit while rejecting
+	// the conflicting second edit; neither operation may silently disappear.
+	var firstParent, secondParent string
+	if err := db.QueryRow(ctx, `SELECT COALESCE(parent_topic_id::text,'') FROM foundation_topics WHERE id=$1::uuid`, firstID).Scan(&firstParent); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(ctx, `SELECT COALESCE(parent_topic_id::text,'') FROM foundation_topics WHERE id=$1::uuid`, secondID).Scan(&secondParent); err != nil {
+		t.Fatal(err)
+	}
+	if firstParent != secondID || secondParent != "" {
+		t.Fatalf("unexpected persisted hierarchy: first=%q second=%q", firstParent, secondParent)
 	}
 }
