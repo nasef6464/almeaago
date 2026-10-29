@@ -2,7 +2,7 @@ import {
   X,
   BookOpen,
   Eye,
-  Layers3,
+  Settings,
   Link2,
   Loader2,
   Plus,
@@ -400,14 +400,6 @@ export function CourseEditorPanel({
             </button>
             <div className="min-w-0">
               <h1 className="truncate text-lg font-black text-gray-800 sm:text-xl">تعديل الدورة (Master Builder)</h1>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-bold text-gray-500">
-                <span className="truncate">{course.title}</span>
-                <span>•</span>
-                <span>Revision {course.revision}</span>
-                <span>•</span>
-                <span>{course.workflowStatus}</span>
-                {course.isPublished ? <span className="text-emerald-700">• منشور</span> : null}
-              </div>
             </div>
           </div>
           {activeTab === 'settings' ? (
@@ -439,10 +431,10 @@ export function CourseEditorPanel({
         <section className="flex border-b border-gray-200 bg-white px-4 sm:px-6">
           <button type="button" onClick={() => setActiveTab('curriculum')} className={`flex flex-1 items-center justify-center gap-2 border-b-2 px-4 py-4 text-sm font-black transition sm:flex-none sm:px-6 ${activeTab === 'curriculum' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
             <BookOpen size={18} />
-            المنهج
+            المناهج الدراسية
           </button>
           <button type="button" onClick={() => setActiveTab('settings')} className={`flex flex-1 items-center justify-center gap-2 border-b-2 px-4 py-4 text-sm font-black transition sm:flex-none sm:px-6 ${activeTab === 'settings' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-            <Layers3 size={18} />
+            <Settings size={18} />
             إعدادات الدورة
           </button>
         </section>
