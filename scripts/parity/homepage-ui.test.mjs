@@ -23,3 +23,33 @@ test('original legacy hero-image recovery replaces historical image hints',()=>{
  const {resolveHomepageHeroImage}=load(readFileSync(new URL('../../apps/web/src/features/presentation/homepageHero.ts',import.meta.url),'utf8'));
  assert.equal(typeof resolveHomepageHeroImage,'function');assert.equal(resolveHomepageHeroImage(' /images/girl-student.png '),'/images/homepage-hero-boy-platform.webp?v=20260512');assert.equal(resolveHomepageHeroImage(' /images/new.png '),'/images/new.png');
 });
+
+
+test('partial homepage save events preserve omitted fields and explicit clears without breaking Arabic text', async () => {
+ const oldWindow=globalThis.window;globalThis.window=new EventTarget();
+ let effect;let state={};let resolveRead;
+ const pending=new Promise(resolve=>{resolveRead=resolve;});
+ const hooks={useState:initial=>[initial,update=>{state=typeof update==='function'?update(state):update;}],useEffect:fn=>{effect=fn;}};
+ const sanitizer=load(readFileSync(new URL('../../apps/web/src/features/presentation/homepageSanitizer.ts',import.meta.url),'utf8'));
+ const {useHomepageSettings,HOMEPAGE_SETTINGS_UPDATED}=load(readFileSync(new URL('../../apps/web/src/features/presentation/useHomepageSettings.ts',import.meta.url),'utf8'),id=>id==='react'?hooks:id==='./api'?{api:{getHomepageSettings:()=>pending}}:id==='./homepageSanitizer'?sanitizer:require(id));
+ try {
+  useHomepageSettings();const cleanup=effect();
+  resolveRead({hero:{titlePrefix:'محفوظ',titleSuffix:'في الاختبارات'},brand:{logoText:'قبل'},navigation:{moreLabel:'المزيد',showAutoPaths:false,items:[{id:'home',label:'الرئيسية'}]},sections:{featuredCoursesTitle:'الدورات'},stats:[{id:'courses',label:'دورات',mode:'manual',source:'courses',manualValue:'0'}],testimonials:[]});
+  await pending;await Promise.resolve();
+  assert.equal(state.hero.titlePrefix,'محفوظ');
+  window.dispatchEvent(new CustomEvent(HOMEPAGE_SETTINGS_UPDATED,{detail:{brand:{logoText:'بعد'}}}));
+  assert.equal(state.brand.logoText,'بعد');
+  assert.equal(state.hero.titlePrefix,'محفوظ','brand-only update must not erase saved hero');
+  assert.equal(state.sections.featuredCoursesTitle,'الدورات');
+  assert.equal(state.stats[0].manualValue,'0');
+  window.dispatchEvent(new CustomEvent(HOMEPAGE_SETTINGS_UPDATED,{detail:{hero:{titlePrefix:''},navigation:{items:[],showAutoPaths:false}}}));
+  assert.equal(state.hero.titlePrefix,'','explicit empty hero text must clear');
+  assert.equal(state.hero.titleSuffix,'في الاختبارات','unmentioned nested hero fields must survive');
+  assert.equal(state.navigation.moreLabel,'المزيد','unmentioned nested navigation fields must survive');
+  assert.deepEqual(state.navigation.items,[],'explicit empty navigation list must clear');
+  assert.equal(state.navigation.showAutoPaths,false);
+  window.dispatchEvent(new CustomEvent(HOMEPAGE_SETTINGS_UPDATED,{detail:null}));
+  assert.equal(state.brand.logoText,'بعد','malformed event must not wipe settings');
+  cleanup();
+ } finally {globalThis.window=oldWindow;}
+});
