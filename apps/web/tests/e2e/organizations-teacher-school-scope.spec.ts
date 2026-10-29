@@ -84,3 +84,62 @@ test('non-teacher role never requests teacher workspace', async ({ page }) => {
   await expect(page.getByText('هذه المساحة للمعلم المخول.')).toBeVisible();
   expect(reads).toBe(0);
 });
+
+test('classroom entry consumes the authorized school/assignment and never inherits another school session', async ({ page }) => {
+  await auth(page);
+  await page.route('**/api/v1/schools/teacher-workspace', route => json(route, {
+    personas: { platformTrainer: false, schoolTeacher: true }, schools,
+  }));
+  await page.route('**/api/v1/taxonomy/bootstrap?phase=core', route => json(route, {
+    paths: [{ id: 'path-1', code: 'PATH', name: 'قدرات' }],
+    subjects: [{ id: 'math-a', pathId: 'path-1', code: 'MA', name: 'رياضيات أ' }, { id: 'math-b', pathId: 'path-1', code: 'MB', name: 'رياضيات ب' }],
+  }));
+  await page.route('**/api/v1/classroom/teacher/sessions', route => json(route, { sessions: [{
+    id: 'other-school-session', schoolId: 'school-a', classId: 'class-a', subjectId: 'math-a',
+    teacherId: 'teacher-1', status: 'draft', day: '', period: null, publishedMode: 'single',
+    activeBatchId: '', activeQuestionOrdinal: null, pinExpiresAt: '', revision: 1,
+    startedAt: null, endedAt: null, createdAt: '', updatedAt: '',
+  }] }));
+  const requestedSchools: string[] = [];
+  await page.route('**/api/v1/classroom/questions*', route => {
+    const url = new URL(route.request().url());
+    requestedSchools.push(url.searchParams.get('schoolId') || '');
+    return json(route, { items: [], page: 1, limit: 30, hasMore: false });
+  });
+  await page.route('**/api/v1/schools/*/roster?*', route => json(route, {
+    members: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 1 },
+  }));
+  await page.goto('/school-teacher-dashboard/classroom?schoolId=school-b&assignmentId=assign-b');
+  await expect(page.getByRole('heading', { name: 'نطاق التدريس' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /مدرسة باء · الثاني باء/ })).toHaveClass(/border-indigo-500/);
+  await expect(page.getByText('الحصة الحالية')).toHaveCount(0);
+  await expect.poll(() => requestedSchools).toContain('school-b');
+  expect(requestedSchools).not.toContain('school-a');
+
+  await page.getByRole('button', { name: /مدرسة ألف · الأول ألف/ }).click();
+  await expect(page).toHaveURL(/schoolId=school-a&assignmentId=assign-a/);
+  await expect(page.getByRole('button', { name: /مدرسة ألف · الأول ألف/ })).toHaveClass(/border-indigo-500/);
+  await expect.poll(() => requestedSchools).toContain('school-a');
+  await page.goBack();
+  await expect(page.getByRole('button', { name: /مدرسة باء · الثاني باء/ })).toHaveClass(/border-indigo-500/);
+  await page.reload();
+  await expect(page.getByRole('button', { name: /مدرسة باء · الثاني باء/ })).toHaveClass(/border-indigo-500/);
+});
+
+test('classroom rejects a revoked school assignment instead of silently choosing another class', async ({ page }) => {
+  await auth(page);
+  await page.route('**/api/v1/schools/teacher-workspace', route => json(route, {
+    personas: { platformTrainer: false, schoolTeacher: true }, schools: [schools[0]],
+  }));
+  await page.route('**/api/v1/taxonomy/bootstrap?phase=core', route => json(route, { paths: [], subjects: [] }));
+  await page.route('**/api/v1/classroom/teacher/sessions', route => json(route, { sessions: [] }));
+  let questionRequests = 0;
+  await page.route('**/api/v1/classroom/questions*', route => {
+    questionRequests += 1;
+    return json(route, { items: [], page: 1, limit: 30, hasMore: false });
+  });
+  await page.goto('/school-teacher-dashboard/classroom?schoolId=school-b&assignmentId=assign-b');
+  await expect(page.getByRole('alert')).toContainText('النطاق المحدد لم يعد ضمن تكليفاتك');
+  expect(questionRequests).toBe(0);
+  await expect(page.getByText('الحصة الحالية')).toHaveCount(0);
+});
