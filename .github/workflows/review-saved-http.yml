@@ -1,0 +1,49 @@
+name: Review Saved HTTP PostgreSQL
+
+on:
+  pull_request:
+    paths:
+      - "internal/learning/repository/postgres/**"
+      - ".github/workflows/review-saved-http.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  review-saved:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: almeaa
+          POSTGRES_PASSWORD: almeaa
+          POSTGRES_DB: almeaa
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U almeaa -d almeaa"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      PGPASSWORD: almeaa
+      DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Apply complete migrations to disposable database
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t migrations < <(find migrations -maxdepth 1 -type f -name '*.up.sql' | sort)
+          test "${#migrations[@]}" -gt 0
+          for file in "${migrations[@]}"; do
+            psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f "$file" > /dev/null
+          done
+      - name: Student review saved/unsaved HTTP -> Go -> PostgreSQL
+        run: go test ./internal/learning/repository/postgres -run '^TestReviewSavedHTTPPostgres$' -count=1 -v
