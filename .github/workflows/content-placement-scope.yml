@@ -35,4 +35,24 @@ jobs:
         env:
           DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
           CONTENT_SCOPE_DB_TEST: "1"
-        run: go test ./internal/content/repository/postgres -run '^TestLearnerPlacementScopePostgres$' -count=1 -v
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=internal/content/repository/postgres/learning_space.go
+          BASE=98b0f6d9ad0bba031936d950d087c0bd3d19b7bb
+          cp "$FILE" /tmp/content-placement-green.go
+          trap 'cp /tmp/content-placement-green.go "$FILE"' EXIT
+          git fetch --no-tags --depth=1 origin "$BASE"
+          git show "$BASE:$FILE" > "$FILE"
+          if go test ./internal/content/repository/postgres -run '^TestLearnerPlacementScopePostgres
+ -count=1 -v > /tmp/content-placement-red.log 2>&1; then
+            cat /tmp/content-placement-red.log
+            echo "::error::The uncorrected base unexpectedly passed the regression"
+            exit 1
+          fi
+          cat /tmp/content-placement-red.log
+          grep -q "course leaked foreign-subject lesson" /tmp/content-placement-red.log
+          echo "RED confirmed against unmodified Go main"
+          cp /tmp/content-placement-green.go "$FILE"
+          go test ./internal/content/repository/postgres -run '^TestLearnerPlacementScopePostgres
+ -count=1 -v
