@@ -17,7 +17,7 @@ const card = {
   savedAt: '2026-10-28T00:00:00Z', hasMistake: false, nextReviewAt: '2026-10-28T00:00:00Z',
   skillIds: ['skill-1'], updatedAt: '2026-10-28T00:00:00Z',
 };
-const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="140" height="90"><rect width="140" height="90" fill="green"/></svg>';
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==', 'base64');
 
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -33,7 +33,7 @@ async function mockStudent(page: Page) {
   await page.route('**/api/v1/mastery/next-action?**', route => json(route, { item: null }));
   await page.route('**/api/v1/mastery/readiness?**', route => json(route, { readiness: null }));
   await page.route('**/api/v1/mastery/goals?**', route => json(route, { items: [], page: 1, limit: 20, hasMore: false }));
-  await page.route('https://cdn.example.test/**', route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: svg }));
+  await page.route('https://cdn.example.test/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: png }));
 }
 async function mockMedia(page: Page, failFirst = false) {
   let attempts = 0;
@@ -43,7 +43,7 @@ async function mockMedia(page: Page, failFirst = false) {
       return json(route, { message: 'Media temporarily unavailable' }, 503);
     }
     const id = route.request().url().split('/').pop();
-    return json(route, { asset: { id, publicUrl: `https://cdn.example.test/${id}.svg`, status: 'active', mimeType: 'image/svg+xml' } });
+    return json(route, { asset: { id, publicUrl: `https://cdn.example.test/${id}.png`, status: 'active', mimeType: 'image/png' } });
   });
   return () => attempts;
 }
