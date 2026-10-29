@@ -17,7 +17,7 @@ const card = {
   savedAt: '2026-10-28T00:00:00Z', hasMistake: false, nextReviewAt: '2026-10-28T00:00:00Z',
   skillIds: ['skill-1'], updatedAt: '2026-10-28T00:00:00Z',
 };
-const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==', 'base64');
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGNkmBbAwMDAxMDAwMDAAAAKogDqW4cpSgAAAABJRU5ErkJggg==', 'base64');
 
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
