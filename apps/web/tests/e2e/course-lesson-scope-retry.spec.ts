@@ -70,6 +70,9 @@ for (const width of [390, 820, 1440]) {
 
     await page.goto('/learning/courses/course-1');
     await expect(page.getByText('نص الدرس الأول الحصري')).toBeVisible();
+    if (width < 1024) {
+      await page.getByRole('button', { name: 'فتح قائمة الدروس' }).click();
+    }
     await page.getByRole('button', { name: /الدرس الثاني/ }).click();
     await expect(page.getByRole('heading', { name: 'الدرس الثاني' })).toBeVisible();
     await expect(page.getByText('نص الدرس الأول الحصري')).toHaveCount(0);
