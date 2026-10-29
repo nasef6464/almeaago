@@ -54,7 +54,11 @@ test('failed new learning scope never displays tests from the previous scope', a
   await expect(page.getByText('تعذر تحميل نطاق الرياضيات')).toBeVisible();
   await expect(page.getByText('اختبار القدرات القديم')).not.toBeVisible();
   await expect(page.getByText('لا توجد اختبارات مطلوبة هنا الآن')).not.toBeVisible();
-  await page.screenshot({ path: 'test-results/student-assessment-scope-error-390.png', fullPage: true });
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.getByText('اختبار القدرات القديم')).not.toBeVisible();
+    await page.screenshot({ path: 'test-results/student-assessment-scope-error-' + width + '.png', fullPage: true });
+  }
 });
 
 test('changing path and subject clears course placement context before any new request', async ({ page }) => {
@@ -91,16 +95,22 @@ test('confirmed start rotates placement idempotency key for a later attempt', as
   await page.route('**/api/v1/assessment-placements/placement-1/start', (r) => {
     const body = JSON.parse(r.request().postData() || '{}') as { startKey: string };
     keys.push(body.startKey);
-    return json(r, { attempt: attempt('attempt-' + keys.length) }, 201);
+    if (keys.length === 1) return json(r, { message: 'تعذر بدء المحاولة مؤقتًا' }, 503);
+    return json(r, { attempt: attempt('attempt-' + (keys.length - 1)) }, 201);
   });
   await page.route('**/api/v1/assessment-attempts/attempt-*', (r) => json(r, { attempt: attempt('attempt-1') }));
-  for (let n = 1; n <= 2; n++) {
-    await page.goto('/assessments');
-    await choose(page);
-    await expect(page.getByRole('button', { name: 'ابدأ الاختبار' })).toBeEnabled();
-    await page.getByRole('button', { name: 'ابدأ الاختبار' }).click();
-    await expect(page).toHaveURL(new RegExp('/assessment-attempts/attempt-' + n + '$'));
-  }
-  expect(keys).toHaveLength(2);
-  expect(keys[0]).not.toBe(keys[1]);
+  await page.goto('/assessments');
+  await choose(page);
+  await expect(page.getByRole('button', { name: 'ابدأ الاختبار' })).toBeEnabled();
+  await page.getByRole('button', { name: 'ابدأ الاختبار' }).click();
+  await expect(page.getByText('تعذر بدء المحاولة مؤقتًا')).toBeVisible();
+  await page.getByRole('button', { name: 'ابدأ الاختبار' }).click();
+  await expect(page).toHaveURL(/assessment-attempts\/attempt-1$/);
+  await page.goto('/assessments');
+  await choose(page);
+  await page.getByRole('button', { name: 'ابدأ الاختبار' }).click();
+  await expect(page).toHaveURL(/assessment-attempts\/attempt-2$/);
+  expect(keys).toHaveLength(3);
+  expect(keys[0]).toBe(keys[1]); // Ambiguous failure: retry must be idempotent.
+  expect(keys[1]).not.toBe(keys[2]); // Confirmed start: next attempt needs a fresh key.
 });
