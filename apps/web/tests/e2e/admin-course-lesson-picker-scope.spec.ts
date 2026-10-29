@@ -47,7 +47,7 @@ async function setup(page: Page) {
         description: '', sortOrder: 1, status: 'active', lessons: [],
       }] });
     }
-    if (pathname === '/api/v1/courses/course-1' && route.request().method() === 'PATCH') {
+    if (pathname === '/api/v1/courses/course-1' && route.request().method() === 'PUT') {
       patchAttempts += 1;
       payloads.push(route.request().postDataJSON());
       if (patchAttempts === 1) return json(route, { message: 'تعذر حفظ التعديل' }, 503);
