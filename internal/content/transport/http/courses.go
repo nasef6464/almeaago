@@ -12,6 +12,7 @@ func NewCourses(service *contentapp.Service, auth Authenticator) http.Handler {
 	h := &Handler{service: service, auth: auth}
 	r := chi.NewRouter()
 	r.Get("/", h.listCourses)
+	r.Get("/public", h.publicCourses)
 	r.Post("/", h.createCourse)
 	r.Get("/{id}", h.getCourse)
 	r.Put("/{id}", h.updateCourse)
@@ -23,6 +24,18 @@ func NewCourses(service *contentapp.Service, auth Authenticator) http.Handler {
 	r.Put("/{id}/modules/{moduleId}/lessons/{lessonId}", h.placeCourseLesson)
 	r.Delete("/{id}/modules/{moduleId}/lessons/{lessonId}", h.removeCourseLesson)
 	return r
+}
+
+// publicCourses is intentionally anonymous; only the publication-filtered
+// PostgreSQL read model may supply its response. No staff metadata is returned.
+func (h *Handler) publicCourses(w http.ResponseWriter, r *http.Request) {
+ limit, ok := parsePositiveInt(w,r.URL.Query().Get("limit"))
+ if !ok {return}
+ if limit==0 {limit=3}
+ if limit>100 {writeJSON(w,http.StatusBadRequest,map[string]string{"message":"Invalid pagination"});return}
+ items,err:=h.service.PublicCourses(r.Context(),limit)
+ if err!=nil {writeError(w,err);return}
+ writeJSON(w,http.StatusOK,map[string]any{"items":items})
 }
 
 func (h *Handler) listCourses(w http.ResponseWriter, r *http.Request) {
