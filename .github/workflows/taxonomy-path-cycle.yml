@@ -32,5 +32,21 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-      - name: Assert admin path hierarchy and concurrent updates in isolated PostgreSQL schema
-        run: go test ./internal/taxonomy/repository/postgres -run '^TestAdminPathParentCyclePostgres$' -count=1 -v
+      - name: RED — original main permits descendant cycle (expected failure)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp internal/taxonomy/repository/postgres/mutations.go /tmp/taxonomy-mutations-fixed.go
+          git show 98b0f6d9ad0bba031936d950d087c0bd3d19b7bb:internal/taxonomy/repository/postgres/mutations.go > internal/taxonomy/repository/postgres/mutations.go
+          if go test ./internal/taxonomy/repository/postgres -run '^TestAdminPathParentCyclePostgres
+ -count=1 -v > /tmp/taxonomy-red.log 2>&1; then
+            cat /tmp/taxonomy-red.log
+            echo "::error::Original implementation unexpectedly passed the cycle regression"
+            exit 1
+          fi
+          cat /tmp/taxonomy-red.log
+          grep -q 'descendant parent must conflict' /tmp/taxonomy-red.log
+          cp /tmp/taxonomy-mutations-fixed.go internal/taxonomy/repository/postgres/mutations.go
+      - name: GREEN — hierarchy and concurrent updates in isolated PostgreSQL schema
+        run: go test ./internal/taxonomy/repository/postgres -run '^TestAdminPathParentCyclePostgres
+ -count=1 -v
