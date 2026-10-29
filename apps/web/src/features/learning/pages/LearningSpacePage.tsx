@@ -336,9 +336,6 @@ export function LearningSpacePage() {
               <article className="col-span-full flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6">
                 <div>
                   <h2 className="text-xl font-black text-gray-800">التدريب وبنك الأسئلة</h2>
-                  <p className="mt-1 max-w-2xl text-sm font-medium leading-7 text-gray-500">
-                    الواجهة تحافظ على مدخل التدريب القديم، بينما المحاولات والتصحيح وحقائق الإجابات تظل مملوكة لـ Assessment V2.
-                  </p>
                 </div>
                 <Link
                   to={assessmentHref('training')}
@@ -354,9 +351,6 @@ export function LearningSpacePage() {
                   <Award size={24} />
                 </div>
                 <h2 className="text-xl font-black text-gray-800">الاختبارات</h2>
-                <p className="mt-2 max-w-2xl text-sm font-medium leading-7 text-gray-500">
-                  نفس نقطة الدخول المرئية للواجهة القديمة، مع بقاء الوصول والمحاولات والدرجة والتصحيح من الخادم الحالي.
-                </p>
                 <Link
                   to={assessmentHref('tests')}
                   className="mt-5 inline-flex self-start items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 font-black text-white hover:bg-indigo-700"
