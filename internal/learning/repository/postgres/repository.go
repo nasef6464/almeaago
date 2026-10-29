@@ -379,7 +379,6 @@ func (r *Repository) SetSavedReview(ctx context.Context, student, questionID str
 		return nil
 	}
 
-
 	// A single row lock keeps a concurrent review answer from being deleted
 	// after it has become mistake/mastery evidence. The legacy manual-only
 	// saved card can be deleted, but its skill links must go first (RESTRICT FK).
