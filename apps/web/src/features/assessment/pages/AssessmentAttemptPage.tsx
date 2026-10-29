@@ -38,6 +38,7 @@ export function AssessmentAttemptPage() {
     setIndex(0);
     setDraftChoice(null);
     setSavingAnswer(false);
+    actionRef.current = '';
     setError('');
     setBusy(true);
     const run = async () => {
