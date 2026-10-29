@@ -17,33 +17,22 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
 import type { LearningSpace, TaxonomyCore } from '../../content/api/content-types';
+import { parseLearningRoute, subjectsForSelection } from './learningRouteSelection';
+import type { LearningTab } from './learningRouteSelection';
 
-type Tab = 'courses' | 'foundation' | 'questions' | 'exams' | 'library';
-
-const legacyTabMap: Record<string, Tab> = {
-  courses: 'courses',
-  skills: 'foundation',
-  foundation: 'foundation',
-  banks: 'questions',
-  questions: 'questions',
-  tests: 'exams',
-  exams: 'exams',
-  library: 'library',
-};
+type Tab = LearningTab;
 
 export function LearningSpacePage() {
   const { user, loading: authLoading } = useAuth();
   const { pathId: legacyPathId = '' } = useParams<{ pathId?: string }>();
   const [params, setParams] = useSearchParams();
 
-  const initialPathId = legacyPathId || params.get('pathId') || '';
-  const initialSubjectId = params.get('subjectId') || params.get('subject') || '';
-  const initialTab = legacyTabMap[params.get('tab') || 'courses'] || 'courses';
+  const initialSelection = parseLearningRoute(legacyPathId, params);
 
   const [taxonomy, setTaxonomy] = useState<TaxonomyCore>({ paths: [], subjects: [] });
-  const [pathId, setPathId] = useState(initialPathId);
-  const [subjectId, setSubjectId] = useState(initialSubjectId);
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const [pathId, setPathId] = useState(initialSelection.pathId);
+  const [subjectId, setSubjectId] = useState(initialSelection.subjectId);
+  const [tab, setTab] = useState<Tab>(initialSelection.tab);
   const [space, setSpace] = useState<LearningSpace | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -56,16 +45,19 @@ export function LearningSpacePage() {
   }, []);
 
   useEffect(() => {
-    if (legacyPathId && legacyPathId !== pathId) {
-      setPathId(legacyPathId);
-      setSubjectId(params.get('subjectId') || params.get('subject') || '');
-      setTab(legacyTabMap[params.get('tab') || 'courses'] || 'courses');
-    }
-  }, [legacyPathId, params, pathId]);
+    if (!legacyPathId) return;
+    const next = parseLearningRoute(legacyPathId, params);
+    // A category can stay mounted when the visitor picks another stage or
+    // subject from the header; sync all URL choices, not just changed paths.
+    setPathId(next.pathId);
+    setSubjectId(next.subjectId);
+    setTab(next.tab);
+  }, [legacyPathId, params]);
 
+  const selectedLevelId = pathId === legacyPathId ? params.get('level') || '' : '';
   const subjects = useMemo(
-    () => taxonomy.subjects.filter((item) => !pathId || item.pathId === pathId),
-    [pathId, taxonomy.subjects],
+    () => subjectsForSelection(taxonomy.subjects, pathId, selectedLevelId),
+    [pathId, selectedLevelId, taxonomy.subjects],
   );
   const currentPath = taxonomy.paths.find((item) => item.id === pathId);
   const currentSubject = taxonomy.subjects.find((item) => item.id === subjectId);
