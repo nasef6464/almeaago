@@ -168,9 +168,10 @@ export function SchoolDirectorDashboardPage(){
     const visit=schoolVisitEpoch.current;
     const requestedSchoolId=selectedSchool.schoolId;
     const teacherVersion=teacherReadVersion.current;
-    // A failed or late roster read must never display rows from a prior search.
-    setClasses([]);setStudents([]);setStudentTotal(0);
-    setTeachers([]);setAssignments([]);
+    // A failed or late student search must not show rows from the prior query.
+    // Keep independent same-school class/teacher assignments interactive while
+    // that search is pending (e.g. a director may revoke a teacher assignment).
+    setStudents([]);setStudentTotal(0);
     const needsClasses=has('SCHOOL_STUDENTS_ADD')||has('SCHOOL_STUDENTS_MOVE_CLASS')||canOptional('SCHOOL_CLASSES_MANAGE')||canOptional('SCHOOL_TEACHERS_ASSIGN');
     setBusy(true);setError('');
     try{
