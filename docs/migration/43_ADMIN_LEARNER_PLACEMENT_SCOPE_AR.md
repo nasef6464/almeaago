@@ -22,9 +22,9 @@ The admin authoring service validates a course/lesson or topic/lesson link at pl
 
 `internal/content/repository/postgres/learner_placement_scope_integration_test.go` creates a disposable schema in a disposable PostgreSQL service and inserts one valid placement and one intentionally stale cross-subject placement for course and foundation. It verifies valid content remains accessible, stale content is absent from summaries/detail, and stale progress targets are rejected. The new workflow `.github/workflows/content-placement-scope.yml` runs that test with `CONTENT_SCOPE_DB_TEST=1` and isolated `DATABASE_URL`.
 
-RED commit: `bf90894f6dae603b3dda0028df5e5818bf6a288a` (test and workflow only; regression expected to fail before SQL fix).
+RED fixture commit: `bf90894f6dae603b3dda0028df5e5818bf6a288a` (initial test-only run was cancelled by newer pushes; not a RED proof). The dedicated workflow now temporarily checks out the original Go-main learner query, requires the precise `course leaked foreign-subject lesson` assertion to fail, restores the candidate file and requires the same PostgreSQL test to pass. This makes RED→GREEN reproducible in one run without writing to the repository or production.
 Implementation commit: `7614196e2b249378f8f7cc3feb564983d73f33be`.
-Formatting follow-up: `482c1f7fda9687c89db6e53191e0420c55657d36`.
+Formatting follow-up: `482c1f7fda9687c89db6e53191e0420c55657d36`. RED→GREEN workflow change: `1c5f86d6595c4a7e2a168da1a1d4949246d1ea5b`.
 Exact-head run results and final SHA must be recorded from GitHub, not inferred from this checkpoint.
 
 ## Acceptance matrix
