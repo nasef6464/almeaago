@@ -55,7 +55,7 @@ test('failed save preserves the review and supports retry and reload', async ({ 
   await expect(page.getByText(question.text)).toBeVisible();
 });
 
-test('saved review state belongs to the active attempt, not another attempt', async ({ page }) => {
+test('saved question remains globally saved across two attempts for the same learner', async ({ page }) => {
   await setup(page);
   await page.route('**/api/v1/review/questions/shared-question/saved', route => json(route, { success: true }));
   await page.goto('/assessment-results');
@@ -66,7 +66,7 @@ test('saved review state belongs to the active attempt, not another attempt', as
   await page.getByRole('link', { name: 'العودة لسجل النتائج' }).click();
   await page.getByRole('link', { name: 'عرض النتيجة' }).nth(1).click();
   await expect(page.getByRole('heading', { name: 'attempt-2' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'حفظ للمراجعة' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'تم الحفظ' })).toBeDisabled();
 });
 
 for (const width of [390, 820, 1440]) {
