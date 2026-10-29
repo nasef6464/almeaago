@@ -57,9 +57,9 @@ test('supervisor failed context and roster reads fail closed, preserve search an
   if(contextFail){contextFail=false;return json(route,{message:'فشل النطاق'},503);}
   return json(route,{contexts});
  });
- let rosterFail=true;
+ let rosterFailures=2;
  await page.route('**/api/v1/schools/*/roster?*',route=>{
-  if(rosterFail){rosterFail=false;return json(route,{message:'فشل الطلاب'},503);}
+  if(rosterFailures>0){rosterFailures--;return json(route,{message:'فشل الطلاب'},503);}
   return json(route,{members:students['school-1'],pagination:{page:1,limit:20,total:1,totalPages:1}});
  });
  await page.goto('/supervisor-dashboard');
@@ -69,6 +69,7 @@ test('supervisor failed context and roster reads fail closed, preserve search an
  await expect(page.getByRole('alert')).toContainText('فشل الطلاب');
  await expect(page.getByText('طالب الأولى')).toHaveCount(0);
  await page.getByLabel('بحث عن طالب').fill('طالب');
+ await expect(page.getByRole('alert')).toContainText('فشل الطلاب');
  await page.getByRole('button',{name:'إعادة المحاولة'}).click();
  await expect(page.getByText('طالب الأولى')).toBeVisible();
  await expect(page.getByLabel('بحث عن طالب')).toHaveValue('طالب');
