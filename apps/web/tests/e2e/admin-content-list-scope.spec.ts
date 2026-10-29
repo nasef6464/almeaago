@@ -87,3 +87,40 @@ for (const width of [390, 820, 1440]) {
     await expect(page.getByRole('button', { name: 'تعديل / المنهج' })).toHaveCount(0);
   });
 }
+
+for (const width of [390, 820, 1440]) {
+  test(`admin content path change does not retain prior path counts at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await setup(page);
+    await page.unroute('**/api/v1/courses?**');
+
+    let requested!: () => void;
+    const pathBRequested = new Promise<void>(resolve => { requested = resolve; });
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    await page.route('**/api/v1/courses?**', async route => {
+      const path = new URL(route.request().url()).searchParams.get('pathId');
+      if (path === 'path-b') {
+        requested();
+        await gate;
+        await json(route, {
+          items: [{ ...course, id: 'course-b', pathId: 'path-b', subjectId: 'subject-b', title: 'دورة المسار الثاني' }],
+          page: 1, limit: 50, hasMore: false,
+        }).catch(() => {});
+        return;
+      }
+      await json(route, { items: [course], page: 1, limit: 50, hasMore: false });
+    });
+
+    await page.goto('/admin-dashboard/content');
+    await expect(page.getByText(course.title)).toBeVisible();
+    await page.locator('select').first().selectOption('path-b');
+    await pathBRequested;
+    await expect(shownCount(page)).toHaveText('٠');
+    await expect(page.getByText(course.title)).toHaveCount(0);
+    release();
+    await expect(page.getByText('دورة المسار الثاني')).toBeVisible();
+    await expect(page.getByText(course.title)).toHaveCount(0);
+    await expect(shownCount(page)).toHaveText('١');
+  });
+}
