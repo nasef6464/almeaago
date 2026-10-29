@@ -97,3 +97,26 @@ test('pending failed start key is scoped to the signed-in student', async ({ pag
   expect(keys).toHaveLength(2);
   expect(keys[1]).not.toBe(keys[0]);
 });
+
+test('a pending directed start disables every other assignment start', async ({ page }) => {
+  await page.route('**/api/v1/auth/me', (route) => respond(route, { user: student }));
+  await page.route('**/api/v1/auth/csrf', (route) => respond(route, { csrfToken: 'csrf' }));
+  await page.route('**/api/v1/assessment-assignments/mine?**', (route) =>
+    respond(route, { items: [assignment(), assignment('assignment-b')], page: 1, limit: 30, hasMore: false }));
+  let releaseStart: (() => void) | undefined;
+  let starts = 0;
+  await page.route('**/api/v1/assessment-assignments/*/start', async (route) => {
+    starts += 1;
+    await new Promise<void>((resolve) => { releaseStart = resolve; });
+    await respond(route, { message: 'تعذر بدء التكليف' }, 503);
+  });
+  await page.goto('/assessment-assignments');
+  const buttons = page.getByRole('button', { name: 'ابدأ التكليف' });
+  await expect(buttons).toHaveCount(2);
+  await buttons.first().click();
+  await expect(buttons.nth(1)).toBeDisabled();
+  expect(starts).toBe(1);
+  releaseStart?.();
+  await expect(page.getByRole('alert')).toContainText('تعذر بدء التكليف');
+  await expect(buttons.nth(1)).toBeEnabled();
+});
