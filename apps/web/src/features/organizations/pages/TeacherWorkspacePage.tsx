@@ -18,6 +18,14 @@ const sections = [
   { id: 'certificates', label: 'شهادات التقدير والتحفيز', icon: Trophy },
 ] as const;
 
+const groups = [
+  { label: 'الرئيسية', ids: ['overview'] },
+  { label: 'الحصص وتحضير الأسئلة', ids: ['smart-classroom', 'prepared-questions'] },
+  { label: 'الاختبارات والتكليفات', ids: ['assessments'] },
+  { label: 'المهارات والتقارير', ids: ['learning-evidence', 'skills-radar', 'reports'] },
+  { label: 'الشهادات', ids: ['certificates'] },
+] as const;
+
 function classroomURL(schoolId: string, assignmentId: string) {
   return '/school-teacher-dashboard/classroom?' + new URLSearchParams({ schoolId, assignmentId }).toString();
 }
@@ -98,13 +106,21 @@ export function TeacherWorkspacePage() {
             <span className="rounded-lg bg-white px-2 py-2 text-center text-indigo-700 shadow-sm">المدرسة</span>
           </div> : null}
         </div>
-        <nav aria-label="تنقل لوحة معلم المدرسة" className="space-y-1 px-3">
-          {sections.map(({ id, label, icon: Icon }) => id === 'overview'
-            ? <Link key={id} to={'/school-teacher-dashboard' + (school ? '?schoolId=' + encodeURIComponent(school.schoolId) : '')} className="flex items-center gap-3 rounded-xl border-r-4 border-indigo-600 bg-indigo-50 px-4 py-2.5 text-xs font-black text-indigo-700"><Icon size={19} />{label}</Link>
-            : id === 'smart-classroom' && school?.assignments.length
-              ? <Link key={id} to={classroomURL(school.schoolId, school.assignments[0].assignmentId)} className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-50"><Icon size={19} />{label}</Link>
-              : <span key={id} aria-disabled="true" className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-xs font-bold text-gray-400"><Icon size={19} />{label}</span>
-          )}
+        <nav aria-label="تنقل لوحة معلم المدرسة" className="space-y-3 px-3">
+          {groups.map((group, index) => <details key={group.label} open={index === 0 ? true : undefined} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-2">
+            <summary className="cursor-pointer list-none rounded-lg px-2 py-2 text-sm font-black text-slate-700">{group.label}</summary>
+            <div className="space-y-1 pt-2">
+              {group.ids.map(id => {
+                const item = sections.find(section => section.id === id);
+                if (!item) return null;
+                const Icon = item.icon;
+                const classes = 'flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-right text-xs font-bold ';
+                if (id === 'overview') return <Link key={id} aria-current="page" to={'/school-teacher-dashboard' + (school ? '?schoolId=' + encodeURIComponent(school.schoolId) : '')} className={classes + 'border-indigo-200 bg-indigo-50 text-indigo-800'}><Icon size={19} />{item.label}</Link>;
+                if (id === 'smart-classroom' && school?.assignments.length) return <Link key={id} to={classroomURL(school.schoolId, school.assignments[0].assignmentId)} className={classes + 'border-slate-200 bg-white text-slate-700'}><Icon size={19} />{item.label}</Link>;
+                return <span key={id} aria-disabled="true" className={classes + 'border-slate-200 bg-white text-slate-400'}><Icon size={19} />{item.label}</span>;
+              })}
+            </div>
+          </details>)}
         </nav>
       </aside>
 
