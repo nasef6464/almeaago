@@ -42,6 +42,7 @@ import { AiAdminPage } from '../features/ai/pages/AiAdminPage';
 import { ReportsPage } from '../features/reporting/pages/ReportsPage';
 import { OperationsAdminPage } from '../features/operations/pages/OperationsAdminPage';
 import { TaxonomyAdminPage } from '../features/taxonomy/pages/TaxonomyAdminPage';
+import { SkillsAdminPage } from '../features/taxonomy/pages/SkillsAdminPage';
 import { QuestionBankAdminPage } from '../features/questionbank/pages/QuestionBankAdminPage';
 import { SchoolDirectorDashboardPage } from '../features/organizations/pages/SchoolDirectorDashboardPage';
 import { SupervisorDashboardPage } from '../features/organizations/pages/SupervisorDashboardPage';
@@ -143,7 +144,7 @@ export function App() {
         <Route path="/notifications" element={<NotificationInboxPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/dashboard" element={<StudentDashboardPage />} />
-        <Route path="/admin-dashboard" element={<AdminDashboardShell>{isHomepageLocation(location) ? <HomepagePage /> : isPlatformFontsLocation(location) ? <PlatformFontsPage /> : <AdminOverviewPage />}</AdminDashboardShell>} />
+        <Route path="/admin-dashboard" element={<AdminDashboardShell>{isHomepageLocation(location) ? <HomepagePage /> : isPlatformFontsLocation(location) ? <PlatformFontsPage /> : new URLSearchParams(location.search).get('tab') === 'skills' ? <SkillsAdminPage /> : <AdminOverviewPage />}</AdminDashboardShell>} />
         <Route path="/admin-dashboard/homepage" element={<AdminDashboardShell><HomepagePage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/platform-fonts" element={<AdminDashboardShell><PlatformFontsPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/content" element={<AdminDashboardShell><ContentAdminPage /></AdminDashboardShell>} />

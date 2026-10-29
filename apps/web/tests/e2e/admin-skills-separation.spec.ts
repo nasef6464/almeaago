@@ -1,0 +1,65 @@
+import { expect, test, type Route } from '@playwright/test';
+
+const admin = {
+  id: 'admin-skills-1', email: 'admin@example.com', name: 'مدير المنصة',
+  role: 'admin', roles: ['admin'], status: 'active', emailVerified: true,
+};
+const taxonomy = {
+  paths: [{ id: 'p1', code: 'QDR', name: 'القدرات', sortOrder: 0, status: 'active', description: '' }],
+  levels: [],
+  subjects: [{ id: 's1', pathId: 'p1', code: 'MATH', name: 'الكمي', sortOrder: 0, status: 'active' }],
+  skills: [
+    { id: 'm1', subjectId: 's1', code: 'ALG', name: 'الجبر', kind: 'main', sortOrder: 0, status: 'active', description: '' },
+    { id: 'sub1', subjectId: 's1', parentSkillId: 'm1', code: 'LIN', name: 'المعادلات', kind: 'sub', sortOrder: 1, status: 'active', description: '' },
+  ],
+};
+
+function json(route: Route, body: unknown, status = 200) {
+  return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+}
+
+test('admin Skills Center is independent from paths and preserves failed subskill drafts', async ({ page }) => {
+  await page.route('**/api/v1/auth/me', (route) => json(route, { user: admin }));
+  await page.route('**/api/v1/auth/csrf', (route) => json(route, { csrfToken: 'test-csrf' }));
+  let currentSkills = [...taxonomy.skills];
+  await page.route('**/api/v1/taxonomy/admin/bootstrap', (route) => json(route, { ...taxonomy, skills: currentSkills }));
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  await page.goto('/admin-dashboard');
+  await expect(page.getByRole('link', { name: /مركز المهارات/ }).first()).toHaveAttribute('href', '/admin-dashboard?tab=skills');
+  await page.getByRole('link', { name: /مركز المهارات/ }).first().click();
+  await expect(page.getByTestId('admin-skills-center')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'مركز المهارات' })).toBeVisible();
+  await expect(page.getByTestId('skills-counter-main')).toContainText('1');
+  await expect(page.getByTestId('skills-counter-sub')).toContainText('1');
+  await page.getByRole('button', { name: 'فتح المهارة الرئيسة الجبر' }).click();
+  await expect(page.getByText('المعادلات', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'إضافة مهارة فرعية' }).click();
+  const dialog = page.getByRole('dialog', { name: 'إضافة مهارة فرعية' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('textbox', { name: 'كود المهارة' }).fill('EQ2');
+  await dialog.getByRole('textbox', { name: 'اسم المهارة' }).fill('حل المعادلات');
+  let attempts = 0;
+  await page.route('**/api/v1/taxonomy/admin/skills', async (route) => {
+    const submitted = route.request().postDataJSON();
+    expect(submitted).toMatchObject({ subjectId: 's1', parentSkillId: 'm1', kind: 'sub', code: 'EQ2', name: 'حل المعادلات' });
+    attempts++;
+    if (attempts === 1) return json(route, { message: 'تعارض مؤقت' }, 409);
+    currentSkills = [...currentSkills, { id: 'sub2', subjectId: 's1', parentSkillId: 'm1', code: 'EQ2', name: 'حل المعادلات', kind: 'sub', sortOrder: 2, status: 'active', description: '' }];
+    return json(route, { id: 'sub2' }, 201);
+  });
+
+  await dialog.getByRole('button', { name: 'حفظ المهارة' }).click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('textbox', { name: 'اسم المهارة' })).toHaveValue('حل المعادلات');
+  await expect(page.getByRole('alert')).toContainText('تعارض مؤقت');
+  await dialog.getByRole('button', { name: 'حفظ المهارة' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByTestId('skills-counter-sub')).toContainText('2');
+
+  await page.goto('/admin-dashboard/taxonomy');
+  await expect(page.getByRole('heading', { name: 'إدارة المسارات' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'إضافة المهارة' })).toHaveCount(0);
+  await expect(page.getByText('شجرة المهارات')).toHaveCount(0);
+});
