@@ -133,7 +133,7 @@ func testArchivedAssignmentStopAndReactivation(
 		{"INSERT INTO " + schema + ".subjects (id) VALUES ($1)", []any{subject}},
 		{"INSERT INTO " + schema + ".user_roles (user_id,role) VALUES ($1,'teacher')", []any{teacher}},
 		{"INSERT INTO " + schema + ".school_memberships (school_id,user_id,role,status) VALUES ($1,$2,'teacher','active')", []any{school, teacher}},
-		{"INSERT INTO " + schema + ".teaching_assignments (school_id,teacher_id,class_id,subject_id,status) VALUES ($1,$2,$3,$4,'inactive')", []any{school, teacher, archivedClass, subject}},
+		{"INSERT INTO " + schema + ".teaching_assignments (school_id,teacher_id,class_id,subject_id,status) VALUES ($1,$2,$3,$4,'ended')", []any{school, teacher, archivedClass, subject}},
 	}
 	for _, fixture := range fixtures {
 		if _, err := setup.Exec(ctx, fixture.sql, fixture.args...); err != nil {
@@ -160,12 +160,12 @@ func testArchivedAssignmentStopAndReactivation(
 		t.Fatalf("archived classroom must never be reactivated (Legacy rejects it), got %v", err)
 	}
 	var state string
-	if err := setup.QueryRow(ctx, "SELECT status FROM "+schema+".teaching_assignments WHERE class_id=$1", archivedClass).Scan(&state); err != nil || state != "inactive" {
+	if err := setup.QueryRow(ctx, "SELECT status FROM "+schema+".teaching_assignments WHERE class_id=$1", archivedClass).Scan(&state); err != nil || state != "ended" {
 		t.Fatalf("rejected activation must leave original assignment inactive: state=%s err=%v", state, err)
 	}
-	write.Status = org.AssignmentStatusInactive
+	write.Status = org.AssignmentStatusEnded
 	stopped, err := repo.UpsertAssignment(ctx, teacher, school, write)
-	if err != nil || stopped.Status != org.AssignmentStatusInactive {
+	if err != nil || stopped.Status != org.AssignmentStatusEnded {
 		t.Fatalf("stopping archived-class assignment must remain available: %+v err=%v", stopped, err)
 	}
 	repeated, err := repo.UpsertAssignment(ctx, teacher, school, write)
