@@ -560,16 +560,18 @@ export function ReviewLibraryPage() {
                   </button>
                 </div>
 
-                <h2 className="mt-3 text-base font-black leading-7 text-gray-900">
-                  {item.question.text || item.question.imageAlt || 'سؤال بصري'}
-                </h2>
+                {!item.question.optionsEmbeddedInImage ? (
+                  <h2 className="mt-3 text-base font-black leading-7 text-gray-900">
+                    {item.question.text || item.question.imageAlt || 'سؤال بصري'}
+                  </h2>
+                ) : null}
                 {item.question.imageAssetId ? (
                   <div className="mt-3">
                     <QuestionAssetImage assetId={item.question.imageAssetId} alt={item.question.imageAlt || 'صورة السؤال'} />
                   </div>
                 ) : null}
 
-                <div className="mt-4 grid gap-2">
+                <div className={`mt-4 grid gap-2 ${item.question.optionsEmbeddedInImage ? 'grid-cols-4' : 'grid-cols-2'}`}>
                   {item.question.options.map((option) => {
                     const correct = item.question.correctOptionIndex === option.index;
                     return (
