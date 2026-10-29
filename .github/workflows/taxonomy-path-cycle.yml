@@ -1,0 +1,36 @@
+name: Taxonomy Path Cycle PostgreSQL
+on:
+  pull_request:
+    paths:
+      - "internal/taxonomy/repository/postgres/**"
+      - ".github/workflows/taxonomy-path-cycle.yml"
+  workflow_dispatch:
+permissions: { contents: read }
+concurrency:
+  group: taxonomy-path-cycle-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  taxonomy-path-cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: almeaa
+          POSTGRES_PASSWORD: almeaa
+          POSTGRES_DB: almeaa
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U almeaa -d almeaa"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+      TAXONOMY_PATH_DB_TEST: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Assert admin path hierarchy and concurrent updates in isolated PostgreSQL schema
+        run: go test ./internal/taxonomy/repository/postgres -run '^TestAdminPathParentCyclePostgres$' -count=1 -v
