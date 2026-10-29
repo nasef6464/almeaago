@@ -29,13 +29,23 @@ func NewCourses(service *contentapp.Service, auth Authenticator) http.Handler {
 // publicCourses is intentionally anonymous; only the publication-filtered
 // PostgreSQL read model may supply its response. No staff metadata is returned.
 func (h *Handler) publicCourses(w http.ResponseWriter, r *http.Request) {
- limit, ok := parsePositiveInt(w,r.URL.Query().Get("limit"))
- if !ok {return}
- if limit==0 {limit=3}
- if limit>100 {writeJSON(w,http.StatusBadRequest,map[string]string{"message":"Invalid pagination"});return}
- items,err:=h.service.PublicCourses(r.Context(),limit)
- if err!=nil {writeError(w,err);return}
- writeJSON(w,http.StatusOK,map[string]any{"items":items})
+	limit, ok := parsePositiveInt(w, r.URL.Query().Get("limit"))
+	if !ok {
+		return
+	}
+	if limit == 0 {
+		limit = 3
+	}
+	if limit > 100 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid pagination"})
+		return
+	}
+	items, err := h.service.PublicCourses(r.Context(), limit)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
 func (h *Handler) listCourses(w http.ResponseWriter, r *http.Request) {
