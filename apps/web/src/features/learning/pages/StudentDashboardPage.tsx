@@ -1,17 +1,22 @@
 import {
   BarChart3,
-  Bell,
   BookOpen,
-  BrainCircuit,
+  Brain,
   CalendarDays,
   ChevronLeft,
   ClipboardCheck,
+  Copy,
+  FileText,
+  GraduationCap,
+  Headphones,
   Home,
+  LogOut,
   Menu,
-  Radio,
   Route as RouteIcon,
   Sparkles,
+  Star,
   Target,
+  Wrench,
   X,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -19,63 +24,77 @@ import { Link } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 
-type NavItem = {
-  to: string;
+// The original dashboard menu is the presentation contract:
+// almeaacodax/pages/Dashboard.tsx at bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7.
+// Null destinations are original features that have NOT been ported. Never
+// route them to an unrelated screen or expose a misleading clickable control.
+type StudentNavItem = {
+  id: string;
   label: string;
+  to: string | null;
   icon: typeof Home;
   tone: string;
 };
 
-const groups: Array<{ id: string; title: string; tone: string; items: NavItem[] }> = [
+const items: StudentNavItem[] = [
+  { id: 'paths', label: 'مساراتي', to: '/learning', icon: RouteIcon, tone: 'bg-sky-100 text-sky-700' },
+  { id: 'my-courses', label: 'دوراتي', to: '/learning?tab=courses', icon: BookOpen, tone: 'bg-violet-100 text-violet-700' },
+  { id: 'sessions', label: 'جلساتي', to: null, icon: CalendarDays, tone: 'bg-emerald-100 text-emerald-700' },
+  { id: 'smart-path', label: 'المسار الذكي', to: null, icon: Brain, tone: 'bg-emerald-100 text-emerald-700' },
+  { id: 'plan', label: 'خططي', to: '/plan', icon: CalendarDays, tone: 'bg-emerald-100 text-emerald-700' },
+  { id: 'reports', label: 'تقاريري', to: '/reports', icon: BarChart3, tone: 'bg-cyan-100 text-cyan-700' },
+  { id: 'quizzes', label: 'الاختبارات السابقة', to: '/assessment-results', icon: FileText, tone: 'bg-rose-100 text-rose-700' },
+  { id: 'school-tests', label: 'الاختبارات المدرسية', to: '/assessment-assignments', icon: Target, tone: 'bg-sky-100 text-sky-700' },
+  { id: 'mock-exams', label: 'الاختبارات المحاكية', to: null, icon: Star, tone: 'bg-rose-100 text-rose-700' },
+  { id: 'favorites', label: 'أسئلتي للمراجعة', to: '/review', icon: BookOpen, tone: 'bg-violet-100 text-violet-700' },
+  { id: 'flashcards', label: 'بطاقات التذكر', to: null, icon: Copy, tone: 'bg-violet-100 text-violet-700' },
+  { id: 'qa', label: 'سؤال وجواب', to: null, icon: Headphones, tone: 'bg-orange-100 text-orange-700' },
+  { id: 'requests', label: 'طلباتي', to: null, icon: FileText, tone: 'bg-orange-100 text-orange-700' },
+];
+
+const groups: Array<{ id: string; title: string | null; tone: string; icon: typeof Home | null; ids: string[] }> = [
   {
     id: 'learning',
-    title: 'التعلم',
+    title: null,
+    icon: null,
+    tone: 'border-slate-100 bg-white/95',
+    ids: ['paths', 'my-courses', 'sessions'],
+  },
+  {
+    id: 'journey',
+    title: 'رحلتي التعليمية',
+    icon: GraduationCap,
     tone: 'border-emerald-200/80 bg-gradient-to-b from-emerald-100/90 to-emerald-50/80 text-emerald-800',
-    items: [
-      { to: '/learning', label: 'مساراتي ودوراتي', icon: BookOpen, tone: 'bg-violet-100 text-violet-700' },
-      { to: '/plan', label: 'خططي', icon: CalendarDays, tone: 'bg-emerald-100 text-emerald-700' },
-      { to: '/reports', label: 'تقاريري', icon: BarChart3, tone: 'bg-cyan-100 text-cyan-700' },
-    ],
+    ids: ['smart-path', 'plan', 'reports'],
   },
   {
     id: 'exams',
     title: 'الاختبارات',
+    icon: ClipboardCheck,
     tone: 'border-rose-200/80 bg-gradient-to-b from-rose-100/90 to-rose-50/80 text-rose-800',
-    items: [
-      { to: '/assessments', label: 'اختبارات المنصة', icon: ClipboardCheck, tone: 'bg-rose-100 text-rose-700' },
-      { to: '/assessment-assignments', label: 'الاختبارات الموجهة', icon: Target, tone: 'bg-sky-100 text-sky-700' },
-      { to: '/assessment-results', label: 'اختباراتي ونتائجي', icon: RouteIcon, tone: 'bg-amber-100 text-amber-700' },
-    ],
+    ids: ['quizzes', 'school-tests', 'mock-exams'],
   },
   {
     id: 'tools',
     title: 'الأدوات',
+    icon: Wrench,
     tone: 'border-violet-200/80 bg-gradient-to-b from-violet-100/90 to-violet-50/80 text-violet-800',
-    items: [
-      { to: '/review', label: 'أسئلتي للمراجعة', icon: BrainCircuit, tone: 'bg-violet-100 text-violet-700' },
-      { to: '/classroom/join', label: 'الفصل الذكي', icon: Radio, tone: 'bg-indigo-100 text-indigo-700' },
-    ],
+    ids: ['favorites', 'flashcards'],
   },
   {
     id: 'support',
-    title: 'الدعم والمتابعة',
+    title: 'الدعم',
+    icon: Headphones,
     tone: 'border-orange-200/80 bg-gradient-to-b from-orange-100/90 to-orange-50/80 text-orange-800',
-    items: [
-      { to: '/notifications', label: 'الإشعارات', icon: Bell, tone: 'bg-orange-100 text-orange-700' },
-    ],
+    ids: ['qa', 'requests'],
   },
 ];
 
-const overviewCards: NavItem[] = [
-  { to: '/learning', label: 'مساحة التعلم', icon: BookOpen, tone: 'bg-indigo-50 text-indigo-700' },
-  { to: '/assessments', label: 'الاختبارات', icon: ClipboardCheck, tone: 'bg-blue-50 text-blue-700' },
-  { to: '/review', label: 'المراجعة والإتقان', icon: BrainCircuit, tone: 'bg-purple-50 text-purple-700' },
-  { to: '/plan', label: 'الخطة الدراسية', icon: CalendarDays, tone: 'bg-amber-50 text-amber-700' },
-];
-
 export function StudentDashboardPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [logoutBusy, setLogoutBusy] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
 
   if (loading) {
     return <main dir="rtl" className="p-10 text-center font-black">جاري تحميل لوحة الطالب...</main>;
@@ -91,15 +110,10 @@ export function StudentDashboardPage() {
     .map((part) => part[0])
     .join('');
 
-  const navItem = (item: NavItem) => {
+  function navItem(item: StudentNavItem) {
     const Icon = item.icon;
-    return (
-      <Link
-        key={item.to}
-        to={item.to}
-        onClick={() => setSidebarOpen(false)}
-        className="flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2 text-sm font-bold text-gray-800 transition hover:border-white/80 hover:bg-white/80"
-      >
+    const children = (
+      <>
         <span className="flex min-w-0 items-center gap-3">
           <span className={'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ' + item.tone}>
             <Icon size={17} />
@@ -107,9 +121,38 @@ export function StudentDashboardPage() {
           <span className="truncate">{item.label}</span>
         </span>
         <ChevronLeft size={15} className="shrink-0 text-gray-400" />
-      </Link>
+      </>
     );
-  };
+    const className = 'flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2 text-sm font-bold text-gray-800 transition hover:border-white/80 hover:bg-white/80';
+    return item.to ? (
+      <Link key={item.id} to={item.to} onClick={() => setSidebarOpen(false)} className={className} data-testid={'student-menu-item-' + item.id}>
+        {children}
+      </Link>
+    ) : (
+      <span
+        key={item.id}
+        aria-disabled="true"
+        data-testid={'student-menu-item-' + item.id}
+        className={className + ' cursor-not-allowed opacity-50'}
+      >
+        {children}
+      </span>
+    );
+  }
+
+  async function logout() {
+    if (logoutBusy) return;
+    setLogoutBusy(true);
+    setLogoutError('');
+    try {
+      await signOut();
+      window.location.assign('/?auth=login');
+    } catch {
+      // Keep the student on this screen if the server rejects the logout.
+      setLogoutError('تعذر تسجيل الخروج، حاول مرة أخرى.');
+      setLogoutBusy(false);
+    }
+  }
 
   return (
     <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-gray-50">
@@ -134,12 +177,10 @@ export function StudentDashboardPage() {
       <div className="mx-auto flex max-w-[1500px] items-start">
         <aside
           aria-label="تنقل لوحة الطالب"
-          className={`fixed bottom-0 right-0 top-20 z-40 h-[calc(100vh-5rem)] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto border-l border-gray-200 bg-white transition-transform duration-300 lg:sticky lg:translate-x-0 ${
-            sidebarOpen ? 'translate-x-0' : 'translate-x-full'
-          }`}
+          className={'fixed bottom-0 right-0 top-20 z-40 h-[calc(100vh-5rem)] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto border-l border-gray-200 bg-white transition-transform duration-300 lg:sticky lg:translate-x-0 ' + (sidebarOpen ? 'translate-x-0' : 'translate-x-full')}
         >
-          <div className="p-5">
-            <div className="mb-6 flex items-center gap-3">
+          <div className="p-6">
+            <div className="mb-8 flex items-center gap-3">
               {user.avatarUrl ? (
                 <img src={user.avatarUrl} alt={user.name} className="h-12 w-12 rounded-full border-2 border-amber-100 object-cover" />
               ) : (
@@ -148,13 +189,13 @@ export function StudentDashboardPage() {
                 </div>
               )}
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-black text-gray-900">{user.name}</h2>
-                <span className="text-xs font-bold text-gray-500">لوحة تحكم الطالب</span>
+                <h2 className="truncate text-sm font-bold text-gray-800">{user.name}</h2>
+                <span className="text-xs text-gray-500">لوحة تحكم الطالب</span>
               </div>
             </div>
 
-            <nav aria-label="تنقل لوحة الطالب" className="space-y-3">
-              <div data-testid="student-menu-overview">
+            <nav aria-label="تنقل لوحة الطالب" className="space-y-1">
+              <div data-testid="student-menu-overview" className="mb-2.5">
                 <a
                   href="#overview"
                   onClick={() => setSidebarOpen(false)}
@@ -170,24 +211,45 @@ export function StudentDashboardPage() {
                 </a>
               </div>
 
-              {groups.map((group) => (
-                <section
-                  key={group.id}
-                  data-testid={`student-menu-group-${group.id}`}
-                  className={'rounded-[22px] border p-2.5 shadow-sm ' + group.tone}
-                >
-                  <div className="px-2.5 pb-2 pt-1 text-base font-black">{group.title}</div>
-                  <div className="space-y-1 rounded-[16px] bg-white/60 p-1.5 ring-1 ring-white/70">
-                    {group.items.map(navItem)}
-                  </div>
-                </section>
-              ))}
+              {groups.map((group) => {
+                const GroupIcon = group.icon;
+                return (
+                  <section
+                    key={group.id}
+                    data-testid={'student-menu-group-' + group.id}
+                    className={'mt-3 rounded-[22px] border p-2.5 shadow-sm ' + group.tone}
+                  >
+                    {group.title ? (
+                      <div className="flex items-center gap-2 px-2.5 pb-2 pt-1 text-base font-black">
+                        {GroupIcon ? <GroupIcon size={21} aria-hidden="true" /> : null}
+                        <span>{group.title}</span>
+                      </div>
+                    ) : null}
+                    <div className={group.title ? 'space-y-1 rounded-[16px] bg-white/60 p-1.5 ring-1 ring-white/70' : 'space-y-1'}>
+                      {group.ids.map((id) => items.find((item) => item.id === id)).filter((item): item is StudentNavItem => Boolean(item)).map(navItem)}
+                    </div>
+                  </section>
+                );
+              })}
             </nav>
+            <div className="mt-6 border-t border-gray-100 pt-4">
+              <button
+                type="button"
+                data-logout-explicit="true"
+                disabled={logoutBusy}
+                onClick={() => void logout()}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] border border-red-200 bg-gradient-to-l from-red-100 to-rose-50 px-4 py-2.5 text-sm font-black text-red-800 shadow-sm hover:from-red-200 hover:to-rose-100 disabled:opacity-60"
+              >
+                <LogOut size={16} />
+                تسجيل الخروج
+              </button>
+              {logoutError ? <p role="alert" className="mt-2 text-xs font-bold text-red-700">{logoutError}</p> : null}
+            </div>
           </div>
         </aside>
 
         <section id="overview" className="min-w-0 flex-1 px-3 pb-20 pt-5 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-6xl space-y-4">
+          <div className="mx-auto max-w-5xl space-y-4">
             <header className="flex flex-col justify-between gap-3 rounded-2xl border border-gray-100 bg-white p-3.5 shadow-sm sm:flex-row sm:items-center sm:p-4">
               <div className="flex items-center gap-3">
                 {user.avatarUrl ? (
@@ -202,13 +264,6 @@ export function StudentDashboardPage() {
                   <p className="mt-0.5 text-xs font-bold text-gray-500">جاهز تحقق أهدافك اليوم؟</p>
                 </div>
               </div>
-              <Link
-                to="/notifications"
-                className="inline-flex self-start items-center gap-2 rounded-xl border border-orange-100 bg-orange-50 px-3 py-2 text-xs font-black text-orange-700 sm:self-auto"
-              >
-                <Bell size={15} />
-                الإشعارات
-              </Link>
             </header>
 
             <section
@@ -221,54 +276,17 @@ export function StudentDashboardPage() {
                     <Sparkles size={13} />
                     خطوتك اليوم
                   </div>
-                  <h2 className="text-base font-black text-gray-900 sm:text-lg">ابدأ من مساحة التعلم، ثم دع نتائجك تحدد الخطوة التالية</h2>
-                  <p className="mt-1 text-xs font-bold leading-6 text-gray-500 sm:text-sm">
-                    لا نعرض أرقامًا أو توصيات مختلقة هنا؛ النتائج والمراجعة والخطة والتقارير تعتمد على بياناتك الفعلية داخل خدمات V2.
-                  </p>
+                  <h2 className="text-base font-black text-gray-900 sm:text-lg">ابدأ بقياس قصير</h2>
+                  <p className="mt-1 text-xs font-bold text-gray-500 sm:text-sm">قياس بسيط يساعدنا نحدد لك الخطوة التالية.</p>
                 </div>
                 <Link
-                  to="/learning"
+                  to="/assessments"
                   className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-black text-white hover:bg-emerald-700"
                 >
-                  افتح مساحة التعلم
+                  ابدأ القياس
                   <ChevronLeft size={16} />
                 </Link>
               </div>
-            </section>
-
-            <section aria-label="اختصارات رحلة الطالب" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {overviewCards.map(({ to, label, icon: Icon, tone }) => (
-                <Link
-                  key={to}
-                  to={to}
-                  className="group rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-100 hover:shadow-md"
-                >
-                  <div className={'flex h-10 w-10 items-center justify-center rounded-xl ' + tone}><Icon size={19} /></div>
-                  <h2 className="mt-3 text-sm font-black text-slate-900">{label}</h2>
-                  <div className="mt-3 inline-flex items-center gap-1 text-xs font-black text-indigo-700">
-                    فتح
-                    <ChevronLeft size={14} />
-                  </div>
-                </Link>
-              ))}
-            </section>
-
-            <section className="grid gap-3 md:grid-cols-3">
-              <Link to="/assessment-assignments" className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
-                <Target className="text-sky-700" size={20} />
-                <h2 className="mt-2 text-sm font-black text-sky-950">اختبارات موجهة لك</h2>
-                <p className="mt-1 text-xs font-bold leading-6 text-sky-800/70">تكليفات المدرسة أو المعلم ضمن الصلاحية الفعلية.</p>
-              </Link>
-              <Link to="/reports" className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
-                <BarChart3 className="text-emerald-700" size={20} />
-                <h2 className="mt-2 text-sm font-black text-emerald-950">تقرير الأداء</h2>
-                <p className="mt-1 text-xs font-bold leading-6 text-emerald-800/70">ملخص أدائك والمهارات التي تحتاج متابعة من Reporting V2.</p>
-              </Link>
-              <Link to="/notifications" className="rounded-2xl border border-orange-100 bg-orange-50/70 p-4">
-                <Bell className="text-orange-700" size={20} />
-                <h2 className="mt-2 text-sm font-black text-orange-950">آخر التنبيهات</h2>
-                <p className="mt-1 text-xs font-bold leading-6 text-orange-800/70">افتح صندوق الإشعارات بدل عرض عدّاد غير موثوق في الواجهة.</p>
-              </Link>
             </section>
           </div>
         </section>
