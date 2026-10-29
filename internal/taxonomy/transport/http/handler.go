@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 
@@ -198,6 +199,13 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request"})
 		return false
 	}
+	// A mutation must contain exactly one JSON value. Otherwise a valid first
+	// object could be persisted while a trailing second document is ignored.
+	// Reading to EOF also enforces MaxBytesReader on trailing whitespace.
+	if err := d.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request"})
+		return false
+	}
 	return true
 }
 
@@ -233,7 +241,9 @@ func (h *Handler) bootstrap(w http.ResponseWriter, r *http.Request) {
 	if phase == "" {
 		phase = "full"
 	}
-	w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=120")
+	// Admin visibility mutations must be reflected by the next public/learner read.
+	// A shared stale-while-revalidate cache can otherwise expose disabled paths.
+	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Taxonomy-Phase", phase)
 	writeJSON(w, http.StatusOK, presentBootstrap(result))
 }
