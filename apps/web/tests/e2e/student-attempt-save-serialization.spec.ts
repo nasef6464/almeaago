@@ -94,7 +94,7 @@ test('student keeps submitted answers and the same submission key after HTTP 503
 
 test('reloading the attempt restores only server-confirmed answers', async ({ page }) => {
   await setup(page);
-  let server = attempt;
+  let server: typeof attempt | typeof savedAttempt = attempt;
   await page.unroute('**/api/v1/assessment-attempts/attempt-save-1');
   await page.route('**/api/v1/assessment-attempts/attempt-save-1', route => json(route, { attempt: server }));
   await page.route('**/api/v1/assessment-attempts/attempt-save-1/answers/q-1', route => {
