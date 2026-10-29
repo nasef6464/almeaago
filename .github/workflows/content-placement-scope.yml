@@ -1,0 +1,38 @@
+name: Content Placement Scope PostgreSQL
+on:
+  pull_request:
+    paths:
+      - "internal/content/repository/postgres/learning_space.go"
+      - "internal/content/repository/postgres/learner_placement_scope_integration_test.go"
+      - ".github/workflows/content-placement-scope.yml"
+  workflow_dispatch:
+permissions: { contents: read }
+concurrency:
+  group: content-placement-scope-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  scope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: almeaa
+          POSTGRES_PASSWORD: almeaa
+          POSTGRES_DB: almeaa
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U almeaa -d almeaa"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.1"
+          cache: false
+      - name: Test admin placements against learner reads in isolated PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+          CONTENT_SCOPE_DB_TEST: "1"
+        run: go test ./internal/content/repository/postgres -run '^TestLearnerPlacementScopePostgres$' -count=1 -v
