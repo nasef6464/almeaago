@@ -137,7 +137,7 @@ func TestFoundationParentCycleConcurrentPostgres(t *testing.T) {
 		t.Fatalf("concurrent reciprocal reparent must be rejected, got %v", err)
 	}
 	var cycle bool
-	if err := db.QueryRow(ctx, `SELECT a.parent_topic_id=b.id AND b.parent_topic_id=a.id
+	if err := db.QueryRow(ctx, `SELECT COALESCE(a.parent_topic_id=b.id AND b.parent_topic_id=a.id, false)
 		FROM foundation_topics a JOIN foundation_topics b ON b.id=$2::uuid
 		WHERE a.id=$1::uuid`, firstID, secondID).Scan(&cycle); err != nil {
 		t.Fatal(err)
