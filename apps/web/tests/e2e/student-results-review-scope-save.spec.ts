@@ -61,11 +61,16 @@ test('saved question remains globally saved across two attempts for the same lea
   await page.goto('/assessment-results');
   await page.getByRole('link', { name: 'عرض النتيجة' }).first().click();
   await expect(page.getByRole('heading', { name: 'attempt-1' })).toBeVisible();
+  await page.getByRole('button', { name: 'للمراجعة', exact: true }).click();
+  await expect(page.getByText(question.text)).not.toBeVisible();
+  await page.getByRole('button', { name: 'حفظ للمراجعة' }).count().then(count => expect(count).toBe(0));
+  await page.getByRole('button', { name: 'الكل', exact: true }).click();
   await page.getByRole('button', { name: 'حفظ للمراجعة' }).click();
   await expect(page.getByRole('button', { name: 'تم الحفظ' })).toBeDisabled();
   await page.getByRole('link', { name: 'العودة لسجل النتائج' }).click();
   await page.getByRole('link', { name: 'عرض النتيجة' }).nth(1).click();
   await expect(page.getByRole('heading', { name: 'attempt-2' })).toBeVisible();
+  await expect(page.getByText(question.text)).toBeVisible();
   await expect(page.getByRole('button', { name: 'تم الحفظ' })).toBeDisabled();
 });
 
