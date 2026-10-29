@@ -109,7 +109,7 @@ export function SkillsAdminPage() {
       </div>
     </header>
 
-    {error ? <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 font-bold text-rose-700">{error}</div> : null}
+    {error && !draft ? <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 font-bold text-rose-700">{error}</div> : null}
     {notice ? <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 font-bold text-emerald-700">{notice}</div> : null}
     {busy ? <div role="status" className="flex items-center gap-2 rounded-xl border bg-white p-5 font-bold text-slate-600"><Loader2 size={18} className="animate-spin"/> جاري تحميل المهارات...</div> : null}
 
@@ -156,6 +156,7 @@ export function SkillsAdminPage() {
     {draft ? <div role="presentation" className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-3" onMouseDown={(event) => {if (event.target === event.currentTarget && !pending) setDraft(null);}}>
       <section role="dialog" aria-modal="true" aria-label={draft.id ? 'تعديل المهارة' : draft.kind === 'main' ? 'إضافة مهارة رئيسة' : 'إضافة مهارة فرعية'} className="w-full max-w-xl space-y-3 rounded-2xl bg-white p-5 shadow-2xl sm:p-7">
         <div className="flex items-center justify-between"><h2 className="text-xl font-bold">{draft.id ? 'تعديل المهارة' : draft.kind === 'main' ? 'إضافة مهارة رئيسة' : 'إضافة مهارة فرعية'}</h2><button type="button" aria-label="إغلاق المحرر" disabled={pending} onClick={() => setDraft(null)}><X size={20}/></button></div>
+        {error ? <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</div> : null}
         {!draft.id ? <select aria-label="مادة المهارة" value={draft.subjectId} disabled={draft.kind === 'sub'} onChange={(event) => setDraft({ ...draft, subjectId: event.target.value })} className="w-full rounded-lg border p-3"><option value="">اختر المادة</option>{subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select> : null}
         {!draft.id ? <input aria-label="كود المهارة" value={draft.code} onChange={(event) => setDraft({ ...draft, code: event.target.value })} placeholder="الكود" className="w-full rounded-lg border p-3"/> : null}
         <input aria-label="اسم المهارة" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder="اسم المهارة" className="w-full rounded-lg border p-3"/>

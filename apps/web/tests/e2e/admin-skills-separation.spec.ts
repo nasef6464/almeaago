@@ -53,7 +53,7 @@ test('admin Skills Center is independent from paths and preserves failed subskil
   await dialog.getByRole('button', { name: 'حفظ المهارة' }).click();
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('textbox', { name: 'اسم المهارة' })).toHaveValue('حل المعادلات');
-  await expect(page.getByRole('alert')).toContainText('تعارض مؤقت');
+  await expect(dialog.getByRole('alert')).toContainText('تعارض مؤقت');
   await dialog.getByRole('button', { name: 'حفظ المهارة' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByTestId('skills-counter-sub')).toContainText('2');

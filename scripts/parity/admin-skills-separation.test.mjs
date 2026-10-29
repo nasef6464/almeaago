@@ -71,3 +71,13 @@ test('independent Skills Center presents original main/subskill tree with its ow
   assert.match(html, /الجبر/);
   assert.doesNotMatch(html, /شجرة المسارات/);
 });
+
+test('skill save error is visible inside the open editor and the draft survives', () => {
+  const draft = { kind: 'sub', subjectId: 's', parentSkillId: 'main', code: 'EQ2', name: 'حل المعادلات', description: '', sortOrder: 0 };
+  const states = [fixture, '', '', false, false, 'تعارض مؤقت', '', 0, 'main', draft];
+  const { SkillsAdminPage } = load('features/taxonomy/pages/SkillsAdminPage.tsx', states);
+  const html = renderToStaticMarkup(React.createElement(SkillsAdminPage));
+  const dialog = html.slice(html.indexOf('role="dialog"'));
+  assert.match(dialog, /role="alert"[^>]*>تعارض مؤقت/);
+  assert.match(dialog, /value="حل المعادلات"/);
+});
