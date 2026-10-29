@@ -29,6 +29,8 @@ export function AssessmentAttemptPage() {
   const scopeKey = `${user?.id || ''}:${assessmentId}:${attemptId}`;
   const scopeRef = useRef(scopeKey);
   scopeRef.current = scopeKey;
+  const getCsrfRef = useRef(getCsrfToken);
+  getCsrfRef.current = getCsrfToken;
 
   useEffect(() => {
     if (loading || !user) return;
@@ -47,7 +49,7 @@ export function AssessmentAttemptPage() {
           const response = await attemptClient.get(attemptId);
           if (active) setAttempt(response.attempt);
         } else if (assessmentId) {
-          const csrf = await getCsrfToken();
+          const csrf = await getCsrfRef.current();
           if (!active) return;
           const response = await attemptClient.start(
             assessmentId,
@@ -64,7 +66,7 @@ export function AssessmentAttemptPage() {
     };
     void run();
     return () => { active = false; };
-  }, [assessmentId, attemptId, getCsrfToken, loading, user?.id]);
+  }, [assessmentId, attemptId, loading, user?.id]);
 
   const answers = useMemo(
     () => new Map((attempt?.answers || []).map((answer) => [answer.questionId, answer])),
