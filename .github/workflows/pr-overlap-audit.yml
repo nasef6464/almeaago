@@ -1,0 +1,29 @@
+name: PR Ownership Overlap Audit
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  overlap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate audit logic
+        run: node --test scripts/parity/pr-overlap-audit.test.mjs
+      - name: Read-only review of open PR file ownership
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TARGET_PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -n "$TARGET_PR" ]; then
+            node scripts/parity/pr-overlap-audit.mjs --pr "$TARGET_PR"
+          else
+            node scripts/parity/pr-overlap-audit.mjs
+          fi
