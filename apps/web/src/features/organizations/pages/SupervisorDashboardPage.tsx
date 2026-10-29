@@ -46,7 +46,7 @@ export function SupervisorDashboardPage(){
  const [total,setTotal]=useState(0);
  const visibleContexts=scopeOwner===user?.id?contexts:[];
  const currentSchool=visibleContexts.find(item=>item.schoolId===schoolId);
- const visibleRoster=!scopeBusy&&!scopeError&&!rosterBusy&&!rosterError&&rosterSchoolId===schoolId?roster:[];
+ const visibleRoster=!scopeBusy&&!scopeError&&!rosterError&&rosterSchoolId===schoolId?roster:[];
 
  useEffect(()=>{
   // A refreshed role/relationship scope invalidates every previously fetched student.
@@ -73,7 +73,8 @@ export function SupervisorDashboardPage(){
 
  useEffect(()=>{
   const controller=new AbortController();
-  setRoster([]);setRosterSchoolId('');setTotal(0);setRosterError('');
+  if(page===1){setRoster([]);setRosterSchoolId('');setTotal(0);}
+  setRosterError('');
   if(scopeBusy||scopeError||!currentSchool||!authorized||tab!=='students'){
    setRosterBusy(false);return()=>controller.abort();
   }
@@ -81,13 +82,14 @@ export function SupervisorDashboardPage(){
   organizationsClient.supervisorRoster(schoolId,search,page,controller.signal)
    .then(response=>{
     if(controller.signal.aborted)return;
-    setRoster(response.members.filter(member=>member.roles.includes('student')));
+    const members=response.members.filter(member=>member.roles.includes('student'));
+    setRoster(previous=>page===1?members:[...previous,...members]);
     setTotal(response.pagination.total);
     setRosterSchoolId(schoolId);
    })
    .catch(cause=>{
     if(controller.signal.aborted)return;
-    setRoster([]);setRosterSchoolId('');
+    if(page===1){setRoster([]);setRosterSchoolId('');}
     setRosterError(cause instanceof Error?cause.message:'تعذر تحميل الطلاب');
    })
    .finally(()=>{if(!controller.signal.aborted)setRosterBusy(false);});
@@ -96,6 +98,7 @@ export function SupervisorDashboardPage(){
 
  function selectTab(next:SupervisorTab){
   if(!enabledTabs.has(next))return;
+  if(next==='students')setPage(1);
   setParams(previous=>{
    const updated=new URLSearchParams(previous);
    if(next==='students')updated.delete('tab');else updated.set('tab',next);
@@ -163,10 +166,10 @@ export function SupervisorDashboardPage(){
        <tbody>{visibleRoster.map(member=><tr key={member.userId} className="border-t"><td className="p-3 font-bold">{member.name}</td><td className="p-3">{member.email}</td></tr>)}</tbody>
       </table>
      </div>:null}
-     {total>PAGE_SIZE&&!rosterError?<div className="flex items-center gap-3 text-sm">
-      <button type="button" disabled={page===1||rosterBusy} onClick={()=>{setPage(n=>n-1);setRosterSchoolId('');}} className="rounded-lg border px-3 py-2 disabled:opacity-40">السابق</button>
-      <span>{page} / {Math.ceil(total/PAGE_SIZE)}</span>
-      <button type="button" disabled={page*PAGE_SIZE>=total||rosterBusy} onClick={()=>{setPage(n=>n+1);setRosterSchoolId('');}} className="rounded-lg border px-3 py-2 disabled:opacity-40">التالي</button>
+     {total>PAGE_SIZE&&!rosterError?<div role="group" aria-label="عرض الطلاب" className="flex flex-wrap items-center justify-center gap-3 py-3 text-sm">
+      <span className="text-gray-500">عرض {visibleRoster.length} من {total}</span>
+      {visibleRoster.length<total?<button type="button" disabled={rosterBusy} onClick={()=>setPage(n=>n+1)} className="rounded-xl bg-indigo-50 px-4 py-2 font-bold text-indigo-700 disabled:opacity-40">عرض المزيد</button>:null}
+      {page>1?<button type="button" onClick={()=>{setPage(1);setRoster([]);setRosterSchoolId('');}} className="rounded-xl border px-4 py-2 font-bold">عرض أقل</button>:null}
      </div>:null}
     </div>:null}
    </section>:null}
