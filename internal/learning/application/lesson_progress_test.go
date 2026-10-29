@@ -128,10 +128,10 @@ func TestLessonProgressRejectsRepositoryResponseFromOtherCourse(t *testing.T) {
 
 func TestLessonProgressAcceptsCanonicalUUIDCase(t *testing.T) {
 	repo := &lessonProgressRepoStub{row: learning.LessonProgress{
-		LessonID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+		LessonID:    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
 		ContextType: learning.LessonProgressCourse,
-		CourseID: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-		Status: learning.LessonInProgress,
+		CourseID:    "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+		Status:      learning.LessonInProgress,
 	}}
 	s := NewLessonProgressService(repo, lessonTargetStub{ok: true, lessonType: "video", duration: 120})
 	out, err := s.Get(context.Background(), progressStudent(), "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
