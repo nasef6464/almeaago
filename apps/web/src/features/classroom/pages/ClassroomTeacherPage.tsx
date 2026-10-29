@@ -94,18 +94,24 @@ export function ClassroomTeacherPage(){
 
  const refreshLive=useCallback(async()=>{
   if(!session)return;
+  const epoch=scopeEpoch.current;
   try{
-   if(session.status==='ended'||session.status==='archived'){const x=await classroomClient.report(session.id);setReport(x.report);return}
+   if(session.status==='ended'||session.status==='archived'){
+    const x=await classroomClient.report(session.id);
+    if(epoch===scopeEpoch.current)setReport(x.report);
+    return;
+   }
    if(session.status==='live'){
     const[p,a,k]=await Promise.all([
      classroomClient.presentation(session.id),
      classroomClient.attendanceSnapshot(session.id),
      classroomClient.competition(session.id),
     ]);
+    if(epoch!==scopeEpoch.current)return;
     setPresentation(p.presentation);setAttendance(a.attendance);setCompetition(k.competition);
-    setSession(current=>current?{...current,status:p.presentation.status,activeBatchId:p.presentation.activeBatchId,activeQuestionOrdinal:p.presentation.activeQuestionOrdinal}:current);
+    setSession(current=>current?.id===session.id?{...current,status:p.presentation.status,activeBatchId:p.presentation.activeBatchId,activeQuestionOrdinal:p.presentation.activeQuestionOrdinal}:current);
    }
-  }catch(e){setError(e instanceof Error?e.message:'تعذر تحديث الحالة الحية')}
+  }catch(e){if(epoch===scopeEpoch.current)setError(e instanceof Error?e.message:'تعذر تحديث الحالة الحية')}
  },[session?.id,session?.status]);
 
  useEffect(()=>{
