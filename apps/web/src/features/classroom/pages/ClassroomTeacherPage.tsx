@@ -36,13 +36,16 @@ export function ClassroomTeacherPage(){
  const[error,setError]=useState('');
  const[notice,setNotice]=useState('');
  const socketRef=useRef<WebSocket|null>(null);
+ const scopeEpoch=useRef(0);
 
  const loadWorkspace=useCallback(async()=>{
+  const epoch=++scopeEpoch.current;
   // Clear the previous school before requesting fresh authorization from Go.
   setBusy('load');setError('');setScope(null);setSession(null);setQuestions([]);setRoster([]);
   setPresentation(null);setAttendance(null);setCompetition(null);setReport(null);setPin('');
   try{
    const[w,t,sessions]=await Promise.all([organizationsClient.teacherWorkspace(),contentClient.taxonomyCore(),classroomClient.teacherSessions()]);
+   if(epoch!==scopeEpoch.current)return;
    setWorkspace(w);setSubjectNames(Object.fromEntries(t.subjects.map(x=>[x.id,x.name])));
    const school=requestedSchoolId?w.schools.find(x=>x.schoolId===requestedSchoolId):w.schools[0];
    const assignment=requestedAssignmentId?school?.assignments.find(x=>x.assignmentId===requestedAssignmentId):school?.assignments[0];
@@ -56,8 +59,8 @@ export function ClassroomTeacherPage(){
     const active=scoped.find(x=>x.status==='live')||scoped.find(x=>x.status==='draft'||x.status==='scheduled');
     setSession(active||null);
    }
-  }catch(e){setError(e instanceof Error?e.message:'تعذر تحميل مساحة الفصل الذكي')}
-  finally{setBusy('')}
+  }catch(e){if(epoch===scopeEpoch.current)setError(e instanceof Error?e.message:'تعذر تحميل مساحة الفصل الذكي')}
+  finally{if(epoch===scopeEpoch.current)setBusy('')}
  },[requestedSchoolId,requestedAssignmentId]);
  useEffect(()=>{if(!authLoading&&user)void loadWorkspace()},[authLoading,user,loadWorkspace]);
 
@@ -138,7 +141,7 @@ export function ClassroomTeacherPage(){
   return Math.max(0,Math.ceil((Date.parse(challenge.timerEndsAt)-Date.now())/1000));
  },[challenge?.timerEndsAt,challenge?.expired,clockTick]);
 
- function chooseScope(school:TeacherWorkspaceSchool,assignment:TeacherWorkspaceAssignment){setScope({school,assignment});setSelected([]);setSession(null);setPin('');setPresentation(null);setAttendance(null);setCompetition(null);setReport(null);setSearchParams(new URLSearchParams({schoolId:school.schoolId,assignmentId:assignment.assignmentId}));}
+ function chooseScope(school:TeacherWorkspaceSchool,assignment:TeacherWorkspaceAssignment){++scopeEpoch.current;setScope({school,assignment});setSelected([]);setSession(null);setPin('');setPresentation(null);setAttendance(null);setCompetition(null);setReport(null);setSearchParams(new URLSearchParams({schoolId:school.schoolId,assignmentId:assignment.assignmentId}));}
  function toggle(id:string){setSelected(rows=>rows.includes(id)?rows.filter(x=>x!==id):rows.length>=30?rows:[...rows,id])}
  async function create(){
   if(!scope||selected.length===0)return;setBusy('create');setError('');setNotice('');
