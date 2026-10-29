@@ -49,6 +49,9 @@ export function CourseLearningPage() {
   const [lessonId, setLessonId] = useState(searchParams.get('lesson') || '');
   const [detail, setDetail] = useState<LearnerLessonDetail | null>(null);
   const [progress, setProgress] = useState<LessonProgress | null>(null);
+  const [loadedScope, setLoadedScope] = useState('');
+  const [lessonLoading, setLessonLoading] = useState(false);
+  const [lessonRetry, setLessonRetry] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState('');
@@ -77,6 +80,12 @@ export function CourseLearningPage() {
     () => ({ contextType: 'course' as const, courseId, topicId: '' }),
     [courseId],
   );
+  const selectedScope = `${courseId}:${lessonId}`;
+  const selectedScopeRef = useRef(selectedScope);
+  selectedScopeRef.current = selectedScope;
+  // A canonical lesson can be reused in several courses. Match both context and lesson.
+  const activeDetail = loadedScope === selectedScope ? detail : null;
+  const activeProgress = loadedScope === selectedScope ? progress : null;
 
   useEffect(() => {
     try {
@@ -120,38 +129,59 @@ export function CourseLearningPage() {
   }, [authLoading, courseId, searchParams, user]);
 
   useEffect(() => {
-    if (!lessonId || !courseId) return;
+    // Do not fetch or expose a lesson before the owning course has been loaded.
+    if (!lessonId || !courseId || course?.id !== courseId || !selectedSummary) return;
+    setLoadedScope('');
+    setDetail(null);
+    setProgress(null);
+    setNotice('');
+    setError('');
 
-    if ((selectedSummary?.isLocked || selectedSummary?.commerceLocked) && !selectedSummary.isPreview) {
-      setDetail(null);
-      setProgress(null);
+    if ((selectedSummary.isLocked || selectedSummary.commerceLocked) && !selectedSummary.isPreview) {
+      setLessonLoading(false);
       return;
     }
 
     const controller = new AbortController();
-    setError('');
-    setNotice('');
-
+    const requestScope = `${courseId}:${lessonId}`;
+    setLessonLoading(true);
     Promise.all([
       contentClient.learnerCourseLesson(courseId, lessonId, controller.signal),
       lessonProgressClient.get(lessonId, context, controller.signal),
     ])
       .then(([lessonResult, progressResult]) => {
+        if (controller.signal.aborted || selectedScopeRef.current !== requestScope) return;
+        // Fail closed if a response belongs to a different lesson or course.
+        if (lessonResult.lesson.id !== lessonId ||
+            progressResult.progress.lessonId !== lessonId ||
+            progressResult.progress.contextType !== 'course' ||
+            progressResult.progress.courseId !== courseId) {
+          setError('تعذر التحقق من سياق الدرس. أعد المحاولة.');
+          return;
+        }
         setDetail(lessonResult.lesson);
         setProgress(progressResult.progress);
+        setLoadedScope(requestScope);
         lastSaved.current = progressResult.progress.positionSeconds || 0;
       })
       .catch((reason) => {
-        if (!controller.signal.aborted) {
+        if (!controller.signal.aborted && selectedScopeRef.current === requestScope) {
           setError(reason instanceof Error ? reason.message : 'تعذر تحميل الدرس');
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted && selectedScopeRef.current === requestScope) {
+          setLessonLoading(false);
         }
       });
 
     return () => controller.abort();
   }, [
     context,
+    course?.id,
     courseId,
     lessonId,
+    lessonRetry,
     selectedSummary?.commerceLocked,
     selectedSummary?.isLocked,
     selectedSummary?.isPreview,
@@ -168,19 +198,24 @@ export function CourseLearningPage() {
   }, [lessonId, setSearchParams]);
 
   async function persistVideoPosition(position: number, quiet = false) {
-    if (!detail || detail.type !== 'video' || saving) return;
+    if (!activeDetail || activeDetail.type !== 'video' || saving) return;
+    const writeScope = selectedScope;
     const seconds = Math.max(0, Math.floor(position || 0));
     if (Math.abs(seconds - lastSaved.current) < 1) return;
 
     setSaving(true);
     try {
       const csrf = await getCsrfToken();
-      const result = await lessonProgressClient.saveVideo(detail.id, context, seconds, csrf);
-      setProgress(result.progress);
-      lastSaved.current = result.progress.positionSeconds;
-      if (!quiet) setNotice('تم حفظ موضع المشاهدة.');
+      const result = await lessonProgressClient.saveVideo(activeDetail.id, context, seconds, csrf);
+      if (selectedScopeRef.current === writeScope) {
+        setProgress(result.progress);
+        lastSaved.current = result.progress.positionSeconds;
+        if (!quiet) setNotice('تم حفظ موضع المشاهدة.');
+      }
     } catch (reason) {
-      if (!quiet) setError(reason instanceof Error ? reason.message : 'تعذر حفظ موضع المشاهدة');
+      if (!quiet && selectedScopeRef.current === writeScope) {
+        setError(reason instanceof Error ? reason.message : 'تعذر حفظ موضع المشاهدة');
+      }
     } finally {
       setSaving(false);
     }
@@ -194,21 +229,28 @@ export function CourseLearningPage() {
   }
 
   async function complete() {
-    if (!detail) return;
+    if (!activeDetail || saving) return;
+    const writeScope = selectedScope;
     setError('');
 
     try {
-      if (detail.type === 'video' && videoRef.current) {
+      if (activeDetail.type === 'video' && videoRef.current) {
         await persistVideoPosition(videoRef.current.currentTime, true);
       }
-
+      // The learner may have selected another lesson while CSRF/video save was pending.
+      if (selectedScopeRef.current !== writeScope) return;
       setSaving(true);
       const csrf = await getCsrfToken();
-      const result = await lessonProgressClient.complete(detail.id, context, csrf);
-      setProgress(result.progress);
-      setNotice('تم تسجيل الدرس كمكتمل.');
+      if (selectedScopeRef.current !== writeScope) return;
+      const result = await lessonProgressClient.complete(activeDetail.id, context, csrf);
+      if (selectedScopeRef.current === writeScope) {
+        setProgress(result.progress);
+        setNotice('تم تسجيل الدرس كمكتمل.');
+      }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'تعذر إكمال الدرس');
+      if (selectedScopeRef.current === writeScope) {
+        setError(reason instanceof Error ? reason.message : 'تعذر إكمال الدرس');
+      }
     } finally {
       setSaving(false);
     }
@@ -218,6 +260,7 @@ export function CourseLearningPage() {
     if (!lesson) return;
     const locked = (lesson.isLocked || lesson.commerceLocked) && !lesson.isPreview;
     if (locked) return;
+    setLoadedScope('');
     setLessonId(lesson.id);
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
   }
@@ -459,16 +502,16 @@ export function CourseLearningPage() {
                   <h2 className={`mt-1 text-xl font-black sm:text-2xl ${
                     isDarkMode ? 'text-white' : 'text-gray-900'
                   }`}>
-                    {detail?.title || selectedSummary?.title || 'اختر درسًا'}
+                    {activeDetail?.title || selectedSummary?.title || 'اختر درسًا'}
                   </h2>
                   <p className={`mt-1 text-xs font-bold ${
                     isDarkMode ? 'text-slate-400' : 'text-gray-500'
                   }`}>
-                    {progressLabel(progress)}
+                    {progressLabel(activeProgress)}
                   </p>
                 </div>
 
-                {progress?.status === 'completed' ? (
+                {activeProgress?.status === 'completed' ? (
                   <span className="inline-flex items-center gap-1 self-start rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-700">
                     <CheckCircle2 size={15} />
                     مكتمل
@@ -512,7 +555,7 @@ export function CourseLearningPage() {
                   ? 'هذا الدرس يحتاج شراءً أو منحة وصول فعالة من Commerce.'
                   : 'هذا الدرس مقفول بسياسة المحتوى الحالية.'}
               </div>
-            ) : detail ? (
+            ) : activeDetail ? (
               <>
                 <article
                   className={`overflow-hidden rounded-3xl border shadow-sm ${
@@ -520,21 +563,21 @@ export function CourseLearningPage() {
                   }`}
                 >
                   <div className={`relative flex min-h-56 items-center justify-center sm:min-h-72 ${
-                    detail.type === 'video' ? 'bg-black' : isDarkMode ? 'bg-slate-900' : 'bg-slate-100'
+                    activeDetail.type === 'video' ? 'bg-black' : isDarkMode ? 'bg-slate-900' : 'bg-slate-100'
                   }`}>
-                    {detail.type === 'video' && detail.videoSource === 'upload' && detail.videoUrl ? (
+                    {activeDetail.type === 'video' && activeDetail.videoSource === 'upload' && activeDetail.videoUrl ? (
                       <video
                         ref={videoRef}
                         data-testid="lesson-video"
-                        src={detail.videoUrl}
+                        src={activeDetail.videoUrl}
                         controls
                         className="aspect-video w-full bg-black"
                         onLoadedMetadata={() => {
                           const video = videoRef.current;
-                          if (video && progress?.positionSeconds && video.currentTime === 0) {
+                          if (video && activeProgress?.positionSeconds && video.currentTime === 0) {
                             video.currentTime = Math.min(
-                              progress.positionSeconds,
-                              Number.isFinite(video.duration) ? video.duration : progress.positionSeconds,
+                              activeProgress.positionSeconds,
+                              Number.isFinite(video.duration) ? video.duration : activeProgress.positionSeconds,
                             );
                           }
                         }}
@@ -544,12 +587,12 @@ export function CourseLearningPage() {
                           if (video) void persistVideoPosition(video.currentTime);
                         }}
                       />
-                    ) : detail.type === 'video' ? (
+                    ) : activeDetail.type === 'video' ? (
                       <div className="max-w-xl p-8 text-center text-white">
                         <PlayCircle className="mx-auto text-indigo-300" size={54} />
                         <h3 className="mt-4 text-lg font-black">محتوى فيديو خارجي</h3>
                         <p className="mt-2 text-sm font-bold leading-7 text-slate-300">
-                          المصدر {detail.videoSource || 'خارجي'} يظل رابط المحتوى المعتمد. إكمال الدرس خطوة صريحة منفصلة.
+                          المصدر {activeDetail.videoSource || 'خارجي'} يظل رابط المحتوى المعتمد. إكمال الدرس خطوة صريحة منفصلة.
                         </p>
                       </div>
                     ) : (
@@ -568,18 +611,18 @@ export function CourseLearningPage() {
                     <p className={`text-sm font-medium leading-7 ${
                       isDarkMode ? 'text-slate-300' : 'text-gray-600'
                     }`}>
-                      {detail.description}
+                      {activeDetail.description}
                     </p>
 
-                    {detail.type === 'text' && detail.contentText ? (
+                    {activeDetail.type === 'text' && activeDetail.contentText ? (
                       <div className={`mt-4 whitespace-pre-wrap rounded-2xl p-4 text-sm leading-8 ${
                         isDarkMode ? 'bg-slate-900 text-slate-200' : 'bg-gray-50 text-gray-800'
                       }`}>
-                        {detail.contentText}
+                        {activeDetail.contentText}
                       </div>
                     ) : null}
 
-                    {detail.type === 'video' && detail.videoSource === 'upload' && detail.videoUrl ? (
+                    {activeDetail.type === 'video' && activeDetail.videoSource === 'upload' && activeDetail.videoUrl ? (
                       <div className={`mt-4 flex items-center gap-2 text-xs font-bold ${
                         isDarkMode ? 'text-slate-400' : 'text-gray-500'
                       }`}>
@@ -594,13 +637,13 @@ export function CourseLearningPage() {
                       <span className={`text-xs font-bold ${
                         isDarkMode ? 'text-slate-400' : 'text-gray-500'
                       }`}>
-                        {detail.durationSeconds > 0
-                          ? `مدة مرجعية: ${detail.durationSeconds} ثانية`
+                        {activeDetail.durationSeconds > 0
+                          ? `مدة مرجعية: ${activeDetail.durationSeconds} ثانية`
                           : 'بدون مدة محددة'}
                       </span>
                       <button
                         type="button"
-                        disabled={saving || progress?.status === 'completed'}
+                        disabled={saving || activeProgress?.status === 'completed'}
                         onClick={() => void complete()}
                         className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 font-black text-white transition hover:bg-emerald-700 disabled:opacity-45"
                       >
@@ -642,7 +685,16 @@ export function CourseLearningPage() {
                   ? 'border-slate-700 bg-[#1e293b] text-slate-400'
                   : 'border-slate-200 bg-white text-gray-500'
               }`}>
-                اختر درسًا متاحًا.
+                <p>{lessonLoading ? 'جاري تحميل الدرس...' : error ? 'لم يُحمّل هذا الدرس. يمكنك إعادة المحاولة.' : 'اختر درسًا متاحًا.'}</p>
+                {!lessonLoading && error && selectedSummary ? (
+                  <button
+                    type="button"
+                    onClick={() => setLessonRetry((value) => value + 1)}
+                    className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white"
+                  >
+                    إعادة محاولة تحميل الدرس
+                  </button>
+                ) : null}
               </div>
             )}
 
