@@ -26,3 +26,9 @@
 6. No merge, production writes, deployment, scoring/RBAC changes or cutover without explicit approval.
 
 Status: **PARTIAL** pending full E2E/visual/data acceptance.
+## CI evidence on checkpoint e7a35e2481409de0abc36c7c31aed9eb4630411e
+- Backend CI **PASS**: https://github.com/nasef6464/almeaago/actions/runs/40883618240
+- Frontend CI **PASS**: https://github.com/nasef6464/almeaago/actions/runs/40883618157
+- Database CI **PASS**: https://github.com/nasef6464/almeaago/actions/runs/40883618149
+- Frontend E2E **FAIL**: https://github.com/nasef6464/almeaago/actions/runs/40883618490 — 138 PASS, 3 SKIPPED, 2 FAIL; all four new tests PASS. Two failing legacy assertions: `content-learning-space.spec.ts:43` expects invented `مساراتي ودوراتي`; `public-user-workspaces-parity.spec.ts:93` expects invented dashboard `/notifications` link. No product regression inferred from these assertions; do not conceal the failed gate. Shared test ownership escalation posted on #158/#159/#160.
+- Browser evidence: https://github.com/nasef6464/almeaago/actions/runs/40883618490/artifacts/12901616988
