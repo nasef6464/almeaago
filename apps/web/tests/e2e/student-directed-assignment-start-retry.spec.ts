@@ -115,7 +115,7 @@ test('a pending directed start disables every other assignment start', async ({ 
   await expect(buttons).toHaveCount(2);
   await buttons.first().click();
   await expect(buttons.nth(1)).toBeDisabled();
-  expect(starts).toBe(1);
+  await expect.poll(() => starts).toBe(1);
   releaseStart?.();
   await expect(page.getByRole('alert')).toContainText('تعذر بدء التكليف');
   await expect(buttons.nth(1)).toBeEnabled();
