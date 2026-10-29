@@ -1,0 +1,53 @@
+name: Taxonomy Learner Visibility PostgreSQL
+on:
+  pull_request:
+    paths:
+      - "internal/taxonomy/repository/postgres/repository.go"
+      - "internal/taxonomy/repository/postgres/admin_visibility_integration_test.go"
+      - ".github/workflows/taxonomy-learner-visibility.yml"
+  workflow_dispatch:
+permissions: { contents: read }
+concurrency:
+  group: taxonomy-learner-visibility-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  visibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: almeaa
+          POSTGRES_PASSWORD: almeaa
+          POSTGRES_DB: almeaa
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U almeaa -d almeaa"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+      TAXONOMY_VISIBILITY_DB_TEST: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: RED — original main accepts hidden subjects and orphan sub-skills (expected failure)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp internal/taxonomy/repository/postgres/repository.go /tmp/taxonomy-visibility-fixed.go
+          git show 98b0f6d9ad0bba031936d950d087c0bd3d19b7bb:internal/taxonomy/repository/postgres/repository.go > internal/taxonomy/repository/postgres/repository.go
+          if go test ./internal/taxonomy/repository/postgres -run '^TestAdminVisibilityReachesLearnerPostgres$' -count=1 -v > /tmp/taxonomy-visibility-red.log 2>&1; then
+            cat /tmp/taxonomy-visibility-red.log
+            echo "::error::Original implementation unexpectedly passed"
+            exit 1
+          fi
+          cat /tmp/taxonomy-visibility-red.log
+          grep -Eq 'active sub-skill must be hidden|inactive level must be rejected' /tmp/taxonomy-visibility-red.log
+          cp /tmp/taxonomy-visibility-fixed.go internal/taxonomy/repository/postgres/repository.go
+      - name: GREEN — saved admin visibility flows to public taxonomy and learner scope
+        run: go test ./internal/taxonomy/repository/postgres -run '^TestAdminVisibilityReachesLearnerPostgres$' -count=1 -v
