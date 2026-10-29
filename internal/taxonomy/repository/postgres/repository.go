@@ -73,7 +73,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 		SELECT s.id::text, s.path_id::text, COALESCE(s.level_id::text, ''), s.code, s.name, s.sort_order
 		FROM subjects s
 		JOIN paths p ON p.id = s.path_id AND p.status = 'active'
-		LEFT JOIN levels l ON l.id = s.level_id
+		LEFT JOIN levels l ON l.id = s.level_id AND l.path_id = s.path_id
 		WHERE s.status = 'active'
 		  AND (s.level_id IS NULL OR l.status = 'active')
 		ORDER BY p.sort_order, s.sort_order, s.id
@@ -105,9 +105,12 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 		FROM skills sk
 		JOIN subjects s ON s.id = sk.subject_id AND s.status = 'active'
 		JOIN paths p ON p.id = s.path_id AND p.status = 'active'
-		LEFT JOIN levels l ON l.id = s.level_id
+		LEFT JOIN levels l ON l.id = s.level_id AND l.path_id = s.path_id
+		LEFT JOIN skills parent ON parent.id = sk.parent_skill_id
 		WHERE sk.status = 'active'
 		  AND (s.level_id IS NULL OR l.status = 'active')
+		  AND (sk.parent_skill_id IS NULL OR
+		       (parent.status = 'active' AND parent.kind = 'main' AND parent.subject_id = sk.subject_id))
 		ORDER BY p.sort_order, s.sort_order, sk.sort_order, sk.id
 	`)
 	if err != nil {
@@ -242,10 +245,12 @@ func (r *Repository) ValidateMasteryGoalScope(ctx context.Context, pathID, subje
 			SELECT 1
 			FROM subjects s
 			JOIN paths p ON p.id=s.path_id
+			LEFT JOIN levels l ON l.id=s.level_id AND l.path_id=s.path_id
 			WHERE p.id=$1::uuid
 			  AND s.id=$2::uuid
 			  AND p.status='active'
 			  AND s.status='active'
+			  AND (s.level_id IS NULL OR l.status='active')
 		)
 	`, pathID, subjectID).Scan(&ok)
 	return ok, err
@@ -268,6 +273,9 @@ func (r *Repository) ValidateStudyPlanScope(ctx context.Context, pathID string, 
 			  ON s.id::text=requested.subject_id
 			 AND s.path_id=$1::uuid
 			 AND s.status='active'
+			 AND (s.level_id IS NULL OR EXISTS (
+			   SELECT 1 FROM levels l WHERE l.id=s.level_id AND l.path_id=s.path_id AND l.status='active'
+			 ))
 			WHERE s.id IS NULL
 		)
 	`, pathID, subjectIDs).Scan(&ok)
