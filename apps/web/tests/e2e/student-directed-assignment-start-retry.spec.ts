@@ -53,7 +53,7 @@ for (const width of [390, 820, 1440]) {
     });
 
     await page.goto('/assessment-assignments');
-    await expect(page.getByRole('heading', { name: 'الاختبارات الموجهة إليك' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'الاختبارات الموجهة لك' })).toBeVisible();
     await expect(page.getByText('DIRECTED ASSESSMENTS')).toHaveCount(0);
     await expect(page.getByText('v3', { exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'ابدأ التكليف' }).click();
