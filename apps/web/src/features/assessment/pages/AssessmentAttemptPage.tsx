@@ -111,7 +111,7 @@ export function AssessmentAttemptPage() {
   }
 
   async function toggleReview() {
-    if (!attempt || !question || busy || actionRef.current) return;
+    if (!attempt || !question || busy || actionRef.current || draftChoice?.attemptId === attempt.id) return;
     if (saved?.selectedOptionIndex == null) {
       setError('أجب عن السؤال أولًا ثم يمكنك تعليمه للمراجعة.');
       return;
@@ -269,7 +269,7 @@ export function AssessmentAttemptPage() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            disabled={index === 0 || savingAnswer || busy}
+            disabled={index === 0 || savingAnswer || busy || draftChoice?.attemptId === attempt.id}
             onClick={() => setIndex((value) => value - 1)}
             className="rounded-xl border px-4 py-2 font-bold disabled:opacity-40"
           >
@@ -278,7 +278,7 @@ export function AssessmentAttemptPage() {
           <button
             type="button"
             disabled={
-              savingAnswer || busy ||
+              savingAnswer || busy || draftChoice?.attemptId === attempt.id ||
               index === attempt.questions.length - 1 ||
               (attempt.requireAnswerBeforeNext && !saved)
             }
@@ -290,7 +290,7 @@ export function AssessmentAttemptPage() {
           {attempt.allowQuestionReview ? (
             <button
               type="button"
-              disabled={savingAnswer || busy || saved?.selectedOptionIndex == null}
+              disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id || saved?.selectedOptionIndex == null}
               onClick={() => void toggleReview()}
               className={`inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-sm font-bold disabled:opacity-40 ${
                 saved?.markedForReview ? 'border-indigo-300 bg-indigo-50 text-indigo-800' : ''
