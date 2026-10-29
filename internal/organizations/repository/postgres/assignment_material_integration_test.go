@@ -127,7 +127,10 @@ func testArchivedAssignmentStopAndReactivation(
 			t.Fatal(err)
 		}
 	}
-	fixtures := []struct{ sql string; args []any }{
+	fixtures := []struct {
+		sql  string
+		args []any
+	}{
 		{"INSERT INTO " + schema + ".schools (id,status) VALUES ($1,'active'),($2,'active')", []any{school, otherSchool}},
 		{"INSERT INTO " + schema + ".classes (id,school_id,status) VALUES ($1,$2,'archived')", []any{archivedClass, school}},
 		{"INSERT INTO " + schema + ".subjects (id) VALUES ($1)", []any{subject}},
