@@ -62,7 +62,12 @@ for (const width of [390, 820, 1440]) {
     await expect(page.getByText('اختر الشكل الصحيح')).toBeVisible();
     await expect(page.getByText('الإجابة الصحيحة')).toHaveCount(0);
     expect(calls()).toBeGreaterThanOrEqual(2);
+    await page.getByRole('img', { name: 'صورة السؤال' }).scrollIntoViewIfNeeded();
+    await expect.poll(() => page.getByRole('img', { name: 'صورة السؤال' }).evaluate(node => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    await page.getByRole('img', { name: 'صورة الخيار أ' }).scrollIntoViewIfNeeded();
+    await expect.poll(() => page.getByRole('img', { name: 'صورة الخيار أ' }).evaluate(node => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `test-results/review-media-${width}.png`, fullPage: true });
   });
 }
 
