@@ -116,3 +116,36 @@ test('relationship revocation on refresh removes child selection and results wit
   await expect(page.getByText('اختبار أحمد')).toHaveCount(0);
   expect(revokedChildReads).toBe(1);
 });
+
+test('weekly report reload waits for renewed child relationships and drops revoked child', async ({ page }) => {
+  await auth(page);
+  let dashboardReads = 0;
+  await page.route('**/api/v1/parents/dashboard?**', route => {
+    dashboardReads += 1;
+    return json(route, dashboardReads === 1 ? dashboard : {
+      ...dashboard, children: [children[0]],
+      summary: { ...dashboard.summary, totalChildren: 1, visibleChildren: 1 },
+    });
+  });
+  let weeklyReads = 0;
+  await page.route('**/api/v1/parents/weekly-report?**', route => {
+    weeklyReads += 1;
+    const visible = dashboardReads === 1 ? children : [children[0]];
+    return json(route, {
+      periodStart: '2026-10-20T10:00:00Z', periodEnd: '2026-10-27T10:00:00Z',
+      children: visible.map(c => ({
+        studentId: c.studentId, name: c.name, avatarUrl: '',
+        schoolIds: [], assessmentCount: 1, averageScore: 76, studyMinutes: 10,
+        weakSkills: [], nextAction: '',
+      })),
+      page: 1, limit: 20, hasMore: false,
+    });
+  });
+  await page.goto('/parent-dashboard');
+  await page.getByRole('button', { name: 'تقرير الأسبوع' }).click();
+  await expect(page.getByText('أحمد', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'تحديث لوحة ولي الأمر' }).click();
+  await expect(page.getByText('سارة', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('أحمد', { exact: true })).toHaveCount(0);
+  expect(weeklyReads).toBeGreaterThanOrEqual(2);
+});
