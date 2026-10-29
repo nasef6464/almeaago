@@ -35,7 +35,7 @@ export function ParentDashboardPage(){
   // A refreshed relationship scope must not leave a formerly linked child's data visible.
   setData(null);setResults(null);setResultsStudentId('');setWeekly(null);
   parentsClient.dashboard(1,20,controller.signal)
-   .then(row=>{setData(row);setSelectedId(current=>row.children.some(x=>x.studentId===current)?current:(row.children[0]?.studentId||''))})
+   .then(row=>{if(!controller.signal.aborted){setData(row);setSelectedId(current=>row.children.some(x=>x.studentId===current)?current:(row.children[0]?.studentId||''))}})
    .catch(e=>{if(!controller.signal.aborted){setData(null);setError(e instanceof Error?e.message:'تعذر تحميل متابعة الأبناء')}})
    .finally(()=>{if(!controller.signal.aborted)setBusy(false)});
   return()=>controller.abort();
@@ -56,14 +56,15 @@ export function ParentDashboardPage(){
  },[data,selectedId,tab]);
 
  useEffect(()=>{
-  if(tab!=='report')return;
+  // Weekly projection is fetched only after the latest relationship scope has loaded.
+  if(tab!=='report'||!data){setWeekly(null);return;}
   const controller=new AbortController();setDetailBusy(true);setError('');setWeekly(null);
   parentsClient.weeklyReport(1,20,controller.signal)
    .then(row=>{if(!controller.signal.aborted)setWeekly(row)})
    .catch(e=>{if(!controller.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل التقرير الأسبوعي')})
    .finally(()=>{if(!controller.signal.aborted)setDetailBusy(false)});
   return()=>controller.abort();
- },[tab,reload]);
+ },[tab,data]);
 
  const selected=useMemo(()=>data?.children.find(x=>x.studentId===selectedId)||data?.children[0]||null,[data,selectedId]);
  const priority=useMemo(()=>data?.children.flatMap(child=>child.weakSkills.map(skill=>({child,skill}))).sort((a,b)=>a.skill.mastery-b.skill.mastery).slice(0,3)||[],[data]);
