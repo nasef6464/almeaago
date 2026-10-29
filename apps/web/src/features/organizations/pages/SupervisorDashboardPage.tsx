@@ -1,169 +1,162 @@
-import {
-  Activity,
-  BarChart3,
-  Bell,
-  BookOpen,
-  Building2,
-  ChevronLeft,
-  ClipboardList,
-  FileText,
-  Loader2,
-  ShieldCheck,
-  Target,
-  Users,
-  Video,
-} from 'lucide-react';
+import { Activity, BarChart3, ClipboardList, Loader2, Target, Users, Video } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
-import { organizationsClient, type SchoolContext } from '../api/organizations-client';
+import { organizationsClient, type RosterMember, type SchoolContext } from '../api/organizations-client';
 
-const actions = [
-  {
-    to: '/supervisor-dashboard/interventions',
-    title: 'التدخلات والخطط العلاجية',
-    text: 'متابعة التدخلات المسموح بها حسب المدرسة أو الفصل المسند.',
-    icon: Activity,
-    tone: 'bg-amber-50 text-amber-700',
-  },
-  {
-    to: '/reports',
-    title: 'التقارير والتحليلات',
-    text: 'نتائج ومؤشرات ضمن النطاق المصرح به فقط.',
-    icon: BarChart3,
-    tone: 'bg-indigo-50 text-indigo-700',
-  },
-  {
-    to: '/notifications',
-    title: 'الإشعارات',
-    text: 'تنبيهات حساب المشرف ورسائل المتابعة داخل المنصة.',
-    icon: Bell,
-    tone: 'bg-slate-100 text-slate-700',
-  },
+type SupervisorTab='overview'|'students'|'live-sessions'|'tests'|'live-monitoring'|'skills'|'reports';
+const tabs:{id:SupervisorTab;label:string;icon:typeof Users}[]=[
+ {id:'overview',label:'الملخص العام',icon:BarChart3},
+ {id:'students',label:'تعلم الطلاب وجاهزيتهم',icon:Users},
+ {id:'live-sessions',label:'الحصص المباشرة',icon:Video},
+ {id:'tests',label:'الاختبارات والتحليل',icon:ClipboardList},
+ {id:'live-monitoring',label:'المراقبة الحية',icon:Activity},
+ {id:'skills',label:'خريطة المهارات',icon:Target},
+ {id:'reports',label:'تقارير الأداء',icon:ClipboardList},
 ];
+const enabledTabs=new Set<SupervisorTab>(['overview','students']);
+const PAGE_SIZE=20;
 
-export function SupervisorDashboardPage() {
-  const { user, loading: authLoading } = useAuth();
-  const [contexts, setContexts] = useState<SchoolContext[]>([]);
-  const [busy, setBusy] = useState(true);
-  const [error, setError] = useState('');
-  const schoolCount = contexts.length;
-  const permissionCount = new Set(contexts.flatMap((item) => item.permissions)).size;
-  const moduleCount = new Set(contexts.flatMap((item) => item.modules)).size;
+export function SupervisorDashboardPage(){
+ const {user,loading:authLoading}=useAuth();
+ const [params,setParams]=useSearchParams();
+ const requested=params.get('tab');
+ const tab:SupervisorTab=tabs.some(item=>item.id===requested)?requested as SupervisorTab:'students';
+ const authorized=Boolean(user?.roles.includes('supervisor'));
+ const [contexts,setContexts]=useState<SchoolContext[]>([]);
+ const [schoolId,setSchoolId]=useState('');
+ const [scopeBusy,setScopeBusy]=useState(true);
+ const [scopeError,setScopeError]=useState('');
+ const [scopeReload,setScopeReload]=useState(0);
+ const [roster,setRoster]=useState<RosterMember[]>([]);
+ const [rosterSchoolId,setRosterSchoolId]=useState('');
+ const [rosterBusy,setRosterBusy]=useState(false);
+ const [rosterError,setRosterError]=useState('');
+ const [rosterReload,setRosterReload]=useState(0);
+ const [search,setSearch]=useState('');
+ const [page,setPage]=useState(1);
+ const [total,setTotal]=useState(0);
+ const currentSchool=contexts.find(item=>item.schoolId===schoolId);
+ const visibleRoster=!scopeBusy&&!scopeError&&!rosterBusy&&!rosterError&&rosterSchoolId===schoolId?roster:[];
 
-  useEffect(() => {
-    if (authLoading || !user || !user.roles.includes('supervisor')) return;
-    const controller = new AbortController();
-    setBusy(true);
-    setError('');
-    organizationsClient
-      .contexts(controller.signal)
-      .then((response) => setContexts(response.contexts.filter((item) => item.role === 'supervisor')))
-      .catch((cause) => {
-        if (!controller.signal.aborted) {
-          setError(cause instanceof Error ? cause.message : 'تعذر تحميل نطاق الإشراف');
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setBusy(false);
-      });
-    return () => controller.abort();
-  }, [authLoading, user]);
+ useEffect(()=>{
+  // A refreshed role/relationship scope invalidates every previously fetched student.
+  const controller=new AbortController();
+  setContexts([]);setSchoolId('');setRoster([]);setRosterSchoolId('');
+  setTotal(0);setRosterError('');setScopeError('');
+  if(authLoading||!authorized){setScopeBusy(false);return()=>controller.abort();}
+  setScopeBusy(true);
+  organizationsClient.contexts(controller.signal)
+   .then(response=>{
+    if(controller.signal.aborted)return;
+    const allowed=response.contexts.filter(item=>item.role==='supervisor');
+    setContexts(allowed);
+    setSchoolId(current=>allowed.some(item=>item.schoolId===current)?current:allowed[0]?.schoolId||'');
+   })
+   .catch(cause=>{
+    if(controller.signal.aborted)return;
+    setContexts([]);setSchoolId('');
+    setScopeError(cause instanceof Error?cause.message:'تعذر تحميل نطاق الإشراف');
+   })
+   .finally(()=>{if(!controller.signal.aborted)setScopeBusy(false);});
+  return()=>controller.abort();
+ },[authLoading,authorized,user?.id,scopeReload]);
 
-  if (authLoading) {
-    return <main dir="rtl" className="p-10 text-center font-black">جاري التحقق من الحساب...</main>;
+ useEffect(()=>{
+  const controller=new AbortController();
+  setRoster([]);setRosterSchoolId('');setTotal(0);setRosterError('');
+  if(scopeBusy||scopeError||!currentSchool||!authorized||tab!=='students'){
+   setRosterBusy(false);return()=>controller.abort();
   }
-  if (!user || !user.roles.includes('supervisor')) {
-    return <main dir="rtl" className="p-10 text-center font-black text-rose-700">هذه الصفحة مخصصة للمشرف.</main>;
-  }
+  setRosterBusy(true);
+  organizationsClient.supervisorRoster(schoolId,search,page,controller.signal)
+   .then(response=>{
+    if(controller.signal.aborted)return;
+    setRoster(response.members.filter(member=>member.roles.includes('student')));
+    setTotal(response.pagination.total);
+    setRosterSchoolId(schoolId);
+   })
+   .catch(cause=>{
+    if(controller.signal.aborted)return;
+    setRoster([]);setRosterSchoolId('');
+    setRosterError(cause instanceof Error?cause.message:'تعذر تحميل الطلاب');
+   })
+   .finally(()=>{if(!controller.signal.aborted)setRosterBusy(false);});
+  return()=>controller.abort();
+ },[scopeBusy,scopeError,currentSchool?.schoolId,schoolId,authorized,tab,search,page,rosterReload]);
 
-  return (
-    <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 px-3 py-5 sm:px-6 sm:py-7">
-      <div className="mx-auto max-w-6xl space-y-5">
-        <header className="rounded-[2rem] bg-slate-950 p-5 text-white shadow-xl sm:p-8">
-          <div className="flex items-center gap-2 text-emerald-300">
-            <ShieldCheck size={18}/>
-            <span className="text-xs font-black">SUPERVISOR WORKSPACE</span>
-          </div>
-          <h1 className="mt-2 text-2xl font-black sm:text-4xl">لوحة المشرف</h1>
-          <p className="mt-3 max-w-2xl text-sm font-bold leading-7 text-slate-300">
-            نظرة تشغيلية على نطاقات الإشراف الفعلية، مع الانتقال إلى التقارير والتدخلات دون توسيع الصلاحية من الواجهة.
-          </p>
-        </header>
+ function selectTab(next:SupervisorTab){
+  if(!enabledTabs.has(next))return;
+  setParams(previous=>{
+   const updated=new URLSearchParams(previous);
+   if(next==='students')updated.delete('tab');else updated.set('tab',next);
+   return updated;
+  });
+ }
+ if(authLoading)return <main dir="rtl" className="p-10 text-center font-black">جاري التحقق من الحساب...</main>;
+ if(!authorized)return <main dir="rtl" className="p-10 text-center font-black text-rose-700">هذه الصفحة مخصصة للمشرف.</main>;
 
-        {error ? <div role="alert" className="rounded-2xl bg-rose-50 p-4 font-bold text-rose-700">{error}</div> : null}
-
-        <section aria-label="ملخص نطاق المشرف" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <article className="rounded-2xl border bg-white p-4 shadow-sm"><Building2 size={19} className="text-indigo-700"/><div className="mt-2 text-xs font-bold text-slate-500">نطاقات المدرسة</div><div className="mt-1 text-2xl font-black">{schoolCount}</div></article>
-          <article className="rounded-2xl border bg-white p-4 shadow-sm"><ShieldCheck size={19} className="text-emerald-700"/><div className="mt-2 text-xs font-bold text-slate-500">الصلاحيات الفعلية</div><div className="mt-1 text-2xl font-black">{permissionCount}</div></article>
-          <article className="rounded-2xl border bg-white p-4 shadow-sm"><Target size={19} className="text-amber-700"/><div className="mt-2 text-xs font-bold text-slate-500">الوحدات المفعلة</div><div className="mt-1 text-2xl font-black">{moduleCount}</div></article>
-          <article className="rounded-2xl border bg-white p-4 shadow-sm"><Users size={19} className="text-sky-700"/><div className="mt-2 text-xs font-bold text-slate-500">حالة النطاق</div><div className="mt-1 text-sm font-black">{busy?'جار التحقق':schoolCount?'مفوض من الخادم':'غير مسند'}</div></article>
-        </section>
-
-        <nav aria-label="أقسام لوحة المشرف" className="rounded-3xl border bg-white p-3 shadow-sm">
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
-            <span className="rounded-xl bg-indigo-600 px-3 py-2.5 text-center text-xs font-black text-white">نظرة عامة</span>
-            <span className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs font-black text-slate-700"><Users size={15} className="mx-auto mb-1"/>الطلاب</span>
-            <Link to="/supervisor-dashboard/interventions" className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs font-black text-slate-700"><Target size={15} className="mx-auto mb-1"/>المهارات</Link>
-            <Link to="/reports" className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs font-black text-slate-700"><FileText size={15} className="mx-auto mb-1"/>التقارير</Link>
-            <span aria-disabled="true" className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs font-black text-slate-400"><Video size={15} className="mx-auto mb-1"/>الحصص المباشرة</span>
-            <span aria-disabled="true" className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs font-black text-slate-400"><ClipboardList size={15} className="mx-auto mb-1"/>الاختبارات</span>
-            <span aria-disabled="true" className="rounded-xl bg-slate-50 px-3 py-2.5 text-center text-xs font-black text-slate-400"><BookOpen size={15} className="mx-auto mb-1"/>المراقبة الحية</span>
-          </div>
-          <p className="mt-3 text-[11px] font-bold leading-5 text-slate-400">الأقسام الرمادية تحفظ خريطة Legacy البصرية فقط إلى أن يوجد لها owner flow قانوني في V2؛ لا تُعرض بيانات أو عمليات وهمية.</p>
-        </nav>
-
-        <section className="rounded-3xl border bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2">
-            <Building2 size={19} className="text-indigo-600"/>
-            <h2 className="font-black">نطاقات الإشراف</h2>
-          </div>
-          {busy ? (
-            <div className="mt-4 flex items-center gap-2 text-sm font-bold text-slate-500"><Loader2 size={16} className="animate-spin"/>جاري تحميل النطاقات...</div>
-          ) : contexts.length ? (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {contexts.map((context) => (
-                <article key={context.schoolId} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="font-black text-slate-900">{context.schoolName}</div>
-                  <div className="mt-2 text-xs font-bold text-slate-500">
-                    {context.source === 'scope' ? 'نطاق إشراف مفوض' : 'نطاق حساب فعال'}
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {context.permissions.slice(0, 4).map((permission) => (
-                      <span key={permission} className="rounded-full bg-white px-2 py-1 text-[10px] font-black text-slate-500">{permission}</span>
-                    ))}
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-800">
-              لا توجد مدرسة أو فصول مسندة لهذا الحساب حاليًا.
-            </div>
-          )}
-        </section>
-
-        <section aria-label="اختصارات المشرف" className="grid gap-3 md:grid-cols-3">
-          {actions.map(({ to, title, text, icon: Icon, tone }) => (
-            <Link key={to} to={to} className="group rounded-3xl border border-slate-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-              <div className={'flex h-11 w-11 items-center justify-center rounded-2xl ' + tone}><Icon size={21}/></div>
-              <h2 className="mt-4 font-black text-slate-900">{title}</h2>
-              <p className="mt-2 min-h-12 text-xs font-bold leading-6 text-slate-500">{text}</p>
-              <div className="mt-4 inline-flex items-center gap-1 text-xs font-black text-indigo-700">فتح <ChevronLeft size={15}/></div>
-            </Link>
-          ))}
-        </section>
-
-        <section className="rounded-3xl border border-indigo-100 bg-indigo-50 p-5">
-          <div className="flex items-start gap-3">
-            <Target className="mt-0.5 shrink-0 text-indigo-700" size={20}/>
-            <p className="text-sm font-bold leading-7 text-indigo-900">
-              هذه اللوحة لا تنشئ بيانات أكاديمية جديدة؛ هي مدخل إلى النطاقات والتقارير والتدخلات التي يتحقق منها الخادم في كل طلب.
-            </p>
-          </div>
-        </section>
-      </div>
-    </main>
-  );
+ return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-gray-50 px-3 py-5 sm:px-6 sm:py-7">
+  <div className="mx-auto max-w-6xl space-y-5">
+   <header className="rounded-2xl border bg-white p-5 sm:p-7">
+    <h1 className="text-xl font-bold text-gray-900">لوحة الإشراف</h1>
+    <p className="mt-1 text-xs text-gray-500">متابعة الفصول والمهارات والتقارير</p>
+   </header>
+   <nav aria-label="أقسام لوحة المشرف" className="rounded-2xl border bg-white p-3">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
+     {tabs.map(item=>{
+      const Icon=item.icon;
+      return <button key={item.id} type="button" onClick={()=>selectTab(item.id)}
+       disabled={!enabledTabs.has(item.id)}
+       aria-current={tab===item.id?'page':undefined}
+       className={`rounded-xl border px-2 py-3 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50 ${tab===item.id?'border-indigo-600 bg-indigo-50 text-indigo-800':'border-gray-200 bg-white text-gray-700'}`}>
+       <Icon size={16} className="mx-auto mb-1" />{item.label}
+      </button>;
+     })}
+    </div>
+   </nav>
+   {scopeError?<div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">
+    {scopeError}<button type="button" onClick={()=>setScopeReload(n=>n+1)} className="ms-3 rounded-lg border px-3 py-1">إعادة المحاولة</button>
+   </div>:null}
+   {scopeBusy?<div className="flex items-center gap-2 p-5 text-sm"><Loader2 size={16} className="animate-spin" />جاري تحميل النطاقات...</div>:null}
+   {!scopeBusy&&!scopeError&&!contexts.length?<div className="rounded-xl border bg-white p-5 text-sm">لا توجد مدرسة أو فصول مسندة لهذا الحساب حاليًا.</div>:null}
+   {!scopeBusy&&!scopeError&&contexts.length>0?<section className="space-y-4 rounded-2xl border bg-white p-4 sm:p-6">
+    <label className="block text-sm font-bold text-gray-800">المدرسة
+     <select aria-label="المدرسة" value={schoolId} onChange={event=>{setSchoolId(event.target.value);setRosterSchoolId('');setRoster([]);setTotal(0);setPage(1);}}
+      className="mt-2 block w-full rounded-xl border border-gray-300 bg-white p-2 sm:max-w-sm">
+      {contexts.map(context=><option key={context.schoolId} value={context.schoolId}>{context.schoolName}</option>)}
+     </select>
+    </label>
+    {tab==='overview'?<div className="rounded-xl border p-4">
+     <h2 className="font-bold">الملخص العام</h2>
+     <p className="mt-2 text-sm">{currentSchool?.schoolName}</p>
+     <button type="button" onClick={()=>selectTab('students')} className="mt-3 rounded-lg border px-3 py-2 text-sm font-bold">تعلم الطلاب وجاهزيتهم</button>
+    </div>:null}
+    {tab==='students'?<div className="space-y-3">
+     <h2 className="text-lg font-bold">تعلم الطلاب وجاهزيتهم</h2>
+     <label className="block text-sm font-bold">بحث عن طالب
+      <input aria-label="بحث عن طالب" value={search} onChange={event=>{setSearch(event.target.value);setPage(1);setRosterSchoolId('');}}
+       className="mt-2 block w-full rounded-xl border border-gray-300 p-2 sm:max-w-md" placeholder="اسم الطالب أو البريد الإلكتروني" />
+     </label>
+     {rosterBusy?<div className="flex items-center gap-2 text-sm"><Loader2 size={16} className="animate-spin" />جاري تحميل الطلاب...</div>:null}
+     {rosterError?<div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-700">
+      {rosterError}<button type="button" onClick={()=>setRosterReload(n=>n+1)} className="ms-3 rounded-lg border px-3 py-1">إعادة المحاولة</button>
+     </div>:null}
+     {!rosterBusy&&!rosterError&&!visibleRoster.length?<p className="text-sm text-gray-500">لا يوجد طلاب ضمن نطاق الإشراف الحالي.</p>:null}
+     {visibleRoster.length>0?<div className="overflow-x-auto rounded-xl border">
+      <table className="w-full min-w-[320px] text-right text-sm">
+       <thead className="bg-gray-50"><tr><th className="p-3">اسم الطالب</th><th className="p-3">البريد الإلكتروني</th></tr></thead>
+       <tbody>{visibleRoster.map(member=><tr key={member.userId} className="border-t"><td className="p-3 font-bold">{member.name}</td><td className="p-3">{member.email}</td></tr>)}</tbody>
+      </table>
+     </div>:null}
+     {total>PAGE_SIZE&&!rosterError?<div className="flex items-center gap-3 text-sm">
+      <button type="button" disabled={page===1||rosterBusy} onClick={()=>{setPage(n=>n-1);setRosterSchoolId('');}} className="rounded-lg border px-3 py-2 disabled:opacity-40">السابق</button>
+      <span>{page} / {Math.ceil(total/PAGE_SIZE)}</span>
+      <button type="button" disabled={page*PAGE_SIZE>=total||rosterBusy} onClick={()=>{setPage(n=>n+1);setRosterSchoolId('');}} className="rounded-lg border px-3 py-2 disabled:opacity-40">التالي</button>
+     </div>:null}
+    </div>:null}
+   </section>:null}
+  </div>
+ </main>;
 }
