@@ -82,31 +82,31 @@ func TestLearnerPlacementScopePostgres(t *testing.T) {
 		}
 	}
 	const (
-		pathID = "01900000-0000-7000-8000-000000001001"
-		subjectID = "01900000-0000-7000-8000-000000002001"
-		otherSubjectID = "01900000-0000-7000-8000-000000002002"
-		courseID = "01900000-0000-7000-8000-000000003001"
-		moduleID = "01900000-0000-7000-8000-000000003002"
-		allowedLessonID = "01900000-0000-7000-8000-000000004001"
-		foreignLessonID = "01900000-0000-7000-8000-000000004002"
-		topicID = "01900000-0000-7000-8000-000000005001"
+		pathID           = "01900000-0000-7000-8000-000000001001"
+		subjectID        = "01900000-0000-7000-8000-000000002001"
+		otherSubjectID   = "01900000-0000-7000-8000-000000002002"
+		courseID         = "01900000-0000-7000-8000-000000003001"
+		moduleID         = "01900000-0000-7000-8000-000000003002"
+		allowedLessonID  = "01900000-0000-7000-8000-000000004001"
+		foreignLessonID  = "01900000-0000-7000-8000-000000004002"
+		topicID          = "01900000-0000-7000-8000-000000005001"
 		allowedLibraryID = "01900000-0000-7000-8000-000000006001"
 		foreignLibraryID = "01900000-0000-7000-8000-000000006002"
 	)
 	inserts := []struct {
-		sql string
+		sql  string
 		args []any
 	}{
-		{`INSERT INTO courses VALUES($1,$2,$3,'course','','teacher',30,'beginner',NULL,false,false,'approved',true,true)`, []any{courseID,pathID,subjectID}},
-		{`INSERT INTO course_modules VALUES($1,$2,'active',0,'module','')`, []any{moduleID,courseID}},
-		{`INSERT INTO lessons VALUES($1,$2,$3,$4,'','video',60,false,'approved',true,'body','','')`, []any{allowedLessonID,pathID,subjectID,"allowed"}},
-		{`INSERT INTO lessons VALUES($1,$2,$3,$4,'','video',60,false,'approved',true,'body','','')`, []any{foreignLessonID,pathID,otherSubjectID,"foreign"}},
-		{`INSERT INTO course_lessons VALUES($1,$2,true,0),($1,$3,true,1)`, []any{moduleID,allowedLessonID,foreignLessonID}},
-		{`INSERT INTO foundation_topics VALUES($1,$2,$3,NULL,'topic','',0,false,'active',true)`, []any{topicID,pathID,subjectID}},
-		{`INSERT INTO topic_lessons VALUES($1,$2,0),($1,$3,1)`, []any{topicID,allowedLessonID,foreignLessonID}},
-		{`INSERT INTO library_items VALUES($1,$2,$3,$4,'','file',false,'approved',true)`, []any{allowedLibraryID,pathID,subjectID,"allowed"}},
-		{`INSERT INTO library_items VALUES($1,$2,$3,$4,'','file',false,'approved',true)`, []any{foreignLibraryID,pathID,otherSubjectID,"foreign"}},
-		{`INSERT INTO topic_library_items VALUES($1,$2,0),($1,$3,1)`, []any{topicID,allowedLibraryID,foreignLibraryID}},
+		{`INSERT INTO courses VALUES($1,$2,$3,'course','','teacher',30,'beginner',NULL,false,false,'approved',true,true)`, []any{courseID, pathID, subjectID}},
+		{`INSERT INTO course_modules VALUES($1,$2,'active',0,'module','')`, []any{moduleID, courseID}},
+		{`INSERT INTO lessons VALUES($1,$2,$3,$4,'','video',60,false,'approved',true,'body','','')`, []any{allowedLessonID, pathID, subjectID, "allowed"}},
+		{`INSERT INTO lessons VALUES($1,$2,$3,$4,'','video',60,false,'approved',true,'body','','')`, []any{foreignLessonID, pathID, otherSubjectID, "foreign"}},
+		{`INSERT INTO course_lessons VALUES($1,$2,true,0),($1,$3,true,1)`, []any{moduleID, allowedLessonID, foreignLessonID}},
+		{`INSERT INTO foundation_topics VALUES($1,$2,$3,NULL,'topic','',0,false,'active',true)`, []any{topicID, pathID, subjectID}},
+		{`INSERT INTO topic_lessons VALUES($1,$2,0),($1,$3,1)`, []any{topicID, allowedLessonID, foreignLessonID}},
+		{`INSERT INTO library_items VALUES($1,$2,$3,$4,'','file',false,'approved',true)`, []any{allowedLibraryID, pathID, subjectID, "allowed"}},
+		{`INSERT INTO library_items VALUES($1,$2,$3,$4,'','file',false,'approved',true)`, []any{foreignLibraryID, pathID, otherSubjectID, "foreign"}},
+		{`INSERT INTO topic_library_items VALUES($1,$2,0),($1,$3,1)`, []any{topicID, allowedLibraryID, foreignLibraryID}},
 	}
 	for _, row := range inserts {
 		if _, err := db.Exec(ctx, row.sql, row.args...); err != nil {
