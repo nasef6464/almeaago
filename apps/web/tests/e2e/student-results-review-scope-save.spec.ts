@@ -87,3 +87,25 @@ for (const width of [390, 820, 1440]) {
     await page.screenshot({ path: `test-results/student-results-save-failure-${width}.png`, fullPage: true });
   });
 }
+
+test('late failed save from a previous result cannot replace the next result', async ({ page }) => {
+  await setup(page);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/v1/review/questions/shared-question/saved', async route => {
+    await gate;
+    await json(route, { message: 'خطأ الحفظ للمحاولة السابقة' }, 503).catch(() => {});
+  });
+  await page.goto('/assessment-results');
+  await page.getByRole('link', { name: 'عرض النتيجة' }).first().click();
+  await expect(page.getByRole('heading', { name: 'attempt-1' })).toBeVisible();
+  const requested = page.waitForRequest('**/api/v1/review/questions/shared-question/saved');
+  await page.getByRole('button', { name: 'حفظ للمراجعة' }).click();
+  await requested;
+  await page.getByRole('link', { name: 'العودة لسجل النتائج' }).click();
+  await page.getByRole('link', { name: 'عرض النتيجة' }).nth(1).click();
+  await expect(page.getByRole('heading', { name: 'attempt-2' })).toBeVisible();
+  release();
+  await expect(page.getByText('خطأ الحفظ للمحاولة السابقة')).toHaveCount(0);
+  await expect(page.getByText(question.text)).toBeVisible();
+});
