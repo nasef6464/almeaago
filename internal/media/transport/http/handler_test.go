@@ -123,3 +123,48 @@ func TestPresignReturnsDirectUploadMetadataOnly(t *testing.T) {
 		t.Fatalf("internal provider data leaked: %s", got)
 	}
 }
+func TestStudentMediaGetReturnsActiveImageMetadataWithoutCSRF(t *testing.T) {
+	repo := &repoStub{asset: media.Asset{
+		ID: "asset-1", Status: media.StatusActive, MimeType: "image/png",
+		PublicURL: "https://cdn.example/questions/v2/Q-1/image.png",
+		CreatedBy: adminAuth().User.ID,
+	}}
+	service := mediaapp.NewService(repo, providerStub{}, 1024*1024, 15*time.Minute)
+	student := identityapp.Authenticated{User: identity.User{
+		ID: "student-1", Roles: []identity.Role{identity.RoleStudent},
+	}}
+	handler := New(service, authStub{auth: student})
+	request := httptest.NewRequest(http.MethodGet, "/assets/asset-1", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200 for active student media, got %d body=%s", response.Code, response.Body.String())
+	}
+	for _, part := range []string{`"id":"asset-1"`, `"status":"active"`, `"publicUrl":"https://cdn.example/questions/v2/Q-1/image.png"`} {
+		if !strings.Contains(response.Body.String(), part) {
+			t.Fatalf("missing %s in %s", part, response.Body.String())
+		}
+	}
+}
+
+func TestStudentMediaGetHidesPendingImage(t *testing.T) {
+	repo := &repoStub{asset: media.Asset{
+		ID: "asset-pending", Status: media.StatusPendingUpload, MimeType: "image/png",
+		CreatedBy: adminAuth().User.ID,
+	}}
+	service := mediaapp.NewService(repo, providerStub{}, 1024*1024, 15*time.Minute)
+	student := identityapp.Authenticated{User: identity.User{
+		ID: "student-1", Roles: []identity.Role{identity.RoleStudent},
+	}}
+	handler := New(service, authStub{auth: student})
+	request := httptest.NewRequest(http.MethodGet, "/assets/asset-pending", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 for pending student media, got %d body=%s", response.Code, response.Body.String())
+	}
+}
