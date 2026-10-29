@@ -75,10 +75,11 @@ func emptyLessonProgress(lessonID string, in learning.LessonProgressContextInput
 // PostgreSQL already filters these keys; this application guard keeps the
 // learner-facing contract fail-closed if a repository implementation regresses.
 func progressMatchesScope(out learning.LessonProgress, lessonID string, in learning.LessonProgressContextInput) bool {
-	return out.LessonID == lessonID &&
+	// UUID text is case-insensitive in PostgreSQL, which returns canonical lowercase.
+	return strings.EqualFold(out.LessonID, lessonID) &&
 		out.ContextType == in.ContextType &&
-		out.CourseID == in.CourseID &&
-		out.TopicID == in.TopicID
+		strings.EqualFold(out.CourseID, in.CourseID) &&
+		strings.EqualFold(out.TopicID, in.TopicID)
 }
 
 func (s *LessonProgressService) Get(ctx context.Context, actor identity.User, lessonID string, in learning.LessonProgressContextInput) (learning.LessonProgress, error) {
