@@ -11,12 +11,16 @@ import (
 
 type lessonProgressRepoStub struct {
 	row          learning.LessonProgress
+	wrongRow     *learning.LessonProgress
 	lastPosition int
 	lastStudent  string
 }
 
 func (r *lessonProgressRepoStub) GetLessonProgress(_ context.Context, student, lessonID string, ct learning.LessonProgressContext, courseID, topicID string) (learning.LessonProgress, error) {
 	r.lastStudent = student
+	if r.wrongRow != nil {
+		return *r.wrongRow, nil
+	}
 	if r.row.LessonID == "" {
 		return learning.LessonProgress{}, learning.ErrNotFound
 	}
@@ -25,10 +29,16 @@ func (r *lessonProgressRepoStub) GetLessonProgress(_ context.Context, student, l
 func (r *lessonProgressRepoStub) SaveVideoProgress(_ context.Context, student, lessonID string, ct learning.LessonProgressContext, courseID, topicID string, pos int) (learning.LessonProgress, error) {
 	r.lastStudent = student
 	r.lastPosition = pos
+	if r.wrongRow != nil {
+		return *r.wrongRow, nil
+	}
 	return learning.LessonProgress{LessonID: lessonID, ContextType: ct, CourseID: courseID, TopicID: topicID, Status: learning.LessonInProgress, PositionSeconds: pos}, nil
 }
 func (r *lessonProgressRepoStub) CompleteLesson(_ context.Context, student, lessonID string, ct learning.LessonProgressContext, courseID, topicID string) (learning.LessonProgress, error) {
 	r.lastStudent = student
+	if r.wrongRow != nil {
+		return *r.wrongRow, nil
+	}
 	return learning.LessonProgress{LessonID: lessonID, ContextType: ct, CourseID: courseID, TopicID: topicID, Status: learning.LessonCompleted}, nil
 }
 
@@ -92,5 +102,26 @@ func TestVideoProgressRejectsNonVideoAndHiddenTarget(t *testing.T) {
 	s = NewLessonProgressService(&lessonProgressRepoStub{}, lessonTargetStub{ok: false, lessonType: "video"})
 	if _, err := s.Complete(context.Background(), progressStudent(), "lesson-1", ctx); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("hidden target should fail closed: %v", err)
+	}
+}
+
+func TestLessonProgressRejectsRepositoryResponseFromOtherCourse(t *testing.T) {
+	ctx := context.Background()
+	request := learning.LessonProgressContextInput{ContextType: learning.LessonProgressCourse, CourseID: "course-1"}
+	repo := &lessonProgressRepoStub{wrongRow: &learning.LessonProgress{
+		LessonID: "lesson-1", ContextType: learning.LessonProgressCourse, CourseID: "course-2",
+		Status: learning.LessonCompleted, PositionSeconds: 42,
+	}}
+	s := NewLessonProgressService(repo, lessonTargetStub{ok: true, lessonType: "video", duration: 120})
+	if _, err := s.Get(ctx, progressStudent(), "lesson-1", request); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("read must not return another course's completion: %v", err)
+	}
+	if _, err := s.SaveVideo(ctx, progressStudent(), "lesson-1", learning.VideoProgressWrite{
+		LessonProgressContextInput: request, PositionSeconds: 40,
+	}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("video save must not return another course's progress: %v", err)
+	}
+	if _, err := s.Complete(ctx, progressStudent(), "lesson-1", request); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("completion must not return another course's progress: %v", err)
 	}
 }
