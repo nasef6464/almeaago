@@ -97,6 +97,9 @@ export function ContentAdminPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<ContentRow[]>([]);
+  // A list response belongs to one exact view, not just to this component.
+  // This also masks the previous view during the render before useEffect cleanup.
+  const [loadedListScope, setLoadedListScope] = useState('');
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -111,6 +114,14 @@ export function ContentAdminPage() {
   const [mutatingLibraryId, setMutatingLibraryId] = useState('');
   const [actionError, setActionError] = useState('');
 
+  const listScope = JSON.stringify([
+    tab, page, pathId, subjectId, debouncedSearch,
+    tab === 'foundation' ? '' : workflowStatus, reloadKey,
+  ]);
+  const scopedRows = loadedListScope === listScope ? rows : [];
+  const scopedHasMore = loadedListScope === listScope && hasMore;
+  const scopedLoading = loading || loadedListScope !== listScope;
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setDebouncedSearch(search.trim());
@@ -124,6 +135,7 @@ export function ContentAdminPage() {
     contentClient
       .taxonomyCore(controller.signal)
       .then((result) => {
+        if (controller.signal.aborted) return;
         setTaxonomy(result);
         setTaxonomyError('');
       })
@@ -156,7 +168,9 @@ export function ContentAdminPage() {
     if (authLoading || !user || (!isAdmin && !isTeacher) || waitingForTeacherScope) {
       setRows([]);
       setHasMore(false);
+      setLoadedListScope('');
       setLoading(false);
+      setError('');
       return;
     }
 
@@ -171,6 +185,8 @@ export function ContentAdminPage() {
     };
 
     setLoading(true);
+    setRows([]);
+    setHasMore(false);
     setError('');
 
     const pending =
@@ -184,13 +200,16 @@ export function ContentAdminPage() {
 
     pending
       .then((result) => {
+        if (controller.signal.aborted) return;
         setRows(result.items);
         setHasMore(result.hasMore);
+        setLoadedListScope(listScope);
       })
       .catch((cause: unknown) => {
         if (controller.signal.aborted) return;
         setRows([]);
         setHasMore(false);
+        setLoadedListScope(listScope);
         setError(cause instanceof Error ? cause.message : 'تعذر تحميل المحتوى.');
       })
       .finally(() => {
@@ -203,6 +222,7 @@ export function ContentAdminPage() {
     debouncedSearch,
     isAdmin,
     isTeacher,
+    listScope,
     page,
     pathId,
     reloadKey,
@@ -214,11 +234,11 @@ export function ContentAdminPage() {
   ]);
 
   const stats = useMemo(() => {
-    const approved = rows.filter((row) => workflow(row) === 'approved').length;
-    const visible = rows.filter((row) => row.isVisible).length;
-    const locked = rows.filter((row) => 'isLocked' in row && row.isLocked).length;
-    return { shown: rows.length, approved, visible, locked };
-  }, [rows]);
+    const approved = scopedRows.filter((row) => workflow(row) === 'approved').length;
+    const visible = scopedRows.filter((row) => row.isVisible).length;
+    const locked = scopedRows.filter((row) => 'isLocked' in row && row.isLocked).length;
+    return { shown: scopedRows.length, approved, visible, locked };
+  }, [scopedRows]);
 
   async function setCourseWorkflow(
     course: CourseSummary,
@@ -600,14 +620,14 @@ export function ContentAdminPage() {
                   <p className="mt-1 text-xs font-bold text-gray-400">صفحة {page.toLocaleString('ar-SA')} · 50 عنصرًا كحد أقصى</p>
                 </div>
                 <button type="button" onClick={() => setReloadKey((value) => value + 1)} className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-xs font-black text-gray-600">
-                  <RefreshCcw size={15} className={loading ? 'animate-spin' : ''} />
+                  <RefreshCcw size={15} className={scopedLoading ? 'animate-spin' : ''} />
                   تحديث
                 </button>
               </div>
 
-              {loading ? (
+              {scopedLoading ? (
                 <div className="p-10 text-center text-sm font-black text-gray-500">جاري تحميل المحتوى...</div>
-              ) : rows.length === 0 ? (
+              ) : scopedRows.length === 0 ? (
                 <div className="p-10 text-center text-sm font-black text-gray-500">لا توجد عناصر مطابقة للفلاتر الحالية.</div>
               ) : (
                 <div className="overflow-x-auto">
@@ -624,7 +644,7 @@ export function ContentAdminPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {rows.map((row) => {
+                      {scopedRows.map((row) => {
                         const path = taxonomy.paths.find((item) => item.id === row.pathId);
                         const subject = taxonomy.subjects.find((item) => item.id === row.subjectId);
                         const status = workflow(row);
@@ -824,9 +844,9 @@ export function ContentAdminPage() {
               )}
 
               <div className="flex items-center justify-between border-t border-gray-100 px-4 py-4">
-                <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => Math.max(1, value - 1))} className="inline-flex items-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-xs font-black text-gray-700 disabled:opacity-40"><ChevronRight size={16} />السابق</button>
+                <button type="button" disabled={page <= 1 || scopedLoading} onClick={() => setPage((value) => Math.max(1, value - 1))} className="inline-flex items-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-xs font-black text-gray-700 disabled:opacity-40"><ChevronRight size={16} />السابق</button>
                 <span className="text-xs font-black text-gray-500">صفحة {page.toLocaleString('ar-SA')}</span>
-                <button type="button" disabled={!hasMore || loading} onClick={() => setPage((value) => value + 1)} className="inline-flex items-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-xs font-black text-gray-700 disabled:opacity-40">التالي<ChevronLeft size={16} /></button>
+                <button type="button" disabled={!scopedHasMore || scopedLoading} onClick={() => setPage((value) => value + 1)} className="inline-flex items-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-xs font-black text-gray-700 disabled:opacity-40">التالي<ChevronLeft size={16} /></button>
               </div>
             </section>
           </>
