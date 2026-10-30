@@ -116,9 +116,12 @@ export function ContentAdminPage() {
     tab, page, pathId, subjectId, debouncedSearch,
     tab === 'foundation' ? '' : workflowStatus, reloadKey,
   ]);
-  const scopedRows = loadedListScope === listScope ? rows : [];
-  const scopedHasMore = loadedListScope === listScope && hasMore;
-  const scopedLoading = loading || loadedListScope !== listScope;
+  // Hide stale actions as soon as the search input changes, before its debounce fires.
+  // Otherwise an old row can still be edited/published for 280ms under a new query.
+  const searchPending = search.trim() !== debouncedSearch;
+  const scopedRows = !searchPending && loadedListScope === listScope ? rows : [];
+  const scopedHasMore = !searchPending && loadedListScope === listScope && hasMore;
+  const scopedLoading = searchPending || loading || loadedListScope !== listScope;
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -587,8 +590,8 @@ export function ContentAdminPage() {
 
         {!waitingForTeacherScope ? (
           <>
-            {error && loadedListScope === listScope ? <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-800">{error}</div> : null}
-            {actionError && actionErrorScope === listScope ? <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-800">{actionError}</div> : null}
+            {error && !searchPending && loadedListScope === listScope ? <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-800">{error}</div> : null}
+            {actionError && !searchPending && actionErrorScope === listScope ? <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-800">{actionError}</div> : null}
 
             <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
               <div className="flex items-center justify-between border-b border-gray-100 px-4 py-4">
