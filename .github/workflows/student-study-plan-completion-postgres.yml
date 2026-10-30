@@ -43,5 +43,4 @@ jobs:
             psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f "$file" >/dev/null
           done
       - name: Assert completed lesson isolation and study-plan lookup
-        run: go test ./internal/learning/repository/postgres -run '^(TestCompletedStudyPlanLessonsPostgres|TestStudyPlanCompletionReadAfterWritePostgres) -count=1 -v
- -count=1 -v
+        run: go test ./internal/learning/repository/postgres -run '^(TestCompletedStudyPlanLessonsPostgres|TestStudyPlanCompletionReadAfterWritePostgres)$' -count=1 -v
