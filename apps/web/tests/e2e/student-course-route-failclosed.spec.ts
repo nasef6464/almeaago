@@ -70,3 +70,13 @@ for (const width of [390, 820, 1440]) {
     await expect(page.getByText('محتوى الدورة الأولى السري')).toBeVisible();
   });
 }
+
+test('a successful HTTP response carrying another course is rejected before rendering lessons', async ({ page }) => {
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/courses/course-b', route => json(route, { course }));
+  await page.goto('/learning/courses/course-b');
+  await expect(page.getByRole('heading', { name: 'لم نتمكن من فتح الدورة' })).toBeVisible();
+  await expect(page.getByText('تعذر التحقق من سياق الدورة. أعد المحاولة.')).toBeVisible();
+  await expect(page.getByText('الدورة الأولى الخاصة')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'تحديد كمكتمل' })).toHaveCount(0);
+});
