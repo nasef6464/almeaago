@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { QuestionAssistantPanel } from '../../ai/components/QuestionAssistantPanel';
+import { QuestionAssetImage } from '../components/QuestionAssetImage';
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
 import type { TaxonomyCore } from '../../content/api/content-types';
@@ -559,11 +560,18 @@ export function ReviewLibraryPage() {
                   </button>
                 </div>
 
-                <h2 className="mt-3 text-base font-black leading-7 text-gray-900">
-                  {item.question.text || item.question.imageAlt || 'سؤال بصري'}
-                </h2>
+                {!item.question.optionsEmbeddedInImage ? (
+                  <h2 className="mt-3 text-base font-black leading-7 text-gray-900">
+                    {item.question.text || item.question.imageAlt || 'سؤال بصري'}
+                  </h2>
+                ) : null}
+                {item.question.imageAssetId ? (
+                  <div className="mt-3">
+                    <QuestionAssetImage assetId={item.question.imageAssetId} alt={item.question.imageAlt || 'صورة السؤال'} />
+                  </div>
+                ) : null}
 
-                <div className="mt-4 grid gap-2">
+                <div className={`mt-4 grid gap-2 ${item.question.optionsEmbeddedInImage ? 'grid-cols-4' : 'grid-cols-2'}`}>
                   {item.question.options.map((option) => {
                     const correct = item.question.correctOptionIndex === option.index;
                     return (
@@ -579,6 +587,13 @@ export function ReviewLibraryPage() {
                           {optionLetter(option.index)}
                         </span>
                         {item.question.optionsEmbeddedInImage ? '' : option.text}
+                        {!item.question.optionsEmbeddedInImage && option.assetId ? (
+                          <QuestionAssetImage
+                            assetId={option.assetId}
+                            alt={`صورة الخيار ${optionLetter(option.index)}`}
+                            className="mx-auto mt-2 max-h-36 max-w-full rounded-lg object-contain"
+                          />
+                        ) : null}
                         {correct && showAnswer ? <span className="mr-2 inline-flex items-center gap-1 text-xs"><CheckCircle2 size={14} />الإجابة الصحيحة</span> : null}
                       </div>
                     );
