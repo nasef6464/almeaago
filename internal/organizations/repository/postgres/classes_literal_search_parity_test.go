@@ -19,12 +19,12 @@ import (
 func TestClassListLiteralSearchQuery(t *testing.T) {
 	access := org.AccessContext{
 		ActorUserID: "00000000-0000-0000-0000-000000008001",
-		ActorRoles: []identity.Role{identity.RoleSchoolAdmin},
+		ActorRoles:  []identity.Role{identity.RoleSchoolAdmin},
 	}
 	school := "00000000-0000-0000-0000-000000008002"
 	for _, tc := range []struct {
 		name, input, want string
-		filtered bool
+		filtered          bool
 	}{
 		{"percent", "%", "%", true},
 		{"underscore", "_", "_", true},
@@ -104,7 +104,10 @@ func TestClassListLiteralSearchPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	access := org.AccessContext{ActorUserID: actor, ActorRoles: []identity.Role{identity.RoleSchoolAdmin}}
-	for _, tc := range []struct{ search string; want int }{
+	for _, tc := range []struct {
+		search string
+		want   int
+	}{
 		{"%", 2}, {"_", 1}, {"\\", 1},
 		{"  P%  ", 1}, {"  الأول ", 1}, {"  first  ", 1},
 		{"   ", 5}, {"خارج", 0}, {"مؤرشف", 0}, {"absent", 0},
