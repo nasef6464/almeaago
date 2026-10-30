@@ -36,6 +36,7 @@ function load(relative, initialStates = []) {
     if (id.endsWith('/content-client')) return { contentClient: {} };
     if (id.endsWith('/lesson-link-write')) return load('features/content/api/lesson-link-write.ts');
     if (id.endsWith('/LessonEditorPanel')) return load('features/content/components/LessonEditorPanel.tsx');
+    if (id.endsWith('/TaxonomyDisplayEditor')) return load('features/taxonomy/pages/TaxonomyDisplayEditor.tsx');
     if (id.endsWith('/navigation')) return {
       HOMEPAGE_ADMIN_HREF: '/admin-dashboard?tab=homepage', PLATFORM_FONTS_ADMIN_HREF: '/admin-dashboard?tab=platform-fonts',
       isHomepageLocation: () => false, isPlatformFontsLocation: () => false,
