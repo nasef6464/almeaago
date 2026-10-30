@@ -100,7 +100,7 @@ func (navigationRepoStub) PublicBootstrap(context.Context, bool) (taxonomy.Boots
 }
 
 func TestNavigationBootstrapKeepsInactiveProjectionAdminOnly(t *testing.T) {
-	s := NewService(navigationRepoStub{})
+	s := NewService(&navigationRepoStub{})
 	admin, privileged, err := s.NavigationBootstrap(context.Background(), "core", taxonomyActor(identity.RoleAdmin))
 	if err != nil || !privileged || len(admin.Paths) != 1 || admin.Paths[0].ID != "hidden" || len(admin.Skills) != 0 {
 		t.Fatalf("admin navigation projection = %+v privileged=%v err=%v", admin, privileged, err)
