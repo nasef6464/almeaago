@@ -13,12 +13,12 @@ import (
 )
 
 var (
-	ErrInvalidInput        = errors.New("invalid learning request")
-	ErrForbidden           = errors.New("learning operation forbidden")
-	ErrNotFound            = learning.ErrNotFound
-	ErrConflict            = learning.ErrConflict
-	ErrNotDue              = learning.ErrNotDue
-	ErrIncompleteReadiness = errors.New("incomplete mastery readiness evidence")
+	ErrInvalidInput               = errors.New("invalid learning request")
+	ErrForbidden                  = errors.New("learning operation forbidden")
+	ErrNotFound                   = learning.ErrNotFound
+	ErrConflict                   = learning.ErrConflict
+	ErrNotDue                     = learning.ErrNotDue
+	ErrIncompleteReadiness        = errors.New("incomplete mastery readiness evidence")
 	ErrIncompleteReviewProjection = errors.New("incomplete pinned review question projection")
 )
 
