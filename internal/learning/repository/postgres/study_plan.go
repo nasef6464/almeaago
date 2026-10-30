@@ -433,7 +433,7 @@ func (r *Repository) CompletedStudyPlanLessons(
 	}
 	rows, err := r.db.Query(ctx, `
 		SELECT lesson_id::text,course_id::text
-		FROM learning_lesson_progress
+		FROM lesson_progress
 		WHERE student_id=$1::uuid
 		  AND status='completed'
 		  AND (`+strings.Join(conditions, " OR ")+`)
