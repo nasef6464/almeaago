@@ -17,9 +17,9 @@ async function setup(page: Page) {
       showInNavbar: true, showInHome: true,
       settings: { showSubjectCards: true, showMockExamCard: true, showPackageCard: true, studentTemplate: 'standard', stageSelection: 'auto' },
     }],
-    levels: [{ id: 'level-1', pathId: 'path-1', code: 'L1', name: 'المرحلة الأولى', sortOrder: 1, status: 'active' }],
+    levels: [],
     subjects: [{
-      id: 'subject-1', pathId: 'path-1', levelId: 'level-1', code: 'QNT',
+      id: 'subject-1', pathId: 'path-1', code: 'QNT',
       name: 'الكمي', sortOrder: 1, status: 'active', icon: '📘', color: '#4f46e5',
     }],
     skills: [],
@@ -75,7 +75,11 @@ for (const width of [390, 820, 1440]) {
     await editor.getByLabel('إظهار بطاقة الاختبارات المحاكية').uncheck();
     await editor.getByLabel('إظهار بطاقة الباقات').uncheck();
     await editor.getByLabel('قالب مساحة المسار').selectOption('simple');
+    await editor.getByLabel('طريقة اختيار المرحلة').selectOption('none');
+    await expect(editor.getByLabel('تسمية المرحلة')).toBeDisabled();
     await editor.getByLabel('طريقة اختيار المرحلة').selectOption('required');
+    await expect(editor.getByLabel('تسمية المرحلة')).toBeEnabled();
+    await expect(editor.getByText('أضف مرحلة قبل إتاحة تسجيل الطلاب. يمكنك حفظ الإعداد ثم إضافة المراحل من تبويب المراحل.')).toBeVisible();
     await editor.getByLabel('تسمية المرحلة').fill('');
     await expect(editor.getByLabel('تسمية المرحلة')).toHaveValue('');
     await editor.getByRole('button', { name: 'حفظ عرض المسار' }).click();
