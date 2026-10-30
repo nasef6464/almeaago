@@ -92,7 +92,6 @@ func TestCompletedStudyPlanLessonsPostgres(t *testing.T) {
 	}
 }
 
-
 // Round-trip a student's video position and explicit completion through the
 // actual Go repository and PostgreSQL transaction paths. Temporary tables
 // copy migrated defaults and indexes, so no production/student data is touched.
