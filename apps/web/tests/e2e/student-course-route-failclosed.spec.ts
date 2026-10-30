@@ -46,14 +46,29 @@ for (const width of [390, 820, 1440]) {
   test(`course route switch fails closed and browser Back restores original course at ${width}px RTL`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await setup(page);
+    // Hold the next course request to prove the Legacy loading spinner appears
+    // while the previous course and its completion controls stay unmounted.
+    let releaseCourseB: (() => void) | undefined;
+    const heldCourseB = new Promise<void>((resolve) => { releaseCourseB = resolve; });
+    await page.route('**/api/v1/learning-spaces/courses/course-b', async route => {
+      await heldCourseB;
+      await json(route, { message: 'تعذر تحميل الدورة الجديدة' }, 503);
+    });
     await page.goto('/learning/courses/course-a');
     await expect(page.getByText('محتوى الدورة الأولى السري')).toBeVisible();
 
     // Same mounted React Router instance, not a hard navigation/remount.
+    const incomingRequest = page.waitForRequest('**/api/v1/learning-spaces/courses/course-b');
     await page.evaluate(() => {
       window.history.pushState({}, '', '/learning/courses/course-b');
       window.dispatchEvent(new PopStateEvent('popstate'));
     });
+    await incomingRequest;
+    await expect(page.getByTestId('course-loading').locator('svg.animate-spin')).toBeVisible();
+    await expect(page.getByText('الدورة الأولى الخاصة')).toHaveCount(0);
+    await expect(page.getByText('محتوى الدورة الأولى السري')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'تحديد كمكتمل' })).toHaveCount(0);
+    releaseCourseB?.();
 
     await expect(page.getByRole('heading', { name: 'لم نتمكن من فتح الدورة' })).toBeVisible();
     await expect(page.getByText('الدورة الأولى الخاصة')).toHaveCount(0);
