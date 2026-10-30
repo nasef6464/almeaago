@@ -1,4 +1,4 @@
-import { BookOpen, ChevronDown, ChevronUp, Edit2, HelpCircle, Link2, Loader2, Plus, RefreshCcw, Target, Unlink, X } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, Edit2, HelpCircle, Link2, Loader2, Plus, Target, Unlink, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -12,11 +12,9 @@ import {
   taxonomyAdminClient,
   type AdminTaxonomyBootstrap,
   type AdminTaxonomySkill,
-  type TaxonomyStatus,
 } from '../api/taxonomy-admin-client';
 
 const EMPTY: AdminTaxonomyBootstrap = { paths: [], levels: [], subjects: [], skills: [] };
-const statuses: Record<TaxonomyStatus, string> = { active: 'نشط', inactive: 'غير نشط', archived: 'مؤرشف' };
 type SkillDraft = { id?: string; kind: 'main' | 'sub'; subjectId: string; parentSkillId: string; code: string; name: string; description: string; sortOrder: number };
 type LinkedQuestions = { skillId: string; rows: QuestionSummary[]; total: number | null; loading: boolean; error: string };
 type LinkedLessons = { skillId: string; rows: LessonSummary[]; loading: boolean; hasMore: boolean; error: string };
@@ -61,7 +59,7 @@ export function SkillsAdminPage() {
   const visibleSubjectIds = useMemo(() => new Set(subjects.filter((subject) => !subjectFilter || subject.id === subjectFilter).map((subject) => subject.id)), [subjects, subjectFilter]);
   const visibleSkills = useMemo(() => data.skills.filter((skill) => visibleSubjectIds.has(skill.subjectId)), [data.skills, visibleSubjectIds]);
   const mainSkills = useMemo(() => visibleSkills.filter((skill) => skill.kind === 'main').sort((a, b) => a.sortOrder - b.sortOrder), [visibleSkills]);
-  const subSkills = useMemo(() => visibleSkills.filter((skill) => skill.kind === 'sub'), [visibleSkills]);
+  const subSkills = useMemo(() => visibleSkills.filter((skill) => skill.kind === 'sub').sort((a, b) => a.sortOrder - b.sortOrder), [visibleSkills]);
   const subjectName = (id: string) => data.subjects.find((subject) => subject.id === id)?.name || 'غير محدد';
   const pathName = (subjectId: string) => data.paths.find((path) => path.id === data.subjects.find((subject) => subject.id === subjectId)?.pathId)?.name || 'غير محدد';
 
@@ -150,17 +148,6 @@ export function SkillsAdminPage() {
     } finally { setPending(false); }
   }
 
-  async function changeStatus(skill: AdminTaxonomySkill, status: TaxonomyStatus) {
-    if (pending) return;
-    setPending(true); setError(''); setNotice('');
-    try {
-      const csrf = await getCsrfToken();
-      await taxonomyAdminClient.updateSkill(skill.id, { status }, csrf);
-      setNotice(`تم تحديث الحالة إلى «${statuses[status]}».`);
-      setRefresh((value) => value + 1);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'تعذر تحديث حالة المهارة'); }
-    finally { setPending(false); }
-  }
 
   if (authLoading) return <main className="p-10 text-center font-black">جاري التحقق من الصلاحيات...</main>;
   if (!isAdmin) return <main dir="rtl" className="p-10 text-center font-black text-rose-700">مركز المهارات متاح لمدير المنصة فقط.</main>;
@@ -172,7 +159,6 @@ export function SkillsAdminPage() {
         <p className="mt-1 text-sm text-gray-500">المصدر الحقيقي للمهارات في المنصة: المهارات الرئيسة والمهارات الفرعية وربطها بالدروس والأسئلة.</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => setRefresh((value) => value + 1)} aria-label="تحديث المهارات" className="rounded-xl border border-gray-200 bg-white p-2.5 text-slate-600"><RefreshCcw size={18}/></button>
         <button type="button" onClick={() => openCreate('main')} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white shadow-sm hover:bg-indigo-700"><Plus size={18}/> إضافة مهارة رئيسة</button>
       </div>
     </header>
@@ -210,7 +196,6 @@ export function SkillsAdminPage() {
               {expanded ? <ChevronUp size={19} className="text-indigo-600"/> : <ChevronDown size={19} className="text-gray-400"/>}
             </button>
             <button type="button" onClick={() => openEdit(main)} aria-label={`تعديل المهارة الرئيسة ${main.name}`} className="rounded-lg p-2 text-blue-600 hover:bg-blue-50"><Edit2 size={18}/></button>
-            <select aria-label={`حالة المهارة ${main.name}`} value={main.status} onChange={(event) => void changeStatus(main, event.target.value as TaxonomyStatus)} className="rounded-lg border bg-white p-2 text-xs font-bold">{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
           </div>
           {expanded ? <div className="space-y-3 p-5">
             <div className="flex items-center justify-between"><h2 className="font-bold text-gray-800">المهارات الفرعية ({main.name})</h2><button type="button" onClick={() => openCreate('sub', main)} className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700"><Plus size={16}/> إضافة مهارة فرعية</button></div>
@@ -227,7 +212,7 @@ export function SkillsAdminPage() {
                     {subExpanded ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
                   </button>
                   <button type="button" onClick={() => openEdit(sub)} aria-label={`تعديل المهارة الفرعية ${sub.name}`} className="rounded-lg p-2 text-blue-600"><Edit2 size={16}/></button>
-                  <select aria-label={`حالة المهارة ${sub.name}`} value={sub.status} onChange={(event) => void changeStatus(sub, event.target.value as TaxonomyStatus)} className="rounded-lg border bg-white p-2 text-xs">{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+                  
                 </div>
                 {subExpanded ? <section className="space-y-3 border-t p-4" aria-label={`تفاصيل مهارة ${sub.name}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -321,28 +306,36 @@ function LinkLessonDialog({ skill, pathId, getCsrfToken, onClose, onLinked }: {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState('');
+  const [selectedLessonId, setSelectedLessonId] = useState('');
+  const [retry, setRetry] = useState(0);
   const [error, setError] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true); setError('');
+    setLoading(true);
+    setError('');
+    if (page === 1) {
+      setRows([]);
+      setHasMore(false);
+    }
     contentClient.lessons({ page, limit: 50, pathId, subjectId: skill.subjectId }, controller.signal)
       .then((result) => {
-        if (!controller.signal.aborted) {
-          setRows((current) => page === 1 ? result.items : [...current, ...result.items]);
-          setHasMore(result.hasMore);
-        }
+        if (controller.signal.aborted) return;
+        setRows((current) => page === 1 ? result.items : [...current, ...result.items.filter((item) => !current.some((previous) => previous.id === item.id))]);
+        setHasMore(result.hasMore);
       })
       .catch((reason) => {
         if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'تعذر تحميل الدروس المتاحة للربط');
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [page, pathId, skill.subjectId]);
+  }, [page, pathId, skill.subjectId, retry]);
 
-  async function linkLesson(row: LessonSummary) {
-    if (pendingId) return;
-    setPendingId(row.id); setError('');
+  async function linkLesson() {
+    const row = rows.find((item) => item.id === selectedLessonId);
+    if (!row || pendingId || loading) return;
+    setPendingId(row.id);
+    setError('');
     try {
       const detail = (await contentClient.lesson(row.id)).lesson;
       if (detail.subjectId !== skill.subjectId || detail.pathId !== pathId) throw new Error('لا يمكن ربط درس من مادة أو مسار مختلف.');
@@ -355,14 +348,28 @@ function LinkLessonDialog({ skill, pathId, getCsrfToken, onClose, onLinked }: {
     } finally { setPendingId(''); }
   }
 
-  return <div role="presentation" className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-950/60 p-3">
-    <section role="dialog" aria-modal="true" aria-label="ربط درس موجود" className="max-h-[90vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl" dir="rtl">
-      <div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-bold text-gray-900">ربط درس موجود</h2><p className="mt-1 text-sm text-gray-500">مهارة: {skill.name} · الدروس من المادة نفسها فقط</p></div><button type="button" aria-label="إغلاق ربط الدرس" disabled={!!pendingId} onClick={onClose}><X size={20}/></button></div>
+  return <div role="presentation" className="fixed inset-0 z-[75] flex items-center justify-center bg-black/50 p-4">
+    <section role="dialog" aria-modal="true" aria-label="ربط درس موجود" className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-2xl" dir="rtl">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-xl font-bold text-gray-800">ربط درس موجود</h2>
+        <button type="button" aria-label="إغلاق ربط الدرس" disabled={!!pendingId} onClick={onClose} className="rounded-lg p-1 hover:bg-gray-100"><X size={20}/></button>
+      </div>
+      <div>
+        <label htmlFor="skills-lesson-to-link" className="mb-2 block text-sm font-bold text-gray-700">اختر الدرس</label>
+        <select id="skills-lesson-to-link" value={selectedLessonId} disabled={!!pendingId || (loading && rows.length === 0)} onChange={(event) => setSelectedLessonId(event.target.value)} className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-indigo-500">
+          <option value="">-- اختر درسًا --</option>
+          {rows.filter((row) => row.workflowStatus !== 'approved' && row.workflowStatus !== 'archived').map((row) => <option key={row.id} value={row.id}>{row.title}</option>)}
+        </select>
+      </div>
+      {loading ? <p role="status" className="text-sm text-gray-500">جاري تحميل الدروس...</p> : null}
+      {!loading && !error && rows.length === 0 ? <p className="text-sm text-gray-500">لا توجد دروس في هذه المادة للربط.</p> : null}
       {error ? <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p> : null}
-      {loading && rows.length === 0 ? <p role="status" className="text-sm text-gray-500">جاري تحميل الدروس...</p> : null}
-      {!loading && !error && rows.length === 0 ? <p className="rounded-xl border border-dashed p-5 text-center text-sm text-gray-500">لا توجد دروس في هذه المادة للربط.</p> : null}
-      <ul className="space-y-2">{rows.map((row) => <li key={row.id} className="flex flex-wrap items-center gap-3 rounded-xl border p-3"><span className="min-w-0 flex-1"><b className="block truncate text-sm">{row.title}</b><span className="text-xs text-gray-500">{row.workflowStatus}</span></span><button type="button" disabled={!!pendingId || row.workflowStatus === 'approved' || row.workflowStatus === 'archived'} onClick={() => void linkLesson(row)} aria-label={`ربط الدرس ${row.title}`} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40">{pendingId === row.id ? 'جارٍ الربط...' : 'ربط'}</button></li>)}</ul>
-      {hasMore ? <button type="button" disabled={loading || !!pendingId} onClick={() => setPage((current) => current + 1)} className="rounded-lg border px-3 py-2 text-sm font-bold text-indigo-700">عرض المزيد من الدروس</button> : null}
+      {error && !pendingId ? <button type="button" onClick={() => setRetry((value) => value + 1)} className="text-sm font-bold text-indigo-700">إعادة المحاولة</button> : null}
+      {hasMore && !error ? <button type="button" disabled={loading || !!pendingId} onClick={() => setPage((current) => current + 1)} className="text-sm font-bold text-indigo-700">عرض المزيد من الدروس</button> : null}
+      <div className="flex justify-end gap-3">
+        <button type="button" disabled={!!pendingId} onClick={onClose} className="px-4 py-2 font-bold text-gray-600 hover:bg-gray-100">إلغاء</button>
+        <button type="button" disabled={!selectedLessonId || !!pendingId || loading} onClick={() => void linkLesson()} className="rounded-lg bg-indigo-600 px-5 py-2 font-bold text-white disabled:opacity-50">{pendingId ? 'جارٍ الربط...' : 'ربط'}</button>
+      </div>
     </section>
   </div>;
 }
