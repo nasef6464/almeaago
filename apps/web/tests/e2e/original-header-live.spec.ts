@@ -112,7 +112,7 @@ test.describe('original full Header on native Go data',()=>{
      if(state==='path'||state==='level')await openPath(page,state==='level');
      if(state==='mock-exams')await openMockExams(page);
      if(state==='more')await openMore(page);
-     if(state==='account')await openAccount(page,role);
+     if(state==='account'&&role!=='guest')await openAccount(page,role);
      if(state==='mobile'){
       await page.getByRole('button',{name:'فتح القائمة',exact:true}).click();
       const header=page.locator('header').first();
