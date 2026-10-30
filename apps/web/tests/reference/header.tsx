@@ -1,6 +1,13 @@
 // Header component comparison only, not the original whole application shell.
 // Both variants share real providers, data, fonts, body size and sticky scroll state.
 import {createRoot} from 'react-dom/client';
+import {useEffect,useState} from 'react';
+
+declare global {
+ interface Window {
+  __setHeaderVariant?: (variant:'source'|'go')=>void;
+ }
+}
 import {BrowserRouter} from 'react-router-dom';
 import {AuthProvider,useAuth} from '../../src/features/auth/state/AuthProvider';
 import {StudentNavigationProvider,StudentPathBar,useStudentExperience} from '../../src/features/learning/navigation';
@@ -10,7 +17,11 @@ import {Header as Go} from '../../src/features/public/header/OriginalHeader';
 import '../../src/app/styles.css';
 function Reference(){
  const auth=useAuth();const navigation=useStudentExperience();
- const source=new URLSearchParams(location.search).get('variant')!=='go';
+ const [source,setSource]=useState(new URLSearchParams(location.search).get('variant')!=='go');
+ useEffect(()=>{
+  window.__setHeaderVariant=(variant)=>setSource(variant==='source');
+  return ()=>{delete window.__setHeaderVariant};
+ },[]);
  return <><PlatformFontBootstrap/>{source?<Original/>:<Go/>}<StudentPathBar/>
  <main data-testid="header-reference-body" data-ready={!auth.loading&&!navigation.loading?'true':'false'} style={{minHeight:'200vh'}}/>
  </>;
