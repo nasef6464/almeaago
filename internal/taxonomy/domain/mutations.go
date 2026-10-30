@@ -18,6 +18,9 @@ func ValidStatus(status Status) bool {
 }
 
 type PathWrite struct {
+	ShowInHome   *bool         `json:"showInHome,omitempty"`
+	ShowInNavbar *bool         `json:"showInNavbar,omitempty"`
+	Settings     *PathSettings `json:"settings,omitempty"`
 	Code         string
 	Name         string
 	ParentPathID string
@@ -26,6 +29,9 @@ type PathWrite struct {
 }
 
 type PathPatch struct {
+	ShowInHome   *bool         `json:"showInHome,omitempty"`
+	ShowInNavbar *bool         `json:"showInNavbar,omitempty"`
+	Settings     *PathSettings `json:"settings,omitempty"`
 	Name         *string
 	ParentPathID *string
 	Description  *string
@@ -47,6 +53,8 @@ type LevelPatch struct {
 }
 
 type SubjectWrite struct {
+	Icon      *string `json:"icon,omitempty"`
+	Color     *string `json:"color,omitempty"`
 	PathID    string
 	LevelID   string
 	Code      string
@@ -55,6 +63,8 @@ type SubjectWrite struct {
 }
 
 type SubjectPatch struct {
+	Icon      *string `json:"icon,omitempty"`
+	Color     *string `json:"color,omitempty"`
 	Name      *string
 	LevelID   *string
 	SortOrder *int
