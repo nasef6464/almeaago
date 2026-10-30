@@ -306,10 +306,10 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
   return (
     <header className="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm font-sans dark:bg-gray-950 dark:border-gray-800">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16 sm:h-20 gap-3">
+        <div className="flex justify-between items-center min-h-16 sm:min-h-20 py-1 gap-3">
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <button
-              className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+              className="xl:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
               onClick={() => setIsMobileMenuOpen((value) => !value)}
               aria-label={isMobileMenuOpen ? 'إغلاق القائمة' : 'فتح القائمة'}
             >
@@ -341,7 +341,7 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
             </Link>
           </div>
 
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden min-w-0 flex-1 flex-wrap items-center justify-center gap-x-1 gap-y-0 xl:flex">
             {showNavigationLoading ? (
               <div className="flex items-center gap-3 px-3 py-2" aria-label="جارٍ تجهيز قائمة المنصة">
                 {Array.from({ length: 4 }).map((_, index) => (
@@ -641,7 +641,7 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
       </div>
 
       {isMobileMenuOpen ? (
-        <div className="md:hidden fixed inset-0 z-40 bg-white overflow-y-auto pb-20 animate-fade-in">
+        <div className="xl:hidden fixed inset-0 z-40 bg-white overflow-y-auto pb-20 animate-fade-in">
           <div className="p-4 pt-20">
             {navigationMenu.map((item, index) => {
               const icon = item.iconName ? NavIcons[item.iconName] : null;
@@ -926,7 +926,7 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
                       )}
                     </div>
                     {/* Guidance tip when typing numbers */}
-                    {/^\d+$/.test(smartInput.trim()) && (
+                    {/^\d+$/.test(toAsciiDigits(smartInput.trim())) && (
                       <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
                         {smartInputType === 'nationalId'
                           ? '✓ رقم هوية وطنية معتمد (10 أرقام تبدأ بـ 1 أو 2)'

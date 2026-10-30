@@ -10,16 +10,17 @@ async function auth(page:Page,user:typeof admin|typeof student|typeof parent){
 }
 async function fakeNotificationStream(page:Page){
  await page.addInitScript(()=>{
+  const streams:FakeEventSource[]=[];
   class FakeEventSource{
    listeners:Record<string,Array<()=>void>>={};
-   constructor(){(window as any).__notificationStream=this;setTimeout(()=>this.emit('connected'),0)}
+   constructor(){streams.push(this);setTimeout(()=>this.emit('connected'),0)}
    addEventListener(type:string,listener:()=>void){(this.listeners[type]??=[]).push(listener)}
    removeEventListener(type:string,listener:()=>void){this.listeners[type]=(this.listeners[type]||[]).filter(row=>row!==listener)}
    emit(type:string){for(const listener of this.listeners[type]||[])listener()}
    close(){}
   }
   Object.defineProperty(window,'EventSource',{configurable:true,value:FakeEventSource});
-  (window as any).__emitNotification=()=>((window as any).__notificationStream as FakeEventSource|undefined)?.emit('notification');
+  (window as any).__emitNotification=()=>streams.forEach(stream=>stream.emit('notification'));
  });
 }
 

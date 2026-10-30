@@ -255,6 +255,13 @@ for (const width of [390, 820, 1440]) {
     await page.goto('/');
     await expect(page.getByRole('heading',{name:'مسار اختبار 7',exact:true})).toBeVisible();
     await expect(page.locator('main a[href^="/learning?pathId="]')).toHaveCount(8);
+    if(width<1280){
+      await expect(page.getByRole('button',{name:'فتح القائمة'})).toBeVisible();
+      await expect(page.locator('header nav')).toBeHidden();
+    }else{
+      await expect(page.locator('header nav')).toBeVisible();
+      await expect(page.getByRole('button',{name:'فتح القائمة'})).toBeHidden();
+    }
     await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.screenshot({path:`test-results/homepage-all-paths-${width}.png`,fullPage:true});
   });
