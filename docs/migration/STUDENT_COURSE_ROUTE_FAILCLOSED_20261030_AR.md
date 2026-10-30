@@ -41,3 +41,9 @@ Acceptance: A→B client-side route transition must not display A's course/lesso
 | Production, scoring, payments, RBAC, migration | NOT TOUCHED | No deployment, merge, cutover, production write or policy change. |
 
 **Next:** inspect exact-head Frontend/E2E results and fix failures. Then implement the missing original course overview/tab/explicit-start journey as a separate scoped slice without inventing substitute UI; run real authenticated Go→PostgreSQL tests and paired Legacy↔Go screenshots before any parity claim.
+
+## CI follow-up: first full-browser run
+
+On commit `d51ce2addedecb0af0ecf47018938c5e2b30ab08`, Backend, Frontend and Database CI succeeded. Full Frontend E2E run [41018996644](https://github.com/nasef6464/almeaago/actions/runs/41018996644) reported **217 PASS / 4 FAIL / 3 SKIPPED**. Three failures were in the separately owned `admin-taxonomy-null-error-retry.spec.ts` (select control timeout, not changed in this branch). The fourth was this slice's mobile assertion: it used `.first().toBeVisible()` for a course title, selecting the intentionally hidden `md:block` desktop header at 390px; course content and Back had already passed. The assertion was corrected to verify restored title text without requiring the desktop header to be visible on mobile.
+
+A focused `.github/workflows/student-course-route.yml` now runs only this slice's four browser cases (3 responsive + wrong-course HTTP) and uploads evidence. **Do not report focused or full E2E green until the exact final SHA run finishes.** Keep the three admin-taxonomy failures owned by that team; do not weaken or edit their tests here.
