@@ -69,6 +69,7 @@ test('disabled original sections in a direct URL fail closed to the working stud
  await page.goto('/supervisor-dashboard?tab=tests');
  const nav=page.getByRole('navigation',{name:'أقسام لوحة المشرف'});
  await expect(nav.getByRole('button',{name:'تعلم الطلاب وجاهزيتهم'})).toHaveAttribute('aria-current','page');
+ await nav.locator('summary',{hasText:'الاختبارات والمراقبة'}).click();
  await expect(nav.getByRole('button',{name:'الاختبارات والتحليل'})).toBeDisabled();
  await expect(page.getByText('طالب الأولى')).toBeVisible();
  await nav.locator('summary',{hasText:'الرئيسية'}).click();
