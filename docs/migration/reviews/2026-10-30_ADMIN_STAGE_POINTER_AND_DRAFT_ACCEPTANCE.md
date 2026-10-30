@@ -1,34 +1,33 @@
-# ADMIN-TAXONOMY-FAIL-02 — stage create: pointer hit-testing and failed-save draft (2026-10-30)
+# ADMIN-PATH-STAGE-ORIGINAL-MODAL — source-backed RED contract (2026-10-30)
 
-## Immutable references and single-writer ownership
-- Legacy read-only: `nasef6464/almeaacodax/main@bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7`.
+## Immutable references
+- Legacy: `nasef6464/almeaacodax/main@bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7` — read-only.
 - Go base: `nasef6464/almeaago/main@98b0f6d9ad0bba031936d950d087c0bd3d19b7bb`.
-- UI owner **#160**: `TaxonomyAdminPage.tsx`; this PR never edits it.
-- #199 already covers failed-save path/subject/path-edit. **#160 already covers Skills Center sub-skill failed save and keeps that editor independent**; do not duplicate those tests. This PR tests only the **missing stage-create flow**.
-- No header, school, student, scoring, payments, RBAC, schema or production changes.
+- **Legacy authority**: `dashboards/admin/PathsManager.tsx` lines ~1265–1280 and ~2062–2116.
+- Go owner: **PR #160**, `TaxonomyAdminPage.tsx`. This PR adds only an independent test file and this handoff; no owner files touched.
+- #199 covers path/subject/edit failed-save; #160 already covers independent Skills Center sub-skill retry. No duplication. Skills center remains separate.
 
-## Two independent failures evidenced in CI on initial HEAD
-The initial browser run `41013392524` on `175002e10633e160212b599a8bc0bff10689157f` produced 12 failures, 136 passes, 3 skips. Log analysis:
-1. Stage-create button's **real pointer click** is intercepted by the adjacent material-code input. Playwright logs repeatedly show `<input aria-label="كود المادة الجديدة"> ... intercepts pointer events`. This is a layout/hit-testing defect, not a server failure; check `lg:grid-cols-2` and `sm:grid-cols-[1fr_1fr_auto]` and min-width/overflow of both cards. Do not use `force: true` as a parity fix.
-2. Sub-skill code was reset after HTTP 409/503 in **main's old combined taxonomy page**. This behavior is already addressed by #160's independent `SkillsAdminPage.tsx::saveSkill()` and its existing test. The obsolete skill tests were removed from this PR to avoid testing a component that #160 replaces.
+## Actual source contract — not a Go redesign
+In the original **selected path workspace → المراحل الدراسية** tab, the action is **«إضافة مرحلة دراسية»**, not an inline `كود المرحلة الجديدة` + `اسم المرحلة الجديدة` grid. Clicking it opens a centered modal with:
+- contextual `مسار [اسم المسار] / المراحل الدراسية`, title **«إضافة مرحلة دراسية»**;
+- **«اسم المرحلة»** text input and **«أيقونة المرحلة الدراسية»** picker/upload/clear;
+- **«إلغاء»** and **«إضافة»** actions; edit mode uses the same modal with **«حفظ التعديلات»**.
+- On cancel the modal closes without creating a stage. No new buttons, counters, code inputs or re-grouping may be introduced to replace this flow.
 
-## Actor → action → HTTP → Go → PostgreSQL → consumer
-Admin selects a path, fills stage code/name, and clicks `إنشاء المرحلة`:
-- Real pointer must hit the stage-create button at 390, 820 and 1440 RTL, without adjacent inputs intercepting it.
-- `POST /api/v1/taxonomy/admin/levels` with CSRF returns 409 or 503: error visible; both code/name preserved; no success notice; no auto retry; existing tree unchanged.
-- Explicit second click and HTTP 201: draft clears, server bootstrap reflects the new stage, and browser reload still shows it.
-- Follow-up real PostgreSQL evidence required: `levels` insert, rollback on failure, audit only on success, admin vs non-admin auth/CSRF and learner visibility. Mocked HTTP does not prove storage.
-- Paired Legacy↔Go screenshots at 390/820/1440 with same actor/data/states remain required.
+Go main and PR #160 currently show an **invented inline stage form** with code/name and `إنشاء المرحلة` inside a two-card grid. This is a **source-proven UI parity gap**, regardless of whether CRUD works. The implementation must adapt the Go API to the original modal, including any internal stable code generation, without showing an invented code field. Do not silently change server identifiers or persist unrelated data.
 
-## Independent RED tests
-`apps/web/tests/e2e/admin-taxonomy-stage-failed-save.spec.ts`:
-- 3 widths × 2 HTTP failures × 2 test modes = **12 cases**.
-- Mode A: genuine Playwright pointer click; catches overlapping layout and then tests draft/retry.
-- Mode B: `dispatchEvent('click')` isolates draft-retention logic despite overlapping layout. **Mode B is never UI-clickability evidence.**
-- No production files are changed. Expected RED until #160 owner fixes the layout and failure-safe stage draft. No weakening assertions/skips.
-- Frontend, Backend and Database green on an unrelated test-only head do not certify UI parity.
+## Separate pointer obstruction found in the initial exploratory RED
+Browser CI `41013392524` on `175002e10633e160212b599a8bc0bff10689157f`: 12 FAIL, 136 PASS, 3 SKIP. Stage's **current Go-only** `إنشاء المرحلة` button was intercepted by the adjacent material-code input (Playwright log: `<input aria-label="كود المادة الجديدة"> ... intercepts pointer events`). The old combined Go skill form also reset its draft after 409/503, but #160 already replaces it with a failure-safe independent Skills Center. Both interim tests were removed from the final PR: **we must not lock the invented inline form into acceptance**. The pointer issue remains evidence of current Go defect, but disappears if the owner correctly restores the original modal.
 
-## Required owner fix
-Inside **#160** only, make `run()` return explicit success, clear stage draft only after 2xx, preserve inputs on 409/503, and fix the overlapping responsive grid so the real button is reachable. Rerun #199 and this PR's 12 cases on the same combined code. Maintain Skills Center separate from paths. A stacked/merged acceptance decision requires exact-head CI and real PostgreSQL + paired visual proof; no merge/deploy in this checkpoint.
+## Acceptance tests and state trace
+`apps/web/tests/e2e/admin-legacy-stage-modal-parity-red.spec.ts` has **9 cases** (3 original flows × 390/820/1440 RTL):
+1. Selected path stage action and **absence** of invented inline stage code/create controls.
+2. Modal title, name, icon picker, cancel/add, and cancel closes without persistence.
+3. Admin → stage modal → name/icon → POST `/api/v1/taxonomy/admin/levels` → simulated HTTP 503 retains modal/draft → explicit retry 201 → bootstrap reload displays saved stage.
 
-**Status:** PARTIAL / RED acceptance; implementation blocked by file ownership, not by lack of a known root cause.
+Mocked HTTP does **not** prove Go/PostgreSQL. Follow-up: real session+CSRF+role denial, PostgreSQL `levels` insert/audit, failed write rollback, read/reload, same-role/data paired Legacy↔Go images at 390/820/1440 including dialog/error/success states. API adapter must preserve the stable stage identity and avoid hidden server-side behavior changes.
+
+## Owner handoff
+#160 must restore the original **path card → path workspace → stages tab → stage modal** rather than merely fixing the current inline form's overlap. Keep Skills Center separate. Rerun #199, #206, #160 tests, and this PR's RED cases; no skipped/relaxed assertions. No main merge, deployment, cutover, scoring/payments/RBAC or Legacy/production writes.
+
+**Status: PARTIAL / RED pending final exact-head CI.** Test-only acceptance and source-level discovery; full runtime/visual and real DB parity remain unproved.
