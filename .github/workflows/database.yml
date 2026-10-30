@@ -83,19 +83,8 @@ jobs:
         env:
           DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
           NAVIGATION_TEST_DB: "1"
-        run: go test ./internal/learning/navigation -run '^TestPostgresSaveReloadIsolationForeignLevelAndAuditRollback        env:
-          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
-          HOMEPAGE_TEST_DB: "1"
-        run: go test ./internal/content/repository/postgres -run '^TestHomepageSettingsHTTPPostgres$' -count=1 -v
+        run: go test ./internal/learning/navigation -run '^TestPostgresSaveReloadIsolationForeignLevelAndAuditRollback$' -count=1 -v
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Install browser integration dependencies
-        working-directory: apps/web
-        run: |
-          npm install --no-audit --no-fund
-          npx playwright install --with-deps chromium
       - name: Verify homepage editor through real Go sessions and PostgreSQL
         env:
           DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
