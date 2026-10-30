@@ -51,25 +51,30 @@ export function TaxonomyDisplayEditor({ path, levelCount, subject, pending, save
           <p className="text-xs font-black text-indigo-700">عرض المسار</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <label className="flex items-center gap-2 rounded-xl border bg-white p-3 text-sm font-bold">
-            <input aria-label="إظهار المسار في القائمة العلوية" type="checkbox" checked={showInNavbar} onChange={event => setShowInNavbar(event.target.checked)} />
-            إظهار المسار في القائمة العلوية
+            <input aria-label="إظهار هذا المسار في القائمة العلوية الرئيسة" type="checkbox" checked={showInNavbar} onChange={event => setShowInNavbar(event.target.checked)} />
+            إظهار هذا المسار في القائمة العلوية الرئيسة
           </label>
           <label className="flex items-center gap-2 rounded-xl border bg-white p-3 text-sm font-bold">
             <input aria-label="إظهار المسار في الصفحة الرئيسية" type="checkbox" checked={showInHome} onChange={event => setShowInHome(event.target.checked)} />
             إظهار المسار في الصفحة الرئيسية
           </label>
-          <label className="flex items-center gap-2 rounded-xl border bg-white p-3 text-sm font-bold">
-            <input aria-label="إظهار بطاقات المواد" type="checkbox" checked={showSubjectCards} onChange={event => setShowSubjectCards(event.target.checked)} />
-            إظهار بطاقات المواد
-          </label>
-          <label className="flex items-center gap-2 rounded-xl border bg-white p-3 text-sm font-bold">
-            <input aria-label="إظهار بطاقة الاختبارات المحاكية" type="checkbox" checked={showMockExamCard} onChange={event => setShowMockExamCard(event.target.checked)} />
-            إظهار بطاقة الاختبارات المحاكية
-          </label>
-          <label className="flex items-center gap-2 rounded-xl border bg-white p-3 text-sm font-bold">
-            <input aria-label="إظهار بطاقة الباقات" type="checkbox" checked={showPackageCard} onChange={event => setShowPackageCard(event.target.checked)} />
-            إظهار بطاقة الباقات
-          </label>
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3">
+            <p className="mb-3 text-sm font-black text-indigo-800">بطاقات صفحة المسار</p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <label className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-bold text-gray-700">
+                <input aria-label="المواد" type="checkbox" checked={showSubjectCards} onChange={event => setShowSubjectCards(event.target.checked)} />
+                المواد
+              </label>
+              <label className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-bold text-gray-700">
+                <input aria-label="الاختبارات التجريبية" type="checkbox" checked={showMockExamCard} onChange={event => setShowMockExamCard(event.target.checked)} />
+                الاختبارات التجريبية
+              </label>
+              <label className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-bold text-gray-700">
+                <input aria-label="الباقات" type="checkbox" checked={showPackageCard} onChange={event => setShowPackageCard(event.target.checked)} />
+                الباقات
+              </label>
+            </div>
+          </div>
         </div>
         </div>
 
