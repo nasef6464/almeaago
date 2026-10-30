@@ -18,7 +18,10 @@ type Props = {
 export function TaxonomyDisplayEditor({ path, subject, pending, savePath, saveSubject }: Props) {
   const [showInNavbar, setShowInNavbar] = useState(path.showInNavbar !== false);
   const [showInHome, setShowInHome] = useState(path.showInHome !== false);
+  const [showSubjectCards, setShowSubjectCards] = useState(path.settings?.showSubjectCards !== false);
   const [showMockExamCard, setShowMockExamCard] = useState(path.settings?.showMockExamCard !== false);
+  const [showPackageCard, setShowPackageCard] = useState(path.settings?.showPackageCard !== false);
+  const [studentTemplate, setStudentTemplate] = useState(path.settings?.studentTemplate ?? 'standard');
   const [stageSelection, setStageSelection] = useState(path.settings?.stageSelection ?? 'auto');
   const [stageLabel, setStageLabel] = useState(path.settings?.stageLabel ?? '');
   const [icon, setIcon] = useState(subject?.icon ?? '');
@@ -27,10 +30,13 @@ export function TaxonomyDisplayEditor({ path, subject, pending, savePath, saveSu
   useEffect(() => {
     setShowInNavbar(path.showInNavbar !== false);
     setShowInHome(path.showInHome !== false);
+    setShowSubjectCards(path.settings?.showSubjectCards !== false);
     setShowMockExamCard(path.settings?.showMockExamCard !== false);
+    setShowPackageCard(path.settings?.showPackageCard !== false);
+    setStudentTemplate(path.settings?.studentTemplate ?? 'standard');
     setStageSelection(path.settings?.stageSelection ?? 'auto');
     setStageLabel(path.settings?.stageLabel ?? '');
-  }, [path.id, path.showInNavbar, path.showInHome, path.settings?.showMockExamCard, path.settings?.stageSelection, path.settings?.stageLabel]);
+  }, [path.id, path.showInNavbar, path.showInHome, path.settings?.showSubjectCards, path.settings?.showMockExamCard, path.settings?.showPackageCard, path.settings?.studentTemplate, path.settings?.stageSelection, path.settings?.stageLabel]);
 
   useEffect(() => {
     setIcon(subject?.icon ?? '');
@@ -50,14 +56,29 @@ export function TaxonomyDisplayEditor({ path, subject, pending, savePath, saveSu
             <input aria-label="إظهار المسار في الصفحة الرئيسية" type="checkbox" checked={showInHome} onChange={event => setShowInHome(event.target.checked)} />
             إظهار المسار في الصفحة الرئيسية
           </label>
-          <label className="flex items-center gap-2 rounded-xl border bg-white p-3 text-sm font-bold sm:col-span-2">
+          <label className="flex items-center gap-2 rounded-xl border bg-white p-3 text-sm font-bold">
+            <input aria-label="إظهار بطاقات المواد" type="checkbox" checked={showSubjectCards} onChange={event => setShowSubjectCards(event.target.checked)} />
+            إظهار بطاقات المواد
+          </label>
+          <label className="flex items-center gap-2 rounded-xl border bg-white p-3 text-sm font-bold">
             <input aria-label="إظهار بطاقة الاختبارات المحاكية" type="checkbox" checked={showMockExamCard} onChange={event => setShowMockExamCard(event.target.checked)} />
             إظهار بطاقة الاختبارات المحاكية
+          </label>
+          <label className="flex items-center gap-2 rounded-xl border bg-white p-3 text-sm font-bold">
+            <input aria-label="إظهار بطاقة الباقات" type="checkbox" checked={showPackageCard} onChange={event => setShowPackageCard(event.target.checked)} />
+            إظهار بطاقة الباقات
           </label>
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="grid gap-1 text-xs font-black text-gray-700">
+          قالب مساحة المسار
+          <select aria-label="قالب مساحة المسار" value={studentTemplate} onChange={event => setStudentTemplate(event.target.value as 'standard'|'simple')} className="rounded-xl border bg-white px-3 py-2.5 text-sm font-bold">
+            <option value="standard">قياسي</option>
+            <option value="simple">مبسط</option>
+          </select>
+        </label>
         <label className="grid gap-1 text-xs font-black text-gray-700">
           طريقة اختيار المرحلة
           <select aria-label="طريقة اختيار المرحلة" value={stageSelection} onChange={event => setStageSelection(event.target.value as 'auto'|'required'|'none')} className="rounded-xl border bg-white px-3 py-2.5 text-sm font-bold">
@@ -75,7 +96,7 @@ export function TaxonomyDisplayEditor({ path, subject, pending, savePath, saveSu
       <button type="button" disabled={pending === 'display-path'} onClick={() => void savePath({
         showInNavbar,
         showInHome,
-        settings: { showMockExamCard, stageSelection, stageLabel: stageLabel.trim() },
+        settings: { showSubjectCards, showMockExamCard, showPackageCard, studentTemplate, stageSelection, stageLabel: stageLabel.trim() },
       })} className="rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">
         {pending === 'display-path' ? 'جارٍ الحفظ...' : 'حفظ عرض المسار'}
       </button>
