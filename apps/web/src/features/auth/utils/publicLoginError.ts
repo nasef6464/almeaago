@@ -13,7 +13,7 @@ export function legacyLoginErrorMessage(message: string): string {
   if (/Too many authentication attempts/i.test(message)) {
     return 'محاولات دخول كثيرة من هذه الشبكة. انتظر قليلًا، أو استخدم «نسيت كلمة المرور» إذا نسيتها.';
   }
-  if (/Invalid email or password|رقم الهوية أو كلمة المرور غير صحيحة|الجوال أو كلمة المرور/i.test(message)) {
+  if (/Invalid credentials|Invalid email or password|رقم الهوية أو كلمة المرور غير صحيحة|الجوال أو كلمة المرور/i.test(message)) {
     return 'بيانات الدخول غير صحيحة. راجعها، وإذا نسيت كلمة المرور اضغط «نسيت كلمة المرور» بدل تكرار المحاولات.';
   }
   return message;
