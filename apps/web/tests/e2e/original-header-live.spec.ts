@@ -12,6 +12,7 @@ async function ready(page:Page,url:string){
  await page.goto(url);await font;
  if(url.startsWith('/tests/reference/'))await expect(page.getByTestId('header-reference-body')).toHaveAttribute('data-ready','true');
  await expect(page.locator('header').first().getByRole('button',{name:'فتح البحث',exact:true})).toBeVisible();
+ await expect(page.locator('header').first().getByRole('button',{name:'الإشعارات',exact:true})).toBeVisible();
  await expect(page.getByLabel('جارٍ تجهيز قائمة المنصة')).toHaveCount(0);
  const header=page.locator('header').first();
  const width=page.viewportSize()?.width??0;
@@ -34,8 +35,8 @@ async function openPath(page:Page,level=false){
  const nav=page.locator('header').first().locator('nav');
  await nav.getByRole('link',{name:'قدرات',exact:true}).hover();
  await expect(nav.getByRole('link',{name:'مسار فرعي',exact:true})).toHaveAttribute('href','/category/'+env('HEADER_CHILD_PATH_ID'));
- await expect(nav.getByRole('link',{name:'اختبارات محاكية قدرات',exact:true})).toHaveAttribute('href','/category/'+env('HEADER_PATH_ID')+'?tab=mock-exams');
- await expect(nav.getByRole('link',{name:'عروض وباقات قدرات',exact:true})).toHaveAttribute('href','/category/'+env('HEADER_PATH_ID')+'?tab=packages');
+ const mock=nav.locator('a[href="/category/'+env('HEADER_PATH_ID')+'?tab=mock-exams"]');await expect(mock).toBeVisible();await expect(mock).toContainText('اختبارات محاكية قدرات');
+ const packages=nav.locator('a[href="/category/'+env('HEADER_PATH_ID')+'?tab=packages"]');await expect(packages).toBeVisible();await expect(packages).toContainText('عروض وباقات قدرات');
  const stage=nav.getByRole('button',{name:/المرحلة المتوسطة/});await expect(stage).toBeVisible();
  if(level){await stage.hover();await expect(nav.getByRole('link',{name:'رياضيات',exact:true})).toBeVisible()}
 }
