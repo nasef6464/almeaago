@@ -22,8 +22,11 @@ function Reference(){
   window.__setHeaderVariant=(variant)=>setSource(variant==='source');
   return ()=>{delete window.__setHeaderVariant};
  },[]);
- return <><PlatformFontBootstrap/>{source?<Original/>:<Go/>}<StudentPathBar/>
- <main data-testid="header-reference-body" data-variant={source?'source':'go'} data-ready={!auth.loading&&!navigation.loading?'true':'false'} style={{minHeight:'200vh'}}/>
+ return <><PlatformFontBootstrap/>
+  <div data-header-variant="source" data-visible={source?'true':'false'} style={{display:source?'contents':'none'}}><Original/></div>
+  <div data-header-variant="go" data-visible={source?'false':'true'} style={{display:source?'none':'contents'}}><Go/></div>
+  <StudentPathBar/>
+  <main data-testid="header-reference-body" data-variant={source?'source':'go'} data-ready={!auth.loading&&!navigation.loading?'true':'false'} style={{minHeight:'200vh'}}/>
  </>;
 }
 createRoot(document.getElementById('root')!).render(<BrowserRouter><AuthProvider><StudentNavigationProvider><Reference/></StudentNavigationProvider></AuthProvider></BrowserRouter>);
