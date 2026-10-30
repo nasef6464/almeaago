@@ -1,5 +1,20 @@
 export type TaxonomyStatus='active'|'inactive'|'archived';
 
+export interface PathDisplaySettings {
+  stageSelection?: 'auto'|'required'|'none';
+  stageLabel?: string;
+  showMockExamCard?: boolean;
+}
+export interface PathDisplayInput {
+  showInHome?: boolean;
+  showInNavbar?: boolean;
+  settings?: PathDisplaySettings;
+}
+export interface SubjectDisplayInput {
+  icon?: string;
+  color?: string;
+}
+
 export interface AdminTaxonomyPath{
   id:string;
   code:string;
@@ -8,6 +23,10 @@ export interface AdminTaxonomyPath{
   description:string;
   sortOrder:number;
   status:TaxonomyStatus;
+  isActive?:boolean;
+  showInHome?:boolean;
+  showInNavbar?:boolean;
+  settings?:PathDisplaySettings;
 }
 export interface AdminTaxonomyLevel{
   id:string;
@@ -25,6 +44,8 @@ export interface AdminTaxonomySubject{
   name:string;
   sortOrder:number;
   status:TaxonomyStatus;
+  icon?:string;
+  color?:string;
 }
 export interface AdminTaxonomySkill{
   id:string;
@@ -62,16 +83,18 @@ async function request<T>(path:string,init:RequestInit={}):Promise<T>{
   }
   return response.json() as Promise<T>;
 }
-function mutation(path:string,method:'POST'|'PATCH',body:unknown,csrf:string){
-  return request<unknown>(path,{method,headers:{'X-CSRF-Token':csrf},body:JSON.stringify(body)});
+async function mutation(path:string,method:'POST'|'PATCH',body:unknown,csrf:string){
+  const result=await request<unknown>(path,{method,headers:{'X-CSRF-Token':csrf},body:JSON.stringify(body)});
+  if(typeof window!=='undefined')window.dispatchEvent(new Event('almeaa:taxonomy-updated'));
+  return result;
 }
 
 export const taxonomyAdminClient={
   bootstrap(signal?:AbortSignal){return request<AdminTaxonomyBootstrap>('/api/v1/taxonomy/admin/bootstrap',{signal})},
-  createPath(input:{code:string;name:string;parentPathId:string;description:string;sortOrder:number},csrf:string){
+  createPath(input:{code:string;name:string;parentPathId:string;description:string;sortOrder:number}&PathDisplayInput,csrf:string){
     return mutation('/api/v1/taxonomy/admin/paths','POST',input,csrf);
   },
-  updatePath(id:string,input:Partial<{name:string;parentPathId:string;description:string;sortOrder:number;status:TaxonomyStatus}>,csrf:string){
+  updatePath(id:string,input:Partial<{name:string;parentPathId:string;description:string;sortOrder:number;status:TaxonomyStatus}>&PathDisplayInput,csrf:string){
     return mutation(`/api/v1/taxonomy/admin/paths/${encodeURIComponent(id)}`,'PATCH',input,csrf);
   },
   createLevel(input:{pathId:string;code:string;name:string;sortOrder:number},csrf:string){
@@ -80,10 +103,10 @@ export const taxonomyAdminClient={
   updateLevel(id:string,input:Partial<{name:string;sortOrder:number;status:TaxonomyStatus}>,csrf:string){
     return mutation(`/api/v1/taxonomy/admin/levels/${encodeURIComponent(id)}`,'PATCH',input,csrf);
   },
-  createSubject(input:{pathId:string;levelId:string;code:string;name:string;sortOrder:number},csrf:string){
+  createSubject(input:{pathId:string;levelId:string;code:string;name:string;sortOrder:number}&SubjectDisplayInput,csrf:string){
     return mutation('/api/v1/taxonomy/admin/subjects','POST',input,csrf);
   },
-  updateSubject(id:string,input:Partial<{name:string;levelId:string;sortOrder:number;status:TaxonomyStatus}>,csrf:string){
+  updateSubject(id:string,input:Partial<{name:string;levelId:string;sortOrder:number;status:TaxonomyStatus}>&SubjectDisplayInput,csrf:string){
     return mutation(`/api/v1/taxonomy/admin/subjects/${encodeURIComponent(id)}`,'PATCH',input,csrf);
   },
   createSkill(input:{subjectId:string;parentSkillId:string;code:string;name:string;description:string;kind:'main'|'sub';sortOrder:number},csrf:string){
