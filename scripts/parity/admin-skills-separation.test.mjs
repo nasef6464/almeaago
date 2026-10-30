@@ -95,6 +95,21 @@ test('expanded subskill exposes its own question workspace linked to the canonic
   assert.match(html, /مهارة المعادلات/);
 });
 
+test('original Skills Center link dialog uses a single lesson selector, Cancel and Link without invented controls', () => {
+  const states = [fixture, '', '', false, false, '', '', 0, 'main', null, 'sub',
+    { skillId: 'sub', rows: [], total: 0, loading: false, error: '' },
+    { skillId: 'sub', rows: [], loading: false, hasMore: false, error: '' },
+    1, 0, fixture.skills[1]];
+  const { SkillsAdminPage } = load('features/taxonomy/pages/SkillsAdminPage.tsx', states);
+  const html = renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(SkillsAdminPage)));
+  assert.match(html, /aria-label="ربط درس موجود"/);
+  assert.match(html, /<label[^>]*>اختر الدرس<\/label>/);
+  assert.match(html, /<select[^>]*id="skills-lesson-to-link"/);
+  assert.match(html, />إلغاء<\/button>/);
+  assert.match(html, />ربط<\/button>/);
+  assert.doesNotMatch(html, /تحديث المهارات|حالة المهارة/);
+});
+
 test('question-bank client uses exact skill ID and omits unselected optional filters', async () => {
   const source = readFileSync(new URL('../../apps/web/src/features/questionbank/api/questionbank-client.ts', import.meta.url), 'utf8');
   const javascript = ts.transpileModule(source.replaceAll('import.meta.env', '({ VITE_API_BASE_URL: "" })'), {
