@@ -76,6 +76,7 @@ for (const width of [390, 820, 1440]) {
     await editor.getByLabel('قالب مساحة المسار').selectOption('simple');
     await editor.getByLabel('طريقة اختيار المرحلة').selectOption('required');
     await editor.getByLabel('تسمية المرحلة').fill('');
+    await expect(editor.getByLabel('تسمية المرحلة')).toHaveValue('اختر مرحلتك');
     await editor.getByRole('button', { name: 'حفظ عرض المسار' }).click();
     await expect(page.getByText('تم حفظ إعدادات عرض المسار.')).toBeVisible();
 
@@ -85,7 +86,7 @@ for (const width of [390, 820, 1440]) {
     expect(pathWrite.body).toMatchObject({
       showInNavbar: false,
       showInHome: false,
-      settings: { showSubjectCards: false, showMockExamCard: false, showPackageCard: false, studentTemplate: 'simple', stageSelection: 'required', stageLabel: '' },
+      settings: { showSubjectCards: false, showMockExamCard: false, showPackageCard: false, studentTemplate: 'simple', stageSelection: 'required', stageLabel: 'اختر مرحلتك' },
     });
 
     await editor.getByLabel('أيقونة المادة').fill('🧪');
@@ -112,7 +113,7 @@ for (const width of [390, 820, 1440]) {
       fetch('/api/v1/taxonomy/bootstrap?phase=core').then(response => response.json()));
     expect(publicProjection.paths[0]).toMatchObject({
       showInNavbar: false, showInHome: false,
-      settings: { showSubjectCards: false, showMockExamCard: false, showPackageCard: false, studentTemplate: 'simple', stageSelection: 'required', stageLabel: '' },
+      settings: { showSubjectCards: false, showMockExamCard: false, showPackageCard: false, studentTemplate: 'simple', stageSelection: 'required', stageLabel: 'اختر مرحلتك' },
     });
     expect(publicProjection.subjects[0]).toMatchObject({ icon: '🧪', color: '#abcdef' });
     await page.goto('/');
