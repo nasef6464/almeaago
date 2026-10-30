@@ -1,44 +1,75 @@
 package identityhttp
 
 import (
-    "encoding/json"
-    "net/http"
-    "net/http/httptest"
-    "strings"
-    "testing"
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
 
-    "github.com/nasef6464/almeaago/internal/identity/application"
+	"github.com/nasef6464/almeaago/internal/identity/application"
+	"github.com/nasef6464/almeaago/internal/identity/domain"
 )
 
 const originalForgotPasswordConfirmation = "إذا كان البريد مسجلًا، ستصلك تعليمات الاستعادة. تحقق من البريد الوارد والرسائل غير المرغوب فيها."
 
-// The Legacy visitor page always displays this non-enumerating Arabic confirmation
-// after a successful forgot-password request, regardless of the account's existence.
-// Invalid/empty addresses exercise the real Go HTTP handler without a database write.
+type publicRecoveryRepository struct {
+	application.Repository
+	user      domain.User
+	lookupErr error
+	issued    int
+}
+
+func (r *publicRecoveryRepository) UserByEmail(context.Context, string) (domain.User, error) {
+	return r.user, r.lookupErr
+}
+
+func (r *publicRecoveryRepository) IssueOneTimeToken(context.Context, string, string, string, time.Time) error {
+	r.issued++
+	return nil
+}
+
+// Legacy always displays one non-enumerating Arabic confirmation on success.
 func TestForgotPasswordPublicConfirmationMatchesOriginal(t *testing.T) {
-    handler := New(application.NewService(nil), false)
-    for _, tc := range []struct {
-        name string
-        body string
-    }{
-        {name: "invalid address", body: `{"email":"not-an-email"}`},
-        {name: "empty address", body: `{"email":""}`},
-    } {
-        t.Run(tc.name, func(t *testing.T) {
-            request := httptest.NewRequest(http.MethodPost, "/forgot-password", strings.NewReader(tc.body))
-            request.Header.Set("Content-Type", "application/json")
-            response := httptest.NewRecorder()
-            handler.ServeHTTP(response, request)
-            if response.Code != http.StatusOK {
-                t.Fatalf("status = %d; want 200; body: %s", response.Code, response.Body.String())
-            }
-            var payload struct { Message string `json:"message"` }
-            if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
-                t.Fatalf("decode response: %v", err)
-            }
-            if payload.Message != originalForgotPasswordConfirmation {
-                t.Fatalf("confirmation = %q; want original %q", payload.Message, originalForgotPasswordConfirmation)
-            }
-        })
-    }
+	cases := []struct {
+		name             string
+		body             string
+		user             domain.User
+		lookupErr        error
+		expectedIssuance int
+	}{
+		{name: "invalid address", body: `{"email":"not-an-email"}`},
+		{name: "empty address", body: `{"email":""}`},
+		{name: "unknown account", body: `{"email":"unknown@example.com"}`, lookupErr: domain.ErrNotFound},
+		{name: "lookup unavailable", body: `{"email":"student@example.com"}`, lookupErr: errors.New("database unavailable")},
+		{name: "existing account", body: `{"email":"student@example.com"}`, user: domain.User{ID: "student-1", Email: "student@example.com", Status: "active"}, expectedIssuance: 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &publicRecoveryRepository{user: tc.user, lookupErr: tc.lookupErr}
+			handler := New(application.NewService(repo), false)
+			request := httptest.NewRequest(http.MethodPost, "/forgot-password", strings.NewReader(tc.body))
+			request.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusOK {
+				t.Fatalf("status = %d; want 200; body: %s", response.Code, response.Body.String())
+			}
+			var payload struct {
+				Message string `json:"message"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if payload.Message != originalForgotPasswordConfirmation {
+				t.Fatalf("confirmation = %q; want original %q", payload.Message, originalForgotPasswordConfirmation)
+			}
+			if repo.issued != tc.expectedIssuance {
+				t.Fatalf("issued reset tokens = %d; want %d", repo.issued, tc.expectedIssuance)
+			}
+		})
+	}
 }
