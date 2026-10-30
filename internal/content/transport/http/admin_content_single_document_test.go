@@ -11,8 +11,8 @@ import (
 // first decode cannot authorize a write while trailing bytes remain unread.
 func TestAdminContentDecodeJSONRequiresSingleDocument(t *testing.T) {
 	tests := []struct {
-		name string
-		body string
+		name   string
+		body   string
 		wantOK bool
 	}{
 		{name: "single document", body: `{"title":"درس"}`, wantOK: true},
@@ -30,7 +30,9 @@ func TestAdminContentDecodeJSONRequiresSingleDocument(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/lessons", strings.NewReader(tc.body))
 			rec := httptest.NewRecorder()
-			var dst struct { Title string `json:"title"` }
+			var dst struct {
+				Title string `json:"title"`
+			}
 			got := decodeJSON(rec, req, &dst)
 			if got != tc.wantOK {
 				t.Fatalf("decodeJSON(%q): got ok=%v HTTP=%d body=%q; want ok=%v", tc.body, got, rec.Code, rec.Body.String(), tc.wantOK)
