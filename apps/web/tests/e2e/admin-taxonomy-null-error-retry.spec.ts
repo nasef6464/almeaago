@@ -32,7 +32,6 @@ async function setup(page: Page, data: ReturnType<typeof fixture>) {
 const scenarios = [
   { entity: 'path', id: 'path-1', label: 'حالة المسار', url: '**/api/v1/taxonomy/admin/paths/path-1' },
   { entity: 'subject', id: 'subject-1', label: 'حالة المادة الكمي', url: '**/api/v1/taxonomy/admin/subjects/subject-1' },
-  { entity: 'skill', id: 'skill-1', label: 'حالة المهارة الأعداد', url: '**/api/v1/taxonomy/admin/skills/skill-1' },
 ] as const;
 
 for (const width of [390, 820, 1440]) {
@@ -70,6 +69,43 @@ for (const width of [390, 820, 1440]) {
       await expect(page.getByLabel(scenario.label)).toHaveValue('inactive');
     });
   }
+}
+
+for (const width of [390, 820, 1440]) {
+  test(`admin skill edit HTTP 503 null body preserves original edit dialog and retries — RTL ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const data = fixture();
+    await setup(page, data);
+    await page.goto('/admin-dashboard?tab=skills');
+    await expect(page.getByRole('button', { name: 'تعديل المهارة الرئيسة الأعداد' })).toBeVisible();
+
+    let writes = 0;
+    await page.route('**/api/v1/taxonomy/admin/skills/skill-1', route => {
+      writes += 1;
+      expect(route.request().method()).toBe('PATCH');
+      expect(route.request().headers()['x-csrf-token']).toBe('csrf-error-contract');
+      expect(route.request().postDataJSON()).toMatchObject({ name: 'الأعداد المحدثة', description: '', sortOrder: 1 });
+      if (writes === 1) return respond(route, null, 503);
+      data.skills[0].name = 'الأعداد المحدثة';
+      return respond(route, { skill: data.skills[0] });
+    });
+
+    await page.getByRole('button', { name: 'تعديل المهارة الرئيسة الأعداد' }).click();
+    const dialog = page.getByRole('dialog', { name: 'تعديل المهارة' });
+    await dialog.getByRole('textbox', { name: 'اسم المهارة' }).fill('الأعداد المحدثة');
+    await dialog.getByRole('button', { name: 'حفظ المهارة' }).click();
+    await expect(dialog.getByRole('alert')).toContainText('تعذر تنفيذ طلب التصنيف');
+    await expect(dialog.getByRole('textbox', { name: 'اسم المهارة' })).toHaveValue('الأعداد المحدثة');
+    expect(writes).toBe(1);
+
+    await dialog.getByRole('button', { name: 'حفظ المهارة' }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByText('الأعداد المحدثة', { exact: true })).toBeVisible();
+    expect(writes).toBe(2);
+    await page.reload();
+    await expect(page.getByText('الأعداد المحدثة', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('حالة المهارة الأعداد')).toHaveCount(0);
+  });
 }
 
 test('admin taxonomy preserves a valid server-provided Arabic HTTP error', async ({ page }) => {

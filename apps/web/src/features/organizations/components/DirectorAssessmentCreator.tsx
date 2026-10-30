@@ -23,7 +23,7 @@ interface Props {
 export function DirectorAssessmentCreator({schoolId,classes,paths,subjects,getCsrfToken,onCreated,onClose}:Props){
   const [title,setTitle]=useState('');
   const [targetScope,setTargetScope]=useState<'class'|'classes'|'school'|'selected'>('class');
-  const [classId,setClassId]=useState('');
+  const [classId,setClassId]=useState(classes[0]?.classId||'');
   const [classIds,setClassIds]=useState<string[]>([]);
   const [studentIds,setStudentIds]=useState<string[]>([]);
   const [selectedCandidates,setSelectedCandidates]=useState<Record<string,DirectorAssessmentCandidate>>({});
@@ -36,6 +36,8 @@ export function DirectorAssessmentCreator({schoolId,classes,paths,subjects,getCs
   const [pathId,setPathId]=useState('');
   const [subjectId,setSubjectId]=useState('');
   const [search,setSearch]=useState('');
+  const [searchDraft,setSearchDraft]=useState('');
+  const [questionRetry,setQuestionRetry]=useState(0);
   const [page,setPage]=useState(1);
   const [questions,setQuestions]=useState<DirectorAssessmentQuestion[]>([]);
   const [selected,setSelected]=useState<string[]>([]);
@@ -64,7 +66,7 @@ export function DirectorAssessmentCreator({schoolId,classes,paths,subjects,getCs
         .finally(()=>{if(!controller.signal.aborted&&alive.current)setLoading(false)});
     },250);
     return()=>{clearTimeout(timer);controller.abort()};
-  },[schoolId,pathId,subjectId,search,page]);
+  },[schoolId,pathId,subjectId,search,page,questionRetry]);
 
   useEffect(()=>{
     const controller=new AbortController();
@@ -80,8 +82,9 @@ export function DirectorAssessmentCreator({schoolId,classes,paths,subjects,getCs
     return()=>{clearTimeout(timer);controller.abort()};
   },[schoolId,targetScope,studentSearch,studentPage]);
 
-  function changePath(next:string){setPathId(next);setSubjectId('');setSelected([]);setSearch('');setPage(1)}
-  function changeSubject(next:string){setSubjectId(next);setSelected([]);setSearch('');setPage(1)}
+  function changePath(next:string){setPathId(next);setSubjectId('');setSelected([]);setSearch('');setSearchDraft('');setPage(1)}
+  function changeSubject(next:string){setSubjectId(next);setSelected([]);setSearch('');setSearchDraft('');setPage(1)}
+  function submitQuestionSearch(){setSearch(searchDraft.trim());setPage(1);setQuestionRetry(value=>value+1)}
   function toggle(id:string){setSelected(prev=>prev.includes(id)?prev.filter(q=>q!==id):[...prev,id])}
   function toggleClass(id:string){setClassIds(prev=>prev.includes(id)?prev.filter(value=>value!==id):[...prev,id])}
   function toggleStudent(candidate:DirectorAssessmentCandidate){
@@ -125,7 +128,7 @@ export function DirectorAssessmentCreator({schoolId,classes,paths,subjects,getCs
       </fieldset>:null}
       <label className="min-w-0 text-xs font-black text-slate-700">المسار<select aria-label="مسار الاختبار المدرسي" required value={pathId} onChange={e=>changePath(e.target.value)} className="mt-1.5 w-full rounded-xl border bg-white px-3 py-2 text-sm"><option value="">اختر المسار</option>{paths.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
       <label className="min-w-0 text-xs font-black text-slate-700">المادة<select aria-label="مادة الاختبار المدرسي" required value={subjectId} onChange={e=>changeSubject(e.target.value)} disabled={!pathId} className="mt-1.5 w-full rounded-xl border bg-white px-3 py-2 text-sm"><option value="">اختر المادة</option>{subjects.filter(s=>s.pathId===pathId).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-      <label className="min-w-0 text-xs font-black text-slate-700">بحث عن السؤال<input aria-label="بحث الأسئلة المعتمدة" value={search} onChange={e=>{setSearch(e.target.value);setPage(1)}} disabled={!subjectId} className="mt-1.5 w-full rounded-xl border bg-white px-3 py-2 text-sm" placeholder="الكود أو جزء من السؤال"/></label>
+      <label className="min-w-0 text-xs font-black text-slate-700">البحث في الأسئلة<div className="mt-1.5 flex min-w-0 gap-2"><input aria-label="البحث في الأسئلة" value={searchDraft} onChange={e=>setSearchDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();submitQuestionSearch()}}} disabled={!subjectId} className="min-w-0 flex-1 rounded-xl border bg-white px-3 py-2 text-sm" placeholder="الكود أو جزء من السؤال"/><button type="button" disabled={!subjectId||loading} onClick={submitQuestionSearch} className="rounded-xl border bg-white px-3 text-sm disabled:opacity-40">بحث</button></div></label>
     </div>
     <fieldset aria-label="إعدادات الاختبار المدرسي" className="min-w-0 space-y-3 rounded-xl border border-indigo-200 bg-white p-3"><legend className="px-1 text-xs font-black text-slate-800">إعدادات الاختبار — مثل منشئ الاختبارات القديم</legend>
       <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -151,7 +154,7 @@ export function DirectorAssessmentCreator({schoolId,classes,paths,subjects,getCs
     <div className="min-w-0 rounded-xl border border-indigo-100 bg-white p-3">
       <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-black">الأسئلة المعتمدة فقط</p><span className="text-xs font-black text-indigo-700">تم اختيار {selected.length} سؤال</span></div>
       {loading?<p role="status" className="mt-3 text-xs text-slate-500">جار تحميل الأسئلة…</p>:null}
-      {pickerError?<p role="alert" className="mt-3 text-xs font-bold text-rose-700">{pickerError}</p>:null}
+      {pickerError?<p role="alert" className="mt-3 text-xs font-bold text-rose-700">{pickerError} <button type="button" onClick={()=>setQuestionRetry(value=>value+1)} className="underline">إعادة المحاولة</button></p>:null}
       {!subjectId?<p className="mt-3 text-xs text-slate-500">اختر المسار والمادة لعرض الأسئلة.</p>:null}
       {subjectId&&!loading&&!pickerError&&questions.length===0?<p className="mt-3 text-xs text-slate-500">لا توجد أسئلة معتمدة مطابقة.</p>:null}
       <div className="mt-3 grid max-h-80 min-w-0 gap-2 overflow-y-auto">{questions.map(q=><label key={q.id} className="flex min-w-0 cursor-pointer items-start gap-3 rounded-xl border p-3 hover:bg-slate-50"><input type="checkbox" checked={selected.includes(q.id)} onChange={()=>toggle(q.id)} aria-label={`اختيار السؤال ${q.questionCode}`} className="mt-1 h-4 w-4 shrink-0"/><span className="min-w-0 flex-1"><strong className="block break-words text-xs text-indigo-800">{q.questionCode}</strong><span className="mt-1 block break-words text-sm text-slate-700">{q.text||q.imageAlt||'سؤال مصور'}</span>{q.imageUrl?<img src={q.imageUrl} alt={q.imageAlt||`صورة ${q.questionCode}`} loading="lazy" className="mt-2 max-h-44 max-w-full rounded-lg object-contain"/>:null}</span></label>)}</div>

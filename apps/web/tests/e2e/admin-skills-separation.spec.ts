@@ -118,6 +118,7 @@ test('admin links and detaches a draft lesson from a subskill without deleting t
 
   let skillLinks = ['m1'];
   let revision = 3;
+  let failFirstLink = true;
   const writes: Array<Record<string, unknown>> = [];
   const lessonSummary = () => ({
     id: 'lesson-42', pathId: 'p1', subjectId: 's1', title: 'شرح المعادلات', type: 'video', durationSeconds: 600,
@@ -145,6 +146,10 @@ test('admin links and detaches a draft lesson from a subskill without deleting t
     expect(payload.expectedRevision).toBe(revision);
     expect(payload.videoUrl).toBe('https://youtu.be/example');
     expect(payload.assetIds).toEqual(['asset-original']);
+    if (failFirstLink && (payload.skillIds as string[]).includes('sub1')) {
+      failFirstLink = false;
+      return json(route, { message: 'تعارض مؤقت' }, 409);
+    }
     skillLinks = payload.skillIds as string[];
     revision++;
     return json(route, { lesson: lessonDetail() });
@@ -157,8 +162,15 @@ test('admin links and detaches a draft lesson from a subskill without deleting t
   await expect(detail.getByText('لا توجد دروس مرتبطة بهذه المهارة.')).toBeVisible();
   await detail.getByRole('button', { name: 'ربط درس موجود' }).click();
   const dialog = page.getByRole('dialog', { name: 'ربط درس موجود' });
-  await expect(dialog.getByText('شرح المعادلات')).toBeVisible();
-  await dialog.getByRole('button', { name: 'ربط الدرس شرح المعادلات' }).click();
+  await expect(dialog.getByRole('option', { name: 'شرح المعادلات' })).toHaveCount(1);
+  await expect(dialog.getByRole('combobox', { name: 'اختر الدرس' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'ربط', exact: true })).toBeDisabled();
+  await dialog.getByRole('combobox', { name: 'اختر الدرس' }).selectOption('lesson-42');
+  await dialog.getByRole('button', { name: 'ربط', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('تعارض مؤقت');
+  await expect(dialog.getByRole('combobox', { name: 'اختر الدرس' })).toHaveValue('lesson-42');
+  expect(skillLinks).toEqual(['m1']);
+  await dialog.getByRole('button', { name: 'ربط', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(detail.getByText('شرح المعادلات')).toBeVisible();
   expect(skillLinks).toEqual(['m1', 'sub1']);
@@ -167,7 +179,7 @@ test('admin links and detaches a draft lesson from a subskill without deleting t
   await expect(detail.getByText('لا توجد دروس مرتبطة بهذه المهارة.')).toBeVisible();
   await expect(detail.getByText('تم فصل الدرس عن المهارة دون حذف محتواه.')).toBeVisible();
   expect(skillLinks).toEqual(['m1']);
-  expect(writes).toHaveLength(2);
+  expect(writes).toHaveLength(3);
 });
 
 test('admin creates and edits a subskill lesson with its canonical editor, anchored scope and retryable failure', async ({ page }) => {
