@@ -50,7 +50,7 @@ func TestAdminContentDecodeJSONRequiresSingleDocument(t *testing.T) {
 	}
 }
 
- 
+
 // Exercise the real HTTP routes with no backing service. Invalid trailing
 // documents must be rejected before any domain mutation can be invoked.
 func TestAdminContentMutationRoutesRejectTrailingDocumentsBeforeService(t *testing.T) {
