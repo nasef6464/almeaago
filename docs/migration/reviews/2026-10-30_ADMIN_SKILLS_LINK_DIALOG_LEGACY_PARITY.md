@@ -19,7 +19,7 @@
 - Before PUT, GET lesson detail validates the exact path/subject, editability, and duplicate skill association. PUT retains the existing `lessonLinkWrite` payload and optimistic revision.
 - Page-one list fetch clears stale rows. Page-more deduplicates IDs. AbortController prevents stale HTTP responses from another request overwriting the list.
 - Kept `عرض المزيد` only for server pagination and a recovery action on failure; these are backend transport necessities, not claims of exact pixel parity.
-- Removed Go-only refresh/status controls from the Skills Center presentation. Did not alter status persistence, authorization, lesson schema, or other teams' files.
+- Removed Go-only refresh/status controls from the Skills Center presentation, restored original subskill detail order (linked lessons before questions), and added a regression assertion for that order. Did not alter status persistence, authorization, lesson schema, or other teams' files.
 
 ## Actor → UI → HTTP → application → PostgreSQL → consumer
 Admin → Skills Center → subskill → Link existing lesson → GET `/api/v1/lessons?page=…&subjectId=…&pathId=…` → select → GET `/api/v1/lessons/{id}` → PUT `/api/v1/lessons/{id}` with CSRF + `expectedRevision` → `internal/content/transport/http/lessons.go` → `content/application` → `content/repository/postgres/lessons.go` transaction validates refs and ownership, updates `lessons` under revision/workflow constraints, replaces `lesson_skill_links`, audits and commits. The linked subskill then refetches GET `/api/v1/lessons?skillId=…` for the admin display. Learner-visible effect is NOT yet verified against an actual PostgreSQL session.
