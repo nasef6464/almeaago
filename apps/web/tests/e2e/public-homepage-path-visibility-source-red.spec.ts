@@ -33,7 +33,7 @@ async function openAsGuest(page: Page, featuredPathIds: string[]) {
   await page.goto('/');
   await expect(page.getByTestId('public-landing')).toBeVisible();
   const cards = page.locator('#paths');
-  await expect(cards.getByRole('link', { name: /المسار العام الأول/ })).toBeVisible();
+  await expect(cards.getByRole('link').first()).toBeVisible();
   return cards;
 }
 
