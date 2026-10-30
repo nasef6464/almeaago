@@ -81,23 +81,25 @@ for (const width of [390, 820, 1440]) {
 
     const editor = page.getByTestId('taxonomy-display-editor');
     await expect(editor).toBeVisible();
-    await expect(editor.getByLabel('تسمية المرحلة')).toHaveValue('اختر مرحلتك');
+    await expect(editor.getByLabel('سؤال اختيار المرحلة')).toHaveValue('اختر مرحلتك');
     await expect(editor.getByLabel('إظهار المسار في القائمة العلوية')).toBeChecked();
     await editor.getByLabel('إظهار المسار في القائمة العلوية').uncheck();
     await editor.getByLabel('إظهار بطاقات المواد').uncheck();
     await editor.getByLabel('إظهار بطاقة الاختبارات المحاكية').uncheck();
     await editor.getByLabel('إظهار بطاقة الباقات').uncheck();
-    await editor.getByLabel('قالب مساحة المسار').selectOption('simple');
-    await editor.getByLabel('طريقة اختيار المرحلة').selectOption('none');
-    await expect(editor.getByLabel('تسمية المرحلة')).toBeDisabled();
-    await editor.getByLabel('طريقة اختيار المرحلة').selectOption('required');
-    await expect(editor.getByLabel('تسمية المرحلة')).toBeEnabled();
+    await editor.getByLabel('عرض صفحة المسار').selectOption('simple');
+    await editor.getByLabel('اختيار المرحلة').selectOption('none');
+    await expect(editor.getByLabel('سؤال اختيار المرحلة')).toBeDisabled();
+    await editor.getByLabel('اختيار المرحلة').selectOption('required');
+    await expect(editor.getByLabel('سؤال اختيار المرحلة')).toBeEnabled();
+    await expect(editor.getByText('التلقائي يطلب الاختيار عند وجود مراحل. بدون اختيار مرحلة يسمح بالتسجيل مباشرة ويحافظ على المراحل والمحتوى الموجود.')).toBeVisible();
+    await expect(editor.getByLabel('سؤال اختيار المرحلة')).toHaveAttribute('placeholder', 'مثال: اختر صفك');
     await expect(editor.getByText('أضف مرحلة قبل إتاحة تسجيل الطلاب. يمكنك حفظ الإعداد ثم إضافة المراحل من تبويب المراحل.')).toBeVisible();
-    await editor.getByLabel('تسمية المرحلة').fill('');
-    await expect(editor.getByLabel('تسمية المرحلة')).toHaveValue('');
+    await editor.getByLabel('سؤال اختيار المرحلة').fill('');
+    await expect(editor.getByLabel('سؤال اختيار المرحلة')).toHaveValue('');
     await editor.getByRole('button', { name: 'حفظ عرض المسار' }).click();
     await expect(editor.getByLabel('إظهار المسار في القائمة العلوية')).toBeDisabled();
-    await expect(editor.getByLabel('قالب مساحة المسار')).toBeDisabled();
+    await expect(editor.getByLabel('عرض صفحة المسار')).toBeDisabled();
     releaseFirstPathSave();
     await expect(page.getByText('تم حفظ إعدادات عرض المسار.')).toBeVisible();
 
@@ -124,9 +126,9 @@ for (const width of [390, 820, 1440]) {
     await expect(editor.getByLabel('إظهار بطاقات المواد')).not.toBeChecked();
     await expect(editor.getByLabel('إظهار بطاقة الاختبارات المحاكية')).not.toBeChecked();
     await expect(editor.getByLabel('إظهار بطاقة الباقات')).not.toBeChecked();
-    await expect(editor.getByLabel('قالب مساحة المسار')).toHaveValue('simple');
-    await expect(editor.getByLabel('طريقة اختيار المرحلة')).toHaveValue('required');
-    await expect(editor.getByLabel('تسمية المرحلة')).toHaveValue('اختر مرحلتك');
+    await expect(editor.getByLabel('عرض صفحة المسار')).toHaveValue('simple');
+    await expect(editor.getByLabel('اختيار المرحلة')).toHaveValue('required');
+    await expect(editor.getByLabel('سؤال اختيار المرحلة')).toHaveValue('اختر مرحلتك');
     await expect(editor.getByLabel('أيقونة المادة')).toHaveValue('🧪');
     await expect(editor.getByLabel('لون المادة')).toHaveValue('#abcdef');
     await page.screenshot({ path: `test-results/taxonomy-display-admin-${width}.png`, fullPage: true });
