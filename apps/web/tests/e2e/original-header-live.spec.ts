@@ -93,7 +93,9 @@ async function visualMetrics(page:Page,points:Array<{x:number;y:number}>=[]){ret
  const family=(header?getComputedStyle(header).fontFamily:'Tajawal').split(',')[0].replace(/["']/g,'').trim();
  const fonts=['400 16px','500 14px','700 14px','700 12px','800 12px','900 12px'].map(spec=>({font:spec+' '+family,available:document.fonts.check(spec+' '+family)}));
  const hitTargets=samplePoints.slice(0,12).map(point=>{let element=document.elementFromPoint(point.x,point.y);const chain=[];for(let depth=0;element&&depth<5;depth++,element=element.parentElement)chain.push(box(element));return {point,chain}});
- return {viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,header:box(header),links,svgs,fonts,hitTargets,mobileCloseReachable:r?close===document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)||close?.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)):null};
+ const bell=document.querySelector('button[aria-label="الإشعارات"]');
+ const ancestors=(element:Element|null)=>{const chain=[];for(let depth=0;element&&depth<5;depth++,element=element.parentElement)chain.push(box(element));return chain};
+ return {viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,header:box(header),links,svgs,fonts,hitTargets,notification:{button:box(bell),badge:box(bell?.querySelector('span.bg-red-500')??null),ancestors:ancestors(bell)},mobileCloseReachable:r?close===document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)||close?.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)):null};
 },points)}
 
 test.describe('original full Header on native Go data',()=>{
@@ -109,6 +111,12 @@ test.describe('original full Header on native Go data',()=>{
     await page.setViewportSize({width,height:1000});
     await ready(page,'/tests/reference/header.html?variant=source');
     const prepare=async(state:string)=>{
+     if(role!=='guest'){
+      const bell=page.getByRole('button',{name:'الإشعارات',exact:true});
+      await expect(bell).toBeVisible();
+      await expect(bell.locator('span.bg-emerald-400')).toHaveCount(0);
+      if(role==='admin')await expect(bell.locator('span.bg-red-500')).toHaveText('1');
+     }else await expect(page.getByRole('button',{name:'الإشعارات',exact:true})).toHaveCount(0);
      if(state==='path'||state==='level')await openPath(page,state==='level');
      if(state==='mock-exams')await openMockExams(page);
      if(state==='more')await openMore(page);
@@ -119,11 +127,6 @@ test.describe('original full Header on native Go data',()=>{
       await expect(header.locator('[data-mobile-nav="home"]')).toBeVisible();
       await expect(header.locator('[data-mobile-nav="'+env('HEADER_PATH_ID')+'"]')).toBeVisible();
       return header.locator('div.fixed.inset-0').evaluate(e=>e.scrollHeight);
-     }
-     if(state==='closed'&&role!=='guest'){
-      const bell=page.getByRole('button',{name:'الإشعارات',exact:true});
-      await expect(bell).toBeVisible();await expect(bell.locator('span.bg-emerald-400')).toHaveCount(0);
-      if(role==='admin')await expect(bell.locator('span.bg-red-500')).toHaveText('1');
      }
      return 1000;
     };
