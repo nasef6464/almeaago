@@ -73,30 +73,29 @@ export function TaxonomyDisplayEditor({ path, levelCount, subject, pending, save
         </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-        <label className="grid gap-1 text-xs font-black text-gray-700">
-          قالب مساحة المسار
-          <select aria-label="قالب مساحة المسار" value={studentTemplate} onChange={event => setStudentTemplate(event.target.value as 'standard'|'simple')} className="rounded-xl border bg-white px-3 py-2.5 text-sm font-bold">
-            <option value="standard">قياسي</option>
-            <option value="simple">مبسط</option>
-          </select>
-        </label>
-        <label className="grid gap-1 text-xs font-black text-gray-700">
-          طريقة اختيار المرحلة
-          <select aria-label="طريقة اختيار المرحلة" value={stageSelection} onChange={event => setStageSelection(event.target.value as 'auto'|'required'|'none')} className="rounded-xl border bg-white px-3 py-2.5 text-sm font-bold">
-            <option value="auto">تلقائي حسب المرحلة المتاحة</option>
-            <option value="required">إلزامي</option>
-            <option value="none">بدون مرحلة</option>
-          </select>
-        </label>
-        {stageSelection === 'required' && levelCount === 0 ? (
-          <p role="status" className="text-sm text-amber-700">أضف مرحلة قبل إتاحة تسجيل الطلاب. يمكنك حفظ الإعداد ثم إضافة المراحل من تبويب المراحل.</p>
-        ) : null}
-        <label className="grid gap-1 text-xs font-black text-gray-700">
-          تسمية المرحلة
-          <input aria-label="تسمية المرحلة" disabled={stageSelection === 'none'} value={stageLabel} onChange={event => setStageLabel(event.target.value)} maxLength={120} className="rounded-xl border bg-white px-3 py-2.5 text-sm font-bold" placeholder="اتركه فارغًا لاستخدام التسمية الافتراضية" />
-        </label>
-      </div>
+        <fieldset className="space-y-4 rounded-2xl border border-gray-100 p-4">
+          <legend className="px-2 font-bold">تجربة الطالب في المسار</legend>
+          <label className="block font-bold">اختيار المرحلة
+            <select aria-label="اختيار المرحلة" value={stageSelection} onChange={event => setStageSelection(event.target.value as 'auto'|'required'|'none')} className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold">
+              <option value="auto">تلقائي حسب المراحل المضافة</option>
+              <option value="required">اختيار مرحلة مطلوب</option>
+              <option value="none">بدون اختيار مرحلة</option>
+            </select>
+          </label>
+          <p className="text-sm text-gray-500">التلقائي يطلب الاختيار عند وجود مراحل. بدون اختيار مرحلة يسمح بالتسجيل مباشرة ويحافظ على المراحل والمحتوى الموجود.</p>
+          {stageSelection === 'required' && levelCount === 0 ? (
+            <p role="status" className="text-sm text-amber-700">أضف مرحلة قبل إتاحة تسجيل الطلاب. يمكنك حفظ الإعداد ثم إضافة المراحل من تبويب المراحل.</p>
+          ) : null}
+          <label className="block font-bold">سؤال اختيار المرحلة
+            <input aria-label="سؤال اختيار المرحلة" disabled={stageSelection === 'none'} value={stageLabel} onChange={event => setStageLabel(event.target.value)} maxLength={120} className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold" placeholder="مثال: اختر صفك" />
+          </label>
+          <label className="block font-bold">عرض صفحة المسار
+            <select aria-label="عرض صفحة المسار" value={studentTemplate} onChange={event => setStudentTemplate(event.target.value as 'standard'|'simple')} className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold">
+              <option value="standard">العرض المعتاد</option>
+              <option value="simple">عرض مبسط</option>
+            </select>
+          </label>
+        </fieldset>
 
       <button type="button" disabled={pending === 'display-path'} onClick={() => void savePath({
         showInNavbar,
