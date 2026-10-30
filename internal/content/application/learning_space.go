@@ -20,7 +20,16 @@ func (s *Service) LearningSpace(ctx context.Context, actor identity.User, pathID
 	if pathID == "" || subjectID == "" || limit < 1 || limit > 50 {
 		return content.LearningSpace{}, ErrInvalidInput
 	}
-	return s.repo.GetLearningSpace(ctx, pathID, subjectID, limit)
+	row, err := s.repo.GetLearningSpace(ctx, pathID, subjectID, limit)
+	if err != nil {
+		return content.LearningSpace{}, err
+	}
+	// A learner may switch subjects while a request is in flight. Never return
+	// another path/subject's catalog as a successful response for this scope.
+	if row.PathID != pathID || row.SubjectID != subjectID {
+		return content.LearningSpace{}, content.ErrConflict
+	}
+	return row, nil
 }
 
 func (s *Service) LearnerCourse(ctx context.Context, actor identity.User, courseID string) (content.LearnerCourse, error) {
