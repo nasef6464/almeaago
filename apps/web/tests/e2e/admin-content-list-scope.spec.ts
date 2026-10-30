@@ -62,6 +62,8 @@ for (const width of [390, 820, 1440]) {
     await page.goto('/admin-dashboard/content');
     await expect(page.getByText(course.title)).toBeVisible();
     await expect(visibleContentRows(page)).toHaveCount(1);
+    // Same mocked admin actor/data at each RTL viewport; Go-side evidence only.
+    await page.screenshot({ path: `test-results/admin-content-courses-${width}.png`, fullPage: true });
 
     await page.getByRole('button', { name: 'الدروس', exact: true }).click();
     await lessonRequested;
@@ -71,6 +73,7 @@ for (const width of [390, 820, 1440]) {
     release();
     await expect(page.getByText(lesson.title)).toBeVisible();
     await expect(visibleContentRows(page)).toHaveCount(1);
+    await page.screenshot({ path: `test-results/admin-content-lessons-${width}.png`, fullPage: true });
   });
 
   test(`admin content clears previous scope when the next list fails at ${width}px`, async ({ page }) => {
