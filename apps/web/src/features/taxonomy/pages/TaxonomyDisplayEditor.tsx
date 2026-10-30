@@ -96,7 +96,7 @@ export function TaxonomyDisplayEditor({ path, subject, pending, savePath, saveSu
       <button type="button" disabled={pending === 'display-path'} onClick={() => void savePath({
         showInNavbar,
         showInHome,
-        settings: { showSubjectCards, showMockExamCard, showPackageCard, studentTemplate, stageSelection, stageLabel: stageLabel.trim() },
+        settings: { showSubjectCards, showMockExamCard, showPackageCard, studentTemplate, stageSelection, stageLabel: stageLabel.trim() || 'اختر مرحلتك' },
       })} className="rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">
         {pending === 'display-path' ? 'جارٍ الحفظ...' : 'حفظ عرض المسار'}
       </button>
