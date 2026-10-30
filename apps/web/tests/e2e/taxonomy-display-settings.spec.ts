@@ -76,7 +76,7 @@ for (const width of [390, 820, 1440]) {
     await editor.getByLabel('قالب مساحة المسار').selectOption('simple');
     await editor.getByLabel('طريقة اختيار المرحلة').selectOption('required');
     await editor.getByLabel('تسمية المرحلة').fill('');
-    await expect(editor.getByLabel('تسمية المرحلة')).toHaveValue('اختر مرحلتك');
+    await expect(editor.getByLabel('تسمية المرحلة')).toHaveValue('');
     await editor.getByRole('button', { name: 'حفظ عرض المسار' }).click();
     await expect(page.getByText('تم حفظ إعدادات عرض المسار.')).toBeVisible();
 
@@ -105,7 +105,7 @@ for (const width of [390, 820, 1440]) {
     await expect(editor.getByLabel('إظهار بطاقة الباقات')).not.toBeChecked();
     await expect(editor.getByLabel('قالب مساحة المسار')).toHaveValue('simple');
     await expect(editor.getByLabel('طريقة اختيار المرحلة')).toHaveValue('required');
-    await expect(editor.getByLabel('تسمية المرحلة')).toHaveValue('');
+    await expect(editor.getByLabel('تسمية المرحلة')).toHaveValue('اختر مرحلتك');
     await expect(editor.getByLabel('أيقونة المادة')).toHaveValue('🧪');
     await expect(editor.getByLabel('لون المادة')).toHaveValue('#abcdef');
 
