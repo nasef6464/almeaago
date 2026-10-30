@@ -70,10 +70,9 @@ test('taxonomy admin desktop manages lifecycle-safe hierarchy with csrf',async({
   await page.setViewportSize({width:1440,height:1000});
   await page.goto('/admin-dashboard/taxonomy');
 
-  await expect(page.getByRole('heading',{name:'إدارة المسارات والتصنيف'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'إدارة المسارات'})).toBeVisible();
   await expect(page.getByText('مسار قديم')).toBeVisible();
-  await expect(page.getByText('الأعداد')).toBeVisible();
-  await expect(page.getByTestId('taxonomy-admin-page').getByText('العمليات',{exact:true})).toBeVisible();
+  await expect(page.getByTestId('taxonomy-admin-page').getByText('شجرة المهارات')).toHaveCount(0);
   await expect(page.getByRole('button',{name:/حذف/})).toHaveCount(0);
 
   await page.getByLabel('كود المسار الجديد').fill('sat');
@@ -87,30 +86,44 @@ test('taxonomy admin desktop manages lifecycle-safe hierarchy with csrf',async({
   await expect(page.getByText('تم تحديث الحالة إلى «غير نشط».')).toBeVisible();
   expect(observed.patchPathCsrf).toBe('csrf-taxonomy');
 
-  await page.getByLabel('نوع المهارة الجديدة').selectOption('sub');
-  await page.getByLabel('المهارة الرئيسية الأب').selectOption('skill-main');
-  await page.getByLabel('كود المهارة الجديدة').fill('num-2');
-  await page.getByLabel('اسم المهارة الجديدة').fill('النسب');
-  await page.getByRole('button',{name:'إضافة المهارة'}).click();
-  await expect(page.getByText('تم إنشاء المهارة.')).toBeVisible();
+  await page.screenshot({path:'test-results/taxonomy-admin-desktop.png',fullPage:true});
+
+  // The original platform has a separate Skills Center tab. The same
+  // taxonomy service still owns the relationship and the CSRF mutation.
+  await page.goto('/admin-dashboard?tab=skills');
+  await expect(page.getByRole('heading',{name:'مركز المهارات'})).toBeVisible();
+  await page.getByRole('button',{name:'فتح المهارة الرئيسة الأعداد'}).click();
+  await expect(page.getByText('العمليات',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'إضافة مهارة فرعية'}).click();
+  const editor=page.getByRole('dialog',{name:'إضافة مهارة فرعية'});
+  await editor.getByRole('textbox',{name:'كود المهارة'}).fill('num-2');
+  await editor.getByRole('textbox',{name:'اسم المهارة'}).fill('النسب');
+  await editor.getByRole('button',{name:'حفظ المهارة'}).click();
+  await expect(page.getByText('تم حفظ المهارة.')).toBeVisible();
   await expect(page.getByText('النسب')).toBeVisible();
   expect(observed.createSkillCsrf).toBe('csrf-taxonomy');
 
-  await page.screenshot({path:'test-results/taxonomy-admin-desktop.png',fullPage:true});
+  await page.screenshot({path:'test-results/admin-skills-center-desktop.png',fullPage:true});
 });
 
-test('taxonomy admin mobile keeps path subject and skill controls reachable',async({page})=>{
+test('taxonomy admin mobile separates path workspace and skill center controls',async({page})=>{
   await auth(page,admin);
   await mockTaxonomy(page);
   await page.setViewportSize({width:390,height:844});
   await page.goto('/admin-dashboard/taxonomy');
 
-  await expect(page.getByRole('heading',{name:'إدارة المسارات والتصنيف'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'إدارة المسارات'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'شجرة المسارات'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'المواد'})).toBeVisible();
-  await expect(page.getByText('شجرة المهارات',{exact:true})).toBeVisible();
+  await expect(page.getByText('شجرة المهارات',{exact:true})).toHaveCount(0);
   await expect(page.getByLabel('كود المسار الجديد')).toBeVisible();
   await page.screenshot({path:'test-results/taxonomy-admin-mobile.png',fullPage:true});
+  await page.goto('/admin-dashboard?tab=skills');
+  await expect(page.getByRole('heading',{name:'مركز المهارات'})).toBeVisible();
+  await expect(page.getByTestId('skills-filter-path')).toBeVisible();
+  await page.getByRole('button',{name:'فتح المهارة الرئيسة الأعداد'}).click();
+  await expect(page.getByRole('button',{name:'إضافة مهارة فرعية'})).toBeVisible();
+  await page.screenshot({path:'test-results/admin-skills-center-mobile.png',fullPage:true});
 });
 
 test('taxonomy admin page denies teacher persona before issuing admin bootstrap',async({page})=>{

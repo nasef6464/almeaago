@@ -65,6 +65,9 @@ func presentSchoolContract(contract org.SchoolContract) map[string]any {
 }
 
 func (h *schoolContractHandler) get(w http.ResponseWriter, r *http.Request) {
+	// Module entitlements can be revoked or revised between requests.
+	// Never let a cached response outlive the current school contract.
+	w.Header().Set("Cache-Control", "private, no-store")
 	auth, ok := h.authenticate(w, r, false)
 	if !ok {
 		return
@@ -78,6 +81,8 @@ func (h *schoolContractHandler) get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *schoolContractHandler) upsert(w http.ResponseWriter, r *http.Request) {
+	// Include failures (CSRF, validation, revision conflicts) in the no-store contract.
+	w.Header().Set("Cache-Control", "private, no-store")
 	auth, ok := h.authenticate(w, r, true)
 	if !ok {
 		return

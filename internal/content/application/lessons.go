@@ -98,10 +98,29 @@ func (s *Service) ListLessons(ctx context.Context, actor identity.User, query co
 	if err := normalizeList(actor, &query); err != nil {
 		return content.LessonPage{}, err
 	}
+	query.SkillID = strings.TrimSpace(query.SkillID)
+	if query.SkillID != "" && !validLessonSkillID(query.SkillID) {
+		return content.LessonPage{}, ErrInvalidInput
+	}
 	if err := s.prepareTeacherListScope(ctx, actor, &query); err != nil {
 		return content.LessonPage{}, err
 	}
 	return s.repo.ListLessons(ctx, query)
+}
+
+func validLessonSkillID(value string) bool {
+	if len(value) != 36 || value[8] != '-' || value[13] != '-' || value[18] != '-' || value[23] != '-' {
+		return false
+	}
+	for i, ch := range value {
+		if i == 8 || i == 13 || i == 18 || i == 23 {
+			continue
+		}
+		if !((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')) {
+			return false
+		}
+	}
+	return true
 }
 
 func normalizeLesson(actor identity.User, input LessonInput) (content.LessonWrite, error) {

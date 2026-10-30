@@ -20,5 +20,8 @@ export function LegacySiteFooter() {
 
 export function showPublicFooter(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, '') || '/';
-  return ['/', '/login', '/signup', '/about', '/contact', '/faq', '/privacy', '/terms', '/forgot-password', '/reset-password'].includes(normalized);
+  // Legacy AppRouteTree renders these public entries inside MainLayout, which always renders the footer.
+  // Keep this route-scoped: dashboard, classroom and attempt shells have separate layouts in Go.
+  if (['/', '/login', '/signup', '/about', '/contact', '/faq', '/privacy', '/terms', '/forgot-password', '/reset-password', '/verify-email', '/checkout'].includes(normalized)) return true;
+  return /^\/(?:category|course)\/[^/]+$/.test(normalized);
 }

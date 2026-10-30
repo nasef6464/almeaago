@@ -40,3 +40,19 @@ func TestBuildListWherePrevalidatedTeacherScopeSkipsPlatformTaxonomyTables(t *te
 		t.Fatalf("unexpected args: %#v", args)
 	}
 }
+
+func TestLessonSkillFilterKeepsOwnerScopeAndUsesCanonicalSkillLinks(t *testing.T) {
+	const skillID = "22222222-2222-4222-8222-222222222222"
+	where, args := buildLessonListWhere(content.ListQuery{
+		PathID: "path-id", SubjectID: "subject-id", TeacherScopeUserID: "teacher-id", SkillID: skillID,
+	})
+	if !strings.Contains(where, "lesson_skill_links") || !strings.Contains(where, "lsl.lesson_id=l.id") || !strings.Contains(where, "lsl.skill_id=$4::uuid") {
+		t.Fatalf("lesson link filter missing or wrongly parameterized: %s", where)
+	}
+	if !strings.Contains(where, "l.owner_user_id") || !strings.Contains(where, "l.assigned_teacher_id") || !strings.Contains(where, "content_trainer_subject_scopes") {
+		t.Fatalf("lesson filter must preserve teacher authorization: %s", where)
+	}
+	if len(args) != 4 || args[0] != "path-id" || args[1] != "subject-id" || args[2] != "teacher-id" || args[3] != skillID {
+		t.Fatalf("unexpected scoped args: %#v", args)
+	}
+}

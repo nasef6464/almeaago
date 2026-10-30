@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"unicode/utf8"
 
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	taxonomy "github.com/nasef6464/almeaago/internal/taxonomy/domain"
@@ -56,7 +57,7 @@ func (s *Service) CreatePath(ctx context.Context, actor identity.User, write tax
 	}
 	write.Code, write.Name = normalizeCode(write.Code), strings.TrimSpace(write.Name)
 	write.ParentPathID, write.Description = strings.TrimSpace(write.ParentPathID), strings.TrimSpace(write.Description)
-	if write.Code == "" || write.Name == "" || write.SortOrder < 0 || len(write.Name) > 160 || len(write.Description) > 4000 {
+	if write.Code == "" || write.Name == "" || write.SortOrder < 0 || utf8.RuneCountInString(write.Name) > 160 || utf8.RuneCountInString(write.Description) > 4000 {
 		return taxonomy.Path{}, ErrInvalidInput
 	}
 	return s.repo.CreatePath(ctx, actor.ID, write)
@@ -82,7 +83,7 @@ func (s *Service) CreateLevel(ctx context.Context, actor identity.User, write ta
 		return taxonomy.Level{}, ErrForbidden
 	}
 	write.PathID, write.Code, write.Name = strings.TrimSpace(write.PathID), normalizeCode(write.Code), strings.TrimSpace(write.Name)
-	if write.PathID == "" || write.Code == "" || write.Name == "" || write.SortOrder < 0 || len(write.Name) > 160 {
+	if write.PathID == "" || write.Code == "" || write.Name == "" || write.SortOrder < 0 || utf8.RuneCountInString(write.Name) > 160 {
 		return taxonomy.Level{}, ErrInvalidInput
 	}
 	return s.repo.CreateLevel(ctx, actor.ID, write)
@@ -104,7 +105,7 @@ func (s *Service) CreateSubject(ctx context.Context, actor identity.User, write 
 		return taxonomy.Subject{}, ErrForbidden
 	}
 	write.PathID, write.LevelID, write.Code, write.Name = strings.TrimSpace(write.PathID), strings.TrimSpace(write.LevelID), normalizeCode(write.Code), strings.TrimSpace(write.Name)
-	if write.PathID == "" || write.Code == "" || write.Name == "" || write.SortOrder < 0 || len(write.Name) > 160 {
+	if write.PathID == "" || write.Code == "" || write.Name == "" || write.SortOrder < 0 || utf8.RuneCountInString(write.Name) > 160 {
 		return taxonomy.Subject{}, ErrInvalidInput
 	}
 	return s.repo.CreateSubject(ctx, actor.ID, write)
@@ -131,7 +132,7 @@ func (s *Service) CreateSkill(ctx context.Context, actor identity.User, write ta
 	}
 	write.SubjectID, write.ParentSkillID = strings.TrimSpace(write.SubjectID), strings.TrimSpace(write.ParentSkillID)
 	write.Code, write.Name, write.Description = normalizeCode(write.Code), strings.TrimSpace(write.Name), strings.TrimSpace(write.Description)
-	if write.SubjectID == "" || write.Code == "" || write.Name == "" || write.SortOrder < 0 || (write.Kind != "main" && write.Kind != "sub") || len(write.Name) > 160 || len(write.Description) > 4000 {
+	if write.SubjectID == "" || write.Code == "" || write.Name == "" || write.SortOrder < 0 || (write.Kind != "main" && write.Kind != "sub") || utf8.RuneCountInString(write.Name) > 160 || utf8.RuneCountInString(write.Description) > 4000 {
 		return taxonomy.Skill{}, ErrInvalidInput
 	}
 	if (write.Kind == "main" && write.ParentSkillID != "") || (write.Kind == "sub" && write.ParentSkillID == "") {
@@ -159,14 +160,14 @@ func validCommonPatch(name, description *string, sortOrder *int, status *taxonom
 	if name != nil {
 		v := strings.TrimSpace(*name)
 		*name = v
-		if v == "" || len(v) > 160 {
+		if v == "" || utf8.RuneCountInString(v) > 160 {
 			return false
 		}
 	}
 	if description != nil {
 		v := strings.TrimSpace(*description)
 		*description = v
-		if len(v) > 4000 {
+		if utf8.RuneCountInString(v) > 4000 {
 			return false
 		}
 	}

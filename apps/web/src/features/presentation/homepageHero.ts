@@ -28,4 +28,28 @@ export const resolveHomepageHeroImage = (imageUrl?: string) => {
 
 import type {HomepageHeroSettings} from './homepage-types';
 export function heroRotateSeconds(value?:number){return Math.max(3,Math.min(60,Number(value)||6));}
-export function heroGallery(hero:HomepageHeroSettings,presets:{url:string;alt:string}[]){const primary=resolveHomepageHeroImage(hero.imageUrl);const alt=hero.imageAlt || 'طالب يستخدم منصة المئة';const result=[{url:primary,alt}];if(hero.galleryImages?.length){hero.galleryImages.forEach((url,index)=>{if(url?.trim()&&url!==primary)result.push({url,alt:presets.find(p=>p.url===url)?.alt || `${alt} - ${index+2}`});});}else{presets.forEach(p=>{if(!result.some(item=>item.url===p.url))result.push(p);});}return result;}
+export function heroGallery(hero: HomepageHeroSettings, presets: { url: string; alt: string }[]) {
+    const primary = resolveHomepageHeroImage(hero.imageUrl);
+    const alt = hero.imageAlt || 'طالب يستخدم منصة المئة';
+    const result = [{ url: primary, alt }];
+    // Legacy Landing.tsx accepts saved galleries only when they are arrays.
+    // Invalid entries from older settings must not crash the visitor homepage.
+    const gallery = Array.isArray(hero.galleryImages) ? hero.galleryImages : [];
+    if (gallery.length > 0) {
+        gallery.forEach((url, index) => {
+            if (typeof url === 'string' && url.trim() && url !== primary) {
+                result.push({
+                    url,
+                    alt: presets.find(p => p.url === url)?.alt || `${alt} - ${index + 2}`,
+                });
+            }
+        });
+    } else {
+        presets.forEach(item => {
+            if (item.url !== primary && !result.some(existing => existing.url === item.url)) {
+                result.push(item);
+            }
+        });
+    }
+    return result;
+}

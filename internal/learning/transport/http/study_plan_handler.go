@@ -1,7 +1,6 @@
 package learninghttp
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -46,13 +45,7 @@ func (h *StudyPlanHandler) authn(w http.ResponseWriter, r *http.Request, csrf bo
 }
 
 func decodeStudyPlan(w http.ResponseWriter, r *http.Request, out any) bool {
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(out); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
-		return false
-	}
-	return true
+	return decodeLearningWriteJSON(w, r, out, 64<<10)
 }
 
 func (h *StudyPlanHandler) list(w http.ResponseWriter, r *http.Request) {
