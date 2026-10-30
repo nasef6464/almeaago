@@ -49,6 +49,11 @@ jobs:
           DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
         run: go test ./internal/organizations/repository/postgres -run '^TestAssignmentMaterialGuardConcurrentTransactionsPostgres$' -count=1 -v
 
+      - name: Verify teacher multi-school assignment isolation and revocation against PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/organizations/repository/postgres -run '^TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres$' -count=1 -v
+
       - name: Verify director overview audiences against PostgreSQL
         env:
           DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
