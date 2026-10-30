@@ -1,5 +1,10 @@
 # Current State
 
+## استلام تنفيذي حديث — PR #155 / 28 أكتوبر 2026
+
+#154 مدمج عند `3c439699`؛ لم يعد حفظ homepage مفقودًا. شريحة#155 تستعيد محرر الهوية والهيرو وأثرهما للزائر؛ نجحت بوابات الكود والصور المحدودة على2623572e، مع تعطيل صريح للضوابط التابعة غير المنقولة. الدليل وحدود الصور في [30_HOMEPAGE_IDENTITY_EDITOR_AR.md](migration/30_HOMEPAGE_IDENTITY_EDITOR_AR.md). بوابة1 وP0–P7 غير مغلقة. التالي الهيدر الكامل والتنقل الأصلي وفق عقد المالك، ثم بقية مستهلكات الرئيسية قبل المسارات؛ لا تعد #152–#154 ولا تمس #123/#144. البوابات النهائية وقرار الدمج في PR #155. اللقطات الأقدم أدناه تاريخية حيث تتعارض مع هذا الاستلام.
+
+
 ## Foundation
 **FOUNDATION_GREEN**
 
@@ -1578,5 +1583,63 @@ Teacher PR #116, Parent PR #117, School Director PR #118 and Supervisor PR #119 
 UI-5 is closed. Latest Legacy AdminDashboard and supporting manager sources were read first at `d4e5c831...`. Every official UI-6 surface in the transplant plan already has a real V2 route and domain-specific E2E. This protected slice aligns/certifies the legacy admin shell navigation over those canonical owner domains; no Legacy store/business authority is restored. Exact-head four-gate verification pending.
 
 
-## Student Journey click-through completion candidate — 2026-10-02
-Dashboard mobile navigation now exercises real browser clicks for Assessments → Review → Plan → Results → Reports → Notifications, in addition to the already-certified Dashboard → Learning → Course Player path. Each destination asserts the canonical URL, its certified heading, absence of generic placeholder/application-error text, and no horizontal overflow at 390px. Existing domain E2E remains the deeper API/authority proof. Candidate awaits exact-head four-gate verification; do not mark CLOSED before all four gates pass on the same documentation-inclusive SHA and latest Legacy is rechecked.
+## Owner plan reconciliation — 2026-10-28 / whole-platform restoration remains PARTIAL
+
+The single active Go execution plan is `migration/03_EXECUTION_AND_HANDOFF_PLAN_AR.md`; Legacy's 0–9 delivery statuses are historical source evidence, not Go closure. Current source bf7281fc and target main671fbadf were rechecked. Preserve #150/#151 and all implemented Go domains. The current isolated font restoration slice is PR#152; no production deployment or data migration. The reconciliation matrix in `migration/26_WHOLE_PLATFORM_UI_RESTORATION_AR.md` distinguishes verified bounded changes from partial/missing/unknown contracts. Existing UI-3/UI-4/UI-5 closure labels do not certify current whole-platform 100% visual/functional parity.
+
+Order: finish the preserved public-settings slice and remaining dynamic homepage/header gaps; restore the original path→subject administrative workspace as a complete workflow with learner visibility; audit/reuse student/learning/player/assessments/results/review; then all remaining roles/tools; finally data/performance/integration/security/trial migration and restore acceptance. Open stale PR#123/#144 are preserved for comparison, not merged wholesale. No concurrent implementation writer on the current branch.
+
+
+### Font slice bounded verification checkpoint (PR#152)
+
+Code head c91bdda82f407dd29075ad3c0dd7155d485aab1f passed all four gates (Database40747074186 / Backend40747073278 / Frontend40747073479 / E2E40747073243). Real identity sessions→Go HTTP→PostgreSQL browser journey passed at390/820/1440, including exact paired source-component/Go screenshots under shared CSS/shell constraints. Full original-application/screens/roles parity remains PARTIAL, not100%. Artifact12841678505 and scope/limits are in migration28. Final documentation-inclusive head and merge status must be read from PR#152; do not assume this historical code-head record is a merge certificate. Next public gap: persisted homepage/header/brand/navigation contract; then the original path/subject admin workflow and real learner visibility, preserving existing domain work. The active ordering is unified in03 and AGENTS, not a new master plan.
+
+
+## Current independent engineering handoff — 2026-10-28
+
+This entry supersedes the earlier PR#152-open checkpoints above. Live recheck:
+Legacy main `bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7`; Go main
+`98d5cd519455e0775cf6b868f7c6e388ef4ef739`. PR#152 is MERGED, final tested
+head `a17ad3480c0fc289564576435ac8572a1dbf1552`. Preserve its bounded font
+persistence/component/navigation proof; 130 browser tests and the separate real
+DB journey are historical evidence for that head, not a whole-app certificate.
+PR#123 (`e2f59072`) and#144 (`ef48f25e`) remain OPEN; no wholesale merge.
+
+The owner's independent report is preserved verbatim under
+`migration/reviews/ALMEAA_GO_INDEPENDENT_ENGINEERING_HANDOFF_AR_2026-10-28.md`.
+It is a subordinate review, not a new Master Plan. Plan03 and AGENTS now state
+Modular Monolith + Vertical Capability Slices with one owner per domain fact.
+Matrix26 has the current source-level public action trace, evidence boundaries
+and the all-state register format. Historical discovery/closure records remain
+historical; they do not override the current checkpoint.
+
+Current deliverable: report/plan/instructions/state reconciliation and verified
+source tracing; **documentation only, no new runtime feature**. Nine existing
+font/footer/inventory tests passed locally. No new DB/browser/visual proof or
+production changes in this reconciliation. Exact PR/head/check status belongs
+to this branch's GitHub PR and must be verified before merging.
+
+Next: original HomepageManager → persisted Go/content settings → guest
+Header/Landing consumer, preserving source defaults, false/empty/omission,
+featured relations, session/CSRF, failed-save drafts, URL context, cache refresh
+and responsive original design. Real Go/PostgreSQL and paired screenshots gate
+acceptance. Then original path-card→path-workspace→subject-card→subject-workspace
+→publish→learner visibility; then learning/assessment/reports, remaining roles,
+services/data trial/restore and final acceptance. Full platform parity remains
+PARTIAL/UNKNOWN; production readiness NOT PROVEN. Do not restart verified work.
+
+
+### Gate1 dependent contract slice — homepage storage/API in progress
+
+Plan reconciliation PR#153 merged at `6baf9f1159c682f70062455eb9fcedc57469abf5`
+after all four exact-head gates. Next branch: `feat/persisted-homepage-contract`.
+Homepage display settings remain content-owned; migration000045 separates
+ordered featured path/course/lesson references with real FKs from scalar JSONB.
+Public GET, admin/CSRF PATCH, original validation/default/replace semantics,
+transactional audit and consistent read are implemented. Source schema/default
+snapshots and tests are retained. No frontend/runtime visual changes here.
+Full local Go tests and vet passed; database evidence and final CI remain
+pending until linked in PR/migration29. No skipped DB test is counted as proof.
+Next dependent work is original HomepageManager + Header/Landing consumers,
+real UI persistence/denials/reload/back and paired pictures. Gate1 is PARTIAL;
+platform parity/production readiness NOT PROVEN. No production deployment.

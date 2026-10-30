@@ -13,11 +13,13 @@ import (
 )
 
 var (
-	ErrInvalidInput = errors.New("invalid learning request")
-	ErrForbidden    = errors.New("learning operation forbidden")
-	ErrNotFound     = learning.ErrNotFound
-	ErrConflict     = learning.ErrConflict
-	ErrNotDue       = learning.ErrNotDue
+	ErrInvalidInput               = errors.New("invalid learning request")
+	ErrForbidden                  = errors.New("learning operation forbidden")
+	ErrNotFound                   = learning.ErrNotFound
+	ErrConflict                   = learning.ErrConflict
+	ErrNotDue                     = learning.ErrNotDue
+	ErrIncompleteReadiness        = errors.New("incomplete mastery readiness evidence")
+	ErrIncompleteReviewProjection = errors.New("incomplete pinned review question projection")
 )
 
 type Repository interface {
@@ -101,11 +103,40 @@ func (s *Service) Readiness(ctx context.Context, actor identity.User, pathID, su
 	if pathID == "" {
 		return learning.MasteryReadiness{}, ErrInvalidInput
 	}
-	page, err := s.repo.ListSkillProgress(ctx, actor.ID, pathID, subjectID, 1, 100)
+	// One SQL statement uses one PostgreSQL MVCC snapshot. Separate OFFSET
+	// reads can silently skip rows when evidence changes between requests.
+	const maxSkills = 10000
+	if err := ctx.Err(); err != nil {
+		return learning.MasteryReadiness{}, err
+	}
+	page, err := s.repo.ListSkillProgress(ctx, actor.ID, pathID, subjectID, 1, maxSkills)
 	if err != nil {
 		return learning.MasteryReadiness{}, err
 	}
-	return learning.MasteryReadinessFrom(page.Items, time.Now().UTC()), nil
+	if page.HasMore || len(page.Items) > maxSkills {
+		return learning.MasteryReadiness{}, ErrIncompleteReadiness
+	}
+	seenSkills := make(map[string]struct{}, len(page.Items))
+	for _, row := range page.Items {
+		if row.PathID != "" && row.PathID != pathID {
+			return learning.MasteryReadiness{}, ErrIncompleteReadiness
+		}
+		if subjectID != "" && row.SubjectID != "" && row.SubjectID != subjectID {
+			return learning.MasteryReadiness{}, ErrIncompleteReadiness
+		}
+		if row.SkillID != "" {
+			key := row.SubjectID + "\x00" + row.SkillID
+			if _, duplicate := seenSkills[key]; duplicate {
+				return learning.MasteryReadiness{}, ErrIncompleteReadiness
+			}
+			seenSkills[key] = struct{}{}
+		}
+	}
+	result := learning.MasteryReadinessFrom(page.Items, time.Now().UTC())
+	if err := ctx.Err(); err != nil {
+		return learning.MasteryReadiness{}, err
+	}
+	return result, nil
 }
 
 func (s *Service) NextAction(ctx context.Context, actor identity.User, pathID, subjectID string) (*learning.SkillProgress, error) {
@@ -170,7 +201,9 @@ func (s *Service) ReviewLibrary(ctx context.Context, actor identity.User, tab le
 	for _, card := range cards {
 		projection, ok := byKey[card.QuestionID+":"+strconv.Itoa(card.QuestionVersion)]
 		if !ok {
-			continue
+			// A persisted card must not disappear from a successful review page.
+			// The client already distinguishes failed reads from genuinely empty ones.
+			return learning.ReviewPage{}, ErrIncompleteReviewProjection
 		}
 		reviewQuestion := learning.ReviewQuestion{
 			ID: projection.ID, Version: projection.Version, Type: string(projection.QuestionType),

@@ -1,0 +1,79 @@
+# ALMEAA Go — نقطة استعادة التنفيذ: السياسة العلمية أولًا
+
+**التاريخ:** 2026-10-28. **حالة النطاق:** IMPLEMENTED + TESTED LOCAL؛ تكافؤ المنصة الكامل `NOT PROVEN`، والنشر/PR يحدّثان بعد رفع الفرع.
+
+## طلب المالك وقرار البرنامج
+
+> «اهتم بالمدارس» لا يعني «ابدأ بالمدارس». المطلوب نقل **كل المنصة** بنفس السياسة التربوية والوظائف والواجهة وبنية أفضل. المالك فوّض ترتيب العمل الهندسي.
+
+تم تصحيح أولوية `03_EXECUTION_AND_HANDOFF_PLAN_AR.md` بحيث تبدأ بالهدف التعليمي والأدوار والبيانات والعلاقات وقلب الاختبار/المراجعة، ثم تتابع جميع واجهات الأدوار والمدارس والخدمات. شرائح المدارس السابقة على Go محفوظة ولا يعاد تنفيذها لمجرد تغيير ترتيب برنامج العمل.
+
+## المقارنة الحالية
+
+| المصدر | المرجع المقرأ | الإثبات |
+|---|---|---|
+| Legacy | `almeaacodax@bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7` | المطابقة مع GitHub `main` عبر compare بتاريخ الفحص؛ الوثيقة التربوية `STUDENT_JOURNEY_PHILOSOPHY_AR.md` والسياسة `ADAPTIVE_MASTERY_FINAL_MASTER_PLAN_AR.md` |
+| Go local | `almeaago@d0ec44d32b888a3a1c474c203184eab82ecf641d` قبل هذا التغيير | بنيته تشمل `internal/{identity,organizations,taxonomy,questionbank,media,content,assessment,learning,reporting,parents,commerce,communication,realtime,ai,operations,platform}` |
+| Go remote | `main@728cbe083b2977ece0f9b5d0ee46d7f2e82ab776` وقت الفحص | compare مع ذلك SHA أظهر `status=identical`؛ source school #137/#138 مدمج سابقًا |
+
+**وثيقة التصميم والهدف التربوي:** `../superpowers/specs/2026-10-28-platform-pedagogical-policy-design.md`.
+
+## الفجوة الحقيقية الأولى وأثرها
+
+`internal/learning/application/service.go::Readiness` كان يقرأ `ListSkillProgress(..., page=1, limit=100)` ثم يحسب الاستعداد من `page.Items` فقط. مواد فيها أكثر من 100 مهارة تعرض إجمالي المهارات والأدلة والتغطية غير الكامل. مثال اختبار برمجي: 100 مهارة إتقانها 90% وثلاث أدلة لكل واحدة، والمهارة 101 إتقانها صفر وثلاث أدلة؛ الكود القديم يرجع `totalSkills=100, totalEvidence=300, score=90`، بينما الصفحات المكتملة تُنتج `101, 303, 89`. الرقم 100 هو **حد قراءة** لا شرط تربوي.
+
+**الحل المحدود:** تجميع صفحات النطاق نفسه داخل application بمجموعات 100 حتى اكتمال `HasMore`. حد أمان 100 صفحة (= 10,000 row كحد أقصى)؛ عند error، أو استمرار `HasMore` مع صفحة فارغة، أو تجاوز الحد، تفشل العملية بـ`ErrIncompleteReadiness` ولا تُعرض نتيجة مبنية على جزء من الأدلة. لا تغيير جداول/مسارات/عتبات التصحيح أو بيانات الطلاب.
+
+### إثبات الاختبارات المحلي
+
+1. Baseline قبل التعديل: `go test ./internal/learning/application ./internal/learning/domain` → PASS.
+2. RED بعد كتابة حالات الاختبار: أربع حالات `TestReadiness*` فشلت لأن الخدمة اكتفت بالصفحة الأولى أو تجاهلت خطأ الثانية؛ الدليل المباشر `totalSkills=100`, `score=90`.
+3. GREEN بعد إصلاح الـapplication: `go test ./internal/learning/application -run TestReadiness -count=1` → PASS.
+4. التشغيل الكامل `go test ./...` داخل filesystem sandbox فشل في اختبارات provider التي تفتح منفذ TCP اختبار بسبب `socket: operation not permitted`؛ **ليس حكمًا على الكود**. إعادة التشغيل في بيئة تسمح بـloopback أعادت `exit_code=0` لجميع حزم Go بما فيها learning/assessment/organizations/providers.
+
+## ما يزال خارج هذه الدفعة
+
+- لا نملك بعد جردًا نهائيًا لكل أزرار الشاشات ولا 8×screens screenshots مرئية حديثة؛ لا تسمية `VISUAL PARITY` حتى يكتمل.
+- عتبات/مصادر التغطية في Go تحتاج golden comparisons مع Legacy على نفس بيانات المسار، بما فيها **مقام المهارات غير المقاسة**. إصلاح الـ100 يزيل truncation فقط، ولا يثبت دقة مقام المنهج بالكامل.
+- قد يتغير progress بين صفحتين أثناء القراءة؛ يحتاج لاحقًا snapshot/revision أو aggregation متسق عند حجم/تزامن إنتاجي، مع معيار benchmark. لا نغير قاعدة بيانات أو API في هذه الدفعة.
+- حدود ownership لمنشئ اختبار المدرسة (`organizations` direct assessment inserts) مقابل assessment core تحتاج contract refactor محمي باختبارات.
+- Mongo→PostgreSQL production rows والإتاحة/الأموال وAI providers والحصص والصور الحية لم تُختبر هنا؛ لا مساس ببيانات الإنتاج.
+
+## للمنفذ الذي يفتح كودكس في المرة القادمة
+
+1. اقرأ هذا الملف ثم ميثاق السياسة و`03_EXECUTION_AND_HANDOFF_PLAN_AR.md`، ولا تبدأ من خطة المدارس القديمة وحدها.
+2. تحقّق من رأس Legacy/Go GitHub main وPR هذه الدفعة؛ لا تعيد تطبيق إصلاح الـ100 إذا كان مدمجًا.
+3. أكمل الجرد العابر للطبقات بدءًا من `identity → taxonomy → questionbank → content/access → assessment → learning/reporting` مع E2E ذهبي للتشخيص وإعادة القياس، ثم واجهات المستخدمين بما فيها المدارس.
+4. اطلب بيانات staging/fixtures آمنة للتصوير/ترحيل البيانات عندما تصل المرحلة؛ لا تستخدم أو تنشر بيانات الطلاب الحقيقية في ملفات Evidence.
+
+**حكم الإغلاق:** هذه دفعة تأسيس تربوي وإصلاح حساب محدد. ليست اكتمال نقل المنصة، وليست شهادة Visual/UI أو Production readiness.
+
+## تحديث لاحق — برنامج التنفيذ وجدولة استكماله (2026-10-28)
+
+- أُثبت دمج دفعة السياسة والجاهزية السابقة في Go `main@75b4afb752894dcf15d77134d5069cc5bbb7cb92`، PR #139؛ **لا تكرر تطبيقها**.
+- فُعّلت جدولة متابعة تنفيذ ALMEAA Go كل ساعتين بتوقيت الرياض؛ كل تشغيل يستعيد حالة GitHub الحية ويراجع الخطة ويكتب أدلة الدفعة. الجدولة لا تعني أن التطبيق يعمل على خادم تطوير دائم.
+- بدأ `P0` بجرد آلي قابل للتشغيل لمسارات React في المصدر والهدف، مسجل في `18_FRONTEND_ROUTE_PARITY_AUDIT_AR.md`، مع baseline محدد: Legacy 55 / Go 54 / نص مشترك 28 / Node-only 27 / Go-only 26.
+- هذه **فروق في عناوين المسارات وليست حكمًا بفقد 27 وظيفة**. يجب ربط `screen → action → API → domain → database` وتوثيق كل URL بديل وقوة عقده ولقطات مقاسات الأجهزة.
+- التالي: استكمال جرد الواجهات والـAPI والعلاقات، ثم golden behavior tests للهوية والاختبارات والمهارات والتقارير، مع الحفاظ على سياسة المدارس ودورة تعلم الطالب.
+
+## P0-B — API mounts ومسار أمر اختبار المدرسة (2026-10-28)
+
+- الدفعة P0-A السابقة: PR #140 دُمج بعد أربع بوابات CI ناجحة؛ `main@491d5b1c87cc53c1f3e7aea52057498dc40496af` مؤكد. لا تعيدها.
+- جرد التسجيل العلوي للـHTTP في `19_API_MOUNTS_AND_ASSESSMENT_OWNERSHIP_AR.md`، بأداة وقائمة snapshot واختبارات `scripts/parity/api-mount-inventory*`.
+- Legacy: 33 mount تسجيلًا، 30 جذرًا مميزًا؛ Go: 31 mount مختلفًا؛ الجذر الحرفي المشترك `/api/school-access`. الغالبية تتغير من `/api` إلى `/api/v1`؛ **ليس قياسًا لفقد الخصائص**.
+- مسار إنشاء اختبار المدرسة تم تتبعه حتى SQL والجداول المشتركة؛ توجد صلاحية مكررة في transaction وحجز idempotency. أما تحرير/نسخ الاختبار المدرسي مقابل Legacy فحالة `GAP-CANDIDATE / UNKNOWN` إلى أن تثبت وظائف Go المكافئة أو غيابها.
+- **الخطوة التالية:** التحقق من `clone/commands/definition` عبر الواجهة والخدمة واختبار golden لقرار النطاق، ثم توسيع الجرد إلى الهوية، التعلم، التقرير، والدفع؛ لا تعديل production data.
+
+## تحديث 2026-10-28 — P0-B / P1 integrity
+
+- دُمج PR #142 بعد نجاح Frontend CI / Backend CI / Database CI / Frontend E2E على SHA `dcfc1847ee9189fe66ac5e5180012c19f08ad901`، فأصبح `main@fec689b32ae442c72586133f4cc511efc9f91c54`. أضيفت خريطة API mounts والملكية المدرسية في `19_API_MOUNTS_AND_ASSESSMENT_OWNERSHIP_AR.md`، ولا تعني تكافؤ endpoints.
+- فحص لاحق لمسار `Readiness` كشف احتمال تكرار skill بين صفحات `LIMIT/OFFSET` المرتبة بالـmastery أثناء تغيّر الأدلة. توثيق `20_READINESS_PAGE_INTEGRITY_AR.md` مع اختبار رفض التكرار والنطاق الخاطئ، دون تغيير المعادلة أو قاعدة البيانات. **الاعتماد النهائي ينتظر CI على PR الجديد**.
+- التالي: إثبات الاستقرار عبر PostgreSQL snapshot/aggregation (ببيئة اختبار فقط)، ثم مقارنة golden behavior مع Legacy في نطاق المسار/المادة ومقام المهارات غير المقاسة.
+
+## متابعة P1 — single-query readiness
+
+من Go `778be2c` وLegacy `bf7281f`: استبدال تجميع صفحات الجاهزية بقراءة SQL واحدة بحد 10000، مع رفض overflow والمحافظة على التحقق من النطاق والتكرار. التفاصيل والدليل والحدود: `21_READINESS_SINGLE_QUERY_AR.md`. اختبارات Go المحلية ناجحة؛ integration الحقيقي في Database CI ينتظر تشغيل الفرع. لا تغيير production أو schema أو scoring. الحالة PARTIAL إلى تحقق CI؛ التالي golden denominator/policy comparisons، مع حفظ فرع school-definition الجاري دون تكرار عمله.
+
+## متابعة P1 — concurrent evidence integrity / PR #148
+
+على أساس Go `935998650d2183bd9a8c95c154384ff4754b3197` وبعد تأكيد Legacy `bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7`، #145/#146 مدمجان. فحص مساري حفظ الاختبار والمراجعة كشف aggregate قبل upsert بلا قفل مشترك. RED على `7e0d104` في Database CI [40679673484](https://github.com/nasef6464/almeaago/actions/runs/40679673484): 3 حالات تحفظ دليلين بينما التقدم يحتسب واحدًا؛ إعادة review متزامنة متطابقة تعيد conflict؛ الإلغاء سليم أصلًا. يُضاف قفل transaction لكل طالب قبل أي قفل بطاقة/كتابة، مع READ COMMITTED صريح؛ لا تغيير سياسة أو تقريب أو schema. التفاصيل `24_LEARNING_EVIDENCE_SERIALIZATION_AR.md`. Go suite المحلية وsource oracle نجحت؛ الحالات الخمس PG GREEN على ff4b87f في Database CI 40680096677، ومراجعة مستقلة دون عيوب مانعة. أُضيف main@54db3c0 دون تكرار #147. الرأس النهائي والبوابات الأربع ونتيجة الدمج في PR #148، دون إثبات إنتاج أو تكافؤ شامل. التالي مقارنة سياسة التجميع المتتابع/التقريب مع الأصل، ثم مقام المنهج والتوصية التكيفية.

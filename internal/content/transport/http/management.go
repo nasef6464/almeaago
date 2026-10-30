@@ -9,15 +9,32 @@ import (
 	content "github.com/nasef6464/almeaago/internal/content/domain"
 )
 
-func NewManagement(service *contentapp.Service, auth Authenticator) http.Handler {
-	h := &Handler{service: service, auth: auth}
+func NewManagement(service *contentapp.Service, auth Authenticator, fonts ...*contentapp.FontService) http.Handler {
+	var fontService *contentapp.FontService
+	if len(fonts) > 0 {
+		fontService = fonts[0]
+	}
+	return NewManagementWithPresentation(service, auth, fontService, nil)
+}
+
+func NewManagementWithPresentation(service *contentapp.Service, auth Authenticator, fonts *contentapp.FontService, homepage *contentapp.HomepageService) http.Handler {
+	h := &Handler{service: service, auth: auth, fonts: fonts, homepage: homepage}
 	r := chi.NewRouter()
+	if fonts != nil {
+		r.Get("/platform-font-settings", h.getFontSettings)
+		r.Patch("/platform-font-settings", h.patchFontSettings)
+	}
+	if homepage != nil {
+		r.Get("/homepage-settings", h.getHomepageSettings)
+		r.Patch("/homepage-settings", h.patchHomepageSettings)
+	}
 	r.Get("/trainer-scopes/{userId}", h.getTrainerScope)
 	r.Put("/trainer-scopes/{userId}", h.setTrainerScope)
 	return r
 }
 
 func (h *Handler) getTrainerScope(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	auth, ok := h.authenticate(w, r, false)
 	if !ok {
 		return
@@ -31,6 +48,7 @@ func (h *Handler) getTrainerScope(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) setTrainerScope(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	auth, ok := h.authenticate(w, r, true)
 	if !ok {
 		return

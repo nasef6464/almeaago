@@ -10,24 +10,74 @@ import (
 )
 
 type repositoryMock struct {
-	contexts          []org.SchoolContext
-	accessAllowed     bool
-	manageAllowed     bool
-	permissionAllowed bool
-	lastSchoolQuery   org.SchoolListQuery
-	lastClassQuery    org.ClassListQuery
-	lastRosterQuery   org.RosterQuery
-	createdSchool     org.SchoolWrite
-	updatedSchool     org.SchoolPatch
-	createdClass      org.ClassWrite
-	updatedClass      org.ClassPatch
-	membershipWrite   org.MembershipWrite
-	directorQuery     org.DirectorQuery
-	directorWrite     org.DirectorWrite
-	assignmentQuery   org.AssignmentQuery
-	assignmentWrite   org.AssignmentWrite
-	teacherWorkspace  org.TeacherWorkspace
-	parentAuthority   org.ParentAuthority
+	lastEligibleStudentsCalled    bool
+	lastEligibleStudentsSearch    string
+	lastDirectorAssessmentCreate  *org.DirectorAssessmentCreate
+	lastDirectorAssessmentSchool  string
+	lastDirectorReportSchool      string
+	lastDirectorReportAssessment  string
+	reportCallCount               int
+	learnerListCalls              int
+	learnerDetailCalls            int
+	contexts                      []org.SchoolContext
+	accessAllowed                 bool
+	manageAllowed                 bool
+	permissionAllowed             bool
+	allowedSchoolID               string
+	directorOverview              org.DirectorOverview
+	lastDirectorAssessmentsSchool string
+	lastDirectorOverviewSchool    string
+	lastSchoolQuery               org.SchoolListQuery
+	lastClassQuery                org.ClassListQuery
+	lastRosterQuery               org.RosterQuery
+	createdSchool                 org.SchoolWrite
+	updatedSchool                 org.SchoolPatch
+	createdClass                  org.ClassWrite
+	updatedClass                  org.ClassPatch
+	membershipWrite               org.MembershipWrite
+	directorQuery                 org.DirectorQuery
+	directorWrite                 org.DirectorWrite
+	assignmentQuery               org.AssignmentQuery
+	assignmentWrite               org.AssignmentWrite
+	teacherWorkspace              org.TeacherWorkspace
+	parentAuthority               org.ParentAuthority
+}
+
+func (m *repositoryMock) DirectorAssessmentEligibleStudents(_ context.Context, _, _, search string, _, _ int) (org.DirectorAssessmentStudentPage, error) {
+	m.lastEligibleStudentsCalled = true
+	m.lastEligibleStudentsSearch = search
+	return org.DirectorAssessmentStudentPage{Items: []org.DirectorAssessmentCandidate{}}, nil
+}
+
+func (m *repositoryMock) DirectorCreateAssessment(_ context.Context, _ string, schoolID string, input org.DirectorAssessmentCreate) (org.DirectorAssessmentCreated, error) {
+	m.lastDirectorAssessmentCreate = &input
+	m.lastDirectorAssessmentSchool = schoolID
+	return org.DirectorAssessmentCreated{AssessmentID: "00000000-0000-0000-0000-000000000999", Title: input.Title, ClassID: input.ClassID, TargetScope: input.TargetScope}, nil
+}
+
+func (m *repositoryMock) DirectorAssessmentQuestions(_ context.Context, _, _, _, _, _ string, _, _ int) (org.DirectorAssessmentQuestionPage, error) {
+	return org.DirectorAssessmentQuestionPage{Items: []org.DirectorAssessmentQuestion{}}, nil
+}
+
+func (m *repositoryMock) DirectorAssessmentReport(_ context.Context, _, schoolID, assessmentID string) (org.DirectorAssessmentReport, error) {
+	m.lastDirectorReportSchool = schoolID
+	m.lastDirectorReportAssessment = assessmentID
+	m.reportCallCount++
+	var result org.DirectorAssessmentReport
+	result.Audience.Targeted = 3
+	return result, nil
+}
+
+func (m *repositoryMock) DirectorAssessmentLearners(_ context.Context, _, _, _ string, query org.DirectorAssessmentLearnerQuery) (org.DirectorAssessmentLearnerPage, error) {
+	m.learnerListCalls++
+	return org.DirectorAssessmentLearnerPage{Learners: []org.DirectorAssessmentLearner{}}, nil
+}
+
+func (m *repositoryMock) DirectorAssessmentLearnerResult(_ context.Context, _, _, _, attemptID string) (org.DirectorAssessmentLearnerResult, error) {
+	m.learnerDetailCalls++
+	var detail org.DirectorAssessmentLearnerResult
+	detail.Result.ID = attemptID
+	return detail, nil
 }
 
 func (m *repositoryMock) ParentAuthority(_ context.Context, _ string) (org.ParentAuthority, error) {
@@ -248,6 +298,16 @@ func (m *repositoryMock) DirectorTeachers(
 	return org.DirectorTeacherWorkspace{}, nil
 }
 
+func (m *repositoryMock) DirectorOverview(_ context.Context, schoolID string) (org.DirectorOverview, error) {
+	m.lastDirectorOverviewSchool = schoolID
+	return m.directorOverview, nil
+}
+
+func (m *repositoryMock) DirectorAssessments(_ context.Context, schoolID string) (org.DirectorAssessmentWorkspace, error) {
+	m.lastDirectorAssessmentsSchool = schoolID
+	return org.DirectorAssessmentWorkspace{Assessments: []org.SchoolDirectorAssessment{}, Classes: []org.DirectorOverviewClass{}}, nil
+}
+
 func (m *repositoryMock) CanAccessSchool(context.Context, org.AccessContext, string) (bool, error) {
 	return m.accessAllowed, nil
 }
@@ -256,8 +316,8 @@ func (m *repositoryMock) CanManageSchool(context.Context, string, string) (bool,
 	return m.manageAllowed, nil
 }
 
-func (m *repositoryMock) HasSchoolPermission(context.Context, string, string, string) (bool, error) {
-	return m.permissionAllowed, nil
+func (m *repositoryMock) HasSchoolPermission(_ context.Context, _ string, schoolID string, _ string) (bool, error) {
+	return m.permissionAllowed && (m.allowedSchoolID == "" || m.allowedSchoolID == schoolID), nil
 }
 
 func actor(id string, role identity.Role) identity.User {

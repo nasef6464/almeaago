@@ -13,6 +13,32 @@ import (
 	org "github.com/nasef6464/almeaago/internal/organizations/domain"
 )
 
+type assignmentMaterialQuerier interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+// Locking the teacher row serializes active assignment mutations. The next
+// statement observes any material committed by the previous transaction.
+func ensureAssignmentMaterialTx(ctx context.Context, q assignmentMaterialQuerier, schoolID, teacherID, subjectID string) error {
+	var lockedTeacherID string
+	if err := q.QueryRow(ctx, "SELECT id::text FROM users WHERE id = $1::uuid FOR UPDATE", teacherID).Scan(&lockedTeacherID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return org.ErrNotFound
+		}
+		return err
+	}
+	var conflict bool
+	if err := q.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM teaching_assignments "+
+		"WHERE school_id = $1::uuid AND teacher_id = $2::uuid AND status = 'active' "+
+		"AND (subject_id IS NULL OR subject_id <> $3::uuid))", schoolID, teacherID, subjectID).Scan(&conflict); err != nil {
+		return err
+	}
+	if conflict {
+		return org.ErrConflict
+	}
+	return nil
+}
+
 func (r *Repository) ListAssignments(
 	ctx context.Context,
 	access org.AccessContext,
@@ -116,6 +142,14 @@ func (r *Repository) UpsertAssignment(
 		return org.TeachingAssignment{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if write.Status == org.AssignmentStatusActive {
+		if write.SubjectID == "" {
+			return org.TeachingAssignment{}, org.ErrConflict
+		}
+		if err := ensureAssignmentMaterialTx(ctx, tx, schoolID, write.TeacherID, write.SubjectID); err != nil {
+			return org.TeachingAssignment{}, err
+		}
+	}
 
 	const insertSQL = "INSERT INTO teaching_assignments " +
 		"(school_id, teacher_id, class_id, subject_id, status) " +
@@ -146,6 +180,20 @@ func (r *Repository) UpsertAssignment(
 		const updateSQL = "UPDATE teaching_assignments SET status = $5, updated_at = now() " +
 			"WHERE school_id = $1::uuid AND teacher_id = $2::uuid AND class_id = $3::uuid " +
 			"AND subject_id IS NOT DISTINCT FROM NULLIF($4, '')::uuid " +
+			// Legacy allows stopping an orphaned assignment, but reactivation must
+			// satisfy the same live class/school/teacher/subject predicates as INSERT.
+			// ON CONFLICT DO NOTHING followed by UPDATE previously bypassed them.
+			"AND ($5 <> 'active' OR (" +
+			"EXISTS (SELECT 1 FROM schools s JOIN classes c ON c.school_id = s.id " +
+			"AND c.id = $3::uuid AND c.status = 'active' " +
+			"WHERE s.id = $1::uuid AND s.status <> 'archived') " +
+			"AND EXISTS (SELECT 1 FROM users u " +
+			"JOIN user_roles ur ON ur.user_id = u.id AND ur.role = 'teacher' " +
+			"JOIN school_memberships sm ON sm.user_id = u.id " +
+			"AND sm.school_id = $1::uuid AND sm.role = 'teacher' AND sm.status = 'active' " +
+			"WHERE u.id = $2::uuid) " +
+			"AND EXISTS (SELECT 1 FROM subjects subject WHERE subject.id = NULLIF($4, '')::uuid)" +
+			")) " +
 			"RETURNING id::text, school_id::text, teacher_id::text, class_id::text, " +
 			"COALESCE(subject_id::text, ''), status, created_at, updated_at"
 		assignment, err = scanAssignment(tx.QueryRow(

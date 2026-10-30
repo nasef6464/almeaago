@@ -2677,16 +2677,18 @@ paths:
   /api/v1/lessons:
     get:
       operationId: contentListLessons
-      description: Bounded staff lesson list with owner/assignment authority; platform trainer scope applies globally, while an exact pathId+subjectId filter may be authorized by an active school teaching assignment.
+      description: Bounded staff lesson list with owner/assignment authority; optional skillId filters canonical lesson_skill_links without widening the staff scope. Platform trainer scope applies globally, while an exact pathId+subjectId filter may be authorized by an active school teaching assignment.
       parameters:
         - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
         - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
         - { in: query, name: pathId, schema: { type: string } }
         - { in: query, name: subjectId, schema: { type: string } }
+        - { in: query, name: skillId, description: Optional exact skill UUID linked to the lesson, schema: { type: string, format: uuid } }
         - { in: query, name: search, schema: { type: string, maxLength: 160 } }
         - { in: query, name: workflowStatus, schema: { type: string, enum: [draft, pending_review, approved, rejected, archived] } }
       responses:
         "200": { description: Bounded staff lesson page }
+        "400": { description: Invalid pagination, filters, or skill UUID }
         "403": { description: Staff scope required }
     post:
       operationId: contentCreateLesson
@@ -3007,3 +3009,229 @@ paths:
         "401": { description: Authentication required }
         "404": { description: Foundation topic unavailable }
         "409": { description: Stored placement set exceeds safety bounds }
+
+  /api/v1/content/platform-font-settings:
+    get:
+      operationId: contentPublicPlatformFonts
+      description: Public singleton font settings. Missing document returns approved source defaults without writing on GET.
+      responses:
+        "200": { description: Settings document with key=default and four font families, optional size/weight/color overrides and body/heading uploads }
+        "500": { description: Settings storage unavailable }
+    patch:
+      operationId: contentAdminPatchPlatformFonts
+      description: >
+        Platform admin session and X-CSRF-Token required. Atomic top-level merge.
+        Missing bodyFont/headingFont/navigationFont/buttonFont default to tajawal per source;
+        omitted optional overrides retain stored values and empty strings clear overrides.
+        Unknown metadata is stripped. Size matches digit{1,2}(.digit)?(px|rem), colors are
+        six-digit hex, weights are 300/400/500/600/700/800/900/normal/bold. Body/heading
+        custom fonts accept font woff/woff2/ttf/otf base64 up to700000characters and size<=500000.
+        Request limit1500000bytes accommodates both uploads. Updates produce an audit event
+        without font bytes in audit metadata.
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bodyFont:
+                  type: string
+                  enum: [tajawal, cairo, almarai, readex-pro, ibm-plex-sans-arabic, noto-naskh-arabic, noto-kufi-arabic, system, custom]
+                  default: tajawal
+                bodySize: { type: string }
+                bodyWeight: { type: string }
+                bodyColor: { type: string }
+                headingFont:
+                  type: string
+                  enum: [tajawal, cairo, almarai, readex-pro, ibm-plex-sans-arabic, noto-naskh-arabic, noto-kufi-arabic, system, custom]
+                  default: tajawal
+                headingSize: { type: string }
+                headingWeight: { type: string }
+                headingColor: { type: string }
+                navigationFont:
+                  type: string
+                  enum: [tajawal, cairo, almarai, readex-pro, ibm-plex-sans-arabic, noto-naskh-arabic, noto-kufi-arabic, system, custom]
+                  default: tajawal
+                navigationSize: { type: string }
+                navigationWeight: { type: string }
+                navigationColor: { type: string }
+                buttonFont:
+                  type: string
+                  enum: [tajawal, cairo, almarai, readex-pro, ibm-plex-sans-arabic, noto-naskh-arabic, noto-kufi-arabic, system, custom]
+                  default: tajawal
+                buttonSize: { type: string }
+                buttonWeight: { type: string }
+                buttonColor: { type: string }
+                bodyCustomFont:
+                  type: object
+                  properties:
+                    name: { type: string, maxLength: 80, default: "" }
+                    fileName: { type: string, maxLength: 160, default: "" }
+                    mimeType: { type: string, maxLength: 80, default: "" }
+                    dataUrl: { type: string, maxLength: 700000 }
+                    size: { type: number, minimum: 0, maximum: 500000, default: 0 }
+                headingCustomFont:
+                  type: object
+                  properties:
+                    name: { type: string, maxLength: 80, default: "" }
+                    fileName: { type: string, maxLength: 160, default: "" }
+                    mimeType: { type: string, maxLength: 80, default: "" }
+                    dataUrl: { type: string, maxLength: 700000 }
+                    size: { type: number, minimum: 0, maximum: 500000, default: 0 }
+      responses:
+        "200": { description: Persisted merged settings including updatedAt }
+        "400": { description: Invalid font settings or malformed/oversized request }
+        "401": { description: Authentication required }
+        "403": { description: Admin role or CSRF required }
+        "500": { description: Settings write failed; previous settings retained }
+
+  /api/v1/content/homepage-settings:
+    get:
+      operationId: homepageSettingsGet
+      description: >
+        Public presentation settings, no-store. Returns pinned source defaults
+        without writing a database row when not configured. Featured IDs are
+        ordered references only; they grant no publication, entitlement or access.
+      responses:
+        "200": { description: Homepage presentation document with key default, brand, hero, stats, testimonials, sections, typography, navigation, studentExperience and featured ID arrays }
+        "500": { description: Storage unavailable; never silently replaced with defaults }
+    patch:
+      operationId: homepageSettingsPatch
+      description: >
+        Platform admin and CSRF required. Unknown fields are stripped according
+        to the pinned source contract. Omitted top-level fields remain unchanged;
+        supplied nested objects replace previous objects with source subdocument
+        defaults. False, zero and empty strings/arrays are preserved. Relational
+        references and presentation plus audit commit atomically. Duplicate IDs
+        and array order are retained. JSON payload limit matches source 5MiB.
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                studentExperience:
+                  type: object
+                  required: [visibilityMode, promptEnrollment]
+                  properties:
+                    visibilityMode: { type: string, enum: [all, enrolled] }
+                    promptEnrollment: { type: boolean }
+                brand:
+                  type: object
+                  properties:
+                    logoUrl: { type: string }
+                    logoAlt: { type: string }
+                    logoText: { type: string }
+                    logoAccentText: { type: string }
+                hero:
+                  type: object
+                  description: Source hero text, CTA labels/links, colors, image and floating-card fields; unknown keys stripped.
+                  properties:
+                    badgeText: { type: string }
+                    titlePrefix: { type: string }
+                    titleHighlight: { type: string }
+                    titleSuffix: { type: string }
+                    description: { type: string }
+                    primaryCtaLabel: { type: string }
+                    primaryCtaLink: { type: string }
+                    secondaryCtaLabel: { type: string }
+                    secondaryCtaLink: { type: string }
+                    tertiaryCtaLabel: { type: string }
+                    tertiaryCtaLink: { type: string }
+                    badgeTextColor: { type: string }
+                    titlePrefixColor: { type: string }
+                    titleHighlightColor: { type: string }
+                    titleSuffixColor: { type: string }
+                    descriptionColor: { type: string }
+                    primaryCtaColor: { type: string }
+                    secondaryCtaColor: { type: string }
+                    tertiaryCtaColor: { type: string }
+                    imageUrl: { type: string }
+                    imageAlt: { type: string }
+                    galleryImages:
+                      type: array
+                      maxItems: 10
+                      items: { type: string, description: At most 1500000 UTF-16 code units }
+                    autoRotateImages: { type: boolean }
+                    rotateIntervalSeconds: { type: number, minimum: 3, maximum: 60 }
+                    floatingCardTitle: { type: string }
+                    floatingCardSubtitle: { type: string }
+                    floatingCardProgressLabel: { type: string }
+                    floatingCardProgressValue: { type: string }
+                sections:
+                  type: object
+                  properties:
+                    featuredCoursesTitle: { type: string }
+                    featuredCoursesSubtitle: { type: string }
+                    featuredArticlesTitle: { type: string }
+                    featuredArticlesSubtitle: { type: string }
+                    whyChooseTitle: { type: string }
+                    whyChooseDescription: { type: string }
+                    testimonialsTitle: { type: string }
+                    testimonialsSubtitle: { type: string }
+                typography:
+                  type: object
+                  properties:
+                    headingFont: { type: string, enum: [tajawal, system, serif] }
+                    bodyFont: { type: string, enum: [tajawal, system, serif] }
+                    headingWeight: { type: string, enum: [bold, black] }
+                navigation:
+                  type: object
+                  properties:
+                    showAutoPaths: { type: boolean }
+                    moreLabel: { type: string }
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id]
+                        properties:
+                          id: { type: string }
+                          label: { type: string }
+                          visible: { type: boolean }
+                          order: { type: number }
+                stats:
+                  type: array
+                  items:
+                    type: object
+                    required: [id, label]
+                    properties:
+                      id: { type: string, minLength: 1 }
+                      label: { type: string, minLength: 1 }
+                      mode: { type: string, enum: [dynamic, manual], default: dynamic }
+                      source: { type: string, enum: [students, courses, assets, rating], default: students }
+                      manualValue: { type: string }
+                testimonials:
+                  type: array
+                  items:
+                    type: object
+                    required: [id, name, text]
+                    properties:
+                      id: { type: string, minLength: 1 }
+                      name: { type: string, minLength: 1 }
+                      text: { type: string, minLength: 1 }
+                      degree: { type: string }
+                      image: { type: string }
+                featuredPathIds: { type: array, items: { type: string }, description: Existing normalized path IDs; empty array clears selection }
+                featuredCourseIds: { type: array, items: { type: string }, description: Existing normalized course IDs }
+                featuredArticleLessonIds: { type: array, items: { type: string }, description: Existing normalized lesson IDs }
+      responses:
+        "200": { description: Saved presentation document with updatedAt }
+        "400": { description: Malformed JSON, null or invalid known field }
+        "401": { description: Authentication required }
+        "403": { description: Admin role and valid CSRF required }
+        "409": { description: A featured entity reference is missing or invalid; entire write rolled back }
+        "413": { description: JSON payload exceeds source 5MiB transport limit }
+        "500": { description: Storage or audit failure; entire write rolled back }

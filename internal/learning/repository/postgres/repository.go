@@ -39,11 +39,15 @@ func (r *Repository) writeAuditTx(ctx context.Context, tx pgx.Tx, event operatio
 }
 
 func (r *Repository) ApplyAssessmentEvidence(ctx context.Context, event learning.SubmissionEvidence) (learning.ApplyResult, error) {
-	tx, err := r.db.Begin(ctx)
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
 	if err != nil {
 		return learning.ApplyResult{}, err
 	}
 	defer tx.Rollback(ctx)
+
+	if err = lockStudentEvidenceTx(ctx, tx, event.StudentID); err != nil {
+		return learning.ApplyResult{}, err
+	}
 
 	affected := map[string]struct{}{}
 	inserted := 0
@@ -263,34 +267,6 @@ func (r *Repository) ListSkillProgress(ctx context.Context, student, pathID, sub
 	return out, nil
 }
 
-func (r *Repository) WeakestSkillProgress(ctx context.Context, student, pathID, subjectID string) (*learning.SkillProgress, error) {
-	args := []any{student, pathID}
-	subjectFilter := ""
-	if strings.TrimSpace(subjectID) != "" {
-		args = append(args, subjectID)
-		subjectFilter = fmt.Sprintf(" AND subject_id=$%d::uuid", len(args))
-	}
-	var item learning.SkillProgress
-	err := r.db.QueryRow(ctx, `
-		SELECT path_id::text,subject_id::text,skill_id::text,mastery::float8,status,
-		       attempts,evidence_count,COALESCE(last_evidence_at,created_at),recommended_action
-		FROM skill_progress
-		WHERE student_id=$1::uuid AND path_id=$2::uuid`+subjectFilter+`
-		ORDER BY mastery ASC,last_evidence_at DESC NULLS LAST,skill_id
-		LIMIT 1
-	`, args...).Scan(
-		&item.PathID, &item.SubjectID, &item.SkillID, &item.Mastery, &item.Status,
-		&item.Attempts, &item.EvidenceCount, &item.LastEvidenceAt, &item.RecommendedAction,
-	)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &item, nil
-}
-
 func (r *Repository) ListReviewCards(ctx context.Context, student string, tab learning.ReviewTab, pathID, subjectID string, page, limit int) ([]learning.ReviewCard, bool, error) {
 	args := []any{student, pathID, limit + 1, (page - 1) * limit}
 	filter := " AND (saved_for_review=true OR has_mistake=true OR review_type='error_recovery')"
@@ -373,27 +349,53 @@ func (r *Repository) ListReviewCards(ctx context.Context, student string, tab le
 
 func (r *Repository) SetSavedReview(ctx context.Context, student, questionID string, saved bool) error {
 	if saved {
+		// A repeated PUT must not rotate updated_at: review practice uses that
+		// value as an optimistic token when submitting the student's answer.
 		tag, err := r.db.Exec(ctx, `
 			UPDATE review_cards
 			SET saved_for_review=true,saved_at=COALESCE(saved_at,now()),updated_at=now()
-			WHERE student_id=$1::uuid AND question_id=$2::uuid
+			WHERE student_id=$1::uuid AND question_id=$2::uuid AND saved_for_review=false
 		`, student, questionID)
 		if err != nil {
 			return err
 		}
 		if tag.RowsAffected() == 0 {
-			return learning.ErrNotFound
+			// Distinguish a retry of an already-saved card from an unknown
+			// question, preserving the existing 404 for the latter.
+			var exists bool
+			err = r.db.QueryRow(ctx, `
+				SELECT EXISTS(
+					SELECT 1 FROM review_cards
+					WHERE student_id=$1::uuid AND question_id=$2::uuid
+				)
+			`, student, questionID).Scan(&exists)
+			if err != nil {
+				return err
+			}
+			if !exists {
+				return learning.ErrNotFound
+			}
 		}
 		return nil
 	}
 
-	var reviewType string
+	// A single row lock keeps a concurrent review answer from being deleted
+	// after it has become mistake/mastery evidence. The legacy manual-only
+	// saved card can be deleted, but its skill links must go first (RESTRICT FK).
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var cardID, reviewType string
 	var mistake bool
-	err := r.db.QueryRow(ctx, `
-		SELECT review_type,has_mistake
+	err = tx.QueryRow(ctx, `
+		SELECT id::text,review_type,has_mistake
 		FROM review_cards
 		WHERE student_id=$1::uuid AND question_id=$2::uuid
-	`, student, questionID).Scan(&reviewType, &mistake)
+		FOR UPDATE
+	`, student, questionID).Scan(&cardID, &reviewType, &mistake)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
@@ -401,18 +403,27 @@ func (r *Repository) SetSavedReview(ctx context.Context, student, questionID str
 		return err
 	}
 	if reviewType == "saved_review" && !mistake {
-		_, err = r.db.Exec(ctx, `
-			DELETE FROM review_cards
-			WHERE student_id=$1::uuid AND question_id=$2::uuid
-		`, student, questionID)
-		return err
+		if _, err = tx.Exec(ctx, `
+			DELETE FROM review_card_skills WHERE review_card_id=$1::uuid
+		`, cardID); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(ctx, `
+			DELETE FROM review_cards WHERE id=$1::uuid AND student_id=$2::uuid
+		`, cardID, student); err != nil {
+			return err
+		}
+	} else {
+		// Repeated DELETE must not rotate the optimistic review token.
+		if _, err = tx.Exec(ctx, `
+			UPDATE review_cards
+			SET saved_for_review=false,saved_at=NULL,updated_at=now()
+			WHERE id=$1::uuid AND student_id=$2::uuid AND saved_for_review=true
+		`, cardID, student); err != nil {
+			return err
+		}
 	}
-	_, err = r.db.Exec(ctx, `
-		UPDATE review_cards
-		SET saved_for_review=false,saved_at=NULL,updated_at=now()
-		WHERE student_id=$1::uuid AND question_id=$2::uuid
-	`, student, questionID)
-	return err
+	return tx.Commit(ctx)
 }
 
 func uniqueStrings(values []string) []string {

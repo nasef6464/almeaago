@@ -1,0 +1,2367 @@
+{
+  "legacySHA": "bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7",
+  "mongoose": "8.24.3",
+  "zod": "4.6.7",
+  "scope": "Zod parsing and Mongoose document casting/defaults without MongoDB; NOT findOneAndUpdate or full Legacy runtime proof",
+  "defaults": {
+    "key": "default",
+    "brand": {
+      "logoUrl": "",
+      "logoAlt": "شعار منصة المئة",
+      "logoText": "منصة",
+      "logoAccentText": "المئة"
+    },
+    "hero": {
+      "badgeText": "المنصة الأولى للقدرات والتحصيلي",
+      "titlePrefix": "حقق",
+      "titleHighlight": "المئة",
+      "titleSuffix": "في اختباراتك",
+      "description": "رحلة تعليمية ذكية تجمع بين التدريب المكثف، الشروحات التفاعلية، والتحليل الدقيق لنقاط ضعفك لضمان أعلى الدرجات.",
+      "primaryCtaLabel": "ابدأ التدريب مجانًا",
+      "primaryCtaLink": "/dashboard",
+      "secondaryCtaLabel": "تصفح الدورات",
+      "secondaryCtaLink": "/courses",
+      "tertiaryCtaLabel": "",
+      "tertiaryCtaLink": "",
+      "badgeTextColor": "",
+      "titlePrefixColor": "",
+      "titleHighlightColor": "",
+      "titleSuffixColor": "",
+      "descriptionColor": "",
+      "primaryCtaColor": "",
+      "secondaryCtaColor": "",
+      "tertiaryCtaColor": "",
+      "imageUrl": "/images/homepage-hero-boy-platform.webp?v=20260512",
+      "imageAlt": "طالب يستخدم منصة المئة",
+      "galleryImages": [],
+      "autoRotateImages": true,
+      "rotateIntervalSeconds": 6,
+      "floatingCardTitle": "منصة المئة",
+      "floatingCardSubtitle": "مستواك: متقدم",
+      "floatingCardProgressLabel": "التقدم",
+      "floatingCardProgressValue": "75%"
+    },
+    "stats": [
+      {
+        "id": "students",
+        "label": "طالب وطالبة",
+        "mode": "dynamic",
+        "source": "students",
+        "manualValue": ""
+      },
+      {
+        "id": "courses",
+        "label": "دورة تدريبية",
+        "mode": "dynamic",
+        "source": "courses",
+        "manualValue": ""
+      },
+      {
+        "id": "assets",
+        "label": "مواد تعليمية",
+        "mode": "dynamic",
+        "source": "assets",
+        "manualValue": ""
+      },
+      {
+        "id": "rating",
+        "label": "تقييم عام",
+        "mode": "dynamic",
+        "source": "rating",
+        "manualValue": ""
+      }
+    ],
+    "testimonials": [
+      {
+        "id": "t1",
+        "name": "سارة العتيبي",
+        "degree": "98% قدرات",
+        "text": "المنصة غيرت طريقة مذاكرتي تمامًا. تحليل نقاط الضعف ساعدني أركز جهدي في المكان الصح.",
+        "image": ""
+      },
+      {
+        "id": "t2",
+        "name": "فهد الشمري",
+        "degree": "96% تحصيلي",
+        "text": "شروحات الفيزياء والكيمياء بسطت لي المعلومات بشكل عجيب. شكرًا لكل القائمين على المنصة.",
+        "image": ""
+      },
+      {
+        "id": "t3",
+        "name": "نورة السالم",
+        "degree": "99% قدرات",
+        "text": "اختبارات المحاكاة كانت مطابقة جدًا للاختبار الحقيقي، دخلت الاختبار وأنا واثقة جدًا.",
+        "image": ""
+      }
+    ],
+    "sections": {
+      "featuredCoursesTitle": "الدورات الأكثر طلبًا",
+      "featuredCoursesSubtitle": "اختر دورتك وابدأ رحلة التفوق اليوم",
+      "featuredArticlesTitle": "",
+      "featuredArticlesSubtitle": "",
+      "whyChooseTitle": "لماذا يختار الطلاب منصة المئة؟",
+      "whyChooseDescription": "نحن لا نقدم مجرد دورات، بل نقدم نظامًا بيئيًا متكاملًا يضمن لك الفهم العميق والتدريب المستمر.",
+      "testimonialsTitle": "قصص نجاح نعتز بها",
+      "testimonialsSubtitle": "انضم لآلاف الطلاب الذين حققوا أحلامهم معنا"
+    },
+    "typography": {
+      "headingFont": "tajawal",
+      "bodyFont": "tajawal",
+      "headingWeight": "black"
+    },
+    "navigation": {
+      "showAutoPaths": true,
+      "moreLabel": "أخرى",
+      "items": [
+        {
+          "id": "home",
+          "label": "الرئيسية",
+          "visible": true,
+          "order": 0
+        },
+        {
+          "id": "mock-exams",
+          "label": "اختبارات محاكية",
+          "visible": true,
+          "order": 20
+        },
+        {
+          "id": "pricing",
+          "label": "العضويات",
+          "visible": true,
+          "order": 90
+        },
+        {
+          "id": "blog",
+          "label": "المدونة",
+          "visible": true,
+          "order": 100
+        }
+      ]
+    },
+    "featuredPathIds": [],
+    "featuredCourseIds": [],
+    "featuredArticleLessonIds": [],
+    "studentExperience": {
+      "visibilityMode": "all",
+      "promptEnrollment": true
+    }
+  },
+  "cases": [
+    {
+      "input": {},
+      "valid": true,
+      "parsed": {},
+      "persisted": {
+        "key": "default",
+        "studentExperience": {
+          "visibilityMode": "all",
+          "promptEnrollment": true
+        },
+        "brand": {
+          "logoUrl": "",
+          "logoAlt": "شعار منصة المئة",
+          "logoText": "منصة",
+          "logoAccentText": "المئة"
+        },
+        "hero": {
+          "badgeText": "المنصة الأولى للقدرات والتحصيلي",
+          "titlePrefix": "حقق",
+          "titleHighlight": "المئة",
+          "titleSuffix": "في اختباراتك",
+          "description": "رحلة تعليمية ذكية تجمع بين التدريب المكثف، الشروحات التفاعلية، والتحليل الدقيق لنقاط ضعفك لضمان أعلى الدرجات.",
+          "primaryCtaLabel": "ابدأ التدريب مجانًا",
+          "primaryCtaLink": "/dashboard",
+          "secondaryCtaLabel": "تصفح الدورات",
+          "secondaryCtaLink": "/courses",
+          "tertiaryCtaLabel": "",
+          "tertiaryCtaLink": "",
+          "badgeTextColor": "",
+          "titlePrefixColor": "",
+          "titleHighlightColor": "",
+          "titleSuffixColor": "",
+          "descriptionColor": "",
+          "primaryCtaColor": "",
+          "secondaryCtaColor": "",
+          "tertiaryCtaColor": "",
+          "imageUrl": "/images/homepage-hero-boy-platform.webp?v=20260512",
+          "imageAlt": "طالب يستخدم منصة المئة",
+          "galleryImages": [],
+          "autoRotateImages": true,
+          "rotateIntervalSeconds": 6,
+          "floatingCardTitle": "منصة المئة",
+          "floatingCardSubtitle": "مستواك: متقدم",
+          "floatingCardProgressLabel": "التقدم",
+          "floatingCardProgressValue": "75%"
+        },
+        "stats": [
+          {
+            "id": "students",
+            "label": "طالب وطالبة",
+            "mode": "dynamic",
+            "source": "students",
+            "manualValue": ""
+          },
+          {
+            "id": "courses",
+            "label": "دورة تدريبية",
+            "mode": "dynamic",
+            "source": "courses",
+            "manualValue": ""
+          },
+          {
+            "id": "assets",
+            "label": "مواد تعليمية",
+            "mode": "dynamic",
+            "source": "assets",
+            "manualValue": ""
+          },
+          {
+            "id": "rating",
+            "label": "تقييم عام",
+            "mode": "dynamic",
+            "source": "rating",
+            "manualValue": ""
+          }
+        ],
+        "testimonials": [
+          {
+            "id": "t1",
+            "name": "سارة العتيبي",
+            "degree": "98% قدرات",
+            "text": "المنصة غيرت طريقة مذاكرتي تمامًا. تحليل نقاط الضعف ساعدني أركز جهدي في المكان الصح.",
+            "image": ""
+          },
+          {
+            "id": "t2",
+            "name": "فهد الشمري",
+            "degree": "96% تحصيلي",
+            "text": "شروحات الفيزياء والكيمياء بسطت لي المعلومات بشكل عجيب. شكرًا لكل القائمين على المنصة.",
+            "image": ""
+          },
+          {
+            "id": "t3",
+            "name": "نورة السالم",
+            "degree": "99% قدرات",
+            "text": "اختبارات المحاكاة كانت مطابقة جدًا للاختبار الحقيقي، دخلت الاختبار وأنا واثقة جدًا.",
+            "image": ""
+          }
+        ],
+        "sections": {
+          "featuredCoursesTitle": "الدورات الأكثر طلبًا",
+          "featuredCoursesSubtitle": "اختر دورتك وابدأ رحلة التفوق اليوم",
+          "featuredArticlesTitle": "",
+          "featuredArticlesSubtitle": "",
+          "whyChooseTitle": "لماذا يختار الطلاب منصة المئة؟",
+          "whyChooseDescription": "نحن لا نقدم مجرد دورات، بل نقدم نظامًا بيئيًا متكاملًا يضمن لك الفهم العميق والتدريب المستمر.",
+          "testimonialsTitle": "قصص نجاح نعتز بها",
+          "testimonialsSubtitle": "انضم لآلاف الطلاب الذين حققوا أحلامهم معنا"
+        },
+        "typography": {
+          "headingFont": "tajawal",
+          "bodyFont": "tajawal",
+          "headingWeight": "black"
+        },
+        "navigation": {
+          "showAutoPaths": true,
+          "moreLabel": "أخرى",
+          "items": [
+            {
+              "id": "home",
+              "label": "الرئيسية",
+              "visible": true,
+              "order": 0
+            },
+            {
+              "id": "mock-exams",
+              "label": "اختبارات محاكية",
+              "visible": true,
+              "order": 20
+            },
+            {
+              "id": "pricing",
+              "label": "العضويات",
+              "visible": true,
+              "order": 90
+            },
+            {
+              "id": "blog",
+              "label": "المدونة",
+              "visible": true,
+              "order": 100
+            }
+          ]
+        },
+        "featuredPathIds": [],
+        "featuredCourseIds": [],
+        "featuredArticleLessonIds": []
+      }
+    },
+    {
+      "input": null,
+      "valid": false
+    },
+    {
+      "input": {
+        "key": "ignored",
+        "brand": {
+          "logoText": "هوية",
+          "unknown": "strip"
+        }
+      },
+      "valid": true,
+      "parsed": {
+        "brand": {
+          "logoText": "هوية"
+        }
+      },
+      "persisted": {
+        "key": "default",
+        "studentExperience": {
+          "visibilityMode": "all",
+          "promptEnrollment": true
+        },
+        "brand": {
+          "logoUrl": "",
+          "logoAlt": "",
+          "logoText": "هوية",
+          "logoAccentText": ""
+        },
+        "hero": {
+          "badgeText": "المنصة الأولى للقدرات والتحصيلي",
+          "titlePrefix": "حقق",
+          "titleHighlight": "المئة",
+          "titleSuffix": "في اختباراتك",
+          "description": "رحلة تعليمية ذكية تجمع بين التدريب المكثف، الشروحات التفاعلية، والتحليل الدقيق لنقاط ضعفك لضمان أعلى الدرجات.",
+          "primaryCtaLabel": "ابدأ التدريب مجانًا",
+          "primaryCtaLink": "/dashboard",
+          "secondaryCtaLabel": "تصفح الدورات",
+          "secondaryCtaLink": "/courses",
+          "tertiaryCtaLabel": "",
+          "tertiaryCtaLink": "",
+          "badgeTextColor": "",
+          "titlePrefixColor": "",
+          "titleHighlightColor": "",
+          "titleSuffixColor": "",
+          "descriptionColor": "",
+          "primaryCtaColor": "",
+          "secondaryCtaColor": "",
+          "tertiaryCtaColor": "",
+          "imageUrl": "/images/homepage-hero-boy-platform.webp?v=20260512",
+          "imageAlt": "طالب يستخدم منصة المئة",
+          "galleryImages": [],
+          "autoRotateImages": true,
+          "rotateIntervalSeconds": 6,
+          "floatingCardTitle": "منصة المئة",
+          "floatingCardSubtitle": "مستواك: متقدم",
+          "floatingCardProgressLabel": "التقدم",
+          "floatingCardProgressValue": "75%"
+        },
+        "stats": [
+          {
+            "id": "students",
+            "label": "طالب وطالبة",
+            "mode": "dynamic",
+            "source": "students",
+            "manualValue": ""
+          },
+          {
+            "id": "courses",
+            "label": "دورة تدريبية",
+            "mode": "dynamic",
+            "source": "courses",
+            "manualValue": ""
+          },
+          {
+            "id": "assets",
+            "label": "مواد تعليمية",
+            "mode": "dynamic",
+            "source": "assets",
+            "manualValue": ""
+          },
+          {
+            "id": "rating",
+            "label": "تقييم عام",
+            "mode": "dynamic",
+            "source": "rating",
+            "manualValue": ""
+          }
+        ],
+        "testimonials": [
+          {
+            "id": "t1",
+            "name": "سارة العتيبي",
+            "degree": "98% قدرات",
+            "text": "المنصة غيرت طريقة مذاكرتي تمامًا. تحليل نقاط الضعف ساعدني أركز جهدي في المكان الصح.",
+            "image": ""
+          },
+          {
+            "id": "t2",
+            "name": "فهد الشمري",
+            "degree": "96% تحصيلي",
+            "text": "شروحات الفيزياء والكيمياء بسطت لي المعلومات بشكل عجيب. شكرًا لكل القائمين على المنصة.",
+            "image": ""
+          },
+          {
+            "id": "t3",
+            "name": "نورة السالم",
+            "degree": "99% قدرات",
+            "text": "اختبارات المحاكاة كانت مطابقة جدًا للاختبار الحقيقي، دخلت الاختبار وأنا واثقة جدًا.",
+            "image": ""
+          }
+        ],
+        "sections": {
+          "featuredCoursesTitle": "الدورات الأكثر طلبًا",
+          "featuredCoursesSubtitle": "اختر دورتك وابدأ رحلة التفوق اليوم",
+          "featuredArticlesTitle": "",
+          "featuredArticlesSubtitle": "",
+          "whyChooseTitle": "لماذا يختار الطلاب منصة المئة؟",
+          "whyChooseDescription": "نحن لا نقدم مجرد دورات، بل نقدم نظامًا بيئيًا متكاملًا يضمن لك الفهم العميق والتدريب المستمر.",
+          "testimonialsTitle": "قصص نجاح نعتز بها",
+          "testimonialsSubtitle": "انضم لآلاف الطلاب الذين حققوا أحلامهم معنا"
+        },
+        "typography": {
+          "headingFont": "tajawal",
+          "bodyFont": "tajawal",
+          "headingWeight": "black"
+        },
+        "navigation": {
+          "showAutoPaths": true,
+          "moreLabel": "أخرى",
+          "items": [
+            {
+              "id": "home",
+              "label": "الرئيسية",
+              "visible": true,
+              "order": 0
+            },
+            {
+              "id": "mock-exams",
+              "label": "اختبارات محاكية",
+              "visible": true,
+              "order": 20
+            },
+            {
+              "id": "pricing",
+              "label": "العضويات",
+              "visible": true,
+              "order": 90
+            },
+            {
+              "id": "blog",
+              "label": "المدونة",
+              "visible": true,
+              "order": 100
+            }
+          ]
+        },
+        "featuredPathIds": [],
+        "featuredCourseIds": [],
+        "featuredArticleLessonIds": []
+      }
+    },
+    {
+      "input": {
+        "brand": {}
+      },
+      "valid": true,
+      "parsed": {
+        "brand": {}
+      },
+      "persisted": {
+        "key": "default",
+        "studentExperience": {
+          "visibilityMode": "all",
+          "promptEnrollment": true
+        },
+        "brand": {
+          "logoUrl": "",
+          "logoAlt": "",
+          "logoText": "",
+          "logoAccentText": ""
+        },
+        "hero": {
+          "badgeText": "المنصة الأولى للقدرات والتحصيلي",
+          "titlePrefix": "حقق",
+          "titleHighlight": "المئة",
+          "titleSuffix": "في اختباراتك",
+          "description": "رحلة تعليمية ذكية تجمع بين التدريب المكثف، الشروحات التفاعلية، والتحليل الدقيق لنقاط ضعفك لضمان أعلى الدرجات.",
+          "primaryCtaLabel": "ابدأ التدريب مجانًا",
+          "primaryCtaLink": "/dashboard",
+          "secondaryCtaLabel": "تصفح الدورات",
+          "secondaryCtaLink": "/courses",
+          "tertiaryCtaLabel": "",
+          "tertiaryCtaLink": "",
+          "badgeTextColor": "",
+          "titlePrefixColor": "",
+          "titleHighlightColor": "",
+          "titleSuffixColor": "",
+          "descriptionColor": "",
+          "primaryCtaColor": "",
+          "secondaryCtaColor": "",
+          "tertiaryCtaColor": "",
+          "imageUrl": "/images/homepage-hero-boy-platform.webp?v=20260512",
+          "imageAlt": "طالب يستخدم منصة المئة",
+          "galleryImages": [],
+          "autoRotateImages": true,
+          "rotateIntervalSeconds": 6,
+          "floatingCardTitle": "منصة المئة",
+          "floatingCardSubtitle": "مستواك: متقدم",
+          "floatingCardProgressLabel": "التقدم",
+          "floatingCardProgressValue": "75%"
+        },
+        "stats": [
+          {
+            "id": "students",
+            "label": "طالب وطالبة",
+            "mode": "dynamic",
+            "source": "students",
+            "manualValue": ""
+          },
+          {
+            "id": "courses",
+            "label": "دورة تدريبية",
+            "mode": "dynamic",
+            "source": "courses",
+            "manualValue": ""
+          },
+          {
+            "id": "assets",
+            "label": "مواد تعليمية",
+            "mode": "dynamic",
+            "source": "assets",
+            "manualValue": ""
+          },
+          {
+            "id": "rating",
+            "label": "تقييم عام",
+            "mode": "dynamic",
+            "source": "rating",
+            "manualValue": ""
+          }
+        ],
+        "testimonials": [
+          {
+            "id": "t1",
+            "name": "سارة العتيبي",
+            "degree": "98% قدرات",
+            "text": "المنصة غيرت طريقة مذاكرتي تمامًا. تحليل نقاط الضعف ساعدني أركز جهدي في المكان الصح.",
+            "image": ""
+          },
+          {
+            "id": "t2",
+            "name": "فهد الشمري",
+            "degree": "96% تحصيلي",
+            "text": "شروحات الفيزياء والكيمياء بسطت لي المعلومات بشكل عجيب. شكرًا لكل القائمين على المنصة.",
+            "image": ""
+          },
+          {
+            "id": "t3",
+            "name": "نورة السالم",
+            "degree": "99% قدرات",
+            "text": "اختبارات المحاكاة كانت مطابقة جدًا للاختبار الحقيقي، دخلت الاختبار وأنا واثقة جدًا.",
+            "image": ""
+          }
+        ],
+        "sections": {
+          "featuredCoursesTitle": "الدورات الأكثر طلبًا",
+          "featuredCoursesSubtitle": "اختر دورتك وابدأ رحلة التفوق اليوم",
+          "featuredArticlesTitle": "",
+          "featuredArticlesSubtitle": "",
+          "whyChooseTitle": "لماذا يختار الطلاب منصة المئة؟",
+          "whyChooseDescription": "نحن لا نقدم مجرد دورات، بل نقدم نظامًا بيئيًا متكاملًا يضمن لك الفهم العميق والتدريب المستمر.",
+          "testimonialsTitle": "قصص نجاح نعتز بها",
+          "testimonialsSubtitle": "انضم لآلاف الطلاب الذين حققوا أحلامهم معنا"
+        },
+        "typography": {
+          "headingFont": "tajawal",
+          "bodyFont": "tajawal",
+          "headingWeight": "black"
+        },
+        "navigation": {
+          "showAutoPaths": true,
+          "moreLabel": "أخرى",
+          "items": [
+            {
+              "id": "home",
+              "label": "الرئيسية",
+              "visible": true,
+              "order": 0
+            },
+            {
+              "id": "mock-exams",
+              "label": "اختبارات محاكية",
+              "visible": true,
+              "order": 20
+            },
+            {
+              "id": "pricing",
+              "label": "العضويات",
+              "visible": true,
+              "order": 90
+            },
+            {
+              "id": "blog",
+              "label": "المدونة",
+              "visible": true,
+              "order": 100
+            }
+          ]
+        },
+        "featuredPathIds": [],
+        "featuredCourseIds": [],
+        "featuredArticleLessonIds": []
+      }
+    },
+    {
+      "input": {
+        "hero": {
+          "titlePrefix": "",
+          "autoRotateImages": false,
+          "rotateIntervalSeconds": 3
+        }
+      },
+      "valid": true,
+      "parsed": {
+        "hero": {
+          "titlePrefix": "",
+          "autoRotateImages": false,
+          "rotateIntervalSeconds": 3
+        }
+      },
+      "persisted": {
+        "key": "default",
+        "studentExperience": {
+          "visibilityMode": "all",
+          "promptEnrollment": true
+        },
+        "brand": {
+          "logoUrl": "",
+          "logoAlt": "شعار منصة المئة",
+          "logoText": "منصة",
+          "logoAccentText": "المئة"
+        },
+        "hero": {
+          "badgeText": "",
+          "titlePrefix": "",
+          "titleHighlight": "",
+          "titleSuffix": "",
+          "description": "",
+          "primaryCtaLabel": "",
+          "primaryCtaLink": "",
+          "secondaryCtaLabel": "",
+          "secondaryCtaLink": "",
+          "tertiaryCtaLabel": "",
+          "tertiaryCtaLink": "",
+          "badgeTextColor": "",
+          "titlePrefixColor": "",
+          "titleHighlightColor": "",
+          "titleSuffixColor": "",
+          "descriptionColor": "",
+          "primaryCtaColor": "",
+          "secondaryCtaColor": "",
+          "tertiaryCtaColor": "",
+          "imageUrl": "",
+          "imageAlt": "",
+          "galleryImages": [],
+          "autoRotateImages": false,
+          "rotateIntervalSeconds": 3,
+          "floatingCardTitle": "",
+          "floatingCardSubtitle": "",
+          "floatingCardProgressLabel": "",
+          "floatingCardProgressValue": ""
+        },
+        "stats": [
+          {
+            "id": "students",
+            "label": "طالب وطالبة",
+            "mode": "dynamic",
+            "source": "students",
+            "manualValue": ""
+          },
+          {
+            "id": "courses",
+            "label": "دورة تدريبية",
+            "mode": "dynamic",
+            "source": "courses",
+            "manualValue": ""
+          },
+          {
+            "id": "assets",
+            "label": "مواد تعليمية",
+            "mode": "dynamic",
+            "source": "assets",
+            "manualValue": ""
+          },
+          {
+            "id": "rating",
+            "label": "تقييم عام",
+            "mode": "dynamic",
+            "source": "rating",
+            "manualValue": ""
+          }
+        ],
+        "testimonials": [
+          {
+            "id": "t1",
+            "name": "سارة العتيبي",
+            "degree": "98% قدرات",
+            "text": "المنصة غيرت طريقة مذاكرتي تمامًا. تحليل نقاط الضعف ساعدني أركز جهدي في المكان الصح.",
+            "image": ""
+          },
+          {
+            "id": "t2",
+            "name": "فهد الشمري",
+            "degree": "96% تحصيلي",
+            "text": "شروحات الفيزياء والكيمياء بسطت لي المعلومات بشكل عجيب. شكرًا لكل القائمين على المنصة.",
+            "image": ""
+          },
+          {
+            "id": "t3",
+            "name": "نورة السالم",
+            "degree": "99% قدرات",
+            "text": "اختبارات المحاكاة كانت مطابقة جدًا للاختبار الحقيقي، دخلت الاختبار وأنا واثقة جدًا.",
+            "image": ""
+          }
+        ],
+        "sections": {
+          "featuredCoursesTitle": "الدورات الأكثر طلبًا",
+          "featuredCoursesSubtitle": "اختر دورتك وابدأ رحلة التفوق اليوم",
+          "featuredArticlesTitle": "",
+          "featuredArticlesSubtitle": "",
+          "whyChooseTitle": "لماذا يختار الطلاب منصة المئة؟",
+          "whyChooseDescription": "نحن لا نقدم مجرد دورات، بل نقدم نظامًا بيئيًا متكاملًا يضمن لك الفهم العميق والتدريب المستمر.",
+          "testimonialsTitle": "قصص نجاح نعتز بها",
+          "testimonialsSubtitle": "انضم لآلاف الطلاب الذين حققوا أحلامهم معنا"
+        },
+        "typography": {
+          "headingFont": "tajawal",
+          "bodyFont": "tajawal",
+          "headingWeight": "black"
+        },
+        "navigation": {
+          "showAutoPaths": true,
+          "moreLabel": "أخرى",
+          "items": [
+            {
+              "id": "home",
+              "label": "الرئيسية",
+              "visible": true,
+              "order": 0
+            },
+            {
+              "id": "mock-exams",
+              "label": "اختبارات محاكية",
+              "visible": true,
+              "order": 20
+            },
+            {
+              "id": "pricing",
+              "label": "العضويات",
+              "visible": true,
+              "order": 90
+            },
+            {
+              "id": "blog",
+              "label": "المدونة",
+              "visible": true,
+              "order": 100
+            }
+          ]
+        },
+        "featuredPathIds": [],
+        "featuredCourseIds": [],
+        "featuredArticleLessonIds": []
+      }
+    },
+    {
+      "input": {
+        "hero": {
+          "rotateIntervalSeconds": 60,
+          "galleryImages": [
+            "/a.png",
+            "/b.png"
+          ]
+        }
+      },
+      "valid": true,
+      "parsed": {
+        "hero": {
+          "galleryImages": [
+            "/a.png",
+            "/b.png"
+          ],
+          "rotateIntervalSeconds": 60
+        }
+      },
+      "persisted": {
+        "key": "default",
+        "studentExperience": {
+          "visibilityMode": "all",
+          "promptEnrollment": true
+        },
+        "brand": {
+          "logoUrl": "",
+          "logoAlt": "شعار منصة المئة",
+          "logoText": "منصة",
+          "logoAccentText": "المئة"
+        },
+        "hero": {
+          "badgeText": "",
+          "titlePrefix": "",
+          "titleHighlight": "",
+          "titleSuffix": "",
+          "description": "",
+          "primaryCtaLabel": "",
+          "primaryCtaLink": "",
+          "secondaryCtaLabel": "",
+          "secondaryCtaLink": "",
+          "tertiaryCtaLabel": "",
+          "tertiaryCtaLink": "",
+          "badgeTextColor": "",
+          "titlePrefixColor": "",
+          "titleHighlightColor": "",
+          "titleSuffixColor": "",
+          "descriptionColor": "",
+          "primaryCtaColor": "",
+          "secondaryCtaColor": "",
+          "tertiaryCtaColor": "",
+          "imageUrl": "",
+          "imageAlt": "",
+          "galleryImages": [
+            "/a.png",
+            "/b.png"
+          ],
+          "autoRotateImages": true,
+          "rotateIntervalSeconds": 60,
+          "floatingCardTitle": "",
+          "floatingCardSubtitle": "",
+          "floatingCardProgressLabel": "",
+          "floatingCardProgressValue": ""
+        },
+        "stats": [
+          {
+            "id": "students",
+            "label": "طالب وطالبة",
+            "mode": "dynamic",
+            "source": "students",
+            "manualValue": ""
+          },
+          {
+            "id": "courses",
+            "label": "دورة تدريبية",
+            "mode": "dynamic",
+            "source": "courses",
+            "manualValue": ""
+          },
+          {
+            "id": "assets",
+            "label": "مواد تعليمية",
+            "mode": "dynamic",
+            "source": "assets",
+            "manualValue": ""
+          },
+          {
+            "id": "rating",
+            "label": "تقييم عام",
+            "mode": "dynamic",
+            "source": "rating",
+            "manualValue": ""
+          }
+        ],
+        "testimonials": [
+          {
+            "id": "t1",
+            "name": "سارة العتيبي",
+            "degree": "98% قدرات",
+            "text": "المنصة غيرت طريقة مذاكرتي تمامًا. تحليل نقاط الضعف ساعدني أركز جهدي في المكان الصح.",
+            "image": ""
+          },
+          {
+            "id": "t2",
+            "name": "فهد الشمري",
+            "degree": "96% تحصيلي",
+            "text": "شروحات الفيزياء والكيمياء بسطت لي المعلومات بشكل عجيب. شكرًا لكل القائمين على المنصة.",
+            "image": ""
+          },
+          {
+            "id": "t3",
+            "name": "نورة السالم",
+            "degree": "99% قدرات",
+            "text": "اختبارات المحاكاة كانت مطابقة جدًا للاختبار الحقيقي، دخلت الاختبار وأنا واثقة جدًا.",
+            "image": ""
+          }
+        ],
+        "sections": {
+          "featuredCoursesTitle": "الدورات الأكثر طلبًا",
+          "featuredCoursesSubtitle": "اختر دورتك وابدأ رحلة التفوق اليوم",
+          "featuredArticlesTitle": "",
+          "featuredArticlesSubtitle": "",
+          "whyChooseTitle": "لماذا يختار الطلاب منصة المئة؟",
+          "whyChooseDescription": "نحن لا نقدم مجرد دورات، بل نقدم نظامًا بيئيًا متكاملًا يضمن لك الفهم العميق والتدريب المستمر.",
+          "testimonialsTitle": "قصص نجاح نعتز بها",
+          "testimonialsSubtitle": "انضم لآلاف الطلاب الذين حققوا أحلامهم معنا"
+        },
+        "typography": {
+          "headingFont": "tajawal",
+          "bodyFont": "tajawal",
+          "headingWeight": "black"
+        },
+        "navigation": {
+          "showAutoPaths": true,
+          "moreLabel": "أخرى",
+          "items": [
+            {
+              "id": "home",
+              "label": "الرئيسية",
+              "visible": true,
+              "order": 0
+            },
+            {
+              "id": "mock-exams",
+              "label": "اختبارات محاكية",
+              "visible": true,
+              "order": 20
+            },
+            {
+              "id": "pricing",
+              "label": "العضويات",
+              "visible": true,
+              "order": 90
+            },
+            {
+              "id": "blog",
+              "label": "المدونة",
+              "visible": true,
+              "order": 100
+            }
+          ]
+        },
+        "featuredPathIds": [],
+        "featuredCourseIds": [],
+        "featuredArticleLessonIds": []
+      }
+    },
+    {
+      "input": {
+        "navigation": {
+          "showAutoPaths": false,
+          "moreLabel": "",
+          "items": [
+            {
+              "id": "home",
+              "visible": false,
+              "order": 0
+            },
+            {
+              "id": "x",
+              "order": -2
+            }
+          ]
+        }
+      },
+      "valid": true,
+      "parsed": {
+        "navigation": {
+          "showAutoPaths": false,
+          "moreLabel": "",
+          "items": [
+            {
+              "id": "home",
+              "visible": false,
+              "order": 0
+            },
+            {
+              "id": "x",
+              "order": -2
+            }
+          ]
+        }
+      },
+      "persisted": {
+        "key": "default",
+        "studentExperience": {
+          "visibilityMode": "all",
+          "promptEnrollment": true
+        },
+        "brand": {
+          "logoUrl": "",
+          "logoAlt": "شعار منصة المئة",
+          "logoText": "منصة",
+          "logoAccentText": "المئة"
+        },
+        "hero": {
+          "badgeText": "المنصة الأولى للقدرات والتحصيلي",
+          "titlePrefix": "حقق",
+          "titleHighlight": "المئة",
+          "titleSuffix": "في اختباراتك",
+          "description": "رحلة تعليمية ذكية تجمع بين التدريب المكثف، الشروحات التفاعلية، والتحليل الدقيق لنقاط ضعفك لضمان أعلى الدرجات.",
+          "primaryCtaLabel": "ابدأ التدريب مجانًا",
+          "primaryCtaLink": "/dashboard",
+          "secondaryCtaLabel": "تصفح الدورات",
+          "secondaryCtaLink": "/courses",
+          "tertiaryCtaLabel": "",
+          "tertiaryCtaLink": "",
+          "badgeTextColor": "",
+          "titlePrefixColor": "",
+          "titleHighlightColor": "",
+          "titleSuffixColor": "",
+          "descriptionColor": "",
+          "primaryCtaColor": "",
+          "secondaryCtaColor": "",
+          "tertiaryCtaColor": "",
+          "imageUrl": "/images/homepage-hero-boy-platform.webp?v=20260512",
+          "imageAlt": "طالب يستخدم منصة المئة",
+          "galleryImages": [],
+          "autoRotateImages": true,
+          "rotateIntervalSeconds": 6,
+          "floatingCardTitle": "منصة المئة",
+          "floatingCardSubtitle": "مستواك: متقدم",
+          "floatingCardProgressLabel": "التقدم",
+          "floatingCardProgressValue": "75%"
+        },
+        "stats": [
+          {
+            "id": "students",
+            "label": "طالب وطالبة",
+            "mode": "dynamic",
+            "source": "students",
+            "manualValue": ""
+          },
+          {
+            "id": "courses",
+            "label": "دورة تدريبية",
+            "mode": "dynamic",
+            "source": "courses",
+            "manualValue": ""
+          },
+          {
+            "id": "assets",
+            "label": "مواد تعليمية",
+            "mode": "dynamic",
+            "source": "assets",
+            "manualValue": ""
+          },
+          {
+            "id": "rating",
+            "label": "تقييم عام",
+            "mode": "dynamic",
+            "source": "rating",
+            "manualValue": ""
+          }
+        ],
+        "testimonials": [
+          {
+            "id": "t1",
+            "name": "سارة العتيبي",
+            "degree": "98% قدرات",
+            "text": "المنصة غيرت طريقة مذاكرتي تمامًا. تحليل نقاط الضعف ساعدني أركز جهدي في المكان الصح.",
+            "image": ""
+          },
+          {
+            "id": "t2",
+            "name": "فهد الشمري",
+            "degree": "96% تحصيلي",
+            "text": "شروحات الفيزياء والكيمياء بسطت لي المعلومات بشكل عجيب. شكرًا لكل القائمين على المنصة.",
+            "image": ""
+          },
+          {
+            "id": "t3",
+            "name": "نورة السالم",
+            "degree": "99% قدرات",
+            "text": "اختبارات المحاكاة كانت مطابقة جدًا للاختبار الحقيقي، دخلت الاختبار وأنا واثقة جدًا.",
+            "image": ""
+          }
+        ],
+        "sections": {
+          "featuredCoursesTitle": "الدورات الأكثر طلبًا",
+          "featuredCoursesSubtitle": "اختر دورتك وابدأ رحلة التفوق اليوم",
+          "featuredArticlesTitle": "",
+          "featuredArticlesSubtitle": "",
+          "whyChooseTitle": "لماذا يختار الطلاب منصة المئة؟",
+          "whyChooseDescription": "نحن لا نقدم مجرد دورات، بل نقدم نظامًا بيئيًا متكاملًا يضمن لك الفهم العميق والتدريب المستمر.",
+          "testimonialsTitle": "قصص نجاح نعتز بها",
+          "testimonialsSubtitle": "انضم لآلاف الطلاب الذين حققوا أحلامهم معنا"
+        },
+        "typography": {
+          "headingFont": "tajawal",
+          "bodyFont": "tajawal",
+          "headingWeight": "black"
+        },
+        "navigation": {
+          "showAutoPaths": false,
+          "moreLabel": "",
+          "items": [
+            {
+              "id": "home",
+              "label": "",
+              "visible": false,
+              "order": 0
+            },
+            {
+              "id": "x",
+              "label": "",
+              "visible": true,
+              "order": -2
+            }
+          ]
+        },
+        "featuredPathIds": [],
+        "featuredCourseIds": [],
+        "featuredArticleLessonIds": []
+      }
+    },
+    {
+      "input": {
+        "navigation": {}
+      },
+      "valid": true,
+      "parsed": {
+        "navigation": {}
+      },
+      "persisted": {
+        "key": "default",
+        "studentExperience": {
+          "visibilityMode": "all",
+          "promptEnrollment": true
+        },
+        "brand": {
+          "logoUrl": "",
+          "logoAlt": "شعار منصة المئة",
+          "logoText": "منصة",
+          "logoAccentText": "المئة"
+        },
+        "hero": {
+          "badgeText": "المنصة الأولى للقدرات والتحصيلي",
+          "titlePrefix": "حقق",
+          "titleHighlight": "المئة",
+          "titleSuffix": "في اختباراتك",
+          "description": "رحلة تعليمية ذكية تجمع بين التدريب المكثف، الشروحات التفاعلية، والتحليل الدقيق لنقاط ضعفك لضمان أعلى الدرجات.",
+          "primaryCtaLabel": "ابدأ التدريب مجانًا",
+          "primaryCtaLink": "/dashboard",
+          "secondaryCtaLabel": "تصفح الدورات",
+          "secondaryCtaLink": "/courses",
+          "tertiaryCtaLabel": "",
+          "tertiaryCtaLink": "",
+          "badgeTextColor": "",
+          "titlePrefixColor": "",
+          "titleHighlightColor": "",
+          "titleSuffixColor": "",
+          "descriptionColor": "",
+          "primaryCtaColor": "",
+          "secondaryCtaColor": "",
+          "tertiaryCtaColor": "",
+          "imageUrl": "/images/homepage-hero-boy-platform.webp?v=20260512",
+          "imageAlt": "طالب يستخدم منصة المئة",
+          "galleryImages": [],
+          "autoRotateImages": true,
+          "rotateIntervalSeconds": 6,
+          "floatingCardTitle": "منصة المئة",
+          "floatingCardSubtitle": "مستواك: متقدم",
+          "floatingCardProgressLabel": "التقدم",
+          "floatingCardProgressValue": "75%"
+        },
+        "stats": [
+          {
+            "id": "students",
+            "label": "طالب وطالبة",
+            "mode": "dynamic",
+            "source": "students",
+            "manualValue": ""
+          },
+          {
+            "id": "courses",
+            "label": "دورة تدريبية",
+            "mode": "dynamic",
+            "source": "courses",
+            "manualValue": ""
+          },
+          {
+            "id": "assets",
+            "label": "مواد تعليمية",
+            "mode": "dynamic",
+            "source": "assets",
+            "manualValue": ""
+          },
+          {
+            "id": "rating",
+            "label": "تقييم عام",
+            "mode": "dynamic",
+            "source": "rating",
+            "manualValue": ""
+          }
+        ],
+        "testimonials": [
+          {
+            "id": "t1",
+            "name": "سارة العتيبي",
+            "degree": "98% قدرات",
+            "text": "المنصة غيرت طريقة مذاكرتي تمامًا. تحليل نقاط الضعف ساعدني أركز جهدي في المكان الصح.",
+            "image": ""
+          },
+          {
+            "id": "t2",
+            "name": "فهد الشمري",
+            "degree": "96% تحصيلي",
+            "text": "شروحات الفيزياء والكيمياء بسطت لي المعلومات بشكل عجيب. شكرًا لكل القائمين على المنصة.",
+            "image": ""
+          },
+          {
+            "id": "t3",
+            "name": "نورة السالم",
+            "degree": "99% قدرات",
+            "text": "اختبارات المحاكاة كانت مطابقة جدًا للاختبار الحقيقي، دخلت الاختبار وأنا واثقة جدًا.",
+            "image": ""
+          }
+        ],
+        "sections": {
+          "featuredCoursesTitle": "الدورات الأكثر طلبًا",
+          "featuredCoursesSubtitle": "اختر دورتك وابدأ رحلة التفوق اليوم",
+          "featuredArticlesTitle": "",
+          "featuredArticlesSubtitle": "",
+          "whyChooseTitle": "لماذا يختار الطلاب منصة المئة؟",
+          "whyChooseDescription": "نحن لا نقدم مجرد دورات، بل نقدم نظامًا بيئيًا متكاملًا يضمن لك الفهم العميق والتدريب المستمر.",
+          "testimonialsTitle": "قصص نجاح نعتز بها",
+          "testimonialsSubtitle": "انضم لآلاف الطلاب الذين حققوا أحلامهم معنا"
+        },
+        "typography": {
+          "headingFont": "tajawal",
+          "bodyFont": "tajawal",
+          "headingWeight": "black"
+        },
+        "navigation": {
+          "showAutoPaths": true,
+          "moreLabel": "أخرى",
+          "items": []
+        },
+        "featuredPathIds": [],
+        "featuredCourseIds": [],
+        "featuredArticleLessonIds": []
+      }
+    },
+    {
+      "input": {
+        "typography": {}
+      },
+      "valid": true,
+      "parsed": {
+        "typography": {}
+      },
+      "persisted": {
+        "key": "default",
+        "studentExperience": {
+          "visibilityMode": "all",
+          "promptEnrollment": true
+        },
+        "brand": {
+          "logoUrl": "",
+          "logoAlt": "شعار منصة المئة",
+          "logoText": "منصة",
+          "logoAccentText": "المئة"
+        },
+        "hero": {
+          "badgeText": "المنصة الأولى للقدرات والتحصيلي",
+          "titlePrefix": "حقق",
+          "titleHighlight": "المئة",
+          "titleSuffix": "في اختباراتك",
+          "description": "رحلة تعليمية ذكية تجمع بين التدريب المكثف، الشروحات التفاعلية، والتحليل الدقيق لنقاط ضعفك لضمان أعلى الدرجات.",
+          "primaryCtaLabel": "ابدأ التدريب مجانًا",
+          "primaryCtaLink": "/dashboard",
+          "secondaryCtaLabel": "تصفح الدورات",
+          "secondaryCtaLink": "/courses",
+          "tertiaryCtaLabel": "",
+          "tertiaryCtaLink": "",
+          "badgeTextColor": "",
+          "titlePrefixColor": "",
+          "titleHighlightColor": "",
+          "titleSuffixColor": "",
+          "descriptionColor": "",
+          "primaryCtaColor": "",
+          "secondaryCtaColor": "",
+          "tertiaryCtaColor": "",
+          "imageUrl": "/images/homepage-hero-boy-platform.webp?v=20260512",
+          "imageAlt": "طالب يستخدم منصة المئة",
+          "galleryImages": [],
+          "autoRotateImages": true,
+          "rotateIntervalSeconds": 6,
+          "floatingCardTitle": "منصة المئة",
+          "floatingCardSubtitle": "مستواك: متقدم",
+          "floatingCardProgressLabel": "التقدم",
+          "floatingCardProgressValue": "75%"
+        },
+        "stats": [
+          {
+            "id": "students",
+            "label": "طالب وطالبة",
+            "mode": "dynamic",
+            "source": "students",
+            "manualValue": ""
+          },
+          {
+            "id": "courses",
+            "label": "دورة تدريبية",
+            "mode": "dynamic",
+            "source": "courses",
+            "manualValue": ""
+          },
+          {
+            "id": "assets",
+            "label": "مواد تعليمية",
+            "mode": "dynamic",
+            "source": "assets",
+            "manualValue": ""
+          },
+          {
+            "id": "rating",
+            "label": "تقييم عام",
+            "mode": "dynamic",
+            "source": "rating",
+            "manualValue": ""
+          }
+        ],
+        "testimonials": [
+          {
+            "id": "t1",
+            "name": "سارة العتيبي",
+            "degree": "98% قدرات",
+            "text": "المنصة غيرت طريقة مذاكرتي تمامًا. تحليل نقاط الضعف ساعدني أركز جهدي في المكان الصح.",
+            "image": ""
+          },
+          {
+            "id": "t2",
+            "name": "فهد الشمري",
+            "degree": "96% تحصيلي",
+            "text": "شروحات الفيزياء والكيمياء بسطت لي المعلومات بشكل عجيب. شكرًا لكل القائمين على المنصة.",
+            "image": ""
+          },
+          {
+            "id": "t3",
+            "name": "نورة السالم",
+            "degree": "99% قدرات",
+            "text": "اختبارات المحاكاة كانت مطابقة جدًا للاختبار الحقيقي، دخلت الاختبار وأنا واثقة جدًا.",
+            "image": ""
+          }
+        ],
+        "sections": {
+          "featuredCoursesTitle": "الدورات الأكثر طلبًا",
+          "featuredCoursesSubtitle": "اختر دورتك وابدأ رحلة التفوق اليوم",
+          "featuredArticlesTitle": "",
+          "featuredArticlesSubtitle": "",
+          "whyChooseTitle": "لماذا يختار الطلاب منصة المئة؟",
+          "whyChooseDescription": "نحن لا نقدم مجرد دورات، بل نقدم نظامًا بيئيًا متكاملًا يضمن لك الفهم العميق والتدريب المستمر.",
+          "testimonialsTitle": "قصص نجاح نعتز بها",
+          "testimonialsSubtitle": "انضم لآلاف الطلاب الذين حققوا أحلامهم معنا"
+        },
+        "typography": {
+          "headingFont": "tajawal",
+          "bodyFont": "tajawal",
+          "headingWeight": "black"
+        },
+        "navigation": {
+          "showAutoPaths": true,
+          "moreLabel": "أخرى",
+          "items": [
+            {
+              "id": "home",
+              "label": "الرئيسية",
+              "visible": true,
+              "order": 0
+            },
+            {
+              "id": "mock-exams",
+              "label": "اختبارات محاكية",
+              "visible": true,
+              "order": 20
+            },
+            {
+              "id": "pricing",
+              "label": "العضويات",
+              "visible": true,
+              "order": 90
+            },
+            {
+              "id": "blog",
+              "label": "المدونة",
+              "visible": true,
+              "order": 100
+            }
+          ]
+        },
+        "featuredPathIds": [],
+        "featuredCourseIds": [],
+        "featuredArticleLessonIds": []
+      }
+    },
+    {
+      "input": {
+        "sections": {
+          "featuredArticlesTitle": "عنوان"
+        }
+      },
+      "valid": true,
+      "parsed": {
+        "sections": {
+          "featuredArticlesTitle": "عنوان"
+        }
+      },
+      "persisted": {
+        "key": "default",
+        "studentExperience": {
+          "visibilityMode": "all",
+          "promptEnrollment": true
+        },
+        "brand": {
+          "logoUrl": "",
+          "logoAlt": "شعار منصة المئة",
+          "logoText": "منصة",
+          "logoAccentText": "المئة"
+        },
+        "hero": {
+          "badgeText": "المنصة الأولى للقدرات والتحصيلي",
+          "titlePrefix": "حقق",
+          "titleHighlight": "المئة",
+          "titleSuffix": "في اختباراتك",
+          "description": "رحلة تعليمية ذكية تجمع بين التدريب المكثف، الشروحات التفاعلية، والتحليل الدقيق لنقاط ضعفك لضمان أعلى الدرجات.",
+          "primaryCtaLabel": "ابدأ التدريب مجانًا",
+          "primaryCtaLink": "/dashboard",
+          "secondaryCtaLabel": "تصفح الدورات",
+          "secondaryCtaLink": "/courses",
+          "tertiaryCtaLabel": "",
+          "tertiaryCtaLink": "",
+          "badgeTextColor": "",
+          "titlePrefixColor": "",
+          "titleHighlightColor": "",
+          "titleSuffixColor": "",
+          "descriptionColor": "",
+          "primaryCtaColor": "",
+          "secondaryCtaColor": "",
+          "tertiaryCtaColor": "",
+          "imageUrl": "/images/homepage-hero-boy-platform.webp?v=20260512",
+          "imageAlt": "طالب يستخدم منصة المئة",
+          "galleryImages": [],
+          "autoRotateImages": true,
+          "rotateIntervalSeconds": 6,
+          "floatingCardTitle": "منصة المئة",
+          "floatingCardSubtitle": "مستواك: متقدم",
+          "floatingCardProgressLabel": "التقدم",
+          "floatingCardProgressValue": "75%"
+        },
+        "stats": [
+          {
+            "id": "students",
+            "label": "طالب وطالبة",
+            "mode": "dynamic",
+            "source": "students",
+            "manualValue": ""
+          },
+          {
+            "id": "courses",
+            "label": "دورة تدريبية",
+            "mode": "dynamic",
+            "source": "courses",
+            "manualValue": ""
+          },
+          {
+            "id": "assets",
+            "label": "مواد تعليمية",
+            "mode": "dynamic",
+            "source": "assets",
+            "manualValue": ""
+          },
+          {
+            "id": "rating",
+            "label": "تقييم عام",
+            "mode": "dynamic",
+            "source": "rating",
+            "manualValue": ""
+          }
+        ],
+        "testimonials": [
+          {
+            "id": "t1",
+            "name": "سارة العتيبي",
+            "degree": "98% قدرات",
+            "text": "المنصة غيرت طريقة مذاكرتي تمامًا. تحليل نقاط الضعف ساعدني أركز جهدي في المكان الصح.",
+            "image": ""
+          },
+          {
+            "id": "t2",
+            "name": "فهد الشمري",
+            "degree": "96% تحصيلي",
+            "text": "شروحات الفيزياء والكيمياء بسطت لي المعلومات بشكل عجيب. شكرًا لكل القائمين على المنصة.",
+            "image": ""
+          },
+          {
+            "id": "t3",
+            "name": "نورة السالم",
+            "degree": "99% قدرات",
+            "text": "اختبارات المحاكاة كانت مطابقة جدًا للاختبار الحقيقي، دخلت الاختبار وأنا واثقة جدًا.",
+            "image": ""
+          }
+        ],
+        "sections": {
+          "featuredCoursesTitle": "",
+          "featuredCoursesSubtitle": "",
+          "featuredArticlesTitle": "عنوان",
+          "featuredArticlesSubtitle": "",
+          "whyChooseTitle": "",
+          "whyChooseDescription": "",
+          "testimonialsTitle": "",
+          "testimonialsSubtitle": ""
+        },
+        "typography": {
+          "headingFont": "tajawal",
+          "bodyFont": "tajawal",
+          "headingWeight": "black"
+        },
+        "navigation": {
+          "showAutoPaths": true,
+          "moreLabel": "أخرى",
+          "items": [
+            {
+              "id": "home",
+              "label": "الرئيسية",
+              "visible": true,
+              "order": 0
+            },
+            {
+              "id": "mock-exams",
+              "label": "اختبارات محاكية",
+              "visible": true,
+              "order": 20
+            },
+            {
+              "id": "pricing",
+              "label": "العضويات",
+              "visible": true,
+              "order": 90
+            },
+            {
+              "id": "blog",
+              "label": "المدونة",
+              "visible": true,
+              "order": 100
+            }
+          ]
+        },
+        "featuredPathIds": [],
+        "featuredCourseIds": [],
+        "featuredArticleLessonIds": []
+      }
+    },
+    {
+      "input": {
+        "stats": [
+          {
+            "id": "a",
+            "label": "طلاب"
+          }
+        ]
+      },
+      "valid": true,
+      "parsed": {
+        "stats": [
+          {
+            "id": "a",
+            "label": "طلاب",
+            "mode": "dynamic",
+            "source": "students"
+          }
+        ]
+      },
+      "persisted": {
+        "key": "default",
+        "studentExperience": {
+          "visibilityMode": "all",
+          "promptEnrollment": true
+        },
+        "brand": {
+          "logoUrl": "",
+          "logoAlt": "شعار منصة المئة",
+          "logoText": "منصة",
+          "logoAccentText": "المئة"
+        },
+        "hero": {
+          "badgeText": "المنصة الأولى للقدرات والتحصيلي",
+          "titlePrefix": "حقق",
+          "titleHighlight": "المئة",
+          "titleSuffix": "في اختباراتك",
+          "description": "رحلة تعليمية ذكية تجمع بين التدريب المكثف، الشروحات التفاعلية، والتحليل الدقيق لنقاط ضعفك لضمان أعلى الدرجات.",
+          "primaryCtaLabel": "ابدأ التدريب مجانًا",
+          "primaryCtaLink": "/dashboard",
+          "secondaryCtaLabel": "تصفح الدورات",
+          "secondaryCtaLink": "/courses",
+          "tertiaryCtaLabel": "",
+          "tertiaryCtaLink": "",
+          "badgeTextColor": "",
+          "titlePrefixColor": "",
+          "titleHighlightColor": "",
+          "titleSuffixColor": "",
+          "descriptionColor": "",
+          "primaryCtaColor": "",
+          "secondaryCtaColor": "",
+          "tertiaryCtaColor": "",
+          "imageUrl": "/images/homepage-hero-boy-platform.webp?v=20260512",
+          "imageAlt": "طالب يستخدم منصة المئة",
+          "galleryImages": [],
+          "autoRotateImages": true,
+          "rotateIntervalSeconds": 6,
+          "floatingCardTitle": "منصة المئة",
+          "floatingCardSubtitle": "مستواك: متقدم",
+          "floatingCardProgressLabel": "التقدم",
+          "floatingCardProgressValue": "75%"
+        },
+        "stats": [
+          {
+            "id": "a",
+            "label": "طلاب",
+            "mode": "dynamic",
+            "source": "students",
+            "manualValue": ""
+          }
+        ],
+        "testimonials": [
+          {
+            "id": "t1",
+            "name": "سارة العتيبي",
+            "degree": "98% قدرات",
+            "text": "المنصة غيرت طريقة مذاكرتي تمامًا. تحليل نقاط الضعف ساعدني أركز جهدي في المكان الصح.",
+            "image": ""
+          },
+          {
+            "id": "t2",
+            "name": "فهد الشمري",
+            "degree": "96% تحصيلي",
+            "text": "شروحات الفيزياء والكيمياء بسطت لي المعلومات بشكل عجيب. شكرًا لكل القائمين على المنصة.",
+            "image": ""
+          },
+          {
+            "id": "t3",
+            "name": "نورة السالم",
+            "degree": "99% قدرات",
+            "text": "اختبارات المحاكاة كانت مطابقة جدًا للاختبار الحقيقي، دخلت الاختبار وأنا واثقة جدًا.",
+            "image": ""
+          }
+        ],
+        "sections": {
+          "featuredCoursesTitle": "الدورات الأكثر طلبًا",
+          "featuredCoursesSubtitle": "اختر دورتك وابدأ رحلة التفوق اليوم",
+          "featuredArticlesTitle": "",
+          "featuredArticlesSubtitle": "",
+          "whyChooseTitle": "لماذا يختار الطلاب منصة المئة؟",
+          "whyChooseDescription": "نحن لا نقدم مجرد دورات، بل نقدم نظامًا بيئيًا متكاملًا يضمن لك الفهم العميق والتدريب المستمر.",
+          "testimonialsTitle": "قصص نجاح نعتز بها",
+          "testimonialsSubtitle": "انضم لآلاف الطلاب الذين حققوا أحلامهم معنا"
+        },
+        "typography": {
+          "headingFont": "tajawal",
+          "bodyFont": "tajawal",
+          "headingWeight": "black"
+        },
+        "navigation": {
+          "showAutoPaths": true,
+          "moreLabel": "أخرى",
+          "items": [
+            {
+              "id": "home",
+              "label": "الرئيسية",
+              "visible": true,
+              "order": 0
+            },
+            {
+              "id": "mock-exams",
+              "label": "اختبارات محاكية",
+              "visible": true,
+              "order": 20
+            },
+            {
+              "id": "pricing",
+              "label": "العضويات",
+              "visible": true,
+              "order": 90
+            },
+            {
+              "id": "blog",
+              "label": "المدونة",
+              "visible": true,
+              "order": 100
+            }
+          ]
+        },
+        "featuredPathIds": [],
+        "featuredCourseIds": [],
+        "featuredArticleLessonIds": []
+      }
+    },
+    {
+      "input": {
+        "stats": [],
+        "testimonials": [],
+        "featuredPathIds": [],
+        "featuredCourseIds": [],
+        "featuredArticleLessonIds": []
+      },
+      "valid": true,
+      "parsed": {
+        "stats": [],
+        "testimonials": [],
+        "featuredPathIds": [],
+        "featuredCourseIds": [],
+        "featuredArticleLessonIds": []
+      },
+      "persisted": {
+        "key": "default",
+        "studentExperience": {
+          "visibilityMode": "all",
+          "promptEnrollment": true
+        },
+        "brand": {
+          "logoUrl": "",
+          "logoAlt": "شعار منصة المئة",
+          "logoText": "منصة",
+          "logoAccentText": "المئة"
+        },
+        "hero": {
+          "badgeText": "المنصة الأولى للقدرات والتحصيلي",
+          "titlePrefix": "حقق",
+          "titleHighlight": "المئة",
+          "titleSuffix": "في اختباراتك",
+          "description": "رحلة تعليمية ذكية تجمع بين التدريب المكثف، الشروحات التفاعلية، والتحليل الدقيق لنقاط ضعفك لضمان أعلى الدرجات.",
+          "primaryCtaLabel": "ابدأ التدريب مجانًا",
+          "primaryCtaLink": "/dashboard",
+          "secondaryCtaLabel": "تصفح الدورات",
+          "secondaryCtaLink": "/courses",
+          "tertiaryCtaLabel": "",
+          "tertiaryCtaLink": "",
+          "badgeTextColor": "",
+          "titlePrefixColor": "",
+          "titleHighlightColor": "",
+          "titleSuffixColor": "",
+          "descriptionColor": "",
+          "primaryCtaColor": "",
+          "secondaryCtaColor": "",
+          "tertiaryCtaColor": "",
+          "imageUrl": "/images/homepage-hero-boy-platform.webp?v=20260512",
+          "imageAlt": "طالب يستخدم منصة المئة",
+          "galleryImages": [],
+          "autoRotateImages": true,
+          "rotateIntervalSeconds": 6,
+          "floatingCardTitle": "منصة المئة",
+          "floatingCardSubtitle": "مستواك: متقدم",
+          "floatingCardProgressLabel": "التقدم",
+          "floatingCardProgressValue": "75%"
+        },
+        "stats": [],
+        "testimonials": [],
+        "sections": {
+          "featuredCoursesTitle": "الدورات الأكثر طلبًا",
+          "featuredCoursesSubtitle": "اختر دورتك وابدأ رحلة التفوق اليوم",
+          "featuredArticlesTitle": "",
+          "featuredArticlesSubtitle": "",
+          "whyChooseTitle": "لماذا يختار الطلاب منصة المئة؟",
+          "whyChooseDescription": "نحن لا نقدم مجرد دورات، بل نقدم نظامًا بيئيًا متكاملًا يضمن لك الفهم العميق والتدريب المستمر.",
+          "testimonialsTitle": "قصص نجاح نعتز بها",
+          "testimonialsSubtitle": "انضم لآلاف الطلاب الذين حققوا أحلامهم معنا"
+        },
+        "typography": {
+          "headingFont": "tajawal",
+          "bodyFont": "tajawal",
+          "headingWeight": "black"
+        },
+        "navigation": {
+          "showAutoPaths": true,
+          "moreLabel": "أخرى",
+          "items": [
+            {
+              "id": "home",
+              "label": "الرئيسية",
+              "visible": true,
+              "order": 0
+            },
+            {
+              "id": "mock-exams",
+              "label": "اختبارات محاكية",
+              "visible": true,
+              "order": 20
+            },
+            {
+              "id": "pricing",
+              "label": "العضويات",
+              "visible": true,
+              "order": 90
+            },
+            {
+              "id": "blog",
+              "label": "المدونة",
+              "visible": true,
+              "order": 100
+            }
+          ]
+        },
+        "featuredPathIds": [],
+        "featuredCourseIds": [],
+        "featuredArticleLessonIds": []
+      }
+    },
+    {
+      "input": {
+        "testimonials": [
+          {
+            "id": "t",
+            "name": "اسم",
+            "text": "نص"
+          }
+        ]
+      },
+      "valid": true,
+      "parsed": {
+        "testimonials": [
+          {
+            "id": "t",
+            "name": "اسم",
+            "text": "نص"
+          }
+        ]
+      },
+      "persisted": {
+        "key": "default",
+        "studentExperience": {
+          "visibilityMode": "all",
+          "promptEnrollment": true
+        },
+        "brand": {
+          "logoUrl": "",
+          "logoAlt": "شعار منصة المئة",
+          "logoText": "منصة",
+          "logoAccentText": "المئة"
+        },
+        "hero": {
+          "badgeText": "المنصة الأولى للقدرات والتحصيلي",
+          "titlePrefix": "حقق",
+          "titleHighlight": "المئة",
+          "titleSuffix": "في اختباراتك",
+          "description": "رحلة تعليمية ذكية تجمع بين التدريب المكثف، الشروحات التفاعلية، والتحليل الدقيق لنقاط ضعفك لضمان أعلى الدرجات.",
+          "primaryCtaLabel": "ابدأ التدريب مجانًا",
+          "primaryCtaLink": "/dashboard",
+          "secondaryCtaLabel": "تصفح الدورات",
+          "secondaryCtaLink": "/courses",
+          "tertiaryCtaLabel": "",
+          "tertiaryCtaLink": "",
+          "badgeTextColor": "",
+          "titlePrefixColor": "",
+          "titleHighlightColor": "",
+          "titleSuffixColor": "",
+          "descriptionColor": "",
+          "primaryCtaColor": "",
+          "secondaryCtaColor": "",
+          "tertiaryCtaColor": "",
+          "imageUrl": "/images/homepage-hero-boy-platform.webp?v=20260512",
+          "imageAlt": "طالب يستخدم منصة المئة",
+          "galleryImages": [],
+          "autoRotateImages": true,
+          "rotateIntervalSeconds": 6,
+          "floatingCardTitle": "منصة المئة",
+          "floatingCardSubtitle": "مستواك: متقدم",
+          "floatingCardProgressLabel": "التقدم",
+          "floatingCardProgressValue": "75%"
+        },
+        "stats": [
+          {
+            "id": "students",
+            "label": "طالب وطالبة",
+            "mode": "dynamic",
+            "source": "students",
+            "manualValue": ""
+          },
+          {
+            "id": "courses",
+            "label": "دورة تدريبية",
+            "mode": "dynamic",
+            "source": "courses",
+            "manualValue": ""
+          },
+          {
+            "id": "assets",
+            "label": "مواد تعليمية",
+            "mode": "dynamic",
+            "source": "assets",
+            "manualValue": ""
+          },
+          {
+            "id": "rating",
+            "label": "تقييم عام",
+            "mode": "dynamic",
+            "source": "rating",
+            "manualValue": ""
+          }
+        ],
+        "testimonials": [
+          {
+            "id": "t",
+            "name": "اسم",
+            "degree": "",
+            "text": "نص",
+            "image": ""
+          }
+        ],
+        "sections": {
+          "featuredCoursesTitle": "الدورات الأكثر طلبًا",
+          "featuredCoursesSubtitle": "اختر دورتك وابدأ رحلة التفوق اليوم",
+          "featuredArticlesTitle": "",
+          "featuredArticlesSubtitle": "",
+          "whyChooseTitle": "لماذا يختار الطلاب منصة المئة؟",
+          "whyChooseDescription": "نحن لا نقدم مجرد دورات، بل نقدم نظامًا بيئيًا متكاملًا يضمن لك الفهم العميق والتدريب المستمر.",
+          "testimonialsTitle": "قصص نجاح نعتز بها",
+          "testimonialsSubtitle": "انضم لآلاف الطلاب الذين حققوا أحلامهم معنا"
+        },
+        "typography": {
+          "headingFont": "tajawal",
+          "bodyFont": "tajawal",
+          "headingWeight": "black"
+        },
+        "navigation": {
+          "showAutoPaths": true,
+          "moreLabel": "أخرى",
+          "items": [
+            {
+              "id": "home",
+              "label": "الرئيسية",
+              "visible": true,
+              "order": 0
+            },
+            {
+              "id": "mock-exams",
+              "label": "اختبارات محاكية",
+              "visible": true,
+              "order": 20
+            },
+            {
+              "id": "pricing",
+              "label": "العضويات",
+              "visible": true,
+              "order": 90
+            },
+            {
+              "id": "blog",
+              "label": "المدونة",
+              "visible": true,
+              "order": 100
+            }
+          ]
+        },
+        "featuredPathIds": [],
+        "featuredCourseIds": [],
+        "featuredArticleLessonIds": []
+      }
+    },
+    {
+      "input": {
+        "studentExperience": {
+          "visibilityMode": "enrolled",
+          "promptEnrollment": false
+        }
+      },
+      "valid": true,
+      "parsed": {
+        "studentExperience": {
+          "visibilityMode": "enrolled",
+          "promptEnrollment": false
+        }
+      },
+      "persisted": {
+        "key": "default",
+        "studentExperience": {
+          "visibilityMode": "enrolled",
+          "promptEnrollment": false
+        },
+        "brand": {
+          "logoUrl": "",
+          "logoAlt": "شعار منصة المئة",
+          "logoText": "منصة",
+          "logoAccentText": "المئة"
+        },
+        "hero": {
+          "badgeText": "المنصة الأولى للقدرات والتحصيلي",
+          "titlePrefix": "حقق",
+          "titleHighlight": "المئة",
+          "titleSuffix": "في اختباراتك",
+          "description": "رحلة تعليمية ذكية تجمع بين التدريب المكثف، الشروحات التفاعلية، والتحليل الدقيق لنقاط ضعفك لضمان أعلى الدرجات.",
+          "primaryCtaLabel": "ابدأ التدريب مجانًا",
+          "primaryCtaLink": "/dashboard",
+          "secondaryCtaLabel": "تصفح الدورات",
+          "secondaryCtaLink": "/courses",
+          "tertiaryCtaLabel": "",
+          "tertiaryCtaLink": "",
+          "badgeTextColor": "",
+          "titlePrefixColor": "",
+          "titleHighlightColor": "",
+          "titleSuffixColor": "",
+          "descriptionColor": "",
+          "primaryCtaColor": "",
+          "secondaryCtaColor": "",
+          "tertiaryCtaColor": "",
+          "imageUrl": "/images/homepage-hero-boy-platform.webp?v=20260512",
+          "imageAlt": "طالب يستخدم منصة المئة",
+          "galleryImages": [],
+          "autoRotateImages": true,
+          "rotateIntervalSeconds": 6,
+          "floatingCardTitle": "منصة المئة",
+          "floatingCardSubtitle": "مستواك: متقدم",
+          "floatingCardProgressLabel": "التقدم",
+          "floatingCardProgressValue": "75%"
+        },
+        "stats": [
+          {
+            "id": "students",
+            "label": "طالب وطالبة",
+            "mode": "dynamic",
+            "source": "students",
+            "manualValue": ""
+          },
+          {
+            "id": "courses",
+            "label": "دورة تدريبية",
+            "mode": "dynamic",
+            "source": "courses",
+            "manualValue": ""
+          },
+          {
+            "id": "assets",
+            "label": "مواد تعليمية",
+            "mode": "dynamic",
+            "source": "assets",
+            "manualValue": ""
+          },
+          {
+            "id": "rating",
+            "label": "تقييم عام",
+            "mode": "dynamic",
+            "source": "rating",
+            "manualValue": ""
+          }
+        ],
+        "testimonials": [
+          {
+            "id": "t1",
+            "name": "سارة العتيبي",
+            "degree": "98% قدرات",
+            "text": "المنصة غيرت طريقة مذاكرتي تمامًا. تحليل نقاط الضعف ساعدني أركز جهدي في المكان الصح.",
+            "image": ""
+          },
+          {
+            "id": "t2",
+            "name": "فهد الشمري",
+            "degree": "96% تحصيلي",
+            "text": "شروحات الفيزياء والكيمياء بسطت لي المعلومات بشكل عجيب. شكرًا لكل القائمين على المنصة.",
+            "image": ""
+          },
+          {
+            "id": "t3",
+            "name": "نورة السالم",
+            "degree": "99% قدرات",
+            "text": "اختبارات المحاكاة كانت مطابقة جدًا للاختبار الحقيقي، دخلت الاختبار وأنا واثقة جدًا.",
+            "image": ""
+          }
+        ],
+        "sections": {
+          "featuredCoursesTitle": "الدورات الأكثر طلبًا",
+          "featuredCoursesSubtitle": "اختر دورتك وابدأ رحلة التفوق اليوم",
+          "featuredArticlesTitle": "",
+          "featuredArticlesSubtitle": "",
+          "whyChooseTitle": "لماذا يختار الطلاب منصة المئة؟",
+          "whyChooseDescription": "نحن لا نقدم مجرد دورات، بل نقدم نظامًا بيئيًا متكاملًا يضمن لك الفهم العميق والتدريب المستمر.",
+          "testimonialsTitle": "قصص نجاح نعتز بها",
+          "testimonialsSubtitle": "انضم لآلاف الطلاب الذين حققوا أحلامهم معنا"
+        },
+        "typography": {
+          "headingFont": "tajawal",
+          "bodyFont": "tajawal",
+          "headingWeight": "black"
+        },
+        "navigation": {
+          "showAutoPaths": true,
+          "moreLabel": "أخرى",
+          "items": [
+            {
+              "id": "home",
+              "label": "الرئيسية",
+              "visible": true,
+              "order": 0
+            },
+            {
+              "id": "mock-exams",
+              "label": "اختبارات محاكية",
+              "visible": true,
+              "order": 20
+            },
+            {
+              "id": "pricing",
+              "label": "العضويات",
+              "visible": true,
+              "order": 90
+            },
+            {
+              "id": "blog",
+              "label": "المدونة",
+              "visible": true,
+              "order": 100
+            }
+          ]
+        },
+        "featuredPathIds": [],
+        "featuredCourseIds": [],
+        "featuredArticleLessonIds": []
+      }
+    },
+    {
+      "input": {
+        "studentExperience": {
+          "visibilityMode": "enrolled"
+        }
+      },
+      "valid": false
+    },
+    {
+      "input": {
+        "hero": null
+      },
+      "valid": false
+    },
+    {
+      "input": {
+        "hero": {
+          "autoRotateImages": "false"
+        }
+      },
+      "valid": false
+    },
+    {
+      "input": {
+        "hero": {
+          "rotateIntervalSeconds": 2
+        }
+      },
+      "valid": false
+    },
+    {
+      "input": {
+        "hero": {
+          "rotateIntervalSeconds": 61
+        }
+      },
+      "valid": false
+    },
+    {
+      "input": {
+        "typography": {
+          "bodyFont": "cairo"
+        }
+      },
+      "valid": false
+    },
+    {
+      "input": {
+        "navigation": {
+          "items": [
+            {
+              "visible": true
+            }
+          ]
+        }
+      },
+      "valid": false
+    },
+    {
+      "input": {
+        "featuredPathIds": [
+          42
+        ]
+      },
+      "valid": false
+    },
+    {
+      "input": {
+        "featuredPathIds": [
+          "legacy-id",
+          "legacy-id"
+        ]
+      },
+      "valid": true,
+      "parsed": {
+        "featuredPathIds": [
+          "legacy-id",
+          "legacy-id"
+        ]
+      },
+      "persisted": {
+        "key": "default",
+        "studentExperience": {
+          "visibilityMode": "all",
+          "promptEnrollment": true
+        },
+        "brand": {
+          "logoUrl": "",
+          "logoAlt": "شعار منصة المئة",
+          "logoText": "منصة",
+          "logoAccentText": "المئة"
+        },
+        "hero": {
+          "badgeText": "المنصة الأولى للقدرات والتحصيلي",
+          "titlePrefix": "حقق",
+          "titleHighlight": "المئة",
+          "titleSuffix": "في اختباراتك",
+          "description": "رحلة تعليمية ذكية تجمع بين التدريب المكثف، الشروحات التفاعلية، والتحليل الدقيق لنقاط ضعفك لضمان أعلى الدرجات.",
+          "primaryCtaLabel": "ابدأ التدريب مجانًا",
+          "primaryCtaLink": "/dashboard",
+          "secondaryCtaLabel": "تصفح الدورات",
+          "secondaryCtaLink": "/courses",
+          "tertiaryCtaLabel": "",
+          "tertiaryCtaLink": "",
+          "badgeTextColor": "",
+          "titlePrefixColor": "",
+          "titleHighlightColor": "",
+          "titleSuffixColor": "",
+          "descriptionColor": "",
+          "primaryCtaColor": "",
+          "secondaryCtaColor": "",
+          "tertiaryCtaColor": "",
+          "imageUrl": "/images/homepage-hero-boy-platform.webp?v=20260512",
+          "imageAlt": "طالب يستخدم منصة المئة",
+          "galleryImages": [],
+          "autoRotateImages": true,
+          "rotateIntervalSeconds": 6,
+          "floatingCardTitle": "منصة المئة",
+          "floatingCardSubtitle": "مستواك: متقدم",
+          "floatingCardProgressLabel": "التقدم",
+          "floatingCardProgressValue": "75%"
+        },
+        "stats": [
+          {
+            "id": "students",
+            "label": "طالب وطالبة",
+            "mode": "dynamic",
+            "source": "students",
+            "manualValue": ""
+          },
+          {
+            "id": "courses",
+            "label": "دورة تدريبية",
+            "mode": "dynamic",
+            "source": "courses",
+            "manualValue": ""
+          },
+          {
+            "id": "assets",
+            "label": "مواد تعليمية",
+            "mode": "dynamic",
+            "source": "assets",
+            "manualValue": ""
+          },
+          {
+            "id": "rating",
+            "label": "تقييم عام",
+            "mode": "dynamic",
+            "source": "rating",
+            "manualValue": ""
+          }
+        ],
+        "testimonials": [
+          {
+            "id": "t1",
+            "name": "سارة العتيبي",
+            "degree": "98% قدرات",
+            "text": "المنصة غيرت طريقة مذاكرتي تمامًا. تحليل نقاط الضعف ساعدني أركز جهدي في المكان الصح.",
+            "image": ""
+          },
+          {
+            "id": "t2",
+            "name": "فهد الشمري",
+            "degree": "96% تحصيلي",
+            "text": "شروحات الفيزياء والكيمياء بسطت لي المعلومات بشكل عجيب. شكرًا لكل القائمين على المنصة.",
+            "image": ""
+          },
+          {
+            "id": "t3",
+            "name": "نورة السالم",
+            "degree": "99% قدرات",
+            "text": "اختبارات المحاكاة كانت مطابقة جدًا للاختبار الحقيقي، دخلت الاختبار وأنا واثقة جدًا.",
+            "image": ""
+          }
+        ],
+        "sections": {
+          "featuredCoursesTitle": "الدورات الأكثر طلبًا",
+          "featuredCoursesSubtitle": "اختر دورتك وابدأ رحلة التفوق اليوم",
+          "featuredArticlesTitle": "",
+          "featuredArticlesSubtitle": "",
+          "whyChooseTitle": "لماذا يختار الطلاب منصة المئة؟",
+          "whyChooseDescription": "نحن لا نقدم مجرد دورات، بل نقدم نظامًا بيئيًا متكاملًا يضمن لك الفهم العميق والتدريب المستمر.",
+          "testimonialsTitle": "قصص نجاح نعتز بها",
+          "testimonialsSubtitle": "انضم لآلاف الطلاب الذين حققوا أحلامهم معنا"
+        },
+        "typography": {
+          "headingFont": "tajawal",
+          "bodyFont": "tajawal",
+          "headingWeight": "black"
+        },
+        "navigation": {
+          "showAutoPaths": true,
+          "moreLabel": "أخرى",
+          "items": [
+            {
+              "id": "home",
+              "label": "الرئيسية",
+              "visible": true,
+              "order": 0
+            },
+            {
+              "id": "mock-exams",
+              "label": "اختبارات محاكية",
+              "visible": true,
+              "order": 20
+            },
+            {
+              "id": "pricing",
+              "label": "العضويات",
+              "visible": true,
+              "order": 90
+            },
+            {
+              "id": "blog",
+              "label": "المدونة",
+              "visible": true,
+              "order": 100
+            }
+          ]
+        },
+        "featuredPathIds": [
+          "legacy-id",
+          "legacy-id"
+        ],
+        "featuredCourseIds": [],
+        "featuredArticleLessonIds": []
+      }
+    },
+    {
+      "input": {
+        "stats": [
+          {
+            "id": "",
+            "label": "x"
+          }
+        ]
+      },
+      "valid": false
+    },
+    {
+      "input": {
+        "testimonials": [
+          {
+            "id": "a",
+            "name": "x"
+          }
+        ]
+      },
+      "valid": false
+    }
+  ]
+}

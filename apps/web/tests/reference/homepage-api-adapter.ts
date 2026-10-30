@@ -1,0 +1,2 @@
+import {api as target} from '../../src/features/presentation/api';import {authClient} from '../../src/features/auth/api/auth-client';import type {HomepageSettings} from '../../src/features/presentation/homepage-types';
+export const api={getHomepageSettings:target.getHomepageSettings,updateHomepageSettings:async(settings:HomepageSettings)=>target.updateHomepageSettings(settings,(await authClient.csrf()).csrfToken)};

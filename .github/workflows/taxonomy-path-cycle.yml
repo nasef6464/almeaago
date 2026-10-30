@@ -1,0 +1,52 @@
+name: Taxonomy Path Cycle PostgreSQL
+on:
+  pull_request:
+    paths:
+      - "internal/taxonomy/repository/postgres/**"
+      - ".github/workflows/taxonomy-path-cycle.yml"
+  workflow_dispatch:
+permissions: { contents: read }
+concurrency:
+  group: taxonomy-path-cycle-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  taxonomy-path-cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: almeaa
+          POSTGRES_PASSWORD: almeaa
+          POSTGRES_DB: almeaa
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U almeaa -d almeaa"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+      TAXONOMY_PATH_DB_TEST: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: RED — original main permits descendant cycle (expected failure)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp internal/taxonomy/repository/postgres/mutations.go /tmp/taxonomy-mutations-fixed.go
+          git show 98b0f6d9ad0bba031936d950d087c0bd3d19b7bb:internal/taxonomy/repository/postgres/mutations.go > internal/taxonomy/repository/postgres/mutations.go
+          if go test ./internal/taxonomy/repository/postgres -run TestAdminPathParentCyclePostgres -count=1 -v > /tmp/taxonomy-red.log 2>&1; then
+            cat /tmp/taxonomy-red.log
+            echo "::error::Original implementation unexpectedly passed the cycle regression"
+            exit 1
+          fi
+          cat /tmp/taxonomy-red.log
+          grep -q 'descendant parent must conflict' /tmp/taxonomy-red.log
+          cp /tmp/taxonomy-mutations-fixed.go internal/taxonomy/repository/postgres/mutations.go
+      - name: GREEN — hierarchy and concurrent updates in isolated PostgreSQL schema
+        run: go test ./internal/taxonomy/repository/postgres -run TestAdminPathParentCyclePostgres -count=1 -v

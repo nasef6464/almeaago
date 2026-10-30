@@ -1,10 +1,10 @@
 name: Database CI
 on:
   pull_request:
-    paths: ["migrations/**",".github/workflows/database.yml","docs/**"]
+    paths: ["apps/web/src/features/presentation/**","apps/web/tests/e2e/platform-fonts*","apps/web/tests/reference/**","scripts/parity/font-reference.mjs","apps/web/vite.config.ts","migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**","internal/taxonomy/**"]
   push:
     branches: [main]
-    paths: ["migrations/**",".github/workflows/database.yml","docs/**"]
+    paths: ["apps/web/src/features/presentation/**","apps/web/tests/e2e/platform-fonts*","apps/web/tests/reference/**","scripts/parity/font-reference.mjs","apps/web/vite.config.ts","migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**","internal/taxonomy/**"]
   workflow_dispatch:
 concurrency:
   group: database-ci-${{ github.ref }}
@@ -40,6 +40,99 @@ jobs:
             echo "::endgroup::"
           done
 
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Verify manager level visibility reaches learner taxonomy scopes
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/taxonomy/repository/postgres -run '^TestTaxonomyLearnerScopeFollowsLevelVisibilityPostgres$' -count=1 -v
+
+      - name: Verify teacher material serialization against PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/organizations/repository/postgres -run '^TestAssignmentMaterialGuardConcurrentTransactionsPostgres$' -count=1 -v
+
+      - name: Verify teacher multi-school assignment isolation and revocation against PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/organizations/repository/postgres -run '^TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres$' -count=1 -v
+
+      - name: Verify director overview audiences against PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/reporting/repository/postgres -run '^TestDirectorOverviewCountsRealSchoolAudiencePostgres$' -count=1 -v
+
+      - name: Verify school director assessment publication and audiences against PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/organizations/repository/postgres -run '^TestDirectorCreateAssessmentPostgres$' -count=1 -v
+
+      - name: Verify students can see and start only their school-wide assessments
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/assessment/repository/postgres -run '^TestSchoolWideAssignmentLearnerAudiencePostgres$' -count=1 -v
+
+      - name: Verify concurrent assessment and review evidence against PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/learning/repository/postgres -run '^TestEvidenceSerializationPostgres$' -count=3 -v
+
+      - name: Verify adaptive recommendation selection against PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/learning/repository/postgres -run '^TestAdaptiveSelection.*Postgres$' -count=1 -v
+
+      - name: Verify bounded readiness against PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/learning/repository/postgres -run '^TestReadinessSingleQueryPostgres$' -count=1 -v
+
+      - name: Verify persisted homepage settings and relations against PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+          HOMEPAGE_TEST_DB: "1"
+        run: go test ./internal/content/repository/postgres -run '^TestHomepageSettingsHTTPPostgres$' -count=1 -v
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install browser integration dependencies
+        working-directory: apps/web
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Verify homepage editor through real Go sessions and PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+          HOMEPAGE_TEST_DB: "1"
+          HOMEPAGE_BROWSER_E2E: "1"
+        run: go test ./internal/content/repository/postgres -run '^TestHomepageSettingsHTTPPostgres$' -count=1 -v
+      - name: Upload homepage integration browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: homepage-integration-evidence
+          path: |
+            apps/web/test-results/
+            apps/web/playwright-report/
+          retention-days: 7
+      - name: Verify persisted font editor through real Go sessions and PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+          FONT_BROWSER_E2E: "1"
+        run: go test ./internal/content/repository/postgres -run '^TestPlatformFontsHTTPPostgres$' -count=1 -v
+      - name: Upload font integration browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: persisted-fonts-browser-evidence
+          path: |
+            apps/web/test-results
+            apps/web/playwright-report
+          retention-days: 7
+
       - name: Verify current schema constraints
         shell: bash
         run: |
@@ -70,6 +163,8 @@ jobs:
           check "select exists(select 1 from pg_indexes where tablename='school_membership_permissions' and indexname='school_membership_permissions_permission_idx')"
           check "select to_regclass('public.school_contracts') is not null"
           check "select to_regclass('public.school_contract_modules') is not null"
+          check "select to_regclass('public.school_assessment_create_requests') is not null"
+          check "select exists(select 1 from pg_indexes where tablename='school_assessment_create_requests' and indexname='school_assessment_create_requests_assessment_idx')"
           check "select exists(select 1 from pg_indexes where tablename='school_contracts' and indexname='school_contracts_status_valid_until_idx')"
           check "select exists(select 1 from pg_indexes where tablename='school_contract_modules' and indexname='school_contract_modules_enabled_idx')"
           check "select to_regclass('public.parent_student_relationships') is not null"

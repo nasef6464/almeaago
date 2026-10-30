@@ -1,0 +1,380 @@
+{
+  "source": {
+    "repository": "nasef6464/almeaacodax",
+    "commit": "bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7",
+    "files": {
+      "skillAnalytics": "4ba75a6c221128c7db9c33fe05db52af1ca5ba5cae64a217c73b19504f4a20fe",
+      "nextBestAction": "65e2e12082aacc4a5f7b71bb78ef6df45cb65ba0c2659e0bf21668b5af03ba68"
+    }
+  },
+  "cases": [
+    {
+      "mastery": 0,
+      "attempts": 0,
+      "status": "weak",
+      "action": "خطة علاج عاجلة: شرح + تدريب + اختبار موجه"
+    },
+    {
+      "mastery": 0,
+      "attempts": 2,
+      "status": "weak",
+      "action": "خطة علاج عاجلة: شرح + تدريب + اختبار موجه"
+    },
+    {
+      "mastery": 0,
+      "attempts": 3,
+      "status": "weak",
+      "action": "خطة علاج عاجلة: شرح + تدريب + اختبار موجه"
+    },
+    {
+      "mastery": 44,
+      "attempts": 0,
+      "status": "weak",
+      "action": "خطة علاج عاجلة: شرح + تدريب + اختبار موجه"
+    },
+    {
+      "mastery": 44,
+      "attempts": 2,
+      "status": "weak",
+      "action": "خطة علاج عاجلة: شرح + تدريب + اختبار موجه"
+    },
+    {
+      "mastery": 44,
+      "attempts": 3,
+      "status": "weak",
+      "action": "خطة علاج عاجلة: شرح + تدريب + اختبار موجه"
+    },
+    {
+      "mastery": 44.999,
+      "attempts": 0,
+      "status": "weak",
+      "action": "خطة علاج عاجلة: شرح + تدريب + اختبار موجه"
+    },
+    {
+      "mastery": 44.999,
+      "attempts": 2,
+      "status": "weak",
+      "action": "خطة علاج عاجلة: شرح + تدريب + اختبار موجه"
+    },
+    {
+      "mastery": 44.999,
+      "attempts": 3,
+      "status": "weak",
+      "action": "خطة علاج عاجلة: شرح + تدريب + اختبار موجه"
+    },
+    {
+      "mastery": 45,
+      "attempts": 0,
+      "status": "weak",
+      "action": "إضافة تدريب قصير ومتابعة الأداء"
+    },
+    {
+      "mastery": 45,
+      "attempts": 2,
+      "status": "weak",
+      "action": "إضافة تدريب قصير ومتابعة الأداء"
+    },
+    {
+      "mastery": 45,
+      "attempts": 3,
+      "status": "weak",
+      "action": "زيادة التدريب ثم اختبار ساهر علاجي"
+    },
+    {
+      "mastery": 49.999,
+      "attempts": 0,
+      "status": "weak",
+      "action": "إضافة تدريب قصير ومتابعة الأداء"
+    },
+    {
+      "mastery": 49.999,
+      "attempts": 2,
+      "status": "weak",
+      "action": "إضافة تدريب قصير ومتابعة الأداء"
+    },
+    {
+      "mastery": 49.999,
+      "attempts": 3,
+      "status": "weak",
+      "action": "زيادة التدريب ثم اختبار ساهر علاجي"
+    },
+    {
+      "mastery": 50,
+      "attempts": 0,
+      "status": "average",
+      "action": "إضافة تدريب قصير ومتابعة الأداء"
+    },
+    {
+      "mastery": 50,
+      "attempts": 2,
+      "status": "average",
+      "action": "إضافة تدريب قصير ومتابعة الأداء"
+    },
+    {
+      "mastery": 50,
+      "attempts": 3,
+      "status": "average",
+      "action": "زيادة التدريب ثم اختبار ساهر علاجي"
+    },
+    {
+      "mastery": 64.999,
+      "attempts": 0,
+      "status": "average",
+      "action": "إضافة تدريب قصير ومتابعة الأداء"
+    },
+    {
+      "mastery": 64.999,
+      "attempts": 2,
+      "status": "average",
+      "action": "إضافة تدريب قصير ومتابعة الأداء"
+    },
+    {
+      "mastery": 64.999,
+      "attempts": 3,
+      "status": "average",
+      "action": "زيادة التدريب ثم اختبار ساهر علاجي"
+    },
+    {
+      "mastery": 65,
+      "attempts": 0,
+      "status": "average",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 65,
+      "attempts": 2,
+      "status": "average",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 65,
+      "attempts": 3,
+      "status": "average",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 74.499,
+      "attempts": 0,
+      "status": "average",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 74.499,
+      "attempts": 2,
+      "status": "average",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 74.499,
+      "attempts": 3,
+      "status": "average",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 74.5,
+      "attempts": 0,
+      "status": "average",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 74.5,
+      "attempts": 2,
+      "status": "average",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 74.5,
+      "attempts": 3,
+      "status": "average",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 74.999,
+      "attempts": 0,
+      "status": "average",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 74.999,
+      "attempts": 2,
+      "status": "average",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 74.999,
+      "attempts": 3,
+      "status": "average",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 75,
+      "attempts": 0,
+      "status": "good",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 75,
+      "attempts": 2,
+      "status": "good",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 75,
+      "attempts": 3,
+      "status": "good",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 79.999,
+      "attempts": 0,
+      "status": "good",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 79.999,
+      "attempts": 2,
+      "status": "good",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 79.999,
+      "attempts": 3,
+      "status": "good",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 80,
+      "attempts": 0,
+      "status": "good",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 80,
+      "attempts": 2,
+      "status": "good",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 80,
+      "attempts": 3,
+      "status": "good",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 89.999,
+      "attempts": 0,
+      "status": "good",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 89.999,
+      "attempts": 2,
+      "status": "good",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 89.999,
+      "attempts": 3,
+      "status": "good",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 90,
+      "attempts": 0,
+      "status": "mastered",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 90,
+      "attempts": 2,
+      "status": "mastered",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 90,
+      "attempts": 3,
+      "status": "mastered",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 100,
+      "attempts": 0,
+      "status": "mastered",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 100,
+      "attempts": 2,
+      "status": "mastered",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    },
+    {
+      "mastery": 100,
+      "attempts": 3,
+      "status": "mastered",
+      "action": "تثبيت المهارة بتدريب خفيف وإعادة قياس لاحقًا"
+    }
+  ],
+  "adaptive": [
+    {
+      "mastery": 0,
+      "evidenceCount": 0,
+      "action": "measure"
+    },
+    {
+      "mastery": 60,
+      "evidenceCount": 0,
+      "action": "measure"
+    },
+    {
+      "mastery": 80,
+      "evidenceCount": 0,
+      "action": "measure"
+    },
+    {
+      "mastery": 0,
+      "evidenceCount": 1,
+      "action": "measure"
+    },
+    {
+      "mastery": 60,
+      "evidenceCount": 1,
+      "action": "measure"
+    },
+    {
+      "mastery": 80,
+      "evidenceCount": 1,
+      "action": "measure"
+    },
+    {
+      "mastery": 0,
+      "evidenceCount": 2,
+      "action": "measure"
+    },
+    {
+      "mastery": 60,
+      "evidenceCount": 2,
+      "action": "measure"
+    },
+    {
+      "mastery": 80,
+      "evidenceCount": 2,
+      "action": "measure"
+    },
+    {
+      "mastery": 0,
+      "evidenceCount": 3,
+      "action": "alternate_support_then_recheck"
+    },
+    {
+      "mastery": 60,
+      "evidenceCount": 3,
+      "action": "remediation_then_recheck"
+    },
+    {
+      "mastery": 80,
+      "evidenceCount": 3,
+      "action": "mastery_review"
+    }
+  ]
+}

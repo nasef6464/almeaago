@@ -24,6 +24,12 @@ const (
 )
 
 type Repository interface {
+	DirectorCreateAssessment(ctx context.Context, actorUserID, schoolID string, input org.DirectorAssessmentCreate) (org.DirectorAssessmentCreated, error)
+	DirectorAssessmentQuestions(ctx context.Context, actorUserID, schoolID, pathID, subjectID, search string, page, limit int) (org.DirectorAssessmentQuestionPage, error)
+	DirectorAssessmentEligibleStudents(ctx context.Context, actorUserID, schoolID, search string, page, limit int) (org.DirectorAssessmentStudentPage, error)
+	DirectorAssessmentReport(ctx context.Context, actorUserID, schoolID, assessmentID string) (org.DirectorAssessmentReport, error)
+	DirectorAssessmentLearners(ctx context.Context, actorUserID, schoolID, assessmentID string, query org.DirectorAssessmentLearnerQuery) (org.DirectorAssessmentLearnerPage, error)
+	DirectorAssessmentLearnerResult(ctx context.Context, actorUserID, schoolID, assessmentID, attemptID string) (org.DirectorAssessmentLearnerResult, error)
 	SchoolContexts(ctx context.Context, userID string) ([]org.SchoolContext, error)
 	TeacherWorkspace(ctx context.Context, userID string) (org.TeacherWorkspace, error)
 	ParentAuthority(ctx context.Context, parentUserID string) (org.ParentAuthority, error)
@@ -689,6 +695,9 @@ func (s *Service) UpsertAssignment(
 		status = org.AssignmentStatusActive
 	}
 	if !org.ValidAssignmentStatus(status) {
+		return org.TeachingAssignment{}, ErrInvalidInput
+	}
+	if status == org.AssignmentStatusActive && subjectID == "" {
 		return org.TeachingAssignment{}, ErrInvalidInput
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -20,8 +21,10 @@ type Authenticator interface {
 }
 
 type Handler struct {
-	service *contentapp.Service
-	auth    Authenticator
+	service  *contentapp.Service
+	fonts    *contentapp.FontService
+	homepage *contentapp.HomepageService
+	auth     Authenticator
 }
 
 func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request, csrf bool) (identityapp.Authenticated, bool) {
@@ -90,6 +93,13 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(dst); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request"})
+		return false
+	}
+	// Reject a second JSON document (or trailing garbage) before invoking a
+	// content mutation. Whitespace after the first document remains valid.
+	var trailing json.RawMessage
+	if err := decoder.Decode(&trailing); err != io.EOF {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request"})
 		return false
 	}

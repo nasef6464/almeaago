@@ -42,14 +42,21 @@ import { AiAdminPage } from '../features/ai/pages/AiAdminPage';
 import { ReportsPage } from '../features/reporting/pages/ReportsPage';
 import { OperationsAdminPage } from '../features/operations/pages/OperationsAdminPage';
 import { TaxonomyAdminPage } from '../features/taxonomy/pages/TaxonomyAdminPage';
+import { SkillsAdminPage } from '../features/taxonomy/pages/SkillsAdminPage';
 import { QuestionBankAdminPage } from '../features/questionbank/pages/QuestionBankAdminPage';
 import { SchoolDirectorDashboardPage } from '../features/organizations/pages/SchoolDirectorDashboardPage';
 import { SupervisorDashboardPage } from '../features/organizations/pages/SupervisorDashboardPage';
 import { TeacherWorkspacePage } from '../features/organizations/pages/TeacherWorkspacePage';
 import { StudentDashboardPage } from '../features/learning/pages/StudentDashboardPage';
 import { PublicLandingPage } from '../features/public/pages/PublicLandingPage';
+import { LegacySiteFooter, showPublicFooter } from '../features/public/components/LegacySiteFooter';
 import { LegacySiteHeader } from '../features/public/components/LegacySiteHeader';
 import { StaticInfoPage } from '../features/public/pages/StaticInfoPage';
+
+import { PlatformFontBootstrap } from '../features/presentation/PlatformFontBootstrap';
+import { PlatformFontsPage } from '../features/presentation/PlatformFontsPage';
+import {HomepagePage} from '../features/presentation/HomepagePage';
+import {isHomepageLocation, isPlatformFontsLocation } from '../features/presentation/navigation';
 
 type ModalMode = 'login' | 'signup' | null;
 
@@ -113,11 +120,13 @@ export function App() {
     }
   }
 
+
   const inAdminWorkspace = location.pathname.startsWith('/admin-dashboard');
   const hideSiteHeader = inAdminWorkspace || location.pathname.endsWith('/projector');
 
   return (
     <>
+      <PlatformFontBootstrap />
       {!hideSiteHeader ? <LegacySiteHeader onAuth={setManualMode} /> : null}
 
       <Routes>
@@ -135,7 +144,9 @@ export function App() {
         <Route path="/notifications" element={<NotificationInboxPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/dashboard" element={<StudentDashboardPage />} />
-        <Route path="/admin-dashboard" element={<AdminDashboardShell><AdminOverviewPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard" element={<AdminDashboardShell>{isHomepageLocation(location) ? <HomepagePage /> : isPlatformFontsLocation(location) ? <PlatformFontsPage /> : new URLSearchParams(location.search).get('tab') === 'skills' ? <SkillsAdminPage /> : <AdminOverviewPage />}</AdminDashboardShell>} />
+        <Route path="/admin-dashboard/homepage" element={<AdminDashboardShell><HomepagePage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/platform-fonts" element={<AdminDashboardShell><PlatformFontsPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/content" element={<AdminDashboardShell><ContentAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/taxonomy" element={<AdminDashboardShell><TaxonomyAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/questions" element={<AdminDashboardShell><QuestionBankAdminPage /></AdminDashboardShell>} />
@@ -176,6 +187,8 @@ export function App() {
         <Route path="/parent-dashboard" element={<ParentDashboardPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+
+      {showPublicFooter(location.pathname) ? <LegacySiteFooter /> : null}
 
       <AuthModal
         open={modalMode !== null}

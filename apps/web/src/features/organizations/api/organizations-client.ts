@@ -15,6 +15,58 @@ export interface SchoolSummary{id:string;code:string;name:string;status:string}
 export interface DirectorStudent{studentId:string;name:string;email:string;phone:string;isActive:boolean;classId:string|null;className:string|null}
 export interface DirectorTeacher{teacherId:string;name:string;email:string;isActive:boolean}
 export interface DirectorAssignment{assignmentId:string;teacherId:string;classId:string;subjectId:string;status:string}
+export interface DirectorOverview{
+  school:{schoolId:string;schoolName:string};
+  metrics:{students:number;classes:number;teachers:number;supervisors:number;schoolAssessments:number;completedSmartClasses:number};
+  classes:{classId:string;className:string}[];
+}
+export interface DirectorAssessment{
+  id:string;
+  title:string;
+  subjectId?:string;
+  targetGroupIds:string[];
+  isPublished:boolean;
+}
+export interface DirectorAssessmentWorkspace{
+  assessments:DirectorAssessment[];
+  classes:{classId:string;className:string}[];
+}
+export interface DirectorAssessmentReport{
+  coverage:{complete:boolean;missingEvidence:string[];subjects:{completed:number;withEvidence:number;complete:boolean}};
+  audience:{targeted:number};
+  participation:{completed:number;notCompleted:number;started:number|null};
+  scores:{average:number|null;passRate:number|null;highest:number|null;lowest:number|null};
+  subjects:unknown[];sections:unknown[];skills:unknown[];subjectBreakdowns:unknown[];
+}
+export type DirectorAssessmentLearnerStatus='all'|'completed'|'not_completed'|'needs_support';
+export interface DirectorAssessmentLearnerEvidence{id:string;score:number;passed:boolean;date:string;attemptNumber:number}
+export interface DirectorAssessmentLearner{studentId:string;name:string;result:DirectorAssessmentLearnerEvidence|null}
+export interface DirectorAssessmentLearnerPage{
+  learners:DirectorAssessmentLearner[];
+  pagination:{page:number;limit:number;total:number;totalPages:number};
+}
+export interface DirectorAssessmentResultDimension{
+  id:string;name:string;score:number;totalQuestions:number;correctAnswers:number;wrongAnswers:number;unanswered:number;
+}
+export interface DirectorAssessmentLearnerResult{
+  result:{id:string;studentId:string;score:number;passed:boolean;attemptNumber:number;date:string;
+    totalQuestions:number;correctAnswers:number;wrongAnswers:number;unanswered:number;timeSpentSeconds:number;
+    sectionResults:DirectorAssessmentResultDimension[];skillsAnalysis:DirectorAssessmentResultDimension[]};
+}
+export interface DirectorAssessmentQuestion{
+  id:string;questionCode:string;text:string;type:string;imageUrl:string;imageAlt:string;currentVersion:number;
+}
+export interface DirectorAssessmentQuestionPage{items:DirectorAssessmentQuestion[];hasMore:boolean}
+export interface DirectorAssessmentCandidate{studentId:string;name:string;className:string}
+export interface DirectorAssessmentStudentPage{items:DirectorAssessmentCandidate[];total:number;page:number;limit:number;hasMore:boolean}
+export interface DirectorAssessmentSettings{
+  maxAttempts:number;passingScore:number;timeLimitMinutes:number;optionLayout:'auto'|'horizontal'|'two_columns';
+  randomizeQuestions:boolean;randomizeOptions:boolean;showProgressBar:boolean;requireAnswerBeforeNext:boolean;
+  allowQuestionReview:boolean;showAnswers:boolean;showResultsReport:boolean;showExplanations:boolean;
+}
+export interface DirectorAssessmentCreateInput{
+  title:string;targetScope:'school'|'class'|'classes'|'selected';classId:string;classIds?:string[];studentIds?:string[];pathId:string;subjectId:string;questionIds:string[];settings?:DirectorAssessmentSettings;
+}
 const BASE=(import.meta.env.VITE_API_BASE_URL??'').replace(/\/$/,'');
 async function request<T>(path:string,init:RequestInit={}):Promise<T>{
   const r=await fetch(BASE+path,{...init,credentials:'include',headers:{Accept:'application/json',...(init.body?{'Content-Type':'application/json'}:{}),...init.headers}});
@@ -31,6 +83,35 @@ export const organizationsClient={
     return request<TeacherWorkspace>('/api/v1/schools/teacher-workspace',{signal});
   },
   contexts(signal?:AbortSignal){return request<{contexts:SchoolContext[]}>('/api/v1/schools/context',{signal})},
+  directorOverview(schoolId:string,signal?:AbortSignal){
+    return request<DirectorOverview>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/overview`,{signal});
+  },
+  directorAssessments(schoolId:string,signal?:AbortSignal){
+    return request<DirectorAssessmentWorkspace>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/assessments`,{signal});
+  },
+  directorAssessmentReport(schoolId:string,assessmentId:string,signal?:AbortSignal){
+    return request<DirectorAssessmentReport>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/assessments/${encodeURIComponent(assessmentId)}/report`,{signal});
+  },
+  directorAssessmentLearners(schoolId:string,assessmentId:string,filters:{page:number;limit:number;status:DirectorAssessmentLearnerStatus;search:string},signal?:AbortSignal){
+    const query=new URLSearchParams({page:String(filters.page),limit:String(filters.limit),status:filters.status,search:filters.search});
+    return request<DirectorAssessmentLearnerPage>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/assessments/${encodeURIComponent(assessmentId)}/learners?${query}`,{signal});
+  },
+  directorAssessmentLearnerResult(schoolId:string,assessmentId:string,attemptId:string,signal?:AbortSignal){
+    return request<DirectorAssessmentLearnerResult>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/assessments/${encodeURIComponent(assessmentId)}/results/${encodeURIComponent(attemptId)}`,{signal});
+  },
+  directorAssessmentQuestions(schoolId:string,pathId:string,subjectId:string,search:string,page:number,signal?:AbortSignal){
+    const q=new URLSearchParams({pathId,subjectId,search,page:String(page),limit:'20'});
+    return request<DirectorAssessmentQuestionPage>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/available-questions?${q}`,{signal});
+  },
+  directorAssessmentEligibleStudents(schoolId:string,search:string,page:number,signal?:AbortSignal){
+    const q=new URLSearchParams({search,page:String(page),limit:'20'});
+    return request<DirectorAssessmentStudentPage>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/eligible-students?${q}`,{signal});
+  },
+  createDirectorAssessment(schoolId:string,input:DirectorAssessmentCreateInput,csrf:string,requestKey:string){
+    return request<{assessment:{assessmentId:string;title:string;classId:string;classIds?:string[];studentIds?:string[];targetScope:'school'|'class'|'classes'|'selected'}}>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/academic/assessments`,{
+      method:'POST',headers:{...csrfHeaders(csrf),'Idempotency-Key':requestKey},body:JSON.stringify(input),
+    });
+  },
   classes(schoolId:string,signal?:AbortSignal){
     return request<{classes:SchoolClass[];pagination:{page:number;limit:number;total:number;totalPages:number}}>(
       `/api/v1/schools/${encodeURIComponent(schoolId)}/classes?page=1&limit=100&status=active`,{signal});

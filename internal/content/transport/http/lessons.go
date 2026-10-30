@@ -28,6 +28,7 @@ func (h *Handler) listLessons(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	query.SkillID = r.URL.Query().Get("skillId")
 	page, err := h.service.ListLessons(r.Context(), auth.User, query)
 	if err != nil {
 		writeError(w, err)

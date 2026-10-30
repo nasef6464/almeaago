@@ -25,7 +25,11 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import {useHomepageSettings} from '../../presentation/useHomepageSettings';
+import {heroGallery as buildHeroGallery,heroRotateSeconds,resolveHomepageHeroImage} from '../../presentation/homepageHero';
+import {homepageHref} from '../../presentation/homepageLinks';
 import { contentClient } from '../../content/api/content-client';
+import { getPublicCourses, type PublicCourse } from '../api/publicCourses';
 import type { TaxonomyCore, TaxonomyPath } from '../../content/api/content-types';
 import { useAuth } from '../../auth/state/AuthProvider';
 import { dashboardPathFor } from '../../auth/utils/dashboard-path';
@@ -151,7 +155,13 @@ function ArticleModal({article,onClose}:{article:PublicArticle;onClose():void}) 
 
 export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void}) {
   const {user}=useAuth();
+  const settings=useHomepageSettings();
+  const hero=settings.hero || {};
+  const section=settings.sections || {};
+  const heroGallery=useMemo(()=>Object.keys(hero).length?buildHeroGallery(hero,[...PLATFORM_DAYLIGHT_IMAGES,...PLATFORM_SHOWCASE_IMAGES]):LEGACY_HERO_GALLERY,[hero]);
   const [taxonomy,setTaxonomy]=useState<TaxonomyCore>({paths:[],subjects:[]});
+  const [publicCourses,setPublicCourses]=useState<PublicCourse[]>([]);
+  const [courseLoadState,setCourseLoadState]=useState<'loading'|'ready'|'error'>('loading');
   const [currentHeroIndex,setCurrentHeroIndex]=useState(0);
   const [isHeroHovered,setIsHeroHovered]=useState(false);
   const [showcaseTab,setShowcaseTab]=useState<'daylight'|'neon'>('daylight');
@@ -164,17 +174,40 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
   },[]);
 
   useEffect(()=>{
-    if(isHeroHovered||LEGACY_HERO_GALLERY.length<2)return;
-    const timer=window.setInterval(()=>setCurrentHeroIndex(index=>(index+1)%LEGACY_HERO_GALLERY.length),6000);
+    const controller=new AbortController();
+    setCourseLoadState('loading');
+    getPublicCourses(controller.signal).then(items=>{
+      if(controller.signal.aborted)return;
+      setPublicCourses(items);
+      setCourseLoadState('ready');
+    }).catch(()=>{
+      if(!controller.signal.aborted){
+        setPublicCourses([]);
+        setCourseLoadState('error');
+      }
+    });
+    return()=>controller.abort();
+  },[]);
+
+  useEffect(()=>{
+    if(isHeroHovered||hero.autoRotateImages===false||heroGallery.length<2)return;
+    const timer=window.setInterval(()=>setCurrentHeroIndex(index=>(index+1)%heroGallery.length),heroRotateSeconds(hero.rotateIntervalSeconds)*1000);
     return()=>window.clearInterval(timer);
-  },[isHeroHovered]);
+  },[isHeroHovered,hero.autoRotateImages,hero.rotateIntervalSeconds,heroGallery.length]);
 
   const paths=useMemo(()=>[...taxonomy.paths].sort((a,b)=>a.sortOrder-b.sortOrder),[taxonomy.paths]);
-  const visiblePaths=paths.slice(0,6);
+  const visiblePaths=settings.featuredPathIds?.some(id=>paths.some(p=>p.id===id))?paths.filter(p=>settings.featuredPathIds!.includes(p.id)):paths;
   const showcase=showcaseTab==='daylight'?PLATFORM_DAYLIGHT_IMAGES:PLATFORM_SHOWCASE_IMAGES;
   const dashboardHref=user?dashboardPathFor(user):'/dashboard';
 
-  const learningPreviews=PLATFORM_DAYLIGHT_IMAGES.slice(1,4);
+  // The source chooses up to three actual published courses, never showcase
+  // images masquerading as products. IDs that are no longer public are ignored.
+  const featuredCourses=useMemo(()=>{
+    const chosen=settings.featuredCourseIds?.length
+      ? publicCourses.filter(course=>settings.featuredCourseIds!.includes(course.id))
+      : [];
+    return (chosen.length?chosen:publicCourses).slice(0,3);
+  },[publicCourses,settings.featuredCourseIds]);
 
   return (
     <main data-testid="public-landing" dir="rtl" className="overflow-x-hidden bg-white font-tajawal text-gray-900">
@@ -193,33 +226,28 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"/>
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-blue-500"/>
                 </span>
-                <span>المنصة الأولى للقدرات والتحصيلي</span>
+                <span style={{color:hero.badgeTextColor || undefined}}>{hero.badgeText || 'المنصة الأولى للقدرات والتحصيلي'}</span>
               </div>
 
               <h1 className="mb-6 text-4xl font-black leading-[1.18] tracking-tight text-gray-900 sm:text-5xl lg:text-6xl xl:text-7xl">
-                <span>حقق </span>
-                <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent drop-shadow-sm">المئة</span>
+                <span style={{color:hero.titlePrefixColor || undefined}}>{hero.titlePrefix || 'حقق'} </span>
+                <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent drop-shadow-sm" style={{color:hero.titleHighlightColor || undefined,backgroundImage:hero.titleHighlightColor?'none':undefined}}>{hero.titleHighlight || 'المئة'}</span>
                 <br/>
-                <span>في اختباراتك</span>
+                <span style={{color:hero.titleSuffixColor || undefined}}>{hero.titleSuffix || 'في اختباراتك'}</span>
               </h1>
 
-              <p className="mx-auto mb-8 max-w-2xl text-lg leading-relaxed text-gray-600 sm:text-xl lg:mx-0">
-                رحلة تعليمية ذكية تجمع بين التدريب المكثف، الشروحات التفاعلية، والتحليل الدقيق لنقاط ضعفك لضمان أعلى الدرجات.
+              <p style={{color:hero.descriptionColor || undefined}} className="mx-auto mb-8 max-w-2xl text-lg leading-relaxed text-gray-600 sm:text-xl lg:mx-0">
+                {hero.description || 'رحلة تعليمية ذكية تجمع بين التدريب المكثف، الشروحات التفاعلية، والتحليل الدقيق لنقاط ضعفك لضمان أعلى الدرجات.'}
               </p>
 
               <div className="flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start">
-                {user ? (
-                  <Link to={dashboardHref} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/20 bg-amber-500 px-8 py-4 text-lg font-black text-white shadow-lg shadow-amber-500/25 transition-all hover:-translate-y-1 hover:bg-amber-600 hover:shadow-xl hover:shadow-amber-500/35 active:scale-[0.98] sm:w-auto">
-                    <Zap size={20} fill="currentColor"/> افتح لوحتك
+                <Link to={homepageHref(hero.primaryCtaLink,'/dashboard')} style={{backgroundColor:hero.primaryCtaColor || undefined}} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/20 bg-amber-500 px-8 py-4 text-lg font-black text-white shadow-lg shadow-amber-500/25 transition-all hover:-translate-y-1 hover:bg-amber-600 hover:shadow-xl hover:shadow-amber-500/35 active:scale-[0.98] sm:w-auto">
+                    <Zap size={20} fill="currentColor"/> {hero.primaryCtaLabel || 'ابدأ التدريب مجانًا'}
                   </Link>
-                ):(
-                  <button type="button" onClick={()=>onAuth('signup')} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/20 bg-amber-500 px-8 py-4 text-lg font-black text-white shadow-lg shadow-amber-500/25 transition-all hover:-translate-y-1 hover:bg-amber-600 hover:shadow-xl hover:shadow-amber-500/35 active:scale-[0.98] sm:w-auto">
-                    <Zap size={20} fill="currentColor"/> ابدأ التدريب مجانًا
-                  </button>
-                )}
-                <Link to="/learning" className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-8 py-4 text-lg font-bold text-gray-800 shadow-sm transition-all hover:border-gray-300 hover:bg-gray-50 sm:w-auto">
-                  <BookOpen size={20}/> تصفح مساحة التعلم
+                <Link to={homepageHref(hero.secondaryCtaLink,'/learning')} style={{color:hero.secondaryCtaColor || undefined}} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-8 py-4 text-lg font-bold text-gray-800 shadow-sm transition-all hover:border-gray-300 hover:bg-gray-50 sm:w-auto">
+                  <BookOpen size={20}/> {hero.secondaryCtaLabel || 'تصفح مساحة التعلم'}
                 </Link>
+                {hero.tertiaryCtaLabel?<a href={homepageHref(hero.tertiaryCtaLink,'/')} style={{color:hero.tertiaryCtaColor || undefined}} className="rounded-2xl px-8 py-4 text-lg font-bold">{hero.tertiaryCtaLabel}</a>:null}
               </div>
 
               <div className="mt-10 flex flex-wrap items-center justify-center gap-4 text-sm font-bold text-gray-500 sm:gap-6 lg:justify-start">
@@ -236,23 +264,23 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
                   onMouseEnter={()=>setIsHeroHovered(true)}
                   onMouseLeave={()=>setIsHeroHovered(false)}
                 >
-                  {LEGACY_HERO_GALLERY.map((item,index)=>{
-                    const active=index===currentHeroIndex%LEGACY_HERO_GALLERY.length;
-                    return <img key={item.url} src={item.url} alt={item.alt} loading={index===0?'eager':'lazy'} className={`absolute inset-0 h-full w-full object-cover transition-all duration-1000 ease-in-out ${active?'z-10 scale-100 opacity-100':'z-0 scale-105 opacity-0'}`}/>;
+                  {heroGallery.map((item,index)=>{
+                    const active=index===currentHeroIndex%heroGallery.length;
+                    return <img key={item.url} src={resolveHomepageHeroImage(item.url)} alt={item.alt} loading={index===0?'eager':'lazy'} className={`absolute inset-0 h-full w-full object-cover transition-all duration-1000 ease-in-out ${active?'z-10 scale-100 opacity-100':'z-0 scale-105 opacity-0'}`}/>;
                   })}
                   <div className="absolute bottom-3.5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-white/20 bg-slate-950/60 px-3 py-1 shadow-lg backdrop-blur-md">
-                    {LEGACY_HERO_GALLERY.map((_,index)=>(
+                    {heroGallery.map((_,index)=>(
                       <button key={index} type="button" onClick={()=>setCurrentHeroIndex(index)} aria-label={`الصورة ${index+1}`} className={`rounded-full transition-all duration-300 ${index===currentHeroIndex?'h-1.5 w-6 bg-amber-400 shadow-sm':'h-1.5 w-1.5 bg-white/60 hover:bg-white'}`}/>
                     ))}
                   </div>
-                  <button type="button" onClick={()=>setCurrentHeroIndex(index=>(index-1+LEGACY_HERO_GALLERY.length)%LEGACY_HERO_GALLERY.length)} aria-label="الصورة السابقة" className="absolute right-2.5 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-slate-950/50 text-white opacity-0 shadow-md backdrop-blur-sm transition-all group-hover:opacity-100 hover:bg-slate-950/80"><ChevronRight size={16}/></button>
-                  <button type="button" onClick={()=>setCurrentHeroIndex(index=>(index+1)%LEGACY_HERO_GALLERY.length)} aria-label="الصورة التالية" className="absolute left-2.5 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-slate-950/50 text-white opacity-0 shadow-md backdrop-blur-sm transition-all group-hover:opacity-100 hover:bg-slate-950/80"><ChevronLeft size={16}/></button>
+                  <button type="button" onClick={()=>setCurrentHeroIndex(index=>(index-1+heroGallery.length)%heroGallery.length)} aria-label="الصورة السابقة" className="absolute right-2.5 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-slate-950/50 text-white opacity-0 shadow-md backdrop-blur-sm transition-all group-hover:opacity-100 hover:bg-slate-950/80"><ChevronRight size={16}/></button>
+                  <button type="button" onClick={()=>setCurrentHeroIndex(index=>(index+1)%heroGallery.length)} aria-label="الصورة التالية" className="absolute left-2.5 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-slate-950/50 text-white opacity-0 shadow-md backdrop-blur-sm transition-all group-hover:opacity-100 hover:bg-slate-950/80"><ChevronLeft size={16}/></button>
                 </div>
 
                 <div className="mt-3.5 flex items-center justify-center gap-2 overflow-x-auto px-1 pb-1">
-                  {LEGACY_HERO_GALLERY.map((thumb,index)=>(
+                  {heroGallery.map((thumb,index)=>(
                     <button key={thumb.url} type="button" onClick={()=>setCurrentHeroIndex(index)} className={`relative h-[38px] w-[56px] shrink-0 cursor-pointer overflow-hidden rounded-xl border-2 shadow-sm transition-all duration-300 ${index===currentHeroIndex?'scale-105 border-amber-500 ring-2 ring-amber-400/50':'border-white/90 bg-white opacity-70 hover:border-indigo-300 hover:opacity-100'}`}>
-                      <img src={thumb.url} alt="" className="h-full w-full object-cover" loading="lazy"/>
+                      <img src={resolveHomepageHeroImage(thumb.url)} alt="" className="h-full w-full object-cover" loading="lazy"/>
                     </button>
                   ))}
                 </div>
@@ -270,9 +298,10 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
                 <a href="#paths" className="legacy-bounce absolute -bottom-4 right-2 z-20 block max-w-[195px] rounded-2xl border border-white/80 bg-white/95 p-3 shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-105 sm:-bottom-6 sm:-right-6 sm:max-w-[215px] sm:p-3.5">
                   <div className="mb-2 flex items-center gap-2.5 border-b border-gray-100 pb-1.5">
                     <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-sm"><Target size={15}/></div>
-                    <div className="min-w-0"><div className="truncate text-xs font-black text-gray-900">منصة المئة</div><div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"/>مسارات متكاملة</div></div>
+                    <div className="min-w-0"><div className="truncate text-xs font-black text-gray-900">{hero.floatingCardTitle || 'منصة المئة'}</div><div className="flex items-center gap-1 text-[10px] font-bold text-emerald-600"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"/>{hero.floatingCardSubtitle || 'مستواك: متقدم'}</div></div>
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 p-0.5"><div className="h-full w-3/4 animate-pulse rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"/></div>
+                  <div className="mt-1 flex items-center justify-between text-[9px] font-bold text-gray-500"><span>{hero.floatingCardProgressLabel || 'التقدم'}</span><span className="font-black text-indigo-600">{hero.floatingCardProgressValue || '75%'}</span></div>
                 </a>
 
                 <a href="#why-choose" className="legacy-float absolute left-2 top-10 z-20 flex items-center gap-1 rounded-2xl border-2 border-white bg-gradient-to-br from-amber-400 to-amber-500 p-2 text-white shadow-xl shadow-amber-500/20 transition-all duration-300 hover:scale-110 sm:-left-6 sm:top-14 sm:p-2.5"><span className="text-base font-black sm:text-lg">A+</span><Sparkles size={15} className="fill-amber-100 text-amber-100"/></a>
@@ -308,45 +337,38 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
             <h2 className="mb-4 text-3xl font-black text-gray-900 md:text-4xl">كل ما تحتاجه للتفوق</h2>
             <p className="mx-auto max-w-2xl text-gray-600">نقدم لك أدوات تعليمية متكاملة تغطي كافة جوانب التدريب والتقييم.</p>
           </div>
-          {visiblePaths.length?(
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">{visiblePaths.map((path,index)=><OrganicPathCard key={path.id} path={path} index={index}/>)}</div>
-          ):(
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {['القدرات العامة','التحصيلي العلمي','الاختبارات والمحاكاة'].map((name,index)=>(
-                <div key={name} className="flex min-h-[176px] flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-                  <div className="mb-3 rounded-2xl bg-indigo-50 p-3 text-indigo-600">{pathIcon(index)}</div>
-                  <div className="text-lg font-black">{name}</div>
-                  <div className="mt-2 text-xs font-bold text-slate-400">يتم تحميل التصنيف من المصدر الخادمي.</div>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {visiblePaths.map((path,index)=><OrganicPathCard key={path.id} path={path} index={index}/>)}
+          </div>
         </div>
       </section>
 
-      <section className="bg-white py-20">
+      <section className="bg-white py-20" aria-label="الدورات المنشورة">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-right"><h2 className="mb-2 text-3xl font-black text-gray-900 md:text-4xl">الدورات الأكثر طلبًا</h2><p className="text-gray-500">اختر دورتك وابدأ رحلة التفوق اليوم</p></div>
+            <div className="text-right"><h2 className="mb-2 text-3xl font-black text-gray-900 md:text-4xl">{section.featuredCoursesTitle || 'الدورات الأكثر طلبًا'}</h2><p className="text-gray-500">{section.featuredCoursesSubtitle || 'اختر دورتك وابدأ رحلة التفوق اليوم'}</p></div>
             <Link to="/learning" className="flex items-center gap-2 self-start font-bold text-indigo-600 hover:underline sm:self-auto">عرض الكل <ArrowDown size={16} className="rotate-90"/></Link>
           </div>
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {learningPreviews.map(item=>(
-              <div key={item.id} className="group overflow-hidden rounded-3xl border border-gray-100 bg-white transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl">
-                <div className="relative aspect-video overflow-hidden"><img src={item.url} alt={item.alt} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy"/><div className="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1 text-sm font-black text-indigo-600 shadow-sm backdrop-blur-md">عرض تعريفي</div></div>
+            {featuredCourses.map(course=>(
+              <div key={course.id} className="group overflow-hidden rounded-3xl border border-gray-100 bg-white transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl">
+                <div className="relative aspect-video overflow-hidden bg-slate-100">
+                  {course.thumbnailUrl?<img src={course.thumbnailUrl} alt={course.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy"/>:null}
+                </div>
                 <div className="p-6 text-right">
-                  <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-1 text-amber-400"><Star size={14} fill="currentColor"/><span className="text-xs font-bold text-gray-600">منصة المئة</span></div><span className="text-[10px] font-bold text-gray-400">{item.badge}</span></div>
-                  <h3 className="mb-2 font-bold text-gray-900 transition-colors group-hover:text-indigo-600">{item.title}</h3>
-                  <p className="mb-4 line-clamp-2 text-xs leading-6 text-gray-500">{item.description}</p>
+                  <h3 className="mb-2 line-clamp-1 font-bold text-gray-900 transition-colors group-hover:text-indigo-600">{course.title}</h3>
+                  <p className="mb-4 flex items-center gap-1 text-xs text-gray-500"><Users size={12}/>{course.instructorName}</p>
                   <div className="grid grid-cols-2 gap-2 border-t border-gray-50 pt-4">
-                    <Link to={item.link} className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-700 transition-all hover:bg-gray-50"><Eye size={15}/> معاينة</Link>
-                    <Link to="/learning" className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white transition-all hover:bg-indigo-700"><ShoppingCart size={15}/> استكشف</Link>
+                    <Link to={`/course/${encodeURIComponent(course.id)}`} className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-700 transition-all hover:bg-gray-50"><Eye size={15}/> معاينة</Link>
+                    <Link to={`/course/${encodeURIComponent(course.id)}?buy=1`} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white transition-all hover:bg-indigo-700"><ShoppingCart size={15}/> شراء</Link>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-          <p className="mt-5 text-center text-[11px] font-bold text-slate-400">هذه بطاقات عرض للواجهة المرجعية؛ السعر والاستحقاق الفعليان يظلان من Commerce عند فتح رحلة الشراء.</p>
+          {courseLoadState==='loading'?<div role="status" className="py-12 text-center text-gray-500">جارٍ تحميل الدورات...</div>:null}
+          {courseLoadState==='error'?<div role="alert" className="py-12 text-center text-gray-500">تعذر تحميل الدورات حاليًا.</div>:null}
+          {courseLoadState==='ready'&&featuredCourses.length===0?<div className="py-12 text-center text-gray-500">لا توجد دورات منشورة حاليًا.</div>:null}
         </div>
       </section>
 
@@ -355,8 +377,8 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
           <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-right">
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700"><BookOpen size={13}/><span>مقالات واستراتيجيات قياس</span></div>
-              <h2 className="mb-2 text-3xl font-black text-gray-900 md:text-4xl">مقالات ومراجعات مهمة</h2>
-              <p className="text-gray-500">مجموعة مبسطة من الشروحات النصية والمراجعات التي تساعدك على الفهم الأسرع.</p>
+              <h2 className="mb-2 text-3xl font-black text-gray-900 md:text-4xl">{section.featuredArticlesTitle || 'مقالات ومراجعات مهمة'}</h2>
+              <p className="text-gray-500">{section.featuredArticlesSubtitle || 'مجموعة مبسطة من الشروحات النصية والمراجعات التي تساعدك على الفهم الأسرع.'}</p>
             </div>
             <Link to="/learning" className="group flex items-center gap-2 self-start font-black text-indigo-600 hover:underline sm:self-auto">استعرض مساحة التعلم <ArrowDown size={16} className="rotate-90 transition-transform group-hover:-translate-x-1"/></Link>
           </div>
@@ -382,8 +404,8 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
           <div className="flex flex-col items-center gap-12 lg:flex-row lg:gap-16">
             <div className="text-right lg:w-5/12">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3.5 py-1.5 text-xs font-black text-amber-800"><Sparkles size={14} className="text-amber-500"/><span>تجربة تعليمية استثنائية متكاملة</span></div>
-              <h2 className="mb-5 text-3xl font-black leading-tight text-gray-900 sm:text-4xl">لماذا يختار الطلاب منصة المئة؟</h2>
-              <p className="mb-8 text-base leading-relaxed text-gray-600 sm:text-lg">نحن لا نقدم مجرد دورات، بل نقدم نظامًا تعليميًا متكاملًا يساعدك على الفهم العميق، التدريب المستمر، وتحليل الأداء بطريقة بسيطة وفعالة.</p>
+              <h2 className="mb-5 text-3xl font-black leading-tight text-gray-900 sm:text-4xl">{section.whyChooseTitle || 'لماذا يختار الطلاب منصة المئة؟'}</h2>
+              <p className="mb-8 text-base leading-relaxed text-gray-600 sm:text-lg">{section.whyChooseDescription || 'نحن لا نقدم مجرد دورات، بل نقدم نظامًا تعليميًا متكاملًا يساعدك على الفهم العميق، التدريب المستمر، وتحليل الأداء بطريقة بسيطة وفعالة.'}</p>
               <div className="mb-8 grid grid-cols-2 gap-4">
                 <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4"><div className="mb-0.5 text-xl font-black text-indigo-600 sm:text-2xl">تعلم مترابط</div><div className="text-xs font-bold text-gray-500">من المحتوى إلى القياس والمراجعة والخطة</div></div>
                 <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4"><div className="mb-0.5 text-xl font-black text-emerald-600 sm:text-2xl">نطاق آمن</div><div className="text-xs font-bold text-gray-500">الصلاحيات والنتائج يقررها الخادم</div></div>
@@ -431,21 +453,13 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
 
       <section id="testimonials" className="relative scroll-mt-20 overflow-hidden bg-gradient-to-b from-indigo-950 via-indigo-900 to-indigo-950 py-20 text-white">
         <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-14 text-center"><div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/15 px-3.5 py-1.5 text-xs font-bold text-amber-300 backdrop-blur-sm"><Sparkles size={14}/><span>تجارب تصنع الفارق</span></div><h2 className="mb-3 text-3xl font-black tracking-tight text-white sm:text-4xl">قصص نجاح نعتز بها</h2><p className="mx-auto max-w-2xl text-base text-indigo-200">انضم للطلاب الذين بنوا رحلة تدريب أكثر تنظيمًا معنا</p></div>
-          <div className="grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-3">{DEFAULT_PUBLIC_TESTIMONIALS.map(item=><TestimonialCard key={item.id} {...item}/>)}</div>
+          <div className="mb-14 text-center"><div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/15 px-3.5 py-1.5 text-xs font-bold text-amber-300 backdrop-blur-sm"><Sparkles size={14}/><span>تجارب تصنع الفارق</span></div><h2 className="mb-3 text-3xl font-black tracking-tight text-white sm:text-4xl">{section.testimonialsTitle || 'قصص نجاح نعتز بها'}</h2><p className="mx-auto max-w-2xl text-base text-indigo-200">{section.testimonialsSubtitle || 'انضم للطلاب الذين بنوا رحلة تدريب أكثر تنظيمًا معنا'}</p></div>
+          <div className="grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-3">{(settings.testimonials?.length?settings.testimonials:DEFAULT_PUBLIC_TESTIMONIALS).map(item=><TestimonialCard key={item.id} {...item} degree={item.degree || ''} image={item.image || ''}/>)}</div>
         </div>
         <div className="pointer-events-none absolute bottom-0 right-0 h-96 w-96 translate-x-1/3 translate-y-1/3 rounded-full bg-amber-500/10 blur-3xl"/>
       </section>
 
-      <footer className="border-t border-slate-800 bg-slate-950 text-slate-200">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
-          <div><div className="text-2xl font-black"><span className="text-blue-300">منصة</span> <span className="text-amber-400">المئة</span></div><div className="mt-1 text-xs font-bold text-slate-400">قدرات & تحصيلي</div><p className="mt-4 text-sm font-medium leading-7 text-slate-400">رحلة تعلم وقياس ومراجعة للطلاب والمدارس، مبنية على واجهة منصة المئة التي تعرفها.</p></div>
-          <div><h3 className="font-black text-white">روابط سريعة</h3><div className="mt-4 grid gap-3 text-sm font-bold text-slate-400"><Link to="/" className="hover:text-white">الرئيسية</Link><Link to="/learning" className="hover:text-white">مساحة التعلم</Link><Link to="/assessments" className="hover:text-white">الاختبارات</Link><Link to="/review" className="hover:text-white">المراجعة</Link></div></div>
-          <div><h3 className="font-black text-white">عن المنصة</h3><div className="mt-4 grid gap-3 text-sm font-bold text-slate-400"><Link to="/about" className="hover:text-white">من نحن</Link><Link to="/faq" className="hover:text-white">الأسئلة الشائعة</Link><Link to="/contact" className="hover:text-white">تواصل معنا</Link></div></div>
-          <div><h3 className="font-black text-white">السياسات</h3><div className="mt-4 grid gap-3 text-sm font-bold text-slate-400"><Link to="/privacy" className="hover:text-white">سياسة الخصوصية</Link><Link to="/terms" className="hover:text-white">الشروط والأحكام</Link></div></div>
-        </div>
-        <div className="border-t border-slate-800 px-4 py-5 text-center text-xs font-bold text-slate-500">منصة المئة للقدرات والتحصيلي</div>
-      </footer>
+
 
       {selectedArticle?<ArticleModal article={selectedArticle} onClose={()=>setSelectedArticle(null)}/>:null}
     </main>

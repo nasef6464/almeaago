@@ -3,13 +3,21 @@ package application
 import (
 	"context"
 	"net/mail"
+	"regexp"
 	"strings"
 
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	org "github.com/nasef6464/almeaago/internal/organizations/domain"
 )
 
+var directorSchoolUUIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
 type DirectorDirectory interface {
+	DirectorAssessments(ctx context.Context, schoolID string) (org.DirectorAssessmentWorkspace, error)
+	DirectorOverview(
+		ctx context.Context,
+		schoolID string,
+	) (org.DirectorOverview, error)
 	ListDirectorStudents(
 		ctx context.Context,
 		schoolID string,
@@ -19,6 +27,38 @@ type DirectorDirectory interface {
 		ctx context.Context,
 		schoolID string,
 	) (org.DirectorTeacherWorkspace, error)
+}
+
+func (s *Service) DirectorAcademicAssessments(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+) (org.DirectorAssessmentWorkspace, error) {
+	if err := s.requireDirectorCapability(ctx, actor, schoolID, org.PermissionSchoolAssessmentsManage, org.ModuleSchoolAssessments); err != nil {
+		return org.DirectorAssessmentWorkspace{}, err
+	}
+	if s.directorDirectory == nil {
+		return org.DirectorAssessmentWorkspace{}, ErrForbidden
+	}
+	return s.directorDirectory.DirectorAssessments(ctx, strings.TrimSpace(schoolID))
+}
+
+func (s *Service) DirectorOverview(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+) (org.DirectorOverview, error) {
+	schoolID = strings.TrimSpace(schoolID)
+	if !directorSchoolUUIDPattern.MatchString(schoolID) {
+		return org.DirectorOverview{}, ErrInvalidInput
+	}
+	if err := s.requireDirectorPermission(ctx, actor, schoolID, org.PermissionSchoolOverviewView); err != nil {
+		return org.DirectorOverview{}, err
+	}
+	if s.directorDirectory == nil {
+		return org.DirectorOverview{}, ErrForbidden
+	}
+	return s.directorDirectory.DirectorOverview(ctx, schoolID)
 }
 
 func (s *Service) DirectorStudents(
@@ -188,6 +228,51 @@ func (s *Service) requireDirectorPermission(
 		return ErrForbidden
 	}
 	return nil
+}
+
+// A school contract module is part of the capability, not merely a UI flag.
+// SchoolContexts is assembled from active memberships and active contracts;
+// never trust permissions or modules submitted by the browser.
+func (s *Service) requireDirectorCapability(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+	permission string,
+	module org.SchoolModule,
+) error {
+	schoolID = strings.TrimSpace(schoolID)
+	if !directorSchoolUUIDPattern.MatchString(schoolID) || !org.ValidSchoolModule(module) {
+		return ErrInvalidInput
+	}
+	if actor.Status != "active" || !actor.HasRole(identity.RoleSchoolAdmin) || strings.TrimSpace(actor.ID) == "" {
+		return ErrForbidden
+	}
+	contexts, err := s.repo.SchoolContexts(ctx, actor.ID)
+	if err != nil {
+		return err
+	}
+	for _, school := range contexts {
+		if school.SchoolID != schoolID || school.Role != identity.RoleSchoolAdmin {
+			continue
+		}
+		permissionFound := false
+		for _, current := range school.Permissions {
+			if current == permission {
+				permissionFound = true
+				break
+			}
+		}
+		if !permissionFound {
+			return ErrForbidden
+		}
+		for _, current := range school.Modules {
+			if current == string(module) {
+				return nil
+			}
+		}
+		return ErrForbidden
+	}
+	return ErrForbidden
 }
 
 func validDirectorEmail(value string) bool {

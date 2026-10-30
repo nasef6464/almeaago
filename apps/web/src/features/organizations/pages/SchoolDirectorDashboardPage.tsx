@@ -1,11 +1,19 @@
-import { BarChart3, Building2, GraduationCap, Loader2, Pencil, Plus, Power, Search, ShieldCheck, Users } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { BarChart3, BookOpenCheck, Building2, GraduationCap, Loader2, Pencil, Plus, Power, Search, ShieldCheck, Sparkles, Users, UsersRound } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useAuth } from '../../auth/state/AuthProvider';
+import { contentClient } from '../../content/api/content-client';
+import type { TaxonomyPath, TaxonomySubject } from '../../content/api/content-types';
+import { DirectorAssessmentCreator } from '../components/DirectorAssessmentCreator';
+import { DirectorAssessmentReportPanel } from '../components/DirectorAssessmentReportPanel';
+import { DirectorTeacherAssignments } from '../components/DirectorTeacherAssignments';
+import { SchoolDirectorBreadcrumb, SchoolDirectorSectionNav, directorNavItems, type DirectorSectionID } from '../components/SchoolDirectorSectionNav';
 import {
   organizationsClient,
   type DirectorAssignment,
+  type DirectorAssessment,
+  type DirectorOverview,
+  type DirectorAssessmentWorkspace,
   type DirectorStudent,
   type DirectorTeacher,
   type SchoolClass,
@@ -23,6 +31,20 @@ export function SchoolDirectorDashboardPage(){
   const [studentTotal,setStudentTotal]=useState(0);
   const [teachers,setTeachers]=useState<DirectorTeacher[]>([]);
   const [assignments,setAssignments]=useState<DirectorAssignment[]>([]);
+  const [overview,setOverview]=useState<DirectorOverview|null>(null);
+  const [overviewLoading,setOverviewLoading]=useState(false);
+  const [overviewError,setOverviewError]=useState('');
+  const [overviewReload,setOverviewReload]=useState(0);
+  const [assessmentWorkspace,setAssessmentWorkspace]=useState<DirectorAssessmentWorkspace|null>(null);
+  const [assessmentLoading,setAssessmentLoading]=useState(false);
+  const [assessmentError,setAssessmentError]=useState('');
+  const [assessmentReload,setAssessmentReload]=useState(0);
+  const [showAssessmentCreator,setShowAssessmentCreator]=useState(false);
+  const [selectedAssessment,setSelectedAssessment]=useState<{schoolId:string;assessment:DirectorAssessment}|null>(null);
+  const [activeSection,setActiveSection]=useState<DirectorSectionID>('overview');
+  const [subjects,setSubjects]=useState<TaxonomySubject[]>([]);
+  const [paths,setPaths]=useState<TaxonomyPath[]>([]);
+  const [subjectsError,setSubjectsError]=useState(false);
   const [search,setSearch]=useState('');
   const [busy,setBusy]=useState(true);
   const [pending,setPending]=useState('');
@@ -34,17 +56,91 @@ export function SchoolDirectorDashboardPage(){
   const [newClassName,setNewClassName]=useState('');
   const [rename,setRename]=useState({classId:'',name:''});
   const [assignment,setAssignment]=useState({teacherId:'',classId:'',subjectId:'',status:'active' as 'active'|'inactive'});
+  const loadEpoch=useRef(0);
+  const activeSchoolId=useRef('');
+  const teacherReadVersion=useRef(0);
+  const schoolVisitEpoch=useRef(0);
+  const overviewReadEpoch=useRef(0);
+  const assessmentReadEpoch=useRef(0);
 
-  const selectedSchool=useMemo(()=>schools.find(x=>x.schoolId===schoolId)||schools[0], [schoolId,schools]);
+  const selectedSchool=useMemo(()=>schools.find(x=>x.schoolId===schoolId), [schoolId,schools]);
   const has=(p:string)=>Boolean(selectedSchool?.permissions.includes(p));
   const hasCore=Boolean(selectedSchool?.modules.includes(CORE));
   const canOptional=(p:string)=>has(p)&&hasCore;
+  const navItems=useMemo(()=>selectedSchool?directorNavItems(selectedSchool):[],[selectedSchool]);
+  const section=navItems.some(item=>item.id===activeSection)?activeSection:(navItems[0]?.id||'overview');
 
   useEffect(()=>{
-    if(authLoading||!user)return;
+    const controller=new AbortController();
+    const epoch=++assessmentReadEpoch.current;
+    const requestedSchool=selectedSchool?.schoolId;
+    const visit=schoolVisitEpoch.current;
+    setAssessmentWorkspace(null);setAssessmentError('');setAssessmentLoading(false);
+    if(section!=='assessments'||!requestedSchool||
+      !selectedSchool?.permissions.includes('SCHOOL_ASSESSMENTS_MANAGE')||
+      !selectedSchool?.modules.includes('SCHOOL_ASSESSMENTS'))return ()=>controller.abort();
+    setAssessmentLoading(true);
+    organizationsClient.directorAssessments(requestedSchool,controller.signal).then(result=>{
+      if(controller.signal.aborted||epoch!==assessmentReadEpoch.current||
+        activeSchoolId.current!==requestedSchool||visit!==schoolVisitEpoch.current)return;
+      setAssessmentWorkspace(result);
+    }).catch(e=>{
+      if(controller.signal.aborted||epoch!==assessmentReadEpoch.current||
+        activeSchoolId.current!==requestedSchool||visit!==schoolVisitEpoch.current)return;
+      setAssessmentError(e instanceof Error?e.message:'تعذر تحميل اختبارات المدرسة');
+    }).finally(()=>{
+      if(!controller.signal.aborted&&epoch===assessmentReadEpoch.current&&
+        activeSchoolId.current===requestedSchool&&visit===schoolVisitEpoch.current)setAssessmentLoading(false);
+    });
+    return ()=>controller.abort();
+  },[selectedSchool?.schoolId,selectedSchool?.modules,selectedSchool?.permissions,section,assessmentReload]);
+
+  useEffect(()=>{
+    const controller=new AbortController();
+    const readEpoch=++overviewReadEpoch.current;
+    const visit=schoolVisitEpoch.current;
+    const requestedSchool=selectedSchool?.schoolId;
+    setOverview(null);setOverviewError('');setOverviewLoading(false);
+    if(!requestedSchool||!selectedSchool?.permissions.includes('SCHOOL_OVERVIEW_VIEW'))return ()=>controller.abort();
+    setOverviewLoading(true);
+    organizationsClient.directorOverview(requestedSchool,controller.signal).then(result=>{
+      if(controller.signal.aborted||readEpoch!==overviewReadEpoch.current||activeSchoolId.current!==requestedSchool||schoolVisitEpoch.current!==visit)return;
+      setOverview(result);
+    }).catch(e=>{
+      if(controller.signal.aborted||readEpoch!==overviewReadEpoch.current||activeSchoolId.current!==requestedSchool||schoolVisitEpoch.current!==visit)return;
+      setOverviewError(e instanceof Error?e.message:'تعذر تحميل مؤشرات المدرسة');
+    }).finally(()=>{
+      if(!controller.signal.aborted&&readEpoch===overviewReadEpoch.current&&activeSchoolId.current===requestedSchool&&schoolVisitEpoch.current===visit)setOverviewLoading(false);
+    });
+    return()=>controller.abort();
+  },[selectedSchool?.schoolId,overviewReload]);
+
+  useEffect(()=>{
+    if(authLoading)return;
     const c=new AbortController();
-    setBusy(true);setError('');
+    // The current server context is authoritative. Revalidation and role changes
+    // must invalidate all data, pending writes and late responses from old schools.
+    activeSchoolId.current='';
+    ++schoolVisitEpoch.current;
+    ++loadEpoch.current;
+    ++teacherReadVersion.current;
+    ++overviewReadEpoch.current;
+    ++assessmentReadEpoch.current;
+    setSchools([]);setClasses([]);setStudents([]);setStudentTotal(0);
+    setTeachers([]);setAssignments([]);setOverview(null);setAssessmentWorkspace(null);
+    setOverviewLoading(false);setAssessmentLoading(false);
+    setSelectedAssessment(null);setShowAssessmentCreator(false);
+    setShowAdd(false);setEditing({studentId:'',name:'',phone:''});
+    setDraft({name:'',email:'',password:'',classId:''});
+    setAssignment({teacherId:'',classId:'',subjectId:'',status:'active'});
+    setPending('');setNotice('');setError('');
+    if(!user?.roles.includes('school_admin')){
+      setSchoolId('');setBusy(false);
+      return()=>c.abort();
+    }
+    setBusy(true);
     organizationsClient.contexts(c.signal).then(r=>{
+      if(c.signal.aborted)return;
       const director=r.contexts.filter(x=>x.role==='school_admin');
       setSchools(director);
       setSchoolId(x=>director.some(s=>s.schoolId===x)?x:(director[0]?.schoolId||''));
@@ -53,53 +149,98 @@ export function SchoolDirectorDashboardPage(){
     return()=>c.abort();
   },[authLoading,user]);
 
+  useEffect(()=>{
+    if(authLoading||!user?.roles.includes('school_admin')||!schools.some(s=>
+      (s.permissions.includes('SCHOOL_TEACHERS_ASSIGN')&&s.modules.includes(CORE))||
+      (s.permissions.includes('SCHOOL_ASSESSMENTS_MANAGE')&&s.modules.includes('SCHOOL_ASSESSMENTS'))))return;
+    const controller=new AbortController();
+    contentClient.taxonomyCore(controller.signal).then(result=>{
+      setSubjects(result.subjects);
+      setPaths(result.paths);
+      setSubjectsError(false);
+    }).catch(()=>{if(!controller.signal.aborted)setSubjectsError(true)});
+    return()=>controller.abort();
+  },[authLoading,user,schools]);
+
   async function refresh(query=search){
-    if(!selectedSchool)return;
+    if(!selectedSchool||activeSchoolId.current!==selectedSchool.schoolId)return;
+    const epoch=++loadEpoch.current;
+    const visit=schoolVisitEpoch.current;
+    const requestedSchoolId=selectedSchool.schoolId;
+    const teacherVersion=teacherReadVersion.current;
+    // A failed or late student search must not show rows from the prior query.
+    // Keep independent same-school class/teacher assignments interactive while
+    // that search is pending (e.g. a director may revoke a teacher assignment).
+    setStudents([]);setStudentTotal(0);
+    const needsClasses=has('SCHOOL_STUDENTS_ADD')||has('SCHOOL_STUDENTS_MOVE_CLASS')||canOptional('SCHOOL_CLASSES_MANAGE')||canOptional('SCHOOL_TEACHERS_ASSIGN');
     setBusy(true);setError('');
     try{
       const [classResult,studentResult,teacherResult]=await Promise.all([
-        organizationsClient.classes(selectedSchool.schoolId),
+        needsClasses?organizationsClient.classes(selectedSchool.schoolId):Promise.resolve({classes:[] as SchoolClass[]}),
         has('SCHOOL_STUDENTS_VIEW')?organizationsClient.directorStudents(selectedSchool.schoolId,query):Promise.resolve({students:[],total:0}),
         canOptional('SCHOOL_TEACHERS_ASSIGN')?organizationsClient.directorTeachers(selectedSchool.schoolId):Promise.resolve({teachers:[],assignments:[]}),
       ]);
+      if(epoch!==loadEpoch.current||visit!==schoolVisitEpoch.current||activeSchoolId.current!==requestedSchoolId)return;
       setClasses(classResult.classes);
       setStudents(studentResult.students);
       setStudentTotal(studentResult.total);
-      setTeachers(teacherResult.teachers);
-      setAssignments(teacherResult.assignments);
+      if(teacherVersion===teacherReadVersion.current){
+        setTeachers(teacherResult.teachers);
+        setAssignments(teacherResult.assignments);
+      }
       setDraft(x=>({...x,classId:classResult.classes.some(v=>v.id===x.classId)?x.classId:(classResult.classes[0]?.id||'')}));
       setAssignment(x=>({...x,classId:classResult.classes.some(v=>v.id===x.classId)?x.classId:(classResult.classes[0]?.id||'')}));
-    }catch(e){setError(e instanceof Error?e.message:'تعذر تحديث المدرسة')}
-    finally{setBusy(false)}
+    }catch(e){if(epoch===loadEpoch.current&&visit===schoolVisitEpoch.current&&activeSchoolId.current===requestedSchoolId)setError(e instanceof Error?e.message:'تعذر تحديث المدرسة')}
+    finally{if(epoch===loadEpoch.current&&visit===schoolVisitEpoch.current&&activeSchoolId.current===requestedSchoolId)setBusy(false)}
   }
 
   useEffect(()=>{
     if(!selectedSchool)return;
-    setSearch('');setNotice('');setError('');
+    activeSchoolId.current=selectedSchool.schoolId;
+    ++loadEpoch.current;
+    ++teacherReadVersion.current;
+    setSearch('');setNotice('');setError('');setPending('');
+    setClasses([]);setStudents([]);setStudentTotal(0);setTeachers([]);setAssignments([]);
+    setAssignment({teacherId:'',classId:'',subjectId:'',status:'active'});
+    setShowAdd(false);
+    setShowAssessmentCreator(false);
+    setSelectedAssessment(null);
+    setDraft({name:'',email:'',password:'',classId:''});
+    setEditing({studentId:'',name:'',phone:''});
+    setNewClassName('');
+    setRename({classId:'',name:''});
     void refresh('');
   },[selectedSchool?.schoolId]);
 
   async function run(key:string, action:(csrf:string)=>Promise<void>, success:string){
+    const startedFor=selectedSchool?.schoolId;
+    const startedVisit=schoolVisitEpoch.current;
     setPending(key);setError('');setNotice('');
-    try{const csrf=await getCsrfToken();await action(csrf);if(success)setNotice(success)}
-    catch(e){setError(e instanceof Error?e.message:'تعذر تنفيذ العملية')}
-    finally{setPending('')}
+    try{const csrf=await getCsrfToken();await action(csrf);if(activeSchoolId.current===startedFor&&schoolVisitEpoch.current===startedVisit){if(success)setNotice(success);setOverviewReload(x=>x+1)}}
+    catch(e){if(activeSchoolId.current===startedFor&&schoolVisitEpoch.current===startedVisit)setError(e instanceof Error?e.message:'تعذر تنفيذ العملية')}
+    finally{if(activeSchoolId.current===startedFor&&schoolVisitEpoch.current===startedVisit)setPending('')}
   }
 
   async function addStudent(){
     if(!selectedSchool||!draft.classId)return;
+    const visit=schoolVisitEpoch.current;
     await run('add',async csrf=>{
       const result=await organizationsClient.addDirectorStudent(selectedSchool.schoolId,draft,csrf);
+      if(activeSchoolId.current!==selectedSchool.schoolId||schoolVisitEpoch.current!==visit)return;
       setShowAdd(false);setDraft({name:'',email:'',password:'',classId:classes[0]?.id||''});
       await refresh(search);
+      if(activeSchoolId.current!==selectedSchool.schoolId||schoolVisitEpoch.current!==visit)return;
       setNotice(result.created?'تم إنشاء الطالب وربطه بالمدرسة والفصل.':'الطالب موجود وتم تأكيد ربطه بالفصل المحدد.');
     },'');
   }
 
   async function moveStudent(studentId:string,classId:string){
     if(!selectedSchool||!classId)return;
+    const requestedSchoolId=selectedSchool.schoolId;
+    const visit=schoolVisitEpoch.current;
     await run(studentId,async csrf=>{
       const result=await organizationsClient.moveDirectorStudent(selectedSchool.schoolId,studentId,classId,csrf);
+      if(activeSchoolId.current!==requestedSchoolId||schoolVisitEpoch.current!==visit)return;
       setStudents(x=>x.map(s=>s.studentId===studentId?result.student:s));
       setNotice(result.idempotent?'الطالب موجود بالفعل في هذا الفصل؛ لم تتكرر أي عضوية.':'تم نقل الطالب داخل المدرسة وحفظ الفصل الجديد.');
     },'');
@@ -107,8 +248,11 @@ export function SchoolDirectorDashboardPage(){
 
   async function saveStudent(){
     if(!selectedSchool||!editing.studentId)return;
+    const requestedSchoolId=selectedSchool.schoolId;
+    const visit=schoolVisitEpoch.current;
     await run('edit-'+editing.studentId,async csrf=>{
       const r=await organizationsClient.updateDirectorStudent(selectedSchool.schoolId,editing.studentId,{name:editing.name,phone:editing.phone},csrf);
+      if(activeSchoolId.current!==requestedSchoolId||schoolVisitEpoch.current!==visit)return;
       setStudents(x=>x.map(s=>s.studentId===editing.studentId?r.student:s));
       setEditing({studentId:'',name:'',phone:''});
     },'تم تحديث بيانات الطالب الأساسية.');
@@ -116,57 +260,168 @@ export function SchoolDirectorDashboardPage(){
 
   async function toggleStudent(student:DirectorStudent){
     if(!selectedSchool)return;
+    const requestedSchoolId=selectedSchool.schoolId;
+    const visit=schoolVisitEpoch.current;
     await run('active-'+student.studentId,async csrf=>{
       const r=await organizationsClient.setDirectorStudentActive(selectedSchool.schoolId,student.studentId,!student.isActive,csrf);
+      if(activeSchoolId.current!==requestedSchoolId||schoolVisitEpoch.current!==visit)return;
       setStudents(x=>x.map(s=>s.studentId===student.studentId?r.student:s));
     },student.isActive?'تم تعطيل الطالب بصورة قابلة للاسترجاع.':'تمت إعادة تفعيل الطالب.');
   }
 
   async function createClass(){
     if(!selectedSchool||!newClassName.trim())return;
-    await run('class',async csrf=>{await organizationsClient.createDirectorClass(selectedSchool.schoolId,newClassName.trim(),csrf);setNewClassName('');await refresh(search)},'تم إنشاء الفصل داخل المدرسة.');
+    const requestedSchoolId=selectedSchool.schoolId;
+    const visit=schoolVisitEpoch.current;
+    await run('class',async csrf=>{await organizationsClient.createDirectorClass(requestedSchoolId,newClassName.trim(),csrf);if(activeSchoolId.current!==requestedSchoolId||schoolVisitEpoch.current!==visit)return;setNewClassName('');await refresh(search)},'تم إنشاء الفصل داخل المدرسة.');
   }
 
   async function renameClass(){
     if(!selectedSchool||!rename.classId||!rename.name.trim())return;
-    await run('rename-'+rename.classId,async csrf=>{await organizationsClient.renameDirectorClass(selectedSchool.schoolId,rename.classId,rename.name.trim(),csrf);setRename({classId:'',name:''});await refresh(search)},'تم تحديث اسم الفصل.');
+    const requestedSchoolId=selectedSchool.schoolId;
+    const visit=schoolVisitEpoch.current;
+    await run('rename-'+rename.classId,async csrf=>{await organizationsClient.renameDirectorClass(requestedSchoolId,rename.classId,rename.name.trim(),csrf);if(activeSchoolId.current!==requestedSchoolId||schoolVisitEpoch.current!==visit)return;setRename({classId:'',name:''});await refresh(search)},'تم تحديث اسم الفصل.');
   }
 
   async function saveAssignment(){
-    if(!selectedSchool||!assignment.teacherId||!assignment.classId)return;
-    await run('assignment',async csrf=>{await organizationsClient.upsertDirectorAssignment(selectedSchool.schoolId,assignment,csrf);const r=await organizationsClient.directorTeachers(selectedSchool.schoolId);setTeachers(r.teachers);setAssignments(r.assignments)},'تم حفظ تكليف المعلم.');
+    if(!selectedSchool||!assignment.teacherId||!assignment.classId||!subjects.some(subject=>subject.id===assignment.subjectId))return;
+    const visit=schoolVisitEpoch.current;
+    await run('assignment',async csrf=>{await organizationsClient.upsertDirectorAssignment(selectedSchool.schoolId,assignment,csrf);await reloadTeachersForSchool(selectedSchool.schoolId,visit)},'تم حفظ تكليف المعلم.');
+  }
+
+  async function reloadTeachersForSchool(requestedSchoolId:string,visit:number){
+    if(activeSchoolId.current!==requestedSchoolId||schoolVisitEpoch.current!==visit)return;
+    const version=++teacherReadVersion.current;
+    const result=await organizationsClient.directorTeachers(requestedSchoolId);
+    if(activeSchoolId.current!==requestedSchoolId||schoolVisitEpoch.current!==visit||version!==teacherReadVersion.current)return;
+    setTeachers(result.teachers);
+    setAssignments(result.assignments);
+  }
+
+  async function stopAssignment(row:Pick<DirectorAssignment,'teacherId'|'classId'|'subjectId'> & {status:'inactive'}){
+    if(!selectedSchool)return;
+    const visit=schoolVisitEpoch.current;
+    await run('assignment',async csrf=>{
+      await organizationsClient.upsertDirectorAssignment(selectedSchool.schoolId,row,csrf);
+      await reloadTeachersForSchool(selectedSchool.schoolId,visit);
+    },'تم إيقاف التكليف دون تغيير التقارير السابقة.');
+  }
+
+  function changeSchool(nextSchoolId:string){
+    activeSchoolId.current=nextSchoolId;
+    setSelectedAssessment(null);
+    ++schoolVisitEpoch.current;
+    ++loadEpoch.current;
+    ++teacherReadVersion.current;
+    ++overviewReadEpoch.current;
+    ++assessmentReadEpoch.current;
+    setAssessmentWorkspace(null);
+    setAssessmentLoading(false);
+    setAssessmentError('');
+    setClasses([]);
+    setStudents([]);
+    setStudentTotal(0);
+    setTeachers([]);
+    setAssignments([]);
+    setBusy(true);
+    setSearch('');
+    setNotice('');
+    setError('');
+    setPending('');
+    setShowAdd(false);
+    setDraft({name:'',email:'',password:'',classId:''});
+    setEditing({studentId:'',name:'',phone:''});
+    setAssignment({teacherId:'',classId:'',subjectId:'',status:'active'});
+    setNewClassName('');
+    setRename({classId:'',name:''});
+    setOverview(null);
+    setOverviewError('');
+    setOverviewLoading(true);
+    setActiveSection('overview');
+    setSchoolId(nextSchoolId);
   }
 
   if(authLoading||busy&&schools.length===0)return <main dir="rtl" className="flex min-h-[calc(100vh-5rem)] items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-indigo-600" size={38}/></main>;
   if(!user?.roles.includes('school_admin'))return <main dir="rtl" className="p-10 text-center font-black text-rose-700">هذه المساحة مخصصة لمدير المدرسة.</main>;
-  if(!selectedSchool)return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 p-6"><div className="mx-auto mt-20 max-w-xl rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center"><ShieldCheck className="mx-auto text-slate-400" size={40}/><h1 className="mt-4 text-xl font-black">لا توجد مدرسة مفوضة</h1><p className="mt-2 text-sm text-slate-500">اطلب من مدير المنصة ربط حسابك بمدرسة وتفعيل الصلاحيات المطلوبة.</p></div></main>;
+  if(!selectedSchool)return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 p-6"><div className="mx-auto mt-20 max-w-xl rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center"><ShieldCheck className="mx-auto text-slate-400" size={40}/><h1 className="mt-4 text-xl font-black">{error?'تعذر تحميل مساحة مدير المدرسة':'لا توجد مدرسة مفوضة'}</h1><p className="mt-2 text-sm text-slate-500">{error?'تعذر قراءة نطاق المدارس المصرح به. أعد فتح الصفحة للمحاولة مجددًا.':'اطلب من مدير المنصة ربط حسابك بمدرسة وتفعيل الصلاحيات المطلوبة.'}</p></div></main>;
 
   return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 px-4 py-6 text-slate-900 sm:px-8" data-testid="school-director-dashboard"><div className="mx-auto max-w-7xl">
-    <header className="rounded-3xl bg-gradient-to-l from-indigo-700 via-indigo-800 to-slate-900 p-6 text-white shadow-xl sm:p-8"><div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="flex items-center gap-2 text-sm font-bold text-indigo-200"><ShieldCheck size={17}/> نطاق مفوض من مدير المنصة</p><h1 className="mt-2 text-3xl font-black">لوحة مدير المدرسة</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-indigo-100">رؤية تشغيلية وعمليات طلاب وفصول ومعلمين داخل المدارس المصرح بها فقط.</p></div><label className="text-sm font-bold">المدرسة<select aria-label="المدرسة" value={selectedSchool.schoolId} onChange={e=>setSchoolId(e.target.value)} className="mt-2 block w-full min-w-56 rounded-xl border-0 bg-white px-4 py-3 text-slate-900">{schools.map(s=><option key={s.schoolId} value={s.schoolId}>{s.schoolName}</option>)}</select></label></div></header>
+    <header className="rounded-3xl bg-gradient-to-l from-indigo-700 via-indigo-800 to-slate-900 p-6 text-white shadow-xl sm:p-8"><div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="flex items-center gap-2 text-sm font-bold text-indigo-200"><ShieldCheck size={17}/> نطاق مفوض من مدير المنصة</p><h1 className="mt-2 text-3xl font-black">لوحة مدير المدرسة</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-indigo-100">رؤية تشغيلية وعمليات طلاب وفصول ومعلمين داخل المدارس المصرح بها فقط.</p></div><label className="text-sm font-bold">المدرسة<select aria-label="المدرسة" value={selectedSchool.schoolId} onChange={e=>changeSchool(e.target.value)} className="mt-2 block w-full min-w-56 rounded-xl border-0 bg-white px-4 py-3 text-slate-900">{schools.map(s=><option key={s.schoolId} value={s.schoolId}>{s.schoolName}</option>)}</select></label></div></header>
 
+    <div className="mt-6 grid min-w-0 gap-5 xl:grid-cols-[15rem_minmax(0,1fr)]">
+      <aside className="min-w-0 xl:sticky xl:top-6 xl:self-start">
+        <SchoolDirectorSectionNav items={navItems} active={section} onSelect={setActiveSection}/>
+      </aside>
+      <div className="min-w-0">
+    <SchoolDirectorBreadcrumb items={navItems} active={section} onHome={()=>setActiveSection('overview')}/>
     {error?<div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{error}</div>:null}
     {notice?<div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{notice}</div>:null}
 
-    {has('SCHOOL_OVERVIEW_VIEW')?<section className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <article className="rounded-2xl border bg-white p-4 shadow-sm"><Users className="text-indigo-700" size={20}/><p className="mt-3 text-xs font-bold text-slate-500">الطلاب</p><p className="text-2xl font-black">{has('SCHOOL_STUDENTS_VIEW')?studentTotal:'—'}</p></article>
-      <article className="rounded-2xl border bg-white p-4 shadow-sm"><Building2 className="text-sky-700" size={20}/><p className="mt-3 text-xs font-bold text-slate-500">الفصول</p><p className="text-2xl font-black">{classes.length}</p></article>
-      <article className="rounded-2xl border bg-white p-4 shadow-sm"><GraduationCap className="text-amber-700" size={20}/><p className="mt-3 text-xs font-bold text-slate-500">المعلمون المتاحون للتكليف</p><p className="text-2xl font-black">{canOptional('SCHOOL_TEACHERS_ASSIGN')?teachers.length:'—'}</p></article>
-      <article className="rounded-2xl border bg-white p-4 shadow-sm"><ShieldCheck className="text-violet-700" size={20}/><p className="mt-3 text-xs font-bold text-slate-500">الصلاحيات المفوضة</p><p className="text-2xl font-black">{selectedSchool.permissions.length}</p></article>
+    {section==='overview'&&has('SCHOOL_OVERVIEW_VIEW')?<section aria-label="مؤشرات المدرسة" className="mt-6">
+      {overviewError?<div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm font-bold text-rose-700">{overviewError}</div>:null}
+      {overviewLoading?<p role="status" className="rounded-2xl border bg-white p-5 text-sm font-bold text-slate-500">جار تحميل مؤشرات المدرسة…</p>:null}
+      {overview?.school.schoolId===selectedSchool.schoolId&&!overviewError?<div className="grid grid-cols-2 gap-3 lg:grid-cols-3">{[
+        {label:'الطلاب',value:overview.metrics.students,icon:Users,tone:'text-indigo-700 bg-indigo-50'},
+        {label:'الفصول',value:overview.metrics.classes,icon:Building2,tone:'text-sky-700 bg-sky-50'},
+        {label:'المعلمون',value:overview.metrics.teachers,icon:GraduationCap,tone:'text-amber-700 bg-amber-50'},
+        {label:'المشرفون',value:overview.metrics.supervisors,icon:UsersRound,tone:'text-purple-700 bg-purple-50'},
+        {label:'اختبارات المدرسة',value:overview.metrics.schoolAssessments,icon:BookOpenCheck,tone:'text-emerald-700 bg-emerald-50'},
+        {label:'فصول ذكية مكتملة',value:overview.metrics.completedSmartClasses,icon:Sparkles,tone:'text-rose-700 bg-rose-50'},
+      ].map(({label,value,icon:Icon,tone})=><article key={label} className="min-w-0 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"><div className={`flex h-9 w-9 items-center justify-center rounded-xl ${tone}`}><Icon size={18}/></div><p className="mt-3 text-xs font-bold text-slate-500">{label}</p><p className="mt-1 text-2xl font-black">{value}</p></article>)}</div>:null}
     </section>:null}
 
-    <section className="mt-7 rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
+    {section==='assessments'&&has('SCHOOL_ASSESSMENTS_MANAGE')&&selectedSchool.modules.includes('SCHOOL_ASSESSMENTS')?<section aria-label="اختبارات المدرسة" className="mt-7 min-w-0 rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black text-indigo-600">التعلم والمتابعة</p><h2 className="mt-1 text-xl font-black">اختبارات المدرسة</h2></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-xl bg-indigo-50 px-4 py-2 text-sm font-black text-indigo-800">{assessmentWorkspace?.assessments.length??'—'} اختبار</span><button type="button" onClick={()=>setShowAssessmentCreator(x=>!x)} className="inline-flex items-center gap-1 rounded-xl bg-indigo-700 px-4 py-2 text-sm font-black text-white"><Plus size={16}/> {showAssessmentCreator?'إغلاق النموذج':'إنشاء اختبار'}</button></div></div>
+      {showAssessmentCreator&&assessmentWorkspace?<DirectorAssessmentCreator key={`${selectedSchool.schoolId}-${schoolVisitEpoch.current}`} schoolId={selectedSchool.schoolId} classes={assessmentWorkspace.classes} paths={paths} subjects={subjects} getCsrfToken={getCsrfToken} onCreated={()=>{
+        if(activeSchoolId.current!==selectedSchool.schoolId)return;
+        setShowAssessmentCreator(false);setAssessmentReload(x=>x+1);setOverviewReload(x=>x+1);setNotice('تم إنشاء اختبار المدرسة ونشره للطلاب المستهدفين.');
+      }} onClose={()=>setShowAssessmentCreator(false)}/>:null}
+      {assessmentLoading?<p role="status" className="mt-5 text-sm font-bold text-slate-500">جار تحميل اختبارات المدرسة…</p>:null}
+      {assessmentError?<p role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{assessmentError}</p>:null}
+      {!assessmentLoading&&!assessmentError&&assessmentWorkspace?.assessments.length===0?<p className="mt-5 rounded-xl border border-dashed p-5 text-sm text-slate-500">لا توجد اختبارات موجهة لهذه المدرسة حاليًا.</p>:null}
+      {assessmentWorkspace&&!assessmentError?<div className="mt-5 grid min-w-0 gap-3 sm:grid-cols-2">{assessmentWorkspace.assessments.map(item=>{
+        const audience=item.targetGroupIds.includes(selectedSchool.schoolId)?'المدرسة كاملة':
+          item.targetGroupIds.map(id=>assessmentWorkspace.classes.find(c=>c.classId===id)?.className).filter(Boolean).join('، ')||
+          (item.isPublished?'طلاب محددون':'مسودة مركزية');
+        return <article key={item.id} className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-2"><h3 className="min-w-0 flex-1 break-words font-black text-slate-900">{item.title}</h3><span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${item.isPublished?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-emerald-800'}`}>{item.isPublished?'منشور':'غير منشور'}</span></div><p className="mt-3 break-words text-xs font-bold text-slate-600">الاستهداف: {audience}</p><button type="button" onClick={()=>setSelectedAssessment({schoolId:selectedSchool.schoolId,assessment:item})} className="mt-3 rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm font-bold text-indigo-700">النتائج والإدارة</button></article>;
+      })}</div>:null}
+      <p className="mt-5 text-xs leading-6 text-slate-500">اختبارات المدرسة موجّهة للطلاب المستهدفين فقط. ملخص النتائج متاح الآن؛ تفاصيل الطلاب والتحرير والنسخ والإجراءات الإدارية قيد النقل الآمن.</p>
+    </section>:null}
+
+    {selectedAssessment?.schoolId===selectedSchool.schoolId&&section==='assessments'&&has('SCHOOL_ASSESSMENTS_MANAGE')&&selectedSchool.modules.includes('SCHOOL_ASSESSMENTS')?<DirectorAssessmentReportPanel key={`${selectedAssessment.schoolId}-${selectedAssessment.assessment.id}`} schoolId={selectedAssessment.schoolId} assessmentId={selectedAssessment.assessment.id} title={selectedAssessment.assessment.title} canViewLearners={has('SCHOOL_REPORTS_DETAILED_VIEW')&&selectedSchool.modules.includes('SCHOOL_INTELLIGENCE')} onClose={()=>setSelectedAssessment(null)}/>:null}
+
+    {section==='students'&&has('SCHOOL_STUDENTS_VIEW')?<section className="mt-7 rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-xs font-black text-indigo-600">تشغيل الطلاب</p><h2 className="mt-1 text-xl font-black">طلاب {selectedSchool.schoolName}</h2></div><div className="flex flex-col gap-2 sm:flex-row"><div className="relative"><Search className="absolute right-3 top-2.5 text-slate-400" size={17}/><input aria-label="بحث الطلاب" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')void refresh(search)}} placeholder="ابحث بالاسم أو البريد" className="w-full rounded-xl border py-2 pr-9 pl-3 text-sm"/></div>{has('SCHOOL_STUDENTS_ADD')?<button type="button" onClick={()=>setShowAdd(x=>!x)} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white"><Plus size={17}/> إضافة طالب</button>:null}</div></div>
 
-      {showAdd?<div className="mt-5 grid gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 sm:grid-cols-2 xl:grid-cols-5"><input aria-label="اسم الطالب الجديد" value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})} placeholder="اسم الطالب" className="rounded-xl border px-3 py-2 text-sm"/><input aria-label="بريد الطالب الجديد" value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} placeholder="البريد الإلكتروني" className="rounded-xl border px-3 py-2 text-sm"/><input aria-label="كلمة مرور الطالب الجديد" type="password" value={draft.password} onChange={e=>setDraft({...draft,password:e.target.value})} placeholder="كلمة مرور مؤقتة" className="rounded-xl border px-3 py-2 text-sm"/><select aria-label="فصل الطالب الجديد" value={draft.classId} onChange={e=>setDraft({...draft,classId:e.target.value})} className="rounded-xl border px-3 py-2 text-sm"><option value="">اختر الفصل</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><button type="button" disabled={pending==='add'} onClick={()=>void addStudent()} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white disabled:opacity-50">إنشاء وربط</button></div>:null}
+      <p className="mt-2 text-xs font-bold text-slate-500">عدد الطلاب في القائمة: {studentTotal}</p>
+      {showAdd&&has('SCHOOL_STUDENTS_ADD')?<div className="mt-5 grid gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 sm:grid-cols-2 xl:grid-cols-5"><input aria-label="اسم الطالب الجديد" value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})} placeholder="اسم الطالب" className="rounded-xl border px-3 py-2 text-sm"/><input aria-label="بريد الطالب الجديد" value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} placeholder="البريد الإلكتروني" className="rounded-xl border px-3 py-2 text-sm"/><input aria-label="كلمة مرور الطالب الجديد" type="password" value={draft.password} onChange={e=>setDraft({...draft,password:e.target.value})} placeholder="كلمة مرور مؤقتة" className="rounded-xl border px-3 py-2 text-sm"/><select aria-label="فصل الطالب الجديد" value={draft.classId} onChange={e=>setDraft({...draft,classId:e.target.value})} className="rounded-xl border px-3 py-2 text-sm"><option value="">اختر الفصل</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><button type="button" disabled={pending==='add'} onClick={()=>void addStudent()} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white disabled:opacity-50">إنشاء وربط</button></div>:null}
 
       {!has('SCHOOL_STUDENTS_VIEW')?<div className="mt-6 rounded-2xl border border-dashed p-8 text-center text-sm text-slate-500">صلاحية عرض الطلاب غير مفعلة لهذا الربط.</div>:students.length===0&&!busy?<div className="mt-6 rounded-2xl border border-dashed p-8 text-center text-sm text-slate-500">لا يوجد طلاب مطابقون حاليًا.</div>:<div className="mt-5 overflow-hidden rounded-2xl border"><div className="hidden bg-slate-50 px-4 py-3 text-xs font-black text-slate-500 lg:grid lg:grid-cols-[1.4fr_.55fr_1fr_auto] lg:items-center lg:gap-3"><span>الطالب</span><span>الحالة</span><span>الفصل</span><span>عمليات مفوضة</span></div><div className="divide-y">{students.map(student=>editing.studentId===student.studentId?<article key={student.studentId} className="grid gap-3 p-4 lg:grid-cols-[1fr_auto] lg:items-center"><div className="grid gap-2 sm:grid-cols-2"><input aria-label="تعديل اسم الطالب" value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})} className="rounded-xl border px-3 py-2"/><input aria-label="تعديل جوال الطالب" value={editing.phone} onChange={e=>setEditing({...editing,phone:e.target.value})} className="rounded-xl border px-3 py-2" placeholder="رقم الجوال"/><p className="text-xs font-bold text-slate-500 sm:col-span-2">تعديل بيانات أساسية فقط؛ لا تغيير للبريد أو الدور.</p></div><div className="flex gap-2"><button type="button" onClick={()=>void saveStudent()} className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white">حفظ</button><button type="button" onClick={()=>setEditing({studentId:'',name:'',phone:''})} className="rounded-xl border bg-white px-4 py-2 text-xs font-black text-slate-600">إلغاء</button></div></article>:<article key={student.studentId} className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[1.4fr_.55fr_1fr_auto] lg:items-center"><div className="min-w-0"><b className="block truncate">{student.name}</b><span className="mt-1 block break-all text-xs font-bold text-slate-500">{student.email}{student.phone?` · ${student.phone}`:''}</span></div><span className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-black ${student.isActive?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}`}>{student.isActive?'نشط':'موقوف'}</span><div>{has('SCHOOL_STUDENTS_MOVE_CLASS')?<select aria-label={`فصل ${student.name}`} value={student.classId||''} disabled={pending===student.studentId} onChange={e=>void moveStudent(student.studentId,e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm"><option value="">بدون فصل</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>:<span className="text-sm font-bold">{student.className||'بدون فصل'}</span>}</div><div className="flex gap-2 sm:justify-end">{canOptional('SCHOOL_STUDENTS_UPDATE_BASIC')?<button aria-label={`تعديل ${student.name}`} type="button" onClick={()=>setEditing({studentId:student.studentId,name:student.name,phone:student.phone||''})} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border bg-white text-indigo-700"><Pencil size={15}/></button>:null}{canOptional('SCHOOL_STUDENTS_DEACTIVATE')?<button aria-label={student.isActive?`تعطيل ${student.name}`:`تفعيل ${student.name}`} type="button" onClick={()=>void toggleStudent(student)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border bg-white"><Power size={15}/></button>:null}</div></article>)}</div></div>}
-    </section>
-
-    {canOptional('SCHOOL_CLASSES_MANAGE')||canOptional('SCHOOL_TEACHERS_ASSIGN')?<section className="mt-7 grid gap-4 lg:grid-cols-2">
-      {canOptional('SCHOOL_CLASSES_MANAGE')?<article className="rounded-3xl border bg-white p-5 shadow-sm"><h2 className="font-black">إدارة الفصول</h2><div className="mt-3 flex gap-2"><input aria-label="اسم فصل جديد" value={newClassName} onChange={e=>setNewClassName(e.target.value)} placeholder="اسم فصل جديد" className="min-w-0 flex-1 rounded-xl border px-3 py-2"/><button aria-label="إنشاء الفصل" type="button" onClick={()=>void createClass()} className="rounded-xl bg-sky-700 px-3 text-white"><Plus size={17}/></button></div><div className="mt-3 space-y-2">{classes.map(c=>rename.classId===c.id?<div key={c.id} className="flex gap-2"><input aria-label="اسم الفصل المعدل" value={rename.name} onChange={e=>setRename({...rename,name:e.target.value})} className="flex-1 rounded-lg border px-2"/><button type="button" onClick={()=>void renameClass()} className="font-black text-sky-700">حفظ</button></div>:<div key={c.id} className="flex items-center rounded-xl bg-slate-50 px-3 py-2"><span className="flex-1 font-bold">{c.name}</span><button type="button" aria-label={`تعديل ${c.name}`} onClick={()=>setRename({classId:c.id,name:c.name})}><Pencil size={15}/></button></div>)}</div></article>:null}
-      {canOptional('SCHOOL_TEACHERS_ASSIGN')?<article className="rounded-3xl border bg-white p-5 shadow-sm"><h2 className="font-black">تكليف المعلمين</h2><div className="mt-3 grid gap-2"><select aria-label="المعلم" value={assignment.teacherId} onChange={e=>setAssignment({...assignment,teacherId:e.target.value})} className="rounded-xl border px-3 py-2"><option value="">اختر المعلم</option>{teachers.map(t=><option key={t.teacherId} value={t.teacherId}>{t.name}</option>)}</select><select aria-label="فصل التكليف" value={assignment.classId} onChange={e=>setAssignment({...assignment,classId:e.target.value})} className="rounded-xl border px-3 py-2"><option value="">اختر الفصل</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><input aria-label="معرف مادة التكليف" value={assignment.subjectId} onChange={e=>setAssignment({...assignment,subjectId:e.target.value})} placeholder="معرّف المادة (اختياري)" className="rounded-xl border px-3 py-2"/><button type="button" disabled={!assignment.teacherId||!assignment.classId} onClick={()=>void saveAssignment()} className="rounded-xl bg-emerald-700 py-2 font-black text-white disabled:opacity-40">حفظ التكليف</button></div><p className="mt-3 text-xs text-slate-500">التكليفات الفعالة: {assignments.filter(a=>a.status==='active').length}</p></article>:null}
     </section>:null}
 
-    <section aria-label="مركز تشغيل مدير المدرسة" className="mt-7 rounded-3xl border bg-white p-5 shadow-sm"><div className="flex items-center gap-2"><BarChart3 size={18} className="text-indigo-700"/><h2 className="font-black">مركز التشغيل الأكاديمي</h2></div><p className="mt-1 text-xs font-bold leading-6 text-slate-500">انتقل إلى التقارير أو خطط التدخل من نفس نطاق المدرسة المفوض؛ البيانات والصلاحيات تبقى من خدمات V2.</p><div className="mt-4 flex flex-wrap gap-2 text-sm font-bold"><Link to="/school-director-dashboard/interventions" className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-2 text-indigo-800">التدخلات والخطط العلاجية</Link><Link to="/reports" className="rounded-xl border bg-white px-4 py-2">التقارير</Link></div></section>
+    {(section==='classes'&&canOptional('SCHOOL_CLASSES_MANAGE')||section==='teachers'&&canOptional('SCHOOL_TEACHERS_ASSIGN'))?<section className="mt-7 grid min-w-0 gap-4">
+      {section==='classes'?<>
+      {canOptional('SCHOOL_CLASSES_MANAGE')?<article className="rounded-3xl border bg-white p-5 shadow-sm"><h2 className="font-black">إدارة الفصول</h2><div className="mt-3 flex gap-2"><input aria-label="اسم فصل جديد" value={newClassName} onChange={e=>setNewClassName(e.target.value)} placeholder="اسم فصل جديد" className="min-w-0 flex-1 rounded-xl border px-3 py-2"/><button aria-label="إنشاء الفصل" type="button" onClick={()=>void createClass()} className="rounded-xl bg-sky-700 px-3 text-white"><Plus size={17}/></button></div><div className="mt-3 space-y-2">{classes.map(c=>rename.classId===c.id?<div key={c.id} className="flex gap-2"><input aria-label="اسم الفصل المعدل" value={rename.name} onChange={e=>setRename({...rename,name:e.target.value})} className="flex-1 rounded-lg border px-2"/><button type="button" onClick={()=>void renameClass()} className="font-black text-sky-700">حفظ</button></div>:<div key={c.id} className="flex items-center rounded-xl bg-slate-50 px-3 py-2"><span className="flex-1 font-bold">{c.name}</span><button type="button" aria-label={`تعديل ${c.name}`} onClick={()=>setRename({classId:c.id,name:c.name})}><Pencil size={15}/></button></div>)}</div></article>:null}
+      </>:null}
+      {section==='teachers'?<>
+      {canOptional('SCHOOL_TEACHERS_ASSIGN')?<article className="rounded-3xl border bg-white p-5 shadow-sm">
+        <h2 className="font-black">تكليف المعلمين</h2>
+        <div className="mt-3 grid gap-2">
+          <select aria-label="المعلم" value={assignment.teacherId} onChange={e=>setAssignment({...assignment,teacherId:e.target.value,subjectId:''})} className="rounded-xl border px-3 py-2"><option value="">اختر المعلم</option>{teachers.map(t=><option key={t.teacherId} value={t.teacherId}>{t.name}</option>)}</select>
+          <select aria-label="فصل التكليف" value={assignment.classId} onChange={e=>setAssignment({...assignment,classId:e.target.value})} className="rounded-xl border px-3 py-2"><option value="">اختر الفصل</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
+          <select aria-label="مادة التكليف" value={assignment.subjectId} onChange={e=>setAssignment({...assignment,subjectId:e.target.value})} className="rounded-xl border px-3 py-2"><option value="">اختر المادة</option>{subjects.map(subject=><option key={subject.id} value={subject.id}>{subject.name}</option>)}</select>
+          {subjectsError?<p className="text-xs font-bold text-rose-700">تعذر تحميل قائمة المواد؛ أعد فتح الصفحة قبل حفظ التكليف.</p>:null}
+          <button type="button" disabled={!assignment.teacherId||!assignment.classId||!subjects.some(subject=>subject.id===assignment.subjectId)||Boolean(pending)} onClick={()=>void saveAssignment()} className="rounded-xl bg-emerald-700 py-2 font-black text-white disabled:opacity-40">حفظ التكليف</button>
+        </div>
+        <p className="mt-3 text-xs text-slate-500">التكليفات الفعالة: {assignments.filter(a=>a.status==='active').length}</p>
+        <DirectorTeacherAssignments teacherId={assignment.teacherId} assignments={assignments} classes={classes} subjects={subjects} busy={Boolean(pending)} onDeactivate={row=>void stopAssignment(row)}/>
+      </article>:null}
+      </>:null}
+    </section>:null}
+
+    {section==='overview'?<section aria-label="مركز تشغيل مدير المدرسة" className="mt-7 rounded-3xl border bg-white p-5 shadow-sm"><div className="flex items-center gap-2"><BarChart3 size={18} className="text-indigo-700"/><h2 className="font-black">مركز التشغيل الأكاديمي</h2></div><p className="mt-2 text-xs font-bold leading-6 text-slate-500">أقسام التقارير والتدخلات والحصص الذكية والاختبارات قيد النقل والتحقق من صلاحياتها في نسخة Go؛ ستظهر روابطها هنا بعد اكتمال خدماتها، دون فتح صفحة لا يملك مدير المدرسة تفويضها.</p></section>:null}
+    {navItems.length===0?<p className="mt-6 rounded-2xl border bg-white p-6 text-sm font-bold text-slate-600">ليس لديك أقسام مفعّلة في لوحة هذه المدرسة حاليًا.</p>:null}
+      </div>
+    </div>
   </div></main>;
 }

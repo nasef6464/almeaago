@@ -4,6 +4,7 @@ import {
   ChevronDown,
   BrainCircuit,
   BookOpen,
+  Award,
   Boxes,
   CheckCircle2,
   HelpCircle,
@@ -17,12 +18,14 @@ import {
   Radio,
   ShoppingCart,
   Users,
+  Type,
   X,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
+import { HOMEPAGE_ADMIN_HREF,isHomepageLocation,buildHomepageHref, PLATFORM_FONTS_ADMIN_HREF, isPlatformFontsLocation, buildPlatformFontsHref } from '../../presentation/navigation';
 
 interface AdminDashboardShellProps {
   children: ReactNode;
@@ -31,7 +34,8 @@ interface AdminDashboardShellProps {
 const navItems = [
   { label: 'نظرة عامة', icon: LayoutDashboard, href: '/admin-dashboard' },
   { label: 'إدارة المحتوى التعليمي', icon: BookOpen, href: '/admin-dashboard/content' },
-  { label: 'إدارة المسارات والتصنيف', icon: Boxes, href: '/admin-dashboard/taxonomy' },
+  { label: 'إدارة المسارات', icon: Boxes, href: '/admin-dashboard/taxonomy' },
+  { label: 'مركز المهارات', icon: Award, href: '/admin-dashboard?tab=skills' },
   { label: 'اعتماد المحتوى', icon: CheckCircle2 },
   { label: 'مركز بنك الأسئلة', icon: HelpCircle, href: '/admin-dashboard/questions' },
   { label: 'مركز الدروس', icon: BookOpen },
@@ -44,6 +48,8 @@ const navItems = [
   { label: 'إدارة الذكاء الاصطناعي', icon: BrainCircuit, href: '/admin-dashboard/ai' },
   { label: 'التقارير والتحليلات', icon: BarChart3, href: '/admin-dashboard/reports' },
   { label: 'مركز العمليات والتدقيق', icon: ShieldCheck, href: '/admin-dashboard/operations' },
+  {label:'إدارة الصفحة الرئيسية',icon:Settings,href:HOMEPAGE_ADMIN_HREF},
+  { label: 'إدارة خطوط المنصة', icon: Type, href: PLATFORM_FONTS_ADMIN_HREF },
   { label: 'الإعدادات', icon: Settings },
 ];
 
@@ -66,12 +72,17 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [plannedOpen, setPlannedOpen] = useState(false);
-  const availableItems = navItems.filter((item) => Boolean(item.href));
-  const plannedItems = navItems.filter((item) => !item.href);
+  const visibleItems = navItems.filter((item) => (item.href !== PLATFORM_FONTS_ADMIN_HREF && item.href !== HOMEPAGE_ADMIN_HREF) || user?.roles.includes('admin'));
+  const availableItems = visibleItems.filter((item) => Boolean(item.href));
+  const plannedItems = visibleItems.filter((item) => !item.href);
   const isActiveHref = (href: string) =>
-    href === '/admin-dashboard'
-      ? location.pathname === href
-      : location.pathname === href || location.pathname.startsWith(href + '/');
+    href === HOMEPAGE_ADMIN_HREF ? isHomepageLocation(location) : href === PLATFORM_FONTS_ADMIN_HREF
+      ? isPlatformFontsLocation(location)
+      : href === '/admin-dashboard?tab=skills'
+        ? location.pathname === '/admin-dashboard' && new URLSearchParams(location.search).get('tab') === 'skills'
+      : href === '/admin-dashboard'
+        ? location.pathname === href && !isPlatformFontsLocation(location) && !isHomepageLocation(location) && new URLSearchParams(location.search).get('tab') !== 'skills'
+        : location.pathname === href || location.pathname.startsWith(href + '/');
   const activeItem = availableItems.find((item) => item.href ? isActiveHref(item.href) : false);
 
   const sidebar = (
@@ -91,7 +102,7 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
           return (
             <Link
               key={item.label}
-              to={item.href!}
+              to={item.href === HOMEPAGE_ADMIN_HREF ? buildHomepageHref(location) : item.href === PLATFORM_FONTS_ADMIN_HREF ? buildPlatformFontsHref(location) : item.href!}
               onClick={() => setMenuOpen(false)}
               className={`flex items-center gap-3 px-5 py-3 text-sm font-bold transition-colors ${classes}`}
             >

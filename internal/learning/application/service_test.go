@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +16,9 @@ import (
 
 type repoStub struct {
 	progress      learning.SkillProgressPage
+	progressPages map[int]learning.SkillProgressPage
+	progressErrAt int
+	progressCalls []int
 	weakest       *learning.SkillProgress
 	cards         []learning.ReviewCard
 	hasMore       bool
@@ -43,6 +47,13 @@ func (r *repoStub) ApplyAssessmentEvidence(_ context.Context, event learning.Sub
 }
 func (r *repoStub) ListSkillProgress(_ context.Context, student, path, subject string, page, limit int) (learning.SkillProgressPage, error) {
 	r.lastStudent, r.lastPath, r.lastSubject, r.lastPage, r.lastLimit = student, path, subject, page, limit
+	r.progressCalls = append(r.progressCalls, page)
+	if r.progressErrAt == page {
+		return learning.SkillProgressPage{}, errors.New("repository page unavailable")
+	}
+	if r.progressPages != nil {
+		return r.progressPages[page], r.err
+	}
 	return r.progress, r.err
 }
 func (r *repoStub) WeakestSkillProgress(_ context.Context, student, path, subject string) (*learning.SkillProgress, error) {
@@ -145,6 +156,93 @@ func TestProgressAndReviewReadsAreStudentOwnedAndBounded(t *testing.T) {
 	}
 	if len(reader.refs) != 1 || reader.refs[0].Version != 2 || len(page.Items) != 1 || !page.HasMore {
 		t.Fatalf("review composition mismatch: refs=%#v page=%#v", reader.refs, page)
+	}
+}
+
+func TestReadinessUsesOneCompleteScopedQuery(t *testing.T) {
+	rows := make([]learning.SkillProgress, 101)
+	for i := range rows {
+		rows[i] = learning.SkillProgress{PathID: "path-1", SubjectID: "subject-1", Mastery: 90, EvidenceCount: 3}
+	}
+	rows[100].Mastery = 0
+	repo := &repoStub{progress: learning.SkillProgressPage{Items: rows}}
+	actual, err := NewService(repo, nil).Readiness(context.Background(), learner("student-1"), " path-1 ", " subject-1 ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual.TotalSkills != 101 || actual.TotalEvidence != 303 || actual.Score != 89 {
+		t.Fatalf("incomplete readiness: %+v", actual)
+	}
+	if len(repo.progressCalls) != 1 || repo.lastPage != 1 || repo.lastLimit != 10000 || repo.lastStudent != "student-1" || repo.lastPath != "path-1" || repo.lastSubject != "subject-1" {
+		t.Fatalf("readiness query: calls=%v page=%d limit=%d actor=%s path=%s subject=%s", repo.progressCalls, repo.lastPage, repo.lastLimit, repo.lastStudent, repo.lastPath, repo.lastSubject)
+	}
+}
+
+func TestReadinessRejectsTruncatedScope(t *testing.T) {
+	repo := &repoStub{progress: learning.SkillProgressPage{Items: []learning.SkillProgress{{Mastery: 90, EvidenceCount: 3}}, HasMore: true}}
+	_, err := NewService(repo, nil).Readiness(context.Background(), learner("student-1"), "path-1", "")
+	if !errors.Is(err, ErrIncompleteReadiness) || len(repo.progressCalls) != 1 {
+		t.Fatalf("overflow must fail without continuation: calls=%v err=%v", repo.progressCalls, err)
+	}
+}
+
+func TestReadinessSnapshotBoundaries(t *testing.T) {
+	for _, count := range []int{0, 10000, 10001} {
+		t.Run(fmt.Sprint(count), func(t *testing.T) {
+			repo := &repoStub{progress: learning.SkillProgressPage{Items: make([]learning.SkillProgress, count)}}
+			result, err := NewService(repo, nil).Readiness(context.Background(), learner("student-1"), "path-1", "")
+			if count > 10000 {
+				if !errors.Is(err, ErrIncompleteReadiness) {
+					t.Fatalf("oversized read accepted: %v", err)
+				}
+				return
+			}
+			if err != nil || result.TotalSkills != count {
+				t.Fatalf("boundary result=%+v err=%v", result, err)
+			}
+			if count == 0 && result.Status != "needs_measurement" {
+				t.Fatalf("empty evidence status=%s", result.Status)
+			}
+		})
+	}
+}
+
+func TestReadinessPropagatesQueryFailure(t *testing.T) {
+	repo := &repoStub{progressErrAt: 1}
+	_, err := NewService(repo, nil).Readiness(context.Background(), learner("student-1"), "path-1", "")
+	if err == nil || !strings.Contains(err.Error(), "repository page unavailable") {
+		t.Fatalf("query failure ignored: %v", err)
+	}
+}
+
+func TestReadinessCancelledBeforeQuery(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	repo := &repoStub{}
+	_, err := NewService(repo, nil).Readiness(ctx, learner("student-1"), "path-1", "")
+	if !errors.Is(err, context.Canceled) || len(repo.progressCalls) != 0 {
+		t.Fatalf("cancel ignored: calls=%v err=%v", repo.progressCalls, err)
+	}
+}
+
+type cancelAfterReadRepo struct {
+	*repoStub
+	cancel context.CancelFunc
+}
+
+func (r *cancelAfterReadRepo) ListSkillProgress(ctx context.Context, student, path, subject string, page, limit int) (learning.SkillProgressPage, error) {
+	result, err := r.repoStub.ListSkillProgress(ctx, student, path, subject, page, limit)
+	r.cancel()
+	return result, err
+}
+
+func TestReadinessCancelledDuringQuery(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	repo := &cancelAfterReadRepo{repoStub: &repoStub{progress: learning.SkillProgressPage{Items: []learning.SkillProgress{{Mastery: 90, EvidenceCount: 3}}}}, cancel: cancel}
+	result, err := NewService(repo, nil).Readiness(ctx, learner("student-1"), "path-1", "")
+	if !errors.Is(err, context.Canceled) || result.TotalSkills != 0 {
+		t.Fatalf("cancelled query produced readiness: result=%+v err=%v", result, err)
 	}
 }
 
@@ -285,5 +383,59 @@ func TestReviewAnswerIdempotentRetryDoesNotApplyEvidenceAgain(t *testing.T) {
 	}
 	if repo.answerCalls != 0 {
 		t.Fatalf("idempotent retry applied evidence again: %d", repo.answerCalls)
+	}
+}
+
+func TestReadinessRejectsDuplicateSkillInSnapshot(t *testing.T) {
+	row := learning.SkillProgress{
+		PathID: "path-1", SubjectID: "subject-1", SkillID: "skill-1",
+		Mastery: 90, EvidenceCount: 3,
+	}
+	repo := &repoStub{progressPages: map[int]learning.SkillProgressPage{
+		1: {Items: []learning.SkillProgress{row, row}},
+	}}
+	_, err := NewService(repo, nil).Readiness(context.Background(), learner("student-1"), "path-1", "subject-1")
+	if !errors.Is(err, ErrIncompleteReadiness) || len(repo.progressCalls) != 1 {
+		t.Fatalf("duplicate skill must not inflate evidence: pages=%v err=%v", repo.progressCalls, err)
+	}
+}
+
+func TestReadinessRejectsForeignScopeRows(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		path    string
+		subject string
+	}{
+		{name: "foreign path", path: "path-2", subject: "subject-1"},
+		{name: "foreign subject", path: "path-1", subject: "subject-2"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &repoStub{progressPages: map[int]learning.SkillProgressPage{
+				1: {Items: []learning.SkillProgress{{
+					PathID: tc.path, SubjectID: tc.subject, SkillID: "skill-1",
+					Mastery: 90, EvidenceCount: 3,
+				}}},
+			}}
+			_, err := NewService(repo, nil).Readiness(context.Background(), learner("student-1"), "path-1", "subject-1")
+			if !errors.Is(err, ErrIncompleteReadiness) {
+				t.Fatalf("foreign-scope progress must not enter readiness: %v", err)
+			}
+		})
+	}
+}
+
+func TestReadinessKeepsSameSkillIDInDifferentSubjectsDistinct(t *testing.T) {
+	repo := &repoStub{progressPages: map[int]learning.SkillProgressPage{
+		1: {Items: []learning.SkillProgress{{
+			PathID: "path-1", SubjectID: "subject-1", SkillID: "skill-1",
+			Mastery: 90, EvidenceCount: 3,
+		}, {
+			PathID: "path-1", SubjectID: "subject-2", SkillID: "skill-1",
+			Mastery: 60, EvidenceCount: 3,
+		}}},
+	}}
+	result, err := NewService(repo, nil).Readiness(context.Background(), learner("student-1"), "path-1", "")
+	if err != nil || result.TotalSkills != 2 || result.TotalEvidence != 6 {
+		t.Fatalf("cross-subject skills must remain distinct: %+v err=%v", result, err)
 	}
 }

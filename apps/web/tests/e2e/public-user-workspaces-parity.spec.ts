@@ -35,7 +35,7 @@ test('public landing restores the real platform identity on desktop',async({page
   await expect(page.getByTestId('public-landing')).toBeVisible();
   await expect(page.getByRole('heading',{name:'حقق المئة في اختباراتك'})).toBeVisible();
   await expect(page.getByText('المنصة الأولى للقدرات والتحصيلي')).toBeVisible();
-  await expect(page.getByRole('button',{name:'ابدأ التدريب مجانًا'})).toBeVisible();
+  await expect(page.getByRole('link',{name:'ابدأ التدريب مجانًا'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'كل ما تحتاجه للتفوق'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'الدورات الأكثر طلبًا'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'مقالات ومراجعات مهمة'})).toBeVisible();
@@ -186,7 +186,7 @@ test('admin shell exposes every official UI-6 control panel on mobile and deskto
   await expect(page.getByRole('heading',{name:'مركز إدارة منصة المئة'})).toBeVisible();
   await page.getByRole('button',{name:'فتح قائمة الإدارة'}).click();
   const nav=page.getByRole('navigation',{name:'تنقل لوحة الإدارة'});
-  for(const label of ['نظرة عامة','إدارة المحتوى التعليمي','إدارة المسارات والتصنيف','مركز بنك الأسئلة','مركز الاختبارات','التجارة والصلاحيات','مركز الإشعارات','الفصل الذكي','إدارة الذكاء الاصطناعي','التقارير والتحليلات','مركز العمليات والتدقيق']){
+  for(const label of ['نظرة عامة','إدارة المحتوى التعليمي','إدارة المسارات','مركز المهارات','مركز بنك الأسئلة','مركز الاختبارات','التجارة والصلاحيات','مركز الإشعارات','الفصل الذكي','إدارة الذكاء الاصطناعي','التقارير والتحليلات','مركز العمليات والتدقيق']){
     await expect(nav.getByText(label,{exact:true})).toBeVisible();
   }
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
@@ -243,3 +243,19 @@ test('supervisor and admin roots expose real scoped workspaces',async({page})=>{
   await expect(page.locator('main').getByRole('link',{name:/العمليات والتدقيق/})).toBeVisible();
   await expect(page.getByText('هذه الوجهة ستُنقل من الواجهة المرجعية في مرحلتها.')).toHaveCount(0);
 });
+
+// Presentation fixture only; not a Go/PostgreSQL integration certificate.
+for (const width of [390, 820, 1440]) {
+  test(`homepage preserves all server-returned paths at ${width}px`, async ({page}) => {
+    await signedOut(page);
+    await page.setViewportSize({width,height:1000});
+    await page.route('**/api/v1/taxonomy/bootstrap?phase=core', route => json(route, {
+      paths: Array.from({length:8},(_,i)=>({id:`path-${i}`,code:`P${i}`,name:`مسار اختبار ${i}`,description:'',sortOrder:i})),subjects:[],
+    }));
+    await page.goto('/');
+    await expect(page.getByRole('heading',{name:'مسار اختبار 7',exact:true})).toBeVisible();
+    await expect(page.locator('main a[href^="/learning?pathId="]')).toHaveCount(8);
+    await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.screenshot({path:`test-results/homepage-all-paths-${width}.png`,fullPage:true});
+  });
+}

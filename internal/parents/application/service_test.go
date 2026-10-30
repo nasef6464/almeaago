@@ -210,3 +210,24 @@ func TestWeeklyReportsForParentsUsesOneBulkAuthorityAndOwnerDomainBatches(t *tes
 		t.Fatalf("unexpected parent report composition %#v", out)
 	}
 }
+
+func TestResultsRejectsRevokedParentRelationshipBeforeAssessmentRead(t *testing.T) {
+	assess := &assessmentReaderStub{results: assessment.ParentResultPage{}}
+	service := NewService(authorityStub{value: org.ParentAuthority{Relationships: []org.ParentStudentRelationship{
+		{ID: "r1", StudentID: "student-1", Status: "revoked"},
+		{ID: "r2", StudentID: "student-2", Status: "active"},
+	}}}, &studentDirectoryStub{}, assess, &learningReaderStub{})
+
+	if _, err := service.Results(context.Background(), parentActor(), "student-1", 1, 20); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("revoked child should be forbidden, got %v", err)
+	}
+	if assess.resultCalls != 0 {
+		t.Fatalf("revoked child reached assessment reader: %d calls", assess.resultCalls)
+	}
+	if _, err := service.Results(context.Background(), parentActor(), "student-2", 1, 20); err != nil {
+		t.Fatalf("active linked child should remain readable, got %v", err)
+	}
+	if assess.resultCalls != 1 {
+		t.Fatalf("expected only one authorized assessment read, got %d", assess.resultCalls)
+	}
+}

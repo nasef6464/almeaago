@@ -1,10 +1,10 @@
 name: Frontend CI
 on:
   pull_request:
-    paths: ["apps/web/**",".github/workflows/frontend.yml","docs/**"]
+    paths: ["internal/learning/domain/**","apps/web/**","scripts/parity/**",".github/workflows/frontend.yml","docs/**"]
   push:
     branches: [main]
-    paths: ["apps/web/**",".github/workflows/frontend.yml","docs/**"]
+    paths: ["internal/learning/domain/**","apps/web/**","scripts/parity/**",".github/workflows/frontend.yml","docs/**"]
   workflow_dispatch:
 concurrency:
   group: frontend-ci-${{ github.ref }}
@@ -22,3 +22,18 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run typecheck
       - run: npm run build
+      - name: Platform parity inventory contracts
+        working-directory: .
+        run: |
+          node scripts/parity/public-footer.test.mjs
+          node scripts/parity/platform-fonts.test.mjs
+          node scripts/parity/homepage-ui.test.mjs
+          node --test scripts/parity/header-brand.test.mjs
+          node --test scripts/parity/admin-skills-separation.test.mjs
+          node scripts/parity/screen-inventory.test.mjs
+          node scripts/parity/route-inventory.test.mjs
+          node scripts/parity/api-mount-inventory.test.mjs
+          node --experimental-strip-types scripts/parity/identity-login-digits.test.mjs
+          node --experimental-strip-types scripts/parity/learning-golden.test.mjs
+          node --experimental-strip-types scripts/parity/adaptive-ranking.test.mjs
+          node --experimental-strip-types scripts/parity/adaptive-selection-golden.mjs --check

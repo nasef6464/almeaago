@@ -336,7 +336,7 @@ func (h *Handler) forgotPassword(w http.ResponseWriter, r *http.Request) {
 
 	_ = h.service.ForgotPassword(r.Context(), payload.Email)
 	writeJSON(w, http.StatusOK, map[string]string{
-		"message": "If this email exists, password reset instructions will be sent.",
+		"message": "إذا كان البريد مسجلًا، ستصلك تعليمات الاستعادة. تحقق من البريد الوارد والرسائل غير المرغوب فيها.",
 	})
 }
 

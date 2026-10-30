@@ -29,13 +29,50 @@ func (a authStub) VerifyCSRF(identityapp.Authenticated, string) error {
 }
 
 type repoStub struct {
-	contexts         []orgdomain.SchoolContext
-	page             orgdomain.SchoolPage
-	membershipWrite  orgdomain.MembershipWrite
-	directorWrite    orgdomain.DirectorWrite
-	assignmentWrite  orgdomain.AssignmentWrite
-	teacherWorkspace orgdomain.TeacherWorkspace
-	parentAuthority  orgdomain.ParentAuthority
+	contexts                   []orgdomain.SchoolContext
+	page                       orgdomain.SchoolPage
+	membershipWrite            orgdomain.MembershipWrite
+	directorWrite              orgdomain.DirectorWrite
+	assignmentWrite            orgdomain.AssignmentWrite
+	teacherWorkspace           orgdomain.TeacherWorkspace
+	parentAuthority            orgdomain.ParentAuthority
+	allowedSchoolID            string
+	directorOverview           orgdomain.DirectorOverview
+	lastDirectorOverviewSchool string
+}
+
+func (r *repoStub) DirectorCreateAssessment(_ context.Context, _ string, _ string, input orgdomain.DirectorAssessmentCreate) (orgdomain.DirectorAssessmentCreated, error) {
+	return orgdomain.DirectorAssessmentCreated{AssessmentID: "00000000-0000-0000-0000-000000000999", Title: input.Title, ClassID: input.ClassID, TargetScope: input.TargetScope}, nil
+}
+
+func (r *repoStub) DirectorAssessmentQuestions(_ context.Context, _, _, _, _, _ string, _, _ int) (orgdomain.DirectorAssessmentQuestionPage, error) {
+	return orgdomain.DirectorAssessmentQuestionPage{Items: []orgdomain.DirectorAssessmentQuestion{}}, nil
+}
+
+func (r *repoStub) DirectorAssessmentEligibleStudents(_ context.Context, _, _, _ string, _, _ int) (orgdomain.DirectorAssessmentStudentPage, error) {
+	return orgdomain.DirectorAssessmentStudentPage{Items: []orgdomain.DirectorAssessmentCandidate{}}, nil
+}
+
+func (r *repoStub) DirectorAssessmentReport(_ context.Context, _, _, _ string) (orgdomain.DirectorAssessmentReport, error) {
+	return orgdomain.DirectorAssessmentReport{}, nil
+}
+
+func (r *repoStub) DirectorAssessmentLearners(_ context.Context, _, _, _ string, query orgdomain.DirectorAssessmentLearnerQuery) (orgdomain.DirectorAssessmentLearnerPage, error) {
+	var page orgdomain.DirectorAssessmentLearnerPage
+	page.Learners = []orgdomain.DirectorAssessmentLearner{{StudentID: "student-1", Name: "طالبة أ"}}
+	page.Pagination.Page = query.Page
+	page.Pagination.Limit = query.Limit
+	page.Pagination.Total = 1
+	page.Pagination.TotalPages = 1
+	return page, nil
+}
+
+func (r *repoStub) DirectorAssessmentLearnerResult(_ context.Context, _, _, _, attemptID string) (orgdomain.DirectorAssessmentLearnerResult, error) {
+	var result orgdomain.DirectorAssessmentLearnerResult
+	result.Result.ID = attemptID
+	result.Result.Sections = []orgdomain.DirectorAssessmentResultDimension{}
+	result.Result.Skills = []orgdomain.DirectorAssessmentResultDimension{}
+	return result, nil
 }
 
 func (r *repoStub) ParentAuthority(_ context.Context, _ string) (orgdomain.ParentAuthority, error) {
@@ -267,14 +304,23 @@ func (r *repoStub) DirectorTeachers(
 	}, nil
 }
 
+func (r *repoStub) DirectorOverview(_ context.Context, schoolID string) (orgdomain.DirectorOverview, error) {
+	r.lastDirectorOverviewSchool = schoolID
+	return r.directorOverview, nil
+}
+
+func (r *repoStub) DirectorAssessments(_ context.Context, _ string) (orgdomain.DirectorAssessmentWorkspace, error) {
+	return orgdomain.DirectorAssessmentWorkspace{Assessments: []orgdomain.SchoolDirectorAssessment{}, Classes: []orgdomain.DirectorOverviewClass{}}, nil
+}
+
 func (r *repoStub) CanAccessSchool(context.Context, orgdomain.AccessContext, string) (bool, error) {
 	return true, nil
 }
 func (r *repoStub) CanManageSchool(context.Context, string, string) (bool, error) {
 	return true, nil
 }
-func (r *repoStub) HasSchoolPermission(context.Context, string, string, string) (bool, error) {
-	return true, nil
+func (r *repoStub) HasSchoolPermission(_ context.Context, _ string, schoolID string, _ string) (bool, error) {
+	return r.allowedSchoolID == "" || r.allowedSchoolID == schoolID, nil
 }
 
 func adminAuth() identityapp.Authenticated {
@@ -389,7 +435,7 @@ func TestExplicitEmptyDirectorPermissionsArePreserved(t *testing.T) {
 	}
 }
 
-func TestAssignmentAllowsLegacySubjectAgnosticPayload(t *testing.T) {
+func TestAssignmentRejectsActiveSubjectAgnosticPayload(t *testing.T) {
 	repo := &repoStub{}
 	service := orgapp.NewService(repo)
 	handler := New(service, authStub{auth: adminAuth()})
@@ -403,11 +449,11 @@ func TestAssignmentAllowsLegacySubjectAgnosticPayload(t *testing.T) {
 
 	handler.ServeHTTP(response, request)
 
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d body=%s", response.Code, response.Body.String())
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", response.Code, response.Body.String())
 	}
-	if repo.assignmentWrite.SubjectID != "" {
-		t.Fatalf("expected subject-agnostic assignment, got %q", repo.assignmentWrite.SubjectID)
+	if repo.assignmentWrite.TeacherID != "" {
+		t.Fatal("invalid assignment must not reach repository")
 	}
 }
 
