@@ -55,12 +55,12 @@ test('school teacher keeps the original in-page assessment tab on reload and bac
   const nav = page.getByRole('navigation', { name: 'أقسام اللوحة' });
   await nav.locator('summary').filter({ hasText: 'الاختبارات والتكليفات' }).click();
   await nav.getByRole('button', { name: 'اختباراتي وتكليفاتي' }).click();
-  await expect(page).toHaveURL(/school-teacher-dashboard\\?tab=assessments/);
+  await expect(page).toHaveURL(/school-teacher-dashboard\?tab=assessments/);
   await page.reload();
   await expect(page.getByRole('navigation', { name: 'أقسام اللوحة' })
     .getByRole('button', { name: 'اختباراتي وتكليفاتي' })).toHaveAttribute('aria-current', 'page');
   await page.goBack();
-  await expect(page).toHaveURL(/school-teacher-dashboard(?:\\?|$)/);
+  await expect(page).toHaveURL(/school-teacher-dashboard(?:\?|$)/);
   await expect(page.getByRole('navigation', { name: 'أقسام اللوحة' })
     .getByRole('button', { name: 'نظرة عامة' })).toHaveAttribute('aria-current', 'page');
 });
