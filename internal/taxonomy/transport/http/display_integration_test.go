@@ -108,7 +108,7 @@ func TestTaxonomyDisplayHTTPPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pathPatch := `{"showInNavbar":false,"showInHome":false,"settings":{"showSubjectCards":false,"showMockExamCard":false,"showPackageCard":false,"studentTemplate":"simple","stageSelection":"required","stageLabel":""}}`
+	pathPatch := `{"showInNavbar":false,"showInHome":true,"settings":{"showSubjectCards":false,"showMockExamCard":false,"showPackageCard":false,"studentTemplate":"simple","stageSelection":"required","stageLabel":""}}`
 	pathResponse := serve(http.MethodPatch, "/admin/paths/"+path.ID, pathPatch, "admin")
 	if pathResponse.Code != http.StatusOK {
 		t.Fatalf("path patch status=%d body=%s", pathResponse.Code, pathResponse.Body.String())
@@ -143,10 +143,23 @@ func TestTaxonomyDisplayHTTPPostgres(t *testing.T) {
 	pathDTO := paths[0].(map[string]any)
 	settings := pathDTO["settings"].(map[string]any)
 	subjectDTO := subjects[0].(map[string]any)
-	if pathDTO["showInNavbar"] != false || pathDTO["showInHome"] != false ||
+	if pathDTO["showInNavbar"] != false || pathDTO["showInHome"] != true ||
 		settings["showSubjectCards"] != false || settings["showMockExamCard"] != false || settings["showPackageCard"] != false || settings["studentTemplate"] != "simple" || settings["stageSelection"] != "required" || settings["stageLabel"] != "" ||
 		subjectDTO["icon"] != "🧪" || subjectDTO["color"] != "#abcdef" {
 		t.Fatalf("saved display metadata did not reach public consumer: %s", public.Body.String())
+	}
+
+	homeHidden := serve(http.MethodPatch, "/admin/paths/"+path.ID, `{"showInHome":false}`, "admin")
+	if homeHidden.Code != http.StatusOK {
+		t.Fatalf("showInHome-only patch status=%d body=%s", homeHidden.Code, homeHidden.Body.String())
+	}
+	homeHiddenView := serve(http.MethodGet, "/bootstrap?phase=core", "", "")
+	if err := json.Unmarshal(homeHiddenView.Body.Bytes(), &projection); err != nil {
+		t.Fatal(err)
+	}
+	paths = projection["paths"].([]any)
+	if paths[0].(map[string]any)["showInNavbar"] != false || paths[0].(map[string]any)["showInHome"] != false {
+		t.Fatalf("showInHome patch changed the independent navbar flag: %s", homeHiddenView.Body.String())
 	}
 
 	if _, err := db.Exec(ctx, `ALTER TABLE audit_logs ADD CONSTRAINT reject_display_update CHECK (action <> 'taxonomy.path.update') NOT VALID`); err != nil {
