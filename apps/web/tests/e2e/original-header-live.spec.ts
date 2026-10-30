@@ -61,26 +61,29 @@ async function openAccount(page:Page,role:'admin'|'student'){
 }
 function exactPixelDifference(actual:Buffer,expected:Buffer){
  const left=PNG.sync.read(actual);const right=PNG.sync.read(expected);
- if(left.width!==right.width||left.height!==right.height)return {width:left.width,height:left.height,expectedWidth:right.width,expectedHeight:right.height,diffPixels:-1,bounds:null};
+ if(left.width!==right.width||left.height!==right.height)return {width:left.width,height:left.height,expectedWidth:right.width,expectedHeight:right.height,diffPixels:-1,bounds:null,samples:[] as Array<{x:number;y:number;source:number[];go:number[]}>};
  let diffPixels=0,minX=left.width,minY=left.height,maxX=-1,maxY=-1;
+ const samples:Array<{x:number;y:number;source:number[];go:number[]}>=[];
  for(let y=0;y<left.height;y++)for(let x=0;x<left.width;x++){
   const offset=(y*left.width+x)*4;
   if(left.data[offset]!==right.data[offset]||left.data[offset+1]!==right.data[offset+1]||left.data[offset+2]!==right.data[offset+2]||left.data[offset+3]!==right.data[offset+3]){
    diffPixels++;minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);
+   if(samples.length<12)samples.push({x,y,source:Array.from(right.data.subarray(offset,offset+4)),go:Array.from(left.data.subarray(offset,offset+4))});
   }
  }
- return {width:left.width,height:left.height,diffPixels,bounds:diffPixels?{minX,minY,maxX,maxY}:null};
+ return {width:left.width,height:left.height,diffPixels,bounds:diffPixels?{minX,minY,maxX,maxY}:null,samples};
 }
-async function visualMetrics(page:Page){return page.evaluate(()=>{
- const box=(element:Element|null)=>{if(!element)return null;const r=element.getBoundingClientRect();const s=getComputedStyle(element);return {x:r.x,y:r.y,width:r.width,height:r.height,display:s.display,position:s.position,fontFamily:s.fontFamily,fontSize:s.fontSize,fontWeight:s.fontWeight,lineHeight:s.lineHeight,color:s.color,backgroundColor:s.backgroundColor,borderColor:s.borderColor,padding:s.padding,gap:s.gap}};
+async function visualMetrics(page:Page,points:Array<{x:number;y:number}>=[]){return page.evaluate((samplePoints)=>{
+ const box=(element:Element|null)=>{if(!element)return null;const r=element.getBoundingClientRect();const s=getComputedStyle(element);return {tag:element.tagName,className:typeof (element as HTMLElement).className==='string'?(element as HTMLElement).className:'',aria:element.getAttribute('aria-label'),text:(element.textContent||'').replace(/\\s+/g,' ').trim().slice(0,80),x:r.x,y:r.y,width:r.width,height:r.height,display:s.display,position:s.position,fontFamily:s.fontFamily,fontSize:s.fontSize,fontWeight:s.fontWeight,lineHeight:s.lineHeight,color:s.color,backgroundColor:s.backgroundColor,borderColor:s.borderColor,borderRadius:s.borderRadius,boxShadow:s.boxShadow,opacity:s.opacity,transform:s.transform,textShadow:s.textShadow,padding:s.padding,gap:s.gap}};
  const header=document.querySelector('header');const close=document.querySelector('button[aria-label="إغلاق القائمة"]');const r=close?.getBoundingClientRect();
  const visible=(element:Element)=>{const rect=element.getBoundingClientRect();return rect.width>0&&rect.height>0};
  const links=Array.from(header?.querySelectorAll('a,button')||[]).filter(visible).map(element=>({tag:element.tagName,text:(element.textContent||'').replace(/\\s+/g,' ').trim(),aria:element.getAttribute('aria-label'),href:element.getAttribute('href'),...box(element)}));
  const svgs=Array.from(header?.querySelectorAll('svg')||[]).filter(visible).map((element,index)=>{const html=element.outerHTML;const hash=Array.from(html).reduce((value,char)=>((value<<5)-value+char.charCodeAt(0))|0,0).toString(16);return {index,hash,className:element.getAttribute('class'),...box(element)}});
  const family=(header?getComputedStyle(header).fontFamily:'Tajawal').split(',')[0].replace(/["']/g,'').trim();
  const fonts=['400 16px','500 14px','700 14px','700 12px','800 12px','900 12px'].map(spec=>({font:spec+' '+family,available:document.fonts.check(spec+' '+family)}));
- return {viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,header:box(header),links,svgs,fonts,mobileCloseReachable:r?close===document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)||close?.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)):null};
-})}
+ const hitTargets=samplePoints.slice(0,12).map(point=>{let element=document.elementFromPoint(point.x,point.y);const chain=[];for(let depth=0;element&&depth<5;depth++,element=element.parentElement)chain.push(box(element));return {point,chain}});
+ return {viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,header:box(header),links,svgs,fonts,hitTargets,mobileCloseReachable:r?close===document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)||close?.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)):null};
+},points)}
 
 test.describe('original full Header on native Go data',()=>{
  test.skip(!live,'HEADER_LIVE=1: isolated real Go/PostgreSQL fixture only');
@@ -110,8 +113,9 @@ test.describe('original full Header on native Go data',()=>{
      if(state==='account'){await openAccount(source,role);await openAccount(page,role)}
      const expected=await attachPage(source,info,`header-${role}-${width}-${state}-source`);
      const actual=await attachPage(page,info,`header-${role}-${width}-${state}-go`);
-     const sourceMetrics=await visualMetrics(source);const targetMetrics=await visualMetrics(page);
      const pixelDiff=exactPixelDifference(actual,expected);
+     const samplePoints=pixelDiff.samples.map(({x,y})=>({x,y}));
+     const sourceMetrics=await visualMetrics(source,samplePoints);const targetMetrics=await visualMetrics(page,samplePoints);
      if(pixelDiff.diffPixels!==0)console.log('[HEADER_PIXEL_DIFF] '+JSON.stringify({role,width,state,pixelDiff,source:sourceMetrics,go:targetMetrics}));
      await info.attach(`header-${role}-${width}-${state}-metrics`,{body:JSON.stringify({source:sourceMetrics,go:targetMetrics,scope:'Header component + shared real providers and StudentPathBar; not whole legacy App'}),contentType:'application/json'});
      expect.soft(pixelDiff.diffPixels,`${role}/${width}/${state}: exact original full visible Header pixels`).toBe(0);
