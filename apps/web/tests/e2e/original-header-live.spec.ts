@@ -42,8 +42,8 @@ async function openPath(page:Page,level=false){
 async function openMockExams(page:Page){
  const nav=page.locator('header').first().locator('nav');
  await nav.getByRole('link',{name:'اختبارات محاكية',exact:true}).hover();
- const path=nav.getByRole('link',{name:'قدرات',exact:true});
- await expect(path).toHaveAttribute('href','/category/'+env('HEADER_PATH_ID')+'?tab=mock-exams');
+ const path=nav.locator('a[href="/category/'+env('HEADER_PATH_ID')+'?tab=mock-exams"]');
+ await expect(path).toBeVisible();await expect(path).toContainText('قدرات');
 }
 async function openMore(page:Page){
  const nav=page.locator('header').first().locator('nav');
@@ -57,8 +57,10 @@ async function openAccount(page:Page){
  await expect(header.locator('a[href*="dashboard"]')).toHaveCount(1);
 }
 async function visualMetrics(page:Page){return page.evaluate(()=>{
- const close=document.querySelector('button[aria-label="إغلاق القائمة"]');const box=close?.getBoundingClientRect();
- return {viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,mobileCloseReachable:box?close===document.elementFromPoint(box.x+box.width/2,box.y+box.height/2)||close?.contains(document.elementFromPoint(box.x+box.width/2,box.y+box.height/2)):null};
+ const box=(element:Element|null)=>{if(!element)return null;const r=element.getBoundingClientRect();const s=getComputedStyle(element);return {x:r.x,y:r.y,width:r.width,height:r.height,display:s.display,position:s.position,fontFamily:s.fontFamily,fontSize:s.fontSize,fontWeight:s.fontWeight,lineHeight:s.lineHeight,color:s.color,backgroundColor:s.backgroundColor,borderColor:s.borderColor,padding:s.padding,gap:s.gap}};
+ const header=document.querySelector('header');const close=header?.querySelector('button[aria-label="إغلاق القائمة"]');const r=close?.getBoundingClientRect();
+ const links=Array.from(header?.querySelectorAll('a,button')||[]).map(element=>({tag:element.tagName,text:(element.textContent||'').replace(/\\s+/g,' ').trim(),aria:element.getAttribute('aria-label'),href:element.getAttribute('href'),...box(element)}));
+ return {viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,header:box(header),links,mobileCloseReachable:r?close===document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)||close?.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)):null};
 })}
 
 test.describe('original full Header on native Go data',()=>{
@@ -90,6 +92,7 @@ test.describe('original full Header on native Go data',()=>{
      const expected=await attachPage(source,info,`header-${role}-${width}-${state}-source`);
      const actual=await attachPage(page,info,`header-${role}-${width}-${state}-go`);
      const sourceMetrics=await visualMetrics(source);const targetMetrics=await visualMetrics(page);
+     if(Buffer.compare(actual,expected)!==0)console.log('[HEADER_VISUAL_METRICS] '+JSON.stringify({role,width,state,source:sourceMetrics,go:targetMetrics}));
      await info.attach(`header-${role}-${width}-${state}-metrics`,{body:JSON.stringify({source:sourceMetrics,go:targetMetrics,scope:'Header component + shared real providers and StudentPathBar; not whole legacy App'}),contentType:'application/json'});
      expect.soft(Buffer.compare(actual,expected),`${role}/${width}/${state}: exact original full visible Header pixels`).toBe(0);
      expect.soft(targetMetrics,`${role}/${width}/${state}: original overflow and close-hit-test behavior`).toEqual(sourceMetrics);
