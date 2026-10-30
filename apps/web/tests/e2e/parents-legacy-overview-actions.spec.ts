@@ -33,6 +33,8 @@ for (const width of [390, 820, 1440]) {
     await page.goto('/parent-dashboard');
     const hero = page.locator('main[data-testid="parent-workspace"] > div > header');
     await expect(hero.getByRole('heading', { name: 'متابعة الأبناء ببساطة' })).toBeVisible();
+    await expect(hero.getByText('درجة، مهارة تحتاج متابعة، وخطوة واحدة واضحة.', { exact: true })).toBeVisible();
+    await expect(hero.getByRole('button', { name: 'تحديث لوحة ولي الأمر' })).toBeVisible();
     await expect(hero.getByRole('button', { name: 'التقرير', exact: true })).toBeVisible();
     await expect(page.getByRole('region', { name: 'وصول سريع لولي الأمر' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'الإشعارات والملخصات' })).toHaveCount(0);
