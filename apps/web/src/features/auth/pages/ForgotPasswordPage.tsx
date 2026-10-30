@@ -18,8 +18,10 @@ export function ForgotPasswordPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await forgotPassword(email.trim());
-      setMessage(response.message || 'تم إرسال تعليمات الاستعادة إذا كان البريد مسجلا لدينا.');
+      await forgotPassword(email.trim());
+      // Legacy deliberately displays one non-enumerating confirmation for every
+      // successful request, regardless of the HTTP response message.
+      setMessage('إذا كان البريد مسجلًا، ستصلك تعليمات الاستعادة. تحقق من البريد الوارد والرسائل غير المرغوب فيها.');
     } catch (requestError) {
       setError(
         requestError instanceof Error
