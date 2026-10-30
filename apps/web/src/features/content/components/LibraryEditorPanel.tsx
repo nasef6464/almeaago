@@ -102,16 +102,18 @@ export function LibraryEditorPanel({
   useEffect(() => {
     // The detail request can finish before taxonomy. Never discard persisted links
     // by filtering them against the initial, intentionally empty skill catalog.
-    if (!taxonomyReady) return;
+    // Full taxonomy may finish before the edited library item. Never clean
+    // persisted skill links against the initial empty subject while hydrating.
+    if (!taxonomyReady || (editing && !existing)) return;
     if (subjectId && !subjects.some((subject) => subject.id === subjectId)) {
       setSubjectId('');
       setSkillIds([]);
     }
-  }, [subjectId, subjects, taxonomyReady]);
+  }, [subjectId, subjects, taxonomyReady, editing, existing]);
   useEffect(() => {
-    if (!taxonomyReady) return;
+    if (!taxonomyReady || (editing && !existing)) return;
     setSkillIds((current) => current.filter((id) => skills.some((skill) => skill.id === id)));
-  }, [skills, taxonomyReady]);
+  }, [skills, taxonomyReady, editing, existing]);
 
   const lockedByWorkflow = Boolean(existing && (existing.workflowStatus === 'approved' || existing.workflowStatus === 'archived'));
   const canMutate = !lockedByWorkflow;
