@@ -108,7 +108,7 @@ func TestTaxonomyDisplayHTTPPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pathPatch := `{"showInNavbar":false,"showInHome":false,"settings":{"showMockExamCard":false,"stageSelection":"required","stageLabel":""}}`
+	pathPatch := `{"showInNavbar":false,"showInHome":false,"settings":{"showSubjectCards":false,"showMockExamCard":false,"showPackageCard":false,"studentTemplate":"simple","stageSelection":"required","stageLabel":""}}`
 	pathResponse := serve(http.MethodPatch, "/admin/paths/"+path.ID, pathPatch, "admin")
 	if pathResponse.Code != http.StatusOK {
 		t.Fatalf("path patch status=%d body=%s", pathResponse.Code, pathResponse.Body.String())
@@ -144,7 +144,7 @@ func TestTaxonomyDisplayHTTPPostgres(t *testing.T) {
 	settings := pathDTO["settings"].(map[string]any)
 	subjectDTO := subjects[0].(map[string]any)
 	if pathDTO["showInNavbar"] != false || pathDTO["showInHome"] != false ||
-		settings["showMockExamCard"] != false || settings["stageSelection"] != "required" || settings["stageLabel"] != "" ||
+		settings["showSubjectCards"] != false || settings["showMockExamCard"] != false || settings["showPackageCard"] != false || settings["studentTemplate"] != "simple" || settings["stageSelection"] != "required" || settings["stageLabel"] != "" ||
 		subjectDTO["icon"] != "🧪" || subjectDTO["color"] != "#abcdef" {
 		t.Fatalf("saved display metadata did not reach public consumer: %s", public.Body.String())
 	}
