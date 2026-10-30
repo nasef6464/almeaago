@@ -55,6 +55,7 @@ func TestAdminPathParentCyclePostgres(t *testing.T) {
 			id uuid PRIMARY KEY, code text NOT NULL, name text NOT NULL,
 			parent_path_id uuid REFERENCES paths(id), description text NOT NULL DEFAULT '',
 			sort_order integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'active',
+			presentation jsonb NOT NULL DEFAULT '{}'::jsonb,
 			updated_at timestamptz NOT NULL DEFAULT now(),
 			CONSTRAINT paths_parent_not_self CHECK(parent_path_id IS NULL OR parent_path_id <> id))`,
 		`CREATE TABLE audit_logs(actor_user_id uuid, action text, resource_type text,
