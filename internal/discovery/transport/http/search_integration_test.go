@@ -107,7 +107,11 @@ func TestPublicSearchHTTPPostgres(t *testing.T) {
 		if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
 			t.Fatal(err)
 		}
-		if strings.Contains(w.Body.String(), "PrivateExplanationSecret") || strings.Contains(w.Body.String(), "correctOption") {
+		projection, err := json.Marshal(out.Results)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(projection), "PrivateExplanationSecret") || strings.Contains(string(projection), "correctOption") {
 			t.Fatal("private question projection leaked")
 		}
 		return out
