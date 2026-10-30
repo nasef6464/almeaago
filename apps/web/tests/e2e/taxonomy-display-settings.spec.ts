@@ -15,7 +15,7 @@ async function setup(page: Page) {
       id: 'path-1', code: 'QDR', name: 'القدرات', parentPathId: '',
       description: 'المسار الأساسي', sortOrder: 1, status: 'active',
       showInNavbar: true, showInHome: true,
-      settings: { showMockExamCard: true, stageSelection: 'auto', stageLabel: 'المرحلة' },
+      settings: { showSubjectCards: true, showMockExamCard: true, showPackageCard: true, studentTemplate: 'standard', stageSelection: 'auto', stageLabel: 'المرحلة' },
     }],
     levels: [{ id: 'level-1', pathId: 'path-1', code: 'L1', name: 'المرحلة الأولى', sortOrder: 1, status: 'active' }],
     subjects: [{
@@ -67,7 +67,10 @@ for (const width of [390, 820, 1440]) {
     await expect(editor.getByLabel('إظهار المسار في القائمة العلوية')).toBeChecked();
     await editor.getByLabel('إظهار المسار في القائمة العلوية').uncheck();
     await editor.getByLabel('إظهار المسار في الصفحة الرئيسية').uncheck();
+    await editor.getByLabel('إظهار بطاقات المواد').uncheck();
     await editor.getByLabel('إظهار بطاقة الاختبارات المحاكية').uncheck();
+    await editor.getByLabel('إظهار بطاقة الباقات').uncheck();
+    await editor.getByLabel('قالب مساحة المسار').selectOption('simple');
     await editor.getByLabel('طريقة اختيار المرحلة').selectOption('required');
     await editor.getByLabel('تسمية المرحلة').fill('');
     await editor.getByRole('button', { name: 'حفظ عرض المسار' }).click();
@@ -79,7 +82,7 @@ for (const width of [390, 820, 1440]) {
     expect(pathWrite.body).toMatchObject({
       showInNavbar: false,
       showInHome: false,
-      settings: { showMockExamCard: false, stageSelection: 'required', stageLabel: '' },
+      settings: { showSubjectCards: false, showMockExamCard: false, showPackageCard: false, studentTemplate: 'simple', stageSelection: 'required', stageLabel: '' },
     });
 
     await editor.getByLabel('أيقونة المادة').fill('🧪');
@@ -93,7 +96,10 @@ for (const width of [390, 820, 1440]) {
     await page.reload();
     await expect(editor.getByLabel('إظهار المسار في القائمة العلوية')).not.toBeChecked();
     await expect(editor.getByLabel('إظهار المسار في الصفحة الرئيسية')).not.toBeChecked();
+    await expect(editor.getByLabel('إظهار بطاقات المواد')).not.toBeChecked();
     await expect(editor.getByLabel('إظهار بطاقة الاختبارات المحاكية')).not.toBeChecked();
+    await expect(editor.getByLabel('إظهار بطاقة الباقات')).not.toBeChecked();
+    await expect(editor.getByLabel('قالب مساحة المسار')).toHaveValue('simple');
     await expect(editor.getByLabel('طريقة اختيار المرحلة')).toHaveValue('required');
     await expect(editor.getByLabel('تسمية المرحلة')).toHaveValue('');
     await expect(editor.getByLabel('أيقونة المادة')).toHaveValue('🧪');
@@ -103,7 +109,7 @@ for (const width of [390, 820, 1440]) {
       fetch('/api/v1/taxonomy/bootstrap?phase=core').then(response => response.json()));
     expect(publicProjection.paths[0]).toMatchObject({
       showInNavbar: false, showInHome: false,
-      settings: { showMockExamCard: false, stageSelection: 'required', stageLabel: '' },
+      settings: { showSubjectCards: false, showMockExamCard: false, showPackageCard: false, studentTemplate: 'simple', stageSelection: 'required', stageLabel: '' },
     });
     expect(publicProjection.subjects[0]).toMatchObject({ icon: '🧪', color: '#abcdef' });
     await page.screenshot({ path: `test-results/taxonomy-display-${width}.png`, fullPage: true });
