@@ -17,7 +17,7 @@ const scenarios = [
   },
   {
     name: 'invalid credentials',
-    backend: 'Invalid email or password',
+    backend: 'Invalid credentials',
     visitor: 'بيانات الدخول غير صحيحة. راجعها، وإذا نسيت كلمة المرور اضغط «نسيت كلمة المرور» بدل تكرار المحاولات.',
   },
   {
