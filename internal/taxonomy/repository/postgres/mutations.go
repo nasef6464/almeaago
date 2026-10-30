@@ -43,7 +43,7 @@ func (r *Repository) UpdatePath(ctx context.Context, actor, pathID string, patch
 		return taxonomy.Path{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-if patch.ParentPathID != nil && *patch.ParentPathID != "" {
+	if patch.ParentPathID != nil && *patch.ParentPathID != "" {
 		// Serialize parent-changing commands before reading the ancestry. Without
 		// this lock, concurrent A -> B and B -> A updates can both pass a
 		// check against the previous committed tree.
@@ -67,7 +67,8 @@ if patch.ParentPathID != nil && *patch.ParentPathID != "" {
 			return taxonomy.Path{}, taxonomy.ErrConflict
 		}
 	}
-		set, args := []string{"updated_at=now()"}, []any{pathID}
+
+	set, args := []string{"updated_at=now()"}, []any{pathID}
 	add := func(expr string, v any) { args = append(args, v); set = append(set, fmt.Sprintf(expr, len(args))) }
 	if patch.Name != nil {
 		add("name=$%d", *patch.Name)
@@ -89,6 +90,7 @@ if patch.ParentPathID != nil && *patch.ParentPathID != "" {
 	} else if patch.ShowInNavbar != nil || patch.ShowInHome != nil {
 		add("presentation=presentation || $%d::jsonb", pathPresentation(patch.ShowInNavbar, patch.ShowInHome, nil))
 	}
+
 	var row taxonomy.Path
 	var display pathDisplay
 	q := `UPDATE paths SET ` + strings.Join(set, ",") + ` WHERE id=$1::uuid RETURNING id::text,code,name,COALESCE(parent_path_id::text,''),description,sort_order,status,presentation`
