@@ -82,11 +82,11 @@ for (const width of [390, 820, 1440]) {
     const editor = page.getByTestId('taxonomy-display-editor');
     await expect(editor).toBeVisible();
     await expect(editor.getByLabel('سؤال اختيار المرحلة')).toHaveValue('اختر مرحلتك');
-    await expect(editor.getByLabel('إظهار المسار في القائمة العلوية')).toBeChecked();
-    await editor.getByLabel('إظهار المسار في القائمة العلوية').uncheck();
-    await editor.getByLabel('إظهار بطاقات المواد').uncheck();
-    await editor.getByLabel('إظهار بطاقة الاختبارات المحاكية').uncheck();
-    await editor.getByLabel('إظهار بطاقة الباقات').uncheck();
+    await expect(editor.getByLabel('إظهار هذا المسار في القائمة العلوية الرئيسة')).toBeChecked();
+    await editor.getByLabel('إظهار هذا المسار في القائمة العلوية الرئيسة').uncheck();
+    await editor.getByLabel('المواد').uncheck();
+    await editor.getByLabel('الاختبارات التجريبية').uncheck();
+    await editor.getByLabel('الباقات').uncheck();
     await editor.getByLabel('عرض صفحة المسار').selectOption('simple');
     await editor.getByLabel('اختيار المرحلة').selectOption('none');
     await expect(editor.getByLabel('سؤال اختيار المرحلة')).toBeDisabled();
@@ -98,7 +98,7 @@ for (const width of [390, 820, 1440]) {
     await editor.getByLabel('سؤال اختيار المرحلة').fill('');
     await expect(editor.getByLabel('سؤال اختيار المرحلة')).toHaveValue('');
     await editor.getByRole('button', { name: 'حفظ عرض المسار' }).click();
-    await expect(editor.getByLabel('إظهار المسار في القائمة العلوية')).toBeDisabled();
+    await expect(editor.getByLabel('إظهار هذا المسار في القائمة العلوية الرئيسة')).toBeDisabled();
     await expect(editor.getByLabel('عرض صفحة المسار')).toBeDisabled();
     releaseFirstPathSave();
     await expect(page.getByText('تم حفظ إعدادات عرض المسار.')).toBeVisible();
@@ -121,11 +121,11 @@ for (const width of [390, 820, 1440]) {
     expect(subjectWrite.body).toEqual({ icon: '🧪', color: '#abcdef' });
 
     await page.reload();
-    await expect(editor.getByLabel('إظهار المسار في القائمة العلوية')).not.toBeChecked();
+    await expect(editor.getByLabel('إظهار هذا المسار في القائمة العلوية الرئيسة')).not.toBeChecked();
     await expect(editor.getByLabel('إظهار المسار في الصفحة الرئيسية')).toBeChecked();
-    await expect(editor.getByLabel('إظهار بطاقات المواد')).not.toBeChecked();
-    await expect(editor.getByLabel('إظهار بطاقة الاختبارات المحاكية')).not.toBeChecked();
-    await expect(editor.getByLabel('إظهار بطاقة الباقات')).not.toBeChecked();
+    await expect(editor.getByLabel('المواد')).not.toBeChecked();
+    await expect(editor.getByLabel('الاختبارات التجريبية')).not.toBeChecked();
+    await expect(editor.getByLabel('الباقات')).not.toBeChecked();
     await expect(editor.getByLabel('عرض صفحة المسار')).toHaveValue('simple');
     await expect(editor.getByLabel('اختيار المرحلة')).toHaveValue('required');
     await expect(editor.getByLabel('سؤال اختيار المرحلة')).toHaveValue('اختر مرحلتك');
@@ -154,7 +154,7 @@ for (const width of [390, 820, 1440]) {
     await expect.poll(() => writes.filter(x => x.path === 'path').length).toBe(2);
     expect(writes[1].body).toMatchObject({ showInNavbar: false, showInHome: false });
     await page.reload();
-    await expect(editor.getByLabel('إظهار المسار في القائمة العلوية')).not.toBeChecked();
+    await expect(editor.getByLabel('إظهار هذا المسار في القائمة العلوية الرئيسة')).not.toBeChecked();
     await expect(editor.getByLabel('إظهار المسار في الصفحة الرئيسية')).not.toBeChecked();
     const hiddenProjection = await page.evaluate(async () =>
       fetch('/api/v1/taxonomy/bootstrap?phase=core').then(response => response.json()));
