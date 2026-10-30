@@ -1,0 +1,32 @@
+name: School class literal PostgreSQL parity
+
+on:
+  pull_request:
+    paths:
+      - "internal/organizations/repository/postgres/classes.go"
+      - "internal/organizations/repository/postgres/classes_literal_search_parity_test.go"
+      - ".github/workflows/school-class-literal-postgres.yml"
+  workflow_dispatch:
+
+permissions: { contents: read }
+
+jobs:
+  class-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env: { POSTGRES_USER: almeaa, POSTGRES_PASSWORD: almeaa, POSTGRES_DB: almeaa }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U almeaa -d almeaa"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with: { go-version-file: go.mod }
+      - name: Verify literal class search and school scope in isolated PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/organizations/repository/postgres -run '^TestClassListLiteralSearch(Postgres|Query)$' -count=1 -v
