@@ -89,6 +89,12 @@ jobs:
           DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
         run: go test ./internal/learning/repository/postgres -run '^TestReadinessSingleQueryPostgres$' -count=1 -v
 
+      - name: Verify student navigation preferences and stage constraints against PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+          NAVIGATION_TEST_DB: "1"
+        run: go test ./internal/learning/navigation -run '^TestPostgresSaveReloadIsolationForeignLevelAndAuditRollback$' -count=1 -v
+
       - name: Verify persisted homepage settings and relations against PostgreSQL
         env:
           DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable

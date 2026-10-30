@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);const ts=require('typescript');
+function load(path){const module={exports:{}};new Function('module','exports',ts.transpileModule(readFileSync(new URL(path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(module,module.exports);return module.exports}
+const {buildStudentPathScope,resolveStageRequirement}=load('./studentPathScope.ts');
+const paths=[{id:'parent',name:'أصل'},{id:'p',name:'مسار',parentPathId:'parent'},{id:'child',name:'فرع',parentPathId:'p'},{id:'other',name:'آخر'},{id:'inactive',isActive:false}];
+const levels=[{id:'l',pathId:'p',name:'مرحلة'},{id:'l2',pathId:'p',name:'أخرى'}];const subjects=[{id:'s',pathId:'p',levelId:'l'},{id:'s2',pathId:'p',levelId:'l2'}];
+const base={user:{id:'actor',role:'student'},paths,levels,subjects,enrolledPaths:['p'],pathStageSelections:[{pathId:'p',levelId:'l'}],visibilityMode:'enrolled'};
+test('navigation retains ancestors and descendants while active content/stage scope is exact',()=>{const s=buildStudentPathScope({...base,activePathId:'p'});assert.equal(s.restricted,true);assert.equal(s.navigationPathVisible({id:'parent'}),true);assert.equal(s.navigationPathVisible({id:'child'}),true);assert.equal(s.navigationPathVisible({id:'other'}),false);assert.equal(s.pathVisible({id:'parent'}),false);assert.equal(s.matchesNavigationContent({subjectId:'s'}),true);assert.equal(s.matchesNavigationContent({subjectId:'s2'}),false);assert.equal(s.matchesContent({category:'مسار',levelId:'l'}),true)});
+test('guest/admin/logout have no learner restriction or retained active selection',()=>{for(const user of [{id:'guest',role:'student'},{id:'actor',role:'admin'},undefined]){const s=buildStudentPathScope({...base,user,activePathId:'p'});assert.equal(s.isStudent,false);assert.equal(s.restricted,false);assert.equal(s.activePathId,'');assert.equal(s.stageByPath.size,0)}});
+test('empty enrollment and stale inactive choices fall back to all paths without fabrication',()=>{for(const enrolledPaths of [[],['missing'],['inactive']]){const s=buildStudentPathScope({...base,enrolledPaths,activePathId:'p'});assert.equal(s.registeredPaths.length,0);assert.equal(s.restricted,false);assert.equal(s.activePathId,'')}});
+test('stage requirements honor omitted/none/required and stage label',()=>{assert.equal(resolveStageRequirement({id:'p'},levels).requiresStage,true);assert.equal(resolveStageRequirement({id:'p',settings:{stageSelection:'none'}},levels).requiresStage,false);assert.deepEqual(resolveStageRequirement({id:'empty',settings:{stageSelection:'required',stageLabel:'  مرحلتي  '}},levels),{requiresStage:true,levels:[],label:'مرحلتي'})});

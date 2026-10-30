@@ -1,4 +1,4 @@
-# STUDENT-FOUNDATION-WORKSPACE-01 — استعادة نافذة موضوع التأسيس (جزئي)
+# STUDENT-FOUNDATION-WORKSPACE-01 — استعادة نافذة موضوع التأسيس (جزئي، منقول إلى PR #229)
 
 ## مرجع المقارنة
 - Legacy READ ONLY: `nasef6464/almeaacodax@bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7`، `pages/SubjectLearningPage.tsx`: نافذة الموضوع الرئيسي والفرعي، تبويبات `الشروحات / التدريبات القصيرة / ملف الدعم`، وعقد رابط `tab=skills&topic=...&content=...`.
@@ -28,3 +28,7 @@
 
 ## الخطوة التنفيذية التالية
 إضافة قراءة درس تأسيس/ملف دعم مرخصة وآمنة عبر Go Content/Commerce boundary، وربط الدرس بالمشغل دون autoplay، ثم التدريبات القصيرة المرتبطة بنفس `pathId/subjectId/topicId`، مع مقارنات بصرية مقترنة وصلاحيات وإعادة تحميل.
+
+
+## دمج الملكية
+نُقلت هذه الشريحة إلى فرع التكامل `feat/student-navigation-scope-20261030` لتوحيد مالك `LearningSpacePage.tsx` مع شجرة التنقل. يظل PR #168 مسودة تاريخية وسيُغلق بعد التحقق من وجود كامل التغييرات في PR #229؛ لا يُدمج الفرعان بالتوازي.

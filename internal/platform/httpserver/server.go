@@ -48,6 +48,7 @@ type Dependencies struct {
 	AI                       http.Handler
 	Commerce                 http.Handler
 	LegacySchoolAccess       http.Handler
+	NavigationPreferences    http.Handler
 }
 
 func New(addr string, deps Dependencies) *http.Server {
@@ -97,6 +98,9 @@ func New(addr string, deps Dependencies) *http.Server {
 	}
 	if deps.Taxonomy != nil {
 		router.Mount("/api/v1/taxonomy", deps.Taxonomy)
+	}
+	if deps.NavigationPreferences != nil {
+		router.Handle("/api/v1/learning/navigation-preferences", deps.NavigationPreferences)
 	}
 	if deps.QuestionBank != nil {
 		router.Mount("/api/v1/questions", deps.QuestionBank)

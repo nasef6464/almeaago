@@ -1,0 +1,5 @@
+import type {CommercePaymentMethod,CommerceGatewayMode,CommercePage,CommerceProductType} from '../../../commerce/api/commerce-types';
+export interface PublicProduct{id:string;productType:CommerceProductType;name:string;description:string;priceMinor:number;currency:string;publicMembership:boolean;contentTypes?:string[]}
+const BASE=(import.meta.env.VITE_API_BASE_URL??'').replace(/\/$/,'');
+async function get<T>(path:string,signal?:AbortSignal):Promise<T>{const r=await fetch(BASE+path,{credentials:'include',signal,headers:{Accept:'application/json'}});if(!r.ok)throw new Error('تعذر تحميل بيانات الشراء');return r.json() as Promise<T>}
+export const publicCommerceClient={catalog:(page=1,signal?:AbortSignal,pathId='')=>get<CommercePage<PublicProduct>>(`/api/v1/commerce/catalog/products?page=${page}&limit=100${pathId?`&pathId=${encodeURIComponent(pathId)}`:''}`,signal),paymentOptions:(signal?:AbortSignal)=>get<{methods:CommercePaymentMethod[];gatewayMode:CommerceGatewayMode}>('/api/v1/commerce/catalog/payment-options',signal)};

@@ -1,50 +1,77 @@
-import {Bell,BookOpen,ChevronDown,LogIn,Menu,Radio,X} from 'lucide-react';
-import {useHomepageSettings} from '../../presentation/useHomepageSettings';
+import {Award,Bell,BookOpen,ChevronDown,Gift,LogIn,Menu,Radio,X} from 'lucide-react';
 import {useEffect,useMemo,useState} from 'react';
 import {Link,useLocation} from 'react-router-dom';
 
-import {contentClient} from '../../content/api/content-client';
-import type {TaxonomyCore} from '../../content/api/content-types';
+import {StudentNavigationProvider,StudentPathBar,useStudentExperience} from '../../learning/navigation';
 import {useAuth} from '../../auth/state/AuthProvider';
 import {dashboardPathFor} from '../../auth/utils/dashboard-path';
+import {buildHeaderNavigation} from './headerNavigation';
+import type {HeaderNode} from './headerNavigation';
 
 type AuthMode='login'|'signup';
 
-export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}){
+function LegacySiteHeaderContent({onAuth}:{onAuth(mode:AuthMode):void}){
   const{user}=useAuth();
-  const homepage=useHomepageSettings();
+  const experience=useStudentExperience();
+  const taxonomy=useMemo(()=>({paths:experience.paths,levels:experience.levels,subjects:experience.subjects}),[experience.paths,experience.levels,experience.subjects]);
+  const scope=experience.scope;
+  const homepage=experience.homepageSettings ?? {};
   const brand=homepage.brand;
   const logoUrl=String(brand?.logoUrl || '').trim();
   const logoAlt=String(brand?.logoAlt || 'منصة المئة').trim();
   const logoText=String(brand?.logoText || 'منصة').trim();
   const logoAccentText=String(brand?.logoAccentText || 'المئة').trim();
   const nav=homepage.navigation;
-  const navItem=(id:string)=>nav?.items?.find(i=>i.id===id);
-  const visible=(id:string)=>navItem(id)?.visible!==false;
-  const label=(id:string,fallback:string)=>navItem(id)?.label?.trim()||fallback;
   const location=useLocation();
   const[menuOpen,setMenuOpen]=useState(false);
   const[activeDropdown,setActiveDropdown]=useState<string|null>(null);
   const[expandedPath,setExpandedPath]=useState<string|null>(null);
-  const[taxonomy,setTaxonomy]=useState<TaxonomyCore>({paths:[],subjects:[]});
+  const[activeStage,setActiveStage]=useState<string|null>(null);
+  const[expandedMobileStage,setExpandedMobileStage]=useState<string|null>(null);
   const dashboardHref=user?dashboardPathFor(user):'';
-
-  useEffect(()=>{
-    const controller=new AbortController();
-    contentClient.taxonomyCore(controller.signal).then(setTaxonomy).catch(()=>{});
-    return()=>controller.abort();
-  },[]);
 
   useEffect(()=>{
     setMenuOpen(false);
     setActiveDropdown(null);
     setExpandedPath(null);
+    setActiveStage(null);
+    setExpandedMobileStage(null);
   },[location.pathname,location.search]);
 
-  const paths=useMemo(
-    ()=>(nav?.showAutoPaths===false?[]:[...taxonomy.paths]).sort((a,b)=>a.sortOrder-b.sortOrder).slice(0,4),
-    [taxonomy.paths,nav?.showAutoPaths],
-  );
+  const navigationMenu=useMemo(()=>buildHeaderNavigation(taxonomy,nav,user,scope),[taxonomy,nav,user,scope]);
+
+  const renderDesktopChild=(child:HeaderNode)=>{
+    if(child.kind==='divider')return <div key={child.id} className="mx-3 my-2 h-px bg-slate-100"/>;
+    if(child.kind==='level')return <div key={child.id} className="mx-2 my-1" onMouseEnter={()=>{if(child.children?.length)setActiveStage(child.id)}}>
+      <button type="button" onClick={()=>setActiveStage(value=>value===child.id?null:child.id)}
+        className="flex w-full items-center justify-between rounded-lg bg-slate-100 px-3 py-2 text-right text-xs font-black text-indigo-950">
+        <span>📂 {child.label}</span><ChevronDown size={14} className={activeStage===child.id?'rotate-180':''}/>
+      </button>
+      {activeStage===child.id?<div className="mr-3 border-r-2 border-indigo-300 pr-2">
+        {child.children?.map(subject=><Link key={subject.id} to={subject.href} className="block rounded-lg px-3 py-2 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">• {subject.label}</Link>)}
+        <Link to={child.href} className="block px-3 py-2 text-xs font-black text-indigo-600">استعراض كامل {child.label} ←</Link>
+      </div>:null}
+    </div>;
+    return <Link key={child.id} to={child.href}
+      className={`mx-2 flex items-center justify-between rounded-lg px-3 py-2 text-xs font-bold hover:bg-indigo-50 ${child.kind==='mock-exam'?'bg-purple-50 text-purple-800':child.kind==='package'?'bg-amber-50 text-amber-800':'text-slate-700'}`}>
+      <span className="flex items-center gap-2">{child.kind==='mock-exam'?<Award size={14}/>:child.kind==='package'?<Gift size={14}/>:null}{child.label}</span>
+      {child.kind==='mock-exam'?<span className="text-[10px]">محاكاة</span>:child.kind==='package'?<span className="text-[10px]">عرض</span>:null}
+    </Link>;
+  };
+
+  const renderMobileChild=(child:HeaderNode)=>{
+    if(child.kind==='divider')return null;
+    if(child.kind==='level')return <div key={child.id} className="my-1">
+      <button type="button" onClick={()=>setExpandedMobileStage(value=>value===child.id?null:child.id)} className="flex w-full items-center justify-between rounded-lg bg-slate-100 px-3 py-2 text-right text-xs font-black text-indigo-950">
+        📂 {child.label}<ChevronDown size={14} className={expandedMobileStage===child.id?'rotate-180':''}/>
+      </button>
+      {expandedMobileStage===child.id?<div className="mr-3 border-r-2 border-indigo-300 pr-2">
+        {child.children?.map(subject=><Link key={subject.id} to={subject.href} className="block px-3 py-2 text-sm text-slate-700">• {subject.label}</Link>)}
+        <Link to={child.href} className="block px-3 py-2 text-xs font-black text-indigo-600">استعراض كامل {child.label} ←</Link>
+      </div>:null}
+    </div>;
+    return <Link key={child.id} to={child.href} className={`block rounded-lg px-3 py-2 text-sm font-bold ${child.kind==='mock-exam'?'bg-purple-50 text-purple-800':child.kind==='package'?'bg-amber-50 text-amber-800':'text-slate-700'}`}>{child.label}</Link>;
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-100 bg-white shadow-sm font-sans">
@@ -72,48 +99,17 @@ export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}){
             </Link>
           </div>
 
-          <nav aria-label="التنقل الرئيسي" className="hidden items-center gap-1 md:flex">
-            {visible('home')?<div className="relative px-3 py-2" style={{order:navItem('home')?.order ?? 0}}>
-              <Link to="/" className="flex items-center gap-2 text-sm font-bold text-gray-700 transition-colors hover:text-amber-500">{label('home','الرئيسية')}</Link>
-            </div>:null}
-
-            {paths.map(path=>{
-              const subjects=taxonomy.subjects.filter(subject=>subject.pathId===path.id).slice(0,8);
-              return (
-                <div
-                  key={path.id}
-                  className="group relative px-3 py-2" style={{order:navItem(path.id)?.order ?? 50}}
-                  onMouseEnter={()=>setActiveDropdown(path.id)}
-                  onMouseLeave={()=>setActiveDropdown(null)}
-                >
-                  <Link to={`/learning?pathId=${encodeURIComponent(path.id)}`} className="flex items-center gap-2 text-sm font-bold text-gray-700 transition-colors hover:text-amber-500">
-                    <BookOpen size={16} className="text-gray-400 transition-colors group-hover:text-amber-500"/>
-                    {path.name}
-                    {subjects.length?<ChevronDown size={14}/>:null}
-                  </Link>
-                  {subjects.length&&activeDropdown===path.id?(
-                    <div className="absolute right-0 top-full z-50 w-72 rounded-2xl border border-slate-100 border-t-2 border-t-amber-500 bg-white py-2.5 shadow-2xl animate-fade-in">
-                      {subjects.map(subject=>(
-                        <Link
-                          key={subject.id}
-                          to={`/learning?pathId=${encodeURIComponent(path.id)}&subjectId=${encodeURIComponent(subject.id)}`}
-                          className="mx-2 block rounded-lg px-3 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-indigo-50 hover:text-indigo-700"
-                        >
-                          {subject.name}
-                        </Link>
-                      ))}
-                      <div className="mx-3 my-1.5 h-px bg-slate-100"/>
-                      <Link to={`/learning?pathId=${encodeURIComponent(path.id)}`} className="mx-2 block rounded-lg px-3 py-2 text-xs font-black text-indigo-600 hover:bg-indigo-50">
-                        استعراض كامل {path.name} ←
-                      </Link>
-                    </div>
-                  ):null}
-                </div>
-              );
-            })}
-
-            {visible('mock-exams')?<div className="relative px-3 py-2" style={{order:navItem('mock-exams')?.order ?? 20}}><Link to="/assessments" className="flex items-center gap-2 text-sm font-bold text-gray-700 transition-colors hover:text-amber-500">{label('mock-exams','اختبارات')}</Link></div>:null}
-            <div className="relative px-3 py-2"><Link to="/about" className="flex items-center gap-2 text-sm font-bold text-gray-700 transition-colors hover:text-amber-500">عن المنصة</Link></div>
+          <nav aria-label="التنقل الرئيسي" className="hidden min-w-0 flex-1 flex-wrap items-center justify-center gap-x-1 gap-y-0 md:flex">
+            {navigationMenu.map(item=><div key={item.id} className="group relative px-2 py-2"
+              onMouseEnter={()=>{setActiveDropdown(item.id);setActiveStage(null)}} onMouseLeave={()=>setActiveDropdown(null)}>
+              <Link to={item.href} className="flex items-center gap-2 whitespace-nowrap text-sm font-bold text-gray-700 transition-colors hover:text-amber-500">
+                {item.kind==='path'?<BookOpen size={16} className="text-gray-400"/>:null}
+                {item.label}{item.children?.length?<ChevronDown size={14}/>:null}
+              </Link>
+              {item.children?.length&&activeDropdown===item.id?<div className="absolute right-0 top-full z-50 max-h-[75vh] w-80 overflow-y-auto rounded-2xl border border-slate-100 border-t-2 border-t-amber-500 bg-white py-2.5 shadow-2xl">
+                {item.children.map(renderDesktopChild)}
+              </div>:null}
+            </div>)}
           </nav>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -137,31 +133,32 @@ export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}){
         <nav aria-label="التنقل الرئيسي للجوال" className="fixed inset-0 top-16 z-40 overflow-y-auto bg-white pb-20 animate-fade-in sm:top-20 md:hidden">
           <div className="mx-auto max-w-7xl p-4">
             {user?<Link to={dashboardHref} className="mb-4 block rounded-xl bg-indigo-50 px-4 py-3 text-sm font-black text-indigo-700">لوحتي</Link>:null}
-            {visible('home')?<Link to="/" className="mb-2 block rounded-xl px-4 py-3 text-base font-black text-gray-800 hover:bg-gray-50">{label('home','الرئيسية')}</Link>:null}
-            {paths.map(path=>{
-              const subjects=taxonomy.subjects.filter(subject=>subject.pathId===path.id).slice(0,10);
-              const open=expandedPath===path.id;
-              return (
-                <div key={path.id} className="mb-2 rounded-2xl border border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <Link to={`/learning?pathId=${encodeURIComponent(path.id)}`} className="min-w-0 flex-1 px-4 py-3 text-base font-black text-gray-800">{path.name}</Link>
-                    {subjects.length?<button type="button" onClick={()=>setExpandedPath(value=>value===path.id?null:path.id)} className="ml-2 rounded-lg p-2 text-gray-500" aria-label={`مواد ${path.name}`}><ChevronDown size={18} className={open?'rotate-180 transition-transform':'transition-transform'}/></button>:null}
-                  </div>
-                  {open?(
-                    <div className="border-t border-slate-100 px-3 py-2">
-                      {subjects.map(subject=><Link key={subject.id} to={`/learning?pathId=${encodeURIComponent(path.id)}&subjectId=${encodeURIComponent(subject.id)}`} className="block rounded-lg px-3 py-2 text-sm font-bold text-slate-600 hover:bg-indigo-50 hover:text-indigo-700">• {subject.name}</Link>)}
-                    </div>
-                  ):null}
+            {navigationMenu.map(item=>{
+              const open=expandedPath===item.id;
+              return <div key={item.id} className="mb-2 rounded-2xl border border-slate-100">
+                <div className="flex items-center gap-2">
+                  <Link to={item.href} className="min-w-0 flex-1 px-4 py-3 text-base font-black text-gray-800">{item.label}</Link>
+                  {item.children?.length?<button type="button" onClick={()=>setExpandedPath(value=>value===item.id?null:item.id)} className="ml-2 rounded-lg p-2 text-gray-500" aria-label={`تفاصيل ${item.label}`} aria-expanded={open}><ChevronDown size={18} className={open?'rotate-180':''}/></button>:null}
                 </div>
-              );
+                {item.children?.length&&open?<div className="space-y-1 border-t border-slate-100 px-3 py-2">{item.children.map(renderMobileChild)}</div>:null}
+              </div>;
             })}
-            {visible('mock-exams')?<Link to="/assessments" className="mb-2 block rounded-xl px-4 py-3 text-base font-black text-gray-800 hover:bg-gray-50">{label('mock-exams','اختبارات')}</Link>:null}
-            <Link to="/about" className="mb-2 block rounded-xl px-4 py-3 text-base font-black text-gray-800 hover:bg-gray-50">عن المنصة</Link>
-            <Link to="/faq" className="mb-2 block rounded-xl px-4 py-3 text-base font-black text-gray-800 hover:bg-gray-50">الأسئلة الشائعة</Link>
             {!user?<button type="button" onClick={()=>{setMenuOpen(false);onAuth('login')}} className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-3 font-bold text-white"><LogIn size={18}/>تسجيل الدخول</button>:null}
           </div>
         </nav>
       ):null}
     </header>
+  );
+}
+
+
+export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}) {
+  return (
+    <StudentNavigationProvider>
+      <>
+        <LegacySiteHeaderContent onAuth={onAuth}/>
+        <StudentPathBar/>
+      </>
+    </StudentNavigationProvider>
   );
 }

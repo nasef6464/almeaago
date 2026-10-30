@@ -18,19 +18,9 @@ import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
 import type { LearningSpace, TaxonomyCore } from '../../content/api/content-types';
 import { FoundationTopicDialog, type TopicContentTab } from '../components/FoundationTopicDialog';
+import { parseLearningRoute, subjectsForSelection, type LearningTab } from './learningRouteSelection';
 
-type Tab = 'courses' | 'foundation' | 'questions' | 'exams' | 'library';
-
-const legacyTabMap: Record<string, Tab> = {
-  courses: 'courses',
-  skills: 'foundation',
-  foundation: 'foundation',
-  banks: 'questions',
-  questions: 'questions',
-  tests: 'exams',
-  exams: 'exams',
-  library: 'library',
-};
+type Tab = LearningTab;
 
 export function LearningSpacePage() {
   const { user, loading: authLoading } = useAuth();
@@ -38,9 +28,9 @@ export function LearningSpacePage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   // URL is the navigation authority, as in Legacy: reload/back/forward retain scope and topic.
-  const pathId = legacyPathId || params.get('pathId') || '';
-  const subjectId = params.get('subjectId') || params.get('subject') || '';
-  const tab = legacyTabMap[params.get('tab') || 'courses'] || 'courses';
+  const selection = parseLearningRoute(legacyPathId, params);
+  const { pathId, subjectId, tab } = selection;
+  const selectedLevelId = selection.levelId;
   const topicId = tab === 'foundation' ? params.get('topic') || '' : '';
   const contentTab: TopicContentTab = ['lessons', 'quizzes', 'support'].includes(params.get('content') || '')
     ? params.get('content') as TopicContentTab : 'lessons';
@@ -73,7 +63,7 @@ export function LearningSpacePage() {
       navigate(nextPathId ? `/category/${encodeURIComponent(nextPathId)}?${next}` : '/learning');
       return;
     }
-    updateQuery({ pathId: nextPathId, subjectId: null, subject: null, topic: null, content: null });
+    updateQuery({ pathId: nextPathId, level: null, subjectId: null, subject: null, topic: null, content: null });
   };
   const changeSubject = (nextSubjectId: string) => {
     updateQuery({
@@ -95,16 +85,17 @@ export function LearningSpacePage() {
 
 
   const subjects = useMemo(
-    () => taxonomy.subjects.filter((item) => !pathId || item.pathId === pathId),
-    [pathId, taxonomy.subjects],
+    () => subjectsForSelection(taxonomy.subjects, pathId, selectedLevelId),
+    [pathId, selectedLevelId, taxonomy.subjects],
   );
   const currentPath = taxonomy.paths.find((item) => item.id === pathId);
-  const currentSubject = taxonomy.subjects.find((item) => item.id === subjectId);
+  const currentSubject = subjects.find((item) => item.id === subjectId);
+  const subjectIsInScope = subjects.some((item) => item.id === subjectId);
 
   // Do not silently switch subjects on a stale taxonomy response: keep the
   // requested URL, and let the learner correct an invalid selection.
   useEffect(() => {
-    if (!pathId || !subjectId) {
+    if (!pathId || !subjectId || !subjectIsInScope) {
       setSpace(null);
       setRequestState({ key: '', busy: false, error: '' });
       return;
@@ -140,7 +131,7 @@ export function LearningSpacePage() {
       });
 
     return () => { active = false; };
-  }, [pathId, subjectId, retryNonce]);
+  }, [pathId, subjectId, subjectIsInScope, retryNonce]);
 
   const selectedTopic = visibleSpace?.foundation.items.find((item) => item.id === topicId);
   const mainTopics = visibleSpace?.foundation.items.filter((item) => !item.parentTopicId) || [];

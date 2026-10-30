@@ -23,6 +23,8 @@ function json(route: Route, body: unknown, status = 200) {
 }
 async function setup(page: Page) {
   await page.route('**/api/v1/auth/me', (route) => json(route, { user: student }));
+  await page.route('**/api/v1/content/homepage-settings', (route) => json(route, { brand: {}, navigation: {}, studentExperience: { visibilityMode: 'all' } }));
+  await page.route('**/api/v1/learning/navigation-preferences', (route) => json(route, { user: { id: student.id, enrolledPaths: [], pathStageSelections: [] } }));
   await page.route('**/api/v1/taxonomy/bootstrap?phase=core', (route) => json(route, taxonomy));
   await page.route('**/api/v1/learning-spaces/p1/subjects/s1?limit=50', (route) => json(route, learningSpace()));
   await page.route('**/api/v1/learning-spaces/p2/subjects/s2?limit=50', (route) => json(route, learningSpace('p2', 's2')));
