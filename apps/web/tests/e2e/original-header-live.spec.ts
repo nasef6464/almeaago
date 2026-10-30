@@ -1,4 +1,5 @@
 import {test,expect,type Page,type TestInfo} from '@playwright/test';
+import {PNG} from 'pngjs';
 
 const live=process.env.HEADER_LIVE==='1';
 const env=(name:string)=>{const value=process.env[name];if(!value)throw Error(`${name} required for native header fixture`);return value};
@@ -51,10 +52,23 @@ async function openMore(page:Page){
  await expect(nav.getByRole('link',{name:'العضويات',exact:true})).toHaveAttribute('href','/pricing');
  await expect(nav.getByRole('link',{name:'المدونة',exact:true})).toHaveAttribute('href','/blog');
 }
-async function openAccount(page:Page){
+async function openAccount(page:Page,role:'admin'|'student'){
  const header=page.locator('header').first();
  await header.getByRole('button',{name:'قائمة المستخدم',exact:true}).click();
- await expect(header.locator('a[href*="dashboard"]')).toHaveCount(1);
+ const destination=role==='admin'?'/admin-dashboard':'/dashboard';
+ await expect(header.locator('a[href="'+destination+'"]')).toBeVisible();
+}
+function exactPixelDifference(actual:Buffer,expected:Buffer){
+ const left=PNG.sync.read(actual);const right=PNG.sync.read(expected);
+ if(left.width!==right.width||left.height!==right.height)return {width:left.width,height:left.height,expectedWidth:right.width,expectedHeight:right.height,diffPixels:-1,bounds:null};
+ let diffPixels=0,minX=left.width,minY=left.height,maxX=-1,maxY=-1;
+ for(let y=0;y<left.height;y++)for(let x=0;x<left.width;x++){
+  const offset=(y*left.width+x)*4;
+  if(left.data[offset]!==right.data[offset]||left.data[offset+1]!==right.data[offset+1]||left.data[offset+2]!==right.data[offset+2]||left.data[offset+3]!==right.data[offset+3]){
+   diffPixels++;minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);
+  }
+ }
+ return {width:left.width,height:left.height,diffPixels,bounds:diffPixels?{minX,minY,maxX,maxY}:null};
 }
 async function visualMetrics(page:Page){return page.evaluate(()=>{
  const box=(element:Element|null)=>{if(!element)return null;const r=element.getBoundingClientRect();const s=getComputedStyle(element);return {x:r.x,y:r.y,width:r.width,height:r.height,display:s.display,position:s.position,fontFamily:s.fontFamily,fontSize:s.fontSize,fontWeight:s.fontWeight,lineHeight:s.lineHeight,color:s.color,backgroundColor:s.backgroundColor,borderColor:s.borderColor,padding:s.padding,gap:s.gap}};
@@ -88,13 +102,14 @@ test.describe('original full Header on native Go data',()=>{
      if(state==='path'||state==='level'){await openPath(source,state==='level');await openPath(page,state==='level')}
      if(state==='mock-exams'){await openMockExams(source);await openMockExams(page)}
      if(state==='more'){await openMore(source);await openMore(page)}
-     if(state==='account'){await openAccount(source);await openAccount(page)}
+     if(state==='account'){await openAccount(source,role);await openAccount(page,role)}
      const expected=await attachPage(source,info,`header-${role}-${width}-${state}-source`);
      const actual=await attachPage(page,info,`header-${role}-${width}-${state}-go`);
      const sourceMetrics=await visualMetrics(source);const targetMetrics=await visualMetrics(page);
-     if(Buffer.compare(actual,expected)!==0)console.log('[HEADER_VISUAL_METRICS] '+JSON.stringify({role,width,state,source:sourceMetrics,go:targetMetrics}));
+     const pixelDiff=exactPixelDifference(actual,expected);
+     if(pixelDiff.diffPixels!==0)console.log('[HEADER_PIXEL_DIFF] '+JSON.stringify({role,width,state,pixelDiff,source:sourceMetrics,go:targetMetrics}));
      await info.attach(`header-${role}-${width}-${state}-metrics`,{body:JSON.stringify({source:sourceMetrics,go:targetMetrics,scope:'Header component + shared real providers and StudentPathBar; not whole legacy App'}),contentType:'application/json'});
-     expect.soft(Buffer.compare(actual,expected),`${role}/${width}/${state}: exact original full visible Header pixels`).toBe(0);
+     expect.soft(pixelDiff.diffPixels,`${role}/${width}/${state}: exact original full visible Header pixels`).toBe(0);
      expect.soft(targetMetrics,`${role}/${width}/${state}: original overflow and close-hit-test behavior`).toEqual(sourceMetrics);
     };
     await compare('closed');
