@@ -77,18 +77,18 @@ export function TaxonomyAdminPage(){
 
   async function createPath(){
     if(!pathDraft.code.trim()||!pathDraft.name.trim())return setError('أدخل كود واسم المسار.');
-    await run('create-path',csrf=>taxonomyAdminClient.createPath({...pathDraft,code:pathDraft.code.trim(),name:pathDraft.name.trim()},csrf).then(()=>undefined),'تم إنشاء المسار.');
-    setPathDraft({code:'',name:'',parentPathId:'',description:'',sortOrder:0});
+    const saved=await run('create-path',csrf=>taxonomyAdminClient.createPath({...pathDraft,code:pathDraft.code.trim(),name:pathDraft.name.trim()},csrf).then(()=>undefined),'تم إنشاء المسار.');
+    if(saved)setPathDraft({code:'',name:'',parentPathId:'',description:'',sortOrder:0});
   }
   async function createLevel(){
     if(!selectedPath||!levelDraft.code.trim()||!levelDraft.name.trim())return setError('اختر مسارًا وأدخل كود واسم المرحلة.');
-    await run('create-level',csrf=>taxonomyAdminClient.createLevel({pathId:selectedPath.id,...levelDraft,code:levelDraft.code.trim(),name:levelDraft.name.trim()},csrf).then(()=>undefined),'تم إنشاء المرحلة.');
-    setLevelDraft({code:'',name:'',sortOrder:0});
+    const saved=await run('create-level',csrf=>taxonomyAdminClient.createLevel({pathId:selectedPath.id,...levelDraft,code:levelDraft.code.trim(),name:levelDraft.name.trim()},csrf).then(()=>undefined),'تم إنشاء المرحلة.');
+    if(saved)setLevelDraft({code:'',name:'',sortOrder:0});
   }
   async function createSubject(){
     if(!selectedPath||!subjectDraft.code.trim()||!subjectDraft.name.trim())return setError('اختر مسارًا وأدخل كود واسم المادة.');
-    await run('create-subject',csrf=>taxonomyAdminClient.createSubject({pathId:selectedPath.id,...subjectDraft,code:subjectDraft.code.trim(),name:subjectDraft.name.trim()},csrf).then(()=>undefined),'تم إنشاء المادة.');
-    setSubjectDraft({code:'',name:'',levelId:'',sortOrder:0});
+    const saved=await run('create-subject',csrf=>taxonomyAdminClient.createSubject({pathId:selectedPath.id,...subjectDraft,code:subjectDraft.code.trim(),name:subjectDraft.name.trim()},csrf).then(()=>undefined),'تم إنشاء المادة.');
+    if(saved)setSubjectDraft({code:'',name:'',levelId:'',sortOrder:0});
   }
   async function patchStatus(type:'path'|'level'|'subject',id:string,status:TaxonomyStatus){
     const method=type==='path'?taxonomyAdminClient.updatePath:type==='level'?taxonomyAdminClient.updateLevel:taxonomyAdminClient.updateSubject;
@@ -99,8 +99,8 @@ export function TaxonomyAdminPage(){
     if(!edit||!edit.name.trim())return;
     const payload=edit.type==='path'?{name:edit.name.trim(),description:edit.description.trim()}:{name:edit.name.trim()};
     const method=edit.type==='path'?taxonomyAdminClient.updatePath:edit.type==='level'?taxonomyAdminClient.updateLevel:taxonomyAdminClient.updateSubject;
-    await run('save-edit',csrf=>method(edit.id,payload as never,csrf).then(()=>undefined),'تم حفظ التعديل.');
-    setEdit(null);
+    const saved=await run('save-edit',csrf=>method(edit.id,payload as never,csrf).then(()=>undefined),'تم حفظ التعديل.');
+    if(saved)setEdit(null);
   }
 
   async function savePathDisplay(input:PathDisplayInput):Promise<boolean>{
