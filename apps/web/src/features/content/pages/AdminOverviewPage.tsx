@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Award,
   Bell,
   BookOpen,
   BrainCircuit,
@@ -16,7 +17,8 @@ import { useAuth } from '../../auth/state/AuthProvider';
 
 const sections = [
   { to: '/admin-dashboard/content', title: 'المحتوى التعليمي', text: 'الدورات والدروس والتأسيس والمكتبة.', icon: BookOpen, tone: 'bg-indigo-50 text-indigo-700' },
-  { to: '/admin-dashboard/taxonomy', title: 'المسارات والتصنيف', text: 'المسارات والمستويات والمواد والمهارات.', icon: Tags, tone: 'bg-blue-50 text-blue-700' },
+  { to: '/admin-dashboard/taxonomy', title: 'إدارة المسارات', text: 'المسارات والمراحل والمواد وإعدادات كل مسار.', icon: Tags, tone: 'bg-blue-50 text-blue-700' },
+  { to: '/admin-dashboard?tab=skills', title: 'مركز المهارات', text: 'المهارات الرئيسة والفرعية وربطها بالمواد.', icon: Award, tone: 'bg-emerald-50 text-emerald-700' },
   { to: '/admin-dashboard/questions', title: 'بنك الأسئلة', text: 'تأليف ومراجعة وتغطية واستيراد الأسئلة.', icon: HelpCircle, tone: 'bg-amber-50 text-amber-700' },
   { to: '/admin-dashboard/assessments', title: 'الاختبارات', text: 'التعريفات والإصدارات والنشر والتوزيع.', icon: BarChart3, tone: 'bg-purple-50 text-purple-700' },
   { to: '/admin-dashboard/commerce', title: 'التجارة والصلاحيات', text: 'المنتجات والدفع والاستحقاقات والأكواد.', icon: CircleDollarSign, tone: 'bg-emerald-50 text-emerald-700' },

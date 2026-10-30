@@ -186,7 +186,7 @@ test('admin shell exposes every official UI-6 control panel on mobile and deskto
   await expect(page.getByRole('heading',{name:'مركز إدارة منصة المئة'})).toBeVisible();
   await page.getByRole('button',{name:'فتح قائمة الإدارة'}).click();
   const nav=page.getByRole('navigation',{name:'تنقل لوحة الإدارة'});
-  for(const label of ['نظرة عامة','إدارة المحتوى التعليمي','إدارة المسارات والتصنيف','مركز بنك الأسئلة','مركز الاختبارات','التجارة والصلاحيات','مركز الإشعارات','الفصل الذكي','إدارة الذكاء الاصطناعي','التقارير والتحليلات','مركز العمليات والتدقيق']){
+  for(const label of ['نظرة عامة','إدارة المحتوى التعليمي','إدارة المسارات','مركز المهارات','مركز بنك الأسئلة','مركز الاختبارات','التجارة والصلاحيات','مركز الإشعارات','الفصل الذكي','إدارة الذكاء الاصطناعي','التقارير والتحليلات','مركز العمليات والتدقيق']){
     await expect(nav.getByText(label,{exact:true})).toBeVisible();
   }
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
