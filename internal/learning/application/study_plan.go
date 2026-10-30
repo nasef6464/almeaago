@@ -367,11 +367,9 @@ func (s *StudyPlanService) generateItems(
 	remaining := append([]planCandidate(nil), candidates...)
 	items := make([]learning.StudyPlanItemSeed, 0, min(len(remaining), studyPlanMaxItems))
 	globalOrder := 0
-	for dayIndex, date := range dates {
-		if len(remaining) == 0 || len(items) >= studyPlanMaxItems {
-			break
-		}
-		phase := planPhase(dayIndex, len(dates))
+	// Match the source task ranking for each day and the final-day overflow.
+	// Keep the original bounded candidate set and studyPlanMaxItems guard.
+	rankRemaining := func(phase learning.StudyPlanPhase) {
 		sort.SliceStable(remaining, func(i, j int) bool {
 			if remaining[i].completed != remaining[j].completed {
 				return !remaining[i].completed
@@ -397,6 +395,13 @@ func (s *StudyPlanService) generateItems(
 			}
 			return remaining[i].key < remaining[j].key
 		})
+	}
+	for dayIndex, date := range dates {
+		if len(remaining) == 0 || len(items) >= studyPlanMaxItems {
+			break
+		}
+		phase := planPhase(dayIndex, len(dates))
+		rankRemaining(phase)
 
 		consumed := 0
 		used := 0
@@ -405,9 +410,6 @@ func (s *StudyPlanService) generateItems(
 			duration := next.duration
 			if duration < 10 {
 				duration = 10
-			}
-			if duration > write.DailyMinutes {
-				duration = write.DailyMinutes
 			}
 			if consumed > 0 && consumed+duration > write.DailyMinutes {
 				break
@@ -426,6 +428,38 @@ func (s *StudyPlanService) generateItems(
 			if consumed >= write.DailyMinutes || used >= 20 {
 				break
 			}
+		}
+	}
+	// Legacy utils/studentPlanSchedule.ts never silently discards eligible
+	// tasks when the requested date range is shorter than the task list:
+	// remaining tasks are placed on the last eligible day in review phase.
+	// Preserve the existing Go safety cap instead of generating unbounded rows.
+	if len(remaining) > 0 && len(items) < studyPlanMaxItems {
+		lastDate := dates[len(dates)-1]
+		consumed := 0
+		for _, item := range items {
+			if item.ScheduledDate == lastDate {
+				consumed += item.DurationMinutes
+			}
+		}
+		rankRemaining(learning.StudyPlanReview)
+		for _, next := range remaining {
+			if len(items) >= studyPlanMaxItems {
+				break
+			}
+			duration := next.duration
+			if duration < 10 {
+				duration = 10
+			}
+			items = append(items, learning.StudyPlanItemSeed{
+				SubjectID: next.subjectID, ItemType: next.itemType, LessonID: next.lessonID,
+				CourseID: next.courseID, LibraryItemID: next.libraryItemID,
+				AssessmentPlacementID: next.assessmentPlacementID,
+				ScheduledDate:         lastDate, ScheduledTime: addPlanMinutes(write.PreferredStartTime, consumed),
+				DurationMinutes: duration, Phase: learning.StudyPlanReview, SortOrder: globalOrder,
+			})
+			globalOrder++
+			consumed += duration
 		}
 	}
 	return items, nil

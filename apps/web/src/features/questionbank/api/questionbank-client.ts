@@ -106,6 +106,7 @@ export interface QuestionFilters{
   pathId?:string;
   subjectId?:string;
   mainSkillId?:string;
+  skillIds?:string[];
   linked?:boolean|'';
   difficulty?:string;
   type?:QuestionType|'';
@@ -162,12 +163,13 @@ function qs(filters:QuestionFilters){
   if(filters.pathId)p.set('pathId',filters.pathId);
   if(filters.subjectId)p.set('subjectId',filters.subjectId);
   if(filters.mainSkillId)p.set('mainSkillId',filters.mainSkillId);
-  if(filters.linked!=='')p.set('linked',String(filters.linked));
+  for(const skillId of filters.skillIds || [])if(skillId)p.append('skillId',skillId);
+  if(filters.linked!==''&&filters.linked!==undefined)p.set('linked',String(filters.linked));
   if(filters.difficulty)p.set('difficulty',filters.difficulty);
   if(filters.type)p.set('type',filters.type);
   if(filters.workflowStatus)p.set('workflowStatus',filters.workflowStatus);
-  if(filters.withVideo!=='')p.set('withVideo',String(filters.withVideo));
-  if(filters.withExplanation!=='')p.set('withExplanation',String(filters.withExplanation));
+  if(filters.withVideo!==''&&filters.withVideo!==undefined)p.set('withVideo',String(filters.withVideo));
+  if(filters.withExplanation!==''&&filters.withExplanation!==undefined)p.set('withExplanation',String(filters.withExplanation));
   return p.toString();
 }
 function csrfHeaders(csrf:string){return {'Content-Type':'application/json','X-CSRF-Token':csrf}}

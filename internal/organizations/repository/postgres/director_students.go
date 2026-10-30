@@ -131,6 +131,11 @@ func (r *Repository) DirectorMoveStudent(
 	if err != nil {
 		return org.DirectorStudentMutationResult{}, err
 	}
+	// Serialize moves before checking idempotency. Concurrent director sessions
+	// must observe the committed class membership of the preceding move.
+	if err := lockStudentClassMembershipTx(ctx, tx, studentID); err != nil {
+		return org.DirectorStudentMutationResult{}, err
+	}
 
 	var already bool
 	if err := tx.QueryRow(ctx, `
@@ -362,6 +367,15 @@ func activeClassNameTx(
 	return name, err
 }
 
+func lockStudentClassMembershipTx(ctx context.Context, tx pgx.Tx, studentID string) error {
+	var lockedID string
+	err := tx.QueryRow(ctx, `SELECT id::text FROM users WHERE id = $1::uuid FOR UPDATE`, studentID).Scan(&lockedID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return org.ErrNotFound
+	}
+	return err
+}
+
 func replaceStudentClassTx(
 	ctx context.Context,
 	tx pgx.Tx,
@@ -369,6 +383,11 @@ func replaceStudentClassTx(
 	studentID string,
 	classID string,
 ) error {
+	// Lock the stable student row before reading/updating class memberships.
+	// Locking only existing memberships cannot protect a concurrent INSERT.
+	if err := lockStudentClassMembershipTx(ctx, tx, studentID); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(ctx, `
 		UPDATE class_memberships cm
 		SET status = 'inactive',

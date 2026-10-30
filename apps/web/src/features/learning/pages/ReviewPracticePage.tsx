@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { QuestionAssistantPanel } from '../../ai/components/QuestionAssistantPanel';
+import { QuestionAssetImage } from '../components/QuestionAssetImage';
 import { useAuth } from '../../auth/state/AuthProvider';
 import {
   learningClient,
@@ -170,6 +171,11 @@ export function ReviewPracticePage() {
             {current.question.text || current.question.imageAlt || 'سؤال مراجعة'}
           </h1>
         ) : null}
+        {current.question.imageAssetId ? (
+          <div className="mt-3">
+            <QuestionAssetImage assetId={current.question.imageAssetId} alt={current.question.imageAlt || 'صورة السؤال'} />
+          </div>
+        ) : null}
 
         <div className={`mt-3 grid ${current.question.optionsEmbeddedInImage ? 'grid-cols-4' : 'grid-cols-1'} gap-2`}>
           {current.question.options.map((option) => {
@@ -195,6 +201,13 @@ export function ReviewPracticePage() {
                 }`}
               >
                 {current.question.optionsEmbeddedInImage ? optionLetter(option.index) : option.text}
+                {!current.question.optionsEmbeddedInImage && option.assetId ? (
+                  <QuestionAssetImage
+                    assetId={option.assetId}
+                    alt={`صورة الخيار ${optionLetter(option.index)}`}
+                    className="mx-auto mt-2 max-h-36 max-w-full rounded-lg object-contain"
+                  />
+                ) : null}
                 {result && isCorrect ? <span className="mr-2 text-xs font-black">الإجابة الصحيحة</span> : null}
               </button>
             );

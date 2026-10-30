@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /admin-dashboard
+Disallow: /instructor-dashboard
+Disallow: /supervisor-dashboard
+Disallow: /parent-dashboard
+Disallow: /quiz
+Disallow: /results
+Disallow: /reports
+Disallow: /profile
+Disallow: /favorites
+Disallow: /my-quizzes
+Disallow: /reset-password
+Disallow: /verify-email

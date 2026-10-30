@@ -47,19 +47,19 @@ export const PLATFORM_DAYLIGHT_IMAGES:PlatformShowcaseItem[] = [
   {
     id:'daylight-tablet',title:'استوديو التعلم والإنطلاق الذكي',subtitle:'بيئة تدريب تفاعلية متطورة',
     url:'/images/smart-learning-tablet.webp',alt:'طالب منصة المئة يتدرب على التابلت مع مؤشرات حية',
-    badge:'بيئة التعلم',badgeColor:'bg-blue-50 text-blue-700 border-blue-200',link:'/learning',cta:'ابدأ جلستك التدريبية',
+    badge:'بيئة التعلم',badgeColor:'bg-blue-50 text-blue-700 border-blue-200',link:'/dashboard',cta:'ابدأ جلستك التدريبية',
     description:'واجهة تفاعلية تجمع بين حل الأسئلة، تتبع مؤشرات الأداء، والانطلاق السريع نحو أهدافك.',pack:'daylight',
   },
   {
     id:'daylight-qudrat',title:'إتقان القدرات والمسائل الكمية',subtitle:'شروحات وحلول ذهبية للمئة',
     url:'/images/daylight-qudrat-math.webp',alt:'إتقان القدرات العامة والمسائل الكمية - منصة المئة',
-    badge:'مسار القدرات',badgeColor:'bg-indigo-50 text-indigo-700 border-indigo-200',link:'/learning',cta:'ابدأ تدريب القدرات',
+    badge:'مسار القدرات',badgeColor:'bg-indigo-50 text-indigo-700 border-indigo-200',link:'/category/p_qudrat',cta:'ابدأ تدريب القدرات',
     description:'نماذج ثلاثية الأبعاد واستراتيجيات حل المسائل الحسابية والهندسية بلمح البصر دون تعقيد.',pack:'daylight',
   },
   {
     id:'daylight-tahsili',title:'مختبر التحصيلي العلمي',subtitle:'فيزياء، كيمياء، أحياء، رياضيات',
     url:'/images/daylight-tahsili-science.webp',alt:'مختبر التحصيلي العلمي - منصة المئة',
-    badge:'مسار التحصيلي',badgeColor:'bg-emerald-50 text-emerald-700 border-emerald-200',link:'/learning',cta:'استكشف التحصيلي',
+    badge:'مسار التحصيلي',badgeColor:'bg-emerald-50 text-emerald-700 border-emerald-200',link:'/category/p_tahsili',cta:'استكشف التحصيلي',
     description:'تبسيط تجارب العلوم والمفاهيم المعقدة من خلال شروحات مرئية تفاعلية ترسخ الفهم في الذاكرة.',pack:'daylight',
   },
   {
@@ -92,13 +92,13 @@ export const PLATFORM_SHOWCASE_IMAGES:PlatformShowcaseItem[] = [
   {
     id:'qudrat',title:'بطل القدرات العامة',subtitle:'تأسيس وتدريب كمي ولفظي',
     url:'/images/qudrat-champion.webp',alt:'بطل القدرات العامة - منصة المئة',
-    badge:'مسار القدرات',badgeColor:'bg-indigo-50 text-indigo-700 border-indigo-200',link:'/learning',cta:'ابدأ تدريب القدرات',
+    badge:'مسار القدرات',badgeColor:'bg-indigo-50 text-indigo-700 border-indigo-200',link:'/category/p_qudrat',cta:'ابدأ تدريب القدرات',
     description:'شروحات استراتيجيات الحل السريع للمسائل الكمية واستيعاب المقروء والتناظر اللفظي بأعلى دقة.',pack:'neon',
   },
   {
     id:'tahsili',title:'شعلة التحصيلي العلمي',subtitle:'فيزياء، كيمياء، أحياء، رياضيات',
     url:'/images/tahsili-excellence.webp',alt:'شعلة التحصيلي العلمي - منصة المئة',
-    badge:'مسار التحصيلي',badgeColor:'bg-emerald-50 text-emerald-700 border-emerald-200',link:'/learning',cta:'استكشف التحصيلي',
+    badge:'مسار التحصيلي',badgeColor:'bg-emerald-50 text-emerald-700 border-emerald-200',link:'/category/p_tahsili',cta:'استكشف التحصيلي',
     description:'تغطية شاملة ومفاهيم مركزة تضمن إتقان مقررات المرحلة الثانوية العلمية وتحقيق أعلى الدرجات.',pack:'neon',
   },
   {

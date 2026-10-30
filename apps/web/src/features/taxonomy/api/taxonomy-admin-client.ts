@@ -52,8 +52,13 @@ async function request<T>(path:string,init:RequestInit={}):Promise<T>{
     headers:{Accept:'application/json',...(init.body?{'Content-Type':'application/json'}:{}),...init.headers},
   });
   if(!response.ok){
-    const body=await response.json().catch(()=>({message:'تعذر تنفيذ طلب التصنيف'}));
-    throw new Error(body.message||'تعذر تنفيذ طلب التصنيف');
+    // A 503 may carry JSON null, an array, or a malformed/empty body.
+    // Keep the original Arabic fallback instead of exposing a JS TypeError.
+    const body:unknown=await response.json().catch(()=>null);
+    const message=body!==null&&typeof body==='object'&&!Array.isArray(body)&&
+      'message' in body&&typeof body.message==='string'&&body.message.trim()
+      ? body.message : 'تعذر تنفيذ طلب التصنيف';
+    throw new Error(message);
   }
   return response.json() as Promise<T>;
 }

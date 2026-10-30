@@ -31,6 +31,7 @@ export function CourseCreatePanel({
 }: CourseCreatePanelProps) {
   const [taxonomy, setTaxonomy] = useState<TaxonomyFull>({ ...coreTaxonomy, skills: [] });
   const [taxonomyLoading, setTaxonomyLoading] = useState(true);
+  const [taxonomyReady, setTaxonomyReady] = useState(false);
   const [taxonomyError, setTaxonomyError] = useState('');
   const [pathId, setPathId] = useState(initialPathId);
   const [subjectId, setSubjectId] = useState(initialSubjectId);
@@ -52,6 +53,7 @@ export function CourseCreatePanel({
       .taxonomyFull(controller.signal)
       .then((result) => {
         setTaxonomy(result);
+        setTaxonomyReady(true);
         setTaxonomyError('');
       })
       .catch((cause: unknown) => {
@@ -74,18 +76,25 @@ export function CourseCreatePanel({
   );
 
   useEffect(() => {
+    // Preserve a preselected path/subject while the full catalog is in flight.
+    if (!taxonomyReady) return;
     if (subjectId && !subjects.some((subject) => subject.id === subjectId)) {
       setSubjectId('');
       setSkillIds([]);
     }
-  }, [subjectId, subjects]);
+  }, [subjectId, subjects, taxonomyReady]);
 
   useEffect(() => {
+    if (!taxonomyReady) return;
     setSkillIds((current) => current.filter((id) => skills.some((skill) => skill.id === id)));
-  }, [skills]);
+  }, [skills, taxonomyReady]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (!taxonomyReady) {
+      setError('تعذر تحميل المهارات. لا يمكن إنشاء الدورة قبل اكتمال التصنيف.');
+      return;
+    }
     setError('');
     const normalizedTitle = title.trim();
     if (!pathId || !subjectId || !normalizedTitle) {
@@ -244,7 +253,7 @@ export function CourseCreatePanel({
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={onCancel} className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-black text-gray-700">إلغاء</button>
-            <button type="submit" disabled={saving || taxonomyLoading || Boolean(taxonomyError)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="submit" disabled={saving || taxonomyLoading || !taxonomyReady || Boolean(taxonomyError)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
               {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
               {saving ? 'جارٍ الحفظ...' : 'حفظ كمسودة'}
             </button>

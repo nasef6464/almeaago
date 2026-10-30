@@ -41,8 +41,8 @@ async function setup(page: Page) {
   }));
 }
 
-function shownCount(page: Page) {
-  return page.getByText('المعروض', { exact: true }).locator('..').locator('div').last();
+function visibleContentRows(page: Page) {
+  return page.locator('tbody tr');
 }
 
 for (const width of [390, 820, 1440]) {
@@ -61,16 +61,16 @@ for (const width of [390, 820, 1440]) {
 
     await page.goto('/admin-dashboard/content');
     await expect(page.getByText(course.title)).toBeVisible();
-    await expect(shownCount(page)).toHaveText('١');
+    await expect(visibleContentRows(page)).toHaveCount(1);
 
     await page.getByRole('button', { name: 'الدروس', exact: true }).click();
     await lessonRequested;
     // A slow list request must not make a previous course look like a lesson.
-    await expect(shownCount(page)).toHaveText('٠');
+    await expect(visibleContentRows(page)).toHaveCount(0);
     await expect(page.getByText(course.title)).toHaveCount(0);
     release();
     await expect(page.getByText(lesson.title)).toBeVisible();
-    await expect(shownCount(page)).toHaveText('١');
+    await expect(visibleContentRows(page)).toHaveCount(1);
   });
 
   test(`admin content clears previous scope when the next list fails at ${width}px`, async ({ page }) => {
@@ -82,7 +82,7 @@ for (const width of [390, 820, 1440]) {
 
     await page.getByRole('button', { name: 'المكتبة', exact: true }).click();
     await expect(page.getByText('تعذر تحميل المكتبة')).toBeVisible();
-    await expect(shownCount(page)).toHaveText('٠');
+    await expect(visibleContentRows(page)).toHaveCount(0);
     await expect(page.getByText(course.title)).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'تعديل / المنهج' })).toHaveCount(0);
   });
@@ -116,12 +116,12 @@ for (const width of [390, 820, 1440]) {
     await expect(page.getByText(course.title)).toBeVisible();
     await page.locator('select').first().selectOption('path-b');
     await pathBRequested;
-    await expect(shownCount(page)).toHaveText('٠');
+    await expect(visibleContentRows(page)).toHaveCount(0);
     await expect(page.getByText(course.title)).toHaveCount(0);
     release();
     await expect(page.getByText('دورة المسار الثاني')).toBeVisible();
     await expect(page.getByText(course.title)).toHaveCount(0);
-    await expect(shownCount(page)).toHaveText('١');
+    await expect(visibleContentRows(page)).toHaveCount(1);
   });
 }
 

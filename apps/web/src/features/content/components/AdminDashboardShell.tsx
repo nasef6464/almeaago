@@ -4,6 +4,7 @@ import {
   ChevronDown,
   BrainCircuit,
   BookOpen,
+  Award,
   Boxes,
   CheckCircle2,
   HelpCircle,
@@ -33,7 +34,8 @@ interface AdminDashboardShellProps {
 const navItems = [
   { label: 'نظرة عامة', icon: LayoutDashboard, href: '/admin-dashboard' },
   { label: 'إدارة المحتوى التعليمي', icon: BookOpen, href: '/admin-dashboard/content' },
-  { label: 'إدارة المسارات والتصنيف', icon: Boxes, href: '/admin-dashboard/taxonomy' },
+  { label: 'إدارة المسارات', icon: Boxes, href: '/admin-dashboard/taxonomy' },
+  { label: 'مركز المهارات', icon: Award, href: '/admin-dashboard?tab=skills' },
   { label: 'اعتماد المحتوى', icon: CheckCircle2 },
   { label: 'مركز بنك الأسئلة', icon: HelpCircle, href: '/admin-dashboard/questions' },
   { label: 'مركز الدروس', icon: BookOpen },
@@ -76,8 +78,10 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
   const isActiveHref = (href: string) =>
     href === HOMEPAGE_ADMIN_HREF ? isHomepageLocation(location) : href === PLATFORM_FONTS_ADMIN_HREF
       ? isPlatformFontsLocation(location)
+      : href === '/admin-dashboard?tab=skills'
+        ? location.pathname === '/admin-dashboard' && new URLSearchParams(location.search).get('tab') === 'skills'
       : href === '/admin-dashboard'
-        ? location.pathname === href && !isPlatformFontsLocation(location) && !isHomepageLocation(location)
+        ? location.pathname === href && !isPlatformFontsLocation(location) && !isHomepageLocation(location) && new URLSearchParams(location.search).get('tab') !== 'skills'
         : location.pathname === href || location.pathname.startsWith(href + '/');
   const activeItem = availableItems.find((item) => item.href ? isActiveHref(item.href) : false);
 

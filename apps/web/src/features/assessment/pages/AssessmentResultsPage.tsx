@@ -11,7 +11,7 @@ import {
   Target,
   XCircle,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
@@ -179,8 +179,23 @@ export function AssessmentResultsPage() {
   const [filter, setFilter] = useState<ReviewFilter>('all');
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const [detailContext, setDetailContext] = useState('');
   const [savedQuestions, setSavedQuestions] = useState<Set<string>>(() => new Set());
   const [savingQuestion, setSavingQuestion] = useState('');
+  const activeContext = `${user?.id ?? ''}:${attemptId}`;
+  const activeContextRef = useRef(activeContext);
+  activeContextRef.current = activeContext;
+
+  useEffect(() => {
+    setSaveError('');
+    setSavingQuestion('');
+    setFilter('all');
+  }, [activeContext]);
+
+  useEffect(() => {
+    setSavedQuestions(new Set<string>());
+  }, [user?.id]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -191,10 +206,14 @@ export function AssessmentResultsPage() {
     let active = true;
     setBusy(true);
     setError('');
+    setDetail(null);
 
     const pending = attemptId
       ? attemptClient.review(attemptId).then((response) => {
-          if (active) setDetail(response.detail);
+          if (active) {
+            setDetail(response.detail);
+            setDetailContext(activeContext);
+          }
         })
       : attemptClient.results(page, 20).then((response) => {
           if (!active) return;
@@ -213,24 +232,28 @@ export function AssessmentResultsPage() {
     return () => {
       active = false;
     };
-  }, [attemptId, authLoading, page, user]);
+  }, [activeContext, attemptId, authLoading, page, user]);
 
   async function saveForReview(questionId: string) {
-    if (savedQuestions.has(questionId)) return;
+    if (savedQuestions.has(questionId) || savingQuestion) return;
+    const requestContext = activeContextRef.current;
     setSavingQuestion(questionId);
-    setError('');
+    setSaveError('');
     try {
       const csrf = await getCsrfToken();
       await learningClient.saveReview(questionId, csrf);
+      if (activeContextRef.current !== requestContext) return;
       setSavedQuestions((current) => {
         const next = new Set(current);
         next.add(questionId);
         return next;
       });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'تعذر حفظ السؤال للمراجعة');
+      if (activeContextRef.current === requestContext) {
+        setSaveError(cause instanceof Error ? cause.message : 'تعذر حفظ السؤال للمراجعة');
+      }
     } finally {
-      setSavingQuestion('');
+      if (activeContextRef.current === requestContext) setSavingQuestion('');
     }
   }
 
@@ -242,7 +265,7 @@ export function AssessmentResultsPage() {
     return questions;
   }, [detail, filter]);
 
-  if (authLoading || busy) {
+  if (authLoading || busy || (attemptId && detailContext !== activeContext && !error)) {
     return <main className="p-10 text-center font-black">جاري تحميل النتائج...</main>;
   }
   if (!user) {
@@ -313,6 +336,7 @@ export function AssessmentResultsPage() {
           <div className="rounded-2xl bg-amber-50 p-3 text-center text-amber-800"><AlertCircle className="mx-auto" size={20}/><div className="mt-1 font-black">{result.unanswered}</div><div className="text-xs font-bold">بدون إجابة</div></div>
         </div> : <div className="mt-4 rounded-xl bg-gray-50 p-4 text-sm font-bold text-gray-600">تم تسجيل إكمال الاختبار. تقرير الدرجات التفصيلي غير معروض وفق إعدادات هذا الاختبار.</div>}
       </header>
+        {saveError ? <p role="alert" className="text-sm font-bold text-rose-700">{saveError}</p> : null}
         {!detail.allowQuestionReview ? (
           <section className="rounded-2xl border border-amber-100 bg-amber-50 p-5 text-sm font-bold leading-7 text-amber-900">
             مراجعة الأسئلة غير متاحة لهذا الاختبار وفق إعدادات النسخة التي أجريت عليها المحاولة.

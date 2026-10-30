@@ -1,0 +1,36 @@
+name: Content Foundation Parent Cycle CI
+
+on:
+  pull_request:
+    paths:
+      - "internal/content/repository/postgres/helpers.go"
+      - "internal/content/repository/postgres/foundation_parent_cycle_integration_test.go"
+      - ".github/workflows/content-foundation-parent-cycle.yml"
+  workflow_dispatch:
+
+permissions: { contents: read }
+concurrency:
+  group: foundation-parent-cycle-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  foundation-parent-cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env: { POSTGRES_USER: almeaa, POSTGRES_PASSWORD: almeaa, POSTGRES_DB: almeaa }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U almeaa -d almeaa"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Verify concurrent foundation parent updates on isolated PostgreSQL
+        run: go test ./internal/content/repository/postgres -run '^TestFoundationParentCycleConcurrentPostgres$' -count=3 -v
