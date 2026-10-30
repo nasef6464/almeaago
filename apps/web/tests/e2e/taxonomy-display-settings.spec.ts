@@ -70,7 +70,6 @@ for (const width of [390, 820, 1440]) {
     await expect(editor.getByLabel('تسمية المرحلة')).toHaveValue('اختر مرحلتك');
     await expect(editor.getByLabel('إظهار المسار في القائمة العلوية')).toBeChecked();
     await editor.getByLabel('إظهار المسار في القائمة العلوية').uncheck();
-    await editor.getByLabel('إظهار المسار في الصفحة الرئيسية').uncheck();
     await editor.getByLabel('إظهار بطاقات المواد').uncheck();
     await editor.getByLabel('إظهار بطاقة الاختبارات المحاكية').uncheck();
     await editor.getByLabel('إظهار بطاقة الباقات').uncheck();
@@ -90,7 +89,7 @@ for (const width of [390, 820, 1440]) {
     expect(pathWrite.csrf).toBe('csrf-display');
     expect(pathWrite.body).toMatchObject({
       showInNavbar: false,
-      showInHome: false,
+      showInHome: true,
       settings: { showSubjectCards: false, showMockExamCard: false, showPackageCard: false, studentTemplate: 'simple', stageSelection: 'required', stageLabel: 'اختر مرحلتك' },
     });
 
@@ -104,7 +103,7 @@ for (const width of [390, 820, 1440]) {
 
     await page.reload();
     await expect(editor.getByLabel('إظهار المسار في القائمة العلوية')).not.toBeChecked();
-    await expect(editor.getByLabel('إظهار المسار في الصفحة الرئيسية')).not.toBeChecked();
+    await expect(editor.getByLabel('إظهار المسار في الصفحة الرئيسية')).toBeChecked();
     await expect(editor.getByLabel('إظهار بطاقات المواد')).not.toBeChecked();
     await expect(editor.getByLabel('إظهار بطاقة الاختبارات المحاكية')).not.toBeChecked();
     await expect(editor.getByLabel('إظهار بطاقة الباقات')).not.toBeChecked();
@@ -117,14 +116,32 @@ for (const width of [390, 820, 1440]) {
     const publicProjection = await page.evaluate(async () =>
       fetch('/api/v1/taxonomy/bootstrap?phase=core').then(response => response.json()));
     expect(publicProjection.paths[0]).toMatchObject({
-      showInNavbar: false, showInHome: false,
+      showInNavbar: false, showInHome: true,
       settings: { showSubjectCards: false, showMockExamCard: false, showPackageCard: false, studentTemplate: 'simple', stageSelection: 'required', stageLabel: 'اختر مرحلتك' },
     });
     expect(publicProjection.subjects[0]).toMatchObject({ icon: '🧪', color: '#abcdef' });
+    await page.goto('/');
+    const visibleHomePaths = page.getByTestId('public-home-paths');
+    await expect(visibleHomePaths.locator('a[href="/learning?pathId=path-1"]')).toHaveCount(1);
+    await page.screenshot({ path: `test-results/taxonomy-display-navbar-hidden-home-visible-${width}.png`, fullPage: true });
+
+    await page.goto('/admin-dashboard/taxonomy');
+    await editor.getByLabel('إظهار المسار في الصفحة الرئيسية').uncheck();
+    await editor.getByRole('button', { name: 'حفظ عرض المسار' }).click();
+    await expect(page.getByText('تم حفظ إعدادات عرض المسار.')).toBeVisible();
+    await expect.poll(() => writes.filter(x => x.path === 'path').length).toBe(2);
+    expect(writes[1].body).toMatchObject({ showInNavbar: false, showInHome: false });
+    await page.reload();
+    await expect(editor.getByLabel('إظهار المسار في القائمة العلوية')).not.toBeChecked();
+    await expect(editor.getByLabel('إظهار المسار في الصفحة الرئيسية')).not.toBeChecked();
+    const hiddenProjection = await page.evaluate(async () =>
+      fetch('/api/v1/taxonomy/bootstrap?phase=core').then(response => response.json()));
+    expect(hiddenProjection.paths[0]).toMatchObject({ showInNavbar: false, showInHome: false });
     await page.goto('/');
     const updatedHomePaths = page.getByTestId('public-home-paths');
     await expect(updatedHomePaths.locator('a[href="/learning?pathId=path-1"]')).toHaveCount(0);
     await page.screenshot({ path: `test-results/taxonomy-display-public-${width}.png`, fullPage: true });
     expect(state.paths[0].showInNavbar).toBe(false);
+    expect(state.paths[0].showInHome).toBe(false);
   });
 }
