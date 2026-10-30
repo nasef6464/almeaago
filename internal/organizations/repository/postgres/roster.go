@@ -193,11 +193,13 @@ func buildRosterWhere(
 		clauses = append(clauses, "FALSE")
 	}
 
-	if query.Search != "" {
-		args = append(args, "%"+strings.ToLower(query.Search)+"%")
+	// Legacy roster search uses trimmed, case-insensitive literal includes.
+	// strpos prevents user-entered '%' and '_' from becoming SQL wildcards.
+	if search := strings.ToLower(strings.TrimSpace(query.Search)); search != "" {
+		args = append(args, search)
 		n := strconv.Itoa(len(args))
 		clauses = append(clauses,
-			"(lower(u.name) LIKE $"+n+" OR (u.email IS NOT NULL AND lower(u.email) LIKE $"+n+"))",
+			"(strpos(lower(u.name), $"+n+") > 0 OR (u.email IS NOT NULL AND strpos(lower(u.email), $"+n+") > 0))",
 		)
 	}
 	if query.Role != nil {
