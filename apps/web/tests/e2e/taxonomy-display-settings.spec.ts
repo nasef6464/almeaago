@@ -16,6 +16,11 @@ async function setup(page: Page) {
       description: 'المسار الأساسي', sortOrder: 1, status: 'active',
       showInNavbar: true, showInHome: true,
       settings: { showSubjectCards: true, showMockExamCard: true, showPackageCard: true, studentTemplate: 'standard', stageSelection: 'auto' },
+    }, {
+      id: 'path-archived', code: 'OLD', name: 'مسار مؤرشف', parentPathId: '',
+      description: 'لا يظهر في الموقع العام', sortOrder: 2, status: 'inactive',
+      showInNavbar: true, showInHome: true,
+      settings: {},
     }],
     levels: [],
     subjects: [{
@@ -46,8 +51,8 @@ async function setup(page: Page) {
     return json(route, { subject: state.subjects[0] });
   });
   await page.route('**/api/v1/taxonomy/bootstrap?phase=core', route => json(route, {
-    paths: state.paths.map(({ id, code, name, parentPathId, description, sortOrder, showInNavbar, showInHome, settings }) =>
-      ({ id, code, name, parentPathId, description, sortOrder, isActive: true, showInNavbar, showInHome, settings })),
+    paths: state.paths.map(({ id, code, name, parentPathId, description, sortOrder, status, showInNavbar, showInHome, settings }) =>
+      ({ id, code, name, parentPathId, description, sortOrder, isActive: status === 'active', showInNavbar, showInHome, settings })),
     levels: state.levels,
     subjects: state.subjects.map(({ id, pathId, levelId, code, name, sortOrder, icon, color }) =>
       ({ id, pathId, levelId, code, name, sortOrder, icon, color })),
@@ -63,6 +68,7 @@ for (const width of [390, 820, 1440]) {
     await page.goto('/');
     const initialHomePaths = page.getByTestId('public-home-paths');
     await expect(initialHomePaths.locator('a[href="/learning?pathId=path-1"]')).toHaveCount(1);
+    await expect(initialHomePaths.locator('a[href="/learning?pathId=path-archived"]')).toHaveCount(0);
     await page.goto('/admin-dashboard/taxonomy');
 
     const editor = page.getByTestId('taxonomy-display-editor');
@@ -115,6 +121,7 @@ for (const width of [390, 820, 1440]) {
 
     const publicProjection = await page.evaluate(async () =>
       fetch('/api/v1/taxonomy/bootstrap?phase=core').then(response => response.json()));
+    expect(publicProjection.paths.find((path: { id: string }) => path.id === 'path-archived')).toMatchObject({ isActive: false, showInHome: true });
     expect(publicProjection.paths[0]).toMatchObject({
       showInNavbar: false, showInHome: true,
       settings: { showSubjectCards: false, showMockExamCard: false, showPackageCard: false, studentTemplate: 'simple', stageSelection: 'required', stageLabel: 'اختر مرحلتك' },
@@ -123,6 +130,7 @@ for (const width of [390, 820, 1440]) {
     await page.goto('/');
     const visibleHomePaths = page.getByTestId('public-home-paths');
     await expect(visibleHomePaths.locator('a[href="/learning?pathId=path-1"]')).toHaveCount(1);
+    await expect(visibleHomePaths.locator('a[href="/learning?pathId=path-archived"]')).toHaveCount(0);
     await page.screenshot({ path: `test-results/taxonomy-display-navbar-hidden-home-visible-${width}.png`, fullPage: true });
 
     await page.goto('/admin-dashboard/taxonomy');
