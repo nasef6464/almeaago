@@ -43,6 +43,9 @@ for(const width of [390,820,1440]){
   await expect(nav.locator('details').filter({has:page.locator('summary',{hasText:'الرئيسية'})})).toHaveAttribute('open','');
   await nav.locator('summary',{hasText:'الطلاب والحصص'}).click();
   await expect(groupStudents).toHaveAttribute('open','');
+  const breadcrumb=page.getByRole('navigation',{name:'مسار الصفحة'});
+  await expect(breadcrumb).toContainText('الطلاب والحصص');
+  await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText('تعلم الطلاب وجاهزيتهم');
   await expect(page.getByText('طالب الأولى')).toBeVisible();
   await expect(page.getByText('طالب الثانية')).toHaveCount(0);
   await page.getByLabel('المدرسة').selectOption('school-2');
@@ -51,6 +54,7 @@ for(const width of [390,820,1440]){
   await nav.locator('summary',{hasText:'الرئيسية'}).click();
   await nav.getByRole('button',{name:'الملخص العام'}).click();
   await expect(page).toHaveURL(/tab=overview/);
+  await expect(breadcrumb.locator('[aria-current="page"]')).toHaveText('الملخص العام');
   await page.reload();
   await expect(nav.getByRole('button',{name:'الملخص العام'})).toHaveAttribute('aria-current','page');
   await page.goBack();
