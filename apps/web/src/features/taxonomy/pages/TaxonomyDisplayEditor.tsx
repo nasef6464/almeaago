@@ -58,7 +58,7 @@ export function TaxonomyDisplayEditor({ path, levelCount, subject, pending, save
             <input aria-label="إظهار المسار في الصفحة الرئيسية" type="checkbox" checked={showInHome} onChange={event => setShowInHome(event.target.checked)} />
             إظهار المسار في الصفحة الرئيسية
           </label>
-          <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3">
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3 sm:col-span-2">
             <p className="mb-3 text-sm font-black text-indigo-800">بطاقات صفحة المسار</p>
             <div className="grid gap-2 sm:grid-cols-3">
               <label className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-bold text-gray-700">
