@@ -22,15 +22,15 @@
 ## RED→GREEN
 
 - **RED**: اختبار `TestSchoolRelationshipWritesRejectTrailingJSONWithoutMutation` يغطي ستة مسارات × حالتي مستند ثانٍ ونص زائد؛ على الرأس `28ea9860e993900f078aa0ca2109d30580f9380c` فشل Go في Backend CI كما هو متوقع: عادت استجابات 200 بدل 400. الدليل: https://github.com/nasef6464/almeaago/actions/runs/41005478943
-- **GREEN**: يضيف الإصلاح شرط `io.EOF` بعد فك المستند الأول. اختبار whitespace يحمي النجاح الأصلي. يلزم تثبيت نجاح الاختبارات وبوابات Backend/Frontend/Database/Browser على SHA النهائي قبل قبول الشريحة.
+- **GREEN**: يضيف الإصلاح شرط `io.EOF` بعد فك المستند الأول. اختبار whitespace يحمي النجاح الأصلي. **GREEN** على `50f58113192064bb5b1b4c7372fb2d584235e913`: نجحت بوابات [Backend](https://github.com/nasef6464/almeaago/actions/runs/41005611381)، [Frontend](https://github.com/nasef6464/almeaago/actions/runs/41005611367)، [Database](https://github.com/nasef6464/almeaago/actions/runs/41005611444)، [Browser](https://github.com/nasef6464/almeaago/actions/runs/41005611353). نتائج CI تخص هذا الإصلاح فقط؛ لا تثبت التكافؤ البصري أو التخزين الحقيقي لهذه الرحلة.
 
 ## مصفوفة القبول
 
 | الشرط | الحالة |
 |---|---|
-| رفض مستند JSON ثانٍ قبل كتابة العلاقات | PENDING GREEN CI |
-| رفض trailing garbage قبل كتابة العلاقات | PENDING GREEN CI |
-| بقاء المستند الواحد والمسافات البيضاء صالحين | PENDING GREEN CI |
+| رفض مستند JSON ثانٍ قبل كتابة العلاقات | VERIFIED — RED→GREEN وBackend CI |
+| رفض trailing garbage قبل كتابة العلاقات | VERIFIED — RED→GREEN وBackend CI |
+| بقاء المستند الواحد والمسافات البيضاء صالحين | VERIFIED — RED→GREEN وBackend CI |
 | الاحتفاظ بالـauth/CSRF/RBAC والردود الأصلية | PARTIAL: الاختبارات الموجودة، لا تغيير في الكود |
 | حفظ علاقة حقيقية في PostgreSQL ثم قراءة المستهلك بعد reload | NOT PROVEN |
 | صور Legacy↔Go بنفس الدور/البيانات عند 390/820/1440 RTL | NOT PROVEN |
