@@ -329,7 +329,7 @@ func TestOriginalHeaderHTTPPostgresBrowser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fixtureEnv := append(os.Environ(), "HEADER_LIVE=1", "HEADER_ADMIN_EMAIL="+admin.Email, "HEADER_STUDENT_EMAIL="+student.Email, "HEADER_PASSWORD=Header-test-pass-42!", "HEADER_PATH_ID="+p.ID, "HEADER_OTHER_PATH_ID="+other.ID, "HEADER_CHILD_PATH_ID="+child.ID, "HEADER_LEVEL_ID="+level.ID, "HEADER_OTHER_LEVEL_ID="+otherLevel.ID, "HEADER_SUBJECT_ID="+subject.ID, "HEADER_COURSE_ID="+courseID, "HEADER_PRODUCT_ID="+product.ID, "HEADER_ARTICLE_ID="+articleID, "HEADER_NOTIFICATION_ID="+notificationID, "E2E_API_TARGET="+server.URL)
+	fixtureEnv := append(os.Environ(), "HEADER_LIVE=1", "HEADER_ADMIN_EMAIL="+admin.Email, "HEADER_STUDENT_EMAIL="+student.Email, "HEADER_PASSWORD=Header-test-pass-42!", "HEADER_PATH_ID="+p.ID, "HEADER_OTHER_PATH_ID="+other.ID, "HEADER_CHILD_PATH_ID="+child.ID, "HEADER_LEVEL_ID="+level.ID, "HEADER_OTHER_LEVEL_ID="+otherLevel.ID, "HEADER_SUBJECT_ID="+subject.ID, "HEADER_COURSE_ID="+courseID, "HEADER_PRODUCT_ID="+product.ID, "HEADER_ARTICLE_ID="+articleID, "HEADER_NOTIFICATION_ID="+notificationID, "PLAYWRIGHT_CHROMIUM_DISABLE_GPU=1", "E2E_API_TARGET="+server.URL)
 	reference := exec.CommandContext(ctx, "node", "scripts/parity/header-reference.mjs")
 	reference.Dir = filepath.Dir(filepath.Dir(web))
 	reference.Env = fixtureEnv
