@@ -250,10 +250,12 @@ func (r *Repository) ValidateMasteryGoalScope(ctx context.Context, pathID, subje
 			SELECT 1
 			FROM subjects s
 			JOIN paths p ON p.id=s.path_id
+			LEFT JOIN levels l ON l.id=s.level_id
 			WHERE p.id=$1::uuid
 			  AND s.id=$2::uuid
 			  AND p.status='active'
 			  AND s.status='active'
+			  AND (s.level_id IS NULL OR l.status='active')
 		)
 	`, pathID, subjectID).Scan(&ok)
 	return ok, err
@@ -276,7 +278,9 @@ func (r *Repository) ValidateStudyPlanScope(ctx context.Context, pathID string, 
 			  ON s.id::text=requested.subject_id
 			 AND s.path_id=$1::uuid
 			 AND s.status='active'
+			LEFT JOIN levels l ON l.id=s.level_id
 			WHERE s.id IS NULL
+			   OR (s.level_id IS NOT NULL AND (l.id IS NULL OR l.status <> 'active'))
 		)
 	`, pathID, subjectIDs).Scan(&ok)
 	return ok, err
