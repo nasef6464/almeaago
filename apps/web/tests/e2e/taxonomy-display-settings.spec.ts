@@ -15,7 +15,7 @@ async function setup(page: Page) {
       id: 'path-1', code: 'QDR', name: 'القدرات', parentPathId: '',
       description: 'المسار الأساسي', sortOrder: 1, status: 'active',
       showInNavbar: true, showInHome: true,
-      settings: { showSubjectCards: true, showMockExamCard: true, showPackageCard: true, studentTemplate: 'standard', stageSelection: 'auto', stageLabel: 'المرحلة' },
+      settings: { showSubjectCards: true, showMockExamCard: true, showPackageCard: true, studentTemplate: 'standard', stageSelection: 'auto' },
     }],
     levels: [{ id: 'level-1', pathId: 'path-1', code: 'L1', name: 'المرحلة الأولى', sortOrder: 1, status: 'active' }],
     subjects: [{
@@ -67,6 +67,7 @@ for (const width of [390, 820, 1440]) {
 
     const editor = page.getByTestId('taxonomy-display-editor');
     await expect(editor).toBeVisible();
+    await expect(editor.getByLabel('تسمية المرحلة')).toHaveValue('اختر مرحلتك');
     await expect(editor.getByLabel('إظهار المسار في القائمة العلوية')).toBeChecked();
     await editor.getByLabel('إظهار المسار في القائمة العلوية').uncheck();
     await editor.getByLabel('إظهار المسار في الصفحة الرئيسية').uncheck();
