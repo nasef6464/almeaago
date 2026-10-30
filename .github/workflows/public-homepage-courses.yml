@@ -1,0 +1,43 @@
+name: Public Homepage Courses PostgreSQL Integration
+on:
+  pull_request:
+    paths:
+      - "internal/content/repository/postgres/public_courses*"
+      - "internal/content/application/public_courses*"
+      - "internal/content/transport/http/public_courses*"
+      - ".github/workflows/public-homepage-courses.yml"
+  workflow_dispatch:
+permissions: { contents: read }
+concurrency:
+  group: public-homepage-courses-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  publication-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:18
+        env: { POSTGRES_USER: almeaa, POSTGRES_PASSWORD: almeaa, POSTGRES_DB: almeaa }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U almeaa -d almeaa"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+      PGPASSWORD: almeaa
+      ALMEAA_ISOLATED_POSTGRES: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with: { go-version-file: go.mod }
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Apply complete schema to isolated CI database
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in $(find migrations -maxdepth 1 -type f -name '*.up.sql' | sort); do
+            psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f "$file" >/dev/null
+          done
+      - name: Verify anonymous publication and taxonomy isolation
+        run: go test ./internal/content/repository/postgres -run '^TestPublicCoursesPublicationIsolationPostgres$' -count=1 -v

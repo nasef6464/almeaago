@@ -41,6 +41,30 @@ func (r *Repository) UpdatePath(ctx context.Context, actor, pathID string, patch
 		return taxonomy.Path{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if patch.ParentPathID != nil && *patch.ParentPathID != "" {
+		// Serialize parent-changing commands before reading the ancestry. Without
+		// this lock, concurrent A -> B and B -> A updates can both pass a
+		// check against the previous committed tree.
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(760017, 1)`); err != nil {
+			return taxonomy.Path{}, err
+		}
+		var cycle bool
+		err = tx.QueryRow(ctx, `
+			WITH RECURSIVE ancestors(id, parent_path_id) AS (
+				SELECT id, parent_path_id FROM paths WHERE id=$1::uuid
+				UNION
+				SELECT p.id, p.parent_path_id
+				FROM paths p JOIN ancestors a ON p.id=a.parent_path_id
+			)
+			SELECT EXISTS(SELECT 1 FROM ancestors WHERE id=$2::uuid)
+		`, *patch.ParentPathID, pathID).Scan(&cycle)
+		if err != nil {
+			return taxonomy.Path{}, err
+		}
+		if cycle {
+			return taxonomy.Path{}, taxonomy.ErrConflict
+		}
+	}
 	set, args := []string{"updated_at=now()"}, []any{pathID}
 	add := func(expr string, v any) { args = append(args, v); set = append(set, fmt.Sprintf(expr, len(args))) }
 	if patch.Name != nil {

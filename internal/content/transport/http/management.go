@@ -34,6 +34,7 @@ func NewManagementWithPresentation(service *contentapp.Service, auth Authenticat
 }
 
 func (h *Handler) getTrainerScope(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	auth, ok := h.authenticate(w, r, false)
 	if !ok {
 		return
@@ -47,6 +48,7 @@ func (h *Handler) getTrainerScope(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) setTrainerScope(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	auth, ok := h.authenticate(w, r, true)
 	if !ok {
 		return

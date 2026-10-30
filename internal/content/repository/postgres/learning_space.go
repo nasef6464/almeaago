@@ -204,8 +204,10 @@ func (r *Repository) GetLearnerCourse(ctx context.Context, courseID string) (con
 		       l.is_locked,cl.is_preview,cl.sort_order
 		FROM course_lessons cl
 		JOIN course_modules cm ON cm.id=cl.module_id AND cm.status='active'
+		JOIN courses c ON c.id=cm.course_id
 		JOIN lessons l ON l.id=cl.lesson_id
 		WHERE cm.course_id=$1::uuid
+		  AND l.path_id=c.path_id AND l.subject_id=c.subject_id
 		  AND l.workflow_status='approved' AND l.is_visible=true
 		ORDER BY cm.sort_order,cm.id,cl.sort_order,l.id
 		LIMIT 5001
@@ -273,7 +275,9 @@ func (r *Repository) GetLearnerTopic(ctx context.Context, topicID string) (conte
 		SELECT l.id::text,l.title,l.description,l.lesson_type,l.duration_seconds,l.is_locked,tl.sort_order
 		FROM topic_lessons tl
 		JOIN lessons l ON l.id=tl.lesson_id
+		JOIN foundation_topics t ON t.id=tl.topic_id
 		WHERE tl.topic_id=$1::uuid
+		  AND l.path_id=t.path_id AND l.subject_id=t.subject_id
 		  AND l.workflow_status='approved' AND l.is_visible=true
 		ORDER BY tl.sort_order,l.id
 		LIMIT 1001
@@ -312,7 +316,9 @@ func (r *Repository) GetLearnerTopic(ctx context.Context, topicID string) (conte
 		SELECT li.id::text,li.title,li.description,li.item_type,li.is_locked
 		FROM topic_library_items tli
 		JOIN library_items li ON li.id=tli.library_item_id
+		JOIN foundation_topics t ON t.id=tli.topic_id
 		WHERE tli.topic_id=$1::uuid
+		  AND li.path_id=t.path_id AND li.subject_id=t.subject_id
 		  AND li.workflow_status='approved' AND li.is_visible=true
 		ORDER BY tli.sort_order,li.id
 		LIMIT 1001
@@ -366,6 +372,7 @@ func (r *Repository) GetLearnerCourseLesson(ctx context.Context, courseID, lesso
 		WHERE c.id=$1::uuid
 		  AND l.id=$2::uuid
 		  AND c.workflow_status='approved' AND c.is_published=true AND c.is_visible=true
+		  AND l.path_id=c.path_id AND l.subject_id=c.subject_id
 		  AND l.workflow_status='approved' AND l.is_visible=true
 		  AND (l.is_locked=false OR cl.is_preview=true)
 		ORDER BY cm.sort_order,cm.id,cl.sort_order
@@ -395,6 +402,7 @@ func (r *Repository) ResolveLessonProgressTarget(ctx context.Context, contextTyp
 			JOIN lessons l ON l.id=cl.lesson_id
 			WHERE c.id=$1::uuid AND l.id=$2::uuid
 			  AND c.workflow_status='approved' AND c.is_published=true AND c.is_visible=true
+			  AND l.path_id=c.path_id AND l.subject_id=c.subject_id
 			  AND l.workflow_status='approved' AND l.is_visible=true
 			  AND (l.is_locked=false OR cl.is_preview=true)
 			LIMIT 1
@@ -414,6 +422,7 @@ func (r *Repository) ResolveLessonProgressTarget(ctx context.Context, contextTyp
 			JOIN lessons l ON l.id=tl.lesson_id
 			WHERE t.id=$1::uuid AND l.id=$2::uuid
 			  AND t.status='active' AND t.is_visible=true AND t.is_locked=false
+			  AND l.path_id=t.path_id AND l.subject_id=t.subject_id
 			  AND l.workflow_status='approved' AND l.is_visible=true AND l.is_locked=false
 			LIMIT 1
 		`, contextID, lessonID).Scan(&lessonType, &duration)

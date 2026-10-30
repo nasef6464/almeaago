@@ -1,0 +1,27 @@
+name: PR Exact-HEAD Gate Readiness Audit
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/parity/pr-gate-readiness.mjs'
+      - 'scripts/parity/pr-gate-readiness.test.mjs'
+      - '.github/workflows/pr-gate-readiness.yml'
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test exact-head classification
+        run: node --test scripts/parity/pr-gate-readiness.test.mjs
+      - name: Read-only live open-PR audit
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/parity/pr-gate-readiness.mjs

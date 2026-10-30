@@ -29,6 +29,7 @@ jobs:
           node scripts/parity/platform-fonts.test.mjs
           node scripts/parity/homepage-ui.test.mjs
           node --test scripts/parity/header-brand.test.mjs
+          node --test scripts/parity/admin-skills-separation.test.mjs
           node scripts/parity/screen-inventory.test.mjs
           node scripts/parity/route-inventory.test.mjs
           node scripts/parity/api-mount-inventory.test.mjs

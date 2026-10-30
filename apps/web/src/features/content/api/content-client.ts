@@ -125,7 +125,7 @@ export const contentClient = {
 
   lessons(filters: ContentListFilters, signal?: AbortSignal) {
     return request<PageResult<LessonSummary>>(
-      `/api/v1/lessons?${listQuery(filters)}`,
+      `/api/v1/lessons?${listQuery(filters)}${filters.skillId ? `&skillId=${encodeURIComponent(filters.skillId)}` : ''}`,
       { signal },
     );
   },

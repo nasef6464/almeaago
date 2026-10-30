@@ -63,7 +63,7 @@ export function SchoolDirectorDashboardPage(){
   const overviewReadEpoch=useRef(0);
   const assessmentReadEpoch=useRef(0);
 
-  const selectedSchool=useMemo(()=>schools.find(x=>x.schoolId===schoolId)||schools[0], [schoolId,schools]);
+  const selectedSchool=useMemo(()=>schools.find(x=>x.schoolId===schoolId), [schoolId,schools]);
   const has=(p:string)=>Boolean(selectedSchool?.permissions.includes(p));
   const hasCore=Boolean(selectedSchool?.modules.includes(CORE));
   const canOptional=(p:string)=>has(p)&&hasCore;
@@ -116,10 +116,31 @@ export function SchoolDirectorDashboardPage(){
   },[selectedSchool?.schoolId,overviewReload]);
 
   useEffect(()=>{
-    if(authLoading||!user)return;
+    if(authLoading)return;
     const c=new AbortController();
-    setBusy(true);setError('');
+    // The current server context is authoritative. Revalidation and role changes
+    // must invalidate all data, pending writes and late responses from old schools.
+    activeSchoolId.current='';
+    ++schoolVisitEpoch.current;
+    ++loadEpoch.current;
+    ++teacherReadVersion.current;
+    ++overviewReadEpoch.current;
+    ++assessmentReadEpoch.current;
+    setSchools([]);setClasses([]);setStudents([]);setStudentTotal(0);
+    setTeachers([]);setAssignments([]);setOverview(null);setAssessmentWorkspace(null);
+    setOverviewLoading(false);setAssessmentLoading(false);
+    setSelectedAssessment(null);setShowAssessmentCreator(false);
+    setShowAdd(false);setEditing({studentId:'',name:'',phone:''});
+    setDraft({name:'',email:'',password:'',classId:''});
+    setAssignment({teacherId:'',classId:'',subjectId:'',status:'active'});
+    setPending('');setNotice('');setError('');
+    if(!user?.roles.includes('school_admin')){
+      setSchoolId('');setBusy(false);
+      return()=>c.abort();
+    }
+    setBusy(true);
     organizationsClient.contexts(c.signal).then(r=>{
+      if(c.signal.aborted)return;
       const director=r.contexts.filter(x=>x.role==='school_admin');
       setSchools(director);
       setSchoolId(x=>director.some(s=>s.schoolId===x)?x:(director[0]?.schoolId||''));
@@ -144,7 +165,13 @@ export function SchoolDirectorDashboardPage(){
   async function refresh(query=search){
     if(!selectedSchool||activeSchoolId.current!==selectedSchool.schoolId)return;
     const epoch=++loadEpoch.current;
+    const visit=schoolVisitEpoch.current;
+    const requestedSchoolId=selectedSchool.schoolId;
     const teacherVersion=teacherReadVersion.current;
+    // A failed or late student search must not show rows from the prior query.
+    // Keep independent same-school class/teacher assignments interactive while
+    // that search is pending (e.g. a director may revoke a teacher assignment).
+    setStudents([]);setStudentTotal(0);
     const needsClasses=has('SCHOOL_STUDENTS_ADD')||has('SCHOOL_STUDENTS_MOVE_CLASS')||canOptional('SCHOOL_CLASSES_MANAGE')||canOptional('SCHOOL_TEACHERS_ASSIGN');
     setBusy(true);setError('');
     try{
@@ -153,7 +180,7 @@ export function SchoolDirectorDashboardPage(){
         has('SCHOOL_STUDENTS_VIEW')?organizationsClient.directorStudents(selectedSchool.schoolId,query):Promise.resolve({students:[],total:0}),
         canOptional('SCHOOL_TEACHERS_ASSIGN')?organizationsClient.directorTeachers(selectedSchool.schoolId):Promise.resolve({teachers:[],assignments:[]}),
       ]);
-      if(epoch!==loadEpoch.current)return;
+      if(epoch!==loadEpoch.current||visit!==schoolVisitEpoch.current||activeSchoolId.current!==requestedSchoolId)return;
       setClasses(classResult.classes);
       setStudents(studentResult.students);
       setStudentTotal(studentResult.total);
@@ -163,8 +190,8 @@ export function SchoolDirectorDashboardPage(){
       }
       setDraft(x=>({...x,classId:classResult.classes.some(v=>v.id===x.classId)?x.classId:(classResult.classes[0]?.id||'')}));
       setAssignment(x=>({...x,classId:classResult.classes.some(v=>v.id===x.classId)?x.classId:(classResult.classes[0]?.id||'')}));
-    }catch(e){if(epoch===loadEpoch.current)setError(e instanceof Error?e.message:'تعذر تحديث المدرسة')}
-    finally{if(epoch===loadEpoch.current)setBusy(false)}
+    }catch(e){if(epoch===loadEpoch.current&&visit===schoolVisitEpoch.current&&activeSchoolId.current===requestedSchoolId)setError(e instanceof Error?e.message:'تعذر تحديث المدرسة')}
+    finally{if(epoch===loadEpoch.current&&visit===schoolVisitEpoch.current&&activeSchoolId.current===requestedSchoolId)setBusy(false)}
   }
 
   useEffect(()=>{
@@ -316,7 +343,7 @@ export function SchoolDirectorDashboardPage(){
 
   if(authLoading||busy&&schools.length===0)return <main dir="rtl" className="flex min-h-[calc(100vh-5rem)] items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-indigo-600" size={38}/></main>;
   if(!user?.roles.includes('school_admin'))return <main dir="rtl" className="p-10 text-center font-black text-rose-700">هذه المساحة مخصصة لمدير المدرسة.</main>;
-  if(!selectedSchool)return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 p-6"><div className="mx-auto mt-20 max-w-xl rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center"><ShieldCheck className="mx-auto text-slate-400" size={40}/><h1 className="mt-4 text-xl font-black">لا توجد مدرسة مفوضة</h1><p className="mt-2 text-sm text-slate-500">اطلب من مدير المنصة ربط حسابك بمدرسة وتفعيل الصلاحيات المطلوبة.</p></div></main>;
+  if(!selectedSchool)return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 p-6"><div className="mx-auto mt-20 max-w-xl rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center"><ShieldCheck className="mx-auto text-slate-400" size={40}/><h1 className="mt-4 text-xl font-black">{error?'تعذر تحميل مساحة مدير المدرسة':'لا توجد مدرسة مفوضة'}</h1><p className="mt-2 text-sm text-slate-500">{error?'تعذر قراءة نطاق المدارس المصرح به. أعد فتح الصفحة للمحاولة مجددًا.':'اطلب من مدير المنصة ربط حسابك بمدرسة وتفعيل الصلاحيات المطلوبة.'}</p></div></main>;
 
   return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 px-4 py-6 text-slate-900 sm:px-8" data-testid="school-director-dashboard"><div className="mx-auto max-w-7xl">
     <header className="rounded-3xl bg-gradient-to-l from-indigo-700 via-indigo-800 to-slate-900 p-6 text-white shadow-xl sm:p-8"><div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="flex items-center gap-2 text-sm font-bold text-indigo-200"><ShieldCheck size={17}/> نطاق مفوض من مدير المنصة</p><h1 className="mt-2 text-3xl font-black">لوحة مدير المدرسة</h1><p className="mt-2 max-w-2xl text-sm leading-7 text-indigo-100">رؤية تشغيلية وعمليات طلاب وفصول ومعلمين داخل المدارس المصرح بها فقط.</p></div><label className="text-sm font-bold">المدرسة<select aria-label="المدرسة" value={selectedSchool.schoolId} onChange={e=>changeSchool(e.target.value)} className="mt-2 block w-full min-w-56 rounded-xl border-0 bg-white px-4 py-3 text-slate-900">{schools.map(s=><option key={s.schoolId} value={s.schoolId}>{s.schoolName}</option>)}</select></label></div></header>

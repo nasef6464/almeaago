@@ -246,8 +246,7 @@ func (h *Handler) answer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in learning.ReviewAnswerWrite
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&in); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+	if !decodeLearningWriteJSON(w, r, &in, 16<<10) {
 		return
 	}
 	out, err := h.service.SubmitReviewAnswer(
@@ -308,8 +307,7 @@ func (h *Handler) goalsCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in learning.MasteryGoalWrite
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&in); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+	if !decodeLearningWriteJSON(w, r, &in, 16<<10) {
 		return
 	}
 	out, err := h.goals.Create(r.Context(), authenticated.User, in)
@@ -330,8 +328,7 @@ func (h *Handler) goalsUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in learning.MasteryGoalPatch
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&in); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+	if !decodeLearningWriteJSON(w, r, &in, 16<<10) {
 		return
 	}
 	out, err := h.goals.Update(r.Context(), authenticated.User, chi.URLParam(r, "goalId"), in)

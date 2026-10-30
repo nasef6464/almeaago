@@ -1,6 +1,6 @@
 import{BarChart3,CheckCircle2,ChevronLeft,Clock3,Loader2,Play,Presentation,Radio,RefreshCcw,Search,Send,Square,Trophy,UserCheck,Users}from'lucide-react';
 import{useCallback,useEffect,useMemo,useRef,useState}from'react';
-import{Link}from'react-router-dom';
+import{Link,useSearchParams}from'react-router-dom';
 import{useAuth}from'../../auth/state/AuthProvider';
 import{contentClient}from'../../content/api/content-client';
 import{organizationsClient,type RosterMember,type TeacherWorkspace,type TeacherWorkspaceAssignment,type TeacherWorkspaceSchool}from'../../organizations/api/organizations-client';
@@ -13,6 +13,9 @@ const attendanceLabel:Record<ClassroomAttendanceStatus,string>={present:'حاض�
 
 export function ClassroomTeacherPage(){
  const{user,loading:authLoading,getCsrfToken}=useAuth();
+ const[searchParams,setSearchParams]=useSearchParams();
+ const requestedSchoolId=searchParams.get('schoolId')||'';
+ const requestedAssignmentId=searchParams.get('assignmentId')||'';
  const[workspace,setWorkspace]=useState<TeacherWorkspace|null>(null);
  const[subjectNames,setSubjectNames]=useState<Record<string,string>>({});
  const[scope,setScope]=useState<Scope|null>(null);
@@ -33,19 +36,32 @@ export function ClassroomTeacherPage(){
  const[error,setError]=useState('');
  const[notice,setNotice]=useState('');
  const socketRef=useRef<WebSocket|null>(null);
+ const scopeEpoch=useRef(0);
 
  const loadWorkspace=useCallback(async()=>{
-  setBusy('load');setError('');
+  const epoch=++scopeEpoch.current;
+  // Clear the previous school before requesting fresh authorization from Go.
+  setBusy('load');setError('');setScope(null);setSession(null);setQuestions([]);setRoster([]);
+  setPresentation(null);setAttendance(null);setCompetition(null);setReport(null);setPin('');
   try{
    const[w,t,sessions]=await Promise.all([organizationsClient.teacherWorkspace(),contentClient.taxonomyCore(),classroomClient.teacherSessions()]);
+   if(epoch!==scopeEpoch.current)return;
    setWorkspace(w);setSubjectNames(Object.fromEntries(t.subjects.map(x=>[x.id,x.name])));
-   const firstSchool=w.schools[0],firstAssignment=firstSchool?.assignments[0];
-   if(firstSchool&&firstAssignment)setScope(current=>current??{school:firstSchool,assignment:firstAssignment});
-   const active=sessions.sessions.find(x=>x.status==='live')||sessions.sessions.find(x=>x.status==='draft'||x.status==='scheduled');
-   if(active)setSession(current=>current??active);
-  }catch(e){setError(e instanceof Error?e.message:'تعذر تحميل مساحة الفصل الذكي')}
-  finally{setBusy('')}
- },[]);
+   const school=requestedSchoolId?w.schools.find(x=>x.schoolId===requestedSchoolId):w.schools[0];
+   const assignment=requestedAssignmentId?school?.assignments.find(x=>x.assignmentId===requestedAssignmentId):school?.assignments[0];
+   if((requestedSchoolId&&!school)||(requestedAssignmentId&&!assignment)){
+    setError('النطاق المحدد لم يعد ضمن تكليفاتك');
+    return;
+   }
+   if(school&&assignment){
+    setScope({school,assignment});
+    const scoped=sessions.sessions.filter(x=>x.schoolId===school.schoolId&&x.classId===assignment.classId&&x.subjectId===assignment.subjectId);
+    const active=scoped.find(x=>x.status==='live')||scoped.find(x=>x.status==='draft'||x.status==='scheduled');
+    setSession(active||null);
+   }
+  }catch(e){if(epoch===scopeEpoch.current)setError(e instanceof Error?e.message:'تعذر تحميل مساحة الفصل الذكي')}
+  finally{if(epoch===scopeEpoch.current)setBusy('')}
+ },[requestedSchoolId,requestedAssignmentId]);
  useEffect(()=>{if(!authLoading&&user)void loadWorkspace()},[authLoading,user,loadWorkspace]);
 
  useEffect(()=>{
@@ -53,12 +69,20 @@ export function ClassroomTeacherPage(){
   setPin(current=>current||sessionStorage.getItem('almeaa:classroom:pin:'+session.id)||'');
  },[session?.id]);
 
- const loadQuestions=useCallback(async()=>{
-  if(!scope)return;setError('');
-  try{const result=await classroomClient.questions({schoolId:scope.school.schoolId,classId:scope.assignment.classId,subjectId:scope.assignment.subjectId,search,limit:30});setQuestions(result.items)}
-  catch(e){setQuestions([]);setError(e instanceof Error?e.message:'تعذر تحميل أسئلة الحصة')}
+ const loadQuestions=useCallback(async(signal:AbortSignal)=>{
+  if(!scope)return;
+  try{
+   const result=await classroomClient.questions({schoolId:scope.school.schoolId,classId:scope.assignment.classId,subjectId:scope.assignment.subjectId,search,limit:30},signal);
+   if(!signal.aborted)setQuestions(result.items);
+  }catch(e){if(!signal.aborted){setQuestions([]);setError(e instanceof Error?e.message:'تعذر تحميل أسئلة الحصة')}}
  },[scope,search]);
- useEffect(()=>{if(scope)void loadQuestions()},[scope,loadQuestions]);
+ useEffect(()=>{
+  setQuestions([]);
+  if(!scope)return;
+  const controller=new AbortController();
+  void loadQuestions(controller.signal);
+  return()=>controller.abort();
+ },[scope,loadQuestions]);
 
  useEffect(()=>{
   if(!scope){setRoster([]);return}
@@ -70,18 +94,24 @@ export function ClassroomTeacherPage(){
 
  const refreshLive=useCallback(async()=>{
   if(!session)return;
+  const epoch=scopeEpoch.current;
   try{
-   if(session.status==='ended'||session.status==='archived'){const x=await classroomClient.report(session.id);setReport(x.report);return}
+   if(session.status==='ended'||session.status==='archived'){
+    const x=await classroomClient.report(session.id);
+    if(epoch===scopeEpoch.current)setReport(x.report);
+    return;
+   }
    if(session.status==='live'){
     const[p,a,k]=await Promise.all([
      classroomClient.presentation(session.id),
      classroomClient.attendanceSnapshot(session.id),
      classroomClient.competition(session.id),
     ]);
+    if(epoch!==scopeEpoch.current)return;
     setPresentation(p.presentation);setAttendance(a.attendance);setCompetition(k.competition);
-    setSession(current=>current?{...current,status:p.presentation.status,activeBatchId:p.presentation.activeBatchId,activeQuestionOrdinal:p.presentation.activeQuestionOrdinal}:current);
+    setSession(current=>current?.id===session.id?{...current,status:p.presentation.status,activeBatchId:p.presentation.activeBatchId,activeQuestionOrdinal:p.presentation.activeQuestionOrdinal}:current);
    }
-  }catch(e){setError(e instanceof Error?e.message:'تعذر تحديث الحالة الحية')}
+  }catch(e){if(epoch===scopeEpoch.current)setError(e instanceof Error?e.message:'تعذر تحديث الحالة الحية')}
  },[session?.id,session?.status]);
 
  useEffect(()=>{
@@ -117,7 +147,7 @@ export function ClassroomTeacherPage(){
   return Math.max(0,Math.ceil((Date.parse(challenge.timerEndsAt)-Date.now())/1000));
  },[challenge?.timerEndsAt,challenge?.expired,clockTick]);
 
- function chooseScope(school:TeacherWorkspaceSchool,assignment:TeacherWorkspaceAssignment){setScope({school,assignment});setSelected([]);setSession(null);setPin('');setPresentation(null);setAttendance(null);setCompetition(null);setReport(null)}
+ function chooseScope(school:TeacherWorkspaceSchool,assignment:TeacherWorkspaceAssignment){++scopeEpoch.current;setScope({school,assignment});setSelected([]);setSession(null);setPin('');setPresentation(null);setAttendance(null);setCompetition(null);setReport(null);setSearchParams(new URLSearchParams({schoolId:school.schoolId,assignmentId:assignment.assignmentId}));}
  function toggle(id:string){setSelected(rows=>rows.includes(id)?rows.filter(x=>x!==id):rows.length>=30?rows:[...rows,id])}
  async function create(){
   if(!scope||selected.length===0)return;setBusy('create');setError('');setNotice('');
