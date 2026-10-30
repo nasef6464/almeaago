@@ -53,5 +53,4 @@ jobs:
             psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f "$file" > /dev/null
           done
       - name: Student review saved/unsaved HTTP -> Go -> PostgreSQL
-        run: go test ./internal/learning/repository/postgres -run '^TestReviewSaved.*Postgres -count=1 -v
- -count=1 -v
+        run: go test ./internal/learning/repository/postgres -run '^TestReviewSaved.*Postgres' -count=1 -v
