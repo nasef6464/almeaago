@@ -16,6 +16,14 @@ The focused fix uses `utf8.RuneCountInString` for name and description validatio
 - 4000 Arabic letters accepted and 4001 rejected on two creates and two updates (8 subtests).
 - Teacher remains forbidden to create a skill (1 assertion).
 
+### HTTP transport checks
+`go test ./internal/taxonomy/transport/http -run '^TestAdminArabicSkillHTTPBoundariesAndAuthorization
+- This closes **only** the erroneous UTF-8 byte/Arabic-character boundary in the Go application. Legacy has no corresponding 160/4000 cap in the cited skill schema; parity above these Go limits remains **UNKNOWN/NOT PROVEN**, pending explicit contract and database/UI validation.
+- These tests exercise the actual Go HTTP handler with a test authenticator and an in-memory repository stub, not a real authenticated browser session or PostgreSQL transaction. No claim of end-to-end or visual parity; paired 390/820/1440 RTL screenshots remain missing.
+- Next owner action: #160 must make admin create/edit preserve drafts after HTTP 503 (#199), restore the original six Skills Center counters and controls (#206), then prove save/reload and student visibility through the existing Go API and isolated PostgreSQL. Do not reimplement lesson linking in #160.
+- Four CI gates on the exact final SHA must be recorded independently. A non-triggered gate is **NOT RUN**, not PASS. No merge or deployment authorized.
+ -count=1 -v` adds eight real `httptest` POST/PATCH cases against the Go handler and application service: Arabic name/description boundaries, 201/200 vs 400, unchanged teacher 403 and CSRF 403, and repository write-count assertions. The repository is an isolated stub, **not PostgreSQL**.
+
 ## Limits and follow-up
 - This closes **only** the erroneous UTF-8 byte/Arabic-character boundary in the Go application. Legacy has no corresponding 160/4000 cap in the cited skill schema; parity above these Go limits remains **UNKNOWN/NOT PROVEN**, pending explicit contract and database/UI validation.
 - This test uses an in-memory repository stub, not a real HTTP session or PostgreSQL transaction. No claim of end-to-end or visual parity; paired 390/820/1440 RTL screenshots remain missing.
