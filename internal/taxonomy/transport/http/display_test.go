@@ -4,19 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	identityapp "github.com/nasef6464/almeaago/internal/identity/application"
-	identity "github.com/nasef6464/almeaago/internal/identity/domain"
-	taxonomyapp "github.com/nasef6464/almeaago/internal/taxonomy/application"
-	taxonomy "github.com/nasef6464/almeaago/internal/taxonomy/domain"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	identityapp "github.com/nasef6464/almeaago/internal/identity/application"
+	identity "github.com/nasef6464/almeaago/internal/identity/domain"
+	taxonomyapp "github.com/nasef6464/almeaago/internal/taxonomy/application"
+	taxonomy "github.com/nasef6464/almeaago/internal/taxonomy/domain"
 )
 
 func TestBootstrapProjectsOriginalDisplayFields(t *testing.T) {
 	var value taxonomy.Bootstrap
-	// Decode the domain shape without requiring new members to exist for the RED test.
+	// Exercise the public and admin projections from the same domain rows.
 	json.Unmarshal([]byte(`{"Paths":[{"ID":"p","Status":"active","ShowInNavbar":false,"Settings":{"ShowMockExamCard":false}}],"Subjects":[{"ID":"s","Icon":"🧪","Color":"#abcdef"}]}`), &value)
 	for _, present := range []func(taxonomy.Bootstrap) map[string]any{presentBootstrap, presentAdminBootstrap} {
 		b, _ := json.Marshal(present(value))
@@ -72,6 +73,7 @@ func TestPathDisplayPatchHTTPPreservesFalseAndProjectsMutation(t *testing.T) {
 		t.Fatalf("wrong mutation projection: %s", response.Body.String())
 	}
 	request = httptest.NewRequest("PATCH", "/admin/paths/p", strings.NewReader(`{"showInNavbar":false}`))
+	request.Header.Set("Authorization", "Bearer admin")
 	response = httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != 403 {
