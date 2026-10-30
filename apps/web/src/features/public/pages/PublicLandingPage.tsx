@@ -195,7 +195,7 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
     return()=>window.clearInterval(timer);
   },[isHeroHovered,hero.autoRotateImages,hero.rotateIntervalSeconds,heroGallery.length]);
 
-  const paths=useMemo(()=>[...taxonomy.paths].sort((a,b)=>a.sortOrder-b.sortOrder),[taxonomy.paths]);
+  const paths=useMemo(()=>[...(taxonomy.paths as Array<TaxonomyPath & {showInHome?:boolean}>)].filter(path=>path.showInHome!==false).sort((a,b)=>a.sortOrder-b.sortOrder),[taxonomy.paths]);
   const visiblePaths=settings.featuredPathIds?.some(id=>paths.some(p=>p.id===id))?paths.filter(p=>settings.featuredPathIds!.includes(p.id)):paths;
   const showcase=showcaseTab==='daylight'?PLATFORM_DAYLIGHT_IMAGES:PLATFORM_SHOWCASE_IMAGES;
   const dashboardHref=user?dashboardPathFor(user):'/dashboard';
@@ -337,7 +337,7 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
             <h2 className="mb-4 text-3xl font-black text-gray-900 md:text-4xl">كل ما تحتاجه للتفوق</h2>
             <p className="mx-auto max-w-2xl text-gray-600">نقدم لك أدوات تعليمية متكاملة تغطي كافة جوانب التدريب والتقييم.</p>
           </div>
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+          <div data-testid="public-home-paths" className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
             {visiblePaths.map((path,index)=><OrganicPathCard key={path.id} path={path} index={index}/>)}
           </div>
         </div>
