@@ -228,7 +228,9 @@ test('admin content desktop renders bounded management and curriculum builder', 
 
   await page.getByRole('button', { name: 'تعديل / المنهج' }).click();
   await expect(page.getByRole('heading', { name: 'تعديل الدورة (Master Builder)' })).toBeVisible();
-  await expect(page.getByText('أساسيات الكمي')).toBeVisible();
+  await page.getByRole('button', { name: 'إعدادات الدورة' }).click();
+  await expect(page.getByRole('textbox', { name: 'اسم الدورة *' })).toHaveValue('أساسيات الكمي');
+  await page.getByRole('button', { name: 'المناهج الدراسية' }).click();
   await expect(page.locator('input[value="الوحدة الأولى"]')).toBeVisible();
   await expect(page.getByText('مدخل إلى الأعداد')).toBeVisible();
 
