@@ -13,7 +13,7 @@ async function ready(page:Page,url:string){
  if(url.startsWith('/tests/reference/'))await expect(page.getByTestId('header-reference-body')).toHaveAttribute('data-ready','true');
  await expect(page.locator('header').first().getByRole('button',{name:'فتح البحث',exact:true})).toBeVisible();
  await expect(page.getByLabel('جارٍ تجهيز قائمة المنصة')).toHaveCount(0);
- await expect(page.locator('header').first().locator('nav').getByRole('link',{name:'قدرات',exact:true})).toHaveCount(1);
+ await expect(page.locator('header').first().locator('nav').getByRole('button',{name:'قدرات',exact:true})).toHaveCount(1);
  await page.evaluate(()=>document.fonts.ready);
  await expect.poll(()=>page.locator('header').first().locator('img').evaluateAll(images=>images.every(image=>(image as HTMLImageElement).complete&&(image as HTMLImageElement).naturalWidth>0))).toBe(true);
 }
@@ -28,9 +28,29 @@ async function attachPage(page:Page,info:TestInfo,name:string){
 }
 async function openPath(page:Page,level=false){
  const nav=page.locator('header').first().locator('nav');
- await nav.getByRole('link',{name:'قدرات',exact:true}).hover();
+ await nav.getByRole('button',{name:'قدرات',exact:true}).hover();
+ await expect(nav.getByRole('link',{name:'مسار فرعي',exact:true})).toHaveAttribute('href','/category/'+env('HEADER_CHILD_PATH_ID'));
+ await expect(nav.getByRole('link',{name:'اختبارات محاكية قدرات',exact:true})).toHaveAttribute('href','/category/'+env('HEADER_PATH_ID')+'?tab=mock-exams');
+ await expect(nav.getByRole('link',{name:'عروض وباقات قدرات',exact:true})).toHaveAttribute('href','/category/'+env('HEADER_PATH_ID')+'?tab=packages');
  const stage=nav.getByRole('button',{name:/المرحلة المتوسطة/});await expect(stage).toBeVisible();
  if(level){await stage.hover();await expect(nav.getByRole('link',{name:'رياضيات',exact:true})).toBeVisible()}
+}
+async function openMockExams(page:Page){
+ const nav=page.locator('header').first().locator('nav');
+ await nav.getByRole('button',{name:'اختبارات محاكية',exact:true}).hover();
+ const path=nav.getByRole('link',{name:'قدرات',exact:true});
+ await expect(path).toHaveAttribute('href','/category/'+env('HEADER_PATH_ID')+'?tab=mock-exams');
+}
+async function openMore(page:Page){
+ const nav=page.locator('header').first().locator('nav');
+ await nav.getByRole('button',{name:'أخرى',exact:true}).hover();
+ await expect(nav.getByRole('link',{name:'العضويات',exact:true})).toHaveAttribute('href','/pricing');
+ await expect(nav.getByRole('link',{name:'المدونة',exact:true})).toHaveAttribute('href','/blog');
+}
+async function openAccount(page:Page){
+ const header=page.locator('header').first();
+ await header.getByRole('button',{name:'قائمة المستخدم',exact:true}).click();
+ await expect(header.locator('a[href*="dashboard"]')).toHaveCount(1);
 }
 async function visualMetrics(page:Page){return page.evaluate(()=>{
  const close=document.querySelector('button[aria-label="إغلاق القائمة"]');const box=close?.getBoundingClientRect();
@@ -58,7 +78,10 @@ test.describe('original full Header on native Go data',()=>{
     const compare=async(state:string)=>{
      // Identical scrollable wrappers and sticky composition; no masks/CSS fixes/tolerance.
      await stable(source);await stable(page);
-     if(state!=='closed'&&width>=768){await openPath(source,state==='level');await openPath(page,state==='level')}
+     if(state==='path'||state==='level'){await openPath(source,state==='level');await openPath(page,state==='level')}
+     if(state==='mock-exams'){await openMockExams(source);await openMockExams(page)}
+     if(state==='more'){await openMore(source);await openMore(page)}
+     if(state==='account'){await openAccount(source);await openAccount(page)}
      const expected=await attachPage(source,info,`header-${role}-${width}-${state}-source`);
      const actual=await attachPage(page,info,`header-${role}-${width}-${state}-go`);
      const sourceMetrics=await visualMetrics(source);const targetMetrics=await visualMetrics(page);
@@ -67,7 +90,10 @@ test.describe('original full Header on native Go data',()=>{
      expect.soft(targetMetrics,`${role}/${width}/${state}: original overflow and close-hit-test behavior`).toEqual(sourceMetrics);
     };
     await compare('closed');
-    if(width>=768){await compare('path');await compare('level')}
+    if(width>=768){
+     await compare('path');await compare('level');await compare('mock-exams');await compare('more');
+     if(role!=='guest'&&width===1440)await compare('account');
+    }
     else{
      await source.getByRole('button',{name:'فتح القائمة',exact:true}).click();await page.getByRole('button',{name:'فتح القائمة',exact:true}).click();
      // Include the entire visible mobile overlay, even if it exceeds the initial viewport.
