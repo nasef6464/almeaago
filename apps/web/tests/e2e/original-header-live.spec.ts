@@ -13,7 +13,11 @@ async function signIn(page:Page,role:'admin'|'student'){
 async function ready(page:Page,url:string){
  const font=page.waitForResponse(r=>r.url().includes('/content/platform-font-settings')&&r.request().method()==='GET');
  await page.goto(url);await font;
- if(url.startsWith('/tests/reference/'))await expect(page.getByTestId('header-reference-body')).toHaveAttribute('data-ready','true');
+ if(url.startsWith('/tests/reference/')){
+  await expect(page.getByTestId('header-reference-body')).toHaveAttribute('data-ready','true');
+  await expect(page.getByTestId('header-reference-body')).toHaveAttribute('data-variant',url.includes('variant=go')?'go':'source');
+  await page.waitForFunction(()=>typeof (window as any).__setHeaderVariant==='function');
+ }
  await expect(page.locator('header').first().getByRole('button',{name:'فتح البحث',exact:true})).toBeVisible();
  await expect(page.getByLabel('جارٍ تجهيز قائمة المنصة')).toHaveCount(0);
  const header=page.locator('header').first();
@@ -22,13 +26,18 @@ async function ready(page:Page,url:string){
  else{await expect(header.getByRole('button',{name:'فتح القائمة',exact:true})).toBeVisible();await expect(header.locator('nav')).toBeHidden()}
  await expect(header.locator('a[href="/cart"] span')).toHaveText('1');
  await expect.poll(()=>page.locator('#platform-font-google-link').getAttribute('href')).toContain('Tajawal');
-  await page.evaluate(async()=>{const header=document.querySelector('header');const family=(header?getComputedStyle(header).fontFamily:'Tajawal').split(',')[0].replace(/["']/g,'').trim();const specs=[`400 16px "${family}"`,`500 14px "${family}"`,`700 14px "${family}"`,`700 12px "${family}"`,`800 12px "${family}"`,`900 12px "${family}"`];await Promise.all(specs.map(font=>document.fonts.load(font)));await document.fonts.ready;const missing=specs.filter(font=>!document.fonts.check(font));if(missing.length)throw new Error(`Header font weights did not load: ${missing.join(', ')}`);});
+ await page.evaluate(async()=>{const header=document.querySelector('header');const family=(header?getComputedStyle(header).fontFamily:'Tajawal').split(',')[0].replace(/["']/g,'').trim();const specs=[`400 16px "${family}"`,`500 14px "${family}"`,`700 14px "${family}"`,`700 12px "${family}"`,`800 12px "${family}"`,`900 12px "${family}"`];await Promise.all(specs.map(font=>document.fonts.load(font)));await document.fonts.ready;const missing=specs.filter(font=>!document.fonts.check(font));if(missing.length)throw new Error(`Header font weights did not load: ${missing.join(', ')}`);});
  await expect.poll(()=>page.locator('header').first().locator('img').evaluateAll(images=>images.every(image=>(image as HTMLImageElement).complete&&(image as HTMLImageElement).naturalWidth>0))).toBe(true);
 }
 async function stable(page:Page){
  await page.mouse.move(0,999);await page.evaluate(()=>document.fonts.ready);
  await page.evaluate(()=>scrollTo(0,100));await page.evaluate(()=>new Promise<void>(r=>requestAnimationFrame(()=>r())));
  await page.evaluate(()=>scrollTo(0,0));await page.evaluate(()=>new Promise<void>(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r()))));
+}
+async function selectVariant(page:Page,variant:'source'|'go'){
+ await page.evaluate((value)=>(window as any).__setHeaderVariant?.(value),variant);
+ await expect(page.getByTestId('header-reference-body')).toHaveAttribute('data-variant',variant);
+ await stable(page);
 }
 async function attachPage(page:Page,info:TestInfo,name:string){
  const bytes=await page.screenshot({path:info.outputPath(`${name}.png`),animations:'disabled'});
@@ -97,49 +106,58 @@ test.describe('original full Header on native Go data',()=>{
   for(const role of ['guest','admin','student'] as const){
    await context.clearCookies();if(role!=='guest')await signIn(page,role);
    for(const width of [390,820,1440]){
-    const source=await context.newPage();await page.setViewportSize({width,height:1000});await source.setViewportSize({width,height:1000});
-    await ready(source,'/tests/reference/header.html?variant=source');await ready(page,'/tests/reference/header.html?variant=go');
-    // Fixture has no realtime broker: native SSE503 is an explicit evidence gap,
-    // not a connected-state certificate. Both renderers use the same real transport.
-    if(role!=='guest')for(const surface of [source,page]){
-     const bell=surface.getByRole('button',{name:'الإشعارات',exact:true});
-     await expect(bell).toBeVisible();await expect(bell.locator('span.bg-emerald-400')).toHaveCount(0);
-     if(role==='admin')await expect(bell.locator('span.bg-red-500')).toHaveText('1');
-    }
+    await page.setViewportSize({width,height:1000});
+    await ready(page,'/tests/reference/header.html?variant=source');
+    const prepare=async(state:string)=>{
+     if(state==='path'||state==='level')await openPath(page,state==='level');
+     if(state==='mock-exams')await openMockExams(page);
+     if(state==='more')await openMore(page);
+     if(state==='account')await openAccount(page,role);
+     if(state==='mobile'){
+      await page.getByRole('button',{name:'فتح القائمة',exact:true}).click();
+      const header=page.locator('header').first();
+      await expect(header.locator('[data-mobile-nav="home"]')).toBeVisible();
+      await expect(header.locator('[data-mobile-nav="'+env('HEADER_PATH_ID')+'"]')).toBeVisible();
+      return header.locator('div.fixed.inset-0').evaluate(e=>e.scrollHeight);
+     }
+     if(state==='closed'&&role!=='guest'){
+      const bell=page.getByRole('button',{name:'الإشعارات',exact:true});
+      await expect(bell).toBeVisible();await expect(bell.locator('span.bg-emerald-400')).toHaveCount(0);
+      if(role==='admin')await expect(bell.locator('span.bg-red-500')).toHaveText('1');
+     }
+     return 1000;
+    };
     const compare=async(state:string)=>{
-     // Identical scrollable wrappers and sticky composition; no masks/CSS fixes/tolerance.
-     await stable(source);await stable(page);
-     if(state==='path'||state==='level'){await openPath(source,state==='level');await openPath(page,state==='level')}
-     if(state==='mock-exams'){await openMockExams(source);await openMockExams(page)}
-     if(state==='more'){await openMore(source);await openMore(page)}
-     if(state==='account'){await openAccount(source,role);await openAccount(page,role)}
-     const expected=await attachPage(source,info,`header-${role}-${width}-${state}-source`);
-     const actual=await attachPage(page,info,`header-${role}-${width}-${state}-go`);
-     const pixelDiff=exactPixelDifference(actual,expected);
-     const samplePoints=pixelDiff.samples.map(({x,y})=>({x,y}));
-     const sourceMetrics=await visualMetrics(source,samplePoints);const targetMetrics=await visualMetrics(page,samplePoints);
-     if(pixelDiff.diffPixels!==0)console.log('[HEADER_PIXEL_DIFF] '+JSON.stringify({role,width,state,pixelDiff,source:sourceMetrics,go:targetMetrics}));
-     await info.attach(`header-${role}-${width}-${state}-metrics`,{body:JSON.stringify({source:sourceMetrics,go:targetMetrics,scope:'Header component + shared real providers and StudentPathBar; not whole legacy App'}),contentType:'application/json'});
+     let mobileHeight=1000;
+     if(state==='mobile'){
+      await selectVariant(page,'source');const sourceHeight=await prepare(state);
+      await selectVariant(page,'go');const goHeight=await prepare(state);
+      mobileHeight=Math.max(1000,sourceHeight,goHeight);
+     }
+     const capture=async(variant:'source'|'go',label:string)=>{
+      await selectVariant(page,variant);
+      if(state==='mobile'){
+       await page.setViewportSize({width,height:mobileHeight});
+       await prepare(state);
+      }else await prepare(state);
+      await stable(page);
+      const bytes=await attachPage(page,info,`header-${role}-${width}-${state}-${label}`);
+      const metrics=await visualMetrics(page);
+      return {bytes,metrics};
+     };
+     const source=await capture('source','source');
+     const target=await capture('go','go');
+     const pixelDiff=exactPixelDifference(target.bytes,source.bytes);
+     if(pixelDiff.diffPixels!==0)console.log('[HEADER_PIXEL_DIFF] '+JSON.stringify({role,width,state,pixelDiff,source:source.metrics,go:target.metrics}));
+     await info.attach(`header-${role}-${width}-${state}-metrics`,{body:JSON.stringify({source:source.metrics,go:target.metrics,scope:'Header component + shared real providers and StudentPathBar; both variants switched in the same document; not whole legacy App'}),contentType:'application/json'});
      expect.soft(pixelDiff.diffPixels,`${role}/${width}/${state}: exact original full visible Header pixels`).toBe(0);
-     expect.soft(targetMetrics,`${role}/${width}/${state}: original overflow and close-hit-test behavior`).toEqual(sourceMetrics);
+     expect.soft(target.metrics,`${role}/${width}/${state}: original overflow and close-hit-test behavior`).toEqual(source.metrics);
     };
     await compare('closed');
     if(width>=768){
      await compare('path');await compare('level');await compare('mock-exams');await compare('more');
      if(role!=='guest'&&width===1440)await compare('account');
-    }
-    else{
-     await source.getByRole('button',{name:'فتح القائمة',exact:true}).click();await page.getByRole('button',{name:'فتح القائمة',exact:true}).click();
-     await expect(source.locator('header').first().locator('[data-mobile-nav="home"]')).toBeVisible();
-     await expect(page.locator('header').first().locator('[data-mobile-nav="home"]')).toBeVisible();
-     await expect(source.locator('header').first().locator('[data-mobile-nav="'+env('HEADER_PATH_ID')+'"]')).toBeVisible();
-     await expect(page.locator('header').first().locator('[data-mobile-nav="'+env('HEADER_PATH_ID')+'"]')).toBeVisible();
-     // Include the entire visible mobile overlay, even if it exceeds the initial viewport.
-     const panelHeight=async(p:Page)=>p.locator('header > div.fixed.inset-0').evaluate(e=>e.scrollHeight);
-     const height=Math.max(1000,await panelHeight(source),await panelHeight(page));
-     await source.setViewportSize({width,height});await page.setViewportSize({width,height});await compare('mobile');
-    }
-    await source.close();
+    }else await compare('mobile');
    }
   }
  });
