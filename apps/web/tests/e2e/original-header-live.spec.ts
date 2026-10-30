@@ -2,6 +2,8 @@ import {test,expect,type Page,type TestInfo} from '@playwright/test';
 import {PNG} from 'pngjs';
 
 const live=process.env.HEADER_LIVE==='1';
+// Keep exact RGBA parity strict while avoiding GPU compositor rounding at rounded edges.
+test.use({ launchOptions: { args: ['--disable-gpu'] } });
 const env=(name:string)=>{const value=process.env[name];if(!value)throw Error(`${name} required for native header fixture`);return value};
 const password=process.env.HEADER_PASSWORD||'Header-test-pass-42!';
 async function signIn(page:Page,role:'admin'|'student'){
