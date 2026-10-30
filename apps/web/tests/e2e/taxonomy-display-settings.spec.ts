@@ -60,6 +60,9 @@ for (const width of [390, 820, 1440]) {
   test(`taxonomy display settings persist and reach public bootstrap at ${width}px`, async ({ page }) => {
     const { state, writes } = await setup(page);
     await page.setViewportSize({ width, height: 960 });
+    await page.goto('/');
+    const initialHomePaths = page.getByTestId('public-home-paths');
+    await expect(initialHomePaths.locator('a[href="/learning?pathId=path-1"]')).toHaveCount(1);
     await page.goto('/admin-dashboard/taxonomy');
 
     const editor = page.getByTestId('taxonomy-display-editor');
@@ -112,7 +115,10 @@ for (const width of [390, 820, 1440]) {
       settings: { showSubjectCards: false, showMockExamCard: false, showPackageCard: false, studentTemplate: 'simple', stageSelection: 'required', stageLabel: '' },
     });
     expect(publicProjection.subjects[0]).toMatchObject({ icon: '🧪', color: '#abcdef' });
-    await page.screenshot({ path: `test-results/taxonomy-display-${width}.png`, fullPage: true });
+    await page.goto('/');
+    const updatedHomePaths = page.getByTestId('public-home-paths');
+    await expect(updatedHomePaths.locator('a[href="/learning?pathId=path-1"]')).toHaveCount(0);
+    await page.screenshot({ path: `test-results/taxonomy-display-public-${width}.png`, fullPage: true });
     expect(state.paths[0].showInNavbar).toBe(false);
   });
 }
