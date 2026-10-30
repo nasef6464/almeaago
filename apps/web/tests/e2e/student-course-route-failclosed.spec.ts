@@ -65,7 +65,7 @@ for (const width of [390, 820, 1440]) {
     await page.getByRole('button', { name: 'العودة للخلف' }).click();
     await expect(page).toHaveURL(/\/learning\/courses\/course-a/);
     await expect(page.getByText('محتوى الدورة الأولى السري')).toBeVisible();
-    await expect(page.getByText('الدورة الأولى الخاصة')).toBeVisible();
+    await expect(page.getByText('الدورة الأولى الخاصة').first()).toBeVisible();
     await page.reload();
     await expect(page.getByText('محتوى الدورة الأولى السري')).toBeVisible();
   });
