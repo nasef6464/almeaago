@@ -3,6 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 // Opt-in escape hatch for restricted ephemeral environments where the Playwright
 // browser CDN is unreachable. Normal CI runs keep using Playwright's pinned binary.
 const localChromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?.trim();
+const disableGpuForExactParity = process.env.PLAYWRIGHT_CHROMIUM_DISABLE_GPU === '1';
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -21,8 +22,13 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        ...(localChromiumExecutable
-          ? { launchOptions: { executablePath: localChromiumExecutable } }
+        ...(localChromiumExecutable || disableGpuForExactParity
+          ? {
+              launchOptions: {
+                ...(localChromiumExecutable ? { executablePath: localChromiumExecutable } : {}),
+                ...(disableGpuForExactParity ? { args: ['--disable-gpu'] } : {}),
+              },
+            }
           : {}),
       },
     },
