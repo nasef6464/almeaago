@@ -48,6 +48,9 @@ type Dependencies struct {
 	AI                       http.Handler
 	Commerce                 http.Handler
 	LegacySchoolAccess       http.Handler
+	Search                   http.Handler
+	PublicArticles           http.Handler
+	PublicMockExams          http.Handler
 	NavigationPreferences    http.Handler
 }
 
@@ -98,6 +101,15 @@ func New(addr string, deps Dependencies) *http.Server {
 	}
 	if deps.Taxonomy != nil {
 		router.Mount("/api/v1/taxonomy", deps.Taxonomy)
+	}
+	if deps.Search != nil {
+		router.Mount("/api/v1/search", deps.Search)
+	}
+	if deps.PublicArticles != nil {
+		router.Mount("/api/v1/public/articles", deps.PublicArticles)
+	}
+	if deps.PublicMockExams != nil {
+		router.Handle("/api/v1/public/mock-exams", deps.PublicMockExams)
 	}
 	if deps.NavigationPreferences != nil {
 		router.Handle("/api/v1/learning/navigation-preferences", deps.NavigationPreferences)

@@ -1,6 +1,18 @@
 package domain
 
+type PathSettings struct {
+	StageSelection   *string `json:"stageSelection,omitempty"`
+	StageLabel       *string `json:"stageLabel,omitempty"`
+	StudentTemplate  *string `json:"studentTemplate,omitempty"`
+	ShowSubjectCards *bool   `json:"showSubjectCards,omitempty"`
+	ShowMockExamCard *bool   `json:"showMockExamCard,omitempty"`
+	ShowPackageCard  *bool   `json:"showPackageCard,omitempty"`
+}
+
 type Path struct {
+	ShowInHome   *bool
+	ShowInNavbar *bool
+	Settings     PathSettings
 	ID           string
 	Code         string
 	Name         string
@@ -20,6 +32,8 @@ type Level struct {
 }
 
 type Subject struct {
+	Icon      string
+	Color     string
 	ID        string
 	PathID    string
 	LevelID   string
@@ -46,4 +60,8 @@ type Bootstrap struct {
 	Levels   []Level
 	Subjects []Subject
 	Skills   []Skill
+}
+
+func (s *PathSettings) HasValues() bool {
+	return s != nil && (s.ShowMockExamCard != nil || s.ShowSubjectCards != nil || s.ShowPackageCard != nil || s.StudentTemplate != nil || s.StageSelection != nil || s.StageLabel != nil)
 }

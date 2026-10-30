@@ -49,6 +49,11 @@ import { SupervisorDashboardPage } from '../features/organizations/pages/Supervi
 import { TeacherWorkspacePage } from '../features/organizations/pages/TeacherWorkspacePage';
 import { StudentDashboardPage } from '../features/learning/pages/StudentDashboardPage';
 import { PublicLandingPage } from '../features/public/pages/PublicLandingPage';
+import { CoursesPage } from '../features/public/pages/CoursesPage';
+import { CartPage } from '../features/public/header/commerce/CartPage';
+import { PricingPage } from '../features/public/header/commerce/PricingPage';
+import { BlogPage } from '../features/public/header/pages/BlogPage';
+import { MockExamsPage } from '../features/public/header/pages/MockExamsPage';
 import { LegacySiteFooter, showPublicFooter } from '../features/public/components/LegacySiteFooter';
 import { LegacySiteHeader } from '../features/public/components/LegacySiteHeader';
 import { StaticInfoPage } from '../features/public/pages/StaticInfoPage';
@@ -144,6 +149,12 @@ export function App() {
         <Route path="/notifications" element={<NotificationInboxPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/dashboard" element={<StudentDashboardPage />} />
+        <Route path="/courses" element={<CoursesPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/blog" element={<BlogPage />} />
+        <Route path="/mock-exams" element={<MockExamsPage />} />
+        <Route path="/quizzes" element={<MockExamsPage />} />
         <Route path="/admin-dashboard" element={<AdminDashboardShell>{isHomepageLocation(location) ? <HomepagePage /> : isPlatformFontsLocation(location) ? <PlatformFontsPage /> : new URLSearchParams(location.search).get('tab') === 'skills' ? <SkillsAdminPage /> : <AdminOverviewPage />}</AdminDashboardShell>} />
         <Route path="/admin-dashboard/homepage" element={<AdminDashboardShell><HomepagePage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/platform-fonts" element={<AdminDashboardShell><PlatformFontsPage /></AdminDashboardShell>} />
