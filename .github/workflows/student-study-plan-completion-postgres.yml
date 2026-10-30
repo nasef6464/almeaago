@@ -1,0 +1,46 @@
+name: Student Study Plan Completion PostgreSQL
+on:
+  pull_request:
+    paths:
+      - "internal/learning/repository/postgres/study_plan.go"
+      - "internal/learning/repository/postgres/study_plan_completion_integration_test.go"
+      - ".github/workflows/student-study-plan-completion-postgres.yml"
+  workflow_dispatch:
+permissions: { contents: read }
+concurrency:
+  group: student-plan-completion-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: almeaa
+          POSTGRES_PASSWORD: almeaa
+          POSTGRES_DB: almeaa
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U almeaa -d almeaa"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+      PGPASSWORD: almeaa
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Apply all migrations to isolated CI PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          for file in $(find migrations -maxdepth 1 -type f -name '*.up.sql' | sort); do
+            psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f "$file" >/dev/null
+          done
+      - name: Assert completed lesson isolation and study-plan lookup
+        run: go test ./internal/learning/repository/postgres -run '^TestCompletedStudyPlanLessonsPostgres$' -count=1 -v
