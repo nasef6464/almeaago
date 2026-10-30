@@ -80,7 +80,7 @@ function LegacySiteHeaderContent({onAuth}:{onAuth(mode:AuthMode):void}){
           <div className="flex min-w-0 items-center gap-2 sm:gap-4">
             <button
               type="button"
-              className="rounded-lg p-2 text-gray-600 transition hover:bg-gray-100 xl:hidden"
+              className="rounded-lg p-2 text-gray-600 transition hover:bg-gray-100 md:hidden"
               onClick={()=>setMenuOpen(value=>!value)}
               aria-label={menuOpen?'إغلاق القائمة':'فتح القائمة'}
               aria-expanded={menuOpen}
@@ -99,7 +99,7 @@ function LegacySiteHeaderContent({onAuth}:{onAuth(mode:AuthMode):void}){
             </Link>
           </div>
 
-          <nav aria-label="التنقل الرئيسي" className="hidden min-w-0 flex-1 flex-wrap items-center justify-center gap-x-1 gap-y-0 xl:flex">
+          <nav aria-label="التنقل الرئيسي" className="hidden min-w-0 flex-1 flex-wrap items-center justify-center gap-x-1 gap-y-0 md:flex">
             {navigationMenu.map(item=><div key={item.id} className="group relative px-2 py-2"
               onMouseEnter={()=>{setActiveDropdown(item.id);setActiveStage(null)}} onMouseLeave={()=>setActiveDropdown(null)}>
               <Link to={item.href} className="flex items-center gap-2 whitespace-nowrap text-sm font-bold text-gray-700 transition-colors hover:text-amber-500">
@@ -130,7 +130,7 @@ function LegacySiteHeaderContent({onAuth}:{onAuth(mode:AuthMode):void}){
       </div>
 
       {menuOpen?(
-        <nav aria-label="التنقل الرئيسي للجوال" className="fixed inset-0 top-16 z-40 overflow-y-auto bg-white pb-20 animate-fade-in sm:top-20 xl:hidden">
+        <nav aria-label="التنقل الرئيسي للجوال" className="fixed inset-0 top-16 z-40 overflow-y-auto bg-white pb-20 animate-fade-in sm:top-20 md:hidden">
           <div className="mx-auto max-w-7xl p-4">
             {user?<Link to={dashboardHref} className="mb-4 block rounded-xl bg-indigo-50 px-4 py-3 text-sm font-black text-indigo-700">لوحتي</Link>:null}
             {navigationMenu.map(item=>{
