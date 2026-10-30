@@ -40,8 +40,8 @@ function LearnerResult({schoolId,assessmentId,attemptId,onClose}:{schoolId:strin
   </section>;
 }
 
-export function DirectorAssessmentLearnersPanel({schoolId,assessmentId}:{schoolId:string;assessmentId:string}){
-  const [query,setQuery]=useState<Query>({page:1,status:'all',search:''});
+export function DirectorAssessmentLearnersPanel({schoolId,assessmentId,initialStatus='all'}:{schoolId:string;assessmentId:string;initialStatus?:DirectorAssessmentLearnerStatus}){
+  const [query,setQuery]=useState<Query>({page:1,status:initialStatus,search:''});
   const [draftSearch,setDraftSearch]=useState('');
   const [revision,setRevision]=useState(0);
   const [selected,setSelected]=useState<string|null>(null);
