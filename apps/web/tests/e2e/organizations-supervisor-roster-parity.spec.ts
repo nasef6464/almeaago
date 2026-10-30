@@ -65,6 +65,18 @@ test('disabled original sections in a direct URL fail closed to the working stud
  await expect(nav.getByRole('button',{name:'تعلم الطلاب وجاهزيتهم'})).toHaveAttribute('aria-current','page');
  await expect(page.getByText('طالب الأولى')).toBeVisible();
 });
+test('non-supervisor cannot read school contexts or student roster',async({page})=>{
+ const student={...supervisor,id:'student-1',role:'student',roles:['student']};
+ let protectedReads=0;
+ await page.route('**/api/v1/auth/me',route=>json(route,{user:student}));
+ await page.route('**/api/v1/auth/csrf',route=>json(route,{csrfToken:'csrf'}));
+ await page.route('**/api/v1/schools/context',route=>{protectedReads++;return json(route,{contexts},200);});
+ await page.route('**/api/v1/schools/*/roster?*',route=>{protectedReads++;return json(route,{members:students['school-1'],pagination:{page:1,limit:20,total:1,totalPages:1}});});
+ await page.goto('/supervisor-dashboard');
+ await expect(page.getByText('هذه الصفحة مخصصة للمشرف.')).toBeVisible();
+ await expect(page.getByText('طالب الأولى')).toHaveCount(0);
+ expect(protectedReads).toBe(0);
+});
 test('supervisor student list uses original show-more and show-less controls without losing scope',async({page})=>{
  await auth(page);
  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[contexts[0]]}));
