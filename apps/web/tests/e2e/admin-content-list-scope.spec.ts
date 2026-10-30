@@ -148,3 +148,42 @@ for (const width of [390, 820, 1440]) {
     await expect(page.getByText('تعارض تعديل الدورة')).toHaveCount(0);
   });
 }
+
+
+for (const width of [390, 820, 1440]) {
+  test(`typing a new search immediately hides stale course actions at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await setup(page);
+    await page.unroute('**/api/v1/courses?**');
+
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    await page.route('**/api/v1/courses?**', async route => {
+      const search = new URL(route.request().url()).searchParams.get('search');
+      if (search === 'ثاني') {
+        await gate;
+        await json(route, {
+          items: [{ ...course, id: 'course-new', title: 'دورة بحث جديدة' }],
+          page: 1, limit: 50, hasMore: false,
+        }).catch(() => {});
+        return;
+      }
+      await json(route, { items: [course], page: 1, limit: 50, hasMore: false });
+    });
+
+    await page.goto('/admin-dashboard/content');
+    await expect(page.getByText(course.title)).toBeVisible();
+    await expect(visibleContentRows(page)).toHaveCount(1);
+
+    // Freeze timers so the 280ms debounce cannot mask a stale-row regression.
+    await page.clock.pauseAt(new Date('2026-10-30T09:20:00Z'));
+    await page.getByPlaceholder('ابحث في الدورات...').fill('ثاني');
+    expect(await visibleContentRows(page).count()).toBe(0);
+    expect(await page.getByRole('button', { name: 'تعديل / المنهج' }).count()).toBe(0);
+
+    await page.clock.runFor(300);
+    release();
+    await expect(page.getByText('دورة بحث جديدة')).toBeVisible();
+    await expect(page.getByText(course.title)).toHaveCount(0);
+  });
+}
