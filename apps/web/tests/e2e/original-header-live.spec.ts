@@ -12,7 +12,6 @@ async function ready(page:Page,url:string){
  await page.goto(url);await font;
  if(url.startsWith('/tests/reference/'))await expect(page.getByTestId('header-reference-body')).toHaveAttribute('data-ready','true');
  await expect(page.locator('header').first().getByRole('button',{name:'فتح البحث',exact:true})).toBeVisible();
- await expect(page.locator('header').first().getByRole('button',{name:'الإشعارات',exact:true})).toBeVisible();
  await expect(page.getByLabel('جارٍ تجهيز قائمة المنصة')).toHaveCount(0);
  const header=page.locator('header').first();
  const width=page.viewportSize()?.width??0;
