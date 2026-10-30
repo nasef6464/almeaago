@@ -199,17 +199,21 @@ export function FoundationEditorPanel({
   useEffect(() => {
     // The topic detail may arrive before the full skill catalog.
     // Do not erase persisted relationships during this loading window.
-    if (!taxonomyReady) return;
+    // The taxonomy can resolve before the edited topic detail. Do not run
+    // relationship cleanup against the empty initial subject during hydration.
+    if (!taxonomyReady || (editing && !topic)) return;
     if (subjectId && !subjects.some((subject) => subject.id === subjectId)) {
       setSubjectId('');
       setParentTopicId('');
       setSkillIds([]);
     }
-  }, [subjectId, subjects, taxonomyReady]);
+  }, [subjectId, subjects, taxonomyReady, editing, topic]);
   useEffect(() => {
-    if (!taxonomyReady) return;
+    // An effect from the initial empty skill catalog must never erase IDs
+    // restored by a concurrently completed topic GET.
+    if (!taxonomyReady || (editing && !topic)) return;
     setSkillIds((current) => current.filter((id) => skills.some((skill) => skill.id === id)));
-  }, [skills, taxonomyReady]);
+  }, [skills, taxonomyReady, editing, topic]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
