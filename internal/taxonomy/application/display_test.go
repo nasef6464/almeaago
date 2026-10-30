@@ -81,7 +81,7 @@ func TestEnrollmentDisplaySettingsValidateOriginalOptions(t *testing.T) {
 			t.Fatalf("source input %s rejected: %v", body, err)
 		}
 	}
-	for _, body := range []string{`{"name":"x","settings":{"stageSelection":"invented"}}`, `{"name":"x","settings":{"studentTemplate":"invented"}}`, `{"name":"x","settings":{"stageLabel":"` + strings.Repeat("a", 121) + `"}}`} {
+	for _, body := range []string{`{"name":"x","settings":{"stageSelection":"invented"}}`, `{"name":"x","settings":{"studentTemplate":"invented"}}`, `{"name":"x","settings":{"stageLabel":" "}}`, `{"name":"x","settings":{"stageLabel":"` + strings.Repeat("a", 121) + `"}}`} {
 		var patch taxonomy.PathPatch
 		json.Unmarshal([]byte(body), &patch)
 		if _, err := s.UpdatePath(context.Background(), actor, "p", patch); err != ErrInvalidInput {
