@@ -7,7 +7,7 @@ Business logic belongs in this domain. Cross-domain access must use explicit con
 
 ## Presentation metadata
 
-Taxonomy remains the owner of path/level/subject/skill identity and lifecycle. Migration `000046_taxonomy_display_presentation` adds dedicated `presentation` JSONB columns to `paths` and `subjects`. Taxonomy remains their sole owner; these fields are not duplicated in Content or HomepageSettings:
+Taxonomy remains the owner of path/level/subject/skill identity and lifecycle. The original `presentation` JSONB columns on `paths` and `subjects` are created in migration `000001_platform_foundation`. Taxonomy remains their sole owner; these fields are not duplicated in Content or HomepageSettings:
 
 - Path: `showInNavbar`, `showInHome`, and nested `settings` (`showSubjectCards`, `showMockExamCard`, `showPackageCard`, `studentTemplate`, `stageSelection`, `stageLabel`).
 - Subject: `icon` and `color`.
