@@ -2,8 +2,6 @@ name: Database CI
 on:
   pull_request:
     paths: ["apps/web/src/features/presentation/**","apps/web/tests/e2e/platform-fonts*","apps/web/tests/reference/**","scripts/parity/font-reference.mjs","apps/web/vite.config.ts","migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**"]
-      - "internal/learning/navigation/**"
-      - "migrations/000046_learning_navigation_preferences.*"
   push:
     branches: [main]
     paths: ["apps/web/src/features/presentation/**","apps/web/tests/e2e/platform-fonts*","apps/web/tests/reference/**","scripts/parity/font-reference.mjs","apps/web/vite.config.ts","migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**"]
