@@ -13,7 +13,11 @@ async function ready(page:Page,url:string){
  if(url.startsWith('/tests/reference/'))await expect(page.getByTestId('header-reference-body')).toHaveAttribute('data-ready','true');
  await expect(page.locator('header').first().getByRole('button',{name:'فتح البحث',exact:true})).toBeVisible();
  await expect(page.getByLabel('جارٍ تجهيز قائمة المنصة')).toHaveCount(0);
- await expect(page.locator('header').first().locator('nav').getByRole('button',{name:'قدرات',exact:true})).toHaveCount(1);
+ const header=page.locator('header').first();
+ const width=page.viewportSize()?.width??0;
+ if(width>=768)await expect(header.locator('nav').getByRole('link',{name:'قدرات',exact:true})).toHaveCount(1);
+ else{await expect(header.getByRole('button',{name:'فتح القائمة',exact:true})).toBeVisible();await expect(header.locator('nav')).toBeHidden()}
+ await expect(header.locator('a[href="/cart"] span')).toHaveText('1');
  await page.evaluate(()=>document.fonts.ready);
  await expect.poll(()=>page.locator('header').first().locator('img').evaluateAll(images=>images.every(image=>(image as HTMLImageElement).complete&&(image as HTMLImageElement).naturalWidth>0))).toBe(true);
 }
@@ -28,7 +32,7 @@ async function attachPage(page:Page,info:TestInfo,name:string){
 }
 async function openPath(page:Page,level=false){
  const nav=page.locator('header').first().locator('nav');
- await nav.getByRole('button',{name:'قدرات',exact:true}).hover();
+ await nav.getByRole('link',{name:'قدرات',exact:true}).hover();
  await expect(nav.getByRole('link',{name:'مسار فرعي',exact:true})).toHaveAttribute('href','/category/'+env('HEADER_CHILD_PATH_ID'));
  await expect(nav.getByRole('link',{name:'اختبارات محاكية قدرات',exact:true})).toHaveAttribute('href','/category/'+env('HEADER_PATH_ID')+'?tab=mock-exams');
  await expect(nav.getByRole('link',{name:'عروض وباقات قدرات',exact:true})).toHaveAttribute('href','/category/'+env('HEADER_PATH_ID')+'?tab=packages');
@@ -37,13 +41,13 @@ async function openPath(page:Page,level=false){
 }
 async function openMockExams(page:Page){
  const nav=page.locator('header').first().locator('nav');
- await nav.getByRole('button',{name:'اختبارات محاكية',exact:true}).hover();
+ await nav.getByRole('link',{name:'اختبارات محاكية',exact:true}).hover();
  const path=nav.getByRole('link',{name:'قدرات',exact:true});
  await expect(path).toHaveAttribute('href','/category/'+env('HEADER_PATH_ID')+'?tab=mock-exams');
 }
 async function openMore(page:Page){
  const nav=page.locator('header').first().locator('nav');
- await nav.getByRole('button',{name:'أخرى',exact:true}).hover();
+ await nav.getByRole('link',{name:'أخرى',exact:true}).hover();
  await expect(nav.getByRole('link',{name:'العضويات',exact:true})).toHaveAttribute('href','/pricing');
  await expect(nav.getByRole('link',{name:'المدونة',exact:true})).toHaveAttribute('href','/blog');
 }
@@ -63,6 +67,7 @@ test.describe('original full Header on native Go data',()=>{
 
  test('source and Go complete component pixels for guest admin student at3908201440',async({page,context},info)=>{
   test.setTimeout(240000);
+  await context.addInitScript(()=>localStorage.setItem('almeaa-header-cart-v1',JSON.stringify({items:[{id:'header-cart-fixture',type:'course',title:'دورة اختبار الهيدر',price:150,currency:'SAR'}]})));
   for(const role of ['guest','admin','student'] as const){
    await context.clearCookies();if(role!=='guest')await signIn(page,role);
    for(const width of [390,820,1440]){
@@ -96,6 +101,10 @@ test.describe('original full Header on native Go data',()=>{
     }
     else{
      await source.getByRole('button',{name:'فتح القائمة',exact:true}).click();await page.getByRole('button',{name:'فتح القائمة',exact:true}).click();
+     await expect(source.locator('header').first().locator('[data-mobile-nav="home"]')).toBeVisible();
+     await expect(page.locator('header').first().locator('[data-mobile-nav="home"]')).toBeVisible();
+     await expect(source.locator('header').first().locator('[data-mobile-nav="'+env('HEADER_PATH_ID')+'"]')).toBeVisible();
+     await expect(page.locator('header').first().locator('[data-mobile-nav="'+env('HEADER_PATH_ID')+'"]')).toBeVisible();
      // Include the entire visible mobile overlay, even if it exceeds the initial viewport.
      const panelHeight=async(p:Page)=>p.locator('header > div.fixed.inset-0').evaluate(e=>e.scrollHeight);
      const height=Math.max(1000,await panelHeight(source),await panelHeight(page));
