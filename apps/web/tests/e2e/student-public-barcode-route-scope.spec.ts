@@ -82,3 +82,60 @@ for (const width of widths) {
     await expect(page.getByText('التقدم 0 / 1')).toBeVisible();
   });
 }
+
+for (const width of widths) {
+  test(`public barcode: 503 submit retains draft and reuses idempotency key at ${width}px RTL`, async ({ page }) => {
+    await setup(page, width);
+    const submissionKeys: string[] = [];
+    await page.route('**/api/v1/public-assessments/code-a/submit', async (route) => {
+      const body = JSON.parse(route.request().postData() || '{}');
+      submissionKeys.push(body.submissionKey);
+      expect(body.participantName).toBe('طالب أ');
+      expect(body.answers).toEqual([{ questionId: 'q-1', selectedOptionIndex: 1 }]);
+      if (submissionKeys.length === 1) return json(route, { message: 'فشل الحفظ مؤقتًا' }, 503);
+      return json(route, {
+        resultVisible: true,
+        result: { attemptId: 'attempt-code-a', score: 100, totalQuestions: 1, correctAnswers: 1,
+          wrongAnswers: 0, unanswered: 0, passed: true, timeSpentSeconds: 1, finalizedAt: '2026-10-30T00:01:00Z' },
+      });
+    });
+    await page.goto('/barcode-test/code-a');
+    await expect(page.getByRole('heading', { name: 'اختبار code-a' })).toBeVisible();
+    await page.getByLabel('اسم المشارك').fill('طالب أ');
+    await page.getByRole('button', { name: '٤' }).click();
+    await page.getByRole('button', { name: 'إرسال الاختبار' }).click();
+    await expect(page.getByText('فشل الحفظ مؤقتًا')).toBeVisible();
+    await expect(page.getByLabel('اسم المشارك')).toHaveValue('طالب أ');
+    await expect(page.getByText('التقدم 1 / 1')).toBeVisible();
+    await page.getByRole('button', { name: 'إرسال الاختبار' }).click();
+    await expect(page.getByRole('heading', { name: 'تم إرسال الاختبار' })).toBeVisible();
+    expect(submissionKeys).toHaveLength(2);
+    expect(submissionKeys[0]).toBe(submissionKeys[1]);
+  });
+
+  test(`public barcode: stale submit response from A never replaces B at ${width}px RTL`, async ({ page }) => {
+    await setup(page, width);
+    await page.route('**/api/v1/public-assessments/code-b/start', (route) => json(route, attempt('code-b'), 201));
+    let submitCalls = 0;
+    await page.route('**/api/v1/public-assessments/code-a/submit', async (route) => {
+      submitCalls += 1;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await json(route, {
+        resultVisible: true,
+        result: { attemptId: 'attempt-code-a', score: 100, totalQuestions: 1, correctAnswers: 1,
+          wrongAnswers: 0, unanswered: 0, passed: true, timeSpentSeconds: 1, finalizedAt: '2026-10-30T00:01:00Z' },
+      });
+    });
+    await page.goto('/barcode-test/code-a');
+    await expect(page.getByRole('heading', { name: 'اختبار code-a' })).toBeVisible();
+    await page.getByLabel('اسم المشارك').fill('طالب أ');
+    await page.getByRole('button', { name: '٤' }).click();
+    await page.getByRole('button', { name: 'إرسال الاختبار' }).click();
+    await expect.poll(() => submitCalls).toBe(1);
+    await switchCode(page, 'code-b');
+    await expect(page.getByRole('heading', { name: 'اختبار code-b' })).toBeVisible();
+    await page.waitForTimeout(1200);
+    await expect(page.getByRole('heading', { name: 'اختبار code-b' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'تم إرسال الاختبار' })).toHaveCount(0);
+  });
+}
