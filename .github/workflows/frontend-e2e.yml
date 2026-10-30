@@ -5,6 +5,8 @@ on:
   pull_request:
     paths:
       - "apps/web/src/app/App.tsx"
+      - "apps/web/src/features/learning/navigation/**"
+      - "apps/web/src/features/public/components/**"
       - "apps/web/src/features/content/**"
       - "apps/web/src/features/presentation/**"
       - "apps/web/tests/e2e/**"
