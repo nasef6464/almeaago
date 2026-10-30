@@ -19,7 +19,7 @@ async function ready(page:Page,url:string){
  if(width>=768)await expect(header.locator('nav').getByRole('link',{name:'قدرات',exact:true})).toHaveCount(1);
  else{await expect(header.getByRole('button',{name:'فتح القائمة',exact:true})).toBeVisible();await expect(header.locator('nav')).toBeHidden()}
  await expect(header.locator('a[href="/cart"] span')).toHaveText('1');
- await page.evaluate(()=>document.fonts.ready);
+ await page.evaluate(async()=>{await Promise.all(['400 16px Tajawal','500 14px Tajawal','700 14px Tajawal','700 12px Tajawal','800 12px Tajawal','900 12px Tajawal'].map(font=>document.fonts.load(font)));await document.fonts.ready;});
  await expect.poll(()=>page.locator('header').first().locator('img').evaluateAll(images=>images.every(image=>(image as HTMLImageElement).complete&&(image as HTMLImageElement).naturalWidth>0))).toBe(true);
 }
 async function stable(page:Page){
@@ -72,7 +72,7 @@ function exactPixelDifference(actual:Buffer,expected:Buffer){
 }
 async function visualMetrics(page:Page){return page.evaluate(()=>{
  const box=(element:Element|null)=>{if(!element)return null;const r=element.getBoundingClientRect();const s=getComputedStyle(element);return {x:r.x,y:r.y,width:r.width,height:r.height,display:s.display,position:s.position,fontFamily:s.fontFamily,fontSize:s.fontSize,fontWeight:s.fontWeight,lineHeight:s.lineHeight,color:s.color,backgroundColor:s.backgroundColor,borderColor:s.borderColor,padding:s.padding,gap:s.gap}};
- const header=document.querySelector('header');const close=header?.querySelector('button[aria-label="إغلاق القائمة"]');const r=close?.getBoundingClientRect();
+ const header=document.querySelector('header');const close=document.querySelector('button[aria-label="إغلاق القائمة"]');const r=close?.getBoundingClientRect();
  const links=Array.from(header?.querySelectorAll('a,button')||[]).map(element=>({tag:element.tagName,text:(element.textContent||'').replace(/\\s+/g,' ').trim(),aria:element.getAttribute('aria-label'),href:element.getAttribute('href'),...box(element)}));
  const svgs=Array.from(header?.querySelectorAll('svg')||[]).map((element,index)=>({index,html:element.outerHTML,...box(element)}));
  const fonts=['400 16px Tajawal','700 14px Tajawal','900 12px Tajawal'].map(font=>({font,available:document.fonts.check(font)}));
