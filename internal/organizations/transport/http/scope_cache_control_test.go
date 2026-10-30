@@ -49,32 +49,32 @@ func TestRoleScopedOrganizationReadsAreNeverCacheable(t *testing.T) {
 		body    string
 	}{
 		{
-			name: "director and school membership context",
+			name:    "director and school membership context",
 			handler: New(service, authStub{auth: schoolAdminAuth()}),
-			path: "/context", status: http.StatusOK,
+			path:    "/context", status: http.StatusOK,
 			body: "\"schoolId\":\"school-1\"",
 		},
 		{
-			name: "teacher assignment and school scope",
+			name:    "teacher assignment and school scope",
 			handler: New(service, authStub{auth: teacher}),
-			path: "/teacher-workspace", status: http.StatusOK,
+			path:    "/teacher-workspace", status: http.StatusOK,
 			body: "\"schoolId\":\"school-1\"",
 		},
 		{
-			name: "parent child relationship scope",
+			name:    "parent child relationship scope",
 			handler: NewParentFacade(service, authStub{auth: parent}),
-			path: "/authority", status: http.StatusOK,
+			path:    "/authority", status: http.StatusOK,
 			body: "\"studentIds\":[\"student-1\"]",
 		},
 		{
-			name: "teacher scope denied to parent",
+			name:    "teacher scope denied to parent",
 			handler: New(service, authStub{auth: parent}),
-			path: "/teacher-workspace", status: http.StatusForbidden,
+			path:    "/teacher-workspace", status: http.StatusForbidden,
 		},
 		{
-			name: "parent scope denied to teacher",
+			name:    "parent scope denied to teacher",
 			handler: NewParentFacade(service, authStub{auth: teacher}),
-			path: "/authority", status: http.StatusForbidden,
+			path:    "/authority", status: http.StatusForbidden,
 		},
 	}
 	for _, tc := range cases {
