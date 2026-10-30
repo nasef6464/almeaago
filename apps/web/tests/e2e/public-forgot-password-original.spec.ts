@@ -37,7 +37,7 @@ for (const width of [390, 820, 1440]) {
       await main.locator('#forgot-email').fill('  student@example.com  ');
       await main.getByRole('button', { name: 'إرسال التعليمات' }).click();
       await expect(main.getByText(originalConfirmation, { exact: true })).toBeVisible();
-      await expect(main.locator('#forgot-email')).toHaveValue('  student@example.com  ');
+      await expect(main.locator('#forgot-email')).toHaveValue('student@example.com');
       expect(bodies).toEqual([{ email: 'student@example.com' }]);
       await page.screenshot({ path: test.info().outputPath('recovery-success.png'), fullPage: true });
     });
