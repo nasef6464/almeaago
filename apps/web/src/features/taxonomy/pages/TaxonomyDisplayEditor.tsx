@@ -46,8 +46,9 @@ export function TaxonomyDisplayEditor({ path, levelCount, subject, pending, save
 
   return (
     <section data-testid="taxonomy-display-editor" className="mt-4 space-y-4 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4">
-      <div>
-        <p className="text-xs font-black text-indigo-700">عرض المسار</p>
+      <fieldset disabled={pending === 'display-path'} className="min-w-0 space-y-4">
+        <div>
+          <p className="text-xs font-black text-indigo-700">عرض المسار</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <label className="flex items-center gap-2 rounded-xl border bg-white p-3 text-sm font-bold">
             <input aria-label="إظهار المسار في القائمة العلوية" type="checkbox" checked={showInNavbar} onChange={event => setShowInNavbar(event.target.checked)} />
@@ -70,9 +71,9 @@ export function TaxonomyDisplayEditor({ path, levelCount, subject, pending, save
             إظهار بطاقة الباقات
           </label>
         </div>
-      </div>
+        </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-3">
         <label className="grid gap-1 text-xs font-black text-gray-700">
           قالب مساحة المسار
           <select aria-label="قالب مساحة المسار" value={studentTemplate} onChange={event => setStudentTemplate(event.target.value as 'standard'|'simple')} className="rounded-xl border bg-white px-3 py-2.5 text-sm font-bold">
@@ -103,13 +104,15 @@ export function TaxonomyDisplayEditor({ path, levelCount, subject, pending, save
         settings: { showSubjectCards, showMockExamCard, showPackageCard, studentTemplate, stageSelection, stageLabel: stageLabel.trim() || 'اختر مرحلتك' },
       })} className="rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">
         {pending === 'display-path' ? 'جارٍ الحفظ...' : 'حفظ عرض المسار'}
-      </button>
+        </button>
+      </fieldset>
 
       <div className="border-t border-indigo-100 pt-4">
         <p className="text-xs font-black text-indigo-700">مظهر المادة</p>
         {subject ? (
           <>
             <p className="mt-1 text-xs text-gray-500">المادة المحددة: {subject.name}</p>
+            <fieldset disabled={pending === 'display-subject'} className="min-w-0">
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="grid gap-1 text-xs font-black text-gray-700">
                 أيقونة المادة
@@ -120,9 +123,10 @@ export function TaxonomyDisplayEditor({ path, levelCount, subject, pending, save
                 <input aria-label="لون المادة" value={color} onChange={event => setColor(event.target.value)} maxLength={64} className="rounded-xl border bg-white px-3 py-2.5 text-sm font-bold" placeholder="#4f46e5 أو اسم اللون" />
               </label>
             </div>
-            <button type="button" disabled={pending === 'display-subject'} onClick={() => void saveSubject({ icon: icon.trim(), color: color.trim() })} className="mt-3 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">
+            <button type="button" onClick={() => void saveSubject({ icon: icon.trim(), color: color.trim() })} className="mt-3 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">
               {pending === 'display-subject' ? 'جارٍ الحفظ...' : 'حفظ مظهر المادة'}
             </button>
+            </fieldset>
           </>
         ) : <p className="mt-2 rounded-xl border border-dashed bg-white p-3 text-sm text-gray-500">أضف مادة لهذا المسار لتخصيص أيقونتها ولونها.</p>}
       </div>
