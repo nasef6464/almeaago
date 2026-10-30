@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	identityapp "github.com/nasef6464/almeaago/internal/identity/application"
+	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	identitysession "github.com/nasef6464/almeaago/internal/identity/transport/session"
 	taxonomyapp "github.com/nasef6464/almeaago/internal/taxonomy/application"
 	taxonomy "github.com/nasef6464/almeaago/internal/taxonomy/domain"
@@ -229,7 +230,14 @@ func (h *Handler) adminBootstrap(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) bootstrap(w http.ResponseWriter, r *http.Request) {
 	phase := strings.TrimSpace(r.URL.Query().Get("phase"))
-	result, err := h.service.PublicBootstrap(r.Context(), phase)
+	var actor identity.User
+	if token := identitysession.Token(r); token != "" && h.auth != nil {
+		if auth, err := h.auth.Authenticate(r.Context(), token); err == nil {
+			actor = auth.User
+		}
+	}
+	w.Header().Set("Vary", "Cookie, Authorization")
+	result, privileged, err := h.service.NavigationBootstrap(r.Context(), phase, actor)
 	if errors.Is(err, taxonomyapp.ErrInvalidPhase) {
 		http.Error(w, "invalid taxonomy bootstrap phase", http.StatusBadRequest)
 		return
@@ -241,19 +249,27 @@ func (h *Handler) bootstrap(w http.ResponseWriter, r *http.Request) {
 	if phase == "" {
 		phase = "full"
 	}
-	w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=120")
+	if privileged {
+		w.Header().Set("Cache-Control", "private, no-store")
+	} else {
+		w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=120")
+	}
 	w.Header().Set("X-Taxonomy-Phase", phase)
 	writeJSON(w, http.StatusOK, presentBootstrap(result))
 }
 
 type adminPathResponse struct {
-	ID           string `json:"id"`
-	Code         string `json:"code"`
-	Name         string `json:"name"`
-	ParentPathID string `json:"parentPathId,omitempty"`
-	Description  string `json:"description"`
-	SortOrder    int    `json:"sortOrder"`
-	Status       string `json:"status"`
+	ShowInHome   *bool                 `json:"showInHome,omitempty"`
+	ShowInNavbar *bool                 `json:"showInNavbar,omitempty"`
+	IsActive     bool                  `json:"isActive"`
+	Settings     taxonomy.PathSettings `json:"settings"`
+	ID           string                `json:"id"`
+	Code         string                `json:"code"`
+	Name         string                `json:"name"`
+	ParentPathID string                `json:"parentPathId,omitempty"`
+	Description  string                `json:"description"`
+	SortOrder    int                   `json:"sortOrder"`
+	Status       string                `json:"status"`
 }
 type adminLevelResponse struct {
 	ID        string `json:"id"`
@@ -264,6 +280,8 @@ type adminLevelResponse struct {
 	Status    string `json:"status"`
 }
 type adminSubjectResponse struct {
+	Icon      string `json:"icon"`
+	Color     string `json:"color"`
 	ID        string `json:"id"`
 	PathID    string `json:"pathId"`
 	LevelID   string `json:"levelId,omitempty"`
@@ -285,12 +303,16 @@ type adminSkillResponse struct {
 }
 
 type pathResponse struct {
-	ID           string `json:"id"`
-	Code         string `json:"code"`
-	Name         string `json:"name"`
-	ParentPathID string `json:"parentPathId,omitempty"`
-	Description  string `json:"description"`
-	SortOrder    int    `json:"sortOrder"`
+	ShowInHome   *bool                 `json:"showInHome,omitempty"`
+	ShowInNavbar *bool                 `json:"showInNavbar,omitempty"`
+	IsActive     bool                  `json:"isActive"`
+	Settings     taxonomy.PathSettings `json:"settings"`
+	ID           string                `json:"id"`
+	Code         string                `json:"code"`
+	Name         string                `json:"name"`
+	ParentPathID string                `json:"parentPathId,omitempty"`
+	Description  string                `json:"description"`
+	SortOrder    int                   `json:"sortOrder"`
 }
 type levelResponse struct {
 	ID        string `json:"id"`
@@ -300,6 +322,8 @@ type levelResponse struct {
 	SortOrder int    `json:"sortOrder"`
 }
 type subjectResponse struct {
+	Icon      string `json:"icon"`
+	Color     string `json:"color"`
 	ID        string `json:"id"`
 	PathID    string `json:"pathId"`
 	LevelID   string `json:"levelId,omitempty"`
@@ -321,7 +345,11 @@ type skillResponse struct {
 func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
 	paths := make([]adminPathResponse, 0, len(value.Paths))
 	for _, row := range value.Paths {
-		paths = append(paths, adminPathResponse{row.ID, row.Code, row.Name, row.ParentPathID, row.Description, row.SortOrder, string(row.Status)})
+		paths = append(paths, adminPathResponse{
+			ShowInHome: row.ShowInHome, ShowInNavbar: row.ShowInNavbar, IsActive: row.Status == taxonomy.StatusActive,
+			Settings: row.Settings, ID: row.ID, Code: row.Code, Name: row.Name, ParentPathID: row.ParentPathID,
+			Description: row.Description, SortOrder: row.SortOrder, Status: string(row.Status),
+		})
 	}
 	levels := make([]adminLevelResponse, 0, len(value.Levels))
 	for _, row := range value.Levels {
@@ -329,7 +357,10 @@ func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
 	}
 	subjects := make([]adminSubjectResponse, 0, len(value.Subjects))
 	for _, row := range value.Subjects {
-		subjects = append(subjects, adminSubjectResponse{row.ID, row.PathID, row.LevelID, row.Code, row.Name, row.SortOrder, string(row.Status)})
+		subjects = append(subjects, adminSubjectResponse{
+			Icon: row.Icon, Color: row.Color, ID: row.ID, PathID: row.PathID, LevelID: row.LevelID,
+			Code: row.Code, Name: row.Name, SortOrder: row.SortOrder, Status: string(row.Status),
+		})
 	}
 	skills := make([]adminSkillResponse, 0, len(value.Skills))
 	for _, row := range value.Skills {
@@ -341,7 +372,11 @@ func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
 func presentBootstrap(value taxonomy.Bootstrap) map[string]any {
 	paths := make([]pathResponse, 0, len(value.Paths))
 	for _, row := range value.Paths {
-		paths = append(paths, pathResponse{row.ID, row.Code, row.Name, row.ParentPathID, row.Description, row.SortOrder})
+		paths = append(paths, pathResponse{
+			ShowInHome: row.ShowInHome, ShowInNavbar: row.ShowInNavbar, IsActive: row.Status == taxonomy.StatusActive,
+			Settings: row.Settings, ID: row.ID, Code: row.Code, Name: row.Name, ParentPathID: row.ParentPathID,
+			Description: row.Description, SortOrder: row.SortOrder,
+		})
 	}
 	levels := make([]levelResponse, 0, len(value.Levels))
 	for _, row := range value.Levels {
@@ -349,7 +384,10 @@ func presentBootstrap(value taxonomy.Bootstrap) map[string]any {
 	}
 	subjects := make([]subjectResponse, 0, len(value.Subjects))
 	for _, row := range value.Subjects {
-		subjects = append(subjects, subjectResponse{row.ID, row.PathID, row.LevelID, row.Code, row.Name, row.SortOrder})
+		subjects = append(subjects, subjectResponse{
+			Icon: row.Icon, Color: row.Color, ID: row.ID, PathID: row.PathID, LevelID: row.LevelID,
+			Code: row.Code, Name: row.Name, SortOrder: row.SortOrder,
+		})
 	}
 	skills := make([]skillResponse, 0, len(value.Skills))
 	for _, row := range value.Skills {
