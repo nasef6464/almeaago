@@ -3,8 +3,7 @@ import {useHomepageSettings} from '../../presentation/useHomepageSettings';
 import {useEffect,useMemo,useState} from 'react';
 import {Link,useLocation} from 'react-router-dom';
 
-import {contentClient} from '../../content/api/content-client';
-import type {TaxonomyCore} from '../../content/api/content-types';
+import {StudentNavigationProvider,StudentPathBar,useStudentExperience} from '../../learning/navigation';
 import {useAuth} from '../../auth/state/AuthProvider';
 import {dashboardPathFor} from '../../auth/utils/dashboard-path';
 import {buildHeaderNavigation} from './headerNavigation';
@@ -12,8 +11,11 @@ import type {HeaderNode} from './headerNavigation';
 
 type AuthMode='login'|'signup';
 
-export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}){
+function LegacySiteHeaderContent({onAuth}:{onAuth(mode:AuthMode):void}){
   const{user}=useAuth();
+  const experience=useStudentExperience();
+  const taxonomy=useMemo(()=>({paths:experience.paths,levels:experience.levels,subjects:experience.subjects}),[experience.paths,experience.levels,experience.subjects]);
+  const scope=experience.scope;
   const homepage=useHomepageSettings();
   const brand=homepage.brand;
   const logoUrl=String(brand?.logoUrl || '').trim();
@@ -27,14 +29,7 @@ export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}){
   const[expandedPath,setExpandedPath]=useState<string|null>(null);
   const[activeStage,setActiveStage]=useState<string|null>(null);
   const[expandedMobileStage,setExpandedMobileStage]=useState<string|null>(null);
-  const[taxonomy,setTaxonomy]=useState<TaxonomyCore>({paths:[],subjects:[]});
   const dashboardHref=user?dashboardPathFor(user):'';
-
-  useEffect(()=>{
-    const controller=new AbortController();
-    contentClient.taxonomyCore(controller.signal).then(setTaxonomy).catch(()=>{});
-    return()=>controller.abort();
-  },[]);
 
   useEffect(()=>{
     setMenuOpen(false);
@@ -44,7 +39,7 @@ export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}){
     setExpandedMobileStage(null);
   },[location.pathname,location.search]);
 
-  const navigationMenu=useMemo(()=>buildHeaderNavigation(taxonomy,nav),[taxonomy,nav]);
+  const navigationMenu=useMemo(()=>buildHeaderNavigation(taxonomy,nav,user,scope),[taxonomy,nav,user,scope]);
 
   const renderDesktopChild=(child:HeaderNode)=>{
     if(child.kind==='divider')return <div key={child.id} className="mx-3 my-2 h-px bg-slate-100"/>;
@@ -154,5 +149,17 @@ export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}){
         </nav>
       ):null}
     </header>
+  );
+}
+
+
+export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}) {
+  return (
+    <StudentNavigationProvider>
+      <>
+        <LegacySiteHeaderContent onAuth={onAuth}/>
+        <StudentPathBar/>
+      </>
+    </StudentNavigationProvider>
   );
 }
