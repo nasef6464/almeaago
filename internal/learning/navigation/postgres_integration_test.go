@@ -181,7 +181,7 @@ type integrationAuthenticator struct {
 }
 
 func (a integrationAuthenticator) Authenticate(context.Context, string) (identityapp.Authenticated, error) {
-	return identityapp.Authenticated{User: identity.User{ID: a.actor}}, nil
+	return identityapp.Authenticated{User: identity.User{ID: a.actor, Roles: []identity.Role{identity.RoleStudent}}}, nil
 }
 
 func (integrationAuthenticator) VerifyCSRF(identityapp.Authenticated, string) error {
