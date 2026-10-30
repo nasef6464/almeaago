@@ -173,6 +173,7 @@ export function TaxonomyAdminPage(){
             <TaxonomyDisplayEditor
               key={`${selectedPath.id}:${selectedSubject?.id||'none'}`}
               path={selectedPath}
+              levelCount={levels.filter(level=>level.pathId===selectedPath.id).length}
               subject={selectedSubject as AdminTaxonomySubject|null}
               pending={pending}
               savePath={savePathDisplay}
