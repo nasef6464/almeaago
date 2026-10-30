@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -409,6 +410,13 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(dst); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request"})
+		return false
+	}
+	// A school-role mutation must not silently apply the first document when
+	// additional JSON or trailing garbage was sent in the same request.
+	var trailing json.RawMessage
+	if err := decoder.Decode(&trailing); err != io.EOF {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request"})
 		return false
 	}
