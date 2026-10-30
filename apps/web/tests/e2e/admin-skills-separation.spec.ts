@@ -158,7 +158,10 @@ test('admin links and detaches a draft lesson from a subskill without deleting t
   await detail.getByRole('button', { name: 'ربط درس موجود' }).click();
   const dialog = page.getByRole('dialog', { name: 'ربط درس موجود' });
   await expect(dialog.getByText('شرح المعادلات')).toBeVisible();
-  await dialog.getByRole('button', { name: 'ربط الدرس شرح المعادلات' }).click();
+  await expect(dialog.getByRole('combobox', { name: 'اختر الدرس' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'ربط', exact: true })).toBeDisabled();
+  await dialog.getByRole('combobox', { name: 'اختر الدرس' }).selectOption('lesson-42');
+  await dialog.getByRole('button', { name: 'ربط', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(detail.getByText('شرح المعادلات')).toBeVisible();
   expect(skillLinks).toEqual(['m1', 'sub1']);
