@@ -12,31 +12,70 @@ import {
   User,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
 import type { LearningSpace, TaxonomyCore } from '../../content/api/content-types';
-import { parseLearningRoute, subjectsForSelection } from './learningRouteSelection';
-import type { LearningTab } from './learningRouteSelection';
+import { FoundationTopicDialog, type TopicContentTab } from '../components/FoundationTopicDialog';
+import { parseLearningRoute, subjectsForSelection, type LearningTab } from './learningRouteSelection';
 
 type Tab = LearningTab;
 
 export function LearningSpacePage() {
   const { user, loading: authLoading } = useAuth();
   const { pathId: legacyPathId = '' } = useParams<{ pathId?: string }>();
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-
-  const initialSelection = parseLearningRoute(legacyPathId, params);
+  // URL is the navigation authority, as in Legacy: reload/back/forward retain scope and topic.
+  const selection = parseLearningRoute(legacyPathId, params);
+  const { pathId, subjectId, tab } = selection;
+  const selectedLevelId = selection.levelId;
+  const topicId = tab === 'foundation' ? params.get('topic') || '' : '';
+  const contentTab: TopicContentTab = ['lessons', 'quizzes', 'support'].includes(params.get('content') || '')
+    ? params.get('content') as TopicContentTab : 'lessons';
 
   const [taxonomy, setTaxonomy] = useState<TaxonomyCore>({ paths: [], subjects: [] });
-  const [pathId, setPathId] = useState(initialSelection.pathId);
-  const [subjectId, setSubjectId] = useState(initialSelection.subjectId);
-  const [tab, setTab] = useState<Tab>(initialSelection.tab);
   const [space, setSpace] = useState<LearningSpace | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [requestState, setRequestState] = useState({ key: '', busy: false, error: '' });
+  const [retryNonce, setRetryNonce] = useState(0);
   const learningRequestRef = useRef<{ key: string; promise: Promise<LearningSpace> } | null>(null);
+  const scopeKey = `${pathId}:${subjectId}`;
+  const visibleSpace = space?.pathId === pathId && space?.subjectId === subjectId ? space : null;
+  const busy = requestState.key === scopeKey && requestState.busy;
+  const error = requestState.key === scopeKey ? requestState.error : '';
+
+  const updateQuery = (updates: Record<string, string | null>) => {
+    setParams((previous) => {
+      const next = new URLSearchParams(previous);
+      for (const [key, value] of Object.entries(updates)) {
+        if (value) next.set(key, value);
+        else next.delete(key);
+      }
+      return next;
+    });
+  };
+
+  const changePath = (nextPathId: string) => {
+    if (legacyPathId) {
+      const next = new URLSearchParams();
+      next.set('tab', tab === 'foundation' ? 'skills' : tab);
+      navigate(nextPathId ? `/category/${encodeURIComponent(nextPathId)}?${next}` : '/learning');
+      return;
+    }
+    updateQuery({ pathId: nextPathId, level: null, subjectId: null, subject: null, topic: null, content: null });
+  };
+  const changeSubject = (nextSubjectId: string) => {
+    updateQuery({
+      [legacyPathId ? 'subject' : 'subjectId']: nextSubjectId,
+      [legacyPathId ? 'subjectId' : 'subject']: null,
+      topic: null,
+      content: null,
+    });
+  };
+  const changeTab = (nextTab: Tab) => {
+    updateQuery({ tab: nextTab === 'foundation' ? 'skills' : nextTab, topic: null, content: null });
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -44,45 +83,21 @@ export function LearningSpacePage() {
     return () => controller.abort();
   }, []);
 
-  useEffect(() => {
-    if (!legacyPathId) return;
-    const next = parseLearningRoute(legacyPathId, params);
-    // A category can stay mounted when the visitor picks another stage or
-    // subject from the header; sync all URL choices, not just changed paths.
-    setPathId(next.pathId);
-    setSubjectId(next.subjectId);
-    setTab(next.tab);
-  }, [legacyPathId, params]);
 
-  const selectedLevelId = pathId === legacyPathId ? params.get('level') || '' : '';
   const subjects = useMemo(
     () => subjectsForSelection(taxonomy.subjects, pathId, selectedLevelId),
     [pathId, selectedLevelId, taxonomy.subjects],
   );
   const currentPath = taxonomy.paths.find((item) => item.id === pathId);
-  const currentSubject = taxonomy.subjects.find((item) => item.id === subjectId);
+  const currentSubject = subjects.find((item) => item.id === subjectId);
+  const subjectIsInScope = subjects.some((item) => item.id === subjectId);
 
+  // Do not silently switch subjects on a stale taxonomy response: keep the
+  // requested URL, and let the learner correct an invalid selection.
   useEffect(() => {
-    if (subjectId && taxonomy.subjects.length > 0 && !subjects.some((item) => item.id === subjectId)) {
-      setSubjectId('');
-    }
-  }, [subjectId, subjects, taxonomy.subjects.length]);
-
-  useEffect(() => {
-    if (legacyPathId) return;
-    setParams((previous) => {
-      const next = new URLSearchParams(previous);
-      pathId ? next.set('pathId', pathId) : next.delete('pathId');
-      subjectId ? next.set('subjectId', subjectId) : next.delete('subjectId');
-      next.delete('subject');
-      next.set('tab', tab);
-      return next;
-    }, { replace: true });
-  }, [legacyPathId, pathId, setParams, subjectId, tab]);
-
-  useEffect(() => {
-    if (!pathId || !subjectId) {
+    if (!pathId || !subjectId || !subjectIsInScope) {
       setSpace(null);
+      setRequestState({ key: '', busy: false, error: '' });
       return;
     }
 
@@ -91,32 +106,35 @@ export function LearningSpacePage() {
     const request = learningRequestRef.current?.key === requestKey
       ? learningRequestRef.current.promise
       : contentClient.learningSpace(pathId, subjectId, 50);
-
     learningRequestRef.current = { key: requestKey, promise: request };
-    setBusy(true);
-    setError('');
+    setSpace(null);
+    setRequestState({ key: requestKey, busy: true, error: '' });
 
     request
       .then((nextSpace) => {
-        if (active) setSpace(nextSpace);
+        if (!active) return;
+        if (nextSpace.pathId !== pathId || nextSpace.subjectId !== subjectId) {
+          setRequestState({ key: requestKey, busy: false, error: 'لا يطابق المحتوى المسار والمادة المحددين.' });
+          return;
+        }
+        setSpace(nextSpace);
       })
       .catch((reason) => {
         if (active) {
           setSpace(null);
-          setError(reason instanceof Error ? reason.message : 'تعذر تحميل مساحة التعلم');
+          setRequestState({ key: requestKey, busy: false, error: reason instanceof Error ? reason.message : 'تعذر تحميل مساحة التعلم' });
         }
       })
       .finally(() => {
-        if (learningRequestRef.current?.promise === request) {
-          learningRequestRef.current = null;
-        }
-        if (active) setBusy(false);
+        if (learningRequestRef.current?.promise === request) learningRequestRef.current = null;
+        if (active) setRequestState((previous) => previous.key === requestKey ? { ...previous, busy: false } : previous);
       });
 
-    return () => {
-      active = false;
-    };
-  }, [pathId, subjectId]);
+    return () => { active = false; };
+  }, [pathId, subjectId, subjectIsInScope, retryNonce]);
+
+  const selectedTopic = visibleSpace?.foundation.items.find((item) => item.id === topicId);
+  const mainTopics = visibleSpace?.foundation.items.filter((item) => !item.parentTopicId) || [];
 
   if (authLoading) {
     return <main className="p-10 text-center font-black">جاري تحميل مساحة التعلم...</main>;
@@ -170,10 +188,7 @@ export function LearningSpacePage() {
             <select
               aria-label="المسار"
               value={pathId}
-              onChange={(event) => {
-                setPathId(event.target.value);
-                setSubjectId('');
-              }}
+              onChange={(event) => changePath(event.target.value)}
               className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-3 pr-10 font-bold outline-none focus:border-amber-400"
             >
               <option value="">اختر المسار</option>
@@ -187,7 +202,7 @@ export function LearningSpacePage() {
             aria-label="المادة"
             value={subjectId}
             disabled={!pathId}
-            onChange={(event) => setSubjectId(event.target.value)}
+            onChange={(event) => changeSubject(event.target.value)}
             className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 font-bold outline-none focus:border-amber-400 disabled:opacity-50"
           >
             <option value="">اختر المادة</option>
@@ -202,7 +217,7 @@ export function LearningSpacePage() {
             <button
               key={id}
               type="button"
-              onClick={() => setTab(id)}
+              onClick={() => changeTab(id)}
               className={`flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black transition-all sm:px-5 ${
                 tab === id
                   ? 'bg-indigo-600 text-white shadow-sm'
@@ -229,12 +244,14 @@ export function LearningSpacePage() {
           </section>
         ) : error ? (
           <section className="rounded-2xl border border-rose-100 bg-rose-50 p-5 font-bold text-rose-700">
-            {error}
+            <p>{error}</p>
+            <button type="button" onClick={() => setRetryNonce((value) => value + 1)}
+              className="mt-3 rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white">إعادة المحاولة</button>
           </section>
-        ) : space ? (
+        ) : visibleSpace ? (
           <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {tab === 'courses' ? (
-              space.courses.items.map((course) => (
+              visibleSpace.courses.items.map((course) => (
                 <article
                   key={course.id}
                   className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
@@ -280,7 +297,7 @@ export function LearningSpacePage() {
                 </article>
               ))
             ) : tab === 'foundation' ? (
-              space.foundation.items.map((topic) => (
+              mainTopics.map((topic) => (
                 <article
                   key={topic.id}
                   className={`group relative flex min-h-56 flex-col justify-between overflow-hidden rounded-2xl border bg-white p-6 transition-all hover:-translate-y-1 hover:shadow-lg ${
@@ -298,10 +315,11 @@ export function LearningSpacePage() {
                       {topic.isLocked ? 'مقفل' : 'متاح'}
                     </span>
                   </div>
-                  <div>
+                  <button type="button" onClick={() => updateQuery({ tab: 'skills', topic: topic.id, content: 'lessons' })}
+                    className="block w-full rounded-xl text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
                     <h2 className="text-xl font-black text-gray-800">{topic.title}</h2>
                     <p className="mt-2 line-clamp-2 text-xs leading-6 text-gray-500">{topic.description}</p>
-                  </div>
+                  </button>
                   <div className="text-xs font-black text-indigo-600">موضوع تأسيسي</div>
                 </article>
               ))
@@ -309,9 +327,6 @@ export function LearningSpacePage() {
               <article className="col-span-full flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6">
                 <div>
                   <h2 className="text-xl font-black text-gray-800">التدريب وبنك الأسئلة</h2>
-                  <p className="mt-1 max-w-2xl text-sm font-medium leading-7 text-gray-500">
-                    الواجهة تحافظ على مدخل التدريب القديم، بينما المحاولات والتصحيح وحقائق الإجابات تظل مملوكة لـ Assessment V2.
-                  </p>
                 </div>
                 <Link
                   to={assessmentHref('training')}
@@ -327,9 +342,6 @@ export function LearningSpacePage() {
                   <Award size={24} />
                 </div>
                 <h2 className="text-xl font-black text-gray-800">الاختبارات</h2>
-                <p className="mt-2 max-w-2xl text-sm font-medium leading-7 text-gray-500">
-                  نفس نقطة الدخول المرئية للواجهة القديمة، مع بقاء الوصول والمحاولات والدرجة والتصحيح من الخادم الحالي.
-                </p>
                 <Link
                   to={assessmentHref('tests')}
                   className="mt-5 inline-flex self-start items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 font-black text-white hover:bg-indigo-700"
@@ -339,7 +351,7 @@ export function LearningSpacePage() {
                 </Link>
               </article>
             ) : (
-              space.library.items.map((item) => (
+              visibleSpace.library.items.map((item) => (
                 <article key={item.id} className="flex h-full flex-col rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
                   <div className="mb-6 flex items-start justify-between">
                     <span className={`rounded-lg px-3 py-1 text-xs font-black ${
@@ -359,9 +371,9 @@ export function LearningSpacePage() {
             )}
 
             {(
-              (tab === 'courses' && !space.courses.items.length) ||
-              (tab === 'foundation' && !space.foundation.items.length) ||
-              (tab === 'library' && !space.library.items.length)
+              (tab === 'courses' && !visibleSpace.courses.items.length) ||
+              (tab === 'foundation' && !mainTopics.length) ||
+              (tab === 'library' && !visibleSpace.library.items.length)
             ) ? (
               <div className="col-span-full rounded-2xl border bg-white p-10 text-center font-bold text-gray-500">
                 لا يوجد محتوى متاح حاليًا.
@@ -370,6 +382,17 @@ export function LearningSpacePage() {
           </section>
         ) : null}
       </div>
+      {selectedTopic && visibleSpace ? (
+        <FoundationTopicDialog
+          key={selectedTopic.id}
+          topic={selectedTopic}
+          topics={visibleSpace.foundation.items}
+          contentTab={contentTab}
+          onSelectTopic={(id) => updateQuery({ topic: id, content: contentTab })}
+          onSelectContent={(id) => updateQuery({ topic: selectedTopic.id, content: id })}
+          onClose={() => updateQuery({ topic: null, content: null })}
+        />
+      ) : null}
     </main>
   );
 }
