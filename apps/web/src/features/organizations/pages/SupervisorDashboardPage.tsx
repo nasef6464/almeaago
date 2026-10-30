@@ -1,4 +1,4 @@
-import { Activity, BarChart3, ChevronDown, ClipboardList, Loader2, Target, Users, Video } from 'lucide-react';
+import { Activity, BarChart3, ChevronDown, ChevronLeft, ClipboardList, Loader2, Target, Users, Video } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -135,6 +135,13 @@ export function SupervisorDashboardPage(){
       })}
      </div>
     </details>)}
+   </nav>
+   <nav aria-label="مسار الصفحة" dir="rtl" className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-slate-500 print:hidden">
+    <button type="button" onClick={()=>selectTab('overview')} className="min-h-11 rounded-lg px-1 font-bold text-indigo-700 hover:underline">لوحة الإشراف</button>
+    {groups.find(group=>group.ids.includes(tab)&&group.ids.length>1)?<>
+     <ChevronLeft aria-hidden="true" size={12}/><span>{groups.find(group=>group.ids.includes(tab))?.label}</span>
+    </>:null}
+    <ChevronLeft aria-hidden="true" size={12}/><span aria-current="page" className="font-bold text-slate-800">{tabs.find(item=>item.id===tab)?.label}</span>
    </nav>
    {scopeError?<div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">
     {scopeError}<button type="button" onClick={()=>setScopeReload(n=>n+1)} className="ms-3 rounded-lg border px-3 py-1">إعادة المحاولة</button>
