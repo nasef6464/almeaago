@@ -22,6 +22,10 @@ After the first strict decode, the decoder must reach `io.EOF` on the second dec
 
 A second test table covers eight real HTTP mutation routes without a backing service: create course, create lesson, create library item, create foundation topic, set trainer scope, create course module, link foundation lesson and course publication. For invalid trailing documents, each must return HTTP 400 before reaching a service.
 
+## CI formatting follow-up
+
+An intermediate green-candidate run reached the gofmt gate but detected a whitespace-only line in the new HTTP test file. That line was removed in the subsequent test commit; it was a formatting error, not a product regression. The final exact-head CI result is authoritative.
+
 ## Acceptance boundary
 
 - **VERIFIED only after exact-head CI:** Go regression suite, frontend typecheck/build, database workflow and browser workflow on the final PR SHA. Workflow green is scoped to this correction, not to complete admin/learner parity.
