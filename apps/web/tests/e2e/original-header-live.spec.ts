@@ -121,7 +121,7 @@ test.describe('original full Header on native Go data',()=>{
    for(const width of [390,820,1440]){
     await page.setViewportSize({width,height:1000});
     await ready(page,'/tests/reference/header.html?variant=source');
-    const prepare=async(state:string)=>{
+    const prepare=async(state:string,closeAfterMeasure=false)=>{
      if(role!=='guest'){
       const bell=page.getByRole('button',{name:'الإشعارات',exact:true});
       await expect(bell).toBeVisible();
