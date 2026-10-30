@@ -81,6 +81,7 @@ jobs:
 
       - name: Verify student navigation preferences and stage constraints against PostgreSQL
         env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
           NAVIGATION_TEST_DB: "1"
         run: go test ./internal/learning/navigation -run '^TestPostgresSaveReloadIsolationForeignLevelAndAuditRollback        env:
           DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
