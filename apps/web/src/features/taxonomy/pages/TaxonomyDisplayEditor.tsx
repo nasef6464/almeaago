@@ -9,13 +9,14 @@ import type {
 
 type Props = {
   path: AdminTaxonomyPath;
+  levelCount: number;
   subject: AdminTaxonomySubject | null;
   pending: string;
   savePath: (input: PathDisplayInput) => Promise<boolean>;
   saveSubject: (input: SubjectDisplayInput) => Promise<boolean>;
 };
 
-export function TaxonomyDisplayEditor({ path, subject, pending, savePath, saveSubject }: Props) {
+export function TaxonomyDisplayEditor({ path, levelCount, subject, pending, savePath, saveSubject }: Props) {
   const [showInNavbar, setShowInNavbar] = useState(path.showInNavbar !== false);
   const [showInHome, setShowInHome] = useState(path.showInHome !== false);
   const [showSubjectCards, setShowSubjectCards] = useState(path.settings?.showSubjectCards !== false);
@@ -87,9 +88,12 @@ export function TaxonomyDisplayEditor({ path, subject, pending, savePath, saveSu
             <option value="none">بدون مرحلة</option>
           </select>
         </label>
+        {stageSelection === 'required' && levelCount === 0 ? (
+          <p role="status" className="text-sm text-amber-700">أضف مرحلة قبل إتاحة تسجيل الطلاب. يمكنك حفظ الإعداد ثم إضافة المراحل من تبويب المراحل.</p>
+        ) : null}
         <label className="grid gap-1 text-xs font-black text-gray-700">
           تسمية المرحلة
-          <input aria-label="تسمية المرحلة" value={stageLabel} onChange={event => setStageLabel(event.target.value)} maxLength={120} className="rounded-xl border bg-white px-3 py-2.5 text-sm font-bold" placeholder="اتركه فارغًا لاستخدام التسمية الافتراضية" />
+          <input aria-label="تسمية المرحلة" disabled={stageSelection === 'none'} value={stageLabel} onChange={event => setStageLabel(event.target.value)} maxLength={120} className="rounded-xl border bg-white px-3 py-2.5 text-sm font-bold" placeholder="اتركه فارغًا لاستخدام التسمية الافتراضية" />
         </label>
       </div>
 
