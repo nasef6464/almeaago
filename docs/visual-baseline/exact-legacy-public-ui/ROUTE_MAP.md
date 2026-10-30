@@ -38,7 +38,7 @@ This document maps all links, CTAs, navigation triggers, and interactive routes 
 | **Announcement Banner Pill** | `activeAnnouncement.ctaUrl` (dynamic) | Depends on announcement | **YES** | e.g. `/checkout` or external link. |
 | **Banner Close Button** | Local state dismiss (`setDismissedBannerAdId`) | In-memory / session dismiss | **YES** | UI dismissal only. |
 | **Primary CTA** ("ابدأ التدريب مجانًا") | `homepageSettings.hero.primaryCtaLink` (`/dashboard`) | `/dashboard` | **YES** | Prompts login if unauthenticated, otherwise enters dashboard. |
-| **Secondary CTA** ("تصفح مساحة التعلم" / "تصفح الدورات") | `homepageSettings.hero.secondaryCtaLink` (`/courses`) | `/learning` | **PARTIAL** | V2 uses `/learning` for course space instead of `/courses`. |
+| **Secondary CTA** ("تصفح الدورات") | `homepageSettings.hero.secondaryCtaLink` (`/courses`) | `/courses` | **NO** | Legacy destination is the enrolled-course screen «دوراتي», not the generic learning space. Go main@98b0f6d9 has no `/courses` mount; route falls through to 404. Acceptance: #209. |
 | **Tertiary CTA** (Optional) | `homepageSettings.hero.tertiaryCtaLink` | Dynamic target | **YES** | Usually anchor `#paths`. |
 | **Floating Badge 1** (Rating: `4.9 ⭐`) | Smooth scroll `#testimonials` | `#testimonials` | **YES** | Anchor jump. |
 | **Floating Badge 2** (Progress: `85%`) | Smooth scroll `#paths` | `#paths` | **YES** | Anchor jump. |
@@ -64,7 +64,7 @@ This document maps all links, CTAs, navigation triggers, and interactive routes 
 
 | Element / Text | Legacy Href / Action | Expected V2 Destination | Equivalent V2 Route Exists? | Notes |
 | :--- | :--- | :--- | :---: | :--- |
-| **رابط عرض الكل** | `/courses` | `/learning` | **PARTIAL** | Public courses catalog. |
+| **رابط عرض الكل** | `/courses` | `/courses` | **NO** | The source `/courses` route renders «دوراتي» with enrolled/active/completed tabs and entitlement-scoped cards; Go main lacks this route. Do not silently redirect to `/learning` or replace with a public marketing catalog. #209. |
 | **زر معاينة الدورة** (Eye Icon) | `/course/:courseId` | `/learning/courses/:courseId` | **YES** | Course details view. |
 | **زر شراء الدورة** (Cart / Enroll Icon) | `/course/:courseId?buy=1` | `/checkout` | **YES** | Initiates checkout for course. |
 
