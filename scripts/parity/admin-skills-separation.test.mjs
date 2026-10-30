@@ -143,6 +143,7 @@ test('expanded subskill shows its linked lessons with a safe link and detach wor
   const { SkillsAdminPage } = load('features/taxonomy/pages/SkillsAdminPage.tsx', states);
   const html = renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(SkillsAdminPage)));
   assert.match(html, /الدروس المرتبطة/);
+  assert.ok(html.indexOf('الدروس المرتبطة') < html.indexOf('الأسئلة المرتبطة'), 'legacy subskill renders lessons before questions');
   assert.match(html, /درس المعادلات/);
   assert.match(html, /ربط درس موجود/);
   assert.match(html, /فصل الدرس درس المعادلات عن المهارة/);
