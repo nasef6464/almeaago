@@ -87,7 +87,7 @@ test('actual public header renders every root path at its original category URL'
     id.endsWith('/learning/navigation') ? {
       StudentNavigationProvider: ({ children }) => children,
       StudentPathBar: () => null,
-      useStudentExperience: () => ({ paths: taxonomy.paths, levels: [], subjects: [], scope: { navigationPathVisible: () => true, matchesNavigationContent: () => true } }),
+      useStudentExperience: () => ({ paths: taxonomy.paths, levels: [], subjects: [], homepageSettings: { brand: {}, navigation: {} }, scope: { navigationPathVisible: () => true, matchesNavigationContent: () => true } }),
     } :
     id.endsWith('/useHomepageSettings') ? { useHomepageSettings: () => ({ brand: {}, navigation: {} }) } :
     id.endsWith('/AuthProvider') ? { useAuth: () => ({ user: null }) } :
