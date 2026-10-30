@@ -50,7 +50,7 @@ type Dependencies struct {
 	LegacySchoolAccess       http.Handler
 	Search                   http.Handler
 	PublicArticles           http.Handler
-	PublicMockExams           http.Handler
+	PublicMockExams          http.Handler
 	NavigationPreferences    http.Handler
 }
 

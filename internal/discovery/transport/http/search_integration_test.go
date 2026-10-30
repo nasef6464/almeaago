@@ -56,7 +56,7 @@ func TestPublicSearchHTTPPostgres(t *testing.T) {
 	exec(`INSERT INTO subjects(id,path_id,level_id,code,name)VALUES($1,$2,$3,'subject','Subject')`, subject, path, level)
 	course := id(10)
 	exec(`INSERT INTO courses(id,path_id,subject_id,title,description,workflow_status,is_published)VALUES($1,$2,$3,'Needle course','literal %_\\ marker','approved',true)`, course, path, subject)
-	for n, mutation := range []string{"workflow_status='draft'", "is_published=false", "is_visible=false", "owner_type='school',owner_school_id='00000000-0000-0000-0000-000000000999'", "owner_type='teacher',owner_user_id='00000000-0000-0000-0000-000000000999'"} {
+	for n, mutation := range []string{"workflow_status='draft',is_published=false", "is_published=false", "is_visible=false", "owner_type='school',owner_school_id='00000000-0000-0000-0000-000000000999'", "owner_type='teacher',owner_user_id='00000000-0000-0000-0000-000000000999'"} {
 		cid := id(20 + n)
 		exec(`INSERT INTO courses(id,path_id,subject_id,title,workflow_status,is_published)VALUES($1,$2,$3,'Needle hidden','approved',true)`, cid, path, subject)
 		exec(`UPDATE courses SET `+mutation+` WHERE id=$1`, cid)
