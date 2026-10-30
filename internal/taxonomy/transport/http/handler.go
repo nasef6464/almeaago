@@ -86,7 +86,7 @@ func (h *Handler) createPath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	row, err := h.service.CreatePath(r.Context(), auth.User, p)
-	writeMutation(w, http.StatusCreated, map[string]any{"path": row}, err)
+	writeMutation(w, http.StatusCreated, map[string]any{"path": presentAdminPath(row)}, err)
 }
 func (h *Handler) updatePath(w http.ResponseWriter, r *http.Request) {
 	auth, ok := h.authenticateMutation(w, r)
@@ -98,7 +98,7 @@ func (h *Handler) updatePath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	row, err := h.service.UpdatePath(r.Context(), auth.User, chi.URLParam(r, "id"), p)
-	writeMutation(w, http.StatusOK, map[string]any{"path": row}, err)
+	writeMutation(w, http.StatusOK, map[string]any{"path": presentAdminPath(row)}, err)
 }
 func (h *Handler) createLevel(w http.ResponseWriter, r *http.Request) {
 	auth, ok := h.authenticateMutation(w, r)
@@ -134,7 +134,7 @@ func (h *Handler) createSubject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	row, err := h.service.CreateSubject(r.Context(), auth.User, p)
-	writeMutation(w, http.StatusCreated, map[string]any{"subject": row}, err)
+	writeMutation(w, http.StatusCreated, map[string]any{"subject": presentAdminSubject(row)}, err)
 }
 func (h *Handler) updateSubject(w http.ResponseWriter, r *http.Request) {
 	auth, ok := h.authenticateMutation(w, r)
@@ -146,7 +146,7 @@ func (h *Handler) updateSubject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	row, err := h.service.UpdateSubject(r.Context(), auth.User, chi.URLParam(r, "id"), p)
-	writeMutation(w, http.StatusOK, map[string]any{"subject": row}, err)
+	writeMutation(w, http.StatusOK, map[string]any{"subject": presentAdminSubject(row)}, err)
 }
 func (h *Handler) createSkill(w http.ResponseWriter, r *http.Request) {
 	auth, ok := h.authenticateMutation(w, r)
@@ -340,6 +340,21 @@ type skillResponse struct {
 	Description   string `json:"description"`
 	Kind          string `json:"kind"`
 	SortOrder     int    `json:"sortOrder"`
+}
+
+func presentAdminPath(row taxonomy.Path) adminPathResponse {
+	return adminPathResponse{
+		ShowInHome: row.ShowInHome, ShowInNavbar: row.ShowInNavbar, IsActive: row.Status == taxonomy.StatusActive,
+		Settings: row.Settings, ID: row.ID, Code: row.Code, Name: row.Name, ParentPathID: row.ParentPathID,
+		Description: row.Description, SortOrder: row.SortOrder, Status: string(row.Status),
+	}
+}
+
+func presentAdminSubject(row taxonomy.Subject) adminSubjectResponse {
+	return adminSubjectResponse{
+		Icon: row.Icon, Color: row.Color, ID: row.ID, PathID: row.PathID, LevelID: row.LevelID,
+		Code: row.Code, Name: row.Name, SortOrder: row.SortOrder, Status: string(row.Status),
+	}
 }
 
 func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
