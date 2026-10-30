@@ -10,13 +10,13 @@ const { renderToStaticMarkup } = require('react-dom/server');
 const { MemoryRouter } = require('react-router-dom');
 const source = new URL('../../apps/web/src/features/public/components/headerNavigation.ts', import.meta.url);
 
-function build(taxonomy, navigation = {}) {
+function build(taxonomy, navigation = {}, user, scope) {
   const module = { exports: {} };
   const javascript = ts.transpileModule(readFileSync(source, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   new Function('module', 'exports', javascript)(module, module.exports);
-  return module.exports.buildHeaderNavigation(taxonomy, navigation);
+  return module.exports.buildHeaderNavigation(taxonomy, navigation, user, scope);
 }
 
 const path = (id, extra = {}) => ({ id, name: `مسار ${id}`, sortOrder: Number(id) || 1, ...extra });
@@ -84,6 +84,11 @@ test('actual public header renders every root path at its original category URL'
   const helper = { exports: {} };
   new Function('module', 'exports', ts.transpileModule(readFileSync(source, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(helper, helper.exports);
   const resolve = (id) => id === 'react' ? realReact :
+    id.endsWith('/learning/navigation') ? {
+      StudentNavigationProvider: ({ children }) => children,
+      StudentPathBar: () => null,
+      useStudentExperience: () => ({ paths: taxonomy.paths, levels: [], subjects: [], scope: { navigationPathVisible: () => true, matchesNavigationContent: () => true } }),
+    } :
     id.endsWith('/useHomepageSettings') ? { useHomepageSettings: () => ({ brand: {}, navigation: {} }) } :
     id.endsWith('/AuthProvider') ? { useAuth: () => ({ user: null }) } :
     id.endsWith('/content-client') ? { contentClient: { taxonomyCore: () => Promise.resolve(taxonomy) } } :
@@ -93,4 +98,35 @@ test('actual public header renders every root path at its original category URL'
   const html = renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(mod.exports.LegacySiteHeader, { onAuth() {} })));
   assert.match(html, /href="\/category\/8"/);
   assert.doesNotMatch(html, /href="\/learning\?pathId=8"/);
+});
+
+
+test('applies the learner path and stage scope to the visible navigation tree', () => {
+  const taxonomy = {
+    paths: [path('q'), path('child', { parentPathId: 'q' }), path('other')],
+    levels: [{ id: 'l1', pathId: 'q', name: 'المرحلة الأولى', sortOrder: 1 }, { id: 'l2', pathId: 'q', name: 'المرحلة الثانية', sortOrder: 2 }],
+    subjects: [subject('math', 'q', { levelId: 'l1' }), subject('science', 'q', { levelId: 'l2' }), subject('shared', 'q')],
+  };
+  const scope = {
+    navigationPathVisible: (item) => ['q', 'child'].includes(item.id),
+    matchesNavigationContent: (item) => item.pathId !== 'q' || !item.levelId || item.levelId === 'l1',
+  };
+  const menu = build(taxonomy, {}, { role: 'student', roles: ['student'] }, scope);
+  assert.equal(menu.some((item) => item.id === 'other'), false);
+  const selected = menu.find((item) => item.id === 'q');
+  assert.ok(selected);
+  assert.equal(selected.children.some((item) => item.id === 'l1'), true);
+  assert.equal(selected.children.some((item) => item.id === 'l2'), false);
+  assert.equal(selected.children.find((item) => item.id === 'l1').children[0].id, 'math');
+  assert.equal(selected.children.some((item) => item.id === 'shared'), true);
+  assert.equal(selected.children.some((item) => item.id === 'child'), true);
+});
+
+test('inactive navigation paths are hidden from learners but remain eligible for source staff roles', () => {
+  const taxonomy = { paths: [path('active'), path('inactive', { isActive: false })], levels: [], subjects: [] };
+  const scope = { navigationPathVisible: () => true, matchesNavigationContent: () => true };
+  const student = build(taxonomy, {}, { role: 'student' }, scope);
+  const admin = build(taxonomy, {}, { role: 'admin' }, scope);
+  assert.deepEqual(student.filter((item) => item.kind === 'path').map((item) => item.id), ['active']);
+  assert.deepEqual(admin.filter((item) => item.kind === 'path').map((item) => item.id), ['active', 'inactive']);
 });
