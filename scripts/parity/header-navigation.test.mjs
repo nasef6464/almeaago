@@ -1,132 +1,42 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-
-const require = createRequire(new URL('../../apps/web/package.json', import.meta.url));
-const ts = require('typescript');
-const React = require('react');
-const { renderToStaticMarkup } = require('react-dom/server');
-const { MemoryRouter } = require('react-router-dom');
-const source = new URL('../../apps/web/src/features/public/components/headerNavigation.ts', import.meta.url);
-
-function build(taxonomy, navigation = {}, user, scope) {
-  const module = { exports: {} };
-  const javascript = ts.transpileModule(readFileSync(source, 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  new Function('module', 'exports', javascript)(module, module.exports);
-  return module.exports.buildHeaderNavigation(taxonomy, navigation, user, scope);
-}
-
-const path = (id, extra = {}) => ({ id, name: `مسار ${id}`, sortOrder: Number(id) || 1, ...extra });
-const subject = (id, pathId, extra = {}) => ({ id, pathId, name: `مادة ${id}`, sortOrder: 1, ...extra });
-
-test('shows all eligible top-level paths without the four-path cap and nests child paths', () => {
-  const paths = Array.from({ length: 8 }, (_, i) => path(String(i + 1)));
-  paths.push(path('child', { parentPathId: '1', sortOrder: 2 }));
-  const menu = build({ paths, levels: [], subjects: [] });
-  const parents = menu.filter((item) => item.kind === 'path');
-  assert.equal(parents.length, 8);
-  assert.deepEqual(parents.map((item) => item.id), paths.slice(0, 8).map((item) => item.id));
-  assert.equal(parents[0].href, '/category/1');
-  assert.equal(parents[0].children.find((item) => item.id === 'child').href, '/category/child');
+import {readFileSync,existsSync} from 'node:fs';
+import {createRequire} from 'node:module';
+const require=createRequire(new URL('../../apps/web/package.json',import.meta.url));
+const ts=require('typescript');
+function load(code){const mod={exports:{}};new Function('require','module','exports',ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(require,mod,mod.exports);return mod.exports;}
+const path=new URL('../../apps/web/src/features/public/header/navigation.ts',import.meta.url);
+const restored=existsSync(path)?load(readFileSync(path,'utf8')):{};
+const raw=readFileSync(new URL('../../docs/migration/baselines/legacy-Header.tsx.txt',import.meta.url),'utf8');
+const begin=raw.indexOf('    const navSettings = homepageSettings?.navigation || {};');
+const end=raw.indexOf('\n  }, [homepageSettings?.navigation',begin);
+assert(begin>0&&end>begin);
+const source=load(`export function original({homepageSettings,paths,levels,subjects,user,scope}:any){const text={main:'الرئيسية',blog:'المدونة',offersPrefix:'عروض وباقات'};${raw.slice(begin,end)}\n}`);
+const scope={navigationPathVisible:()=>true};
+const paths=Array.from({length:6},(_,i)=>({id:`p${i}`,name:`مسار ${i}`,isActive:i!==5}));
+paths.push({id:'child',name:'مسار فرعي',parentPathId:'p0'});
+const levels=[{id:'level',pathId:'p0',name:'مرحلة'}];
+const subjects=Array.from({length:12},(_,i)=>({id:`s${i}`,pathId:'p0',levelId:i<10?'level':'',name:`مادة ${i}`,icon:'📘',color:'#123456'}));
+const settings={navigation:{moreLabel:'روابط أخرى',items:[{id:'home',label:'البداية',visible:true,order:0},{id:'p0',order:10},{id:'mock-exams',order:20},{id:'more',order:90}]}};
+function input(role='student',homepageSettings=settings){return {homepageSettings,paths,levels,subjects,user:{role},scope};}
+test('restored navigation builder exists as the renderer data source',()=>assert.equal(typeof restored.buildHeaderNavigation,'function'));
+test('original hierarchy, all paths and twelve subjects retain original links without truncation',()=>{
+ assert.equal(typeof restored.buildHeaderNavigation,'function');
+ const args=input();const actual=restored.buildHeaderNavigation(args);assert.deepEqual(actual,source.original(args));
+ assert.equal(actual.filter(i=>/^p\d$/.test(i.id)).length,5);
+ const first=actual.find(i=>i.id==='p0');assert.equal(first.link,'/category/p0');assert.equal(first.children.find(i=>i.isGroup).subjects.length,10);
+ assert.equal(first.children.find(i=>i.id==='s11').link,'/category/p0?subject=s11');
+ assert.equal(first.children.find(i=>i.id==='p0_mock_exams').link,'/category/p0?tab=mock-exams');
+ assert.equal(first.children.find(i=>i.id==='child').link,'/category/child');
 });
-
-test('preserves level→subject hierarchy and source category query names', () => {
-  const menu = build({
-    paths: [path('q')],
-    levels: [{ id: 'l1', pathId: 'q', name: 'المرحلة الأولى', sortOrder: 1 }],
-    subjects: [subject('math', 'q', { levelId: 'l1' }), subject('verbal', 'q')],
-  });
-  const parent = menu.find((item) => item.id === 'q');
-  const level = parent.children.find((item) => item.id === 'l1');
-  assert.equal(level.kind, 'level');
-  assert.equal(level.href, '/category/q?level=l1');
-  assert.deepEqual(level.children.map((item) => item.href), ['/category/q?level=l1&subject=math']);
-  assert.equal(parent.children.find((item) => item.id === 'verbal').href, '/category/q?subject=verbal');
-  assert.equal(parent.children.find((item) => item.kind === 'mock-exam').href, '/category/q?tab=mock-exams');
-  assert.equal(parent.children.find((item) => item.kind === 'package').href, '/category/q?tab=packages');
-});
-
-test('honors source visibility, automatic-path toggle, and navigation order', () => {
-  const taxonomy = { paths: [path('one'), path('hidden', { showInNavbar: false })], subjects: [], levels: [] };
-  const settings = { items: [
-    { id: 'home', order: 10, visible: true },
-    { id: 'pricing', order: 5, visible: false },
-    { id: 'blog', order: 4, label: 'أخبارنا' },
-  ] };
-  const menu = build(taxonomy, settings);
-  assert.deepEqual(menu.filter((item) => item.kind === 'path').map((item) => item.id), ['one']);
-  assert.equal(menu.some((item) => item.id === 'pricing'), false);
-  assert.equal(menu.find((item) => item.id === 'more').children[0].label, 'أخبارنا');
-  assert.equal(menu[0].id, 'home');
-  const noPaths = build(taxonomy, { ...settings, showAutoPaths: false });
-  assert.equal(noPaths.some((item) => item.kind === 'path'), false);
-});
-
-test('keeps original mock-exam navigation and grouped pricing/blog links', () => {
-  const menu = build({ paths: [path('q')], subjects: [subject('s', 'q')], levels: [] });
-  const mock = menu.find((item) => item.id === 'mock-exams');
-  assert.equal(mock.href, '/mock-exams');
-  assert.equal(mock.children[0].href, '/category/q?tab=mock-exams');
-  const more = menu.find((item) => item.id === 'more');
-  assert.deepEqual(more.children.map((item) => item.href), ['/pricing', '/blog']);
-});
-
-test('actual public header renders every root path at its original category URL', () => {
-  const taxonomy = { paths: Array.from({ length: 8 }, (_, i) => path(String(i + 1))), levels: [], subjects: [] };
-  const realReact = { ...React, useState(initial) {
-    return React.useState(initial && typeof initial === 'object' && Array.isArray(initial.paths) ? taxonomy : initial);
-  } };
-  const sourceText = readFileSync(new URL('../../apps/web/src/features/public/components/LegacySiteHeader.tsx', import.meta.url), 'utf8');
-  const mod = { exports: {} };
-  const helper = { exports: {} };
-  new Function('module', 'exports', ts.transpileModule(readFileSync(source, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(helper, helper.exports);
-  const resolve = (id) => id === 'react' ? realReact :
-    id.endsWith('/learning/navigation') ? {
-      StudentNavigationProvider: ({ children }) => children,
-      StudentPathBar: () => null,
-      useStudentExperience: () => ({ paths: taxonomy.paths, levels: [], subjects: [], homepageSettings: { brand: {}, navigation: {} }, scope: { navigationPathVisible: () => true, matchesNavigationContent: () => true } }),
-    } :
-    id.endsWith('/useHomepageSettings') ? { useHomepageSettings: () => ({ brand: {}, navigation: {} }) } :
-    id.endsWith('/AuthProvider') ? { useAuth: () => ({ user: null }) } :
-    id.endsWith('/content-client') ? { contentClient: { taxonomyCore: () => Promise.resolve(taxonomy) } } :
-    id.endsWith('/dashboard-path') ? { dashboardPathFor: () => '/dashboard' } :
-    id.endsWith('/headerNavigation') ? helper.exports : require(id);
-  new Function('require', 'module', 'exports', ts.transpileModule(sourceText, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText)(resolve, mod, mod.exports);
-  const html = renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(mod.exports.LegacySiteHeader, { onAuth() {} })));
-  assert.match(html, /href="\/category\/8"/);
-  assert.doesNotMatch(html, /href="\/learning\?pathId=8"/);
-});
-
-
-test('applies the learner path and stage scope to the visible navigation tree', () => {
-  const taxonomy = {
-    paths: [path('q'), path('child', { parentPathId: 'q' }), path('other')],
-    levels: [{ id: 'l1', pathId: 'q', name: 'المرحلة الأولى', sortOrder: 1 }, { id: 'l2', pathId: 'q', name: 'المرحلة الثانية', sortOrder: 2 }],
-    subjects: [subject('math', 'q', { levelId: 'l1' }), subject('science', 'q', { levelId: 'l2' }), subject('shared', 'q')],
-  };
-  const scope = {
-    navigationPathVisible: (item) => ['q', 'child'].includes(item.id),
-    matchesNavigationContent: (item) => item.pathId !== 'q' || !item.levelId || item.levelId === 'l1',
-  };
-  const menu = build(taxonomy, {}, { role: 'student', roles: ['student'] }, scope);
-  assert.equal(menu.some((item) => item.id === 'other'), false);
-  const selected = menu.find((item) => item.id === 'q');
-  assert.ok(selected);
-  assert.equal(selected.children.some((item) => item.id === 'l1'), true);
-  assert.equal(selected.children.some((item) => item.id === 'l2'), false);
-  assert.equal(selected.children.find((item) => item.id === 'l1').children[0].id, 'math');
-  assert.equal(selected.children.some((item) => item.id === 'shared'), true);
-  assert.equal(selected.children.some((item) => item.id === 'child'), true);
-});
-
-test('inactive navigation paths are hidden from learners but remain eligible for source staff roles', () => {
-  const taxonomy = { paths: [path('active'), path('inactive', { isActive: false })], levels: [], subjects: [] };
-  const scope = { navigationPathVisible: () => true, matchesNavigationContent: () => true };
-  const student = build(taxonomy, {}, { role: 'student' }, scope);
-  const admin = build(taxonomy, {}, { role: 'admin' }, scope);
-  assert.deepEqual(student.filter((item) => item.kind === 'path').map((item) => item.id), ['active']);
-  assert.deepEqual(admin.filter((item) => item.kind === 'path').map((item) => item.id), ['active', 'inactive']);
+test('visibility/order/custom labels and privileged inactive paths match executed source',()=>{
+ assert.equal(typeof restored.buildHeaderNavigation,'function');
+ for(const role of ['student','admin','teacher','supervisor','school_admin','parent']){
+  const args=input(role);assert.deepEqual(restored.buildHeaderNavigation(args),source.original(args),role);
+ }
+ for(const navigation of [{showAutoPaths:false},{items:[{id:'home',visible:false},{id:'pricing',visible:false},{id:'blog',visible:false}]},{items:[{id:'home',label:'',order:100},{id:'more',order:0}]}]){
+  const args=input('student',{navigation});assert.deepEqual(restored.buildHeaderNavigation(args),source.original(args));
+ }
+ const args=input();args.paths=[...paths,{id:'hidden',name:'مخفي',showInNavbar:false}];args.scope={navigationPathVisible:p=>p.id!=='p1'};
+ assert.deepEqual(restored.buildHeaderNavigation(args),source.original(args));
 });
