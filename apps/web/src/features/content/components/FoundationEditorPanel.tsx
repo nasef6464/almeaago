@@ -37,6 +37,7 @@ export function FoundationEditorPanel({
   const editing = Boolean(topicId);
   const [topic, setTopic] = useState<FoundationTopicDetail | null>(null);
   const [taxonomy, setTaxonomy] = useState<TaxonomyFull>({ ...coreTaxonomy, skills: [] });
+  const [taxonomyReady, setTaxonomyReady] = useState(false);
   const [placements, setPlacements] = useState<FoundationPlacements>({ lessons: [], libraryItems: [] });
   const [topicOptions, setTopicOptions] = useState<FoundationTopicSummary[]>([]);
   const [lessonOptions, setLessonOptions] = useState<LessonSummary[]>([]);
@@ -85,7 +86,10 @@ export function FoundationEditorPanel({
   useEffect(() => {
     const controller = new AbortController();
     contentClient.taxonomyFull(controller.signal)
-      .then(setTaxonomy)
+      .then((result) => {
+        setTaxonomy(result);
+        setTaxonomyReady(true);
+      })
       .catch((cause: unknown) => {
         if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'تعذر تحميل المهارات.');
       });
@@ -193,18 +197,26 @@ export function FoundationEditorPanel({
   const skills = useMemo(() => taxonomy.skills.filter((skill) => skill.subjectId === subjectId), [subjectId, taxonomy.skills]);
 
   useEffect(() => {
+    // The topic detail may arrive before the full skill catalog.
+    // Do not erase persisted relationships during this loading window.
+    if (!taxonomyReady) return;
     if (subjectId && !subjects.some((subject) => subject.id === subjectId)) {
       setSubjectId('');
       setParentTopicId('');
       setSkillIds([]);
     }
-  }, [subjectId, subjects]);
+  }, [subjectId, subjects, taxonomyReady]);
   useEffect(() => {
+    if (!taxonomyReady) return;
     setSkillIds((current) => current.filter((id) => skills.some((skill) => skill.id === id)));
-  }, [skills]);
+  }, [skills, taxonomyReady]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (!taxonomyReady) {
+      setError('تعذر تحميل المهارات. لا يمكن حفظ تعديل قد يفقد الروابط الحالية.');
+      return;
+    }
     setError('');
     if (!pathId || !subjectId || !code.trim() || !title.trim() || skillIds.length === 0) {
       setError('أكمل المسار والمادة والكود والعنوان ومهارة واحدة على الأقل.');
@@ -357,7 +369,7 @@ export function FoundationEditorPanel({
             <label className="flex items-center gap-3 rounded-xl border border-gray-200 p-3 text-sm font-black text-gray-700"><input type="checkbox" checked={isLocked} onChange={(event) => setIsLocked(event.target.checked)} />مغلق حسب الوصول</label>
           </section>
 
-          <div className="flex justify-end"><button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white disabled:opacity-50">{saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}{saving ? 'جارٍ الحفظ...' : 'حفظ الموضوع'}</button></div>
+          <div className="flex justify-end"><button type="submit" disabled={saving || !taxonomyReady} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white disabled:opacity-50">{saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}{saving ? 'جارٍ الحفظ...' : 'حفظ الموضوع'}</button></div>
         </form>
 
         {editing && topic ? (
