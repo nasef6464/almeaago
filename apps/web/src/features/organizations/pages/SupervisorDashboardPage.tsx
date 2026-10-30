@@ -28,7 +28,7 @@ export function SupervisorDashboardPage(){
  const {user,loading:authLoading}=useAuth();
  const [params,setParams]=useSearchParams();
  const requested=params.get('tab');
- const tab:SupervisorTab=tabs.some(item=>item.id===requested)?requested as SupervisorTab:'students';
+ const tab:SupervisorTab=tabs.some(item=>item.id===requested&&enabledTabs.has(item.id))?requested as SupervisorTab:'students';
  const authorized=Boolean(user?.roles.includes('supervisor'));
  const [contexts,setContexts]=useState<SchoolContext[]>([]);
  const [scopeOwner,setScopeOwner]=useState('');
