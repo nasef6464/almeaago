@@ -23,7 +23,7 @@ export function TaxonomyDisplayEditor({ path, subject, pending, savePath, saveSu
   const [showPackageCard, setShowPackageCard] = useState(path.settings?.showPackageCard !== false);
   const [studentTemplate, setStudentTemplate] = useState(path.settings?.studentTemplate ?? 'standard');
   const [stageSelection, setStageSelection] = useState(path.settings?.stageSelection ?? 'auto');
-  const [stageLabel, setStageLabel] = useState(path.settings?.stageLabel ?? '');
+  const [stageLabel, setStageLabel] = useState(path.settings?.stageLabel ?? 'اختر مرحلتك');
   const [icon, setIcon] = useState(subject?.icon ?? '');
   const [color, setColor] = useState(subject?.color ?? '');
 
@@ -35,7 +35,7 @@ export function TaxonomyDisplayEditor({ path, subject, pending, savePath, saveSu
     setShowPackageCard(path.settings?.showPackageCard !== false);
     setStudentTemplate(path.settings?.studentTemplate ?? 'standard');
     setStageSelection(path.settings?.stageSelection ?? 'auto');
-    setStageLabel(path.settings?.stageLabel ?? '');
+    setStageLabel(path.settings?.stageLabel ?? 'اختر مرحلتك');
   }, [path.id, path.showInNavbar, path.showInHome, path.settings?.showSubjectCards, path.settings?.showMockExamCard, path.settings?.showPackageCard, path.settings?.studentTemplate, path.settings?.stageSelection, path.settings?.stageLabel]);
 
   useEffect(() => {
