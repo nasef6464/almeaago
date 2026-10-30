@@ -10,6 +10,7 @@ export interface ContentListFilters {
   limit?: number;
   pathId?: string;
   subjectId?: string;
+  skillId?: string;
   search?: string;
   workflowStatus?: ContentWorkflowStatus | '';
 }
