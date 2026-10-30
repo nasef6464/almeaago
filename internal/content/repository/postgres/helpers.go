@@ -175,6 +175,15 @@ func validateTopicParentTx(ctx context.Context, tx pgx.Tx, topicID, parentID, pa
 	if topicID != "" && parentID == topicID {
 		return content.ErrConflict
 	}
+	// Concurrent admins may each validate reciprocal reparenting against an
+	// unchanged tree. Serialize parent checks and writes within one subject;
+	// the transaction-scoped lock is released on commit or rollback.
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(
+		hashtext('almeaa:foundation-topic-parent'),
+		hashtext($1::text || ':' || $2::text)
+	)`, pathID, subjectID); err != nil {
+		return mapError(err)
+	}
 	var ok bool
 	if err := tx.QueryRow(ctx, `
 		SELECT EXISTS(
