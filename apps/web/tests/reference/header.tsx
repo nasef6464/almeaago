@@ -23,8 +23,9 @@ function Reference(){
   return ()=>{delete window.__setHeaderVariant};
  },[]);
  return <><PlatformFontBootstrap/>
-  <div data-header-variant="source" data-visible={source?'true':'false'} style={{display:source?'contents':'none'}}><Original/></div>
-  <div data-header-variant="go" data-visible={source?'false':'true'} style={{display:source?'none':'contents'}}><Go/></div>
+  <div data-header-variant={source?'source':'go'} data-visible="true">
+   {source?<Original/>:<Go/>}
+  </div>
   <StudentPathBar/>
   <main data-testid="header-reference-body" data-variant={source?'source':'go'} data-ready={!auth.loading&&!navigation.loading?'true':'false'} style={{minHeight:'200vh'}}/>
  </>;
