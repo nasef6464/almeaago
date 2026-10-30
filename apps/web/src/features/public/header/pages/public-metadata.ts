@@ -8,7 +8,23 @@ function usePublicList<T>(load:(signal:AbortSignal)=>Promise<T[]>){
  useEffect(()=>{const controller=new AbortController();setLoading(true);setError('');load(controller.signal).then(rows=>{if(!controller.signal.aborted)setItems(rows)}).catch(e=>{if(!controller.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل المحتوى المنشور.')}).finally(()=>{if(!controller.signal.aborted)setLoading(false)});return()=>controller.abort()},[load,revision]);
  return {items,loading,error,reload:()=>setRevision(x=>x+1)};
 }
-export const loadMocks=async(signal:AbortSignal)=>(await get<{mocks:MockSummary[]}>('/api/v1/public/mock-exams',signal)).mocks;
-export const loadArticles=async(signal:AbortSignal)=>{const items:PublicArticleMetadata[]=[];for(let page=1;;page++){const result=await get<{items:PublicArticleMetadata[];hasMore:boolean}>(`/api/v1/public/articles?page=${page}&limit=100`,signal);items.push(...result.items);if(!result.hasMore)return items;}};
+export const loadMocks=async(signal:AbortSignal):Promise<MockSummary[]>=>{
+ const payload=await get<unknown>('/api/v1/public/mock-exams',signal);
+ if(!payload || typeof payload!=='object' || !('mocks' in payload) || !Array.isArray(payload.mocks)){
+  throw Error('تعذر قراءة بيانات المحاكيات.');
+ }
+ return payload.mocks as MockSummary[];
+};
+export const loadArticles=async(signal:AbortSignal):Promise<PublicArticleMetadata[]>=>{
+ const items:PublicArticleMetadata[]=[];
+ for(let page=1;;page++){
+  const payload=await get<unknown>(`/api/v1/public/articles?page=${page}&limit=100`,signal);
+  if(!payload || typeof payload!=='object' || !('items' in payload) || !Array.isArray(payload.items) || !('hasMore' in payload) || typeof payload.hasMore!=='boolean' || (payload.hasMore && payload.items.length===0)){
+   throw Error('تعذر قراءة بيانات المقالات.');
+  }
+  items.push(...payload.items as PublicArticleMetadata[]);
+  if(!payload.hasMore)return items;
+ }
+};
 export const usePublicMocks=()=>usePublicList(loadMocks);
 export const usePublicArticles=()=>usePublicList(loadArticles);
