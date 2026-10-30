@@ -10,16 +10,23 @@ type PathSettings struct {
 }
 
 type Path struct {
-	ShowInHome   *bool
-	ShowInNavbar *bool
-	Settings     PathSettings
-	ID           string
-	Code         string
-	Name         string
-	ParentPathID string
-	Description  string
-	SortOrder    int
-	Status       Status
+	ShowInHome       *bool
+	ShowInNavbar     *bool
+	ShowSubjectCards *bool
+	ShowMockExamCard *bool
+	ShowPackageCard  *bool
+	Color            string
+	Icon             string
+	IconURL          string
+	IconStyle        string
+	Settings         PathSettings
+	ID               string
+	Code             string
+	Name             string
+	ParentPathID     string
+	Description      string
+	SortOrder        int
+	Status           Status
 }
 
 type Level struct {
@@ -29,10 +36,14 @@ type Level struct {
 	Name      string
 	SortOrder int
 	Status    Status
+	Icon      string
+	IconURL   string
 }
 
 type Subject struct {
 	Icon      string
+	IconURL   string
+	IconStyle string
 	Color     string
 	ID        string
 	PathID    string

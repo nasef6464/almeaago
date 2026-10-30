@@ -18,73 +18,95 @@ func ValidStatus(status Status) bool {
 }
 
 type PathWrite struct {
-	ShowInHome   *bool         `json:"showInHome,omitempty"`
-	ShowInNavbar *bool         `json:"showInNavbar,omitempty"`
-	Settings     *PathSettings `json:"settings,omitempty"`
-	Code         string
-	Name         string
-	ParentPathID string
-	Description  string
-	SortOrder    int
+	ShowInHome       *bool         `json:"showInHome,omitempty"`
+	ShowInNavbar     *bool         `json:"showInNavbar,omitempty"`
+	ShowSubjectCards *bool         `json:"showSubjectCards,omitempty"`
+	ShowMockExamCard *bool         `json:"showMockExamCard,omitempty"`
+	ShowPackageCard  *bool         `json:"showPackageCard,omitempty"`
+	Color            *string       `json:"color,omitempty"`
+	Icon             *string       `json:"icon,omitempty"`
+	IconURL          *string       `json:"iconUrl,omitempty"`
+	IconStyle        *string       `json:"iconStyle,omitempty"`
+	Settings         *PathSettings `json:"settings,omitempty"`
+	Code             string        `json:"code"`
+	Name             string        `json:"name"`
+	ParentPathID     string        `json:"parentPathId,omitempty"`
+	Description      string        `json:"description,omitempty"`
+	SortOrder        int           `json:"sortOrder,omitempty"`
 }
 
 type PathPatch struct {
-	ShowInHome   *bool         `json:"showInHome,omitempty"`
-	ShowInNavbar *bool         `json:"showInNavbar,omitempty"`
-	Settings     *PathSettings `json:"settings,omitempty"`
-	Name         *string
-	ParentPathID *string
-	Description  *string
-	SortOrder    *int
-	Status       *Status
+	ShowInHome       *bool         `json:"showInHome,omitempty"`
+	ShowInNavbar     *bool         `json:"showInNavbar,omitempty"`
+	ShowSubjectCards *bool         `json:"showSubjectCards,omitempty"`
+	ShowMockExamCard *bool         `json:"showMockExamCard,omitempty"`
+	ShowPackageCard  *bool         `json:"showPackageCard,omitempty"`
+	Color            *string       `json:"color,omitempty"`
+	Icon             *string       `json:"icon,omitempty"`
+	IconURL          *string       `json:"iconUrl,omitempty"`
+	IconStyle        *string       `json:"iconStyle,omitempty"`
+	Settings         *PathSettings `json:"settings,omitempty"`
+	Name             *string       `json:"name,omitempty"`
+	ParentPathID     *string       `json:"parentPathId,omitempty"`
+	Description      *string       `json:"description,omitempty"`
+	SortOrder        *int          `json:"sortOrder,omitempty"`
+	Status           *Status       `json:"status,omitempty"`
 }
 
 type LevelWrite struct {
-	PathID    string
-	Code      string
-	Name      string
-	SortOrder int
+	PathID    string  `json:"pathId"`
+	Code      string  `json:"code"`
+	Name      string  `json:"name"`
+	SortOrder int     `json:"sortOrder,omitempty"`
+	Icon      *string `json:"icon,omitempty"`
+	IconURL   *string `json:"iconUrl,omitempty"`
 }
 
 type LevelPatch struct {
-	Name      *string
-	SortOrder *int
-	Status    *Status
+	Name      *string `json:"name,omitempty"`
+	SortOrder *int    `json:"sortOrder,omitempty"`
+	Status    *Status `json:"status,omitempty"`
+	Icon      *string `json:"icon,omitempty"`
+	IconURL   *string `json:"iconUrl,omitempty"`
 }
 
 type SubjectWrite struct {
 	Icon      *string `json:"icon,omitempty"`
+	IconURL   *string `json:"iconUrl,omitempty"`
+	IconStyle *string `json:"iconStyle,omitempty"`
 	Color     *string `json:"color,omitempty"`
-	PathID    string
-	LevelID   string
-	Code      string
-	Name      string
-	SortOrder int
+	PathID    string  `json:"pathId"`
+	LevelID   string  `json:"levelId,omitempty"`
+	Code      string  `json:"code"`
+	Name      string  `json:"name"`
+	SortOrder int     `json:"sortOrder,omitempty"`
 }
 
 type SubjectPatch struct {
 	Icon      *string `json:"icon,omitempty"`
+	IconURL   *string `json:"iconUrl,omitempty"`
+	IconStyle *string `json:"iconStyle,omitempty"`
 	Color     *string `json:"color,omitempty"`
-	Name      *string
-	LevelID   *string
-	SortOrder *int
-	Status    *Status
+	Name      *string `json:"name,omitempty"`
+	LevelID   *string `json:"levelId,omitempty"`
+	SortOrder *int    `json:"sortOrder,omitempty"`
+	Status    *Status `json:"status,omitempty"`
 }
 
 type SkillWrite struct {
-	SubjectID     string
-	ParentSkillID string
-	Code          string
-	Name          string
-	Description   string
-	Kind          string
-	SortOrder     int
+	SubjectID     string `json:"subjectId"`
+	ParentSkillID string `json:"parentSkillId,omitempty"`
+	Code          string `json:"code"`
+	Name          string `json:"name"`
+	Description   string `json:"description,omitempty"`
+	Kind          string `json:"kind,omitempty"`
+	SortOrder     int    `json:"sortOrder,omitempty"`
 }
 
 type SkillPatch struct {
-	Name          *string
-	ParentSkillID *string
-	Description   *string
-	SortOrder     *int
-	Status        *Status
+	Name          *string `json:"name,omitempty"`
+	ParentSkillID *string `json:"parentSkillId,omitempty"`
+	Description   *string `json:"description,omitempty"`
+	SortOrder     *int    `json:"sortOrder,omitempty"`
+	Status        *Status `json:"status,omitempty"`
 }

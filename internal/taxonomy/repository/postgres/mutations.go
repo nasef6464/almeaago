@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -18,11 +19,14 @@ func (r *Repository) CreatePath(ctx context.Context, actor string, write taxonom
 		return taxonomy.Path{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+
+	presBytes := buildPathPresMap(write)
+
 	var row taxonomy.Path
-	err = tx.QueryRow(ctx, `INSERT INTO paths(code,name,parent_path_id,description,sort_order)
-		VALUES($1,$2,NULLIF($3,'')::uuid,$4,$5)
+	err = tx.QueryRow(ctx, `INSERT INTO paths(code,name,parent_path_id,description,sort_order,presentation)
+		VALUES($1,$2,NULLIF($3,'')::uuid,$4,$5,$6::jsonb)
 		RETURNING id::text,code,name,COALESCE(parent_path_id::text,''),description,sort_order`,
-		write.Code, write.Name, write.ParentPathID, write.Description, write.SortOrder).Scan(&row.ID, &row.Code, &row.Name, &row.ParentPathID, &row.Description, &row.SortOrder)
+		write.Code, write.Name, write.ParentPathID, write.Description, write.SortOrder, presBytes).Scan(&row.ID, &row.Code, &row.Name, &row.ParentPathID, &row.Description, &row.SortOrder)
 	if err != nil {
 		return taxonomy.Path{}, mapMutationError(err)
 	}
@@ -42,9 +46,6 @@ func (r *Repository) UpdatePath(ctx context.Context, actor, pathID string, patch
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	if patch.ParentPathID != nil && *patch.ParentPathID != "" {
-		// Serialize parent-changing commands before reading the ancestry. Without
-		// this lock, concurrent A -> B and B -> A updates can both pass a
-		// check against the previous committed tree.
 		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(760017, 1)`); err != nil {
 			return taxonomy.Path{}, err
 		}
@@ -82,6 +83,11 @@ func (r *Repository) UpdatePath(ctx context.Context, actor, pathID string, patch
 	if patch.Status != nil {
 		add("status=$%d", string(*patch.Status))
 	}
+	if hasPathPresPatch(patch) {
+		pb := buildPathPatchPresMap(patch)
+		add("presentation=COALESCE(presentation, '{}'::jsonb) || $%d::jsonb", pb)
+	}
+
 	var row taxonomy.Path
 	q := `UPDATE paths SET ` + strings.Join(set, ",") + ` WHERE id=$1::uuid RETURNING id::text,code,name,COALESCE(parent_path_id::text,''),description,sort_order`
 	err = tx.QueryRow(ctx, q, args...).Scan(&row.ID, &row.Code, &row.Name, &row.ParentPathID, &row.Description, &row.SortOrder)
@@ -103,10 +109,13 @@ func (r *Repository) CreateLevel(ctx context.Context, actor string, write taxono
 		return taxonomy.Level{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+
+	presBytes := buildLevelPresMap(write)
+
 	var row taxonomy.Level
-	err = tx.QueryRow(ctx, `INSERT INTO levels(path_id,code,name,sort_order)
-		SELECT p.id,$2,$3,$4 FROM paths p WHERE p.id=$1::uuid AND p.status='active'
-		RETURNING id::text,path_id::text,code,name,sort_order`, write.PathID, write.Code, write.Name, write.SortOrder).Scan(&row.ID, &row.PathID, &row.Code, &row.Name, &row.SortOrder)
+	err = tx.QueryRow(ctx, `INSERT INTO levels(path_id,code,name,sort_order,presentation)
+		SELECT p.id,$2,$3,$4,$5::jsonb FROM paths p WHERE p.id=$1::uuid AND p.status='active'
+		RETURNING id::text,path_id::text,code,name,sort_order`, write.PathID, write.Code, write.Name, write.SortOrder, presBytes).Scan(&row.ID, &row.PathID, &row.Code, &row.Name, &row.SortOrder)
 	if err != nil {
 		return taxonomy.Level{}, mapMutationError(err)
 	}
@@ -136,6 +145,11 @@ func (r *Repository) UpdateLevel(ctx context.Context, actor, levelID string, pat
 	if patch.Status != nil {
 		add("status=$%d", string(*patch.Status))
 	}
+	if patch.Icon != nil || patch.IconURL != nil {
+		pb := buildLevelPatchPresMap(patch)
+		add("presentation=COALESCE(presentation, '{}'::jsonb) || $%d::jsonb", pb)
+	}
+
 	var row taxonomy.Level
 	q := `UPDATE levels SET ` + strings.Join(set, ",") + ` WHERE id=$1::uuid RETURNING id::text,path_id::text,code,name,sort_order`
 	err = tx.QueryRow(ctx, q, args...).Scan(&row.ID, &row.PathID, &row.Code, &row.Name, &row.SortOrder)
@@ -157,11 +171,14 @@ func (r *Repository) CreateSubject(ctx context.Context, actor string, write taxo
 		return taxonomy.Subject{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+
+	presBytes := buildSubjectPresMap(write)
+
 	var row taxonomy.Subject
-	err = tx.QueryRow(ctx, `INSERT INTO subjects(path_id,level_id,code,name,sort_order)
-		SELECT p.id,l.id,$3,$4,$5 FROM paths p LEFT JOIN levels l ON l.id=NULLIF($2,'')::uuid
+	err = tx.QueryRow(ctx, `INSERT INTO subjects(path_id,level_id,code,name,sort_order,presentation)
+		SELECT p.id,l.id,$3,$4,$5,$6::jsonb FROM paths p LEFT JOIN levels l ON l.id=NULLIF($2,'')::uuid
 		WHERE p.id=$1::uuid AND p.status='active' AND ($2='' OR (l.path_id=p.id AND l.status='active'))
-		RETURNING id::text,path_id::text,COALESCE(level_id::text,''),code,name,sort_order`, write.PathID, write.LevelID, write.Code, write.Name, write.SortOrder).Scan(&row.ID, &row.PathID, &row.LevelID, &row.Code, &row.Name, &row.SortOrder)
+		RETURNING id::text,path_id::text,COALESCE(level_id::text,''),code,name,sort_order`, write.PathID, write.LevelID, write.Code, write.Name, write.SortOrder, presBytes).Scan(&row.ID, &row.PathID, &row.LevelID, &row.Code, &row.Name, &row.SortOrder)
 	if err != nil {
 		return taxonomy.Subject{}, mapMutationError(err)
 	}
@@ -204,6 +221,11 @@ func (r *Repository) UpdateSubject(ctx context.Context, actor, subjectID string,
 	if patch.Status != nil {
 		add("status=$%d", string(*patch.Status))
 	}
+	if patch.Color != nil || patch.Icon != nil || patch.IconURL != nil || patch.IconStyle != nil {
+		pb := buildSubjectPatchPresMap(patch)
+		add("presentation=COALESCE(presentation, '{}'::jsonb) || $%d::jsonb", pb)
+	}
+
 	var row taxonomy.Subject
 	q := `UPDATE subjects SET ` + strings.Join(set, ",") + ` WHERE id=$1::uuid RETURNING id::text,path_id::text,COALESCE(level_id::text,''),code,name,sort_order`
 	err = tx.QueryRow(ctx, q, args...).Scan(&row.ID, &row.PathID, &row.LevelID, &row.Code, &row.Name, &row.SortOrder)
@@ -312,4 +334,76 @@ func mapMutationError(err error) error {
 		return taxonomy.ErrConflict
 	}
 	return err
+}
+
+func buildPathPresMap(write taxonomy.PathWrite) []byte {
+	m := map[string]any{}
+	if write.Color != nil { m["color"] = *write.Color }
+	if write.Icon != nil { m["icon"] = *write.Icon }
+	if write.IconURL != nil { m["iconUrl"] = *write.IconURL }
+	if write.IconStyle != nil { m["iconStyle"] = *write.IconStyle }
+	if write.ShowInNavbar != nil { m["showInNavbar"] = *write.ShowInNavbar }
+	if write.ShowSubjectCards != nil { m["showSubjectCards"] = *write.ShowSubjectCards }
+	if write.ShowMockExamCard != nil { m["showMockExamCard"] = *write.ShowMockExamCard }
+	if write.ShowPackageCard != nil { m["showPackageCard"] = *write.ShowPackageCard }
+	if write.Settings != nil { m["settings"] = write.Settings }
+	b, _ := json.Marshal(m)
+	return b
+}
+
+func hasPathPresPatch(patch taxonomy.PathPatch) bool {
+	return patch.Color != nil || patch.Icon != nil || patch.IconURL != nil || patch.IconStyle != nil ||
+		patch.ShowInNavbar != nil || patch.ShowSubjectCards != nil || patch.ShowMockExamCard != nil ||
+		patch.ShowPackageCard != nil || patch.Settings != nil
+}
+
+func buildPathPatchPresMap(patch taxonomy.PathPatch) []byte {
+	m := map[string]any{}
+	if patch.Color != nil { m["color"] = *patch.Color }
+	if patch.Icon != nil { m["icon"] = *patch.Icon }
+	if patch.IconURL != nil { m["iconUrl"] = *patch.IconURL }
+	if patch.IconStyle != nil { m["iconStyle"] = *patch.IconStyle }
+	if patch.ShowInNavbar != nil { m["showInNavbar"] = *patch.ShowInNavbar }
+	if patch.ShowSubjectCards != nil { m["showSubjectCards"] = *patch.ShowSubjectCards }
+	if patch.ShowMockExamCard != nil { m["showMockExamCard"] = *patch.ShowMockExamCard }
+	if patch.ShowPackageCard != nil { m["showPackageCard"] = *patch.ShowPackageCard }
+	if patch.Settings != nil { m["settings"] = patch.Settings }
+	b, _ := json.Marshal(m)
+	return b
+}
+
+func buildLevelPresMap(write taxonomy.LevelWrite) []byte {
+	m := map[string]any{}
+	if write.Icon != nil { m["icon"] = *write.Icon }
+	if write.IconURL != nil { m["iconUrl"] = *write.IconURL }
+	b, _ := json.Marshal(m)
+	return b
+}
+
+func buildLevelPatchPresMap(patch taxonomy.LevelPatch) []byte {
+	m := map[string]any{}
+	if patch.Icon != nil { m["icon"] = *patch.Icon }
+	if patch.IconURL != nil { m["iconUrl"] = *patch.IconURL }
+	b, _ := json.Marshal(m)
+	return b
+}
+
+func buildSubjectPresMap(write taxonomy.SubjectWrite) []byte {
+	m := map[string]any{}
+	if write.Color != nil { m["color"] = *write.Color }
+	if write.Icon != nil { m["icon"] = *write.Icon }
+	if write.IconURL != nil { m["iconUrl"] = *write.IconURL }
+	if write.IconStyle != nil { m["iconStyle"] = *write.IconStyle }
+	b, _ := json.Marshal(m)
+	return b
+}
+
+func buildSubjectPatchPresMap(patch taxonomy.SubjectPatch) []byte {
+	m := map[string]any{}
+	if patch.Color != nil { m["color"] = *patch.Color }
+	if patch.Icon != nil { m["icon"] = *patch.Icon }
+	if patch.IconURL != nil { m["iconUrl"] = *patch.IconURL }
+	if patch.IconStyle != nil { m["iconStyle"] = *patch.IconStyle }
+	b, _ := json.Marshal(m)
+	return b
 }

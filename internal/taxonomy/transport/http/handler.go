@@ -199,8 +199,6 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request"})
 		return false
 	}
-	// A mutation body must contain exactly one JSON document. Without this
-	// check a valid first object followed by another value is silently accepted.
 	var trailing json.RawMessage
 	if err := d.Decode(&trailing); !errors.Is(err, io.EOF) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request"})
@@ -247,13 +245,22 @@ func (h *Handler) bootstrap(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminPathResponse struct {
-	ID           string `json:"id"`
-	Code         string `json:"code"`
-	Name         string `json:"name"`
-	ParentPathID string `json:"parentPathId,omitempty"`
-	Description  string `json:"description"`
-	SortOrder    int    `json:"sortOrder"`
-	Status       string `json:"status"`
+	ID               string `json:"id"`
+	Code             string `json:"code"`
+	Name             string `json:"name"`
+	ParentPathID     string `json:"parentPathId,omitempty"`
+	Description      string `json:"description"`
+	SortOrder        int    `json:"sortOrder"`
+	Status           string `json:"status"`
+	Color            string `json:"color,omitempty"`
+	Icon             string `json:"icon,omitempty"`
+	IconURL          string `json:"iconUrl,omitempty"`
+	IconStyle        string `json:"iconStyle,omitempty"`
+	ShowInNavbar     *bool  `json:"showInNavbar,omitempty"`
+	ShowSubjectCards *bool  `json:"showSubjectCards,omitempty"`
+	ShowMockExamCard *bool  `json:"showMockExamCard,omitempty"`
+	ShowPackageCard  *bool  `json:"showPackageCard,omitempty"`
+	Settings         any    `json:"settings,omitempty"`
 }
 type adminLevelResponse struct {
 	ID        string `json:"id"`
@@ -262,6 +269,8 @@ type adminLevelResponse struct {
 	Name      string `json:"name"`
 	SortOrder int    `json:"sortOrder"`
 	Status    string `json:"status"`
+	Icon      string `json:"icon,omitempty"`
+	IconURL   string `json:"iconUrl,omitempty"`
 }
 type adminSubjectResponse struct {
 	ID        string `json:"id"`
@@ -271,6 +280,10 @@ type adminSubjectResponse struct {
 	Name      string `json:"name"`
 	SortOrder int    `json:"sortOrder"`
 	Status    string `json:"status"`
+	Color     string `json:"color,omitempty"`
+	Icon      string `json:"icon,omitempty"`
+	IconURL   string `json:"iconUrl,omitempty"`
+	IconStyle string `json:"iconStyle,omitempty"`
 }
 type adminSkillResponse struct {
 	ID            string `json:"id"`
@@ -285,12 +298,21 @@ type adminSkillResponse struct {
 }
 
 type pathResponse struct {
-	ID           string `json:"id"`
-	Code         string `json:"code"`
-	Name         string `json:"name"`
-	ParentPathID string `json:"parentPathId,omitempty"`
-	Description  string `json:"description"`
-	SortOrder    int    `json:"sortOrder"`
+	ID               string `json:"id"`
+	Code             string `json:"code"`
+	Name             string `json:"name"`
+	ParentPathID     string `json:"parentPathId,omitempty"`
+	Description      string `json:"description"`
+	SortOrder        int    `json:"sortOrder"`
+	Color            string `json:"color,omitempty"`
+	Icon             string `json:"icon,omitempty"`
+	IconURL          string `json:"iconUrl,omitempty"`
+	IconStyle        string `json:"iconStyle,omitempty"`
+	ShowInNavbar     *bool  `json:"showInNavbar,omitempty"`
+	ShowSubjectCards *bool  `json:"showSubjectCards,omitempty"`
+	ShowMockExamCard *bool  `json:"showMockExamCard,omitempty"`
+	ShowPackageCard  *bool  `json:"showPackageCard,omitempty"`
+	Settings         any    `json:"settings,omitempty"`
 }
 type levelResponse struct {
 	ID        string `json:"id"`
@@ -298,6 +320,8 @@ type levelResponse struct {
 	Code      string `json:"code"`
 	Name      string `json:"name"`
 	SortOrder int    `json:"sortOrder"`
+	Icon      string `json:"icon,omitempty"`
+	IconURL   string `json:"iconUrl,omitempty"`
 }
 type subjectResponse struct {
 	ID        string `json:"id"`
@@ -306,6 +330,10 @@ type subjectResponse struct {
 	Code      string `json:"code"`
 	Name      string `json:"name"`
 	SortOrder int    `json:"sortOrder"`
+	Color     string `json:"color,omitempty"`
+	Icon      string `json:"icon,omitempty"`
+	IconURL   string `json:"iconUrl,omitempty"`
+	IconStyle string `json:"iconStyle,omitempty"`
 }
 type skillResponse struct {
 	ID            string `json:"id"`
@@ -321,19 +349,67 @@ type skillResponse struct {
 func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
 	paths := make([]adminPathResponse, 0, len(value.Paths))
 	for _, row := range value.Paths {
-		paths = append(paths, adminPathResponse{row.ID, row.Code, row.Name, row.ParentPathID, row.Description, row.SortOrder, string(row.Status)})
+		paths = append(paths, adminPathResponse{
+			ID:               row.ID,
+			Code:             row.Code,
+			Name:             row.Name,
+			ParentPathID:     row.ParentPathID,
+			Description:      row.Description,
+			SortOrder:        row.SortOrder,
+			Status:           string(row.Status),
+			Color:            row.Color,
+			Icon:             row.Icon,
+			IconURL:          row.IconURL,
+			IconStyle:        row.IconStyle,
+			ShowInNavbar:     row.ShowInNavbar,
+			ShowSubjectCards: row.ShowSubjectCards,
+			ShowMockExamCard: row.ShowMockExamCard,
+			ShowPackageCard:  row.ShowPackageCard,
+			Settings:         row.Settings,
+		})
 	}
 	levels := make([]adminLevelResponse, 0, len(value.Levels))
 	for _, row := range value.Levels {
-		levels = append(levels, adminLevelResponse{row.ID, row.PathID, row.Code, row.Name, row.SortOrder, string(row.Status)})
+		levels = append(levels, adminLevelResponse{
+			ID:        row.ID,
+			PathID:    row.PathID,
+			Code:      row.Code,
+			Name:      row.Name,
+			SortOrder: row.SortOrder,
+			Status:    string(row.Status),
+			Icon:      row.Icon,
+			IconURL:   row.IconURL,
+		})
 	}
 	subjects := make([]adminSubjectResponse, 0, len(value.Subjects))
 	for _, row := range value.Subjects {
-		subjects = append(subjects, adminSubjectResponse{row.ID, row.PathID, row.LevelID, row.Code, row.Name, row.SortOrder, string(row.Status)})
+		subjects = append(subjects, adminSubjectResponse{
+			ID:        row.ID,
+			PathID:    row.PathID,
+			LevelID:   row.LevelID,
+			Code:      row.Code,
+			Name:      row.Name,
+			SortOrder: row.SortOrder,
+			Status:    string(row.Status),
+			Color:     row.Color,
+			Icon:      row.Icon,
+			IconURL:   row.IconURL,
+			IconStyle: row.IconStyle,
+		})
 	}
 	skills := make([]adminSkillResponse, 0, len(value.Skills))
 	for _, row := range value.Skills {
-		skills = append(skills, adminSkillResponse{row.ID, row.SubjectID, row.ParentSkillID, row.Code, row.Name, row.Description, row.Kind, row.SortOrder, string(row.Status)})
+		skills = append(skills, adminSkillResponse{
+			ID:            row.ID,
+			SubjectID:     row.SubjectID,
+			ParentSkillID: row.ParentSkillID,
+			Code:          row.Code,
+			Name:          row.Name,
+			Description:   row.Description,
+			Kind:          row.Kind,
+			SortOrder:     row.SortOrder,
+			Status:        string(row.Status),
+		})
 	}
 	return map[string]any{"paths": paths, "levels": levels, "subjects": subjects, "skills": skills}
 }
@@ -341,19 +417,63 @@ func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
 func presentBootstrap(value taxonomy.Bootstrap) map[string]any {
 	paths := make([]pathResponse, 0, len(value.Paths))
 	for _, row := range value.Paths {
-		paths = append(paths, pathResponse{row.ID, row.Code, row.Name, row.ParentPathID, row.Description, row.SortOrder})
+		paths = append(paths, pathResponse{
+			ID:               row.ID,
+			Code:             row.Code,
+			Name:             row.Name,
+			ParentPathID:     row.ParentPathID,
+			Description:      row.Description,
+			SortOrder:        row.SortOrder,
+			Color:            row.Color,
+			Icon:             row.Icon,
+			IconURL:          row.IconURL,
+			IconStyle:        row.IconStyle,
+			ShowInNavbar:     row.ShowInNavbar,
+			ShowSubjectCards: row.ShowSubjectCards,
+			ShowMockExamCard: row.ShowMockExamCard,
+			ShowPackageCard:  row.ShowPackageCard,
+			Settings:         row.Settings,
+		})
 	}
 	levels := make([]levelResponse, 0, len(value.Levels))
 	for _, row := range value.Levels {
-		levels = append(levels, levelResponse{row.ID, row.PathID, row.Code, row.Name, row.SortOrder})
+		levels = append(levels, levelResponse{
+			ID:        row.ID,
+			PathID:    row.PathID,
+			Code:      row.Code,
+			Name:      row.Name,
+			SortOrder: row.SortOrder,
+			Icon:      row.Icon,
+			IconURL:   row.IconURL,
+		})
 	}
 	subjects := make([]subjectResponse, 0, len(value.Subjects))
 	for _, row := range value.Subjects {
-		subjects = append(subjects, subjectResponse{row.ID, row.PathID, row.LevelID, row.Code, row.Name, row.SortOrder})
+		subjects = append(subjects, subjectResponse{
+			ID:        row.ID,
+			PathID:    row.PathID,
+			LevelID:   row.LevelID,
+			Code:      row.Code,
+			Name:      row.Name,
+			SortOrder: row.SortOrder,
+			Color:     row.Color,
+			Icon:      row.Icon,
+			IconURL:   row.IconURL,
+			IconStyle: row.IconStyle,
+		})
 	}
 	skills := make([]skillResponse, 0, len(value.Skills))
 	for _, row := range value.Skills {
-		skills = append(skills, skillResponse{row.ID, row.SubjectID, row.ParentSkillID, row.Code, row.Name, row.Description, row.Kind, row.SortOrder})
+		skills = append(skills, skillResponse{
+			ID:            row.ID,
+			SubjectID:     row.SubjectID,
+			ParentSkillID: row.ParentSkillID,
+			Code:          row.Code,
+			Name:          row.Name,
+			Description:   row.Description,
+			Kind:          row.Kind,
+			SortOrder:     row.SortOrder,
+		})
 	}
 	return map[string]any{"paths": paths, "levels": levels, "subjects": subjects, "skills": skills}
 }

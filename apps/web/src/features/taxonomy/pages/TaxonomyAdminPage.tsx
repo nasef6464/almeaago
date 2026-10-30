@@ -1,161 +1,1688 @@
-import { Archive, BookOpen, Boxes, ChevronLeft, GraduationCap, Loader2, Plus, RefreshCcw, Save } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import {
+  Archive,
+  ArrowRight,
+  Award,
+  BookOpen,
+  Boxes,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  CreditCard,
+  ExternalLink,
+  Eye,
+  FileQuestion,
+  GraduationCap,
+  Layers,
+  LayoutGrid,
+  Library,
+  Loader2,
+  Package,
+  PackagePlus,
+  Plus,
+  RefreshCcw,
+  Save,
+  Settings,
+  Sparkles,
+  X,
+} from 'lucide-react';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import {
   taxonomyAdminClient,
   type AdminTaxonomyBootstrap,
+  type AdminTaxonomyLevel,
   type AdminTaxonomyPath,
+  type AdminTaxonomySkill,
+  type AdminTaxonomySubject,
   type TaxonomyStatus,
 } from '../api/taxonomy-admin-client';
+import { commerceClient } from '../../commerce/api/commerce-client';
+import type {
+  CommerceContentType,
+  CommercePackageItem,
+  CommerceProduct,
+} from '../../commerce/api/commerce-types';
+import { contentClient } from '../../content/api/content-client';
+import type { CourseSummary } from '../../content/api/content-types';
+import { AdminBreadcrumbHeader } from '../components/AdminBreadcrumbHeader';
+import { EducationalIconPicker } from '../components/EducationalIconPicker';
+import {
+  getPathIcon,
+  getSubjectIcon,
+  getLevelIcon,
+  resolveColor,
+  resolvePathDisplaySettings,
+} from '../components/pathDisplayPresentation';
+import {
+  type PathsManagerPathTab,
+  type PathsManagerSubjectTab,
+  replacePathsManagerUrlState,
+  resolvePathsManagerUrlState,
+} from '../components/pathsManagerUrlState';
+import { buildPathReadinessSummary } from '../components/pathReadiness';
 
-const EMPTY:AdminTaxonomyBootstrap={paths:[],levels:[],subjects:[],skills:[]};
-const statusLabels:Record<TaxonomyStatus,string>={active:'نشط',inactive:'غير نشط',archived:'مؤرشف'};
+const EMPTY: AdminTaxonomyBootstrap = { paths: [], levels: [], subjects: [], skills: [] };
+const statusLabels: Record<TaxonomyStatus, string> = {
+  active: 'نشط',
+  inactive: 'غير نشط',
+  archived: 'مؤرشف',
+};
 
-function StatusSelect({value,onChange,label}:{value:TaxonomyStatus;onChange:(value:TaxonomyStatus)=>void;label:string}){
-  return <select aria-label={label} value={value} onChange={e=>onChange(e.target.value as TaxonomyStatus)} className="rounded-xl border border-gray-200 bg-white px-2 py-2 text-xs font-black">
-    <option value="active">نشط</option><option value="inactive">غير نشط</option><option value="archived">مؤرشف</option>
-  </select>;
+function StatusSelect({
+  value,
+  onChange,
+  label,
+}: {
+  value: TaxonomyStatus;
+  onChange: (value: TaxonomyStatus) => void;
+  label: string;
+}) {
+  return (
+    <select
+      aria-label={label}
+      value={value}
+      onChange={(e) => onChange(e.target.value as TaxonomyStatus)}
+      className="rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-black shadow-xs focus:border-indigo-500 focus:outline-hidden"
+    >
+      <option value="active">نشط</option>
+      <option value="inactive">غير نشط</option>
+      <option value="archived">مؤرشف</option>
+    </select>
+  );
 }
 
-export function TaxonomyAdminPage(){
-  const {user,loading:authLoading,getCsrfToken}=useAuth();
-  const [data,setData]=useState<AdminTaxonomyBootstrap>(EMPTY);
-  const [selectedPathId,setSelectedPathId]=useState('');
-  const [busy,setBusy]=useState(true);
-  const [pending,setPending]=useState('');
-  const [error,setError]=useState('');
-  const [notice,setNotice]=useState('');
-  const [reload,setReload]=useState(0);
-  const [pathDraft,setPathDraft]=useState({code:'',name:'',parentPathId:'',description:'',sortOrder:0});
-  const [levelDraft,setLevelDraft]=useState({code:'',name:'',sortOrder:0});
-  const [subjectDraft,setSubjectDraft]=useState({code:'',name:'',levelId:'',sortOrder:0});
-  const [edit,setEdit]=useState<{type:'path'|'level'|'subject';id:string;name:string;description:string}|null>(null);
+export function TaxonomyAdminPage() {
+  const { user, loading: authLoading, getCsrfToken } = useAuth();
+  const [data, setData] = useState<AdminTaxonomyBootstrap>(EMPTY);
+  const [busy, setBusy] = useState(true);
+  const [pending, setPending] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [reload, setReload] = useState(0);
 
-  const isAdmin=user?.roles.includes('admin')??false;
+  // URL state management
+  const initialUrlState = resolvePathsManagerUrlState();
+  const [selectedPathId, setSelectedPathId] = useState<string | null>(initialUrlState.selectedPathId);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(initialUrlState.selectedSubjectId);
+  const [pathTab, setPathTab] = useState<PathsManagerPathTab>(initialUrlState.pathTab);
+  const [subjectTab, setSubjectTab] = useState<PathsManagerSubjectTab>(initialUrlState.subjectTab);
 
-  useEffect(()=>{
-    if(authLoading||!user||!isAdmin)return;
-    const c=new AbortController();setBusy(true);setError('');
-    taxonomyAdminClient.bootstrap(c.signal).then(next=>{
-      setData(next);
-      setSelectedPathId(current=>next.paths.some(x=>x.id===current)?current:(next.paths[0]?.id||''));
-    }).catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل التصنيف')})
-      .finally(()=>{if(!c.signal.aborted)setBusy(false)});
-    return()=>c.abort();
-  },[authLoading,isAdmin,reload,user]);
+  // Modals state
+  const [isPathModalOpen, setIsPathModalOpen] = useState(false);
+  const [editingPath, setEditingPath] = useState<AdminTaxonomyPath | null>(null);
+  const [pathForm, setPathForm] = useState({
+    code: '',
+    name: '',
+    parentPathId: '',
+    description: '',
+    sortOrder: 0,
+    color: 'indigo',
+    icon: '📚',
+    iconUrl: '',
+    iconStyle: 'default',
+    showInNavbar: true,
+    showSubjectCards: true,
+    showMockExamCard: true,
+    showPackageCard: true,
+    stageLabel: 'اختر المرحلة الدراسية',
+    stageSelection: 'optional',
+  });
 
-  const selectedPath=useMemo(()=>data.paths.find(x=>x.id===selectedPathId)||null,[data.paths,selectedPathId]);
-  const levels=useMemo(()=>data.levels.filter(x=>x.pathId===selectedPathId),[data.levels,selectedPathId]);
-  const subjects=useMemo(()=>data.subjects.filter(x=>x.pathId===selectedPathId),[data.subjects,selectedPathId]);
-  useEffect(()=>{
-    setSubjectDraft(x=>({...x,levelId:levels.some(l=>l.id===x.levelId)?x.levelId:''}));
-  },[levels,subjects]);
+  const [isLevelModalOpen, setIsLevelModalOpen] = useState(false);
+  const [editingLevel, setEditingLevel] = useState<AdminTaxonomyLevel | null>(null);
+  const [levelForm, setLevelForm] = useState({
+    code: '',
+    name: '',
+    sortOrder: 0,
+    icon: '🎓',
+    iconUrl: '',
+  });
 
-  async function run(key:string,action:(csrf:string)=>Promise<void>,success:string){
-    setPending(key);setError('');setNotice('');
-    try{
-      const csrf=await getCsrfToken();
+  const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<AdminTaxonomySubject | null>(null);
+  const [subjectForm, setSubjectForm] = useState({
+    code: '',
+    name: '',
+    levelId: '',
+    sortOrder: 0,
+    color: 'indigo',
+    icon: '📖',
+    iconUrl: '',
+    iconStyle: 'default',
+  });
+
+  const [isPackageModalOpen, setIsPackageModalOpen] = useState(false);
+  const [pkgForm, setPkgForm] = useState({
+    code: '',
+    name: '',
+    priceMinor: 9900,
+    contentType: 'all' as CommerceContentType,
+  });
+
+  // Skills Modal State
+  const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
+  const [editingSkill, setEditingSkill] = useState<AdminTaxonomySkill | null>(null);
+  const [skillForm, setSkillForm] = useState({
+    code: '',
+    name: '',
+    parentSkillId: '',
+    description: '',
+    kind: 'main' as 'main' | 'sub',
+    sortOrder: 1,
+  });
+
+  // Additional data for readiness & tabs
+  const [courses, setCourses] = useState<CourseSummary[]>([]);
+  const [packages, setPackages] = useState<CommerceProduct[]>([]);
+
+  const isAdmin = user?.roles.includes('admin') ?? false;
+
+  // Sync with URL State
+  useEffect(() => {
+    replacePathsManagerUrlState({
+      selectedPathId,
+      selectedSubjectId,
+      pathTab,
+      subjectTab,
+    });
+  }, [pathTab, selectedPathId, selectedSubjectId, subjectTab]);
+
+  // Load Bootstrap Data
+  useEffect(() => {
+    if (authLoading || !user || !isAdmin) return;
+    const c = new AbortController();
+    setBusy(true);
+    setError('');
+
+    Promise.all([
+      taxonomyAdminClient.bootstrap(c.signal),
+      contentClient.courses({ limit: 100 }, c.signal).catch(() => ({ items: [] as CourseSummary[], page: 1, limit: 100, hasMore: false })),
+      commerceClient.products(1, 100, 'package', '', c.signal).catch(() => ({ items: [] as CommerceProduct[], page: 1, limit: 100, hasMore: false })),
+    ])
+      .then(([nextTaxonomy, coursesRes, commerceRes]) => {
+        setData(nextTaxonomy);
+        setCourses(coursesRes.items || []);
+        setPackages(commerceRes.items || []);
+
+        setSelectedPathId((current) => {
+          if (current && nextTaxonomy.paths.some((x: AdminTaxonomyPath) => x.id === current)) return current;
+          return nextTaxonomy.paths[0]?.id || null;
+        });
+      })
+      .catch((e) => {
+        if (!c.signal.aborted) setError(e instanceof Error ? e.message : 'تعذر تحميل التصنيف');
+      })
+      .finally(() => {
+        if (!c.signal.aborted) setBusy(false);
+      });
+
+    return () => c.abort();
+  }, [authLoading, isAdmin, reload, user]);
+
+  const selectedPath = useMemo(
+    () => data.paths.find((x) => x.id === selectedPathId) || null,
+    [data.paths, selectedPathId]
+  );
+  const levels = useMemo(
+    () => data.levels.filter((x) => x.pathId === selectedPathId),
+    [data.levels, selectedPathId]
+  );
+  const subjects = useMemo(
+    () => data.subjects.filter((x) => x.pathId === selectedPathId),
+    [data.subjects, selectedPathId]
+  );
+  const selectedSubject = useMemo(
+    () => subjects.find((x) => x.id === selectedSubjectId) || null,
+    [subjects, selectedSubjectId]
+  );
+  const subjectSkills = useMemo(
+    () => data.skills.filter((x) => x.subjectId === selectedSubjectId),
+    [data.skills, selectedSubjectId]
+  );
+
+  const readinessSummary = useMemo(() => {
+    if (!selectedPath) return null;
+    return buildPathReadinessSummary({
+      pathId: selectedPath.id,
+      subjects,
+      courses,
+    });
+  }, [courses, selectedPath, subjects]);
+
+  async function run(key: string, action: (csrf: string) => Promise<void>, success: string) {
+    setPending(key);
+    setError('');
+    setNotice('');
+    try {
+      const csrf = await getCsrfToken();
       await action(csrf);
       setNotice(success);
-      setReload(x=>x+1);
-    }catch(e){setError(e instanceof Error?e.message:'تعذر تنفيذ عملية التصنيف')}
-    finally{setPending('')}
+      setReload((x) => x + 1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'تعذر تنفيذ عملية التصنيف');
+    } finally {
+      setPending('');
+    }
   }
 
-  async function createPath(){
-    if(!pathDraft.code.trim()||!pathDraft.name.trim())return setError('أدخل كود واسم المسار.');
-    await run('create-path',csrf=>taxonomyAdminClient.createPath({...pathDraft,code:pathDraft.code.trim(),name:pathDraft.name.trim()},csrf).then(()=>undefined),'تم إنشاء المسار.');
-    setPathDraft({code:'',name:'',parentPathId:'',description:'',sortOrder:0});
+  // --- Path Actions ---
+  const openCreatePath = () => {
+    setEditingPath(null);
+    setPathForm({
+      code: '',
+      name: '',
+      parentPathId: '',
+      description: '',
+      sortOrder: (data.paths.length + 1) * 10,
+      color: 'indigo',
+      icon: '📚',
+      iconUrl: '',
+      iconStyle: 'default',
+      showInNavbar: true,
+      showSubjectCards: true,
+      showMockExamCard: true,
+      showPackageCard: true,
+      stageLabel: 'اختر المرحلة الدراسية',
+      stageSelection: 'optional',
+    });
+    setIsPathModalOpen(true);
+  };
+
+  const openEditPath = (path: AdminTaxonomyPath) => {
+    setEditingPath(path);
+    setPathForm({
+      code: path.code,
+      name: path.name,
+      parentPathId: path.parentPathId || '',
+      description: path.description || '',
+      sortOrder: path.sortOrder || 0,
+      color: path.color || 'indigo',
+      icon: path.icon || '📚',
+      iconUrl: path.iconUrl || '',
+      iconStyle: path.iconStyle || 'default',
+      showInNavbar: path.showInNavbar !== false,
+      showSubjectCards: path.showSubjectCards !== false,
+      showMockExamCard: path.showMockExamCard !== false,
+      showPackageCard: path.showPackageCard !== false,
+      stageLabel: path.settings?.stageLabel || 'اختر المرحلة الدراسية',
+      stageSelection: path.settings?.stageSelection || 'optional',
+    });
+    setIsPathModalOpen(true);
+  };
+
+  const savePath = async () => {
+    if (!pathForm.code.trim() || !pathForm.name.trim()) {
+      return setError('أدخل كود واسم المسار.');
+    }
+    const payload = {
+      ...pathForm,
+      code: pathForm.code.trim(),
+      name: pathForm.name.trim(),
+      settings: {
+        stageLabel: pathForm.stageLabel,
+        stageSelection: pathForm.stageSelection,
+      },
+    };
+
+    if (editingPath) {
+      await run(
+        'update-path',
+        (csrf) => taxonomyAdminClient.updatePath(editingPath.id, payload, csrf).then(() => undefined),
+        'تم حفظ تعديلات المسار بنجاح.'
+      );
+    } else {
+      await run(
+        'create-path',
+        (csrf) => taxonomyAdminClient.createPath(payload, csrf).then(() => undefined),
+        'تم إنشاء المسار بنجاح.'
+      );
+    }
+    setIsPathModalOpen(false);
+  };
+
+  // --- Level Actions ---
+  const openCreateLevel = () => {
+    setEditingLevel(null);
+    setLevelForm({
+      code: '',
+      name: '',
+      sortOrder: (levels.length + 1) * 10,
+      icon: '🎓',
+      iconUrl: '',
+    });
+    setIsLevelModalOpen(true);
+  };
+
+  const openEditLevel = (lvl: AdminTaxonomyLevel) => {
+    setEditingLevel(lvl);
+    setLevelForm({
+      code: lvl.code,
+      name: lvl.name,
+      sortOrder: lvl.sortOrder || 0,
+      icon: lvl.icon || '🎓',
+      iconUrl: lvl.iconUrl || '',
+    });
+    setIsLevelModalOpen(true);
+  };
+
+  const saveLevel = async () => {
+    if (!selectedPath || !levelForm.code.trim() || !levelForm.name.trim()) {
+      return setError('أدخل كود واسم المرحلة.');
+    }
+    if (editingLevel) {
+      await run(
+        'update-level',
+        (csrf) => taxonomyAdminClient.updateLevel(editingLevel.id, levelForm, csrf).then(() => undefined),
+        'تم حفظ تعديلات المرحلة بنجاح.'
+      );
+    } else {
+      await run(
+        'create-level',
+        (csrf) =>
+          taxonomyAdminClient.createLevel({ pathId: selectedPath.id, ...levelForm }, csrf).then(() => undefined),
+        'تم إنشاء المرحلة بنجاح.'
+      );
+    }
+    setIsLevelModalOpen(false);
+  };
+
+  // --- Subject Actions ---
+  const openCreateSubject = () => {
+    setEditingSubject(null);
+    setSubjectForm({
+      code: '',
+      name: '',
+      levelId: levels[0]?.id || '',
+      sortOrder: (subjects.length + 1) * 10,
+      color: selectedPath?.color || 'indigo',
+      icon: '📖',
+      iconUrl: '',
+      iconStyle: 'default',
+    });
+    setIsSubjectModalOpen(true);
+  };
+
+  const openEditSubject = (sub: AdminTaxonomySubject) => {
+    setEditingSubject(sub);
+    setSubjectForm({
+      code: sub.code,
+      name: sub.name,
+      levelId: sub.levelId || '',
+      sortOrder: sub.sortOrder || 0,
+      color: sub.color || 'indigo',
+      icon: sub.icon || '📖',
+      iconUrl: sub.iconUrl || '',
+      iconStyle: sub.iconStyle || 'default',
+    });
+    setIsSubjectModalOpen(true);
+  };
+
+  const saveSubject = async () => {
+    if (!selectedPath || !subjectForm.code.trim() || !subjectForm.name.trim()) {
+      return setError('أدخل كود واسم المادة.');
+    }
+    if (editingSubject) {
+      await run(
+        'update-subject',
+        (csrf) => taxonomyAdminClient.updateSubject(editingSubject.id, subjectForm, csrf).then(() => undefined),
+        'تم حفظ تعديلات المادة بنجاح.'
+      );
+    } else {
+      await run(
+        'create-subject',
+        (csrf) =>
+          taxonomyAdminClient.createSubject({ pathId: selectedPath.id, ...subjectForm }, csrf).then(() => undefined),
+        'تم إنشاء المادة بنجاح.'
+      );
+    }
+    setIsSubjectModalOpen(false);
+  };
+
+  // --- Package Actions ---
+  const createPathPackage = async () => {
+    if (!selectedPath || !pkgForm.code.trim() || !pkgForm.name.trim()) {
+      return setError('أدخل كود واسم الباقة.');
+    }
+    await run(
+      'create-package',
+      (csrf) =>
+        commerceClient
+          .createProduct(
+            {
+              code: pkgForm.code.trim().toUpperCase(),
+              productType: 'package',
+              name: pkgForm.name.trim(),
+              description: `باقة خاصة بمسار ${selectedPath.name}`,
+              status: 'active',
+              accessMode: 'paid',
+              priceMinor: Math.max(1, Math.trunc(pkgForm.priceMinor)),
+              currency: 'SAR',
+              courseId: '',
+              isVisible: true,
+              package: {
+                packageKind: 'bundle',
+                seatCapacity: null,
+                validityDays: null,
+                items: [
+                  {
+                    scopeType: pkgForm.contentType === 'all' ? 'all' : 'content_type',
+                    courseId: '',
+                    pathId: selectedPath.id,
+                    subjectId: '',
+                    contentType: pkgForm.contentType === 'all' ? '' : (pkgForm.contentType as CommerceContentType),
+                  },
+                ],
+              },
+            },
+            csrf
+          )
+          .then(() => undefined),
+      'تم إنشاء باقة المسار بنجاح.'
+    );
+    setIsPackageModalOpen(false);
+  };
+
+  // --- Status Patch ---
+  async function patchStatus(type: 'path' | 'level' | 'subject' | 'skill', id: string, status: TaxonomyStatus) {
+    const method =
+      type === 'path'
+        ? taxonomyAdminClient.updatePath
+        : type === 'level'
+          ? taxonomyAdminClient.updateLevel
+          : type === 'subject'
+            ? taxonomyAdminClient.updateSubject
+            : taxonomyAdminClient.updateSkill;
+    await run(
+      `status-${type}-${id}`,
+      (csrf) => method(id, { status } as never, csrf).then(() => undefined),
+      `تم تحديث الحالة إلى «${statusLabels[status]}».`
+    );
   }
-  async function createLevel(){
-    if(!selectedPath||!levelDraft.code.trim()||!levelDraft.name.trim())return setError('اختر مسارًا وأدخل كود واسم المرحلة.');
-    await run('create-level',csrf=>taxonomyAdminClient.createLevel({pathId:selectedPath.id,...levelDraft,code:levelDraft.code.trim(),name:levelDraft.name.trim()},csrf).then(()=>undefined),'تم إنشاء المرحلة.');
-    setLevelDraft({code:'',name:'',sortOrder:0});
-  }
-  async function createSubject(){
-    if(!selectedPath||!subjectDraft.code.trim()||!subjectDraft.name.trim())return setError('اختر مسارًا وأدخل كود واسم المادة.');
-    await run('create-subject',csrf=>taxonomyAdminClient.createSubject({pathId:selectedPath.id,...subjectDraft,code:subjectDraft.code.trim(),name:subjectDraft.name.trim()},csrf).then(()=>undefined),'تم إنشاء المادة.');
-    setSubjectDraft({code:'',name:'',levelId:'',sortOrder:0});
-  }
-  async function patchStatus(type:'path'|'level'|'subject',id:string,status:TaxonomyStatus){
-    const method=type==='path'?taxonomyAdminClient.updatePath:type==='level'?taxonomyAdminClient.updateLevel:taxonomyAdminClient.updateSubject;
-    await run(`status-${type}-${id}`,csrf=>method(id,{status} as never,csrf).then(()=>undefined),`تم تحديث الحالة إلى «${statusLabels[status]}».`);
-  }
 
-  async function saveEdit(){
-    if(!edit||!edit.name.trim())return;
-    const payload=edit.type==='path'?{name:edit.name.trim(),description:edit.description.trim()}:{name:edit.name.trim()};
-    const method=edit.type==='path'?taxonomyAdminClient.updatePath:edit.type==='level'?taxonomyAdminClient.updateLevel:taxonomyAdminClient.updateSubject;
-    await run('save-edit',csrf=>method(edit.id,payload as never,csrf).then(()=>undefined),'تم حفظ التعديل.');
-    setEdit(null);
+  // Quick Toggle Path Presentation
+  async function togglePathSetting(
+    key: 'showInNavbar' | 'showSubjectCards' | 'showMockExamCard' | 'showPackageCard',
+    currentVal?: boolean
+  ) {
+    if (!selectedPath) return;
+    const nextVal = currentVal === false;
+    await run(
+      `toggle-${key}`,
+      (csrf) => taxonomyAdminClient.updatePath(selectedPath.id, { [key]: nextVal }, csrf).then(() => undefined),
+      'تم تحديث إعدادات المسار.'
+    );
   }
 
-  if(authLoading)return <main className="p-10 text-center font-black">جاري التحقق من الصلاحيات...</main>;
-  if(!isAdmin)return <main dir="rtl" className="p-10 text-center font-black text-rose-700">إدارة التصنيف متاحة لمدير المنصة فقط.</main>;
+  if (authLoading) return <main className="p-10 text-center font-black">جاري التحقق من الصلاحيات...</main>;
+  if (!isAdmin) {
+    return (
+      <main dir="rtl" className="p-10 text-center font-black text-rose-700">
+        إدارة التصنيف والمسارات متاحة لمدير المنصة فقط.
+      </main>
+    );
+  }
 
-  return <main dir="rtl" className="mx-auto max-w-7xl space-y-5 pb-12" data-testid="taxonomy-admin-page">
-    <header className="rounded-3xl bg-gradient-to-l from-indigo-800 via-slate-900 to-slate-950 p-5 text-white shadow-xl sm:p-7">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div><p className="flex items-center gap-2 text-xs font-black text-indigo-200"><Boxes size={17}/> TAXONOMY ADMIN</p><h1 className="mt-2 text-2xl font-black sm:text-3xl">إدارة المسارات</h1><p className="mt-2 max-w-3xl text-sm leading-7 text-slate-300">إدارة المسارات والمراحل والمواد. مركز المهارات قسم مستقل يحتفظ بارتباطاته بهذه المواد. الأكواد والمعرفات ثابتة بعد الإنشاء، والتعطيل أو الأرشفة يحلان محل الحذف المدمر.</p></div>
-        <button type="button" onClick={()=>setReload(x=>x+1)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-black"><RefreshCcw size={17}/> تحديث</button>
-      </div>
-    </header>
+  const pathColor = resolveColor(selectedPath?.color);
 
-    {error?<div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 font-bold text-rose-700">{error}</div>:null}
-    {notice?<div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 font-bold text-emerald-700">{notice}</div>:null}
-    {busy?<div className="flex items-center justify-center gap-2 rounded-2xl border bg-white p-8 font-black text-gray-500"><Loader2 className="animate-spin" size={20}/> جاري تحميل شجرة التصنيف...</div>:null}
+  // ══════════════════════════════════════════════════════════════════════
+  // SCENE 2: SUBJECT WORKSPACE (مساحة عمل المادة المتكاملة)
+  // ══════════════════════════════════════════════════════════════════════
+  if (selectedSubject && selectedPath) {
+    const subjectColor = resolveColor(selectedSubject.color || selectedPath.color);
+    const parentLevel = levels.find((l) => l.id === selectedSubject.levelId);
 
-    <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-      <article className="rounded-2xl border bg-white p-4"><Boxes className="text-indigo-700" size={19}/><p className="mt-2 text-xs font-bold text-gray-500">المسارات</p><p className="text-2xl font-black">{data.paths.length}</p></article>
-      <article className="rounded-2xl border bg-white p-4"><GraduationCap className="text-sky-700" size={19}/><p className="mt-2 text-xs font-bold text-gray-500">المراحل</p><p className="text-2xl font-black">{data.levels.length}</p></article>
-      <article className="rounded-2xl border bg-white p-4"><BookOpen className="text-amber-700" size={19}/><p className="mt-2 text-xs font-bold text-gray-500">المواد</p><p className="text-2xl font-black">{data.subjects.length}</p></article>
-    </section>
+    return (
+      <main dir="rtl" className="mx-auto max-w-7xl space-y-6 pb-16 font-sans">
+        {/* Breadcrumb Header */}
+        <AdminBreadcrumbHeader
+          breadcrumbs={[
+            { label: 'إدارة المسارات', onClick: () => { setSelectedSubjectId(null); } },
+            { label: selectedPath.name, onClick: () => { setSelectedSubjectId(null); } },
+            { label: selectedSubject.name, active: true },
+          ]}
+          title={selectedSubject.name}
+          subtitle={`مساحة عمل وإدارة محتوى المادة (${selectedSubject.code})`}
+          icon={getSubjectIcon(selectedSubject, 'w-8 h-8')}
+          badge={
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black"
+              style={{ backgroundColor: subjectColor.soft, color: subjectColor.text }}
+            >
+              {parentLevel ? parentLevel.name : 'مادة مباشرة'}
+            </span>
+          }
+          actions={
+            <button
+              type="button"
+              onClick={() => openEditSubject(selectedSubject)}
+              className="rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-black text-gray-700 shadow-xs hover:bg-gray-50 transition"
+            >
+              تعديل بيانات المادة
+            </button>
+          }
+          onBack={() => setSelectedSubjectId(null)}
+          backLabel={`العودة لمسار ${selectedPath.name}`}
+        />
 
-    <section className="grid gap-4 xl:grid-cols-[1fr_2fr]">
-      <div className="space-y-4">
-        <article className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5">
-          <div className="flex items-center justify-between"><div><p className="text-xs font-black text-indigo-600">المسارات</p><h2 className="text-xl font-black">شجرة المسارات</h2></div><span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700">{data.paths.filter(x=>x.status==='active').length} نشط</span></div>
-          <div className="mt-4 space-y-2">{data.paths.length===0?<p className="rounded-xl border border-dashed p-5 text-center text-sm text-gray-500">لا توجد مسارات بعد.</p>:data.paths.map(path=><button key={path.id} type="button" onClick={()=>setSelectedPathId(path.id)} className={`w-full rounded-2xl border p-3 text-right transition ${selectedPathId===path.id?'border-indigo-300 bg-indigo-50':'border-gray-100 hover:bg-gray-50'}`}><div className="flex items-center gap-2"><span className="min-w-0 flex-1"><b className="block truncate">{path.name}</b><span className="text-xs text-gray-400">{path.code}</span></span><span className="text-[10px] font-black text-gray-500">{statusLabels[path.status]}</span><ChevronLeft size={16}/></div></button>)}</div>
-        </article>
+        {/* Feedback Messages */}
+        {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 font-bold text-rose-700">{error}</div> : null}
+        {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 font-bold text-emerald-700">{notice}</div> : null}
 
-        <article className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5">
-          <h2 className="font-black">إضافة مسار</h2>
-          <div className="mt-3 grid gap-2">
-            <input aria-label="كود المسار الجديد" value={pathDraft.code} onChange={e=>setPathDraft({...pathDraft,code:e.target.value})} placeholder="الكود الثابت مثل QDR" className="rounded-xl border p-2.5"/>
-            <input aria-label="اسم المسار الجديد" value={pathDraft.name} onChange={e=>setPathDraft({...pathDraft,name:e.target.value})} placeholder="اسم المسار" className="rounded-xl border p-2.5"/>
-            <select aria-label="المسار الأب" value={pathDraft.parentPathId} onChange={e=>setPathDraft({...pathDraft,parentPathId:e.target.value})} className="rounded-xl border p-2.5"><option value="">بدون مسار أب</option>{data.paths.filter(x=>x.status==='active').map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select>
-            <textarea aria-label="وصف المسار الجديد" value={pathDraft.description} onChange={e=>setPathDraft({...pathDraft,description:e.target.value})} placeholder="وصف مختصر" className="min-h-20 rounded-xl border p-2.5"/>
-            <button type="button" disabled={pending==='create-path'} onClick={()=>void createPath()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 py-2.5 font-black text-white disabled:opacity-50"><Plus size={17}/> إنشاء المسار</button>
+        {/* Subject Workspace Tabs */}
+        <div className="flex border-b border-gray-200 gap-2 overflow-x-auto pb-px">
+          {[
+            { id: 'courses', label: 'الدورات التدريبية', icon: BookOpen },
+            { id: 'skills', label: 'شجرة المهارات', icon: Award },
+            { id: 'questions', label: 'بنك الأسئلة والتدريب', icon: FileQuestion },
+            { id: 'exams', label: 'الاختبارات والتقييمات', icon: CheckCircle2 },
+            { id: 'library', label: 'المكتبة والمراجع', icon: Library },
+            { id: 'settings', label: 'إعدادات المادة', icon: Settings },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const active = subjectTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setSubjectTab(tab.id as PathsManagerSubjectTab)}
+                className={`flex items-center gap-2 px-5 py-3 text-xs sm:text-sm font-black transition-all border-b-2 -mb-px whitespace-nowrap cursor-pointer ${
+                  active
+                    ? 'border-indigo-600 text-indigo-700 bg-white rounded-t-xl'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <Icon size={16} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tab Content: Skills */}
+        {subjectTab === 'skills' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-2xl bg-white p-5 border shadow-xs">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">شجرة مهارات {selectedSubject.name}</h3>
+                <p className="text-xs text-slate-500 font-bold mt-1">
+                  المهارات الأساسية والفرعية المربوطة بأسئلة ومسائل هذه المادة.
+                </p>
+              </div>
+              <Link
+                to="/admin-dashboard?tab=skills"
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white shadow-xs hover:bg-indigo-700 transition"
+              >
+                <span>فتح مركز المهارات الكامل</span>
+                <ExternalLink size={14} />
+              </Link>
+            </div>
+
+            <div className="rounded-3xl border bg-white p-5 shadow-xs">
+              {subjectSkills.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 font-bold">
+                  لا توجد مهارات مسجلة لهذه المادة بعد. يمكنك إضافتها من مركز المهارات.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {subjectSkills.map((sk) => (
+                    <div
+                      key={sk.id}
+                      className="flex items-center justify-between rounded-xl border border-gray-100 p-3.5 hover:bg-slate-50 transition"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`inline-flex rounded-lg px-2 py-1 text-[10px] font-black ${
+                            sk.kind === 'main' ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {sk.kind === 'main' ? 'رئيسية' : 'فرعية'}
+                        </span>
+                        <div>
+                          <strong className="text-sm font-black text-slate-900">{sk.name}</strong>
+                          <span className="text-xs text-slate-400 mr-2 font-mono">{sk.code}</span>
+                        </div>
+                      </div>
+                      <StatusSelect
+                        label={`حالة مهارة ${sk.name}`}
+                        value={sk.status}
+                        onChange={(v) => void patchStatus('skill', sk.id, v)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </article>
+        )}
+
+        {/* Tab Content: Courses */}
+        {subjectTab === 'courses' && (
+          <div className="rounded-3xl border bg-white p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">الدورات التدريبية في {selectedSubject.name}</h3>
+                <p className="text-xs text-slate-500 font-bold mt-1">الدورات التأسيسية والمكثفة المنشورة للطالب.</p>
+              </div>
+              <Link
+                to="/admin-dashboard/content"
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-50 px-4 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-100 transition"
+              >
+                <span>إدارة المحتوى والدورات</span>
+                <ChevronLeft size={14} />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 pt-2">
+              {courses
+                .filter((c) => c.subjectId === selectedSubject.id || c.pathId === selectedPath.id)
+                .map((course) => (
+                  <div key={course.id} className="rounded-2xl border border-gray-100 p-4 bg-slate-50/50">
+                    <h4 className="font-black text-sm text-slate-900">{course.title}</h4>
+                    <p className="text-xs text-slate-500 font-bold mt-1">{course.instructorName || 'مدرب معتمد'}</p>
+                    <Link
+                      to={`/course/${course.id}`}
+                      target="_blank"
+                      className="mt-3 block text-center rounded-xl bg-white border py-1.5 text-xs font-black text-slate-700 hover:text-indigo-600"
+                    >
+                      معاينة الدورة للطالب
+                    </Link>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tab Content: Fallback for Other Sub-Tabs */}
+        {(subjectTab === 'questions' || subjectTab === 'exams' || subjectTab === 'library' || subjectTab === 'settings') && (
+          <div className="rounded-3xl border bg-white p-10 text-center shadow-xs">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+              <LayoutGrid size={24} />
+            </div>
+            <h3 className="text-base font-black text-slate-900">مساحة إدارة محتوى المادة</h3>
+            <p className="mt-1 text-xs text-slate-500 font-bold max-w-md mx-auto">
+              يمكنك ربط وإسناد بنوك الأسئلة والاختبارات التقييمية ومراجع المكتبة لهذه المادة مباشرة من أقسام لوحة الإدارة المتخصصة.
+            </p>
+            <div className="mt-5 flex justify-center gap-3">
+              <Link to="/admin-dashboard/questions" className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white">
+                بنك الأسئلة
+              </Link>
+              <Link to="/admin-dashboard/assessments" className="rounded-xl border bg-white px-4 py-2 text-xs font-black text-slate-700">
+                مركز الاختبارات
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Subject Edit Modal */}
+        {isSubjectModalOpen && renderSubjectModal()}
+      </main>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // SCENE 1: PATH WORKSPACE (إدارة المسارات الكاملة - 5 TABS)
+  // ══════════════════════════════════════════════════════════════════════
+  return (
+    <main dir="rtl" className="mx-auto max-w-7xl space-y-6 pb-16 font-sans" data-testid="taxonomy-admin-page">
+      {/* ── Top Header Banner ── */}
+      <header className="rounded-3xl bg-gradient-to-l from-indigo-900 via-slate-900 to-slate-950 p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+        <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-black text-indigo-300 mb-2">
+              <Boxes size={18} />
+              <span>PATHS & CURRICULUM COMMAND CENTER</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black">إدارة المسارات والمناهج</h1>
+            <p className="mt-2 max-w-3xl text-xs sm:text-sm leading-6 text-slate-300 font-medium">
+              مركز القيادة المتكامل للتحكم بالمسارات التعليمية، المراحل الدراسية، المواد، الاختبارات المحاكية، والباقات.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={openCreatePath}
+              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs sm:text-sm font-black text-white shadow-lg hover:bg-indigo-500 transition cursor-pointer"
+            >
+              <Plus size={16} />
+              <span>إضافة مسار جديد</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setReload((x) => x + 1)}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3.5 py-2.5 text-xs font-black text-white hover:bg-white/20 transition cursor-pointer"
+            >
+              <RefreshCcw size={16} />
+              <span>تحديث</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* ── Feedback Banners ── */}
+      {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 font-bold text-rose-700">{error}</div> : null}
+      {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 font-bold text-emerald-700">{notice}</div> : null}
+      {busy ? (
+        <div className="flex items-center justify-center gap-2 rounded-2xl border bg-white p-8 font-black text-gray-500">
+          <Loader2 className="animate-spin" size={20} /> جاري تحميل شجرة المسارات...
+        </div>
+      ) : null}
+
+      {/* ── Main Two-Column Layout (Sidebar + Path Workspace) ── */}
+      <section className="grid gap-6 lg:grid-cols-[300px_1fr]">
+        {/* ── Right Column: Paths List Sidebar ── */}
+        <aside className="space-y-4">
+          <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Boxes size={18} className="text-indigo-600" />
+                <h2 className="text-base font-black text-slate-900">المسارات</h2>
+              </div>
+              <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-black text-indigo-700">
+                {data.paths.length}
+              </span>
+            </div>
+
+            <div className="space-y-2 max-h-[600px] overflow-y-auto pl-1">
+              {data.paths.map((path) => {
+                const isSelected = selectedPathId === path.id;
+                const pathTone = resolveColor(path.color);
+                return (
+                  <div
+                    key={path.id}
+                    onClick={() => {
+                      setSelectedPathId(path.id);
+                      setSelectedSubjectId(null);
+                    }}
+                    className={`group relative flex items-center justify-between rounded-2xl border p-3 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-indigo-400 bg-indigo-50/70 shadow-xs ring-2 ring-indigo-500/20'
+                        : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg shadow-2xs border"
+                        style={{
+                          backgroundColor: pathTone.soft,
+                          borderColor: pathTone.border,
+                          color: pathTone.text,
+                        }}
+                      >
+                        {getPathIcon(path, 'w-6 h-6 object-contain')}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <strong className="block text-sm font-black text-slate-900 truncate">{path.name}</strong>
+                        <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono mt-0.5">
+                          <span>{path.code}</span>
+                          <span className={`text-[10px] font-black ${path.status === 'active' ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            • {statusLabels[path.status]}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <Link
+                        to={`/category/${path.id}`}
+                        target="_blank"
+                        onClick={(e) => e.stopPropagation()}
+                        className="rounded-lg p-1.5 text-slate-400 hover:bg-indigo-100 hover:text-indigo-700 transition"
+                        title="معاينة المسار في نافذة جديدة"
+                      >
+                        <Eye size={15} />
+                      </Link>
+                      <ChevronLeft size={16} className={`transition-transform ${isSelected ? '-translate-x-1 text-indigo-600' : 'text-slate-300'}`} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </aside>
+
+        {/* ── Left Column: Active Path Workspace ── */}
+        <section className="space-y-6">
+          {!selectedPath ? (
+            <div className="rounded-3xl border border-dashed bg-white p-16 text-center font-bold text-gray-400">
+              اختر مسارًا من القائمة الجانبية لإدارة محتواه ومواده وإعداداته.
+            </div>
+          ) : (
+            <>
+              {/* Path Overview Card */}
+              <article
+                className="rounded-3xl border p-6 shadow-xs relative overflow-hidden"
+                style={{
+                  backgroundColor: '#ffffff',
+                  borderTop: `4px solid ${pathColor.text}`,
+                }}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div
+                      className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl shadow-xs border"
+                      style={{
+                        backgroundColor: pathColor.soft,
+                        borderColor: pathColor.border,
+                        color: pathColor.text,
+                      }}
+                    >
+                      {getPathIcon(selectedPath, 'w-8 h-8 object-contain')}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-2xl font-black text-slate-900">{selectedPath.name}</h2>
+                        <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-mono font-bold text-slate-600">
+                          {selectedPath.code}
+                        </span>
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-[11px] font-black ${
+                            selectedPath.status === 'active'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {statusLabels[selectedPath.status]}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs sm:text-sm text-slate-500 font-medium">
+                        {selectedPath.description || 'لا يوجد وصف للمسار.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 shrink-0 self-end sm:self-center">
+                    <Link
+                      to={`/category/${selectedPath.id}`}
+                      target="_blank"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-100 transition"
+                    >
+                      <Eye size={14} />
+                      <span>معاينة الطالب</span>
+                      <ExternalLink size={12} />
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => openEditPath(selectedPath)}
+                      className="rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-black text-slate-700 shadow-xs hover:bg-gray-50 transition"
+                    >
+                      تعديل المسار
+                    </button>
+                    <StatusSelect
+                      label={`حالة ${selectedPath.name}`}
+                      value={selectedPath.status}
+                      onChange={(v) => void patchStatus('path', selectedPath.id, v)}
+                    />
+                  </div>
+                </div>
+
+                {/* Readiness & Summary Metrics */}
+                {readinessSummary && (
+                  <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 border-t border-gray-100 pt-5">
+                    <div className="rounded-2xl bg-slate-50 p-3 text-center border border-slate-100">
+                      <span className="text-[11px] font-bold text-slate-500">المواد الدراسية</span>
+                      <strong className="block text-xl font-black text-slate-900 mt-0.5">{subjects.length}</strong>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 p-3 text-center border border-slate-100">
+                      <span className="text-[11px] font-bold text-slate-500">المراحل التعليمية</span>
+                      <strong className="block text-xl font-black text-slate-900 mt-0.5">{levels.length}</strong>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 p-3 text-center border border-slate-100">
+                      <span className="text-[11px] font-bold text-slate-500">الباقات الفعالة</span>
+                      <strong className="block text-xl font-black text-emerald-700 mt-0.5">{readinessSummary.packages}</strong>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 p-3 text-center border border-slate-100">
+                      <span className="text-[11px] font-bold text-slate-500">إجمالي المحتوى</span>
+                      <strong className="block text-xl font-black text-indigo-700 mt-0.5">{readinessSummary.total}</strong>
+                    </div>
+                  </div>
+                )}
+              </article>
+
+              {/* ── 5 Core Path Tabs ── */}
+              <div className="flex border-b border-gray-200 gap-2 overflow-x-auto pb-px">
+                {[
+                  { id: 'subjects', label: `المواد الدراسية (${subjects.length})`, icon: BookOpen },
+                  { id: 'levels', label: `المراحل التعليمية (${levels.length})`, icon: GraduationCap },
+                  { id: 'mockExams', label: 'الاختبارات المحاكية', icon: Award },
+                  { id: 'packages', label: 'العروض والباقات', icon: CreditCard },
+                  { id: 'settings', label: 'إعدادات وتجربة المسار', icon: Settings },
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  const active = pathTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setPathTab(tab.id as PathsManagerPathTab)}
+                      className={`flex items-center gap-2 px-5 py-3 text-xs sm:text-sm font-black transition-all border-b-2 -mb-px whitespace-nowrap cursor-pointer ${
+                        active
+                          ? 'border-indigo-600 text-indigo-700 bg-white rounded-t-xl shadow-xs'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <Icon size={16} />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* ── TAB 1: SUBJECTS (المواد) ── */}
+              {pathTab === 'subjects' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between rounded-2xl bg-white p-4 border shadow-xs">
+                    <div>
+                      <h3 className="font-black text-slate-900 text-base">المواد المندرجة تحت {selectedPath.name}</h3>
+                      <p className="text-xs text-slate-400 font-bold mt-0.5">
+                        انقر على أي مادة لفتح مساحة عمل وإدارة محتواها الكامل.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={openCreateSubject}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-black text-white shadow-xs hover:bg-indigo-700 transition"
+                    >
+                      <Plus size={15} />
+                      <span>إضافة مادة</span>
+                    </button>
+                  </div>
+
+                  {subjects.length === 0 ? (
+                    <div className="rounded-3xl border border-dashed bg-white p-12 text-center text-slate-400 font-bold">
+                      لا توجد مواد مسجلة لهذا المسار بعد. اضغط «إضافة مادة» لإنشاء أول مادة.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                      {subjects.map((sub) => {
+                        const subTone = resolveColor(sub.color || selectedPath.color);
+                        const lvl = levels.find((l) => l.id === sub.levelId);
+                        return (
+                          <div
+                            key={sub.id}
+                            className="group relative flex flex-col justify-between rounded-3xl border border-gray-100 bg-white p-5 shadow-xs hover:shadow-md transition-all overflow-hidden"
+                            style={{ borderTop: `4px solid ${subTone.text}` }}
+                          >
+                            <div>
+                              <div className="flex items-start justify-between gap-3 mb-3">
+                                <div
+                                  className="flex h-12 w-12 items-center justify-center rounded-2xl text-xl shadow-2xs border"
+                                  style={{
+                                    backgroundColor: subTone.soft,
+                                    borderColor: subTone.border,
+                                    color: subTone.text,
+                                  }}
+                                >
+                                  {getSubjectIcon(sub, 'w-6 h-6 object-contain')}
+                                </div>
+                                <StatusSelect
+                                  label={`حالة ${sub.name}`}
+                                  value={sub.status}
+                                  onChange={(v) => void patchStatus('subject', sub.id, v)}
+                                />
+                              </div>
+
+                              <h4 className="text-base font-black text-slate-900">{sub.name}</h4>
+                              <div className="flex items-center gap-2 text-xs text-slate-400 font-mono mt-1">
+                                <span>{sub.code}</span>
+                                {lvl && (
+                                  <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                                    {lvl.name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openEditSubject(sub)}
+                                className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-black text-slate-600 hover:bg-slate-50 transition"
+                              >
+                                تعديل
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedSubjectId(sub.id);
+                                  setSubjectTab('courses');
+                                }}
+                                className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-700 hover:bg-indigo-100 transition"
+                              >
+                                <span>مساحة العمل</span>
+                                <ChevronLeft size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── TAB 2: LEVELS (المراحل) ── */}
+              {pathTab === 'levels' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between rounded-2xl bg-white p-4 border shadow-xs">
+                    <div>
+                      <h3 className="font-black text-slate-900 text-base">المراحل الدراسية في {selectedPath.name}</h3>
+                      <p className="text-xs text-slate-400 font-bold mt-0.5">
+                        تقسيم المسار إلى مراحل دراسية يسهل على الطالب اختيار صفه الدراسي.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={openCreateLevel}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-sky-700 px-3.5 py-2 text-xs font-black text-white shadow-xs hover:bg-sky-800 transition"
+                    >
+                      <Plus size={15} />
+                      <span>إضافة مرحلة</span>
+                    </button>
+                  </div>
+
+                  {levels.length === 0 ? (
+                    <div className="rounded-3xl border border-dashed bg-white p-12 text-center text-slate-400 font-bold">
+                      لا توجد مراحل مسجلة (هذا المسار يعتبر مساراً مباشراً بدون مراحل مثل مسار القدرات).
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                      {levels.map((lvl) => {
+                        const levelSubjects = subjects.filter((s) => s.levelId === lvl.id);
+                        return (
+                          <div
+                            key={lvl.id}
+                            className="rounded-3xl border border-gray-100 bg-white p-5 shadow-xs flex flex-col justify-between"
+                          >
+                            <div>
+                              <div className="flex items-start justify-between gap-3 mb-3">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-800 text-xl border border-sky-100">
+                                  {getLevelIcon(lvl, 'w-6 h-6 object-contain')}
+                                </div>
+                                <StatusSelect
+                                  label={`حالة ${lvl.name}`}
+                                  value={lvl.status}
+                                  onChange={(v) => void patchStatus('level', lvl.id, v)}
+                                />
+                              </div>
+                              <h4 className="text-base font-black text-slate-900">{lvl.name}</h4>
+                              <p className="text-xs text-slate-400 font-mono mt-0.5">{lvl.code}</p>
+                              <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                                <span>{levelSubjects.length} مواد مرتبطة</span>
+                              </div>
+                            </div>
+                            <div className="mt-5 pt-3 border-t border-gray-100 flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => openEditLevel(lvl)}
+                                className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-black text-slate-600 hover:bg-slate-50 transition"
+                              >
+                                تعديل المرحلة
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── TAB 3: MOCK EXAMS (الاختبارات المحاكية) ── */}
+              {pathTab === 'mockExams' && (
+                <div className="rounded-3xl border bg-white p-8 shadow-xs text-center space-y-4">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-50 text-purple-700 border border-purple-100">
+                    <Award size={28} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900">الاختبارات المحاكية لمسار {selectedPath.name}</h3>
+                    <p className="text-xs text-slate-500 font-bold max-w-md mx-auto mt-1">
+                      الاختبارات المحاكية تحاكي الاختبار الفعلي (مثل قياس وقدرات) بأقسام ومؤقت ساهر وتوجيه فوري.
+                    </p>
+                  </div>
+                  <div className="flex justify-center gap-3 pt-2">
+                    <Link
+                      to={`/category/${selectedPath.id}?tab=mock-exams`}
+                      target="_blank"
+                      className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-100"
+                    >
+                      معاينة صفحة المحاكيات للطالب
+                    </Link>
+                    <Link
+                      to="/admin-dashboard/assessments"
+                      className="rounded-xl bg-purple-700 px-4 py-2 text-xs font-black text-white hover:bg-purple-800"
+                    >
+                      إدارة تقييمات واختبارات المنصة
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {/* ── TAB 4: PACKAGES (العروض والباقات) ── */}
+              {pathTab === 'packages' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between rounded-2xl bg-white p-4 border shadow-xs">
+                    <div>
+                      <h3 className="font-black text-slate-900 text-base">باقات وعروض مسار {selectedPath.name}</h3>
+                      <p className="text-xs text-slate-400 font-bold mt-0.5">
+                        الباقات تتيح للطلاب الاشتراك وفتح مساحات التعلم التابعة للمسار.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPkgForm({
+                          code: `${selectedPath.code}-PKG-1`,
+                          name: `باقة ${selectedPath.name} الشاملة`,
+                          priceMinor: 9900,
+                          contentType: 'all',
+                        });
+                        setIsPackageModalOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-black text-white shadow-xs hover:bg-emerald-700 transition"
+                    >
+                      <PackagePlus size={15} />
+                      <span>إنشاء باقة مسار</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                    {packages
+                      .filter((p: CommerceProduct) => p.package?.items?.some((item: CommercePackageItem) => item.pathId === selectedPath.id || !item.pathId))
+                      .map((pkg) => (
+                        <div key={pkg.id} className="rounded-3xl border border-gray-100 bg-white p-5 shadow-xs flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-black text-emerald-800">
+                                {pkg.package?.packageKind === 'membership' ? 'عضوية' : 'باقة تدريبية'}
+                              </span>
+                              <strong className="text-base font-black text-slate-900">
+                                {(pkg.priceMinor / 100).toFixed(0)} {pkg.currency}
+                              </strong>
+                            </div>
+                            <h4 className="text-base font-black text-slate-900">{pkg.name}</h4>
+                            <p className="text-xs text-slate-400 mt-1">{pkg.description || 'باقة معتمدة للمسار'}</p>
+                          </div>
+                          <div className="mt-4 pt-3 border-t border-gray-100 text-xs font-bold text-slate-500">
+                            كود الباقة: <span className="font-mono text-slate-800">{pkg.code}</span>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── TAB 5: SETTINGS (إعدادات وتجربة المسار) ── */}
+              {pathTab === 'settings' && (
+                <div className="space-y-4">
+                  <div className="rounded-3xl border bg-white p-6 shadow-xs space-y-6">
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900">إعدادات الظهور في المنصة وتجربة الطالب</h3>
+                      <p className="text-xs text-slate-500 font-bold mt-1">
+                        التحكم المباشر في كيفية عرض المسار للطلاب في القائمة العلوية وشبكة البطاقات.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      {/* Toggle: Navbar */}
+                      <div className="flex items-center justify-between rounded-2xl border border-gray-100 bg-slate-50/50 p-4">
+                        <div>
+                          <strong className="text-sm font-black text-slate-900 block">إظهار في القائمة العلوية</strong>
+                          <span className="text-xs text-slate-500">يظهر المسار في شريط التنقل العلوي للزوار والطلاب</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void togglePathSetting('showInNavbar', selectedPath.showInNavbar)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                            selectedPath.showInNavbar !== false ? 'bg-indigo-600' : 'bg-gray-200'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out ${
+                              selectedPath.showInNavbar !== false ? '-translate-x-5' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Toggle: Subject Cards */}
+                      <div className="flex items-center justify-between rounded-2xl border border-gray-100 bg-slate-50/50 p-4">
+                        <div>
+                          <strong className="text-sm font-black text-slate-900 block">إظهار بطاقات المواد</strong>
+                          <span className="text-xs text-slate-500">عرض شبكة بطاقات المواد الملونة داخل صفحة المسار</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void togglePathSetting('showSubjectCards', selectedPath.showSubjectCards)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                            selectedPath.showSubjectCards !== false ? 'bg-indigo-600' : 'bg-gray-200'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out ${
+                              selectedPath.showSubjectCards !== false ? '-translate-x-5' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Toggle: Mock Exam Card */}
+                      <div className="flex items-center justify-between rounded-2xl border border-gray-100 bg-slate-50/50 p-4">
+                        <div>
+                          <strong className="text-sm font-black text-slate-900 block">إظهار بطاقة الاختبارات المحاكية</strong>
+                          <span className="text-xs text-slate-500">عرض بطاقة دخول المحاكيات البنفسجية في صفحة المسار</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void togglePathSetting('showMockExamCard', selectedPath.showMockExamCard)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                            selectedPath.showMockExamCard !== false ? 'bg-indigo-600' : 'bg-gray-200'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out ${
+                              selectedPath.showMockExamCard !== false ? '-translate-x-5' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Toggle: Package Card */}
+                      <div className="flex items-center justify-between rounded-2xl border border-gray-100 bg-slate-50/50 p-4">
+                        <div>
+                          <strong className="text-sm font-black text-slate-900 block">إظهار بطاقة العروض والباقات</strong>
+                          <span className="text-xs text-slate-500">عرض بطاقة العروض الخضراء المخصصة لفتح محتوى المسار</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void togglePathSetting('showPackageCard', selectedPath.showPackageCard)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                            selectedPath.showPackageCard !== false ? 'bg-indigo-600' : 'bg-gray-200'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out ${
+                              selectedPath.showPackageCard !== false ? '-translate-x-5' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      </section>
+
+      {/* ── Modals ── */}
+      {isPathModalOpen && renderPathModal()}
+      {isLevelModalOpen && renderLevelModal()}
+      {isSubjectModalOpen && renderSubjectModal()}
+      {isPackageModalOpen && renderPackageModal()}
+    </main>
+  );
+
+  // ══════════════════════════════════════════════════════════════════════
+  // MODAL RENDERS
+  // ══════════════════════════════════════════════════════════════════════
+
+  function renderPathModal() {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in" dir="rtl">
+        <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+          <div className="flex items-center justify-between border-b pb-3">
+            <h3 className="text-lg font-black text-slate-900">
+              {editingPath ? `تعديل مسار ${editingPath.name}` : 'إضافة مسار تعليمي جديد'}
+            </h3>
+            <button type="button" onClick={() => setIsPathModalOpen(false)} className="rounded-xl p-1 text-slate-400 hover:bg-slate-100">
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1">اسم المسار</label>
+                <input
+                  value={pathForm.name}
+                  onChange={(e) => setPathForm({ ...pathForm, name: e.target.value })}
+                  placeholder="مثال: القدرات العامة"
+                  className="w-full rounded-xl border p-2.5 text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1">كود المسار الثابت</label>
+                <input
+                  value={pathForm.code}
+                  disabled={Boolean(editingPath)}
+                  onChange={(e) => setPathForm({ ...pathForm, code: e.target.value.toUpperCase() })}
+                  placeholder="مثال: QUDRAT"
+                  className="w-full rounded-xl border p-2.5 text-xs font-mono font-bold uppercase disabled:bg-gray-100"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">لون المسار الرئيسي</label>
+              <div className="flex flex-wrap gap-2">
+                {['indigo', 'purple', 'emerald', 'amber', 'rose', 'blue', 'gray'].map((colorName) => {
+                  const c = resolveColor(colorName);
+                  const isSelected = pathForm.color === colorName;
+                  return (
+                    <button
+                      key={colorName}
+                      type="button"
+                      onClick={() => setPathForm({ ...pathForm, color: colorName })}
+                      className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold border transition ${
+                        isSelected ? 'ring-2 ring-indigo-500 shadow-xs' : 'opacity-80 hover:opacity-100'
+                      }`}
+                      style={{ backgroundColor: c.soft, borderColor: c.border, color: c.text }}
+                    >
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.text }} />
+                      <span>{colorName}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Icon Picker Component */}
+            <EducationalIconPicker
+              selectedIcon={pathForm.icon}
+              selectedIconUrl={pathForm.iconUrl}
+              color={pathForm.color}
+              onSelectIcon={(icon) => setPathForm({ ...pathForm, icon })}
+              onClearIconUrl={() => setPathForm({ ...pathForm, iconUrl: '' })}
+              label="أيقونة المسار"
+            />
+
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">وصف المسار</label>
+              <textarea
+                value={pathForm.description}
+                onChange={(e) => setPathForm({ ...pathForm, description: e.target.value })}
+                placeholder="وصف مختصر لمحتوى وأهداف المسار..."
+                className="w-full rounded-xl border p-2.5 text-xs font-medium min-h-20"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 border-t pt-4">
+            <button
+              type="button"
+              onClick={() => setIsPathModalOpen(false)}
+              className="rounded-xl border px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-50"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              disabled={pending.includes('path')}
+              onClick={() => void savePath()}
+              className="rounded-xl bg-indigo-600 px-5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {pending.includes('path') ? 'جاري الحفظ...' : 'حفظ المسار'}
+            </button>
+          </div>
+        </div>
       </div>
+    );
+  }
 
-      <div className="space-y-4">
-        {!selectedPath?<div className="rounded-3xl border border-dashed bg-white p-10 text-center font-bold text-gray-500">اختر مسارًا لإدارة المراحل والمواد.</div>:<>
-          <article className="rounded-3xl border bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-black text-indigo-600">{selectedPath.code}</p><h2 className="text-2xl font-black">{selectedPath.name}</h2><p className="mt-1 text-sm text-gray-500">{selectedPath.description||'لا يوجد وصف للمسار.'}</p></div><div className="flex gap-2"><button type="button" aria-label={`تعديل ${selectedPath.name}`} onClick={()=>setEdit({type:'path',id:selectedPath.id,name:selectedPath.name,description:selectedPath.description})} className="rounded-xl border px-3 py-2 text-sm font-black">تعديل</button><StatusSelect label="حالة المسار" value={selectedPath.status} onChange={v=>void patchStatus('path',selectedPath.id,v)}/></div></div>
-            {edit?.type==='path'&&edit.id===selectedPath.id?<div className="mt-4 grid gap-2 rounded-2xl bg-gray-50 p-3 sm:grid-cols-[1fr_2fr_auto]"><input aria-label="اسم المسار المعدل" value={edit.name} onChange={e=>setEdit({...edit,name:e.target.value})} className="rounded-xl border p-2"/><input aria-label="وصف المسار المعدل" value={edit.description} onChange={e=>setEdit({...edit,description:e.target.value})} className="rounded-xl border p-2"/><button type="button" onClick={()=>void saveEdit()} className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-950 px-4 text-sm font-black text-white"><Save size={15}/> حفظ</button></div>:null}
-          </article>
+  function renderLevelModal() {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in" dir="rtl">
+        <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+          <div className="flex items-center justify-between border-b pb-3">
+            <h3 className="text-lg font-black text-slate-900">
+              {editingLevel ? `تعديل مرحلة ${editingLevel.name}` : 'إضافة مرحلة دراسية جديدة'}
+            </h3>
+            <button type="button" onClick={() => setIsLevelModalOpen(false)} className="rounded-xl p-1 text-slate-400 hover:bg-slate-100">
+              <X size={20} />
+            </button>
+          </div>
 
-          <section className="grid gap-4 lg:grid-cols-2">
-            <article className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5">
-              <div className="flex items-center justify-between"><h3 className="font-black">المراحل الدراسية</h3><GraduationCap size={18} className="text-sky-700"/></div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]"><input aria-label="كود المرحلة الجديدة" value={levelDraft.code} onChange={e=>setLevelDraft({...levelDraft,code:e.target.value})} placeholder="الكود" className="rounded-xl border p-2"/><input aria-label="اسم المرحلة الجديدة" value={levelDraft.name} onChange={e=>setLevelDraft({...levelDraft,name:e.target.value})} placeholder="اسم المرحلة" className="rounded-xl border p-2"/><button aria-label="إنشاء المرحلة" type="button" onClick={()=>void createLevel()} className="rounded-xl bg-sky-700 px-3 text-white"><Plus size={17}/></button></div>
-              <div className="mt-3 space-y-2">{levels.map(level=><div key={level.id} className="rounded-xl border p-3"><div className="flex items-center gap-2"><button type="button" onClick={()=>setEdit({type:'level',id:level.id,name:level.name,description:''})} className="min-w-0 flex-1 text-right"><b className="block truncate">{level.name}</b><span className="text-xs text-gray-400">{level.code}</span></button><StatusSelect label={`حالة المرحلة ${level.name}`} value={level.status} onChange={v=>void patchStatus('level',level.id,v)}/></div>{edit?.type==='level'&&edit.id===level.id?<div className="mt-2 flex gap-2"><input aria-label="اسم المرحلة المعدل" value={edit.name} onChange={e=>setEdit({...edit,name:e.target.value})} className="min-w-0 flex-1 rounded-lg border p-2"/><button type="button" onClick={()=>void saveEdit()} className="rounded-lg bg-slate-950 px-3 text-white"><Save size={15}/></button></div>:null}</div>)}</div>
-            </article>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">اسم المرحلة</label>
+              <input
+                value={levelForm.name}
+                onChange={(e) => setLevelForm({ ...levelForm, name: e.target.value })}
+                placeholder="مثال: المرحلة الابتدائية - الصف الثالث"
+                className="w-full rounded-xl border p-2.5 text-xs font-bold"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">كود المرحلة</label>
+              <input
+                value={levelForm.code}
+                disabled={Boolean(editingLevel)}
+                onChange={(e) => setLevelForm({ ...levelForm, code: e.target.value.toUpperCase() })}
+                placeholder="مثال: ELEM_3"
+                className="w-full rounded-xl border p-2.5 text-xs font-mono font-bold uppercase disabled:bg-gray-100"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">أيقونة المرحلة</label>
+              <input
+                value={levelForm.icon}
+                onChange={(e) => setLevelForm({ ...levelForm, icon: e.target.value })}
+                placeholder="🎒 أو 🏫 أو 🎓"
+                className="w-full rounded-xl border p-2.5 text-xs font-bold"
+              />
+            </div>
+          </div>
 
-            <article className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5">
-              <div className="flex items-center justify-between"><h3 className="font-black">المواد</h3><BookOpen size={18} className="text-amber-700"/></div>
-              <div className="mt-3 grid gap-2"><div className="grid gap-2 sm:grid-cols-2"><input aria-label="كود المادة الجديدة" value={subjectDraft.code} onChange={e=>setSubjectDraft({...subjectDraft,code:e.target.value})} placeholder="الكود" className="rounded-xl border p-2"/><input aria-label="اسم المادة الجديدة" value={subjectDraft.name} onChange={e=>setSubjectDraft({...subjectDraft,name:e.target.value})} placeholder="اسم المادة" className="rounded-xl border p-2"/></div><div className="flex gap-2"><select aria-label="مرحلة المادة الجديدة" value={subjectDraft.levelId} onChange={e=>setSubjectDraft({...subjectDraft,levelId:e.target.value})} className="min-w-0 flex-1 rounded-xl border p-2"><option value="">بدون مرحلة محددة</option>{levels.filter(x=>x.status==='active').map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select><button aria-label="إنشاء المادة" type="button" onClick={()=>void createSubject()} className="rounded-xl bg-amber-600 px-3 text-white"><Plus size={17}/></button></div></div>
-              <div className="mt-3 space-y-2">{subjects.map(subject=><div key={subject.id} className="rounded-xl border p-3"><div className="flex items-center gap-2"><div className="min-w-0 flex-1 text-right"><b className="block truncate">{subject.name}</b><span className="text-xs text-gray-400">{subject.code}{subject.levelId?` · ${levels.find(x=>x.id===subject.levelId)?.name||''}`:''}</span></div><button type="button" aria-label={`تعديل ${subject.name}`} onClick={()=>setEdit({type:'subject',id:subject.id,name:subject.name,description:''})} className="text-xs font-black">تعديل</button><StatusSelect label={`حالة المادة ${subject.name}`} value={subject.status} onChange={v=>void patchStatus('subject',subject.id,v)}/></div>{edit?.type==='subject'&&edit.id===subject.id?<div className="mt-2 flex gap-2"><input aria-label="اسم المادة المعدل" value={edit.name} onChange={e=>setEdit({...edit,name:e.target.value})} className="min-w-0 flex-1 rounded-lg border p-2"/><button type="button" onClick={()=>void saveEdit()} className="rounded-lg bg-slate-950 px-3 text-white"><Save size={15}/></button></div>:null}</div>)}</div>
-            </article>
-          </section>
-
-        </>}
+          <div className="flex justify-end gap-2 border-t pt-4">
+            <button
+              type="button"
+              onClick={() => setIsLevelModalOpen(false)}
+              className="rounded-xl border px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-50"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              disabled={pending.includes('level')}
+              onClick={() => void saveLevel()}
+              className="rounded-xl bg-sky-700 px-5 py-2 text-xs font-black text-white hover:bg-sky-800 disabled:opacity-50"
+            >
+              {pending.includes('level') ? 'جاري الحفظ...' : 'حفظ المرحلة'}
+            </button>
+          </div>
+        </div>
       </div>
-    </section>
+    );
+  }
 
-    <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-900"><div className="flex items-start gap-2"><Archive size={18} className="mt-1 shrink-0"/><p><b>قاعدة السلامة:</b> لا توجد أزرار حذف للمسارات والمراحل والمواد. استخدم غير نشط أو مؤرشف للحفاظ على المعرفات والعلاقات التاريخية. إدارة المهارات مركز مستقل يرتبط بهذه المواد دون نقل ملكية بياناتها.</p></div></section>
-  </main>;
+  function renderSubjectModal() {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in" dir="rtl">
+        <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+          <div className="flex items-center justify-between border-b pb-3">
+            <h3 className="text-lg font-black text-slate-900">
+              {editingSubject ? `تعديل مادة ${editingSubject.name}` : 'إضافة مادة دراسية جديدة'}
+            </h3>
+            <button type="button" onClick={() => setIsSubjectModalOpen(false)} className="rounded-xl p-1 text-slate-400 hover:bg-slate-100">
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1">اسم المادة</label>
+                <input
+                  value={subjectForm.name}
+                  onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })}
+                  placeholder="مثال: القدرات الكمي"
+                  className="w-full rounded-xl border p-2.5 text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1">كود المادة</label>
+                <input
+                  value={subjectForm.code}
+                  disabled={Boolean(editingSubject)}
+                  onChange={(e) => setSubjectForm({ ...subjectForm, code: e.target.value.toUpperCase() })}
+                  placeholder="مثال: QUANT"
+                  className="w-full rounded-xl border p-2.5 text-xs font-mono font-bold uppercase disabled:bg-gray-100"
+                />
+              </div>
+            </div>
+
+            {levels.length > 0 && (
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1">المرحلة الدراسية التابعة</label>
+                <select
+                  value={subjectForm.levelId}
+                  onChange={(e) => setSubjectForm({ ...subjectForm, levelId: e.target.value })}
+                  className="w-full rounded-xl border p-2.5 text-xs font-bold bg-white"
+                >
+                  <option value="">بدون مرحلة محددة (مادة عامة في المسار)</option>
+                  {levels.map((lvl) => (
+                    <option key={lvl.id} value={lvl.id}>
+                      {lvl.name} ({lvl.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">لون المادة</label>
+              <div className="flex flex-wrap gap-2">
+                {['indigo', 'purple', 'emerald', 'amber', 'rose', 'blue', 'gray'].map((colorName) => {
+                  const c = resolveColor(colorName);
+                  const isSelected = subjectForm.color === colorName;
+                  return (
+                    <button
+                      key={colorName}
+                      type="button"
+                      onClick={() => setSubjectForm({ ...subjectForm, color: colorName })}
+                      className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold border transition ${
+                        isSelected ? 'ring-2 ring-indigo-500 shadow-xs' : 'opacity-80 hover:opacity-100'
+                      }`}
+                      style={{ backgroundColor: c.soft, borderColor: c.border, color: c.text }}
+                    >
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.text }} />
+                      <span>{colorName}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <EducationalIconPicker
+              selectedIcon={subjectForm.icon}
+              selectedIconUrl={subjectForm.iconUrl}
+              color={subjectForm.color}
+              onSelectIcon={(icon) => setSubjectForm({ ...subjectForm, icon })}
+              onClearIconUrl={() => setSubjectForm({ ...subjectForm, iconUrl: '' })}
+              label="أيقونة المادة"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 border-t pt-4">
+            <button
+              type="button"
+              onClick={() => setIsSubjectModalOpen(false)}
+              className="rounded-xl border px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-50"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              disabled={pending.includes('subject')}
+              onClick={() => void saveSubject()}
+              className="rounded-xl bg-indigo-600 px-5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {pending.includes('subject') ? 'جاري الحفظ...' : 'حفظ المادة'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderPackageModal() {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in" dir="rtl">
+        <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+          <div className="flex items-center justify-between border-b pb-3">
+            <h3 className="text-lg font-black text-slate-900">إنشاء باقة جديدة لمسار {selectedPath?.name}</h3>
+            <button type="button" onClick={() => setIsPackageModalOpen(false)} className="rounded-xl p-1 text-slate-400 hover:bg-slate-100">
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">اسم الباقة</label>
+              <input
+                value={pkgForm.name}
+                onChange={(e) => setPkgForm({ ...pkgForm, name: e.target.value })}
+                placeholder="مثال: باقة القدرات الشاملة"
+                className="w-full rounded-xl border p-2.5 text-xs font-bold"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">كود الباقة</label>
+              <input
+                value={pkgForm.code}
+                onChange={(e) => setPkgForm({ ...pkgForm, code: e.target.value.toUpperCase() })}
+                placeholder="مثال: QUDRAT-ALL"
+                className="w-full rounded-xl border p-2.5 text-xs font-mono font-bold uppercase"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">السعر بالهللة (100 هللة = 1 ريال)</label>
+              <input
+                type="number"
+                min={1}
+                value={pkgForm.priceMinor}
+                onChange={(e) => setPkgForm({ ...pkgForm, priceMinor: Number(e.target.value) || 0 })}
+                className="w-full rounded-xl border p-2.5 text-xs font-bold"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">مساحات التعلم المفتوحة للطالب</label>
+              <select
+                value={pkgForm.contentType}
+                onChange={(e) => setPkgForm({ ...pkgForm, contentType: e.target.value as CommerceContentType })}
+                className="w-full rounded-xl border p-2.5 text-xs font-bold bg-white"
+              >
+                <option value="all">كل محتوى ومساحات المسار (شاملة)</option>
+                <option value="courses">الدورات التدريبية فقط</option>
+                <option value="foundation">التأسيس والدروس فقط</option>
+                <option value="tests">الاختبارات والتقييمات فقط</option>
+                <option value="mock_exams">الاختبارات المحاكية فقط</option>
+                <option value="library">المكتبة والمراجع فقط</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 border-t pt-4">
+            <button
+              type="button"
+              onClick={() => setIsPackageModalOpen(false)}
+              className="rounded-xl border px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-50"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              disabled={pending.includes('package')}
+              onClick={() => void createPathPackage()}
+              className="rounded-xl bg-emerald-600 px-5 py-2 text-xs font-black text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {pending.includes('package') ? 'جاري الإنشاء...' : 'إنشاء وتفعيل الباقة'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 }

@@ -2,11 +2,36 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	taxonomy "github.com/nasef6464/almeaago/internal/taxonomy/domain"
 )
+
+type pathPresRaw struct {
+	Color            string                `json:"color,omitempty"`
+	Icon             string                `json:"icon,omitempty"`
+	IconURL          string                `json:"iconUrl,omitempty"`
+	IconStyle        string                `json:"iconStyle,omitempty"`
+	ShowInNavbar     *bool                 `json:"showInNavbar,omitempty"`
+	ShowSubjectCards *bool                 `json:"showSubjectCards,omitempty"`
+	ShowMockExamCard *bool                 `json:"showMockExamCard,omitempty"`
+	ShowPackageCard  *bool                 `json:"showPackageCard,omitempty"`
+	Settings         taxonomy.PathSettings `json:"settings,omitempty"`
+}
+
+type levelPresRaw struct {
+	Icon    string `json:"icon,omitempty"`
+	IconURL string `json:"iconUrl,omitempty"`
+}
+
+type subjectPresRaw struct {
+	Color     string `json:"color,omitempty"`
+	Icon      string `json:"icon,omitempty"`
+	IconURL   string `json:"iconUrl,omitempty"`
+	IconStyle string `json:"iconStyle,omitempty"`
+}
 
 type Repository struct {
 	db *pgxpool.Pool
@@ -23,7 +48,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	}
 
 	pathRows, err := r.db.Query(ctx, `
-		SELECT id::text, code, name, COALESCE(parent_path_id::text, ''), description, sort_order
+		SELECT id::text, code, name, COALESCE(parent_path_id::text, ''), description, sort_order, COALESCE(presentation, '{}'::jsonb)
 		FROM paths
 		WHERE status = 'active'
 		ORDER BY sort_order, id
@@ -33,9 +58,24 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	}
 	for pathRows.Next() {
 		var row taxonomy.Path
-		if err := pathRows.Scan(&row.ID, &row.Code, &row.Name, &row.ParentPathID, &row.Description, &row.SortOrder); err != nil {
+		var presBytes []byte
+		if err := pathRows.Scan(&row.ID, &row.Code, &row.Name, &row.ParentPathID, &row.Description, &row.SortOrder, &presBytes); err != nil {
 			pathRows.Close()
 			return result, err
+		}
+		if len(presBytes) > 0 {
+			var pres pathPresRaw
+			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.Color = pres.Color
+				row.Icon = pres.Icon
+				row.IconURL = pres.IconURL
+				row.IconStyle = pres.IconStyle
+				row.ShowInNavbar = pres.ShowInNavbar
+				row.ShowSubjectCards = pres.ShowSubjectCards
+				row.ShowMockExamCard = pres.ShowMockExamCard
+				row.ShowPackageCard = pres.ShowPackageCard
+				row.Settings = pres.Settings
+			}
 		}
 		result.Paths = append(result.Paths, row)
 	}
@@ -46,7 +86,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	pathRows.Close()
 
 	levelRows, err := r.db.Query(ctx, `
-		SELECT l.id::text, l.path_id::text, l.code, l.name, l.sort_order
+		SELECT l.id::text, l.path_id::text, l.code, l.name, l.sort_order, COALESCE(l.presentation, '{}'::jsonb)
 		FROM levels l
 		JOIN paths p ON p.id = l.path_id AND p.status = 'active'
 		WHERE l.status = 'active'
@@ -57,9 +97,17 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	}
 	for levelRows.Next() {
 		var row taxonomy.Level
-		if err := levelRows.Scan(&row.ID, &row.PathID, &row.Code, &row.Name, &row.SortOrder); err != nil {
+		var presBytes []byte
+		if err := levelRows.Scan(&row.ID, &row.PathID, &row.Code, &row.Name, &row.SortOrder, &presBytes); err != nil {
 			levelRows.Close()
 			return result, err
+		}
+		if len(presBytes) > 0 {
+			var pres levelPresRaw
+			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.Icon = pres.Icon
+				row.IconURL = pres.IconURL
+			}
 		}
 		result.Levels = append(result.Levels, row)
 	}
@@ -70,7 +118,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	levelRows.Close()
 
 	subjectRows, err := r.db.Query(ctx, `
-		SELECT s.id::text, s.path_id::text, COALESCE(s.level_id::text, ''), s.code, s.name, s.sort_order
+		SELECT s.id::text, s.path_id::text, COALESCE(s.level_id::text, ''), s.code, s.name, s.sort_order, COALESCE(s.presentation, '{}'::jsonb)
 		FROM subjects s
 		JOIN paths p ON p.id = s.path_id AND p.status = 'active'
 		LEFT JOIN levels l ON l.id = s.level_id
@@ -83,9 +131,19 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	}
 	for subjectRows.Next() {
 		var row taxonomy.Subject
-		if err := subjectRows.Scan(&row.ID, &row.PathID, &row.LevelID, &row.Code, &row.Name, &row.SortOrder); err != nil {
+		var presBytes []byte
+		if err := subjectRows.Scan(&row.ID, &row.PathID, &row.LevelID, &row.Code, &row.Name, &row.SortOrder, &presBytes); err != nil {
 			subjectRows.Close()
 			return result, err
+		}
+		if len(presBytes) > 0 {
+			var pres subjectPresRaw
+			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.Color = pres.Color
+				row.Icon = pres.Icon
+				row.IconURL = pres.IconURL
+				row.IconStyle = pres.IconStyle
+			}
 		}
 		result.Subjects = append(result.Subjects, row)
 	}
@@ -134,7 +192,7 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 	}
 
 	pathRows, err := r.db.Query(ctx, `
-		SELECT id::text, code, name, COALESCE(parent_path_id::text, ''), description, sort_order, status
+		SELECT id::text, code, name, COALESCE(parent_path_id::text, ''), description, sort_order, status, COALESCE(presentation, '{}'::jsonb)
 		FROM paths
 		ORDER BY sort_order, id
 	`)
@@ -143,9 +201,24 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 	}
 	for pathRows.Next() {
 		var row taxonomy.Path
-		if err := pathRows.Scan(&row.ID, &row.Code, &row.Name, &row.ParentPathID, &row.Description, &row.SortOrder, &row.Status); err != nil {
+		var presBytes []byte
+		if err := pathRows.Scan(&row.ID, &row.Code, &row.Name, &row.ParentPathID, &row.Description, &row.SortOrder, &row.Status, &presBytes); err != nil {
 			pathRows.Close()
 			return result, err
+		}
+		if len(presBytes) > 0 {
+			var pres pathPresRaw
+			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.Color = pres.Color
+				row.Icon = pres.Icon
+				row.IconURL = pres.IconURL
+				row.IconStyle = pres.IconStyle
+				row.ShowInNavbar = pres.ShowInNavbar
+				row.ShowSubjectCards = pres.ShowSubjectCards
+				row.ShowMockExamCard = pres.ShowMockExamCard
+				row.ShowPackageCard = pres.ShowPackageCard
+				row.Settings = pres.Settings
+			}
 		}
 		result.Paths = append(result.Paths, row)
 	}
@@ -156,7 +229,7 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 	pathRows.Close()
 
 	levelRows, err := r.db.Query(ctx, `
-		SELECT id::text, path_id::text, code, name, sort_order, status
+		SELECT id::text, path_id::text, code, name, sort_order, status, COALESCE(presentation, '{}'::jsonb)
 		FROM levels
 		ORDER BY path_id, sort_order, id
 	`)
@@ -165,9 +238,17 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 	}
 	for levelRows.Next() {
 		var row taxonomy.Level
-		if err := levelRows.Scan(&row.ID, &row.PathID, &row.Code, &row.Name, &row.SortOrder, &row.Status); err != nil {
+		var presBytes []byte
+		if err := levelRows.Scan(&row.ID, &row.PathID, &row.Code, &row.Name, &row.SortOrder, &row.Status, &presBytes); err != nil {
 			levelRows.Close()
 			return result, err
+		}
+		if len(presBytes) > 0 {
+			var pres levelPresRaw
+			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.Icon = pres.Icon
+				row.IconURL = pres.IconURL
+			}
 		}
 		result.Levels = append(result.Levels, row)
 	}
@@ -178,7 +259,7 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 	levelRows.Close()
 
 	subjectRows, err := r.db.Query(ctx, `
-		SELECT id::text, path_id::text, COALESCE(level_id::text, ''), code, name, sort_order, status
+		SELECT id::text, path_id::text, COALESCE(level_id::text, ''), code, name, sort_order, status, COALESCE(presentation, '{}'::jsonb)
 		FROM subjects
 		ORDER BY path_id, sort_order, id
 	`)
@@ -187,9 +268,19 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 	}
 	for subjectRows.Next() {
 		var row taxonomy.Subject
-		if err := subjectRows.Scan(&row.ID, &row.PathID, &row.LevelID, &row.Code, &row.Name, &row.SortOrder, &row.Status); err != nil {
+		var presBytes []byte
+		if err := subjectRows.Scan(&row.ID, &row.PathID, &row.LevelID, &row.Code, &row.Name, &row.SortOrder, &row.Status, &presBytes); err != nil {
 			subjectRows.Close()
 			return result, err
+		}
+		if len(presBytes) > 0 {
+			var pres subjectPresRaw
+			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.Color = pres.Color
+				row.Icon = pres.Icon
+				row.IconURL = pres.IconURL
+				row.IconStyle = pres.IconStyle
+			}
 		}
 		result.Subjects = append(result.Subjects, row)
 	}
