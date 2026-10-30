@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 
@@ -195,6 +196,13 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	d := json.NewDecoder(r.Body)
 	d.DisallowUnknownFields()
 	if err := d.Decode(dst); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request"})
+		return false
+	}
+	// A mutation body must contain exactly one JSON document. Without this
+	// check a valid first object followed by another value is silently accepted.
+	var trailing json.RawMessage
+	if err := d.Decode(&trailing); !errors.Is(err, io.EOF) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request"})
 		return false
 	}
