@@ -21,7 +21,8 @@
 - حالتا completed مقابل in_progress لنفس الدرس في دورتين مختلفتين.
 - عزل طالب آخر، ومنع احتساب إكمال موضوع foundation كإكمال دورة.
 - تعدد الدروس والتكرار، وعدم قراءة جدول عند قائمة مراجع فارغة.
-- Workflow مستقل يطبق جميع migrations ثم ينفذ الاختبار على PostgreSQL 18.
+- اختبار تكامل إضافي يستعمل جداول مؤقتة من شكل migrations مع الفهارس والافتراضيات، ويجري Go→PostgreSQL: حفظ موضع الفيديو (دون إكمال تلقائي) → إكمال صريح → إعادة القراءة → إسقاط الإكمال في الخطة → عزل طالب ودورة أخرى → حفظ لاحق دون إعادة ضبط الإكمال → إكمال مكرر دون تغيير تاريخ الإكمال → إلغاء طلب حفظ والتأكد من عدم إنشاء صف.
+- Workflow مستقل يطبق جميع migrations ثم ينفذ الاختبارين على PostgreSQL 18.
 
 ## Trace ومعايير الاعتماد
 
@@ -31,8 +32,9 @@
 |---|---|
 | كشف السبب على PostgreSQL مهاجر واختبار RED | VERIFIED |
 | تغيير SELECT إلى العلاقة المهاجرة | IMPLEMENTED؛ ينتظر GREEN على SHA النهائي |
-| اختبار العزل والفراغ والاكتمال في PostgreSQL | PENDING GREEN |
-| Backend / Frontend / Database / Browser على نفس SHA | PENDING |
+| اختبار العزل والفراغ والاكتمال في PostgreSQL | VERIFIED للاختبار الأول: [GREEN 41009653786](https://github.com/nasef6464/almeaago/actions/runs/41009653786)؛ اختبار الكتابة/الاسترجاع الجديد PENDING |
+| Backend / Frontend / Database / Browser على نفس SHA | PASS على checkpoint السابق 6e8a88e؛ PENDING على SHA النهائي الجديد |
+| Go repository → PostgreSQL حفظ فيديو/إكمال/إعادة قراءة/فشل | اختبار مضاف، ينتظر GREEN على SHA النهائي |
 | HTTP حقيقي + حفظ خطة + إعادة قراءة + رجوع/تحديث + فشل/إعادة محاولة | PARTIAL / NOT PROVEN |
 | صور Legacy↔Go مقترنة 390/820/1440 RTL بنفس الدور والبيانات | NOT PROVEN |
 | تطابق رحلة الطالب كاملة | PARTIAL |
