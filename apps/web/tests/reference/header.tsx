@@ -23,7 +23,7 @@ function Reference(){
   return ()=>{delete window.__setHeaderVariant};
  },[]);
  return <><PlatformFontBootstrap/>{source?<Original/>:<Go/>}<StudentPathBar/>
- <main data-testid="header-reference-body" data-ready={!auth.loading&&!navigation.loading?'true':'false'} style={{minHeight:'200vh'}}/>
+ <main data-testid="header-reference-body" data-variant={source?'source':'go'} data-ready={!auth.loading&&!navigation.loading?'true':'false'} style={{minHeight:'200vh'}}/>
  </>;
 }
 createRoot(document.getElementById('root')!).render(<BrowserRouter><AuthProvider><StudentNavigationProvider><Reference/></StudentNavigationProvider></AuthProvider></BrowserRouter>);
