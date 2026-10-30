@@ -216,17 +216,6 @@ export function SkillsAdminPage() {
                 </div>
                 {subExpanded ? <section className="space-y-3 border-t p-4" aria-label={`تفاصيل مهارة ${sub.name}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="inline-flex items-center gap-2 font-bold text-gray-800"><HelpCircle size={17} className="text-indigo-600"/> الأسئلة المرتبطة</h3>
-                    <Link to={`/admin-dashboard/questions?skillId=${encodeURIComponent(sub.id)}`} className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">فتح بنك الأسئلة لهذه المهارة</Link>
-                  </div>
-                  {questions?.loading || !questions ? <p role="status" className="text-sm text-gray-500">جاري تحميل الأسئلة المرتبطة...</p> : null}
-                  {questions?.error ? <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{questions.error}</p> : null}
-                  {questions && !questions.loading && !questions.error ? <>
-                    <p data-testid={`subskill-question-count-${sub.id}`} className="text-xs font-bold text-gray-500">{questions.total} سؤال مرتبط بهذه المهارة</p>
-                    {questions.rows.length ? <ul className="space-y-2">{questions.rows.map((question) => <li key={question.id} className="flex items-center justify-between gap-3 rounded-lg border bg-slate-50 px-3 py-2"><span className="font-bold text-gray-700">{question.questionCode}</span><span className="text-xs text-gray-500">{question.workflowStatus === 'approved' ? 'معتمد' : question.workflowStatus === 'draft' ? 'مسودة' : 'قيد المراجعة'}</span></li>)}</ul> : <p className="text-sm text-gray-500">لا توجد أسئلة مرتبطة بهذه المهارة.</p>}
-                    {questions.total !== null && questions.total > questions.rows.length ? <p className="text-xs text-gray-500">تظهر أول {questions.rows.length} أسئلة؛ افتح بنك الأسئلة لمشاهدة الباقي.</p> : null}
-                  </> : null}
-                  <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t pt-4">
                     <h3 className="inline-flex items-center gap-2 font-bold text-gray-800"><BookOpen size={17} className="text-indigo-600"/> الدروس المرتبطة</h3>
                     <div className="flex flex-wrap items-center gap-2">
                       <button type="button" onClick={() => { setLessonError(''); setLinkTarget(sub); }} className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700"><Link2 size={14}/> ربط درس موجود</button>
@@ -244,6 +233,17 @@ export function SkillsAdminPage() {
                       <button type="button" aria-label={`فصل الدرس ${lesson.title} عن المهارة`} disabled={!!lessonPendingId || lesson.workflowStatus === 'approved' || lesson.workflowStatus === 'archived'} title={lesson.workflowStatus === 'approved' || lesson.workflowStatus === 'archived' ? 'الدرس المعتمد أو المؤرشف محمي من تعديل الروابط' : 'فصل الارتباط فقط دون حذف الدرس'} onClick={() => void detachLesson(sub, lesson)} className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"><Unlink size={14}/> فصل</button>
                     </li>)}</ul> : <p className="text-sm text-gray-500">لا توجد دروس مرتبطة بهذه المهارة.</p>}
                     {lessons.hasMore ? <button type="button" onClick={() => setLessonPage((page) => page + 1)} className="rounded-lg border px-3 py-2 text-xs font-bold text-indigo-700">عرض المزيد من الدروس</button> : null}
+                  </> : null}
+                  <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+                    <h3 className="inline-flex items-center gap-2 font-bold text-gray-800"><HelpCircle size={17} className="text-indigo-600"/> الأسئلة المرتبطة</h3>
+                    <Link to={`/admin-dashboard/questions?skillId=${encodeURIComponent(sub.id)}`} className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">فتح بنك الأسئلة لهذه المهارة</Link>
+                  </div>
+                  {questions?.loading || !questions ? <p role="status" className="text-sm text-gray-500">جاري تحميل الأسئلة المرتبطة...</p> : null}
+                  {questions?.error ? <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{questions.error}</p> : null}
+                  {questions && !questions.loading && !questions.error ? <>
+                    <p data-testid={`subskill-question-count-${sub.id}`} className="text-xs font-bold text-gray-500">{questions.total} سؤال مرتبط بهذه المهارة</p>
+                    {questions.rows.length ? <ul className="space-y-2">{questions.rows.map((question) => <li key={question.id} className="flex items-center justify-between gap-3 rounded-lg border bg-slate-50 px-3 py-2"><span className="font-bold text-gray-700">{question.questionCode}</span><span className="text-xs text-gray-500">{question.workflowStatus === 'approved' ? 'معتمد' : question.workflowStatus === 'draft' ? 'مسودة' : 'قيد المراجعة'}</span></li>)}</ul> : <p className="text-sm text-gray-500">لا توجد أسئلة مرتبطة بهذه المهارة.</p>}
+                    {questions.total !== null && questions.total > questions.rows.length ? <p className="text-xs text-gray-500">تظهر أول {questions.rows.length} أسئلة؛ افتح بنك الأسئلة لمشاهدة الباقي.</p> : null}
                   </> : null}
                 </section> : null}
               </article>;
