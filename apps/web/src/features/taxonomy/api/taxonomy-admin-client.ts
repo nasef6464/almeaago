@@ -3,7 +3,10 @@ export type TaxonomyStatus='active'|'inactive'|'archived';
 export interface PathDisplaySettings {
   stageSelection?: 'auto'|'required'|'none';
   stageLabel?: string;
+  studentTemplate?: 'standard'|'simple';
+  showSubjectCards?: boolean;
   showMockExamCard?: boolean;
+  showPackageCard?: boolean;
 }
 export interface PathDisplayInput {
   showInHome?: boolean;
