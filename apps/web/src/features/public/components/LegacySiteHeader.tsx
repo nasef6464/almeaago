@@ -1,5 +1,4 @@
 import {Award,Bell,BookOpen,ChevronDown,Gift,LogIn,Menu,Radio,X} from 'lucide-react';
-import {useHomepageSettings} from '../../presentation/useHomepageSettings';
 import {useEffect,useMemo,useState} from 'react';
 import {Link,useLocation} from 'react-router-dom';
 
@@ -16,7 +15,7 @@ function LegacySiteHeaderContent({onAuth}:{onAuth(mode:AuthMode):void}){
   const experience=useStudentExperience();
   const taxonomy=useMemo(()=>({paths:experience.paths,levels:experience.levels,subjects:experience.subjects}),[experience.paths,experience.levels,experience.subjects]);
   const scope=experience.scope;
-  const homepage=useHomepageSettings();
+  const homepage=experience.homepageSettings;
   const brand=homepage.brand;
   const logoUrl=String(brand?.logoUrl || '').trim();
   const logoAlt=String(brand?.logoAlt || 'منصة المئة').trim();
