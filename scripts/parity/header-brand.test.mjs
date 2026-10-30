@@ -19,6 +19,11 @@ function render(brand,user=null){
     id.endsWith('/AuthProvider')?{useAuth:()=>({user})}:
     id.endsWith('/content-client')?{contentClient:{}}:
     id.endsWith('/dashboard-path')?{dashboardPathFor:()=>'/dashboard'}:
+    id.endsWith('/learning/navigation')?{
+      StudentNavigationProvider:({children})=>children,
+      StudentPathBar:()=>null,
+      useStudentExperience:()=>({paths:[],levels:[],subjects:[],homepageSettings:{brand,navigation:{}},scope:{navigationPathVisible:()=>true,matchesNavigationContent:()=>true}}),
+    }:
     id.endsWith('/headerNavigation')?navigationModule.exports:require(id);
   new Function('require','module','exports',ts.transpileModule(source,{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS}}).outputText)(resolve,mod,mod.exports);
   return renderToStaticMarkup(React.createElement(MemoryRouter,null,React.createElement(mod.exports.LegacySiteHeader,{onAuth:()=>{}})));
