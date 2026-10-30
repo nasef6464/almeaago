@@ -50,6 +50,21 @@ for(const width of [390,820,1440]){
   await test.info().attach('supervisor-'+width,{body:await page.screenshot({fullPage:true}),contentType:'image/png'});
  });
 }
+test('disabled original sections in a direct URL fail closed to the working student view, with Back and reload',async({page})=>{
+ await mockRoster(page);
+ await page.goto('/supervisor-dashboard?tab=tests');
+ const nav=page.getByRole('navigation',{name:'أقسام لوحة المشرف'});
+ await expect(nav.getByRole('button',{name:'تعلم الطلاب وجاهزيتهم'})).toHaveAttribute('aria-current','page');
+ await expect(nav.getByRole('button',{name:'الاختبارات والتحليل'})).toBeDisabled();
+ await expect(page.getByText('طالب الأولى')).toBeVisible();
+ await nav.getByRole('button',{name:'الملخص العام'}).click();
+ await expect(page).toHaveURL(/tab=overview/);
+ await page.goBack();
+ await expect(nav.getByRole('button',{name:'تعلم الطلاب وجاهزيتهم'})).toHaveAttribute('aria-current','page');
+ await page.reload();
+ await expect(nav.getByRole('button',{name:'تعلم الطلاب وجاهزيتهم'})).toHaveAttribute('aria-current','page');
+ await expect(page.getByText('طالب الأولى')).toBeVisible();
+});
 test('supervisor student list uses original show-more and show-less controls without losing scope',async({page})=>{
  await auth(page);
  await page.route('**/api/v1/schools/context',route=>json(route,{contexts:[contexts[0]]}));
