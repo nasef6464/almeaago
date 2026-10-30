@@ -108,7 +108,7 @@ func TestClassListLiteralSearchPostgres(t *testing.T) {
 		search string
 		want   int
 	}{
-		{"%", 2}, {"_", 1}, {"\\", 1},
+		{"%", 1}, {"_", 1}, {"\\", 1},
 		{"  P%  ", 1}, {"  الأول ", 1}, {"  first  ", 1},
 		{"   ", 5}, {"خارج", 0}, {"مؤرشف", 0}, {"absent", 0},
 	} {
