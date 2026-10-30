@@ -45,7 +45,7 @@ export const NotificationBell: React.FC = () => {
     if (!isOpen) void sessionRef.current?.refresh();
   };
   // Avoid rendering another account's state before effect cleanup after logout/role changes.
-  if (authLoading || !user || snapshotIdentity !== identity) return null;
+  if (authLoading || (user && snapshotIdentity !== identity)) return null;
   const { notifications, unreadCount, loading, isConnected, error, saving } = snapshot;
   const unread = notifications.filter((n) => !n.readAt);
 
