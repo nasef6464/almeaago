@@ -140,7 +140,6 @@ test.describe('original full Header on native Go data',()=>{
        await page.setViewportSize({width,height:mobileHeight});
        await prepare(state);
       }else await prepare(state);
-      await stable(page);
       const bytes=await attachPage(page,info,`header-${role}-${width}-${state}-${label}`);
       const metrics=await visualMetrics(page);
       return {bytes,metrics};
