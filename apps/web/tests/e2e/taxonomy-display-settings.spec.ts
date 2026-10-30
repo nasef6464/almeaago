@@ -129,6 +129,7 @@ for (const width of [390, 820, 1440]) {
     await expect(editor.getByLabel('تسمية المرحلة')).toHaveValue('اختر مرحلتك');
     await expect(editor.getByLabel('أيقونة المادة')).toHaveValue('🧪');
     await expect(editor.getByLabel('لون المادة')).toHaveValue('#abcdef');
+    await page.screenshot({ path: `test-results/taxonomy-display-admin-${width}.png`, fullPage: true });
 
     const publicProjection = await page.evaluate(async () =>
       fetch('/api/v1/taxonomy/bootstrap?phase=core').then(response => response.json()));
