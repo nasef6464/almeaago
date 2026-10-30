@@ -6,8 +6,12 @@ import {
   taxonomyAdminClient,
   type AdminTaxonomyBootstrap,
   type AdminTaxonomyPath,
+  type AdminTaxonomySubject,
+  type PathDisplayInput,
+  type SubjectDisplayInput,
   type TaxonomyStatus,
 } from '../api/taxonomy-admin-client';
+import { TaxonomyDisplayEditor } from './TaxonomyDisplayEditor';
 
 const EMPTY:AdminTaxonomyBootstrap={paths:[],levels:[],subjects:[],skills:[]};
 const statusLabels:Record<TaxonomyStatus,string>={active:'نشط',inactive:'غير نشط',archived:'مؤرشف'};
@@ -22,6 +26,7 @@ export function TaxonomyAdminPage(){
   const {user,loading:authLoading,getCsrfToken}=useAuth();
   const [data,setData]=useState<AdminTaxonomyBootstrap>(EMPTY);
   const [selectedPathId,setSelectedPathId]=useState('');
+  const [selectedSubjectId,setSelectedSubjectId]=useState('');
   const [busy,setBusy]=useState(true);
   const [pending,setPending]=useState('');
   const [error,setError]=useState('');
@@ -48,19 +53,26 @@ export function TaxonomyAdminPage(){
   const selectedPath=useMemo(()=>data.paths.find(x=>x.id===selectedPathId)||null,[data.paths,selectedPathId]);
   const levels=useMemo(()=>data.levels.filter(x=>x.pathId===selectedPathId),[data.levels,selectedPathId]);
   const subjects=useMemo(()=>data.subjects.filter(x=>x.pathId===selectedPathId),[data.subjects,selectedPathId]);
+  const selectedSubject=useMemo(()=>subjects.find(x=>x.id===selectedSubjectId)||subjects[0]||null,[subjects,selectedSubjectId]);
+  useEffect(()=>{
+    setSelectedSubjectId(current=>subjects.some(x=>x.id===current)?current:(subjects[0]?.id||''));
+  },[subjects]);
   useEffect(()=>{
     setSubjectDraft(x=>({...x,levelId:levels.some(l=>l.id===x.levelId)?x.levelId:''}));
   },[levels,subjects]);
 
-  async function run(key:string,action:(csrf:string)=>Promise<void>,success:string){
+  async function run(key:string,action:(csrf:string)=>Promise<void>,success:string):Promise<boolean>{
     setPending(key);setError('');setNotice('');
     try{
       const csrf=await getCsrfToken();
       await action(csrf);
       setNotice(success);
       setReload(x=>x+1);
-    }catch(e){setError(e instanceof Error?e.message:'تعذر تنفيذ عملية التصنيف')}
-    finally{setPending('')}
+      return true;
+    }catch(e){
+      setError(e instanceof Error?e.message:'تعذر تنفيذ عملية التصنيف');
+      return false;
+    }finally{setPending('')}
   }
 
   async function createPath(){
@@ -89,6 +101,16 @@ export function TaxonomyAdminPage(){
     const method=edit.type==='path'?taxonomyAdminClient.updatePath:edit.type==='level'?taxonomyAdminClient.updateLevel:taxonomyAdminClient.updateSubject;
     await run('save-edit',csrf=>method(edit.id,payload as never,csrf).then(()=>undefined),'تم حفظ التعديل.');
     setEdit(null);
+  }
+
+  async function savePathDisplay(input:PathDisplayInput):Promise<boolean>{
+    if(!selectedPath)return false;
+    return run('display-path',csrf=>taxonomyAdminClient.updatePath(selectedPath.id,input,csrf).then(()=>undefined),'تم حفظ إعدادات عرض المسار.');
+  }
+
+  async function saveSubjectDisplay(input:SubjectDisplayInput):Promise<boolean>{
+    if(!selectedSubject)return false;
+    return run('display-subject',csrf=>taxonomyAdminClient.updateSubject(selectedSubject.id,input,csrf).then(()=>undefined),'تم حفظ مظهر المادة.');
   }
 
   if(authLoading)return <main className="p-10 text-center font-black">جاري التحقق من الصلاحيات...</main>;
@@ -137,6 +159,26 @@ export function TaxonomyAdminPage(){
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-black text-indigo-600">{selectedPath.code}</p><h2 className="text-2xl font-black">{selectedPath.name}</h2><p className="mt-1 text-sm text-gray-500">{selectedPath.description||'لا يوجد وصف للمسار.'}</p></div><div className="flex gap-2"><button type="button" aria-label={`تعديل ${selectedPath.name}`} onClick={()=>setEdit({type:'path',id:selectedPath.id,name:selectedPath.name,description:selectedPath.description})} className="rounded-xl border px-3 py-2 text-sm font-black">تعديل</button><StatusSelect label="حالة المسار" value={selectedPath.status} onChange={v=>void patchStatus('path',selectedPath.id,v)}/></div></div>
             {edit?.type==='path'&&edit.id===selectedPath.id?<div className="mt-4 grid gap-2 rounded-2xl bg-gray-50 p-3 sm:grid-cols-[1fr_2fr_auto]"><input aria-label="اسم المسار المعدل" value={edit.name} onChange={e=>setEdit({...edit,name:e.target.value})} className="rounded-xl border p-2"/><input aria-label="وصف المسار المعدل" value={edit.description} onChange={e=>setEdit({...edit,description:e.target.value})} className="rounded-xl border p-2"/><button type="button" onClick={()=>void saveEdit()} className="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-950 px-4 text-sm font-black text-white"><Save size={15}/> حفظ</button></div>:null}
           </article>
+
+          <section className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div><p className="text-xs font-black text-indigo-600">إعدادات الظهور</p><h3 className="font-black">عرض المسار والمادة</h3></div>
+              <label className="grid gap-1 text-xs font-black text-gray-600">
+                المادة المراد تخصيصها
+                <select aria-label="المادة المراد تخصيصها" value={selectedSubject?.id||''} onChange={event=>setSelectedSubjectId(event.target.value)} className="min-w-44 rounded-xl border bg-white px-3 py-2 text-sm font-bold">
+                  {subjects.length===0?<option value="">لا توجد مواد</option>:subjects.map(subject=><option key={subject.id} value={subject.id}>{subject.name}</option>)}
+                </select>
+              </label>
+            </div>
+            <TaxonomyDisplayEditor
+              key={`${selectedPath.id}:${selectedSubject?.id||'none'}`}
+              path={selectedPath}
+              subject={selectedSubject as AdminTaxonomySubject|null}
+              pending={pending}
+              savePath={savePathDisplay}
+              saveSubject={saveSubjectDisplay}
+            />
+          </section>
 
           <section className="grid gap-4 lg:grid-cols-2">
             <article className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5">
