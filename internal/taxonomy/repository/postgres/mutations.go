@@ -19,10 +19,11 @@ func (r *Repository) CreatePath(ctx context.Context, actor string, write taxonom
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	var row taxonomy.Path
-	err = tx.QueryRow(ctx, `INSERT INTO paths(code,name,parent_path_id,description,sort_order)
-		VALUES($1,$2,NULLIF($3,'')::uuid,$4,$5)
-		RETURNING id::text,code,name,COALESCE(parent_path_id::text,''),description,sort_order`,
-		write.Code, write.Name, write.ParentPathID, write.Description, write.SortOrder).Scan(&row.ID, &row.Code, &row.Name, &row.ParentPathID, &row.Description, &row.SortOrder)
+	var display pathDisplay
+	err = tx.QueryRow(ctx, `INSERT INTO paths(code,name,parent_path_id,description,sort_order,presentation)
+		VALUES($1,$2,NULLIF($3,'')::uuid,$4,$5,$6::jsonb)
+		RETURNING id::text,code,name,COALESCE(parent_path_id::text,''),description,sort_order,status,presentation`,
+		write.Code, write.Name, write.ParentPathID, write.Description, write.SortOrder, pathPresentation(write.ShowInNavbar, write.ShowInHome, write.Settings)).Scan(&row.ID, &row.Code, &row.Name, &row.ParentPathID, &row.Description, &row.SortOrder, &row.Status, &display)
 	if err != nil {
 		return taxonomy.Path{}, mapMutationError(err)
 	}
@@ -32,6 +33,7 @@ func (r *Repository) CreatePath(ctx context.Context, actor string, write taxonom
 	if err := tx.Commit(ctx); err != nil {
 		return taxonomy.Path{}, err
 	}
+	row.ShowInNavbar, row.ShowInHome, row.Settings = display.ShowInNavbar, display.ShowInHome, display.Settings
 	return row, nil
 }
 
@@ -41,7 +43,7 @@ func (r *Repository) UpdatePath(ctx context.Context, actor, pathID string, patch
 		return taxonomy.Path{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	if patch.ParentPathID != nil && *patch.ParentPathID != "" {
+if patch.ParentPathID != nil && *patch.ParentPathID != "" {
 		// Serialize parent-changing commands before reading the ancestry. Without
 		// this lock, concurrent A -> B and B -> A updates can both pass a
 		// check against the previous committed tree.
@@ -65,7 +67,7 @@ func (r *Repository) UpdatePath(ctx context.Context, actor, pathID string, patch
 			return taxonomy.Path{}, taxonomy.ErrConflict
 		}
 	}
-	set, args := []string{"updated_at=now()"}, []any{pathID}
+		set, args := []string{"updated_at=now()"}, []any{pathID}
 	add := func(expr string, v any) { args = append(args, v); set = append(set, fmt.Sprintf(expr, len(args))) }
 	if patch.Name != nil {
 		add("name=$%d", *patch.Name)
@@ -82,9 +84,15 @@ func (r *Repository) UpdatePath(ctx context.Context, actor, pathID string, patch
 	if patch.Status != nil {
 		add("status=$%d", string(*patch.Status))
 	}
+	if patch.Settings.HasValues() {
+		add("presentation=presentation || ($%d::jsonb - 'settings') || jsonb_build_object('settings', COALESCE(presentation->'settings','{}'::jsonb) || COALESCE($%[1]d::jsonb->'settings','{}'::jsonb))", pathPresentation(patch.ShowInNavbar, patch.ShowInHome, patch.Settings))
+	} else if patch.ShowInNavbar != nil || patch.ShowInHome != nil {
+		add("presentation=presentation || $%d::jsonb", pathPresentation(patch.ShowInNavbar, patch.ShowInHome, nil))
+	}
 	var row taxonomy.Path
-	q := `UPDATE paths SET ` + strings.Join(set, ",") + ` WHERE id=$1::uuid RETURNING id::text,code,name,COALESCE(parent_path_id::text,''),description,sort_order`
-	err = tx.QueryRow(ctx, q, args...).Scan(&row.ID, &row.Code, &row.Name, &row.ParentPathID, &row.Description, &row.SortOrder)
+	var display pathDisplay
+	q := `UPDATE paths SET ` + strings.Join(set, ",") + ` WHERE id=$1::uuid RETURNING id::text,code,name,COALESCE(parent_path_id::text,''),description,sort_order,status,presentation`
+	err = tx.QueryRow(ctx, q, args...).Scan(&row.ID, &row.Code, &row.Name, &row.ParentPathID, &row.Description, &row.SortOrder, &row.Status, &display)
 	if err != nil {
 		return taxonomy.Path{}, mapMutationError(err)
 	}
@@ -94,6 +102,7 @@ func (r *Repository) UpdatePath(ctx context.Context, actor, pathID string, patch
 	if err := tx.Commit(ctx); err != nil {
 		return taxonomy.Path{}, err
 	}
+	row.ShowInNavbar, row.ShowInHome, row.Settings = display.ShowInNavbar, display.ShowInHome, display.Settings
 	return row, nil
 }
 
@@ -158,10 +167,11 @@ func (r *Repository) CreateSubject(ctx context.Context, actor string, write taxo
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	var row taxonomy.Subject
-	err = tx.QueryRow(ctx, `INSERT INTO subjects(path_id,level_id,code,name,sort_order)
-		SELECT p.id,l.id,$3,$4,$5 FROM paths p LEFT JOIN levels l ON l.id=NULLIF($2,'')::uuid
+	var display subjectDisplay
+	err = tx.QueryRow(ctx, `INSERT INTO subjects(path_id,level_id,code,name,sort_order,presentation)
+		SELECT p.id,l.id,$3,$4,$5,$6::jsonb FROM paths p LEFT JOIN levels l ON l.id=NULLIF($2,'')::uuid
 		WHERE p.id=$1::uuid AND p.status='active' AND ($2='' OR (l.path_id=p.id AND l.status='active'))
-		RETURNING id::text,path_id::text,COALESCE(level_id::text,''),code,name,sort_order`, write.PathID, write.LevelID, write.Code, write.Name, write.SortOrder).Scan(&row.ID, &row.PathID, &row.LevelID, &row.Code, &row.Name, &row.SortOrder)
+		RETURNING id::text,path_id::text,COALESCE(level_id::text,''),code,name,sort_order,status,presentation`, write.PathID, write.LevelID, write.Code, write.Name, write.SortOrder, subjectPresentation(write.Icon, write.Color)).Scan(&row.ID, &row.PathID, &row.LevelID, &row.Code, &row.Name, &row.SortOrder, &row.Status, &display)
 	if err != nil {
 		return taxonomy.Subject{}, mapMutationError(err)
 	}
@@ -171,6 +181,7 @@ func (r *Repository) CreateSubject(ctx context.Context, actor string, write taxo
 	if err := tx.Commit(ctx); err != nil {
 		return taxonomy.Subject{}, err
 	}
+	row.Icon, row.Color = display.Icon, display.Color
 	return row, nil
 }
 
@@ -204,9 +215,13 @@ func (r *Repository) UpdateSubject(ctx context.Context, actor, subjectID string,
 	if patch.Status != nil {
 		add("status=$%d", string(*patch.Status))
 	}
+	if patch.Icon != nil || patch.Color != nil {
+		add("presentation=presentation || $%d::jsonb", subjectPresentation(patch.Icon, patch.Color))
+	}
 	var row taxonomy.Subject
-	q := `UPDATE subjects SET ` + strings.Join(set, ",") + ` WHERE id=$1::uuid RETURNING id::text,path_id::text,COALESCE(level_id::text,''),code,name,sort_order`
-	err = tx.QueryRow(ctx, q, args...).Scan(&row.ID, &row.PathID, &row.LevelID, &row.Code, &row.Name, &row.SortOrder)
+	var display subjectDisplay
+	q := `UPDATE subjects SET ` + strings.Join(set, ",") + ` WHERE id=$1::uuid RETURNING id::text,path_id::text,COALESCE(level_id::text,''),code,name,sort_order,status,presentation`
+	err = tx.QueryRow(ctx, q, args...).Scan(&row.ID, &row.PathID, &row.LevelID, &row.Code, &row.Name, &row.SortOrder, &row.Status, &display)
 	if err != nil {
 		return taxonomy.Subject{}, mapMutationError(err)
 	}
@@ -216,6 +231,7 @@ func (r *Repository) UpdateSubject(ctx context.Context, actor, subjectID string,
 	if err := tx.Commit(ctx); err != nil {
 		return taxonomy.Subject{}, err
 	}
+	row.Icon, row.Color = display.Icon, display.Color
 	return row, nil
 }
 
