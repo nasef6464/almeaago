@@ -10,6 +10,9 @@ function json(route: Route, body: unknown, status = 200) {
 }
 
 async function setup(page: Page) {
+  let releaseFirstPathSave!: () => void;
+  const firstPathSaveGate = new Promise<void>(resolve => { releaseFirstPathSave = resolve; });
+  let holdFirstPathSave = true;
   const state = {
     paths: [{
       id: 'path-1', code: 'QDR', name: 'القدرات', parentPathId: '',
@@ -36,6 +39,10 @@ async function setup(page: Page) {
   await page.route('**/api/v1/taxonomy/admin/paths/path-1', async route => {
     const body = route.request().postDataJSON() as Record<string, unknown>;
     writes.push({ path: 'path', body, csrf: route.request().headers()['x-csrf-token'] || '' });
+    if (holdFirstPathSave) {
+      holdFirstPathSave = false;
+      await firstPathSaveGate;
+    }
     const row = state.paths[0];
     if (typeof body.showInNavbar === 'boolean') row.showInNavbar = body.showInNavbar;
     if (typeof body.showInHome === 'boolean') row.showInHome = body.showInHome;
@@ -58,12 +65,12 @@ async function setup(page: Page) {
       ({ id, pathId, levelId, code, name, sortOrder, icon, color })),
     skills: [],
   }));
-  return { state, writes };
+  return { state, writes, releaseFirstPathSave };
 }
 
 for (const width of [390, 820, 1440]) {
   test(`taxonomy display settings persist and reach public bootstrap at ${width}px`, async ({ page }) => {
-    const { state, writes } = await setup(page);
+    const { state, writes, releaseFirstPathSave } = await setup(page);
     await page.setViewportSize({ width, height: 960 });
     await page.goto('/');
     const initialHomePaths = page.getByTestId('public-home-paths');
@@ -88,6 +95,9 @@ for (const width of [390, 820, 1440]) {
     await editor.getByLabel('تسمية المرحلة').fill('');
     await expect(editor.getByLabel('تسمية المرحلة')).toHaveValue('');
     await editor.getByRole('button', { name: 'حفظ عرض المسار' }).click();
+    await expect(editor.getByLabel('إظهار المسار في القائمة العلوية')).toBeDisabled();
+    await expect(editor.getByLabel('قالب مساحة المسار')).toBeDisabled();
+    releaseFirstPathSave();
     await expect(page.getByText('تم حفظ إعدادات عرض المسار.')).toBeVisible();
 
     await expect.poll(() => writes.some(x => x.path === 'path')).toBe(true);
