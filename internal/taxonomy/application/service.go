@@ -210,6 +210,13 @@ func validPathSettings(settings *taxonomy.PathSettings) bool {
 			return false
 		}
 	}
+	if settings.StudentTemplate != nil {
+		switch *settings.StudentTemplate {
+		case "standard", "simple":
+		default:
+			return false
+		}
+	}
 	if settings.StageLabel != nil {
 		value := strings.TrimSpace(*settings.StageLabel)
 		if len(utf16.Encode([]rune(value))) > 120 {
