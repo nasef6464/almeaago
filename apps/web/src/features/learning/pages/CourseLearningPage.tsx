@@ -306,7 +306,13 @@ export function CourseLearningPage() {
   );
 
   if (authLoading || (user && (loading || (loadedCourseId !== courseId && !courseError)))) {
-    return <main className="p-10 text-center font-black">جاري تحميل الدورة...</main>;
+    // Legacy CourseView uses a centered spinner, not a text placeholder.
+    // Route ownership above keeps the previous course hidden during this state.
+    return (
+      <div data-testid="course-loading" className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
+      </div>
+    );
   }
 
   if (!user || !user.roles.includes('student')) {
