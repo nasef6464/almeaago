@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../state/AuthProvider';
 import { dashboardPathFor } from '../utils/dashboard-path';
 import { identifyLoginInput, normalizeArabicIndicDigits } from '../utils/identify-login-input';
+import { legacyLoginErrorMessage } from '../utils/publicLoginError';
 import { AuthErrorBanner } from './AuthErrorBanner';
 import { GoogleButton } from './GoogleButton';
 import { PasswordField } from './PasswordField';
@@ -122,7 +123,7 @@ export function AuthModal({ open, initialSignUp = false, onClose }: Props) {
 
       setAuthError('أدخل بريد إلكتروني أو رقم جوال أو رقم الهوية.');
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : 'حدث خطأ أثناء تسجيل الدخول');
+      setAuthError(legacyLoginErrorMessage(error instanceof Error ? error.message : 'حدث خطأ أثناء تسجيل الدخول'));
     } finally {
       setSubmitting(false);
     }
