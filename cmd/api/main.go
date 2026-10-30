@@ -36,6 +36,7 @@ import (
 	identityrepo "github.com/nasef6464/almeaago/internal/identity/repository/postgres"
 	identityhttp "github.com/nasef6464/almeaago/internal/identity/transport/http"
 	learningapp "github.com/nasef6464/almeaago/internal/learning/application"
+	learningnavigation "github.com/nasef6464/almeaago/internal/learning/navigation"
 	learningrepo "github.com/nasef6464/almeaago/internal/learning/repository/postgres"
 	learninghttp "github.com/nasef6464/almeaago/internal/learning/transport/http"
 	mediaapp "github.com/nasef6464/almeaago/internal/media/application"
@@ -313,6 +314,7 @@ func main() {
 		Classroom:                classroomHandler,
 		Parents:                  parentsHandler,
 		Taxonomy:                 taxonomyHandler,
+		NavigationPreferences:    learningnavigation.NewHandler(learningnavigation.NewService(learningnavigation.NewPostgres(db)), identityService),
 		QuestionBank:             questionHandler,
 		Assessments:              assessmentHandler,
 		AssessmentAttempts:       assessmentAttemptsHandler,
