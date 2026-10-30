@@ -98,7 +98,7 @@ export function ParentDashboardPage(){
   <header className="rounded-3xl bg-gradient-to-br from-emerald-600 to-slate-900 p-5 text-white shadow-lg">
    <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
     <div><div className="mb-2 text-xs font-black text-emerald-100">لوحة ولي الأمر</div><h1 className="text-xl font-black md:text-2xl">متابعة الأبناء ببساطة</h1><p className="mt-1 max-w-2xl text-sm leading-6 text-emerald-50">درجة، مهارة تحتاج متابعة، وخطوة واحدة واضحة.</p></div>
-    <div className="flex flex-wrap items-center gap-2"><button type="button" onClick={()=>setTab('report')} className="self-start rounded-xl bg-white px-4 py-2 text-sm font-black text-emerald-700 hover:bg-emerald-50">التقرير</button><button type="button" aria-label="تحديث لوحة ولي الأمر" onClick={()=>setReload(x=>x+1)} className="inline-flex self-start items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-black hover:bg-white/20"><RefreshCcw size={16}/>تحديث</button></div>
+    <div className="flex flex-wrap items-center gap-2">{tab==='overview'?<button type="button" onClick={()=>setTab('report')} className="self-start rounded-xl bg-white px-4 py-2 text-sm font-black text-emerald-700 hover:bg-emerald-50">التقرير</button>:null}<button type="button" aria-label="تحديث لوحة ولي الأمر" onClick={()=>setReload(x=>x+1)} className="inline-flex self-start items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-black hover:bg-white/20"><RefreshCcw size={16}/>تحديث</button></div>
    </div>
   </header>
 
