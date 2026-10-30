@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -88,5 +89,84 @@ func TestCompletedStudyPlanLessonsPostgres(t *testing.T) {
 	empty, err := repo.CompletedStudyPlanLessons(ctx, student, nil)
 	if err != nil || len(empty) != 0 {
 		t.Fatalf("empty references should not query or return progress: %#v %v", empty, err)
+	}
+}
+
+
+// Round-trip a student's video position and explicit completion through the
+// actual Go repository and PostgreSQL transaction paths. Temporary tables
+// copy migrated defaults and indexes, so no production/student data is touched.
+func TestStudyPlanCompletionReadAfterWritePostgres(t *testing.T) {
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		t.Skip("DATABASE_URL required for PostgreSQL integration")
+	}
+	ctx, stop := context.WithTimeout(context.Background(), 30*time.Second)
+	defer stop()
+	cfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.MaxConns = 1
+	db, err := pgxpool.NewWithConfig(ctx, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, table := range []string{"lesson_progress", "lesson_video_progress"} {
+		if _, err = db.Exec(ctx, "CREATE TEMP TABLE "+table+" (LIKE public."+table+" INCLUDING ALL)"); err != nil {
+			t.Fatalf("migrated %s shape unavailable: %v", table, err)
+		}
+	}
+
+	const student = "00000000-0000-0000-0000-000000000501"
+	const other = "00000000-0000-0000-0000-000000000502"
+	const lesson = "00000000-0000-0000-0000-000000000503"
+	const course = "00000000-0000-0000-0000-000000000504"
+	const otherCourse = "00000000-0000-0000-0000-000000000505"
+	repo := New(db)
+	if _, err = repo.GetLessonProgress(ctx, student, lesson, learning.LessonProgressCourse, course, ""); !errors.Is(err, learning.ErrNotFound) {
+		t.Fatalf("unstarted lesson must not create progress: %v", err)
+	}
+	saved, err := repo.SaveVideoProgress(ctx, student, lesson, learning.LessonProgressCourse, course, "", 37)
+	if err != nil || saved.Status != learning.LessonInProgress || saved.PositionSeconds != 37 {
+		t.Fatalf("video save failed or auto-completed: %#v %v", saved, err)
+	}
+	refs := []learning.StudyPlanLessonRef{{LessonID: lesson, CourseID: course}, {LessonID: lesson, CourseID: otherCourse}}
+	before, err := repo.CompletedStudyPlanLessons(ctx, student, refs)
+	if err != nil || len(before) != 0 {
+		t.Fatalf("watching must not mark a plan task completed: %#v %v", before, err)
+	}
+	completed, err := repo.CompleteLesson(ctx, student, lesson, learning.LessonProgressCourse, course, "")
+	if err != nil || completed.Status != learning.LessonCompleted || completed.CompletedAt == nil || completed.PositionSeconds != 37 {
+		t.Fatalf("explicit completion must preserve position: %#v %v", completed, err)
+	}
+	reloaded, err := repo.GetLessonProgress(ctx, student, lesson, learning.LessonProgressCourse, course, "")
+	if err != nil || reloaded.Status != learning.LessonCompleted || reloaded.PositionSeconds != 37 {
+		t.Fatalf("completion did not survive repository reload: %#v %v", reloaded, err)
+	}
+	planRows, err := repo.CompletedStudyPlanLessons(ctx, student, refs)
+	if err != nil || len(planRows) != 1 || !planRows[lesson+":"+course] {
+		t.Fatalf("completed lesson not projected into plan: %#v %v", planRows, err)
+	}
+	foreign, err := repo.CompletedStudyPlanLessons(ctx, other, refs)
+	if err != nil || len(foreign) != 0 {
+		t.Fatalf("foreign student can see completion: %#v %v", foreign, err)
+	}
+	again, err := repo.SaveVideoProgress(ctx, student, lesson, learning.LessonProgressCourse, course, "", 62)
+	if err != nil || again.Status != learning.LessonCompleted || again.PositionSeconds != 62 {
+		t.Fatalf("later video position must not reset completion: %#v %v", again, err)
+	}
+	idempotent, err := repo.CompleteLesson(ctx, student, lesson, learning.LessonProgressCourse, course, "")
+	if err != nil || idempotent.CompletedAt == nil || !idempotent.CompletedAt.Equal(*completed.CompletedAt) {
+		t.Fatalf("repeated completion changed its original timestamp: %#v %v", idempotent, err)
+	}
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+	if _, err = repo.SaveVideoProgress(cancelled, student, lesson, learning.LessonProgressCourse, otherCourse, "", 13); err == nil {
+		t.Fatal("canceled video save unexpectedly succeeded")
+	}
+	if _, err = repo.GetLessonProgress(ctx, student, lesson, learning.LessonProgressCourse, otherCourse, ""); !errors.Is(err, learning.ErrNotFound) {
+		t.Fatalf("failed write leaked a new course-context row: %v", err)
 	}
 }
