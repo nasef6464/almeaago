@@ -195,7 +195,7 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
     return()=>window.clearInterval(timer);
   },[isHeroHovered,hero.autoRotateImages,hero.rotateIntervalSeconds,heroGallery.length]);
 
-  const paths=useMemo(()=>[...(taxonomy.paths as Array<TaxonomyPath & {showInHome?:boolean}>)].filter(path=>path.showInHome!==false).sort((a,b)=>a.sortOrder-b.sortOrder),[taxonomy.paths]);
+  const paths=useMemo(()=>[...(taxonomy.paths as Array<TaxonomyPath & {isActive?:boolean;showInHome?:boolean}>)].filter(path=>path.isActive!==false&&path.showInHome!==false).sort((a,b)=>a.sortOrder-b.sortOrder),[taxonomy.paths]);
   const visiblePaths=settings.featuredPathIds?.some(id=>paths.some(p=>p.id===id))?paths.filter(p=>settings.featuredPathIds!.includes(p.id)):paths;
   const showcase=showcaseTab==='daylight'?PLATFORM_DAYLIGHT_IMAGES:PLATFORM_SHOWCASE_IMAGES;
   const dashboardHref=user?dashboardPathFor(user):'/dashboard';
