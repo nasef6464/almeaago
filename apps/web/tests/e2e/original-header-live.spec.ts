@@ -56,7 +56,7 @@ async function openAccount(page:Page,role:'admin'|'student'){
  const header=page.locator('header').first();
  await header.getByRole('button',{name:'قائمة المستخدم',exact:true}).click();
  const destination=role==='admin'?'/admin-dashboard':'/dashboard';
- await expect(header.locator('a[href="'+destination+'"]')).toBeVisible();
+ await expect(header.locator('a[href="'+destination+'"]:visible').first()).toBeVisible();
 }
 function exactPixelDifference(actual:Buffer,expected:Buffer){
  const left=PNG.sync.read(actual);const right=PNG.sync.read(expected);
@@ -74,7 +74,9 @@ async function visualMetrics(page:Page){return page.evaluate(()=>{
  const box=(element:Element|null)=>{if(!element)return null;const r=element.getBoundingClientRect();const s=getComputedStyle(element);return {x:r.x,y:r.y,width:r.width,height:r.height,display:s.display,position:s.position,fontFamily:s.fontFamily,fontSize:s.fontSize,fontWeight:s.fontWeight,lineHeight:s.lineHeight,color:s.color,backgroundColor:s.backgroundColor,borderColor:s.borderColor,padding:s.padding,gap:s.gap}};
  const header=document.querySelector('header');const close=header?.querySelector('button[aria-label="إغلاق القائمة"]');const r=close?.getBoundingClientRect();
  const links=Array.from(header?.querySelectorAll('a,button')||[]).map(element=>({tag:element.tagName,text:(element.textContent||'').replace(/\\s+/g,' ').trim(),aria:element.getAttribute('aria-label'),href:element.getAttribute('href'),...box(element)}));
- return {viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,header:box(header),links,mobileCloseReachable:r?close===document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)||close?.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)):null};
+ const svgs=Array.from(header?.querySelectorAll('svg')||[]).map((element,index)=>({index,html:element.outerHTML,...box(element)}));
+ const fonts=['400 16px Tajawal','700 14px Tajawal','900 12px Tajawal'].map(font=>({font,available:document.fonts.check(font)}));
+ return {viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,header:box(header),links,svgs,fonts,mobileCloseReachable:r?close===document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)||close?.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)):null};
 })}
 
 test.describe('original full Header on native Go data',()=>{
