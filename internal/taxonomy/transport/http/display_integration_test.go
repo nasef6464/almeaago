@@ -162,6 +162,11 @@ func TestTaxonomyDisplayHTTPPostgres(t *testing.T) {
 		t.Fatalf("showInHome patch changed the independent navbar flag: %s", homeHiddenView.Body.String())
 	}
 
+	var keptAfter, nestedKeptAfter bool
+	if err := db.QueryRow(ctx, `SELECT presentation->>'keep'='yes',presentation->'settings'->>'keep'='true' FROM paths WHERE id=$1::uuid`, path.ID).Scan(&keptAfter, &nestedKeptAfter); err != nil || !keptAfter || !nestedKeptAfter {
+		t.Fatalf("showInHome-only patch discarded unknown presentation keys: kept=%v nested=%v err=%v", keptAfter, nestedKeptAfter, err)
+	}
+
 	if _, err := db.Exec(ctx, `ALTER TABLE audit_logs ADD CONSTRAINT reject_display_update CHECK (action <> 'taxonomy.path.update') NOT VALID`); err != nil {
 		t.Fatal(err)
 	}
