@@ -1,4 +1,4 @@
-import { Activity, BarChart3, ClipboardList, Loader2, Target, Users, Video } from 'lucide-react';
+import { Activity, BarChart3, ChevronDown, ClipboardList, Loader2, Target, Users, Video } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -29,6 +29,9 @@ export function SupervisorDashboardPage(){
  const [params,setParams]=useSearchParams();
  const requested=params.get('tab');
  const tab:SupervisorTab=tabs.some(item=>item.id===requested&&enabledTabs.has(item.id))?requested as SupervisorTab:'students';
+ const activeGroup=groups.find(group=>group.ids.includes(tab))?.label||'';
+ const [expandedGroup,setExpandedGroup]=useState(activeGroup);
+ useEffect(()=>{setExpandedGroup(activeGroup)},[activeGroup]);
  const authorized=Boolean(user?.roles.includes('supervisor'));
  const [contexts,setContexts]=useState<SchoolContext[]>([]);
  const [scopeOwner,setScopeOwner]=useState('');
@@ -114,23 +117,24 @@ export function SupervisorDashboardPage(){
     <h1 className="text-xl font-bold text-gray-900">لوحة الإشراف</h1>
     <p className="mt-1 text-xs text-gray-500">متابعة الفصول والمهارات والتقارير</p>
    </header>
-   <nav aria-label="أقسام لوحة المشرف" className="rounded-2xl border bg-white p-3">
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-     {groups.map(group=><div key={group.label} className="space-y-2">
-      <h2 className="text-xs font-bold text-gray-500">{group.label}</h2>
-      <div className="grid gap-2">
+   <nav aria-label="أقسام لوحة المشرف" dir="rtl" className="space-y-3 rounded-2xl border bg-white p-3">
+    {groups.map(group=><details key={group.label} open={expandedGroup===group.label} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-2">
+     <summary onClick={event=>{event.preventDefault();setExpandedGroup(current=>current===group.label?'':group.label)}}
+      className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm font-black text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 [&::-webkit-details-marker]:hidden">
+      {group.label}<ChevronDown aria-hidden="true" size={16} className={`shrink-0 transition-transform ${expandedGroup===group.label?'rotate-180':''}`}/>
+     </summary>
+     <div className="space-y-2 pt-2">
       {tabs.filter(item=>group.ids.includes(item.id)).map(item=>{
-      const Icon=item.icon;
-      return <button key={item.id} type="button" onClick={()=>selectTab(item.id)}
-       disabled={!enabledTabs.has(item.id)}
-       aria-current={tab===item.id?'page':undefined}
-       className={`rounded-xl border px-2 py-3 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50 ${tab===item.id?'border-indigo-600 bg-indigo-50 text-indigo-800':'border-gray-200 bg-white text-gray-700'}`}>
-       <Icon size={16} className="mx-auto mb-1" />{item.label}
-      </button>;
-     })}
-      </div>
-     </div>)}
-    </div>
+       const Icon=item.icon;
+       return <button key={item.id} type="button" onClick={()=>selectTab(item.id)}
+        disabled={!enabledTabs.has(item.id)}
+        aria-current={tab===item.id?'page':undefined}
+        className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-right transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${tab===item.id?'border-indigo-200 bg-indigo-50 text-indigo-800':'border-slate-200 bg-white text-slate-700 hover:border-indigo-200'}`}>
+        <span className="shrink-0 text-indigo-600"><Icon size={20}/></span><span className="min-w-0 flex-1 text-sm font-bold">{item.label}</span>
+       </button>;
+      })}
+     </div>
+    </details>)}
    </nav>
    {scopeError?<div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">
     {scopeError}<button type="button" onClick={()=>setScopeReload(n=>n+1)} className="ms-3 rounded-lg border px-3 py-1">إعادة المحاولة</button>
