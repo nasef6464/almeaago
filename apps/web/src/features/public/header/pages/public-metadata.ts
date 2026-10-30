@@ -22,7 +22,7 @@ export const loadArticles=async(signal:AbortSignal):Promise<PublicArticleMetadat
   if(!payload || typeof payload!=='object' || !('items' in payload) || !Array.isArray(payload.items) || !('hasMore' in payload) || typeof payload.hasMore!=='boolean' || (payload.hasMore && payload.items.length===0)){
    throw Error('تعذر قراءة بيانات المقالات.');
   }
-  items.push(...payload.items as PublicArticleMetadata[]);
+  items.push(...(payload.items as PublicArticleMetadata[]));
   if(!payload.hasMore)return items;
  }
 };
