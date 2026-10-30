@@ -51,8 +51,8 @@ func TestLessonProgressHTTPRejectsAmbiguousPayloadBeforeAnyWrite(t *testing.T) {
 	complete := `{"contextType":"course","courseId":"course-1"}`
 	for _, tc := range []struct {
 		name, method, path, body string
-		wantStatus int
-		wantWrites int
+		wantStatus               int
+		wantWrites               int
 	}{
 		{"video trailing document", http.MethodPut, "/lessons/lesson-1/video", video + video, http.StatusBadRequest, 0},
 		{"complete trailing document", http.MethodPost, "/lessons/lesson-1/complete", complete + complete, http.StatusBadRequest, 0},
