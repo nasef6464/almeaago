@@ -159,12 +159,13 @@ export const Header: React.FC<{requestedAuthMode?:'login'|'signup'|null;onAuthIn
   useEffect(() => {
     const authParam = new URLSearchParams(location.search).get('auth');
     const isAuthRoute = location.pathname === '/login' || location.pathname === '/signup';
-    const shouldOpen = isAuthRoute || authParam === 'login' || authParam === 'signup';
+    const shouldOpen = isAuthRoute || authParam === 'login' || authParam === 'signup' || Boolean(requestedAuthMode);
     if (!shouldOpen) return;
 
-    setIsSignUp(location.pathname === '/signup' || authParam === 'signup');
+    setIsSignUp(location.pathname === '/signup' || authParam === 'signup' || requestedAuthMode === 'signup');
     setIsLoginModalOpen(true);
-  }, [location.pathname, location.search]);
+    if (onAuthIntentConsumed) onAuthIntentConsumed();
+  }, [location.pathname, location.search, requestedAuthMode, onAuthIntentConsumed]);
 
   const navigationMenu = useMemo(() => buildHeaderNavigation({homepageSettings,paths,levels,subjects,user,scope}), [homepageSettings?.navigation,levels,paths,subjects,user?.role,scope]);
   const isPrivilegedUser = user?.role === 'admin' || user?.role === 'teacher' || user?.role === 'supervisor' || user?.role === 'school_admin';
@@ -1277,3 +1278,6 @@ const UserMenuItem = ({ to, icon, label }: { to: string; icon: React.ReactNode; 
     {label}
   </Link>
 );
+
+export { Header as OriginalHeader };
+

@@ -20,6 +20,10 @@ import { contentClient } from '../../content/api/content-client';
 import type { LearningSpace, TaxonomyCore } from '../../content/api/content-types';
 import { FoundationTopicDialog, type TopicContentTab } from '../components/FoundationTopicDialog';
 import { parseLearningRoute, subjectsForSelection, type LearningTab } from './learningRouteSelection';
+import {
+  resolveCanonicalPath,
+  resolveCanonicalSubject,
+} from '../../taxonomy/utils/canonicalPathResolver';
 
 type Tab = LearningTab;
 
@@ -41,8 +45,29 @@ export function LearningSpacePage() {
   const [requestState, setRequestState] = useState({ key: '', busy: false, error: '' });
   const [retryNonce, setRetryNonce] = useState(0);
   const learningRequestRef = useRef<{ key: string; promise: Promise<LearningSpace> } | null>(null);
-  const scopeKey = `${pathId}:${subjectId}`;
-  const visibleSpace = space?.pathId === pathId && space?.subjectId === subjectId ? space : null;
+  const resolvedPath = useMemo(
+    () => resolveCanonicalPath(pathId, taxonomy.paths),
+    [pathId, taxonomy.paths],
+  );
+  const effectivePathId = resolvedPath?.id || pathId;
+
+  const subjects = useMemo(
+    () => subjectsForSelection(taxonomy.subjects, effectivePathId, selectedLevelId),
+    [effectivePathId, selectedLevelId, taxonomy.subjects],
+  );
+
+  const resolvedSubject = useMemo(
+    () => resolveCanonicalSubject(subjectId, taxonomy.subjects, effectivePathId),
+    [subjectId, taxonomy.subjects, effectivePathId],
+  );
+  const effectiveSubjectId = resolvedSubject?.id || subjectId;
+
+  const currentPath = resolvedPath || taxonomy.paths.find((item) => item.id === effectivePathId);
+  const currentSubject = resolvedSubject || subjects.find((item) => item.id === effectiveSubjectId);
+  const subjectIsInScope = subjects.some((item) => item.id === effectiveSubjectId);
+
+  const scopeKey = `${effectivePathId}:${effectiveSubjectId}`;
+  const visibleSpace = space?.pathId === effectivePathId && space?.subjectId === effectiveSubjectId ? space : null;
   const busy = requestState.key === scopeKey && requestState.busy;
   const error = requestState.key === scopeKey ? requestState.error : '';
 
@@ -84,29 +109,20 @@ export function LearningSpacePage() {
     return () => controller.abort();
   }, []);
 
-
-  const subjects = useMemo(
-    () => subjectsForSelection(taxonomy.subjects, pathId, selectedLevelId),
-    [pathId, selectedLevelId, taxonomy.subjects],
-  );
-  const currentPath = taxonomy.paths.find((item) => item.id === pathId);
-  const currentSubject = subjects.find((item) => item.id === subjectId);
-  const subjectIsInScope = subjects.some((item) => item.id === subjectId);
-
   // Do not silently switch subjects on a stale taxonomy response: keep the
   // requested URL, and let the learner correct an invalid selection.
   useEffect(() => {
-    if (!pathId || !subjectId || !subjectIsInScope) {
+    if (!effectivePathId || !effectiveSubjectId || !subjectIsInScope) {
       setSpace(null);
       setRequestState({ key: '', busy: false, error: '' });
       return;
     }
 
     let active = true;
-    const requestKey = `${pathId}:${subjectId}`;
+    const requestKey = `${effectivePathId}:${effectiveSubjectId}`;
     const request = learningRequestRef.current?.key === requestKey
       ? learningRequestRef.current.promise
-      : contentClient.learningSpace(pathId, subjectId, 50);
+      : contentClient.learningSpace(effectivePathId, effectiveSubjectId, 50);
     learningRequestRef.current = { key: requestKey, promise: request };
     setSpace(null);
     setRequestState({ key: requestKey, busy: true, error: '' });
@@ -114,7 +130,7 @@ export function LearningSpacePage() {
     request
       .then((nextSpace) => {
         if (!active) return;
-        if (nextSpace.pathId !== pathId || nextSpace.subjectId !== subjectId) {
+        if (nextSpace.pathId !== effectivePathId || nextSpace.subjectId !== effectiveSubjectId) {
           setRequestState({ key: requestKey, busy: false, error: 'لا يطابق المحتوى المسار والمادة المحددين.' });
           return;
         }
@@ -132,7 +148,7 @@ export function LearningSpacePage() {
       });
 
     return () => { active = false; };
-  }, [pathId, subjectId, subjectIsInScope, retryNonce]);
+  }, [effectivePathId, effectiveSubjectId, subjectIsInScope, retryNonce]);
 
   const selectedTopic = visibleSpace?.foundation.items.find((item) => item.id === topicId);
   const mainTopics = visibleSpace?.foundation.items.filter((item) => !item.parentTopicId) || [];
@@ -142,7 +158,26 @@ export function LearningSpacePage() {
   }
 
   if (!user) {
-    return <main className="p-10 text-center font-black text-rose-700">سجّل الدخول لفتح مساحة التعلم.</main>;
+    return (
+      <main dir="rtl" className="max-w-2xl mx-auto p-12 text-center">
+        <div className="rounded-3xl border border-indigo-100 bg-white p-8 shadow-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+            <Lock size={26} />
+          </div>
+          <h2 className="text-xl font-black text-slate-900">سجّل الدخول لفتح مساحة التعلم</h2>
+          <p className="mt-2 text-sm text-slate-500 font-bold leading-6">
+            مساحة التعلم الذكية تحفظ تقدمك في الدروس، التأسيس، والتدريبات التفاعلية.
+          </p>
+          <Link
+            to={`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`}
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-black text-white hover:bg-indigo-700 transition"
+          >
+            <span>تسجيل الدخول الآن</span>
+            <ChevronRight size={16} />
+          </Link>
+        </div>
+      </main>
+    );
   }
 
   const tabs: Array<[Tab, string, typeof BookOpen]> = [

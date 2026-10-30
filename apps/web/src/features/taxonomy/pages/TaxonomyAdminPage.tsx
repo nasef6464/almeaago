@@ -45,7 +45,9 @@ import type {
   CommerceProduct,
 } from '../../commerce/api/commerce-types';
 import { contentClient } from '../../content/api/content-client';
-import type { CourseSummary } from '../../content/api/content-types';
+import type { CourseSummary, LibrarySummary } from '../../content/api/content-types';
+import { assessmentClient } from '../../assessment/api/assessment-client';
+import type { AssessmentSummary } from '../../assessment/api/assessment-types';
 import { AdminBreadcrumbHeader } from '../components/AdminBreadcrumbHeader';
 import { EducationalIconPicker } from '../components/EducationalIconPicker';
 import {
@@ -176,6 +178,15 @@ export function TaxonomyAdminPage() {
   // Additional data for readiness & tabs
   const [courses, setCourses] = useState<CourseSummary[]>([]);
   const [packages, setPackages] = useState<CommerceProduct[]>([]);
+  const [assessments, setAssessments] = useState<AssessmentSummary[]>([]);
+  const [libraryItems, setLibraryItems] = useState<LibrarySummary[]>([]);
+  const [mockExamSearch, setMockExamSearch] = useState('');
+  const [isMockModalOpen, setIsMockModalOpen] = useState(false);
+  const [mockForm, setMockForm] = useState({ title: '', code: '', durationMinutes: 120, passingScore: 60 });
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
+  const [libraryForm, setLibraryForm] = useState({ title: '', url: '', description: '' });
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; type: 'path' | 'level' | 'subject'; id: string; name: string } | null>(null);
 
   const isAdmin = user?.roles.includes('admin') ?? false;
 
@@ -200,11 +211,15 @@ export function TaxonomyAdminPage() {
       taxonomyAdminClient.bootstrap(c.signal),
       contentClient.courses({ limit: 100 }, c.signal).catch(() => ({ items: [] as CourseSummary[], page: 1, limit: 100, hasMore: false })),
       commerceClient.products(1, 100, 'package', '', c.signal).catch(() => ({ items: [] as CommerceProduct[], page: 1, limit: 100, hasMore: false })),
+      assessmentClient.list({ limit: 100 }, c.signal).catch(() => ({ items: [] as AssessmentSummary[], page: 1, limit: 100, hasMore: false })),
+      contentClient.library({ limit: 100 }, c.signal).catch(() => ({ items: [] as LibrarySummary[], page: 1, limit: 100, hasMore: false })),
     ])
-      .then(([nextTaxonomy, coursesRes, commerceRes]) => {
+      .then(([nextTaxonomy, coursesRes, commerceRes, assessmentsRes, libraryRes]) => {
         setData(nextTaxonomy);
         setCourses(coursesRes.items || []);
         setPackages(commerceRes.items || []);
+        setAssessments(assessmentsRes.items || []);
+        setLibraryItems(libraryRes.items || []);
 
         setSelectedPathId((current) => {
           if (current && nextTaxonomy.paths.some((x: AdminTaxonomyPath) => x.id === current)) return current;
@@ -693,23 +708,296 @@ export function TaxonomyAdminPage() {
           </div>
         )}
 
-        {/* Tab Content: Fallback for Other Sub-Tabs */}
-        {(subjectTab === 'questions' || subjectTab === 'exams' || subjectTab === 'library' || subjectTab === 'settings') && (
-          <div className="rounded-3xl border bg-white p-10 text-center shadow-xs">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
-              <LayoutGrid size={24} />
+        {/* Tab Content: Questions & Drills */}
+        {subjectTab === 'questions' && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-white p-4 border shadow-xs">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">بنوك الأسئلة والتدريبات في {selectedSubject.name}</h3>
+                <p className="text-xs text-slate-500 font-bold mt-0.5">
+                  الأسئلة والتمارين التدريبية المخصصة لتثبيت المفاهيم وتدريب الطالب.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link
+                  to={`/admin-dashboard/questions?pathId=${selectedPath.id}&subjectId=${selectedSubject.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700 transition"
+                >
+                  <Plus size={15} />
+                  <span>إدارة بنك الأسئلة للمادة</span>
+                </Link>
+              </div>
             </div>
-            <h3 className="text-base font-black text-slate-900">مساحة إدارة محتوى المادة</h3>
-            <p className="mt-1 text-xs text-slate-500 font-bold max-w-md mx-auto">
-              يمكنك ربط وإسناد بنوك الأسئلة والاختبارات التقييمية ومراجع المكتبة لهذه المادة مباشرة من أقسام لوحة الإدارة المتخصصة.
-            </p>
-            <div className="mt-5 flex justify-center gap-3">
-              <Link to="/admin-dashboard/questions" className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white">
-                بنك الأسئلة
-              </Link>
-              <Link to="/admin-dashboard/assessments" className="rounded-xl border bg-white px-4 py-2 text-xs font-black text-slate-700">
-                مركز الاختبارات
-              </Link>
+
+            {/* Skills & Topics Coverage */}
+            <div className="rounded-3xl border bg-white p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b pb-3">
+                <h4 className="text-sm font-black text-slate-900">المهارات المشمولة في بنوك الأسئلة</h4>
+                <span className="text-xs font-bold text-slate-400">{subjectSkills.length} مهارات مسجلة</span>
+              </div>
+              {subjectSkills.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 font-bold border border-dashed rounded-2xl">
+                  لا توجد مهارات مسجلة بعد لهذه المادة. انتقل لتبويب «التأسيس والمهارات» لإضافة المهارات.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {subjectSkills.map((sk) => (
+                    <div key={sk.id} className="rounded-2xl border border-gray-100 bg-slate-50/50 p-3.5 flex items-center justify-between">
+                      <div>
+                        <span className="font-black text-xs text-slate-900 block">{sk.name}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">{sk.code}</span>
+                      </div>
+                      <Link
+                        to={`/admin-dashboard/questions?pathId=${selectedPath.id}&subjectId=${selectedSubject.id}&search=${encodeURIComponent(sk.name)}`}
+                        className="rounded-lg bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-100"
+                      >
+                        عرض الأسئلة
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab Content: Quizzes & Assessments */}
+        {subjectTab === 'exams' && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-white p-4 border shadow-xs">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">الاختبارات والتقييمات في {selectedSubject.name}</h3>
+                <p className="text-xs text-slate-500 font-bold mt-0.5">
+                  الاختبارات الدورية، الاختبارات البعدية، ونماذج التقييم المرحلية.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link
+                  to={`/admin-dashboard/assessments?pathId=${selectedPath.id}&subjectId=${selectedSubject.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-purple-700 px-4 py-2 text-xs font-black text-white hover:bg-purple-800 transition"
+                >
+                  <Plus size={15} />
+                  <span>مركز الاختبارات والتقييم</span>
+                </Link>
+              </div>
+            </div>
+
+            {(() => {
+              const subjectExams = assessments.filter((a) => a.subjectId === selectedSubject.id && a.kind !== 'mock');
+              if (subjectExams.length === 0) {
+                return (
+                  <div className="rounded-3xl border border-dashed bg-white p-12 text-center text-slate-400 font-bold space-y-2">
+                    <Award size={36} className="mx-auto text-purple-300" />
+                    <p className="text-sm">لا توجد اختبارات مسجلة لهذه المادة بعد.</p>
+                    <Link
+                      to={`/admin-dashboard/assessments?pathId=${selectedPath.id}&subjectId=${selectedSubject.id}`}
+                      className="mt-3 inline-flex rounded-xl bg-indigo-50 px-4 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-100"
+                    >
+                      إنشاء أول اختبار للمادة ←
+                    </Link>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                  {subjectExams.map((exam) => (
+                    <div
+                      key={exam.id}
+                      className="rounded-3xl border border-gray-100 bg-white p-5 shadow-xs flex flex-col justify-between hover:shadow-md transition-all"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${
+                            exam.isPublished ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            {exam.isPublished ? 'منشور' : 'مسودة'}
+                          </span>
+                          <span className="font-mono text-xs text-slate-400">{exam.code}</span>
+                        </div>
+                        <h4 className="font-black text-sm text-slate-900 leading-snug">{exam.title}</h4>
+                      </div>
+                      <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+                        <Link
+                          to={`/assessments/${exam.id}/start`}
+                          target="_blank"
+                          className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-200"
+                        >
+                          <Eye size={13} />
+                          <span>معاينة</span>
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* Tab Content: Library */}
+        {subjectTab === 'library' && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-white p-4 border shadow-xs">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">مكتبة ومراجع {selectedSubject.name}</h3>
+                <p className="text-xs text-slate-500 font-bold mt-0.5">
+                  الملفات المساعدة، المذكرات، والملخصات بصيغة PDF الداعمة لتعلم الطالب.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setLibraryForm({ title: '', url: '', description: '' });
+                  setIsLibraryModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-black text-white hover:bg-slate-800 transition"
+              >
+                <Plus size={15} />
+                <span>إضافة ملف للمكتبة</span>
+              </button>
+            </div>
+
+            {(() => {
+              const subjectFiles = libraryItems.filter((item) => item.subjectId === selectedSubject.id || item.pathId === selectedPath.id);
+              if (subjectFiles.length === 0) {
+                return (
+                  <div className="rounded-3xl border border-dashed bg-white p-12 text-center text-slate-400 font-bold space-y-2">
+                    <Library size={36} className="mx-auto text-slate-300" />
+                    <p className="text-sm">لا توجد ملفات أو مراجع مضافة لهذه المادة بعد.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                  {subjectFiles.map((file) => (
+                    <div key={file.id} className="rounded-3xl border border-gray-100 bg-white p-5 shadow-xs flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                            {file.type || 'PDF'}
+                          </span>
+                        </div>
+                        <h4 className="font-black text-sm text-slate-900">{file.title}</h4>
+                      </div>
+                      <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+                        <a
+                          href={(file as any).externalUrl || (file as any).url || '#'}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-200"
+                        >
+                          <ExternalLink size={13} />
+                          <span>فتح الملف</span>
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* Tab Content: Subject Settings */}
+        {subjectTab === 'settings' && (
+          <div className="rounded-3xl border bg-white p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="border-b pb-4">
+              <h3 className="text-lg font-black text-slate-900">التحكم بصفحة الطالب والعرض ({selectedSubject.name})</h3>
+              <p className="text-xs text-slate-500 font-bold mt-1">
+                تخصيص أيقونة المادة، لونها، رمزها، وحالتها داخل المسار.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1">اسم المادة</label>
+                <input
+                  value={selectedSubject.name}
+                  onChange={(e) => {
+                    const next = { ...selectedSubject, name: e.target.value };
+                    setData((prev) => ({
+                      ...prev,
+                      subjects: prev.subjects.map((s) => (s.id === selectedSubject.id ? next : s)),
+                    }));
+                  }}
+                  className="w-full rounded-xl border p-2.5 text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1">كود المادة</label>
+                <input
+                  value={selectedSubject.code}
+                  disabled
+                  className="w-full rounded-xl border p-2.5 text-xs font-mono font-bold uppercase bg-gray-50 text-gray-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">لون المادة</label>
+              <div className="flex flex-wrap gap-2">
+                {['indigo', 'purple', 'emerald', 'teal', 'amber', 'orange', 'rose', 'blue'].map((colorName) => {
+                  const c = resolveColor(colorName);
+                  const isSelected = (selectedSubject.color || 'indigo') === colorName;
+                  return (
+                    <button
+                      key={colorName}
+                      type="button"
+                      onClick={() => {
+                        const next = { ...selectedSubject, color: colorName };
+                        setData((prev) => ({
+                          ...prev,
+                          subjects: prev.subjects.map((s) => (s.id === selectedSubject.id ? next : s)),
+                        }));
+                      }}
+                      className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold border transition ${
+                        isSelected ? 'ring-2 ring-indigo-500 shadow-xs' : 'opacity-80 hover:opacity-100'
+                      }`}
+                      style={{ backgroundColor: c.soft, borderColor: c.border, color: c.text }}
+                    >
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.text }} />
+                      <span>{colorName}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="pt-4 border-t flex justify-between items-center">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm({ open: true, type: 'subject', id: selectedSubject.id, name: selectedSubject.name })}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-black text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+              >
+                <Archive size={14} />
+                <span>أرشفة المادة</span>
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    setBusy(true);
+                    const csrf = await getCsrfToken();
+                    await taxonomyAdminClient.updateSubject(selectedSubject.id, {
+                      name: selectedSubject.name,
+                      color: selectedSubject.color,
+                      icon: selectedSubject.icon,
+                    }, csrf);
+                    setNotice('تم حفظ إعدادات المادة بنجاح');
+                    setReload((r) => r + 1);
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : 'تعذر حفظ الإعدادات');
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-xs font-black text-white hover:bg-indigo-700 transition"
+              >
+                <Save size={15} />
+                <span>حفظ التعديلات</span>
+              </button>
             </div>
           </div>
         )}
@@ -908,6 +1196,14 @@ export function TaxonomyAdminPage() {
                     >
                       تعديل المسار
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirm({ open: true, type: 'path', id: selectedPath.id, name: selectedPath.name })}
+                      className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+                      title="أرشفة المسار"
+                    >
+                      <Archive size={14} />
+                    </button>
                     <StatusSelect
                       label={`حالة ${selectedPath.name}`}
                       value={selectedPath.status}
@@ -1034,13 +1330,23 @@ export function TaxonomyAdminPage() {
                             </div>
 
                             <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
-                              <button
-                                type="button"
-                                onClick={() => openEditSubject(sub)}
-                                className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-black text-slate-600 hover:bg-slate-50 transition"
-                              >
-                                تعديل
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => openEditSubject(sub)}
+                                  className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-black text-slate-600 hover:bg-slate-50 transition"
+                                >
+                                  تعديل
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteConfirm({ open: true, type: 'subject', id: sub.id, name: sub.name })}
+                                  className="rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-black text-rose-700 hover:bg-rose-100 transition"
+                                  title="أرشفة المادة"
+                                >
+                                  <Archive size={13} />
+                                </button>
+                              </div>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1111,13 +1417,21 @@ export function TaxonomyAdminPage() {
                                 <span>{levelSubjects.length} مواد مرتبطة</span>
                               </div>
                             </div>
-                            <div className="mt-5 pt-3 border-t border-gray-100 flex justify-end">
+                            <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
                               <button
                                 type="button"
                                 onClick={() => openEditLevel(lvl)}
                                 className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-black text-slate-600 hover:bg-slate-50 transition"
                               >
                                 تعديل المرحلة
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteConfirm({ open: true, type: 'level', id: lvl.id, name: lvl.name })}
+                                className="rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-black text-rose-700 hover:bg-rose-100 transition"
+                                title="أرشفة المرحلة"
+                              >
+                                <Archive size={13} />
                               </button>
                             </div>
                           </div>
@@ -1130,31 +1444,137 @@ export function TaxonomyAdminPage() {
 
               {/* ── TAB 3: MOCK EXAMS (الاختبارات المحاكية) ── */}
               {pathTab === 'mockExams' && (
-                <div className="rounded-3xl border bg-white p-8 shadow-xs text-center space-y-4">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-50 text-purple-700 border border-purple-100">
-                    <Award size={28} />
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-white p-4 border shadow-xs">
+                    <div>
+                      <h3 className="font-black text-slate-900 text-base">الاختبارات المحاكية لمسار {selectedPath.name}</h3>
+                      <p className="text-xs text-slate-400 font-bold mt-0.5">
+                        تحاكي بيئة الاختبار القياسي بأقسام زمنية ومؤقت دقيق ونموذج نتيجة فوري.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to={`/category/${selectedPath.id}?tab=mock-exams`}
+                        target="_blank"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-100 transition"
+                      >
+                        <ExternalLink size={14} />
+                        <span>معاينة صفحة الطالب</span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMockForm({
+                            title: `اختبار محاكي - ${selectedPath.name}`,
+                            code: `${selectedPath.code}-MOCK-${Date.now().toString().slice(-4)}`,
+                            durationMinutes: 120,
+                            passingScore: 60,
+                          });
+                          setIsMockModalOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-purple-700 px-3.5 py-2 text-xs font-black text-white shadow-xs hover:bg-purple-800 transition"
+                      >
+                        <Plus size={15} />
+                        <span>إنشاء اختبار محاكي</span>
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-black text-slate-900">الاختبارات المحاكية لمسار {selectedPath.name}</h3>
-                    <p className="text-xs text-slate-500 font-bold max-w-md mx-auto mt-1">
-                      الاختبارات المحاكية تحاكي الاختبار الفعلي (مثل قياس وقدرات) بأقسام ومؤقت ساهر وتوجيه فوري.
-                    </p>
+
+                  {/* Search bar */}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="text"
+                      placeholder="ابحث في الاختبارات المحاكية باسم الاختبار أو الكود..."
+                      value={mockExamSearch}
+                      onChange={(e) => setMockExamSearch(e.target.value)}
+                      className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold shadow-xs focus:border-purple-500 focus:outline-hidden"
+                    />
                   </div>
-                  <div className="flex justify-center gap-3 pt-2">
-                    <Link
-                      to={`/category/${selectedPath.id}?tab=mock-exams`}
-                      target="_blank"
-                      className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-100"
-                    >
-                      معاينة صفحة المحاكيات للطالب
-                    </Link>
-                    <Link
-                      to="/admin-dashboard/assessments"
-                      className="rounded-xl bg-purple-700 px-4 py-2 text-xs font-black text-white hover:bg-purple-800"
-                    >
-                      إدارة تقييمات واختبارات المنصة
-                    </Link>
-                  </div>
+
+                  {/* Mock Exams List */}
+                  {(() => {
+                    const filteredMocks = assessments.filter((a) => {
+                      const matchesPath = a.pathId === selectedPath.id;
+                      const isMock = a.kind === 'mock' || a.title.includes('محاك') || a.title.includes('تجريب') || a.code.includes('MOCK');
+                      const matchesSearch = !mockExamSearch.trim() ||
+                        a.title.toLowerCase().includes(mockExamSearch.toLowerCase()) ||
+                        a.code.toLowerCase().includes(mockExamSearch.toLowerCase());
+                      return matchesPath && isMock && matchesSearch;
+                    });
+
+                    if (filteredMocks.length === 0) {
+                      return (
+                        <div className="rounded-3xl border border-dashed bg-white p-12 text-center text-slate-400 font-bold space-y-2">
+                          <Award size={36} className="mx-auto text-purple-300" />
+                          <p className="text-sm">لا توجد اختبارات محاكية منشورة لهذا المسار بعد.</p>
+                          <p className="text-xs text-slate-400">اضغط «إنشاء اختبار محاكي» لإضافة نموذج اختبار جديد للطلاب.</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                        {filteredMocks.map((mock) => (
+                          <div
+                            key={mock.id}
+                            className="rounded-3xl border border-gray-100 bg-white p-5 shadow-xs flex flex-col justify-between hover:shadow-md transition-all"
+                            style={{ borderTop: '4px solid #7c3aed' }}
+                          >
+                            <div>
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black ${
+                                  mock.isPublished ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                                }`}>
+                                  {mock.isPublished ? 'منشور للطلاب' : 'مسودة مخفية'}
+                                </span>
+                                <span className="rounded-md bg-purple-50 px-2 py-0.5 text-[10px] font-mono font-bold text-purple-700">
+                                  {mock.code}
+                                </span>
+                              </div>
+                              <h4 className="text-base font-black text-slate-900 leading-snug">{mock.title}</h4>
+                              <p className="text-xs text-slate-400 font-bold mt-1">
+                                الحالة: {statusLabels[mock.workflowStatus as TaxonomyStatus] || mock.workflowStatus}
+                              </p>
+                            </div>
+
+                            <div className="mt-5 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2">
+                              <Link
+                                to={`/assessments/${mock.id}/start`}
+                                target="_blank"
+                                className="inline-flex items-center gap-1 rounded-xl bg-purple-50 px-3 py-1.5 text-xs font-black text-purple-700 hover:bg-purple-100 transition"
+                              >
+                                <Eye size={13} />
+                                <span>معاينة</span>
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    setBusy(true);
+                                    const csrf = await getCsrfToken();
+                                    await assessmentClient.publication(mock.id, mock.revision, !mock.isPublished, csrf);
+                                    setNotice(mock.isPublished ? 'تم إخفاء الاختبار المحاكي عن الطلاب' : 'تم نشر الاختبار المحاكي بنجاح');
+                                    setReload((r) => r + 1);
+                                  } catch (err) {
+                                    setError(err instanceof Error ? err.message : 'تعذر تغيير حالة النشر');
+                                  } finally {
+                                    setBusy(false);
+                                  }
+                                }}
+                                className={`rounded-xl border px-3 py-1.5 text-xs font-black transition cursor-pointer ${
+                                  mock.isPublished
+                                    ? 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                                    : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                                }`}
+                              >
+                                {mock.isPublished ? 'إخفاء' : 'نشر للطلاب'}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
@@ -1321,6 +1741,9 @@ export function TaxonomyAdminPage() {
       {isLevelModalOpen && renderLevelModal()}
       {isSubjectModalOpen && renderSubjectModal()}
       {isPackageModalOpen && renderPackageModal()}
+      {isMockModalOpen && renderMockModal()}
+      {isLibraryModalOpen && renderLibraryModal()}
+      {deleteConfirm?.open && renderDeleteModal()}
     </main>
   );
 
@@ -1679,6 +2102,265 @@ export function TaxonomyAdminPage() {
               className="rounded-xl bg-emerald-600 px-5 py-2 text-xs font-black text-white hover:bg-emerald-700 disabled:opacity-50"
             >
               {pending.includes('package') ? 'جاري الإنشاء...' : 'إنشاء وتفعيل الباقة'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderMockModal() {
+    if (!selectedPath) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in" dir="rtl">
+        <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+          <div className="flex items-center justify-between border-b pb-3">
+            <h3 className="text-lg font-black text-slate-900">إنشاء اختبار محاكي لمسار {selectedPath.name}</h3>
+            <button type="button" onClick={() => setIsMockModalOpen(false)} className="rounded-xl p-1 text-slate-400 hover:bg-slate-100">
+              <X size={20} />
+            </button>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">عنوان الاختبار المحاكي</label>
+              <input
+                value={mockForm.title}
+                onChange={(e) => setMockForm({ ...mockForm, title: e.target.value })}
+                placeholder="مثال: الاختبار المحاكي الشامل الأول"
+                className="w-full rounded-xl border p-2.5 text-xs font-bold"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">كود الاختبار</label>
+              <input
+                value={mockForm.code}
+                onChange={(e) => setMockForm({ ...mockForm, code: e.target.value.toUpperCase() })}
+                placeholder="مثال: QUDRAT-MOCK-01"
+                className="w-full rounded-xl border p-2.5 text-xs font-mono font-bold uppercase"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1">المدة بالدقائق</label>
+                <input
+                  type="number"
+                  min={10}
+                  value={mockForm.durationMinutes}
+                  onChange={(e) => setMockForm({ ...mockForm, durationMinutes: Number(e.target.value) || 60 })}
+                  className="w-full rounded-xl border p-2.5 text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1">درجة الاجتياز (%)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={mockForm.passingScore}
+                  onChange={(e) => setMockForm({ ...mockForm, passingScore: Number(e.target.value) || 60 })}
+                  className="w-full rounded-xl border p-2.5 text-xs font-bold"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 border-t pt-4">
+            <button
+              type="button"
+              onClick={() => setIsMockModalOpen(false)}
+              className="rounded-xl border px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-50"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              disabled={busy || !mockForm.title.trim()}
+              onClick={async () => {
+                try {
+                  setBusy(true);
+                  const csrf = await getCsrfToken();
+                  await assessmentClient.create({
+                    code: mockForm.code || `${selectedPath.code}-MOCK-${Date.now().toString().slice(-4)}`,
+                    ownerType: 'platform',
+                    ownerUserId: user?.id || '',
+                    ownerSchoolId: '',
+                    assignedTeacherId: '',
+                    isVisible: true,
+                    version: {
+                      version: 1,
+                      accessType: 'free',
+                      title: mockForm.title,
+                      description: `اختبار محاكي معتمد لمسار ${selectedPath.name}`,
+                      pathId: selectedPath.id,
+                      subjectId: '',
+                      kind: 'mock',
+                      normalMode: 'exam',
+                      showExplanations: true,
+                      showAnswers: true,
+                      showResultsReport: true,
+                      returnToSourceOnFinish: true,
+                      maxAttempts: 10,
+                      passingScore: mockForm.passingScore,
+                      timeLimitSeconds: mockForm.durationMinutes * 60,
+                      randomizeQuestions: true,
+                      randomizeOptions: true,
+                      showProgressBar: true,
+                      requireAnswerBeforeNext: false,
+                      allowQuestionReview: true,
+                      optionLayout: 'vertical',
+                      mockCategory: 'simulation',
+                      mockTargetScore: null,
+                      mockStrictSectionLock: null,
+                      mockPresentationMode: 'standard',
+                      presentation: {},
+                      revisionNote: 'إنشاء أولي للاختبار المحاكي',
+                    },
+                    sections: [],
+                    questions: [],
+                  }, csrf);
+                  setIsMockModalOpen(false);
+                  setNotice('تم إنشاء الاختبار المحاكي بنجاح');
+                  setReload((r) => r + 1);
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'تعذر إنشاء الاختبار المحاكي');
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              className="rounded-xl bg-purple-700 px-5 py-2 text-xs font-black text-white hover:bg-purple-800 disabled:opacity-50"
+            >
+              إنشاء الاختبار المحاكي
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderLibraryModal() {
+    if (!selectedPath || !selectedSubject) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in" dir="rtl">
+        <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+          <div className="flex items-center justify-between border-b pb-3">
+            <h3 className="text-lg font-black text-slate-900">إضافة ملف للمكتبة ({selectedSubject.name})</h3>
+            <button type="button" onClick={() => setIsLibraryModalOpen(false)} className="rounded-xl p-1 text-slate-400 hover:bg-slate-100">
+              <X size={20} />
+            </button>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">عنوان الملف أو المرجع</label>
+              <input
+                value={libraryForm.title}
+                onChange={(e) => setLibraryForm({ ...libraryForm, title: e.target.value })}
+                placeholder="مثال: مذكرة التأسيس الشاملة PDF"
+                className="w-full rounded-xl border p-2.5 text-xs font-bold"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">رابط الملف (URL)</label>
+              <input
+                value={libraryForm.url}
+                onChange={(e) => setLibraryForm({ ...libraryForm, url: e.target.value })}
+                placeholder="https://... / ملف PDF"
+                className="w-full rounded-xl border p-2.5 text-xs font-bold font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">وصف الملف</label>
+              <textarea
+                value={libraryForm.description}
+                onChange={(e) => setLibraryForm({ ...libraryForm, description: e.target.value })}
+                placeholder="نبذة عن الملف ومحتواه وملاحظات المذاكرة..."
+                className="w-full rounded-xl border p-2.5 text-xs font-bold"
+                rows={3}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 border-t pt-4">
+            <button
+              type="button"
+              onClick={() => setIsLibraryModalOpen(false)}
+              className="rounded-xl border px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-50"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              disabled={busy || !libraryForm.title.trim() || !libraryForm.url.trim()}
+              onClick={async () => {
+                try {
+                  setBusy(true);
+                  const csrf = await getCsrfToken();
+                  await contentClient.createLibraryItem({
+                    title: libraryForm.title,
+                    pathId: selectedPath.id,
+                    subjectId: selectedSubject.id,
+                    type: 'pdf',
+                    externalUrl: libraryForm.url,
+                    description: libraryForm.description,
+                    isVisible: true,
+                    isLocked: false,
+                    skillIds: [],
+                    primaryAssetId: '',
+                  }, csrf);
+                  setIsLibraryModalOpen(false);
+                  setNotice('تمت إضافة الملف إلى مكتبة المادة بنجاح');
+                  setReload((r) => r + 1);
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'تعذر إضافة الملف للمكتبة');
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              className="rounded-xl bg-slate-900 px-5 py-2 text-xs font-black text-white hover:bg-black disabled:opacity-50"
+            >
+              إضافة الملف للمكتبة
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderDeleteModal() {
+    if (!deleteConfirm) return null;
+    const typeLabel = deleteConfirm.type === 'path' ? 'المسار' : deleteConfirm.type === 'level' ? 'المرحلة' : 'المادة';
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in" dir="rtl">
+        <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+              <Archive size={24} />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-slate-900">تأكيد أرشفة {typeLabel}</h3>
+              <p className="text-xs text-slate-500 font-bold mt-0.5">«{deleteConfirm.name}»</p>
+            </div>
+          </div>
+          <p className="text-xs leading-6 text-slate-600 font-medium">
+            سيتم نقل {typeLabel} إلى الأرشيف وإخفاؤه عن الطلاب والزوار، مع الحفاظ على كل المحتوى والبيانات وسجلات الطلاب التاريخية دون فقدان.
+          </p>
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <button
+              type="button"
+              onClick={() => setDeleteConfirm(null)}
+              className="rounded-xl border px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-50"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={async () => {
+                const target = deleteConfirm;
+                setDeleteConfirm(null);
+                await patchStatus(target.type, target.id, 'archived');
+                setNotice(`تمت أرشفة ${typeLabel} بنجاح`);
+              }}
+              className="rounded-xl bg-rose-600 px-5 py-2 text-xs font-black text-white hover:bg-rose-700 disabled:opacity-50"
+            >
+              تأكيد الأرشفة
             </button>
           </div>
         </div>

@@ -44,6 +44,7 @@ import { OperationsAdminPage } from '../features/operations/pages/OperationsAdmi
 import { TaxonomyAdminPage } from '../features/taxonomy/pages/TaxonomyAdminPage';
 import { SkillsAdminPage } from '../features/taxonomy/pages/SkillsAdminPage';
 import { QuestionBankAdminPage } from '../features/questionbank/pages/QuestionBankAdminPage';
+import { SchoolsAdminPage } from '../features/organizations/pages/SchoolsAdminPage';
 import { SchoolDirectorDashboardPage } from '../features/organizations/pages/SchoolDirectorDashboardPage';
 import { SupervisorDashboardPage } from '../features/organizations/pages/SupervisorDashboardPage';
 import { TeacherWorkspacePage } from '../features/organizations/pages/TeacherWorkspacePage';
@@ -55,7 +56,7 @@ import { PricingPage } from '../features/public/header/commerce/PricingPage';
 import { BlogPage } from '../features/public/header/pages/BlogPage';
 import { MockExamsPage } from '../features/public/header/pages/MockExamsPage';
 import { LegacySiteFooter, showPublicFooter } from '../features/public/components/LegacySiteFooter';
-import { LegacySiteHeader } from '../features/public/components/LegacySiteHeader';
+import { Header as OriginalHeader } from '../features/public/header/OriginalHeader';
 import { LegacyCategoryPage } from '../features/public/header/pages/LegacyCategoryPage';
 import { StaticInfoPage } from '../features/public/pages/StaticInfoPage';
 import { StudentNavigationProvider } from '../features/learning/navigation';
@@ -134,7 +135,12 @@ export function App() {
   return (
     <StudentNavigationProvider>
       <PlatformFontBootstrap />
-      {!hideSiteHeader ? <LegacySiteHeader onAuth={setManualMode} /> : null}
+      {!hideSiteHeader ? (
+        <OriginalHeader
+          requestedAuthMode={modalMode}
+          onAuthIntentConsumed={() => setManualMode(null)}
+        />
+      ) : null}
 
       <Routes>
         <Route path="/" element={<PublicLandingPage onAuth={setManualMode} />} />
@@ -165,6 +171,7 @@ export function App() {
         <Route path="/admin-dashboard/questions" element={<AdminDashboardShell><QuestionBankAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/assessments" element={<AdminDashboardShell><AssessmentAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/commerce" element={<AdminDashboardShell><CommerceAdminPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/schools" element={<AdminDashboardShell><SchoolsAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/notifications" element={<AdminDashboardShell><NotificationsAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/classroom" element={<AdminDashboardShell><ClassroomContractsAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/ai" element={<AdminDashboardShell><AiAdminPage /></AdminDashboardShell>} />
@@ -182,6 +189,8 @@ export function App() {
         <Route path="/assessment-results/:attemptId" element={<AssessmentResultsPage />} />
         <Route path="/learning" element={<LearningSpacePage />} />
         <Route path="/category/:pathId" element={<LegacyCategoryPage />} />
+        <Route path="/path/:pathId" element={<LegacyCategoryPage />} />
+        <Route path="/paths/:pathId" element={<LegacyCategoryPage />} />
         <Route path="/learning/courses/:courseId" element={<CourseLearningPage />} />
         <Route path="/course/:courseId" element={<CourseLearningPage />} />
         <Route path="/review" element={<ReviewLibraryPage />} />

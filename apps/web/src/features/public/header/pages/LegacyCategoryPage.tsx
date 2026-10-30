@@ -22,15 +22,11 @@ import { LearningSpacePage } from '../../../learning/pages/LearningSpacePage';
 import { PathPackagesPage } from '../commerce/PathPackagesPage';
 import { PathMockExamsPage } from './PathMockExamsPage';
 import { getPublicCourses, type PublicCourse } from '../../api/publicCourses';
-
-const normalizeArabic = (value?: string | null) =>
-  (value || '')
-    .replace(/[أإآ]/g, 'ا')
-    .replace(/ة/g, 'ه')
-    .replace(/ى/g, 'ي')
-    .replace(/\s+/g, '')
-    .trim()
-    .toLowerCase();
+import {
+  resolveCanonicalPath,
+  resolveCanonicalSubject,
+  normalizeArabic,
+} from '../../../taxonomy/utils/canonicalPathResolver';
 
 const pathAliases: Record<string, string[]> = {
   p_qudrat: ['القدرات', 'قدرات', 'qudrat'],
@@ -133,12 +129,7 @@ export function LegacyCategoryPage() {
     };
   }, []);
 
-  const path = experience.paths.find((row) => {
-    if (row.id === raw || row.code === raw) return true;
-    const aliases = pathAliases[raw] || [];
-    const normName = normalizeArabic(row.name);
-    return aliases.some((alias) => normName.includes(normalizeArabic(alias)));
-  });
+  const path = resolveCanonicalPath(raw, experience.paths);
 
   if (experience.loading) {
     return (
@@ -181,7 +172,9 @@ export function LegacyCategoryPage() {
     return <PathMockExamsPage pathId={path.id} />;
   }
 
-  const selectedSubjectId = params.get('subject') || params.get('subjectId');
+  const rawSubjectId = params.get('subject') || params.get('subjectId');
+  const selectedSubject = resolveCanonicalSubject(rawSubjectId, experience.subjects, path.id);
+  const selectedSubjectId = selectedSubject?.id || rawSubjectId;
   if (selectedSubjectId) {
     return <LearningSpacePage />;
   }
