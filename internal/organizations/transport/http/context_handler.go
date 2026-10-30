@@ -16,6 +16,7 @@ type schoolContextResponse struct {
 }
 
 func (h *Handler) schoolContexts(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	auth, ok := h.authenticate(w, r, false)
 	if !ok {
 		return
