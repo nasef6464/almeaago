@@ -10,7 +10,7 @@ const levels=[{id:'l',pathId:'p',name:'المتوسطة'}];const subjects=[{id:'
 const homepageSettings={brand:{logoUrl:'/saved.svg',logoText:'منصة',logoAccentText:'المئة'},navigation:{items:[{id:'home',order:0}]}};
 function load(code,user){const mod={exports:{}};const resolve=id=>{
  if(id==='react'||id==='react/jsx-runtime'||id==='react-router-dom'||id==='lucide-react')return require(id);
- if(/StudentExperienceContext|learning\/navigation/.test(id))return {useStudentExperience:()=>({paths,levels,subjects,homepageSettings,scope:{navigationPathVisible:()=>true,matchesNavigationContent:()=>true}})};
+ if(/StudentExperienceContext|learning\/navigation/.test(id))return {useStudentExperience:()=>({paths,levels,subjects,homepageSettings,scope:{navigationPathVisible:()=>true,matchesNavigationContent:()=>true}}),StudentNavigationProvider:({children})=>children,StudentPathBar:()=>null};
  if(/AuthContext|authAdapter|AuthProvider/.test(id))return {useAuth:()=>({user,logout:async()=>{}})};
  if(/useStore|headerStore/.test(id))return {useStore:()=>({paths,levels,subjects,cartItems:[]})};
  if(/services\/api|headerApi/.test(id))return {api:{},isStagingEnv:false};
@@ -21,7 +21,7 @@ function load(code,user){const mod={exports:{}};const resolve=id=>{
  if(/content-client/.test(id))return {contentClient:{}};
  if(/dashboard-path/.test(id))return {dashboardPathFor:()=>'/dashboard'};
  if(/OriginalHeader/.test(id))return load(readFileSync(new URL('header/OriginalHeader.tsx',base),'utf8'),user);
- if(/\.\/navigation/.test(id))return load(readFileSync(new URL('header/navigation.ts',base),'utf8'),user);
+ if(/\.\/navigation|\.\/headerNavigation/.test(id))return load(readFileSync(new URL(id.includes('headerNavigation')?'components/headerNavigation.ts':'header/navigation.ts',base),'utf8'),user);
  if(/homepage-types|types|Sanitizer|sanitizeMojibake/.test(id))return {};
  throw Error('Unexpected header dependency '+id);
  };new Function('require','module','exports',ts.transpileModule(code,{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,esModuleInterop:true}}).outputText)(resolve,mod,mod.exports);return mod.exports;}

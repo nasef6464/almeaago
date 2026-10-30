@@ -10,5 +10,11 @@ coverage/
 .idea/
 .vscode/
 .tmp/
+*.exe
+*.exe~
+*.tsbuildinfo
+playwright-report/
+test-results/
+
 
 /apps/web/tests/reference/generated/

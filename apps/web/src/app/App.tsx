@@ -56,7 +56,9 @@ import { BlogPage } from '../features/public/header/pages/BlogPage';
 import { MockExamsPage } from '../features/public/header/pages/MockExamsPage';
 import { LegacySiteFooter, showPublicFooter } from '../features/public/components/LegacySiteFooter';
 import { LegacySiteHeader } from '../features/public/components/LegacySiteHeader';
+import { LegacyCategoryPage } from '../features/public/header/pages/LegacyCategoryPage';
 import { StaticInfoPage } from '../features/public/pages/StaticInfoPage';
+import { StudentNavigationProvider } from '../features/learning/navigation';
 
 import { PlatformFontBootstrap } from '../features/presentation/PlatformFontBootstrap';
 import { PlatformFontsPage } from '../features/presentation/PlatformFontsPage';
@@ -130,7 +132,7 @@ export function App() {
   const hideSiteHeader = inAdminWorkspace || location.pathname.endsWith('/projector');
 
   return (
-    <>
+    <StudentNavigationProvider>
       <PlatformFontBootstrap />
       {!hideSiteHeader ? <LegacySiteHeader onAuth={setManualMode} /> : null}
 
@@ -179,7 +181,7 @@ export function App() {
         <Route path="/assessment-results" element={<AssessmentResultsPage />} />
         <Route path="/assessment-results/:attemptId" element={<AssessmentResultsPage />} />
         <Route path="/learning" element={<LearningSpacePage />} />
-        <Route path="/category/:pathId" element={<LearningSpacePage />} />
+        <Route path="/category/:pathId" element={<LegacyCategoryPage />} />
         <Route path="/learning/courses/:courseId" element={<CourseLearningPage />} />
         <Route path="/course/:courseId" element={<CourseLearningPage />} />
         <Route path="/review" element={<ReviewLibraryPage />} />
@@ -206,6 +208,6 @@ export function App() {
         initialSignUp={modalMode === 'signup'}
         onClose={closeModal}
       />
-    </>
+    </StudentNavigationProvider>
   );
 }

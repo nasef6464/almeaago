@@ -1,76 +1,175 @@
-import {Award,Bell,BookOpen,ChevronDown,Gift,LogIn,Menu,Radio,X} from 'lucide-react';
-import {useEffect,useMemo,useState} from 'react';
-import {Link,useLocation} from 'react-router-dom';
+import {
+  Award,
+  Bell,
+  BookOpen,
+  ChevronDown,
+  FileText,
+  Gift,
+  LayoutGrid,
+  LogIn,
+  LogOut,
+  Menu,
+  Radio,
+  Shield,
+  ShoppingCart,
+  X,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-import {StudentNavigationProvider,StudentPathBar,useStudentExperience} from '../../learning/navigation';
-import {useAuth} from '../../auth/state/AuthProvider';
-import {dashboardPathFor} from '../../auth/utils/dashboard-path';
-import {buildHeaderNavigation} from './headerNavigation';
-import type {HeaderNode} from './headerNavigation';
+import { StudentNavigationProvider, StudentPathBar, useStudentExperience } from '../../learning/navigation';
+import { useAuth } from '../../auth/state/AuthProvider';
+import { dashboardPathFor } from '../../auth/utils/dashboard-path';
+import { buildHeaderNavigation } from './headerNavigation';
+import type { HeaderNode } from './headerNavigation';
 
-type AuthMode='login'|'signup';
+type AuthMode = 'login' | 'signup';
 
-function LegacySiteHeaderContent({onAuth}:{onAuth(mode:AuthMode):void}){
-  const{user}=useAuth();
-  const experience=useStudentExperience();
-  const taxonomy=useMemo(()=>({paths:experience.paths,levels:experience.levels,subjects:experience.subjects}),[experience.paths,experience.levels,experience.subjects]);
-  const scope=experience.scope;
-  const homepage=experience.homepageSettings ?? {};
-  const brand=homepage.brand;
-  const logoUrl=String(brand?.logoUrl || '').trim();
-  const logoAlt=String(brand?.logoAlt || 'منصة المئة').trim();
-  const logoText=String(brand?.logoText || 'منصة').trim();
-  const logoAccentText=String(brand?.logoAccentText || 'المئة').trim();
-  const nav=homepage.navigation;
-  const location=useLocation();
-  const[menuOpen,setMenuOpen]=useState(false);
-  const[activeDropdown,setActiveDropdown]=useState<string|null>(null);
-  const[expandedPath,setExpandedPath]=useState<string|null>(null);
-  const[activeStage,setActiveStage]=useState<string|null>(null);
-  const[expandedMobileStage,setExpandedMobileStage]=useState<string|null>(null);
-  const dashboardHref=user?dashboardPathFor(user):'';
+function LegacySiteHeaderContent({ onAuth }: { onAuth(mode: AuthMode): void }) {
+  const { user, signOut } = useAuth();
+  const experience = useStudentExperience();
+  const taxonomy = useMemo(
+    () => ({ paths: experience.paths, levels: experience.levels, subjects: experience.subjects }),
+    [experience.paths, experience.levels, experience.subjects],
+  );
+  const scope = experience.scope;
+  const homepage = experience.homepageSettings ?? {};
+  const brand = homepage.brand;
+  const logoUrl = String(brand?.logoUrl || '').trim();
+  const logoAlt = String(brand?.logoAlt || 'منصة المئة').trim();
+  const logoText = String(brand?.logoText || 'منصة').trim();
+  const logoAccentText = String(brand?.logoAccentText || 'المئة').trim();
+  const nav = homepage.navigation;
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [expandedPath, setExpandedPath] = useState<string | null>(null);
+  const [activeStage, setActiveStage] = useState<string | null>(null);
+  const [expandedMobileStage, setExpandedMobileStage] = useState<string | null>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const dashboardHref = user ? dashboardPathFor(user) : '';
 
-  useEffect(()=>{
+  useEffect(() => {
     setMenuOpen(false);
     setActiveDropdown(null);
     setExpandedPath(null);
     setActiveStage(null);
     setExpandedMobileStage(null);
-  },[location.pathname,location.search]);
+    setUserMenuOpen(false);
+  }, [location.pathname, location.search]);
 
-  const navigationMenu=useMemo(()=>buildHeaderNavigation(taxonomy,nav,user,scope),[taxonomy,nav,user,scope]);
+  const navigationMenu = useMemo(
+    () => buildHeaderNavigation(taxonomy, nav, user, scope),
+    [taxonomy, nav, user, scope],
+  );
 
-  const renderDesktopChild=(child:HeaderNode)=>{
-    if(child.kind==='divider')return <div key={child.id} className="mx-3 my-2 h-px bg-slate-100"/>;
-    if(child.kind==='level')return <div key={child.id} className="mx-2 my-1" onMouseEnter={()=>{if(child.children?.length)setActiveStage(child.id)}}>
-      <button type="button" onClick={()=>setActiveStage(value=>value===child.id?null:child.id)}
-        className="flex w-full items-center justify-between rounded-lg bg-slate-100 px-3 py-2 text-right text-xs font-black text-indigo-950">
-        <span>📂 {child.label}</span><ChevronDown size={14} className={activeStage===child.id?'rotate-180':''}/>
-      </button>
-      {activeStage===child.id?<div className="mr-3 border-r-2 border-indigo-300 pr-2">
-        {child.children?.map(subject=><Link key={subject.id} to={subject.href} className="block rounded-lg px-3 py-2 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">• {subject.label}</Link>)}
-        <Link to={child.href} className="block px-3 py-2 text-xs font-black text-indigo-600">استعراض كامل {child.label} ←</Link>
-      </div>:null}
-    </div>;
-    return <Link key={child.id} to={child.href}
-      className={`mx-2 flex items-center justify-between rounded-lg px-3 py-2 text-xs font-bold hover:bg-indigo-50 ${child.kind==='mock-exam'?'bg-purple-50 text-purple-800':child.kind==='package'?'bg-amber-50 text-amber-800':'text-slate-700'}`}>
-      <span className="flex items-center gap-2">{child.kind==='mock-exam'?<Award size={14}/>:child.kind==='package'?<Gift size={14}/>:null}{child.label}</span>
-      {child.kind==='mock-exam'?<span className="text-[10px]">محاكاة</span>:child.kind==='package'?<span className="text-[10px]">عرض</span>:null}
-    </Link>;
+  const renderDesktopChild = (child: HeaderNode) => {
+    if (child.kind === 'divider') return <div key={child.id} className="mx-3 my-2 h-px bg-slate-100" />;
+    if (child.kind === 'level') {
+      return (
+        <div
+          key={child.id}
+          className="mx-2 my-1"
+          onMouseEnter={() => {
+            if (child.children?.length) setActiveStage(child.id);
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setActiveStage((value) => (value === child.id ? null : child.id))}
+            className="flex w-full items-center justify-between rounded-lg bg-slate-100 px-3 py-2 text-right text-xs font-black text-indigo-950"
+          >
+            <span>📂 {child.label}</span>
+            <ChevronDown size={14} className={activeStage === child.id ? 'rotate-180' : ''} />
+          </button>
+          {activeStage === child.id ? (
+            <div className="mr-3 border-r-2 border-indigo-300 pr-2">
+              {child.children?.map((subject) => (
+                <Link
+                  key={subject.id}
+                  to={subject.href}
+                  className="block rounded-lg px-3 py-2 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700"
+                >
+                  • {subject.label}
+                </Link>
+              ))}
+              <Link to={child.href} className="block px-3 py-2 text-xs font-black text-indigo-600">
+                استعراض كامل {child.label} ←
+              </Link>
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+    return (
+      <Link
+        key={child.id}
+        to={child.href}
+        className={`mx-2 flex items-center justify-between rounded-lg px-3 py-2 text-xs font-bold hover:bg-indigo-50 ${
+          child.kind === 'mock-exam'
+            ? 'bg-purple-50 text-purple-800'
+            : child.kind === 'package'
+              ? 'bg-amber-50 text-amber-800'
+              : 'text-slate-700'
+        }`}
+      >
+        <span className="flex items-center gap-2">
+          {child.kind === 'mock-exam' ? <Award size={14} /> : child.kind === 'package' ? <Gift size={14} /> : null}
+          {child.label}
+        </span>
+        {child.kind === 'mock-exam' ? (
+          <span className="text-[10px]">محاكاة</span>
+        ) : child.kind === 'package' ? (
+          <span className="text-[10px]">عرض</span>
+        ) : null}
+      </Link>
+    );
   };
 
-  const renderMobileChild=(child:HeaderNode)=>{
-    if(child.kind==='divider')return null;
-    if(child.kind==='level')return <div key={child.id} className="my-1">
-      <button type="button" onClick={()=>setExpandedMobileStage(value=>value===child.id?null:child.id)} className="flex w-full items-center justify-between rounded-lg bg-slate-100 px-3 py-2 text-right text-xs font-black text-indigo-950">
-        📂 {child.label}<ChevronDown size={14} className={expandedMobileStage===child.id?'rotate-180':''}/>
-      </button>
-      {expandedMobileStage===child.id?<div className="mr-3 border-r-2 border-indigo-300 pr-2">
-        {child.children?.map(subject=><Link key={subject.id} to={subject.href} className="block px-3 py-2 text-sm text-slate-700">• {subject.label}</Link>)}
-        <Link to={child.href} className="block px-3 py-2 text-xs font-black text-indigo-600">استعراض كامل {child.label} ←</Link>
-      </div>:null}
-    </div>;
-    return <Link key={child.id} to={child.href} className={`block rounded-lg px-3 py-2 text-sm font-bold ${child.kind==='mock-exam'?'bg-purple-50 text-purple-800':child.kind==='package'?'bg-amber-50 text-amber-800':'text-slate-700'}`}>{child.label}</Link>;
+  const renderMobileChild = (child: HeaderNode) => {
+    if (child.kind === 'divider') return null;
+    if (child.kind === 'level') {
+      return (
+        <div key={child.id} className="my-1">
+          <button
+            type="button"
+            onClick={() => setExpandedMobileStage((value) => (value === child.id ? null : child.id))}
+            className="flex w-full items-center justify-between rounded-lg bg-slate-100 px-3 py-2 text-right text-xs font-black text-indigo-950"
+          >
+            <span>📂 {child.label}</span>
+            <ChevronDown size={14} className={expandedMobileStage === child.id ? 'rotate-180' : ''} />
+          </button>
+          {expandedMobileStage === child.id ? (
+            <div className="mr-3 border-r-2 border-indigo-300 pr-2">
+              {child.children?.map((subject) => (
+                <Link key={subject.id} to={subject.href} className="block px-3 py-2 text-sm text-slate-700">
+                  • {subject.label}
+                </Link>
+              ))}
+              <Link to={child.href} className="block px-3 py-2 text-xs font-black text-indigo-600">
+                استعراض كامل {child.label} ←
+              </Link>
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+    return (
+      <Link
+        key={child.id}
+        to={child.href}
+        className={`block rounded-lg px-3 py-2 text-sm font-bold ${
+          child.kind === 'mock-exam'
+            ? 'bg-purple-50 text-purple-800'
+            : child.kind === 'package'
+              ? 'bg-amber-50 text-amber-800'
+              : 'text-slate-700'
+        }`}
+      >
+        {child.label}
+      </Link>
+    );
   };
 
   return (
@@ -81,84 +180,330 @@ function LegacySiteHeaderContent({onAuth}:{onAuth(mode:AuthMode):void}){
             <button
               type="button"
               className="rounded-lg p-2 text-gray-600 transition hover:bg-gray-100 md:hidden"
-              onClick={()=>setMenuOpen(value=>!value)}
-              aria-label={menuOpen?'إغلاق القائمة':'فتح القائمة'}
+              onClick={() => setMenuOpen((value) => !value)}
+              aria-label={menuOpen ? 'إغلاق القائمة' : 'فتح القائمة'}
               aria-expanded={menuOpen}
             >
-              {menuOpen?<X size={24}/>:<Menu size={24}/>}
+              {menuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
 
             <Link to="/" className="group flex min-w-0 items-center gap-2.5">
-              {logoUrl?<img src={logoUrl} alt={logoAlt} className="h-9 w-9 sm:h-11 sm:w-11 rounded-full object-contain bg-white border border-amber-100 shadow-sm shrink-0"/>:null}
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt={logoAlt}
+                  className="h-9 w-9 sm:h-11 sm:w-11 rounded-full object-contain bg-white border border-amber-100 shadow-sm shrink-0"
+                />
+              ) : null}
               <div className="flex min-w-0 flex-col justify-center leading-tight">
                 <div className="flex min-w-0 items-center text-lg font-black text-amber-500 sm:text-2xl">
-                  <span className="text-blue-900 dark:text-blue-400">{logoText}</span><span className="mx-1">{logoAccentText}</span>
+                  <span className="text-blue-900 dark:text-blue-400">{logoText}</span>
+                  <span className="mx-1">{logoAccentText}</span>
                 </div>
-                <span className="mt-0.5 text-[10px] font-bold leading-none tracking-tight text-gray-400 sm:text-xs">قدرات & تحصيلي</span>
+                <span className="mt-0.5 text-[10px] font-bold leading-none tracking-tight text-gray-400 sm:text-xs">
+                  قدرات & تحصيلي
+                </span>
               </div>
             </Link>
           </div>
 
-          <nav aria-label="التنقل الرئيسي" className="hidden min-w-0 flex-1 flex-wrap items-center justify-center gap-x-1 gap-y-0 md:flex">
-            {navigationMenu.map(item=><div key={item.id} className="group relative px-2 py-2"
-              onMouseEnter={()=>{setActiveDropdown(item.id);setActiveStage(null)}} onMouseLeave={()=>setActiveDropdown(null)}>
-              <Link to={item.href} className="flex items-center gap-2 whitespace-nowrap text-sm font-bold text-gray-700 transition-colors hover:text-amber-500">
-                {item.kind==='path'?<BookOpen size={16} className="text-gray-400"/>:null}
-                {item.label}{item.children?.length?<ChevronDown size={14}/>:null}
-              </Link>
-              {item.children?.length&&activeDropdown===item.id?<div className="absolute right-0 top-full z-50 max-h-[75vh] w-80 overflow-y-auto rounded-2xl border border-slate-100 border-t-2 border-t-amber-500 bg-white py-2.5 shadow-2xl">
-                {item.children.map(renderDesktopChild)}
-              </div>:null}
-            </div>)}
+          <nav
+            aria-label="التنقل الرئيسي"
+            className="hidden min-w-0 flex-1 flex-wrap items-center justify-center gap-x-1 gap-y-0 md:flex"
+          >
+            {navigationMenu.map((item) => (
+              <div
+                key={item.id}
+                className="group relative px-2 py-2"
+                onMouseEnter={() => {
+                  setActiveDropdown(item.id);
+                  setActiveStage(null);
+                }}
+                onMouseLeave={() => setActiveDropdown(null)}
+              >
+                <Link
+                  to={item.href}
+                  className="flex items-center gap-2 whitespace-nowrap text-sm font-bold text-gray-700 transition-colors hover:text-amber-500"
+                >
+                  {item.kind === 'path' ? <BookOpen size={16} className="text-gray-400" /> : null}
+                  {item.label}
+                  {item.children?.length ? <ChevronDown size={14} /> : null}
+                </Link>
+                {item.children?.length && activeDropdown === item.id ? (
+                  <div className="absolute right-0 top-full z-50 max-h-[75vh] w-80 overflow-y-auto rounded-2xl border border-slate-100 border-t-2 border-t-amber-500 bg-white py-2.5 shadow-2xl">
+                    {item.children.map(renderDesktopChild)}
+                  </div>
+                ) : null}
+              </div>
+            ))}
           </nav>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            {user?(
+            <Link
+              to="/cart"
+              aria-label="سلة المشتريات"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition hover:bg-gray-50"
+            >
+              <ShoppingCart size={18} />
+            </Link>
+
+            {user ? (
               <>
-                <Link to={dashboardHref} className="hidden rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-black text-white sm:inline-flex">لوحتي</Link>
-                <Link to={user.roles.includes('teacher')?'/school-teacher-dashboard':'/classroom/join'} aria-label="الفصل الذكي" className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition hover:bg-gray-50"><Radio size={18}/></Link>
-                <Link to="/notifications" aria-label="الإشعارات" className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition hover:bg-gray-50"><Bell size={18}/></Link>
-                <div className="hidden max-w-32 truncate text-sm font-bold text-gray-700 xl:block">{user.name}</div>
+                <Link
+                  to={user.roles.includes('teacher') ? '/school-teacher-dashboard' : '/classroom/join'}
+                  aria-label="الفصل الذكي"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition hover:bg-gray-50"
+                >
+                  <Radio size={18} />
+                </Link>
+                <Link
+                  to="/notifications"
+                  aria-label="الإشعارات"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition hover:bg-gray-50"
+                >
+                  <Bell size={18} />
+                </Link>
+
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setUserMenuOpen((val) => !val)}
+                    className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 py-1 pl-1.5 pr-3 hover:bg-slate-100 transition-colors"
+                    aria-label="قائمة المستخدم"
+                    aria-expanded={userMenuOpen}
+                  >
+                    <div className="hidden text-right lg:block">
+                      <span className="block text-[10px] font-bold text-gray-400 leading-none">حسابي</span>
+                      <span className="block max-w-[130px] truncate text-xs font-black text-gray-800 leading-tight mt-0.5">
+                        {user.name || 'مستخدم'}
+                      </span>
+                    </div>
+                    {user.avatarUrl ? (
+                      <img
+                        src={user.avatarUrl}
+                        alt=""
+                        className="h-8 w-8 rounded-full object-cover border border-slate-200"
+                      />
+                    ) : (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-xs font-black text-white">
+                        {(user.name || 'م')[0]}
+                      </div>
+                    )}
+                    <ChevronDown
+                      size={14}
+                      className={`text-gray-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {userMenuOpen ? (
+                    <div
+                      className="absolute left-0 top-full z-50 mt-2 w-64 rounded-2xl border border-gray-100 bg-white py-2 shadow-2xl animate-fade-in"
+                      dir="rtl"
+                    >
+                      <div className="border-b border-gray-100 px-4 py-3">
+                        <p className="font-black text-sm text-gray-900">{user.name}</p>
+                        <p className="text-xs text-gray-500 font-medium truncate">{user.email}</p>
+                      </div>
+
+                      <div className="py-1">
+                        <Link
+                          to={dashboardHref}
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                        >
+                          <LayoutGrid size={16} className="text-gray-400" />
+                          <span>لوحة التحكم</span>
+                        </Link>
+
+                        {user.roles.includes('admin') || user.roles.includes('supervisor') ? (
+                          <Link
+                            to="/admin-dashboard"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                          >
+                            <Shield size={16} className="text-indigo-600" />
+                            <span>لوحة الإدارة</span>
+                          </Link>
+                        ) : null}
+
+                        <Link
+                          to="/courses"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                        >
+                          <BookOpen size={16} className="text-gray-400" />
+                          <span>دوراتي</span>
+                        </Link>
+
+                        <Link
+                          to="/mock-exams"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                        >
+                          <FileText size={16} className="text-gray-400" />
+                          <span>اختباراتي</span>
+                        </Link>
+
+                        <Link
+                          to="/reports"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                        >
+                          <Award size={16} className="text-gray-400" />
+                          <span>الشهادات والإنجازات</span>
+                        </Link>
+                      </div>
+
+                      <div className="border-t border-gray-100 pt-1 mt-1">
+                        <button
+                          type="button"
+                          data-logout-explicit="true"
+                          onClick={async () => {
+                            setUserMenuOpen(false);
+                            await signOut();
+                            navigate('/?auth=login', { replace: true });
+                          }}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-xs font-black text-rose-600 hover:bg-rose-50 transition-colors"
+                        >
+                          <LogOut size={16} />
+                          <span>تسجيل الخروج</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </>
-            ):(
-              <button type="button" onClick={()=>onAuth('login')} className="flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-3 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-600 sm:px-4">
-                <LogIn size={18}/><span className="hidden sm:inline">تسجيل الدخول</span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onAuth('login')}
+                className="flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-3 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-600 sm:px-4"
+              >
+                <LogIn size={18} />
+                <span className="hidden sm:inline">تسجيل الدخول</span>
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {menuOpen?(
-        <nav aria-label="التنقل الرئيسي للجوال" className="fixed inset-0 top-16 z-40 overflow-y-auto bg-white pb-20 animate-fade-in sm:top-20 md:hidden">
+      {menuOpen ? (
+        <nav
+          aria-label="التنقل الرئيسي للجوال"
+          className="fixed inset-0 top-16 z-40 overflow-y-auto bg-white pb-20 animate-fade-in sm:top-20 md:hidden"
+        >
           <div className="mx-auto max-w-7xl p-4">
-            {user?<Link to={dashboardHref} className="mb-4 block rounded-xl bg-indigo-50 px-4 py-3 text-sm font-black text-indigo-700">لوحتي</Link>:null}
-            {navigationMenu.map(item=>{
-              const open=expandedPath===item.id;
-              return <div key={item.id} className="mb-2 rounded-2xl border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <Link to={item.href} className="min-w-0 flex-1 px-4 py-3 text-base font-black text-gray-800">{item.label}</Link>
-                  {item.children?.length?<button type="button" onClick={()=>setExpandedPath(value=>value===item.id?null:item.id)} className="ml-2 rounded-lg p-2 text-gray-500" aria-label={`تفاصيل ${item.label}`} aria-expanded={open}><ChevronDown size={18} className={open?'rotate-180':''}/></button>:null}
+            {user ? (
+              <div className="mb-4 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-sm font-black text-white">
+                    {(user.name || 'م')[0]}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-black text-sm text-gray-900 truncate">{user.name}</p>
+                    <p className="text-xs text-gray-500 font-medium truncate">{user.email}</p>
+                  </div>
                 </div>
-                {item.children?.length&&open?<div className="space-y-1 border-t border-slate-100 px-3 py-2">{item.children.map(renderMobileChild)}</div>:null}
-              </div>;
+                <div className="space-y-1 border-t border-indigo-100 pt-2">
+                  <Link
+                    to={dashboardHref}
+                    onClick={() => setMenuOpen(false)}
+                    className="block rounded-lg px-3 py-2 text-xs font-bold text-indigo-900 hover:bg-indigo-100"
+                  >
+                    لوحة التحكم
+                  </Link>
+                  {user.roles.includes('admin') || user.roles.includes('supervisor') ? (
+                    <Link
+                      to="/admin-dashboard"
+                      onClick={() => setMenuOpen(false)}
+                      className="block rounded-lg px-3 py-2 text-xs font-bold text-indigo-900 hover:bg-indigo-100"
+                    >
+                      لوحة الإدارة
+                    </Link>
+                  ) : null}
+                  <Link
+                    to="/courses"
+                    onClick={() => setMenuOpen(false)}
+                    className="block rounded-lg px-3 py-2 text-xs font-bold text-indigo-900 hover:bg-indigo-100"
+                  >
+                    دوراتي
+                  </Link>
+                  <Link
+                    to="/mock-exams"
+                    onClick={() => setMenuOpen(false)}
+                    className="block rounded-lg px-3 py-2 text-xs font-bold text-indigo-900 hover:bg-indigo-100"
+                  >
+                    اختباراتي
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setMenuOpen(false);
+                      await signOut();
+                      navigate('/?auth=login', { replace: true });
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-black text-rose-600 hover:bg-rose-100/50 mt-1"
+                  >
+                    <LogOut size={16} />
+                    <span>تسجيل الخروج</span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {navigationMenu.map((item) => {
+              const open = expandedPath === item.id;
+              return (
+                <div key={item.id} className="mb-2 rounded-2xl border border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <Link to={item.href} className="min-w-0 flex-1 px-4 py-3 text-base font-black text-gray-800">
+                      {item.label}
+                    </Link>
+                    {item.children?.length ? (
+                      <button
+                        type="button"
+                        onClick={() => setExpandedPath((value) => (value === item.id ? null : item.id))}
+                        className="ml-2 rounded-lg p-2 text-gray-500"
+                        aria-label={`تفاصيل ${item.label}`}
+                        aria-expanded={open}
+                      >
+                        <ChevronDown size={18} className={open ? 'rotate-180' : ''} />
+                      </button>
+                    ) : null}
+                  </div>
+                  {item.children?.length && open ? (
+                    <div className="space-y-1 border-t border-slate-100 px-3 py-2">
+                      {item.children.map(renderMobileChild)}
+                    </div>
+                  ) : null}
+                </div>
+              );
             })}
-            {!user?<button type="button" onClick={()=>{setMenuOpen(false);onAuth('login')}} className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-3 font-bold text-white"><LogIn size={18}/>تسجيل الدخول</button>:null}
+            {!user ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onAuth('login');
+                }}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-3 font-bold text-white"
+              >
+                <LogIn size={18} />
+                تسجيل الدخول
+              </button>
+            ) : null}
           </div>
         </nav>
-      ):null}
+      ) : null}
     </header>
   );
 }
 
-
-export function LegacySiteHeader({onAuth}:{onAuth(mode:AuthMode):void}) {
+export function LegacySiteHeader({ onAuth }: { onAuth(mode: AuthMode): void }) {
   return (
-    <StudentNavigationProvider>
-      <>
-        <LegacySiteHeaderContent onAuth={onAuth}/>
-        <StudentPathBar/>
-      </>
-    </StudentNavigationProvider>
+    <>
+      <LegacySiteHeaderContent onAuth={onAuth} />
+      <StudentPathBar />
+    </>
   );
 }

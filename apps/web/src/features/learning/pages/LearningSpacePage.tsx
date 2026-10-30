@@ -1,6 +1,7 @@
 import {
   Award,
   BookOpen,
+  ChevronRight,
   Clock,
   FileCheck,
   FileText,
@@ -176,6 +177,22 @@ export function LearningSpacePage() {
           <p className="mx-auto mt-2 max-w-2xl text-sm font-bold text-indigo-200 sm:text-base">
             تأسيس، تدريب، اختبارات ومحتوى داعم في مساحة واحدة.
           </p>
+          {pathId ? (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  const q = new URLSearchParams();
+                  if (selectedLevelId) q.set('level', selectedLevelId);
+                  navigate(`/category/${encodeURIComponent(pathId)}${q.toString() ? `?${q.toString()}` : ''}`);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/25 bg-white/15 px-4 py-2 text-xs font-bold text-white transition hover:bg-white/25 backdrop-blur-sm shadow-sm"
+              >
+                <ChevronRight size={16} />
+                <span>عودة لصفحة المسار</span>
+              </button>
+            </div>
+          ) : null}
         </div>
         <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-indigo-400/10" />
         <div className="pointer-events-none absolute -bottom-12 left-8 h-32 w-32 rounded-full bg-amber-400/10" />
