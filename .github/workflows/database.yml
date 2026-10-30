@@ -1,10 +1,10 @@
 name: Database CI
 on:
   pull_request:
-    paths: ["apps/web/src/features/presentation/**","apps/web/tests/e2e/platform-fonts*","apps/web/tests/reference/**","scripts/parity/font-reference.mjs","apps/web/vite.config.ts","migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**"]
+    paths: ["apps/web/src/features/presentation/**","apps/web/tests/e2e/platform-fonts*","apps/web/tests/reference/**","scripts/parity/font-reference.mjs","apps/web/vite.config.ts","migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**","internal/taxonomy/**"]
   push:
     branches: [main]
-    paths: ["apps/web/src/features/presentation/**","apps/web/tests/e2e/platform-fonts*","apps/web/tests/reference/**","scripts/parity/font-reference.mjs","apps/web/vite.config.ts","migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**"]
+    paths: ["apps/web/src/features/presentation/**","apps/web/tests/e2e/platform-fonts*","apps/web/tests/reference/**","scripts/parity/font-reference.mjs","apps/web/vite.config.ts","migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**","internal/taxonomy/**"]
   workflow_dispatch:
 concurrency:
   group: database-ci-${{ github.ref }}
@@ -43,6 +43,11 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+
+      - name: Verify manager level visibility reaches learner taxonomy scopes
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/taxonomy/repository/postgres -run '^TestTaxonomyLearnerScopeFollowsLevelVisibilityPostgres$' -count=1 -v
 
       - name: Verify teacher material serialization against PostgreSQL
         env:
