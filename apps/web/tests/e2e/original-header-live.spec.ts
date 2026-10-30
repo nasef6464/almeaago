@@ -6,6 +6,11 @@ const live=process.env.HEADER_LIVE==='1';
 test.use({ launchOptions: { args: ['--disable-gpu'] } });
 const env=(name:string)=>{const value=process.env[name];if(!value)throw Error(`${name} required for native header fixture`);return value};
 const password=process.env.HEADER_PASSWORD||'Header-test-pass-42!';
+const visibleHeader=(page:Page)=>page.locator('[data-header-variant][data-visible="true"] header').first();
+async function headerFor(page:Page){
+ const reference=visibleHeader(page);
+ return await reference.count()?reference:page.locator('header').first();
+}
 async function signIn(page:Page,role:'admin'|'student'){
  const response=await page.request.post('/api/v1/auth/login',{data:{email:env(role==='admin'?'HEADER_ADMIN_EMAIL':'HEADER_STUDENT_EMAIL'),password}});
  expect(response.status()).toBe(200);return (await response.json()).csrfToken as string;
@@ -18,16 +23,16 @@ async function ready(page:Page,url:string){
   await expect(page.getByTestId('header-reference-body')).toHaveAttribute('data-variant',url.includes('variant=go')?'go':'source');
   await page.waitForFunction(()=>typeof (window as any).__setHeaderVariant==='function');
  }
- await expect(page.locator('header').first().getByRole('button',{name:'فتح البحث',exact:true})).toBeVisible();
+ const header=await headerFor(page);
+ await expect(header.getByRole('button',{name:'فتح البحث',exact:true})).toBeVisible();
  await expect(page.getByLabel('جارٍ تجهيز قائمة المنصة')).toHaveCount(0);
- const header=page.locator('header').first();
  const width=page.viewportSize()?.width??0;
  if(width>=768)await expect(header.locator('nav').getByRole('link',{name:'قدرات',exact:true})).toHaveCount(1);
  else{await expect(header.getByRole('button',{name:'فتح القائمة',exact:true})).toBeVisible();await expect(header.locator('nav')).toBeHidden()}
  await expect(header.locator('a[href="/cart"] span')).toHaveText('1');
  await expect.poll(()=>page.locator('#platform-font-google-link').getAttribute('href')).toContain('Tajawal');
- await page.evaluate(async()=>{const header=document.querySelector('header');const family=(header?getComputedStyle(header).fontFamily:'Tajawal').split(',')[0].replace(/["']/g,'').trim();const specs=[`400 16px "${family}"`,`500 14px "${family}"`,`700 14px "${family}"`,`700 12px "${family}"`,`800 12px "${family}"`,`900 12px "${family}"`];await Promise.all(specs.map(font=>document.fonts.load(font)));await document.fonts.ready;const missing=specs.filter(font=>!document.fonts.check(font));if(missing.length)throw new Error(`Header font weights did not load: ${missing.join(', ')}`);});
- await expect.poll(()=>page.locator('header').first().locator('img').evaluateAll(images=>images.every(image=>(image as HTMLImageElement).complete&&(image as HTMLImageElement).naturalWidth>0))).toBe(true);
+ await page.evaluate(async()=>{const header=document.querySelector('[data-header-variant][data-visible="true"] header')||document.querySelector('header');const family=(header?getComputedStyle(header).fontFamily:'Tajawal').split(',')[0].replace(/["']/g,'').trim();const specs=[`400 16px "${family}"`,`500 14px "${family}"`,`700 14px "${family}"`,`700 12px "${family}"`,`800 12px "${family}"`,`900 12px "${family}"`];await Promise.all(specs.map(font=>document.fonts.load(font)));await document.fonts.ready;const missing=specs.filter(font=>!document.fonts.check(font));if(missing.length)throw new Error(`Header font weights did not load: ${missing.join(', ')}`);});
+ await expect.poll(()=>header.locator('img').evaluateAll(images=>images.every(image=>(image as HTMLImageElement).complete&&(image as HTMLImageElement).naturalWidth>0))).toBe(true);
 }
 async function stable(page:Page){
  await page.mouse.move(0,999);await page.evaluate(()=>document.fonts.ready);
@@ -37,6 +42,10 @@ async function stable(page:Page){
 async function selectVariant(page:Page,variant:'source'|'go'){
  await page.evaluate((value)=>(window as any).__setHeaderVariant?.(value),variant);
  await expect(page.getByTestId('header-reference-body')).toHaveAttribute('data-variant',variant);
+ await expect(page.locator('[data-header-variant="'+variant+'"][data-visible="true"] header')).toBeVisible();
+ await page.evaluate(async()=>{const header=document.querySelector('[data-header-variant][data-visible="true"] header');await document.fonts.ready;await Promise.all(Array.from(header?.querySelectorAll('img')||[]).map(image=>(image as HTMLImageElement).decode().catch(()=>undefined)));});
+ await expect(visibleHeader(page).getByRole('button',{name:'تفعيل الوضع الداكن',exact:true})).toBeVisible();
+ await expect(page.locator('html')).not.toHaveClass(/dark/);
  await stable(page);
 }
 async function attachPage(page:Page,info:TestInfo,name:string){
@@ -44,7 +53,7 @@ async function attachPage(page:Page,info:TestInfo,name:string){
  await info.attach(name,{body:bytes,contentType:'image/png'});return bytes;
 }
 async function openPath(page:Page,level=false){
- const nav=page.locator('header').first().locator('nav');
+ const nav=visibleHeader(page).locator('nav');
  await nav.getByRole('link',{name:'قدرات',exact:true}).hover();
  await expect(nav.getByRole('link',{name:'مسار فرعي',exact:true})).toHaveAttribute('href','/category/'+env('HEADER_CHILD_PATH_ID'));
  const mock=nav.locator('a[href="/category/'+env('HEADER_PATH_ID')+'?tab=mock-exams"]');await expect(mock).toBeVisible();await expect(mock).toContainText('اختبارات محاكية قدرات');
@@ -53,19 +62,19 @@ async function openPath(page:Page,level=false){
  if(level){await stage.hover();await expect(nav.getByRole('link',{name:'رياضيات',exact:true})).toBeVisible()}
 }
 async function openMockExams(page:Page){
- const nav=page.locator('header').first().locator('nav');
+ const nav=visibleHeader(page).locator('nav');
  await nav.getByRole('link',{name:'اختبارات محاكية',exact:true}).hover();
  const path=nav.locator('a[href="/category/'+env('HEADER_PATH_ID')+'?tab=mock-exams"]');
  await expect(path).toBeVisible();await expect(path).toContainText('قدرات');
 }
 async function openMore(page:Page){
- const nav=page.locator('header').first().locator('nav');
+ const nav=visibleHeader(page).locator('nav');
  await nav.getByRole('link',{name:'أخرى',exact:true}).hover();
  await expect(nav.getByRole('link',{name:'العضويات',exact:true})).toHaveAttribute('href','/pricing');
  await expect(nav.getByRole('link',{name:'المدونة',exact:true})).toHaveAttribute('href','/blog');
 }
 async function openAccount(page:Page,role:'admin'|'student'){
- const header=page.locator('header').first();
+ const header=visibleHeader(page);
  await header.getByRole('button',{name:'قائمة المستخدم',exact:true}).click();
  const destination=role==='admin'?'/admin-dashboard':'/dashboard';
  await expect(header.locator('a[href="'+destination+'"]:visible').first()).toBeVisible();
@@ -86,14 +95,16 @@ function exactPixelDifference(actual:Buffer,expected:Buffer){
 }
 async function visualMetrics(page:Page,points:Array<{x:number;y:number}>=[]){return page.evaluate((samplePoints)=>{
  const box=(element:Element|null)=>{if(!element)return null;const r=element.getBoundingClientRect();const s=getComputedStyle(element);return {tag:element.tagName,className:typeof (element as HTMLElement).className==='string'?(element as HTMLElement).className:'',aria:element.getAttribute('aria-label'),text:(element.textContent||'').replace(/\\s+/g,' ').trim().slice(0,80),x:r.x,y:r.y,width:r.width,height:r.height,display:s.display,position:s.position,fontFamily:s.fontFamily,fontSize:s.fontSize,fontWeight:s.fontWeight,lineHeight:s.lineHeight,color:s.color,backgroundColor:s.backgroundColor,borderColor:s.borderColor,borderRadius:s.borderRadius,boxShadow:s.boxShadow,opacity:s.opacity,transform:s.transform,textShadow:s.textShadow,padding:s.padding,gap:s.gap}};
- const header=document.querySelector('header');const close=document.querySelector('button[aria-label="إغلاق القائمة"]');const r=close?.getBoundingClientRect();
+ const variant=document.querySelector('[data-testid="header-reference-body"]')?.getAttribute('data-variant')||'source';
+ const header=document.querySelector('[data-header-variant="'+variant+'"][data-visible="true"] header')||document.querySelector('header');
+ const close=header?.querySelector('button[aria-label="إغلاق القائمة"]')??null;const r=close?.getBoundingClientRect();
  const visible=(element:Element)=>{const rect=element.getBoundingClientRect();return rect.width>0&&rect.height>0};
  const links=Array.from(header?.querySelectorAll('a,button')||[]).filter(visible).map(element=>({tag:element.tagName,text:(element.textContent||'').replace(/\\s+/g,' ').trim(),aria:element.getAttribute('aria-label'),href:element.getAttribute('href'),...box(element)}));
  const svgs=Array.from(header?.querySelectorAll('svg')||[]).filter(visible).map((element,index)=>{const html=element.outerHTML;const hash=Array.from(html).reduce((value,char)=>((value<<5)-value+char.charCodeAt(0))|0,0).toString(16);return {index,hash,className:element.getAttribute('class'),...box(element)}});
  const family=(header?getComputedStyle(header).fontFamily:'Tajawal').split(',')[0].replace(/["']/g,'').trim();
  const fonts=['400 16px','500 14px','700 14px','700 12px','800 12px','900 12px'].map(spec=>({font:spec+' '+family,available:document.fonts.check(spec+' '+family)}));
  const hitTargets=samplePoints.slice(0,12).map(point=>{let element=document.elementFromPoint(point.x,point.y);const chain=[];for(let depth=0;element&&depth<5;depth++,element=element.parentElement)chain.push(box(element));return {point,chain}});
- const bell=document.querySelector('button[aria-label="الإشعارات"]');
+ const bell=header?.querySelector('button[aria-label="الإشعارات"]')??null;
  const ancestors=(element:Element|null)=>{const chain=[];for(let depth=0;element&&depth<5;depth++,element=element.parentElement)chain.push(box(element));return chain};
  return {viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,header:box(header),links,svgs,fonts,hitTargets,notification:{button:box(bell),badge:box(bell?.querySelector('span.bg-red-500')??null),ancestors:ancestors(bell)},mobileCloseReachable:r?close===document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)||close?.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)):null};
 },points)}
@@ -104,7 +115,7 @@ test.describe('original full Header on native Go data',()=>{
 
  test('source and Go complete component pixels for guest admin student at3908201440',async({page,context},info)=>{
   test.setTimeout(240000);
-  await context.addInitScript(()=>localStorage.setItem('almeaa-header-cart-v1',JSON.stringify({items:[{id:'header-cart-fixture',type:'course',title:'دورة اختبار الهيدر',price:150,currency:'SAR'}]})));
+  await context.addInitScript(()=>{localStorage.setItem('almeaa-header-cart-v1',JSON.stringify({items:[{id:'header-cart-fixture',type:'course',title:'دورة اختبار الهيدر',price:150,currency:'SAR'}]}));localStorage.setItem('almeaa_theme','light');Object.defineProperty(window,'EventSource',{value:undefined,configurable:true});});
   for(const role of ['guest','admin','student'] as const){
    await context.clearCookies();if(role!=='guest')await signIn(page,role);
    for(const width of [390,820,1440]){
@@ -123,7 +134,7 @@ test.describe('original full Header on native Go data',()=>{
      if(state==='account'&&role!=='guest')await openAccount(page,role);
      if(state==='mobile'){
       await page.getByRole('button',{name:'فتح القائمة',exact:true}).click();
-      const header=page.locator('header').first();
+      const header=visibleHeader(page);
       await expect(header.locator('[data-mobile-nav="home"]')).toBeVisible();
       await expect(header.locator('[data-mobile-nav="'+env('HEADER_PATH_ID')+'"]')).toBeVisible();
       return header.locator('div.fixed.inset-0').evaluate(e=>e.scrollHeight);
