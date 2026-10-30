@@ -1,0 +1,38 @@
+name: School director class-move PostgreSQL serialization
+
+on:
+  pull_request:
+    paths:
+      - "internal/organizations/repository/postgres/director_students.go"
+      - "internal/organizations/repository/postgres/director_student_move_serialization_test.go"
+      - ".github/workflows/school-director-class-move-postgres.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  class-move-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: almeaa
+          POSTGRES_PASSWORD: almeaa
+          POSTGRES_DB: almeaa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U almeaa -d almeaa"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Verify concurrent class move on real PostgreSQL
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/organizations/repository/postgres -run '^TestDirectorStudentConcurrentClassMovesPostgres$' -count=1 -v

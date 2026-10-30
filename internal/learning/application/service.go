@@ -13,12 +13,13 @@ import (
 )
 
 var (
-	ErrInvalidInput        = errors.New("invalid learning request")
-	ErrForbidden           = errors.New("learning operation forbidden")
-	ErrNotFound            = learning.ErrNotFound
-	ErrConflict            = learning.ErrConflict
-	ErrNotDue              = learning.ErrNotDue
-	ErrIncompleteReadiness = errors.New("incomplete mastery readiness evidence")
+	ErrInvalidInput               = errors.New("invalid learning request")
+	ErrForbidden                  = errors.New("learning operation forbidden")
+	ErrNotFound                   = learning.ErrNotFound
+	ErrConflict                   = learning.ErrConflict
+	ErrNotDue                     = learning.ErrNotDue
+	ErrIncompleteReadiness        = errors.New("incomplete mastery readiness evidence")
+	ErrIncompleteReviewProjection = errors.New("incomplete pinned review question projection")
 )
 
 type Repository interface {
@@ -200,7 +201,9 @@ func (s *Service) ReviewLibrary(ctx context.Context, actor identity.User, tab le
 	for _, card := range cards {
 		projection, ok := byKey[card.QuestionID+":"+strconv.Itoa(card.QuestionVersion)]
 		if !ok {
-			continue
+			// A persisted card must not disappear from a successful review page.
+			// The client already distinguishes failed reads from genuinely empty ones.
+			return learning.ReviewPage{}, ErrIncompleteReviewProjection
 		}
 		reviewQuestion := learning.ReviewQuestion{
 			ID: projection.ID, Version: projection.Version, Type: string(projection.QuestionType),

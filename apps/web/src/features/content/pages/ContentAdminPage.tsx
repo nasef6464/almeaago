@@ -1,13 +1,10 @@
 import {
   BookOpen,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  FileText,
   FolderTree,
   GraduationCap,
   Library,
-  Lock,
   Plus,
   RefreshCcw,
   Search,
@@ -170,6 +167,10 @@ export function ContentAdminPage() {
       workflowStatus: tab === 'foundation' ? '' : workflowStatus,
     };
 
+    // A new path/subject/tab must never display rows from the previous scope.
+    // Keep the filter selection visible, but clear the previous response immediately.
+    setRows([]);
+    setHasMore(false);
     setLoading(true);
     setError('');
 
@@ -212,13 +213,6 @@ export function ContentAdminPage() {
     waitingForTeacherScope,
     workflowStatus,
   ]);
-
-  const stats = useMemo(() => {
-    const approved = rows.filter((row) => workflow(row) === 'approved').length;
-    const visible = rows.filter((row) => row.isVisible).length;
-    const locked = rows.filter((row) => 'isLocked' in row && row.isLocked).length;
-    return { shown: rows.length, approved, visible, locked };
-  }, [rows]);
 
   async function setCourseWorkflow(
     course: CourseSummary,
@@ -440,11 +434,7 @@ export function ContentAdminPage() {
       <div className="mx-auto max-w-7xl space-y-6">
         <section className="flex flex-col gap-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-xs font-black text-indigo-600">Content Management</div>
-            <h1 className="mt-1 text-2xl font-black text-gray-900">إدارة المحتوى التعليمي</h1>
-            <p className="mt-2 max-w-3xl text-sm font-medium leading-7 text-gray-500">
-              نقل تدريجي لنفس تقسيم الواجهة المرجعية، مع قراءة مباشرة من Go/PostgreSQL وقوائم محدودة بدل تحميل المخزون كاملًا.
-            </p>
+            <h1 className="text-2xl font-black text-gray-900">إدارة المحتوى التعليمي</h1>
           </div>
           <button
             type="button"
@@ -573,23 +563,6 @@ export function ContentAdminPage() {
 
         {!waitingForTeacherScope ? (
           <>
-            <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {[
-                { label: 'المعروض', value: stats.shown, icon: FileText },
-                { label: 'المعتمد', value: stats.approved, icon: CheckCircle2 },
-                { label: 'الظاهر', value: stats.visible, icon: BookOpen },
-                { label: 'المغلق', value: stats.locked, icon: Lock },
-              ].map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div key={item.label} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                    <div className="flex items-center gap-2 text-xs font-black text-gray-500"><Icon size={17} />{item.label}</div>
-                    <div className="mt-3 text-2xl font-black text-gray-900">{item.value.toLocaleString('ar-SA')}</div>
-                  </div>
-                );
-              })}
-            </section>
-
             {error ? <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-800">{error}</div> : null}
             {actionError ? <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-bold text-rose-800">{actionError}</div> : null}
 

@@ -26,5 +26,7 @@ test('shared footer scope matches public routes including trailing slash',()=>{
  const module={exports:{}};new Function('require','module','exports',output)(require,module,module.exports);
  assert.equal(typeof module.exports.showPublicFooter,'function');
  for(const path of ['/','/about','/about/','/faq/','/privacy/','/terms/','/contact/','/login/','/signup/','/forgot-password/','/reset-password/']) assert.equal(module.exports.showPublicFooter(path),true,path);
- for(const path of ['/admin-dashboard','/classroom/x/projector','/course/x','/about-more']) assert.equal(module.exports.showPublicFooter(path),false,path);
+ // All these pages are children of Legacy AppRouteTree's MainLayout, which renders the same footer.
+ for(const path of ['/verify-email','/verify-email/','/checkout','/checkout/','/category/quant','/category/quant/','/course/course-123','/course/course-123/']) assert.equal(module.exports.showPublicFooter(path),true,path);
+ for(const path of ['/admin-dashboard','/classroom/x/projector','/course','/category','/about-more','/course/x/lesson']) assert.equal(module.exports.showPublicFooter(path),false,path);
 });

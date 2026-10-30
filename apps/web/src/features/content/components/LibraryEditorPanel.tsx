@@ -44,6 +44,7 @@ export function LibraryEditorPanel({
   const [taxonomy, setTaxonomy] = useState<TaxonomyFull>({ ...coreTaxonomy, skills: [] });
   const [loading, setLoading] = useState(editing);
   const [taxonomyLoading, setTaxonomyLoading] = useState(true);
+  const [taxonomyReady, setTaxonomyReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [pathId, setPathId] = useState(initialPathId);
@@ -72,7 +73,10 @@ export function LibraryEditorPanel({
   useEffect(() => {
     const controller = new AbortController();
     contentClient.taxonomyFull(controller.signal)
-      .then(setTaxonomy)
+      .then((result) => {
+        setTaxonomy(result);
+        setTaxonomyReady(true);
+      })
       .catch((cause: unknown) => {
         if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'تعذر تحميل المهارات.');
       })
@@ -96,20 +100,28 @@ export function LibraryEditorPanel({
   const skills = useMemo(() => taxonomy.skills.filter((skill) => skill.subjectId === subjectId), [subjectId, taxonomy.skills]);
 
   useEffect(() => {
+    // The detail request can finish before taxonomy. Never discard persisted links
+    // by filtering them against the initial, intentionally empty skill catalog.
+    if (!taxonomyReady) return;
     if (subjectId && !subjects.some((subject) => subject.id === subjectId)) {
       setSubjectId('');
       setSkillIds([]);
     }
-  }, [subjectId, subjects]);
+  }, [subjectId, subjects, taxonomyReady]);
   useEffect(() => {
+    if (!taxonomyReady) return;
     setSkillIds((current) => current.filter((id) => skills.some((skill) => skill.id === id)));
-  }, [skills]);
+  }, [skills, taxonomyReady]);
 
   const lockedByWorkflow = Boolean(existing && (existing.workflowStatus === 'approved' || existing.workflowStatus === 'archived'));
   const canMutate = !lockedByWorkflow;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (!taxonomyReady) {
+      setError('تعذر تحميل المهارات. لا يمكن حفظ تعديل قد يفقد الروابط الحالية.');
+      return;
+    }
     setError('');
     if (!pathId || !subjectId || !title.trim() || skillIds.length === 0) {
       setError('أكمل المسار والمادة والعنوان ومهارة واحدة على الأقل.');
@@ -198,7 +210,7 @@ export function LibraryEditorPanel({
 
         <section className="flex flex-col gap-3 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-xs font-bold text-gray-500"><CheckCircle2 size={17} className="text-emerald-600" />الحفظ لا يعتمد العنصر تلقائيًا.</div>
-          <button type="submit" disabled={!canMutate || saving || taxonomyLoading} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white disabled:opacity-50">{saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}{saving ? 'جارٍ الحفظ...' : 'حفظ'}</button>
+          <button type="submit" disabled={!canMutate || saving || taxonomyLoading || !taxonomyReady} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white disabled:opacity-50">{saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}{saving ? 'جارٍ الحفظ...' : 'حفظ'}</button>
         </section>
       </form>
     </main>

@@ -77,8 +77,14 @@ export function ReportsPage(){
  },[classId,dateFrom,dateTo,isAdmin,isStudent,pathId,schoolId,subjectId]);
 
  useEffect(()=>{
-  if(authLoading||!user||!supported||(needsSchool&&!schoolId))return;
+  if(authLoading||!user||!supported||(needsSchool&&!schoolId)){
+   setOverview(null);setResults(null);setBusy(false);
+   return;
+  }
   const controller=new AbortController();setBusy(true);setError('');
+  // Never show a previous path/subject/period (or school) as the current report
+  // while the next HTTP reads are pending or if either read fails.
+  setOverview(null);setResults(null);
   Promise.all([reportingClient.overview(query,controller.signal),reportingClient.results(query,1,20,controller.signal)])
    .then(([o,r])=>{setOverview(o);setResults(r)})
    .catch(e=>{if(!controller.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل التقارير')})
@@ -133,7 +139,7 @@ export function ReportsPage(){
       <div className="min-w-0 flex-1">
        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-black ${pathId?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-amber-800'}`}>{pathId?'تقاريرك مرتبة حسب مسارك':'اختر مسارك لتضييق التقرير'}</span>
        <h2 className="mt-1 text-sm font-black leading-snug text-gray-900 sm:text-base">{pathId?`نركز الآن على ${taxonomy.paths.find(row=>row.id===pathId)?.name||'المسار المختار'}${subjectId?` — ${studentSubjects.find(row=>row.id===subjectId)?.name||''}`:''}.`:'يمكنك إبقاء التقرير شاملًا أو تحديد المسار والمادة.'}</h2>
-       <p className="mt-0.5 text-xs font-bold text-gray-500">التصفية ترسل path/subject فقط إلى Reporting API؛ لا يعاد بناء إتقان أو نتيجة داخل المتصفح.</p>
+
       </div>
      </div>
      <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[440px]">
@@ -194,7 +200,7 @@ export function ReportsPage(){
     </section>
 
     <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-     <div className="flex items-center justify-between gap-3 border-b p-5"><div><h2 className="text-lg font-black">أحدث النتائج</h2><p className="mt-1 text-xs font-bold text-gray-500">ملخص نتيجة فقط؛ لا إجابات ولا answer keys.</p></div><Link to="/assessment-results" className="rounded-xl bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700">اختباراتي</Link></div>
+     <div className="flex items-center justify-between gap-3 border-b p-5"><div><h2 className="text-lg font-black">أحدث النتائج</h2></div><Link to="/assessment-results" className="rounded-xl bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700">اختباراتي</Link></div>
      {results?.items.length?<div className="divide-y">{results.items.map(row=><article key={row.attemptId} className="grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center"><div><div className="font-black">{row.title}</div><div className="mt-1 text-xs font-bold text-gray-500">{new Date(row.finalizedAt).toLocaleString('ar-SA')} · صحيح {row.correctAnswers} · خطأ {row.wrongAnswers} · دون إجابة {row.unanswered}</div></div><Link to={`/assessment-results/${row.attemptId}`} className="rounded-xl bg-indigo-50 px-4 py-2 text-center text-xl font-black text-indigo-700">{score(row.score)}</Link></article>)}</div>:<div className="p-8 text-center text-sm font-bold text-gray-500">لا توجد نتائج في النطاق الحالي.</div>}
     </section>
    </>:null}

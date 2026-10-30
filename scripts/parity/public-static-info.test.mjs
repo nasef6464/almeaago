@@ -18,7 +18,11 @@ new Function('require','module','exports',ts.transpileModule(source,{compilerOpt
 // Verify every source byte, not only the representative text assertions.
 // The two export changes are the only permitted adapter delta.
 test('the entire information-page source equals approved Legacy blob after export adaptation',()=>{
-  const original=source
+  // #240 is the canonical source-preserving component on main. Its sole
+  // extra export supports existing consumers; normalize ONLY that export.
+  assert.match(source,/\nexport default StaticInfoPage;\n$/);
+  const canonicalSource=source.replace(/\nexport default StaticInfoPage;\n$/, '\n');
+  const original=canonicalSource
     .replace('export type StaticInfoPageKind =','type StaticInfoPageKind =')
     .replace('export const StaticInfoPage: React.FC','const StaticInfoPage: React.FC')+
     'export default StaticInfoPage;\n';

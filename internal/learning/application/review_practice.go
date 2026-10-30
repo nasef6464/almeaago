@@ -70,7 +70,12 @@ func (s *Service) ReviewPractice(
 	items := make([]learning.ReviewPracticeItem, 0, len(cards))
 	for _, card := range cards {
 		row, ok := byKey[reviewPracticeKey(card.QuestionID, card.QuestionVersion)]
-		if !ok || row.CorrectOptionIndex == nil || len(row.Options) == 0 {
+		if !ok {
+			// Do not turn a broken pinned question reference into an empty
+			// practice session; the student must be able to retry the read.
+			return learning.ReviewPracticePage{}, ErrIncompleteReviewProjection
+		}
+		if row.CorrectOptionIndex == nil || len(row.Options) == 0 {
 			continue
 		}
 		safe := learning.ReviewPracticeQuestion{

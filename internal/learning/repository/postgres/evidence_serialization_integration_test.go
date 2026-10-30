@@ -191,6 +191,9 @@ func (f *evidenceFixture) assertProgress(t *testing.T, count int, mastery float6
 }
 
 func TestEvidenceSerializationPostgres(t *testing.T) {
+	t.Run("saved_review_http", TestReviewSavedHTTPPostgres)
+	t.Run("saved_review_manual_fk", TestReviewSavedManualCardLinkedSkillsPostgres)
+	t.Run("saved_review_concurrent_evidence", TestReviewSavedConcurrentEvidencePostgres)
 	for _, kind := range []string{"assessment_assessment", "assessment_review", "review_review"} {
 		t.Run(kind, func(t *testing.T) {
 			f := newEvidenceFixture(t)

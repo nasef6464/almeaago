@@ -140,11 +140,14 @@ func buildClassListWhere(
 		clauses = append(clauses, "c.status <> 'archived'")
 	}
 
-	if query.Search != "" {
-		args = append(args, "%"+strings.ToLower(query.Search)+"%")
+	// Treat user search as a literal substring of the class name; SQL LIKE
+	// would interpret '%' and '_' as wildcards. Class code is an exact match.
+	// Keep the existing school, membership, role and status predicates intact.
+	if search := strings.ToLower(strings.TrimSpace(query.Search)); search != "" {
+		args = append(args, search)
 		n := strconv.Itoa(len(args))
 		clauses = append(clauses,
-			"(lower(c.name) LIKE $"+n+" OR lower(c.code) = lower(trim(both '%' from $"+n+")))",
+			"(strpos(lower(c.name), $"+n+") > 0 OR lower(c.code) = $"+n+")",
 		)
 	}
 

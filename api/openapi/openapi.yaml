@@ -2677,16 +2677,18 @@ paths:
   /api/v1/lessons:
     get:
       operationId: contentListLessons
-      description: Bounded staff lesson list with owner/assignment authority; platform trainer scope applies globally, while an exact pathId+subjectId filter may be authorized by an active school teaching assignment.
+      description: Bounded staff lesson list with owner/assignment authority; optional skillId filters canonical lesson_skill_links without widening the staff scope. Platform trainer scope applies globally, while an exact pathId+subjectId filter may be authorized by an active school teaching assignment.
       parameters:
         - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
         - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
         - { in: query, name: pathId, schema: { type: string } }
         - { in: query, name: subjectId, schema: { type: string } }
+        - { in: query, name: skillId, description: Optional exact skill UUID linked to the lesson, schema: { type: string, format: uuid } }
         - { in: query, name: search, schema: { type: string, maxLength: 160 } }
         - { in: query, name: workflowStatus, schema: { type: string, enum: [draft, pending_review, approved, rejected, archived] } }
       responses:
         "200": { description: Bounded staff lesson page }
+        "400": { description: Invalid pagination, filters, or skill UUID }
         "403": { description: Staff scope required }
     post:
       operationId: contentCreateLesson

@@ -225,6 +225,7 @@ type ListQuery struct {
 	Limit                    int
 	PathID                   string
 	SubjectID                string
+	SkillID                  string
 	Search                   string
 	WorkflowStatus           WorkflowStatus
 	TeacherScopeUserID       string

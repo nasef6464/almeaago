@@ -128,7 +128,7 @@ func (r *Repository) GetLesson(ctx context.Context, lessonID string) (content.Le
 }
 
 func (r *Repository) ListLessons(ctx context.Context, query content.ListQuery) (content.LessonPage, error) {
-	where, args := buildListWhere(query, "l")
+	where, args := buildLessonListWhere(query)
 	args = append(args, query.Limit+1, (query.Page-1)*query.Limit)
 	rows, err := r.db.Query(ctx, `
 		SELECT l.id::text,l.path_id::text,l.subject_id::text,l.title,l.lesson_type,l.duration_seconds,
@@ -159,4 +159,13 @@ func (r *Repository) ListLessons(ctx context.Context, query content.ListQuery) (
 		items = items[:query.Limit]
 	}
 	return content.LessonPage{Items: items, Page: query.Page, Limit: query.Limit, HasMore: hasMore}, nil
+}
+
+func buildLessonListWhere(query content.ListQuery) (string, []any) {
+	where, args := buildListWhere(query, "l")
+	if query.SkillID != "" {
+		args = append(args, query.SkillID)
+		where += fmt.Sprintf(" AND EXISTS (SELECT 1 FROM lesson_skill_links lsl WHERE lsl.lesson_id=l.id AND lsl.skill_id=$%d::uuid)", len(args))
+	}
+	return where, args
 }

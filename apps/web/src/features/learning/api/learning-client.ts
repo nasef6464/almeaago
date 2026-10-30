@@ -146,8 +146,28 @@ async function request<T>(path: string, init: RequestInit = {}) {
     headers: { Accept: 'application/json', ...init.headers },
   });
   if (!response.ok) {
-    const body = await response.json().catch(() => ({ message: 'تعذر تنفيذ الطلب' }));
-    throw new Error(body.message || 'تعذر تنفيذ الطلب');
+    // HTTP gateways can return JSON null or a nested error envelope.
+    // Never turn a failed save into a JavaScript TypeError or a success.
+    let message = 'تعذر تنفيذ الطلب';
+    try {
+      const body: unknown = await response.json();
+      if (body !== null && typeof body === 'object') {
+        const errorBody = body as {
+          message?: unknown;
+          error?: { message?: unknown } | null;
+        };
+        const nested = errorBody.error?.message;
+        const candidate = typeof nested === 'string' && nested.trim()
+          ? nested
+          : errorBody.message;
+        if (typeof candidate === 'string' && candidate.trim()) {
+          message = candidate;
+        }
+      }
+    } catch {
+      // Preserve the localized fallback when a proxy sends non-JSON content.
+    }
+    throw new Error(message);
   }
   return response.json() as Promise<T>;
 }

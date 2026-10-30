@@ -133,3 +133,4 @@ export const StaticInfoPage: React.FC<StaticInfoPageProps> = ({ kind }) => {
   );
 };
 
+export default StaticInfoPage;

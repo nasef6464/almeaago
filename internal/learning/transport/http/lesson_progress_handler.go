@@ -2,6 +2,7 @@ package learninghttp
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -32,6 +33,22 @@ func lessonContextFromRequest(r *http.Request) learning.LessonProgressContextInp
 	}
 }
 
+// decodeLessonProgressWrite accepts exactly one JSON object. A second document or
+// unknown field must not turn an ambiguous learner action into a persisted write.
+func decodeLessonProgressWrite(w http.ResponseWriter, r *http.Request, out any) bool {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(out); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+		return false
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+		return false
+	}
+	return true
+}
+
 func (h *LessonProgressHandler) get(w http.ResponseWriter, r *http.Request) {
 	a, ok := (&Handler{auth: h.auth}).authn(w, r, false)
 	if !ok {
@@ -51,8 +68,7 @@ func (h *LessonProgressHandler) video(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in learning.VideoProgressWrite
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10)).Decode(&in); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+	if !decodeLessonProgressWrite(w, r, &in) {
 		return
 	}
 	out, err := h.service.SaveVideo(r.Context(), a.User, chi.URLParam(r, "lessonId"), in)
@@ -69,8 +85,7 @@ func (h *LessonProgressHandler) complete(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	var in learning.LessonProgressContextInput
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10)).Decode(&in); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+	if !decodeLessonProgressWrite(w, r, &in) {
 		return
 	}
 	out, err := h.service.Complete(r.Context(), a.User, chi.URLParam(r, "lessonId"), in)
