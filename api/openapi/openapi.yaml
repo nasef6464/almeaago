@@ -6,12 +6,19 @@ paths:
   /api/v1/taxonomy/bootstrap:
     get:
       operationId: taxonomyPublicBootstrap
+      description: >
+        Public projection returns active taxonomy only. An optional authenticated platform-admin
+        session receives the full lifecycle projection (active/inactive/archived) with private,
+        no-store caching. Path display fields include showInNavbar, showInHome and settings
+        (showSubjectCards, showMockExamCard, showPackageCard, studentTemplate, stageSelection,
+        stageLabel); subjects expose icon and color. Teacher/supervisor inactive-path projection
+        remains closed until the canonical scoped navigation contract is implemented.
       parameters:
         - in: query
           name: phase
           schema: { type: string, enum: [core, compact, full], default: full }
       responses:
-        "200": { description: Active normalized taxonomy hierarchy; core omits skills }
+        "200": { description: Normalized taxonomy hierarchy with persisted path and subject display metadata; core omits skills }
         "400": { description: Invalid bootstrap phase }
         "500": { description: Taxonomy unavailable }
 
@@ -30,7 +37,10 @@ paths:
   /api/v1/taxonomy/admin/paths:
     post:
       operationId: taxonomyAdminCreatePath
-      description: Platform-admin only. Codes are immutable after creation; CSRF required.
+      description: >
+        Platform-admin only. Codes are immutable after creation; CSRF required. Optional
+        showInNavbar/showInHome and nested settings are stored in existing path presentation
+        JSONB; false and empty stageLabel are explicit values, and the write plus audit is atomic.
       responses:
         "201": { description: Path created }
         "400": { description: Invalid hierarchy input }
@@ -39,7 +49,12 @@ paths:
   /api/v1/taxonomy/admin/paths/{id}:
     patch:
       operationId: taxonomyAdminUpdatePath
-      description: Lifecycle-safe path update; code is not mutable.
+      description: >
+        Lifecycle-safe path update; code is not mutable. Presentation patches merge only supplied
+        keys into existing JSONB (including nested settings), preserve unknown source keys, and
+        commit atomically with audit. Supported display fields are showInNavbar, showInHome and
+        settings: showSubjectCards, showMockExamCard, showPackageCard, studentTemplate,
+        stageSelection and stageLabel.
       responses:
         "200": { description: Path updated }
         "404": { description: Path not found }
@@ -57,11 +72,13 @@ paths:
   /api/v1/taxonomy/admin/subjects:
     post:
       operationId: taxonomyAdminCreateSubject
+      description: Platform-admin only; optional icon and color are stored in subject presentation JSONB.
       responses:
         "201": { description: Subject created with optional same-path active level }
   /api/v1/taxonomy/admin/subjects/{id}:
     patch:
       operationId: taxonomyAdminUpdateSubject
+      description: Platform-admin only; icon/color patches merge into subject presentation JSONB and are audited atomically.
       responses:
         "200": { description: Subject updated }
   /api/v1/taxonomy/admin/skills:
