@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"unicode/utf16"
 	"unicode/utf8"
 
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
@@ -44,6 +45,24 @@ func (s *Service) PublicBootstrap(ctx context.Context, phase string) (taxonomy.B
 	}
 }
 
+func (s *Service) NavigationBootstrap(ctx context.Context, phase string, actor identity.User) (taxonomy.Bootstrap, bool, error) {
+	if phase != "" && phase != "core" && phase != "compact" && phase != "full" {
+		return taxonomy.Bootstrap{}, false, ErrInvalidPhase
+	}
+	// Only platform admins receive the full lifecycle tree. Teacher and
+	// supervisor inactive-path projection stays closed until the canonical
+	// Content/Organizations scope contract is available here.
+	if actor.ID != "" && actor.HasRole(identity.RoleAdmin) {
+		value, err := s.repo.AdminBootstrap(ctx)
+		if phase == "core" {
+			value.Skills = []taxonomy.Skill{}
+		}
+		return value, true, err
+	}
+	value, err := s.PublicBootstrap(ctx, phase)
+	return value, false, err
+}
+
 func (s *Service) AdminBootstrap(ctx context.Context, actor identity.User) (taxonomy.Bootstrap, error) {
 	if !actor.HasRole(identity.RoleAdmin) {
 		return taxonomy.Bootstrap{}, ErrForbidden
@@ -57,7 +76,7 @@ func (s *Service) CreatePath(ctx context.Context, actor identity.User, write tax
 	}
 	write.Code, write.Name = normalizeCode(write.Code), strings.TrimSpace(write.Name)
 	write.ParentPathID, write.Description = strings.TrimSpace(write.ParentPathID), strings.TrimSpace(write.Description)
-	if write.Code == "" || write.Name == "" || write.SortOrder < 0 || utf8.RuneCountInString(write.Name) > 160 || utf8.RuneCountInString(write.Description) > 4000 {
+	if !validPathSettings(write.Settings) || write.Code == "" || write.Name == "" || write.SortOrder < 0 || utf8.RuneCountInString(write.Name) > 160 || utf8.RuneCountInString(write.Description) > 4000 {
 		return taxonomy.Path{}, ErrInvalidInput
 	}
 	return s.repo.CreatePath(ctx, actor.ID, write)
@@ -72,7 +91,7 @@ func (s *Service) UpdatePath(ctx context.Context, actor identity.User, pathID st
 		v := strings.TrimSpace(*patch.ParentPathID)
 		patch.ParentPathID = &v
 	}
-	if pathID == "" || !validCommonPatch(patch.Name, patch.Description, patch.SortOrder, patch.Status, patch.ParentPathID != nil) {
+	if !validPathSettings(patch.Settings) || pathID == "" || !validCommonPatch(patch.Name, patch.Description, patch.SortOrder, patch.Status, patch.ParentPathID != nil || patch.ShowInNavbar != nil || patch.ShowInHome != nil || patch.Settings.HasValues()) {
 		return taxonomy.Path{}, ErrInvalidInput
 	}
 	return s.repo.UpdatePath(ctx, actor.ID, pathID, patch)
@@ -120,7 +139,7 @@ func (s *Service) UpdateSubject(ctx context.Context, actor identity.User, subjec
 		v := strings.TrimSpace(*patch.LevelID)
 		patch.LevelID = &v
 	}
-	if subjectID == "" || !validCommonPatch(patch.Name, nil, patch.SortOrder, patch.Status, patch.LevelID != nil) {
+	if subjectID == "" || !validCommonPatch(patch.Name, nil, patch.SortOrder, patch.Status, patch.LevelID != nil || patch.Icon != nil || patch.Color != nil) {
 		return taxonomy.Subject{}, ErrInvalidInput
 	}
 	return s.repo.UpdateSubject(ctx, actor.ID, subjectID, patch)
@@ -178,6 +197,27 @@ func validCommonPatch(name, description *string, sortOrder *int, status *taxonom
 		return false
 	}
 	return name != nil || description != nil || sortOrder != nil || status != nil || relationChanged
+}
+
+func validPathSettings(settings *taxonomy.PathSettings) bool {
+	if settings == nil {
+		return true
+	}
+	if settings.StageSelection != nil {
+		switch *settings.StageSelection {
+		case "auto", "required", "none":
+		default:
+			return false
+		}
+	}
+	if settings.StageLabel != nil {
+		value := strings.TrimSpace(*settings.StageLabel)
+		if len(utf16.Encode([]rune(value))) > 120 {
+			return false
+		}
+		settings.StageLabel = &value
+	}
+	return true
 }
 
 func normalizeCode(value string) string {
