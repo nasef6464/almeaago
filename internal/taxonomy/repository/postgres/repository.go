@@ -23,7 +23,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	}
 
 	pathRows, err := r.db.Query(ctx, `
-		SELECT id::text, code, name, COALESCE(parent_path_id::text, ''), description, sort_order
+		SELECT id::text, code, name, COALESCE(parent_path_id::text, ''), description, sort_order, status, presentation
 		FROM paths
 		WHERE status = 'active'
 		ORDER BY sort_order, id
@@ -33,10 +33,12 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	}
 	for pathRows.Next() {
 		var row taxonomy.Path
-		if err := pathRows.Scan(&row.ID, &row.Code, &row.Name, &row.ParentPathID, &row.Description, &row.SortOrder); err != nil {
+		var display pathDisplay
+		if err := pathRows.Scan(&row.ID, &row.Code, &row.Name, &row.ParentPathID, &row.Description, &row.SortOrder, &row.Status, &display); err != nil {
 			pathRows.Close()
 			return result, err
 		}
+		row.ShowInNavbar, row.ShowInHome, row.Settings = display.ShowInNavbar, display.ShowInHome, display.Settings
 		result.Paths = append(result.Paths, row)
 	}
 	if err := pathRows.Err(); err != nil {
@@ -70,7 +72,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	levelRows.Close()
 
 	subjectRows, err := r.db.Query(ctx, `
-		SELECT s.id::text, s.path_id::text, COALESCE(s.level_id::text, ''), s.code, s.name, s.sort_order
+		SELECT s.id::text, s.path_id::text, COALESCE(s.level_id::text, ''), s.code, s.name, s.sort_order, s.status, s.presentation
 		FROM subjects s
 		JOIN paths p ON p.id = s.path_id AND p.status = 'active'
 		LEFT JOIN levels l ON l.id = s.level_id
@@ -83,10 +85,12 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	}
 	for subjectRows.Next() {
 		var row taxonomy.Subject
-		if err := subjectRows.Scan(&row.ID, &row.PathID, &row.LevelID, &row.Code, &row.Name, &row.SortOrder); err != nil {
+		var display subjectDisplay
+		if err := subjectRows.Scan(&row.ID, &row.PathID, &row.LevelID, &row.Code, &row.Name, &row.SortOrder, &row.Status, &display); err != nil {
 			subjectRows.Close()
 			return result, err
 		}
+		row.Icon, row.Color = display.Icon, display.Color
 		result.Subjects = append(result.Subjects, row)
 	}
 	if err := subjectRows.Err(); err != nil {
@@ -134,7 +138,7 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 	}
 
 	pathRows, err := r.db.Query(ctx, `
-		SELECT id::text, code, name, COALESCE(parent_path_id::text, ''), description, sort_order, status
+		SELECT id::text, code, name, COALESCE(parent_path_id::text, ''), description, sort_order, status, presentation
 		FROM paths
 		ORDER BY sort_order, id
 	`)
@@ -143,10 +147,12 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 	}
 	for pathRows.Next() {
 		var row taxonomy.Path
-		if err := pathRows.Scan(&row.ID, &row.Code, &row.Name, &row.ParentPathID, &row.Description, &row.SortOrder, &row.Status); err != nil {
+		var display pathDisplay
+		if err := pathRows.Scan(&row.ID, &row.Code, &row.Name, &row.ParentPathID, &row.Description, &row.SortOrder, &row.Status, &display); err != nil {
 			pathRows.Close()
 			return result, err
 		}
+		row.ShowInNavbar, row.ShowInHome, row.Settings = display.ShowInNavbar, display.ShowInHome, display.Settings
 		result.Paths = append(result.Paths, row)
 	}
 	if err := pathRows.Err(); err != nil {
@@ -178,7 +184,7 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 	levelRows.Close()
 
 	subjectRows, err := r.db.Query(ctx, `
-		SELECT id::text, path_id::text, COALESCE(level_id::text, ''), code, name, sort_order, status
+		SELECT id::text, path_id::text, COALESCE(level_id::text, ''), code, name, sort_order, status, presentation
 		FROM subjects
 		ORDER BY path_id, sort_order, id
 	`)
@@ -187,10 +193,12 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 	}
 	for subjectRows.Next() {
 		var row taxonomy.Subject
-		if err := subjectRows.Scan(&row.ID, &row.PathID, &row.LevelID, &row.Code, &row.Name, &row.SortOrder, &row.Status); err != nil {
+		var display subjectDisplay
+		if err := subjectRows.Scan(&row.ID, &row.PathID, &row.LevelID, &row.Code, &row.Name, &row.SortOrder, &row.Status, &display); err != nil {
 			subjectRows.Close()
 			return result, err
 		}
+		row.Icon, row.Color = display.Icon, display.Color
 		result.Subjects = append(result.Subjects, row)
 	}
 	if err := subjectRows.Err(); err != nil {
@@ -242,12 +250,10 @@ func (r *Repository) ValidateMasteryGoalScope(ctx context.Context, pathID, subje
 			SELECT 1
 			FROM subjects s
 			JOIN paths p ON p.id=s.path_id
-			LEFT JOIN levels l ON l.id=s.level_id
 			WHERE p.id=$1::uuid
 			  AND s.id=$2::uuid
 			  AND p.status='active'
 			  AND s.status='active'
-			  AND (s.level_id IS NULL OR l.status='active')
 		)
 	`, pathID, subjectID).Scan(&ok)
 	return ok, err
@@ -270,9 +276,6 @@ func (r *Repository) ValidateStudyPlanScope(ctx context.Context, pathID string, 
 			  ON s.id::text=requested.subject_id
 			 AND s.path_id=$1::uuid
 			 AND s.status='active'
-			 AND (s.level_id IS NULL OR EXISTS (
-			   SELECT 1 FROM levels l WHERE l.id=s.level_id AND l.status='active'
-			 ))
 			WHERE s.id IS NULL
 		)
 	`, pathID, subjectIDs).Scan(&ok)
