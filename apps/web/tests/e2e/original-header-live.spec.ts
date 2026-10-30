@@ -19,7 +19,8 @@ async function ready(page:Page,url:string){
  if(width>=768)await expect(header.locator('nav').getByRole('link',{name:'قدرات',exact:true})).toHaveCount(1);
  else{await expect(header.getByRole('button',{name:'فتح القائمة',exact:true})).toBeVisible();await expect(header.locator('nav')).toBeHidden()}
  await expect(header.locator('a[href="/cart"] span')).toHaveText('1');
- await page.evaluate(async()=>{await Promise.all(['400 16px Tajawal','500 14px Tajawal','700 14px Tajawal','700 12px Tajawal','800 12px Tajawal','900 12px Tajawal'].map(font=>document.fonts.load(font)));await document.fonts.ready;});
+ await expect.poll(()=>page.locator('#platform-font-google-link').getAttribute('href')).toContain('Tajawal');
+  await page.evaluate(async()=>{const header=document.querySelector('header');const family=(header?getComputedStyle(header).fontFamily:'Tajawal').split(',')[0].replace(/["']/g,'').trim();const specs=[`400 16px "${family}"`,`500 14px "${family}"`,`700 14px "${family}"`,`700 12px "${family}"`,`800 12px "${family}"`,`900 12px "${family}"`];await Promise.all(specs.map(font=>document.fonts.load(font)));await document.fonts.ready;const missing=specs.filter(font=>!document.fonts.check(font));if(missing.length)throw new Error(`Header font weights did not load: ${missing.join(', ')}`);});
  await expect.poll(()=>page.locator('header').first().locator('img').evaluateAll(images=>images.every(image=>(image as HTMLImageElement).complete&&(image as HTMLImageElement).naturalWidth>0))).toBe(true);
 }
 async function stable(page:Page){
@@ -73,9 +74,11 @@ function exactPixelDifference(actual:Buffer,expected:Buffer){
 async function visualMetrics(page:Page){return page.evaluate(()=>{
  const box=(element:Element|null)=>{if(!element)return null;const r=element.getBoundingClientRect();const s=getComputedStyle(element);return {x:r.x,y:r.y,width:r.width,height:r.height,display:s.display,position:s.position,fontFamily:s.fontFamily,fontSize:s.fontSize,fontWeight:s.fontWeight,lineHeight:s.lineHeight,color:s.color,backgroundColor:s.backgroundColor,borderColor:s.borderColor,padding:s.padding,gap:s.gap}};
  const header=document.querySelector('header');const close=document.querySelector('button[aria-label="إغلاق القائمة"]');const r=close?.getBoundingClientRect();
- const links=Array.from(header?.querySelectorAll('a,button')||[]).map(element=>({tag:element.tagName,text:(element.textContent||'').replace(/\\s+/g,' ').trim(),aria:element.getAttribute('aria-label'),href:element.getAttribute('href'),...box(element)}));
- const svgs=Array.from(header?.querySelectorAll('svg')||[]).map((element,index)=>({index,html:element.outerHTML,...box(element)}));
- const fonts=['400 16px Tajawal','700 14px Tajawal','900 12px Tajawal'].map(font=>({font,available:document.fonts.check(font)}));
+ const visible=(element:Element)=>{const rect=element.getBoundingClientRect();return rect.width>0&&rect.height>0};
+ const links=Array.from(header?.querySelectorAll('a,button')||[]).filter(visible).map(element=>({tag:element.tagName,text:(element.textContent||'').replace(/\\s+/g,' ').trim(),aria:element.getAttribute('aria-label'),href:element.getAttribute('href'),...box(element)}));
+ const svgs=Array.from(header?.querySelectorAll('svg')||[]).filter(visible).map((element,index)=>{const html=element.outerHTML;const hash=Array.from(html).reduce((value,char)=>((value<<5)-value+char.charCodeAt(0))|0,0).toString(16);return {index,hash,className:element.getAttribute('class'),...box(element)}});
+ const family=(header?getComputedStyle(header).fontFamily:'Tajawal').split(',')[0].replace(/["']/g,'').trim();
+ const fonts=['400 16px','500 14px','700 14px','700 12px','800 12px','900 12px'].map(spec=>({font:spec+' '+family,available:document.fonts.check(spec+' '+family)}));
  return {viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,header:box(header),links,svgs,fonts,mobileCloseReachable:r?close===document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)||close?.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)):null};
 })}
 
