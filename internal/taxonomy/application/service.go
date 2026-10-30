@@ -218,8 +218,9 @@ func validPathSettings(settings *taxonomy.PathSettings) bool {
 		}
 	}
 	if settings.StageLabel != nil {
-		value := strings.TrimSpace(*settings.StageLabel)
-		if len(utf16.Encode([]rune(value))) > 120 {
+		raw := *settings.StageLabel
+		value := strings.TrimSpace(raw)
+		if (raw != "" && value == "") || len(utf16.Encode([]rune(value))) > 120 {
 			return false
 		}
 		settings.StageLabel = &value
