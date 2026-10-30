@@ -77,6 +77,7 @@ for (const width of [390, 820, 1440]) {
     await expect(initialHomePaths.locator('a[href="/learning?pathId=path-1"]')).toHaveCount(1);
     await expect(initialHomePaths.locator('a[href="/learning?pathId=path-archived"]')).toHaveCount(0);
     await page.goto('/admin-dashboard/taxonomy');
+    await expect(page.getByText('مسار مؤرشف')).toBeVisible();
 
     const editor = page.getByTestId('taxonomy-display-editor');
     await expect(editor).toBeVisible();
