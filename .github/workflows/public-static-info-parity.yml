@@ -1,0 +1,23 @@
+name: Public Static Info Parity
+on:
+  pull_request:
+    paths:
+      - "apps/web/src/features/public/pages/StaticInfoPage.tsx"
+      - "apps/web/tests/e2e/public-static-info-parity.spec.ts"
+      - "scripts/parity/public-static-info.test.mjs"
+      - ".github/workflows/public-static-info-parity.yml"
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  static-info:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: npm install --no-audit --no-fund
+        working-directory: apps/web
+      - run: node --test scripts/parity/public-static-info.test.mjs
+      - run: npm run typecheck
+        working-directory: apps/web

@@ -29,6 +29,7 @@ import {useHomepageSettings} from '../../presentation/useHomepageSettings';
 import {heroGallery as buildHeroGallery,heroRotateSeconds,resolveHomepageHeroImage} from '../../presentation/homepageHero';
 import {homepageHref} from '../../presentation/homepageLinks';
 import { contentClient } from '../../content/api/content-client';
+import { getPublicCourses, type PublicCourse } from '../api/publicCourses';
 import type { TaxonomyCore, TaxonomyPath } from '../../content/api/content-types';
 import { useAuth } from '../../auth/state/AuthProvider';
 import { dashboardPathFor } from '../../auth/utils/dashboard-path';
@@ -159,6 +160,8 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
   const section=settings.sections || {};
   const heroGallery=useMemo(()=>Object.keys(hero).length?buildHeroGallery(hero,[...PLATFORM_DAYLIGHT_IMAGES,...PLATFORM_SHOWCASE_IMAGES]):LEGACY_HERO_GALLERY,[hero]);
   const [taxonomy,setTaxonomy]=useState<TaxonomyCore>({paths:[],subjects:[]});
+  const [publicCourses,setPublicCourses]=useState<PublicCourse[]>([]);
+  const [courseLoadState,setCourseLoadState]=useState<'loading'|'ready'|'error'>('loading');
   const [currentHeroIndex,setCurrentHeroIndex]=useState(0);
   const [isHeroHovered,setIsHeroHovered]=useState(false);
   const [showcaseTab,setShowcaseTab]=useState<'daylight'|'neon'>('daylight');
@@ -167,6 +170,22 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
   useEffect(()=>{
     const controller=new AbortController();
     contentClient.taxonomyCore(controller.signal).then(setTaxonomy).catch(()=>{});
+    return()=>controller.abort();
+  },[]);
+
+  useEffect(()=>{
+    const controller=new AbortController();
+    setCourseLoadState('loading');
+    getPublicCourses(controller.signal).then(items=>{
+      if(controller.signal.aborted)return;
+      setPublicCourses(items);
+      setCourseLoadState('ready');
+    }).catch(()=>{
+      if(!controller.signal.aborted){
+        setPublicCourses([]);
+        setCourseLoadState('error');
+      }
+    });
     return()=>controller.abort();
   },[]);
 
@@ -181,7 +200,14 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
   const showcase=showcaseTab==='daylight'?PLATFORM_DAYLIGHT_IMAGES:PLATFORM_SHOWCASE_IMAGES;
   const dashboardHref=user?dashboardPathFor(user):'/dashboard';
 
-  const learningPreviews=PLATFORM_DAYLIGHT_IMAGES.slice(1,4);
+  // The source chooses up to three actual published courses, never showcase
+  // images masquerading as products. IDs that are no longer public are ignored.
+  const featuredCourses=useMemo(()=>{
+    const chosen=settings.featuredCourseIds?.length
+      ? publicCourses.filter(course=>settings.featuredCourseIds!.includes(course.id))
+      : [];
+    return (chosen.length?chosen:publicCourses).slice(0,3);
+  },[publicCourses,settings.featuredCourseIds]);
 
   return (
     <main data-testid="public-landing" dir="rtl" className="overflow-x-hidden bg-white font-tajawal text-gray-900">
@@ -311,45 +337,38 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
             <h2 className="mb-4 text-3xl font-black text-gray-900 md:text-4xl">كل ما تحتاجه للتفوق</h2>
             <p className="mx-auto max-w-2xl text-gray-600">نقدم لك أدوات تعليمية متكاملة تغطي كافة جوانب التدريب والتقييم.</p>
           </div>
-          {visiblePaths.length?(
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">{visiblePaths.map((path,index)=><OrganicPathCard key={path.id} path={path} index={index}/>)}</div>
-          ):(
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {['القدرات العامة','التحصيلي العلمي','الاختبارات والمحاكاة'].map((name,index)=>(
-                <div key={name} className="flex min-h-[176px] flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-                  <div className="mb-3 rounded-2xl bg-indigo-50 p-3 text-indigo-600">{pathIcon(index)}</div>
-                  <div className="text-lg font-black">{name}</div>
-                  <div className="mt-2 text-xs font-bold text-slate-400">يتم تحميل التصنيف من المصدر الخادمي.</div>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {visiblePaths.map((path,index)=><OrganicPathCard key={path.id} path={path} index={index}/>)}
+          </div>
         </div>
       </section>
 
-      <section className="bg-white py-20">
+      <section className="bg-white py-20" aria-label="الدورات المنشورة">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-right"><h2 className="mb-2 text-3xl font-black text-gray-900 md:text-4xl">{section.featuredCoursesTitle || 'الدورات الأكثر طلبًا'}</h2><p className="text-gray-500">{section.featuredCoursesSubtitle || 'اختر دورتك وابدأ رحلة التفوق اليوم'}</p></div>
             <Link to="/learning" className="flex items-center gap-2 self-start font-bold text-indigo-600 hover:underline sm:self-auto">عرض الكل <ArrowDown size={16} className="rotate-90"/></Link>
           </div>
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {learningPreviews.map(item=>(
-              <div key={item.id} className="group overflow-hidden rounded-3xl border border-gray-100 bg-white transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl">
-                <div className="relative aspect-video overflow-hidden"><img src={item.url} alt={item.alt} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy"/><div className="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1 text-sm font-black text-indigo-600 shadow-sm backdrop-blur-md">عرض تعريفي</div></div>
+            {featuredCourses.map(course=>(
+              <div key={course.id} className="group overflow-hidden rounded-3xl border border-gray-100 bg-white transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl">
+                <div className="relative aspect-video overflow-hidden bg-slate-100">
+                  {course.thumbnailUrl?<img src={course.thumbnailUrl} alt={course.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy"/>:null}
+                </div>
                 <div className="p-6 text-right">
-                  <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-1 text-amber-400"><Star size={14} fill="currentColor"/><span className="text-xs font-bold text-gray-600">منصة المئة</span></div><span className="text-[10px] font-bold text-gray-400">{item.badge}</span></div>
-                  <h3 className="mb-2 font-bold text-gray-900 transition-colors group-hover:text-indigo-600">{item.title}</h3>
-                  <p className="mb-4 line-clamp-2 text-xs leading-6 text-gray-500">{item.description}</p>
+                  <h3 className="mb-2 line-clamp-1 font-bold text-gray-900 transition-colors group-hover:text-indigo-600">{course.title}</h3>
+                  <p className="mb-4 flex items-center gap-1 text-xs text-gray-500"><Users size={12}/>{course.instructorName}</p>
                   <div className="grid grid-cols-2 gap-2 border-t border-gray-50 pt-4">
-                    <Link to={item.link} className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-700 transition-all hover:bg-gray-50"><Eye size={15}/> معاينة</Link>
-                    <Link to="/learning" className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white transition-all hover:bg-indigo-700"><ShoppingCart size={15}/> استكشف</Link>
+                    <Link to={`/course/${encodeURIComponent(course.id)}`} className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-700 transition-all hover:bg-gray-50"><Eye size={15}/> معاينة</Link>
+                    <Link to={`/course/${encodeURIComponent(course.id)}?buy=1`} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white transition-all hover:bg-indigo-700"><ShoppingCart size={15}/> شراء</Link>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-          <p className="mt-5 text-center text-[11px] font-bold text-slate-400">هذه بطاقات عرض للواجهة المرجعية؛ السعر والاستحقاق الفعليان يظلان من Commerce عند فتح رحلة الشراء.</p>
+          {courseLoadState==='loading'?<div role="status" className="py-12 text-center text-gray-500">جارٍ تحميل الدورات...</div>:null}
+          {courseLoadState==='error'?<div role="alert" className="py-12 text-center text-gray-500">تعذر تحميل الدورات حاليًا.</div>:null}
+          {courseLoadState==='ready'&&featuredCourses.length===0?<div className="py-12 text-center text-gray-500">لا توجد دورات منشورة حاليًا.</div>:null}
         </div>
       </section>
 

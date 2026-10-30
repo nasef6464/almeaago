@@ -74,6 +74,7 @@ export function StudyPlanPage(){
   const[busy,setBusy]=useState(true);
   const[saving,setSaving]=useState(false);
   const[error,setError]=useState('');
+  const[loadError,setLoadError]=useState(false);
   const[notice,setNotice]=useState('');
   const[reload,setReload]=useState(0);
   const[scheduleView,setScheduleView]=useState<'today'|'week'|'all'>('today');
@@ -82,20 +83,24 @@ export function StudyPlanPage(){
   const subjects=useMemo(()=>taxonomy.subjects.filter(x=>x.pathId===pathId),[pathId,taxonomy.subjects]);
 
   useEffect(()=>{
-    if(!pathId||authLoading||!user){setBusy(false);return}
-    const c=new AbortController();setBusy(true);setError('');
+    if(!pathId||authLoading||!user||!user.roles.includes('student')){setBusy(false);setCurrent(null);setHasPlans(false);return}
+    const c=new AbortController();
+    // The selected path/status is authoritative: never keep a previous plan visible
+    // while the new list or detail is loading, or after either request fails.
+    setBusy(true);setCurrent(null);setHasPlans(false);setLoadError(false);setError('');
     studyPlanClient.list(pathId,statusView,1,20,c.signal).then(async result=>{
       const first=result.items[0];
       if(!first){
-        if(!c.signal.aborted){setHasPlans(false);setCurrent(null);setDraft(draftFor(pathId))}
+        if(!c.signal.aborted){setHasPlans(false);setCurrent(null)}
         return;
       }
       const detail=await studyPlanClient.get(first.id,c.signal);
       if(c.signal.aborted)return;
-      setHasPlans(true);
-      const next=detail.plan;setCurrent(next);
+      const next=detail.plan;
+      if(next.pathId!==pathId||next.status!==statusView)throw new Error('الخطة المستلمة لا تطابق المسار والحالة المحددين.');
+      setHasPlans(true);setCurrent(next);
       setDraft({name:next.name,pathId:next.pathId,subjectIds:next.subjectIds,courseIds:next.courseIds,startDate:next.startDate,endDate:next.endDate,skipCompletedQuizzes:next.skipCompletedQuizzes,offDays:next.offDays,dailyMinutes:next.dailyMinutes,preferredStartTime:next.preferredStartTime,status:next.status});
-    }).catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل الخطط')}).finally(()=>{if(!c.signal.aborted)setBusy(false)});
+    }).catch(e=>{if(!c.signal.aborted){setCurrent(null);setHasPlans(false);setLoadError(true);setError(e instanceof Error?e.message:'تعذر تحميل الخطط')}}).finally(()=>{if(!c.signal.aborted)setBusy(false)});
     return()=>c.abort();
   },[authLoading,pathId,reload,statusView,user]);
 
@@ -114,7 +119,13 @@ export function StudyPlanPage(){
   },[courseSubjectId,pathId]);
 
   function changePath(value:string){
-    setPathId(value);setCurrent(null);setCourseSubjectId('');setCourseOptions([]);setDraft(draftFor(value));setNotice('');setError('');
+    if(saving)return;
+    setPathId(value);setCurrent(null);setHasPlans(false);setCourseSubjectId('');setCourseOptions([]);setDraft(draftFor(value));setNotice('');setError('');setLoadError(false);
+  }
+  function changeStatus(value:StudyPlanStatus){
+    if(saving)return;
+    setStatusView(value);setCurrent(null);setHasPlans(false);
+    setDraft(draftFor(pathId));setNotice('');setError('');setLoadError(false);
   }
   function toggleSubject(id:string){
     setCourseSubjectId('');
@@ -146,13 +157,13 @@ export function StudyPlanPage(){
   }
   async function archive(){
     if(!current)return;setSaving(true);setError('');
-    try{const csrf=await getCsrfToken();await studyPlanClient.update(current,{...draft,status:'archived'},csrf);setNotice('تمت أرشفة الخطة.');setReload(x=>x+1)}
+    try{const csrf=await getCsrfToken();await studyPlanClient.update(current,{...draft,status:'archived'},csrf);setDraft(draftFor(pathId));setNotice('تمت أرشفة الخطة.');setReload(x=>x+1)}
     catch(e){setError(e instanceof Error?e.message:'تعذر أرشفة الخطة')}
     finally{setSaving(false)}
   }
   async function remove(){
     if(!current)return;setSaving(true);setError('');
-    try{const csrf=await getCsrfToken();await studyPlanClient.delete(current.id,csrf);setCurrent(null);setNotice('تم حذف الخطة.');setReload(x=>x+1)}
+    try{const csrf=await getCsrfToken();await studyPlanClient.delete(current.id,csrf);setCurrent(null);setDraft(draftFor(pathId));setNotice('تم حذف الخطة.');setReload(x=>x+1)}
     catch(e){setError(e instanceof Error?e.message:'تعذر حذف الخطة')}
     finally{setSaving(false)}
   }
@@ -190,16 +201,20 @@ export function StudyPlanPage(){
         {taxonomy.paths.map(path=><button
           key={path.id}
           type="button"
+          disabled={saving}
           onClick={()=>changePath(path.id)}
           className={`rounded-xl px-5 py-4 text-base font-black transition-all ${pathId===path.id?'scale-[1.02] bg-emerald-500 text-white shadow-md':'text-gray-500 hover:bg-gray-200/50 hover:text-gray-700'}`}
         >خطة {path.name}</button>)}
       </div>
       <div className="mx-auto mt-3 grid max-w-sm grid-cols-2 rounded-xl bg-gray-100 p-1">
-        {(['active','archived'] as StudyPlanStatus[]).map(value=><button key={value} type="button" onClick={()=>setStatusView(value)} className={`rounded-lg px-4 py-2 text-sm font-black ${statusView===value?'bg-white text-indigo-700 shadow-sm':'text-gray-500'}`}>{value==='active'?'نشطة':'مؤرشفة'}</button>)}
+        {(['active','archived'] as StudyPlanStatus[]).map(value=><button key={value} type="button" onClick={()=>changeStatus(value)} disabled={saving} className={`rounded-lg px-4 py-2 text-sm font-black ${statusView===value?'bg-white text-indigo-700 shadow-sm':'text-gray-500'}`}>{value==='active'?'نشطة':'مؤرشفة'}</button>)}
       </div>
     </section>
 
-    {error?<div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">{error}</div>:null}
+    {error?<div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
+      <p>{error}</p>
+      {loadError?<button type="button" onClick={()=>setReload(x=>x+1)} className="mt-3 rounded-xl border border-red-300 bg-white px-4 py-2 font-black text-red-800 hover:bg-red-100">إعادة تحميل الخطط</button>:null}
+    </div>:null}
     {notice?<div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">{notice}</div>:null}
 
     {interventions.length>0?<section className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
@@ -313,6 +328,6 @@ export function StudyPlanPage(){
           </div>})}</div>
         </article>)}</div>}
       </section>
-    </section>:!hasPlans?<div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-10 text-center font-bold text-gray-500">{statusView==='active'?'لا توجد خطة نشطة لهذا المسار بعد.':'لا توجد خطط مؤرشفة.'}</div>:null}
+    </section>:!hasPlans&&!error?<div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-10 text-center font-bold text-gray-500">{statusView==='active'?'لا توجد خطة نشطة لهذا المسار بعد.':'لا توجد خطط مؤرشفة.'}</div>:null}
   </main>;
 }

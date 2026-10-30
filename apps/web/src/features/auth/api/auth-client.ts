@@ -4,7 +4,7 @@ const API_BASE = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, 
 
 interface ErrorBody {
   message?: string;
-  error?: {
+  error?: string | {
     message?: string;
   };
 }
@@ -20,16 +20,32 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
 
   if (!response.ok) {
-    let body: ErrorBody = {};
-    try {
-      body = (await response.json()) as ErrorBody;
-    } catch {
-      body = {};
+    // Legacy's request() preserves plain-text failures and string error
+    // envelopes. Reading JSON only silently discards both on public forms.
+    const rawError = await response.text().catch(() => '');
+    let serverMessage = '';
+    if (rawError) {
+      try {
+        const parsed: unknown = JSON.parse(rawError);
+        if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          const body = parsed as ErrorBody;
+          const error = body.error;
+          serverMessage =
+            (typeof error === 'object' && error !== null && typeof error.message === 'string'
+              ? error.message
+              : '') ||
+            (typeof body.message === 'string' ? body.message : '') ||
+            (typeof error === 'string' ? error : '');
+        } else {
+          serverMessage = rawError.slice(0, 240);
+        }
+      } catch {
+        serverMessage = rawError.slice(0, 240);
+      }
     }
 
     const message =
-      body.error?.message ||
-      body.message ||
+      serverMessage ||
       (response.status === 401
         ? 'بيانات الدخول غير صحيحة'
         : response.status === 429
