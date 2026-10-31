@@ -426,6 +426,7 @@ type LearnerLibrarySummary struct {
 	Description string
 	ItemType    LibraryType
 	IsLocked    bool
+	ExternalURL string
 }
 
 type LearnerLessonSummary struct {

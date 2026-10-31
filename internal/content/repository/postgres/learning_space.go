@@ -110,7 +110,7 @@ func (r *Repository) GetLearningSpace(ctx context.Context, pathID, subjectID str
 	}
 
 	libraryRows, err := r.db.Query(ctx, `
-		SELECT id::text,title,description,item_type,is_locked
+		SELECT id::text,title,description,item_type,is_locked,COALESCE(external_url, '')
 		FROM library_items
 		WHERE path_id=$1::uuid AND subject_id=$2::uuid
 		  AND workflow_status='approved' AND is_visible=true
@@ -122,7 +122,7 @@ func (r *Repository) GetLearningSpace(ctx context.Context, pathID, subjectID str
 	}
 	for libraryRows.Next() {
 		var row content.LearnerLibrarySummary
-		if err := libraryRows.Scan(&row.ID, &row.Title, &row.Description, &row.ItemType, &row.IsLocked); err != nil {
+		if err := libraryRows.Scan(&row.ID, &row.Title, &row.Description, &row.ItemType, &row.IsLocked, &row.ExternalURL); err != nil {
 			libraryRows.Close()
 			return content.LearningSpace{}, err
 		}
@@ -313,7 +313,7 @@ func (r *Repository) GetLearnerTopic(ctx context.Context, topicID string) (conte
 
 	result.LibraryItems = []content.LearnerLibrarySummary{}
 	libraryRows, err := r.db.Query(ctx, `
-		SELECT li.id::text,li.title,li.description,li.item_type,li.is_locked
+		SELECT li.id::text,li.title,li.description,li.item_type,li.is_locked,COALESCE(li.external_url, '')
 		FROM topic_library_items tli
 		JOIN library_items li ON li.id=tli.library_item_id
 		JOIN foundation_topics t ON t.id=tli.topic_id
@@ -332,7 +332,7 @@ func (r *Repository) GetLearnerTopic(ctx context.Context, topicID string) (conte
 			return content.LearnerTopic{}, content.ErrConflict
 		}
 		var row content.LearnerLibrarySummary
-		if err := libraryRows.Scan(&row.ID, &row.Title, &row.Description, &row.ItemType, &row.IsLocked); err != nil {
+		if err := libraryRows.Scan(&row.ID, &row.Title, &row.Description, &row.ItemType, &row.IsLocked, &row.ExternalURL); err != nil {
 			return content.LearnerTopic{}, err
 		}
 		result.LibraryItems = append(result.LibraryItems, row)

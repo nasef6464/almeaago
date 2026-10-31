@@ -343,7 +343,7 @@ export interface FoundationPlacements {
 
 export interface LearnerCourseSummary{id:string;title:string;description:string;instructorName:string;durationMinutes:number;level:string;thumbnailAssetId:string;dripContentEnabled:boolean;certificateEnabled:boolean}
 export interface LearnerTopicSummary{id:string;parentTopicId:string;title:string;description:string;sortOrder:number;isLocked:boolean}
-export interface LearnerLibrarySummary{id:string;title:string;description:string;type:string;isLocked:boolean}
+export interface LearnerLibrarySummary{id:string;title:string;description:string;type:string;isLocked:boolean;externalUrl?:string}
 export interface LearnerLessonSummary{id:string;title:string;description:string;type:string;durationSeconds:number;isLocked:boolean;isPreview:boolean;commerceLocked:boolean;sortOrder:number}
 export interface LearnerCourseModule{id:string;title:string;description:string;sortOrder:number;lessons:LearnerLessonSummary[]}
 export interface LearnerCourse extends LearnerCourseSummary{modules:LearnerCourseModule[];access:{allowed:boolean;configured:boolean;reason:string;productId:string;entitlementId:string;entitlementSource:string}}

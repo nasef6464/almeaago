@@ -221,6 +221,7 @@ async function setupMocks(page: Page) {
             description: 'ملف PDF يحتوي على أحدث النماذج المنقحة مع مفاتيح الإجابة.',
             type: 'pdf',
             isLocked: false,
+            externalUrl: 'https://example.com/verbal-bag.pdf',
           },
         ],
       },
@@ -303,7 +304,24 @@ test.describe('Complete Admin Departments and Learning Space Parity Suite', () =
     await expect(page.getByText('علاقة الجزء بالكل والسببية')).toBeVisible();
 
     // Close Dialog
-    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'إغلاق' }).click();
+    await expect(page.getByTestId('foundation-topic-dialog')).not.toBeVisible();
+
+    // Check Training tab
+    await page.getByRole('button', { name: 'التدريب', exact: true }).click();
+    await expect(page.getByRole('heading', { name: /التدريب وبنك الأسئلة|تدريب وبنك أسئلة/ })).toBeVisible();
+    await expect(page.getByText('التدريب التكيفي الذكي')).toBeVisible();
+
+    // Check Exams tab
+    await page.getByRole('button', { name: 'الاختبارات', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'الاختبار المحاكي الكامل' })).toBeVisible();
+
+    // Check Library tab
+    await page.getByRole('button', { name: 'المكتبة', exact: true }).click();
+    await expect(page.getByText('حقيبة تجميعات 1445 اللفظي')).toBeVisible();
+    const downloadLink = page.getByRole('link', { name: /تحميل \/ فتح/ });
+    await expect(downloadLink).toBeVisible();
+    await expect(downloadLink).toHaveAttribute('href', 'https://example.com/verbal-bag.pdf');
 
     await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'learning-space-verbal-desktop-1440.png'), fullPage: true });
   });

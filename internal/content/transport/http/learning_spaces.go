@@ -171,6 +171,7 @@ func presentLearnerLibrarySummary(row content.LearnerLibrarySummary) map[string]
 		"description": row.Description,
 		"type":        row.ItemType,
 		"isLocked":    row.IsLocked,
+		"externalUrl": row.ExternalURL,
 	}
 }
 

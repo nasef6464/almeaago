@@ -1,15 +1,19 @@
 import {
   Award,
   BookOpen,
+  CheckCircle2,
   ChevronRight,
   Clock,
+  Download,
   FileCheck,
   FileText,
   HelpCircle,
   Lock,
   PlayCircle,
   Search,
+  Sparkles,
   Target,
+  TrendingUp,
   User,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -299,13 +303,91 @@ export function LearningSpacePage() {
           ))}
         </section>
 
-        {!pathId || !subjectId ? (
-          <section className="rounded-3xl border border-dashed border-gray-200 bg-white p-10 text-center shadow-sm">
-            <Target className="mx-auto text-indigo-300" size={34} />
-            <h2 className="mt-3 text-lg font-black text-gray-800">اختر المسار ثم المادة</h2>
-            <p className="mt-2 text-sm font-bold leading-7 text-gray-500">
-              بعدها تظهر لك نفس أقسام مساحة التعلم: الدورات، التأسيس، التدريب، الاختبارات والمكتبة.
-            </p>
+        {!pathId ? (
+          <section className="space-y-6">
+            <div className="rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-sm">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 mb-3">
+                <Target size={28} />
+              </div>
+              <h2 className="text-xl font-black text-gray-800">اختر المسار التعليمي للبدء</h2>
+              <p className="mx-auto mt-2 max-w-xl text-sm font-bold text-gray-500">
+                اختر المسار المناسب لك لاستعراض كامل الدورات، خطة التأسيس، بنوك الأسئلة، الاختبارات المحاكية، والمكتبة الرقمية.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {taxonomy.paths.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => changePath(p.id)}
+                  className="group flex flex-col justify-between rounded-2xl border border-gray-100 bg-white p-6 text-right shadow-sm transition hover:-translate-y-1 hover:border-indigo-200 hover:shadow-md"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                      <BookOpen size={24} />
+                    </span>
+                    <span className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-black text-gray-600">
+                      {p.code}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-gray-900 group-hover:text-indigo-600 transition-colors">
+                      {p.name}
+                    </h3>
+                    <p className="mt-1 line-clamp-2 text-xs font-medium text-gray-500">
+                      {p.description || 'مسار تعليمي متكامل للتأسيس والتدريب والاختبارات.'}
+                    </p>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-gray-50 pt-3 text-xs font-black text-indigo-600">
+                    <span>استكشاف المسار</span>
+                    <ChevronRight size={16} className="rotate-180 transition-transform group-hover:-translate-x-1" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : !subjectId ? (
+          <section className="space-y-6">
+            <div className="rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-sm">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 mb-3">
+                <Target size={28} />
+              </div>
+              <h2 className="text-xl font-black text-gray-800">اختر المادة في {currentPath?.name || 'المسار'}</h2>
+              <p className="mx-auto mt-2 max-w-xl text-sm font-bold text-gray-500">
+                اختر المادة لعرض مواد التأسيس، الدورات والشروحات، بنك الأسئلة والاختبارات الخاصة بها.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {subjects.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => changeSubject(s.id)}
+                  className="group flex flex-col justify-between rounded-2xl border border-gray-100 bg-white p-6 text-right shadow-sm transition hover:-translate-y-1 hover:border-indigo-200 hover:shadow-md"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                      <Target size={24} />
+                    </span>
+                    <span className="rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-black text-indigo-700">
+                      {s.code}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-gray-900 group-hover:text-indigo-600 transition-colors">
+                      {s.name}
+                    </h3>
+                    <p className="mt-1 line-clamp-2 text-xs font-medium text-gray-500">
+                      {((s as any).description as string | undefined) || 'مادة تعليمية متخصصة تشمل شروحات وتدريبات واختبارات.'}
+                    </p>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-gray-50 pt-3 text-xs font-black text-indigo-600">
+                    <span>دخول المادة</span>
+                    <ChevronRight size={16} className="rotate-180 transition-transform group-hover:-translate-x-1" />
+                  </div>
+                </button>
+              ))}
+            </div>
           </section>
         ) : busy ? (
           <section className="rounded-2xl border bg-white p-10 text-center font-black text-gray-500">
@@ -393,48 +475,220 @@ export function LearningSpacePage() {
                 </article>
               ))
             ) : tab === 'questions' ? (
-              <article className="col-span-full flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6">
-                <div>
-                  <h2 className="text-xl font-black text-gray-800">التدريب وبنك الأسئلة</h2>
+              <div className="col-span-full space-y-6">
+                <article className="flex flex-col gap-4 rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-900 to-[#2e2b70] p-6 text-white shadow-md sm:flex-row sm:items-center sm:justify-between sm:p-8">
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-black text-indigo-200">
+                      <Sparkles size={14} className="text-amber-300" />
+                      بنك الأسئلة والتدريب الذكي
+                    </div>
+                    <h2 className="text-2xl font-black">{currentSubject?.name ? `تدريب وبنك أسئلة ${currentSubject.name}` : 'التدريب وبنك الأسئلة'}</h2>
+                    <p className="max-w-xl text-sm font-medium text-indigo-200 leading-6">
+                      تدرب على آلاف الأسئلة المحاكية المصنفة حسب المهارات مع تصحيح ذكي، حلول مفصلة، وتدرج تلقائي في الصعوبة.
+                    </p>
+                  </div>
+                  <Link
+                    to={assessmentHref('training')}
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-400 px-6 py-3.5 text-sm font-black text-gray-900 shadow hover:bg-amber-300 transition"
+                  >
+                    <HelpCircle size={18} />
+                    <span>عرض التدريبات</span>
+                  </Link>
+                </article>
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="flex flex-col justify-between rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div>
+                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                        <TrendingUp size={24} />
+                      </div>
+                      <h3 className="text-lg font-black text-gray-900">التدريب التكيفي الذكي</h3>
+                      <p className="mt-2 text-xs font-medium leading-6 text-gray-500">
+                        خوارزمية ذكية تختار لك أسئلة تتناسب مع مستواك وتركز تلقائيًا على المهارات التي تحتاج تحسين.
+                      </p>
+                    </div>
+                    <Link
+                      to={assessmentHref('training')}
+                      className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-xl border border-indigo-600 px-4 py-2.5 text-xs font-black text-indigo-600 hover:bg-indigo-50 transition"
+                    >
+                      <span>بدء التدريب التكيفي</span>
+                      <ChevronRight size={14} className="rotate-180" />
+                    </Link>
+                  </div>
+
+                  <div className="flex flex-col justify-between rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div>
+                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                        <Target size={24} />
+                      </div>
+                      <h3 className="text-lg font-black text-gray-900">التدريب المهاراتي المركز</h3>
+                      <p className="mt-2 text-xs font-medium leading-6 text-gray-500">
+                        اختر مهارة محددة وتدرّب عليها بصورة مكثفة مع استعراض استراتيجيات الحل السريع لكل سؤال.
+                      </p>
+                    </div>
+                    <Link
+                      to={assessmentHref('training')}
+                      className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-600 px-4 py-2.5 text-xs font-black text-emerald-600 hover:bg-emerald-50 transition"
+                    >
+                      <span>تدريب مهاراتي</span>
+                      <ChevronRight size={14} className="rotate-180" />
+                    </Link>
+                  </div>
+
+                  <div className="flex flex-col justify-between rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div>
+                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+                        <CheckCircle2 size={24} />
+                      </div>
+                      <h3 className="text-lg font-black text-gray-900">مراجعة الأخطاء السابقة</h3>
+                      <p className="mt-2 text-xs font-medium leading-6 text-gray-500">
+                        إعادة حل الأسئلة التي أجبت عليها بشكل غير صحيح مع شروحات الفيديو والتحليل الإحصائي.
+                      </p>
+                    </div>
+                    <Link
+                      to={assessmentHref('training')}
+                      className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-xl border border-purple-600 px-4 py-2.5 text-xs font-black text-purple-600 hover:bg-purple-50 transition"
+                    >
+                      <span>مراجعة بنك الأسئلة</span>
+                      <ChevronRight size={14} className="rotate-180" />
+                    </Link>
+                  </div>
                 </div>
-                <Link
-                  to={assessmentHref('training')}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-black text-white hover:bg-indigo-700"
-                >
-                  <HelpCircle size={18} />
-                  عرض التدريبات
-                </Link>
-              </article>
+              </div>
             ) : tab === 'exams' ? (
-              <article className="col-span-full flex flex-col rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                  <Award size={24} />
+              <div className="col-span-full space-y-6">
+                <article className="flex flex-col gap-4 rounded-3xl border border-amber-100 bg-gradient-to-r from-[#2e2b70] via-indigo-900 to-indigo-800 p-6 text-white shadow-md sm:flex-row sm:items-center sm:justify-between sm:p-8">
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-amber-400/20 px-3 py-1 text-xs font-black text-amber-300">
+                      <Award size={14} />
+                      منظومة الاختبارات المحاكية
+                    </div>
+                    <h2 className="text-2xl font-black">{currentSubject?.name ? `اختبارات ${currentSubject.name}` : 'الاختبارات'}</h2>
+                    <p className="max-w-xl text-sm font-medium text-indigo-200 leading-6">
+                      اختبارات محاكية تحاكي الاختبار الفعلي بدقة بالوقت وتوزيع الأسئلة، مع تقرير تحليلي فوري لدرجتك ونقاط القوة والضعف.
+                    </p>
+                  </div>
+                  <Link
+                    to={assessmentHref('tests')}
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-400 px-6 py-3.5 text-sm font-black text-gray-900 shadow hover:bg-amber-300 transition"
+                  >
+                    <FileCheck size={18} />
+                    <span>عرض الاختبارات</span>
+                  </Link>
+                </article>
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="flex flex-col justify-between rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div>
+                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                        <Award size={24} />
+                      </div>
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="text-lg font-black text-gray-900">الاختبار المحاكي الكامل</h3>
+                        <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-black text-amber-700">شامل</span>
+                      </div>
+                      <p className="mt-2 text-xs font-medium leading-6 text-gray-500">
+                        اختبار متكامل بنفس معايير وزمن الاختبار الحقيقي، يقيس جاهزيتك التامة ويعطيك نسبة تقديرية موثوقة.
+                      </p>
+                    </div>
+                    <Link
+                      to={assessmentHref('tests')}
+                      className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white hover:bg-indigo-700 transition"
+                    >
+                      <PlayCircle size={15} />
+                      <span>بدء الاختبار المحاكي</span>
+                    </Link>
+                  </div>
+
+                  <div className="flex flex-col justify-between rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div>
+                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                        <Target size={24} />
+                      </div>
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="text-lg font-black text-gray-900">الاختبار التشخيصي</h3>
+                        <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-black text-blue-700">تحديد مستوى</span>
+                      </div>
+                      <p className="mt-2 text-xs font-medium leading-6 text-gray-500">
+                        اختبار سريع لتحديد مستواك الأولي قبل بدء الخطة وتحديد المهارات التي تحتاج إلى تركيز وتأسيس.
+                      </p>
+                    </div>
+                    <Link
+                      to={assessmentHref('tests')}
+                      className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-xl border border-blue-600 px-4 py-2.5 text-xs font-black text-blue-600 hover:bg-blue-50 transition"
+                    >
+                      <span>بدء التشخيص</span>
+                      <ChevronRight size={14} className="rotate-180" />
+                    </Link>
+                  </div>
+
+                  <div className="flex flex-col justify-between rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div>
+                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+                        <Clock size={24} />
+                      </div>
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="text-lg font-black text-gray-900">الاختبارات الدورية القصيرة</h3>
+                        <span className="rounded-md bg-rose-50 px-2 py-0.5 text-[11px] font-black text-rose-700">تقييم مرحلي</span>
+                      </div>
+                      <p className="mt-2 text-xs font-medium leading-6 text-gray-500">
+                        اختبارات سريعة لكل قسم للتأكد من استيعاب المفاهيم والموضوعات التأسيسية أولاً بأول.
+                      </p>
+                    </div>
+                    <Link
+                      to={assessmentHref('tests')}
+                      className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-600 px-4 py-2.5 text-xs font-black text-rose-600 hover:bg-rose-50 transition"
+                    >
+                      <span>عرض الاختبارات القصيرة</span>
+                      <ChevronRight size={14} className="rotate-180" />
+                    </Link>
+                  </div>
                 </div>
-                <h2 className="text-xl font-black text-gray-800">الاختبارات</h2>
-                <Link
-                  to={assessmentHref('tests')}
-                  className="mt-5 inline-flex self-start items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 font-black text-white hover:bg-indigo-700"
-                >
-                  <FileCheck size={18} />
-                  عرض الاختبارات
-                </Link>
-              </article>
+              </div>
             ) : (
               visibleSpace.library.items.map((item) => (
-                <article key={item.id} className="flex h-full flex-col rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                  <div className="mb-6 flex items-start justify-between">
-                    <span className={`rounded-lg px-3 py-1 text-xs font-black ${
-                      item.isLocked ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'
-                    }`}>
-                      {item.isLocked ? 'ضمن باقة' : 'متاح'}
-                    </span>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-500">
-                      <FileText size={24} />
+                <article key={item.id} className="flex h-full flex-col justify-between rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+                  <div>
+                    <div className="mb-4 flex items-start justify-between">
+                      <span className={`rounded-lg px-3 py-1 text-xs font-black ${
+                        item.isLocked ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'
+                      }`}>
+                        {item.isLocked ? 'ضمن باقة' : 'متاح'}
+                      </span>
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-500">
+                        <FileText size={24} />
+                      </div>
                     </div>
+                    <h2 className="text-lg font-black text-gray-900 leading-snug">{item.title}</h2>
+                    <p className="mt-2 text-xs leading-6 text-gray-500">{item.description}</p>
                   </div>
-                  <h2 className="text-center text-lg font-black text-gray-800">{item.title}</h2>
-                  <p className="mt-2 text-center text-xs leading-6 text-gray-500">{item.description}</p>
-                  <div className="mt-auto pt-5 text-center text-xs font-black uppercase text-gray-400">{item.type}</div>
+                  
+                  <div className="mt-6 border-t border-gray-50 pt-4 flex items-center justify-between">
+                    <span className="text-xs font-black uppercase text-gray-400">{item.type || 'ملف'}</span>
+                    {item.isLocked ? (
+                      <Link
+                        to="/packages"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-1.5 text-xs font-black text-amber-800 hover:bg-amber-100 transition"
+                      >
+                        <Lock size={13} />
+                        <span>فتح عبر الباقة</span>
+                      </Link>
+                    ) : item.externalUrl ? (
+                      <a
+                        href={item.externalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-indigo-700 transition shadow-sm"
+                      >
+                        <Download size={13} />
+                        <span>تحميل / فتح</span>
+                      </a>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-xl bg-gray-50 px-3 py-1.5 text-xs font-bold text-gray-600">
+                        متاح للقراءة
+                      </span>
+                    )}
+                  </div>
                 </article>
               ))
             )}

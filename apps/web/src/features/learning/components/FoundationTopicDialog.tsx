@@ -1,4 +1,4 @@
-import { FileText, Lock, Target, Video, X } from 'lucide-react';
+import { ExternalLink, FileText, Lock, Target, Video, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { contentClient } from '../../content/api/content-client';
@@ -54,6 +54,14 @@ export function FoundationTopicDialog({ topic, topics, contentTab, onSelectTopic
       });
     return () => controller.abort();
   }, [topic.id, topic.isLocked, retry]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   return (
     <div data-testid="foundation-topic-dialog" className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" dir="rtl" role="dialog" aria-modal="true" aria-label={root.title}>
@@ -124,8 +132,28 @@ export function FoundationTopicDialog({ topic, topics, contentTab, onSelectTopic
                   <div className="space-y-4">
                     {detailForTopic.libraryItems.map((item) => (
                       <article key={item.id} className="flex items-center justify-between rounded-xl border border-gray-100 bg-white p-4">
-                        <h3 className="font-bold text-gray-900">{item.title}</h3>
-                        {item.isLocked ? <Lock size={18} className="text-amber-600" aria-label="مقفل" /> : <FileText size={18} className="text-indigo-600" />}
+                        <div>
+                          <h3 className="font-bold text-gray-900">{item.title}</h3>
+                          {item.description ? <p className="mt-1 text-sm text-gray-500">{item.description}</p> : null}
+                        </div>
+                        {item.isLocked ? (
+                          <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
+                            <Lock size={14} />
+                            <span>ضمن الباقة</span>
+                          </span>
+                        ) : item.externalUrl ? (
+                          <a
+                            href={item.externalUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition"
+                          >
+                            <ExternalLink size={14} />
+                            <span>فتح الملف</span>
+                          </a>
+                        ) : (
+                          <FileText size={18} className="text-indigo-600" />
+                        )}
                       </article>
                     ))}
                   </div>
