@@ -1,0 +1,48 @@
+name: Public Login Legacy Error Parity
+on:
+  pull_request:
+    paths:
+      - "apps/web/src/features/auth/components/AuthModal.tsx"
+      - "apps/web/src/features/auth/utils/publicLoginError.ts"
+      - "apps/web/tests/e2e/public-login-legacy-errors.spec.ts"
+      - "scripts/parity/public-login-error-source.test.mjs"
+      - ".github/workflows/public-login-legacy-errors.yml"
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  source-errors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Install frontend test compiler
+        working-directory: apps/web
+        run: npm install --no-audit --no-fund
+      - name: Legacy smart-login source contract
+        run: node --test scripts/parity/public-login-error-source.test.mjs
+  browser-errors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Exercise original login failure, retry and RTL at three widths
+        run: npx playwright test tests/e2e/public-login-legacy-errors.spec.ts --workers=2
+      - name: Upload visitor error-state browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-login-legacy-errors-browser
+          path: |
+            apps/web/test-results
+            apps/web/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
