@@ -532,18 +532,18 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
           </nav>
 
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className="hidden sm:block"><ThemeToggle /></div>
+            <ThemeToggle />
 
             <button
               onClick={() => setIsSearchOpen(true)}
-              className="hidden sm:inline-flex text-gray-500 hover:text-amber-500 transition-colors dark:text-gray-300"
+              className="text-gray-500 hover:text-amber-500 transition-colors dark:text-gray-300"
               title="بحث (Ctrl+K)"
               aria-label="فتح البحث"
             >
               <Search size={20} />
             </button>
 
-            <Link to="/cart" className="relative hidden sm:inline-flex text-gray-500 hover:text-amber-500 transition-colors dark:text-gray-300">
+            <Link to="/cart" className="relative text-gray-500 hover:text-amber-500 transition-colors dark:text-gray-300">
               <ShoppingCart size={20} />
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                 {cartItems.length}
@@ -644,24 +644,6 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
       {isMobileMenuOpen ? (
         <div className="md:hidden fixed inset-0 z-40 bg-white overflow-y-auto pb-20 animate-fade-in">
           <div className="p-4 pt-20">
-            {/* Keep compact actions reachable while reserving the first row for
-                the unwrapped legacy brand on narrow phones. */}
-            <div className="mb-5 flex items-center justify-between gap-3 border-b border-gray-100 pb-4 sm:hidden">
-              <button
-                type="button"
-                aria-label="فتح البحث"
-                onClick={() => { setIsMobileMenuOpen(false); setIsSearchOpen(true); }}
-                className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-gray-700"
-              >
-                <Search size={20} />
-                بحث
-              </button>
-              <Link to="/cart" onClick={() => setIsMobileMenuOpen(false)} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-gray-700">
-                <ShoppingCart size={20} />
-                السلة ({cartItems.length})
-              </Link>
-              <ThemeToggle />
-            </div>
             {navigationMenu.map((item, index) => {
               const icon = item.iconName ? NavIcons[item.iconName] : null;
 
