@@ -82,7 +82,7 @@ test('path workspace does not also own the skill creation tree', () => {
   // modules. Seed its first six state hooks and isolate imported services so this
   // SSR contract only verifies the selected path workspace, not API behavior.
   const { TaxonomyAdminPage } = load('features/taxonomy/pages/TaxonomyAdminPage.tsx', [fixture, false, '', '', '', 0]);
-  const html = renderToStaticMarkup(React.createElement(TaxonomyAdminPage));
+  const html = renderToStaticMarkup(React.createElement(MemoryRouter, null, React.createElement(TaxonomyAdminPage)));
   assert.match(html, /شجرة المسارات/);
   assert.doesNotMatch(html, /شجرة المهارات/);
   assert.doesNotMatch(html, /إضافة المهارة/);
