@@ -23,6 +23,7 @@ html {
   min-width: 320px;
   min-height: 100%;
   background: #f9fafb;
+  overflow-x: clip;
 }
 
 body {
@@ -30,6 +31,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background: #f9fafb;
+  overflow-x: clip;
 }
 
 button,

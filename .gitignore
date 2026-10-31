@@ -18,3 +18,4 @@ test-results/
 
 
 /apps/web/tests/reference/generated/
+.neon

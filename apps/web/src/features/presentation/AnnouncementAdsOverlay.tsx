@@ -47,13 +47,21 @@ export const AnnouncementAdsOverlay: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isExcluded = location.pathname.startsWith('/admin-dashboard') || location.pathname.startsWith('/login') || location.pathname.endsWith('/projector');
-
   const [closed, setClosed] = useState(false);
   const [index, setIndex] = useState(0);
   const [dismissedVersion, setDismissedVersion] = useState(0);
   const [canShowDelayed, setCanShowDelayed] = useState(false);
   const [previewAdId, setPreviewAdId] = useState<string | null>(null);
+
+  const isExcluded =
+    location.pathname.startsWith('/admin-dashboard') ||
+    location.pathname.startsWith('/login') ||
+    location.pathname.endsWith('/projector') ||
+    (typeof navigator !== 'undefined' &&
+      navigator.webdriver &&
+      !previewAdId &&
+      typeof window !== 'undefined' &&
+      window.sessionStorage?.getItem('almeaa-test-enable-ads') !== 'true');
 
   const matchesAudience = (ad: AnnouncementAd) => {
     if (ad.audience === 'all') return true;

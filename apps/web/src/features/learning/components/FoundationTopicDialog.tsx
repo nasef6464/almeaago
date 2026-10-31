@@ -56,15 +56,20 @@ export function FoundationTopicDialog({ topic, topics, contentTab, onSelectTopic
   }, [topic.id, topic.isLocked, retry]);
 
   useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [onClose]);
 
   return (
-    <div data-testid="foundation-topic-dialog" className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" dir="rtl" role="dialog" aria-modal="true" aria-label={root.title}>
+    <div data-testid="foundation-topic-dialog" className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-hidden" dir="rtl" role="dialog" aria-modal="true" aria-label={root.title}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl sm:h-[90vh]">
         <header className="relative flex h-24 shrink-0 flex-col justify-between bg-gradient-to-l from-indigo-900 to-[#2e2b70] p-5 text-white sm:h-28 sm:p-6">

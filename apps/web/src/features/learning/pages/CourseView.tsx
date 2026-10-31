@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
 
 import { useAuth } from '../../auth/state/AuthProvider';
@@ -14,7 +14,8 @@ export function CourseView() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
 
-  const isPlaying = searchParams.get('learn') === '1';
+  const location = useLocation();
+  const isPlaying = searchParams.get('learn') === '1' || (location.pathname.startsWith('/learning/courses/') && searchParams.get('overview') !== '1');
   const requestedTab = (searchParams.get('tab') as TabType) || 'syllabus';
 
   const [courseData, setCourseData] = useState<CourseOverviewData | null>(null);

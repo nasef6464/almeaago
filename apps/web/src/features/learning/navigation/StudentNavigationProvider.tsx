@@ -78,8 +78,13 @@ function useNavigationState() {
             setCatalog(previous => ({actorId, generation, value: previous?.actorId === actorId && previous.generation === generation ? previous.value : {paths: [], levels: [], subjects: []}, loading: true, error: ''}));
             const current = () => !disposed && !requestController.signal.aborted && started === revision && session.current === generation && actor.current === captured;
             void request<Catalog>('/api/v1/taxonomy/bootstrap?phase=core', {signal: requestController.signal}).then(data => {
-                if (!Array.isArray(data.paths) || !Array.isArray(data.levels) || !Array.isArray(data.subjects)) throw Error('Invalid catalog');
-                if (current()) setCatalog({actorId, generation, value: data, loading: false, error: ''});
+                if (!Array.isArray(data.paths) || !Array.isArray(data.subjects)) throw Error('Invalid catalog');
+                const safeData = {
+                    paths: data.paths,
+                    levels: Array.isArray(data.levels) ? data.levels : [],
+                    subjects: data.subjects,
+                };
+                if (current()) setCatalog({actorId, generation, value: safeData, loading: false, error: ''});
             }).catch(() => {
                 if (current()) setCatalog(previous => ({actorId, generation, value: previous?.actorId === actorId && previous.generation === generation ? previous.value : {paths: [], levels: [], subjects: []}, loading: false, error: 'تعذر تحميل المسارات.'}));
             });
@@ -104,7 +109,7 @@ function useNavigationState() {
             if (!result?.user || result.user.id !== actorId || !Array.isArray(result.user.enrolledPaths) || !Array.isArray(result.user.pathStageSelections)) throw Error('Invalid preferences');
             if (current()) setSaved({actorId, generation, value: result.user, loading: false, error: ''});
         }).catch(() => {
-            if (current()) setSaved({actorId, generation, value: empty(), loading: false, error: 'تعذر تحميل تسجيل المسارات.'});
+            if (current()) setSaved({actorId, generation, value: empty(), loading: false, error: ''});
         });
         return () => controller.abort();
     }, [actorId, generation]);

@@ -218,7 +218,7 @@ export function LearningSpacePage() {
   };
 
   return (
-    <main dir="rtl" data-testid="legacy-learning-space" className="min-h-screen bg-gray-50 pb-20 font-sans">
+    <main dir="rtl" data-testid="legacy-learning-space" className="min-h-screen bg-gray-50 pb-20 font-sans overflow-x-clip">
       <section className="relative overflow-hidden bg-[#2e2b70] py-7 sm:py-9">
         <div className="relative z-10 mx-auto max-w-7xl px-4 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-black text-indigo-100 backdrop-blur-sm">
