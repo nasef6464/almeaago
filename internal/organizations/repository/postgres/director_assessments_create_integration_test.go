@@ -129,6 +129,21 @@ func TestDirectorCreateAssessmentPostgres(t *testing.T) {
 	if !published || owner != school || wholeSchool || audienceClass != classA {
 		t.Fatalf("incorrect persisted class audience: published=%v owner=%s whole=%v class=%s", published, owner, wholeSchool, audienceClass)
 	}
+	definition, err := readDirectorAssessmentDefinition(ctx, tx, director, school, created.AssessmentID)
+	if err != nil || definition.AssessmentID != created.AssessmentID || definition.Title != valid.Title ||
+		definition.PathID != path || definition.SubjectID != subject || definition.TargetScope != "class" ||
+		len(definition.ClassIDs) != 1 || definition.ClassIDs[0] != classA || len(definition.QuestionIDs) != 1 ||
+		definition.QuestionIDs[0] != goodQuestion || len(definition.QuestionVersions) != 1 || definition.QuestionVersions[0] != 1 ||
+		!definition.IsPublished || !definition.CanManage || definition.CanEditContent || definition.CanClone ||
+		definition.Settings.MaxAttempts == nil || *definition.Settings.MaxAttempts != 3 {
+		t.Fatalf("published school definition did not roundtrip: %+v err=%v", definition, err)
+	}
+	if _, err := readDirectorAssessmentDefinition(ctx, tx, director, otherSchool, created.AssessmentID); !errors.Is(err, org.ErrNotFound) {
+		t.Fatalf("foreign school must not read assessment definition: %v", err)
+	}
+	if _, err := readDirectorAssessmentDefinition(ctx, tx, "00000000-0000-0000-0000-000000009999", school, created.AssessmentID); !errors.Is(err, org.ErrNotFound) {
+		t.Fatalf("non-director must not read assessment definition: %v", err)
+	}
 
 	repeat, err := createDirectorAssessmentTx(ctx, tx, probe, director, school, valid)
 	if err != nil || repeat.AssessmentID != created.AssessmentID || probe.calls != 1 {
@@ -207,6 +222,10 @@ func TestDirectorCreateAssessmentPostgres(t *testing.T) {
 	centralRepeat, err := createDirectorAssessmentTx(ctx, tx, probe, director, school, central)
 	if err != nil || centralRepeat.AssessmentID != centralCreated.AssessmentID || centralRepeat.TargetScope != "classes" || centralRepeat.ClassID != "" {
 		t.Fatalf("central request must be idempotent: %+v err=%v", centralRepeat, err)
+	}
+	centralDefinition, err := readDirectorAssessmentDefinition(ctx, tx, director, school, centralCreated.AssessmentID)
+	if err != nil || centralDefinition.TargetScope != "classes" || len(centralDefinition.ClassIDs) != 2 || len(centralDefinition.StudentIDs) != 0 {
+		t.Fatalf("central exam lost multiple class targets: %+v err=%v", centralDefinition, err)
 	}
 	for _, tc := range []struct {
 		classIDs []string
@@ -298,6 +317,31 @@ func TestDirectorCreateAssessmentPostgres(t *testing.T) {
 	selectedAgain, err := createDirectorAssessmentTx(ctx, tx, probe, director, school, selected)
 	if err != nil || selectedAgain.AssessmentID != selectedCreated.AssessmentID || selectedAgain.TargetScope != "selected" || len(selectedAgain.StudentIDs) != 1 {
 		t.Fatalf("selected audience idempotency failed: %+v %v", selectedAgain, err)
+	}
+	selectedDefinition, err := readDirectorAssessmentDefinition(ctx, tx, director, school, selectedCreated.AssessmentID)
+	if err != nil || selectedDefinition.TargetScope != "selected" || len(selectedDefinition.ClassIDs) != 1 || selectedDefinition.ClassIDs[0] != classA ||
+		len(selectedDefinition.StudentIDs) != 1 || selectedDefinition.StudentIDs[0] != learnerC ||
+		selectedDefinition.Settings.PassingScore == nil || *selectedDefinition.Settings.PassingScore != scoreLimit ||
+		selectedDefinition.Settings.MaxAttempts == nil || *selectedDefinition.Settings.MaxAttempts != attemptLimit ||
+		selectedDefinition.Settings.TimeLimitMinutes == nil || *selectedDefinition.Settings.TimeLimitMinutes != minuteLimit ||
+		selectedDefinition.Settings.RandomizeQuestions == nil || *selectedDefinition.Settings.RandomizeQuestions ||
+		selectedDefinition.Settings.ShowAnswers == nil || *selectedDefinition.Settings.ShowAnswers ||
+		selectedDefinition.Settings.OptionLayout == nil || *selectedDefinition.Settings.OptionLayout != layout {
+		t.Fatalf("selected school exam definition lost precise persisted settings/audience: %+v err=%v", selectedDefinition, err)
+	}
+	if _, err := tx.Exec(ctx, `SAVEPOINT school_definition_revoked_permission`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM school_membership_permissions WHERE membership_id IN (
+		SELECT id FROM school_memberships WHERE school_id=$1::uuid AND user_id=$2::uuid
+	) AND permission='SCHOOL_ASSESSMENTS_MANAGE'`, school, director); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readDirectorAssessmentDefinition(ctx, tx, director, school, selectedCreated.AssessmentID); !errors.Is(err, org.ErrNotFound) {
+		t.Fatalf("revoked membership permission leaked definition: %v", err)
+	}
+	if _, err := tx.Exec(ctx, `ROLLBACK TO SAVEPOINT school_definition_revoked_permission`); err != nil {
+		t.Fatal(err)
 	}
 	for index, studentID := range []string{outside, disabled, director} {
 		bad := selected

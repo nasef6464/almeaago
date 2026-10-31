@@ -57,6 +57,28 @@ type DirectorAssessmentCreated struct {
 	TargetScope  string   `json:"targetScope"`
 }
 
+// DirectorAssessmentDefinition is a restricted authoring snapshot for a
+// school director. It never includes correct answers, student evidence, or
+// answer explanations. Pinned versions preserve the original question set.
+// Mutations/clone are deliberately not advertised until their commands exist.
+type DirectorAssessmentDefinition struct {
+	AssessmentID     string                     `json:"assessmentId"`
+	Title            string                     `json:"title"`
+	PathID           string                     `json:"pathId"`
+	SubjectID        string                     `json:"subjectId"`
+	Version          int                        `json:"version"`
+	IsPublished      bool                       `json:"isPublished"`
+	TargetScope      string                     `json:"targetScope"`
+	ClassIDs         []string                   `json:"classIds"`
+	StudentIDs       []string                   `json:"studentIds"`
+	QuestionIDs      []string                   `json:"questionIds"`
+	QuestionVersions []int                      `json:"questionVersions"`
+	Settings         DirectorAssessmentSettings `json:"settings"`
+	CanManage        bool                       `json:"canManage"`
+	CanClone         bool                       `json:"canClone"`
+	CanEditContent   bool                       `json:"canEditContent"`
+}
+
 // School question picker never discloses answer keys or explanations.
 type DirectorAssessmentQuestion struct {
 	ID             string `json:"id"`

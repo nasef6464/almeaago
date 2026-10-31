@@ -314,6 +314,44 @@ func TestLegacySchoolAssessmentReportRequiresScopedCapabilityAndAvoidsCaching(t 
 	}
 }
 
+func TestLegacySchoolAssessmentDefinitionAndContextAreManageOnlyAndNeverCache(t *testing.T) {
+	const schoolA = "00000000-0000-0000-0000-000000000101"
+	const schoolB = "00000000-0000-0000-0000-000000000102"
+	const assessment = "00000000-0000-0000-0000-000000000103"
+	repo := &repoStub{contexts: []orgdomain.SchoolContext{{SchoolID: schoolA, Role: identitydomain.RoleSchoolAdmin,
+		Permissions: []string{orgdomain.PermissionSchoolAssessmentsManage},
+		Modules:     []string{string(orgdomain.ModuleSchoolAssessments)}}}}
+	handler := NewLegacy(orgapp.NewService(repo, repo), authStub{auth: schoolAdminAuth()})
+	base := "/director/schools/" + schoolA + "/academic/assessments/" + assessment
+	get := func(path string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+		return w
+	}
+	definition := get(base + "/definition")
+	if definition.Code != http.StatusOK || definition.Header().Get("Cache-Control") != "private, no-store" ||
+		!strings.Contains(definition.Body.String(), `"assessmentId":"`+assessment+`"`) ||
+		!strings.Contains(definition.Body.String(), `"questionVersions":[]`) || strings.Contains(definition.Body.String(), "correctOptionIndex") {
+		t.Fatalf("managed definition response invalid/leaked: %d %s", definition.Code, definition.Body.String())
+	}
+	context := get(base + "/context")
+	if context.Code != http.StatusOK || context.Header().Get("Cache-Control") != "private, no-store" ||
+		!strings.Contains(context.Body.String(), `"canManage":true`) ||
+		!strings.Contains(context.Body.String(), `"canClone":false`) ||
+		!strings.Contains(context.Body.String(), `"canEditContent":false`) {
+		t.Fatalf("false authoring capability in context: %d %s", context.Code, context.Body.String())
+	}
+	for _, path := range []string{strings.Replace(base, schoolA, schoolB, 1) + "/definition", base + "/definition?token=irrelevant"} {
+		if denied := get(path); denied.Code == http.StatusOK {
+			t.Fatalf("foreign or unexpected scope was permitted: %s => %d", path, denied.Code)
+		}
+	}
+	repo.contexts[0].Permissions = []string{orgdomain.PermissionSchoolReportsAggregateView}
+	if denied := get(base + "/definition"); denied.Code != http.StatusForbidden {
+		t.Fatalf("view-only school role read management definition: %d", denied.Code)
+	}
+}
+
 func TestLegacySchoolAssessmentLearnersAndDetailRequireStrongerCapability(t *testing.T) {
 	const schoolA = "00000000-0000-0000-0000-000000000101"
 	const schoolB = "00000000-0000-0000-0000-000000000102"

@@ -67,13 +67,18 @@
 ## تحديث 2026-10-28 — P0-B / P1 integrity
 
 - دُمج PR #142 بعد نجاح Frontend CI / Backend CI / Database CI / Frontend E2E على SHA `dcfc1847ee9189fe66ac5e5180012c19f08ad901`، فأصبح `main@fec689b32ae442c72586133f4cc511efc9f91c54`. أضيفت خريطة API mounts والملكية المدرسية في `19_API_MOUNTS_AND_ASSESSMENT_OWNERSHIP_AR.md`، ولا تعني تكافؤ endpoints.
-- فحص لاحق لمسار `Readiness` كشف احتمال تكرار skill بين صفحات `LIMIT/OFFSET` المرتبة بالـmastery أثناء تغيّر الأدلة. توثيق `20_READINESS_PAGE_INTEGRITY_AR.md` مع اختبار رفض التكرار والنطاق الخاطئ، دون تغيير المعادلة أو قاعدة البيانات. **الاعتماد النهائي ينتظر CI على PR الجديد**.
+- فحص لاحق لمسار `Readiness` كشف احتمال تكرار skill بين صفحات `LIMIT/OFFSET` المرتبة بالـmastery أثناء تغيّر الأدلة. توثيق `20_READINESS_PAGE_INTEGRITY_AR.md` مع اختبار رفض التكرار والنطاق الخاطئ، دون تغيير المعادلة أو قاعدة البيانات. دُمج إصلاح PR #143 في `main@778be2c1aa361513a769845dfa0bf3f37a7e0cba`، ولا يعني ذلك اكتمال معايرة التعلم.
 - التالي: إثبات الاستقرار عبر PostgreSQL snapshot/aggregation (ببيئة اختبار فقط)، ثم مقارنة golden behavior مع Legacy في نطاق المسار/المادة ومقام المهارات غير المقاسة.
+
+## P0-C — تعريف الاختبار المنشأ وإمكاناته (2026-10-28)
+
+- PR #142 دُمج في Go main عند `fec689b32ae442c72586133f4cc511efc9f91c54` بعد Backend/Database/Frontend/E2E خضراء؛ راجع `19_API_MOUNTS_AND_ASSESSMENT_OWNERSHIP_AR.md`.
+- بدأ فرع معزول `feat/school-assessment-definition-read-20261028` من SHA السابق ودمج تغييرات PR #143 اللاحقة في الفرع دون فقدها. نطاقه `GET school director definition/context`، وعقد read-only موثق في `20_SCHOOL_ASSESSMENT_DEFINITION_READ_AR.md`.
 
 ## متابعة P1 — single-query readiness
 
-من Go `778be2c` وLegacy `bf7281f`: استبدال تجميع صفحات الجاهزية بقراءة SQL واحدة بحد 10000، مع رفض overflow والمحافظة على التحقق من النطاق والتكرار. التفاصيل والدليل والحدود: `21_READINESS_SINGLE_QUERY_AR.md`. اختبارات Go المحلية ناجحة؛ integration الحقيقي في Database CI ينتظر تشغيل الفرع. لا تغيير production أو schema أو scoring. الحالة PARTIAL إلى تحقق CI؛ التالي golden denominator/policy comparisons، مع حفظ فرع school-definition الجاري دون تكرار عمله.
+من Go `778be2c` وLegacy `bf7281f`: استبدال تجميع صفحات الجاهزية بقراءة SQL واحدة بحد 10000، مع رفض overflow والمحافظة على التحقق من النطاق والتكرار. التفاصيل والدليل والحدود: `21_READINESS_SINGLE_QUERY_AR.md`.
 
 ## متابعة P1 — concurrent evidence integrity / PR #148
 
-على أساس Go `935998650d2183bd9a8c95c154384ff4754b3197` وبعد تأكيد Legacy `bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7`، #145/#146 مدمجان. فحص مساري حفظ الاختبار والمراجعة كشف aggregate قبل upsert بلا قفل مشترك. RED على `7e0d104` في Database CI [40679673484](https://github.com/nasef6464/almeaago/actions/runs/40679673484): 3 حالات تحفظ دليلين بينما التقدم يحتسب واحدًا؛ إعادة review متزامنة متطابقة تعيد conflict؛ الإلغاء سليم أصلًا. يُضاف قفل transaction لكل طالب قبل أي قفل بطاقة/كتابة، مع READ COMMITTED صريح؛ لا تغيير سياسة أو تقريب أو schema. التفاصيل `24_LEARNING_EVIDENCE_SERIALIZATION_AR.md`. Go suite المحلية وsource oracle نجحت؛ الحالات الخمس PG GREEN على ff4b87f في Database CI 40680096677، ومراجعة مستقلة دون عيوب مانعة. أُضيف main@54db3c0 دون تكرار #147. الرأس النهائي والبوابات الأربع ونتيجة الدمج في PR #148، دون إثبات إنتاج أو تكافؤ شامل. التالي مقارنة سياسة التجميع المتتابع/التقريب مع الأصل، ثم مقام المنهج والتوصية التكيفية.
+على أساس Go `935998650d2183bd9a8c95c154384ff4754b3197` وبعد تأكيد Legacy `bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7`، #145/#146 مدمجان. التفاصيل `24_LEARNING_EVIDENCE_SERIALIZATION_AR.md`.
