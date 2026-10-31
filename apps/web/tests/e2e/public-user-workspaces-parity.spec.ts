@@ -208,17 +208,14 @@ test('supervisor root restores legacy section hierarchy without inventing unsupp
   ]}));
   await page.setViewportSize({width:390,height:844});
   await page.goto('/supervisor-dashboard');
-  await expect(page.getByRole('heading',{name:'لوحة المشرف'})).toBeVisible();
-  await expect(page.getByRole('region',{name:'ملخص نطاق المشرف'})).toContainText('نطاقات المدرسة');
+  await expect(page.getByRole('heading',{name:'لوحة الإشراف'})).toBeVisible();
   const nav=page.getByRole('navigation',{name:'أقسام لوحة المشرف'});
-  await expect(nav).toContainText('نظرة عامة');
-  await expect(nav).toContainText('الطلاب');
-  await expect(nav).toContainText('المهارات');
-  await expect(nav).toContainText('التقارير');
-  await expect(nav).toContainText('الحصص المباشرة');
-  await expect(nav).toContainText('الاختبارات');
-  await expect(nav).toContainText('المراقبة الحية');
-  await expect(nav.locator('[aria-disabled="true"]')).toHaveCount(3);
+  const original=['الملخص العام','تعلم الطلاب وجاهزيتهم','الحصص المباشرة','الاختبارات والتحليل','المراقبة الحية','خريطة المهارات','تقارير الأداء'];
+  expect((await nav.locator('button').allTextContents()).map(text=>text.trim())).toEqual(original);
+  await expect(nav.locator('button:disabled')).toHaveCount(5);
+  await expect(nav.getByRole('button',{name:'تعلم الطلاب وجاهزيتهم'})).toHaveAttribute('aria-current','page');
+  await expect(page.getByText('SUPERVISOR WORKSPACE')).toHaveCount(0);
+  await expect(page.getByText('الصلاحيات الفعلية')).toHaveCount(0);
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/ui5-supervisor-workspace-mobile.png',fullPage:true});
   await page.setViewportSize({width:1440,height:1000});
@@ -233,9 +230,11 @@ test('supervisor and admin roots expose real scoped workspaces',async({page})=>{
   ]}));
   await page.goto('/supervisor-dashboard');
 
-  await expect(page.getByRole('heading',{name:'لوحة المشرف'})).toBeVisible();
-  await expect(page.getByText('مدرسة المئة')).toBeVisible();
-  await expect(page.getByRole('link',{name:/التدخلات والخطط العلاجية/})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'لوحة الإشراف'})).toBeVisible();
+  await expect(page.getByLabel('المدرسة')).toHaveValue('school-1');
+  await expect(page.getByLabel('المدرسة').locator('option')).toContainText(['مدرسة المئة']);
+  await expect(page.getByRole('navigation',{name:'أقسام لوحة المشرف'}).getByRole('button',{name:'تعلم الطلاب وجاهزيتهم'})).toHaveAttribute('aria-current','page');
+  await expect(page.getByRole('link',{name:/التدخلات والخطط العلاجية/})).toHaveCount(0);
 
   await page.unroute('**/api/v1/auth/me');
   await page.route('**/api/v1/auth/me',route=>json(route,{user:admin}));
