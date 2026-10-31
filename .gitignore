@@ -16,6 +16,6 @@ coverage/
 playwright-report/
 test-results/
 
-
 /apps/web/tests/reference/generated/
 .neon
+.vercel/

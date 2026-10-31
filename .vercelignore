@@ -1,0 +1,18 @@
+# Deploy from the repository root: the Vercel project's Root Directory is apps/web.
+# Do not upload credentials, local project links or build caches from any package.
+.env
+.env.*
+**/.env
+**/.env.*
+.vercel/
+**/.vercel/
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+*.tsbuildinfo
+**/*.tsbuildinfo
+test-results/
+**/test-results/
+playwright-report/
+**/playwright-report/

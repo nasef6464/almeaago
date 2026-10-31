@@ -1,0 +1,40 @@
+# ALMEAA GO only. The legacy almeaacodax deployment is intentionally untouched.
+# Neon supplies PostgreSQL; do not create a second Postgres database on Render.
+services:
+  - type: web
+    name: almeaago-api
+    runtime: go
+    region: frankfurt
+    plan: free
+    repo: https://github.com/nasef6464/almeaago
+    branch: main
+    autoDeployTrigger: off
+    buildCommand: go build -trimpath -o bin/almeaago-api ./cmd/api
+    startCommand: ./bin/almeaago-api
+    healthCheckPath: /health/ready
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: HTTP_ADDR
+        value: :10000
+      - key: DEPLOYMENT_PROVIDER
+        value: render
+      - key: DATABASE_URL
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          name: almeaago-redis
+          type: keyvalue
+          property: connectionString
+      - key: CLASSROOM_PIN_SECRET
+        generateValue: true
+      - key: AUTH_OTP_PEPPER
+        generateValue: true
+
+  - type: keyvalue
+    name: almeaago-redis
+    region: frankfurt
+    plan: free
+    ipAllowList: []
