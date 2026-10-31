@@ -1,5 +1,5 @@
 import {
-  AlertTriangle,
+  AlertCircle,
   ArrowRight,
   BookOpen,
   CheckCircle2,
@@ -197,6 +197,9 @@ export function CourseLearningPage() {
   const { user, loading: authLoading, getCsrfToken } = useAuth();
 
   const [course, setCourse] = useState<LearnerCourse | null>(null);
+  // Keep the loaded course tied to its route, including during failed transitions.
+  const [loadedCourseId, setLoadedCourseId] = useState('');
+  const [courseError, setCourseError] = useState('');
   const [lessonId, setLessonId] = useState(searchParams.get('lesson') || '');
   const [detail, setDetail] = useState<LearnerLessonDetail | null>(null);
   const [progress, setProgress] = useState<LessonProgress | null>(null);
@@ -305,11 +308,22 @@ export function CourseLearningPage() {
     if (authLoading || !user || !courseId) return;
     const controller = new AbortController();
     setLoading(true);
+    setCourse(null);
+    setLoadedCourseId('');
+    setCourseError('');
     setError('');
+    setDetail(null);
+    setProgress(null);
+    setLoadedScope('');
+    setLessonId(searchParams.get('lesson') || '');
 
     contentClient.learnerCourse(courseId, controller.signal)
       .then((result) => {
-        setCourse(result.course);
+        if (controller.signal.aborted) return;
+        // Never expose an unrelated course from a stale/malformed HTTP response.
+        if (result.course.id.toLowerCase() !== courseId.toLowerCase()) {
+          throw new Error('تعذر التحقق من سياق الدورة. أعد المحاولة.');
+        }
         const allLessons = result.course.modules.flatMap((module) => module.lessons);
         const requested = searchParams.get('lesson');
         const firstAvailable =
@@ -319,12 +333,14 @@ export function CourseLearningPage() {
         const owningModule = firstAvailable
           ? result.course.modules.find((module) => module.lessons.some((item) => item.id === firstAvailable.id))
           : result.course.modules.find((module) => module.lessons.length > 0);
-        if (owningModule) setExpandedModules([owningModule.id]);
-        if (firstAvailable) setLessonId(firstAvailable.id);
+        setExpandedModules(owningModule ? [owningModule.id] : []);
+        setLessonId(firstAvailable?.id || '');
+        setCourse(result.course);
+        setLoadedCourseId(courseId);
       })
       .catch((reason) => {
         if (!controller.signal.aborted) {
-          setError(reason instanceof Error ? reason.message : 'تعذر تحميل الدورة');
+          setCourseError(reason instanceof Error ? reason.message : 'تعذر تحميل الدورة');
         }
       })
       .finally(() => {
@@ -332,7 +348,8 @@ export function CourseLearningPage() {
       });
 
     return () => controller.abort();
-  }, [authLoading, courseId, searchParams, user]);
+    // A lesson query update must not refetch the whole course or reset its progress.
+  }, [authLoading, courseId, user?.id]);
 
   useEffect(() => {
     // Do not fetch or expose a lesson before the owning course has been loaded.
@@ -402,14 +419,14 @@ export function CourseLearningPage() {
   ]);
 
   useEffect(() => {
-    if (!lessonId) return;
-    setSearchParams((previous) => {
-      const next = new URLSearchParams(previous);
-      next.set('learn', '1');
-      next.set('lesson', lessonId);
-      return next;
-    }, { replace: true });
-  }, [lessonId, setSearchParams]);
+    if (!lessonId || loadedCourseId !== courseId) return;
+    const current = new URLSearchParams(window.location.search);
+    if (current.get('learn') === '1' && current.get('lesson') === lessonId) return;
+    const next = new URLSearchParams(current);
+    next.set('learn', '1');
+    next.set('lesson', lessonId);
+    setSearchParams(next, { replace: true });
+  }, [courseId, lessonId, loadedCourseId, setSearchParams]);
 
   async function persistVideoPosition(position: number, quiet = false) {
     if (!activeDetail || activeDetail.type !== 'video' || saving) return;
@@ -504,20 +521,54 @@ export function CourseLearningPage() {
     [detail],
   );
 
-  if (authLoading || loading) {
-    return <main className="p-10 text-center font-black">جاري تحميل الدورة...</main>;
+  if (authLoading || (user && (loading || (loadedCourseId !== courseId && !courseError)))) {
+    // Legacy CourseView uses a centered spinner, not a text placeholder.
+    // Route ownership above keeps the previous course hidden during this state.
+    return (
+      <div data-testid="course-loading" className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
+      </div>
+    );
   }
 
   if (!user || !user.roles.includes('student')) {
     return <main className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</main>;
   }
 
-  if (error && !course) {
-    return <main className="p-10 text-center font-black text-rose-700">{error}</main>;
+  if (courseError) {
+    return (
+      <main dir="rtl" className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4 text-center">
+        <div className="max-w-md rounded-3xl border border-amber-100 bg-white p-8 shadow-sm">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+            <AlertCircle size={32} />
+          </div>
+          <h1 className="mb-3 text-xl sm:text-2xl font-black leading-tight text-gray-900">لم نتمكن من فتح الدورة</h1>
+          <p className="mb-6 text-sm leading-7 text-gray-500">{courseError}</p>
+          <button
+            type="button"
+            onClick={() => window.history.back()}
+            className="w-full rounded-2xl bg-indigo-600 px-6 py-3 text-sm font-black text-white hover:bg-indigo-700 sm:w-auto"
+          >
+            العودة للخلف
+          </button>
+        </div>
+      </main>
+    );
   }
 
-  if (!course) {
-    return <main className="p-10 text-center font-black">الدورة غير متاحة.</main>;
+  if (!course || loadedCourseId !== courseId) {
+    return (
+      <main dir="rtl" className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4 text-center">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 leading-tight">الدورة غير متاحة حاليًا</h1>
+        <button
+          type="button"
+          onClick={() => window.history.back()}
+          className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold w-full sm:w-auto"
+        >
+          العودة للخلف
+        </button>
+      </main>
+    );
   }
 
   const totalLessons = lessons.length;

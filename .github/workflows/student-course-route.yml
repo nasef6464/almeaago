@@ -1,0 +1,37 @@
+name: Student Course Route E2E
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/src/features/learning/pages/CourseLearningPage.tsx"
+      - "apps/web/tests/e2e/student-course-route-failclosed.spec.ts"
+      - ".github/workflows/student-course-route.yml"
+  workflow_dispatch:
+
+permissions: { contents: read }
+
+jobs:
+  student-course-route:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Verify route failure, original Back, reload and cross-course response at 390/820/1440
+        run: npx playwright test tests/e2e/student-course-route-failclosed.spec.ts --project=chromium
+      - name: Upload student route browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: student-course-route-evidence
+          path: |
+            apps/web/test-results
+            apps/web/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
