@@ -109,7 +109,13 @@ function useNavigationState() {
             if (!result?.user || result.user.id !== actorId || !Array.isArray(result.user.enrolledPaths) || !Array.isArray(result.user.pathStageSelections)) throw Error('Invalid preferences');
             if (current()) setSaved({actorId, generation, value: result.user, loading: false, error: ''});
         }).catch(() => {
-            if (current()) setSaved({actorId, generation, value: empty(), loading: false, error: ''});
+            if (current()) setSaved({
+                actorId,
+                generation,
+                value: empty(),
+                loading: false,
+                error: 'تعذر تحميل تسجيل المسارات؛ حاول مرة أخرى.',
+            });
         });
         return () => controller.abort();
     }, [actorId, generation]);
