@@ -53,8 +53,12 @@ test('baseline records the Node mount table and detects its exact Go comparison'
   const comparison = compareMounts(baseline.mounts, go);
   assert.equal(baseline.sourceFile, 'server/src/routes/index.ts');
   assert.equal(comparison.legacyMounts, 33);
-  assert.equal(comparison.targetMounts, 31);
+  assert.equal(comparison.targetMounts, 33);
   assert.equal(comparison.legacyUniquePrefixes, 30);
-  assert.equal(comparison.targetUniquePrefixes, 31);
+  assert.equal(comparison.targetUniquePrefixes, 33);
   assert.deepEqual(comparison.sharedExactPrefixes, ['/api/school-access']);
+  // Search and public-article APIs were mounted after the original API inventory.
+  for (const prefix of ['/api/v1/search', '/api/v1/public/articles']) {
+    assert.ok(go.some((mount) => mount.prefix === prefix), `expected current Go API mount: ${prefix}`);
+  }
 });
