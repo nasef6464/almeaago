@@ -34,6 +34,26 @@ function load(relative, initialStates = []) {
     if (id.endsWith('/taxonomy-admin-client')) return { taxonomyAdminClient: {} };
     if (id.endsWith('/questionbank-client')) return { questionBankClient: {} };
     if (id.endsWith('/content-client')) return { contentClient: {} };
+    if (id.endsWith('/commerce/api/commerce-client')) return { commerceClient: {} };
+    if (id.endsWith('/assessment/api/assessment-client')) return { assessmentClient: {} };
+    if (id.endsWith('/components/AdminBreadcrumbHeader')) return { AdminBreadcrumbHeader: () => null };
+    if (id.endsWith('/components/EducationalIconPicker')) return { EducationalIconPicker: () => null };
+    if (id.endsWith('/components/pathDisplayPresentation')) return {
+      getPathIcon: (_path, className) => React.createElement('span', { className }, '📚'),
+      getSubjectIcon: (_subject, className) => React.createElement('span', { className }, '📖'),
+      getLevelIcon: (_level, className) => React.createElement('span', { className }, '🎓'),
+      resolveColor: () => ({ soft: '#f3f4f6', text: '#4b5563', border: '#d1d5db' }),
+      resolvePathDisplaySettings: () => ({ showSubjectCards: true, showMockExamCard: true, showPackageCard: true }),
+    };
+    if (id.endsWith('/components/pathsManagerUrlState')) return {
+      resolvePathsManagerUrlState: () => ({
+        selectedPathId: 'p', selectedSubjectId: null, pathTab: 'subjects', subjectTab: 'courses',
+      }),
+      replacePathsManagerUrlState: () => {},
+    };
+    if (id.endsWith('/components/pathReadiness')) return {
+      buildPathReadinessSummary: () => ({ total: 0, visible: 0, hidden: 0, subjects: 0, packages: 0 }),
+    };
     if (id.endsWith('/lesson-link-write')) return load('features/content/api/lesson-link-write.ts');
     if (id.endsWith('/LessonEditorPanel')) return load('features/content/components/LessonEditorPanel.tsx');
     if (id.endsWith('/navigation')) return {
@@ -58,7 +78,10 @@ test('original admin navigation keeps Skills Center separate from Paths Center',
 });
 
 test('path workspace does not also own the skill creation tree', () => {
-  const { TaxonomyAdminPage } = load('features/taxonomy/pages/TaxonomyAdminPage.tsx', [fixture, 'p', 's']);
+  // The current Paths Manager uses URL-backed state and separate presentation/data
+  // modules. Seed its first six state hooks and isolate imported services so this
+  // SSR contract only verifies the selected path workspace, not API behavior.
+  const { TaxonomyAdminPage } = load('features/taxonomy/pages/TaxonomyAdminPage.tsx', [fixture, false, '', '', '', 0]);
   const html = renderToStaticMarkup(React.createElement(TaxonomyAdminPage));
   assert.match(html, /شجرة المسارات/);
   assert.doesNotMatch(html, /شجرة المهارات/);
