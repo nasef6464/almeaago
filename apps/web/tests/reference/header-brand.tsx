@@ -53,6 +53,17 @@ function Reference(){
       <span className="flex items-center gap-2 bg-emerald-500 text-white px-3 sm:px-4 py-2 rounded-lg font-bold"><LogIn size={18}/><span className="hidden sm:inline">تسجيل الدخول</span></span>
     )}
   </div>
-  </div></div></header><main style={{minHeight:'200vh'}}/></>;
+  </div></div></header><main className="overflow-x-hidden bg-white font-tajawal text-gray-900">
+    {/* The original anchor extends just below the sticky header at 390px.
+        Reproduce the real landing hero paint underneath so the final
+        antialiased background row does not compare white vs hero tint. */}
+    <section className="relative overflow-hidden bg-gradient-to-b from-indigo-50/70 via-white to-white pb-24 pt-12" style={{minHeight:'200vh'}}>
+      <div className="pointer-events-none absolute left-0 top-0 z-0 h-full w-full overflow-hidden">
+        <div className="legacy-blob absolute right-[-5%] top-[-10%] h-96 w-96 rounded-full bg-amber-200/40 opacity-30 blur-3xl mix-blend-multiply"/>
+        <div className="legacy-blob legacy-delay-2000 absolute left-[-10%] top-[20%] h-96 w-96 rounded-full bg-blue-200/40 opacity-30 blur-3xl mix-blend-multiply"/>
+        <div className="legacy-blob legacy-delay-4000 absolute bottom-[-10%] right-[20%] h-96 w-96 rounded-full bg-purple-200/40 opacity-30 blur-3xl mix-blend-multiply"/>
+      </div>
+    </section>
+  </main></>;
 }
 createRoot(document.getElementById('root')!).render(<BrowserRouter><Reference/></BrowserRouter>);
