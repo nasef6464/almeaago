@@ -24,7 +24,8 @@ test('saved logo retains original brand image and name for admin and guest',asyn
       await expect(brand.getByRole('img',{name:'شعار محفوظ',exact:true})).toHaveAttribute('src',logo);
       await expect(brand.getByText('المئة',{exact:true})).toBeVisible();
       await expect(brand.getByRole('img')).toHaveCSS('width',width<640?'36px':'44px');
-      const source=await context.newPage();await source.setViewportSize({width,height:1000});await source.goto('/tests/reference/header-brand.html');
+      const heroHeight=await page.locator('[data-testid="public-landing"] > section').first().evaluate(element=>element.getBoundingClientRect().height);
+      const source=await context.newPage();await source.setViewportSize({width,height:1000});await source.goto('/tests/reference/header-brand.html?role='+role+'&heroHeight='+encodeURIComponent(String(heroHeight)));
       const original=source.locator('header a[href="/"]');await expect(original.getByRole('img')).toHaveAttribute('src',logo);
       const capture=async(p:typeof page,link:typeof brand,name:string)=>{
         await p.mouse.move(0,999);await p.evaluate(()=>document.fonts.ready);

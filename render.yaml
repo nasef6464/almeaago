@@ -1,5 +1,7 @@
 # ALMEAA GO only. The legacy almeaacodax deployment is intentionally untouched.
 # Neon supplies PostgreSQL; do not create a second Postgres database on Render.
+# Staging media is explicitly routed to Cloudinary. R2 remains supported in code
+# as a fallback/provider option, but this blueprint does not activate it.
 services:
   - type: web
     name: almeaago-api
@@ -32,6 +34,19 @@ services:
         generateValue: true
       - key: AUTH_OTP_PEPPER
         generateValue: true
+
+      # Media provider: Cloudinary for ALMEAA Go staging.
+      # Credentials are server-only and must never be committed or exposed to Vite.
+      - key: MEDIA_STORAGE_PROVIDER
+        value: cloudinary
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: MEDIA_MAX_UPLOAD_BYTES
+        value: "15728640"
 
   - type: keyvalue
     name: almeaago-redis

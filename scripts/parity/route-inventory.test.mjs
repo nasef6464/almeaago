@@ -34,10 +34,10 @@ test('the reviewed legacy snapshot can be compared to the current Go App route t
   const diff = compareRoutes(legacy.paths, goRoutes);
   assert.equal(legacy.sourceFile, 'app/AppRouteTree.tsx');
   assert.equal(diff.legacyCount, 55);
-  assert.equal(diff.targetCount, 62);
+  assert.equal(diff.targetCount, 70);
   assert.equal(diff.sharedCount, 34);
   assert.equal(diff.legacyOnly.length, 21);
-  assert.equal(diff.targetOnly.length, 28);
+  assert.equal(diff.targetOnly.length, 36);
   assert.ok(diff.legacyOnly.includes('/admin/quiz-gen'));
   assert.ok(diff.targetOnly.includes('/admin-dashboard/assessments'));
   assert.ok(diff.targetOnly.includes('/admin-dashboard/platform-fonts'));

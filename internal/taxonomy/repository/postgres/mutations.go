@@ -338,15 +338,33 @@ func mapMutationError(err error) error {
 
 func buildPathPresMap(write taxonomy.PathWrite) []byte {
 	m := map[string]any{}
-	if write.Color != nil { m["color"] = *write.Color }
-	if write.Icon != nil { m["icon"] = *write.Icon }
-	if write.IconURL != nil { m["iconUrl"] = *write.IconURL }
-	if write.IconStyle != nil { m["iconStyle"] = *write.IconStyle }
-	if write.ShowInNavbar != nil { m["showInNavbar"] = *write.ShowInNavbar }
-	if write.ShowSubjectCards != nil { m["showSubjectCards"] = *write.ShowSubjectCards }
-	if write.ShowMockExamCard != nil { m["showMockExamCard"] = *write.ShowMockExamCard }
-	if write.ShowPackageCard != nil { m["showPackageCard"] = *write.ShowPackageCard }
-	if write.Settings != nil { m["settings"] = write.Settings }
+	if write.Color != nil {
+		m["color"] = *write.Color
+	}
+	if write.Icon != nil {
+		m["icon"] = *write.Icon
+	}
+	if write.IconURL != nil {
+		m["iconUrl"] = *write.IconURL
+	}
+	if write.IconStyle != nil {
+		m["iconStyle"] = *write.IconStyle
+	}
+	if write.ShowInNavbar != nil {
+		m["showInNavbar"] = *write.ShowInNavbar
+	}
+	if write.ShowSubjectCards != nil {
+		m["showSubjectCards"] = *write.ShowSubjectCards
+	}
+	if write.ShowMockExamCard != nil {
+		m["showMockExamCard"] = *write.ShowMockExamCard
+	}
+	if write.ShowPackageCard != nil {
+		m["showPackageCard"] = *write.ShowPackageCard
+	}
+	if write.Settings != nil {
+		m["settings"] = write.Settings
+	}
 	b, _ := json.Marshal(m)
 	return b
 }
@@ -359,53 +377,99 @@ func hasPathPresPatch(patch taxonomy.PathPatch) bool {
 
 func buildPathPatchPresMap(patch taxonomy.PathPatch) []byte {
 	m := map[string]any{}
-	if patch.Color != nil { m["color"] = *patch.Color }
-	if patch.Icon != nil { m["icon"] = *patch.Icon }
-	if patch.IconURL != nil { m["iconUrl"] = *patch.IconURL }
-	if patch.IconStyle != nil { m["iconStyle"] = *patch.IconStyle }
-	if patch.ShowInNavbar != nil { m["showInNavbar"] = *patch.ShowInNavbar }
-	if patch.ShowSubjectCards != nil { m["showSubjectCards"] = *patch.ShowSubjectCards }
-	if patch.ShowMockExamCard != nil { m["showMockExamCard"] = *patch.ShowMockExamCard }
-	if patch.ShowPackageCard != nil { m["showPackageCard"] = *patch.ShowPackageCard }
-	if patch.Settings != nil { m["settings"] = patch.Settings }
+	if patch.Color != nil {
+		m["color"] = *patch.Color
+	}
+	if patch.Icon != nil {
+		m["icon"] = *patch.Icon
+	}
+	if patch.IconURL != nil {
+		m["iconUrl"] = *patch.IconURL
+	}
+	if patch.IconStyle != nil {
+		m["iconStyle"] = *patch.IconStyle
+	}
+	if patch.ShowInNavbar != nil {
+		m["showInNavbar"] = *patch.ShowInNavbar
+	}
+	if patch.ShowSubjectCards != nil {
+		m["showSubjectCards"] = *patch.ShowSubjectCards
+	}
+	if patch.ShowMockExamCard != nil {
+		m["showMockExamCard"] = *patch.ShowMockExamCard
+	}
+	if patch.ShowPackageCard != nil {
+		m["showPackageCard"] = *patch.ShowPackageCard
+	}
+	if patch.Settings != nil {
+		m["settings"] = patch.Settings
+	}
 	b, _ := json.Marshal(m)
 	return b
 }
 
 func buildLevelPresMap(write taxonomy.LevelWrite) []byte {
 	m := map[string]any{}
-	if write.Icon != nil { m["icon"] = *write.Icon }
-	if write.IconURL != nil { m["iconUrl"] = *write.IconURL }
+	if write.Icon != nil {
+		m["icon"] = *write.Icon
+	}
+	if write.IconURL != nil {
+		m["iconUrl"] = *write.IconURL
+	}
 	b, _ := json.Marshal(m)
 	return b
 }
 
 func buildLevelPatchPresMap(patch taxonomy.LevelPatch) []byte {
 	m := map[string]any{}
-	if patch.Icon != nil { m["icon"] = *patch.Icon }
-	if patch.IconURL != nil { m["iconUrl"] = *patch.IconURL }
+	if patch.Icon != nil {
+		m["icon"] = *patch.Icon
+	}
+	if patch.IconURL != nil {
+		m["iconUrl"] = *patch.IconURL
+	}
 	b, _ := json.Marshal(m)
 	return b
 }
 
 func buildSubjectPresMap(write taxonomy.SubjectWrite) []byte {
 	m := map[string]any{}
-	if write.Color != nil { m["color"] = *write.Color }
-	if write.Icon != nil { m["icon"] = *write.Icon }
-	if write.IconURL != nil { m["iconUrl"] = *write.IconURL }
-	if write.IconStyle != nil { m["iconStyle"] = *write.IconStyle }
-	if write.Settings != nil { m["settings"] = write.Settings }
+	if write.Color != nil {
+		m["color"] = *write.Color
+	}
+	if write.Icon != nil {
+		m["icon"] = *write.Icon
+	}
+	if write.IconURL != nil {
+		m["iconUrl"] = *write.IconURL
+	}
+	if write.IconStyle != nil {
+		m["iconStyle"] = *write.IconStyle
+	}
+	if write.Settings != nil {
+		m["settings"] = write.Settings
+	}
 	b, _ := json.Marshal(m)
 	return b
 }
 
 func buildSubjectPatchPresMap(patch taxonomy.SubjectPatch) []byte {
 	m := map[string]any{}
-	if patch.Color != nil { m["color"] = *patch.Color }
-	if patch.Icon != nil { m["icon"] = *patch.Icon }
-	if patch.IconURL != nil { m["iconUrl"] = *patch.IconURL }
-	if patch.IconStyle != nil { m["iconStyle"] = *patch.IconStyle }
-	if patch.Settings != nil { m["settings"] = patch.Settings }
+	if patch.Color != nil {
+		m["color"] = *patch.Color
+	}
+	if patch.Icon != nil {
+		m["icon"] = *patch.Icon
+	}
+	if patch.IconURL != nil {
+		m["iconUrl"] = *patch.IconURL
+	}
+	if patch.IconStyle != nil {
+		m["iconStyle"] = *patch.IconStyle
+	}
+	if patch.Settings != nil {
+		m["settings"] = patch.Settings
+	}
 	b, _ := json.Marshal(m)
 	return b
 }
