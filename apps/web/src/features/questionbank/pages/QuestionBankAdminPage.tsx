@@ -5,6 +5,7 @@ import {
   FileImage,
   Filter,
   HelpCircle,
+  ImagePlus,
   ImageUp,
   Loader2,
   Plus,
@@ -13,6 +14,7 @@ import {
   Send,
   ShieldCheck,
   Target,
+  Trash2,
   UploadCloud,
   XCircle,
 } from 'lucide-react';
@@ -22,6 +24,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
 import type { TaxonomyFull } from '../../content/api/content-types';
+import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
 import {
   questionBankClient,
   type ImportResult,
@@ -130,8 +133,44 @@ export function QuestionBankAdminPage(){
     finally{setPending('')}
   }
 
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+
   function updateOption(index:number,value:string){
     setCreate(x=>({...x,options:x.options.map((v,i)=>i===index?value:v)}));
+  }
+
+  async function handleImageFile(file: File) {
+    setMediaFile(file);
+    const localUrl = URL.createObjectURL(file);
+    setImagePreviewUrl(localUrl);
+
+    let code = create.questionCode.trim();
+    if (!code) {
+      code = `Q-${Date.now().toString().slice(-6)}`;
+      setCreate((prev) => ({ ...prev, questionCode: code }));
+    }
+
+    await run('media', async (csrf) => {
+      const asset = await questionBankClient.uploadAsset(file, code, 'question_image', csrf);
+      setMediaAsset(asset);
+      setCreate((prev) => ({ ...prev, imageAssetId: asset.id }));
+    }, 'تم لصق الصورة ورفعها بنجاح.');
+  }
+
+  function handlePasteImage(e: React.ClipboardEvent) {
+    const files = Array.from(e.clipboardData.files);
+    const image = files.find((f) => f.type.startsWith('image/'));
+    if (image) {
+      e.preventDefault();
+      void handleImageFile(image);
+    }
+  }
+
+  function removeImage() {
+    setMediaFile(null);
+    setMediaAsset(null);
+    setImagePreviewUrl('');
+    setCreate((prev) => ({ ...prev, imageAssetId: '' }));
   }
 
   async function uploadMedia(){
@@ -234,25 +273,239 @@ export function QuestionBankAdminPage(){
       </div>
     </section>
 
-    {showCreate?<section className="rounded-3xl border border-amber-200 bg-amber-50/40 p-4 shadow-sm sm:p-5">
-      <div className="flex items-center justify-between"><div><p className="text-xs font-black text-amber-700">AUTHORING</p><h2 className="text-xl font-black">إنشاء سؤال بإصدار أول</h2></div><button type="button" aria-label="إغلاق إنشاء السؤال" onClick={()=>setShowCreate(false)}><XCircle size={20}/></button></div>
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <div className="space-y-2">
-          <div className="grid gap-2 sm:grid-cols-2"><input aria-label="كود السؤال الجديد" value={create.questionCode} onChange={e=>setCreate({...create,questionCode:e.target.value})} placeholder="الكود الثابت" className="rounded-xl border p-2.5"/><select aria-label="نوع السؤال الجديد" value={create.type} onChange={e=>setCreate({...create,type:e.target.value as QuestionType})} className="rounded-xl border p-2.5">{Object.entries(typeLabel).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div>
-          <div className="grid gap-2 sm:grid-cols-2"><select aria-label="مسار السؤال الجديد" value={create.pathId} onChange={e=>setCreate({...create,pathId:e.target.value,subjectId:'',mainSkillId:'',subSkillId:''})} className="rounded-xl border p-2.5"><option value="">اختر المسار</option>{taxonomy.paths.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select><select aria-label="مادة السؤال الجديد" value={create.subjectId} onChange={e=>setCreate({...create,subjectId:e.target.value,mainSkillId:'',subSkillId:''})} className="rounded-xl border p-2.5"><option value="">اختر المادة</option>{createSubjects.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></div>
-          <div className="grid gap-2 sm:grid-cols-2"><select aria-label="المهارة الرئيسية للسؤال" value={create.mainSkillId} onChange={e=>setCreate({...create,mainSkillId:e.target.value,subSkillId:''})} className="rounded-xl border p-2.5"><option value="">المهارة الرئيسية</option>{createMainSkills.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select><select aria-label="المهارة الفرعية للسؤال" value={create.subSkillId} onChange={e=>setCreate({...create,subSkillId:e.target.value})} className="rounded-xl border p-2.5"><option value="">مهارة فرعية اختيارية</option>{createSubSkills.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></div>
-          <textarea aria-label="نص السؤال الجديد" value={create.text} onChange={e=>setCreate({...create,text:e.target.value})} placeholder="نص السؤال (يمكن أن تكون الصورة هي المحتوى الرئيسي)" className="min-h-28 w-full rounded-xl border p-3"/>
-          {create.type!=='essay'?<div className="grid gap-2 sm:grid-cols-2">{create.options.map((v,i)=><label key={i} className="text-xs font-bold">الخيار {i+1}<div className="mt-1 flex gap-2"><input aria-label={`نص الخيار ${i+1}`} value={v} onChange={e=>updateOption(i,e.target.value)} className="min-w-0 flex-1 rounded-xl border p-2"/><input aria-label={`الإجابة الصحيحة ${i+1}`} type="radio" name="correct-option" checked={create.correctOptionIndex===i} onChange={()=>setCreate({...create,correctOptionIndex:i})}/></div></label>)}</div>:null}
+    {showCreate ? (
+      <section
+        onPaste={handlePasteImage}
+        className="rounded-3xl border border-amber-200 bg-amber-50/40 p-4 shadow-sm sm:p-5"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-black text-amber-700">AUTHORING</p>
+            <h2 className="text-xl font-black">إنشاء سؤال بإصدار أول (يدعم لصق الصور مباشرة Ctrl+V)</h2>
+          </div>
+          <button type="button" aria-label="إغلاق إنشاء السؤال" onClick={() => setShowCreate(false)}>
+            <XCircle size={20} />
+          </button>
         </div>
-        <div className="space-y-2">
-          <textarea aria-label="شرح السؤال الجديد" value={create.explanation} onChange={e=>setCreate({...create,explanation:e.target.value})} placeholder="الشرح" className="min-h-20 w-full rounded-xl border p-3"/>
-          <textarea aria-label="تلميح السؤال الجديد" value={create.hint} onChange={e=>setCreate({...create,hint:e.target.value})} placeholder="التلميح" className="min-h-16 w-full rounded-xl border p-3"/>
-          <div className="grid gap-2 sm:grid-cols-2"><input aria-label="صعوبة السؤال الجديد" value={create.difficulty} onChange={e=>setCreate({...create,difficulty:e.target.value})} placeholder="difficulty" className="rounded-xl border p-2.5"/><input aria-label="مصدر السؤال الجديد" value={create.source} onChange={e=>setCreate({...create,source:e.target.value})} placeholder="source" className="rounded-xl border p-2.5"/></div>
-          <div className="rounded-2xl border border-violet-100 bg-white p-3"><div className="flex items-center gap-2"><ImageUp size={18} className="text-violet-700"/><h3 className="font-black">وسائط السؤال — رفع مباشر</h3></div><input aria-label="ملف صورة السؤال" type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setMediaFile(e.target.files?.[0]||null)} className="mt-3 block w-full text-sm"/><input aria-label="وصف صورة السؤال" value={create.imageAlt} onChange={e=>setCreate({...create,imageAlt:e.target.value})} placeholder="وصف بديل للصورة" className="mt-2 w-full rounded-xl border p-2"/><button type="button" disabled={!mediaFile||pending==='media'} onClick={()=>void uploadMedia()} className="mt-2 inline-flex items-center gap-2 rounded-xl bg-violet-700 px-4 py-2 text-sm font-black text-white disabled:opacity-40"><UploadCloud size={16}/> رفع وتحقق</button>{mediaAsset?<p className="mt-2 text-xs font-bold text-emerald-700">Asset: {mediaAsset.id} · {mediaAsset.status}</p>:null}</div>
-          <button type="button" disabled={pending==='create'} onClick={()=>void createQuestion()} className="w-full rounded-xl bg-slate-950 py-3 font-black text-white disabled:opacity-50">حفظ السؤال كمسودة</button>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <div className="space-y-2">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input
+                aria-label="كود السؤال الجديد"
+                value={create.questionCode}
+                onChange={(e) => setCreate({ ...create, questionCode: e.target.value })}
+                placeholder="الكود الثابت (مثال: Q-ALG-01)"
+                className="rounded-xl border p-2.5"
+              />
+              <select
+                aria-label="نوع السؤال الجديد"
+                value={create.type}
+                onChange={(e) => setCreate({ ...create, type: e.target.value as QuestionType })}
+                className="rounded-xl border p-2.5"
+              >
+                {Object.entries(typeLabel).map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <select
+                aria-label="مسار السؤال الجديد"
+                value={create.pathId}
+                onChange={(e) =>
+                  setCreate({ ...create, pathId: e.target.value, subjectId: '', mainSkillId: '', subSkillId: '' })
+                }
+                className="rounded-xl border p-2.5"
+              >
+                <option value="">اختر المسار</option>
+                {taxonomy.paths.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                aria-label="مادة السؤال الجديد"
+                value={create.subjectId}
+                onChange={(e) => setCreate({ ...create, subjectId: e.target.value, mainSkillId: '', subSkillId: '' })}
+                className="rounded-xl border p-2.5"
+              >
+                <option value="">اختر المادة</option>
+                {createSubjects.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <select
+                aria-label="المهارة الرئيسية للسؤال"
+                value={create.mainSkillId}
+                onChange={(e) => setCreate({ ...create, mainSkillId: e.target.value, subSkillId: '' })}
+                className="rounded-xl border p-2.5"
+              >
+                <option value="">المهارة الرئيسية</option>
+                {createMainSkills.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                aria-label="المهارة الفرعية للسؤال"
+                value={create.subSkillId}
+                onChange={(e) => setCreate({ ...create, subSkillId: e.target.value })}
+                className="rounded-xl border p-2.5"
+              >
+                <option value="">مهارة فرعية اختيارية</option>
+                {createSubSkills.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <textarea
+              aria-label="نص السؤال الجديد"
+              value={create.text}
+              onPaste={handlePasteImage}
+              onChange={(e) => setCreate({ ...create, text: e.target.value })}
+              placeholder="نص السؤال — يمكنك لصق صورة السؤال مباشرة هنا بالضغط على Ctrl+V"
+              className="min-h-28 w-full rounded-xl border p-3 leading-relaxed"
+            />
+            {create.type !== 'essay' ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {create.options.map((v, i) => (
+                  <label key={i} className="text-xs font-bold">
+                    الخيار {i + 1}
+                    <div className="mt-1 flex gap-2">
+                      <input
+                        aria-label={`نص الخيار ${i + 1}`}
+                        value={v}
+                        onChange={(e) => updateOption(i, e.target.value)}
+                        className="min-w-0 flex-1 rounded-xl border p-2"
+                      />
+                      <input
+                        aria-label={`الإجابة الصحيحة ${i + 1}`}
+                        type="radio"
+                        name="correct-option"
+                        checked={create.correctOptionIndex === i}
+                        onChange={() => setCreate({ ...create, correctOptionIndex: i })}
+                      />
+                    </div>
+                  </label>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <div className="space-y-2">
+            <textarea
+              aria-label="شرح السؤال الجديد"
+              value={create.explanation}
+              onChange={(e) => setCreate({ ...create, explanation: e.target.value })}
+              placeholder="الشرح واستراتيجية الحل"
+              className="min-h-20 w-full rounded-xl border p-3"
+            />
+            <textarea
+              aria-label="تلميح السؤال الجديد"
+              value={create.hint}
+              onChange={(e) => setCreate({ ...create, hint: e.target.value })}
+              placeholder="التلميح الذهبي"
+              className="min-h-16 w-full rounded-xl border p-3"
+            />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input
+                aria-label="صعوبة السؤال الجديد"
+                value={create.difficulty}
+                onChange={(e) => setCreate({ ...create, difficulty: e.target.value })}
+                placeholder="مستوى الصعوبة (Easy, Medium, Hard)"
+                className="rounded-xl border p-2.5"
+              />
+              <input
+                aria-label="مصدر السؤال الجديد"
+                value={create.source}
+                onChange={(e) => setCreate({ ...create, source: e.target.value })}
+                placeholder="المصدر (تجميعات 1445، تجريبي، محاكي)"
+                className="rounded-xl border p-2.5"
+              />
+            </div>
+
+            {/* بطاقة صورة السؤال مع اللصق المباشر والمعاينة الفورية */}
+            <div className="rounded-2xl border border-violet-200 bg-white p-3.5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ImageUp size={18} className="text-violet-700" />
+                  <h3 className="font-black text-sm">صورة السؤال — لصق أو رفع فوري</h3>
+                </div>
+                {imagePreviewUrl || mediaAsset || create.imageAssetId ? (
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 hover:text-rose-800"
+                  >
+                    <Trash2 size={14} /> حذف الصورة
+                  </button>
+                ) : null}
+              </div>
+
+              {imagePreviewUrl || mediaAsset || create.imageAssetId ? (
+                <div className="mt-3 overflow-hidden rounded-xl border border-violet-100 bg-slate-50 p-2 text-center">
+                  <img
+                    src={imagePreviewUrl || (mediaAsset ? URL.createObjectURL(mediaFile!) : '')}
+                    alt={create.imageAlt || 'معاينة صورة السؤال'}
+                    className="mx-auto max-h-48 rounded-lg object-contain shadow-xs"
+                  />
+                  {create.imageAssetId ? (
+                    <p className="mt-2 text-xs font-bold text-emerald-700">✓ تم الرفع والتثبيت في R2 ({create.imageAssetId})</p>
+                  ) : null}
+                </div>
+              ) : (
+                <div
+                  onPaste={handlePasteImage}
+                  className="mt-3 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-violet-200 bg-violet-50/30 p-4 text-center transition hover:bg-violet-50/60"
+                >
+                  <ImagePlus size={28} className="text-violet-400" />
+                  <p className="mt-1 text-xs font-black text-violet-900">الصق الصورة هنا مباشرة (Ctrl + V)</p>
+                  <p className="text-[11px] text-gray-500">أو يمكنك اختيار ملف من جهازك</p>
+                  <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-violet-300 bg-white px-3 py-1.5 text-xs font-bold text-violet-700 shadow-xs hover:bg-violet-50">
+                    <UploadCloud size={14} /> اختر ملف صورة
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void handleImageFile(file);
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
+
+              <input
+                aria-label="وصف صورة السؤال"
+                value={create.imageAlt}
+                onChange={(e) => setCreate({ ...create, imageAlt: e.target.value })}
+                placeholder="وصف بديل للصورة (اختياري)"
+                className="mt-2 w-full rounded-xl border p-2 text-xs"
+              />
+            </div>
+
+            <button
+              type="button"
+              disabled={pending === 'create' || pending === 'media'}
+              onClick={() => void createQuestion()}
+              className="w-full rounded-xl bg-slate-950 py-3 font-black text-white shadow-sm transition hover:bg-slate-900 disabled:opacity-50 cursor-pointer"
+            >
+              {pending === 'create' ? 'جارٍ الحفظ...' : 'حفظ السؤال كمسودة'}
+            </button>
+          </div>
         </div>
-      </div>
-    </section>:null}
+      </section>
+    ) : null}
 
     <section className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
       <article className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5">
@@ -261,13 +514,166 @@ export function QuestionBankAdminPage(){
       </article>
 
       <article className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5">
-        <h2 className="font-black">تفاصيل ومراجعة</h2>
-        {!detail?<div className="mt-4 rounded-2xl border border-dashed p-8 text-center text-sm text-gray-500">افتح سؤالًا لمراجعة الإصدار الحالي.</div>:<div className="mt-4 space-y-3">
-          <div className="rounded-2xl bg-slate-50 p-4"><p className="text-xs font-black text-violet-700">{detail.questionCode} · v{detail.currentVersion}</p><h3 className="mt-2 font-black">{detail.version.text||'سؤال بصري / صورة'}</h3><p className="mt-2 text-xs text-gray-500">{typeLabel[detail.version.type]} · {detail.version.difficulty||'بدون مستوى'} · {statusLabel[detail.workflowStatus]}</p></div>
-          {detail.version.imageAssetId?<div className="flex items-center gap-2 rounded-xl border p-3 text-xs font-bold"><FileImage size={17}/> Media asset: {detail.version.imageAssetId}</div>:null}
-          <div className="rounded-xl border p-3 text-sm"><b>الشرح:</b> {detail.version.explanation||'—'}</div>
-          <div className="flex flex-wrap gap-2">{(detail.workflowStatus==='draft'||detail.workflowStatus==='rejected')?<button type="button" onClick={()=>void workflow('pending_review')} className="rounded-xl bg-amber-500 px-3 py-2 text-xs font-black text-slate-950">إرسال للمراجعة</button>:null}{isAdmin&&detail.workflowStatus==='pending_review'?<><button type="button" onClick={()=>void workflow('approved')} className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-black text-white">اعتماد</button><button type="button" onClick={()=>void workflow('rejected')} className="rounded-xl bg-rose-700 px-3 py-2 text-xs font-black text-white">رفض</button></>:null}{isAdmin&&detail.workflowStatus!=='archived'?<button type="button" onClick={()=>void workflow('archived')} className="rounded-xl border px-3 py-2 text-xs font-black"><Archive size={14} className="inline"/> أرشفة</button>:null}</div>
-        </div>}
+        <h2 className="font-black">تفاصيل ومراجعة السؤال</h2>
+        {!detail ? (
+          <div className="mt-4 rounded-2xl border border-dashed p-8 text-center text-sm text-gray-500">
+            اضغط على «فتح» بجانب أي سؤال لمراجعة نصه وخياراته وصورته ومهاراته.
+          </div>
+        ) : (
+          <div className="mt-4 space-y-4">
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-black text-violet-700">
+                  {detail.questionCode} · v{detail.currentVersion}
+                </span>
+                <span className="rounded-full bg-white px-2 py-0.5 text-xs font-black shadow-xs">
+                  {statusLabel[detail.workflowStatus]}
+                </span>
+              </div>
+              <h3 className="mt-2 text-base font-black leading-relaxed">
+                {detail.version.text || 'سؤال بصري / صورة'}
+              </h3>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
+                <span>{typeLabel[detail.version.type]}</span>
+                <span>•</span>
+                <span>الصعوبة: {detail.version.difficulty || 'متوسط'}</span>
+                {detail.version.source ? (
+                  <>
+                    <span>•</span>
+                    <span>المصدر: {detail.version.source}</span>
+                  </>
+                ) : null}
+              </div>
+            </div>
+
+            {/* صورة السؤال الحقيقية */}
+            {detail.version.imageAssetId ? (
+              <div className="overflow-hidden rounded-2xl border border-violet-100 bg-white p-3 shadow-xs">
+                <p className="mb-2 text-xs font-black text-violet-800">صورة السؤال المعتمدة:</p>
+                <QuestionAssetImage
+                  assetId={detail.version.imageAssetId}
+                  alt={detail.questionCode}
+                  className="mx-auto max-h-64 rounded-xl object-contain"
+                />
+              </div>
+            ) : null}
+
+            {/* الخيارات والإجابة الصحيحة */}
+            {detail.options && detail.options.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-xs font-black text-gray-500">الخيارات والإجابة المعتمدة:</p>
+                <div className="grid gap-2">
+                  {detail.options.map((opt, i) => {
+                    const isCorrect = i === detail.version.correctOptionIndex;
+                    return (
+                      <div
+                        key={i}
+                        className={`flex items-center justify-between rounded-xl border p-2.5 text-xs font-bold transition-colors ${
+                          isCorrect
+                            ? 'border-emerald-300 bg-emerald-50 text-emerald-900 shadow-xs'
+                            : 'border-gray-200 bg-white text-gray-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black ${
+                              isCorrect ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {['أ', 'ب', 'ج', 'د'][i] || i + 1}
+                          </span>
+                          <span>{opt.text || `خيار ${i + 1}`}</span>
+                        </div>
+                        {isCorrect ? (
+                          <span className="rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-black text-white">
+                            الإجابة الصحيحة ✓
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            {/* الشرح واستراتيجية الحل */}
+            {detail.version.explanation ? (
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 text-xs leading-relaxed text-indigo-950">
+                <b className="text-indigo-900">الشرح واستراتيجية الحل:</b> {detail.version.explanation}
+              </div>
+            ) : null}
+
+            {detail.version.hint ? (
+              <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-2.5 text-xs leading-relaxed text-amber-900">
+                <b className="text-amber-800">التلميح:</b> {detail.version.hint}
+              </div>
+            ) : null}
+
+            {/* المهارات المرتبطة */}
+            {detail.skillLinks && detail.skillLinks.length > 0 ? (
+              <div className="space-y-1">
+                <p className="text-xs font-black text-gray-500">المهارات المرتبطة بالسؤال:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {detail.skillLinks.map((sl, i) => {
+                    const skName = taxonomy.skills.find((x) => x.id === sl.skillId)?.name || sl.skillId;
+                    return (
+                      <span
+                        key={i}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-bold ${
+                          sl.relationType === 'main'
+                            ? 'bg-violet-100 text-violet-800 ring-1 ring-violet-200'
+                            : 'bg-indigo-50 text-indigo-700'
+                        }`}
+                      >
+                        {sl.relationType === 'main' ? '★ مهارة رئيسة: ' : 'مهارة فرعية: '}
+                        {skName}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+              {detail.workflowStatus === 'draft' || detail.workflowStatus === 'rejected' ? (
+                <button
+                  type="button"
+                  onClick={() => void workflow('pending_review')}
+                  className="rounded-xl bg-amber-500 px-3 py-2 text-xs font-black text-slate-950 hover:bg-amber-400 cursor-pointer"
+                >
+                  إرسال للمراجعة
+                </button>
+              ) : null}
+              {isAdmin && detail.workflowStatus === 'pending_review' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void workflow('approved')}
+                    className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-black text-white hover:bg-emerald-600 cursor-pointer"
+                  >
+                    اعتماد السؤال
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void workflow('rejected')}
+                    className="rounded-xl bg-rose-700 px-3 py-2 text-xs font-black text-white hover:bg-rose-600 cursor-pointer"
+                  >
+                    رفض
+                  </button>
+                </>
+              ) : null}
+              {isAdmin && detail.workflowStatus !== 'archived' ? (
+                <button
+                  type="button"
+                  onClick={() => void workflow('archived')}
+                  className="rounded-xl border px-3 py-2 text-xs font-black hover:bg-gray-50 cursor-pointer"
+                >
+                  <Archive size={14} className="inline ml-1" /> أرشفة
+                </button>
+              ) : null}
+            </div>
+          </div>
+        )}
       </article>
     </section>
 

@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { attemptClient, type Attempt, type Result } from '../api/attempt-client';
+import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
 
 const key = (prefix: string, id: string) => {
   const storageKey = `${prefix}:${id}`;
@@ -188,8 +189,8 @@ export function AssessmentAttemptPage() {
         </div>
         <h2 className="text-lg font-black">{question.text || question.imageAlt || 'سؤال بصري'}</h2>
         {question.imageAssetId ? (
-          <div className="mt-3 rounded-xl bg-gray-50 p-4 text-center text-xs text-gray-400">
-            صورة السؤال: {question.imageAssetId}
+          <div className="my-4 overflow-hidden rounded-2xl border border-gray-100 bg-slate-50 p-3 text-center">
+            <QuestionAssetImage assetId={question.imageAssetId} alt={question.imageAlt || 'صورة السؤال'} />
           </div>
         ) : null}
         <div className="mt-5 grid gap-2">

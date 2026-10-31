@@ -43,6 +43,10 @@ export function QuestionAssetImage({
       setState(null);
       return;
     }
+    if (assetId.startsWith('data:') || assetId.startsWith('http://') || assetId.startsWith('https://')) {
+      setState({ assetId, url: assetId, loading: false, error: false });
+      return;
+    }
     const controller = new AbortController();
     setState({ assetId, url: '', loading: true, error: false });
     fetch(`${API_BASE}/api/v1/media/assets/${encodeURIComponent(assetId)}`, {

@@ -16,6 +16,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { learningClient } from '../../learning/api/learning-client';
+import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
 import {
   attemptClient,
   type ResultDetail,
@@ -123,8 +124,8 @@ function ReviewQuestionCard({
         {question.text || question.imageAlt || 'سؤال بصري'}
       </h3>
       {question.imageAssetId ? (
-        <div className="mt-3 rounded-xl bg-gray-50 p-4 text-center text-xs font-bold text-gray-400">
-          صورة السؤال: {question.imageAssetId}
+        <div className="my-4 overflow-hidden rounded-2xl border border-gray-100 bg-slate-50 p-3 text-center">
+          <QuestionAssetImage assetId={question.imageAssetId} alt="صورة السؤال" />
         </div>
       ) : null}
 
