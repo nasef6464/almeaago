@@ -22,6 +22,7 @@ import { AssessmentAssignmentsPage } from '../features/assessment/pages/Assessme
 import { ReviewLibraryPage } from '../features/learning/pages/ReviewLibraryPage';
 import { ReviewPracticePage } from '../features/learning/pages/ReviewPracticePage';
 import { CourseLearningPage } from '../features/learning/pages/CourseLearningPage';
+import { CourseView } from '../features/learning/pages/CourseView';
 import { LearningSpacePage } from '../features/learning/pages/LearningSpacePage';
 import { StudyPlanPage } from '../features/learning/pages/StudyPlanPage';
 import { SchoolInterventionsPage } from '../features/learning/pages/SchoolInterventionsPage';
@@ -201,8 +202,8 @@ export function App() {
         <Route path="/category/:pathId" element={<LegacyCategoryPage />} />
         <Route path="/path/:pathId" element={<LegacyCategoryPage />} />
         <Route path="/paths/:pathId" element={<LegacyCategoryPage />} />
-        <Route path="/learning/courses/:courseId" element={<CourseLearningPage />} />
-        <Route path="/course/:courseId" element={<CourseLearningPage />} />
+        <Route path="/learning/courses/:courseId" element={<CourseView />} />
+        <Route path="/course/:courseId" element={<CourseView />} />
         <Route path="/review" element={<ReviewLibraryPage />} />
         <Route path="/favorites" element={<ReviewLibraryPage />} />
         <Route path="/review/practice" element={<ReviewPracticePage />} />

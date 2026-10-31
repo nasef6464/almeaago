@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, BookOpen, Filter, Loader2, Search, User } from 'lucide-react';
+import { ArrowRight, BookOpen, ChevronDown, ChevronUp, Filter, Loader2, Search, Star, User } from 'lucide-react';
 import { useAuth } from '../../auth/state/AuthProvider';
 import { getPublicCourses, type PublicCourse } from '../api/publicCourses';
 
@@ -20,6 +20,7 @@ export function CoursesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [courses, setCourses] = useState<DisplayCourse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [expandedCourseId, setExpandedCourseId] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -168,49 +169,89 @@ export function CoursesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {displayedCourses.map((course) => (
-            <div
-              key={course.id}
-              className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xs hover:shadow-md transition-shadow flex flex-col"
-            >
-              {course.thumbnailUrl ? (
-                <img
-                  src={course.thumbnailUrl}
-                  alt={course.title}
-                  className="w-full h-44 object-cover"
-                />
-              ) : (
-                <div className="w-full h-44 bg-gradient-to-br from-amber-50 to-blue-50 flex items-center justify-center text-amber-500">
-                  <BookOpen size={40} />
-                </div>
-              )}
-              <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                <div>
-                  <h3 className="text-base font-bold text-gray-900 line-clamp-2 leading-snug">
-                    {course.title}
-                  </h3>
-                  {course.instructorName && (
-                    <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-500">
-                      <User size={14} />
-                      <span>{course.instructorName}</span>
+          {displayedCourses.map((course) => {
+            const isExpanded = expandedCourseId === course.id;
+            return (
+              <div
+                key={course.id}
+                onClick={() => setExpandedCourseId(isExpanded ? null : course.id)}
+                className={`bg-white rounded-2xl border overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col cursor-pointer ${
+                  isExpanded ? 'border-indigo-300 ring-2 ring-indigo-100' : 'border-gray-200'
+                }`}
+              >
+                {/* Image & Category */}
+                <div className="relative h-44 bg-slate-900 group">
+                  {course.thumbnailUrl ? (
+                    <img
+                      src={course.thumbnailUrl}
+                      alt={course.title}
+                      className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-indigo-950 to-slate-900 flex items-center justify-center text-amber-400">
+                      <BookOpen size={44} />
                     </div>
                   )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                    <span className="rounded-full bg-black/60 backdrop-blur-xs px-2.5 py-1 text-[11px] font-bold text-amber-300">
+                      {course.category || 'دورة تعليمية'}
+                    </span>
+                  </div>
+                  <div className="absolute top-3 left-3 text-white/80 bg-black/40 p-1 rounded-full">
+                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </div>
+                  <div className="absolute bottom-3 right-3 left-3 flex items-center justify-between text-xs text-amber-400">
+                    <div className="flex items-center gap-0.5">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={12} fill="currentColor" />
+                      ))}
+                    </div>
+                    <span className="font-bold text-white text-[11px]">4.9 تقييم</span>
+                  </div>
                 </div>
 
-                <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-500">
-                    {course.lessonsCount ? `${course.lessonsCount} درس` : 'محتوى متكامل'}
-                  </span>
-                  <Link
-                    to={`/course/${encodeURIComponent(course.id)}`}
-                    className="px-3.5 py-1.5 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-lg transition-colors"
-                  >
-                    عرض الدورة
-                  </Link>
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                  <div>
+                    <h3 className="text-base font-black text-gray-900 line-clamp-2 leading-snug">
+                      {course.title}
+                    </h3>
+                    {course.instructorName && (
+                      <div className="flex items-center gap-1.5 mt-2 text-xs font-bold text-gray-500">
+                        <User size={14} className="text-gray-400" />
+                        <span>{course.instructorName}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Accordion Expanded Preview */}
+                  {isExpanded && (
+                    <div className="pt-3 border-t border-gray-100 text-xs text-gray-600 space-y-2 animate-fadeIn">
+                      <p className="font-bold text-gray-800">محتوى الدورة المعتمد:</p>
+                      <ul className="space-y-1 list-disc pr-4 text-[11px] text-gray-500">
+                        <li>شروحات فيديو تفاعلية واختبارات محاكية</li>
+                        <li>مذكرات وحقائب تدريبية قابلة للتحميل</li>
+                        <li>متابعة مستمرة وتقارير تقدم</li>
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-500">
+                      {course.lessonsCount ? `${course.lessonsCount} درس` : 'محتوى متكامل'}
+                    </span>
+                    <Link
+                      to={`/course/${encodeURIComponent(course.id)}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl transition-colors shadow-xs"
+                    >
+                      {course.progress && course.progress > 0 ? 'مواصلة التعلم' : 'عرض تفاصيل الدورة'}
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

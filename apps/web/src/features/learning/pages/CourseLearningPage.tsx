@@ -324,13 +324,19 @@ export function CourseLearningPage() {
         <div className="flex min-w-0 items-center gap-2 sm:gap-4">
           <button
             type="button"
-            onClick={() => navigate('/learning')}
+            onClick={() => {
+              if (courseId) {
+                navigate(`/course/${courseId}`);
+              } else {
+                navigate('/learning');
+              }
+            }}
             className={`rounded-xl p-2 transition-colors ${
               isDarkMode
                 ? 'text-slate-300 hover:bg-slate-800 hover:text-white'
                 : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
             }`}
-            aria-label="الرجوع لمساحة التعلم"
+            aria-label="الرجوع لتفاصيل الدورة"
           >
             <ArrowRight size={20} />
           </button>

@@ -1,13 +1,18 @@
 import {
+  AlertTriangle,
   BookOpen,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
+  Eye,
   FolderTree,
   GraduationCap,
   Library,
   Plus,
   RefreshCcw,
   Search,
+  X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -128,6 +133,7 @@ export function ContentAdminPage() {
   const [mutatingLessonId, setMutatingLessonId] = useState('');
   const [mutatingLibraryId, setMutatingLibraryId] = useState('');
   const [actionError, setActionError] = useState('');
+  const [previewCourse, setPreviewCourse] = useState<CourseSummary | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -282,6 +288,39 @@ export function ContentAdminPage() {
     const notes = window.prompt('اشرح المطلوب تعديله للمدرب:', '');
     if (notes === null) return;
     void setCourseWorkflow(course, 'rejected', notes);
+  }
+
+  function getCourseReadinessMeta(row: CourseSummary) {
+    const issues: string[] = [];
+    if (!row.title?.trim()) issues.push('العنوان غير مكتمل');
+    if (!row.subjectId) issues.push('غير مربوط بمادة');
+    if (row.isVisible && !row.isPublished) issues.push('ظاهر للطالب لكنه غير منشور');
+    if (row.isVisible && row.workflowStatus !== 'approved') issues.push('ظاهر قبل الاعتماد');
+
+    return issues.length === 0
+      ? { label: 'جاهز للطالب', issues, className: 'bg-emerald-50 text-emerald-700 border-emerald-200', isReady: true }
+      : { label: 'يحتاج ضبط', issues, className: 'bg-amber-50 text-amber-700 border-amber-200', isReady: false };
+  }
+
+  async function prepareCourseForStudent(row: CourseSummary) {
+    setMutatingCourseId(row.id);
+    setActionError('');
+    try {
+      const csrfToken = await getCsrfToken();
+      let currentRev = row.revision;
+      if (row.workflowStatus !== 'approved') {
+        await contentClient.courseWorkflow(row.id, currentRev, 'approved', 'اعتماد وتجهيز للعرض', csrfToken);
+        currentRev += 1;
+      }
+      if (!row.isPublished) {
+        await contentClient.coursePublication(row.id, currentRev, true, csrfToken);
+      }
+      setReloadKey((v) => v + 1);
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : 'تعذر تجهيز الدورة للطالب.');
+    } finally {
+      setMutatingCourseId('');
+    }
   }
 
   async function setLessonWorkflow(
@@ -628,7 +667,21 @@ export function ContentAdminPage() {
                             <td className="px-4 py-4"><div className="font-black text-gray-900">{row.title}</div></td>
                             <td className="px-4 py-4"><div className="font-bold">{path?.name || row.pathId}</div><div className="mt-1 text-xs text-gray-500">{subject?.name || row.subjectId}</div></td>
                             <td className="px-4 py-4">
-                              {status ? <span className={`rounded-full px-3 py-1 text-xs font-black ${workflowClass(status)}`}>{workflowLabels[status]}</span> : <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{'status' in row ? row.status : '-'}</span>}
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {status ? <span className={`rounded-full px-3 py-1 text-xs font-black ${workflowClass(status)}`}>{workflowLabels[status]}</span> : <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{'status' in row ? row.status : '-'}</span>}
+                                {isCourseRow(row) && (() => {
+                                  const rMeta = getCourseReadinessMeta(row);
+                                  return (
+                                    <span
+                                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-black ${rMeta.className}`}
+                                      title={rMeta.issues.join('، ') || 'جاهز للطالب'}
+                                    >
+                                      {rMeta.isReady ? <CheckCircle2 size={11} /> : <AlertTriangle size={11} />}
+                                      {rMeta.label}
+                                    </span>
+                                  );
+                                })()}
+                              </div>
                             </td>
                             <td className="px-4 py-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${row.isVisible ? 'bg-sky-50 text-sky-700' : 'bg-gray-100 text-gray-500'}`}>{row.isVisible ? 'ظاهر' : 'مخفي'}</span></td>
                             <td className="px-4 py-4 font-bold text-gray-600">{type || '-'}</td>
@@ -640,10 +693,36 @@ export function ContentAdminPage() {
                                     type="button"
                                     disabled={mutatingCourseId === row.id}
                                     onClick={() => setEditingCourseId(row.id)}
-                                    className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-black text-blue-800 disabled:opacity-50"
+                                    className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-black text-blue-800 disabled:opacity-50 cursor-pointer"
                                   >
                                     تعديل / المنهج
                                   </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setPreviewCourse(row)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-black text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                    title="معاينة الدورة"
+                                  >
+                                    <Eye size={13} />
+                                    معاينة
+                                  </button>
+                                  {(() => {
+                                    const rMeta = getCourseReadinessMeta(row);
+                                    if (!rMeta.isReady && isAdmin) {
+                                      return (
+                                        <button
+                                          type="button"
+                                          disabled={mutatingCourseId === row.id}
+                                          onClick={() => void prepareCourseForStudent(row)}
+                                          className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-black text-indigo-800 hover:bg-indigo-100 disabled:opacity-50 cursor-pointer"
+                                          title={rMeta.issues.join('، ')}
+                                        >
+                                          تجهيز للطالب
+                                        </button>
+                                      );
+                                    }
+                                    return null;
+                                  })()}
                                   {(row.workflowStatus === 'draft' || row.workflowStatus === 'rejected') ? (
                                     <button
                                       type="button"
@@ -826,6 +905,107 @@ export function ContentAdminPage() {
           </>
         ) : null}
       </div>
+
+      {previewCourse ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setPreviewCourse(null)}
+          dir="rtl"
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-gray-100 pb-4">
+              <div>
+                <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                  معاينة الدورة (LMS)
+                </span>
+                <h3 className="mt-2 text-xl font-black text-gray-900">{previewCourse.title}</h3>
+                <p className="mt-1 text-xs text-gray-500">
+                  ملخص جاهزية الدورة وما يظهر للطالب والزائر.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewCourse(null)}
+                className="rounded-full bg-gray-100 p-2 text-gray-500 hover:bg-gray-200 cursor-pointer"
+                aria-label="إغلاق المعاينة"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 text-right">
+              <div className="rounded-2xl bg-slate-50 p-3.5">
+                <div className="text-[11px] font-black text-slate-500">المسار</div>
+                <div className="mt-1 text-xs font-black text-slate-900 truncate">
+                  {taxonomy.paths.find((p) => p.id === previewCourse.pathId)?.name || 'غير محدد'}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-indigo-50 p-3.5">
+                <div className="text-[11px] font-black text-indigo-500">المادة</div>
+                <div className="mt-1 text-xs font-black text-indigo-900 truncate">
+                  {taxonomy.subjects.find((s) => s.id === previewCourse.subjectId)?.name || 'غير محدد'}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-emerald-50 p-3.5">
+                <div className="text-[11px] font-black text-emerald-500">المستوى</div>
+                <div className="mt-1 text-xs font-black text-emerald-900">
+                  {previewCourse.level || 'مبتدئ'}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-amber-50 p-3.5">
+                <div className="text-[11px] font-black text-amber-500">المدة</div>
+                <div className="mt-1 text-xs font-black text-amber-900">
+                  {previewCourse.durationMinutes || 0} دقيقة
+                </div>
+              </div>
+            </div>
+
+            {/* Readiness card */}
+            {(() => {
+              const rMeta = getCourseReadinessMeta(previewCourse);
+              return (
+                <div className={`mt-5 rounded-2xl border p-4 text-xs font-medium space-y-2 ${rMeta.className}`}>
+                  <div className="flex items-center gap-2 font-black text-sm">
+                    {rMeta.isReady ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+                    <span>جاهزية العرض: {rMeta.label}</span>
+                  </div>
+                  {rMeta.issues.length > 0 ? (
+                    <ul className="list-disc pr-5 space-y-1">
+                      {rMeta.issues.map((issue, idx) => (
+                        <li key={idx}>{issue}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>الدورة مستوفية لجميع شروط الظهور والاعتماد ويمكن للطلاب الوصول إليها.</p>
+                  )}
+                </div>
+              );
+            })()}
+
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-3 pt-4 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setPreviewCourse(null)}
+                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-black text-gray-700 hover:bg-gray-50 cursor-pointer"
+              >
+                إغلاق
+              </button>
+              <a
+                href={`/course/${previewCourse.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-black text-white hover:bg-indigo-700 shadow-sm"
+              >
+                <ExternalLink size={14} />
+                فتح صفحة الدورة كطالب
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

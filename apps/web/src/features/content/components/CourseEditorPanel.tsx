@@ -1,13 +1,20 @@
 import {
-  X,
+  AlertTriangle,
+  Award,
   BookOpen,
+  CheckCircle2,
+  DollarSign,
+  ExternalLink,
   Eye,
+  FileText,
   Layers3,
   Link2,
   Loader2,
   Plus,
   Save,
+  Tag,
   Trash2,
+  X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
@@ -60,7 +67,7 @@ export function CourseEditorPanel({
   const [debouncedLessonSearch, setDebouncedLessonSearch] = useState('');
   const [selectedLessonByModule, setSelectedLessonByModule] = useState<Record<string, string>>({});
   const [previewByModule, setPreviewByModule] = useState<Record<string, boolean>>({});
-  const [activeTab, setActiveTab] = useState<'curriculum' | 'settings'>('curriculum');
+  const [activeTab, setActiveTab] = useState<'curriculum' | 'settings' | 'pricing' | 'files' | 'assessments'>('curriculum');
   const [loading, setLoading] = useState(true);
   const [mutating, setMutating] = useState(false);
   const [error, setError] = useState('');
@@ -78,6 +85,24 @@ export function CourseEditorPanel({
   const [dripContentEnabled, setDripContentEnabled] = useState(false);
   const [certificateEnabled, setCertificateEnabled] = useState(false);
 
+  // Commercial & Pricing
+  const [price, setPrice] = useState(0);
+  const [originalPrice, setOriginalPrice] = useState(0);
+  const [currency, setCurrency] = useState('ر.س');
+
+  // Files & Attachments
+  const [courseFiles, setCourseFiles] = useState<Array<{ id: string; title: string; size: string; url?: string; access: 'free_preview' | 'enrolled_paid' }>>([]);
+  const [newFileTitle, setNewFileTitle] = useState('');
+  const [newFileSize, setNewFileSize] = useState('');
+  const [newFileAccess, setNewFileAccess] = useState<'free_preview' | 'enrolled_paid'>('free_preview');
+
+  // Assessments
+  const [courseAssessments, setCourseAssessments] = useState<Array<{ id: string; title: string; phase: 'pre_course' | 'during_course' | 'final_course'; durationMinutes: number; questionsCount: number; access: 'free_preview' | 'enrolled_paid' }>>([]);
+  const [newAssessmentTitle, setNewAssessmentTitle] = useState('');
+  const [newAssessmentPhase, setNewAssessmentPhase] = useState<'pre_course' | 'during_course' | 'final_course'>('during_course');
+  const [newAssessmentMinutes, setNewAssessmentMinutes] = useState(30);
+  const [newAssessmentQuestions, setNewAssessmentQuestions] = useState(20);
+
   function applyCourse(row: CourseDetail) {
     setCourse(row);
     setPathId(row.pathId);
@@ -91,6 +116,20 @@ export function CourseEditorPanel({
     setIsVisible(row.isVisible);
     setDripContentEnabled(row.dripContentEnabled);
     setCertificateEnabled(row.certificateEnabled);
+
+    let pres: any = {};
+    try {
+      if (row.presentation) {
+        pres = typeof row.presentation === 'string' ? JSON.parse(row.presentation) : row.presentation;
+      }
+    } catch {
+      // ignore
+    }
+    setPrice(pres.price ?? 0);
+    setOriginalPrice(pres.originalPrice ?? 0);
+    setCurrency(pres.currency || 'ر.س');
+    setCourseFiles(Array.isArray(pres.files) ? pres.files : []);
+    setCourseAssessments(Array.isArray(pres.assessments) ? pres.assessments : []);
   }
 
   async function refreshModules(signal?: AbortSignal) {
@@ -153,12 +192,12 @@ export function CourseEditorPanel({
   }, [course?.pathId, course?.subjectId, debouncedLessonSearch]);
 
   const subjects = useMemo(
-    () => taxonomy.subjects.filter((subject) => !pathId || subject.pathId === pathId),
-    [pathId, taxonomy.subjects],
+    () => (taxonomy?.subjects || []).filter((subject) => !pathId || subject.pathId === pathId),
+    [pathId, taxonomy?.subjects],
   );
   const skills = useMemo(
-    () => taxonomy.skills.filter((skill) => skill.subjectId === subjectId),
-    [subjectId, taxonomy.skills],
+    () => (taxonomy?.skills || []).filter((skill) => skill.subjectId === subjectId),
+    [subjectId, taxonomy?.skills],
   );
   const canMutate = Boolean(course && course.workflowStatus !== 'approved' && course.workflowStatus !== 'archived');
 
@@ -182,6 +221,19 @@ export function CourseEditorPanel({
       return;
     }
 
+    const existingPres = typeof course.presentation === 'object' && course.presentation !== null
+      ? (course.presentation as Record<string, any>)
+      : {};
+
+    const updatedPresentation = {
+      ...existingPres,
+      price: Math.max(0, Number(price) || 0),
+      originalPrice: Math.max(0, Number(originalPrice) || 0),
+      currency: currency || 'ر.س',
+      files: courseFiles,
+      assessments: courseAssessments,
+    };
+
     const input: UpdateCourseInput = {
       expectedRevision: course.revision,
       pathId,
@@ -200,7 +252,7 @@ export function CourseEditorPanel({
       dripContentEnabled,
       certificateEnabled,
       thumbnailAssetId: course.thumbnailAssetId,
-      presentation: course.presentation ?? {},
+      presentation: updatedPresentation,
       skillIds,
     };
 
@@ -389,18 +441,53 @@ export function CourseEditorPanel({
               </div>
             </div>
           </div>
-          {activeTab === 'settings' ? (
+          {activeTab !== 'curriculum' ? (
             <button
               type="submit"
               form="course-settings-form"
               disabled={!canMutate || mutating}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white transition hover:bg-indigo-700 disabled:opacity-50"
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white transition hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
             >
               {mutating ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}
-              <span className="hidden sm:inline">حفظ الدورة</span>
+              <span className="hidden sm:inline">حفظ التغييرات</span>
             </button>
           ) : null}
         </section>
+
+        {/* Top Course Readiness & Student Preview Strip */}
+        {course && (() => {
+          const issues: string[] = [];
+          if (!course.title?.trim()) issues.push('اسم الدورة');
+          if (!course.subjectId) issues.push('المادة');
+          if (course.isVisible && !course.isPublished) issues.push('غير منشور');
+          if (course.isVisible && course.workflowStatus !== 'approved') issues.push('ظاهر قبل الاعتماد');
+          if (modules.length === 0) issues.push('لا توجد أقسام');
+          const totalLessons = modules.reduce((acc, m) => acc + (m.lessons?.length || 0), 0);
+          if (totalLessons === 0) issues.push('لا توجد دروس مضافة');
+
+          const isReady = issues.length === 0;
+          return (
+            <div className={`mx-4 mt-4 p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${
+              isReady ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'
+            }`}>
+              <div className="flex items-center gap-2">
+                {isReady ? <CheckCircle2 size={18} className="text-emerald-600 shrink-0" /> : <AlertTriangle size={18} className="text-amber-600 shrink-0" />}
+                <span className="text-xs font-black">
+                  {isReady ? 'الدورة جاهزة للعرض على الطالب بالكامل' : `جاهزية العرض تحتاج ضبط: ${issues.join('، ')}`}
+                </span>
+              </div>
+              <a
+                href={`/course/${course.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white border border-gray-200 text-xs font-black text-gray-700 hover:bg-gray-50 shadow-xs shrink-0"
+              >
+                <ExternalLink size={14} />
+                معاينة صفحة الطالب ↗
+              </a>
+            </div>
+          );
+        })()}
 
         {lockScope ? (
           <div className="m-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">
@@ -415,14 +502,56 @@ export function CourseEditorPanel({
         {notice ? <div className="mx-4 mb-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">{notice}</div> : null}
         {error ? <div className="mx-4 mb-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">{error}</div> : null}
 
-        <section className="flex border-b border-gray-200 bg-white px-4 sm:px-6">
-          <button type="button" onClick={() => setActiveTab('curriculum')} className={`flex flex-1 items-center justify-center gap-2 border-b-2 px-4 py-4 text-sm font-black transition sm:flex-none sm:px-6 ${activeTab === 'curriculum' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-            <BookOpen size={18} />
-            المنهج
+        <section className="flex border-b border-gray-200 bg-white px-4 sm:px-6 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab('curriculum')}
+            className={`flex items-center justify-center gap-2 border-b-2 px-4 py-4 text-xs sm:text-sm font-black transition shrink-0 cursor-pointer ${
+              activeTab === 'curriculum' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <BookOpen size={17} />
+            المنهج ({modules.reduce((acc, m) => acc + (m.lessons?.length || 0), 0)})
           </button>
-          <button type="button" onClick={() => setActiveTab('settings')} className={`flex flex-1 items-center justify-center gap-2 border-b-2 px-4 py-4 text-sm font-black transition sm:flex-none sm:px-6 ${activeTab === 'settings' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-            <Layers3 size={18} />
+          <button
+            type="button"
+            onClick={() => setActiveTab('settings')}
+            className={`flex items-center justify-center gap-2 border-b-2 px-4 py-4 text-xs sm:text-sm font-black transition shrink-0 cursor-pointer ${
+              activeTab === 'settings' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Layers3 size={17} />
             إعدادات الدورة
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('pricing')}
+            className={`flex items-center justify-center gap-2 border-b-2 px-4 py-4 text-xs sm:text-sm font-black transition shrink-0 cursor-pointer ${
+              activeTab === 'pricing' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Tag size={17} />
+            الأسعار والتجارة
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('files')}
+            className={`flex items-center justify-center gap-2 border-b-2 px-4 py-4 text-xs sm:text-sm font-black transition shrink-0 cursor-pointer ${
+              activeTab === 'files' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <FileText size={17} />
+            ملفات الدورة ({courseFiles.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('assessments')}
+            className={`flex items-center justify-center gap-2 border-b-2 px-4 py-4 text-xs sm:text-sm font-black transition shrink-0 cursor-pointer ${
+              activeTab === 'assessments' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Award size={17} />
+            الاختبارات المرتبطة ({courseAssessments.length})
           </button>
         </section>
 
@@ -502,9 +631,319 @@ export function CourseEditorPanel({
             </section>
 
             <div className="flex justify-end">
-              <button type="submit" disabled={!canMutate || mutating} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white disabled:opacity-50">
+              <button type="submit" disabled={!canMutate || mutating} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white disabled:opacity-50 cursor-pointer">
                 {mutating ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                 حفظ الإعدادات
+              </button>
+            </div>
+          </form>
+        ) : activeTab === 'pricing' ? (
+          <form id="course-settings-form" onSubmit={saveSettings} className="space-y-5 bg-gray-50 p-4 sm:p-6">
+            <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 space-y-4">
+              <div>
+                <h2 className="text-lg font-black text-gray-900">الأسعار والتجارة (Commerce & Pricing)</h2>
+                <p className="mt-1 text-xs text-gray-500 font-medium">
+                  حدد السعر الفعلي للدورة والسعر الأصلي قبل الخصم، أو اجعلها 0 لتكون متاحة مجانًا للجميع.
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <label className="space-y-1.5">
+                  <span className="text-xs font-black text-gray-700">السعر الفعلي الحالي *</span>
+                  <input
+                    disabled={!canMutate}
+                    type="number"
+                    min={0}
+                    value={price}
+                    onChange={(e) => setPrice(Number(e.target.value) || 0)}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold"
+                  />
+                  <span className="text-[10px] text-gray-400">0 تعني دورة مجانية مفتوحة</span>
+                </label>
+
+                <label className="space-y-1.5">
+                  <span className="text-xs font-black text-gray-700">السعر الأصلي (قبل الخصم)</span>
+                  <input
+                    disabled={!canMutate}
+                    type="number"
+                    min={0}
+                    value={originalPrice}
+                    onChange={(e) => setOriginalPrice(Number(e.target.value) || 0)}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold"
+                  />
+                  <span className="text-[10px] text-gray-400">يظهر مشطوباً لإبراز نسبة التخفيض</span>
+                </label>
+
+                <label className="space-y-1.5">
+                  <span className="text-xs font-black text-gray-700">العملة</span>
+                  <select
+                    disabled={!canMutate}
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold"
+                  >
+                    <option value="ر.س">ر.س (ريال سعودي)</option>
+                    <option value="SAR">SAR</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 text-xs font-bold leading-6 text-indigo-900">
+                {price > 0
+                  ? `ستظهر الدورة للطالب بسعر ${price} ${currency} ${originalPrice > price ? `(مخفضة من ${originalPrice} ${currency})` : ''} مع زر شراء الدورة.`
+                  : 'الدورة مسعرة بـ 0، ستظهر كـ "دورة مجانية" مع زر "ابدأ مجاناً الآن" دون الحاجة لبوابة دفع.'}
+              </div>
+            </section>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={!canMutate || mutating}
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white disabled:opacity-50 cursor-pointer"
+              >
+                {mutating ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                حفظ الأسعار
+              </button>
+            </div>
+          </form>
+        ) : activeTab === 'files' ? (
+          <form id="course-settings-form" onSubmit={saveSettings} className="space-y-5 bg-gray-50 p-4 sm:p-6">
+            <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 space-y-4">
+              <div>
+                <h2 className="text-lg font-black text-gray-900">ملفات ومذكرات الدورة (Course Files)</h2>
+                <p className="mt-1 text-xs text-gray-500 font-medium">
+                  أضف مذكرات الشرح وحقائب التدريب القابلة للتحميل من قِبل الطلاب.
+                </p>
+              </div>
+
+              {/* Add file form */}
+              <div className="p-4 rounded-2xl border border-dashed border-gray-200 bg-slate-50/70 grid gap-3 sm:grid-cols-[1fr_120px_160px_auto] sm:items-end">
+                <label className="space-y-1">
+                  <span className="text-xs font-black text-gray-700">اسم الملف / المذكرة *</span>
+                  <input
+                    value={newFileTitle}
+                    onChange={(e) => setNewFileTitle(e.target.value)}
+                    placeholder="مثال: الحقيبة التدريبية الشاملة.pdf"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-black text-gray-700">الحجم</span>
+                  <input
+                    value={newFileSize}
+                    onChange={(e) => setNewFileSize(e.target.value)}
+                    placeholder="4.5 ميجابايت"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-black text-gray-700">صلاحية الوصول</span>
+                  <select
+                    value={newFileAccess}
+                    onChange={(e) => setNewFileAccess(e.target.value as any)}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold"
+                  >
+                    <option value="free_preview">مفتوح للجميع</option>
+                    <option value="enrolled_paid">ضمن شراء الدورة</option>
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const t = newFileTitle.trim();
+                    if (!t) return;
+                    setCourseFiles((prev) => [
+                      ...prev,
+                      {
+                        id: `file-${Date.now()}`,
+                        title: t,
+                        size: newFileSize.trim() || '3.5 ميجابايت',
+                        access: newFileAccess,
+                      },
+                    ]);
+                    setNewFileTitle('');
+                    setNewFileSize('');
+                  }}
+                  className="rounded-xl bg-slate-800 text-white px-4 py-2 text-xs font-black hover:bg-slate-900 cursor-pointer h-9 flex items-center justify-center gap-1"
+                >
+                  <Plus size={15} />
+                  إضافة ملف
+                </button>
+              </div>
+
+              {/* Files List */}
+              <div className="space-y-2 pt-2">
+                {courseFiles.length === 0 ? (
+                  <div className="p-8 text-center text-xs font-bold text-gray-400 border border-gray-100 rounded-2xl bg-white">
+                    لم تتم إضافة ملفات بعد. يمكنك إضافة المذكرات والحقائب أعلاه.
+                  </div>
+                ) : (
+                  courseFiles.map((file, idx) => (
+                    <div
+                      key={file.id}
+                      className="flex items-center justify-between p-3.5 rounded-xl border border-gray-200 bg-white shadow-xs"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-gray-400 w-5 text-center">{idx + 1}</span>
+                        <div className="w-9 h-9 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
+                          <FileText size={18} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-gray-900">{file.title}</p>
+                          <p className="text-xs text-gray-500">
+                            {file.size} • {file.access === 'free_preview' ? 'مفتوح للجميع' : 'ضمن شراء الدورة'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCourseFiles((prev) => prev.filter((f) => f.id !== file.id))}
+                        className="p-2 rounded-lg text-rose-600 hover:bg-rose-50 cursor-pointer"
+                        title="حذف الملف"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={!canMutate || mutating}
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white disabled:opacity-50 cursor-pointer"
+              >
+                {mutating ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                حفظ الملفات
+              </button>
+            </div>
+          </form>
+        ) : activeTab === 'assessments' ? (
+          <form id="course-settings-form" onSubmit={saveSettings} className="space-y-5 bg-gray-50 p-4 sm:p-6">
+            <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 space-y-4">
+              <div>
+                <h2 className="text-lg font-black text-gray-900">الاختبارات المرتبطة (Course Assessments)</h2>
+                <p className="mt-1 text-xs text-gray-500 font-medium">
+                  حدد اختبارات تحديد المستوى القبلية، الاختبارات الدورية، والاختبار الشامل النهائي للدورة.
+                </p>
+              </div>
+
+              {/* Add assessment form */}
+              <div className="p-4 rounded-2xl border border-dashed border-gray-200 bg-slate-50/70 grid gap-3 sm:grid-cols-[1fr_140px_100px_100px_auto] sm:items-end">
+                <label className="space-y-1">
+                  <span className="text-xs font-black text-gray-700">عنوان الاختبار *</span>
+                  <input
+                    value={newAssessmentTitle}
+                    onChange={(e) => setNewAssessmentTitle(e.target.value)}
+                    placeholder="مثال: الاختبار القبلي لقياس المستوى"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-black text-gray-700">المرحلة</span>
+                  <select
+                    value={newAssessmentPhase}
+                    onChange={(e) => setNewAssessmentPhase(e.target.value as any)}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold"
+                  >
+                    <option value="pre_course">قبل الدورة (قبلي)</option>
+                    <option value="during_course">أثناء الدورة (دوري)</option>
+                    <option value="final_course">نهاية الدورة (نهائي)</option>
+                  </select>
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-black text-gray-700">المدة (د)</span>
+                  <input
+                    type="number"
+                    min={5}
+                    value={newAssessmentMinutes}
+                    onChange={(e) => setNewAssessmentMinutes(Number(e.target.value) || 25)}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-black text-gray-700">الأسئلة</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newAssessmentQuestions}
+                    onChange={(e) => setNewAssessmentQuestions(Number(e.target.value) || 20)}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const t = newAssessmentTitle.trim();
+                    if (!t) return;
+                    setCourseAssessments((prev) => [
+                      ...prev,
+                      {
+                        id: `test-${Date.now()}`,
+                        title: t,
+                        phase: newAssessmentPhase,
+                        durationMinutes: newAssessmentMinutes,
+                        questionsCount: newAssessmentQuestions,
+                        access: newAssessmentPhase === 'pre_course' ? 'free_preview' : 'enrolled_paid',
+                      },
+                    ]);
+                    setNewAssessmentTitle('');
+                  }}
+                  className="rounded-xl bg-slate-800 text-white px-4 py-2 text-xs font-black hover:bg-slate-900 cursor-pointer h-9 flex items-center justify-center gap-1"
+                >
+                  <Plus size={15} />
+                  ربط اختبار
+                </button>
+              </div>
+
+              {/* Assessments List */}
+              <div className="space-y-2 pt-2">
+                {courseAssessments.length === 0 ? (
+                  <div className="p-8 text-center text-xs font-bold text-gray-400 border border-gray-100 rounded-2xl bg-white">
+                    لم يتم ربط اختبارات بعد. أضف الاختبارات المرتبطة بهذه الدورة أعلاه.
+                  </div>
+                ) : (
+                  courseAssessments.map((test, idx) => (
+                    <div
+                      key={test.id}
+                      className="flex items-center justify-between p-3.5 rounded-xl border border-gray-200 bg-white shadow-xs"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-gray-400 w-5 text-center">{idx + 1}</span>
+                        <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                          <Award size={18} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-gray-900">{test.title}</p>
+                          <p className="text-xs text-gray-500">
+                            {test.phase === 'pre_course' ? 'قبلي' : test.phase === 'final_course' ? 'نهائي شامل' : 'دوري'} • {test.durationMinutes} دقيقة • {test.questionsCount} سؤال
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCourseAssessments((prev) => prev.filter((a) => a.id !== test.id))}
+                        className="p-2 rounded-lg text-rose-600 hover:bg-rose-50 cursor-pointer"
+                        title="حذف الاختبار"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={!canMutate || mutating}
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white disabled:opacity-50 cursor-pointer"
+              >
+                {mutating ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                حفظ الاختبارات
               </button>
             </div>
           </form>
