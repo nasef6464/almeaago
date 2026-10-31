@@ -28,6 +28,10 @@ type Config struct {
 	R2PublicBaseURL        string
 	R2AccessKeyID          string
 	R2SecretAccessKey      string
+	MediaStorageProvider   string
+	CloudinaryCloudName    string
+	CloudinaryAPIKey       string
+	CloudinaryAPISecret    string
 	MediaMaxUploadBytes    int64
 	MediaPresignTTLSeconds int
 
@@ -82,11 +86,15 @@ func Load() (Config, error) {
 		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 		GoogleRedirectURI:  os.Getenv("GOOGLE_REDIRECT_URI"),
 
-		R2AccountID:       os.Getenv("R2_ACCOUNT_ID"),
-		R2Bucket:          os.Getenv("R2_BUCKET"),
-		R2PublicBaseURL:   os.Getenv("R2_PUBLIC_BASE_URL"),
-		R2AccessKeyID:     os.Getenv("R2_ACCESS_KEY_ID"),
-		R2SecretAccessKey: os.Getenv("R2_SECRET_ACCESS_KEY"),
+		R2AccountID:          os.Getenv("R2_ACCOUNT_ID"),
+		R2Bucket:             os.Getenv("R2_BUCKET"),
+		R2PublicBaseURL:      os.Getenv("R2_PUBLIC_BASE_URL"),
+		R2AccessKeyID:        os.Getenv("R2_ACCESS_KEY_ID"),
+		R2SecretAccessKey:    os.Getenv("R2_SECRET_ACCESS_KEY"),
+		MediaStorageProvider: strings.ToLower(value("MEDIA_STORAGE_PROVIDER", "r2")),
+		CloudinaryCloudName:  os.Getenv("CLOUDINARY_CLOUD_NAME"),
+		CloudinaryAPIKey:     os.Getenv("CLOUDINARY_API_KEY"),
+		CloudinaryAPISecret:  os.Getenv("CLOUDINARY_API_SECRET"),
 
 		EmailProvider:         os.Getenv("EMAIL_PROVIDER"),
 		EmailFrom:             os.Getenv("EMAIL_FROM"),
@@ -120,6 +128,13 @@ func Load() (Config, error) {
 	}
 	if cfg.ClassroomPINSecret == "" {
 		return Config{}, fmt.Errorf("CLASSROOM_PIN_SECRET is required")
+	}
+	if cfg.MediaStorageProvider != "r2" && cfg.MediaStorageProvider != "cloudinary" {
+		return Config{}, fmt.Errorf("MEDIA_STORAGE_PROVIDER must be r2 or cloudinary")
+	}
+	if cfg.MediaStorageProvider == "cloudinary" &&
+		(strings.TrimSpace(cfg.CloudinaryCloudName) == "" || strings.TrimSpace(cfg.CloudinaryAPIKey) == "" || cfg.CloudinaryAPISecret == "") {
+		return Config{}, fmt.Errorf("Cloudinary credentials are required for MEDIA_STORAGE_PROVIDER=cloudinary")
 	}
 
 	maxUpload, err := int64Value("MEDIA_MAX_UPLOAD_BYTES", 15*1024*1024)

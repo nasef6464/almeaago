@@ -107,6 +107,32 @@ test('admin desktop creates a canonical question with direct media upload and no
   await page.screenshot({path:'test-results/question-bank-admin-desktop.png',fullPage:true});
 });
 
+test('admin uploads media straight to Cloudinary with signed POST form and no secret in browser',async({page})=>{
+  await auth(page,admin);await mockBase(page);
+  let uploadMethod='',uploadBody='';
+  await page.route('**/api/v1/media/uploads/presign',r=>json(r,{
+    asset:{id:'asset-cloudinary',publicUrl:'https://res.cloudinary.com/staging/image/upload/question.webp',mimeType:'image/webp',sizeBytes:4,sha256:'0'.repeat(64),version:1,status:'pending_upload',verifiedAt:null},
+    uploadRequired:true,
+    upload:{url:'https://api.cloudinary.com/v1_1/staging/image/upload',method:'POST',headers:{},formFields:{api_key:'public-key',timestamp:'1793440800',public_id:'questions/v2/Q-NEW/hash',signature:'fake-signature',context:'sha256=hash'},expiresAt:'2026-10-31T12:00:00Z'},
+  }));
+  await page.route('https://api.cloudinary.com/v1_1/staging/image/upload',r=>{
+    uploadMethod=r.request().method();uploadBody=r.request().postData()||'';
+    return r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({secure_url:'https://res.cloudinary.com/staging/image/upload/question.webp'})});
+  });
+  await page.route('**/api/v1/media/uploads/asset-cloudinary/complete',r=>json(r,{
+    asset:{id:'asset-cloudinary',publicUrl:'https://res.cloudinary.com/staging/image/upload/question.webp',mimeType:'image/webp',sizeBytes:4,sha256:'0'.repeat(64),version:1,status:'active',verifiedAt:'2026-10-31T11:00:00Z'},
+  }));
+  await page.goto('/admin-dashboard/questions');
+  await page.getByRole('button',{name:'سؤال جديد'}).click();
+  await page.getByLabel('كود السؤال الجديد').fill('Q-NEW');
+  await page.getByLabel('ملف صورة السؤال').setInputFiles({name:'q.webp',mimeType:'image/webp',buffer:Buffer.from([1,2,3,4])});
+  await page.getByRole('button',{name:'رفع وتحقق'}).click();
+  await expect(page.getByText(/Asset: asset-cloudinary · active/)).toBeVisible();
+  expect(uploadMethod).toBe('POST');
+  for(const value of ['name="file"','name="signature"','fake-signature','name="public_id"','questions/v2/Q-NEW/hash','name="context"','sha256=hash'])expect(uploadBody).toContain(value);
+  expect(uploadBody).not.toContain('api_secret');
+});
+
 test('admin review workflow stays version-pinned and csrf protected',async({page})=>{
   await auth(page,admin);await mockBase(page);
   let status='draft';

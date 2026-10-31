@@ -2,6 +2,7 @@ package mediahttp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -63,6 +64,43 @@ func (r *repoStub) Activate(context.Context, string, string, media.ObjectInfo) (
 }
 
 type providerStub struct{}
+
+type signedFormProviderStub struct{ providerStub }
+
+func (signedFormProviderStub) PresignPut(key, mimeType, sha256 string, expires time.Duration) (media.UploadTarget, error) {
+	return media.UploadTarget{
+		URL: "https://api.cloudinary.com/v1_1/staging/image/upload", Method: "POST",
+		FormFields: map[string]string{"signature": "fake-signature", "public_id": "test/asset", "api_key": "public-test-key"},
+		ExpiresAt:  time.Now().Add(expires),
+	}, nil
+}
+
+func TestPresignExposesCloudinaryPOSTFormWithoutLeakingSecret(t *testing.T) {
+	service := mediaapp.NewService(&repoStub{}, signedFormProviderStub{}, 1024*1024, 15*time.Minute)
+	handler := New(service, authStub{auth: adminAuth()})
+	body := `{"kind":"question_image","questionCode":"Q-1","sha256":"` + strings.Repeat("f", 64) + `","mimeType":"image/webp","sizeBytes":100}`
+	req := httptest.NewRequest(http.MethodPost, "/uploads/presign", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("presign response: %d %s", rec.Code, rec.Body.String())
+	}
+	var result struct {
+		Upload struct {
+			Method     string            `json:"method"`
+			FormFields map[string]string `json:"formFields"`
+		} `json:"upload"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Upload.Method != http.MethodPost || result.Upload.FormFields["public_id"] != "test/asset" || result.Upload.FormFields["signature"] != "fake-signature" {
+		t.Fatalf("signed form omitted: %+v", result)
+	}
+	if strings.Contains(rec.Body.String(), "api_secret") {
+		t.Fatal("must not expose API secret")
+	}
+}
 
 func (providerStub) Available() bool { return true }
 

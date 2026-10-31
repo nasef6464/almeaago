@@ -42,3 +42,24 @@ func TestLoadValidatesAIDailyBudgets(t *testing.T) {
 		t.Fatal("expected invalid per-user budget to fail closed")
 	}
 }
+
+func TestLoadDefaultsToR2AndRequiresExplicitValidCloudinaryChoice(t *testing.T) {
+	baseEnv(t)
+	t.Setenv("MEDIA_STORAGE_PROVIDER", "")
+	cfg, err := Load()
+	if err != nil || cfg.MediaStorageProvider != "r2" {
+		t.Fatalf("default media provider must stay r2: %+v %v", cfg, err)
+	}
+	t.Setenv("MEDIA_STORAGE_PROVIDER", "cloudinary")
+	t.Setenv("CLOUDINARY_CLOUD_NAME", "staging")
+	t.Setenv("CLOUDINARY_API_KEY", "public-key")
+	t.Setenv("CLOUDINARY_API_SECRET", "test-secret")
+	cfg, err = Load()
+	if err != nil || cfg.MediaStorageProvider != "cloudinary" || cfg.CloudinaryCloudName != "staging" || cfg.CloudinaryAPISecret != "test-secret" {
+		t.Fatal("explicit Cloudinary configuration was not loaded")
+	}
+	t.Setenv("MEDIA_STORAGE_PROVIDER", "not-a-provider")
+	if _, err := Load(); err == nil {
+		t.Fatal("unknown media provider must fail closed")
+	}
+}
