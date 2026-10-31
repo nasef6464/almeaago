@@ -17,6 +17,14 @@ test('student can see and select image-backed options when choices are not embed
   };
   await page.route('**/api/v1/assessments/assessment-1/attempts', route =>
     json(route, { attempt: { ...attempt, questions: [visualQuestion] } }));
+  await page.route('**/api/v1/assessment-attempts/attempt-1/answers/q-1', route =>
+    json(route, {
+      attempt: {
+        ...attempt,
+        questions: [visualQuestion],
+        answers: [{ questionId: 'q-1', selectedOptionIndex: 1, textAnswer: '', timeSpentSeconds: 0, markedForReview: false, lastSavedAt: '2026-09-26T10:01:00Z' }],
+      },
+    }));
 
   for (const width of [390, 820, 1440]) {
     await page.setViewportSize({ width, height: 900 });
