@@ -139,7 +139,7 @@ export interface MediaAsset{
 interface PresignResponse{
   asset:MediaAsset;
   uploadRequired:boolean;
-  upload?:{url:string;headers:Record<string,string>;expiresAt:string};
+  upload?:{url:string;method?:'PUT'|'POST';headers?:Record<string,string>;formFields?:Record<string,string>;expiresAt:string};
 }
 
 const BASE=(import.meta.env.VITE_API_BASE_URL??'').replace(/\/$/,'');
@@ -210,7 +210,16 @@ export const questionBankClient={
     });
     if(presign.uploadRequired){
       if(!presign.upload)throw new Error('لم يرجع مزود الوسائط رابط رفع صالحًا.');
-      const upload=await fetch(presign.upload.url,{method:'PUT',headers:presign.upload.headers,body:file});
+      let upload:Response;
+      if(presign.upload.method==='POST'){
+        if(!presign.upload.formFields)throw new Error('بيانات توقيع رفع الوسائط غير مكتملة.');
+        const form=new FormData();
+        for(const [key,value] of Object.entries(presign.upload.formFields))form.append(key,value);
+        form.append('file',file);
+        upload=await fetch(presign.upload.url,{method:'POST',body:form});
+      }else{
+        upload=await fetch(presign.upload.url,{method:'PUT',headers:presign.upload.headers,body:file});
+      }
       if(!upload.ok)throw new Error('فشل الرفع المباشر إلى مخزن الوسائط.');
       return request<{asset:MediaAsset}>(`/api/v1/media/uploads/${encodeURIComponent(presign.asset.id)}/complete`,{
         method:'POST',

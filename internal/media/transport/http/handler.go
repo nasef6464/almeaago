@@ -53,9 +53,11 @@ func (h *Handler) presign(w http.ResponseWriter, r *http.Request) {
 	}
 	if result.Target != nil {
 		body["upload"] = map[string]any{
-			"url":       result.Target.URL,
-			"headers":   result.Target.Headers,
-			"expiresAt": result.Target.ExpiresAt,
+			"url":        result.Target.URL,
+			"method":     result.Target.Method,
+			"headers":    result.Target.Headers,
+			"formFields": result.Target.FormFields,
+			"expiresAt":  result.Target.ExpiresAt,
 		}
 	}
 	writeJSON(w, http.StatusOK, body)

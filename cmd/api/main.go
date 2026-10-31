@@ -40,6 +40,7 @@ import (
 	learningrepo "github.com/nasef6464/almeaago/internal/learning/repository/postgres"
 	learninghttp "github.com/nasef6464/almeaago/internal/learning/transport/http"
 	mediaapp "github.com/nasef6464/almeaago/internal/media/application"
+	cloudinaryprovider "github.com/nasef6464/almeaago/internal/media/provider/cloudinary"
 	r2provider "github.com/nasef6464/almeaago/internal/media/provider/r2"
 	mediarepo "github.com/nasef6464/almeaago/internal/media/repository/postgres"
 	mediahttp "github.com/nasef6464/almeaago/internal/media/transport/http"
@@ -102,6 +103,7 @@ func main() {
 	operationsService := operationsapp.NewService(operationsReadRepository, operationsapp.Config{
 		Integrations: []operations.IntegrationCheck{
 			{ID: "r2", Configured: cfg.R2AccountID != "" && cfg.R2Bucket != "" && cfg.R2AccessKeyID != "" && cfg.R2SecretAccessKey != "", Detail: "Cloudflare R2 media storage"},
+			{ID: "cloudinary", Configured: cfg.CloudinaryCloudName != "" && cfg.CloudinaryAPIKey != "" && cfg.CloudinaryAPISecret != "", Detail: "Cloudinary media storage"},
 			{ID: "tap", Configured: strings.TrimSpace(os.Getenv("TAP_SECRET_KEY")) != "" || strings.TrimSpace(os.Getenv("TAP_API_KEY")) != "", Detail: "Tap payment provider"},
 			{ID: "email", Configured: strings.TrimSpace(cfg.EmailProvider) != "", Detail: "Notification email provider"},
 			{ID: "whatsapp", Configured: strings.TrimSpace(cfg.WhatsAppProvider) != "", Detail: "Notification WhatsApp provider"},
@@ -222,9 +224,17 @@ func main() {
 		AccessKeyID:     cfg.R2AccessKeyID,
 		SecretAccessKey: cfg.R2SecretAccessKey,
 	})
+	var mediaProvider mediaapp.Provider = r2Client
+	if cfg.MediaStorageProvider == "cloudinary" {
+		mediaProvider = cloudinaryprovider.New(cloudinaryprovider.Config{
+			CloudName: cfg.CloudinaryCloudName,
+			APIKey:    cfg.CloudinaryAPIKey,
+			APISecret: cfg.CloudinaryAPISecret,
+		})
+	}
 	mediaService := mediaapp.NewService(
 		mediaRepository,
-		r2Client,
+		mediaProvider,
 		cfg.MediaMaxUploadBytes,
 		time.Duration(cfg.MediaPresignTTLSeconds)*time.Second,
 	)

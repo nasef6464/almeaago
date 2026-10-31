@@ -112,6 +112,9 @@ func (s *Service) presignExisting(ctx context.Context, actor identity.User, asse
 	if asset.Status != media.StatusPendingUpload {
 		return PresignResult{}, media.ErrConflict
 	}
+	if asset.PublicURL == "" || asset.PublicURL != s.provider.PublicURL(asset.ObjectKey) {
+		return PresignResult{}, media.ErrConflict
+	}
 	if asset.CreatedBy != actor.ID && !actor.HasRole(identity.RoleAdmin) {
 		return PresignResult{}, ErrForbidden
 	}
@@ -153,6 +156,11 @@ func (s *Service) Complete(ctx context.Context, actor identity.User, assetID str
 	}
 	if s.provider == nil || !s.provider.Available() {
 		return media.Asset{}, media.ErrUnavailable
+	}
+	// A pending reservation binds its public URL to the provider that created it.
+	// Never activate a Cloudinary object while leaving an old R2 URL on the row.
+	if asset.PublicURL == "" || asset.PublicURL != s.provider.PublicURL(asset.ObjectKey) {
+		return media.Asset{}, media.ErrConflict
 	}
 	info, err := s.provider.Head(ctx, asset.ObjectKey)
 	if err != nil {

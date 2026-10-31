@@ -35,9 +35,11 @@ type Asset struct {
 }
 
 type UploadTarget struct {
-	URL       string
-	Headers   map[string]string
-	ExpiresAt time.Time
+	URL        string
+	Method     string
+	Headers    map[string]string
+	FormFields map[string]string
+	ExpiresAt  time.Time
 }
 
 type ObjectInfo struct {

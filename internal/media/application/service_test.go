@@ -151,6 +151,43 @@ func TestPresignReusesVerifiedHashWithoutReupload(t *testing.T) {
 	}
 }
 
+func TestPresignRejectsPendingAssetReservedOnDifferentProvider(t *testing.T) {
+	hash := strings.Repeat("e", 64)
+	key := "questions/v2/Q-1/" + hash + ".webp"
+	repo := &repoStub{live: media.Asset{
+		ID: "asset-old", ObjectKey: key, PublicURL: "https://old-r2.example/" + key,
+		Status: media.StatusPendingUpload, CreatedBy: mediaAdmin().ID,
+		MimeType: "image/webp", SizeBytes: 100, SHA256: hash,
+	}}
+	provider := &providerStub{available: true}
+	service := NewService(repo, provider, 1024, 15*time.Minute)
+	_, err := service.Presign(context.Background(), mediaAdmin(), PresignInput{
+		Kind: media.UploadQuestionImage, QuestionCode: "Q-1", SHA256: hash, MimeType: "image/webp", SizeBytes: 100,
+	})
+	if !errors.Is(err, media.ErrConflict) || provider.presignCalls != 0 {
+		t.Fatalf("cannot resume old-provider pending reservation: %v, presigns=%d", err, provider.presignCalls)
+	}
+}
+
+func TestCompleteRejectsPendingAssetReservedOnDifferentProvider(t *testing.T) {
+	hash := strings.Repeat("f", 64)
+	key := "questions/v2/Q-1/" + hash + ".webp"
+	expires := time.Now().UTC().Add(time.Minute)
+	repo := &repoStub{asset: media.Asset{
+		ID: "asset-old", ObjectKey: key, PublicURL: "https://old-r2.example/" + key,
+		Status: media.StatusPendingUpload, CreatedBy: mediaAdmin().ID,
+		MimeType: "image/webp", SizeBytes: 100, SHA256: hash, UploadExpiresAt: &expires,
+	}}
+	provider := &providerStub{available: true, head: media.ObjectInfo{
+		Exists: true, SizeBytes: 100, MimeType: "image/webp", SHA256: hash,
+	}}
+	service := NewService(repo, provider, 1024, 15*time.Minute)
+	_, err := service.Complete(context.Background(), mediaAdmin(), "asset-old")
+	if !errors.Is(err, media.ErrConflict) || repo.activated || provider.headCalls != 0 {
+		t.Fatalf("cannot activate old-provider URL: %v, activated=%t headCalls=%d", err, repo.activated, provider.headCalls)
+	}
+}
+
 func TestCompleteRejectsR2MetadataMismatch(t *testing.T) {
 	hash := strings.Repeat("c", 64)
 	expires := time.Now().UTC().Add(5 * time.Minute)
@@ -175,9 +212,10 @@ func TestCompleteRejectsR2MetadataMismatch(t *testing.T) {
 
 func TestCompleteActivatesOnlyVerifiedObject(t *testing.T) {
 	hash := strings.Repeat("d", 64)
+	key := "questions/v2/Q-1/" + hash + ".webp"
 	expires := time.Now().UTC().Add(5 * time.Minute)
 	repo := &repoStub{asset: media.Asset{
-		ID: "asset-1", ObjectKey: "questions/v2/Q-1/" + hash + ".webp",
+		ID: "asset-1", ObjectKey: key, PublicURL: "https://cdn.example/" + key,
 		MimeType: "image/webp", SizeBytes: 100, SHA256: hash,
 		Status: media.StatusPendingUpload, CreatedBy: mediaAdmin().ID, UploadExpiresAt: &expires,
 	}}
