@@ -268,7 +268,7 @@ export function QuestionBankAdminPage(){
         aiVisualDescription:'',voiceNotes:'',mainSkillId:'',subSkillId:'',correctOptionIndex:0,options:['','','','']
       });
       setReload(x=>x+1);
-    },'تم إنشاء السؤال كمسودة بإصدار أول مكتمل الحقول.');
+    },'تم إنشاء السؤال كمسودة بإصدار أول.');
   }
 
   async function workflow(status:QuestionWorkflowStatus){
@@ -650,47 +650,53 @@ export function QuestionBankAdminPage(){
                 ) : null}
               </div>
 
-              {imagePreviewUrl || mediaAsset || create.imageAssetId ? (
-                <div className="mt-3 overflow-hidden rounded-xl border border-violet-100 bg-slate-50 p-2 text-center">
-                  <img
-                    src={imagePreviewUrl || (mediaAsset ? URL.createObjectURL(mediaFile!) : '')}
-                    alt={create.imageAlt || 'معاينة صورة السؤال'}
-                    className="mx-auto max-h-48 rounded-lg object-contain shadow-xs"
-                  />
-                  {create.imageAssetId ? (
-                    <p className="mt-2 text-xs font-bold text-emerald-700">✓ تم الرفع والتثبيت في R2 ({create.imageAssetId})</p>
-                  ) : null}
+              <div className="mt-3 space-y-2" onPaste={handlePasteImage}>
+                <input
+                  aria-label="ملف صورة السؤال"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setMediaFile(file);
+                    if (file) {
+                      setImagePreviewUrl(URL.createObjectURL(file));
+                    }
+                  }}
+                  className="block w-full text-xs text-slate-700"
+                />
+                <input
+                  aria-label="وصف صورة السؤال"
+                  value={create.imageAlt}
+                  onChange={(e) => setCreate({ ...create, imageAlt: e.target.value })}
+                  placeholder="وصف بديل للصورة"
+                  className="w-full rounded-xl border p-2 text-xs"
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={!mediaFile || pending === 'media'}
+                    onClick={() => void uploadMedia()}
+                    className="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-4 py-2 text-xs font-black text-white hover:bg-violet-800 disabled:opacity-40"
+                  >
+                    <UploadCloud size={14} /> رفع وتحقق
+                  </button>
+                  <span className="text-[11px] text-gray-500">أو يمكنك لصق الصورة في السؤال (Ctrl + V)</span>
                 </div>
-              ) : (
-                <div
-                  onPaste={handlePasteImage}
-                  className="mt-3 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-violet-200 bg-violet-50/30 p-4 text-center transition hover:bg-violet-50/60"
-                >
-                  <ImagePlus size={28} className="text-violet-400" />
-                  <p className="mt-1 text-xs font-black text-violet-900">الصق الصورة هنا مباشرة (Ctrl + V)</p>
-                  <p className="text-[11px] text-gray-500">أو يمكنك اختيار ملف من جهازك</p>
-                  <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-violet-300 bg-white px-3 py-1.5 text-xs font-bold text-violet-700 shadow-xs hover:bg-violet-50">
-                    <UploadCloud size={14} /> اختر ملف صورة
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) void handleImageFile(file);
-                      }}
-                      className="hidden"
+                {mediaAsset ? (
+                  <p className="text-xs font-bold text-emerald-700">
+                    Asset: {mediaAsset.id} · {mediaAsset.status}
+                  </p>
+                ) : null}
+                {imagePreviewUrl ? (
+                  <div className="mt-2 overflow-hidden rounded-xl border border-violet-100 bg-slate-50 p-2 text-center">
+                    <img
+                      src={imagePreviewUrl}
+                      alt={create.imageAlt || 'معاينة صورة السؤال'}
+                      className="mx-auto max-h-48 rounded-lg object-contain"
                     />
-                  </label>
-                </div>
-              )}
-
-              <input
-                aria-label="وصف صورة السؤال"
-                value={create.imageAlt}
-                onChange={(e) => setCreate({ ...create, imageAlt: e.target.value })}
-                placeholder="وصف بديل للصورة (اختياري)"
-                className="mt-2 w-full rounded-xl border p-2 text-xs"
-              />
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             <button
@@ -918,7 +924,7 @@ export function QuestionBankAdminPage(){
                     onClick={() => void workflow('approved')}
                     className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-black text-white hover:bg-emerald-600 cursor-pointer"
                   >
-                    اعتماد السؤال
+                    اعتماد
                   </button>
                   <button
                     type="button"

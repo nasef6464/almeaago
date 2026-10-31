@@ -28,7 +28,7 @@ import {
   Type,
   X,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
@@ -86,7 +86,50 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [plannedOpen, setPlannedOpen] = useState(false);
-  const visibleItems = navItems.filter((item) => (item.href !== PLATFORM_FONTS_ADMIN_HREF && item.href !== HOMEPAGE_ADMIN_HREF) || user?.roles.includes('admin'));
+  const isAdmin = Boolean(user?.roles.includes('admin'));
+
+  const visibleItems = useMemo(() => {
+    return navItems
+      .filter((item) => (item.href !== PLATFORM_FONTS_ADMIN_HREF && item.href !== HOMEPAGE_ADMIN_HREF) || isAdmin)
+      .map((item) => {
+        if (!isAdmin) {
+          const plannedForNonAdmin = [
+            'اعتماد المحتوى',
+            'مركز الدروس',
+            'مركز المكتبة وملفات الدعم',
+            'إدارة المستخدمين',
+            'الإعدادات العامة',
+          ];
+          if (plannedForNonAdmin.includes(item.label)) {
+            return { ...item, href: undefined };
+          }
+          const adminOnly = [
+            'تشغيل المدارس',
+            'إدارة المدربين',
+            'التجارة والصلاحيات',
+            'النسخ الاحتياطي',
+            'إدارة الإعلانات',
+            'مركز العمليات والتدقيق',
+            'إدارة خطوط المنصة',
+            'إدارة الصفحة الرئيسية',
+            'إدارة التكاملات والتسجيل',
+            'إدارة المسارات',
+            'مركز التأسيس',
+            'مركز المهارات',
+            'الفصل الذكي',
+            'إدارة الذكاء الاصطناعي',
+            'التقارير والتحليلات',
+            'اختبارات باركود',
+          ];
+          if (adminOnly.includes(item.label)) {
+            return null;
+          }
+        }
+        return item;
+      })
+      .filter(Boolean) as typeof navItems;
+  }, [isAdmin]);
+
   const availableItems = visibleItems.filter((item) => Boolean(item.href));
   const plannedItems = visibleItems.filter((item) => !item.href);
   const isActiveHref = (href: string) => {
