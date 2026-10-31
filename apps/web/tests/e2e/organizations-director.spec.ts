@@ -44,7 +44,13 @@ async function mockDirector(page:Page,modules=['SCHOOL_CORE']){
 }
 
 async function openDirectorSection(page:Page,label:string){
-  await page.getByRole('navigation',{name:'أقسام لوحة مدير المدرسة'}).getByRole('button',{name:label,exact:true}).click();
+  const nav=page.getByRole('navigation',{name:'أقسام لوحة مدير المدرسة'});
+  const button=nav.getByRole('button',{name:label,exact:true});
+  if(!(await button.isVisible())){
+    const group=label==='الملخص العام'?'البداية':label==='اختبارات المدرسة'?'التعلم والمتابعة':'إدارة المدرسة';
+    await nav.locator('summary').filter({hasText:group}).click();
+  }
+  await button.click();
 }
 
 test('school director desktop runs bounded student class and teacher operations',async({page})=>{
@@ -156,12 +162,12 @@ test('director follows legacy section order with only implemented permitted link
   await expect(nav.getByRole('button')).toHaveCount(4);
   const labels=await nav.getByRole('button').allTextContents();
   expect(labels.map(x=>x.trim())).toEqual(['الملخص العام','الطلاب','الفصول','المعلمون والتكليفات']);
-  await nav.getByRole('button',{name:'الطلاب'}).click();
+  await openDirectorSection(page,'الطلاب');
   await expect(page.getByRole('heading',{name:'طلاب مدرسة المئة'})).toBeVisible();
   await expect(page.getByRole('region',{name:'مؤشرات المدرسة'})).toHaveCount(0);
-  await nav.getByRole('button',{name:'الفصول'}).click();
+  await openDirectorSection(page,'الفصول');
   await expect(page.getByRole('heading',{name:'إدارة الفصول'})).toBeVisible();
-  await nav.getByRole('button',{name:'الملخص العام'}).click();
+  await openDirectorSection(page,'الملخص العام');
   await expect(page.getByRole('region',{name:'مؤشرات المدرسة'})).toBeVisible();
 });
 
