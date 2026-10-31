@@ -10,6 +10,7 @@ import {
   Search,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../api/content-client';
@@ -84,7 +85,27 @@ export function ContentAdminPage() {
   const { user, loading: authLoading, getCsrfToken } = useAuth();
   const isAdmin = user?.roles.includes('admin') ?? false;
   const isTeacher = user?.roles.includes('teacher') ?? false;
-  const [tab, setTab] = useState<ContentTab>('courses');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') as ContentTab;
+  const [tab, setTabState] = useState<ContentTab>(
+    ['courses', 'lessons', 'foundation', 'library'].includes(initialTab) ? initialTab : 'courses'
+  );
+
+  const setTab = (nextTab: ContentTab) => {
+    setTabState(nextTab);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', nextTab);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    const urlTab = searchParams.get('tab') as ContentTab;
+    if (urlTab && ['courses', 'lessons', 'foundation', 'library'].includes(urlTab) && urlTab !== tab) {
+      setTabState(urlTab);
+    }
+  }, [searchParams]);
   const [taxonomy, setTaxonomy] = useState<TaxonomyCore>({ paths: [], subjects: [] });
   const [taxonomyError, setTaxonomyError] = useState('');
   const [pathId, setPathId] = useState('');

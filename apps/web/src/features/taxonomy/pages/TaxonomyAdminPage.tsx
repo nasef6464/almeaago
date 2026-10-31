@@ -23,8 +23,10 @@ import {
   Plus,
   RefreshCcw,
   Save,
+  Search,
   Settings,
   Sparkles,
+  Target,
   X,
 } from 'lucide-react';
 
@@ -186,7 +188,15 @@ export function TaxonomyAdminPage() {
   const [librarySearch, setLibrarySearch] = useState('');
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
   const [libraryForm, setLibraryForm] = useState({ title: '', url: '', description: '' });
-  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; type: 'path' | 'level' | 'subject'; id: string; name: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; type: 'path' | 'level' | 'subject' | 'skill'; id: string; name: string } | null>(null);
+
+  // Search & Filter State
+  const [pathSearch, setPathSearch] = useState('');
+  const [pathStatusFilter, setPathStatusFilter] = useState<'all' | 'active' | 'inactive' | 'archived'>('all');
+  const [subjectSearch, setSubjectSearch] = useState('');
+  const [levelFilter, setLevelFilter] = useState<string>('all');
+  const [skillSearch, setSkillSearch] = useState('');
+  const [skillKindFilter, setSkillKindFilter] = useState<'all' | 'main' | 'sub'>('all');
 
   const isAdmin = user?.roles.includes('admin') ?? false;
 
@@ -256,6 +266,33 @@ export function TaxonomyAdminPage() {
     () => data.skills.filter((x) => x.subjectId === selectedSubjectId),
     [data.skills, selectedSubjectId]
   );
+
+  const filteredPaths = useMemo(() => {
+    return data.paths.filter((p) => {
+      const q = pathSearch.trim().toLowerCase();
+      const matchesSearch = !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
+      const matchesStatus = pathStatusFilter === 'all' || p.status === pathStatusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [data.paths, pathSearch, pathStatusFilter]);
+
+  const filteredSubjects = useMemo(() => {
+    return subjects.filter((s) => {
+      const q = subjectSearch.trim().toLowerCase();
+      const matchesSearch = !q || s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q);
+      const matchesLevel = levelFilter === 'all' || (levelFilter === 'none' ? !s.levelId : s.levelId === levelFilter);
+      return matchesSearch && matchesLevel;
+    });
+  }, [subjects, subjectSearch, levelFilter]);
+
+  const filteredSkills = useMemo(() => {
+    return subjectSkills.filter((sk) => {
+      const q = skillSearch.trim().toLowerCase();
+      const matchesSearch = !q || sk.name.toLowerCase().includes(q) || sk.code.toLowerCase().includes(q);
+      const matchesKind = skillKindFilter === 'all' || sk.kind === skillKindFilter;
+      return matchesSearch && matchesKind;
+    });
+  }, [subjectSkills, skillSearch, skillKindFilter]);
 
   const readinessSummary = useMemo(() => {
     if (!selectedPath) return null;
@@ -455,6 +492,79 @@ export function TaxonomyAdminPage() {
     setIsSubjectModalOpen(false);
   };
 
+  // --- Skill Actions ---
+  const openCreateSkill = () => {
+    setEditingSkill(null);
+    setSkillForm({
+      code: '',
+      name: '',
+      parentSkillId: '',
+      description: '',
+      kind: 'main',
+      sortOrder: (subjectSkills.length + 1) * 10,
+    });
+    setIsSkillModalOpen(true);
+  };
+
+  const openEditSkill = (sk: AdminTaxonomySkill) => {
+    setEditingSkill(sk);
+    setSkillForm({
+      code: sk.code,
+      name: sk.name,
+      parentSkillId: sk.parentSkillId || '',
+      description: sk.description || '',
+      kind: sk.kind || 'main',
+      sortOrder: sk.sortOrder || 1,
+    });
+    setIsSkillModalOpen(true);
+  };
+
+  const saveSkill = async () => {
+    if (!selectedSubject || !skillForm.code.trim() || !skillForm.name.trim()) {
+      return setError('أدخل كود واسم المهارة.');
+    }
+    if (editingSkill) {
+      await run(
+        'update-skill',
+        (csrf) =>
+          taxonomyAdminClient
+            .updateSkill(
+              editingSkill.id,
+              {
+                name: skillForm.name.trim(),
+                parentSkillId: skillForm.parentSkillId || '',
+                description: skillForm.description.trim(),
+                sortOrder: skillForm.sortOrder,
+              },
+              csrf,
+            )
+            .then(() => undefined),
+        'تم حفظ تعديلات المهارة بنجاح.'
+      );
+    } else {
+      await run(
+        'create-skill',
+        (csrf) =>
+          taxonomyAdminClient
+            .createSkill(
+              {
+                subjectId: selectedSubject.id,
+                code: skillForm.code.trim().toUpperCase(),
+                name: skillForm.name.trim(),
+                parentSkillId: skillForm.parentSkillId || undefined,
+                description: skillForm.description.trim(),
+                kind: skillForm.kind,
+                sortOrder: skillForm.sortOrder,
+              },
+              csrf,
+            )
+            .then(() => undefined),
+        'تم إنشاء المهارة بنجاح.'
+      );
+    }
+    setIsSkillModalOpen(false);
+  };
+
   // --- Package Actions ---
   const createPathPackage = async () => {
     if (!selectedPath || !pkgForm.code.trim() || !pkgForm.name.trim()) {
@@ -618,54 +728,127 @@ export function TaxonomyAdminPage() {
         {/* Tab Content: Skills */}
         {subjectTab === 'skills' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-2xl bg-white p-5 border shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-white p-5 border shadow-xs">
               <div>
                 <h3 className="text-lg font-black text-slate-900">شجرة مهارات {selectedSubject.name}</h3>
                 <p className="text-xs text-slate-500 font-bold mt-1">
                   المهارات الأساسية والفرعية المربوطة بأسئلة ومسائل هذه المادة.
                 </p>
               </div>
-              <Link
-                to="/admin-dashboard?tab=skills"
-                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white shadow-xs hover:bg-indigo-700 transition"
-              >
-                <span>فتح مركز المهارات الكامل</span>
-                <ExternalLink size={14} />
-              </Link>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={openCreateSkill}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white shadow-xs hover:bg-indigo-700 transition"
+                >
+                  <Plus size={15} />
+                  <span>إضافة مهارة</span>
+                </button>
+                <Link
+                  to="/admin-dashboard?tab=skills"
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 transition"
+                >
+                  <span>مركز المهارات الكامل</span>
+                  <ExternalLink size={14} />
+                </Link>
+              </div>
+            </div>
+
+            {/* Search & Kind Filter */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-2xl bg-white p-4 border shadow-xs">
+              <div className="relative flex-1">
+                <Search size={15} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={skillSearch}
+                  onChange={(e) => setSkillSearch(e.target.value)}
+                  placeholder="البحث في المهارات بالاسم أو الكود..."
+                  className="w-full rounded-xl border border-gray-200 bg-slate-50 py-2 pr-9 pl-3 text-xs font-bold outline-none focus:border-indigo-400 focus:bg-white transition"
+                />
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {(['all', 'main', 'sub'] as const).map((kind) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    onClick={() => setSkillKindFilter(kind)}
+                    className={`rounded-xl px-3 py-1.5 text-xs font-black transition ${
+                      skillKindFilter === kind
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'border border-gray-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {kind === 'all' ? 'كافة المهارات' : kind === 'main' ? 'رئيسية فقط' : 'فرعية فقط'}
+                  </button>
+                ))}
+                <span className="text-xs font-bold text-slate-400 mr-2">
+                  ({filteredSkills.length} من {subjectSkills.length})
+                </span>
+              </div>
             </div>
 
             <div className="rounded-3xl border bg-white p-5 shadow-xs">
-              {subjectSkills.length === 0 ? (
+              {filteredSkills.length === 0 ? (
                 <div className="text-center py-12 text-slate-400 font-bold">
-                  لا توجد مهارات مسجلة لهذه المادة بعد. يمكنك إضافتها من مركز المهارات.
+                  {subjectSkills.length === 0
+                    ? 'لا توجد مهارات مسجلة لهذه المادة بعد. اضغط «إضافة مهارة» لإنشاء أول مهارة.'
+                    : 'لا توجد مهارات مطابقة لمعايير البحث الحالية.'}
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {subjectSkills.map((sk) => (
-                    <div
-                      key={sk.id}
-                      className="flex items-center justify-between rounded-xl border border-gray-100 p-3.5 hover:bg-slate-50 transition"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`inline-flex rounded-lg px-2 py-1 text-[10px] font-black ${
-                            sk.kind === 'main' ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-700'
-                          }`}
-                        >
-                          {sk.kind === 'main' ? 'رئيسية' : 'فرعية'}
-                        </span>
-                        <div>
-                          <strong className="text-sm font-black text-slate-900">{sk.name}</strong>
-                          <span className="text-xs text-slate-400 mr-2 font-mono">{sk.code}</span>
+                  {filteredSkills.map((sk) => {
+                    const parentSkill = sk.parentSkillId ? subjectSkills.find((p) => p.id === sk.parentSkillId) : null;
+                    return (
+                      <div
+                        key={sk.id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-gray-100 p-3.5 hover:bg-slate-50 transition"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span
+                            className={`inline-flex rounded-lg px-2 py-1 text-[10px] font-black shrink-0 ${
+                              sk.kind === 'main' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {sk.kind === 'main' ? 'رئيسية' : 'فرعية'}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <strong className="text-sm font-black text-slate-900 truncate">{sk.name}</strong>
+                              <span className="text-xs text-slate-400 font-mono shrink-0">{sk.code}</span>
+                            </div>
+                            {parentSkill && (
+                              <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                                تابعة للمهارة الرئيسية: <span className="font-bold text-indigo-600">{parentSkill.name}</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => openEditSkill(sk)}
+                            className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-black text-slate-600 hover:bg-slate-100 transition"
+                          >
+                            تعديل
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirm({ open: true, type: 'skill', id: sk.id, name: sk.name })}
+                            className="rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-black text-rose-700 hover:bg-rose-100 transition"
+                            title="أرشفة المهارة"
+                          >
+                            <Archive size={13} />
+                          </button>
+                          <StatusSelect
+                            label={`حالة مهارة ${sk.name}`}
+                            value={sk.status}
+                            onChange={(v) => void patchStatus('skill', sk.id, v)}
+                          />
                         </div>
                       </div>
-                      <StatusSelect
-                        label={`حالة مهارة ${sk.name}`}
-                        value={sk.status}
-                        onChange={(v) => void patchStatus('skill', sk.id, v)}
-                      />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1060,8 +1243,11 @@ export function TaxonomyAdminPage() {
           </div>
         )}
 
-        {/* Subject Edit Modal */}
+        {/* Modals for Subject Workspace */}
         {isSubjectModalOpen && renderSubjectModal()}
+        {isSkillModalOpen && renderSkillModal()}
+        {isLibraryModalOpen && renderLibraryModal()}
+        {deleteConfirm?.open && renderDeleteModal()}
       </main>
     );
   }
@@ -1119,70 +1305,106 @@ export function TaxonomyAdminPage() {
         {/* ── Right Column: Paths List Sidebar ── */}
         <aside className="space-y-4">
           <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Boxes size={18} className="text-indigo-600" />
                 <h2 className="text-base font-black text-slate-900">المسارات</h2>
               </div>
               <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-black text-indigo-700">
-                {data.paths.length}
+                {filteredPaths.length} من {data.paths.length}
               </span>
             </div>
 
-            <div className="space-y-2 max-h-[600px] overflow-y-auto pl-1">
-              {data.paths.map((path) => {
-                const isSelected = selectedPathId === path.id;
-                const pathTone = resolveColor(path.color);
-                return (
-                  <div
-                    key={path.id}
-                    onClick={() => {
-                      setSelectedPathId(path.id);
-                      setSelectedSubjectId(null);
-                    }}
-                    className={`group relative flex items-center justify-between rounded-2xl border p-3 transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-indigo-400 bg-indigo-50/70 shadow-xs ring-2 ring-indigo-500/20'
-                        : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-slate-50'
+            {/* Path Search & Status Filters */}
+            <div className="space-y-2 mb-3">
+              <div className="relative">
+                <Search size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={pathSearch}
+                  onChange={(e) => setPathSearch(e.target.value)}
+                  placeholder="ابحث بالاسم أو الرمز..."
+                  className="w-full rounded-xl border border-gray-200 bg-slate-50 py-1.5 pr-8 pl-3 text-xs font-bold outline-none focus:border-indigo-400 focus:bg-white transition"
+                />
+              </div>
+              <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px] font-black">
+                {(['all', 'active', 'inactive', 'archived'] as const).map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => setPathStatusFilter(st)}
+                    className={`rounded-lg px-2 py-1 transition ${
+                      pathStatusFilter === st
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg shadow-2xs border"
-                        style={{
-                          backgroundColor: pathTone.soft,
-                          borderColor: pathTone.border,
-                          color: pathTone.text,
-                        }}
-                      >
-                        {getPathIcon(path, 'w-6 h-6 object-contain')}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <strong className="block text-sm font-black text-slate-900 truncate">{path.name}</strong>
-                        <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono mt-0.5">
-                          <span>{path.code}</span>
-                          <span className={`text-[10px] font-black ${path.status === 'active' ? 'text-emerald-600' : 'text-slate-400'}`}>
-                            • {statusLabels[path.status]}
-                          </span>
+                    {st === 'all' ? 'الكل' : statusLabels[st]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2 max-h-[550px] overflow-y-auto pl-1">
+              {filteredPaths.length === 0 ? (
+                <div className="text-center py-8 text-xs text-slate-400 font-bold border border-dashed rounded-2xl p-4">
+                  لا توجد مسارات مطابقة لمعايير البحث الحالية.
+                </div>
+              ) : (
+                filteredPaths.map((path) => {
+                  const isSelected = selectedPathId === path.id;
+                  const pathTone = resolveColor(path.color);
+                  return (
+                    <div
+                      key={path.id}
+                      onClick={() => {
+                        setSelectedPathId(path.id);
+                        setSelectedSubjectId(null);
+                      }}
+                      className={`group relative flex items-center justify-between rounded-2xl border p-3 transition-all cursor-pointer ${
+                        isSelected
+                          ? 'border-indigo-400 bg-indigo-50/70 shadow-xs ring-2 ring-indigo-500/20'
+                          : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg shadow-2xs border"
+                          style={{
+                            backgroundColor: pathTone.soft,
+                            borderColor: pathTone.border,
+                            color: pathTone.text,
+                          }}
+                        >
+                          {getPathIcon(path, 'w-6 h-6 object-contain')}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <strong className="block text-sm font-black text-slate-900 truncate">{path.name}</strong>
+                          <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono mt-0.5">
+                            <span>{path.code}</span>
+                            <span className={`text-[10px] font-black ${path.status === 'active' ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              • {statusLabels[path.status]}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-1">
-                      <Link
-                        to={`/category/${path.id}`}
-                        target="_blank"
-                        onClick={(e) => e.stopPropagation()}
-                        className="rounded-lg p-1.5 text-slate-400 hover:bg-indigo-100 hover:text-indigo-700 transition"
-                        title="معاينة المسار في نافذة جديدة"
-                      >
-                        <Eye size={15} />
-                      </Link>
-                      <ChevronLeft size={16} className={`transition-transform ${isSelected ? '-translate-x-1 text-indigo-600' : 'text-slate-300'}`} />
+                      <div className="flex items-center gap-1">
+                        <Link
+                          to={`/category/${path.id}`}
+                          target="_blank"
+                          onClick={(e) => e.stopPropagation()}
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-indigo-100 hover:text-indigo-700 transition"
+                          title="معاينة المسار في نافذة جديدة"
+                        >
+                          <Eye size={15} />
+                        </Link>
+                        <ChevronLeft size={16} className={`transition-transform ${isSelected ? '-translate-x-1 text-indigo-600' : 'text-slate-300'}`} />
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
         </aside>
@@ -1325,7 +1547,7 @@ export function TaxonomyAdminPage() {
               {/* ── TAB 1: SUBJECTS (المواد) ── */}
               {pathTab === 'subjects' && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between rounded-2xl bg-white p-4 border shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-white p-4 border shadow-xs">
                     <div>
                       <h3 className="font-black text-slate-900 text-base">المواد المندرجة تحت {selectedPath.name}</h3>
                       <p className="text-xs text-slate-400 font-bold mt-0.5">
@@ -1342,13 +1564,50 @@ export function TaxonomyAdminPage() {
                     </button>
                   </div>
 
-                  {subjects.length === 0 ? (
+                  {/* Search & Level Filters for Subjects */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-2xl bg-white p-4 border shadow-xs">
+                    <div className="relative flex-1">
+                      <Search size={15} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={subjectSearch}
+                        onChange={(e) => setSubjectSearch(e.target.value)}
+                        placeholder="البحث في مواد المسار بالاسم أو الكود..."
+                        className="w-full rounded-xl border border-gray-200 bg-slate-50 py-2 pr-9 pl-3 text-xs font-bold outline-none focus:border-indigo-400 focus:bg-white transition"
+                      />
+                    </div>
+                    {levels.length > 0 && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <label className="text-xs font-black text-slate-500 whitespace-nowrap">المرحلة الدراسية:</label>
+                        <select
+                          value={levelFilter}
+                          onChange={(e) => setLevelFilter(e.target.value)}
+                          className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold shadow-xs focus:border-indigo-400 outline-none"
+                        >
+                          <option value="all">كافة المراحل ({subjects.length})</option>
+                          {levels.map((lvl) => (
+                            <option key={lvl.id} value={lvl.id}>
+                              {lvl.name} ({subjects.filter((s) => s.levelId === lvl.id).length})
+                            </option>
+                          ))}
+                          <option value="none">مواد عامة بدون مرحلة</option>
+                        </select>
+                      </div>
+                    )}
+                    <span className="text-xs font-bold text-slate-400 mr-2 shrink-0 self-center">
+                      ({filteredSubjects.length} من {subjects.length})
+                    </span>
+                  </div>
+
+                  {filteredSubjects.length === 0 ? (
                     <div className="rounded-3xl border border-dashed bg-white p-12 text-center text-slate-400 font-bold">
-                      لا توجد مواد مسجلة لهذا المسار بعد. اضغط «إضافة مادة» لإنشاء أول مادة.
+                      {subjects.length === 0
+                        ? 'لا توجد مواد مسجلة لهذا المسار بعد. اضغط «إضافة مادة» لإنشاء أول مادة.'
+                        : 'لا توجد مواد مطابقة لمعايير البحث الحالية.'}
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                      {subjects.map((sub) => {
+                      {filteredSubjects.map((sub) => {
                         const subTone = resolveColor(sub.color || selectedPath.color);
                         const lvl = levels.find((l) => l.id === sub.levelId);
                         return (
@@ -1801,6 +2060,7 @@ export function TaxonomyAdminPage() {
       {isPackageModalOpen && renderPackageModal()}
       {isMockModalOpen && renderMockModal()}
       {isLibraryModalOpen && renderLibraryModal()}
+      {isSkillModalOpen && renderSkillModal()}
       {deleteConfirm?.open && renderDeleteModal()}
     </main>
   );
@@ -2081,6 +2341,138 @@ export function TaxonomyAdminPage() {
               className="rounded-xl bg-indigo-600 px-5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               {pending.includes('subject') ? 'جاري الحفظ...' : 'حفظ المادة'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderSkillModal() {
+    if (!selectedSubject) return null;
+    const mainSkillsInSubject = subjectSkills.filter((s) => s.kind === 'main' && s.id !== editingSkill?.id);
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in" dir="rtl">
+        <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+          <div className="flex items-center justify-between border-b pb-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                <Award size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">
+                  {editingSkill ? `تعديل المهارة: ${editingSkill.name}` : `إضافة مهارة جديدة (${selectedSubject.name})`}
+                </h3>
+                <p className="text-xs text-slate-400 font-bold">ربط المهارة بأسئلة وبنوك تقييم المادة</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsSkillModalOpen(false)}
+              className="rounded-xl p-1 text-slate-400 hover:bg-slate-100"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1">نوع المهارة</label>
+                <select
+                  disabled={Boolean(editingSkill)}
+                  value={skillForm.kind}
+                  onChange={(e) =>
+                    setSkillForm({
+                      ...skillForm,
+                      kind: e.target.value as 'main' | 'sub',
+                      parentSkillId: e.target.value === 'main' ? '' : skillForm.parentSkillId,
+                    })
+                  }
+                  className="w-full rounded-xl border border-gray-200 bg-white p-2.5 text-xs font-bold"
+                >
+                  <option value="main">مهارة رئيسية</option>
+                  <option value="sub">مهارة فرعية</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1">كود المهارة (رمز فريد)</label>
+                <input
+                  disabled={Boolean(editingSkill)}
+                  value={skillForm.code}
+                  onChange={(e) => setSkillForm({ ...skillForm, code: e.target.value.toUpperCase() })}
+                  placeholder="مثال: SKILL-01"
+                  className="w-full rounded-xl border border-gray-200 p-2.5 text-xs font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            {skillForm.kind === 'sub' && (
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1">المهارة الرئيسية التابعة لها</label>
+                <select
+                  value={skillForm.parentSkillId}
+                  onChange={(e) => setSkillForm({ ...skillForm, parentSkillId: e.target.value })}
+                  className="w-full rounded-xl border border-gray-200 bg-white p-2.5 text-xs font-bold"
+                >
+                  <option value="">اختر المهارة الرئيسية الأب</option>
+                  {mainSkillsInSubject.map((parent) => (
+                    <option key={parent.id} value={parent.id}>
+                      {parent.name} ({parent.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">اسم المهارة</label>
+              <input
+                value={skillForm.name}
+                onChange={(e) => setSkillForm({ ...skillForm, name: e.target.value })}
+                placeholder="مثال: استيعاب المقروء وحل المسائل اللفظية"
+                className="w-full rounded-xl border border-gray-200 p-2.5 text-xs font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">وصف المهارة وأهدافها</label>
+              <textarea
+                value={skillForm.description}
+                onChange={(e) => setSkillForm({ ...skillForm, description: e.target.value })}
+                placeholder="نبذة تشرح ما يقيسه هذا المحور وكيف يتدرب عليه الطالب..."
+                className="w-full rounded-xl border border-gray-200 p-2.5 text-xs font-bold"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">ترتيب الظهور</label>
+              <input
+                type="number"
+                value={skillForm.sortOrder}
+                onChange={(e) => setSkillForm({ ...skillForm, sortOrder: Number(e.target.value) || 0 })}
+                className="w-full rounded-xl border border-gray-200 p-2.5 text-xs font-bold"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 border-t pt-4">
+            <button
+              type="button"
+              onClick={() => setIsSkillModalOpen(false)}
+              className="rounded-xl border px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-50"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              disabled={busy || !skillForm.name.trim() || (!editingSkill && !skillForm.code.trim())}
+              onClick={saveSkill}
+              className="rounded-xl bg-indigo-600 px-5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {editingSkill ? 'حفظ التعديلات' : 'إضافة المهارة'}
             </button>
           </div>
         </div>
@@ -2383,7 +2775,14 @@ export function TaxonomyAdminPage() {
 
   function renderDeleteModal() {
     if (!deleteConfirm) return null;
-    const typeLabel = deleteConfirm.type === 'path' ? 'المسار' : deleteConfirm.type === 'level' ? 'المرحلة' : 'المادة';
+    const typeLabel =
+      deleteConfirm.type === 'path'
+        ? 'المسار'
+        : deleteConfirm.type === 'level'
+          ? 'المرحلة'
+          : deleteConfirm.type === 'subject'
+            ? 'المادة'
+            : 'المهارة';
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in" dir="rtl">
         <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4">

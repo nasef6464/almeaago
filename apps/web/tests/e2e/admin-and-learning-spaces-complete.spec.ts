@@ -30,6 +30,27 @@ async function setupMocks(page: Page) {
       pagination: { page: 1, limit: 100, total: 1, totalPages: 1 },
     }),
   );
+  await page.route('**/api/v1/foundation/topics*', (route) =>
+    json(route, {
+      items: [
+        {
+          id: 'top-1',
+          pathId: '018f0000-0000-7000-8000-000000000030',
+          subjectId: '018f0000-0000-7000-8000-000000000031',
+          parentTopicId: '',
+          code: 'TOPIC-01',
+          title: 'أساسيات التناظر اللفظي والعلاقات',
+          sortOrder: 1,
+          status: 'active',
+          isVisible: true,
+          isLocked: false,
+        },
+      ],
+      page: 1,
+      limit: 20,
+      hasMore: false,
+    }),
+  );
   await page.route('**/api/v1/taxonomy/admin/bootstrap', (route) =>
     json(route, {
       paths: [
@@ -42,6 +63,16 @@ async function setupMocks(page: Page) {
           status: 'active',
           color: 'indigo',
           icon: '📐',
+        },
+        {
+          id: '018f0000-0000-7000-8000-000000000040',
+          code: 'TAHSILI',
+          name: 'التحصيلي',
+          description: 'مسار قياس للاختبار التحصيلي لطلاب الثانوية.',
+          sortOrder: 1,
+          status: 'active',
+          color: 'emerald',
+          icon: '🧪',
         },
       ],
       levels: [],
@@ -67,6 +98,16 @@ async function setupMocks(page: Page) {
             lockLibraryForNonSubscribers: false,
           },
         },
+        {
+          id: '018f0000-0000-7000-8000-000000000032',
+          pathId: '018f0000-0000-7000-8000-000000000030',
+          code: 'QUANT',
+          name: 'الكمي',
+          sortOrder: 1,
+          status: 'active',
+          color: 'indigo',
+          icon: '🔢',
+        },
       ],
       skills: [
         {
@@ -76,7 +117,28 @@ async function setupMocks(page: Page) {
           name: 'التناظر اللفظي',
           description: 'إدراك العلاقات بين المفردات',
           kind: 'main',
-          sortOrder: 0,
+          sortOrder: 10,
+          status: 'active',
+        },
+        {
+          id: 'sk-2',
+          subjectId: '018f0000-0000-7000-8000-000000000031',
+          parentSkillId: 'sk-1',
+          code: 'SK-01-A',
+          name: 'علاقة الجزء بالكل',
+          description: 'تحديد علاقات التجزئة والتركيب',
+          kind: 'sub',
+          sortOrder: 20,
+          status: 'active',
+        },
+        {
+          id: 'sk-3',
+          subjectId: '018f0000-0000-7000-8000-000000000031',
+          code: 'SK-02',
+          name: 'استيعاب المقروء',
+          description: 'فهم النصوص واستنتاج المعاني',
+          kind: 'main',
+          sortOrder: 30,
           status: 'active',
         },
       ],
@@ -290,5 +352,63 @@ test.describe('Complete Admin Departments and Learning Space Parity Suite', () =
     await expect(page.getByText('سجل النسخ الاحتياطية والتصدير الأخير')).toBeVisible();
 
     await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'admin-backups-desktop-1440.png'), fullPage: true });
+  });
+
+  test('6. Taxonomy Paths, Subjects Filters and Skill Tree Actions (/admin-dashboard/taxonomy)', async ({ page }) => {
+    await setupMocks(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/admin-dashboard/taxonomy');
+    await page.waitForLoadState('networkidle');
+
+    // 1. Verify Path Search in Sidebar
+    const pathSearchInput = page.getByPlaceholder('ابحث بالاسم أو الرمز...');
+    await expect(pathSearchInput).toBeVisible();
+    await pathSearchInput.fill('التحصيلي');
+    await expect(page.getByText('التحصيلي', { exact: true })).toBeVisible();
+    await pathSearchInput.clear();
+
+    // 2. Verify Subject Search in Subjects tab
+    const subjectSearchInput = page.getByPlaceholder('البحث في مواد المسار بالاسم أو الكود...');
+    await expect(subjectSearchInput).toBeVisible();
+    await subjectSearchInput.fill('الكمي');
+    await expect(page.getByRole('heading', { name: 'الكمي' })).toBeVisible();
+    await subjectSearchInput.clear();
+
+    // 3. Open Skills Tab for Verbal Subject
+    await page.goto('/admin-dashboard/taxonomy?tab=subjects&subject=018f0000-0000-7000-8000-000000000031&subjectTab=skills');
+    await page.waitForLoadState('networkidle');
+
+    await expect(page.getByRole('heading', { name: /شجرة مهارات اللفظي/ })).toBeVisible();
+    await expect(page.locator('strong').filter({ hasText: 'التناظر اللفظي' })).toBeVisible();
+    await expect(page.getByText('علاقة الجزء بالكل', { exact: true })).toBeVisible();
+    await expect(page.getByText('تابعة للمهارة الرئيسية:')).toBeVisible();
+
+    // 4. Click Add Skill to open modal
+    await page.getByRole('button', { name: 'إضافة مهارة' }).click();
+    await expect(page.getByRole('heading', { name: /إضافة مهارة جديدة/ })).toBeVisible();
+    await expect(page.getByPlaceholder('مثال: SKILL-01')).toBeVisible();
+    await expect(page.getByPlaceholder('مثال: استيعاب المقروء وحل المسائل اللفظية')).toBeVisible();
+
+    await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'admin-taxonomy-skills-desktop-1440.png'), fullPage: true });
+
+    // Close Modal
+    await page.keyboard.press('Escape');
+  });
+
+  test('7. Foundation Center Direct Navigation (/admin-dashboard/content?tab=foundation)', async ({ page }) => {
+    await setupMocks(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/admin-dashboard');
+    await page.waitForLoadState('networkidle');
+
+    // Click on Foundation Center link in sidebar
+    await page.getByRole('link', { name: 'مركز التأسيس' }).click();
+    await page.waitForLoadState('networkidle');
+
+    await expect(page.getByRole('heading', { name: 'إدارة المحتوى التعليمي' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'التأسيس' })).toBeVisible();
+    await expect(page.getByText('أساسيات التناظر اللفظي والعلاقات')).toBeVisible();
+
+    await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'admin-foundation-center-desktop-1440.png'), fullPage: true });
   });
 });
