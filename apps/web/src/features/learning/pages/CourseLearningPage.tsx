@@ -1,16 +1,19 @@
 import {
+  AlertTriangle,
   ArrowRight,
   BookOpen,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronUp,
+  HelpCircle,
   Loader2,
   Lock,
   Menu,
   Moon,
   PauseCircle,
   PlayCircle,
+  RotateCcw,
   ShoppingCart,
   Sun,
   X,
@@ -37,6 +40,154 @@ function progressLabel(progress: LessonProgress | null) {
   if (progress.status === 'completed') return 'مكتمل';
   if (progress.status === 'in_progress') return `قيد التقدم · آخر موضع ${progress.positionSeconds} ثانية`;
   return 'لم يبدأ بعد';
+}
+
+export interface InteractiveVideoQuestion {
+  id: string;
+  timestamp: number;
+  rewatchTimestamp: number;
+  actionOnFail: 'continue' | 'rewatch';
+  mustPass: boolean;
+  inlineQuestion: {
+    text: string;
+    options: string[];
+    correctOptionIndex: number;
+  };
+}
+
+function getYouTubeVideoId(rawUrl?: string | null) {
+  if (!rawUrl) return '';
+  const trimmedUrl = rawUrl.trim();
+  try {
+    const url = new URL(trimmedUrl.startsWith('http') ? trimmedUrl : `https://${trimmedUrl}`);
+    const host = url.hostname.replace(/^www\./, '').toLowerCase();
+    if (host === 'youtu.be') {
+      return url.pathname.split('/').filter(Boolean)[0] || '';
+    }
+    if (host.includes('youtube.com')) {
+      return (
+        url.searchParams.get('v') ||
+        url.pathname.match(/\/(?:embed|shorts|live)\/([^/?#]+)/)?.[1] ||
+        ''
+      );
+    }
+  } catch {
+    return '';
+  }
+  return '';
+}
+
+function VideoQuestionOverlay({
+  question,
+  onAnswer,
+  onSkip,
+}: {
+  question: InteractiveVideoQuestion;
+  onAnswer: (isCorrect: boolean) => void;
+  onSkip: () => void;
+}) {
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState<{ isCorrect: boolean; message: string } | null>(null);
+
+  const handleSelect = (idx: number) => {
+    setSelectedIdx(idx);
+    const isCorrect = idx === question.inlineQuestion.correctOptionIndex;
+    if (isCorrect) {
+      setFeedback({ isCorrect: true, message: 'إجابة صحيحة وممتازة! أحسنت.' });
+      setTimeout(() => {
+        onAnswer(true);
+      }, 1000);
+    } else {
+      if (question.actionOnFail === 'rewatch') {
+        const rewatchMin = Math.floor(question.rewatchTimestamp / 60);
+        const rewatchSec = String(question.rewatchTimestamp % 60).padStart(2, '0');
+        setFeedback({
+          isCorrect: false,
+          message: `إجابة غير صحيحة. سيتم الرجوع إلى الدقيقة ${rewatchMin}:${rewatchSec} لمراجعة الشرح.`,
+        });
+        setTimeout(() => {
+          onAnswer(false);
+        }, 2200);
+      } else {
+        setFeedback({
+          isCorrect: false,
+          message: question.mustPass
+            ? 'إجابة غير صحيحة. يجب اختيار الإجابة الصحيحة للاستمرار.'
+            : 'إجابة غير صحيحة. يمكنك المحاولة مجددًا أو المتابعة.',
+        });
+      }
+    }
+  };
+
+  return (
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" dir="rtl">
+      <div className="w-full max-w-xl rounded-3xl border border-indigo-200/40 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+            <HelpCircle size={14} />
+            سؤال تفاعلي أثناء الدرس
+          </span>
+          <span className="text-xs font-bold text-slate-500">
+            {Math.floor(question.timestamp / 60)}:{String(question.timestamp % 60).padStart(2, '0')}
+          </span>
+        </div>
+
+        <h3 className="mb-4 text-base font-black leading-relaxed text-slate-900 dark:text-white">
+          {question.inlineQuestion.text}
+        </h3>
+
+        <div className="space-y-2.5">
+          {question.inlineQuestion.options.map((option, idx) => {
+            const isSelected = selectedIdx === idx;
+            const isCorrect = idx === question.inlineQuestion.correctOptionIndex;
+            let btnClass = 'border-slate-200 bg-slate-50 hover:border-indigo-400 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-200';
+            if (selectedIdx !== null) {
+              if (isSelected && isCorrect) {
+                btnClass = 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200';
+              } else if (isSelected && !isCorrect) {
+                btnClass = 'border-rose-500 bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200';
+              }
+            }
+            return (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleSelect(idx)}
+                disabled={Boolean(feedback?.isCorrect)}
+                className={`flex w-full items-center justify-between rounded-2xl border p-3.5 text-right text-sm font-bold transition ${btnClass}`}
+              >
+                <span>{option}</span>
+                {isSelected && isCorrect ? <CheckCircle2 size={18} className="shrink-0 text-emerald-600" /> : null}
+                {isSelected && !isCorrect ? <X size={18} className="shrink-0 text-rose-600" /> : null}
+              </button>
+            );
+          })}
+        </div>
+
+        {feedback ? (
+          <div className={`mt-4 rounded-xl p-3 text-xs font-bold leading-6 ${
+            feedback.isCorrect
+              ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+              : 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+          }`}>
+            {feedback.message}
+          </div>
+        ) : null}
+
+        {!question.mustPass && !feedback?.isCorrect ? (
+          <div className="mt-4 flex justify-end">
+            <button
+              type="button"
+              onClick={onSkip}
+              className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+            >
+              متابعة بدون إجابة الآن
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 export function CourseLearningPage() {
@@ -71,6 +222,10 @@ export function CourseLearningPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const lastSaved = useRef(0);
 
+  // Interactive Video state
+  const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<string>>(() => new Set());
+  const [activeInteractiveQuestion, setActiveInteractiveQuestion] = useState<InteractiveVideoQuestion | null>(null);
+
   const lessons = useMemo(() => flattenLessons(course), [course]);
   const selectedSummary = lessons.find((item) => item.id === lessonId) || null;
   const selectedIndex = lessons.findIndex((item) => item.id === lessonId);
@@ -86,6 +241,57 @@ export function CourseLearningPage() {
   // A canonical lesson can be reused in several courses. Match both context and lesson.
   const activeDetail = loadedScope === selectedScope ? detail : null;
   const activeProgress = loadedScope === selectedScope ? progress : null;
+
+  const interactiveQuestions = useMemo<InteractiveVideoQuestion[]>(() => {
+    if (!activeDetail || activeDetail.type !== 'video' || !activeDetail.contentText) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(activeDetail.contentText);
+      if (Array.isArray(parsed.interactiveQuestions)) {
+        return parsed.interactiveQuestions;
+      }
+    } catch {
+      // plain text content
+    }
+    return [];
+  }, [activeDetail]);
+
+  const lessonTextDescription = useMemo(() => {
+    if (!activeDetail?.contentText) return '';
+    try {
+      const parsed = JSON.parse(activeDetail.contentText);
+      if (typeof parsed.text === 'string') return parsed.text;
+    } catch {
+      return activeDetail.contentText;
+    }
+    return '';
+  }, [activeDetail]);
+
+  function handleInteractiveAnswer(isCorrect: boolean) {
+    if (!activeInteractiveQuestion) return;
+    const currentQ = activeInteractiveQuestion;
+    if (isCorrect || !currentQ.mustPass) {
+      setAnsweredQuestionIds((prev) => new Set(prev).add(currentQ.id));
+    }
+    if (!isCorrect && currentQ.actionOnFail === 'rewatch') {
+      if (videoRef.current) {
+        videoRef.current.currentTime = Math.max(0, currentQ.rewatchTimestamp || 0);
+      }
+    }
+    setActiveInteractiveQuestion(null);
+    if (isCorrect || (!isCorrect && currentQ.actionOnFail === 'rewatch')) {
+      videoRef.current?.play().catch(() => {});
+    }
+  }
+
+  function handleInteractiveSkip() {
+    if (!activeInteractiveQuestion || activeInteractiveQuestion.mustPass) return;
+    const currentQ = activeInteractiveQuestion;
+    setAnsweredQuestionIds((prev) => new Set(prev).add(currentQ.id));
+    setActiveInteractiveQuestion(null);
+    videoRef.current?.play().catch(() => {});
+  }
 
   useEffect(() => {
     try {
@@ -230,9 +436,20 @@ export function CourseLearningPage() {
   }
 
   function onTimeUpdate() {
-    const current = Math.floor(videoRef.current?.currentTime || 0);
+    const currentTime = videoRef.current?.currentTime || 0;
+    const current = Math.floor(currentTime);
     if (current - lastSaved.current >= 15) {
       void persistVideoPosition(current, true);
+    }
+
+    if (interactiveQuestions.length > 0 && !activeInteractiveQuestion) {
+      const due = interactiveQuestions.find(
+        (q) => !answeredQuestionIds.has(q.id) && Math.abs(currentTime - q.timestamp) <= 1.5,
+      );
+      if (due) {
+        videoRef.current?.pause();
+        setActiveInteractiveQuestion(due);
+      }
     }
   }
 
@@ -579,7 +796,17 @@ export function CourseLearningPage() {
                   <div className={`relative flex min-h-56 items-center justify-center sm:min-h-72 ${
                     activeDetail.type === 'video' ? 'bg-black' : isDarkMode ? 'bg-slate-900' : 'bg-slate-100'
                   }`}>
-                    {activeDetail.type === 'video' && activeDetail.videoSource === 'upload' && activeDetail.videoUrl ? (
+                    {activeDetail.type === 'video' && getYouTubeVideoId(activeDetail.videoUrl) ? (
+                      <div className="relative aspect-video w-full overflow-hidden bg-black">
+                        <iframe
+                          src={`https://www.youtube-nocookie.com/embed/${getYouTubeVideoId(activeDetail.videoUrl)}?rel=0&modestbranding=1`}
+                          title={activeDetail.title}
+                          className="h-full w-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : activeDetail.type === 'video' && activeDetail.videoUrl ? (
                       <video
                         ref={videoRef}
                         data-testid="lesson-video"
@@ -604,9 +831,9 @@ export function CourseLearningPage() {
                     ) : activeDetail.type === 'video' ? (
                       <div className="max-w-xl p-8 text-center text-white">
                         <PlayCircle className="mx-auto text-indigo-300" size={54} />
-                        <h3 className="mt-4 text-lg font-black">محتوى فيديو خارجي</h3>
+                        <h3 className="mt-4 text-lg font-black">لم يتم إرفاق رابط فيديو</h3>
                         <p className="mt-2 text-sm font-bold leading-7 text-slate-300">
-                          المصدر {activeDetail.videoSource || 'خارجي'} يظل رابط المحتوى المعتمد. إكمال الدرس خطوة صريحة منفصلة.
+                          يرجى التواصل مع إدارة المسار أو المدرب لإضافة محتوى الفيديو المعتمد لهذا الدرس.
                         </p>
                       </div>
                     ) : (
@@ -619,20 +846,37 @@ export function CourseLearningPage() {
                         </div>
                       </div>
                     )}
+
+                    {activeInteractiveQuestion ? (
+                      <VideoQuestionOverlay
+                        question={activeInteractiveQuestion}
+                        onAnswer={handleInteractiveAnswer}
+                        onSkip={handleInteractiveSkip}
+                      />
+                    ) : null}
                   </div>
 
                   <div className="p-5 sm:p-6">
+                    {interactiveQuestions.length > 0 ? (
+                      <div className="mb-4 flex items-center gap-2 rounded-2xl bg-indigo-50/70 p-3 text-xs font-bold text-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200">
+                        <HelpCircle size={16} className="text-indigo-600 shrink-0" />
+                        <span>
+                          يحتوي هذا الدرس على {interactiveQuestions.length} سؤال تفاعلي يظهر تلقائيًا عند لحظات محددة من الشرح.
+                        </span>
+                      </div>
+                    ) : null}
+
                     <p className={`text-sm font-medium leading-7 ${
                       isDarkMode ? 'text-slate-300' : 'text-gray-600'
                     }`}>
                       {activeDetail.description}
                     </p>
 
-                    {activeDetail.type === 'text' && activeDetail.contentText ? (
+                    {lessonTextDescription ? (
                       <div className={`mt-4 whitespace-pre-wrap rounded-2xl p-4 text-sm leading-8 ${
                         isDarkMode ? 'bg-slate-900 text-slate-200' : 'bg-gray-50 text-gray-800'
                       }`}>
-                        {activeDetail.contentText}
+                        {lessonTextDescription}
                       </div>
                     ) : null}
 

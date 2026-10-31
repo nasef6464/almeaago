@@ -1,4 +1,4 @@
-import { CheckCircle2, Loader2, Save, X } from 'lucide-react';
+import { CheckCircle2, HelpCircle, Loader2, Play, Plus, RotateCcw, Save, Trash2, Video, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
 import { contentClient } from '../api/content-client';
@@ -10,6 +10,19 @@ import type {
   TaxonomyFull,
   UpdateLessonInput,
 } from '../api/content-types';
+
+export interface InteractiveVideoQuestion {
+  id: string;
+  timestamp: number;
+  rewatchTimestamp: number;
+  actionOnFail: 'continue' | 'rewatch';
+  mustPass: boolean;
+  inlineQuestion: {
+    text: string;
+    options: string[];
+    correctOptionIndex: number;
+  };
+}
 
 interface LessonEditorPanelProps {
   lessonId?: string;
@@ -82,6 +95,31 @@ export function LessonEditorPanel({
   const [isVisible, setIsVisible] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [skillIds, setSkillIds] = useState<string[]>(() => [...new Set([...initialSkillIds, ...requiredSkillIds])]);
+  const [interactiveQuestions, setInteractiveQuestions] = useState<InteractiveVideoQuestion[]>([]);
+
+  function addInteractiveQuestion() {
+    const newQ: InteractiveVideoQuestion = {
+      id: `iq-${Date.now()}`,
+      timestamp: 30,
+      rewatchTimestamp: 0,
+      actionOnFail: 'continue',
+      mustPass: true,
+      inlineQuestion: {
+        text: '',
+        options: ['', '', '', ''],
+        correctOptionIndex: 0,
+      },
+    };
+    setInteractiveQuestions((prev) => [...prev, newQ]);
+  }
+
+  function updateInteractiveQuestion(id: string, updater: (prev: InteractiveVideoQuestion) => InteractiveVideoQuestion) {
+    setInteractiveQuestions((prev) => prev.map((q) => (q.id === id ? updater(q) : q)));
+  }
+
+  function removeInteractiveQuestion(id: string) {
+    setInteractiveQuestions((prev) => prev.filter((q) => q.id !== id));
+  }
 
   function applyLesson(row: LessonDetail) {
     setExisting(row);
@@ -91,6 +129,16 @@ export function LessonEditorPanel({
     setDescription(row.description || '');
     setType(row.type as LessonType);
     setContentText(row.contentText || '');
+    if (row.type === 'video' && row.contentText) {
+      try {
+        const parsed = JSON.parse(row.contentText);
+        if (Array.isArray(parsed.interactiveQuestions)) {
+          setInteractiveQuestions(parsed.interactiveQuestions);
+        }
+      } catch {
+        // ignore non-json
+      }
+    }
     setDurationSeconds(row.durationSeconds || 0);
     setVideoUrl(row.videoUrl || '');
     setVideoSource(row.videoSource || '');
@@ -185,13 +233,18 @@ export function LessonEditorPanel({
       return;
     }
 
+    let finalContent = contentText.trim();
+    if (type === 'video') {
+      finalContent = JSON.stringify({ interactiveQuestions });
+    }
+
     const base: CreateLessonInput = {
       pathId,
       subjectId,
       title: title.trim(),
       description: description.trim(),
       type,
-      contentText: contentText.trim(),
+      contentText: finalContent,
       durationSeconds: Math.max(0, Math.trunc(durationSeconds || 0)),
       videoUrl: videoUrl.trim(),
       videoSource: videoSource || '',
@@ -334,6 +387,207 @@ export function LessonEditorPanel({
               <input disabled={!canMutate} type="url" maxLength={2048} value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold disabled:bg-gray-50" placeholder="https://..." />
             </label>
             {videoSource === 'upload' ? <p className="md:col-span-2 text-xs font-bold text-amber-700">رفع Media/R2 المباشر موجود في الـBackend؛ منتقي الملفات داخل Lesson Builder سيأتي في شريحة Media UI حتى لا تمر البايتات عبر Go.</p> : null}
+          </section>
+        ) : null}
+
+        {type === 'video' ? (
+          <section className="rounded-3xl border border-indigo-100 bg-indigo-50/40 p-5 shadow-sm sm:p-6 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h4 className="font-black text-gray-900 flex items-center gap-2">
+                  <HelpCircle size={18} className="text-indigo-600" /> أسئلة داخل الفيديو (Interactive Video)
+                </h4>
+                <p className="text-xs font-bold text-gray-500 mt-0.5">
+                  تظهر للطالب عند توقيت محدد أثناء تشغيل الفيديو لتثبيت المفهوم وتجميد الفيديو للمتابعة.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={!canMutate}
+                onClick={addInteractiveQuestion}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer shadow-xs"
+              >
+                <Plus size={15} /> إضافة سؤال داخل الفيديو
+              </button>
+            </div>
+
+            {interactiveQuestions.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-indigo-200 bg-white p-6 text-center text-xs font-bold text-gray-400">
+                لا توجد أسئلة تفاعلية مضافة لهذا الفيديو بعد. أضف سؤالاً ليظهر في توقيت محدد أثناء المشاهدة.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {interactiveQuestions.map((q, idx) => {
+                  const minutes = Math.floor(q.timestamp / 60);
+                  const seconds = q.timestamp % 60;
+                  const rewatchMin = Math.floor(q.rewatchTimestamp / 60);
+                  const rewatchSec = q.rewatchTimestamp % 60;
+                  return (
+                    <div key={q.id} className="rounded-2xl border border-indigo-100 bg-white p-4 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg">
+                          سؤال {idx + 1}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={!canMutate}
+                          onClick={() => removeInteractiveQuestion(q.id)}
+                          className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 transition cursor-pointer"
+                          title="حذف السؤال"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-black text-gray-700 mb-1">نص السؤال *</label>
+                        <input
+                          disabled={!canMutate}
+                          value={q.inlineQuestion.text}
+                          onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
+                            ...prev,
+                            inlineQuestion: { ...prev.inlineQuestion, text: e.target.value },
+                          }))}
+                          placeholder="اكتب نص السؤال الذي سيظهر للطالب في هذا التوقيت..."
+                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold"
+                        />
+                      </div>
+
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {q.inlineQuestion.options.map((opt, optIdx) => (
+                          <div key={optIdx} className="flex items-center gap-2">
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-600">
+                              {['أ', 'ب', 'ج', 'د'][optIdx] || optIdx + 1}
+                            </span>
+                            <input
+                              disabled={!canMutate}
+                              value={opt}
+                              onChange={(e) => {
+                                const newOpts = [...q.inlineQuestion.options];
+                                newOpts[optIdx] = e.target.value;
+                                updateInteractiveQuestion(q.id, (prev) => ({
+                                  ...prev,
+                                  inlineQuestion: { ...prev.inlineQuestion, options: newOpts },
+                                }));
+                              }}
+                              placeholder={`الخيار ${optIdx + 1}`}
+                              className="min-w-0 flex-1 rounded-xl border border-gray-200 px-2.5 py-1.5 text-xs font-medium"
+                            />
+                            <input
+                              type="radio"
+                              name={`correct-opt-${q.id}`}
+                              checked={q.inlineQuestion.correctOptionIndex === optIdx}
+                              onChange={() => updateInteractiveQuestion(q.id, (prev) => ({
+                                ...prev,
+                                inlineQuestion: { ...prev.inlineQuestion, correctOptionIndex: optIdx },
+                              }))}
+                              className="accent-emerald-600 cursor-pointer"
+                              title="الإجابة الصحيحة"
+                            />
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="grid gap-3 pt-2 border-t border-gray-100 sm:grid-cols-4">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-600 mb-1">التوقيت: دقيقة</label>
+                          <input
+                            disabled={!canMutate}
+                            type="number"
+                            min={0}
+                            value={minutes}
+                            onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
+                              ...prev,
+                              timestamp: Math.max(0, Number(e.target.value) || 0) * 60 + (prev.timestamp % 60),
+                            }))}
+                            className="w-full rounded-xl border border-gray-200 p-2 text-xs font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-600 mb-1">التوقيت: ثانية</label>
+                          <input
+                            disabled={!canMutate}
+                            type="number"
+                            min={0}
+                            max={59}
+                            value={seconds}
+                            onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
+                              ...prev,
+                              timestamp: Math.floor(prev.timestamp / 60) * 60 + Math.min(59, Math.max(0, Number(e.target.value) || 0)),
+                            }))}
+                            className="w-full rounded-xl border border-gray-200 p-2 text-xs font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-600 mb-1">عند الخطأ</label>
+                          <select
+                            disabled={!canMutate}
+                            value={q.actionOnFail}
+                            onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
+                              ...prev,
+                              actionOnFail: e.target.value as 'continue' | 'rewatch',
+                            }))}
+                            className="w-full rounded-xl border border-gray-200 bg-white p-2 text-xs font-bold"
+                          >
+                            <option value="continue">متابعة الدرس</option>
+                            <option value="rewatch">إعادة المشاهدة من مقطع</option>
+                          </select>
+                        </div>
+                        <div className="flex items-end pb-1">
+                          <label className="flex items-center gap-2 text-xs font-black text-gray-700 cursor-pointer">
+                            <input
+                              disabled={!canMutate}
+                              type="checkbox"
+                              checked={q.mustPass}
+                              onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
+                                ...prev,
+                                mustPass: e.target.checked,
+                              }))}
+                              className="accent-indigo-600 h-4 w-4 rounded"
+                            />
+                            إجابة مطلوبة للمتابعة
+                          </label>
+                        </div>
+                      </div>
+
+                      {q.actionOnFail === 'rewatch' ? (
+                        <div className="grid gap-2 grid-cols-2 rounded-xl bg-amber-50 border border-amber-200 p-2.5 max-w-sm">
+                          <label className="text-[11px] font-bold text-amber-900">
+                            الرجوع إلى: دقيقة
+                            <input
+                              disabled={!canMutate}
+                              type="number"
+                              min={0}
+                              value={rewatchMin}
+                              onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
+                                ...prev,
+                                rewatchTimestamp: Math.max(0, Number(e.target.value) || 0) * 60 + (prev.rewatchTimestamp % 60),
+                              }))}
+                              className="mt-1 w-full rounded-lg border border-amber-300 bg-white p-1.5 text-xs font-bold"
+                            />
+                          </label>
+                          <label className="text-[11px] font-bold text-amber-900">
+                            الرجوع إلى: ثانية
+                            <input
+                              disabled={!canMutate}
+                              type="number"
+                              min={0}
+                              max={59}
+                              value={rewatchSec}
+                              onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
+                                ...prev,
+                                rewatchTimestamp: Math.floor(prev.rewatchTimestamp / 60) * 60 + Math.min(59, Math.max(0, Number(e.target.value) || 0)),
+                              }))}
+                              className="mt-1 w-full rounded-lg border border-amber-300 bg-white p-1.5 text-xs font-bold"
+                            />
+                          </label>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
         ) : null}
 

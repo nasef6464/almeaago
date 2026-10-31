@@ -1,13 +1,15 @@
 import {
   AlertCircle,
   ArrowRight,
+  Bookmark,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Bookmark,
+  ExternalLink,
   Eye,
   Flag,
   History,
+  Play,
   Target,
   XCircle,
 } from 'lucide-react';
@@ -164,6 +166,25 @@ function ReviewQuestionCard({
           {question.explanation ? <p><strong>الشرح:</strong> {question.explanation}</p> : null}
           {question.hint ? <p><strong>تلميح:</strong> {question.hint}</p> : null}
           {question.solvingStrategy ? <p><strong>طريقة الحل:</strong> {question.solvingStrategy}</p> : null}
+        </div>
+      ) : null}
+
+      {question.videoUrl ? (
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs font-bold text-blue-900">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white shadow-xs">
+              <Play size={13} className="fill-current" />
+            </div>
+            <span>فيديو شرح حل المسألة متوفر</span>
+          </div>
+          <a
+            href={question.videoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-black text-white hover:bg-blue-700 transition"
+          >
+            شاهد فيديو الشرح <ExternalLink size={12} />
+          </a>
         </div>
       ) : null}
     </article>

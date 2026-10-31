@@ -1,21 +1,30 @@
 import {
   Archive,
   BarChart3,
+  BookOpen,
+  Bot,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
   FileImage,
   Filter,
   HelpCircle,
   ImagePlus,
   ImageUp,
   Loader2,
+  Play,
   Plus,
   RefreshCcw,
   Search,
   Send,
   ShieldCheck,
+  Sparkles,
   Target,
   Trash2,
   UploadCloud,
+  Video,
+  Volume2,
   XCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -66,11 +75,40 @@ export function QuestionBankAdminPage(){
   const [reload,setReload]=useState(0);
   const [detail,setDetail]=useState<QuestionDetail|null>(null);
   const [showCreate,setShowCreate]=useState(false);
-  const [create,setCreate]=useState({
-    questionCode:'',pathId:'',subjectId:'',type:'mcq' as QuestionType,text:'',difficulty:'medium',examType:'',source:'manual',
-    explanation:'',hint:'',solvingStrategy:'',videoUrl:'',imageAssetId:'',imageAlt:'',mainSkillId:'',subSkillId:'',correctOptionIndex:0,
-    options:['','','',''],
+  const [create, setCreate] = useState({
+    questionCode: '',
+    pathId: '',
+    subjectId: '',
+    type: 'mcq' as QuestionType,
+    text: '',
+    difficulty: 'Medium',
+    examType: '',
+    source: 'manual',
+    explanation: '',
+    hint: '',
+    solvingStrategy: '',
+    videoUrl: '',
+    imageAssetId: '',
+    imageAlt: '',
+    optionsEmbeddedInImage: false,
+    passage: '',
+    showPassage: false,
+    showAiContext: false,
+    showVoiceExplanation: false,
+    aiReadableText: '',
+    aiSpeechText: '',
+    aiVisualDescription: '',
+    voiceNotes: '',
+    mainSkillId: '',
+    subSkillId: '',
+    correctOptionIndex: 0,
+    options: ['', '', '', ''],
   });
+
+  function autoGenerateCode() {
+    const code = `Q-${Date.now().toString().slice(-6)}`;
+    setCreate((prev) => ({ ...prev, questionCode: code }));
+  }
   const [mediaFile,setMediaFile]=useState<File|null>(null);
   const [mediaAsset,setMediaAsset]=useState<MediaAsset|null>(null);
   const [importBatchId,setImportBatchId]=useState('');
@@ -189,6 +227,23 @@ export function QuestionBankAdminPage(){
       {skillId:create.mainSkillId,relationType:'main' as const},
       ...(create.subSkillId?[{skillId:create.subSkillId,relationType:'sub' as const}]:[]),
     ];
+
+    const sourceMeta: Record<string, unknown> = {};
+    if (create.passage.trim()) {
+      sourceMeta.passage = create.passage.trim();
+    }
+
+    const aiContext: Record<string, unknown> = {};
+    if (create.aiReadableText.trim()) aiContext.readableText = create.aiReadableText.trim();
+    if (create.aiSpeechText.trim()) aiContext.speechText = create.aiSpeechText.trim();
+    if (create.aiVisualDescription.trim()) aiContext.visualDescription = create.aiVisualDescription.trim();
+    if (create.optionsEmbeddedInImage) {
+      aiContext.optionTexts = create.options.map((opt, i) => opt.trim() || ['أ', 'ب', 'ج', 'د'][i] || String(i + 1));
+    }
+
+    const voiceExplanation: Record<string, unknown> = {};
+    if (create.voiceNotes.trim()) voiceExplanation.notes = create.voiceNotes.trim();
+
     await run('create',async csrf=>{
       const result=await questionBankClient.create({
         questionCode:create.questionCode.trim(),
@@ -197,18 +252,23 @@ export function QuestionBankAdminPage(){
         assignedTeacherId:isAdmin?'':user?.id||'',
         version:{
           pathId:create.pathId,subjectId:create.subjectId,type:create.type,text:create.text.trim(),
-          imageAssetId:create.imageAssetId,imageAlt:create.imageAlt.trim(),optionsEmbeddedInImage:false,
+          imageAssetId:create.imageAssetId,imageAlt:create.imageAlt.trim(),optionsEmbeddedInImage:create.optionsEmbeddedInImage,
           correctOptionIndex:create.type==='essay'?null:Math.min(create.correctOptionIndex,Math.max(0,options.length-1)),
           explanation:create.explanation.trim(),hint:create.hint.trim(),solvingStrategy:create.solvingStrategy.trim(),
-          videoUrl:create.videoUrl.trim(),sourceMeta:{},aiContext:{},voiceExplanation:{},
+          videoUrl:create.videoUrl.trim(),sourceMeta,aiContext,voiceExplanation,
           difficulty:create.difficulty,examType:create.examType.trim(),source:create.source.trim(),year:null,revisionNote:'',
           options,skillLinks,
         },
       },csrf);
-      setDetail(result.question);setShowCreate(false);setMediaAsset(null);setMediaFile(null);
-      setCreate(x=>({...x,questionCode:'',text:'',explanation:'',hint:'',solvingStrategy:'',videoUrl:'',imageAssetId:'',imageAlt:'',subSkillId:'',options:['','','',''],correctOptionIndex:0}));
+      setDetail(result.question);setShowCreate(false);setMediaAsset(null);setMediaFile(null);setImagePreviewUrl('');
+      setCreate({
+        questionCode:'',pathId:'',subjectId:'',type:'mcq',text:'',difficulty:'Medium',examType:'',source:'manual',
+        explanation:'',hint:'',solvingStrategy:'',videoUrl:'',imageAssetId:'',imageAlt:'',optionsEmbeddedInImage:false,
+        passage:'',showPassage:false,showAiContext:false,showVoiceExplanation:false,aiReadableText:'',aiSpeechText:'',
+        aiVisualDescription:'',voiceNotes:'',mainSkillId:'',subSkillId:'',correctOptionIndex:0,options:['','','','']
+      });
       setReload(x=>x+1);
-    },'تم إنشاء السؤال كمسودة بإصدار أول.');
+    },'تم إنشاء السؤال كمسودة بإصدار أول مكتمل الحقول.');
   }
 
   async function workflow(status:QuestionWorkflowStatus){
@@ -280,23 +340,60 @@ export function QuestionBankAdminPage(){
       >
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-black text-amber-700">AUTHORING</p>
-            <h2 className="text-xl font-black">إنشاء سؤال بإصدار أول (يدعم لصق الصور مباشرة Ctrl+V)</h2>
+            <p className="text-xs font-black text-amber-700">AUTHORING · UNIFIED BUILDER</p>
+            <h2 className="text-xl font-black">منشئ الأسئلة الموحد (يدعم لصق الصور مباشرة Ctrl+V وفيديو الشرح وسياق AI)</h2>
           </div>
           <button type="button" aria-label="إغلاق إنشاء السؤال" onClick={() => setShowCreate(false)}>
             <XCircle size={20} />
           </button>
         </div>
+
+        {/* حقل القطعة القرائية (استيعاب المقروء) - اختياري */}
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-3.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-black text-amber-900">
+              <BookOpen size={16} className="text-amber-700" />
+              <span>النص القرائي / قطعة الفهم (استيعاب المقروء - اختياري)</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCreate((prev) => ({ ...prev, showPassage: !prev.showPassage }))}
+              className="text-xs font-black text-amber-800 hover:underline cursor-pointer"
+            >
+              {create.showPassage ? 'إخفاء القطعة' : '+ إضافة قطعة للسؤال'}
+            </button>
+          </div>
+          {create.showPassage ? (
+            <textarea
+              rows={4}
+              value={create.passage}
+              onChange={(e) => setCreate({ ...create, passage: e.target.value })}
+              placeholder="أدخل نص القطعة أو المقال القرائي هنا. سيظهر للطالب في لوحة استيعاب المقروء المخصصة..."
+              className="w-full rounded-xl border border-amber-300 bg-white p-3 text-sm font-medium leading-relaxed outline-none focus:border-amber-500"
+            />
+          ) : null}
+        </div>
+
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           <div className="space-y-2">
             <div className="grid gap-2 sm:grid-cols-2">
-              <input
-                aria-label="كود السؤال الجديد"
-                value={create.questionCode}
-                onChange={(e) => setCreate({ ...create, questionCode: e.target.value })}
-                placeholder="الكود الثابت (مثال: Q-ALG-01)"
-                className="rounded-xl border p-2.5"
-              />
+              <div className="flex gap-2">
+                <input
+                  aria-label="كود السؤال الجديد"
+                  value={create.questionCode}
+                  onChange={(e) => setCreate({ ...create, questionCode: e.target.value })}
+                  placeholder="الكود الثابت (مثال: Q-ALG-01)"
+                  className="min-w-0 flex-1 rounded-xl border p-2.5 font-bold"
+                />
+                <button
+                  type="button"
+                  onClick={autoGenerateCode}
+                  className="rounded-xl border border-indigo-200 bg-white px-2.5 py-1.5 text-xs font-black text-indigo-700 hover:bg-indigo-50 shrink-0"
+                  title="توليد كود تلقائي"
+                >
+                  كود تلقائي
+                </button>
+              </div>
               <select
                 aria-label="نوع السؤال الجديد"
                 value={create.type}
@@ -368,25 +465,55 @@ export function QuestionBankAdminPage(){
                 ))}
               </select>
             </div>
+
+            {/* رابط فيديو الشرح + خيار الخيارات داخل الصورة */}
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-black text-slate-700 flex items-center gap-1.5">
+                  <Video size={14} className="text-blue-600" />
+                  رابط فيديو شرح السؤال (اختياري)
+                </label>
+                <input
+                  type="url"
+                  value={create.videoUrl}
+                  onChange={(e) => setCreate({ ...create, videoUrl: e.target.value })}
+                  placeholder="https://... فيديو شرح حل المسألة"
+                  className="w-full rounded-xl border p-2 text-xs font-medium"
+                />
+              </div>
+              <div className="flex items-end">
+                <label className="flex w-full cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={create.optionsEmbeddedInImage}
+                    onChange={(e) => setCreate({ ...create, optionsEmbeddedInImage: e.target.checked })}
+                    className="h-4 w-4 rounded accent-indigo-600"
+                  />
+                  <span>الاختيارات وقيمها داخل صورة السؤال</span>
+                </label>
+              </div>
+            </div>
+
             <textarea
               aria-label="نص السؤال الجديد"
               value={create.text}
               onPaste={handlePasteImage}
               onChange={(e) => setCreate({ ...create, text: e.target.value })}
               placeholder="نص السؤال — يمكنك لصق صورة السؤال مباشرة هنا بالضغط على Ctrl+V"
-              className="min-h-28 w-full rounded-xl border p-3 leading-relaxed"
+              className="min-h-24 w-full rounded-xl border p-3 leading-relaxed"
             />
             {create.type !== 'essay' ? (
               <div className="grid gap-2 sm:grid-cols-2">
                 {create.options.map((v, i) => (
                   <label key={i} className="text-xs font-bold">
-                    الخيار {i + 1}
+                    الخيار {['أ', 'ب', 'ج', 'د'][i] || i + 1}
                     <div className="mt-1 flex gap-2">
                       <input
                         aria-label={`نص الخيار ${i + 1}`}
                         value={v}
                         onChange={(e) => updateOption(i, e.target.value)}
-                        className="min-w-0 flex-1 rounded-xl border p-2"
+                        placeholder={create.optionsEmbeddedInImage ? `قيمة الخيار في الصورة (أو الرمز)` : `محتوى الخيار ${i + 1}`}
+                        className="min-w-0 flex-1 rounded-xl border p-2 text-xs"
                       />
                       <input
                         aria-label={`الإجابة الصحيحة ${i + 1}`}
@@ -394,6 +521,7 @@ export function QuestionBankAdminPage(){
                         name="correct-option"
                         checked={create.correctOptionIndex === i}
                         onChange={() => setCreate({ ...create, correctOptionIndex: i })}
+                        className="accent-emerald-600"
                       />
                     </div>
                   </label>
@@ -406,31 +534,102 @@ export function QuestionBankAdminPage(){
               aria-label="شرح السؤال الجديد"
               value={create.explanation}
               onChange={(e) => setCreate({ ...create, explanation: e.target.value })}
-              placeholder="الشرح واستراتيجية الحل"
-              className="min-h-20 w-full rounded-xl border p-3"
+              placeholder="الشرح واستراتيجية الحل خطوة بخطوة"
+              className="min-h-16 w-full rounded-xl border p-3 text-xs"
             />
-            <textarea
-              aria-label="تلميح السؤال الجديد"
-              value={create.hint}
-              onChange={(e) => setCreate({ ...create, hint: e.target.value })}
-              placeholder="التلميح الذهبي"
-              className="min-h-16 w-full rounded-xl border p-3"
-            />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input
+                aria-label="تلميح السؤال الجديد"
+                value={create.hint}
+                onChange={(e) => setCreate({ ...create, hint: e.target.value })}
+                placeholder="التلميح الذهبي"
+                className="rounded-xl border p-2 text-xs"
+              />
+              <input
+                aria-label="استراتيجية الحل"
+                value={create.solvingStrategy}
+                onChange={(e) => setCreate({ ...create, solvingStrategy: e.target.value })}
+                placeholder="استراتيجية الحل السريع في قياس"
+                className="rounded-xl border p-2 text-xs"
+              />
+            </div>
             <div className="grid gap-2 sm:grid-cols-2">
               <input
                 aria-label="صعوبة السؤال الجديد"
                 value={create.difficulty}
                 onChange={(e) => setCreate({ ...create, difficulty: e.target.value })}
                 placeholder="مستوى الصعوبة (Easy, Medium, Hard)"
-                className="rounded-xl border p-2.5"
+                className="rounded-xl border p-2 text-xs"
               />
               <input
                 aria-label="مصدر السؤال الجديد"
                 value={create.source}
                 onChange={(e) => setCreate({ ...create, source: e.target.value })}
                 placeholder="المصدر (تجميعات 1445، تجريبي، محاكي)"
-                className="rounded-xl border p-2.5"
+                className="rounded-xl border p-2 text-xs"
               />
+            </div>
+
+            {/* سياق الذكاء الاصطناعي والمساعد الذكي */}
+            <div className="rounded-2xl border border-violet-200 bg-violet-50/50 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-black text-violet-950">
+                  <Bot size={15} className="text-violet-700" />
+                  <span>سياق المساعد الذكي والصوت (AI Context)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCreate((prev) => ({ ...prev, showAiContext: !prev.showAiContext }))}
+                  className="text-xs font-black text-violet-700 hover:underline cursor-pointer flex items-center gap-1"
+                >
+                  {create.showAiContext ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  {create.showAiContext ? 'إخفاء' : 'تخصيص بيانات AI'}
+                </button>
+              </div>
+
+              {create.showAiContext ? (
+                <div className="space-y-2 pt-1 text-xs">
+                  <div>
+                    <label className="mb-1 block font-bold text-slate-700">النص الدقيق للذكاء الاصطناعي (بدون كشف الحل)</label>
+                    <textarea
+                      rows={2}
+                      value={create.aiReadableText}
+                      onChange={(e) => setCreate({ ...create, aiReadableText: e.target.value })}
+                      placeholder="نص السؤال الكامل لفهم المسألة وشرحها دون حرق الإجابة الصحيحة..."
+                      className="w-full rounded-xl border border-violet-200 bg-white p-2 text-xs"
+                    />
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block font-bold text-slate-700">النص المخصص للنطق الصوتي</label>
+                      <input
+                        value={create.aiSpeechText}
+                        onChange={(e) => setCreate({ ...create, aiSpeechText: e.target.value })}
+                        placeholder="مثال: الجذر التربيعي لـ تسعة وأربعين"
+                        className="w-full rounded-xl border border-violet-200 bg-white p-2 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block font-bold text-slate-700">وصف العناصر البصرية (الرسم/الشكل)</label>
+                      <input
+                        value={create.aiVisualDescription}
+                        onChange={(e) => setCreate({ ...create, aiVisualDescription: e.target.value })}
+                        placeholder="وصف الرسم أو الأبعاد فقط بدون الحل..."
+                        className="w-full rounded-xl border border-violet-200 bg-white p-2 text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-bold text-slate-700">ملاحظات أو رابط الشرح الصوتي للمعلم</label>
+                    <input
+                      value={create.voiceNotes}
+                      onChange={(e) => setCreate({ ...create, voiceNotes: e.target.value })}
+                      placeholder="رابط تسجيل صوتي أو ملاحظات..."
+                      className="w-full rounded-xl border border-violet-200 bg-white p-2 text-xs"
+                    />
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             {/* بطاقة صورة السؤال مع اللصق المباشر والمعاينة الفورية */}
@@ -526,9 +725,16 @@ export function QuestionBankAdminPage(){
                 <span className="text-xs font-black text-violet-700">
                   {detail.questionCode} · v{detail.currentVersion}
                 </span>
-                <span className="rounded-full bg-white px-2 py-0.5 text-xs font-black shadow-xs">
-                  {statusLabel[detail.workflowStatus]}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  {detail.version.optionsEmbeddedInImage ? (
+                    <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-black text-violet-800">
+                      خيارات بالصورة
+                    </span>
+                  ) : null}
+                  <span className="rounded-full bg-white px-2 py-0.5 text-xs font-black shadow-xs">
+                    {statusLabel[detail.workflowStatus]}
+                  </span>
+                </div>
               </div>
               <h3 className="mt-2 text-base font-black leading-relaxed">
                 {detail.version.text || 'سؤال بصري / صورة'}
@@ -546,6 +752,19 @@ export function QuestionBankAdminPage(){
               </div>
             </div>
 
+            {/* قطعة استيعاب المقروء إذا وجدت */}
+            {(detail.version.sourceMeta as any)?.passage ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3.5 text-xs leading-relaxed text-amber-950">
+                <div className="flex items-center gap-1.5 font-black text-amber-900 mb-1.5">
+                  <BookOpen size={14} className="text-amber-700" />
+                  <span>قطعة استيعاب المقروء (النص القرائي المعتمد):</span>
+                </div>
+                <p className="whitespace-pre-line font-medium text-slate-800 bg-white/70 p-2.5 rounded-xl border border-amber-100">
+                  {(detail.version.sourceMeta as any).passage}
+                </p>
+              </div>
+            ) : null}
+
             {/* صورة السؤال الحقيقية */}
             {detail.version.imageAssetId ? (
               <div className="overflow-hidden rounded-2xl border border-violet-100 bg-white p-3 shadow-xs">
@@ -555,6 +774,29 @@ export function QuestionBankAdminPage(){
                   alt={detail.questionCode}
                   className="mx-auto max-h-64 rounded-xl object-contain"
                 />
+              </div>
+            ) : null}
+
+            {/* فيديو شرح السؤال إذا وجد */}
+            {detail.version.videoUrl ? (
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50/70 p-3 text-xs font-bold text-blue-900">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-xs">
+                    <Play size={14} className="fill-current" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-black text-blue-950">فيديو شرح حل المسألة</p>
+                    <p className="text-[11px] text-blue-700 font-medium truncate">{detail.version.videoUrl}</p>
+                  </div>
+                </div>
+                <a
+                  href={detail.version.videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 inline-flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-black text-white hover:bg-blue-700 transition"
+                >
+                  فتح الفيديو <ExternalLink size={12} />
+                </a>
               </div>
             ) : null}
 
@@ -599,13 +841,38 @@ export function QuestionBankAdminPage(){
             {/* الشرح واستراتيجية الحل */}
             {detail.version.explanation ? (
               <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 text-xs leading-relaxed text-indigo-950">
-                <b className="text-indigo-900">الشرح واستراتيجية الحل:</b> {detail.version.explanation}
+                <b className="text-indigo-900">الشرح وتوضيح الإجابة:</b> {detail.version.explanation}
+              </div>
+            ) : null}
+
+            {detail.version.solvingStrategy ? (
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-2.5 text-xs leading-relaxed text-emerald-950">
+                <b className="text-emerald-900">استراتيجية الحل السريع في قياس:</b> {detail.version.solvingStrategy}
               </div>
             ) : null}
 
             {detail.version.hint ? (
               <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-2.5 text-xs leading-relaxed text-amber-900">
                 <b className="text-amber-800">التلميح:</b> {detail.version.hint}
+              </div>
+            ) : null}
+
+            {/* سياق الذكاء الاصطناعي والصوت إن وجد */}
+            {detail.version.aiContext && Object.keys(detail.version.aiContext).length > 0 ? (
+              <div className="rounded-xl border border-violet-100 bg-violet-50/40 p-3 text-xs space-y-1.5 text-violet-950">
+                <div className="flex items-center gap-1.5 font-black text-violet-900">
+                  <Bot size={14} className="text-violet-700" />
+                  <span>بيانات المساعد الذكي والصوت (AI Context):</span>
+                </div>
+                {(detail.version.aiContext as any).readableText ? (
+                  <p><span className="font-bold text-slate-700">نص المسألة للـ AI:</span> {(detail.version.aiContext as any).readableText}</p>
+                ) : null}
+                {(detail.version.aiContext as any).speechText ? (
+                  <p><span className="font-bold text-slate-700">النطق الصوتي:</span> {(detail.version.aiContext as any).speechText}</p>
+                ) : null}
+                {(detail.version.aiContext as any).visualDescription ? (
+                  <p><span className="font-bold text-slate-700">الوصف البصري:</span> {(detail.version.aiContext as any).visualDescription}</p>
+                ) : null}
               </div>
             ) : null}
 
