@@ -1,7 +1,8 @@
 // Brand anchor from original components/Header.tsx, blob
 // c4e45e5d9bd485538036e98f70eac42471a8fa71, lines 478–504.
-// Only transport and variable initialization are adapted. This certifies the
-// brand anchor, not the surrounding header, navigation, or authentication UI.
+// Only transport and variable initialization are adapted. The source brand anchor
+// remains byte-for-byte presentation-equivalent; static sibling controls below mirror
+// the Legacy header footprint so flex shrink is tested under the same responsive shell.
 import {createRoot} from 'react-dom/client';
 import {BrowserRouter,Link} from 'react-router-dom';
 import {Bell,LogIn,Moon,Search,ShoppingCart} from 'lucide-react';
@@ -35,7 +36,7 @@ function Reference(){
               </div>
             </Link>
   </div>
-  <div className="hidden sm:flex items-center gap-2 sm:gap-3 shrink-0" aria-hidden="true">
+  <div className="flex items-center gap-2 sm:gap-3 shrink-0" aria-hidden="true">
     <button type="button" tabIndex={-1} className="rounded-lg border border-gray-200 bg-white p-2 text-gray-600"><Moon size={18}/></button>
     <span className="text-gray-500"><Search size={20}/></span>
     <span className="relative text-gray-500"><ShoppingCart size={20}/><span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">0</span></span>
