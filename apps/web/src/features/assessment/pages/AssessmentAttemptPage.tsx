@@ -273,6 +273,16 @@ export function AssessmentAttemptPage() {
                 {['أ', 'ب', 'ج', 'د', 'هـ'][option.index] || option.index + 1}
               </span>
               {question.optionsEmbeddedInImage ? '' : option.text}
+              {!question.optionsEmbeddedInImage && option.assetId ? (
+                <span className="mt-2 block w-full">
+                  <QuestionAssetImage
+                    assetId={option.assetId}
+                    alt={`صورة الاختيار ${['أ', 'ب', 'ج', 'د', 'هـ'][option.index] || option.index + 1}`}
+                    className="mx-auto max-h-40 max-w-full rounded-lg object-contain"
+                    showRetryButton={false}
+                  />
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
