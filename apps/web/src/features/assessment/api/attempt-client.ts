@@ -10,6 +10,7 @@ export interface AttemptQuestion {
   imageAlt: string;
   optionsEmbeddedInImage: boolean;
   videoUrl: string;
+  passage?: string;
   difficulty: string;
   options: Array<{ index: number; text: string; assetId: string }>;
 }
@@ -80,6 +81,7 @@ export interface ReviewQuestion {
   imageAlt: string;
   optionsEmbeddedInImage: boolean;
   videoUrl: string;
+  passage?: string;
   difficulty: string;
   options: Array<{ index: number; text: string; assetId: string }>;
   selectedOptionIndex: number | null;

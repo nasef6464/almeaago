@@ -2,6 +2,7 @@ import {
   AlertCircle,
   ArrowRight,
   Bookmark,
+  BookOpen,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -121,6 +122,18 @@ function ReviewQuestionCard({
         <Bookmark size={14} />
         {saved ? 'تم الحفظ' : saving ? 'جاري الحفظ...' : 'حفظ للمراجعة'}
       </button>
+
+      {question.passage ? (
+        <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs leading-relaxed text-amber-950">
+          <div className="mb-1.5 flex items-center gap-1.5 font-black text-amber-900">
+            <BookOpen size={14} className="text-amber-700" />
+            <span>قطعة استيعاب المقروء:</span>
+          </div>
+          <p className="whitespace-pre-line rounded-xl border border-amber-100 bg-white/80 p-2.5 text-xs font-medium leading-relaxed text-slate-800">
+            {question.passage}
+          </p>
+        </div>
+      ) : null}
 
       <h3 className="mt-3 text-base font-black text-gray-900">
         {question.text || question.imageAlt || 'سؤال بصري'}

@@ -28,6 +28,7 @@ type LearnerQuestion struct {
 	ImageAlt               string          `json:"imageAlt"`
 	OptionsEmbeddedInImage bool            `json:"optionsEmbeddedInImage"`
 	VideoURL               string          `json:"videoUrl"`
+	Passage                string          `json:"passage,omitempty"`
 	Difficulty             string          `json:"difficulty"`
 	Options                []LearnerOption `json:"options"`
 }

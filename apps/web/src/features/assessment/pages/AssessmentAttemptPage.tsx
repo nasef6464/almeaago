@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock3, Flag, Send } from 'lucide-react';
+import { BookOpen, CheckCircle2, Clock3, Flag, Send } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
@@ -187,6 +187,18 @@ export function AssessmentAttemptPage() {
           <span>السؤال {index + 1} من {attempt.questions.length}</span>
           <span>{question.points} درجة</span>
         </div>
+        {question.passage ? (
+          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-xs leading-relaxed text-amber-950">
+            <div className="mb-2 flex items-center gap-1.5 font-black text-amber-900">
+              <BookOpen size={15} className="text-amber-700" />
+              <span>قطعة استيعاب المقروء:</span>
+            </div>
+            <p className="whitespace-pre-line rounded-xl border border-amber-100 bg-white/80 p-3 text-sm font-medium leading-relaxed text-slate-800">
+              {question.passage}
+            </p>
+          </div>
+        ) : null}
+
         <h2 className="text-lg font-black">{question.text || question.imageAlt || 'سؤال بصري'}</h2>
         {question.imageAssetId ? (
           <div className="my-4 overflow-hidden rounded-2xl border border-gray-100 bg-slate-50 p-3 text-center">
