@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE levels
+  DROP COLUMN IF EXISTS presentation;
+
+COMMIT;
