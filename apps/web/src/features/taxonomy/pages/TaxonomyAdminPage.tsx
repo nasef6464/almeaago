@@ -965,6 +965,63 @@ export function TaxonomyAdminPage() {
               </div>
             </div>
 
+            {/* إعدادات صفحة التعلم والتحكم بصفحة الطالب */}
+            <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-6 space-y-4">
+              <div>
+                <h4 className="text-sm font-black text-slate-900">التحكم بما يظهر للطالب في صفحة التعلم ({selectedSubject.name})</h4>
+                <p className="mt-1 text-xs font-bold text-slate-500">
+                  من هنا يمكنك التحكم بما يظهر للطالب في صفحة التعلم وحالات القفل لغير المشتركين.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {[
+                  { key: 'showCourses', label: 'تبويب "الدورات والباقات"', desc: 'إظهار أو إخفاء تبويب الدورات بالكامل في صفحة المادة.', default: true },
+                  { key: 'showSkills', label: 'تبويب "التأسيس والمهارات"', desc: 'إظهار أو إخفاء تبويب التأسيس والموضوعات بالكامل.', default: true },
+                  { key: 'lockSkillsForNonSubscribers', label: 'قفل التأسيس لغير المشتركين', desc: 'سيظهر المحتوى وعليه علامة 🔒 للطلاب غير المشتركين.', default: false },
+                  { key: 'showBanks', label: 'تبويب "التدريب وبنك الأسئلة"', desc: 'إظهار أو إخفاء تبويب التدريب بالكامل.', default: true },
+                  { key: 'lockBanksForNonSubscribers', label: 'قفل التدريب لغير المشتركين', desc: 'سيظهر التدريب وعليه علامة 🔒 للطلاب غير المشتركين.', default: false },
+                  { key: 'showTests', label: 'تبويب "الاختبارات والتقييم"', desc: 'إظهار أو إخفاء تبويب الاختبارات بالكامل.', default: true },
+                  { key: 'lockTestsForNonSubscribers', label: 'قفل الاختبارات لغير المشتركين', desc: 'سيظهر الاختبار وعليه علامة 🔒 للطلاب غير المشتركين.', default: false },
+                  { key: 'showLibrary', label: 'تبويب "المكتبة والمراجع"', desc: 'إظهار أو إخفاء تبويب المكتبة بالكامل.', default: true },
+                  { key: 'lockLibraryForNonSubscribers', label: 'قفل المكتبة لغير المشتركين', desc: 'سيظهر الملف وعليه علامة 🔒 للطلاب غير المشتركين.', default: false },
+                ].map((item) => {
+                  const currentSettings = selectedSubject.settings || {};
+                  const val = currentSettings[item.key] ?? item.default;
+                  return (
+                    <div
+                      key={item.key}
+                      onClick={() => {
+                        const updated = {
+                          ...selectedSubject,
+                          settings: {
+                            ...currentSettings,
+                            [item.key]: !val,
+                          },
+                        };
+                        setData((prev) => ({
+                          ...prev,
+                          subjects: prev.subjects.map((s) => (s.id === selectedSubject.id ? updated : s)),
+                        }));
+                      }}
+                      className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3.5 hover:border-indigo-300 hover:bg-indigo-50/20 transition cursor-pointer"
+                    >
+                      <div className="space-y-0.5">
+                        <div className="text-xs font-black text-slate-800">{item.label}</div>
+                        <div className="text-[11px] font-bold text-slate-500 leading-relaxed">{item.desc}</div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(val)}
+                        onChange={() => {}}
+                        className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0 mr-3"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="pt-4 border-t flex justify-between items-center">
               <button
                 type="button"
@@ -984,6 +1041,7 @@ export function TaxonomyAdminPage() {
                       name: selectedSubject.name,
                       color: selectedSubject.color,
                       icon: selectedSubject.icon,
+                      settings: selectedSubject.settings || {},
                     }, csrf);
                     setNotice('تم حفظ إعدادات المادة بنجاح');
                     setReload((r) => r + 1);

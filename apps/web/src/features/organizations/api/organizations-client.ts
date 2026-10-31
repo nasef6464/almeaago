@@ -143,6 +143,42 @@ export const organizationsClient={
   renameDirectorClass(schoolId:string,classId:string,name:string,csrf:string){
     return request<{classroom:{classId:string;className:string}}>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/classes/${encodeURIComponent(classId)}`,{method:'PATCH',headers:csrfHeaders(csrf),body:JSON.stringify({name})});
   },
+  createSchool(payload:{name:string;code:string;metadata?:Record<string,unknown>},csrf:string){
+    return request<{school:SchoolSummary}>(`/api/v1/schools/`,{method:'POST',headers:csrfHeaders(csrf),body:JSON.stringify(payload)});
+  },
+  updateSchool(schoolId:string,payload:{name?:string;status?:string;metadata?:Record<string,unknown>},csrf:string){
+    return request<{school:SchoolSummary}>(`/api/v1/schools/${encodeURIComponent(schoolId)}`,{method:'PATCH',headers:csrfHeaders(csrf),body:JSON.stringify(payload)});
+  },
+  archiveSchool(schoolId:string,csrf:string){
+    return request<{success:boolean}>(`/api/v1/schools/${encodeURIComponent(schoolId)}`,{method:'DELETE',headers:csrfHeaders(csrf)});
+  },
+  createClass(schoolId:string,payload:{name:string;code?:string},csrf:string){
+    return request<{class:SchoolClass}>(`/api/v1/schools/${encodeURIComponent(schoolId)}/classes`,{method:'POST',headers:csrfHeaders(csrf),body:JSON.stringify(payload)});
+  },
+  updateClass(schoolId:string,classId:string,payload:{name?:string;status?:string},csrf:string){
+    return request<{class:SchoolClass}>(`/api/v1/schools/${encodeURIComponent(schoolId)}/classes/${encodeURIComponent(classId)}`,{method:'PATCH',headers:csrfHeaders(csrf),body:JSON.stringify(payload)});
+  },
+  archiveClass(schoolId:string,classId:string,csrf:string){
+    return request<{success:boolean}>(`/api/v1/schools/${encodeURIComponent(schoolId)}/classes/${encodeURIComponent(classId)}`,{method:'DELETE',headers:csrfHeaders(csrf)});
+  },
+  contract(schoolId:string,signal?:AbortSignal){
+    return request<{contract:Record<string,unknown>}>(`/api/v1/school-contracts/${encodeURIComponent(schoolId)}`,{signal});
+  },
+  updateContract(schoolId:string,payload:unknown,csrf:string){
+    return request<{contract:Record<string,unknown>}>(`/api/v1/school-contracts/${encodeURIComponent(schoolId)}`,{method:'PUT',headers:csrfHeaders(csrf),body:JSON.stringify(payload)});
+  },
+  assignments(schoolId:string,signal?:AbortSignal){
+    return request<{assignments:unknown[]}>(`/api/v1/schools/${encodeURIComponent(schoolId)}/assignments`,{signal});
+  },
+  upsertAssignment(schoolId:string,payload:unknown,csrf:string){
+    return request<{assignment:unknown}>(`/api/v1/schools/${encodeURIComponent(schoolId)}/assignments`,{method:'PUT',headers:csrfHeaders(csrf),body:JSON.stringify(payload)});
+  },
+  directors(schoolId:string,signal?:AbortSignal){
+    return request<{directors:unknown[]}>(`/api/v1/schools/${encodeURIComponent(schoolId)}/directors`,{signal});
+  },
+  upsertDirector(schoolId:string,userId:string,payload:unknown,csrf:string){
+    return request<{director:unknown}>(`/api/v1/schools/${encodeURIComponent(schoolId)}/directors/${encodeURIComponent(userId)}`,{method:'PUT',headers:csrfHeaders(csrf),body:JSON.stringify(payload)});
+  },
   directorTeachers(schoolId:string,signal?:AbortSignal){
     return request<{teachers:DirectorTeacher[];assignments:DirectorAssignment[]}>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/teachers`,{signal});
   },

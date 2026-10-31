@@ -71,26 +71,28 @@ type LevelPatch struct {
 }
 
 type SubjectWrite struct {
-	Icon      *string `json:"icon,omitempty"`
-	IconURL   *string `json:"iconUrl,omitempty"`
-	IconStyle *string `json:"iconStyle,omitempty"`
-	Color     *string `json:"color,omitempty"`
-	PathID    string  `json:"pathId"`
-	LevelID   string  `json:"levelId,omitempty"`
-	Code      string  `json:"code"`
-	Name      string  `json:"name"`
-	SortOrder int     `json:"sortOrder,omitempty"`
+	Icon      *string        `json:"icon,omitempty"`
+	IconURL   *string        `json:"iconUrl,omitempty"`
+	IconStyle *string        `json:"iconStyle,omitempty"`
+	Color     *string        `json:"color,omitempty"`
+	Settings  map[string]any `json:"settings,omitempty"`
+	PathID    string         `json:"pathId"`
+	LevelID   string         `json:"levelId,omitempty"`
+	Code      string         `json:"code"`
+	Name      string         `json:"name"`
+	SortOrder int            `json:"sortOrder,omitempty"`
 }
 
 type SubjectPatch struct {
-	Icon      *string `json:"icon,omitempty"`
-	IconURL   *string `json:"iconUrl,omitempty"`
-	IconStyle *string `json:"iconStyle,omitempty"`
-	Color     *string `json:"color,omitempty"`
-	Name      *string `json:"name,omitempty"`
-	LevelID   *string `json:"levelId,omitempty"`
-	SortOrder *int    `json:"sortOrder,omitempty"`
-	Status    *Status `json:"status,omitempty"`
+	Icon      *string        `json:"icon,omitempty"`
+	IconURL   *string        `json:"iconUrl,omitempty"`
+	IconStyle *string        `json:"iconStyle,omitempty"`
+	Color     *string        `json:"color,omitempty"`
+	Settings  map[string]any `json:"settings,omitempty"`
+	Name      *string        `json:"name,omitempty"`
+	LevelID   *string        `json:"levelId,omitempty"`
+	SortOrder *int           `json:"sortOrder,omitempty"`
+	Status    *Status        `json:"status,omitempty"`
 }
 
 type SkillWrite struct {

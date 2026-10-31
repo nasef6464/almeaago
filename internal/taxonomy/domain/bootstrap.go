@@ -45,6 +45,7 @@ type Subject struct {
 	IconURL   string
 	IconStyle string
 	Color     string
+	Settings  map[string]any
 	ID        string
 	PathID    string
 	LevelID   string

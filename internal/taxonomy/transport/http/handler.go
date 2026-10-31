@@ -273,17 +273,18 @@ type adminLevelResponse struct {
 	IconURL   string `json:"iconUrl,omitempty"`
 }
 type adminSubjectResponse struct {
-	ID        string `json:"id"`
-	PathID    string `json:"pathId"`
-	LevelID   string `json:"levelId,omitempty"`
-	Code      string `json:"code"`
-	Name      string `json:"name"`
-	SortOrder int    `json:"sortOrder"`
-	Status    string `json:"status"`
-	Color     string `json:"color,omitempty"`
-	Icon      string `json:"icon,omitempty"`
-	IconURL   string `json:"iconUrl,omitempty"`
-	IconStyle string `json:"iconStyle,omitempty"`
+	ID        string         `json:"id"`
+	PathID    string         `json:"pathId"`
+	LevelID   string         `json:"levelId,omitempty"`
+	Code      string         `json:"code"`
+	Name      string         `json:"name"`
+	SortOrder int            `json:"sortOrder"`
+	Status    string         `json:"status"`
+	Color     string         `json:"color,omitempty"`
+	Icon      string         `json:"icon,omitempty"`
+	IconURL   string         `json:"iconUrl,omitempty"`
+	IconStyle string         `json:"iconStyle,omitempty"`
+	Settings  map[string]any `json:"settings,omitempty"`
 }
 type adminSkillResponse struct {
 	ID            string `json:"id"`
@@ -324,16 +325,17 @@ type levelResponse struct {
 	IconURL   string `json:"iconUrl,omitempty"`
 }
 type subjectResponse struct {
-	ID        string `json:"id"`
-	PathID    string `json:"pathId"`
-	LevelID   string `json:"levelId,omitempty"`
-	Code      string `json:"code"`
-	Name      string `json:"name"`
-	SortOrder int    `json:"sortOrder"`
-	Color     string `json:"color,omitempty"`
-	Icon      string `json:"icon,omitempty"`
-	IconURL   string `json:"iconUrl,omitempty"`
-	IconStyle string `json:"iconStyle,omitempty"`
+	ID        string         `json:"id"`
+	PathID    string         `json:"pathId"`
+	LevelID   string         `json:"levelId,omitempty"`
+	Code      string         `json:"code"`
+	Name      string         `json:"name"`
+	SortOrder int            `json:"sortOrder"`
+	Color     string         `json:"color,omitempty"`
+	Icon      string         `json:"icon,omitempty"`
+	IconURL   string         `json:"iconUrl,omitempty"`
+	IconStyle string         `json:"iconStyle,omitempty"`
+	Settings  map[string]any `json:"settings,omitempty"`
 }
 type skillResponse struct {
 	ID            string `json:"id"`
@@ -395,6 +397,7 @@ func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
 			Icon:      row.Icon,
 			IconURL:   row.IconURL,
 			IconStyle: row.IconStyle,
+			Settings:  row.Settings,
 		})
 	}
 	skills := make([]adminSkillResponse, 0, len(value.Skills))
@@ -460,6 +463,7 @@ func presentBootstrap(value taxonomy.Bootstrap) map[string]any {
 			Icon:      row.Icon,
 			IconURL:   row.IconURL,
 			IconStyle: row.IconStyle,
+			Settings:  row.Settings,
 		})
 	}
 	skills := make([]skillResponse, 0, len(value.Skills))

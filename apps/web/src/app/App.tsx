@@ -45,6 +45,7 @@ import { TaxonomyAdminPage } from '../features/taxonomy/pages/TaxonomyAdminPage'
 import { SkillsAdminPage } from '../features/taxonomy/pages/SkillsAdminPage';
 import { QuestionBankAdminPage } from '../features/questionbank/pages/QuestionBankAdminPage';
 import { SchoolsAdminPage } from '../features/organizations/pages/SchoolsAdminPage';
+import { UsersAdminPage } from '../features/auth/pages/UsersAdminPage';
 import { SchoolDirectorDashboardPage } from '../features/organizations/pages/SchoolDirectorDashboardPage';
 import { SupervisorDashboardPage } from '../features/organizations/pages/SupervisorDashboardPage';
 import { TeacherWorkspacePage } from '../features/organizations/pages/TeacherWorkspacePage';
@@ -62,6 +63,10 @@ import { StaticInfoPage } from '../features/public/pages/StaticInfoPage';
 import { StudentNavigationProvider } from '../features/learning/navigation';
 
 import { PlatformFontBootstrap } from '../features/presentation/PlatformFontBootstrap';
+import { AnnouncementAdsAdminPage } from '../features/presentation/AnnouncementAdsAdminPage';
+import { AnnouncementAdsOverlay } from '../features/presentation/AnnouncementAdsOverlay';
+import { PlatformIntegrationsAdminPage } from '../features/operations/pages/PlatformIntegrationsAdminPage';
+import { BackupAdminPage } from '../features/operations/pages/BackupAdminPage';
 import { PlatformFontsPage } from '../features/presentation/PlatformFontsPage';
 import {HomepagePage} from '../features/presentation/HomepagePage';
 import {isHomepageLocation, isPlatformFontsLocation } from '../features/presentation/navigation';
@@ -171,12 +176,17 @@ export function App() {
         <Route path="/admin-dashboard/questions" element={<AdminDashboardShell><QuestionBankAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/assessments" element={<AdminDashboardShell><AssessmentAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/commerce" element={<AdminDashboardShell><CommerceAdminPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/users" element={<AdminDashboardShell><UsersAdminPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/trainers" element={<AdminDashboardShell><UsersAdminPage defaultRoleFilter="platform_trainer" pageTitle="إدارة المدربين والمعلمين" /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/schools" element={<AdminDashboardShell><SchoolsAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/notifications" element={<AdminDashboardShell><NotificationsAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/classroom" element={<AdminDashboardShell><ClassroomContractsAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/ai" element={<AdminDashboardShell><AiAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/reports" element={<AdminDashboardShell><ReportsPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/operations" element={<AdminDashboardShell><OperationsAdminPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/announcements" element={<AdminDashboardShell><AnnouncementAdsAdminPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/integrations" element={<AdminDashboardShell><PlatformIntegrationsAdminPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/backups" element={<AdminDashboardShell><BackupAdminPage /></AdminDashboardShell>} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/assessments" element={<AssessmentAvailabilityPage />} />
         <Route path="/assessment-assignments" element={<AssessmentAssignmentsPage />} />
@@ -211,6 +221,8 @@ export function App() {
       </Routes>
 
       {showPublicFooter(location.pathname) ? <LegacySiteFooter /> : null}
+
+      <AnnouncementAdsOverlay />
 
       <AuthModal
         open={modalMode !== null}

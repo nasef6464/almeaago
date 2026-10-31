@@ -221,7 +221,7 @@ func (r *Repository) UpdateSubject(ctx context.Context, actor, subjectID string,
 	if patch.Status != nil {
 		add("status=$%d", string(*patch.Status))
 	}
-	if patch.Color != nil || patch.Icon != nil || patch.IconURL != nil || patch.IconStyle != nil {
+	if patch.Color != nil || patch.Icon != nil || patch.IconURL != nil || patch.IconStyle != nil || patch.Settings != nil {
 		pb := buildSubjectPatchPresMap(patch)
 		add("presentation=COALESCE(presentation, '{}'::jsonb) || $%d::jsonb", pb)
 	}
@@ -394,6 +394,7 @@ func buildSubjectPresMap(write taxonomy.SubjectWrite) []byte {
 	if write.Icon != nil { m["icon"] = *write.Icon }
 	if write.IconURL != nil { m["iconUrl"] = *write.IconURL }
 	if write.IconStyle != nil { m["iconStyle"] = *write.IconStyle }
+	if write.Settings != nil { m["settings"] = write.Settings }
 	b, _ := json.Marshal(m)
 	return b
 }
@@ -404,6 +405,7 @@ func buildSubjectPatchPresMap(patch taxonomy.SubjectPatch) []byte {
 	if patch.Icon != nil { m["icon"] = *patch.Icon }
 	if patch.IconURL != nil { m["iconUrl"] = *patch.IconURL }
 	if patch.IconStyle != nil { m["iconStyle"] = *patch.IconStyle }
+	if patch.Settings != nil { m["settings"] = patch.Settings }
 	b, _ := json.Marshal(m)
 	return b
 }

@@ -42,6 +42,7 @@ export interface AdminTaxonomySubject {
   icon?: string;
   iconUrl?: string;
   iconStyle?: string;
+  settings?: Record<string, any>;
 }
 
 export interface AdminTaxonomySkill {
@@ -185,6 +186,7 @@ export const taxonomyAdminClient = {
       icon: string;
       iconUrl: string;
       iconStyle: string;
+      settings: Record<string, any>;
     }>,
     csrf: string
   ) {

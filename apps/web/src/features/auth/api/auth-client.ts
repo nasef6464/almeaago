@@ -1,4 +1,4 @@
-import type { AuthResult, AuthUser, MessageResult } from './auth-types';
+import type { AdminUser, AdminUsersPage, AdminUsersSummary, AuthResult, AuthUser, MessageResult } from './auth-types';
 
 const API_BASE = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
@@ -150,6 +150,52 @@ export const authClient = {
     return request<MessageResult>('/api/v1/auth/email/resend', {
       method: 'POST',
       headers: { 'X-CSRF-Token': csrfToken },
+    });
+  },
+
+  adminListUsers(query: { page?: number; limit?: number; role?: string; search?: string; isActive?: boolean; platformTrainer?: boolean } = {}, signal?: AbortSignal) {
+    const params = new URLSearchParams();
+    if (query.page) params.set('page', String(query.page));
+    if (query.limit) params.set('limit', String(query.limit));
+    if (query.role && query.role !== 'all') params.set('role', query.role);
+    if (query.search) params.set('search', query.search);
+    if (query.isActive !== undefined) params.set('isActive', String(query.isActive));
+    if (query.platformTrainer) params.set('platformTrainer', 'true');
+    return request<AdminUsersPage>(`/api/v1/auth/admin/users?${params.toString()}`, { signal });
+  },
+
+  adminUsersSummary(signal?: AbortSignal) {
+    return request<AdminUsersSummary>('/api/v1/auth/admin/users/summary', { signal });
+  },
+
+  adminUpdateUser(id: string, patch: Record<string, unknown>, csrfToken: string) {
+    return request<{ user: AdminUser }>(`/api/v1/auth/admin/users/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify(patch),
+    });
+  },
+
+  adminCreateUser(data: Record<string, unknown>, csrfToken: string) {
+    return request<{ user: AdminUser }>('/api/v1/auth/admin/users', {
+      method: 'POST',
+      headers: { 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify(data),
+    });
+  },
+
+  adminDeleteUser(id: string, csrfToken: string) {
+    return request<{ message: string }>(`/api/v1/auth/admin/users/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { 'X-CSRF-Token': csrfToken },
+    });
+  },
+
+  adminBulkStatus(userIds: string[], isActive: boolean, csrfToken: string) {
+    return request<{ results: Array<{ id: string; ok: boolean; error?: string }> }>('/api/v1/auth/admin/users/bulk-status', {
+      method: 'PATCH',
+      headers: { 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify({ userIds, isActive }),
     });
   },
 };

@@ -6,10 +6,14 @@ import {
   BookOpen,
   Award,
   Boxes,
+  Building2,
   CheckCircle2,
+  Database,
   HelpCircle,
+  Layers,
   Library,
   LayoutDashboard,
+  Megaphone,
   Menu,
   Moon,
   Search,
@@ -17,6 +21,7 @@ import {
   ShieldCheck,
   Radio,
   ShoppingCart,
+  User,
   Users,
   Type,
   X,
@@ -36,21 +41,26 @@ const navItems = [
   { label: 'إدارة المحتوى التعليمي', icon: BookOpen, href: '/admin-dashboard/content' },
   { label: 'إدارة المسارات', icon: Boxes, href: '/admin-dashboard/taxonomy' },
   { label: 'مركز المهارات', icon: Award, href: '/admin-dashboard?tab=skills' },
-  { label: 'اعتماد المحتوى', icon: CheckCircle2 },
+  { label: 'اعتماد المحتوى', icon: CheckCircle2, href: '/admin-dashboard/content?tab=review' },
   { label: 'مركز بنك الأسئلة', icon: HelpCircle, href: '/admin-dashboard/questions' },
-  { label: 'مركز الدروس', icon: BookOpen },
-  { label: 'مركز المكتبة وملفات الدعم', icon: Library },
+  { label: 'مركز الدروس', icon: BookOpen, href: '/admin-dashboard/content?tab=lessons' },
+  { label: 'مركز المكتبة وملفات الدعم', icon: Library, href: '/admin-dashboard/content?tab=library' },
   { label: 'مركز الاختبارات', icon: HelpCircle, href: '/admin-dashboard/assessments' },
   { label: 'التجارة والصلاحيات', icon: ShoppingCart, href: '/admin-dashboard/commerce' },
-  { label: 'إدارة المستخدمين', icon: Users },
+  { label: 'إدارة المستخدمين', icon: Users, href: '/admin-dashboard/users' },
+  { label: 'إدارة المدربين', icon: User, href: '/admin-dashboard/trainers' },
+  { label: 'تشغيل المدارس', icon: Building2, href: '/admin-dashboard/schools' },
   { label: 'مركز الإشعارات', icon: Bell, href: '/admin-dashboard/notifications' },
   { label: 'الفصل الذكي', icon: Radio, href: '/admin-dashboard/classroom' },
   { label: 'إدارة الذكاء الاصطناعي', icon: BrainCircuit, href: '/admin-dashboard/ai' },
   { label: 'التقارير والتحليلات', icon: BarChart3, href: '/admin-dashboard/reports' },
   { label: 'مركز العمليات والتدقيق', icon: ShieldCheck, href: '/admin-dashboard/operations' },
-  {label:'إدارة الصفحة الرئيسية',icon:Settings,href:HOMEPAGE_ADMIN_HREF},
+  { label: 'إدارة الصفحة الرئيسية', icon: Settings, href: HOMEPAGE_ADMIN_HREF },
+  { label: 'إدارة الإعلانات', icon: Megaphone, href: '/admin-dashboard/announcements' },
   { label: 'إدارة خطوط المنصة', icon: Type, href: PLATFORM_FONTS_ADMIN_HREF },
-  { label: 'الإعدادات', icon: Settings },
+  { label: 'إدارة التكاملات والتسجيل', icon: Layers, href: '/admin-dashboard/integrations' },
+  { label: 'النسخ الاحتياطي', icon: Database, href: '/admin-dashboard/backups' },
+  { label: 'الإعدادات العامة', icon: Settings, href: '/admin-dashboard/integrations' },
 ];
 
 function Brand() {
@@ -75,14 +85,24 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
   const visibleItems = navItems.filter((item) => (item.href !== PLATFORM_FONTS_ADMIN_HREF && item.href !== HOMEPAGE_ADMIN_HREF) || user?.roles.includes('admin'));
   const availableItems = visibleItems.filter((item) => Boolean(item.href));
   const plannedItems = visibleItems.filter((item) => !item.href);
-  const isActiveHref = (href: string) =>
-    href === HOMEPAGE_ADMIN_HREF ? isHomepageLocation(location) : href === PLATFORM_FONTS_ADMIN_HREF
-      ? isPlatformFontsLocation(location)
-      : href === '/admin-dashboard?tab=skills'
-        ? location.pathname === '/admin-dashboard' && new URLSearchParams(location.search).get('tab') === 'skills'
-      : href === '/admin-dashboard'
-        ? location.pathname === href && !isPlatformFontsLocation(location) && !isHomepageLocation(location) && new URLSearchParams(location.search).get('tab') !== 'skills'
-        : location.pathname === href || location.pathname.startsWith(href + '/');
+  const isActiveHref = (href: string) => {
+    if (href === HOMEPAGE_ADMIN_HREF) return isHomepageLocation(location);
+    if (href === PLATFORM_FONTS_ADMIN_HREF) return isPlatformFontsLocation(location);
+    if (href.includes('?')) {
+      const [path, search] = href.split('?');
+      if (location.pathname !== path) return false;
+      const targetParams = new URLSearchParams(search);
+      const currentParams = new URLSearchParams(location.search);
+      for (const [k, v] of targetParams.entries()) {
+        if (currentParams.get(k) !== v) return false;
+      }
+      return true;
+    }
+    if (href === '/admin-dashboard') {
+      return location.pathname === href && !isPlatformFontsLocation(location) && !isHomepageLocation(location) && !location.search;
+    }
+    return location.pathname === href || location.pathname.startsWith(href + '/');
+  };
   const activeItem = availableItems.find((item) => item.href ? isActiveHref(item.href) : false);
 
   const sidebar = (

@@ -27,10 +27,11 @@ type levelPresRaw struct {
 }
 
 type subjectPresRaw struct {
-	Color     string `json:"color,omitempty"`
-	Icon      string `json:"icon,omitempty"`
-	IconURL   string `json:"iconUrl,omitempty"`
-	IconStyle string `json:"iconStyle,omitempty"`
+	Color     string         `json:"color,omitempty"`
+	Icon      string         `json:"icon,omitempty"`
+	IconURL   string         `json:"iconUrl,omitempty"`
+	IconStyle string         `json:"iconStyle,omitempty"`
+	Settings  map[string]any `json:"settings,omitempty"`
 }
 
 type Repository struct {
@@ -143,6 +144,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 				row.Icon = pres.Icon
 				row.IconURL = pres.IconURL
 				row.IconStyle = pres.IconStyle
+				row.Settings = pres.Settings
 			}
 		}
 		result.Subjects = append(result.Subjects, row)
@@ -280,6 +282,7 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 				row.Icon = pres.Icon
 				row.IconURL = pres.IconURL
 				row.IconStyle = pres.IconStyle
+				row.Settings = pres.Settings
 			}
 		}
 		result.Subjects = append(result.Subjects, row)

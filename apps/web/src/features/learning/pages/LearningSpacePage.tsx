@@ -12,7 +12,7 @@ import {
   Target,
   User,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
@@ -150,6 +150,31 @@ export function LearningSpacePage() {
     return () => { active = false; };
   }, [effectivePathId, effectiveSubjectId, subjectIsInScope, retryNonce]);
 
+  const allTabs: Array<[Tab, string, typeof BookOpen]> = useMemo(() => [
+    ['courses', 'الدورات', BookOpen],
+    ['foundation', 'التأسيس', Target],
+    ['questions', 'التدريب', HelpCircle],
+    ['exams', 'الاختبارات', FileCheck],
+    ['library', 'المكتبة', FileText],
+  ], []);
+
+  const subjectSettings = useMemo(() => ((currentSubject as any)?.settings || {}) as Record<string, any>, [currentSubject]);
+  const isTabAllowed = useCallback((tabKey: Tab) => {
+    if (tabKey === 'courses') return subjectSettings.showCourses ?? true;
+    if (tabKey === 'foundation') return subjectSettings.showSkills ?? true;
+    if (tabKey === 'questions') return subjectSettings.showBanks ?? true;
+    if (tabKey === 'exams') return subjectSettings.showTests ?? true;
+    if (tabKey === 'library') return subjectSettings.showLibrary ?? true;
+    return true;
+  }, [subjectSettings]);
+  const tabs = useMemo(() => allTabs.filter(([id]) => isTabAllowed(id)), [allTabs, isTabAllowed]);
+
+  useEffect(() => {
+    if (currentSubject && tabs.length > 0 && !isTabAllowed(tab)) {
+      changeTab(tabs[0][0]);
+    }
+  }, [currentSubject, tab, tabs, isTabAllowed]);
+
   const selectedTopic = visibleSpace?.foundation.items.find((item) => item.id === topicId);
   const mainTopics = visibleSpace?.foundation.items.filter((item) => !item.parentTopicId) || [];
 
@@ -179,14 +204,6 @@ export function LearningSpacePage() {
       </main>
     );
   }
-
-  const tabs: Array<[Tab, string, typeof BookOpen]> = [
-    ['courses', 'الدورات', BookOpen],
-    ['foundation', 'التأسيس', Target],
-    ['questions', 'التدريب', HelpCircle],
-    ['exams', 'الاختبارات', FileCheck],
-    ['library', 'المكتبة', FileText],
-  ];
 
   const assessmentHref = (slot: 'training' | 'tests') => {
     const query = new URLSearchParams();
