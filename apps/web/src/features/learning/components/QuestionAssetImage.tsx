@@ -30,10 +30,12 @@ export function QuestionAssetImage({
   assetId,
   alt,
   className = '',
+  showRetryButton = true,
 }: {
   assetId: string;
   alt: string;
   className?: string;
+  showRetryButton?: boolean;
 }) {
   const [retry, setRetry] = useState(0);
   const [state, setState] = useState<ImageState | null>(null);
@@ -81,9 +83,11 @@ export function QuestionAssetImage({
     return (
       <span className="block rounded-xl border border-amber-200 bg-amber-50 p-3 text-center text-xs font-bold text-amber-800">
         <span className="block">تعذر تحميل {alt}</span>
-        <button type="button" className="mt-2 rounded-lg border border-amber-300 bg-white px-3 py-1" onClick={() => setRetry(value => value + 1)}>
-          إعادة تحميل الصورة
-        </button>
+        {showRetryButton ? (
+          <button type="button" className="mt-2 rounded-lg border border-amber-300 bg-white px-3 py-1" onClick={() => setRetry(value => value + 1)}>
+            إعادة تحميل الصورة
+          </button>
+        ) : null}
       </span>
     );
   }
