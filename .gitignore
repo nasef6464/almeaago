@@ -12,3 +12,4 @@ coverage/
 .tmp/
 
 /apps/web/tests/reference/generated/
+.vercel/

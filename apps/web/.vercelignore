@@ -1,0 +1,8 @@
+.env
+.env.*
+.vercel/
+node_modules/
+dist/
+*.tsbuildinfo
+test-results/
+playwright-report/
