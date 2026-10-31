@@ -1,5 +1,25 @@
 export type TaxonomyStatus = 'active' | 'inactive' | 'archived';
 
+export interface PathDisplaySettings {
+  stageSelection?: 'auto' | 'required' | 'none';
+  stageLabel?: string;
+  studentTemplate?: 'standard' | 'simple';
+  showSubjectCards?: boolean;
+  showMockExamCard?: boolean;
+  showPackageCard?: boolean;
+}
+
+export interface PathDisplayInput {
+  showInHome?: boolean;
+  showInNavbar?: boolean;
+  settings?: PathDisplaySettings;
+}
+
+export interface SubjectDisplayInput {
+  icon?: string;
+  color?: string;
+}
+
 export interface AdminTaxonomyPath {
   id: string;
   code: string;
@@ -12,6 +32,7 @@ export interface AdminTaxonomyPath {
   icon?: string;
   iconUrl?: string;
   iconStyle?: string;
+  showInHome?: boolean;
   showInNavbar?: boolean;
   showSubjectCards?: boolean;
   showMockExamCard?: boolean;
