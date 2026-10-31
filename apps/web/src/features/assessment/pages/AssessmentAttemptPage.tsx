@@ -1,5 +1,5 @@
 import { BookOpen, CheckCircle2, Clock3, Flag, Send } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
@@ -24,32 +24,50 @@ export function AssessmentAttemptPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [index, setIndex] = useState(0);
+  const [savingAnswer, setSavingAnswer] = useState(false);
+  const [draftChoice, setDraftChoice] = useState<{ attemptId: string; questionId: string; option: number } | null>(null);
+  const actionRef = useRef('');
+  const scopeKey = `${user?.id || ''}:${assessmentId}:${attemptId}`;
+  const scopeRef = useRef(scopeKey);
+  scopeRef.current = scopeKey;
+  const getCsrfRef = useRef(getCsrfToken);
+  getCsrfRef.current = getCsrfToken;
 
   useEffect(() => {
     if (loading || !user) return;
+    let active = true;
+    setAttempt(null);
+    setResult(null);
+    setIndex(0);
+    setDraftChoice(null);
+    setSavingAnswer(false);
+    actionRef.current = '';
+    setError('');
     setBusy(true);
     const run = async () => {
       try {
         if (attemptId) {
           const response = await attemptClient.get(attemptId);
-          setAttempt(response.attempt);
+          if (active) setAttempt(response.attempt);
         } else if (assessmentId) {
-          const csrf = await getCsrfToken();
+          const csrf = await getCsrfRef.current();
+          if (!active) return;
           const response = await attemptClient.start(
             assessmentId,
-            key('assessment-start', assessmentId),
+            key('assessment-start', `${user.id}:${assessmentId}`),
             csrf,
           );
-          setAttempt(response.attempt);
+          if (active) setAttempt(response.attempt);
         }
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : 'تعذر فتح الاختبار');
+        if (active) setError(cause instanceof Error ? cause.message : 'تعذر فتح الاختبار');
       } finally {
-        setBusy(false);
+        if (active) setBusy(false);
       }
     };
     void run();
-  }, [assessmentId, attemptId, getCsrfToken, loading, user]);
+    return () => { active = false; };
+  }, [assessmentId, attemptId, loading, user?.id]);
 
   const answers = useMemo(
     () => new Map((attempt?.answers || []).map((answer) => [answer.questionId, answer])),
@@ -59,32 +77,53 @@ export function AssessmentAttemptPage() {
   const saved = question ? answers.get(question.id) : undefined;
 
   async function choose(option: number) {
-    if (!attempt || !question) return;
+    if (!attempt || !question || busy || actionRef.current) return;
+    const actionScope = scopeKey;
+    const selectedQuestionId = question.id;
+    actionRef.current = actionScope;
+    setDraftChoice({ attemptId: attempt.id, questionId: selectedQuestionId, option });
+    setSavingAnswer(true);
+    setError('');
     try {
       const csrf = await getCsrfToken();
+      if (scopeRef.current !== actionScope) return;
       const response = await attemptClient.save(
         attempt.id,
-        question.id,
+        selectedQuestionId,
         option,
         saved?.markedForReview || false,
         csrf,
       );
+      if (scopeRef.current !== actionScope) return;
       setAttempt(response.attempt);
+      setDraftChoice(null);
       if (attempt.requireAnswerBeforeNext && index < attempt.questions.length - 1) {
         setIndex((value) => value + 1);
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'تعذر حفظ الإجابة');
+      if (scopeRef.current === actionScope) {
+        // Keep the local choice for an explicit retry, not as a persisted answer.
+        setError(cause instanceof Error ? cause.message : 'تعذر حفظ الإجابة');
+      }
+    } finally {
+      if (actionRef.current === actionScope) actionRef.current = '';
+      if (scopeRef.current === actionScope) setSavingAnswer(false);
     }
   }
 
   async function toggleReview() {
-    if (!attempt || !question || saved?.selectedOptionIndex == null) {
+    if (!attempt || !question || busy || actionRef.current || draftChoice?.attemptId === attempt.id) return;
+    if (saved?.selectedOptionIndex == null) {
       setError('أجب عن السؤال أولًا ثم يمكنك تعليمه للمراجعة.');
       return;
     }
+    const actionScope = scopeKey;
+    actionRef.current = actionScope;
+    setSavingAnswer(true);
+    setError('');
     try {
       const csrf = await getCsrfToken();
+      if (scopeRef.current !== actionScope) return;
       const response = await attemptClient.save(
         attempt.id,
         question.id,
@@ -92,28 +131,39 @@ export function AssessmentAttemptPage() {
         !saved.markedForReview,
         csrf,
       );
-      setAttempt(response.attempt);
-      setError('');
+      if (scopeRef.current === actionScope) setAttempt(response.attempt);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'تعذر تحديث علامة المراجعة');
+      if (scopeRef.current === actionScope) {
+        setError(cause instanceof Error ? cause.message : 'تعذر تحديث علامة المراجعة');
+      }
+    } finally {
+      if (actionRef.current === actionScope) actionRef.current = '';
+      if (scopeRef.current === actionScope) setSavingAnswer(false);
     }
   }
 
   async function submit() {
-    if (!attempt) return;
+    if (!attempt || busy || actionRef.current || draftChoice?.attemptId === attempt.id) return;
+    const actionScope = scopeKey;
+    actionRef.current = actionScope;
     setBusy(true);
+    setError('');
     try {
       const csrf = await getCsrfToken();
+      if (scopeRef.current !== actionScope) return;
       const response = await attemptClient.submit(
         attempt.id,
-        key('assessment-submit', attempt.id),
+        key('assessment-submit', `${user?.id || ''}:${attempt.id}`),
         csrf,
       );
-      setResult(response.result);
+      if (scopeRef.current === actionScope) setResult(response.result);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'تعذر تسليم الاختبار');
+      if (scopeRef.current === actionScope) {
+        setError(cause instanceof Error ? cause.message : 'تعذر تسليم الاختبار');
+      }
     } finally {
-      setBusy(false);
+      if (actionRef.current === actionScope) actionRef.current = '';
+      if (scopeRef.current === actionScope) setBusy(false);
     }
   }
 
@@ -210,9 +260,11 @@ export function AssessmentAttemptPage() {
             <button
               key={option.index}
               type="button"
+              disabled={savingAnswer || busy}
               onClick={() => void choose(option.index)}
               className={`rounded-xl border p-3 text-right font-bold ${
-                saved?.selectedOptionIndex === option.index
+                (draftChoice?.attemptId === attempt.id && draftChoice.questionId === question.id
+                  ? draftChoice.option : saved?.selectedOptionIndex) === option.index
                   ? 'border-amber-500 bg-amber-50'
                   : ''
               }`}
@@ -230,7 +282,7 @@ export function AssessmentAttemptPage() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            disabled={index === 0}
+            disabled={index === 0 || savingAnswer || busy || draftChoice?.attemptId === attempt.id}
             onClick={() => setIndex((value) => value - 1)}
             className="rounded-xl border px-4 py-2 font-bold disabled:opacity-40"
           >
@@ -239,6 +291,7 @@ export function AssessmentAttemptPage() {
           <button
             type="button"
             disabled={
+              savingAnswer || busy || draftChoice?.attemptId === attempt.id ||
               index === attempt.questions.length - 1 ||
               (attempt.requireAnswerBeforeNext && !saved)
             }
@@ -250,7 +303,7 @@ export function AssessmentAttemptPage() {
           {attempt.allowQuestionReview ? (
             <button
               type="button"
-              disabled={saved?.selectedOptionIndex == null}
+              disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id || saved?.selectedOptionIndex == null}
               onClick={() => void toggleReview()}
               className={`inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-sm font-bold disabled:opacity-40 ${
                 saved?.markedForReview ? 'border-indigo-300 bg-indigo-50 text-indigo-800' : ''
@@ -264,6 +317,7 @@ export function AssessmentAttemptPage() {
         <button
           type="button"
           onClick={() => void submit()}
+          disabled={busy || savingAnswer || draftChoice?.attemptId === attempt.id}
           className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-2.5 font-black text-white"
         >
           <Send size={17} />
