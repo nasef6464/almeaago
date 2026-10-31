@@ -37,6 +37,15 @@ function Reference(){
               </div>
             </Link>
   </div>
+  {role==='admin'?(
+    <nav className="hidden md:flex items-center gap-1" aria-label="جارٍ تجهيز قائمة المنصة">
+      <div className="flex items-center gap-3 px-3 py-2">
+        {Array.from({length:4}).map((_,index)=>(
+          <span key={index} className={`h-4 animate-pulse rounded-full bg-gray-100 ${index===0?'w-16':index===1?'w-24':'w-20'}`}/>
+        ))}
+      </div>
+    </nav>
+  ):null}
   <div className="flex items-center gap-2 sm:gap-3 shrink-0" aria-hidden="true">
     <button type="button" tabIndex={-1} className="rounded-lg border border-gray-200 bg-white p-2 text-gray-600"><Moon size={18}/></button>
     <span className="text-gray-500"><Search size={20}/></span>
