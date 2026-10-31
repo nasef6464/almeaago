@@ -16,6 +16,7 @@ function Reference(){
   const brandLogoText=String(homepageSettings?.brand?.logoText || 'منصة').trim();
   const brandLogoAccentText=String(homepageSettings?.brand?.logoAccentText || 'المئة').trim();
   const role=new URLSearchParams(location.search).get('role')==='guest'?'guest':'admin';
+  const heroHeight=Math.max(1,Number(new URLSearchParams(location.search).get('heroHeight')||1000));
   return <><PlatformFontBootstrap/><header className="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm font-sans dark:bg-gray-950 dark:border-gray-800"><div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8"><div className="flex justify-between items-center h-16 sm:h-20 gap-3"><div className="flex items-center gap-2 sm:gap-4 min-w-0"><span className="md:hidden w-10 shrink-0"/>
             <Link to="/" className="flex items-center gap-2.5 min-w-0 group">
               {brandLogoUrl ? (
@@ -55,9 +56,9 @@ function Reference(){
   </div>
   </div></div></header><main className="overflow-x-hidden bg-white font-tajawal text-gray-900">
     {/* The original anchor extends just below the sticky header at 390px.
-        Reproduce the real landing hero paint underneath so the final
-        antialiased background row does not compare white vs hero tint. */}
-    <section className="relative overflow-hidden bg-gradient-to-b from-indigo-50/70 via-white to-white pb-24 pt-12" style={{minHeight:'200vh'}}>
+        Reproduce the real landing hero paint underneath at the same measured
+        source-compatible section height so flex overflow sees identical paint. */}
+    <section className="relative overflow-hidden bg-gradient-to-b from-indigo-50/70 via-white to-white pb-24 pt-12" style={{height:heroHeight}}>
       <div className="pointer-events-none absolute left-0 top-0 z-0 h-full w-full overflow-hidden">
         <div className="legacy-blob absolute right-[-5%] top-[-10%] h-96 w-96 rounded-full bg-amber-200/40 opacity-30 blur-3xl mix-blend-multiply"/>
         <div className="legacy-blob legacy-delay-2000 absolute left-[-10%] top-[20%] h-96 w-96 rounded-full bg-blue-200/40 opacity-30 blur-3xl mix-blend-multiply"/>
