@@ -35,7 +35,7 @@ function Reference(){
               </div>
             </Link>
   </div>
-  <div className="flex items-center gap-2 sm:gap-3 shrink-0" aria-hidden="true">
+  <div className="hidden sm:flex items-center gap-2 sm:gap-3 shrink-0" aria-hidden="true">
     <button type="button" tabIndex={-1} className="rounded-lg border border-gray-200 bg-white p-2 text-gray-600"><Moon size={18}/></button>
     <span className="text-gray-500"><Search size={20}/></span>
     <span className="relative text-gray-500"><ShoppingCart size={20}/><span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">0</span></span>
