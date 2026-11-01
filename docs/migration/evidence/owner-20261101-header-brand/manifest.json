@@ -1,0 +1,113 @@
+{
+  "sourceSha": "bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7",
+  "targetBaselineSha": "4e1f465e63ce036aa1b8ec48025fb9d20c003b6a",
+  "targetWorkingTree": "continuation auth/header slice; commit recorded in checkpoint",
+  "sourceHeaderBlob": "c4e45e5d9bd485538036e98f70eac42471a8fa71",
+  "renderer": "Playwright1.63 Chromium1243 GPU disabled equally",
+  "data": "synthetic saved brand, real isolated Go sessions/PostgreSQL, empty taxonomy via bounded test routes",
+  "limitations": [
+    "not whole-header parity",
+    "font-settings endpoint absent in this bounded server; fallback font rendering shared; not persisted-font certification",
+    "not all roles",
+    "not whole page or production readiness"
+  ],
+  "cases": [
+    {
+      "role": "admin",
+      "viewport": {
+        "width": 390,
+        "height": 1000
+      },
+      "scope": "brand anchor component crop; not full header/page",
+      "source": "header-brand-admin-390-source.png",
+      "target": "header-brand-admin-390-go.png",
+      "sha256": "b63cd66b4865f33d9aa797ba77869f493f71aa07a3f385c9b5631e07d6059135",
+      "imageDimensions": [
+        120,
+        68
+      ],
+      "exactBytesEqual": true
+    },
+    {
+      "role": "admin",
+      "viewport": {
+        "width": 820,
+        "height": 1000
+      },
+      "scope": "brand anchor component crop; not full header/page",
+      "source": "header-brand-admin-820-source.png",
+      "target": "header-brand-admin-820-go.png",
+      "sha256": "a0219cbf77c370bc7cd7c21a4906345ebe746085094508a885d8612241470b9c",
+      "imageDimensions": [
+        270,
+        50
+      ],
+      "exactBytesEqual": true
+    },
+    {
+      "role": "admin",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "scope": "brand anchor component crop; not full header/page",
+      "source": "header-brand-admin-1440-source.png",
+      "target": "header-brand-admin-1440-go.png",
+      "sha256": "a0219cbf77c370bc7cd7c21a4906345ebe746085094508a885d8612241470b9c",
+      "imageDimensions": [
+        270,
+        50
+      ],
+      "exactBytesEqual": true
+    },
+    {
+      "role": "guest",
+      "viewport": {
+        "width": 390,
+        "height": 1000
+      },
+      "scope": "brand anchor component crop; not full header/page",
+      "source": "header-brand-guest-390-source.png",
+      "target": "header-brand-guest-390-go.png",
+      "sha256": "3eac468cf05d31e950b61aee01649598a84aea2c5bf41bb825b16b4a518e6346",
+      "imageDimensions": [
+        164,
+        68
+      ],
+      "exactBytesEqual": true
+    },
+    {
+      "role": "guest",
+      "viewport": {
+        "width": 820,
+        "height": 1000
+      },
+      "scope": "brand anchor component crop; not full header/page",
+      "source": "header-brand-guest-820-source.png",
+      "target": "header-brand-guest-820-go.png",
+      "sha256": "63f01aeb11e53f04d0c556c91890ad6f8be8ce496b4aa380cf78b37ed78801a3",
+      "imageDimensions": [
+        265,
+        82
+      ],
+      "exactBytesEqual": true
+    },
+    {
+      "role": "guest",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "scope": "brand anchor component crop; not full header/page",
+      "source": "header-brand-guest-1440-source.png",
+      "target": "header-brand-guest-1440-go.png",
+      "sha256": "a0219cbf77c370bc7cd7c21a4906345ebe746085094508a885d8612241470b9c",
+      "imageDimensions": [
+        270,
+        50
+      ],
+      "exactBytesEqual": true
+    }
+  ],
+  "targetCodeCommit": "0fbaa2e2435bf72b99f30195c2150cb1b9b0f474"
+}

@@ -1,0 +1,87 @@
+{
+  "sourceSha": "bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7",
+  "targetBaselineSha": "4e1f465e63ce036aa1b8ec48025fb9d20c003b6a",
+  "targetCodeCommit": "0fbaa2e2435bf72b99f30195c2150cb1b9b0f474",
+  "test": "TestHomepageSettingsHTTPPostgres with HOMEPAGE_BROWSER_SUITE=editor;3browser cases PASS",
+  "data": "synthetic saved brand/hero; real Go login/session/CSRF/PostgreSQL; unrelated catalog empty fixtures",
+  "limitations": [
+    "brand and hero editor component crops only",
+    "not complete homepage manager controls",
+    "not whole platform parity",
+    "font-settings endpoint outside bounded presentation server"
+  ],
+  "cases": [
+    {
+      "viewportWidth": 390,
+      "section": "brand",
+      "source": "homepage-brand-source-390.png",
+      "target": "homepage-brand-go-390.png",
+      "sha256": "30ac01b7d77c6eb7dc023b6ed162e439dec0d648bcaff33b352a9651e6548381",
+      "imageDimensions": [
+        366,
+        642
+      ],
+      "exactBytesEqual": true
+    },
+    {
+      "viewportWidth": 390,
+      "section": "hero",
+      "source": "homepage-hero-source-390.png",
+      "target": "homepage-hero-go-390.png",
+      "sha256": "82eeb8b038dcca609848d1070d9c3e0020f9038e9b9ff24bcd1dc61e04b0415a",
+      "imageDimensions": [
+        366,
+        5456
+      ],
+      "exactBytesEqual": true
+    },
+    {
+      "viewportWidth": 820,
+      "section": "brand",
+      "source": "homepage-brand-source-820.png",
+      "target": "homepage-brand-go-820.png",
+      "sha256": "bf86d7e3d532fb3a7f3ee9afa4892fbd643757f6d5cb89914199dcb846adcf19",
+      "imageDimensions": [
+        780,
+        508
+      ],
+      "exactBytesEqual": true
+    },
+    {
+      "viewportWidth": 820,
+      "section": "hero",
+      "source": "homepage-hero-source-820.png",
+      "target": "homepage-hero-go-820.png",
+      "sha256": "3fe6bdc2e455f362f1cb5de50e284dde2d18a8b9ef17c1c57ca1397f3c08aacb",
+      "imageDimensions": [
+        780,
+        4052
+      ],
+      "exactBytesEqual": true
+    },
+    {
+      "viewportWidth": 1440,
+      "section": "brand",
+      "source": "homepage-brand-source-1440.png",
+      "target": "homepage-brand-go-1440.png",
+      "sha256": "c9ec53e56412179a7f3bfd4e9b70c918ea545948648d1fe053f34dea862d3067",
+      "imageDimensions": [
+        1106,
+        458
+      ],
+      "exactBytesEqual": true
+    },
+    {
+      "viewportWidth": 1440,
+      "section": "hero",
+      "source": "homepage-hero-source-1440.png",
+      "target": "homepage-hero-go-1440.png",
+      "sha256": "add279cb97d47f4e7f51c623a938831edd0870b2cdbf230a3b03c089e0f4b558",
+      "imageDimensions": [
+        1106,
+        3281
+      ],
+      "exactBytesEqual": true
+    }
+  ]
+}

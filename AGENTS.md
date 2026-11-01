@@ -49,3 +49,24 @@ current-action register and acceptance checklist in26. MERGED/TESTED is scoped
 evidence, never a whole-platform parity certificate. Keep report findings from
 code distinct from browser reproductions; preserve source failure/false/empty
 semantics and explicit Topic scope. No production writes, deployment or cutover.
+
+## ALMEAA_CODEX_CONTINUATION
+
+Codex owns local engineering execution for the approved Legacy-to-Go migration.
+The owner's "أكمل" means resume the current evidenced slice, not restart discovery.
+Keep all existing rules above. Start with
+`docs/migration/owner-handoff/2026-11-01/CHECKPOINT_AR.md`, then the active item in
+`gap-register.json` and its `verification.json` evidence. Check Git status, branch,
+exact local/remote heads and current PRs before writing; preserve other writers'
+changes. `docs/migration/03_EXECUTION_AND_HANDOFF_PLAN_AR.md` remains the sole plan.
+Read `PRODUCT_LOGIC_CONTRACT_AR.md` and `CAPABILITY_CONTRACT_TEMPLATE_AR.md` in the
+same handoff directory for the affected capability only; read `LOCAL_TOOLCHAIN_AR.md`
+for reproducible local checks and available tools. One writer per owned file;
+use independent reviewers only when useful, not an always-running agent team.
+Test locally first, batch related verified changes before push, and inspect
+automatic CI/preview triggers without disabling protection. No production data,
+cloud settings or deployment actions are authorized by this continuation rule.
+Before stopping, update the existing checkpoint with exact code SHA/PR, changed
+files, PASS/FAIL/SKIPPED, visual evidence limits, blockers, merge state, the next
+action and its first local command. Do not claim unattended continuation unless
+a separately authorized scheduler actually exists.

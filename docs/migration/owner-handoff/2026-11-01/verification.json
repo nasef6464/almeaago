@@ -7,17 +7,181 @@
   "batchId": "QB-ANSWER-001",
   "programStatus": "PARTIAL",
   "checks": [
-    {"command":"node node_modules/@playwright/test/cli.js test tests/e2e/question-bank-admin.spec.ts --grep 'authoring answer parity' --reporter=list --workers=1", "stage":"RED before implementation", "result":"EXPECTED_FAIL", "failed":5, "evidence":"plain correct index expected0 received1 at390/820/1440; blank answer not rejected; image position3 clamped1"},
-    {"command":"node node_modules/@playwright/test/cli.js test tests/e2e/question-bank-admin.spec.ts --reporter=list --workers=1", "stage":"final code", "result":"PASS", "passed":12, "failed":0, "durationReported":"2.8m", "scope":"browser with synthetic intercepted HTTP; not real storage or paired Legacy screenshots"},
-    {"command":"go test ./internal/questionbank/transport/http -run '^TestAuthoringAnswerPersistenceHTTPPostgres$' -count=1 -v", "env":{"QUESTIONBANK_PERSISTENCE_DB_TEST":"1","DATABASE_URL":"postgres://almeaa@127.0.0.1:55439/almeaa_owner_verify_20261101?sslmode=disable"}, "result":"PASS", "subcases":["correct_index_0","correct_index_1","embedded_correct_index_3","invalid_answer_does_not_persist"], "scope":"real HTTP/application/repository/PostgreSQL47 migrations; synthetic authentication and data; isolated schema; cluster stopped after verification"},
-    {"command":"go test ./internal/questionbank/...", "result":"PASS"},
-    {"command":"go build -o .tmp/owner-verification-api.exe ./cmd/api", "result":"PASS"},
-    {"command":"node node_modules/typescript/bin/tsc -b --pretty false", "result":"PASS"},
-    {"command":"node node_modules/vite/bin/vite.js build", "result":"PASS", "warnings":["large bundle","PaymentModal dynamic and static imports overlap"]},
-    {"command":"node --test scripts/parity/screen-inventory.test.mjs scripts/parity/route-inventory.test.mjs", "result":"PASS", "passed":6},
-    {"command":"git diff --check", "result":"PASS"},
-    {"command":"independent static review", "result":"NO_REMAINING_P1_P2_IN_BOUNDED_FIX", "scope":"not independent runtime certification"}
+    {
+      "command": "node node_modules/@playwright/test/cli.js test tests/e2e/question-bank-admin.spec.ts --grep 'authoring answer parity' --reporter=list --workers=1",
+      "stage": "RED before implementation",
+      "result": "EXPECTED_FAIL",
+      "failed": 5,
+      "evidence": "plain correct index expected0 received1 at390/820/1440; blank answer not rejected; image position3 clamped1"
+    },
+    {
+      "command": "node node_modules/@playwright/test/cli.js test tests/e2e/question-bank-admin.spec.ts --reporter=list --workers=1",
+      "stage": "final code",
+      "result": "PASS",
+      "passed": 12,
+      "failed": 0,
+      "durationReported": "2.8m",
+      "scope": "browser with synthetic intercepted HTTP; not real storage or paired Legacy screenshots"
+    },
+    {
+      "command": "go test ./internal/questionbank/transport/http -run '^TestAuthoringAnswerPersistenceHTTPPostgres$' -count=1 -v",
+      "env": {
+        "QUESTIONBANK_PERSISTENCE_DB_TEST": "1",
+        "DATABASE_URL": "postgres://almeaa@127.0.0.1:55439/almeaa_owner_verify_20261101?sslmode=disable"
+      },
+      "result": "PASS",
+      "subcases": [
+        "correct_index_0",
+        "correct_index_1",
+        "embedded_correct_index_3",
+        "invalid_answer_does_not_persist"
+      ],
+      "scope": "real HTTP/application/repository/PostgreSQL47 migrations; synthetic authentication and data; isolated schema; cluster stopped after verification"
+    },
+    {
+      "command": "go test ./internal/questionbank/...",
+      "result": "PASS"
+    },
+    {
+      "command": "go build -o .tmp/owner-verification-api.exe ./cmd/api",
+      "result": "PASS"
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc -b --pretty false",
+      "result": "PASS"
+    },
+    {
+      "command": "node node_modules/vite/bin/vite.js build",
+      "result": "PASS",
+      "warnings": [
+        "large bundle",
+        "PaymentModal dynamic and static imports overlap"
+      ]
+    },
+    {
+      "command": "node --test scripts/parity/screen-inventory.test.mjs scripts/parity/route-inventory.test.mjs",
+      "result": "PASS",
+      "passed": 6
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "independent static review",
+      "result": "NO_REMAINING_P1_P2_IN_BOUNDED_FIX",
+      "scope": "not independent runtime certification"
+    }
   ],
-  "priorFailurePreserved":{"scope":"first broader run of six preexisting browser tests","passed":5,"failed":1,"reason":"canonical-create test exceeded unchanged30s timeout; cause unproven","followup":"complete12-test file rerun passed with no timeout change or skipped tests"},
-  "notProven":["whole platform parity","all content migrated","paired full-screen visual parity390/820/1440","real-auth browser to storage continuous flow","production readiness","final remote CI until fetched on PR head"]
+  "priorFailurePreserved": {
+    "scope": "first broader run of six preexisting browser tests",
+    "passed": 5,
+    "failed": 1,
+    "reason": "canonical-create test exceeded unchanged30s timeout; cause unproven",
+    "followup": "complete12-test file rerun passed with no timeout change or skipped tests"
+  },
+  "notProven": [
+    "whole platform parity",
+    "all content migrated",
+    "paired full-screen visual parity390/820/1440",
+    "real-auth browser to storage continuous flow",
+    "production readiness",
+    "final remote CI until fetched on PR head"
+  ],
+  "continuation20261101": {
+    "productCodeCommit": "0fbaa2e2435bf72b99f30195c2150cb1b9b0f474",
+    "branch": "fix/question-authoring-answer-parity-20261101",
+    "pr": "https://github.com/nasef6464/almeaago/pull/263",
+    "status": "TESTED_LOCAL_PENDING_EXACT_HEAD_CI",
+    "mergeState": "NOT_MERGED",
+    "changes": [
+      "single visible-page auth dialog owner; hidden-header fallback preserved",
+      "stable intent consumption and login mode on reopening",
+      "navigation accessibility semantics with unchanged presentation",
+      "unsafe tab returnTo rejected; obsolete routing test now exercises actual authAdapter",
+      "full pinned Legacy Header reference replaces partial sibling approximation",
+      "direct local Node Playwright entrypoint and CRLF-safe source generator",
+      "six brand and three editor viewport cases retain strict pixels and assertions",
+      "WaitDelay bounds inherited output pipes after cancellation; local suite selector whitelist; default CI still both suites"
+    ],
+    "checks": [
+      {
+        "command": "Playwright auth-single-dialog.spec.ts auth-parity.spec.ts auth-arabic-indic.spec.ts header-breakpoint-parity.spec.ts --workers=1",
+        "result": "PASS",
+        "passed": 15,
+        "scope": "synthetic HTTP browser cases; no live external identity/WhatsApp provider"
+      },
+      {
+        "command": "node --test scripts/parity/header-brand.test.mjs scripts/parity/header-navigation.test.mjs scripts/parity/homepage-ui.test.mjs scripts/parity/header-oauth-return.test.mjs",
+        "result": "PASS",
+        "passed": 15,
+        "scope": "includes4 actual authAdapter routing cases"
+      },
+      {
+        "command": "go test ./internal/content/repository/postgres ./internal/platform/httpserver",
+        "result": "PASS",
+        "scope": "ordinary package run; environment-gated browser tests run separately below"
+      },
+      {
+        "command": "go test ./internal/content/repository/postgres -run ^TestHomepageSettingsHTTPPostgres$ -count=1 -v",
+        "env": {
+          "HOMEPAGE_TEST_DB": "1",
+          "HOMEPAGE_BROWSER_E2E": "1",
+          "HOMEPAGE_BROWSER_SUITE": "brand",
+          "CI": "1",
+          "DATABASE_URL": "postgres://almeaa@127.0.0.1:55439/almeaa_owner_verify_20261101?sslmode=disable"
+        },
+        "result": "PASS",
+        "browserPassed": 6,
+        "goDurationSeconds": 170.25,
+        "scope": "real saved brand/session/CSRF/SQL; admin+guest390/820/1440 exact PNG; component crop only"
+      },
+      {
+        "command": "same Go integration with HOMEPAGE_BROWSER_SUITE=editor",
+        "result": "PASS",
+        "browserPassed": 3,
+        "goDurationSeconds": 178.0,
+        "scope": "real login/save/reload/guest/back/forward/logout at390/820/1440; exact brand+hero editor component PNGs"
+      },
+      {
+        "command": "TypeScript build and Vite build",
+        "result": "PASS",
+        "warnings": [
+          "existing large bundle",
+          "existing PaymentModal static/dynamic import overlap"
+        ]
+      },
+      {
+        "command": "independent static review",
+        "result": "NO_REMAINING_P1_P2_IN_BOUNDED_SLICE"
+      },
+      {
+        "command": "git diff --check and JSON parsing",
+        "result": "PASS"
+      }
+    ],
+    "evidenceManifests": [
+      "docs/migration/evidence/owner-20261101-header-brand/manifest.json",
+      "docs/migration/evidence/owner-20261101-homepage-editor/manifest.json"
+    ],
+    "failuresPreserved": [
+      "Pre-fix /login browser strict-mode:2 dialogs instead of1; new single-owner regression RED390.",
+      "First auth broader run11PASS3FAIL exposed retained signup mode and two stale source-inconsistent message expectations; final15PASS without skippingcases.",
+      "Obsolete OAuth test initially ENOENT; actualmodule test3PASS1FAIL for tab; minimal guard fix final4PASS.",
+      "Old CI guest820 reference omitted navigation; metrics source267x50 vs target264x82.",
+      "First local aggregated brand case hit120s; six independent cases keep120s and allassertions.",
+      "Guest1440 first split run:identical metrics but text rasterization mismatch; shared existing GPU-disabled path gives6exactpairPASS.",
+      "Combined local editor+brand attempt exceeded5min; local complete suites now run separately under unchanged deadlines; defaultcombinedCI runtime remains unproven."
+    ],
+    "limitations": [
+      "whole header/page/platform parity not proved",
+      "font-settings endpoint absent in bounded presentation server; fallback rendering shared; persisted fonts not certified",
+      "unrelated empty catalog/taxonomy fixtures explicitly bounded",
+      "React empty img src warnings observed outside this bounded fix; no console-clean claim",
+      "no production writes or deployment",
+      "preexisting CI at4e1f465e backend/frontend/overlap passed, Database failed old brand comparison, E2E cancelled15min with additional failures; finalhead must be checked live"
+    ],
+    "environment": "own disposable local cluster stopped after tests; no changes to sharedpgdata/.env/Legacy/cloudsettings",
+    "next": "Push completed batch once; read exactheadCI; diagnose remaining fullE2E failures locally before merge; #258 remains partial and #262 remains separate."
+  }
 }
