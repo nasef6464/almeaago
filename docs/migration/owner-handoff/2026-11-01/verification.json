@@ -231,7 +231,14 @@
       },
       "api": "127.0.0.1:8080 health ready; public taxonomy5paths/14subjects/679skills. Backend DB target not inferred from host; project .env points cloud, credentials not emitted or modified.",
       "sourceInspection": "C:/ALMEAA MAY - codax/scratch/all_subjects_topics_tree.json contains hierarchy/title only, no lesson/media fields. BIO26_LESSON_INVENTORY.csv contains bank/PDF page inventory, no video URL.",
-      "conclusion": "Local row counts and MCQ option-answer referential membership confirmed; ALL570video lesson rows lack playable/content fields. Media/source correctness, actual teaching content, entitlement, attempts/mock exams and cloud parity remain unverified."
+      "conclusion": "Local counts and MCQ option-answer membership confirmed.570video-typed rows have empty media/content fields. Owner confirms videos have not been produced; this is expected, NOT a missing-video migration defect. Topic hierarchy acceptance is separate from future multi-video lesson authoring. Image identity/scientific correctness/mock exams/cloud parity remain unverified."
+    },
+    "ownerClarification": {
+      "authority": "Explicit user correction after report review,2026-11-01",
+      "rule": "Foundation topics are distinct from video lessons. Owner has not produced videos yet. Each topic may later link to multiple videos; zero videos now is valid and must not fail migration acceptance.",
+      "schemaEvidence": "migrations/000016_content_foundation.up.sql:242-251 topic_lessons PRIMARY KEY(topic_id,lesson_id) plus sort_order; supports multiple lessons per topic, no unique topic_id constraint.",
+      "dataInterpretation": "570 approved video rows with empty media fields exist, but they do not certify570ready videos. Do not delete/change these imported rows automatically; inspect separately whether they are intentional placeholders.",
+      "acceptance": "Accept topic hierarchy independently; check video open/progress only once real media is supplied. UI should not imply playable content for an empty placeholder."
     }
   },
   "taxonomySaveRetry20261101": {

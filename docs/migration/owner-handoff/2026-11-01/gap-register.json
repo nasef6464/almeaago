@@ -159,11 +159,11 @@
     {
       "id": "CONTENT-LESSON-MEDIA-001",
       "issue": 261,
-      "priority": "P1",
-      "status": "GAP_PROVEN_LOCAL_READONLY",
-      "defect": "All570 approved video lessons in imported local database have empty video_url, recording_url, meeting_url and content_text despite report claiming full lesson migration",
+      "priority": "P3",
+      "status": "OWNER_CLARIFIED_EXPECTED_NO_VIDEO_YET",
+      "defect": "Original missing-video classification withdrawn: owner has not produced video lessons. Foundation topics and video lessons are distinct;0videos is valid now.570empty video-typed imported rows are not proof of570playable lessons.",
       "evidence": "verification.json.contentMigrationHandoff20261101.independentLocalAudit",
-      "next": "Locate authoritative original playable lesson sources; map stable IDs and preserve access/progress. Do not invent URLs or reimport shared data without bounded repair and dry-run evidence."
+      "next": "Preserve topics and imported data. Keep0..many videos per topic via existing topic_lessons pair key and ordering. When videos are supplied, verify media/access/progress then; inspect placeholder presentation without inventing URLs."
     }
   ]
 }
