@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "dateRiyadh": "2026-11-01",
+  "sourceSha": "bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7",
+  "targetBaselineSha": "4c1a5a740b22a2e9c3de5e93b25832a587203b42",
+  "productCodeCommit": "dad62c8bfada2d1cc10773e193932d0647b00bc3",
+  "batchId": "QB-ANSWER-001",
+  "programStatus": "PARTIAL",
+  "checks": [
+    {"command":"node node_modules/@playwright/test/cli.js test tests/e2e/question-bank-admin.spec.ts --grep 'authoring answer parity' --reporter=list --workers=1", "stage":"RED before implementation", "result":"EXPECTED_FAIL", "failed":5, "evidence":"plain correct index expected0 received1 at390/820/1440; blank answer not rejected; image position3 clamped1"},
+    {"command":"node node_modules/@playwright/test/cli.js test tests/e2e/question-bank-admin.spec.ts --reporter=list --workers=1", "stage":"final code", "result":"PASS", "passed":12, "failed":0, "durationReported":"2.8m", "scope":"browser with synthetic intercepted HTTP; not real storage or paired Legacy screenshots"},
+    {"command":"go test ./internal/questionbank/transport/http -run '^TestAuthoringAnswerPersistenceHTTPPostgres$' -count=1 -v", "env":{"QUESTIONBANK_PERSISTENCE_DB_TEST":"1","DATABASE_URL":"postgres://almeaa@127.0.0.1:55439/almeaa_owner_verify_20261101?sslmode=disable"}, "result":"PASS", "subcases":["correct_index_0","correct_index_1","embedded_correct_index_3","invalid_answer_does_not_persist"], "scope":"real HTTP/application/repository/PostgreSQL47 migrations; synthetic authentication and data; isolated schema; cluster stopped after verification"},
+    {"command":"go test ./internal/questionbank/...", "result":"PASS"},
+    {"command":"go build -o .tmp/owner-verification-api.exe ./cmd/api", "result":"PASS"},
+    {"command":"node node_modules/typescript/bin/tsc -b --pretty false", "result":"PASS"},
+    {"command":"node node_modules/vite/bin/vite.js build", "result":"PASS", "warnings":["large bundle","PaymentModal dynamic and static imports overlap"]},
+    {"command":"node --test scripts/parity/screen-inventory.test.mjs scripts/parity/route-inventory.test.mjs", "result":"PASS", "passed":6},
+    {"command":"git diff --check", "result":"PASS"},
+    {"command":"independent static review", "result":"NO_REMAINING_P1_P2_IN_BOUNDED_FIX", "scope":"not independent runtime certification"}
+  ],
+  "priorFailurePreserved":{"scope":"first broader run of six preexisting browser tests","passed":5,"failed":1,"reason":"canonical-create test exceeded unchanged30s timeout; cause unproven","followup":"complete12-test file rerun passed with no timeout change or skipped tests"},
+  "notProven":["whole platform parity","all content migrated","paired full-screen visual parity390/820/1440","real-auth browser to storage continuous flow","production readiness","final remote CI until fetched on PR head"]
+}

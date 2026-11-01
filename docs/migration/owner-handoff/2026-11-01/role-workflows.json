@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "kind": "INITIAL_ROLE_WORKFLOW_REGISTER_NOT_EXHAUSTIVE",
+  "sourceCheckout": "C:/almeaago/almeaacodax",
+  "targetCheckout": "C:/almeaago/almeaago",
+  "sourceShaAtInspection": "bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7",
+  "targetShaAtInspection": "4c1a5a740b22a2e9c3de5e93b25832a587203b42",
+  "runtime": "UNKNOWN",
+  "visual": "UNKNOWN",
+  "limitations": ["Initial source inspection only; no exhaustive button inventory or paired runtime proof.", "File anchors are relative to each checkout. Refresh SHA and working-tree evidence before execution.", "One row per workflow must be expanded into actions, states, HTTP, domain, storage, RBAC and consumer evidence before closure."],
+  "roles": [
+    {
+      "id": "visitor",
+      "labelAr": "الزائر",
+      "sourceAnchors": ["pages/Landing.tsx", "components/Header.tsx", "dashboards/admin/HomepageManager.tsx"],
+      "targetAnchors": ["apps/web/src/features/public/pages/PublicLandingPage.tsx", "apps/web/src/features/public/header/OriginalHeader.tsx", "apps/web/src/features/presentation/HomepageManager.tsx"],
+      "workflows": [{"id": "public-navigation-content", "actions": ["read published homepage", "navigate path and subject", "open course", "login and recovery", "retain route scope on back/reload"], "status": "PARTIAL", "actionCoverage": "UNKNOWN"}]
+    },
+    {
+      "id": "platform-admin",
+      "labelAr": "مدير المنصة",
+      "sourceAnchors": ["dashboards/admin/AdminDashboard.tsx", "dashboards/admin/PathsManager.tsx", "dashboards/admin/SkillsManager.tsx", "dashboards/admin/SchoolsManager.tsx"],
+      "targetAnchors": ["apps/web/src/features/content/components/AdminDashboardShell.tsx", "apps/web/src/features/taxonomy/pages/TaxonomyAdminPage.tsx", "apps/web/src/features/organizations/pages/SchoolsAdminPage.tsx"],
+      "workflows": [
+        {"id": "path-subject-content-publication", "actions": ["create/edit path", "manage subject workspace", "manage independent skills", "author questions", "link lessons/courses", "publish and verify learner visibility"], "status": "PARTIAL", "actionCoverage": "UNKNOWN"},
+        {"id": "school-lifecycle", "actions": ["create/edit/disable school", "add/edit class", "add/edit/move student", "link parent", "link supervisor", "link package", "link path", "read reports", "read skills"], "status": "PARTIAL", "actionCoverage": "UNKNOWN"},
+        {"id": "school-contract-services", "actions": ["read real contract modules/status", "show missing/error/loading", "save contract", "reload and verify persistence"], "status": "PARTIAL", "actionCoverage": "UNKNOWN", "confirmedCodeGaps": ["SchoolsAdminPage.tsx:1164-1177 hardcodes enabled services.", "SchoolsAdminPage.tsx:196-230 fabricates portfolio counts/readiness from demo code and selected-school arrays."]}
+      ]
+    },
+    {
+      "id": "school-director",
+      "labelAr": "مدير المدرسة",
+      "sourceAnchors": ["dashboards/SchoolDirectorDashboard.tsx", "dashboards/SchoolDirectorAcademicCenter.tsx", "dashboards/school-director/DirectorTeacherAssignments.tsx"],
+      "targetAnchors": ["apps/web/src/features/organizations/pages/SchoolDirectorDashboardPage.tsx", "apps/web/src/features/organizations/components/DirectorTeacherAssignments.tsx", "apps/web/src/features/organizations/components/DirectorAssessmentCreator.tsx"],
+      "workflows": [{"id": "school-people-assessments", "actions": ["manage scoped classes and students", "assign teacher material/class", "compose and publish assessment", "target audience", "read learners/results", "refresh revoked scope"], "status": "PARTIAL", "actionCoverage": "UNKNOWN"}]
+    },
+    {
+      "id": "teacher",
+      "labelAr": "المعلم",
+      "sourceAnchors": ["dashboards/SchoolTeacherDashboard.tsx", "dashboards/school-teacher/SchoolTeacherPrimaryTabs.tsx", "pages/ClassroomTeacherConsole.tsx"],
+      "targetAnchors": ["apps/web/src/features/organizations/pages/TeacherWorkspacePage.tsx", "apps/web/src/features/classroom/pages/ClassroomTeacherPage.tsx"],
+      "workflows": [{"id": "teacher-preparation-classroom", "actions": ["select assigned school/material/class", "prepare questions", "create assessment/assignment", "start and manage classroom", "read radar and reports", "issue certificate"], "status": "PARTIAL", "actionCoverage": "UNKNOWN"}]
+    },
+    {
+      "id": "supervisor",
+      "labelAr": "المشرف التربوي",
+      "sourceAnchors": ["dashboards/admin/SupervisorDashboard.tsx", "dashboards/admin/SupervisorTestsManager.tsx", "components/classroom/SupervisorClassroomSessionList.tsx"],
+      "targetAnchors": ["apps/web/src/features/organizations/pages/SupervisorDashboardPage.tsx", "apps/web/src/features/learning/pages/SchoolInterventionsPage.tsx"],
+      "workflows": [{"id": "supervisor-scope-analysis", "actions": ["select authorized school/class", "read student roster", "monitor classroom", "manage authorized assessment", "read skill/performance reports", "prepare intervention"], "status": "PARTIAL", "actionCoverage": "UNKNOWN"}]
+    },
+    {
+      "id": "parent",
+      "labelAr": "ولي الأمر",
+      "sourceAnchors": ["app/AppRouteTree.tsx", "pages/Dashboard.tsx", "components/ParentStudentLinker.tsx"],
+      "targetAnchors": ["apps/web/src/features/parents/pages/ParentDashboardPage.tsx", "apps/web/src/features/parents/api/parents-client.ts"],
+      "workflows": [{"id": "parent-child-followup", "actions": ["read linked children", "select child", "read results", "read skills and weekly report", "refresh relationship changes", "reject unrelated child access"], "status": "PARTIAL", "actionCoverage": "UNKNOWN"}]
+    },
+    {
+      "id": "student",
+      "labelAr": "الطالب",
+      "sourceAnchors": ["pages/Dashboard.tsx", "pages/Quiz.tsx", "pages/Results.tsx", "pages/SubjectLearningPage.tsx", "components/CustomVideoPlayer.tsx"],
+      "targetAnchors": ["apps/web/src/features/assessment/pages/AssessmentAttemptPage.tsx", "apps/web/src/features/assessment/pages/AssessmentResultsPage.tsx", "apps/web/src/features/learning/pages/LearningSpacePage.tsx", "apps/web/src/features/learning/pages/CourseLearningPage.tsx"],
+      "workflows": [{"id": "answer-result-remediation-remeasure", "actions": ["login and select scoped activity", "answer/navigate/resume", "submit", "read result and skill evidence", "open explicit foundation topic", "open video/training/support without autostart", "review and remeasure", "verify dashboard/report effects"], "status": "PARTIAL", "actionCoverage": "UNKNOWN", "activityPolicy": "Shared presentation may be reused; mock exam, ordinary/school assessment, training, interactive video and review retain independent timing, feedback, attempt, scoring and access rules."}]
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "dateRiyadh": "2026-11-01",
+  "sourceSha": "bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7",
+  "targetBaselineSha": "4c1a5a740b22a2e9c3de5e93b25832a587203b42",
+  "coverage": "Initial code-proven gaps only; not an exhaustive inventory or completion percentage",
+  "items": [
+    {
+      "id": "QB-ANSWER-001", "issue": 259, "priority": "P1", "owner": "integration",
+      "purpose": "Preserve the author's selected canonical answer through option normalization",
+      "source": "dashboards/admin/builders/UnifiedQuestionBuilder.tsx:232-257",
+      "target": "apps/web/src/features/questionbank/pages/QuestionBankAdminPage.tsx:createQuestion",
+      "trace": "author -> POST /api/v1/questions/ -> questionbank application.Create/normalizeVersion -> postgres.Create -> question_versions/question_options/question_skill_links/operations audit -> assessment consumers",
+      "defect": "Removing blank choices then clamping original answer index silently selects another answer; image positions also incorrectly clamped",
+      "status": "TESTED_LOCAL_PENDING_PARITY", "codeCommit": "dad62c8bfada2d1cc10773e193932d0647b00bc3", "evidence": "verification.json", "ownedFiles": ["apps/web/src/features/questionbank/pages/QuestionBankAdminPage.tsx", "apps/web/tests/e2e/question-bank-admin.spec.ts", "internal/questionbank/transport/http/authoring_persistence_integration_test.go"],
+      "acceptance": ["Sparse ordinary choices remap selected identity", "Blank selected answer prevents POST and retains draft for correction", "Embedded-image answer retains positional identity", "Existing essay and contiguous choice behavior retained", "HTTP create/read and persisted answer agree in isolated PostgreSQL"],
+      "visualParity": "NOT_PROVEN: behavior-only payload fix; no visual redesign"
+    },
+    {
+      "id": "STUDENT-OPTION-IMAGE-262", "issue": 261, "priority": "P1", "owner": "existing PR262",
+      "source": "pages/QuizPage.tsx", "target": "apps/web/src/features/assessment/pages/AssessmentAttemptPage.tsx",
+      "status": "EXISTING_PR_BLOCKED_CI", "pr": "https://github.com/nasef6464/almeaago/pull/262",
+      "headAtCapture": "07bcd0cf2e666d8a845114af27b93d1455455633",
+      "next": "Reconcile current head and failing E2E; preserve existing implementation, no duplicate PR"
+    },
+    {
+      "id": "FOUNDATION-OPEN-001", "issue": 261, "priority": "P1", "owner": "student/content",
+      "source": "pages/SubjectLearningPage.tsx:1070-1075",
+      "target": "apps/web/src/features/learning/components/FoundationTopicDialog.tsx:124-131",
+      "status": "GAP_PROVEN_CODE", "defect": "Unlocked foundation lesson cards have no watch/open action",
+      "next": "Topic-scoped learner detail and access check -> explicit open -> existing player in foundation progress context; never use admin endpoint or invented courseId",
+      "acceptance": ["Published/placed/entitled lesson only", "No autoplay", "Denied/unplaced/cross-scope access rejected", "Progress/reload/back persistence", "Paired browser evidence"]
+    },
+    {
+      "id": "RESULT-SKILL-001", "issue": 261, "priority": "P1", "owner": "assessment/learning",
+      "source": "pages/Results.tsx:278-285; utils/skillActionLinks.ts:36-57",
+      "target": "apps/web/src/features/assessment/pages/AssessmentResultsPage.tsx:367-420; assessment/api/attempt-client.ts:ResultDetail",
+      "status": "GAP_PROVEN_CODE", "defect": "Result displays question totals/review but lacks attempt-scoped skill analysis and explicit foundation/practice/support actions",
+      "next": "Expose/reuse attempt evidence with path/subject/skill identity, explicit Topic mapping and entitlements; no name heuristics or global/latest progress substitution"
+    },
+    {
+      "id": "SCHOOL-CONTRACT-001", "issue": 260, "priority": "P1", "owner": "organizations",
+      "source": "dashboards/admin/SchoolServicesCenterTab.tsx:24-67",
+      "target": "apps/web/src/features/organizations/pages/SchoolsAdminPage.tsx:1164-1177",
+      "status": "GAP_PROVEN_CODE", "defect": "Four service cards hardcode active:true and enabled-by-contract despite contractData available",
+      "next": "Reuse existing contract read and module identities/status; preserve loading/error/missing; test partial/inactive contracts and reload without changing entitlements"
+    },
+    {
+      "id": "SCHOOL-COUNTS-001", "issue": 260, "priority": "P1", "owner": "organizations/reporting",
+      "source": "dashboards/admin/SchoolsManager.tsx",
+      "target": "apps/web/src/features/organizations/pages/SchoolsAdminPage.tsx:196-230",
+      "status": "GAP_PROVEN_CODE", "defect": "SCH-DEMO-01 receives fallback counts 24/3/1/2, other schools zero; selected-school arrays and school status drive portfolio readiness",
+      "next": "Real school-scoped summary or explicit unknown state; no fabricated counts, contract readiness derived from contract; isolate selected school and failed refresh"
+    },
+    {
+      "id": "POLICY-GOLDEN-001", "issue": 261, "priority": "P1", "owner": "learning-policy",
+      "source": "utils/learningEvidencePolicy.ts; docs/product/STUDENT_JOURNEY_PHILOSOPHY_AR.md",
+      "target": "internal/learning/domain/learning.go",
+      "status": "NEEDS_SEMANTIC_RECONCILIATION",
+      "next": "Compare equivalent evidence accuracy/mastery/readiness measures on golden same-scope fixtures; do not equate thresholds or change scoring from superficial numeric differences"
+    }
+  ]
+}
