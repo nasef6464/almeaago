@@ -250,7 +250,21 @@ func TestHomepageSettingsHTTPPostgres(t *testing.T) {
 			t.Fatalf("homepage reference: %v %s", err, output)
 		}
 		// Both journeys edit the same isolated settings singleton; serialize files too.
-		cmd := exec.CommandContext(ctx, "npm", "run", "e2e", "--", "--workers=1", "tests/e2e/homepage-settings-live.spec.ts", "tests/e2e/header-brand-live.spec.ts")
+		browserFiles := []string{"tests/e2e/homepage-settings-live.spec.ts", "tests/e2e/header-brand-live.spec.ts"}
+		// Local Windows runs can verify each complete suite separately without
+		// extending the deadline. CI's default still executes both suites.
+		switch suite := os.Getenv("HOMEPAGE_BROWSER_SUITE"); suite {
+		case "":
+		case "editor":
+			browserFiles = browserFiles[:1]
+		case "brand":
+			browserFiles = browserFiles[1:]
+		default:
+			t.Fatalf("unknown HOMEPAGE_BROWSER_SUITE: %q", suite)
+		}
+		args := append([]string{"node_modules/@playwright/test/cli.js", "test", "--workers=1"}, browserFiles...)
+		cmd := exec.CommandContext(ctx, "node", args...)
+		cmd.WaitDelay = 5 * time.Second
 		cmd.Dir = web
 		cmd.Env = append(os.Environ(), "HOMEPAGE_LIVE=1", "HOMEPAGE_TEST_ADMIN_EMAIL="+admin.Email, "E2E_API_TARGET="+server.URL)
 		output, err := cmd.CombinedOutput()

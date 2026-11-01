@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Link,
   Route,
@@ -127,12 +127,18 @@ export function App() {
     }
   }, [loading, location.pathname, location.search, navigate, user]);
 
-  function closeModal() {
+  const consumeAuthIntent = useCallback(() => setManualMode(null), []);
+  const closeModal = useCallback(() => {
     setManualMode(null);
-    if (routeMode) {
+    if (location.pathname === '/login' || location.pathname === '/signup') {
       navigate('/', { replace: true });
+    } else if (routeMode) {
+      const params = new URLSearchParams(location.search);
+      params.delete('auth');
+      const query = params.toString();
+      navigate(location.pathname + (query ? '?' + query : '') + location.hash, { replace: true });
     }
-  }
+  }, [location.pathname, location.search, location.hash, navigate, routeMode]);
 
 
   const inAdminWorkspace = location.pathname.startsWith('/admin-dashboard');
@@ -144,7 +150,8 @@ export function App() {
       {!hideSiteHeader ? (
         <OriginalHeader
           requestedAuthMode={modalMode}
-          onAuthIntentConsumed={() => setManualMode(null)}
+          onAuthIntentConsumed={consumeAuthIntent}
+          onAuthClose={closeModal}
         />
       ) : null}
 
@@ -225,11 +232,9 @@ export function App() {
 
       <AnnouncementAdsOverlay />
 
-      <AuthModal
-        open={modalMode !== null}
-        initialSignUp={modalMode === 'signup'}
-        onClose={closeModal}
-      />
+      {hideSiteHeader ? (
+        <AuthModal open={modalMode !== null} initialSignUp={modalMode === 'signup'} onClose={closeModal} />
+      ) : null}
     </StudentNavigationProvider>
   );
 }

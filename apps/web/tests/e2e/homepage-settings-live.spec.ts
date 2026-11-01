@@ -5,14 +5,14 @@ import {test,expect} from '@playwright/test';
 // https://www.chromium.org/developers/testing/memorysanitizer/
 const localChromium=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?.trim();
 test.use({launchOptions:{args:['--disable-gpu'],...(localChromium?{executablePath:localChromium}:{})}});
-test('original homepage editor persists brand and hero through Go sessions/PostgreSQL to a guest',async({page,context,browser},testInfo)=>{
+for(const width of [390,820,1440]){
+test(`original homepage editor persists brand and hero through Go sessions/PostgreSQL to a guest at ${width}`,async({page,context,browser},testInfo)=>{
  test.skip(process.env.HOMEPAGE_LIVE!=='1','isolated PostgreSQL integration only');test.setTimeout(180000);
  // Catalog endpoints are outside this isolated presentation server. Empty fixtures
  // are explicit; homepage/auth/CSRF/database persistence are never mocked.
  for(const pattern of ['**/api/v1/courses?*','**/api/v1/lessons?*']) await context.route(pattern,r=>r.fulfill({json:{items:[],hasMore:false}}));
  await context.route('**/api/v1/taxonomy/bootstrap?*',r=>r.fulfill({json:{paths:[],subjects:[]}}));
  const login=await page.request.post('/api/v1/auth/login',{data:{email:process.env.HOMEPAGE_TEST_ADMIN_EMAIL,password:'Homepage-test-pass-42!'}});expect(login.status()).toBe(200);
- for(const width of [390,820,1440]){
   await page.setViewportSize({width,height:1000});await page.goto('/admin-dashboard?tab=homepage');
   await expect(page.getByRole('heading',{name:'إدارة الصفحة الرئيسية',exact:true})).toBeVisible();
   await page.getByRole('textbox',{name:'نص الشعار الأول',exact:true}).fill('هوية محفوظة');
@@ -51,6 +51,6 @@ test('original homepage editor persists brand and hero through Go sessions/Postg
   await guest.screenshot({path:`test-results/homepage-guest-actual-${width}.png`,animations:'disabled'});await guestContext.close();
   await page.goBack();await expect(page.getByRole('heading',{name:'إدارة الصفحة الرئيسية',exact:true})).toBeVisible();await page.goForward();await expect(page.getByRole('heading',{level:1})).toContainText('تعلم بثقة');
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
- }
  await context.clearCookies();await page.reload();await expect(page.locator('header').getByText('هوية محفوظة',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{level:1})).toContainText('تعلم بثقة');
 });
+}

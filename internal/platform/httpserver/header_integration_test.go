@@ -336,7 +336,8 @@ func TestOriginalHeaderHTTPPostgresBrowser(t *testing.T) {
 	if output, err := reference.CombinedOutput(); err != nil {
 		t.Fatalf("header source reference: %v\n%s", err, output)
 	}
-	command := exec.CommandContext(ctx, "npm", "run", "e2e", "--", "--workers=1", "tests/e2e/original-header-live.spec.ts")
+	command := exec.CommandContext(ctx, "node", "node_modules/@playwright/test/cli.js", "test", "--workers=1", "tests/e2e/original-header-live.spec.ts")
+	command.WaitDelay = 5 * time.Second
 	command.Dir = web
 	command.Env = fixtureEnv
 	output, err := command.CombinedOutput()

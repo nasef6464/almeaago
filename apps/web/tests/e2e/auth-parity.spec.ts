@@ -117,7 +117,9 @@ test('phone login exposes WhatsApp OTP progression without external provider acc
 
   await page.locator('#smart-otp-send-btn').click();
   await expect(page.getByText(/تم إرسال الرمز على واتساب بنجاح/)).toBeVisible();
-  await expect(page.getByText(/صالح 10 دقائق/)).toBeVisible();
+  // The original Header shows successful delivery without a local expiry claim.
+  // The OTP lifetime remains authoritative on the server.
+  await expect(page.locator('#smart-otp-code')).toBeVisible();
 
   await page.locator('#smart-otp-code').fill('123456');
   await page.screenshot({ path: 'test-results/auth-whatsapp-otp-mobile.png', fullPage: true });
@@ -170,7 +172,8 @@ test('recovery and verification screens keep token-from-url and manual-token beh
   await expect(page.getByRole('heading', { name: 'استعادة كلمة المرور' })).toBeVisible();
   await page.locator('#forgot-email').fill('student@example.com');
   await page.getByRole('button', { name: 'إرسال التعليمات' }).click();
-  await expect(page.getByText('تم إرسال تعليمات الاستعادة إذا كان البريد مسجلا لدينا.')).toBeVisible();
+  // Original ForgotPassword.tsx deliberately does not echo the response message.
+  await expect(page.getByText('إذا كان البريد مسجلًا، ستصلك تعليمات الاستعادة. تحقق من البريد الوارد والرسائل غير المرغوب فيها.')).toBeVisible();
   expect(forgotBody).toEqual({ email: 'student@example.com' });
 
   await page.goto('/reset-password?token=reset-token-123');

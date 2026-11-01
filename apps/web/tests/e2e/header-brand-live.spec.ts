@@ -1,13 +1,25 @@
-import {test,expect} from '@playwright/test';
+import {test,expect,type BrowserContext} from '@playwright/test';
+// Match the existing full-header comparison's deterministic text rasterizer.
+const localChromium=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?.trim();
+test.use({launchOptions:{args:['--disable-gpu'],...(localChromium?{executablePath:localChromium}:{})}});
 
-test('saved logo retains original brand image and name for admin and guest',async({page,context},testInfo)=>{
-  test.skip(process.env.HOMEPAGE_LIVE!=='1','isolated PostgreSQL integration only');
-  test.setTimeout(120000);
+const logo='data:image/svg+xml;base64,'+Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#2563eb"/></svg>').toString('base64');
+async function prepare(context:BrowserContext){
   for(const pattern of ['**/api/v1/courses?*','**/api/v1/lessons?*'])await context.route(pattern,r=>r.fulfill({json:{items:[],hasMore:false}}));
   await context.route('**/api/v1/taxonomy/bootstrap?*',r=>r.fulfill({json:{paths:[],subjects:[]}}));
+}
+
+test.describe('persisted original header brand',()=>{
+  test.skip(process.env.HOMEPAGE_LIVE!=='1','isolated PostgreSQL integration only');
+
+test.beforeAll(async({browser,baseURL})=>{
+  test.setTimeout(120000);
+  const context=await browser.newContext({baseURL});
+  try{
+  await prepare(context);
+  const page=await context.newPage();
   const login=await page.request.post('/api/v1/auth/login',{data:{email:process.env.HOMEPAGE_TEST_ADMIN_EMAIL,password:'Homepage-test-pass-42!'}});
   expect(login.status()).toBe(200);
-  const logo='data:image/svg+xml;base64,'+Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#2563eb"/></svg>').toString('base64');
   await page.goto('/admin-dashboard?tab=homepage');
   await page.getByRole('textbox',{name:'رابط الشعار أو الصورة المرفوعة',exact:true}).fill(logo);
   await page.getByRole('textbox',{name:'وصف الشعار',exact:true}).fill('شعار محفوظ');
@@ -15,18 +27,29 @@ test('saved logo retains original brand image and name for admin and guest',asyn
   await page.getByRole('textbox',{name:'نص الشعار المميز',exact:true}).fill('المئة');
   await page.getByRole('button',{name:'حفظ التعديلات',exact:true}).click();
   await expect(page.getByText('تم حفظ إعدادات الصفحة الرئيسية بنجاح.',{exact:true})).toBeVisible();
-  for(const role of ['admin','guest']){
-    if(role==='guest')await context.clearCookies();
-    for(const width of [390,820,1440]){
+  }finally{await context.close();}
+});
+
+for(const role of ['admin','guest'])for(const width of [390,820,1440]){
+  test(`saved logo retains original brand image and name for ${role} at ${width}`,async({page,context},testInfo)=>{
+      test.setTimeout(120000);
+      await prepare(context);
+      if(role==='admin'){
+        const login=await page.request.post('/api/v1/auth/login',{data:{email:process.env.HOMEPAGE_TEST_ADMIN_EMAIL,password:'Homepage-test-pass-42!'}});
+        expect(login.status()).toBe(200);
+      }
       await page.setViewportSize({width,height:1000});await page.goto('/');await page.reload();
-      const brand=page.locator('header a[href="/"]').first();
+      const brand=page.locator('header a[href="/"]').filter({has:page.getByRole('img',{name:'شعار محفوظ',exact:true})});
       await expect(brand.getByText('هوية محفوظة',{exact:true})).toBeVisible();
       await expect(brand.getByRole('img',{name:'شعار محفوظ',exact:true})).toHaveAttribute('src',logo);
       await expect(brand.getByText('المئة',{exact:true})).toBeVisible();
       await expect(brand.getByRole('img')).toHaveCSS('width',width<640?'36px':'44px');
       const heroHeight=await page.locator('[data-testid="public-landing"] > section').first().evaluate(element=>element.getBoundingClientRect().height);
       const source=await context.newPage();await source.setViewportSize({width,height:1000});await source.goto('/tests/reference/header-brand.html?role='+role+'&heroHeight='+encodeURIComponent(String(heroHeight)));
-      const original=source.locator('header a[href="/"]');await expect(original.getByRole('img')).toHaveAttribute('src',logo);
+      const original=source.locator('header a[href="/"]').filter({has:source.getByRole('img',{name:'شعار محفوظ',exact:true})});await expect(original.getByRole('img')).toHaveAttribute('src',logo);
+      await expect(source.getByTestId('header-brand-reference-body')).toHaveAttribute('data-ready','true');
+      // Match loaded navigation, not static approximations of sibling controls.
+      for(const view of [page,source])await expect(view.getByLabel('جارٍ تجهيز قائمة المنصة')).toHaveCount(0);
       const capture=async(p:typeof page,link:typeof brand,name:string)=>{
         await p.mouse.move(0,999);await p.evaluate(()=>document.fonts.ready);
         // Both references have a scrollable page, like the real landing page.
@@ -46,6 +69,6 @@ test('saved logo retains original brand image and name for admin and guest',asyn
       expect(Buffer.compare(actual,expected),`original brand pixels for ${role} at ${width}`).toBe(0);
       await source.close();await brand.click();await expect(page).toHaveURL(/\/$/);
       await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-    }
-  }
+  });
+}
 });

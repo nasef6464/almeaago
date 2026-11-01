@@ -78,7 +78,7 @@ const text = {
   otpSend: '\u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0631\u0645\u0632',
   otpVerify: '\u062a\u062d\u0642\u0642 \u0648\u062f\u062e\u0648\u0644',
 };
-export const Header: React.FC<{requestedAuthMode?:'login'|'signup'|null;onAuthIntentConsumed?:()=>void}> = ({requestedAuthMode,onAuthIntentConsumed}) => {
+export const Header: React.FC<{requestedAuthMode?:'login'|'signup'|null;onAuthIntentConsumed?:()=>void;onAuthClose?:()=>void}> = ({requestedAuthMode,onAuthIntentConsumed,onAuthClose}) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [activeStageId, setActiveStageId] = useState<string | null>(null);
@@ -117,7 +117,6 @@ export const Header: React.FC<{requestedAuthMode?:'login'|'signup'|null;onAuthIn
   // Password field shows for email, nationalId, AND phone (phone users may have password OR use OTP)
   const smartInputNeedsPassword = smartInputType === 'email' || smartInputType === 'nationalId' || smartInputType === 'phone';
   const smartInputIsPhone = smartInputType === 'phone';
-  useEffect(()=>{if(requestedAuthMode){setIsSignUp(requestedAuthMode==='signup');setIsLoginModalOpen(true);onAuthIntentConsumed?.();}},[requestedAuthMode,onAuthIntentConsumed]);
   const [navigationLoadingExpired, setNavigationLoadingExpired] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { homepageSettings, scope } = useStudentExperience();
@@ -342,7 +341,7 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
             </Link>
           </div>
 
-          <nav className="hidden md:flex items-center gap-1">
+          <nav aria-label="التنقل الرئيسي" className="hidden md:flex items-center gap-1">
             {showNavigationLoading ? (
               <div className="flex items-center gap-3 px-3 py-2" aria-label="جارٍ تجهيز قائمة المنصة">
                 {Array.from({ length: 4 }).map((_, index) => (
@@ -629,7 +628,7 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
                 </>
               ) : (
                 <button
-                  onClick={() => setIsLoginModalOpen(true)}
+                  onClick={() => { setIsSignUp(false); setIsLoginModalOpen(true); }}
                   className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-3 sm:px-4 py-2 rounded-lg font-bold transition-colors"
                 >
                   <LogIn size={18} />
@@ -642,7 +641,7 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
       </div>
 
       {isMobileMenuOpen ? (
-        <div className="md:hidden fixed inset-0 z-40 bg-white overflow-y-auto pb-20 animate-fade-in">
+        <div role="navigation" aria-label="التنقل الرئيسي للجوال" className="md:hidden fixed inset-0 z-40 bg-white overflow-y-auto pb-20 animate-fade-in">
           <div className="p-4 pt-20">
             {navigationMenu.map((item, index) => {
               const icon = item.iconName ? NavIcons[item.iconName] : null;
@@ -789,6 +788,7 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
                   data-mobile-login="true"
                   onClick={() => {
                     setIsMobileMenuOpen(false);
+                    setIsSignUp(false);
                     setIsLoginModalOpen(true);
                   }}
                   className="w-full flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-3 font-bold text-white transition-colors hover:bg-emerald-600"
@@ -831,6 +831,7 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
                   setShowConfirmPassword(false);
                   setOtpSent(false);
                   setOtpCode('');
+                  onAuthClose?.();
                 }}
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors"
                 aria-label="إغلاق النافذة"
