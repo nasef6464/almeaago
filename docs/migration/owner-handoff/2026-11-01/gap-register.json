@@ -164,6 +164,57 @@
       "defect": "Original missing-video classification withdrawn: owner has not produced video lessons. Foundation topics and video lessons are distinct;0videos is valid now.570empty video-typed imported rows are not proof of570playable lessons.",
       "evidence": "verification.json.contentMigrationHandoff20261101.independentLocalAudit",
       "next": "Preserve topics and imported data. Keep0..many videos per topic via existing topic_lessons pair key and ordering. When videos are supplied, verify media/access/progress then; inspect placeholder presentation without inventing URLs."
+    },
+    {
+      "id": "STUDENT-PATH-BAR-002",
+      "issue": 258,
+      "priority": "P1",
+      "status": "PARTIAL_NATIVE_AND_DIALOG_VISUAL_PASS",
+      "defect": "OriginalHeader mounted without StudentPathBar, leaving enrollment dialog unreachable",
+      "evidence": "CHECKPOINT_AR.md: شريحة اختيار مسار الطالب",
+      "next": "390 native hidden-path exclusion and save/reload PASS; paired original dialog9 visual pairs pass under shared synthetic providers. Full header parity, native other viewports and full actor journey open."
+    },
+    {
+      "id": "PATH-PRESENTATION-PATCH-001",
+      "issue": 259,
+      "priority": "P2",
+      "status": "LOCAL_FIX_PARTIAL",
+      "defect": "UpdatePath with ShowInNavbar alone rejects valid patch in application validation",
+      "next": "ShowInNavbar true/false locally fixed and service tests pass; other presentation-only patches remain rejected; ShowInHome has additional repository/DTO gaps and needs separate full trace."
+    },
+    {
+      "id": "COMMERCE-CATALOG-ROUTES-001",
+      "issue": 258,
+      "priority": "P1",
+      "status": "TESTED_LOCAL_PENDING_REVIEW_CI",
+      "defect": "GET /api/v1/commerce/catalog/products returns404 in native full-header fixture although public client consumes it; payment options also require verification",
+      "next": "Handlers wired; HTTP tests and live preflight pass. Public presentation and payment journeys remain unverified."
+    },
+    {
+      "id": "COMMERCE-PUBLIC-SCOPE-001",
+      "issue": 258,
+      "priority": "P1",
+      "status": "TESTED_LOCAL_PENDING_REVIEW_CI",
+      "defect": "Catalog scope resolver PublicCommerceScopeVisible missing from production taxonomy repository, causing filtered scoped products to disappear. Real fixture returns200 empty despite eligible paid course.",
+      "next": "Real isolated Postgres lifecycle cases passed; current service route tests and integration harness preflight passed; full browser and public UI parity remain."
+    },
+    {
+      "id": "HEADER-VISUAL-EXACT-001",
+      "issue": 258,
+      "priority": "P1",
+      "status": "VISUAL_COMPARISON_FAILED",
+      "defect": "Full header comparison failed exact pixel checks in some roles and viewports, e.g. guest390 closed3 pixels; original/target shared providers limit evidence. Images auto-cleared by subsequent Playwright run.",
+      "next": "Regenerate into dedicated output, preserve paired full images and metrics, inspect diffs and fix root causes without tolerance masking."
+    },
+    {
+      "id": "HOME-PATH-VISIBILITY-001",
+      "issue": 258,
+      "priority": "P1",
+      "status": "TESTED_LOCAL_PENDING_REVIEW_CI",
+      "source": "pages/Landing.tsx homepagePaths filters showInHome before featured",
+      "defect": "Homepage rendered paths with showInHome=false including featured paths",
+      "evidence": "homepage-path-home-visibility.spec.ts 3 viewports/9 scenarios mocked; read/write API+DB and student chooser separate native integration",
+      "next": "Independent review; CI and full paired homepage visual evidence remain."
     }
   ]
 }

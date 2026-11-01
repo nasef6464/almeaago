@@ -61,7 +61,7 @@ import { LegacySiteFooter, showPublicFooter } from '../features/public/component
 import { Header as OriginalHeader } from '../features/public/header/OriginalHeader';
 import { LegacyCategoryPage } from '../features/public/header/pages/LegacyCategoryPage';
 import { StaticInfoPage } from '../features/public/pages/StaticInfoPage';
-import { StudentNavigationProvider } from '../features/learning/navigation';
+import { StudentNavigationProvider, StudentPathBar } from '../features/learning/navigation';
 
 import { PlatformFontBootstrap } from '../features/presentation/PlatformFontBootstrap';
 import { AnnouncementAdsAdminPage } from '../features/presentation/AnnouncementAdsAdminPage';
@@ -148,11 +148,14 @@ export function App() {
     <StudentNavigationProvider>
       <PlatformFontBootstrap />
       {!hideSiteHeader ? (
-        <OriginalHeader
-          requestedAuthMode={modalMode}
-          onAuthIntentConsumed={consumeAuthIntent}
-          onAuthClose={closeModal}
-        />
+        <>
+          <OriginalHeader
+            requestedAuthMode={modalMode}
+            onAuthIntentConsumed={consumeAuthIntent}
+            onAuthClose={closeModal}
+          />
+          <StudentPathBar />
+        </>
       ) : null}
 
       <Routes>

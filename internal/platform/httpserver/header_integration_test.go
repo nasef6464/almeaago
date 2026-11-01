@@ -95,7 +95,7 @@ func TestOriginalHeaderHTTPPostgresBrowser(t *testing.T) {
 	sort.Strings(files)
 	applied := 0
 	for _, name := range files {
-		if filepath.Base(name) > "000046_zzzz" {
+		if filepath.Base(name) > "000047_zzzz" {
 			continue
 		}
 		raw, err := os.ReadFile(name)
@@ -107,8 +107,8 @@ func TestOriginalHeaderHTTPPostgresBrowser(t *testing.T) {
 		}
 		applied++
 	}
-	if applied != 46 {
-		t.Fatalf("expected actual migrations 000001..000046, applied %d", applied)
+	if applied != 47 {
+		t.Fatalf("expected actual migrations 000001..000047, applied %d", applied)
 	}
 	audit := operationspg.NewAuditWriter()
 	ir := identitypg.New(db)
@@ -325,6 +325,13 @@ func TestOriginalHeaderHTTPPostgresBrowser(t *testing.T) {
 		t.Log("real HTTP+PostgreSQL checks ran; native browser proof disabled (HEADER_BROWSER_E2E=1 required)")
 		return
 	}
+	if os.Getenv("HEADER_BROWSER_SUITE") == "enrollment" {
+		// A path hidden in both legacy presentation locations must stay out of
+		// the actual learner chooser after crossing the real public bootstrap API.
+		if _, err = ts.UpdatePath(ctx, admin, other.ID, taxonomy.PathPatch{ShowInHome: &no, ShowInNavbar: &no}); err != nil {
+			t.Fatal(err)
+		}
+	}
 	web, err := filepath.Abs("../../../apps/web")
 	if err != nil {
 		t.Fatal(err)
@@ -336,7 +343,20 @@ func TestOriginalHeaderHTTPPostgresBrowser(t *testing.T) {
 	if output, err := reference.CombinedOutput(); err != nil {
 		t.Fatalf("header source reference: %v\n%s", err, output)
 	}
-	command := exec.CommandContext(ctx, "node", "node_modules/@playwright/test/cli.js", "test", "--workers=1", "tests/e2e/original-header-live.spec.ts")
+	args := []string{"node_modules/@playwright/test/cli.js", "test", "--workers=1", "tests/e2e/original-header-live.spec.ts"}
+	if suite := os.Getenv("HEADER_BROWSER_SUITE"); suite != "" {
+		switch suite {
+		case "visual":
+			args = append(args, "--grep", "source and Go complete component pixels", "--output", "test-results/header-native-visual")
+		case "journey":
+			args = append(args, "--grep", "native persisted settings taxonomy enrollment navigation notification theme and search journeys", "--output", "test-results/header-native-journey")
+		case "enrollment":
+			args = []string{"node_modules/@playwright/test/cli.js", "test", "--workers=1", "tests/e2e/header-enrollment-live.spec.ts", "--output", "test-results/header-native-enrollment"}
+		default:
+			t.Fatalf("unsupported HEADER_BROWSER_SUITE %q", suite)
+		}
+	}
+	command := exec.CommandContext(ctx, "node", args...)
 	command.WaitDelay = 5 * time.Second
 	command.Dir = web
 	command.Env = fixtureEnv
