@@ -47,6 +47,91 @@ async function mockBase(page:Page){
   await page.route('**/api/v1/questions?**',r=>json(r,{items:[summary()],page:1,limit:50,hasMore:false}));
 }
 
+async function openAnswerDraft(page:Page){
+  await auth(page,admin);await mockBase(page);
+  await page.goto('/admin-dashboard/questions');
+  await page.getByRole('button',{name:'سؤال جديد'}).click();
+  await page.getByLabel('كود السؤال الجديد').fill('Q-ANSWER-PARITY');
+  await page.getByLabel('مسار السؤال الجديد').selectOption('path-1');
+  await page.getByLabel('مادة السؤال الجديد').selectOption('subject-1');
+  await page.getByLabel('المهارة الرئيسية للسؤال').selectOption('skill-main');
+  await page.getByLabel('المهارة الفرعية للسؤال').selectOption('skill-sub');
+  await page.getByLabel('نص السؤال الجديد').fill('اختر الإجابة الصحيحة');
+}
+
+for(const width of [390,820,1440]){
+  test(`authoring answer parity remaps sparse choices at ${width}px`,async({page})=>{
+    await page.setViewportSize({width,height:width===390?844:1180});
+    let payload:any=null;
+    await page.route('**/api/v1/questions/',r=>{
+      payload=r.request().postDataJSON();return json(r,{question:detail()},201);
+    });
+    await openAnswerDraft(page);
+    await page.getByLabel('نص الخيار 1').fill('  ');
+    await page.getByLabel('نص الخيار 2').fill('  الصحيح  ');
+    await page.getByLabel('نص الخيار 3').fill('الخاطئ');
+    await page.getByLabel('الإجابة الصحيحة 2').check();
+    await page.getByRole('button',{name:'حفظ السؤال كمسودة'}).click();
+    await expect(page.getByText('تم إنشاء السؤال كمسودة بإصدار أول.')).toBeVisible();
+    expect(payload.version.options).toEqual([{text:'الصحيح',assetId:''},{text:'الخاطئ',assetId:''}]);
+    expect(payload.version.correctOptionIndex).toBe(0);
+  });
+}
+
+test('authoring answer parity rejects a blank selected answer and preserves draft for retry',async({page})=>{
+  const payloads:any[]=[];
+  await page.route('**/api/v1/questions/',r=>{
+    payloads.push(r.request().postDataJSON());return json(r,{question:detail()},201);
+  });
+  await openAnswerDraft(page);
+  await page.getByLabel('نص الخيار 1').fill('الخاطئ');
+  await page.getByLabel('نص الخيار 2').fill('الصحيح');
+  await page.getByLabel('الإجابة الصحيحة 3').check();
+  await page.getByRole('button',{name:'حفظ السؤال كمسودة'}).click();
+  await expect(page.getByText('يرجى اختيار إجابة صحيحة من الاختيارات الموجودة.')).toBeVisible();
+  expect(payloads).toHaveLength(0);
+  await expect(page.getByLabel('كود السؤال الجديد')).toHaveValue('Q-ANSWER-PARITY');
+  await expect(page.getByLabel('نص الخيار 2')).toHaveValue('الصحيح');
+  await page.getByLabel('الإجابة الصحيحة 2').check();
+  await page.getByRole('button',{name:'حفظ السؤال كمسودة'}).click();
+  await expect(page.getByText('تم إنشاء السؤال كمسودة بإصدار أول.')).toBeVisible();
+  expect(payloads).toHaveLength(1);
+  expect(payloads[0].version.correctOptionIndex).toBe(1);
+});
+
+for(const type of ['mcq','true_false'] as const){
+test(`authoring answer parity preserves embedded image answer positions for ${type}`,async({page})=>{
+  let payload:any=null;
+  const asset={id:'10000000-0000-4000-8000-000000000006',publicUrl:'https://cdn.example.test/embedded.webp',mimeType:'image/webp',sizeBytes:4,sha256:'0'.repeat(64),version:1,status:'active',verifiedAt:'2026-11-01T00:00:00Z'};
+  await page.route('**/api/v1/media/uploads/presign',r=>json(r,{
+    asset:{...asset,status:'pending_upload'},uploadRequired:true,
+    upload:{url:'https://upload.example.test/embedded',headers:{'Content-Type':'image/webp'},expiresAt:'2026-11-01T01:00:00Z'},
+  }));
+  await page.route('https://upload.example.test/embedded',r=>r.fulfill({status:200,body:''}));
+  await page.route(`**/api/v1/media/uploads/${asset.id}/complete`,r=>json(r,{asset}));
+  await page.route('**/api/v1/questions/',r=>{
+    payload=r.request().postDataJSON();return json(r,{question:detail()},201);
+  });
+  await openAnswerDraft(page);
+  await page.getByLabel('نوع السؤال الجديد').selectOption(type);
+  await page.getByLabel('ملف صورة السؤال').setInputFiles({name:'embedded.webp',mimeType:'image/webp',buffer:Buffer.from([1,2,3,4])});
+  await page.getByRole('button',{name:'رفع وتحقق'}).click();
+  await expect(page.getByText(`Asset: ${asset.id} · active`)).toBeVisible();
+  await page.getByLabel('الاختيارات وقيمها داخل صورة السؤال').check();
+  await page.getByLabel('نص الخيار 2').fill('قيمة ب');
+  if(type==='mcq')await page.getByLabel('نص الخيار 4').fill('قيمة د');
+  await page.getByLabel(`الإجابة الصحيحة ${type==='mcq'?4:2}`).check();
+  await page.getByRole('button',{name:'حفظ السؤال كمسودة'}).click();
+  await expect(page.getByText('تم إنشاء السؤال كمسودة بإصدار أول.')).toBeVisible();
+  expect(payload.version.optionsEmbeddedInImage).toBe(true);
+  expect(payload.version.imageAssetId).toBe(asset.id);
+  const labels=type==='mcq'?['أ','قيمة ب','ج','قيمة د']:['أ','قيمة ب'];
+  expect(payload.version.options).toEqual(labels.map(text=>({text,assetId:''})));
+  expect(payload.version.aiContext.optionTexts).toEqual(labels);
+  expect(payload.version.correctOptionIndex).toBe(type==='mcq'?3:1);
+});
+}
+
 test('admin desktop creates a canonical question with direct media upload and no destructive delete',async({page})=>{
   await auth(page,admin);await mockBase(page);
   let presignCsrf='',completeCsrf='',createCsrf='',uploadPut=false;
