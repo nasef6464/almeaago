@@ -1,0 +1,42 @@
+import { expect, test } from '@playwright/test';
+
+test('real student enrollment persists through browser Go and PostgreSQL', async ({ page }) => {
+  test.skip(process.env.HEADER_LIVE !== '1', 'requires isolated native header fixture');
+  test.setTimeout(120_000);
+  const email = process.env.HEADER_STUDENT_EMAIL;
+  const password = process.env.HEADER_PASSWORD;
+  const path = process.env.HEADER_PATH_ID;
+  const level = process.env.HEADER_LEVEL_ID;
+  const hiddenPath = process.env.HEADER_OTHER_PATH_ID;
+  if (!email || !password || !path || !level || !hiddenPath) throw new Error('native enrollment fixture missing');
+  await page.setViewportSize({ width: 390, height: 844 });
+  const login = await page.request.post('/api/v1/auth/login', { data: { email, password } });
+  expect(login.status()).toBe(200);
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'اختيار المسار', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'اختر مسارك التعليمي', exact: true });
+  await expect(dialog).toHaveCount(1);
+  const pathSelector = dialog.getByLabel('المسار التعليمي', { exact: true });
+  await expect(pathSelector.locator('option').filter({ hasText: 'تحصيلي' })).toHaveCount(0);
+  const catalog = await page.request.get('/api/v1/taxonomy/bootstrap?phase=core');
+  const hidden = (await catalog.json()).paths.find((item: { id: string }) => item.id === hiddenPath);
+  expect(hidden).toMatchObject({ showInHome: false, showInNavbar: false });
+  await pathSelector.selectOption(path);
+  await dialog.getByLabel('اختر مرحلتك', { exact: true }).selectOption(level);
+  const save = page.waitForResponse(r => r.url().includes('/learning/navigation-preferences') && r.request().method() === 'PATCH');
+  await dialog.getByRole('button', { name: 'تأكيد التسجيل', exact: true }).click();
+  const response = await save;
+  expect(response.status()).toBe(200);
+  expect(response.request().headers()['x-csrf-token']).toBeTruthy();
+  await expect(dialog).toHaveCount(0);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const selector = page.getByLabel('مساري الحالي', { exact: true });
+  await expect(selector.locator('option', { hasText: 'قدرات' })).toHaveAttribute('value', path);
+  await expect(selector).toHaveValue(''); // Legacy resets the temporary active filter on a fresh page.
+  const preferences = await page.request.get('/api/v1/learning/navigation-preferences');
+  expect(preferences.status()).toBe(200);
+  const current = (await preferences.json()).user;
+  expect(current.enrolledPaths).toContain(path);
+  expect(current.pathStageSelections).toContainEqual({ pathId: path, levelId: level });
+  await page.screenshot({ path: test.info().outputPath('student-enrollment-after-reload.png'), fullPage: true });
+});

@@ -350,6 +350,9 @@ func buildPathPresMap(write taxonomy.PathWrite) []byte {
 	if write.IconStyle != nil {
 		m["iconStyle"] = *write.IconStyle
 	}
+	if write.ShowInHome != nil {
+		m["showInHome"] = *write.ShowInHome
+	}
 	if write.ShowInNavbar != nil {
 		m["showInNavbar"] = *write.ShowInNavbar
 	}
@@ -371,7 +374,7 @@ func buildPathPresMap(write taxonomy.PathWrite) []byte {
 
 func hasPathPresPatch(patch taxonomy.PathPatch) bool {
 	return patch.Color != nil || patch.Icon != nil || patch.IconURL != nil || patch.IconStyle != nil ||
-		patch.ShowInNavbar != nil || patch.ShowSubjectCards != nil || patch.ShowMockExamCard != nil ||
+		patch.ShowInHome != nil || patch.ShowInNavbar != nil || patch.ShowSubjectCards != nil || patch.ShowMockExamCard != nil ||
 		patch.ShowPackageCard != nil || patch.Settings != nil
 }
 
@@ -388,6 +391,9 @@ func buildPathPatchPresMap(patch taxonomy.PathPatch) []byte {
 	}
 	if patch.IconStyle != nil {
 		m["iconStyle"] = *patch.IconStyle
+	}
+	if patch.ShowInHome != nil {
+		m["showInHome"] = *patch.ShowInHome
 	}
 	if patch.ShowInNavbar != nil {
 		m["showInNavbar"] = *patch.ShowInNavbar

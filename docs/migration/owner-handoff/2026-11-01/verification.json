@@ -1,0 +1,296 @@
+{
+  "schemaVersion": 1,
+  "dateRiyadh": "2026-11-01",
+  "sourceSha": "bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7",
+  "targetBaselineSha": "4c1a5a740b22a2e9c3de5e93b25832a587203b42",
+  "productCodeCommit": "dad62c8bfada2d1cc10773e193932d0647b00bc3",
+  "batchId": "QB-ANSWER-001",
+  "programStatus": "PARTIAL",
+  "checks": [
+    {
+      "command": "node node_modules/@playwright/test/cli.js test tests/e2e/question-bank-admin.spec.ts --grep 'authoring answer parity' --reporter=list --workers=1",
+      "stage": "RED before implementation",
+      "result": "EXPECTED_FAIL",
+      "failed": 5,
+      "evidence": "plain correct index expected0 received1 at390/820/1440; blank answer not rejected; image position3 clamped1"
+    },
+    {
+      "command": "node node_modules/@playwright/test/cli.js test tests/e2e/question-bank-admin.spec.ts --reporter=list --workers=1",
+      "stage": "final code",
+      "result": "PASS",
+      "passed": 12,
+      "failed": 0,
+      "durationReported": "2.8m",
+      "scope": "browser with synthetic intercepted HTTP; not real storage or paired Legacy screenshots"
+    },
+    {
+      "command": "go test ./internal/questionbank/transport/http -run '^TestAuthoringAnswerPersistenceHTTPPostgres$' -count=1 -v",
+      "env": {
+        "QUESTIONBANK_PERSISTENCE_DB_TEST": "1",
+        "DATABASE_URL": "postgres://almeaa@127.0.0.1:55439/almeaa_owner_verify_20261101?sslmode=disable"
+      },
+      "result": "PASS",
+      "subcases": [
+        "correct_index_0",
+        "correct_index_1",
+        "embedded_correct_index_3",
+        "invalid_answer_does_not_persist"
+      ],
+      "scope": "real HTTP/application/repository/PostgreSQL47 migrations; synthetic authentication and data; isolated schema; cluster stopped after verification"
+    },
+    {
+      "command": "go test ./internal/questionbank/...",
+      "result": "PASS"
+    },
+    {
+      "command": "go build -o .tmp/owner-verification-api.exe ./cmd/api",
+      "result": "PASS"
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc -b --pretty false",
+      "result": "PASS"
+    },
+    {
+      "command": "node node_modules/vite/bin/vite.js build",
+      "result": "PASS",
+      "warnings": [
+        "large bundle",
+        "PaymentModal dynamic and static imports overlap"
+      ]
+    },
+    {
+      "command": "node --test scripts/parity/screen-inventory.test.mjs scripts/parity/route-inventory.test.mjs",
+      "result": "PASS",
+      "passed": 6
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "independent static review",
+      "result": "NO_REMAINING_P1_P2_IN_BOUNDED_FIX",
+      "scope": "not independent runtime certification"
+    }
+  ],
+  "priorFailurePreserved": {
+    "scope": "first broader run of six preexisting browser tests",
+    "passed": 5,
+    "failed": 1,
+    "reason": "canonical-create test exceeded unchanged30s timeout; cause unproven",
+    "followup": "complete12-test file rerun passed with no timeout change or skipped tests"
+  },
+  "notProven": [
+    "whole platform parity",
+    "all content migrated",
+    "paired full-screen visual parity390/820/1440",
+    "real-auth browser to storage continuous flow",
+    "production readiness",
+    "final remote CI until fetched on PR head"
+  ],
+  "continuation20261101": {
+    "productCodeCommit": "0fbaa2e2435bf72b99f30195c2150cb1b9b0f474",
+    "branch": "fix/question-authoring-answer-parity-20261101",
+    "pr": "https://github.com/nasef6464/almeaago/pull/263",
+    "status": "TESTED_LOCAL_PENDING_EXACT_HEAD_CI",
+    "mergeState": "NOT_MERGED",
+    "changes": [
+      "single visible-page auth dialog owner; hidden-header fallback preserved",
+      "stable intent consumption and login mode on reopening",
+      "navigation accessibility semantics with unchanged presentation",
+      "unsafe tab returnTo rejected; obsolete routing test now exercises actual authAdapter",
+      "full pinned Legacy Header reference replaces partial sibling approximation",
+      "direct local Node Playwright entrypoint and CRLF-safe source generator",
+      "six brand and three editor viewport cases retain strict pixels and assertions",
+      "WaitDelay bounds inherited output pipes after cancellation; local suite selector whitelist; default CI still both suites"
+    ],
+    "checks": [
+      {
+        "command": "Playwright auth-single-dialog.spec.ts auth-parity.spec.ts auth-arabic-indic.spec.ts header-breakpoint-parity.spec.ts --workers=1",
+        "result": "PASS",
+        "passed": 15,
+        "scope": "synthetic HTTP browser cases; no live external identity/WhatsApp provider"
+      },
+      {
+        "command": "node --test scripts/parity/header-brand.test.mjs scripts/parity/header-navigation.test.mjs scripts/parity/homepage-ui.test.mjs scripts/parity/header-oauth-return.test.mjs",
+        "result": "PASS",
+        "passed": 15,
+        "scope": "includes4 actual authAdapter routing cases"
+      },
+      {
+        "command": "go test ./internal/content/repository/postgres ./internal/platform/httpserver",
+        "result": "PASS",
+        "scope": "ordinary package run; environment-gated browser tests run separately below"
+      },
+      {
+        "command": "go test ./internal/content/repository/postgres -run ^TestHomepageSettingsHTTPPostgres$ -count=1 -v",
+        "env": {
+          "HOMEPAGE_TEST_DB": "1",
+          "HOMEPAGE_BROWSER_E2E": "1",
+          "HOMEPAGE_BROWSER_SUITE": "brand",
+          "CI": "1",
+          "DATABASE_URL": "postgres://almeaa@127.0.0.1:55439/almeaa_owner_verify_20261101?sslmode=disable"
+        },
+        "result": "PASS",
+        "browserPassed": 6,
+        "goDurationSeconds": 170.25,
+        "scope": "real saved brand/session/CSRF/SQL; admin+guest390/820/1440 exact PNG; component crop only"
+      },
+      {
+        "command": "same Go integration with HOMEPAGE_BROWSER_SUITE=editor",
+        "result": "PASS",
+        "browserPassed": 3,
+        "goDurationSeconds": 178.0,
+        "scope": "real login/save/reload/guest/back/forward/logout at390/820/1440; exact brand+hero editor component PNGs"
+      },
+      {
+        "command": "TypeScript build and Vite build",
+        "result": "PASS",
+        "warnings": [
+          "existing large bundle",
+          "existing PaymentModal static/dynamic import overlap"
+        ]
+      },
+      {
+        "command": "independent static review",
+        "result": "NO_REMAINING_P1_P2_IN_BOUNDED_SLICE"
+      },
+      {
+        "command": "git diff --check and JSON parsing",
+        "result": "PASS"
+      }
+    ],
+    "evidenceManifests": [
+      "docs/migration/evidence/owner-20261101-header-brand/manifest.json",
+      "docs/migration/evidence/owner-20261101-homepage-editor/manifest.json"
+    ],
+    "failuresPreserved": [
+      "Pre-fix /login browser strict-mode:2 dialogs instead of1; new single-owner regression RED390.",
+      "First auth broader run11PASS3FAIL exposed retained signup mode and two stale source-inconsistent message expectations; final15PASS without skippingcases.",
+      "Obsolete OAuth test initially ENOENT; actualmodule test3PASS1FAIL for tab; minimal guard fix final4PASS.",
+      "Old CI guest820 reference omitted navigation; metrics source267x50 vs target264x82.",
+      "First local aggregated brand case hit120s; six independent cases keep120s and allassertions.",
+      "Guest1440 first split run:identical metrics but text rasterization mismatch; shared existing GPU-disabled path gives6exactpairPASS.",
+      "Combined local editor+brand attempt exceeded5min; local complete suites now run separately under unchanged deadlines; defaultcombinedCI runtime remains unproven."
+    ],
+    "limitations": [
+      "whole header/page/platform parity not proved",
+      "font-settings endpoint absent in bounded presentation server; fallback rendering shared; persisted fonts not certified",
+      "unrelated empty catalog/taxonomy fixtures explicitly bounded",
+      "React empty img src warnings observed outside this bounded fix; no console-clean claim",
+      "no production writes or deployment",
+      "preexisting CI at4e1f465e backend/frontend/overlap passed, Database failed old brand comparison, E2E cancelled15min with additional failures; finalhead must be checked live"
+    ],
+    "environment": "own disposable local cluster stopped after tests; no changes to sharedpgdata/.env/Legacy/cloudsettings",
+    "next": "Push completed batch once; read exactheadCI; diagnose remaining fullE2E failures locally before merge; #258 remains partial and #262 remains separate."
+  },
+  "contentMigrationHandoff20261101": {
+    "status": "REPORTED_IMPORTED_PENDING_INDEPENDENT_ACCEPTANCE",
+    "userHandoff": "User explicitly assigned content migration to Antigravity and supplied execution report attachment e12268fb-660c-42b7-a57d-817d7bcdea3d",
+    "reportedCounts": {
+      "questions": 12673,
+      "options": 50692,
+      "foundationMainTopics": 158,
+      "foundationSubtopics": 570,
+      "lessons": 570,
+      "mnsfEligible": 1937,
+      "mnsfQuarantined": 136
+    },
+    "reports": [
+      "docs/content_migration/CONTENT_ACCEPTANCE_REPORT_AR.md",
+      "docs/content_migration/CONTENT_BANK_INVENTORY_AR.md",
+      "docs/content_migration/CONTENT_MIGRATION_CHECKPOINT_AR.md"
+    ],
+    "ownership": "External content files are untracked at capture. Do not stage, rewrite or reimport them as part of frontend fix; preserve imported shared database. Read-only acceptance first.",
+    "acceptanceGaps": [
+      "Reported SQL groups existing question_options only and does not detect versions with zero option rows. Validate each choice-question version with LEFT JOIN and type-aware rules.",
+      "Reported image FK validity does not prove public media load, hash/correct image identity, answer identity or student presentation.",
+      "570 lesson/topic links do not prove nonempty playable media, entitlement and progress; distinguish metadata from playable source.",
+      "No explicit mock-exam migration inventory in supplied report.",
+      "Reports differ in bank naming QNT-FND/QNT-COL versus FND26/COL2627 and total unique asset claim includes text-only verbal; reconcile stable source IDs, not titles."
+    ],
+    "next": "Read-only local API/database counts and bounded per-bank student/admin samples, verify MNSF stays QUDRAT/QUANT and quarantine excluded; no cloud writes or data reimport.",
+    "independentLocalAudit": {
+      "database": "Explicit loopback127.0.0.1:5432/almeaa, useralmeaa; BEGIN READ ONLY +15s statement timeout +ROLLBACK; no data mutations.",
+      "script": "scripts/parity/content-import-readonly-audit.sql",
+      "result": {
+        "questions": 12673,
+        "options": 50692,
+        "lessons": 570,
+        "mainTopics": 158,
+        "subTopics": 570,
+        "topicLessonLinks": 570,
+        "currentVersionMissing": 0,
+        "invalidMCQOptionCountOrAnswerIndex": 0,
+        "approvedVideoLessons": 570,
+        "nonemptyVideoURLs": 0,
+        "nonemptyRecordingURLs": 0,
+        "nonemptyMeetingURLs": 0,
+        "nonemptyContentTexts": 0,
+        "mnsfQUDRAT_QUANT": 1937
+      },
+      "api": "127.0.0.1:8080 health ready; public taxonomy5paths/14subjects/679skills. Backend DB target not inferred from host; project .env points cloud, credentials not emitted or modified.",
+      "sourceInspection": "C:/ALMEAA MAY - codax/scratch/all_subjects_topics_tree.json contains hierarchy/title only, no lesson/media fields. BIO26_LESSON_INVENTORY.csv contains bank/PDF page inventory, no video URL.",
+      "conclusion": "Local counts and MCQ option-answer membership confirmed.570video-typed rows have empty media/content fields. Owner confirms videos have not been produced; this is expected, NOT a missing-video migration defect. Topic hierarchy acceptance is separate from future multi-video lesson authoring. Image identity/scientific correctness/mock exams/cloud parity remain unverified."
+    },
+    "ownerClarification": {
+      "authority": "Explicit user correction after report review,2026-11-01",
+      "rule": "Foundation topics are distinct from video lessons. Owner has not produced videos yet. Each topic may later link to multiple videos; zero videos now is valid and must not fail migration acceptance.",
+      "schemaEvidence": "migrations/000016_content_foundation.up.sql:242-251 topic_lessons PRIMARY KEY(topic_id,lesson_id) plus sort_order; supports multiple lessons per topic, no unique topic_id constraint.",
+      "dataInterpretation": "570 approved video rows with empty media fields exist, but they do not certify570ready videos. Do not delete/change these imported rows automatically; inspect separately whether they are intentional placeholders.",
+      "acceptance": "Accept topic hierarchy independently; check video open/progress only once real media is supplied. UI should not imply playable content for an empty placeholder."
+    }
+  },
+  "taxonomySaveRetry20261101": {
+    "status": "TESTED_LOCAL_PENDING_FULL_CI_AND_VISUAL_PARITY",
+    "source": "Legacy dashboards/admin/PathsManager.tsx path save catch returns before close; error shown inside editor.",
+    "changes": [
+      "Path/level/subject editor closes only after successful save; error stays inside editor; draft retained.",
+      "Constrained taxonomy grid track and workspace min-width so tabs scroll without clipping RTL mobile controls.",
+      "Updated obsolete status labels in null-response retry suite; navigation waits DOMContentLoaded plus actual control assertions, no timeout increase."
+    ],
+    "checks": [
+      {
+        "name": "admin-taxonomy-save-retry + admin-taxonomy-null-error-retry",
+        "result": "PASS20/20",
+        "duration": "4.1m",
+        "scope": "Synthetic HTTP fixtures, 390/820/1440; payload/CSRF/failure/retry/reload and viewport bounds. Not real DB persistence."
+      },
+      {
+        "name": "admin-skills-separation node tests",
+        "result": "PASS11/11"
+      },
+      {
+        "name": "npm run typecheck",
+        "result": "PASS"
+      },
+      {
+        "name": "npm run build",
+        "result": "PASS",
+        "warnings": "Existing large bundle and ineffective dynamic import."
+      },
+      {
+        "name": "independent static product review",
+        "result": "No P1/P2 findings in save fix; RTL cause independently diagnosed."
+      }
+    ],
+    "failuresPreserved": [
+      "Baseline path1440 editor closes after503; baseline390 edit clipped outsideviewport.",
+      "First post-fix desktop run2PASS1FAIL: path reload waited external load until30s.",
+      "First combined run8PASS12FAIL: three30s navigation/reload timeouts and nine invalid XPath selector mistakes in new bounds check; corrected explicit xpath= and DOM readiness. Final20PASS without skipped cases or increased deadlines."
+    ],
+    "ciBaseline": {
+      "head": "6b84c6bca5b698faad99c2189316f73940e15850",
+      "backend": "PASS",
+      "frontend": "PASS",
+      "database": "PASS",
+      "e2e": "FAIL43/PASS429",
+      "run": "https://github.com/nasef6464/almeaago/actions/runs/41283173978"
+    },
+    "limits": [
+      "No full taxonomy visual parity claim",
+      "Creation branches share guarded close but new9browser scenarios cover edit only",
+      "Remaining fullE2E failures include other domains; do not merge on local20cases alone"
+    ]
+  }
+}

@@ -72,7 +72,7 @@ func (s *Service) UpdatePath(ctx context.Context, actor identity.User, pathID st
 		v := strings.TrimSpace(*patch.ParentPathID)
 		patch.ParentPathID = &v
 	}
-	if pathID == "" || !validCommonPatch(patch.Name, patch.Description, patch.SortOrder, patch.Status, patch.ParentPathID != nil) {
+	if pathID == "" || !validCommonPatch(patch.Name, patch.Description, patch.SortOrder, patch.Status, patch.ParentPathID != nil || patch.ShowInNavbar != nil || patch.ShowInHome != nil) {
 		return taxonomy.Path{}, ErrInvalidInput
 	}
 	return s.repo.UpdatePath(ctx, actor.ID, pathID, patch)

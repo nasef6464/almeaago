@@ -24,12 +24,12 @@ test('staff creates activates and exposes a stable barcode session',async({page}
  await page.route('**/api/v1/assessment-sessions/session-1/status',async r=>{const body=JSON.parse(r.request().postData()||'{}');expect(body.status).toBe('active');sessions=[{...sessions[0],status:'active'}];return json(r,{session:sessions[0]})});
  await page.goto('/admin-dashboard/assessments');
  await page.getByRole('button',{name:'الجلسات'}).click();
- await expect(page.getByRole('heading',{name:'الجلسات العامة والمباشرة'})).toBeVisible();
- await page.getByRole('button',{name:'إنشاء جلسة'}).click();
+ await expect(page.getByRole('heading',{name:'إنشاء جلسة اختبار جديدة'})).toBeVisible();
+ await page.getByRole('button',{name:'إنشاء جلسة الباركود'}).click();
  await expect(page.getByText('barcodeabc123')).toBeVisible();
  await page.getByRole('button',{name:'تفعيل'}).click();
  await expect(page.getByText('نشط')).toBeVisible();
- await expect(page.getByRole('link',{name:'فتح'})).toHaveAttribute('href','/barcode-test/barcodeabc123');
+ await expect(page.getByRole('link',{name:'فتح'})).toHaveAttribute('href',new URL('/barcode-test/barcodeabc123', page.url()).href);
 });
 
 test('anonymous barcode participant starts submits once and sees server result on mobile',async({page})=>{

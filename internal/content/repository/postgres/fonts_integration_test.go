@@ -145,7 +145,8 @@ func TestPlatformFontsHTTPPostgres(t *testing.T) {
 		if output, err := reference.CombinedOutput(); err != nil {
 			t.Fatalf("reference generation: %v %s", err, output)
 		}
-		cmd := exec.CommandContext(ctx, "npm", "run", "e2e", "--", "tests/e2e/platform-fonts-live.spec.ts")
+		cmd := exec.CommandContext(ctx, "node", "node_modules/@playwright/test/cli.js", "test", "tests/e2e/platform-fonts-live.spec.ts")
+		cmd.WaitDelay = 5 * time.Second
 		cmd.Dir = web
 		cmd.Env = append(os.Environ(), "FONT_LIVE=1", "FONT_TEST_ADMIN_EMAIL="+admin.Email, "E2E_API_TARGET="+server.URL)
 		output, err := cmd.CombinedOutput()

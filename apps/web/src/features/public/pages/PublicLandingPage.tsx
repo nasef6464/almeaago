@@ -196,7 +196,8 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
   },[isHeroHovered,hero.autoRotateImages,hero.rotateIntervalSeconds,heroGallery.length]);
 
   const paths=useMemo(()=>[...taxonomy.paths].sort((a,b)=>a.sortOrder-b.sortOrder),[taxonomy.paths]);
-  const visiblePaths=settings.featuredPathIds?.some(id=>paths.some(p=>p.id===id))?paths.filter(p=>settings.featuredPathIds!.includes(p.id)):paths;
+  const homepagePaths=paths.filter(path=>path.showInHome!==false);
+  const visiblePaths=settings.featuredPathIds?.some(id=>homepagePaths.some(p=>p.id===id))?homepagePaths.filter(p=>settings.featuredPathIds!.includes(p.id)):homepagePaths;
   const showcase=showcaseTab==='daylight'?PLATFORM_DAYLIGHT_IMAGES:PLATFORM_SHOWCASE_IMAGES;
   const dashboardHref=user?dashboardPathFor(user):'/dashboard';
 

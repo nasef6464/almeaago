@@ -221,8 +221,16 @@ export function QuestionBankAdminPage(){
 
   async function createQuestion(){
     if(!create.questionCode.trim()||!create.pathId||!create.subjectId||!create.mainSkillId)return setError('الكود والمسار والمادة والمهارة الرئيسية مطلوبة.');
-    const options=create.type==='essay'?[]:create.options.filter(x=>x.trim()).map(text=>({text:text.trim(),assetId:''}));
+    const optionRows=create.options.map((text,index)=>({text:text.trim(),index})).filter(row=>row.text);
+    const imageOptionTexts=create.options.slice(0,create.type==='true_false'?2:create.options.length)
+      .map((text,index)=>text.trim()||['أ','ب','ج','د'][index]||String(index+1));
+    const options=create.type==='essay'?[]:(create.optionsEmbeddedInImage
+      ?imageOptionTexts.map(text=>({text,assetId:''})):optionRows.map(({text})=>({text,assetId:''})));
     if(create.type!=='essay'&&options.length<2)return setError('يلزم خياران على الأقل.');
+    // Text choices are compacted; image choices retain their original positions.
+    const correctOptionIndex=create.type==='essay'?null:create.optionsEmbeddedInImage
+      ?create.correctOptionIndex:optionRows.findIndex(row=>row.index===create.correctOptionIndex);
+    if(correctOptionIndex===-1||(create.optionsEmbeddedInImage&&correctOptionIndex!==null&&correctOptionIndex>=imageOptionTexts.length))return setError('يرجى اختيار إجابة صحيحة من الاختيارات الموجودة.');
     const skillLinks=[
       {skillId:create.mainSkillId,relationType:'main' as const},
       ...(create.subSkillId?[{skillId:create.subSkillId,relationType:'sub' as const}]:[]),
@@ -238,7 +246,7 @@ export function QuestionBankAdminPage(){
     if (create.aiSpeechText.trim()) aiContext.speechText = create.aiSpeechText.trim();
     if (create.aiVisualDescription.trim()) aiContext.visualDescription = create.aiVisualDescription.trim();
     if (create.optionsEmbeddedInImage) {
-      aiContext.optionTexts = create.options.map((opt, i) => opt.trim() || ['أ', 'ب', 'ج', 'د'][i] || String(i + 1));
+      aiContext.optionTexts = imageOptionTexts;
     }
 
     const voiceExplanation: Record<string, unknown> = {};
@@ -253,7 +261,7 @@ export function QuestionBankAdminPage(){
         version:{
           pathId:create.pathId,subjectId:create.subjectId,type:create.type,text:create.text.trim(),
           imageAssetId:create.imageAssetId,imageAlt:create.imageAlt.trim(),optionsEmbeddedInImage:create.optionsEmbeddedInImage,
-          correctOptionIndex:create.type==='essay'?null:Math.min(create.correctOptionIndex,Math.max(0,options.length-1)),
+          correctOptionIndex,
           explanation:create.explanation.trim(),hint:create.hint.trim(),solvingStrategy:create.solvingStrategy.trim(),
           videoUrl:create.videoUrl.trim(),sourceMeta,aiContext,voiceExplanation,
           difficulty:create.difficulty,examType:create.examType.trim(),source:create.source.trim(),year:null,revisionNote:'',

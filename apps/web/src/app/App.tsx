@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Link,
   Route,
@@ -61,7 +61,7 @@ import { LegacySiteFooter, showPublicFooter } from '../features/public/component
 import { Header as OriginalHeader } from '../features/public/header/OriginalHeader';
 import { LegacyCategoryPage } from '../features/public/header/pages/LegacyCategoryPage';
 import { StaticInfoPage } from '../features/public/pages/StaticInfoPage';
-import { StudentNavigationProvider } from '../features/learning/navigation';
+import { StudentNavigationProvider, StudentPathBar } from '../features/learning/navigation';
 
 import { PlatformFontBootstrap } from '../features/presentation/PlatformFontBootstrap';
 import { AnnouncementAdsAdminPage } from '../features/presentation/AnnouncementAdsAdminPage';
@@ -127,12 +127,18 @@ export function App() {
     }
   }, [loading, location.pathname, location.search, navigate, user]);
 
-  function closeModal() {
+  const consumeAuthIntent = useCallback(() => setManualMode(null), []);
+  const closeModal = useCallback(() => {
     setManualMode(null);
-    if (routeMode) {
+    if (location.pathname === '/login' || location.pathname === '/signup') {
       navigate('/', { replace: true });
+    } else if (routeMode) {
+      const params = new URLSearchParams(location.search);
+      params.delete('auth');
+      const query = params.toString();
+      navigate(location.pathname + (query ? '?' + query : '') + location.hash, { replace: true });
     }
-  }
+  }, [location.pathname, location.search, location.hash, navigate, routeMode]);
 
 
   const inAdminWorkspace = location.pathname.startsWith('/admin-dashboard');
@@ -142,10 +148,14 @@ export function App() {
     <StudentNavigationProvider>
       <PlatformFontBootstrap />
       {!hideSiteHeader ? (
-        <OriginalHeader
-          requestedAuthMode={modalMode}
-          onAuthIntentConsumed={() => setManualMode(null)}
-        />
+        <>
+          <OriginalHeader
+            requestedAuthMode={modalMode}
+            onAuthIntentConsumed={consumeAuthIntent}
+            onAuthClose={closeModal}
+          />
+          <StudentPathBar />
+        </>
       ) : null}
 
       <Routes>
@@ -225,11 +235,9 @@ export function App() {
 
       <AnnouncementAdsOverlay />
 
-      <AuthModal
-        open={modalMode !== null}
-        initialSignUp={modalMode === 'signup'}
-        onClose={closeModal}
-      />
+      {hideSiteHeader ? (
+        <AuthModal open={modalMode !== null} initialSignUp={modalMode === 'signup'} onClose={closeModal} />
+      ) : null}
     </StudentNavigationProvider>
   );
 }

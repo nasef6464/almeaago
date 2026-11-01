@@ -14,6 +14,7 @@ type pathPresRaw struct {
 	Icon             string                `json:"icon,omitempty"`
 	IconURL          string                `json:"iconUrl,omitempty"`
 	IconStyle        string                `json:"iconStyle,omitempty"`
+	ShowInHome       *bool                 `json:"showInHome,omitempty"`
 	ShowInNavbar     *bool                 `json:"showInNavbar,omitempty"`
 	ShowSubjectCards *bool                 `json:"showSubjectCards,omitempty"`
 	ShowMockExamCard *bool                 `json:"showMockExamCard,omitempty"`
@@ -71,6 +72,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 				row.Icon = pres.Icon
 				row.IconURL = pres.IconURL
 				row.IconStyle = pres.IconStyle
+				row.ShowInHome = pres.ShowInHome
 				row.ShowInNavbar = pres.ShowInNavbar
 				row.ShowSubjectCards = pres.ShowSubjectCards
 				row.ShowMockExamCard = pres.ShowMockExamCard
@@ -218,6 +220,7 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 				row.Icon = pres.Icon
 				row.IconURL = pres.IconURL
 				row.IconStyle = pres.IconStyle
+				row.ShowInHome = pres.ShowInHome
 				row.ShowInNavbar = pres.ShowInNavbar
 				row.ShowSubjectCards = pres.ShowSubjectCards
 				row.ShowMockExamCard = pres.ShowMockExamCard

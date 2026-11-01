@@ -1,0 +1,91 @@
+{
+  "result": "PASS_9_EXACT_PAIRS",
+  "sourceSha": "bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7",
+  "sourceDialogBlob": "4d911b31027e263bfa4b3f8100108ecd7a8a0f81",
+  "scope": "Original dialog source with import adapters, compared to Go dialog within shared Go CSS/fonts and synthetic contexts; not whole legacy application or live database",
+  "states": [
+    "choose stage",
+    "stage selected",
+    "save error"
+  ],
+  "widths": [
+    390,
+    820,
+    1440
+  ],
+  "manualReview": "390 save error source and Go viewed",
+  "images": [
+    {
+      "name": "go-choose-stage-390.png",
+      "sha256": "53bb12232eefd071fbdf36530d3a3ed8dadf9accc35239bfe1879d74c26264b1"
+    },
+    {
+      "name": "go-save-error-390.png",
+      "sha256": "50a1ee73570430bc1b0b792f375c55bf6335198ff0d4f7d1f194e603d0e40c6b"
+    },
+    {
+      "name": "go-stage-selected-390.png",
+      "sha256": "0a0914c3eeab68884a64647ca6611dbec76a6dead9efec7e6e855a69ac3df2b7"
+    },
+    {
+      "name": "source-choose-stage-390.png",
+      "sha256": "53bb12232eefd071fbdf36530d3a3ed8dadf9accc35239bfe1879d74c26264b1"
+    },
+    {
+      "name": "source-save-error-390.png",
+      "sha256": "50a1ee73570430bc1b0b792f375c55bf6335198ff0d4f7d1f194e603d0e40c6b"
+    },
+    {
+      "name": "source-stage-selected-390.png",
+      "sha256": "0a0914c3eeab68884a64647ca6611dbec76a6dead9efec7e6e855a69ac3df2b7"
+    },
+    {
+      "name": "go-choose-stage-820.png",
+      "sha256": "f2f6315d07b5792239a149abc54d26415dedfb7c19098390b4f36c8493343508"
+    },
+    {
+      "name": "go-save-error-820.png",
+      "sha256": "e8cd69c18baed7dad06dfb69ccacd3eb6713d34e34e324bcf7fc9d01f53f0262"
+    },
+    {
+      "name": "go-stage-selected-820.png",
+      "sha256": "8b922e9a26bc416f110d65daafd575eef7af20cdc2de8e6e85e2b3fc1c40193d"
+    },
+    {
+      "name": "source-choose-stage-820.png",
+      "sha256": "f2f6315d07b5792239a149abc54d26415dedfb7c19098390b4f36c8493343508"
+    },
+    {
+      "name": "source-save-error-820.png",
+      "sha256": "e8cd69c18baed7dad06dfb69ccacd3eb6713d34e34e324bcf7fc9d01f53f0262"
+    },
+    {
+      "name": "source-stage-selected-820.png",
+      "sha256": "8b922e9a26bc416f110d65daafd575eef7af20cdc2de8e6e85e2b3fc1c40193d"
+    },
+    {
+      "name": "go-choose-stage-1440.png",
+      "sha256": "552bba8f8c37260713b2a5e826529f659b598a67ad05c5cd3492f743e8af4778"
+    },
+    {
+      "name": "go-save-error-1440.png",
+      "sha256": "52bd37a6c5dd07c211cd269153d02ea99ff72f0831de3ec7967da812d4d868fc"
+    },
+    {
+      "name": "go-stage-selected-1440.png",
+      "sha256": "27c05710a7655323a9314fb59472cb0d3ff6c043d5709f8b27689725ca69b61a"
+    },
+    {
+      "name": "source-choose-stage-1440.png",
+      "sha256": "552bba8f8c37260713b2a5e826529f659b598a67ad05c5cd3492f743e8af4778"
+    },
+    {
+      "name": "source-save-error-1440.png",
+      "sha256": "52bd37a6c5dd07c211cd269153d02ea99ff72f0831de3ec7967da812d4d868fc"
+    },
+    {
+      "name": "source-stage-selected-1440.png",
+      "sha256": "27c05710a7655323a9314fb59472cb0d3ff6c043d5709f8b27689725ca69b61a"
+    }
+  ]
+}

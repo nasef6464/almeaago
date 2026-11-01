@@ -260,6 +260,7 @@ type adminPathResponse struct {
 	Icon             string `json:"icon,omitempty"`
 	IconURL          string `json:"iconUrl,omitempty"`
 	IconStyle        string `json:"iconStyle,omitempty"`
+	ShowInHome       *bool  `json:"showInHome,omitempty"`
 	ShowInNavbar     *bool  `json:"showInNavbar,omitempty"`
 	ShowSubjectCards *bool  `json:"showSubjectCards,omitempty"`
 	ShowMockExamCard *bool  `json:"showMockExamCard,omitempty"`
@@ -313,6 +314,7 @@ type pathResponse struct {
 	Icon             string `json:"icon,omitempty"`
 	IconURL          string `json:"iconUrl,omitempty"`
 	IconStyle        string `json:"iconStyle,omitempty"`
+	ShowInHome       *bool  `json:"showInHome,omitempty"`
 	ShowInNavbar     *bool  `json:"showInNavbar,omitempty"`
 	ShowSubjectCards *bool  `json:"showSubjectCards,omitempty"`
 	ShowMockExamCard *bool  `json:"showMockExamCard,omitempty"`
@@ -367,6 +369,7 @@ func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
 			Icon:             row.Icon,
 			IconURL:          row.IconURL,
 			IconStyle:        row.IconStyle,
+			ShowInHome:       row.ShowInHome,
 			ShowInNavbar:     row.ShowInNavbar,
 			ShowSubjectCards: row.ShowSubjectCards,
 			ShowMockExamCard: row.ShowMockExamCard,
@@ -435,6 +438,7 @@ func presentBootstrap(value taxonomy.Bootstrap) map[string]any {
 			Icon:             row.Icon,
 			IconURL:          row.IconURL,
 			IconStyle:        row.IconStyle,
+			ShowInHome:       row.ShowInHome,
 			ShowInNavbar:     row.ShowInNavbar,
 			ShowSubjectCards: row.ShowSubjectCards,
 			ShowMockExamCard: row.ShowMockExamCard,

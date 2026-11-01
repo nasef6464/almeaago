@@ -92,6 +92,7 @@ export interface FoundationTopicSummary {
 }
 
 export interface TaxonomyPath {
+  showInHome?: boolean;
   id: string;
   code: string;
   name: string;

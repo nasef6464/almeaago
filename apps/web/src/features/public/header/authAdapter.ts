@@ -24,7 +24,7 @@ export function useAuth(){return createHeaderAuthAdapter(useGoAuth());}
 
 type HeaderLocation={pathname:string;search?:string;hash?:string};
 export function safeHeaderReturnTo(value:string|null|undefined):string|null{
-  if(!value||!value.startsWith('/')||value.startsWith('//')||/[\\\r\n]/.test(value))return null;
+  if(!value||!value.startsWith('/')||value.startsWith('//')||/[\\\r\n\t]/.test(value))return null;
   return value;
 }
 function stripAuthHint(path:string):string{

@@ -25,13 +25,13 @@ async function setup(page: Page, data: ReturnType<typeof fixture>) {
   await page.route('**/api/v1/auth/me', route => respond(route, { user: admin }));
   await page.route('**/api/v1/auth/csrf', route => respond(route, { csrfToken: 'csrf-error-contract' }));
   await page.route('**/api/v1/taxonomy/admin/bootstrap', route => respond(route, data));
-  await page.goto('/admin-dashboard/taxonomy');
-  await expect(page.getByLabel('حالة المسار')).toBeVisible();
+  await page.goto('/admin-dashboard/taxonomy', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByLabel('حالة القدرات')).toBeVisible();
 }
 
 const scenarios = [
-  { entity: 'path', id: 'path-1', label: 'حالة المسار', url: '**/api/v1/taxonomy/admin/paths/path-1' },
-  { entity: 'subject', id: 'subject-1', label: 'حالة المادة الكمي', url: '**/api/v1/taxonomy/admin/subjects/subject-1' },
+  { entity: 'path', id: 'path-1', label: 'حالة القدرات', url: '**/api/v1/taxonomy/admin/paths/path-1' },
+  { entity: 'subject', id: 'subject-1', label: 'حالة الكمي', url: '**/api/v1/taxonomy/admin/subjects/subject-1' },
 ] as const;
 
 for (const width of [390, 820, 1440]) {
@@ -65,7 +65,7 @@ for (const width of [390, 820, 1440]) {
       await expect(status).toHaveValue('inactive');
       expect(writes).toBe(2);
 
-      await page.reload();
+      await page.reload({ waitUntil: 'domcontentloaded' });
       await expect(page.getByLabel(scenario.label)).toHaveValue('inactive');
     });
   }
@@ -76,7 +76,7 @@ for (const width of [390, 820, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     const data = fixture();
     await setup(page, data);
-    await page.goto('/admin-dashboard?tab=skills');
+    await page.goto('/admin-dashboard?tab=skills', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('button', { name: 'تعديل المهارة الرئيسة الأعداد' })).toBeVisible();
 
     let writes = 0;
@@ -102,7 +102,7 @@ for (const width of [390, 820, 1440]) {
     await expect(dialog).toHaveCount(0);
     await expect(page.getByText('الأعداد المحدثة', { exact: true })).toBeVisible();
     expect(writes).toBe(2);
-    await page.reload();
+    await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByText('الأعداد المحدثة', { exact: true })).toBeVisible();
     await expect(page.getByLabel('حالة المهارة الأعداد')).toHaveCount(0);
   });
@@ -112,7 +112,7 @@ test('admin taxonomy preserves a valid server-provided Arabic HTTP error', async
   const data = fixture();
   await setup(page, data);
   await page.route('**/api/v1/taxonomy/admin/paths/path-1', route => respond(route, { message: 'الحفظ غير متاح مؤقتًا' }, 503));
-  await page.getByLabel('حالة المسار').selectOption('inactive');
+  await page.getByLabel('حالة القدرات').selectOption('inactive');
   await expect(page.getByText('الحفظ غير متاح مؤقتًا')).toBeVisible();
 });
 
@@ -122,6 +122,6 @@ test('admin taxonomy malformed error response uses existing Arabic fallback', as
   await page.route('**/api/v1/taxonomy/admin/paths/path-1', route => route.fulfill({
     status: 503, contentType: 'application/json', body: '{not-json',
   }));
-  await page.getByLabel('حالة المسار').selectOption('inactive');
+  await page.getByLabel('حالة القدرات').selectOption('inactive');
   await expect(page.getByText('تعذر تنفيذ طلب التصنيف', { exact: true })).toBeVisible();
 });

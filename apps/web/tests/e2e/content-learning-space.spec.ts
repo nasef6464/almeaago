@@ -6,6 +6,7 @@ const learningSpace={pathId:'p1',subjectId:'s1',courses:{items:[{id:'c1',title:'
 
 async function mockLearning(page:Page){
  await auth(page);
+ await page.route('**/api/v1/learning/navigation-preferences',r=>json(r,{user:{id:'student-1',enrolledPaths:['p1'],pathStageSelections:[]}}));
  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',r=>json(r,taxonomy));
  let calls=0;
  await page.route('**/api/v1/learning-spaces/p1/subjects/s1?limit=50',r=>{calls++;return json(r,learningSpace)});

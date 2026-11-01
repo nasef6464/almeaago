@@ -1,0 +1,5233 @@
+{
+  "schemaVersion": 1,
+  "kind": "STATIC_DISCOVERY_NOT_PARITY_CERTIFICATION",
+  "capturedAtUtc": "2026-11-01T05:30:49.746Z",
+  "evidence": {
+    "runtime": "UNKNOWN",
+    "visual": "UNKNOWN",
+    "persistence": "UNKNOWN",
+    "roleAuthorization": "UNKNOWN",
+    "functionalParity": "UNKNOWN"
+  },
+  "limitations": [
+    "Counts are syntax candidates, not completed actions or exhaustive product coverage.",
+    "Dynamic routes, conditional menus, component reuse and indirect APIs require manual tracing.",
+    "Matching route strings do not establish equivalent behavior, permission or appearance.",
+    "Working-tree content is inspected; SHAs alone do not identify dirty files.",
+    "No network, provider, browser, database or environment-file inspection was performed."
+  ],
+  "source": {
+    "sha": "bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7",
+    "workingTree": {
+      "branch": "main",
+      "dirty": false,
+      "trackedChanges": 0,
+      "untrackedFiles": 0
+    },
+    "discoveryRoots": [
+      "app",
+      "pages",
+      "dashboards",
+      "components"
+    ],
+    "totals": {
+      "files": 306,
+      "controls": 2582,
+      "events": 3254
+    },
+    "files": [
+      {
+        "file": "app/AppRouteTree.tsx",
+        "routes": [
+          {
+            "value": "/quiz",
+            "line": 96
+          },
+          {
+            "value": "/quiz/:quizId",
+            "line": 97
+          },
+          {
+            "value": "/classroom/:sessionId",
+            "line": 98
+          },
+          {
+            "value": "/classroom/teacher",
+            "line": 99
+          },
+          {
+            "value": "/classroom/:sessionId/teacher",
+            "line": 100
+          },
+          {
+            "value": "/classroom/:sessionId/projector",
+            "line": 101
+          },
+          {
+            "value": "/results",
+            "line": 102
+          },
+          {
+            "value": "/admin-dashboard",
+            "line": 103
+          },
+          {
+            "value": "/instructor-dashboard",
+            "line": 104
+          },
+          {
+            "value": "/school-teacher-dashboard",
+            "line": 105
+          },
+          {
+            "value": "/school-director-dashboard",
+            "line": 112
+          },
+          {
+            "value": "/supervisor-dashboard",
+            "line": 117
+          },
+          {
+            "value": "/parent-dashboard",
+            "line": 122
+          },
+          {
+            "value": "*",
+            "line": 124
+          },
+          {
+            "value": "/",
+            "line": 128
+          },
+          {
+            "value": "/dashboard",
+            "line": 129
+          },
+          {
+            "value": "/courses",
+            "line": 130
+          },
+          {
+            "value": "/course/:courseId",
+            "line": 131
+          },
+          {
+            "value": "/quizzes",
+            "line": 132
+          },
+          {
+            "value": "/mock-exams",
+            "line": 133
+          },
+          {
+            "value": "/my-quizzes",
+            "line": 134
+          },
+          {
+            "value": "/my-requests",
+            "line": 135
+          },
+          {
+            "value": "/reports",
+            "line": 136
+          },
+          {
+            "value": "/favorites",
+            "line": 137
+          },
+          {
+            "value": "/plan",
+            "line": 138
+          },
+          {
+            "value": "/qa",
+            "line": 139
+          },
+          {
+            "value": "/book-session",
+            "line": 140
+          },
+          {
+            "value": "/live-sessions",
+            "line": 141
+          },
+          {
+            "value": "/live-sessions/:lessonId",
+            "line": 142
+          },
+          {
+            "value": "/profile",
+            "line": 143
+          },
+          {
+            "value": "/admin/quiz-gen",
+            "line": 144
+          },
+          {
+            "value": "/achievements",
+            "line": 145
+          },
+          {
+            "value": "/blog",
+            "line": 146
+          },
+          {
+            "value": "/forgot-password",
+            "line": 147
+          },
+          {
+            "value": "/reset-password",
+            "line": 148
+          },
+          {
+            "value": "/verify-email",
+            "line": 149
+          },
+          {
+            "value": "/login",
+            "line": 150
+          },
+          {
+            "value": "/signup",
+            "line": 151
+          },
+          {
+            "value": "/pricing",
+            "line": 152
+          },
+          {
+            "value": "/cart",
+            "line": 153
+          },
+          {
+            "value": "/checkout",
+            "line": 154
+          },
+          {
+            "value": "/barcode-test",
+            "line": 155
+          },
+          {
+            "value": "/barcode-test/:slug",
+            "line": 156
+          },
+          {
+            "value": "/b/:slug",
+            "line": 157
+          },
+          {
+            "value": "/about",
+            "line": 158
+          },
+          {
+            "value": "/contact",
+            "line": 159
+          },
+          {
+            "value": "/faq",
+            "line": 160
+          },
+          {
+            "value": "/privacy",
+            "line": 161
+          },
+          {
+            "value": "/terms",
+            "line": 162
+          },
+          {
+            "value": "/certificate/:code",
+            "line": 163
+          },
+          {
+            "value": "/review",
+            "line": 164
+          },
+          {
+            "value": "/category/:pathId",
+            "line": 165
+          },
+          {
+            "value": "/category/:pathId/packages",
+            "line": 166
+          },
+          {
+            "value": "/category/:pathId/:subjectId",
+            "line": 167
+          },
+          {
+            "value": "/section/:catId",
+            "line": 168
+          },
+          {
+            "value": "*",
+            "line": 169
+          }
+        ],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 6,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 8,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "app/SeoRouteMeta.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/AnnouncementAdsOverlay.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 7,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 4,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/AppErrorBoundary.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/ArticleReaderModal.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/ChatWidget.tsx",
+        "routes": [],
+        "controlsCount": 9,
+        "eventsCount": 13,
+        "navigationCount": 2,
+        "apiCandidatesCount": 0,
+        "labelsCount": 5,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/CourseLanding.tsx",
+        "routes": [],
+        "controlsCount": 8,
+        "eventsCount": 8,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/CourseOverview.tsx",
+        "routes": [],
+        "controlsCount": 19,
+        "eventsCount": 27,
+        "navigationCount": 0,
+        "apiCandidatesCount": 5,
+        "labelsCount": 1,
+        "componentImportsCount": 15,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/CoursePlayer.tsx",
+        "routes": [],
+        "controlsCount": 25,
+        "eventsCount": 27,
+        "navigationCount": 0,
+        "apiCandidatesCount": 6,
+        "labelsCount": 0,
+        "componentImportsCount": 14,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/CustomVideoPlayer.tsx",
+        "routes": [],
+        "controlsCount": 11,
+        "eventsCount": 27,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 5,
+        "componentImportsCount": 8,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/DailySpeedDrillCard.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/DailySpeedDrillModal.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 7,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/DashboardDialog.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/DashboardLayout.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 3,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/DashboardSectionNav.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/DetailedAnalysisModal.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 4,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/DisplayListControls.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/FileModal.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/Header.tsx",
+        "routes": [],
+        "controlsCount": 28,
+        "eventsCount": 45,
+        "navigationCount": 11,
+        "apiCandidatesCount": 3,
+        "labelsCount": 8,
+        "componentImportsCount": 12,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/Layout.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/LearningSection.tsx",
+        "routes": [],
+        "controlsCount": 11,
+        "eventsCount": 24,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 2,
+        "componentImportsCount": 22,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/MainLayout.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 5,
+        "apiCandidatesCount": 1,
+        "labelsCount": 1,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/NotificationBell.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 3,
+        "labelsCount": 1,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/ParentStudentLinker.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 3,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/PathLayout.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/PaymentModal.tsx",
+        "routes": [],
+        "controlsCount": 18,
+        "eventsCount": 18,
+        "navigationCount": 0,
+        "apiCandidatesCount": 3,
+        "labelsCount": 2,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/PlatformFontBootstrap.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/PricingComparisonMatrix.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/PwaInstallBanner.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/QiyasCalculatorModal.tsx",
+        "routes": [],
+        "controlsCount": 9,
+        "eventsCount": 9,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/QuestionDrawingPad.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 9,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 3,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/QuestionImageZoomModal.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 18,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/QuizDetailsModal.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 7,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/QuizGenerator.tsx",
+        "routes": [],
+        "controlsCount": 10,
+        "eventsCount": 11,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/ReferralAmbassadorCard.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/ReferralAmbassadorModal.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 6,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/RichTextEditor.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 9,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/RoleSwitcher.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/SchoolTestsPanel.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 7,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 8,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/SearchModal.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 9,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 3,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/ShareScorecard.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/SimulatedTestExperience.tsx",
+        "routes": [],
+        "controlsCount": 24,
+        "eventsCount": 26,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/SkillDetailsModal.tsx",
+        "routes": [],
+        "controlsCount": 10,
+        "eventsCount": 13,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 11,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/SmartLearningPath.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/StudentListPager.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/StudentNextActionStrip.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/StudentResultHistoryControls.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 3,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/ThemeToggle.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/VideoModal.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/auth/RequireAuth.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/auth/RequireRole.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 2,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassSkillGapsRadar.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 3,
+        "componentImportsCount": 8,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomActiveSessionPanel.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 36,
+        "navigationCount": 1,
+        "apiCandidatesCount": 1,
+        "labelsCount": 3,
+        "componentImportsCount": 20,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomBatchSummaryCard.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomComparisonPanel.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 6,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 9,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomEndSessionModal.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomLessonToolbar.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 6,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomOptionalPulse.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomPreparedTemplatesManager.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 7,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomPushQuestionsModal.tsx",
+        "routes": [],
+        "controlsCount": 11,
+        "eventsCount": 11,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 3,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomQuestionFilterBar.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 7,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomQuestionReviewPanel.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomReportInsightsPanel.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 8,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomSavedBatchesPanel.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 2,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomSessionQuestionsList.tsx",
+        "routes": [],
+        "controlsCount": 8,
+        "eventsCount": 8,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomSkillRadar.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomStudentReportTable.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomStudentWaitingPanel.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomSubmittedStudents.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 3,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomTeacherLiveRadar.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/ClassroomTeacherMobileRemote.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/QuestionContentRenderer.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/SmartClassroomExamRunner.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/SmartClassroomFloatingWidget.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 10,
+        "navigationCount": 0,
+        "apiCandidatesCount": 5,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/SmartClassroomReportsSection.tsx",
+        "routes": [],
+        "controlsCount": 13,
+        "eventsCount": 15,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 3,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/SmartClassroomSessionSchedulerModal.tsx",
+        "routes": [],
+        "controlsCount": 17,
+        "eventsCount": 17,
+        "navigationCount": 0,
+        "apiCandidatesCount": 4,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/StudentAppreciationCertificateModal.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 6,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/classroom/SupervisorClassroomSessionList.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/liveSessions/HostingChoice.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 4,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/liveSessions/LiveLessonPanel.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/liveSessions/LiveSessionCard.tsx",
+        "routes": [],
+        "controlsCount": 9,
+        "eventsCount": 8,
+        "navigationCount": 0,
+        "apiCandidatesCount": 5,
+        "labelsCount": 2,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/liveSessions/LiveSessionWorkspace.tsx",
+        "routes": [],
+        "controlsCount": 27,
+        "eventsCount": 27,
+        "navigationCount": 0,
+        "apiCandidatesCount": 17,
+        "labelsCount": 10,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/quiz/QuizAnswerDistribution.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/quiz/QuizSectionResults.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/quiz/QuizSubjectResults.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 3,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/results/InteractiveSmartTeacher.tsx",
+        "routes": [],
+        "controlsCount": 20,
+        "eventsCount": 24,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 14,
+        "componentImportsCount": 12,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/results/InteractiveWhiteboardCanvas.tsx",
+        "routes": [],
+        "controlsCount": 11,
+        "eventsCount": 11,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/results/QuestionAssistantPanel.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/results/QuestionVoiceExplanationPlayer.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/results/ResultDonutChart.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/results/teaching/PracticeCheckpoint.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/results/teaching/QuestionPreview.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/results/teaching/TeachingBoard.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 11,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/results/teaching/TeachingImageOverlay.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/results/teaching/WhiteboardHand.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/results/teaching/WhiteboardInk.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/results/teaching/WhiteboardWriting.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/results/whiteboardParser.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/review/PracticeExamSummary.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 2,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/review/PracticeQuestionFeedback.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/review/PracticeSessionHeader.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/studentPaths/LearningCatalogCounters.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/studentPaths/LearningCompletionSummary.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 3,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/studentPaths/PathEnrollmentDialog.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 5,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/studentPaths/StudentLearningFrame.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/studentPaths/StudentPathAccessPrompt.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/studentPaths/StudentPathBar.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 3,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/teacher/TeacherWorkspaceContext.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 1,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/teacher/TeacherWorkspaceSwitcher.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 2,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/ui/Card.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/ui/EmptyState.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "components/ui/ProgressBar.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/SchoolDirectorAcademicCenter.tsx",
+        "routes": [],
+        "controlsCount": 12,
+        "eventsCount": 16,
+        "navigationCount": 0,
+        "apiCandidatesCount": 7,
+        "labelsCount": 4,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/SchoolDirectorDashboard.tsx",
+        "routes": [],
+        "controlsCount": 15,
+        "eventsCount": 22,
+        "navigationCount": 0,
+        "apiCandidatesCount": 7,
+        "labelsCount": 1,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/SchoolDirectorDelegatedOperations.tsx",
+        "routes": [],
+        "controlsCount": 11,
+        "eventsCount": 13,
+        "navigationCount": 0,
+        "apiCandidatesCount": 9,
+        "labelsCount": 2,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/SchoolExecutiveSummary.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/SchoolTeacherDashboard.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 27,
+        "navigationCount": 0,
+        "apiCandidatesCount": 3,
+        "labelsCount": 1,
+        "componentImportsCount": 19,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/AdminDashboard.tsx",
+        "routes": [],
+        "controlsCount": 15,
+        "eventsCount": 18,
+        "navigationCount": 5,
+        "apiCandidatesCount": 2,
+        "labelsCount": 2,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/AdvancedCourseBuilder.tsx",
+        "routes": [],
+        "controlsCount": 80,
+        "eventsCount": 84,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/AiAssistantManager.tsx",
+        "routes": [],
+        "controlsCount": 21,
+        "eventsCount": 26,
+        "navigationCount": 0,
+        "apiCandidatesCount": 7,
+        "labelsCount": 0,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/AnnouncementAdsManager.tsx",
+        "routes": [],
+        "controlsCount": 25,
+        "eventsCount": 26,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 10,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/AssignedTestDetailPanel.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 7,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/BackupManager.tsx",
+        "routes": [],
+        "controlsCount": 16,
+        "eventsCount": 14,
+        "navigationCount": 0,
+        "apiCandidatesCount": 8,
+        "labelsCount": 5,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/ClassReportPanel.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/ClassSkillsMapPanel.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 7,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/ContentReviewQueueManager.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/CourseBuilder.tsx",
+        "routes": [],
+        "controlsCount": 33,
+        "eventsCount": 38,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 8,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/CoursesManager.tsx",
+        "routes": [],
+        "controlsCount": 19,
+        "eventsCount": 23,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/FinancialManager.tsx",
+        "routes": [],
+        "controlsCount": 52,
+        "eventsCount": 50,
+        "navigationCount": 0,
+        "apiCandidatesCount": 11,
+        "labelsCount": 0,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/FoundationManager.tsx",
+        "routes": [],
+        "controlsCount": 30,
+        "eventsCount": 30,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/GroupsManager.tsx",
+        "routes": [],
+        "controlsCount": 20,
+        "eventsCount": 21,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/HomepageManager.tsx",
+        "routes": [],
+        "controlsCount": 37,
+        "eventsCount": 90,
+        "navigationCount": 1,
+        "apiCandidatesCount": 2,
+        "labelsCount": 0,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/LessonsManager.tsx",
+        "routes": [],
+        "controlsCount": 32,
+        "eventsCount": 37,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 4,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/LibraryManager.tsx",
+        "routes": [],
+        "controlsCount": 24,
+        "eventsCount": 26,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/LiveSessionsManager.tsx",
+        "routes": [],
+        "controlsCount": 15,
+        "eventsCount": 17,
+        "navigationCount": 1,
+        "apiCandidatesCount": 3,
+        "labelsCount": 0,
+        "componentImportsCount": 8,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/MembershipsManager.tsx",
+        "routes": [],
+        "controlsCount": 13,
+        "eventsCount": 13,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/MockExamManager.tsx",
+        "routes": [],
+        "controlsCount": 54,
+        "eventsCount": 71,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 7,
+        "componentImportsCount": 14,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/NotificationsManager.tsx",
+        "routes": [],
+        "controlsCount": 16,
+        "eventsCount": 16,
+        "navigationCount": 0,
+        "apiCandidatesCount": 4,
+        "labelsCount": 5,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/OperationsCommandCenter.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 6,
+        "navigationCount": 0,
+        "apiCandidatesCount": 9,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/PathMockCatalog.tsx",
+        "routes": [],
+        "controlsCount": 8,
+        "eventsCount": 9,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 4,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/PathsManager.tsx",
+        "routes": [],
+        "controlsCount": 80,
+        "eventsCount": 96,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 1,
+        "componentImportsCount": 23,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/PathsManager/EducationalIconPicker.tsx",
+        "routes": [],
+        "controlsCount": 8,
+        "eventsCount": 8,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/PathsManager/pathDisplayPresentation.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/PlatformFontsManager.tsx",
+        "routes": [],
+        "controlsCount": 12,
+        "eventsCount": 12,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 0,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/PlatformIntegrationsManager.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/PlatformIntegrationsManagerLegacy.tsx",
+        "routes": [],
+        "controlsCount": 86,
+        "eventsCount": 86,
+        "navigationCount": 0,
+        "apiCandidatesCount": 10,
+        "labelsCount": 23,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/ProductConfigSellableSettingsPanel.tsx",
+        "routes": [],
+        "controlsCount": 11,
+        "eventsCount": 11,
+        "navigationCount": 0,
+        "apiCandidatesCount": 3,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/PublicBarcodeTestsManager.tsx",
+        "routes": [],
+        "controlsCount": 35,
+        "eventsCount": 37,
+        "navigationCount": 0,
+        "apiCandidatesCount": 4,
+        "labelsCount": 0,
+        "componentImportsCount": 8,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/QuestionBankManager.tsx",
+        "routes": [],
+        "controlsCount": 40,
+        "eventsCount": 45,
+        "navigationCount": 0,
+        "apiCandidatesCount": 3,
+        "labelsCount": 7,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/QuizAssignWidget.tsx",
+        "routes": [],
+        "controlsCount": 12,
+        "eventsCount": 12,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/QuizBuilder.tsx",
+        "routes": [],
+        "controlsCount": 49,
+        "eventsCount": 52,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/QuizRetakeDialog.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 7,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 7,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/QuizzesManager.tsx",
+        "routes": [],
+        "controlsCount": 47,
+        "eventsCount": 54,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 4,
+        "componentImportsCount": 12,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager.tsx",
+        "routes": [],
+        "controlsCount": 9,
+        "eventsCount": 104,
+        "navigationCount": 0,
+        "apiCandidatesCount": 7,
+        "labelsCount": 2,
+        "componentImportsCount": 64,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/EditNameModal.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/NewSchoolWizardLeadershipStep.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/NewSchoolWizardModal.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 8,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/NewSchoolWizardSteps.tsx",
+        "routes": [],
+        "controlsCount": 13,
+        "eventsCount": 14,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolAccessCodesPanel.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 6,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolAccessFlowHint.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolClassOperatingCard.tsx",
+        "routes": [],
+        "controlsCount": 12,
+        "eventsCount": 12,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolClassPeopleManager.tsx",
+        "routes": [],
+        "controlsCount": 14,
+        "eventsCount": 15,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolClassesPanel.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 25,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolCommandCenterPanel.tsx",
+        "routes": [],
+        "controlsCount": 15,
+        "eventsCount": 15,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolContractPanel.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 3,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolCoursesPanel.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolDashboardPanel.tsx",
+        "routes": [],
+        "controlsCount": 10,
+        "eventsCount": 15,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolDirectorDelegationPanel.tsx",
+        "routes": [],
+        "controlsCount": 10,
+        "eventsCount": 10,
+        "navigationCount": 0,
+        "apiCandidatesCount": 3,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolHandoverReportSummary.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolImportPanel.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolLaunchBoardPanel.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolOverviewExecutiveTab.tsx",
+        "routes": [],
+        "controlsCount": 10,
+        "eventsCount": 10,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolOverviewOperationsPanel.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolPackageCard.tsx",
+        "routes": [],
+        "controlsCount": 16,
+        "eventsCount": 16,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolPackagesPanel.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolPeopleHubTab.tsx",
+        "routes": [],
+        "controlsCount": 13,
+        "eventsCount": 14,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolPerformanceReportPanel.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolPortfolioCard.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 7,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolPortfolioFilterPanel.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolQuickSupervisorCard.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolRelationsImportPanel.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolRelationsPanel.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolRelationsReportPanel.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolRelationsStatusPanel.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolReportsPanel.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolServicesCenterTab.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolSettingsSafetyTab.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 6,
+        "navigationCount": 0,
+        "apiCandidatesCount": 4,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolSingleStudentPanel.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 7,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolStudentRosterPanel.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 7,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolWideSupervisorsPanel.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/SchoolWorkspaceControlsPanel.tsx",
+        "routes": [],
+        "controlsCount": 10,
+        "eventsCount": 10,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SchoolsManager/TeachingAssignmentPanel.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SkillsManager.tsx",
+        "routes": [],
+        "controlsCount": 23,
+        "eventsCount": 24,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SkillsTreeManager.tsx",
+        "routes": [],
+        "controlsCount": 28,
+        "eventsCount": 33,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 1,
+        "componentImportsCount": 8,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SmartClassroomIntelligencePanel.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SmartClassroomInterventionPanel.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 6,
+        "navigationCount": 0,
+        "apiCandidatesCount": 4,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SmartClassroomReportsPanel.tsx",
+        "routes": [],
+        "controlsCount": 11,
+        "eventsCount": 12,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 1,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SmartClassroomSupervisorSignals.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SmartQuestionSelector.tsx",
+        "routes": [],
+        "controlsCount": 25,
+        "eventsCount": 33,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/StudentIntelligenceProfile.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 7,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SubjectQuizzesPanel.tsx",
+        "routes": [],
+        "controlsCount": 14,
+        "eventsCount": 28,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 4,
+        "componentImportsCount": 12,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SupervisorDashboard.tsx",
+        "routes": [],
+        "controlsCount": 33,
+        "eventsCount": 58,
+        "navigationCount": 0,
+        "apiCandidatesCount": 5,
+        "labelsCount": 4,
+        "componentImportsCount": 23,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SupervisorFollowUpPriorities.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SupervisorOverviewPanel.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 9,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/SupervisorTestsManager.tsx",
+        "routes": [],
+        "controlsCount": 16,
+        "eventsCount": 35,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 4,
+        "componentImportsCount": 18,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/TestAnalyticsReport.tsx",
+        "routes": [],
+        "controlsCount": 9,
+        "eventsCount": 11,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/TrainerCoursesManager.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 8,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/TrainersManager.tsx",
+        "routes": [],
+        "controlsCount": 14,
+        "eventsCount": 16,
+        "navigationCount": 0,
+        "apiCandidatesCount": 3,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/UnifiedQuizBuilder.tsx",
+        "routes": [],
+        "controlsCount": 39,
+        "eventsCount": 42,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 1,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/UsersManager.tsx",
+        "routes": [],
+        "controlsCount": 31,
+        "eventsCount": 40,
+        "navigationCount": 0,
+        "apiCandidatesCount": 17,
+        "labelsCount": 1,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/ai/AiCapabilityRoutingEditor.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/ai/AiControlCenterSettings.tsx",
+        "routes": [],
+        "controlsCount": 20,
+        "eventsCount": 22,
+        "navigationCount": 0,
+        "apiCandidatesCount": 3,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/ai/AiUsageAndAlertsPanel.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/ai/SimpleAiSetupHeader.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/builders/QuestionTeachingRegionsEditor.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 14,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/builders/QuestionVoiceExplanationEditor.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 6,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/builders/UnifiedLessonBuilder.tsx",
+        "routes": [],
+        "controlsCount": 43,
+        "eventsCount": 52,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 3,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/builders/UnifiedQuestionBuilder.tsx",
+        "routes": [],
+        "controlsCount": 26,
+        "eventsCount": 31,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 0,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/builders/VideoQuestionPicker.tsx",
+        "routes": [],
+        "controlsCount": 18,
+        "eventsCount": 22,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 5,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/command-center/CommandCenterNaturalLanguagePanel.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/command-center/CommandCenterOperationsPanel.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 9,
+        "navigationCount": 0,
+        "apiCandidatesCount": 7,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/command-center/CommandCenterSchoolImportPanel.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 6,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 0,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/components/AdminBreadcrumbHeader.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/components/AssessmentOrderControl.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/components/StudentExperienceSettings.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 7,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 3,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/notificationsPresentation.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/skills/SubSkillQuestionsPreview.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 1,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/supervisorTests/AssessmentClassComparison.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/supervisorTests/SchoolAssessmentComposePanel.tsx",
+        "routes": [],
+        "controlsCount": 10,
+        "eventsCount": 11,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 6,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/supervisorTests/SchoolAssessmentDetailsDialog.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/supervisorTests/SchoolAssessmentDimensionTable.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/supervisorTests/SchoolAssessmentLearnerResult.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 3,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/supervisorTests/SchoolAssessmentLearnersPanel.tsx",
+        "routes": [],
+        "controlsCount": 8,
+        "eventsCount": 8,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 7,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/supervisorTests/SchoolAssessmentManagementActions.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 3,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/supervisorTests/SchoolAssessmentMaterialAnalysis.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/supervisorTests/SchoolAssessmentOverview.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 3,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/supervisorTests/SchoolAssessmentReopenDialog.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 6,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/supervisorTests/SchoolAssessmentReportView.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/supervisorTests/SchoolAssessmentReportWorkspace.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 6,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/supervisorTests/SchoolAssessmentSkillSelection.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/supervisorTests/SchoolAssessmentSummaryPanel.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 2,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/admin/supervisorTests/ScopedAssessmentResultsStatus.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/school-director/DirectorAssessmentCards.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 12,
+        "navigationCount": 0,
+        "apiCandidatesCount": 6,
+        "labelsCount": 5,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/school-director/DirectorCatalogFields.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/school-director/DirectorQuestionPicker.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 6,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 4,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/school-director/DirectorTeacherAssignments.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/school-learning/SchoolLearningEvidencePanel.tsx",
+        "routes": [],
+        "controlsCount": 15,
+        "eventsCount": 14,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 8,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/school-teacher/SchoolTeacherPrimaryTabs.tsx",
+        "routes": [],
+        "controlsCount": 9,
+        "eventsCount": 9,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/school-teacher/SchoolTeacherSecondaryTabs.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 12,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 11,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "dashboards/school-teacher/TeacherMaterialNotice.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Achievements.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/BarcodeTest.tsx",
+        "routes": [],
+        "controlsCount": 11,
+        "eventsCount": 9,
+        "navigationCount": 2,
+        "apiCandidatesCount": 2,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Blog.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 4,
+        "navigationCount": 3,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/BookSession.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 5,
+        "navigationCount": 1,
+        "apiCandidatesCount": 1,
+        "labelsCount": 3,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Cart.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/CertificatePage.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/ClassroomProjectorView.tsx",
+        "routes": [],
+        "controlsCount": 10,
+        "eventsCount": 10,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 0,
+        "componentImportsCount": 11,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/ClassroomStudentLive.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 5,
+        "navigationCount": 2,
+        "apiCandidatesCount": 4,
+        "labelsCount": 1,
+        "componentImportsCount": 8,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/ClassroomTeacherConsole.tsx",
+        "routes": [],
+        "controlsCount": 14,
+        "eventsCount": 21,
+        "navigationCount": 2,
+        "apiCandidatesCount": 7,
+        "labelsCount": 3,
+        "componentImportsCount": 14,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/CourseView.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 9,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 13,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Courses.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 7,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Dashboard.tsx",
+        "routes": [],
+        "controlsCount": 20,
+        "eventsCount": 25,
+        "navigationCount": 13,
+        "apiCandidatesCount": 7,
+        "labelsCount": 0,
+        "componentImportsCount": 29,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Dashboard/SupervisorTasksStrip.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Favorites.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 7,
+        "navigationCount": 1,
+        "apiCandidatesCount": 2,
+        "labelsCount": 0,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/FlashcardsManager.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/ForgotPassword.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 2,
+        "navigationCount": 2,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/GenericPathPage.tsx",
+        "routes": [],
+        "controlsCount": 14,
+        "eventsCount": 17,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 21,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Home.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 9,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Landing.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 11,
+        "navigationCount": 7,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 14,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/LiveSessionLobby.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 2,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/LiveSessions.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/MockExamStudentHub.tsx",
+        "routes": [],
+        "controlsCount": 12,
+        "eventsCount": 21,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 11,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/MockExams.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 8,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/MyRequests.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 4,
+        "labelsCount": 2,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/NotFound.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 2,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/ParentApprovalsModal.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Plan.tsx",
+        "routes": [],
+        "controlsCount": 18,
+        "eventsCount": 18,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 15,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Pricing.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 3,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Profile.tsx",
+        "routes": [],
+        "controlsCount": 14,
+        "eventsCount": 18,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/QA.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 2,
+        "navigationCount": 3,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Qudrat.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/QudratSection.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Quiz.tsx",
+        "routes": [],
+        "controlsCount": 33,
+        "eventsCount": 36,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 0,
+        "componentImportsCount": 12,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/QuizPage.tsx",
+        "routes": [],
+        "controlsCount": 44,
+        "eventsCount": 47,
+        "navigationCount": 0,
+        "apiCandidatesCount": 8,
+        "labelsCount": 1,
+        "componentImportsCount": 22,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Quizzes.tsx",
+        "routes": [],
+        "controlsCount": 9,
+        "eventsCount": 21,
+        "navigationCount": 6,
+        "apiCandidatesCount": 2,
+        "labelsCount": 1,
+        "componentImportsCount": 20,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Reports.tsx",
+        "routes": [],
+        "controlsCount": 28,
+        "eventsCount": 31,
+        "navigationCount": 7,
+        "apiCandidatesCount": 13,
+        "labelsCount": 0,
+        "componentImportsCount": 47,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Reports/DirectedAssessmentReportPanel.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Reports/SchoolSkillAggregatePanel.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 3,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Reports/ScopedRecentAttemptsPanel.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Reports/StaffDecisionPanel.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 8,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Reports/StaffRemediationPanel.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 4,
+        "navigationCount": 3,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Reports/StudentJourneySourcesPanel.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 3,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Reports/StudentMasteryGoalsPanel.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Reports/StudentMasteryReviewPanel.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Reports/StudentSelectedSkillPanel.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Reports/StudentSmartRemediationPanel.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Reports/StudentWeeklyPlanPanel.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/ResetPassword.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 3,
+        "navigationCount": 1,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Results.tsx",
+        "routes": [],
+        "controlsCount": 34,
+        "eventsCount": 44,
+        "navigationCount": 10,
+        "apiCandidatesCount": 2,
+        "labelsCount": 3,
+        "componentImportsCount": 27,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/ReviewSession.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 6,
+        "navigationCount": 0,
+        "apiCandidatesCount": 3,
+        "labelsCount": 1,
+        "componentImportsCount": 12,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/StaticInfoPage.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Step.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/SubjectLearningPage.tsx",
+        "routes": [],
+        "controlsCount": 20,
+        "eventsCount": 24,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 24,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/Tahsili.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/TahsiliSubject.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "pages/VerifyEmail.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 3,
+        "navigationCount": 1,
+        "apiCandidatesCount": 2,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      }
+    ]
+  },
+  "target": {
+    "sha": "dad62c8bfada2d1cc10773e193932d0647b00bc3",
+    "workingTree": {
+      "branch": "fix/question-authoring-answer-parity-20261101",
+      "dirty": true,
+      "trackedChanges": 1,
+      "untrackedFiles": 10
+    },
+    "discoveryRoots": [
+      "apps/web/src"
+    ],
+    "totals": {
+      "files": 112,
+      "controls": 1081,
+      "events": 1248
+    },
+    "files": [
+      {
+        "file": "apps/web/src/app/App.tsx",
+        "routes": [
+          {
+            "value": "/",
+            "line": 152
+          },
+          {
+            "value": "/login",
+            "line": 153
+          },
+          {
+            "value": "/signup",
+            "line": 154
+          },
+          {
+            "value": "/forgot-password",
+            "line": 155
+          },
+          {
+            "value": "/reset-password",
+            "line": 156
+          },
+          {
+            "value": "/verify-email",
+            "line": 157
+          },
+          {
+            "value": "/terms",
+            "line": 158
+          },
+          {
+            "value": "/privacy",
+            "line": 159
+          },
+          {
+            "value": "/about",
+            "line": 160
+          },
+          {
+            "value": "/contact",
+            "line": 161
+          },
+          {
+            "value": "/faq",
+            "line": 162
+          },
+          {
+            "value": "/notifications",
+            "line": 163
+          },
+          {
+            "value": "/reports",
+            "line": 164
+          },
+          {
+            "value": "/dashboard",
+            "line": 165
+          },
+          {
+            "value": "/courses",
+            "line": 166
+          },
+          {
+            "value": "/pricing",
+            "line": 167
+          },
+          {
+            "value": "/cart",
+            "line": 168
+          },
+          {
+            "value": "/blog",
+            "line": 169
+          },
+          {
+            "value": "/mock-exams",
+            "line": 170
+          },
+          {
+            "value": "/quizzes",
+            "line": 171
+          },
+          {
+            "value": "/admin-dashboard",
+            "line": 172
+          },
+          {
+            "value": "/admin-dashboard/homepage",
+            "line": 173
+          },
+          {
+            "value": "/admin-dashboard/platform-fonts",
+            "line": 174
+          },
+          {
+            "value": "/admin-dashboard/content",
+            "line": 175
+          },
+          {
+            "value": "/admin-dashboard/taxonomy",
+            "line": 176
+          },
+          {
+            "value": "/admin-dashboard/questions",
+            "line": 177
+          },
+          {
+            "value": "/admin-dashboard/assessments",
+            "line": 178
+          },
+          {
+            "value": "/admin-dashboard/commerce",
+            "line": 179
+          },
+          {
+            "value": "/admin-dashboard/users",
+            "line": 180
+          },
+          {
+            "value": "/admin-dashboard/trainers",
+            "line": 181
+          },
+          {
+            "value": "/admin-dashboard/schools",
+            "line": 182
+          },
+          {
+            "value": "/admin-dashboard/notifications",
+            "line": 183
+          },
+          {
+            "value": "/admin-dashboard/classroom",
+            "line": 184
+          },
+          {
+            "value": "/admin-dashboard/ai",
+            "line": 185
+          },
+          {
+            "value": "/admin-dashboard/reports",
+            "line": 186
+          },
+          {
+            "value": "/admin-dashboard/operations",
+            "line": 187
+          },
+          {
+            "value": "/admin-dashboard/announcements",
+            "line": 188
+          },
+          {
+            "value": "/admin-dashboard/integrations",
+            "line": 189
+          },
+          {
+            "value": "/admin-dashboard/backups",
+            "line": 190
+          },
+          {
+            "value": "/checkout",
+            "line": 191
+          },
+          {
+            "value": "/assessments",
+            "line": 192
+          },
+          {
+            "value": "/assessment-assignments",
+            "line": 193
+          },
+          {
+            "value": "/barcode-test",
+            "line": 194
+          },
+          {
+            "value": "/barcode-test/:code",
+            "line": 195
+          },
+          {
+            "value": "/live-assessment",
+            "line": 196
+          },
+          {
+            "value": "/assessments/:assessmentId/start",
+            "line": 197
+          },
+          {
+            "value": "/assessment-attempts/:attemptId",
+            "line": 198
+          },
+          {
+            "value": "/assessment-results",
+            "line": 199
+          },
+          {
+            "value": "/assessment-results/:attemptId",
+            "line": 200
+          },
+          {
+            "value": "/learning",
+            "line": 201
+          },
+          {
+            "value": "/category/:pathId",
+            "line": 202
+          },
+          {
+            "value": "/path/:pathId",
+            "line": 203
+          },
+          {
+            "value": "/paths/:pathId",
+            "line": 204
+          },
+          {
+            "value": "/learning/courses/:courseId",
+            "line": 205
+          },
+          {
+            "value": "/course/:courseId",
+            "line": 206
+          },
+          {
+            "value": "/review",
+            "line": 207
+          },
+          {
+            "value": "/favorites",
+            "line": 208
+          },
+          {
+            "value": "/review/practice",
+            "line": 209
+          },
+          {
+            "value": "/plan",
+            "line": 210
+          },
+          {
+            "value": "/school-teacher-dashboard",
+            "line": 211
+          },
+          {
+            "value": "/school-teacher-dashboard/classroom",
+            "line": 212
+          },
+          {
+            "value": "/classroom/join",
+            "line": 213
+          },
+          {
+            "value": "/classroom/:sessionId",
+            "line": 214
+          },
+          {
+            "value": "/classroom/:sessionId/projector",
+            "line": 215
+          },
+          {
+            "value": "/supervisor-dashboard",
+            "line": 216
+          },
+          {
+            "value": "/supervisor-dashboard/interventions",
+            "line": 217
+          },
+          {
+            "value": "/school-director-dashboard",
+            "line": 218
+          },
+          {
+            "value": "/school-director-dashboard/interventions",
+            "line": 219
+          },
+          {
+            "value": "/parent-dashboard",
+            "line": 220
+          },
+          {
+            "value": "*",
+            "line": 221
+          }
+        ],
+        "controlsCount": 0,
+        "eventsCount": 5,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 65,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/ai/components/QuestionAssistantPanel.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 2,
+        "componentImportsCount": 0,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/ai/pages/AiAdminPage.tsx",
+        "routes": [],
+        "controlsCount": 9,
+        "eventsCount": 9,
+        "navigationCount": 0,
+        "apiCandidatesCount": 7,
+        "labelsCount": 2,
+        "componentImportsCount": 0,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/assessment/components/AssessmentEditorPanel.tsx",
+        "routes": [],
+        "controlsCount": 20,
+        "eventsCount": 20,
+        "navigationCount": 0,
+        "apiCandidatesCount": 6,
+        "labelsCount": 5,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/assessment/components/AssessmentPlacementPanel.tsx",
+        "routes": [],
+        "controlsCount": 12,
+        "eventsCount": 12,
+        "navigationCount": 0,
+        "apiCandidatesCount": 7,
+        "labelsCount": 7,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/assessment/components/AssessmentSessionPanel.tsx",
+        "routes": [],
+        "controlsCount": 12,
+        "eventsCount": 12,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 4,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/assessment/pages/AssessmentAdminPage.tsx",
+        "routes": [],
+        "controlsCount": 11,
+        "eventsCount": 15,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 5,
+        "componentImportsCount": 11,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/assessment/pages/AssessmentAssignmentsPage.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 1,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/assessment/pages/AssessmentAttemptPage.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 5,
+        "navigationCount": 1,
+        "apiCandidatesCount": 5,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/assessment/pages/AssessmentAvailabilityPage.tsx",
+        "routes": [],
+        "controlsCount": 8,
+        "eventsCount": 8,
+        "navigationCount": 5,
+        "apiCandidatesCount": 4,
+        "labelsCount": 6,
+        "componentImportsCount": 8,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/assessment/pages/AssessmentResultsPage.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 5,
+        "navigationCount": 5,
+        "apiCandidatesCount": 3,
+        "labelsCount": 3,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/assessment/pages/LiveAssessmentJoinPage.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 1,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/assessment/pages/PublicBarcodeAssessmentPage.tsx",
+        "routes": [],
+        "controlsCount": 8,
+        "eventsCount": 8,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 5,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/auth/components/AuthErrorBanner.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 0,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/auth/components/AuthModal.tsx",
+        "routes": [],
+        "controlsCount": 12,
+        "eventsCount": 21,
+        "navigationCount": 3,
+        "apiCandidatesCount": 0,
+        "labelsCount": 4,
+        "componentImportsCount": 11,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/auth/components/GoogleButton.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 0,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/auth/components/PasswordField.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/auth/components/SmartLoginInput.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/auth/pages/ForgotPasswordPage.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 2,
+        "navigationCount": 2,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/auth/pages/ResetPasswordPage.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 3,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/auth/pages/UsersAdminPage.tsx",
+        "routes": [],
+        "controlsCount": 34,
+        "eventsCount": 35,
+        "navigationCount": 0,
+        "apiCandidatesCount": 8,
+        "labelsCount": 4,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/auth/pages/VerifyEmailPage.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 3,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/auth/state/AuthProvider.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 13,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/classroom/components/ClassroomJoinQR.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 0,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/classroom/pages/ClassroomContractsAdminPage.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 3,
+        "labelsCount": 2,
+        "componentImportsCount": 0,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/classroom/pages/ClassroomJoinPage.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 1,
+        "componentImportsCount": 0,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/classroom/pages/ClassroomProjectorPage.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 2,
+        "componentImportsCount": 0,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/classroom/pages/ClassroomStudentPage.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 4,
+        "labelsCount": 1,
+        "componentImportsCount": 0,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/classroom/pages/ClassroomTeacherPage.tsx",
+        "routes": [],
+        "controlsCount": 16,
+        "eventsCount": 16,
+        "navigationCount": 0,
+        "apiCandidatesCount": 20,
+        "labelsCount": 4,
+        "componentImportsCount": 0,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/commerce/pages/CheckoutPage.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 6,
+        "navigationCount": 1,
+        "apiCandidatesCount": 5,
+        "labelsCount": 4,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/commerce/pages/CommerceAdminPage.tsx",
+        "routes": [],
+        "controlsCount": 38,
+        "eventsCount": 38,
+        "navigationCount": 0,
+        "apiCandidatesCount": 24,
+        "labelsCount": 20,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/content/components/AdminDashboardShell.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 5,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 6,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/content/components/CourseCreatePanel.tsx",
+        "routes": [],
+        "controlsCount": 13,
+        "eventsCount": 12,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/content/components/CourseEditorPanel.tsx",
+        "routes": [],
+        "controlsCount": 48,
+        "eventsCount": 43,
+        "navigationCount": 0,
+        "apiCandidatesCount": 9,
+        "labelsCount": 1,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/content/components/FoundationEditorPanel.tsx",
+        "routes": [],
+        "controlsCount": 23,
+        "eventsCount": 22,
+        "navigationCount": 0,
+        "apiCandidatesCount": 10,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/content/components/LessonEditorPanel.tsx",
+        "routes": [],
+        "controlsCount": 31,
+        "eventsCount": 30,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 2,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/content/components/LibraryEditorPanel.tsx",
+        "routes": [],
+        "controlsCount": 12,
+        "eventsCount": 11,
+        "navigationCount": 0,
+        "apiCandidatesCount": 4,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/content/pages/AdminOverviewPage.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/content/pages/ContentAdminPage.tsx",
+        "routes": [],
+        "controlsCount": 31,
+        "eventsCount": 43,
+        "navigationCount": 0,
+        "apiCandidatesCount": 10,
+        "labelsCount": 1,
+        "componentImportsCount": 11,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/components/CourseOverview.tsx",
+        "routes": [],
+        "controlsCount": 21,
+        "eventsCount": 21,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/components/FoundationTopicDialog.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 6,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 4,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/components/QiyasCalculatorModal.tsx",
+        "routes": [],
+        "controlsCount": 9,
+        "eventsCount": 9,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 7,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/components/QuestionAssetImage.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/components/SmartLearningPathWidget.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/navigation/PathEnrollmentDialog.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 5,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/navigation/StudentNavigationProvider.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/navigation/StudentPathAccessPrompt.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/navigation/StudentPathBar.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 3,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/pages/CourseLearningPage.tsx",
+        "routes": [],
+        "controlsCount": 14,
+        "eventsCount": 19,
+        "navigationCount": 2,
+        "apiCandidatesCount": 5,
+        "labelsCount": 2,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/pages/CourseView.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 3,
+        "labelsCount": 0,
+        "componentImportsCount": 8,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/pages/LearningSpacePage.tsx",
+        "routes": [],
+        "controlsCount": 8,
+        "eventsCount": 11,
+        "navigationCount": 1,
+        "apiCandidatesCount": 2,
+        "labelsCount": 2,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/pages/ReviewLibraryPage.tsx",
+        "routes": [],
+        "controlsCount": 13,
+        "eventsCount": 13,
+        "navigationCount": 1,
+        "apiCandidatesCount": 9,
+        "labelsCount": 3,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/pages/ReviewPracticePage.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/pages/SchoolInterventionsPage.tsx",
+        "routes": [],
+        "controlsCount": 14,
+        "eventsCount": 14,
+        "navigationCount": 0,
+        "apiCandidatesCount": 8,
+        "labelsCount": 11,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/pages/StudentDashboardPage.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 9,
+        "navigationCount": 8,
+        "apiCandidatesCount": 2,
+        "labelsCount": 5,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/learning/pages/StudyPlanPage.tsx",
+        "routes": [],
+        "controlsCount": 18,
+        "eventsCount": 18,
+        "navigationCount": 1,
+        "apiCandidatesCount": 9,
+        "labelsCount": 8,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/notifications/pages/NotificationInboxPage.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 7,
+        "labelsCount": 2,
+        "componentImportsCount": 0,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/notifications/pages/NotificationsAdminPage.tsx",
+        "routes": [],
+        "controlsCount": 19,
+        "eventsCount": 19,
+        "navigationCount": 0,
+        "apiCandidatesCount": 4,
+        "labelsCount": 14,
+        "componentImportsCount": 0,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/operations/pages/BackupAdminPage.tsx",
+        "routes": [],
+        "controlsCount": 6,
+        "eventsCount": 6,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 0,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/operations/pages/OperationsAdminPage.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 4,
+        "componentImportsCount": 0,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/operations/pages/PlatformIntegrationsAdminPage.tsx",
+        "routes": [],
+        "controlsCount": 20,
+        "eventsCount": 20,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/organizations/components/DirectorAssessmentCreator.tsx",
+        "routes": [],
+        "controlsCount": 25,
+        "eventsCount": 25,
+        "navigationCount": 0,
+        "apiCandidatesCount": 3,
+        "labelsCount": 22,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/organizations/components/DirectorAssessmentLearnersPanel.tsx",
+        "routes": [],
+        "controlsCount": 10,
+        "eventsCount": 10,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 12,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/organizations/components/DirectorAssessmentReportPanel.tsx",
+        "routes": [],
+        "controlsCount": 8,
+        "eventsCount": 9,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 11,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/organizations/components/DirectorTeacherAssignments.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/organizations/components/SchoolDirectorSectionNav.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 3,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/organizations/pages/SchoolDirectorDashboardPage.tsx",
+        "routes": [],
+        "controlsCount": 26,
+        "eventsCount": 33,
+        "navigationCount": 0,
+        "apiCandidatesCount": 16,
+        "labelsCount": 21,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/organizations/pages/SchoolsAdminPage.tsx",
+        "routes": [],
+        "controlsCount": 48,
+        "eventsCount": 45,
+        "navigationCount": 0,
+        "apiCandidatesCount": 12,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/organizations/pages/SupervisorDashboardPage.tsx",
+        "routes": [],
+        "controlsCount": 9,
+        "eventsCount": 10,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 8,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/organizations/pages/TeacherWorkspacePage.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 3,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/parents/pages/ParentDashboardPage.tsx",
+        "routes": [],
+        "controlsCount": 8,
+        "eventsCount": 12,
+        "navigationCount": 0,
+        "apiCandidatesCount": 3,
+        "labelsCount": 3,
+        "componentImportsCount": 0,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/presentation/AnnouncementAdsAdminPage.tsx",
+        "routes": [],
+        "controlsCount": 19,
+        "eventsCount": 20,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/presentation/AnnouncementAdsOverlay.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 7,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 6,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/presentation/HomepageManager.tsx",
+        "routes": [],
+        "controlsCount": 37,
+        "eventsCount": 90,
+        "navigationCount": 1,
+        "apiCandidatesCount": 2,
+        "labelsCount": 1,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/presentation/HomepagePage.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/presentation/PlatformFontBootstrap.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/presentation/PlatformFontsManager.tsx",
+        "routes": [],
+        "controlsCount": 12,
+        "eventsCount": 12,
+        "navigationCount": 0,
+        "apiCandidatesCount": 2,
+        "labelsCount": 0,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/presentation/PlatformFontsPage.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/presentation/StudentExperienceSettings.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/components/LegacySiteFooter.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 5,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/components/LegacySiteHeader.tsx",
+        "routes": [],
+        "controlsCount": 9,
+        "eventsCount": 22,
+        "navigationCount": 10,
+        "apiCandidatesCount": 0,
+        "labelsCount": 6,
+        "componentImportsCount": 8,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/OriginalHeader.tsx",
+        "routes": [],
+        "controlsCount": 28,
+        "eventsCount": 45,
+        "navigationCount": 11,
+        "apiCandidatesCount": 0,
+        "labelsCount": 9,
+        "componentImportsCount": 13,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/commerce/CartPage.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/commerce/EmptyState.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/commerce/PathPackagesPage.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 1,
+        "labelsCount": 2,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/commerce/PaymentModal.tsx",
+        "routes": [],
+        "controlsCount": 15,
+        "eventsCount": 13,
+        "navigationCount": 0,
+        "apiCandidatesCount": 5,
+        "labelsCount": 3,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/commerce/PricingComparisonMatrix.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/commerce/PricingPage.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 3,
+        "navigationCount": 1,
+        "apiCandidatesCount": 1,
+        "labelsCount": 2,
+        "componentImportsCount": 7,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/commerce/pricingComparisonData.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/dependencies/NotificationBell.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 4,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/dependencies/SearchModal.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 9,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 4,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/dependencies/ThemeToggle.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/pages/ArticleReaderModal.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 5,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/pages/BlogPage.tsx",
+        "routes": [],
+        "controlsCount": 4,
+        "eventsCount": 5,
+        "navigationCount": 3,
+        "apiCandidatesCount": 0,
+        "labelsCount": 3,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/pages/Card.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/pages/LearningCatalogCounters.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 1,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/pages/LegacyCategoryPage.tsx",
+        "routes": [],
+        "controlsCount": 3,
+        "eventsCount": 5,
+        "navigationCount": 2,
+        "apiCandidatesCount": 0,
+        "labelsCount": 4,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/pages/MockExamsPage.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 1,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 8,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/pages/PathMockExamsPage.tsx",
+        "routes": [],
+        "controlsCount": 1,
+        "eventsCount": 3,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 2,
+        "componentImportsCount": 9,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/header/pages/PathMockExamsView.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/pages/CoursesPage.tsx",
+        "routes": [],
+        "controlsCount": 5,
+        "eventsCount": 6,
+        "navigationCount": 2,
+        "apiCandidatesCount": 0,
+        "labelsCount": 3,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/pages/PublicLandingPage.tsx",
+        "routes": [],
+        "controlsCount": 9,
+        "eventsCount": 12,
+        "navigationCount": 5,
+        "apiCandidatesCount": 1,
+        "labelsCount": 8,
+        "componentImportsCount": 12,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/public/pages/StaticInfoPage.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 1,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 3,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/questionbank/pages/QuestionBankAdminPage.tsx",
+        "routes": [],
+        "controlsCount": 48,
+        "eventsCount": 51,
+        "navigationCount": 1,
+        "apiCandidatesCount": 9,
+        "labelsCount": 25,
+        "componentImportsCount": 8,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/reporting/pages/ReportsPage.tsx",
+        "routes": [],
+        "controlsCount": 16,
+        "eventsCount": 16,
+        "navigationCount": 3,
+        "apiCandidatesCount": 6,
+        "labelsCount": 11,
+        "componentImportsCount": 0,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/taxonomy/components/AdminBreadcrumbHeader.tsx",
+        "routes": [],
+        "controlsCount": 2,
+        "eventsCount": 2,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 1,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/taxonomy/components/EducationalIconPicker.tsx",
+        "routes": [],
+        "controlsCount": 7,
+        "eventsCount": 7,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 4,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/taxonomy/components/pathDisplayPresentation.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/taxonomy/pages/SkillsAdminPage.tsx",
+        "routes": [],
+        "controlsCount": 25,
+        "eventsCount": 30,
+        "navigationCount": 0,
+        "apiCandidatesCount": 11,
+        "labelsCount": 28,
+        "componentImportsCount": 10,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/taxonomy/pages/TaxonomyAdminPage.tsx",
+        "routes": [],
+        "controlsCount": 90,
+        "eventsCount": 101,
+        "navigationCount": 2,
+        "apiCandidatesCount": 16,
+        "labelsCount": 0,
+        "componentImportsCount": 16,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/features/taxonomy/pages/TaxonomyDisplayEditor.tsx",
+        "routes": [],
+        "controlsCount": 12,
+        "eventsCount": 12,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 11,
+        "componentImportsCount": 2,
+        "actionCoverage": "UNKNOWN"
+      },
+      {
+        "file": "apps/web/src/main.tsx",
+        "routes": [],
+        "controlsCount": 0,
+        "eventsCount": 0,
+        "navigationCount": 0,
+        "apiCandidatesCount": 0,
+        "labelsCount": 0,
+        "componentImportsCount": 5,
+        "actionCoverage": "UNKNOWN"
+      }
+    ]
+  },
+  "explicitRouteComparison": {
+    "sourceFile": "app/AppRouteTree.tsx",
+    "targetFile": "apps/web/src/app/App.tsx",
+    "status": "UNKNOWN",
+    "legacyCount": 55,
+    "targetCount": 70,
+    "sharedCount": 34,
+    "legacyOnly": [
+      "/achievements",
+      "/admin/quiz-gen",
+      "/b/:slug",
+      "/barcode-test/:slug",
+      "/book-session",
+      "/category/:pathId/:subjectId",
+      "/category/:pathId/packages",
+      "/certificate/:code",
+      "/classroom/:sessionId/teacher",
+      "/classroom/teacher",
+      "/instructor-dashboard",
+      "/live-sessions",
+      "/live-sessions/:lessonId",
+      "/my-quizzes",
+      "/my-requests",
+      "/profile",
+      "/qa",
+      "/quiz",
+      "/quiz/:quizId",
+      "/results",
+      "/section/:catId"
+    ],
+    "targetOnly": [
+      "/admin-dashboard/ai",
+      "/admin-dashboard/announcements",
+      "/admin-dashboard/assessments",
+      "/admin-dashboard/backups",
+      "/admin-dashboard/classroom",
+      "/admin-dashboard/commerce",
+      "/admin-dashboard/content",
+      "/admin-dashboard/homepage",
+      "/admin-dashboard/integrations",
+      "/admin-dashboard/notifications",
+      "/admin-dashboard/operations",
+      "/admin-dashboard/platform-fonts",
+      "/admin-dashboard/questions",
+      "/admin-dashboard/reports",
+      "/admin-dashboard/schools",
+      "/admin-dashboard/taxonomy",
+      "/admin-dashboard/trainers",
+      "/admin-dashboard/users",
+      "/assessment-assignments",
+      "/assessment-attempts/:attemptId",
+      "/assessment-results",
+      "/assessment-results/:attemptId",
+      "/assessments",
+      "/assessments/:assessmentId/start",
+      "/barcode-test/:code",
+      "/classroom/join",
+      "/learning",
+      "/learning/courses/:courseId",
+      "/live-assessment",
+      "/notifications",
+      "/path/:pathId",
+      "/paths/:pathId",
+      "/review/practice",
+      "/school-director-dashboard/interventions",
+      "/school-teacher-dashboard/classroom",
+      "/supervisor-dashboard/interventions"
+    ]
+  }
+}
