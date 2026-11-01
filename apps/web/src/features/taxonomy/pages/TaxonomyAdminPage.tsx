@@ -312,8 +312,10 @@ export function TaxonomyAdminPage() {
       await action(csrf);
       setNotice(success);
       setReload((x) => x + 1);
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر تنفيذ عملية التصنيف');
+      return false;
     } finally {
       setPending('');
     }
@@ -378,20 +380,21 @@ export function TaxonomyAdminPage() {
       },
     };
 
+    let saved: boolean;
     if (editingPath) {
-      await run(
+      saved = await run(
         'update-path',
         (csrf) => taxonomyAdminClient.updatePath(editingPath.id, payload, csrf).then(() => undefined),
         'تم حفظ تعديلات المسار بنجاح.'
       );
     } else {
-      await run(
+      saved = await run(
         'create-path',
         (csrf) => taxonomyAdminClient.createPath(payload, csrf).then(() => undefined),
         'تم إنشاء المسار بنجاح.'
       );
     }
-    setIsPathModalOpen(false);
+    if (saved) setIsPathModalOpen(false);
   };
 
   // --- Level Actions ---
@@ -423,21 +426,22 @@ export function TaxonomyAdminPage() {
     if (!selectedPath || !levelForm.code.trim() || !levelForm.name.trim()) {
       return setError('أدخل كود واسم المرحلة.');
     }
+    let saved: boolean;
     if (editingLevel) {
-      await run(
+      saved = await run(
         'update-level',
         (csrf) => taxonomyAdminClient.updateLevel(editingLevel.id, levelForm, csrf).then(() => undefined),
         'تم حفظ تعديلات المرحلة بنجاح.'
       );
     } else {
-      await run(
+      saved = await run(
         'create-level',
         (csrf) =>
           taxonomyAdminClient.createLevel({ pathId: selectedPath.id, ...levelForm }, csrf).then(() => undefined),
         'تم إنشاء المرحلة بنجاح.'
       );
     }
-    setIsLevelModalOpen(false);
+    if (saved) setIsLevelModalOpen(false);
   };
 
   // --- Subject Actions ---
@@ -475,21 +479,22 @@ export function TaxonomyAdminPage() {
     if (!selectedPath || !subjectForm.code.trim() || !subjectForm.name.trim()) {
       return setError('أدخل كود واسم المادة.');
     }
+    let saved: boolean;
     if (editingSubject) {
-      await run(
+      saved = await run(
         'update-subject',
         (csrf) => taxonomyAdminClient.updateSubject(editingSubject.id, subjectForm, csrf).then(() => undefined),
         'تم حفظ تعديلات المادة بنجاح.'
       );
     } else {
-      await run(
+      saved = await run(
         'create-subject',
         (csrf) =>
           taxonomyAdminClient.createSubject({ pathId: selectedPath.id, ...subjectForm }, csrf).then(() => undefined),
         'تم إنشاء المادة بنجاح.'
       );
     }
-    setIsSubjectModalOpen(false);
+    if (saved) setIsSubjectModalOpen(false);
   };
 
   // --- Skill Actions ---
@@ -692,7 +697,7 @@ export function TaxonomyAdminPage() {
         />
 
         {/* Feedback Messages */}
-        {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 font-bold text-rose-700">{error}</div> : null}
+        {error && !isPathModalOpen && !isLevelModalOpen && !isSubjectModalOpen ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 font-bold text-rose-700">{error}</div> : null}
         {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 font-bold text-emerald-700">{notice}</div> : null}
 
         {/* Subject Workspace Tabs */}
@@ -1292,7 +1297,7 @@ export function TaxonomyAdminPage() {
       </header>
 
       {/* ── Feedback Banners ── */}
-      {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 font-bold text-rose-700">{error}</div> : null}
+      {error && !isPathModalOpen && !isLevelModalOpen && !isSubjectModalOpen ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 font-bold text-rose-700">{error}</div> : null}
       {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 font-bold text-emerald-700">{notice}</div> : null}
       {busy ? (
         <div className="flex items-center justify-center gap-2 rounded-2xl border bg-white p-8 font-black text-gray-500">
@@ -1301,7 +1306,7 @@ export function TaxonomyAdminPage() {
       ) : null}
 
       {/* ── Main Two-Column Layout (Sidebar + Path Workspace) ── */}
-      <section className="grid gap-6 lg:grid-cols-[300px_1fr]">
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
         {/* ── Right Column: Paths List Sidebar ── */}
         <aside className="space-y-4">
           <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-xs">
@@ -1410,7 +1415,7 @@ export function TaxonomyAdminPage() {
         </aside>
 
         {/* ── Left Column: Active Path Workspace ── */}
-        <section className="space-y-6">
+        <section className="min-w-0 space-y-6">
           {!selectedPath ? (
             <div className="rounded-3xl border border-dashed bg-white p-16 text-center font-bold text-gray-400">
               اختر مسارًا من القائمة الجانبية لإدارة محتواه ومواده وإعداداته.
@@ -2082,6 +2087,8 @@ export function TaxonomyAdminPage() {
             </button>
           </div>
 
+          {error ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 font-bold text-rose-700">{error}</div> : null}
+
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -2185,6 +2192,8 @@ export function TaxonomyAdminPage() {
             </button>
           </div>
 
+          {error ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 font-bold text-rose-700">{error}</div> : null}
+
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-black text-slate-700 mb-1">اسم المرحلة</label>
@@ -2250,6 +2259,8 @@ export function TaxonomyAdminPage() {
               <X size={20} />
             </button>
           </div>
+
+          {error ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 font-bold text-rose-700">{error}</div> : null}
 
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

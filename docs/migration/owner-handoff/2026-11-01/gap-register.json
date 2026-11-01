@@ -140,6 +140,30 @@
       ],
       "next": "Verify default combined CI and remaining whole-header workflows/states; no global parity percentage",
       "codeCommit": "0fbaa2e2435bf72b99f30195c2150cb1b9b0f474"
+    },
+    {
+      "id": "TAXONOMY-SAVE-RETRY-001",
+      "issue": 259,
+      "priority": "P1",
+      "status": "TESTED_LOCAL_PENDING_FULL_CI",
+      "defect": "Save error swallowed then closes path/level/subject editor; intrinsic grid width clips RTL mobile edit controls",
+      "evidence": "verification.json.taxonomySaveRetry20261101",
+      "acceptance": [
+        "Save failure keeps draft and inline error",
+        "Explicit retry preserves payload and CSRF",
+        "Successful save reloads updated values",
+        "Controls stay within390/820/1440 viewport"
+      ],
+      "visualParity": "NOT_PROVEN: bounded behavior and layout containment only"
+    },
+    {
+      "id": "CONTENT-LESSON-MEDIA-001",
+      "issue": 261,
+      "priority": "P1",
+      "status": "GAP_PROVEN_LOCAL_READONLY",
+      "defect": "All570 approved video lessons in imported local database have empty video_url, recording_url, meeting_url and content_text despite report claiming full lesson migration",
+      "evidence": "verification.json.contentMigrationHandoff20261101.independentLocalAudit",
+      "next": "Locate authoritative original playable lesson sources; map stable IDs and preserve access/progress. Do not invent URLs or reimport shared data without bounded repair and dry-run evidence."
     }
   ]
 }

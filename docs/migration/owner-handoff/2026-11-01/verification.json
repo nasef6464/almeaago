@@ -183,5 +183,107 @@
     ],
     "environment": "own disposable local cluster stopped after tests; no changes to sharedpgdata/.env/Legacy/cloudsettings",
     "next": "Push completed batch once; read exactheadCI; diagnose remaining fullE2E failures locally before merge; #258 remains partial and #262 remains separate."
+  },
+  "contentMigrationHandoff20261101": {
+    "status": "REPORTED_IMPORTED_PENDING_INDEPENDENT_ACCEPTANCE",
+    "userHandoff": "User explicitly assigned content migration to Antigravity and supplied execution report attachment e12268fb-660c-42b7-a57d-817d7bcdea3d",
+    "reportedCounts": {
+      "questions": 12673,
+      "options": 50692,
+      "foundationMainTopics": 158,
+      "foundationSubtopics": 570,
+      "lessons": 570,
+      "mnsfEligible": 1937,
+      "mnsfQuarantined": 136
+    },
+    "reports": [
+      "docs/content_migration/CONTENT_ACCEPTANCE_REPORT_AR.md",
+      "docs/content_migration/CONTENT_BANK_INVENTORY_AR.md",
+      "docs/content_migration/CONTENT_MIGRATION_CHECKPOINT_AR.md"
+    ],
+    "ownership": "External content files are untracked at capture. Do not stage, rewrite or reimport them as part of frontend fix; preserve imported shared database. Read-only acceptance first.",
+    "acceptanceGaps": [
+      "Reported SQL groups existing question_options only and does not detect versions with zero option rows. Validate each choice-question version with LEFT JOIN and type-aware rules.",
+      "Reported image FK validity does not prove public media load, hash/correct image identity, answer identity or student presentation.",
+      "570 lesson/topic links do not prove nonempty playable media, entitlement and progress; distinguish metadata from playable source.",
+      "No explicit mock-exam migration inventory in supplied report.",
+      "Reports differ in bank naming QNT-FND/QNT-COL versus FND26/COL2627 and total unique asset claim includes text-only verbal; reconcile stable source IDs, not titles."
+    ],
+    "next": "Read-only local API/database counts and bounded per-bank student/admin samples, verify MNSF stays QUDRAT/QUANT and quarantine excluded; no cloud writes or data reimport.",
+    "independentLocalAudit": {
+      "database": "Explicit loopback127.0.0.1:5432/almeaa, useralmeaa; BEGIN READ ONLY +15s statement timeout +ROLLBACK; no data mutations.",
+      "script": "scripts/parity/content-import-readonly-audit.sql",
+      "result": {
+        "questions": 12673,
+        "options": 50692,
+        "lessons": 570,
+        "mainTopics": 158,
+        "subTopics": 570,
+        "topicLessonLinks": 570,
+        "currentVersionMissing": 0,
+        "invalidMCQOptionCountOrAnswerIndex": 0,
+        "approvedVideoLessons": 570,
+        "nonemptyVideoURLs": 0,
+        "nonemptyRecordingURLs": 0,
+        "nonemptyMeetingURLs": 0,
+        "nonemptyContentTexts": 0,
+        "mnsfQUDRAT_QUANT": 1937
+      },
+      "api": "127.0.0.1:8080 health ready; public taxonomy5paths/14subjects/679skills. Backend DB target not inferred from host; project .env points cloud, credentials not emitted or modified.",
+      "sourceInspection": "C:/ALMEAA MAY - codax/scratch/all_subjects_topics_tree.json contains hierarchy/title only, no lesson/media fields. BIO26_LESSON_INVENTORY.csv contains bank/PDF page inventory, no video URL.",
+      "conclusion": "Local row counts and MCQ option-answer referential membership confirmed; ALL570video lesson rows lack playable/content fields. Media/source correctness, actual teaching content, entitlement, attempts/mock exams and cloud parity remain unverified."
+    }
+  },
+  "taxonomySaveRetry20261101": {
+    "status": "TESTED_LOCAL_PENDING_FULL_CI_AND_VISUAL_PARITY",
+    "source": "Legacy dashboards/admin/PathsManager.tsx path save catch returns before close; error shown inside editor.",
+    "changes": [
+      "Path/level/subject editor closes only after successful save; error stays inside editor; draft retained.",
+      "Constrained taxonomy grid track and workspace min-width so tabs scroll without clipping RTL mobile controls.",
+      "Updated obsolete status labels in null-response retry suite; navigation waits DOMContentLoaded plus actual control assertions, no timeout increase."
+    ],
+    "checks": [
+      {
+        "name": "admin-taxonomy-save-retry + admin-taxonomy-null-error-retry",
+        "result": "PASS20/20",
+        "duration": "4.1m",
+        "scope": "Synthetic HTTP fixtures, 390/820/1440; payload/CSRF/failure/retry/reload and viewport bounds. Not real DB persistence."
+      },
+      {
+        "name": "admin-skills-separation node tests",
+        "result": "PASS11/11"
+      },
+      {
+        "name": "npm run typecheck",
+        "result": "PASS"
+      },
+      {
+        "name": "npm run build",
+        "result": "PASS",
+        "warnings": "Existing large bundle and ineffective dynamic import."
+      },
+      {
+        "name": "independent static product review",
+        "result": "No P1/P2 findings in save fix; RTL cause independently diagnosed."
+      }
+    ],
+    "failuresPreserved": [
+      "Baseline path1440 editor closes after503; baseline390 edit clipped outsideviewport.",
+      "First post-fix desktop run2PASS1FAIL: path reload waited external load until30s.",
+      "First combined run8PASS12FAIL: three30s navigation/reload timeouts and nine invalid XPath selector mistakes in new bounds check; corrected explicit xpath= and DOM readiness. Final20PASS without skipped cases or increased deadlines."
+    ],
+    "ciBaseline": {
+      "head": "6b84c6bca5b698faad99c2189316f73940e15850",
+      "backend": "PASS",
+      "frontend": "PASS",
+      "database": "PASS",
+      "e2e": "FAIL43/PASS429",
+      "run": "https://github.com/nasef6464/almeaago/actions/runs/41283173978"
+    },
+    "limits": [
+      "No full taxonomy visual parity claim",
+      "Creation branches share guarded close but new9browser scenarios cover edit only",
+      "Remaining fullE2E failures include other domains; do not merge on local20cases alone"
+    ]
   }
 }
