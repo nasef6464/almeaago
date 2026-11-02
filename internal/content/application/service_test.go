@@ -311,11 +311,14 @@ func TestCoursePublicationRequiresApprovalAndAdmin(t *testing.T) {
 	}
 }
 
-func TestLearningSpaceRequiresAuthenticatedIdentity(t *testing.T) {
+func TestLearningSpaceAllowsAnonymousCatalog(t *testing.T) {
 	service := NewService(&repoStub{})
-	_, err := service.LearningSpace(context.Background(), identity.User{}, "path-1", "subject-1", 10)
-	if !errors.Is(err, ErrForbidden) {
-		t.Fatalf("expected forbidden anonymous learning-space access, got %v", err)
+	row, err := service.LearningSpace(context.Background(), identity.User{}, "path-1", "subject-1", 10)
+	if err != nil {
+		t.Fatalf("expected anonymous learning-space access allowed, got %v", err)
+	}
+	if row.PathID != "path-1" || row.SubjectID != "subject-1" {
+		t.Fatalf("unexpected space: %#v", row)
 	}
 }
 
