@@ -8,6 +8,7 @@ import (
 	app "github.com/nasef6464/almeaago/internal/assessment/application"
 	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 	identityapp "github.com/nasef6464/almeaago/internal/identity/application"
+	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	identitysession "github.com/nasef6464/almeaago/internal/identity/transport/session"
 )
 
@@ -43,9 +44,11 @@ func (h *PlacementHandler) authn(w http.ResponseWriter, r *http.Request, csrf bo
 }
 
 func (h *PlacementHandler) available(w http.ResponseWriter, r *http.Request) {
-	a, ok := h.authn(w, r, false)
-	if !ok {
-		return
+	var actor identity.User
+	if h.auth != nil {
+		if a, err := h.auth.Authenticate(r.Context(), identitysession.Token(r)); err == nil {
+			actor = a.User
+		}
 	}
 	page, err := atoi(r.URL.Query().Get("page"))
 	if err != nil {
@@ -57,7 +60,7 @@ func (h *PlacementHandler) available(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid pagination"})
 		return
 	}
-	out, err := h.service.Learner(r.Context(), a.User, assessment.LearnerPlacementQuery{
+	out, err := h.service.Learner(r.Context(), actor, assessment.LearnerPlacementQuery{
 		Page: page, Limit: limit,
 		Slot:   assessment.PlacementSlot(r.URL.Query().Get("slot")),
 		PathID: r.URL.Query().Get("pathId"), SubjectID: r.URL.Query().Get("subjectId"),

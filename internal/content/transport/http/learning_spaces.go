@@ -34,10 +34,7 @@ func (h *Handler) getLearnerFoundationLesson(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *Handler) getLearningSpace(w http.ResponseWriter, r *http.Request) {
-	auth, ok := h.authenticate(w, r, false)
-	if !ok {
-		return
-	}
+	auth, _ := h.authenticateOptional(r)
 	limit, ok := parsePositiveInt(w, r.URL.Query().Get("limit"))
 	if !ok {
 		return
@@ -57,10 +54,7 @@ func (h *Handler) getLearningSpace(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getLearnerCourse(w http.ResponseWriter, r *http.Request) {
-	auth, ok := h.authenticate(w, r, false)
-	if !ok {
-		return
-	}
+	auth, _ := h.authenticateOptional(r)
 	row, err := h.service.LearnerCourse(r.Context(), auth.User, chi.URLParam(r, "id"))
 	if err != nil {
 		writeError(w, err)
@@ -70,10 +64,7 @@ func (h *Handler) getLearnerCourse(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getLearnerTopic(w http.ResponseWriter, r *http.Request) {
-	auth, ok := h.authenticate(w, r, false)
-	if !ok {
-		return
-	}
+	auth, _ := h.authenticateOptional(r)
 	row, err := h.service.LearnerTopic(r.Context(), auth.User, chi.URLParam(r, "id"))
 	if err != nil {
 		writeError(w, err)

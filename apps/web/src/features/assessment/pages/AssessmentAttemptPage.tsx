@@ -1,4 +1,17 @@
-import { BookOpen, CheckCircle2, Clock3, Flag, Send } from 'lucide-react';
+import {
+  AlertTriangle,
+  Lock,
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  CheckCircle2,
+  Clock3,
+  Flag,
+  Moon,
+  Send,
+  Star,
+  Sun,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -40,6 +53,9 @@ export function AssessmentAttemptPage() {
   const [index, setIndex] = useState(0);
   const [savingAnswer, setSavingAnswer] = useState(false);
   const [draftChoice, setDraftChoice] = useState<{ attemptId: string; questionId: string; option: number } | null>(null);
+  const [isNightMode, setIsNightMode] = useState(false);
+  const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
+
   const actionRef = useRef('');
   const scopeKey = `${user?.id || ''}:${assessmentId}:${attemptId}`;
   const scopeRef = useRef(scopeKey);
@@ -91,6 +107,14 @@ export function AssessmentAttemptPage() {
   const saved = question ? answers.get(question.id) : undefined;
   const imageEmbeddedOptions = Boolean(question?.imageAssetId && question.optionsEmbeddedInImage);
 
+  const answeredCount = answers.size;
+  const totalQuestions = attempt?.questions.length || 0;
+  const unansweredCount = totalQuestions - answeredCount;
+  const markedForReviewCount = useMemo(
+    () => Array.from(answers.values()).filter((a) => a.markedForReview).length,
+    [answers],
+  );
+
   async function choose(option: number) {
     if (!attempt || !question || busy || actionRef.current) return;
     const actionScope = scopeKey;
@@ -117,7 +141,6 @@ export function AssessmentAttemptPage() {
       }
     } catch (cause) {
       if (scopeRef.current === actionScope) {
-        // Keep the local choice for an explicit retry, not as a persisted answer.
         setError(cause instanceof Error ? cause.message : 'تعذر حفظ الإجابة');
       }
     } finally {
@@ -163,6 +186,7 @@ export function AssessmentAttemptPage() {
     actionRef.current = actionScope;
     setBusy(true);
     setError('');
+    setShowConfirmSubmit(false);
     try {
       const csrf = await getCsrfToken();
       if (scopeRef.current !== actionScope) return;
@@ -197,26 +221,54 @@ export function AssessmentAttemptPage() {
         <section className="rounded-3xl border bg-white p-8 text-center shadow-sm">
           <CheckCircle2 className="mx-auto text-emerald-600" size={48} />
           <h1 className="mt-3 text-2xl font-black">تم تسليم الاختبار</h1>
-          {attempt?.showResultsReport !== false ? <>
-            <div className="mt-5 text-5xl font-black">{result.score.toFixed(1)}%</div>
-            <p className="mt-3 font-bold">{result.correctAnswers} صحيحة · {result.wrongAnswers} خاطئة · {result.unanswered} بدون إجابة</p>
-          </> : <p className="mt-5 font-bold text-gray-600">تم تسجيل إكمال الاختبار.</p>}
+          {attempt?.showResultsReport !== false ? (
+            <>
+              <div className="mt-5 text-5xl font-black">{result.score.toFixed(1)}%</div>
+              <p className="mt-3 font-bold">
+                {result.correctAnswers} صحيحة · {result.wrongAnswers} خاطئة · {result.unanswered} بدون إجابة
+              </p>
+            </>
+          ) : (
+            <p className="mt-5 font-bold text-gray-600">تم تسجيل إكمال الاختبار.</p>
+          )}
           <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
-            {returnTo ? <Link to={returnTo} className="rounded-xl border px-4 py-2.5 font-black text-slate-700">العودة لموضوع التأسيس</Link> : null}
+            {returnTo ? (
+              <Link to={returnTo} className="rounded-xl border px-4 py-2.5 font-black text-slate-700">
+                العودة لموضوع التأسيس
+              </Link>
+            ) : null}
             <Link
               to={`/assessment-results/${result.attemptId}`}
               className="rounded-xl bg-slate-950 px-4 py-2.5 font-black text-white"
             >
               عرض النتيجة والمراجعة
             </Link>
-            <Link
-              to="/assessment-results"
-              className="rounded-xl border px-4 py-2.5 font-black text-slate-700"
-            >
+            <Link to="/assessment-results" className="rounded-xl border px-4 py-2.5 font-black text-slate-700">
               سجل النتائج
             </Link>
           </div>
         </section>
+      </main>
+    );
+  }
+  if (!user) {
+    return (
+      <main dir="rtl" className="mx-auto max-w-xl p-8 text-center">
+        <div className="rounded-3xl border border-indigo-100 bg-white p-8 shadow-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+            <Lock size={26} />
+          </div>
+          <h2 className="text-xl font-black text-slate-900">سجّل الدخول لبدء التدريب أو الاختبار</h2>
+          <p className="mt-2 text-sm text-slate-500 font-bold leading-6">
+            تسجيل الدخول مطلوب لحفظ إجاباتك ورصد نتيجتك وتحليل أدائك في تقارير المنصة.
+          </p>
+          <Link
+            to={`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`}
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-black text-white hover:bg-indigo-700 transition shadow-xs"
+          >
+            <span>تسجيل الدخول الآن</span>
+          </Link>
+        </div>
       </main>
     );
   }
@@ -225,131 +277,359 @@ export function AssessmentAttemptPage() {
   }
 
   return (
-    <main dir="rtl" className="mx-auto max-w-3xl space-y-4 p-4">
-      <header className="rounded-2xl bg-slate-950 p-4 text-white">
-        {returnTo ? <Link to={returnTo} className="mb-3 inline-block rounded-xl bg-white px-4 py-2 text-sm font-bold text-slate-900">العودة لموضوع التأسيس</Link> : null}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-amber-400">اختبار جاري</p>
-            <h1 className="font-black">{attempt.title}</h1>
-          </div>
-          <div className="flex items-center gap-1 text-sm">
-            <Clock3 size={16} />
-            {attempt.expiresAt ? 'مؤقت' : 'بدون مؤقت'}
-          </div>
-        </div>
-        {attempt.showProgressBar ? (
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-700">
-            <div
-              className="h-full bg-amber-400"
-              style={{ width: `${((index + 1) / attempt.questions.length) * 100}%` }}
-            />
-          </div>
-        ) : null}
-      </header>
-
-      {error ? (
-        <div className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700">{error}</div>
-      ) : null}
-
-      <section className="rounded-3xl border bg-white p-5 shadow-sm">
-        <div className="mb-4 flex justify-between text-sm font-bold text-gray-500">
-          {question.learnerPresentation?.showQuestionNumber !== false ? <span>{question.learnerPresentation?.questionNumber ? `السؤال ${question.learnerPresentation.questionNumber}` : `السؤال ${index + 1} من ${attempt.questions.length}`}</span> : <span />}
-          <span>{question.points} درجة</span>
-        </div>
-        {question.passage ? (
-          <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-xs leading-relaxed text-amber-950">
-            <div className="mb-2 flex items-center gap-1.5 font-black text-amber-900">
-              <BookOpen size={15} className="text-amber-700" />
-              <span>قطعة استيعاب المقروء:</span>
-            </div>
-            <p className="whitespace-pre-line rounded-xl border border-amber-100 bg-white/80 p-3 text-sm font-medium leading-relaxed text-slate-800">
-              {question.passage}
-            </p>
-          </div>
-        ) : null}
-
-        {question.text ? <h2 className="text-lg font-black whitespace-pre-wrap">{question.text}</h2> : !question.imageAssetId ? <h2 className="text-lg font-black">سؤال بصري</h2> : null}
-        {question.imageAssetId ? (
-          <div className="my-4 overflow-hidden rounded-2xl border border-gray-100 bg-slate-50 p-3 text-center">
-            <QuestionAssetImage assetId={question.imageAssetId} alt={question.imageAlt || 'صورة السؤال'} />
-          </div>
-        ) : null}
-        <div className={`mt-5 grid gap-2 ${imageEmbeddedOptions ? 'grid-cols-4' : ''}`}>
-          {question.options.map((option) => (
-            <div key={option.index}>
-            <button
-              type="button"
-              disabled={savingAnswer || busy}
-              onClick={() => void choose(option.index)}
-              className={`w-full rounded-xl border p-3 font-bold ${imageEmbeddedOptions ? 'min-h-[46px] text-center' : 'text-right'} ${
-                (draftChoice?.attemptId === attempt.id && draftChoice.questionId === question.id
-                  ? draftChoice.option : saved?.selectedOptionIndex) === option.index
-                  ? 'border-amber-500 bg-amber-50'
-                  : ''
+    <main
+      dir="rtl"
+      className={`min-h-screen transition-colors ${
+        isNightMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'
+      } p-3 sm:p-5`}
+    >
+      <div className="mx-auto max-w-4xl space-y-4">
+        {/* Sticky Header with Navigation and Mode Toggle */}
+        <header
+          className={`sticky top-3 z-30 rounded-2xl border p-4 shadow-sm backdrop-blur-md transition-colors ${
+            isNightMode ? 'border-slate-800 bg-slate-900/90 text-white' : 'border-slate-200 bg-white/90 text-slate-900'
+          }`}
+        >
+          {returnTo ? (
+            <Link
+              to={returnTo}
+              className={`mb-3 inline-block rounded-xl border px-3.5 py-1.5 text-xs font-bold transition ${
+                isNightMode
+                  ? 'border-slate-700 bg-slate-800 text-white hover:bg-slate-700'
+                  : 'border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-200'
               }`}
             >
-              {question.learnerPresentation?.showOptionLabels !== false ? <span className={imageEmbeddedOptions ? 'text-lg font-black' : 'ml-2 inline-block min-w-7 rounded-lg bg-gray-100 p-1 text-center'}>
-                {optionLabel(option.index, question.learnerPresentation, imageEmbeddedOptions ? option.text : undefined, imageEmbeddedOptions && question.options.some(item => /^[a-d]$/i.test(item.text.trim())))}
-              </span> : null}
-              {showOptionText(question.learnerPresentation, imageEmbeddedOptions) ? option.text : ''}
-            </button>
-            {!imageEmbeddedOptions && option.assetId ? (
-              <div className="mt-2 rounded-xl border bg-slate-50 p-3">
-                <QuestionAssetImage assetId={option.assetId} alt={`صورة الخيار ${['أ', 'ب', 'ج', 'د', 'هـ'][option.index] || option.index + 1}`} />
-              </div>
-            ) : null}
-            </div>
-          ))}
-        </div>
-      </section>
+              العودة لموضوع التأسيس
+            </Link>
+          ) : null}
 
-      <footer className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold text-amber-500">اختبار جاري</p>
+              <h1 className="text-lg font-black">{attempt.title}</h1>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Day / Night Toggle */}
+              <button
+                type="button"
+                onClick={() => setIsNightMode((v) => !v)}
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition ${
+                  isNightMode
+                    ? 'border-slate-700 bg-slate-800 text-amber-300 hover:bg-slate-700'
+                    : 'border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+                title="تبديل الوضع الليلي / النهاري"
+              >
+                {isNightMode ? <Sun size={15} /> : <Moon size={15} />}
+                <span>{isNightMode ? 'نهاري' : 'ليلي'}</span>
+              </button>
+
+              {/* Timer Pill */}
+              <div
+                className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-black ${
+                  isNightMode
+                    ? 'border-slate-700 bg-slate-800 text-amber-300'
+                    : 'border-amber-200 bg-amber-50 text-amber-700'
+                }`}
+              >
+                <Clock3 size={15} />
+                <span>{attempt.expiresAt ? 'مؤقت نشط' : 'تدريب بدون مؤقت'}</span>
+              </div>
+
+              {/* Review Flag Button */}
+              {attempt.allowQuestionReview ? (
+                <button
+                  type="button"
+                  disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id || saved?.selectedOptionIndex == null}
+                  onClick={() => void toggleReview()}
+                  className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition disabled:opacity-40 ${
+                    saved?.markedForReview
+                      ? 'border-amber-400 bg-amber-400 text-slate-950 shadow-xs'
+                      : isNightMode
+                      ? 'border-slate-700 bg-slate-800 text-amber-300 hover:bg-slate-700'
+                      : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                  }`}
+                >
+                  <Star size={14} className={saved?.markedForReview ? 'fill-current' : ''} />
+                  <span>{saved?.markedForReview ? 'معلّم للمراجعة' : 'مراجعة لاحقاً'}</span>
+                </button>
+              ) : null}
+
+              {/* End/Submit Button */}
+              <button
+                type="button"
+                onClick={() => setShowConfirmSubmit(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-black text-white hover:bg-amber-600 shadow-xs"
+              >
+                <Send size={14} />
+                <span>إنهاء الاختبار</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          {attempt.showProgressBar ? (
+            <div className={`mt-3 h-2 overflow-hidden rounded-full ${isNightMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+              <div
+                className="h-full bg-indigo-600 transition-all duration-300"
+                style={{ width: `${((index + 1) / attempt.questions.length) * 100}%` }}
+              />
+            </div>
+          ) : null}
+        </header>
+
+        {error ? <div className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700 text-xs">{error}</div> : null}
+
+        {/* Question Area Card */}
+        <section
+          className={`rounded-3xl border p-5 sm:p-7 shadow-xs transition-colors ${
+            isNightMode ? 'border-slate-800 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-900'
+          }`}
+        >
+          <div className="mb-4 flex items-center justify-between text-xs font-bold text-slate-500">
+            <span>
+              {question.learnerPresentation?.showQuestionNumber !== false
+                ? `السؤال ${index + 1} من ${attempt.questions.length}`
+                : ''}
+            </span>
+            <span
+              className={`rounded-full px-2.5 py-0.5 font-bold ${
+                saved?.selectedOptionIndex != null
+                  ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+                  : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {saved?.selectedOptionIndex != null ? 'تمت الإجابة' : 'لم تُجب بعد'}
+            </span>
+          </div>
+
+          {question.passage ? (
+            <div
+              className={`mb-4 rounded-2xl border p-4 text-xs leading-relaxed ${
+                isNightMode
+                  ? 'border-slate-700 bg-slate-800 text-slate-200'
+                  : 'border-amber-200 bg-amber-50/70 text-amber-950'
+              }`}
+            >
+              <div className="mb-2 flex items-center gap-1.5 font-black text-amber-600">
+                <BookOpen size={15} />
+                <span>قطعة استيعاب المقروء:</span>
+              </div>
+              <p className="whitespace-pre-line text-sm font-medium leading-relaxed">{question.passage}</p>
+            </div>
+          ) : null}
+
+          {question.text ? (
+            <h2 className="text-base sm:text-lg font-black leading-relaxed whitespace-pre-wrap">{question.text}</h2>
+          ) : !question.imageAssetId ? (
+            <h2 className="text-base font-black">سؤال بصري</h2>
+          ) : null}
+
+          {question.imageAssetId ? (
+            <div
+              className={`my-4 overflow-hidden rounded-2xl border p-3 text-center ${
+                isNightMode ? 'border-slate-800 bg-black' : 'border-slate-100 bg-slate-50'
+              }`}
+            >
+              <QuestionAssetImage assetId={question.imageAssetId} alt={question.imageAlt || 'صورة السؤال'} />
+            </div>
+          ) : null}
+
+          {/* 4-Grid Responsive Option Cards (1:1 with Legacy) */}
+          <div
+            className={`mt-6 grid gap-3 ${
+              imageEmbeddedOptions
+                ? 'grid-cols-4'
+                : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+            }`}
+          >
+            {question.options.map((option) => {
+              const isSelected =
+                (draftChoice?.attemptId === attempt.id && draftChoice.questionId === question.id
+                  ? draftChoice.option
+                  : saved?.selectedOptionIndex) === option.index;
+
+              return (
+                <div key={option.index}>
+                  <button
+                    type="button"
+                    disabled={savingAnswer || busy}
+                    onClick={() => void choose(option.index)}
+                    className={`min-h-[76px] w-full rounded-2xl border-2 px-4 py-3 text-right transition-all flex flex-col justify-center ${
+                      isSelected
+                        ? isNightMode
+                          ? 'border-indigo-400 bg-indigo-500/25 text-white ring-2 ring-indigo-400/40'
+                          : 'border-indigo-600 bg-indigo-50/90 text-indigo-900 ring-2 ring-indigo-200 shadow-xs'
+                        : isNightMode
+                        ? 'border-slate-700 bg-slate-800 text-slate-100 hover:border-indigo-400 hover:bg-slate-700/60'
+                        : 'border-slate-200 bg-white text-slate-800 hover:border-indigo-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex h-full items-center justify-between gap-2.5">
+                      <span className="min-w-0 flex-1 text-sm font-black leading-6">
+                        {question.learnerPresentation?.showOptionLabels !== false ? (
+                          <span
+                            className={`ml-2 inline-flex h-7 w-7 items-center justify-center rounded-lg text-xs font-black ${
+                              isSelected
+                                ? 'bg-indigo-600 text-white'
+                                : isNightMode
+                                ? 'bg-slate-700 text-slate-200'
+                                : 'bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {optionLabel(
+                              option.index,
+                              question.learnerPresentation,
+                              imageEmbeddedOptions ? option.text : undefined,
+                            )}
+                          </span>
+                        ) : null}
+                        {showOptionText(question.learnerPresentation, imageEmbeddedOptions) ? option.text : ''}
+                      </span>
+
+                      <span
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-600 text-white'
+                            : isNightMode
+                            ? 'border-slate-500'
+                            : 'border-slate-300'
+                        }`}
+                      >
+                        {isSelected ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
+                      </span>
+                    </div>
+                  </button>
+
+                  {!imageEmbeddedOptions && option.assetId ? (
+                    <div className="mt-2 rounded-xl border bg-slate-50 p-3">
+                      <QuestionAssetImage assetId={option.assetId} alt={`صورة الخيار`} />
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Question Navigation Ribbon & Prev/Next Bar (1:1 with Legacy) */}
+        <footer
+          className={`rounded-2xl border p-4 shadow-sm flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between transition-colors ${
+            isNightMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'
+          }`}
+        >
           <button
             type="button"
             disabled={index === 0 || savingAnswer || busy || draftChoice?.attemptId === attempt.id}
-            onClick={() => setIndex((value) => value - 1)}
-            className="rounded-xl border px-4 py-2 font-bold disabled:opacity-40"
+            onClick={() => setIndex((v) => Math.max(0, v - 1))}
+            className={`flex items-center justify-center gap-1.5 rounded-xl border px-5 py-2.5 text-xs font-black transition disabled:opacity-40 ${
+              isNightMode
+                ? 'border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700'
+                : 'border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
           >
-            السابق
+            <ArrowRight size={16} />
+            <span>السابق</span>
           </button>
+
+          {/* Question Number Ribbon (1:1 with Legacy) */}
+          <div className="flex max-w-full gap-1 overflow-x-auto px-2 py-1 lg:max-w-[60%] scrollbar-thin">
+            {attempt.questions.map((q, idx) => {
+              const isCurrent = index === idx;
+              const isAnswered = answers.has(q.id);
+              const isReview = answers.get(q.id)?.markedForReview;
+
+              return (
+                <button
+                  key={q.id}
+                  type="button"
+                  onClick={() => setIndex(idx)}
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black transition-all ${
+                    isCurrent
+                      ? 'bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-400'
+                      : isReview
+                      ? 'border border-amber-300 bg-amber-100 text-amber-800 shadow-2xs'
+                      : isAnswered
+                      ? 'border border-emerald-300 bg-emerald-100 text-emerald-700 shadow-2xs'
+                      : isNightMode
+                      ? 'border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                  }`}
+                  title={`السؤال ${idx + 1}`}
+                >
+                  {idx + 1}
+                </button>
+              );
+            })}
+          </div>
+
           <button
             type="button"
             disabled={
-              savingAnswer || busy || draftChoice?.attemptId === attempt.id ||
+              savingAnswer ||
+              busy ||
+              draftChoice?.attemptId === attempt.id ||
               index === attempt.questions.length - 1 ||
               (attempt.requireAnswerBeforeNext && !saved)
             }
-            onClick={() => setIndex((value) => value + 1)}
-            className="rounded-xl border px-4 py-2 font-bold disabled:opacity-40"
+            onClick={() => setIndex((v) => Math.min(attempt.questions.length - 1, v + 1))}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-6 py-2.5 text-xs font-black text-white hover:bg-indigo-700 transition disabled:opacity-40 shadow-xs"
           >
-            التالي
+            <span>التالي</span>
+            <ArrowLeft size={16} />
           </button>
-          {attempt.allowQuestionReview ? (
-            <button
-              type="button"
-              disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id || saved?.selectedOptionIndex == null}
-              onClick={() => void toggleReview()}
-              className={`inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-sm font-bold disabled:opacity-40 ${
-                saved?.markedForReview ? 'border-indigo-300 bg-indigo-50 text-indigo-800' : ''
-              }`}
-            >
-              <Flag size={15} />
-              {saved?.markedForReview ? 'معلّم للمراجعة' : 'للمراجعة'}
-            </button>
-          ) : null}
+        </footer>
+      </div>
+
+      {/* Confirmation Submit Modal (1:1 with Legacy) */}
+      {showConfirmSubmit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs" dir="rtl">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 text-center shadow-2xl">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
+              <AlertTriangle size={32} />
+            </div>
+            <h2 className="text-xl font-black text-slate-900">هل أنت متأكد من تسليم الاختبار الآن؟</h2>
+
+            <div className="my-4 space-y-2 text-right">
+              <div className="flex items-center justify-between rounded-xl bg-slate-50 p-2.5 text-xs font-bold text-slate-700">
+                <span>الأسئلة المجاب عليها:</span>
+                <span className="font-black text-emerald-600">{answeredCount}</span>
+              </div>
+              {unansweredCount > 0 && (
+                <div className="flex items-center justify-between rounded-xl bg-rose-50 p-2.5 text-xs font-bold text-rose-700">
+                  <span>أسئلة بدون إجابة:</span>
+                  <span className="font-black">{unansweredCount}</span>
+                </div>
+              )}
+              {markedForReviewCount > 0 && (
+                <div className="flex items-center justify-between rounded-xl bg-amber-50 p-2.5 text-xs font-bold text-amber-700">
+                  <span>أسئلة معلّمة للمراجعة:</span>
+                  <span className="font-black">{markedForReviewCount}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => void submit()}
+                disabled={busy}
+                className="flex-1 rounded-xl bg-indigo-600 py-3 text-sm font-black text-white hover:bg-indigo-700 shadow-sm"
+              >
+                نعم، قم بالتسليم
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowConfirmSubmit(false)}
+                className="flex-1 rounded-xl border border-slate-200 bg-slate-100 py-3 text-sm font-black text-slate-700 hover:bg-slate-200"
+              >
+                العودة للحل
+              </button>
+            </div>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={() => void submit()}
-          disabled={busy || savingAnswer || draftChoice?.attemptId === attempt.id}
-          className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-2.5 font-black text-white"
-        >
-          <Send size={17} />
-          تسليم الاختبار
-        </button>
-      </footer>
+      )}
     </main>
   );
 }

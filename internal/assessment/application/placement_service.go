@@ -184,8 +184,27 @@ func learnerPlacementWrite(q assessment.LearnerPlacementQuery) assessment.Placem
 	}
 }
 
+func canAccessLearner(a identity.User) bool {
+	if strings.TrimSpace(a.ID) == "" {
+		return true // anonymous / guest preview allowed
+	}
+	return a.HasRole(identity.RoleStudent) ||
+		a.HasRole(identity.RoleAdmin) ||
+		a.HasRole(identity.RoleAdmin) ||
+		a.HasRole(identity.RoleTeacher) ||
+		a.HasRole(identity.RoleSchoolAdmin) ||
+		a.HasRole(identity.RoleSupervisor)
+}
+
+func canStartPlacement(a identity.User) bool {
+	return a.HasRole(identity.RoleStudent) ||
+		a.HasRole(identity.RoleAdmin) ||
+		a.HasRole(identity.RoleAdmin) ||
+		a.HasRole(identity.RoleTeacher)
+}
+
 func (s *PlacementService) Learner(ctx context.Context, actor identity.User, q assessment.LearnerPlacementQuery) (assessment.LearnerPlacementPage, error) {
-	if requireStudent(actor) != nil {
+	if !canAccessLearner(actor) {
 		return assessment.LearnerPlacementPage{}, ErrForbidden
 	}
 	q.PathID = strings.TrimSpace(q.PathID)
@@ -217,8 +236,15 @@ func (s *PlacementService) Learner(ctx context.Context, actor identity.User, q a
 	if err != nil {
 		return assessment.LearnerPlacementPage{}, err
 	}
+	isAdminOrTrainer := actor.HasRole(identity.RoleAdmin)
 	for i := range page.Items {
 		item := &page.Items[i]
+		if isAdminOrTrainer {
+			item.AccessAllowed = true
+			item.AccessReason = "admin_preview"
+			item.CanStart = true
+			continue
+		}
 		scope := assessment.AccessContext{
 			AssessmentID: item.AssessmentID, AssessmentKind: item.AssessmentKind, BaseAccess: item.BaseAccessType,
 			PlacementID: item.PlacementID, PlacementSlot: item.Slot, PlacementAccess: item.AccessType,
@@ -236,7 +262,7 @@ func (s *PlacementService) Learner(ctx context.Context, actor identity.User, q a
 }
 
 func (s *PlacementService) Start(ctx context.Context, actor identity.User, placementID, startKey string) (assessment.Attempt, error) {
-	if requireStudent(actor) != nil {
+	if !canStartPlacement(actor) {
 		return assessment.Attempt{}, ErrForbidden
 	}
 	placementID = strings.TrimSpace(placementID)

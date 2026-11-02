@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"strings"
 
 	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 	commerce "github.com/nasef6464/almeaago/internal/commerce/domain"
@@ -29,6 +30,12 @@ func resolveCommerceAccess(
 	scope assessment.AccessContext,
 	packageOnly bool,
 ) (bool, string, error) {
+	if strings.TrimSpace(userID) == "" {
+		if packageOnly {
+			return false, "package_required", nil
+		}
+		return false, "paid_required", nil
+	}
 	if resolver == nil {
 		return false, "commerce_unavailable", assessment.ErrConflict
 	}

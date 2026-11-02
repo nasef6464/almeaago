@@ -46,6 +46,21 @@ func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request, csrf bool
 	return auth, true
 }
 
+func (h *Handler) authenticateOptional(r *http.Request) (identityapp.Authenticated, bool) {
+	if h.auth == nil {
+		return identityapp.Authenticated{}, false
+	}
+	token := identitysession.Token(r)
+	if token == "" {
+		return identityapp.Authenticated{}, false
+	}
+	auth, err := h.auth.Authenticate(r.Context(), token)
+	if err != nil {
+		return identityapp.Authenticated{}, false
+	}
+	return auth, true
+}
+
 func parseListQuery(w http.ResponseWriter, r *http.Request) (content.ListQuery, bool) {
 	page, ok := parsePositiveInt(w, r.URL.Query().Get("page"))
 	if !ok {

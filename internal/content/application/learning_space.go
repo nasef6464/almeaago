@@ -20,9 +20,6 @@ type foundationAccessResolver interface {
 // LearnerFoundationLesson resolves an exact topic-to-lesson placement before
 // exposing lesson content. A locked topic or lesson requires an entitlement.
 func (s *Service) LearnerFoundationLesson(ctx context.Context, actor identity.User, topicID, lessonID string) (content.LearnerLessonDetail, error) {
-	if strings.TrimSpace(actor.ID) == "" || !actor.HasRole(identity.RoleStudent) {
-		return content.LearnerLessonDetail{}, ErrForbidden
-	}
 	topicID, lessonID = strings.TrimSpace(topicID), strings.TrimSpace(lessonID)
 	if topicID == "" || lessonID == "" {
 		return content.LearnerLessonDetail{}, ErrInvalidInput
@@ -38,7 +35,15 @@ func (s *Service) LearnerFoundationLesson(ctx context.Context, actor identity.Us
 	if !strings.EqualFold(row.TopicID, topicID) || !strings.EqualFold(row.Lesson.ID, lessonID) || strings.TrimSpace(row.PathID) == "" || strings.TrimSpace(row.SubjectID) == "" {
 		return content.LearnerLessonDetail{}, ErrForbidden
 	}
+	// Admins and teachers bypass lock
+	if actor.HasRole(identity.RoleAdmin) || actor.HasRole(identity.RoleTeacher) {
+		return row.Lesson, nil
+	}
+	// If the topic or lesson is locked, student must be authenticated and entitled
 	if row.TopicLocked || row.Lesson.IsLocked {
+		if strings.TrimSpace(actor.ID) == "" || !actor.HasRole(identity.RoleStudent) {
+			return content.LearnerLessonDetail{}, ErrForbidden
+		}
 		access, ok := s.courseAccess.(foundationAccessResolver)
 		if !ok {
 			return content.LearnerLessonDetail{}, ErrForbidden
@@ -67,9 +72,6 @@ func (s *Service) ResolveFoundationLessonProgressTarget(ctx context.Context, act
 }
 
 func (s *Service) LearningSpace(ctx context.Context, actor identity.User, pathID, subjectID string, limit int) (content.LearningSpace, error) {
-	if strings.TrimSpace(actor.ID) == "" {
-		return content.LearningSpace{}, ErrForbidden
-	}
 	pathID = strings.TrimSpace(pathID)
 	subjectID = strings.TrimSpace(subjectID)
 	if limit == 0 {
@@ -109,9 +111,6 @@ func (s *Service) LearnerCourse(ctx context.Context, actor identity.User, course
 }
 
 func (s *Service) LearnerTopic(ctx context.Context, actor identity.User, topicID string) (content.LearnerTopic, error) {
-	if strings.TrimSpace(actor.ID) == "" {
-		return content.LearnerTopic{}, ErrForbidden
-	}
 	topicID = strings.TrimSpace(topicID)
 	if topicID == "" {
 		return content.LearnerTopic{}, ErrInvalidInput

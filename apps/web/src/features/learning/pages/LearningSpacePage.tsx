@@ -180,7 +180,7 @@ export function LearningSpacePage() {
   }, [effectivePathId, effectiveSubjectId, subjectIsInScope, retryNonce]);
 
   useEffect(() => {
-    if (authLoading || !user || !effectivePathId || !effectiveSubjectId || !subjectIsInScope || (tab !== 'questions' && tab !== 'exams')) {
+    if (authLoading || !effectivePathId || !effectiveSubjectId || !subjectIsInScope || (tab !== 'questions' && tab !== 'exams')) {
       setTrainingPlacements([]);
       setTestPlacements([]);
       setPlacementsLoading(false);
@@ -218,7 +218,11 @@ export function LearningSpacePage() {
   }, [effectivePathId, effectiveSubjectId, tab, placementsRetry, authLoading, user?.id, subjectIsInScope]);
 
   const handleStartPlacement = async (placement: LearnerAssessmentPlacement) => {
-    if (!user || startPlacementRef.current || !placement.accessAllowed || !placement.canStart || loadedPlacementScope !== placementScope) return;
+    if (!user) {
+      navigate(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      return;
+    }
+    if (startPlacementRef.current || !placement.accessAllowed || !placement.canStart || loadedPlacementScope !== placementScope) return;
     const actionScope = placementScope;
     startPlacementRef.current = placement.placementId;
     setStartingPlacementId(placement.placementId);
@@ -301,28 +305,7 @@ export function LearningSpacePage() {
     return <main className="p-10 text-center font-black">جاري تحميل مساحة التعلم...</main>;
   }
 
-  if (!user) {
-    return (
-      <main dir="rtl" className="max-w-2xl mx-auto p-12 text-center">
-        <div className="rounded-3xl border border-indigo-100 bg-white p-8 shadow-sm">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
-            <Lock size={26} />
-          </div>
-          <h2 className="text-xl font-black text-slate-900">سجّل الدخول لفتح مساحة التعلم</h2>
-          <p className="mt-2 text-sm text-slate-500 font-bold leading-6">
-            مساحة التعلم الذكية تحفظ تقدمك في الدروس، التأسيس، والتدريبات التفاعلية.
-          </p>
-          <Link
-            to={`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`}
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-black text-white hover:bg-indigo-700 transition"
-          >
-            <span>تسجيل الدخول الآن</span>
-            <ChevronRight size={16} />
-          </Link>
-        </div>
-      </main>
-    );
-  }
+
 
   const assessmentHref = (slot: 'training' | 'tests') => {
     const query = new URLSearchParams();
@@ -334,6 +317,22 @@ export function LearningSpacePage() {
 
   return (
     <main dir="rtl" data-testid="legacy-learning-space" className="min-h-screen bg-gray-50 pb-20 font-sans overflow-x-clip">
+      {!user && (
+        <div className="mx-auto max-w-7xl px-4 pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/90 p-3 sm:px-5 shadow-xs">
+            <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-indigo-950">
+              <Sparkles size={16} className="text-amber-500 shrink-0" />
+              <span>مرحباً بك! تصفح دروس التأسيس والتدريبات، وسجّل الدخول لحفظ تقدّمك ونتائجك.</span>
+            </div>
+            <Link
+              to={`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`}
+              className="rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-black text-white hover:bg-indigo-700 transition shadow-xs"
+            >
+              تسجيل الدخول
+            </Link>
+          </div>
+        </div>
+      )}
       <section className="relative overflow-hidden bg-[#2e2b70] py-7 sm:py-9">
         <div className="relative z-10 mx-auto max-w-7xl px-4 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-black text-indigo-100 backdrop-blur-sm">

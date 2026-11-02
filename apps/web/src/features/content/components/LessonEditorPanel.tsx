@@ -1,7 +1,8 @@
-import { CheckCircle2, HelpCircle, Loader2, Play, Plus, RotateCcw, Save, Trash2, Video, X } from 'lucide-react';
+import { CheckCircle2, HelpCircle, Loader2, Play, Plus, RotateCcw, Save, Search, Trash2, Video, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
 import { contentClient } from '../api/content-client';
+import { VideoQuestionPicker } from './VideoQuestionPicker';
 import type {
   CreateLessonInput,
   LessonDetail,
@@ -96,6 +97,7 @@ export function LessonEditorPanel({
   const [isLocked, setIsLocked] = useState(false);
   const [skillIds, setSkillIds] = useState<string[]>(() => [...new Set([...initialSkillIds, ...requiredSkillIds])]);
   const [interactiveQuestions, setInteractiveQuestions] = useState<InteractiveVideoQuestion[]>([]);
+  const [showQuestionPicker, setShowQuestionPicker] = useState(false);
 
   function addInteractiveQuestion() {
     const newQ: InteractiveVideoQuestion = {
@@ -401,15 +403,50 @@ export function LessonEditorPanel({
                   تظهر للطالب عند توقيت محدد أثناء تشغيل الفيديو لتثبيت المفهوم وتجميد الفيديو للمتابعة.
                 </p>
               </div>
-              <button
-                type="button"
-                disabled={!canMutate}
-                onClick={addInteractiveQuestion}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer shadow-xs"
-              >
-                <Plus size={15} /> إضافة سؤال داخل الفيديو
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={!canMutate}
+                  onClick={() => setShowQuestionPicker(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 cursor-pointer shadow-xs"
+                >
+                  <Search size={15} /> اختيار من بنك الأسئلة
+                </button>
+                <button
+                  type="button"
+                  disabled={!canMutate}
+                  onClick={addInteractiveQuestion}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer shadow-xs"
+                >
+                  <Plus size={15} /> إضافة سؤال يدوي
+                </button>
+              </div>
             </div>
+
+            {showQuestionPicker && (
+              <VideoQuestionPicker
+                context={{ pathId, subjectId }}
+                excludedQuestionIds={interactiveQuestions.map((q) => q.id)}
+                selectionMode="multiple"
+                onConfirm={(selectedQuestions) => {
+                  const newItems: InteractiveVideoQuestion[] = selectedQuestions.map((sq, i) => ({
+                    id: sq.id || `iq-${Date.now()}-${i}`,
+                    timestamp: 30 * (interactiveQuestions.length + i + 1),
+                    rewatchTimestamp: 0,
+                    actionOnFail: 'rewatch',
+                    mustPass: true,
+                    inlineQuestion: {
+                      text: sq.text,
+                      options: sq.options,
+                      correctOptionIndex: sq.correctOptionIndex,
+                    },
+                  }));
+                  setInteractiveQuestions((prev) => [...prev, ...newItems]);
+                  setShowQuestionPicker(false);
+                }}
+                onClose={() => setShowQuestionPicker(false)}
+              />
+            )}
 
             {interactiveQuestions.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-indigo-200 bg-white p-6 text-center text-xs font-bold text-gray-400">

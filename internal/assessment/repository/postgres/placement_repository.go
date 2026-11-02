@@ -163,7 +163,7 @@ func (r *Repository) ListLearnerPlacements(ctx context.Context, student string, 
 			p.id::text,p.assessment_id::text,p.assessment_version,v.assessment_kind,v.title,p.slot,p.path_id::text,
 			COALESCE(p.subject_id::text,''),COALESCE(p.course_id::text,''),COALESCE(p.lesson_id::text,''),
 			COALESCE(p.topic_id::text,''),p.sort_order,
-			(SELECT count(*)::int FROM assessment_attempts x WHERE x.placement_id=p.id AND x.student_id=$1::uuid),
+			(SELECT count(*)::int FROM assessment_attempts x WHERE x.placement_id=p.id AND x.student_id=NULLIF($1,'')::uuid),
 			v.max_attempts,p.access_type,v.access_type
 		FROM assessment_learning_placements p
 		JOIN assessments d ON d.id=p.assessment_id

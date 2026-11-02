@@ -82,7 +82,7 @@ function FoundationTopicTraining({ pathId, subjectId, topicId }: { pathId: strin
   if (active.current.key !== contextKey) active.current = { key: contextKey, token: {} };
   const mounted = useRef(true);
   const inFlight = useRef<{ token: object; id: string } | null>(null);
-  const ready = !authLoading && Boolean(user?.roles.includes('student') && pathId && subjectId && topicId);
+  const ready = !authLoading && Boolean(pathId && subjectId && topicId);
   const current = result?.key === requestKey ? result : null;
   const starting = startState.token === active.current.token ? startState.id : '';
   const startError = startState.token === active.current.token ? startState.error : '';
@@ -109,6 +109,10 @@ function FoundationTopicTraining({ pathId, subjectId, topicId }: { pathId: strin
   }, [ready, pathId, subjectId, topicId, page, requestKey]);
 
   const start = async (placement: LearnerAssessmentPlacement) => {
+    if (!user) {
+      navigate(`/login?returnTo=${encodeURIComponent(location.pathname + location.search)}`);
+      return;
+    }
     const token = active.current.token;
     if (!ready || !current || !placement.accessAllowed || !placement.canStart || inFlight.current?.token === token) return;
     inFlight.current = { token, id: placement.placementId };
@@ -135,7 +139,7 @@ function FoundationTopicTraining({ pathId, subjectId, topicId }: { pathId: strin
   };
 
   if (authLoading || (ready && !current)) return <p role="status" className="py-10 text-center font-bold text-gray-500">جاري تحميل التدريبات...</p>;
-  if (!ready) return <p className="py-10 text-center text-gray-500">سجّل الدخول بحساب الطالب لعرض تدريبات هذا الموضوع.</p>;
+  if (!ready) return <p className="py-10 text-center text-gray-500">جاري التحقق من بيانات الموضوع...</p>;
   if (current?.error) return <div role="alert" className="rounded-xl border border-rose-100 bg-rose-50 p-5 font-bold text-rose-700"><p>{current.error}</p><button type="button" onClick={() => setRetry(value => value + 1)} className="mt-3 rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white">إعادة المحاولة</button></div>;
   return <div className="space-y-4">
     {startError ? <p role="alert" className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700">{startError}</p> : null}
@@ -173,7 +177,7 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
 
   useEffect(() => { setSelectedLesson(''); }, [user?.id, pathId, subjectId, topic.id, contentTab]);
   useEffect(() => {
-    if (!user || contentTab !== 'lessons' || !selectedLesson || topic.isLocked || !detailForTopic?.lessons.some(item => item.id === selectedLesson)) return;
+    if (contentTab !== 'lessons' || !selectedLesson || (topic.isLocked && !user) || !detailForTopic?.lessons.some(item => item.id === selectedLesson)) return;
     const controller = new AbortController();
     contentClient.learnerFoundationLesson(topic.id, selectedLesson, controller.signal).then(({ lesson }) => {
       if (controller.signal.aborted) return;
