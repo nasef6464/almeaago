@@ -1,5 +1,5 @@
 import { ExternalLink, FileText, Lock, Target, Video, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { contentClient } from '../../content/api/content-client';
@@ -32,6 +32,14 @@ const contentTabs: Array<[TopicContentTab, string, typeof Video]> = [
 function FoundationLessonVideo({ topicId, lesson }: { topicId: string; lesson: LearnerLessonDetail }) {
   const { getCsrfToken } = useAuth();
   const [position, setPosition] = useState<number | null>(null);
+  const interactiveQuestions = useMemo(() => {
+    if (!lesson.contentText) return [];
+    try {
+      const parsed = JSON.parse(lesson.contentText);
+      if (Array.isArray(parsed.interactiveQuestions)) return parsed.interactiveQuestions;
+    } catch {}
+    return [];
+  }, [lesson.contentText]);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
   const alive = useRef(false);
@@ -63,7 +71,7 @@ function FoundationLessonVideo({ topicId, lesson }: { topicId: string; lesson: L
     finally { saving.current = false; }
   }
   if (position === null) return error ? <div role="alert"><p>{error}</p><button type="button" onClick={() => setRetry(value => value + 1)}>إعادة المحاولة</button></div> : <p role="status">جاري تحميل تقدم الدرس...</p>;
-  return <><SharedVideoPlayer url={lesson.videoUrl} title={lesson.title} initialPositionSeconds={position} onTimeUpdate={onProgress} onPause={onProgress} />{error ? <p role="alert" className="mt-2 text-sm text-rose-700">{error}</p> : null}</>;
+  return <><SharedVideoPlayer url={lesson.videoUrl} title={lesson.title} initialPositionSeconds={position} interactiveQuestions={interactiveQuestions} onTimeUpdate={onProgress} onPause={onProgress} />{error ? <p role="alert" className="mt-2 text-sm text-rose-700">{error}</p> : null}</>;
 }
 
 function FoundationTopicTraining({ pathId, subjectId, topicId }: { pathId: string; subjectId: string; topicId: string }) {

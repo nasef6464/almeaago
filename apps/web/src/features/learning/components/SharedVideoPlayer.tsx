@@ -26,11 +26,13 @@ export interface SharedVideoPlayerProps {
   url: string;
   title: string;
   initialPositionSeconds?: number;
+  initialAnsweredQuestionIds?: string[];
   interactiveQuestions?: InteractiveQuestionItem[];
   onTimeUpdate?: (seconds: number, duration: number) => void;
   onPause?: (seconds: number) => void;
   onLoaded?: (duration: number) => void;
   onEnded?: () => void;
+  onQuestionAnswered?: (questionId: string, isCorrect: boolean, allAnsweredIds: string[]) => void;
   requireControllable?: boolean;
 }
 
@@ -65,26 +67,33 @@ export const SharedVideoPlayer = forwardRef<SharedVideoPlayerHandle, SharedVideo
     url,
     title,
     initialPositionSeconds = 0,
+    initialAnsweredQuestionIds = [],
     interactiveQuestions = [],
     onTimeUpdate,
     onPause,
     onLoaded,
     onEnded,
+    onQuestionAnswered,
     requireControllable = false,
   },
   ref,
 ) {
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<Plyr | null>(null);
-  const callbacks = useRef({ onTimeUpdate, onPause, onLoaded, onEnded });
-  callbacks.current = { onTimeUpdate, onPause, onLoaded, onEnded };
+  const callbacks = useRef({ onTimeUpdate, onPause, onLoaded, onEnded, onQuestionAnswered });
+  callbacks.current = { onTimeUpdate, onPause, onLoaded, onEnded, onQuestionAnswered };
   const initialRef = useRef(initialPositionSeconds);
   initialRef.current = initialPositionSeconds;
   const [error, setError] = useState('');
 
   // Interactive Question State
   const [activeQuestion, setActiveQuestion] = useState<InteractiveQuestionItem | null>(null);
-  const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<string>>(() => new Set());
+  const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<string>>(() => new Set(initialAnsweredQuestionIds));
+  useEffect(() => {
+    if (initialAnsweredQuestionIds && initialAnsweredQuestionIds.length > 0) {
+      setAnsweredQuestionIds(new Set(initialAnsweredQuestionIds));
+    }
+  }, [initialAnsweredQuestionIds]);
   const answeredQuestionIdsRef = useRef(answeredQuestionIds);
   answeredQuestionIdsRef.current = answeredQuestionIds;
   const questionsRef = useRef(interactiveQuestions);
@@ -208,6 +217,8 @@ export const SharedVideoPlayer = forwardRef<SharedVideoPlayerHandle, SharedVideo
       nextAnswered.add(activeQuestion.id);
     }
     setAnsweredQuestionIds(nextAnswered);
+
+    callbacks.current.onQuestionAnswered?.(activeQuestion.id, isCorrect, Array.from(nextAnswered));
 
     if (!isCorrect && activeQuestion.actionOnFail === 'rewatch') {
       const player = playerRef.current;

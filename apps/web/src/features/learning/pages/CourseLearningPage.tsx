@@ -205,7 +205,13 @@ export function CourseLearningPage() {
   const lastSaved = useRef(0);
 
   // Interactive Video state
-  const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<string>>(() => new Set());
+  const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(`almeaa_answered:${courseId}:${lessonId}`);
+      if (stored) return new Set(JSON.parse(stored));
+    } catch {}
+    return new Set();
+  });
   const [activeInteractiveQuestion, setActiveInteractiveQuestion] = useState<InteractiveVideoQuestion | null>(null);
 
   const lessons = useMemo(() => flattenLessons(course), [course]);
@@ -239,6 +245,16 @@ export function CourseLearningPage() {
     return [];
   }, [activeDetail]);
 
+  const requiredVideoQuestionIds = useMemo(() => {
+    if (!activeDetail || activeDetail.type !== 'video') return [];
+    return interactiveQuestions.filter((q) => q.mustPass).map((q) => q.id);
+  }, [activeDetail, interactiveQuestions]);
+
+  const unansweredRequiredVideoQuestionIds = useMemo(() => {
+    if (requiredVideoQuestionIds.length === 0) return [];
+    return requiredVideoQuestionIds.filter((id) => !answeredQuestionIds.has(id));
+  }, [answeredQuestionIds, requiredVideoQuestionIds]);
+
   const lessonTextDescription = useMemo(() => {
     if (!activeDetail?.contentText) return '';
     try {
@@ -254,7 +270,11 @@ export function CourseLearningPage() {
     if (!activeInteractiveQuestion) return;
     const currentQ = activeInteractiveQuestion;
     if (isCorrect || !currentQ.mustPass) {
-      setAnsweredQuestionIds((prev) => new Set(prev).add(currentQ.id));
+      setAnsweredQuestionIds((prev) => {
+        const next = new Set(prev).add(currentQ.id);
+        try { localStorage.setItem(`almeaa_answered:${courseId}:${lessonId}`, JSON.stringify(Array.from(next))); } catch {}
+        return next;
+      });
     }
     if (!isCorrect && currentQ.actionOnFail === 'rewatch') {
       if (videoRef.current) {
@@ -450,6 +470,10 @@ export function CourseLearningPage() {
 
   async function complete() {
     if (!activeDetail || saving) return;
+    if (activeDetail.type === 'video' && unansweredRequiredVideoQuestionIds.length > 0) {
+      setError(`يجب إجابة جميع الأسئلة الإلزامية داخل الفيديو لإكمال الدرس (${unansweredRequiredVideoQuestionIds.length} سؤال متبقٍ).`);
+      return;
+    }
     const writeScope = selectedScope;
     setError('');
 
@@ -902,15 +926,22 @@ export function CourseLearningPage() {
                           ? `مدة مرجعية: ${activeDetail.durationSeconds} ثانية`
                           : 'بدون مدة محددة'}
                       </span>
-                      <button
-                        type="button"
-                        disabled={saving || activeProgress?.status === 'completed'}
-                        onClick={() => void complete()}
-                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 font-black text-white transition hover:bg-emerald-700 disabled:opacity-45"
-                      >
-                        {saving ? <Loader2 size={17} className="animate-spin" /> : <CheckCircle2 size={17} />}
-                        تحديد كمكتمل
-                      </button>
+                      <div className="flex flex-col items-end gap-2">
+                        {activeProgress?.status !== 'completed' && unansweredRequiredVideoQuestionIds.length > 0 ? (
+                          <span className="text-xs font-bold text-amber-600 bg-amber-50 rounded-xl px-3 py-1.5 border border-amber-200">
+                            يجب إجابة الأسئلة الإلزامية (${unansweredRequiredVideoQuestionIds.length} متبقٍ)
+                          </span>
+                        ) : null}
+                        <button
+                          type="button"
+                          disabled={saving || activeProgress?.status === 'completed' || unansweredRequiredVideoQuestionIds.length > 0}
+                          onClick={() => void complete()}
+                          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 font-black text-white transition hover:bg-emerald-700 disabled:opacity-45 cursor-pointer disabled:cursor-not-allowed"
+                        >
+                          {saving ? <Loader2 size={17} className="animate-spin" /> : <CheckCircle2 size={17} />}
+                          تحديد كمكتمل
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </article>
