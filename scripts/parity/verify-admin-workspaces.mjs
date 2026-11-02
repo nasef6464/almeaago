@@ -2,10 +2,14 @@ import { createRequire } from 'module';
 import path from 'path';
 
 const require = createRequire(import.meta.url);
-const { chromium } = require('c:/almeaago/almeaago/apps/web/node_modules/playwright');
+const { chromium } = require(path.resolve('apps/web/node_modules/playwright'));
 
-const BASE_URL = 'http://localhost:5173';
-const ARTIFACT_DIR = 'C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66';
+const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:5173';
+const ARTIFACT_DIR = process.env.ARTIFACT_DIR || path.resolve('./artifacts');
+const CHROME_PATH = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+
+const ADMIN_EMAIL = process.env.TEST_ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.TEST_ADMIN_PASSWORD;
 
 const VIEWPORTS = [
   { name: 'desktop', width: 1440, height: 900 },
@@ -14,9 +18,15 @@ const VIEWPORTS = [
 ];
 
 async function main() {
+  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+    console.error('Error: TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD environment variables are required to run this verification.');
+    console.error('Example: $env:TEST_ADMIN_EMAIL="admin@almeaa.com"; $env:TEST_ADMIN_PASSWORD="<secret>"; node scripts/parity/verify-admin-workspaces.mjs');
+    process.exit(1);
+  }
+
   console.log('--- Starting Admin Dashboard Multi-Viewport Verification ---');
   const browser = await chromium.launch({
-    executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    executablePath: CHROME_PATH,
     headless: true,
   });
 
@@ -35,10 +45,10 @@ async function main() {
     console.log(`[1] Visiting /login...`);
     await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
 
-    // 2. Perform Smart Login
-    console.log(`[2] Authenticating admin@almeaa.com...`);
-    await page.locator('#smart-login-input').first().fill('admin@almeaa.com');
-    await page.locator('#smart-login-password').first().fill('Almeaa@2026');
+    // 2. Perform Smart Login with sanitized env credentials
+    console.log(`[2] Authenticating admin user...`);
+    await page.locator('#smart-login-input').first().fill(ADMIN_EMAIL);
+    await page.locator('#smart-login-password').first().fill(ADMIN_PASSWORD);
 
     const [loginResponse] = await Promise.all([
       page.waitForResponse(res => res.url().includes('/api/v1/auth/login')),
@@ -46,9 +56,9 @@ async function main() {
     ]);
 
     if (!loginResponse.ok()) {
-      throw new Error(`Login failed with status: ${loginResponse.status()}`);
+      throw new Error(`Login failed with HTTP status: ${loginResponse.status()}`);
     }
-    console.log(`✓ Admin authenticated (HTTP ${loginResponse.status()})`);
+    console.log(`✓ Admin authenticated successfully (HTTP ${loginResponse.status()})`);
     await page.waitForTimeout(1000);
 
     // 3. Question Bank Admin

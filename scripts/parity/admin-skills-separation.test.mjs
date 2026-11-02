@@ -56,6 +56,8 @@ function load(relative, initialStates = []) {
     };
     if (id.endsWith('/lesson-link-write')) return load('features/content/api/lesson-link-write.ts');
     if (id.endsWith('/LessonEditorPanel')) return load('features/content/components/LessonEditorPanel.tsx');
+    if (id.endsWith('/VideoQuestionPicker') || id === './VideoQuestionPicker') return { VideoQuestionPicker: () => null };
+    if (id.endsWith('/FoundationEditorPanel') || id.includes('FoundationEditorPanel')) return { FoundationEditorPanel: () => null };
     if (id.endsWith('/navigation')) return {
       HOMEPAGE_ADMIN_HREF: '/admin-dashboard?tab=homepage', PLATFORM_FONTS_ADMIN_HREF: '/admin-dashboard?tab=platform-fonts',
       isHomepageLocation: () => false, isPlatformFontsLocation: () => false,

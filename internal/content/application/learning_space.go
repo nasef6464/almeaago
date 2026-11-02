@@ -72,6 +72,9 @@ func (s *Service) ResolveFoundationLessonProgressTarget(ctx context.Context, act
 }
 
 func (s *Service) LearningSpace(ctx context.Context, actor identity.User, pathID, subjectID string, limit int) (content.LearningSpace, error) {
+	if strings.TrimSpace(actor.ID) == "" {
+		return content.LearningSpace{}, ErrForbidden
+	}
 	pathID = strings.TrimSpace(pathID)
 	subjectID = strings.TrimSpace(subjectID)
 	if limit == 0 {

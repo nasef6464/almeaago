@@ -10,6 +10,9 @@ const legacyTabMap: Record<string, LearningTab> = {
   questions: 'questions',
   tests: 'exams',
   exams: 'exams',
+  'mock-exams': 'exams',
+  mock_exams: 'exams',
+  quizzes: 'exams',
   library: 'library',
 };
 

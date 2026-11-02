@@ -4,9 +4,9 @@ import path from 'path';
 import fs from 'fs';
 
 const require = createRequire(import.meta.url);
-const { chromium } = require('c:/almeaago/almeaago/apps/web/node_modules/playwright');
+const { chromium } = require(path.resolve('apps/web/node_modules/playwright'));
 
-const ARTIFACT_DIR = process.env.ARTIFACT_DIR || 'C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66';
+const ARTIFACT_DIR = process.env.ARTIFACT_DIR || path.resolve('./artifacts');
 
 const VIEWPORTS = [
   { name: 'desktop', width: 1440, height: 900 },

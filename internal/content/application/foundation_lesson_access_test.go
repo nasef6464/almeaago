@@ -53,7 +53,9 @@ func TestFoundationLessonAccessUsesExactScopeAndFailsClosed(t *testing.T) {
 	repo.row.TopicLocked = false
 	repo.row.Lesson.IsLocked = true
 	access.allow = false
-	if got, err := s.LearnerFoundationLesson(context.Background(), student, "topic", "lesson"); !errors.Is(err, ErrForbidden) || got.VideoURL != "" { t.Fatalf("locked lesson leaked: %+v %v", got, err) }
+	if got, err := s.LearnerFoundationLesson(context.Background(), student, "topic", "lesson"); !errors.Is(err, ErrForbidden) || got.VideoURL != "" {
+		t.Fatalf("locked lesson leaked: %+v %v", got, err)
+	}
 	access.allow = true
 	access.err = errors.New("commerce unavailable")
 	if got, err := s.LearnerFoundationLesson(context.Background(), student, "topic", "lesson"); err == nil || got.VideoURL != "" {
