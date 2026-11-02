@@ -116,6 +116,13 @@ export const contentClient = {
     );
   },
 
+  learnerFoundationLesson(topicId: string, lessonId: string, signal?: AbortSignal) {
+    return request<{ lesson: LearnerLessonDetail }>(
+      `/api/v1/learning-spaces/foundation/${encodeURIComponent(topicId)}/lessons/${encodeURIComponent(lessonId)}`,
+      { signal },
+    );
+  },
+
   courses(filters: ContentListFilters, signal?: AbortSignal) {
     return request<PageResult<CourseSummary>>(
       `/api/v1/courses?${listQuery(filters)}`,

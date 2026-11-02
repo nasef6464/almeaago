@@ -366,7 +366,7 @@ func (r *Repository) getPublicAttempt(ctx context.Context, id string, hash []byt
 	rows, err := r.db.Query(ctx, `
 		SELECT aq.question_id::text,aq.question_version,COALESCE(aq.section_id::text,''),aq.sort_order,aq.points,
 		       qv.question_type,qv.text_content,COALESCE(qv.image_asset_id::text,''),qv.image_alt,
-		       qv.options_embedded_in_image,COALESCE(qv.video_url,''),COALESCE(qv.difficulty,'')
+		       qv.options_embedded_in_image,COALESCE(qv.video_url,''),COALESCE(qv.difficulty,''),jsonb_build_object('learnerPresentation',qv.source_meta->'learnerPresentation')
 		  FROM assessment_version_questions aq
 		  JOIN question_versions qv ON qv.question_id=aq.question_id AND qv.version=aq.question_version
 		 WHERE aq.assessment_id=$1::uuid AND aq.assessment_version=$2
@@ -381,12 +381,14 @@ func (r *Repository) getPublicAttempt(ctx context.Context, id string, hash []byt
 	byID := make(map[string]int)
 	for rows.Next() {
 		var q assessment.LearnerQuestion
+		var presentation []byte
 		if err = rows.Scan(
 			&q.ID, &q.Version, &q.SectionID, &q.SortOrder, &q.Points, &q.Type, &q.Text,
-			&q.ImageAssetID, &q.ImageAlt, &q.OptionsEmbeddedInImage, &q.VideoURL, &q.Difficulty,
+			&q.ImageAssetID, &q.ImageAlt, &q.OptionsEmbeddedInImage, &q.VideoURL, &q.Difficulty, &presentation,
 		); err != nil {
 			return out, err
 		}
+		q.LearnerPresentation = learnerPresentation(presentation)
 		byID[q.ID] = len(out.Questions)
 		out.Questions = append(out.Questions, q)
 	}
@@ -399,9 +401,10 @@ func (r *Repository) getPublicAttempt(ctx context.Context, id string, hash []byt
 		  FROM question_options qo
 		  JOIN assessment_version_questions aq
 		    ON aq.question_id=qo.question_id AND aq.question_version=qo.version
+		  JOIN question_versions qv ON qv.question_id=aq.question_id AND qv.version=aq.question_version
 		 WHERE aq.assessment_id=$1::uuid AND aq.assessment_version=$2
 		 ORDER BY qo.question_id,
-		   CASE WHEN $3 THEN md5($4||qo.question_id::text||qo.option_index::text) ELSE lpad(qo.option_index::text,12,'0') END
+		   CASE WHEN $3 AND NOT (qv.options_embedded_in_image AND qv.image_asset_id IS NOT NULL) THEN md5($4||qo.question_id::text||qo.option_index::text) ELSE lpad(qo.option_index::text,12,'0') END
 	`, out.AssessmentID, out.AssessmentVersion, randomOptions, id)
 	if err != nil {
 		return out, err

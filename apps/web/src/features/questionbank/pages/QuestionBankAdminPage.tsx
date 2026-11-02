@@ -34,6 +34,7 @@ import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
 import type { TaxonomyFull } from '../../content/api/content-types';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
+import { QuestionPresentationEditor } from '../components/QuestionPresentationEditor';
 import {
   questionBankClient,
   type ImportResult,
@@ -91,6 +92,8 @@ export function QuestionBankAdminPage(){
     imageAssetId: '',
     imageAlt: '',
     optionsEmbeddedInImage: false,
+    questionNumber: '', showQuestionNumber: true, showOptionLabels: true, showOptionText: true,
+    optionLabelStyle: 'arabic' as 'arabic' | 'latin', optionLabels: ['', '', '', ''],
     passage: '',
     showPassage: false,
     showAiContext: false,
@@ -222,21 +225,30 @@ export function QuestionBankAdminPage(){
   async function createQuestion(){
     if(!create.questionCode.trim()||!create.pathId||!create.subjectId||!create.mainSkillId)return setError('الكود والمسار والمادة والمهارة الرئيسية مطلوبة.');
     const optionRows=create.options.map((text,index)=>({text:text.trim(),index})).filter(row=>row.text);
-    const imageOptionTexts=create.options.slice(0,create.type==='true_false'?2:create.options.length)
-      .map((text,index)=>text.trim()||['أ','ب','ج','د'][index]||String(index+1));
-    const options=create.type==='essay'?[]:(create.optionsEmbeddedInImage
+    const imageOptionTexts=create.options.slice(0,create.type==='true_false'?2:create.options.length).map(text=>text.trim());
+    const retainOptionPositions = create.optionsEmbeddedInImage || (!create.showOptionText && create.showOptionLabels);
+    const options=create.type==='essay'?[]:(retainOptionPositions
       ?imageOptionTexts.map(text=>({text,assetId:''})):optionRows.map(({text})=>({text,assetId:''})));
     if(create.type!=='essay'&&options.length<2)return setError('يلزم خياران على الأقل.');
     // Text choices are compacted; image choices retain their original positions.
-    const correctOptionIndex=create.type==='essay'?null:create.optionsEmbeddedInImage
+    const correctOptionIndex=create.type==='essay'?null:retainOptionPositions
       ?create.correctOptionIndex:optionRows.findIndex(row=>row.index===create.correctOptionIndex);
-    if(correctOptionIndex===-1||(create.optionsEmbeddedInImage&&correctOptionIndex!==null&&correctOptionIndex>=imageOptionTexts.length))return setError('يرجى اختيار إجابة صحيحة من الاختيارات الموجودة.');
+    if(correctOptionIndex===-1||(retainOptionPositions&&correctOptionIndex!==null&&correctOptionIndex>=imageOptionTexts.length))return setError('يرجى اختيار إجابة صحيحة من الاختيارات الموجودة.');
     const skillLinks=[
       {skillId:create.mainSkillId,relationType:'main' as const},
       ...(create.subSkillId?[{skillId:create.subSkillId,relationType:'sub' as const}]:[]),
     ];
 
     const sourceMeta: Record<string, unknown> = {};
+    if (!create.showOptionLabels && !create.showOptionText) return setError('أظهر رمز الاختيار أو نصه حتى يستطيع الطالب اختيار الإجابة.');
+    if (!create.showOptionLabels && create.optionsEmbeddedInImage && imageOptionTexts.some(text => !text)) return setError('أظهر رموز الاختيارات أو اكتب نصًا لكل اختيار حتى يستطيع الطالب التمييز بينها.');
+    const selectedLabels = retainOptionPositions ? create.optionLabels.slice(0, imageOptionTexts.length) : optionRows.map(row => create.optionLabels[row.index]);
+    sourceMeta.learnerPresentation = {
+      ...(create.questionNumber.trim() ? { questionNumber: create.questionNumber.trim() } : {}),
+      showQuestionNumber: create.showQuestionNumber, showOptionLabels: create.showOptionLabels,
+      showOptionText: create.showOptionText, optionLabelStyle: create.optionLabelStyle,
+      ...(selectedLabels.some(label => label.trim()) ? { optionLabels: selectedLabels.map(label => label.trim()) } : {}),
+    };
     if (create.passage.trim()) {
       sourceMeta.passage = create.passage.trim();
     }
@@ -245,7 +257,7 @@ export function QuestionBankAdminPage(){
     if (create.aiReadableText.trim()) aiContext.readableText = create.aiReadableText.trim();
     if (create.aiSpeechText.trim()) aiContext.speechText = create.aiSpeechText.trim();
     if (create.aiVisualDescription.trim()) aiContext.visualDescription = create.aiVisualDescription.trim();
-    if (create.optionsEmbeddedInImage) {
+    if (create.optionsEmbeddedInImage && imageOptionTexts.every(Boolean)) {
       aiContext.optionTexts = imageOptionTexts;
     }
 
@@ -272,6 +284,7 @@ export function QuestionBankAdminPage(){
       setCreate({
         questionCode:'',pathId:'',subjectId:'',type:'mcq',text:'',difficulty:'Medium',examType:'',source:'manual',
         explanation:'',hint:'',solvingStrategy:'',videoUrl:'',imageAssetId:'',imageAlt:'',optionsEmbeddedInImage:false,
+        questionNumber:'',showQuestionNumber:true,showOptionLabels:true,showOptionText:true,optionLabelStyle:'arabic',optionLabels:['','','',''],
         passage:'',showPassage:false,showAiContext:false,showVoiceExplanation:false,aiReadableText:'',aiSpeechText:'',
         aiVisualDescription:'',voiceNotes:'',mainSkillId:'',subSkillId:'',correctOptionIndex:0,options:['','','','']
       });
@@ -494,7 +507,7 @@ export function QuestionBankAdminPage(){
                   <input
                     type="checkbox"
                     checked={create.optionsEmbeddedInImage}
-                    onChange={(e) => setCreate({ ...create, optionsEmbeddedInImage: e.target.checked })}
+                    onChange={(e) => setCreate({ ...create, optionsEmbeddedInImage: e.target.checked, showOptionText: !e.target.checked })}
                     className="h-4 w-4 rounded accent-indigo-600"
                   />
                   <span>الاختيارات وقيمها داخل صورة السؤال</span>
@@ -510,12 +523,37 @@ export function QuestionBankAdminPage(){
               placeholder="نص السؤال — يمكنك لصق صورة السؤال مباشرة هنا بالضغط على Ctrl+V"
               className="min-h-24 w-full rounded-xl border p-3 leading-relaxed"
             />
+            <fieldset className="space-y-3 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3">
+              <legend className="px-1 text-xs font-black text-indigo-900">طريقة عرض السؤال والاختيارات</legend>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-xs font-bold text-slate-700">رقم السؤال (اختياري)
+                  <input aria-label="رقم السؤال الاختياري" maxLength={50} value={create.questionNumber} onChange={e=>setCreate({...create,questionNumber:e.target.value})} placeholder="اتركه فارغًا لاستخدام ترتيب الاختبار" className="mt-1 w-full rounded-xl border bg-white p-2" />
+                </label>
+                <label className="text-xs font-bold text-slate-700">حروف الاختيارات الافتراضية
+                  <select aria-label="حروف الاختيارات الافتراضية" value={create.optionLabelStyle} onChange={e=>setCreate({...create,optionLabelStyle:e.target.value as 'arabic'|'latin'})} className="mt-1 w-full rounded-xl border bg-white p-2"><option value="arabic">أ، ب، ج، د</option><option value="latin">A, B, C, D</option></select>
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-4 text-xs font-bold text-slate-700">
+                <label><input type="checkbox" checked={create.showQuestionNumber} onChange={e=>setCreate({...create,showQuestionNumber:e.target.checked})} /> إظهار رقم السؤال</label>
+                <label><input type="checkbox" checked={create.showOptionLabels} onChange={e=>setCreate({...create,showOptionLabels:e.target.checked})} /> إظهار رموز الاختيارات</label>
+                <label><input type="checkbox" checked={create.showOptionText} onChange={e=>setCreate({...create,showOptionText:e.target.checked})} /> إظهار نص الاختيارات</label>
+              </div>
+              <p className="text-xs text-slate-600">لعرض الحروف فقط، ألغِ إظهار نص الاختيارات واترك النصوص فارغة إن رغبت. الرموز والنصوص حقول مستقلة.</p>
+            </fieldset>
             {create.type !== 'essay' ? (
               <div className="grid gap-2 sm:grid-cols-2">
                 {create.options.map((v, i) => (
                   <label key={i} className="text-xs font-bold">
                     الخيار {['أ', 'ب', 'ج', 'د'][i] || i + 1}
                     <div className="mt-1 flex gap-2">
+                      <input
+                        aria-label={`رمز الخيار ${i + 1}`}
+                        maxLength={24}
+                        value={create.optionLabels[i]}
+                        onChange={(e) => setCreate(prev=>({...prev,optionLabels:prev.optionLabels.map((label,index)=>index===i?e.target.value:label)}))}
+                        placeholder={create.optionLabelStyle === 'latin' ? ['A','B','C','D'][i] : ['أ','ب','ج','د'][i]}
+                        className="w-16 rounded-xl border p-2 text-center text-xs"
+                      />
                       <input
                         aria-label={`نص الخيار ${i + 1}`}
                         value={v}
@@ -734,6 +772,7 @@ export function QuestionBankAdminPage(){
           </div>
         ) : (
           <div className="mt-4 space-y-4">
+            <QuestionPresentationEditor key={`${detail.id}:${detail.currentVersion}`} question={detail} getCsrf={getCsrfToken} onUpdated={(updated)=>{setDetail(updated);setReload(value=>value+1)}} />
             <div className="rounded-2xl bg-slate-50 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-black text-violet-700">

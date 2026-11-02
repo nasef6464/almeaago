@@ -19,3 +19,6 @@ test-results/
 /apps/web/tests/reference/generated/
 .neon
 .vercel/
+scratch/
+.playwright-cli/
+apps/web/.playwright-cli/

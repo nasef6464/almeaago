@@ -20,6 +20,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../auth/state/AuthProvider';
 import { learningClient } from '../../learning/api/learning-client';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
+import { optionLabel, showOptionText } from '../questionPresentation';
 import {
   attemptClient,
   type ResultDetail,
@@ -28,9 +29,6 @@ import {
 } from '../api/attempt-client';
 
 type ReviewFilter = 'all' | 'wrong' | 'unanswered' | 'marked';
-
-const optionLetter = (index: number) =>
-  ['أ', 'ب', 'ج', 'د', 'هـ', 'و'][index] || String(index + 1);
 
 function scoreTone(passed: boolean) {
   return passed
@@ -88,7 +86,7 @@ function ReviewQuestionCard({
     <article className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-xs font-black text-gray-500">
-          سؤال {question.sortOrder + 1} · {question.points} درجة
+          {question.learnerPresentation?.showQuestionNumber !== false ? `سؤال ${question.learnerPresentation?.questionNumber || question.sortOrder + 1} · ` : ''}{question.points} درجة
         </div>
         <div className="flex gap-2">
           {!question.answered ? (
@@ -135,16 +133,16 @@ function ReviewQuestionCard({
         </div>
       ) : null}
 
-      <h3 className="mt-3 text-base font-black text-gray-900">
-        {question.text || question.imageAlt || 'سؤال بصري'}
-      </h3>
+      {question.text ? (
+        <h3 className="mt-3 whitespace-pre-wrap text-base font-black text-gray-900">{question.text}</h3>
+      ) : !question.imageAssetId ? <h3 className="mt-3 text-base font-black text-gray-900">سؤال بصري</h3> : null}
       {question.imageAssetId ? (
         <div className="my-4 overflow-hidden rounded-2xl border border-gray-100 bg-slate-50 p-3 text-center">
-          <QuestionAssetImage assetId={question.imageAssetId} alt="صورة السؤال" />
+          <QuestionAssetImage assetId={question.imageAssetId} alt={question.imageAlt || 'صورة السؤال'} />
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-2">
+      <div className={`mt-4 grid gap-2 ${question.imageAssetId && question.optionsEmbeddedInImage ? 'grid-cols-4' : ''}`}>
         {question.options.map((option) => {
           const selected = question.selectedOptionIndex === option.index;
           const correct =
@@ -152,7 +150,7 @@ function ReviewQuestionCard({
           return (
             <div
               key={option.index}
-              className={`rounded-xl border p-3 text-sm font-bold ${
+              className={`rounded-xl border p-3 text-sm font-bold ${question.imageAssetId && question.optionsEmbeddedInImage ? 'text-center' : ''} ${
                 correct
                   ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
                   : selected && !question.correct
@@ -162,10 +160,15 @@ function ReviewQuestionCard({
                       : 'border-gray-100 bg-gray-50 text-gray-700'
               }`}
             >
-              <span className="ml-2 inline-block min-w-7 rounded-lg bg-white p-1 text-center">
-                {optionLetter(option.index)}
-              </span>
-              {question.optionsEmbeddedInImage ? '' : option.text}
+              {question.learnerPresentation?.showOptionLabels !== false ? <span className="ml-2 inline-block min-w-7 rounded-lg bg-white p-1 text-center">
+                {optionLabel(option.index, question.learnerPresentation, question.optionsEmbeddedInImage ? option.text : undefined, question.optionsEmbeddedInImage && question.options.some(item => /^[a-d]$/i.test(item.text.trim())))}
+              </span> : null}
+              {showOptionText(question.learnerPresentation, Boolean(question.imageAssetId && question.optionsEmbeddedInImage)) ? option.text : ''}
+              {!(question.imageAssetId && question.optionsEmbeddedInImage) && option.assetId ? (
+                <div className="mt-2 rounded-xl bg-white p-3">
+                  <QuestionAssetImage assetId={option.assetId} alt={`صورة الخيار ${optionLabel(option.index, question.learnerPresentation)}`} />
+                </div>
+              ) : null}
               {selected ? <span className="mr-2 text-xs">اختيارك</span> : null}
               {correct ? <span className="mr-2 text-xs">الإجابة الصحيحة</span> : null}
             </div>
@@ -371,6 +374,59 @@ export function AssessmentResultsPage() {
           <div className="rounded-2xl bg-amber-50 p-3 text-center text-amber-800"><AlertCircle className="mx-auto" size={20}/><div className="mt-1 font-black">{result.unanswered}</div><div className="text-xs font-bold">بدون إجابة</div></div>
         </div> : <div className="mt-4 rounded-xl bg-gray-50 p-4 text-sm font-bold text-gray-600">تم تسجيل إكمال الاختبار. تقرير الدرجات التفصيلي غير معروض وفق إعدادات هذا الاختبار.</div>}
       </header>
+        {detail.showResultsReport && detail.skillAnalysis ? (
+          <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="attempt-skills-heading">
+            <div className="mb-5">
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">تحليل الأداء المهاري</span>
+              <h2 id="attempt-skills-heading" className="mt-3 text-lg font-black text-gray-900">أين كنت قويًا؟ وأين تحتاج دعم؟</h2>
+              <p className="mt-1 text-xs font-bold text-gray-500">مستخرج من إجابات هذه المحاولة.</p>
+            </div>
+            {!detail.skillAnalysis.complete ? (
+              <p className="rounded-xl bg-amber-50 p-4 text-sm font-bold text-amber-900">تفاصيل المهارات لهذه المحاولة غير مكتملة حاليًا.</p>
+            ) : detail.skillAnalysis.items.length === 0 ? (
+              <p className="rounded-xl bg-slate-50 p-4 text-sm font-bold text-slate-600">لا توجد مهارات مرتبطة بأسئلة هذه المحاولة.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {([
+                  ['strong', 'نقاط القوة (أتقنتها)', 'border-emerald-100 bg-emerald-50/40', 'text-emerald-800', 'bg-emerald-500'],
+                  ['weak', 'نقاط تحتاج دعم (أولوية تركيز)', 'border-rose-100 bg-rose-50/40', 'text-rose-800', 'bg-rose-500'],
+                  ['average', 'مهارات في تقدم', 'border-amber-100 bg-amber-50/40', 'text-amber-800', 'bg-amber-500'],
+                ] as const).map(([status, title, panel, tone, bar]) => {
+                  const skills = detail.skillAnalysis!.items.filter(item => item.status === status);
+                  if (status === 'average' && skills.length === 0) return null;
+                  return <div key={status} className={`rounded-2xl border p-4 sm:p-5 ${status === 'average' ? 'md:col-span-2' : ''} ${panel}`}>
+                    <div className={`mb-3 flex items-center justify-between gap-2 text-sm font-black ${tone}`}>
+                      <h3>{title}</h3><span className="rounded-full bg-white px-2.5 py-1 text-xs">{skills.length} مهارات</span>
+                    </div>
+                    {skills.length === 0 ? <p className="rounded-xl bg-white p-3 text-xs font-bold text-gray-500">لا توجد مهارات في هذا التصنيف.</p> : (
+                      <div className="space-y-3">{skills.map(skill => <div key={`${skill.pathId}:${skill.subjectId}:${skill.skillId}`} className="rounded-xl bg-white p-3 shadow-sm">
+                        <div className="flex items-center justify-between gap-2"><span className="text-sm font-black text-gray-800">{skill.skillName}</span><span className={`text-sm font-black ${tone}`}>{skill.mastery}%</span></div>
+                        <p className="mt-1 text-xs font-bold text-gray-500">{skill.subjectName}</p>
+                        <p className="mt-1 text-xs font-bold text-gray-500">{skill.correctCount} صحيحة من {skill.questionCount}</p>
+                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100"><div className={`h-full rounded-full ${bar}`} style={{width: `${skill.mastery}%`}} /></div>
+                        {status !== 'strong' && skill.foundationTopics?.length ? (
+                          <div className="mt-3 space-y-3">
+                            {skill.foundationTopics.map(topic => {
+                              const base = new URLSearchParams({ subject: skill.subjectId, tab: 'skills', topic: topic.id });
+                              const topicURL = (content: string) => `/category/${encodeURIComponent(skill.pathId)}?${new URLSearchParams([...base, ['content', content]])}`;
+                              return <div key={topic.id} className="rounded-lg border border-slate-100 p-2">
+                                <p className="text-xs font-bold text-gray-600">{topic.title}</p>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  <Link to={topicURL('lessons')} className="rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1.5 text-xs font-black text-indigo-700">شرح التأسيس{topic.isLocked ? ' 🔒' : ''}</Link>
+                                  <Link to={topicURL('quizzes')} className="rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-1.5 text-xs font-black text-amber-800">تدريبات الموضوع</Link>
+                                </div>
+                              </div>;
+                            })}
+                          </div>
+                        ) : null}
+                      </div>)}</div>
+                    )}
+                  </div>;
+                })}
+              </div>
+            )}
+          </section>
+        ) : null}
         {saveError ? <p role="alert" className="text-sm font-bold text-rose-700">{saveError}</p> : null}
         {!detail.allowQuestionReview ? (
           <section className="rounded-2xl border border-amber-100 bg-amber-50 p-5 text-sm font-bold leading-7 text-amber-900">

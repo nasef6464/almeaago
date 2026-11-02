@@ -29,6 +29,7 @@ import type {
   LearnerLessonSummary,
 } from '../../content/api/content-types';
 import { lessonProgressClient, type LessonProgress } from '../api/learning-client';
+import { SharedVideoPlayer, type SharedVideoPlayerHandle } from '../components/SharedVideoPlayer';
 
 function flattenLessons(course: LearnerCourse | null) {
   if (!course) return [] as LearnerLessonSummary[];
@@ -53,28 +54,6 @@ export interface InteractiveVideoQuestion {
     options: string[];
     correctOptionIndex: number;
   };
-}
-
-function getYouTubeVideoId(rawUrl?: string | null) {
-  if (!rawUrl) return '';
-  const trimmedUrl = rawUrl.trim();
-  try {
-    const url = new URL(trimmedUrl.startsWith('http') ? trimmedUrl : `https://${trimmedUrl}`);
-    const host = url.hostname.replace(/^www\./, '').toLowerCase();
-    if (host === 'youtu.be') {
-      return url.pathname.split('/').filter(Boolean)[0] || '';
-    }
-    if (host.includes('youtube.com')) {
-      return (
-        url.searchParams.get('v') ||
-        url.pathname.match(/\/(?:embed|shorts|live)\/([^/?#]+)/)?.[1] ||
-        ''
-      );
-    }
-  } catch {
-    return '';
-  }
-  return '';
 }
 
 function VideoQuestionOverlay({
@@ -222,7 +201,7 @@ export function CourseLearningPage() {
   );
   const [expandedModules, setExpandedModules] = useState<string[]>([]);
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoRef = useRef<SharedVideoPlayerHandle | null>(null);
   const lastSaved = useRef(0);
 
   // Interactive Video state
@@ -279,12 +258,12 @@ export function CourseLearningPage() {
     }
     if (!isCorrect && currentQ.actionOnFail === 'rewatch') {
       if (videoRef.current) {
-        videoRef.current.currentTime = Math.max(0, currentQ.rewatchTimestamp || 0);
+        videoRef.current.seek(Math.max(0, currentQ.rewatchTimestamp || 0));
       }
     }
     setActiveInteractiveQuestion(null);
     if (isCorrect || (!isCorrect && currentQ.actionOnFail === 'rewatch')) {
-      videoRef.current?.play().catch(() => {});
+      videoRef.current?.play();
     }
   }
 
@@ -293,7 +272,7 @@ export function CourseLearningPage() {
     const currentQ = activeInteractiveQuestion;
     setAnsweredQuestionIds((prev) => new Set(prev).add(currentQ.id));
     setActiveInteractiveQuestion(null);
-    videoRef.current?.play().catch(() => {});
+    videoRef.current?.play();
   }
 
   useEffect(() => {
@@ -452,8 +431,7 @@ export function CourseLearningPage() {
     }
   }
 
-  function onTimeUpdate() {
-    const currentTime = videoRef.current?.currentTime || 0;
+  function onTimeUpdate(currentTime: number) {
     const current = Math.floor(currentTime);
     if (current - lastSaved.current >= 15) {
       void persistVideoPosition(current, true);
@@ -847,38 +825,12 @@ export function CourseLearningPage() {
                   <div className={`relative flex min-h-56 items-center justify-center sm:min-h-72 ${
                     activeDetail.type === 'video' ? 'bg-black' : isDarkMode ? 'bg-slate-900' : 'bg-slate-100'
                   }`}>
-                    {activeDetail.type === 'video' && getYouTubeVideoId(activeDetail.videoUrl) ? (
-                      <div className="relative aspect-video w-full overflow-hidden bg-black">
-                        <iframe
-                          src={`https://www.youtube-nocookie.com/embed/${getYouTubeVideoId(activeDetail.videoUrl)}?rel=0&modestbranding=1`}
-                          title={activeDetail.title}
-                          className="h-full w-full"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      </div>
-                    ) : activeDetail.type === 'video' && activeDetail.videoUrl ? (
-                      <video
-                        ref={videoRef}
-                        data-testid="lesson-video"
-                        src={activeDetail.videoUrl}
-                        controls
-                        className="aspect-video w-full bg-black"
-                        onLoadedMetadata={() => {
-                          const video = videoRef.current;
-                          if (video && activeProgress?.positionSeconds && video.currentTime === 0) {
-                            video.currentTime = Math.min(
-                              activeProgress.positionSeconds,
-                              Number.isFinite(video.duration) ? video.duration : activeProgress.positionSeconds,
-                            );
-                          }
-                        }}
+                    {activeDetail.type === 'video' && activeDetail.videoUrl ? (
+                      <SharedVideoPlayer key={`${selectedScope}:${activeDetail.videoUrl}`} ref={videoRef} url={activeDetail.videoUrl} title={activeDetail.title}
+                        initialPositionSeconds={activeProgress?.positionSeconds || 0}
+                        requireControllable={interactiveQuestions.some(question => question.mustPass)}
                         onTimeUpdate={onTimeUpdate}
-                        onPause={() => {
-                          const video = videoRef.current;
-                          if (video) void persistVideoPosition(video.currentTime);
-                        }}
-                      />
+                        onPause={(seconds) => void persistVideoPosition(seconds)} />
                     ) : activeDetail.type === 'video' ? (
                       <div className="max-w-xl p-8 text-center text-white">
                         <PlayCircle className="mx-auto text-indigo-300" size={54} />

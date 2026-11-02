@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Archive,
@@ -47,7 +47,8 @@ import type {
   CommerceProduct,
 } from '../../commerce/api/commerce-types';
 import { contentClient } from '../../content/api/content-client';
-import type { CourseSummary, LibrarySummary } from '../../content/api/content-types';
+import type { CourseSummary, FoundationTopicSummary, LibrarySummary } from '../../content/api/content-types';
+import { FoundationEditorPanel } from '../../content/components/FoundationEditorPanel';
 import { assessmentClient } from '../../assessment/api/assessment-client';
 import type { AssessmentSummary } from '../../assessment/api/assessment-types';
 import { AdminBreadcrumbHeader } from '../components/AdminBreadcrumbHeader';
@@ -197,6 +198,53 @@ export function TaxonomyAdminPage() {
   const [levelFilter, setLevelFilter] = useState<string>('all');
   const [skillSearch, setSkillSearch] = useState('');
   const [skillKindFilter, setSkillKindFilter] = useState<'all' | 'main' | 'sub'>('all');
+
+  // Foundation Topics Workspace State
+  const [foundationTopics, setFoundationTopics] = useState<FoundationTopicSummary[]>([]);
+  const [foundationLoading, setFoundationLoading] = useState(false);
+  const [foundationSearch, setFoundationSearch] = useState('');
+  const [editingFoundationTopicId, setEditingFoundationTopicId] = useState<string | null>(null);
+  const [isCreatingFoundationTopic, setIsCreatingFoundationTopic] = useState(false);
+  const [foundationParentTopicId, setFoundationParentTopicId] = useState('');
+  const [expandedFoundationTopics, setExpandedFoundationTopics] = useState<Set<string>>(new Set());
+  const foundationRequest = useRef<AbortController | null>(null);
+  const foundationScope = useRef('');
+  foundationScope.current = JSON.stringify([selectedPathId, selectedSubjectId]);
+
+  const loadSubjectFoundation = useCallback((subjectId: string, pathId: string) => {
+    const scope = JSON.stringify([pathId, subjectId]);
+    if (foundationScope.current !== scope) return;
+    foundationRequest.current?.abort();
+    const controller = new AbortController();
+    foundationRequest.current = controller;
+    setFoundationLoading(true);
+    setFoundationTopics([]);
+    const isCurrent = () => !controller.signal.aborted && foundationScope.current === scope;
+    contentClient.foundation({ pathId, subjectId, limit: 100 }, controller.signal)
+      .then((res) => {
+        if (!isCurrent()) return;
+        setFoundationTopics(res.items || []);
+        const mainIds = (res.items || []).filter((t) => !t.parentTopicId).map((t) => t.id);
+        setExpandedFoundationTopics(new Set(mainIds));
+      })
+      .catch(() => { if (isCurrent()) setFoundationTopics([]); })
+      .finally(() => { if (isCurrent()) setFoundationLoading(false); });
+  }, []);
+
+  useEffect(() => {
+    setIsCreatingFoundationTopic(false);
+    setEditingFoundationTopicId(null);
+    setFoundationParentTopicId('');
+    setFoundationTopics([]);
+    setExpandedFoundationTopics(new Set());
+  }, [selectedSubjectId, selectedPathId]);
+
+  useEffect(() => {
+    if (selectedSubjectId && selectedPathId && (subjectTab === 'foundation' || subjectTab === 'skills')) {
+      loadSubjectFoundation(selectedSubjectId, selectedPathId);
+    }
+    return () => foundationRequest.current?.abort();
+  }, [selectedSubjectId, selectedPathId, subjectTab, loadSubjectFoundation]);
 
   const isAdmin = user?.roles.includes('admin') ?? false;
 
@@ -704,6 +752,7 @@ export function TaxonomyAdminPage() {
         <div className="flex border-b border-gray-200 gap-2 overflow-x-auto pb-px">
           {[
             { id: 'courses', label: 'الدورات التدريبية', icon: BookOpen },
+            { id: 'foundation', label: 'إدارة التأسيس والمواضيع', icon: Target },
             { id: 'skills', label: 'شجرة المهارات', icon: Award },
             { id: 'questions', label: 'بنك الأسئلة والتدريب', icon: FileQuestion },
             { id: 'exams', label: 'الاختبارات والتقييمات', icon: CheckCircle2 },
@@ -729,6 +778,212 @@ export function TaxonomyAdminPage() {
             );
           })}
         </div>
+
+        {/* Tab Content: Foundation Topics & Lessons */}
+        {subjectTab === 'foundation' && (
+          <div className="space-y-4">
+            {isCreatingFoundationTopic || editingFoundationTopicId ? (
+              <div className="rounded-3xl border bg-white p-6 shadow-sm">
+                <FoundationEditorPanel
+                  key={JSON.stringify([selectedPath.id, selectedSubject.id, editingFoundationTopicId, foundationParentTopicId])}
+                  topicId={editingFoundationTopicId || undefined}
+                  coreTaxonomy={{
+                    paths: data.paths,
+                    subjects: data.subjects,
+                  }}
+                  initialPathId={selectedPath.id}
+                  initialSubjectId={selectedSubject.id}
+                  initialParentTopic={foundationTopics.find((topic) => topic.id === foundationParentTopicId
+                    && topic.pathId === selectedPath.id && topic.subjectId === selectedSubject.id)}
+                  getCsrfToken={getCsrfToken}
+                  onCancel={() => {
+                    setIsCreatingFoundationTopic(false);
+                    setEditingFoundationTopicId(null);
+                    setFoundationParentTopicId('');
+                  }}
+                  onSaved={() => {
+                    setIsCreatingFoundationTopic(false);
+                    setEditingFoundationTopicId(null);
+                    setFoundationParentTopicId('');
+                    loadSubjectFoundation(selectedSubject.id, selectedPath.id);
+                  }}
+                />
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-white p-5 border shadow-xs">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900">مواضيع وتأسيس {selectedSubject.name}</h3>
+                    <p className="text-xs text-slate-500 font-bold mt-1">
+                      خطة التأسيس والموضوعات الرئيسية والفرعية والدروس المرتبطة بهذه المادة.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFoundationParentTopicId('');
+                        setEditingFoundationTopicId(null);
+                        setIsCreatingFoundationTopic(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white shadow-xs hover:bg-indigo-700 transition cursor-pointer"
+                    >
+                      <Plus size={15} />
+                      <span>إضافة موضوع رئيسي</span>
+                    </button>
+                    <Link
+                      to="/admin-dashboard/content"
+                      className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 transition"
+                    >
+                      <span>مركز المحتوى والدروس الكامل</span>
+                      <ExternalLink size={14} />
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Search in Foundation */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-2xl bg-white p-4 border shadow-xs">
+                  <div className="relative flex-1">
+                    <Search size={15} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={foundationSearch}
+                      onChange={(e) => setFoundationSearch(e.target.value)}
+                      placeholder="البحث في موضوعات التأسيس بالاسم أو الكود..."
+                      className="w-full rounded-xl border border-gray-200 bg-slate-50 py-2 pr-9 pl-3 text-xs font-bold outline-none focus:border-indigo-400 focus:bg-white transition"
+                    />
+                  </div>
+                  <span className="text-xs font-bold text-slate-400">
+                    ({foundationTopics.filter((t) => !t.parentTopicId).length} رئيسي • {foundationTopics.filter((t) => Boolean(t.parentTopicId)).length} فرعي)
+                  </span>
+                </div>
+
+                {/* Topics Tree */}
+                <div className="rounded-3xl border bg-white p-5 shadow-xs space-y-3">
+                  {foundationLoading ? (
+                    <div className="py-12 text-center text-slate-400 font-bold">
+                      <Loader2 size={28} className="mx-auto animate-spin text-indigo-600 mb-2" />
+                      <span>جاري تحميل مواضيع التأسيس...</span>
+                    </div>
+                  ) : foundationTopics.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 font-bold">
+                      لا توجد موضوعات تأسيسية مسجلة لهذه المادة بعد. اضغط «إضافة موضوع رئيسي» لإنشاء أول موضوع.
+                    </div>
+                  ) : (
+                    foundationTopics
+                      .filter((t) => !t.parentTopicId)
+                      .filter((t) => {
+                        const q = foundationSearch.trim().toLowerCase();
+                        if (!q) return true;
+                        const subMatches = foundationTopics.some(
+                          (sub) => sub.parentTopicId === t.id && (sub.title.toLowerCase().includes(q) || sub.code.toLowerCase().includes(q))
+                        );
+                        return t.title.toLowerCase().includes(q) || t.code.toLowerCase().includes(q) || subMatches;
+                      })
+                      .sort((a, b) => a.sortOrder - b.sortOrder)
+                      .map((mainTopic) => {
+                        const subTopics = foundationTopics
+                          .filter((sub) => sub.parentTopicId === mainTopic.id)
+                          .sort((a, b) => a.sortOrder - b.sortOrder);
+                        const isExpanded = expandedFoundationTopics.has(mainTopic.id);
+
+                        return (
+                          <div key={mainTopic.id} className="rounded-2xl border border-gray-100 bg-slate-50/50 overflow-hidden">
+                            <div className="flex items-center justify-between p-4 bg-white border-b border-gray-100">
+                              <div className="flex items-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setExpandedFoundationTopics((prev) => {
+                                      const next = new Set(prev);
+                                      if (next.has(mainTopic.id)) next.delete(mainTopic.id);
+                                      else next.add(mainTopic.id);
+                                      return next;
+                                    });
+                                  }}
+                                  className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                                >
+                                  {isExpanded ? <ChevronLeft size={18} className="rotate-90" /> : <ChevronRight size={18} />}
+                                </button>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-black text-sm text-slate-900">{mainTopic.title}</span>
+                                    <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-mono text-slate-500 font-bold">{mainTopic.code}</span>
+                                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${mainTopic.isVisible ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                                      {mainTopic.isVisible ? 'ظاهر' : 'مخفي'}
+                                    </span>
+                                    {mainTopic.isLocked ? (
+                                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">ضمن باقة</span>
+                                    ) : (
+                                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">مفتوح</span>
+                                    )}
+                                  </div>
+                                  <span className="text-xs text-slate-400 font-bold mt-0.5 block">{subTopics.length} موضوعات فرعية • ترتيب {mainTopic.sortOrder}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setFoundationParentTopicId(mainTopic.id);
+                                    setEditingFoundationTopicId(null);
+                                    setIsCreatingFoundationTopic(true);
+                                  }}
+                                  className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-50 cursor-pointer"
+                                >
+                                  + موضوع فرعي
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingFoundationTopicId(mainTopic.id);
+                                    setIsCreatingFoundationTopic(false);
+                                  }}
+                                  className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                                >
+                                  تعديل
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Subtopics */}
+                            {isExpanded && subTopics.length > 0 ? (
+                              <div className="p-3 space-y-2 bg-slate-50/70 border-t border-gray-100">
+                                {subTopics.map((sub) => (
+                                  <div key={sub.id} className="flex items-center justify-between rounded-xl border border-gray-100 bg-white p-3 pr-6">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                                      <span className="font-bold text-xs text-slate-800">{sub.title}</span>
+                                      <span className="font-mono text-[10px] text-slate-400">({sub.code})</span>
+                                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${sub.isVisible ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                                        {sub.isVisible ? 'ظاهر' : 'مخفي'}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingFoundationTopicId(sub.id);
+                                          setIsCreatingFoundationTopic(false);
+                                        }}
+                                        className="rounded-lg border px-2.5 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                                      >
+                                        تعديل
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Tab Content: Skills */}
         {subjectTab === 'skills' && (
@@ -1313,7 +1568,7 @@ export function TaxonomyAdminPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Boxes size={18} className="text-indigo-600" />
-                <h2 className="text-base font-black text-slate-900">شجرة المسارات</h2>
+                <h2 className="text-base font-black text-slate-900">المسارات</h2>
               </div>
               <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-black text-indigo-700">
                 {filteredPaths.length} من {data.paths.length}

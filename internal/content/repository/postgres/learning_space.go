@@ -255,7 +255,7 @@ func (r *Repository) GetLearnerCourse(ctx context.Context, courseID string) (con
 func (r *Repository) GetLearnerTopic(ctx context.Context, topicID string) (content.LearnerTopic, error) {
 	var result content.LearnerTopic
 	err := r.db.QueryRow(ctx, `
-		SELECT id::text,COALESCE(parent_topic_id::text,''),title,description,sort_order,is_locked
+		SELECT id::text,COALESCE(parent_topic_id::text,''),title,description,sort_order,is_locked,path_id::text,subject_id::text
 		FROM foundation_topics
 		WHERE id=$1::uuid AND status='active' AND is_visible=true
 	`, topicID).Scan(
@@ -265,6 +265,8 @@ func (r *Repository) GetLearnerTopic(ctx context.Context, topicID string) (conte
 		&result.Topic.Description,
 		&result.Topic.SortOrder,
 		&result.Topic.IsLocked,
+		&result.PathID,
+		&result.SubjectID,
 	)
 	if err != nil {
 		return content.LearnerTopic{}, mapError(err)
@@ -385,6 +387,32 @@ func (r *Repository) GetLearnerCourseLesson(ctx context.Context, courseID, lesso
 		return row, mapError(err)
 	}
 	return row, nil
+}
+
+// A lesson may belong to several topics. Verify this exact placement and its
+// scope; return lock flags for the application to enforce entitlement.
+func (r *Repository) GetLearnerFoundationLesson(ctx context.Context, topicID, lessonID string) (content.FoundationLessonDetail, error) {
+	var out content.FoundationLessonDetail
+	err := r.db.QueryRow(ctx, `
+		SELECT l.id::text,l.title,l.description,l.lesson_type,l.duration_seconds,l.is_locked,
+		       tl.sort_order,l.content_text,COALESCE(l.video_url,''),COALESCE(l.video_source,''),
+		       t.id::text,t.path_id::text,t.subject_id::text,t.is_locked
+		FROM topic_lessons tl
+		JOIN foundation_topics t ON t.id=tl.topic_id
+		JOIN lessons l ON l.id=tl.lesson_id
+		JOIN paths p ON p.id=t.path_id AND p.status='active'
+		JOIN subjects s ON s.id=t.subject_id AND s.path_id=t.path_id AND s.status='active'
+		WHERE t.id=$1::uuid AND l.id=$2::uuid AND t.status='active' AND t.is_visible=true
+		  AND l.path_id=t.path_id AND l.subject_id=t.subject_id
+		  AND l.workflow_status='approved' AND l.is_visible=true
+	`, topicID, lessonID).Scan(&out.Lesson.ID, &out.Lesson.Title, &out.Lesson.Description,
+		&out.Lesson.LessonType, &out.Lesson.DurationSeconds, &out.Lesson.IsLocked, &out.Lesson.SortOrder,
+		&out.Lesson.ContentText, &out.Lesson.VideoURL, &out.Lesson.VideoSource,
+		&out.TopicID, &out.PathID, &out.SubjectID, &out.TopicLocked)
+	if err != nil {
+		return out, mapError(err)
+	}
+	return out, nil
 }
 
 // ResolveLessonProgressTarget is Learning's bounded Content read boundary.

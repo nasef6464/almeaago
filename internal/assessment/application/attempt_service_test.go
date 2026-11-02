@@ -96,6 +96,10 @@ func TestAttemptAnswerShape(t *testing.T) {
 	if _, e := s.Save(context.Background(), student("s"), "a", "q", assessment.AnswerWrite{SelectedOptionIndex: &i, TextAnswer: "both"}); !errors.Is(e, ErrInvalidInput) {
 		t.Fatalf("want invalid got %v", e)
 	}
+	negative := -1
+	if _, e := s.Save(context.Background(), student("s"), "a", "q", assessment.AnswerWrite{SelectedOptionIndex: &negative}); !errors.Is(e, ErrInvalidInput) {
+		t.Fatalf("negative option: want invalid got %v", e)
+	}
 }
 
 func TestResultHistoryIsStudentOwnedAndBounded(t *testing.T) {

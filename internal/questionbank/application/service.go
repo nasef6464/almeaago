@@ -446,11 +446,16 @@ func normalizeVersion(input VersionInput) (question.VersionCommand, error) {
 		return question.VersionCommand{}, ErrInvalidInput
 	}
 
+	presentation, err := question.ParseLearnerPresentation(input.SourceMeta)
+	if err != nil {
+		return question.VersionCommand{}, ErrInvalidInput
+	}
+	labelOnly := presentation != nil && presentation.ShowOptionLabels != nil && *presentation.ShowOptionLabels && presentation.ShowOptionText != nil && !*presentation.ShowOptionText
 	options := make([]question.Option, 0, len(input.Options))
 	for i, item := range input.Options {
 		text := strings.TrimSpace(item.Text)
 		assetID := strings.TrimSpace(item.AssetID)
-		if text == "" && assetID == "" {
+		if text == "" && assetID == "" && !input.OptionsEmbeddedInImage && !labelOnly {
 			return question.VersionCommand{}, ErrInvalidInput
 		}
 		options = append(options, question.Option{Index: i, Text: text, AssetID: assetID})
@@ -468,7 +473,10 @@ func normalizeVersion(input VersionInput) (question.VersionCommand, error) {
 		return question.VersionCommand{}, ErrInvalidInput
 	}
 	if input.OptionsEmbeddedInImage {
-		if input.ImageAssetID == "" || !hasEmbeddedOptionTexts(input.AIContext) {
+		if input.ImageAssetID == "" || (len(options) < 2 && !hasEmbeddedOptionTexts(input.AIContext)) {
+			return question.VersionCommand{}, ErrInvalidInput
+		}
+		if len(options) > 0 && (len(options) < 2 || (input.CorrectOptionIndex != nil && (*input.CorrectOptionIndex < 0 || *input.CorrectOptionIndex >= len(options)))) {
 			return question.VersionCommand{}, ErrInvalidInput
 		}
 	}
@@ -497,6 +505,20 @@ func normalizeVersion(input VersionInput) (question.VersionCommand, error) {
 	for _, raw := range []json.RawMessage{input.SourceMeta, input.AIContext, input.VoiceExplanation} {
 		if len(raw) > 0 && !json.Valid(raw) {
 			return question.VersionCommand{}, ErrInvalidInput
+		}
+	}
+	if presentation != nil && presentation.ShowOptionLabels != nil && !*presentation.ShowOptionLabels {
+		showText := !input.OptionsEmbeddedInImage
+		if presentation.ShowOptionText != nil {
+			showText = *presentation.ShowOptionText
+		}
+		if len(options) == 0 {
+			return question.VersionCommand{}, ErrInvalidInput
+		}
+		for _, option := range options {
+			if !(showText && option.Text != "") && (input.OptionsEmbeddedInImage || option.AssetID == "") {
+				return question.VersionCommand{}, ErrInvalidInput
+			}
 		}
 	}
 
@@ -533,7 +555,10 @@ func validatePublishable(row question.Question) error {
 		return ErrInvalidInput
 	}
 	if v.OptionsEmbeddedInImage {
-		count := embeddedOptionTextCount(v.AIContext)
+		count := len(row.Options)
+		if count == 0 {
+			count = embeddedOptionTextCount(v.AIContext)
+		}
 		if count < 2 || v.CorrectOptionIndex == nil || *v.CorrectOptionIndex < 0 || *v.CorrectOptionIndex >= count {
 			return ErrInvalidInput
 		}

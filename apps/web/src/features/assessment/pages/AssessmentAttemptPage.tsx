@@ -1,10 +1,11 @@
 import { BookOpen, CheckCircle2, Clock3, Flag, Send } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { attemptClient, type Attempt, type Result } from '../api/attempt-client';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
+import { optionLabel, showOptionText } from '../questionPresentation';
 
 const key = (prefix: string, id: string) => {
   const storageKey = `${prefix}:${id}`;
@@ -16,8 +17,21 @@ const key = (prefix: string, id: string) => {
   return value;
 };
 
+function safeReturnPath(value: string | null): string {
+  if (!value || !value.startsWith('/') || value.startsWith('//') || /[\\\u0000-\u001f\u007f]/.test(value)) return '';
+  try {
+    const decoded = decodeURIComponent(value);
+    if (decoded.startsWith('//') || /[\\\u0000-\u001f\u007f]/.test(decoded)) return '';
+    const parsed = new URL(value, window.location.origin);
+    return parsed.origin === window.location.origin ? parsed.pathname + parsed.search + parsed.hash : '';
+  } catch { return ''; }
+}
+
 export function AssessmentAttemptPage() {
   const { assessmentId = '', attemptId = '' } = useParams();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = safeReturnPath(searchParams.get('returnTo'));
   const { user, loading, getCsrfToken } = useAuth();
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [result, setResult] = useState<Result | null>(null);
@@ -75,6 +89,7 @@ export function AssessmentAttemptPage() {
   );
   const question = attempt?.questions[index];
   const saved = question ? answers.get(question.id) : undefined;
+  const imageEmbeddedOptions = Boolean(question?.imageAssetId && question.optionsEmbeddedInImage);
 
   async function choose(option: number) {
     if (!attempt || !question || busy || actionRef.current) return;
@@ -156,7 +171,10 @@ export function AssessmentAttemptPage() {
         key('assessment-submit', `${user?.id || ''}:${attempt.id}`),
         csrf,
       );
-      if (scopeRef.current === actionScope) setResult(response.result);
+      if (scopeRef.current === actionScope) {
+        if (attempt.showResultsReport === false && returnTo) navigate(returnTo, { replace: true });
+        else setResult(response.result);
+      }
     } catch (cause) {
       if (scopeRef.current === actionScope) {
         setError(cause instanceof Error ? cause.message : 'تعذر تسليم الاختبار');
@@ -179,11 +197,12 @@ export function AssessmentAttemptPage() {
         <section className="rounded-3xl border bg-white p-8 text-center shadow-sm">
           <CheckCircle2 className="mx-auto text-emerald-600" size={48} />
           <h1 className="mt-3 text-2xl font-black">تم تسليم الاختبار</h1>
-          <div className="mt-5 text-5xl font-black">{result.score.toFixed(1)}%</div>
-          <p className="mt-3 font-bold">
-            {result.correctAnswers} صحيحة · {result.wrongAnswers} خاطئة · {result.unanswered} بدون إجابة
-          </p>
+          {attempt?.showResultsReport !== false ? <>
+            <div className="mt-5 text-5xl font-black">{result.score.toFixed(1)}%</div>
+            <p className="mt-3 font-bold">{result.correctAnswers} صحيحة · {result.wrongAnswers} خاطئة · {result.unanswered} بدون إجابة</p>
+          </> : <p className="mt-5 font-bold text-gray-600">تم تسجيل إكمال الاختبار.</p>}
           <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
+            {returnTo ? <Link to={returnTo} className="rounded-xl border px-4 py-2.5 font-black text-slate-700">العودة لموضوع التأسيس</Link> : null}
             <Link
               to={`/assessment-results/${result.attemptId}`}
               className="rounded-xl bg-slate-950 px-4 py-2.5 font-black text-white"
@@ -208,6 +227,7 @@ export function AssessmentAttemptPage() {
   return (
     <main dir="rtl" className="mx-auto max-w-3xl space-y-4 p-4">
       <header className="rounded-2xl bg-slate-950 p-4 text-white">
+        {returnTo ? <Link to={returnTo} className="mb-3 inline-block rounded-xl bg-white px-4 py-2 text-sm font-bold text-slate-900">العودة لموضوع التأسيس</Link> : null}
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-amber-400">اختبار جاري</p>
@@ -234,7 +254,7 @@ export function AssessmentAttemptPage() {
 
       <section className="rounded-3xl border bg-white p-5 shadow-sm">
         <div className="mb-4 flex justify-between text-sm font-bold text-gray-500">
-          <span>السؤال {index + 1} من {attempt.questions.length}</span>
+          {question.learnerPresentation?.showQuestionNumber !== false ? <span>{question.learnerPresentation?.questionNumber ? `السؤال ${question.learnerPresentation.questionNumber}` : `السؤال ${index + 1} من ${attempt.questions.length}`}</span> : <span />}
           <span>{question.points} درجة</span>
         </div>
         {question.passage ? (
@@ -249,31 +269,37 @@ export function AssessmentAttemptPage() {
           </div>
         ) : null}
 
-        <h2 className="text-lg font-black">{question.text || question.imageAlt || 'سؤال بصري'}</h2>
+        {question.text ? <h2 className="text-lg font-black whitespace-pre-wrap">{question.text}</h2> : !question.imageAssetId ? <h2 className="text-lg font-black">سؤال بصري</h2> : null}
         {question.imageAssetId ? (
           <div className="my-4 overflow-hidden rounded-2xl border border-gray-100 bg-slate-50 p-3 text-center">
             <QuestionAssetImage assetId={question.imageAssetId} alt={question.imageAlt || 'صورة السؤال'} />
           </div>
         ) : null}
-        <div className="mt-5 grid gap-2">
+        <div className={`mt-5 grid gap-2 ${imageEmbeddedOptions ? 'grid-cols-4' : ''}`}>
           {question.options.map((option) => (
+            <div key={option.index}>
             <button
-              key={option.index}
               type="button"
               disabled={savingAnswer || busy}
               onClick={() => void choose(option.index)}
-              className={`rounded-xl border p-3 text-right font-bold ${
+              className={`w-full rounded-xl border p-3 font-bold ${imageEmbeddedOptions ? 'min-h-[46px] text-center' : 'text-right'} ${
                 (draftChoice?.attemptId === attempt.id && draftChoice.questionId === question.id
                   ? draftChoice.option : saved?.selectedOptionIndex) === option.index
                   ? 'border-amber-500 bg-amber-50'
                   : ''
               }`}
             >
-              <span className="ml-2 inline-block min-w-7 rounded-lg bg-gray-100 p-1 text-center">
-                {['أ', 'ب', 'ج', 'د', 'هـ'][option.index] || option.index + 1}
-              </span>
-              {question.optionsEmbeddedInImage ? '' : option.text}
+              {question.learnerPresentation?.showOptionLabels !== false ? <span className={imageEmbeddedOptions ? 'text-lg font-black' : 'ml-2 inline-block min-w-7 rounded-lg bg-gray-100 p-1 text-center'}>
+                {optionLabel(option.index, question.learnerPresentation, imageEmbeddedOptions ? option.text : undefined, imageEmbeddedOptions && question.options.some(item => /^[a-d]$/i.test(item.text.trim())))}
+              </span> : null}
+              {showOptionText(question.learnerPresentation, imageEmbeddedOptions) ? option.text : ''}
             </button>
+            {!imageEmbeddedOptions && option.assetId ? (
+              <div className="mt-2 rounded-xl border bg-slate-50 p-3">
+                <QuestionAssetImage assetId={option.assetId} alt={`صورة الخيار ${['أ', 'ب', 'ج', 'د', 'هـ'][option.index] || option.index + 1}`} />
+              </div>
+            ) : null}
+            </div>
           ))}
         </div>
       </section>

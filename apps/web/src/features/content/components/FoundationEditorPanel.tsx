@@ -20,6 +20,7 @@ interface FoundationEditorPanelProps {
   coreTaxonomy: TaxonomyCore;
   initialPathId: string;
   initialSubjectId: string;
+  initialParentTopic?: FoundationTopicSummary;
   getCsrfToken(): Promise<string>;
   onCancel(): void;
   onSaved(): void;
@@ -30,6 +31,7 @@ export function FoundationEditorPanel({
   coreTaxonomy,
   initialPathId,
   initialSubjectId,
+  initialParentTopic,
   getCsrfToken,
   onCancel,
   onSaved,
@@ -58,7 +60,10 @@ export function FoundationEditorPanel({
   const [error, setError] = useState('');
   const [pathId, setPathId] = useState(initialPathId);
   const [subjectId, setSubjectId] = useState(initialSubjectId);
-  const [parentTopicId, setParentTopicId] = useState('');
+  const [parentTopicId, setParentTopicId] = useState(
+    initialParentTopic?.pathId === initialPathId && initialParentTopic.subjectId === initialSubjectId
+      ? initialParentTopic.id : '',
+  );
   const [code, setCode] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -195,6 +200,10 @@ export function FoundationEditorPanel({
 
   const subjects = useMemo(() => taxonomy.subjects.filter((subject) => !pathId || subject.pathId === pathId), [pathId, taxonomy.subjects]);
   const skills = useMemo(() => taxonomy.skills.filter((skill) => skill.subjectId === subjectId), [subjectId, taxonomy.skills]);
+  const selectedParentOutsidePage = initialParentTopic?.id === parentTopicId
+    && initialParentTopic.pathId === pathId && initialParentTopic.subjectId === subjectId
+    && !topicOptions.some((item) => item.id === parentTopicId)
+    ? initialParentTopic : undefined;
 
   useEffect(() => {
     // The topic detail may arrive before the full skill catalog.
@@ -356,6 +365,7 @@ export function FoundationEditorPanel({
               />
               <select value={parentTopicId} onChange={(event) => setParentTopicId(event.target.value)} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold">
                 <option value="">بدون أب</option>
+                {selectedParentOutsidePage ? <option value={selectedParentOutsidePage.id}>{selectedParentOutsidePage.title}</option> : null}
                 {topicOptions.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
               </select>
               {topicHasMore ? <p className="text-xs font-bold text-amber-700">هناك نتائج أخرى؛ ضيّق البحث للوصول إليها بدون تحميل القائمة كاملة.</p> : null}

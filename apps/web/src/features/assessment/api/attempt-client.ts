@@ -1,3 +1,12 @@
+export interface LearnerQuestionPresentation {
+  questionNumber?: string;
+  showQuestionNumber?: boolean;
+  showOptionLabels?: boolean;
+  showOptionText?: boolean;
+  optionLabelStyle?: 'arabic' | 'latin';
+  optionLabels?: string[];
+}
+
 export interface AttemptQuestion {
   id: string;
   version: number;
@@ -9,6 +18,7 @@ export interface AttemptQuestion {
   imageAssetId: string;
   imageAlt: string;
   optionsEmbeddedInImage: boolean;
+  learnerPresentation?: LearnerQuestionPresentation;
   videoUrl: string;
   passage?: string;
   difficulty: string;
@@ -37,6 +47,7 @@ export interface Attempt {
   showProgressBar: boolean;
   requireAnswerBeforeNext: boolean;
   allowQuestionReview: boolean;
+  showResultsReport?: boolean;
   randomizeOptions: boolean;
   questions: AttemptQuestion[];
   answers: SavedAnswer[];
@@ -80,6 +91,7 @@ export interface ReviewQuestion {
   imageAssetId: string;
   imageAlt: string;
   optionsEmbeddedInImage: boolean;
+  learnerPresentation?: LearnerQuestionPresentation;
   videoUrl: string;
   passage?: string;
   difficulty: string;
@@ -105,6 +117,21 @@ export interface ResultDetail {
   showAnswers: boolean;
   showExplanations: boolean;
   showResultsReport: boolean;
+  skillAnalysis?: {
+    complete: boolean;
+    items: Array<{
+      pathId: string;
+      subjectId: string;
+      subjectName: string;
+      skillId: string;
+      skillName: string;
+      questionCount: number;
+      correctCount: number;
+      mastery: number;
+      status: 'weak' | 'average' | 'strong';
+      foundationTopics?: Array<{ id: string; title: string; isLocked: boolean }>;
+    }>;
+  };
   questions?: ReviewQuestion[];
 }
 

@@ -59,6 +59,41 @@ async function openAnswerDraft(page:Page){
   await page.getByLabel('نص السؤال الجديد').fill('اختر الإجابة الصحيحة');
 }
 
+test('question presentation stores label-only choices separately from their text', async ({page})=>{
+  let payload:any;
+  await page.route('**/api/v1/questions/',r=>{payload=r.request().postDataJSON();return json(r,{question:detail()},201)});
+  await openAnswerDraft(page);
+  await page.getByLabel('رقم السؤال الاختياري').fill('23');
+  await page.getByLabel('حروف الاختيارات الافتراضية').selectOption('latin');
+  await page.getByLabel('إظهار نص الاختيارات').uncheck();
+  await page.getByLabel('رمز الخيار 1').fill('A');
+  await page.getByLabel('الإجابة الصحيحة 2').check();
+  await page.getByRole('button',{name:'حفظ السؤال كمسودة'}).click();
+  await expect(page.getByText('تم إنشاء السؤال كمسودة بإصدار أول.')).toBeVisible();
+  expect(payload.version.options).toEqual(Array.from({length:4},()=>({text:'',assetId:''})));
+  expect(payload.version.correctOptionIndex).toBe(1);
+  expect(payload.version.sourceMeta.learnerPresentation).toMatchObject({questionNumber:'23',optionLabelStyle:'latin',showOptionText:false,showOptionLabels:true,optionLabels:['A','','','']});
+});
+
+test('editing presentation creates a version without discarding question content', async ({page})=>{
+  await auth(page,admin); await mockBase(page);
+  await page.route('**/api/v1/questions/question-1/staff',r=>json(r,{question:detail()}));
+  let payload:any;
+  await page.route('**/api/v1/questions/question-1/versions',r=>{payload=r.request().postDataJSON();return json(r,{question:{...detail(),currentVersion:2}},201)});
+  await page.goto('/admin-dashboard/questions');
+  await page.getByRole('button',{name:'فتح',exact:true}).first().click();
+  await page.getByRole('button',{name:'تعديل طريقة عرض السؤال'}).click();
+  await page.getByLabel('رقم السؤال في الإصدار').fill('17');
+  await page.getByLabel('حروف الاختيارات في الإصدار').selectOption('latin');
+  await page.getByRole('button',{name:'حفظ إصدار جديد'}).click();
+  await expect.poll(()=>payload?.expectedCurrentVersion).toBe(1);
+  expect(payload.version.sourceMeta.learnerPresentation).toMatchObject({questionNumber:'17',optionLabelStyle:'latin'});
+  expect(payload.version.text).toBe(detail().version.text);
+  expect(payload.version.explanation).toBe(detail().version.explanation);
+  expect(payload.version.correctOptionIndex).toBe(1);
+  expect(payload.version.options).toEqual(detail().options.map(({text,assetId})=>({text,assetId})));
+});
+
 for(const width of [390,820,1440]){
   test(`authoring answer parity remaps sparse choices at ${width}px`,async({page})=>{
     await page.setViewportSize({width,height:width===390?844:1180});
@@ -125,9 +160,10 @@ test(`authoring answer parity preserves embedded image answer positions for ${ty
   await expect(page.getByText('تم إنشاء السؤال كمسودة بإصدار أول.')).toBeVisible();
   expect(payload.version.optionsEmbeddedInImage).toBe(true);
   expect(payload.version.imageAssetId).toBe(asset.id);
-  const labels=type==='mcq'?['أ','قيمة ب','ج','قيمة د']:['أ','قيمة ب'];
-  expect(payload.version.options).toEqual(labels.map(text=>({text,assetId:''})));
-  expect(payload.version.aiContext.optionTexts).toEqual(labels);
+  const texts=type==='mcq'?['','قيمة ب','','قيمة د']:['','قيمة ب'];
+  expect(payload.version.options).toEqual(texts.map(text=>({text,assetId:''})));
+  expect(payload.version.aiContext.optionTexts).toBeUndefined();
+  expect(payload.version.sourceMeta.learnerPresentation).toMatchObject({optionLabelStyle:'arabic',showOptionLabels:true,showOptionText:false});
   expect(payload.version.correctOptionIndex).toBe(type==='mcq'?3:1);
 });
 }

@@ -48,6 +48,39 @@ type lessonTargetStub struct {
 	duration   int
 }
 
+type foundationProgressAccessStub struct {
+	allowed bool
+	calls   int
+}
+
+func (s *foundationProgressAccessStub) ResolveFoundationLessonProgressTarget(_ context.Context, _ identity.User, _, _ string) (bool, string, int, error) {
+	s.calls++
+	return s.allowed, "video", 120, nil
+}
+
+func TestFoundationProgressUsesSameAuthorizedLessonBoundary(t *testing.T) {
+	repo := &lessonProgressRepoStub{}
+	access := &foundationProgressAccessStub{}
+	s := NewLessonProgressService(repo, lessonTargetStub{ok: true, lessonType: "video"}, access)
+	in := learning.LessonProgressContextInput{ContextType: learning.LessonProgressFoundation, TopicID: "topic"}
+	if _, err := s.Get(context.Background(), progressStudent(), "lesson", in); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("denied read: %v", err)
+	}
+	if _, err := s.SaveVideo(context.Background(), progressStudent(), "lesson", learning.VideoProgressWrite{LessonProgressContextInput: in, PositionSeconds: 10}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("denied write: %v", err)
+	}
+	if _, err := s.Complete(context.Background(), progressStudent(), "lesson", in); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("denied completion: %v", err)
+	}
+	if repo.lastStudent != "" || access.calls != 3 {
+		t.Fatalf("denied access reached progress storage: %+v calls=%d", repo, access.calls)
+	}
+	access.allowed = true
+	if _, err := s.SaveVideo(context.Background(), progressStudent(), "lesson", learning.VideoProgressWrite{LessonProgressContextInput: in, PositionSeconds: 10}); err != nil || repo.lastPosition != 10 {
+		t.Fatalf("authorized write: %v", err)
+	}
+}
+
 func (s lessonTargetStub) ResolveLessonProgressTarget(context.Context, string, string, string) (bool, string, int, error) {
 	return s.ok, s.lessonType, s.duration, nil
 }

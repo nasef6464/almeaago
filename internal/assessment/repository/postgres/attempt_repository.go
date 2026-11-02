@@ -108,7 +108,7 @@ func (r *Repository) Start(ctx context.Context, student, assessmentID, startKey 
 func (r *Repository) GetAttempt(ctx context.Context, id string) (assessment.Attempt, error) {
 	var a assessment.Attempt
 	var expires, submitted *time.Time
-	e := r.db.QueryRow(ctx, `SELECT x.id::text,x.assessment_id::text,x.assessment_version,x.student_id::text,x.attempt_number,x.status,v.title,x.started_at,x.expires_at,x.submitted_at,v.show_progress_bar,v.require_answer_before_next,v.allow_question_review,v.randomize_options FROM assessment_attempts x JOIN assessment_versions v ON v.assessment_id=x.assessment_id AND v.version=x.assessment_version WHERE x.id=$1::uuid`, id).Scan(&a.ID, &a.AssessmentID, &a.AssessmentVersion, &a.StudentID, &a.AttemptNumber, &a.Status, &a.Title, &a.StartedAt, &expires, &submitted, &a.ShowProgressBar, &a.RequireAnswerBeforeNext, &a.AllowQuestionReview, &a.RandomizeOptions)
+	e := r.db.QueryRow(ctx, `SELECT x.id::text,x.assessment_id::text,x.assessment_version,x.student_id::text,x.attempt_number,x.status,v.title,x.started_at,x.expires_at,x.submitted_at,v.show_progress_bar,v.require_answer_before_next,v.allow_question_review,v.randomize_options,v.show_results_report FROM assessment_attempts x JOIN assessment_versions v ON v.assessment_id=x.assessment_id AND v.version=x.assessment_version WHERE x.id=$1::uuid`, id).Scan(&a.ID, &a.AssessmentID, &a.AssessmentVersion, &a.StudentID, &a.AttemptNumber, &a.Status, &a.Title, &a.StartedAt, &expires, &submitted, &a.ShowProgressBar, &a.RequireAnswerBeforeNext, &a.AllowQuestionReview, &a.RandomizeOptions, &a.ShowResultsReport)
 	if e != nil {
 		return a, mapError(e)
 	}
@@ -117,17 +117,19 @@ func (r *Repository) GetAttempt(ctx context.Context, id string) (assessment.Atte
 	if a.Status == assessment.AttemptInProgress && expires != nil && time.Now().After(*expires) {
 		a.Status = assessment.AttemptExpired
 	}
-	rows, e := r.db.Query(ctx, `SELECT aq.question_id::text,aq.question_version,COALESCE(aq.section_id::text,''),aq.sort_order,aq.points,qv.question_type,qv.text_content,COALESCE(qv.image_asset_id::text,''),qv.image_alt,qv.options_embedded_in_image,COALESCE(qv.video_url,''),COALESCE(qv.source_meta->>'passage',''),COALESCE(qv.difficulty,'') FROM assessment_version_questions aq JOIN question_versions qv ON qv.question_id=aq.question_id AND qv.version=aq.question_version WHERE aq.assessment_id=$1::uuid AND aq.assessment_version=$2 ORDER BY CASE WHEN (SELECT randomize_questions FROM assessment_versions WHERE assessment_id=$1::uuid AND version=$2) THEN md5($3||aq.question_id::text) ELSE lpad(aq.sort_order::text,12,'0') END,aq.question_id`, a.AssessmentID, a.AssessmentVersion, a.ID)
+	rows, e := r.db.Query(ctx, `SELECT aq.question_id::text,aq.question_version,COALESCE(aq.section_id::text,''),aq.sort_order,aq.points,qv.question_type,qv.text_content,COALESCE(qv.image_asset_id::text,''),qv.image_alt,qv.options_embedded_in_image,COALESCE(qv.video_url,''),COALESCE(qv.source_meta->>'passage',''),COALESCE(qv.difficulty,''),jsonb_build_object('learnerPresentation',qv.source_meta->'learnerPresentation') FROM assessment_version_questions aq JOIN question_versions qv ON qv.question_id=aq.question_id AND qv.version=aq.question_version WHERE aq.assessment_id=$1::uuid AND aq.assessment_version=$2 ORDER BY CASE WHEN (SELECT randomize_questions FROM assessment_versions WHERE assessment_id=$1::uuid AND version=$2) THEN md5($3||aq.question_id::text) ELSE lpad(aq.sort_order::text,12,'0') END,aq.question_id`, a.AssessmentID, a.AssessmentVersion, a.ID)
 	if e != nil {
 		return a, e
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var q assessment.LearnerQuestion
-		if e = rows.Scan(&q.ID, &q.Version, &q.SectionID, &q.SortOrder, &q.Points, &q.Type, &q.Text, &q.ImageAssetID, &q.ImageAlt, &q.OptionsEmbeddedInImage, &q.VideoURL, &q.Passage, &q.Difficulty); e != nil {
+		var presentation []byte
+		if e = rows.Scan(&q.ID, &q.Version, &q.SectionID, &q.SortOrder, &q.Points, &q.Type, &q.Text, &q.ImageAssetID, &q.ImageAlt, &q.OptionsEmbeddedInImage, &q.VideoURL, &q.Passage, &q.Difficulty, &presentation); e != nil {
 			return a, e
 		}
-		or, e := r.db.Query(ctx, `SELECT option_index,option_text,COALESCE(asset_id::text,'') FROM question_options WHERE question_id=$1::uuid AND version=$2 ORDER BY CASE WHEN $3 THEN md5($4||option_index::text) ELSE lpad(option_index::text,12,'0') END`, q.ID, q.Version, a.RandomizeOptions, a.ID)
+		q.LearnerPresentation = learnerPresentation(presentation)
+		or, e := r.db.Query(ctx, `SELECT option_index,option_text,COALESCE(asset_id::text,'') FROM question_options WHERE question_id=$1::uuid AND version=$2 ORDER BY CASE WHEN $3 THEN md5($4||option_index::text) ELSE lpad(option_index::text,12,'0') END`, q.ID, q.Version, a.RandomizeOptions && !(q.OptionsEmbeddedInImage && q.ImageAssetID != ""), a.ID)
 		if e != nil {
 			return a, e
 		}
@@ -193,6 +195,16 @@ func (r *Repository) SaveAnswer(ctx context.Context, student, id, qid string, w 
 	if e != nil {
 		return assessment.Attempt{}, mapError(e)
 	}
+	if w.SelectedOptionIndex != nil {
+		var valid bool
+		e = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM question_options WHERE question_id=$1::uuid AND version=$2 AND option_index=$3)`, qid, qver, *w.SelectedOptionIndex).Scan(&valid)
+		if e != nil {
+			return assessment.Attempt{}, e
+		}
+		if !valid {
+			return assessment.Attempt{}, assessment.ErrInvalidAnswer
+		}
+	}
 	_, e = tx.Exec(ctx, `INSERT INTO assessment_answers(attempt_id,assessment_id,assessment_version,question_id,question_version,selected_option_index,text_answer,time_spent_seconds,marked_for_review) VALUES($1::uuid,$2::uuid,$3,$4::uuid,$5,$6,NULLIF($7,''),$8,$9) ON CONFLICT(attempt_id,question_id) DO UPDATE SET selected_option_index=excluded.selected_option_index,text_answer=excluded.text_answer,time_spent_seconds=GREATEST(assessment_answers.time_spent_seconds,excluded.time_spent_seconds),marked_for_review=excluded.marked_for_review,last_saved_at=now() WHERE assessment_answers.question_version=excluded.question_version`, id, aid, ver, qid, qver, w.SelectedOptionIndex, w.TextAnswer, w.TimeSpentSeconds, w.MarkedForReview)
 	if e != nil {
 		return assessment.Attempt{}, mapError(e)
@@ -242,7 +254,7 @@ func (r *Repository) Submit(ctx context.Context, student, id, submissionKey stri
 	}
 	var total, correct, wrong, unanswered, timeSpent int
 	var score, pass float64
-	e = tx.QueryRow(ctx, `WITH q AS(SELECT aq.question_id,aq.points,qv.correct_option_index FROM assessment_version_questions aq JOIN question_versions qv ON qv.question_id=aq.question_id AND qv.version=aq.question_version WHERE aq.assessment_id=$1::uuid AND aq.assessment_version=$2), s AS(SELECT q.*,aa.selected_option_index,COALESCE(aa.time_spent_seconds,0) spent FROM q LEFT JOIN assessment_answers aa ON aa.attempt_id=$3::uuid AND aa.question_id=q.question_id) SELECT count(*)::int,count(*) FILTER(WHERE selected_option_index=correct_option_index)::int,count(*) FILTER(WHERE selected_option_index IS NOT NULL AND selected_option_index<>correct_option_index)::int,count(*) FILTER(WHERE selected_option_index IS NULL)::int,COALESCE(sum(spent),0)::int,CASE WHEN sum(points)>0 THEN 100.0*sum(points) FILTER(WHERE selected_option_index=correct_option_index)/sum(points) ELSE 0 END,(SELECT passing_score FROM assessment_versions WHERE assessment_id=$1::uuid AND version=$2) FROM s`, aid, ver, id).Scan(&total, &correct, &wrong, &unanswered, &timeSpent, &score, &pass)
+	e = tx.QueryRow(ctx, `WITH q AS(SELECT aq.question_id,aq.points,qv.correct_option_index FROM assessment_version_questions aq JOIN question_versions qv ON qv.question_id=aq.question_id AND qv.version=aq.question_version WHERE aq.assessment_id=$1::uuid AND aq.assessment_version=$2), s AS(SELECT q.*,aa.selected_option_index,COALESCE(aa.time_spent_seconds,0) spent FROM q LEFT JOIN assessment_answers aa ON aa.attempt_id=$3::uuid AND aa.question_id=q.question_id) SELECT count(*)::int,count(*) FILTER(WHERE selected_option_index=correct_option_index)::int,count(*) FILTER(WHERE selected_option_index IS NOT NULL AND selected_option_index<>correct_option_index)::int,count(*) FILTER(WHERE selected_option_index IS NULL)::int,COALESCE(sum(spent),0)::int,CASE WHEN sum(points)>0 THEN 100.0*COALESCE(sum(points) FILTER(WHERE selected_option_index=correct_option_index),0)/sum(points) ELSE 0 END,(SELECT passing_score FROM assessment_versions WHERE assessment_id=$1::uuid AND version=$2) FROM s`, aid, ver, id).Scan(&total, &correct, &wrong, &unanswered, &timeSpent, &score, &pass)
 	if e != nil {
 		return assessment.Result{}, e
 	}

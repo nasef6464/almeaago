@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +19,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
+	assessmentpg "github.com/nasef6464/almeaago/internal/assessment/repository/postgres"
 	identityapp "github.com/nasef6464/almeaago/internal/identity/application"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	operationspg "github.com/nasef6464/almeaago/internal/operations/repository/postgres"
@@ -108,10 +111,13 @@ func TestAuthoringAnswerPersistenceHTTPPostgres(t *testing.T) {
 		name        string
 		answerIndex int
 		embedded    bool
+		labelOnly   bool
 	}{
 		{name: "correct_index_0", answerIndex: 0},
 		{name: "correct_index_1", answerIndex: 1},
 		{name: "embedded_correct_index_3", answerIndex: 3, embedded: true},
+		{name: "embedded_label_only", answerIndex: 2, embedded: true, labelOnly: true},
+		{name: "text_question_label_only", answerIndex: 2, labelOnly: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			answerIndex := tc.answerIndex
@@ -129,6 +135,11 @@ func TestAuthoringAnswerPersistenceHTTPPostgres(t *testing.T) {
 				input.Version.OptionsEmbeddedInImage = true
 				input.Version.Options = []questionapp.OptionInput{{Text: "أ"}, {Text: "قيمة ب"}, {Text: "ج"}, {Text: "قيمة د"}}
 				input.Version.AIContext = json.RawMessage(`{"optionTexts":["أ","قيمة ب","ج","قيمة د"]}`)
+			}
+			if tc.labelOnly {
+				input.Version.Options = []questionapp.OptionInput{{}, {}, {}, {}}
+				input.Version.AIContext = nil
+				input.Version.SourceMeta = json.RawMessage(`{"learnerPresentation":{"showQuestionNumber":false,"showOptionLabels":true,"showOptionText":false,"optionLabelStyle":"latin","optionLabels":["A","B","C","D"]}}`)
 			}
 			raw, err := json.Marshal(input)
 			if err != nil {
@@ -166,7 +177,8 @@ func TestAuthoringAnswerPersistenceHTTPPostgres(t *testing.T) {
 			var detail struct {
 				Question struct {
 					Version struct {
-						CorrectOptionIndex *int `json:"correctOptionIndex"`
+						CorrectOptionIndex *int            `json:"correctOptionIndex"`
+						SourceMeta         json.RawMessage `json:"sourceMeta"`
 						AIContext          struct {
 							OptionTexts []string `json:"optionTexts"`
 						} `json:"aiContext"`
@@ -186,11 +198,66 @@ func TestAuthoringAnswerPersistenceHTTPPostgres(t *testing.T) {
 			if detail.Question.Version.CorrectOptionIndex == nil || *detail.Question.Version.CorrectOptionIndex != answerIndex || len(detail.Question.Options) != len(input.Version.Options) {
 				t.Fatalf("reload lost answer/options: %s", reloaded.Body.String())
 			}
+			if tc.labelOnly {
+				presentation, err := question.ParseLearnerPresentation(detail.Question.Version.SourceMeta)
+				if err != nil || presentation == nil || presentation.OptionLabelStyle != "latin" || len(presentation.OptionLabels) != 4 || presentation.OptionLabels[2] != "C" || presentation.ShowQuestionNumber == nil || *presentation.ShowQuestionNumber {
+					t.Fatalf("reload lost presentation: %s (%v)", reloaded.Body.String(), err)
+				}
+				assessmentID, attemptID := "10000000-0000-4000-8000-000000000090", "10000000-0000-4000-8000-000000000091"
+				if !tc.embedded {
+					assessmentID, attemptID = "10000000-0000-4000-8000-000000000092", "10000000-0000-4000-8000-000000000093"
+				}
+				tx, err := db.Begin(ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer tx.Rollback(ctx)
+				for _, statement := range []struct {
+					sql  string
+					args []any
+				}{
+					{`INSERT INTO assessments(id,assessment_code,workflow_status,is_published,published_version,is_visible) VALUES($1::uuid,$2,'approved',true,1,true)`, []any{assessmentID, "LABEL-TEST-" + tc.name}},
+					{`INSERT INTO assessment_versions(assessment_id,version,title,path_id,subject_id,assessment_kind,normal_mode,version_status,published_at,access_type,randomize_options) VALUES($1::uuid,1,'test',$2::uuid,$3::uuid,'normal','exam','published',now(),'free',true)`, []any{assessmentID, pathID, subjectID}},
+					{`INSERT INTO assessment_version_questions(assessment_id,assessment_version,question_id,question_version) VALUES($1::uuid,1,$2::uuid,1)`, []any{assessmentID, created.Question.ID}},
+					{`INSERT INTO assessment_attempts(id,assessment_id,assessment_version,student_id,attempt_number,status) VALUES($1::uuid,$2::uuid,1,$3::uuid,1,'in_progress')`, []any{attemptID, assessmentID, actorID}},
+				} {
+					if _, err = tx.Exec(ctx, statement.sql, statement.args...); err != nil {
+						t.Fatalf("setup attempt: %v", err)
+					}
+				}
+				if err = tx.Commit(ctx); err != nil {
+					t.Fatalf("commit attempt fixture: %v", err)
+				}
+				attempt, err := assessmentpg.New(db, nil).GetAttempt(ctx, attemptID)
+				if err != nil || len(attempt.Questions) != 1 || attempt.Questions[0].LearnerPresentation == nil || len(attempt.Questions[0].LearnerPresentation.OptionLabels) != 4 || attempt.Questions[0].LearnerPresentation.OptionLabels[2] != "C" || len(attempt.Questions[0].Options) != 4 || attempt.Questions[0].Options[2].Text != "" {
+					t.Fatalf("learner attempt lost indexed labels or blank option texts: %+v (%v)", attempt, err)
+				}
+				if tc.embedded {
+					for i, option := range attempt.Questions[0].Options {
+						if option.Index != i {
+							t.Fatalf("image-embedded choices were shuffled: %+v", attempt.Questions[0].Options)
+						}
+					}
+				}
+				validChoice := 1
+				repo := assessmentpg.New(db, nil)
+				if _, err = repo.SaveAnswer(ctx, actorID, attemptID, created.Question.ID, assessment.AnswerWrite{SelectedOptionIndex: &validChoice}); err != nil {
+					t.Fatalf("save valid answer: %v", err)
+				}
+				invalidChoice := 8
+				if _, err = repo.SaveAnswer(ctx, actorID, attemptID, created.Question.ID, assessment.AnswerWrite{SelectedOptionIndex: &invalidChoice}); !errors.Is(err, assessment.ErrInvalidAnswer) {
+					t.Fatalf("invalid option must be rejected: %v", err)
+				}
+				var saved int
+				if err = db.QueryRow(ctx, `SELECT selected_option_index FROM assessment_answers WHERE attempt_id=$1::uuid AND question_id=$2::uuid`, attemptID, created.Question.ID).Scan(&saved); err != nil || saved != validChoice {
+					t.Fatalf("invalid option changed saved answer: %d (%v)", saved, err)
+				}
+			}
 			for i, option := range detail.Question.Options {
 				if option.Index != i || option.Text != input.Version.Options[i].Text {
 					t.Fatalf("reload changed option order: %s", reloaded.Body.String())
 				}
-				if tc.embedded && (len(detail.Question.Version.AIContext.OptionTexts) != len(detail.Question.Options) || detail.Question.Version.AIContext.OptionTexts[i] != option.Text) {
+				if tc.embedded && !tc.labelOnly && (len(detail.Question.Version.AIContext.OptionTexts) != len(detail.Question.Options) || detail.Question.Version.AIContext.OptionTexts[i] != option.Text) {
 					t.Fatalf("embedded accessible labels no longer match stored choices: %s", reloaded.Body.String())
 				}
 			}

@@ -1,5 +1,5 @@
 export type PathsManagerPathTab = 'levels' | 'subjects' | 'mockExams' | 'packages' | 'settings';
-export type PathsManagerSubjectTab = 'courses' | 'skills' | 'questions' | 'exams' | 'library' | 'settings';
+export type PathsManagerSubjectTab = 'courses' | 'foundation' | 'skills' | 'questions' | 'exams' | 'library' | 'settings';
 
 export type PathsManagerUrlState = {
   selectedPathId: string | null;
@@ -9,7 +9,7 @@ export type PathsManagerUrlState = {
 };
 
 const pathTabs: PathsManagerPathTab[] = ['levels', 'subjects', 'mockExams', 'packages', 'settings'];
-const subjectTabs: PathsManagerSubjectTab[] = ['courses', 'skills', 'questions', 'exams', 'library', 'settings'];
+const subjectTabs: PathsManagerSubjectTab[] = ['courses', 'foundation', 'skills', 'questions', 'exams', 'library', 'settings'];
 
 const getInitialQuery = () =>
   new URLSearchParams(window.location.hash.includes('?') ? window.location.hash.split('?')[1] : window.location.search);

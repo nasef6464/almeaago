@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	question "github.com/nasef6464/almeaago/internal/questionbank/domain"
+	"time"
+)
 
 type AttemptStatus string
 
@@ -17,20 +20,21 @@ type LearnerOption struct {
 	AssetID string `json:"assetId"`
 }
 type LearnerQuestion struct {
-	ID                     string          `json:"id"`
-	Version                int             `json:"version"`
-	SectionID              string          `json:"sectionId"`
-	SortOrder              int             `json:"sortOrder"`
-	Points                 float64         `json:"points"`
-	Type                   string          `json:"type"`
-	Text                   string          `json:"text"`
-	ImageAssetID           string          `json:"imageAssetId"`
-	ImageAlt               string          `json:"imageAlt"`
-	OptionsEmbeddedInImage bool            `json:"optionsEmbeddedInImage"`
-	VideoURL               string          `json:"videoUrl"`
-	Passage                string          `json:"passage,omitempty"`
-	Difficulty             string          `json:"difficulty"`
-	Options                []LearnerOption `json:"options"`
+	ID                     string                        `json:"id"`
+	Version                int                           `json:"version"`
+	SectionID              string                        `json:"sectionId"`
+	SortOrder              int                           `json:"sortOrder"`
+	Points                 float64                       `json:"points"`
+	Type                   string                        `json:"type"`
+	Text                   string                        `json:"text"`
+	ImageAssetID           string                        `json:"imageAssetId"`
+	ImageAlt               string                        `json:"imageAlt"`
+	OptionsEmbeddedInImage bool                          `json:"optionsEmbeddedInImage"`
+	LearnerPresentation    *question.LearnerPresentation `json:"learnerPresentation,omitempty"`
+	VideoURL               string                        `json:"videoUrl"`
+	Passage                string                        `json:"passage,omitempty"`
+	Difficulty             string                        `json:"difficulty"`
+	Options                []LearnerOption               `json:"options"`
 }
 type SavedAnswer struct {
 	QuestionID          string    `json:"questionId"`
@@ -54,6 +58,7 @@ type Attempt struct {
 	ShowProgressBar         bool              `json:"showProgressBar"`
 	RequireAnswerBeforeNext bool              `json:"requireAnswerBeforeNext"`
 	AllowQuestionReview     bool              `json:"allowQuestionReview"`
+	ShowResultsReport       bool              `json:"showResultsReport"`
 	RandomizeOptions        bool              `json:"randomizeOptions"`
 	Questions               []LearnerQuestion `json:"questions"`
 	Answers                 []SavedAnswer     `json:"answers"`

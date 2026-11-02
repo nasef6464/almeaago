@@ -15,8 +15,22 @@ func NewLearningSpaces(service *contentapp.Service, auth Authenticator) http.Han
 	r.Get("/courses/{id}", h.getLearnerCourse)
 	r.Get("/courses/{courseId}/lessons/{lessonId}", h.getLearnerCourseLesson)
 	r.Get("/foundation/{id}", h.getLearnerTopic)
+	r.Get("/foundation/{topicId}/lessons/{lessonId}", h.getLearnerFoundationLesson)
 	r.Get("/{pathId}/subjects/{subjectId}", h.getLearningSpace)
 	return r
+}
+
+func (h *Handler) getLearnerFoundationLesson(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	row, err := h.service.LearnerFoundationLesson(r.Context(), auth.User, chi.URLParam(r, "topicId"), chi.URLParam(r, "lessonId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"lesson": presentLearnerLessonDetail(row)})
 }
 
 func (h *Handler) getLearningSpace(w http.ResponseWriter, r *http.Request) {
@@ -126,6 +140,8 @@ func presentLearnerCourse(row content.LearnerCourse) map[string]any {
 
 func presentLearnerTopic(row content.LearnerTopic) map[string]any {
 	result := presentLearnerTopicSummary(row.Topic)
+	result["pathId"] = row.PathID
+	result["subjectId"] = row.SubjectID
 	lessons := make([]map[string]any, 0, len(row.Lessons))
 	for _, lesson := range row.Lessons {
 		lessons = append(lessons, presentLearnerLessonSummary(lesson))

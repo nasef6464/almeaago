@@ -126,6 +126,12 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 	if err != nil {
 		return out, mapError(err)
 	}
+	if out.ShowResultsReport {
+		out.SkillAnalysis, err = r.resultSkillAnalysis(ctx, student, attemptID, out.Result.TotalQuestions)
+		if err != nil {
+			return out, err
+		}
+	}
 	if !out.AllowQuestionReview {
 		return out, nil
 	}
@@ -145,6 +151,7 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 			COALESCE(qv.video_url,''),
 			COALESCE(qv.source_meta->>'passage',''),
 			COALESCE(qv.difficulty,''),
+			jsonb_build_object('learnerPresentation',qv.source_meta->'learnerPresentation'),
 			aa.selected_option_index,
 			COALESCE(aa.is_correct,false),
 			COALESCE(aa.marked_for_review,false),
@@ -179,6 +186,7 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 	for rows.Next() {
 		var q assessment.ReviewQuestion
 		var canonicalCorrect *int
+		var presentation []byte
 		var explanation, hint, solvingStrategy string
 		if err = rows.Scan(
 			&q.QuestionID,
@@ -194,6 +202,7 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 			&q.VideoURL,
 			&q.Passage,
 			&q.Difficulty,
+			&presentation,
 			&q.SelectedOptionIndex,
 			&q.Correct,
 			&q.MarkedForReview,
@@ -205,6 +214,7 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 		); err != nil {
 			return out, err
 		}
+		q.LearnerPresentation = learnerPresentation(presentation)
 		q.Answered = q.SelectedOptionIndex != nil
 		applyReviewPolicy(
 			&q,
@@ -232,10 +242,11 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 		JOIN question_options qo
 		  ON qo.question_id=aq.question_id
 		 AND qo.version=aq.question_version
+		JOIN question_versions qv ON qv.question_id=aq.question_id AND qv.version=aq.question_version
 		WHERE aq.assessment_id=$1::uuid
 		  AND aq.assessment_version=$2
 		ORDER BY
-			CASE WHEN $3
+			CASE WHEN $3 AND NOT (qv.options_embedded_in_image AND qv.image_asset_id IS NOT NULL)
 				THEN md5($4||qo.option_index::text)
 				ELSE lpad(qo.option_index::text,12,'0')
 			END,

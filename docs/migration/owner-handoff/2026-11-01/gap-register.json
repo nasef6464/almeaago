@@ -215,6 +215,42 @@
       "defect": "Homepage rendered paths with showInHome=false including featured paths",
       "evidence": "homepage-path-home-visibility.spec.ts 3 viewports/9 scenarios mocked; read/write API+DB and student chooser separate native integration",
       "next": "Independent review; CI and full paired homepage visual evidence remain."
+    },
+    {
+      "id": "LEARN-SLOT-PARITY-001",
+      "issue": 261,
+      "priority": "P1",
+      "owner": "learning/student",
+      "status": "TESTED_LOCAL_PASS",
+      "source": "pages/SubjectLearningPage.tsx:1250-1310; components/LearningSection.tsx",
+      "target": "apps/web/src/features/learning/pages/LearningSpacePage.tsx; learningRouteSelection.ts",
+      "defect": "Mock exams conflated with subject tests; subject training and exams displayed hardcoded promo cards instead of real subject placements",
+      "resolution": "Decoupled mock-exams to path level (/category/:pathId?tab=mock-exams); wired assessmentPlacementClient.available for slot=training (tab=questions) and slot=tests (tab=exams); added clear banner in exams tab pointing to path-level mock exams",
+      "evidence": "tests/e2e/learning-space-and-taxonomy-foundation-parity.spec.ts (PASS); tests/e2e/category-path-parity.spec.ts (PASS)",
+      "ownedFiles": [
+        "apps/web/src/features/learning/pages/LearningSpacePage.tsx",
+        "apps/web/src/features/learning/pages/learningRouteSelection.ts",
+        "apps/web/tests/e2e/learning-space-and-taxonomy-foundation-parity.spec.ts"
+      ],
+      "visualParity": "AUTHENTIC: matches legacy LearningSection tabs and placements layout without redesign"
+    },
+    {
+      "id": "TAXONOMY-FOUNDATION-001",
+      "issue": 261,
+      "priority": "P1",
+      "owner": "taxonomy/admin",
+      "status": "TESTED_LOCAL_PASS",
+      "source": "dashboards/admin/PathsManager.tsx:1020-1120; FoundationManager.tsx",
+      "target": "apps/web/src/features/taxonomy/pages/TaxonomyAdminPage.tsx; pathsManagerUrlState.ts",
+      "defect": "Subject Workspace in PathsManager omitted Foundation Topics and Lessons management, isolating FoundationEditorPanel in content page",
+      "resolution": "Restored Foundation Topics management tab ('foundation') in Subject Workspace; wired loadSubjectFoundation to fetch topics; added hierarchical display with main topics, subtopics, codes, and badges; integrated FoundationEditorPanel inline for topic/lesson creation and editing",
+      "evidence": "tests/e2e/learning-space-and-taxonomy-foundation-parity.spec.ts (PASS); tests/e2e/paths-manager-visual-review.spec.ts (PASS)",
+      "ownedFiles": [
+        "apps/web/src/features/taxonomy/components/pathsManagerUrlState.ts",
+        "apps/web/src/features/taxonomy/pages/TaxonomyAdminPage.tsx",
+        "apps/web/tests/e2e/learning-space-and-taxonomy-foundation-parity.spec.ts"
+      ],
+      "visualParity": "AUTHENTIC: restores legacy PathsManager Subject Workspace 6-tab contract with zero redesign"
     }
   ]
 }

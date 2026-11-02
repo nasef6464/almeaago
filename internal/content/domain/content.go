@@ -465,7 +465,16 @@ type LearnerCourse struct {
 }
 
 type LearnerTopic struct {
+	PathID       string
+	SubjectID    string
 	Topic        LearnerTopicSummary
 	Lessons      []LearnerLessonSummary
 	LibraryItems []LearnerLibrarySummary
+}
+
+// FoundationLessonDetail keeps access scope server-side until entitlement is checked.
+type FoundationLessonDetail struct {
+	Lesson                     LearnerLessonDetail
+	TopicID, PathID, SubjectID string
+	TopicLocked                bool
 }

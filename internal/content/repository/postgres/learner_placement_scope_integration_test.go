@@ -48,6 +48,8 @@ func TestLearnerPlacementScopePostgres(t *testing.T) {
 	defer db.Close()
 
 	ddl := []string{
+		`CREATE TABLE paths (id uuid PRIMARY KEY,status text)`,
+		`CREATE TABLE subjects (id uuid PRIMARY KEY,path_id uuid,status text)`,
 		`CREATE TABLE assets (id uuid PRIMARY KEY, status text)`,
 		`CREATE TABLE courses (
 			id uuid PRIMARY KEY, path_id uuid, subject_id uuid,
@@ -72,7 +74,7 @@ func TestLearnerPlacementScopePostgres(t *testing.T) {
 		`CREATE TABLE library_items (
 			id uuid PRIMARY KEY, path_id uuid, subject_id uuid,
 			title text, description text, item_type text, is_locked bool,
-			workflow_status text, is_visible bool)`,
+			workflow_status text, is_visible bool, external_url text)`,
 		`CREATE TABLE topic_library_items (
 			topic_id uuid, library_item_id uuid, sort_order int)`,
 	}
@@ -97,6 +99,8 @@ func TestLearnerPlacementScopePostgres(t *testing.T) {
 		sql  string
 		args []any
 	}{
+		{`INSERT INTO paths VALUES($1,'active')`, []any{pathID}},
+		{`INSERT INTO subjects VALUES($1,$3,'active'),($2,$3,'active')`, []any{subjectID, otherSubjectID, pathID}},
 		{`INSERT INTO courses VALUES($1,$2,$3,'course','','teacher',30,'beginner',NULL,false,false,'approved',true,true)`, []any{courseID, pathID, subjectID}},
 		{`INSERT INTO course_modules VALUES($1,$2,'active',0,'module','')`, []any{moduleID, courseID}},
 		{`INSERT INTO lessons VALUES($1,$2,$3,$4,'','video',60,false,'approved',true,'body','','')`, []any{allowedLessonID, pathID, subjectID, "allowed"}},
@@ -104,8 +108,8 @@ func TestLearnerPlacementScopePostgres(t *testing.T) {
 		{`INSERT INTO course_lessons VALUES($1,$2,true,0),($1,$3,true,1)`, []any{moduleID, allowedLessonID, foreignLessonID}},
 		{`INSERT INTO foundation_topics VALUES($1,$2,$3,NULL,'topic','',0,false,'active',true)`, []any{topicID, pathID, subjectID}},
 		{`INSERT INTO topic_lessons VALUES($1,$2,0),($1,$3,1)`, []any{topicID, allowedLessonID, foreignLessonID}},
-		{`INSERT INTO library_items VALUES($1,$2,$3,$4,'','file',false,'approved',true)`, []any{allowedLibraryID, pathID, subjectID, "allowed"}},
-		{`INSERT INTO library_items VALUES($1,$2,$3,$4,'','file',false,'approved',true)`, []any{foreignLibraryID, pathID, otherSubjectID, "foreign"}},
+		{`INSERT INTO library_items VALUES($1,$2,$3,$4,'','file',false,'approved',true,NULL)`, []any{allowedLibraryID, pathID, subjectID, "allowed"}},
+		{`INSERT INTO library_items VALUES($1,$2,$3,$4,'','file',false,'approved',true,NULL)`, []any{foreignLibraryID, pathID, otherSubjectID, "foreign"}},
 		{`INSERT INTO topic_library_items VALUES($1,$2,0),($1,$3,1)`, []any{topicID, allowedLibraryID, foreignLibraryID}},
 	}
 	for _, row := range inserts {
@@ -137,11 +141,26 @@ func TestLearnerPlacementScopePostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if topic.PathID != pathID || topic.SubjectID != subjectID {
+		t.Fatalf("learner topic returned incorrect scope: %+v", topic)
+	}
 	if len(topic.Lessons) != 1 || topic.Lessons[0].ID != allowedLessonID ||
 		len(topic.LibraryItems) != 1 || topic.LibraryItems[0].ID != allowedLibraryID {
 		t.Fatalf("foundation leaked foreign-subject placement: %+v", topic)
 	}
 	if ok, _, _, err := repo.ResolveLessonProgressTarget(ctx, "foundation", topicID, foreignLessonID); err != nil || ok {
 		t.Fatalf("foreign-subject foundation progress target accepted: ok=%v err=%v", ok, err)
+	}
+	if row, err := repo.GetLearnerFoundationLesson(ctx, topicID, allowedLessonID); err != nil || row.Lesson.ID != allowedLessonID || row.PathID != pathID || row.SubjectID != subjectID {
+		t.Fatalf("valid foundation placement: %+v %v", row, err)
+	}
+	if _, err := repo.GetLearnerFoundationLesson(ctx, topicID, foreignLessonID); !errors.Is(err, content.ErrNotFound) {
+		t.Fatalf("foreign foundation placement leaked: %v", err)
+	}
+	if _, err := db.Exec(ctx, `UPDATE foundation_topics SET is_visible=false WHERE id=$1`, topicID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.GetLearnerFoundationLesson(ctx, topicID, allowedLessonID); !errors.Is(err, content.ErrNotFound) {
+		t.Fatalf("hidden topic leaked lesson: %v", err)
 	}
 }

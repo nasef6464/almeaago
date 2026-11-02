@@ -58,16 +58,19 @@ func TestAdminVisibilityReachesLearnerPostgres(t *testing.T) {
 		`CREATE TABLE paths (
             id uuid PRIMARY KEY, code text NOT NULL, name text NOT NULL,
             parent_path_id uuid, description text NOT NULL DEFAULT '',
+            presentation jsonb NOT NULL DEFAULT '{}'::jsonb,
             sort_order integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'active'
         )`,
 		`CREATE TABLE levels (
             id uuid PRIMARY KEY, path_id uuid NOT NULL REFERENCES paths(id),
             code text NOT NULL, name text NOT NULL, sort_order integer NOT NULL DEFAULT 0,
+            presentation jsonb NOT NULL DEFAULT '{}'::jsonb,
             status text NOT NULL DEFAULT 'active', updated_at timestamptz NOT NULL DEFAULT now()
         )`,
 		`CREATE TABLE subjects (
             id uuid PRIMARY KEY, path_id uuid NOT NULL REFERENCES paths(id),
             level_id uuid REFERENCES levels(id), code text NOT NULL, name text NOT NULL,
+            presentation jsonb NOT NULL DEFAULT '{}'::jsonb,
             sort_order integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'active'
         )`,
 		`CREATE TABLE users(id uuid PRIMARY KEY)`,

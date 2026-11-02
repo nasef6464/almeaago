@@ -57,12 +57,20 @@ func requireStudent(actor identity.User) error {
 func (s *Service) ApplyAssessmentSubmission(ctx context.Context, event learning.SubmissionEvidence) error {
 	if strings.TrimSpace(event.StudentID) == "" || strings.TrimSpace(event.AttemptID) == "" ||
 		strings.TrimSpace(event.AssessmentID) == "" || event.AssessmentVersion < 1 ||
-		strings.TrimSpace(event.PathID) == "" || strings.TrimSpace(event.SubjectID) == "" ||
+		strings.TrimSpace(event.PathID) == "" ||
 		event.OccurredAt.IsZero() || len(event.Questions) == 0 || len(event.Questions) > 500 {
 		return ErrInvalidInput
 	}
 	for _, item := range event.Questions {
 		if strings.TrimSpace(item.QuestionID) == "" || item.QuestionVersion < 1 || len(item.SkillIDs) > 20 {
+			return ErrInvalidInput
+		}
+		pathID, subjectID := item.PathID, item.SubjectID
+		if pathID == "" && subjectID == "" {
+			pathID, subjectID = event.PathID, event.SubjectID
+		}
+		if strings.TrimSpace(subjectID) == "" || pathID != event.PathID ||
+			(event.SubjectID != "" && subjectID != event.SubjectID) {
 			return ErrInvalidInput
 		}
 	}

@@ -122,6 +122,9 @@ func (s *AttemptService) Save(ctx context.Context, a identity.User, id, qid stri
 	if w.SelectedOptionIndex != nil && strings.TrimSpace(w.TextAnswer) != "" {
 		return assessment.Attempt{}, ErrInvalidInput
 	}
+	if w.SelectedOptionIndex != nil && *w.SelectedOptionIndex < 0 {
+		return assessment.Attempt{}, ErrInvalidInput
+	}
 	return s.repo.SaveAnswer(ctx, a.ID, id, qid, w)
 }
 

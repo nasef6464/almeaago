@@ -11,6 +11,28 @@ type ScopedAccessRepository interface {
 	ResolveScopedAccess(context.Context, string, []string, string, string, string, commerce.ContentType, bool) (commerce.AccessDecision, error)
 }
 
+// CheckFoundationAccess resolves paid foundation access for the exact subject
+// and path. Free content is handled by Content before calling this method.
+func (s *Service) CheckFoundationAccess(ctx context.Context, userID, pathID, subjectID string) (commerce.AccessDecision, error) {
+	userID, pathID, subjectID = strings.TrimSpace(userID), strings.TrimSpace(pathID), strings.TrimSpace(subjectID)
+	if userID == "" || pathID == "" || subjectID == "" {
+		return commerce.AccessDecision{}, ErrInvalidInput
+	}
+	repo, ok := s.repo.(ScopedAccessRepository)
+	if !ok {
+		return commerce.AccessDecision{}, commerce.ErrConflict
+	}
+	var schools []string
+	var err error
+	if s.schools != nil {
+		schools, err = s.schools.ActiveSchoolIDsForUser(ctx, userID)
+		if err != nil {
+			return commerce.AccessDecision{}, err
+		}
+	}
+	return repo.ResolveScopedAccess(ctx, userID, schools, pathID, subjectID, "", commerce.ContentFoundation, true)
+}
+
 func (s *Service) CheckAssessmentAccess(
 	ctx context.Context,
 	userID, pathID, subjectID, courseID string,

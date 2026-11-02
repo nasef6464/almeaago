@@ -29,6 +29,8 @@ type SubmissionEvidence struct {
 type QuestionEvidence struct {
 	QuestionID      string
 	QuestionVersion int
+	PathID          string
+	SubjectID       string
 	Answered        bool
 	Correct         bool
 	SkillIDs        []string

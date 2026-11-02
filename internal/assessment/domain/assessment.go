@@ -13,6 +13,7 @@ var (
 	ErrAttemptExpired    = errors.New("assessment attempt expired")
 	ErrAttemptSubmitted  = errors.New("assessment attempt submitted")
 	ErrResultUnavailable = errors.New("assessment result unavailable")
+	ErrInvalidAnswer     = errors.New("invalid assessment answer")
 )
 
 type WorkflowStatus string

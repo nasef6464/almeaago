@@ -206,7 +206,7 @@ func main() {
 	})
 	learningService := learningapp.NewService(learningRepository, questionService)
 	masteryGoalService := learningapp.NewMasteryGoalService(learningRepository, taxonomyRepository)
-	lessonProgressService := learningapp.NewLessonProgressService(learningRepository, contentRepository)
+	lessonProgressService := learningapp.NewLessonProgressService(learningRepository, contentRepository, contentService)
 	assessmentRepository := assessmentrepo.New(db, auditWriter)
 	assessmentService := assessmentapp.NewService(assessmentRepository)
 	assessmentAttemptService := assessmentapp.NewAttemptServiceWithLearningAndCommerce(assessmentRepository, learningService, commerceService)

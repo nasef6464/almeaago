@@ -145,7 +145,7 @@ func (h *AttemptHandler) resultDetail(w http.ResponseWriter, r *http.Request) {
 
 func writeAttemptError(w http.ResponseWriter, e error) {
 	switch {
-	case errors.Is(e, app.ErrInvalidInput):
+	case errors.Is(e, app.ErrInvalidInput), errors.Is(e, assessment.ErrInvalidAnswer):
 		writeJSON(w, 400, map[string]string{"message": "Invalid attempt request"})
 	case errors.Is(e, app.ErrForbidden):
 		writeJSON(w, 403, map[string]string{"message": "Forbidden"})

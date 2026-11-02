@@ -52,6 +52,11 @@ func (r *Repository) ApplyAssessmentEvidence(ctx context.Context, event learning
 	affected := map[string]struct{}{}
 	inserted := 0
 	for _, outcome := range event.Questions {
+		pathID, subjectID := outcome.PathID, outcome.SubjectID
+		// Older single-subject event producers carry their scope on the envelope.
+		if pathID == "" && subjectID == "" {
+			pathID, subjectID = event.PathID, event.SubjectID
+		}
 		var evidenceID string
 		err = tx.QueryRow(ctx, `
 			INSERT INTO mastery_evidence(
@@ -63,7 +68,7 @@ func (r *Repository) ApplyAssessmentEvidence(ctx context.Context, event learning
 			ON CONFLICT(evidence_type,source_attempt_id,question_id) DO NOTHING
 			RETURNING id::text
 		`, event.StudentID, event.AttemptID, event.AssessmentID, event.AssessmentVersion,
-			outcome.QuestionID, outcome.QuestionVersion, event.PathID, event.SubjectID,
+			outcome.QuestionID, outcome.QuestionVersion, pathID, subjectID,
 			outcome.Answered, outcome.Correct, event.OccurredAt).Scan(&evidenceID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			continue
@@ -129,7 +134,7 @@ func (r *Repository) ApplyAssessmentEvidence(ctx context.Context, event learning
 				last_evidence_id=EXCLUDED.last_evidence_id,
 				updated_at=now()
 			RETURNING id::text
-		`, event.StudentID, outcome.QuestionID, outcome.QuestionVersion, event.PathID, event.SubjectID,
+		`, event.StudentID, outcome.QuestionID, outcome.QuestionVersion, pathID, subjectID,
 			primarySkill, reviewType, !outcome.Correct, schedule.EaseFactor, schedule.Interval,
 			schedule.Repetitions, schedule.NextReview, quality, evidenceID).Scan(&cardID)
 		if err != nil {

@@ -38,15 +38,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp internal/taxonomy/repository/postgres/mutations.go /tmp/taxonomy-mutations-fixed.go
-          git show 98b0f6d9ad0bba031936d950d087c0bd3d19b7bb:internal/taxonomy/repository/postgres/mutations.go > internal/taxonomy/repository/postgres/mutations.go
-          if go test ./internal/taxonomy/repository/postgres -run TestAdminPathParentCyclePostgres -count=1 -v > /tmp/taxonomy-red.log 2>&1; then
-            cat /tmp/taxonomy-red.log
+          red_dir=$(mktemp -d)
+          trap 'rm -rf -- "$red_dir"' EXIT
+          git show 98b0f6d9ad0bba031936d950d087c0bd3d19b7bb:internal/taxonomy/repository/postgres/mutations.go > "$red_dir/mutations.go"
+          python3 - "$PWD" "$red_dir" <<'PY'
+          import json, pathlib, sys
+          root, temporary = map(pathlib.Path, sys.argv[1:])
+          original = root / 'internal/taxonomy/repository/postgres/mutations.go'
+          (temporary / 'overlay.json').write_text(json.dumps({'Replace': {str(original): str(temporary / 'mutations.go')}}))
+          PY
+          # Compile the historical implementation with its exact behavioral
+          # regression, excluding newer tests for helpers absent in that commit.
+          # The overlay leaves all current checkout files intact, even on error.
+          if go test -overlay "$red_dir/overlay.json" \
+            ./internal/taxonomy/repository/postgres/repository.go \
+            ./internal/taxonomy/repository/postgres/mutations.go \
+            ./internal/taxonomy/repository/postgres/path_parent_cycle_integration_test.go \
+            -run TestAdminPathParentCyclePostgres -count=1 -v > "$red_dir/taxonomy-red.log" 2>&1; then
+            cat "$red_dir/taxonomy-red.log"
             echo "::error::Original implementation unexpectedly passed the cycle regression"
             exit 1
           fi
-          cat /tmp/taxonomy-red.log
-          grep -q 'descendant parent must conflict' /tmp/taxonomy-red.log
-          cp /tmp/taxonomy-mutations-fixed.go internal/taxonomy/repository/postgres/mutations.go
+          cat "$red_dir/taxonomy-red.log"
+          grep -q 'descendant parent must conflict' "$red_dir/taxonomy-red.log"
       - name: GREEN — hierarchy and concurrent updates in isolated PostgreSQL schema
         run: go test ./internal/taxonomy/repository/postgres -run TestAdminPathParentCyclePostgres -count=1 -v

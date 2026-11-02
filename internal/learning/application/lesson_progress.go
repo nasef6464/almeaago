@@ -18,14 +18,22 @@ type LessonProgressRepository interface {
 type LessonProgressContentResolver interface {
 	ResolveLessonProgressTarget(context.Context, string, string, string) (bool, string, int, error)
 }
-
-type LessonProgressService struct {
-	repo    LessonProgressRepository
-	content LessonProgressContentResolver
+type FoundationLessonProgressResolver interface {
+	ResolveFoundationLessonProgressTarget(context.Context, identity.User, string, string) (bool, string, int, error)
 }
 
-func NewLessonProgressService(repo LessonProgressRepository, content LessonProgressContentResolver) *LessonProgressService {
-	return &LessonProgressService{repo: repo, content: content}
+type LessonProgressService struct {
+	repo       LessonProgressRepository
+	content    LessonProgressContentResolver
+	foundation FoundationLessonProgressResolver
+}
+
+func NewLessonProgressService(repo LessonProgressRepository, content LessonProgressContentResolver, foundation ...FoundationLessonProgressResolver) *LessonProgressService {
+	s := &LessonProgressService{repo: repo, content: content}
+	if len(foundation) > 0 {
+		s.foundation = foundation[0]
+	}
+	return s
 }
 
 func normalizeLessonContext(in learning.LessonProgressContextInput) (learning.LessonProgressContextInput, error) {
@@ -46,7 +54,20 @@ func normalizeLessonContext(in learning.LessonProgressContextInput) (learning.Le
 	return in, nil
 }
 
-func (s *LessonProgressService) validateTarget(ctx context.Context, lessonID string, in learning.LessonProgressContextInput) (string, int, error) {
+func (s *LessonProgressService) validateTarget(ctx context.Context, actor identity.User, lessonID string, in learning.LessonProgressContextInput) (string, int, error) {
+	if in.ContextType == learning.LessonProgressFoundation {
+		if s.foundation == nil {
+			return "", 0, ErrForbidden
+		}
+		ok, lessonType, duration, err := s.foundation.ResolveFoundationLessonProgressTarget(ctx, actor, in.TopicID, lessonID)
+		if err != nil {
+			return "", 0, err
+		}
+		if !ok {
+			return "", 0, ErrNotFound
+		}
+		return lessonType, duration, nil
+	}
 	if s.content == nil {
 		return "", 0, ErrForbidden
 	}
@@ -95,7 +116,7 @@ func (s *LessonProgressService) Get(ctx context.Context, actor identity.User, le
 	if err != nil {
 		return learning.LessonProgress{}, err
 	}
-	if _, _, err = s.validateTarget(ctx, lessonID, in); err != nil {
+	if _, _, err = s.validateTarget(ctx, actor, lessonID, in); err != nil {
 		return learning.LessonProgress{}, err
 	}
 	out, err := s.repo.GetLessonProgress(ctx, actor.ID, lessonID, in.ContextType, in.CourseID, in.TopicID)
@@ -123,7 +144,7 @@ func (s *LessonProgressService) SaveVideo(ctx context.Context, actor identity.Us
 	if err != nil {
 		return learning.LessonProgress{}, err
 	}
-	lessonType, duration, err := s.validateTarget(ctx, lessonID, ctxInput)
+	lessonType, duration, err := s.validateTarget(ctx, actor, lessonID, ctxInput)
 	if err != nil {
 		return learning.LessonProgress{}, err
 	}
@@ -156,7 +177,7 @@ func (s *LessonProgressService) Complete(ctx context.Context, actor identity.Use
 	if err != nil {
 		return learning.LessonProgress{}, err
 	}
-	if _, _, err = s.validateTarget(ctx, lessonID, in); err != nil {
+	if _, _, err = s.validateTarget(ctx, actor, lessonID, in); err != nil {
 		return learning.LessonProgress{}, err
 	}
 	out, err := s.repo.CompleteLesson(ctx, actor.ID, lessonID, in.ContextType, in.CourseID, in.TopicID)
