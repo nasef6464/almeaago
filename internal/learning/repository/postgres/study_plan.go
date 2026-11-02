@@ -168,7 +168,7 @@ func (r *Repository) ListStudyPlans(
 		return learning.StudyPlanPage{}, err
 	}
 	defer rows.Close()
-	out := learning.StudyPlanPage{Page: page, Limit: limit}
+	out := learning.StudyPlanPage{Items: []learning.StudyPlanSummary{}, Page: page, Limit: limit}
 	for rows.Next() {
 		item, scanErr := scanStudyPlanSummary(rows)
 		if scanErr != nil {

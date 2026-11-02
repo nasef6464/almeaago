@@ -89,7 +89,8 @@ export function StudyPlanPage(){
     // while the new list or detail is loading, or after either request fails.
     setBusy(true);setCurrent(null);setHasPlans(false);setLoadError(false);setError('');
     studyPlanClient.list(pathId,statusView,1,20,c.signal).then(async result=>{
-      const first=result.items[0];
+      const items=result.items||[];
+      const first=items[0];
       if(!first){
         if(!c.signal.aborted){setHasPlans(false);setCurrent(null)}
         return;
@@ -107,7 +108,7 @@ export function StudyPlanPage(){
   useEffect(()=>{
     if(authLoading||!user||!user.roles.includes('student')){setInterventions([]);return}
     const c=new AbortController();
-    interventionClient.mine('active',1,20,c.signal).then(r=>setInterventions(r.items)).catch(()=>setInterventions([]));
+    interventionClient.mine('active',1,20,c.signal).then(r=>setInterventions(r.items || [])).catch(()=>setInterventions([]));
     return()=>c.abort();
   },[authLoading,reload,user]);
 

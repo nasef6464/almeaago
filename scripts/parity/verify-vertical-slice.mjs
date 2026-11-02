@@ -1,7 +1,10 @@
 import { execSync } from 'child_process';
-import { chromium } from 'playwright';
+import { createRequire } from 'module';
 import path from 'path';
 import fs from 'fs';
+
+const require = createRequire(import.meta.url);
+const { chromium } = require('c:/almeaago/almeaago/apps/web/node_modules/playwright');
 
 const ARTIFACT_DIR = process.env.ARTIFACT_DIR || 'C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66';
 
@@ -26,8 +29,11 @@ async function verifySlice(targetUrl, sliceName) {
   }
 
   try {
-    console.log('Building Go API (go build ./cmd/api)...');
-    execSync('go build ./cmd/api', { cwd: 'c:/almeaago/almeaago', stdio: 'inherit' });
+    console.log('Building Go API (go build -o build_check.exe ./cmd/api)...');
+    execSync('go build -o build_check.exe ./cmd/api', { cwd: 'c:/almeaago/almeaago', stdio: 'inherit' });
+    if (fs.existsSync('c:/almeaago/almeaago/build_check.exe')) {
+      fs.unlinkSync('c:/almeaago/almeaago/build_check.exe');
+    }
     console.log('✅ Go API build succeeded!');
   } catch (err) {
     console.error('❌ Go API build failed:', err.message);
