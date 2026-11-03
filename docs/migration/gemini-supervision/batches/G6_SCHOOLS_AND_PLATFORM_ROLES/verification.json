@@ -1,0 +1,43 @@
+{
+  "batch_id": "G6_SCHOOLS_AND_PLATFORM_ROLES",
+  "source_sha": "f23bccd43cf25157806c3331121231801cc509bc",
+  "target_sha": "c9bb9c1b489a6be3362a939fec0cb1ecb5dc51fe",
+  "checks": [
+    {
+      "check": "go test ./internal/organizations/... ./internal/parents/...",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "check": "go test ./internal/identity/application/... ./internal/identity/transport/http/...",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "check": "go test ./internal/commerce/...",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "check": "go test ./internal/questionbank/...",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "check": "go test ./internal/operations/...",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run build",
+      "exit_code": 0,
+      "status": "PASS"
+    }
+  ],
+  "reviewer_verdict": "ACCEPTED"
+}
