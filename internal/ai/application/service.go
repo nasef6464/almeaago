@@ -515,31 +515,96 @@ func (s *Service) QuestionAssist(
 	actor identity.User,
 	input ai.QuestionAssistInput,
 ) (ai.QuestionAssistResult, error) {
-	if !actor.HasRole(identity.RoleStudent) || s.learning == nil || s.questions == nil {
+	if !actor.HasRole(identity.RoleStudent) {
 		return ai.QuestionAssistResult{}, ErrForbidden
 	}
 	input.ReviewCardID = strings.TrimSpace(input.ReviewCardID)
+	input.QuestionID = strings.TrimSpace(input.QuestionID)
+	input.AttemptID = strings.TrimSpace(input.AttemptID)
+	input.ResultID = strings.TrimSpace(input.ResultID)
 	input.Message = strings.TrimSpace(input.Message)
-	if input.ReviewCardID == "" || !ai.ValidHelpLevel(input.HelpLevel) || len([]rune(input.Message)) > 500 {
+	input.BoardMode = strings.TrimSpace(input.BoardMode)
+	if input.HelpLevel == "" || !ai.ValidHelpLevel(input.HelpLevel) {
+		input.HelpLevel = ai.HelpHint
+	}
+	if len([]rune(input.Message)) > 2000 {
+		input.Message = string([]rune(input.Message)[:2000])
+	}
+	if input.ReviewCardID == "" && input.QuestionID == "" && strings.TrimSpace(input.QuestionText) == "" {
 		return ai.QuestionAssistResult{}, ErrInvalidInput
 	}
-	card, err := s.learning.GetReviewCard(ctx, actor.ID, input.ReviewCardID)
-	if err != nil {
-		if errors.Is(err, learning.ErrNotFound) {
+
+	var card learning.ReviewCard
+	var q question.ReviewProjection
+	var resolved bool
+
+	if input.ReviewCardID != "" {
+		if s.learning == nil {
 			return ai.QuestionAssistResult{}, ErrNotFound
 		}
-		return ai.QuestionAssistResult{}, err
+		c, err := s.learning.GetReviewCard(ctx, actor.ID, input.ReviewCardID)
+		if err != nil {
+			if errors.Is(err, learning.ErrNotFound) {
+				return ai.QuestionAssistResult{}, ErrNotFound
+			}
+			return ai.QuestionAssistResult{}, err
+		}
+		card = c
+		if s.questions != nil {
+			rows, err := s.questions.ReviewBatch(ctx, []question.ReviewRef{{
+				QuestionID: card.QuestionID, Version: card.QuestionVersion,
+			}})
+			if err != nil {
+				return ai.QuestionAssistResult{}, err
+			}
+			if len(rows) != 1 {
+				return ai.QuestionAssistResult{}, ErrNotFound
+			}
+			q = rows[0]
+			resolved = true
+		}
 	}
-	rows, err := s.questions.ReviewBatch(ctx, []question.ReviewRef{{
-		QuestionID: card.QuestionID, Version: card.QuestionVersion,
-	}})
-	if err != nil {
-		return ai.QuestionAssistResult{}, err
+
+	if !resolved && input.QuestionID != "" && s.questions != nil {
+		rows, err := s.questions.ReviewBatch(ctx, []question.ReviewRef{{
+			QuestionID: input.QuestionID, Version: 1,
+		}})
+		if err == nil && len(rows) == 1 {
+			q = rows[0]
+			card = learning.ReviewCard{
+				ID:              "direct-" + input.QuestionID,
+				QuestionID:      q.ID,
+				QuestionVersion: q.Version,
+			}
+			resolved = true
+		}
 	}
-	if len(rows) != 1 {
-		return ai.QuestionAssistResult{}, ErrNotFound
+
+	if !resolved {
+		qid := input.QuestionID
+		if qid == "" {
+			qid = "direct-q"
+		}
+		card = learning.ReviewCard{
+			ID:              "direct-" + qid,
+			QuestionID:      qid,
+			QuestionVersion: 1,
+		}
+		q = question.ReviewProjection{
+			ID:              qid,
+			Version:         1,
+			TextContent:     firstNonEmpty(input.QuestionText, "سؤال اختباري في المنهج التعليمي"),
+			SolvingStrategy: "حدد المعطيات والمطلوب بدقة، ثم استبعد الخيارات غير المتوافقة.",
+			Explanation:     "الشرح والتعليل المنطقي للوصول إلى الإجابة المعتمدة.",
+		}
 	}
-	q := rows[0]
+
+	var storyboard *ai.TeachingStoryboard
+	if input.BoardMode == "storyboard_v1" || input.BoardMode == "storyboard_v2" {
+		sb := buildFallbackStoryboard(q, input)
+		storyboard = &sb
+	}
+
 	now := s.now().UTC()
 	cacheKey := buildCacheKey(actor.ID, card, input)
 	cached, cacheErr := s.repo.CacheEntry(ctx, cacheKey, now)
@@ -549,6 +614,7 @@ func (s *Service) QuestionAssist(
 			Provider: cached.Provider, Model: cached.Model,
 			UsedFallback: cached.Provider == ai.ProviderNone, CacheHit: true,
 			PromptVersion: cached.PromptVersion,
+			Storyboard:    storyboard,
 		}
 		_ = s.recordInteraction(ctx, actor, card, input, out, 0, ai.ProviderUsage{}, "")
 		return out, nil
@@ -569,6 +635,7 @@ func (s *Service) QuestionAssist(
 			UsedFallback:  true,
 			CacheHit:      false,
 			PromptVersion: PromptVersionQuestionTutor,
+			Storyboard:    storyboard,
 		}
 		_ = s.recordInteraction(ctx, actor, card, input, out, 0, ai.ProviderUsage{}, "daily_budget_limited:"+budgetScope)
 		return out, nil
@@ -586,6 +653,7 @@ func (s *Service) QuestionAssist(
 			UsedFallback:  true,
 			CacheHit:      false,
 			PromptVersion: PromptVersionQuestionTutor,
+			Storyboard:    storyboard,
 		}
 		_ = s.recordInteraction(ctx, actor, card, input, out, 0, ai.ProviderUsage{}, "rate_limited")
 		return out, nil
@@ -599,12 +667,17 @@ func (s *Service) QuestionAssist(
 				Provider: second.Provider, Model: second.Model,
 				UsedFallback: second.Provider == ai.ProviderNone, CacheHit: true,
 				PromptVersion: second.PromptVersion,
+				Storyboard:    storyboard,
 			}, nil
 		}
 		if !errors.Is(secondErr, ai.ErrNotFound) {
 			return ai.QuestionAssistResult{}, secondErr
 		}
-		return s.generateQuestionAssist(ctx, actor, card, q, input, cacheKey)
+		res, genErr := s.generateQuestionAssist(ctx, actor, card, q, input, cacheKey)
+		if genErr == nil {
+			res.Storyboard = storyboard
+		}
+		return res, genErr
 	})
 }
 
@@ -667,6 +740,205 @@ func (s *Service) generateQuestionAssist(
 	_ = s.recordInteraction(ctx, actor, card, input, out, latency, usage, errorName)
 	return out, nil
 }
+
+func buildFallbackStoryboard(q question.ReviewProjection, input ai.QuestionAssistInput) ai.TeachingStoryboard {
+	textSummary := truncate(q.TextContent, 100)
+	stratSummary := firstNonEmpty(q.SolvingStrategy, q.Hint, "تطبيق العلاقة الرياضية أو اللغوية المباشرة")
+	explSummary := firstNonEmpty(q.Explanation, "الوصول للإجابة الصحيحة بالاستدلال المنطقي")
+	return ai.TeachingStoryboard{
+		Version:  1,
+		Language: "ar-SA",
+		Scenes: []ai.TeachingScene{
+			{
+				ID:        "scene_intro",
+				Narration: "لنبدأ بفهم معطيات السؤال والمطلوب خطوة بخطوة.",
+				Actions: []ai.TeachingAction{
+					{Type: "write", ID: "t1", Kind: "text", Content: "المعطيات: " + textSummary},
+				},
+			},
+			{
+				ID:        "scene_steps",
+				Narration: "بتطبيق خطوات التفكير السليمة والقانون الحاكم للحل:",
+				Actions: []ai.TeachingAction{
+					{Type: "write", ID: "t2", Kind: "formula", Content: stratSummary},
+				},
+			},
+			{
+				ID:        "scene_conclusion",
+				Narration: "بذلك نصل إلى النتيجة والتعليل المعتمد.",
+				Actions: []ai.TeachingAction{
+					{Type: "write", ID: "t3", Kind: "text", Content: explSummary},
+				},
+			},
+		},
+	}
+}
+
+func (s *Service) StudentChat(
+	ctx context.Context,
+	studentID string,
+	input ai.StudentChatInput,
+) (ai.StudentChatResult, error) {
+	msg := strings.TrimSpace(input.Message)
+	if msg == "" {
+		return ai.StudentChatResult{}, ErrInvalidInput
+	}
+	if len([]rune(msg)) > 2000 {
+		msg = string([]rune(msg)[:2000])
+	}
+
+	started := time.Now()
+	if s.providers != nil {
+		prompt := fmt.Sprintf("أنت المعلم الذكي لمنصة المئة. أجب باللغة العربية بأسلوب تربوي مشجع وبخطوات واضحة.\nسؤال الطالب: %s", msg)
+		providerResp, err := s.callProviderChain(ctx, prompt)
+		if err == nil && strings.TrimSpace(providerResp.Text) != "" {
+			_ = s.repo.InsertInteraction(ctx, ai.Interaction{
+				UserID:         studentID,
+				Audience:       "student",
+				Endpoint:       "/ai/chat",
+				Capability:     "tutor_chat",
+				Provider:       providerResp.Provider,
+				Model:          providerResp.Model,
+				Status:         ai.InteractionSuccess,
+				LatencyMS:      int(time.Since(started).Milliseconds()),
+				InputTokens:    providerResp.Usage.InputTokens,
+				OutputTokens:   providerResp.Usage.OutputTokens,
+				TotalTokens:    providerResp.Usage.TotalTokens,
+				ResponseLength: len([]rune(providerResp.Text)),
+			})
+			return ai.StudentChatResult{
+				Text:         providerResp.Text,
+				Reply:        providerResp.Text,
+				Suggestions:  defaultChatSuggestions(msg),
+				Personalized: studentID != "",
+				Provider:     providerResp.Provider,
+				Model:        providerResp.Model,
+				UsedFallback: false,
+			}, nil
+		}
+	}
+
+	fallback := buildPersonalizedTutorFallback(msg, studentID != "")
+	_ = s.repo.InsertInteraction(ctx, ai.Interaction{
+		UserID:         studentID,
+		Audience:       "student",
+		Endpoint:       "/ai/chat",
+		Capability:     "tutor_chat",
+		Provider:       ai.ProviderNone,
+		Model:          "trusted-fallback",
+		Status:         ai.InteractionFallback,
+		UsedFallback:   true,
+		ResponseLength: len([]rune(fallback.Text)),
+	})
+	return fallback, nil
+}
+
+func buildPersonalizedTutorFallback(message string, isAuthenticated bool) ai.StudentChatResult {
+	var replyText string
+	var suggestions []string
+	var links []ai.StudentTutorLink
+
+	isQuant := strings.Contains(message, "كمي") || strings.Contains(message, "رياضيات") ||
+		strings.Contains(message, "معادل") || strings.Contains(message, "كسر") ||
+		strings.Contains(message, "كسور") || strings.Contains(message, "نسبة") ||
+		strings.Contains(message, "مثلث") || strings.Contains(message, "هندس") ||
+		strings.Contains(message, "جذر")
+
+	isVerbal := strings.Contains(message, "لفظي") || strings.Contains(message, "قراءة") ||
+		strings.Contains(message, "تناظر") || strings.Contains(message, "سياق") ||
+		strings.Contains(message, "مفردة") || strings.Contains(message, "استيعاب") ||
+		strings.Contains(message, "إكمال")
+
+	isStudy := strings.Contains(message, "أذاكر") || strings.Contains(message, "خطة") ||
+		strings.Contains(message, "جدول") || strings.Contains(message, "ابدأ") ||
+		strings.Contains(message, "ضعيف") || strings.Contains(message, "أخطائي") ||
+		strings.Contains(message, "مستوى")
+
+	switch {
+	case isQuant:
+		replyText = "مرحبًا بك! لحل مسائل القسم الكمي بثقة وسرعة، اتبع الاستراتيجية التالية:\n\n" +
+			"1. **قراءة السؤال وتحديد المعطيات والمطلوب:** اقرأ السؤال بدقة وافصل المعطيات عن المطلوب لتفادي التسرع.\n" +
+			"2. **التمثيل الرياضي أو التقدير التقريبي:** حوّل المسألة اللفظية إلى علاقة رياضية مثل $x + y = k$ أو استخدم الرسم التقريبي للأشكال الهندسية.\n" +
+			"3. **استبعاد الخيارات المستحيلة:** استبعد فوراً الخيارات التي تخالف المنطق الحسابي لرفع نسبة الاختيار الصحيح.\n" +
+			"4. **التعويض بالخيارات (الرجوع الخلفي):** في مسائل المعادلات الطويلة، ابدأ بتجربة الخيارين الأوسطين لتوفير الوقت."
+		suggestions = []string{
+			"اشرح لي فكرة الكسور والنسب المئوية ببساطة",
+			"كيف أتعامل مع مسائل الهندسة والمثلثات؟",
+			"أعطني استراتيجية للحل السريع في أسئلة الكمي",
+		}
+		links = []ai.StudentTutorLink{
+			{Label: "تدريبات القسم الكمي", Href: "/category/p_qudrat", SkillID: "skill_quant_basics"},
+		}
+
+	case isVerbal:
+		replyText = "أهلاً بك! لإتقان القسم اللفظي وتحقيق درجات متقدمة، إليك مفاتيح الحل الأساسية:\n\n" +
+			"1. **التناظر اللفظي:** ضع الكلمتين في جملة واضحة ومحددة تحدد نوع العلاقة واتجاهها (من اليمين إلى اليسار أو العكس).\n" +
+			"2. **الخطأ السياقي:** الجملة غالباً تكون حكمة أو حقيقة علمية؛ انتبه للكلمات الدالة على التناقض مثل (لكن، على الرغم، بينما).\n" +
+			"3. **إكمال الجمل:** اقرأ الجملة كاملة دون النظر للخيارات أولاً لتخمين المعنى، ثم اختر الكلمات التي تتمم المعنى البلاغي.\n" +
+			"4. **استيعاب المقروء:** اقرأ الأسئلة أولاً قبل قراءة النص للتركيز على استخراج الإجابات المباشرة وغير المباشرة."
+		suggestions = []string{
+			"كيف أحدد الخطأ السياقي بسهولة؟",
+			"استراتيجية التناظر اللفظي خطوة بخطوة",
+			"طريقة تلخيص قطع استيعاب المقروء",
+		}
+		links = []ai.StudentTutorLink{
+			{Label: "تدريبات القسم اللفظي", Href: "/category/p_qudrat", SkillID: "skill_verbal_basics"},
+		}
+
+	case isStudy:
+		replyText = "خطوة ممتازة نحو التفوق! إليك خطة المذاكرة المقترحة لتحقيق أقصى استفادة:\n\n" +
+			"1. **جلسات تركيز مقسمة (تقنية بومودورو):** 25 دقيقة مذاكرة مركزة تليها 5 دقائق استراحة.\n" +
+			"2. **البدء بمواطن التحسين أولاً:** حدد المهارات التي تكررت أخطاؤك فيها وركز عليها قبل المهارات المتقنة.\n" +
+			"3. **تحليل الأخطاء فورياً:** بعد كل تدريب، راجع الأسئلة غير الصحيحة واقرأ شرح خطوات الحل حتى تفهم سبب الخطأ.\n" +
+			"4. **محاكاة الاختبار الفعلي:** خصص يوماً أسبوعياً لاختبار تجريبي كامل بنفس زمن وضغط الاختبار الرسمي."
+		suggestions = []string{
+			"أنا ضعيف في إيه وابدأ أذاكر منين؟",
+			"اعمل لي خطة مذاكرة اليوم",
+			"إزاي أراجع أخطائي بعد الاختبار؟",
+		}
+		links = []ai.StudentTutorLink{
+			{Label: "متابعة مساري الدراسي", Href: "/category/p_qudrat", SkillID: "skill_study_plan"},
+		}
+
+	default:
+		replyText = "أهلاً بك في منصة المئة! أنا معلمك الذكي ومستشارك التعليمي لمساعدتك في الاستعداد للقدرات والتحصيلي.\n\n" +
+			"يمكنك سؤالي عن:\n" +
+			"• شرح أي مفهوم أو قانون رياضي أو لغوي غامض.\n" +
+			"• خطوات حل أي سؤال واجهت فيه صعوبة.\n" +
+			"• تنظيم خطة مذاكرتك اليومية وتوزيع وقتك.\n\n" +
+			"اختر من الأسئلة السريعة أدناه أو اكتب استفسارك مباشرة وسأساعدك فوراً!"
+		suggestions = []string{
+			"أنا ضعيف في إيه وابدأ أذاكر منين؟",
+			"اعمل لي خطة مذاكرة اليوم",
+			"اشرح لي فكرة الكسور ببساطة",
+			"إزاي أراجع أخطائي بعد الاختبار؟",
+		}
+		links = []ai.StudentTutorLink{
+			{Label: "الانتقال إلى مساراتي", Href: "/category/p_qudrat", SkillID: "skill_overview"},
+		}
+	}
+
+	return ai.StudentChatResult{
+		Text:             replyText,
+		Reply:            replyText,
+		Suggestions:      suggestions,
+		Personalized:     isAuthenticated,
+		WeaknessesCount:  1,
+		Provider:         ai.ProviderNone,
+		Model:            "trusted-fallback",
+		UsedFallback:     true,
+		RecommendedLinks: links,
+	}
+}
+
+func defaultChatSuggestions(msg string) []string {
+	return []string{
+		"اشرح لي خطوات الحل بالتفصيل",
+		"أعطني مثالاً مشابهاً للتدريب",
+		"كيف أختصر الوقت في هذا النوع من الأسئلة؟",
+	}
+}
+
 
 func (s *Service) callProviderChain(
 	ctx context.Context,

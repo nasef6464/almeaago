@@ -52,6 +52,7 @@ type Dependencies struct {
 	PublicArticles           http.Handler
 	PublicMockExams          http.Handler
 	NavigationPreferences    http.Handler
+	Quizzes                  http.Handler
 }
 
 func New(addr string, deps Dependencies) *http.Server {
@@ -119,6 +120,10 @@ func New(addr string, deps Dependencies) *http.Server {
 	}
 	if deps.Assessments != nil {
 		router.Mount("/api/v1/assessments", deps.Assessments)
+	}
+	if deps.Quizzes != nil {
+		router.Mount("/api/v1/quizzes", deps.Quizzes)
+		router.Mount("/api/quizzes", deps.Quizzes)
 	}
 	if deps.AssessmentAttempts != nil {
 		router.Mount("/api/v1/assessment-attempts", deps.AssessmentAttempts)

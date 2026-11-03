@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Bookmark,
   BookOpen,
+  BrainCircuit,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -11,6 +12,7 @@ import {
   Flag,
   History,
   Play,
+  Sparkles,
   Target,
   XCircle,
 } from 'lucide-react';
@@ -18,6 +20,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
+import { QuestionAssistantPanel } from '../../ai/components/QuestionAssistantPanel';
 import { learningClient } from '../../learning/api/learning-client';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
 import { optionLabel, showOptionText } from '../questionPresentation';
@@ -82,6 +85,8 @@ function ReviewQuestionCard({
   saving: boolean;
   onSave(questionId: string): void;
 }) {
+  const [showAiAssistant, setShowAiAssistant] = useState(false);
+
   return (
     <article className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -201,6 +206,27 @@ function ReviewQuestionCard({
           >
             شاهد فيديو الشرح <ExternalLink size={12} />
           </a>
+        </div>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+        <button
+          type="button"
+          onClick={() => setShowAiAssistant((prev) => !prev)}
+          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black shadow-xs transition ${
+            showAiAssistant
+              ? 'border border-violet-300 bg-violet-600 text-white'
+              : 'border border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100'
+          }`}
+        >
+          <BrainCircuit size={15} className={showAiAssistant ? 'text-white' : 'text-violet-600'} />
+          {showAiAssistant ? 'إخفاء المعلم الذكي' : 'اسأل المعلم الذكي عن هذا السؤال 💡'}
+        </button>
+      </div>
+
+      {showAiAssistant ? (
+        <div className="mt-3">
+          <QuestionAssistantPanel reviewCardId={question.questionId} />
         </div>
       ) : null}
     </article>

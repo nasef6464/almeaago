@@ -582,7 +582,7 @@ export function CourseLearningPage() {
     <main
       dir="rtl"
       data-testid="legacy-course-player"
-      className={`min-h-screen transition-colors duration-300 ${
+      className={`min-h-screen flex flex-col overflow-x-hidden w-full max-w-full transition-colors duration-300 ${
         isDarkMode ? 'bg-[#0f172a] text-slate-100' : 'bg-slate-50 text-slate-900'
       }`}
     >
@@ -650,7 +650,7 @@ export function CourseLearningPage() {
         </div>
       </header>
 
-      <div className="relative mx-auto flex max-w-[1500px]">
+      <div className="flex-1 flex overflow-hidden relative w-full max-w-full">
         {isSidebarOpen ? (
           <button
             type="button"
@@ -661,7 +661,8 @@ export function CourseLearningPage() {
         ) : null}
 
         <aside
-          className={`fixed bottom-0 right-0 top-16 z-30 w-[88vw] max-w-[340px] overflow-y-auto border-l transition-transform duration-300 lg:sticky lg:top-16 lg:z-10 lg:h-[calc(100vh-4rem)] lg:w-[330px] lg:max-w-none lg:translate-x-0 ${
+          aria-label="فهرس محتوى الدورة"
+          className={`fixed bottom-0 right-0 top-16 z-30 w-[88vw] max-w-[340px] shrink-0 overflow-y-auto border-l transition-transform duration-300 lg:static lg:h-[calc(100vh-4rem)] lg:w-80 lg:max-w-none lg:translate-x-0 ${
             isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
           } ${
             isDarkMode ? 'border-slate-800 bg-[#111827]' : 'border-slate-200 bg-white'
@@ -771,8 +772,8 @@ export function CourseLearningPage() {
           </div>
         </aside>
 
-        <section className="min-w-0 flex-1 px-3 py-5 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-5xl space-y-4">
+        <section className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 md:p-8 w-full max-w-full lg:max-w-[calc(100vw-20rem)] overflow-x-hidden">
+          <div className="max-w-5xl mx-auto w-full min-w-0 space-y-4">
             <div
               className={`rounded-2xl border p-4 shadow-sm sm:p-5 ${
                 isDarkMode ? 'border-slate-800 bg-[#1e293b]' : 'border-slate-200 bg-white'
@@ -811,17 +812,17 @@ export function CourseLearningPage() {
               <div className="rounded-xl bg-emerald-50 p-3 font-bold text-emerald-700">{notice}</div>
             ) : null}
 
-            {!course.access.allowed ? (
+            {!course.access?.allowed ? (
               <div
                 data-testid="course-commerce-lock"
                 className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm font-bold leading-7 text-amber-900"
               >
                 <div>
-                  {course.access.configured
+                  {course.access?.configured
                     ? 'هذه الدورة مدفوعة وتحتاج صلاحية وصول فعالة. يمكنك مشاهدة المعاينات المجانية فقط.'
                     : 'سياسة الوصول التجارية لهذه الدورة غير مكتملة؛ تم قفل المحتوى غير المجاني احترازيًا.'}
                 </div>
-                {course.access.configured && course.access.productId ? (
+                {course.access?.configured && course.access?.productId ? (
                   <Link
                     to={`/checkout?productId=${encodeURIComponent(course.access.productId)}`}
                     className="mt-3 inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 font-black text-slate-950"

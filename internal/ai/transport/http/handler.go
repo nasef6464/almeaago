@@ -37,6 +37,7 @@ func New(service *aiapp.Service, auth Authenticator) http.Handler {
 	r.Get("/admin/readiness", h.adminReadiness)
 	r.Post("/admin/copilot", h.adminCopilot)
 	r.Post("/question-assistant", h.questionAssistant)
+	r.Post("/chat", h.studentChat)
 	return r
 }
 
@@ -268,34 +269,119 @@ func (h *Handler) adminCopilot(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) questionAssistant(w http.ResponseWriter, r *http.Request) {
-	authenticated, ok := h.authn(w, r, true)
+	authenticated, ok := h.authn(w, r, false)
 	if !ok {
 		return
 	}
 	var payload struct {
-		ReviewCardID string       `json:"reviewCardId"`
-		HelpLevel    ai.HelpLevel `json:"helpLevel"`
-		Message      string       `json:"message"`
+		QuestionID         string       `json:"questionId"`
+		ReviewCardID       string       `json:"reviewCardId"`
+		AttemptID          string       `json:"attemptId"`
+		ResultID           string       `json:"resultId"`
+		Context            string       `json:"context"`
+		HelpLevel          ai.HelpLevel `json:"helpLevel"`
+		Message            string       `json:"message"`
+		BoardMode          string       `json:"boardMode"`
+		BoardContext       string       `json:"boardContext"`
+		ImageVersion       string       `json:"imageVersion"`
+		TutorSessionID     string       `json:"tutorSessionId"`
+		UserSelectedAnswer *int         `json:"userSelectedAnswer"`
+		CorrectAnswer      *int         `json:"correctAnswer"`
+		QuestionText       string       `json:"questionText"`
 	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&payload); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 32<<10)).Decode(&payload); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
 		return
 	}
 	out, err := h.service.QuestionAssist(r.Context(), authenticated.User, ai.QuestionAssistInput{
-		ReviewCardID: payload.ReviewCardID,
-		HelpLevel:    payload.HelpLevel,
-		Message:      payload.Message,
+		ReviewCardID:       payload.ReviewCardID,
+		QuestionID:         payload.QuestionID,
+		AttemptID:          payload.AttemptID,
+		ResultID:           payload.ResultID,
+		Context:            payload.Context,
+		HelpLevel:          payload.HelpLevel,
+		Message:            payload.Message,
+		BoardMode:          payload.BoardMode,
+		BoardContext:       payload.BoardContext,
+		ImageVersion:       payload.ImageVersion,
+		TutorSessionID:     payload.TutorSessionID,
+		UserSelectedAnswer: payload.UserSelectedAnswer,
+		CorrectAnswer:      payload.CorrectAnswer,
+		QuestionText:       payload.QuestionText,
 	})
 	if err != nil {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"result": map[string]any{
-			"text": out.Text, "helpLevel": out.HelpLevel, "provider": out.Provider, "model": out.Model,
-			"usedFallback": out.UsedFallback, "cacheHit": out.CacheHit, "promptVersion": out.PromptVersion,
-		},
+
+	resultMap := map[string]any{
+		"text":          out.Text,
+		"helpLevel":     out.HelpLevel,
+		"provider":      out.Provider,
+		"model":         out.Model,
+		"usedFallback":  out.UsedFallback,
+		"cacheHit":      out.CacheHit,
+		"promptVersion": out.PromptVersion,
+	}
+	if out.Storyboard != nil {
+		resultMap["storyboard"] = out.Storyboard
+	}
+
+	response := map[string]any{
+		"text":                out.Text,
+		"helpLevel":           out.HelpLevel,
+		"provider":            out.Provider,
+		"model":               out.Model,
+		"usedFallback":        out.UsedFallback,
+		"cacheHit":            out.CacheHit,
+		"hasImage":            false,
+		"imageSentToProvider": false,
+		"result":              resultMap,
+	}
+	if out.Storyboard != nil {
+		response["storyboard"] = out.Storyboard
+	}
+
+	writeJSON(w, http.StatusOK, response)
+}
+
+func (h *Handler) studentChat(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	var studentID string
+	if h.auth != nil {
+		token := identitysession.Token(r)
+		if token != "" {
+			auth, err := h.auth.Authenticate(r.Context(), token)
+			if err == nil {
+				studentID = auth.User.ID
+			}
+		}
+	}
+
+	var payload struct {
+		Message        string            `json:"message"`
+		TutorSessionID string            `json:"tutorSessionId"`
+		Image          *ai.ChatImageData `json:"image"`
+		History        []ai.ChatTurn     `json:"history"`
+		Context        ai.ChatContext    `json:"context"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+		return
+	}
+
+	resp, err := h.service.StudentChat(r.Context(), studentID, ai.StudentChatInput{
+		Message:        payload.Message,
+		Image:          payload.Image,
+		TutorSessionID: payload.TutorSessionID,
+		History:        payload.History,
+		Context:        payload.Context,
 	})
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func writeError(w http.ResponseWriter, err error) {

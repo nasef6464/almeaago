@@ -68,6 +68,7 @@ func NewWithDistribution(service *app.Service, auth Authenticator, assignmentSer
 	r.Post("/{id}/workflow", h.workflow)
 	r.Post("/{id}/publication", h.publication)
 	r.Post("/{id}/attempts", h.startAttempt)
+	r.Post("/{id}/submit", h.singleShotSubmit)
 	r.Get("/{id}/assignments", h.listAssignments)
 	r.Post("/{id}/assignments", h.createAssignment)
 	r.Get("/{id}/placements", h.listPlacements)
@@ -252,6 +253,29 @@ func (h *Handler) startAttempt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 201, map[string]any{"attempt": x})
+}
+
+func (h *Handler) singleShotSubmit(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	if h.attempts == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"message": "Assessment attempt service unavailable"})
+		return
+	}
+	auth, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	assessmentID := chi.URLParam(r, "id")
+	var input assessment.SingleShotSubmissionRequest
+	if !decode(w, r, &input) {
+		return
+	}
+	result, err := h.attempts.SingleShotSubmit(r.Context(), auth.User, assessmentID, input)
+	if err != nil {
+		writeAttemptError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, result)
 }
 
 func (h *Handler) listAssignments(w http.ResponseWriter, r *http.Request) {

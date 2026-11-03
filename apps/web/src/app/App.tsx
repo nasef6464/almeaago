@@ -71,6 +71,8 @@ import { BackupAdminPage } from '../features/operations/pages/BackupAdminPage';
 import { PlatformFontsPage } from '../features/presentation/PlatformFontsPage';
 import {HomepagePage} from '../features/presentation/HomepagePage';
 import {isHomepageLocation, isPlatformFontsLocation } from '../features/presentation/navigation';
+import { ChatWidget } from '../features/support/ChatWidget';
+import { FloatingContactWidget } from '../features/support/FloatingContactWidget';
 
 type ModalMode = 'login' | 'signup' | null;
 
@@ -234,6 +236,9 @@ export function App() {
       {showPublicFooter(location.pathname) ? <LegacySiteFooter /> : null}
 
       <AnnouncementAdsOverlay />
+
+      <ChatWidget />
+      <FloatingContactWidget />
 
       {hideSiteHeader ? (
         <AuthModal open={modalMode !== null} initialSignUp={modalMode === 'signup'} onClose={closeModal} />

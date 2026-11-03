@@ -11,9 +11,10 @@ import (
 )
 
 var (
-	ErrInvalidInput = errors.New("invalid content input")
-	ErrForbidden    = errors.New("content operation forbidden")
-	ErrWorkflow     = errors.New("invalid content workflow transition")
+	ErrInvalidInput           = errors.New("invalid content input")
+	ErrForbidden              = errors.New("content operation forbidden")
+	ErrWorkflow               = errors.New("invalid content workflow transition")
+	ErrCoursePurchaseRequired = errors.New("course purchase required")
 )
 
 type Repository interface {
@@ -28,6 +29,7 @@ type Repository interface {
 	GetCourse(ctx context.Context, courseID string) (content.Course, error)
 	ListCourses(ctx context.Context, query content.ListQuery) (content.CoursePage, error)
 	CourseReadyForApproval(ctx context.Context, courseID string) (bool, error)
+	EnrollFreeCourse(ctx context.Context, userID, courseID string) (content.CourseEnrollmentResponse, error)
 	CreateCourseModule(ctx context.Context, actorUserID, courseID string, expectedRevision int, title, description string, sortOrder int) (content.CourseModule, int, error)
 	UpdateCourseModule(ctx context.Context, actorUserID, courseID, moduleID string, expectedRevision int, title, description, status string, sortOrder int) (content.CourseModule, int, error)
 	ListCourseModules(ctx context.Context, courseID string) ([]content.CourseModule, error)
@@ -305,3 +307,15 @@ func boolDefault(value *bool, fallback bool) bool {
 	}
 	return *value
 }
+
+func (s *Service) EnrollFreeCourse(ctx context.Context, actor identity.User, courseID string) (content.CourseEnrollmentResponse, error) {
+	if strings.TrimSpace(actor.ID) == "" {
+		return content.CourseEnrollmentResponse{}, ErrForbidden
+	}
+	courseID = strings.TrimSpace(courseID)
+	if courseID == "" {
+		return content.CourseEnrollmentResponse{}, ErrInvalidInput
+	}
+	return s.repo.EnrollFreeCourse(ctx, actor.ID, courseID)
+}
+

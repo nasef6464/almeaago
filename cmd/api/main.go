@@ -256,7 +256,13 @@ func main() {
 	lessonsHandler := contenthttp.NewLessons(contentService, identityService)
 	foundationHandler := contenthttp.NewFoundation(contentService, identityService)
 	libraryHandler := contenthttp.NewLibrary(contentService, identityService)
-	contentManagementHandler := contenthttp.NewManagementWithPresentation(contentService, identityService, contentapp.NewFontService(contentRepository), contentapp.NewHomepageService(contentRepository))
+	contentManagementHandler := contenthttp.NewManagementWithPresentation(
+		contentService,
+		identityService,
+		contentapp.NewFontService(contentRepository),
+		contentapp.NewHomepageService(contentRepository),
+		contentapp.NewContactWidgetService(contentRepository),
+	)
 	learningSpacesHandler := contenthttp.NewLearningSpaces(contentService, identityService)
 	learningReviewHandler := learninghttp.NewReview(learningService, identityService)
 	masteryHandler := learninghttp.NewMasteryWithGoals(learningService, masteryGoalService, identityService)
@@ -281,6 +287,7 @@ func main() {
 	)
 	taxonomyHandler := taxonomyhttp.New(taxonomyService, identityService)
 	assessmentHandler := assessmenthttp.NewWithDistribution(assessmentService, identityService, assessmentAssignmentService, assessmentPlacementService, assessmentAttemptService)
+	quizzesHandler := assessmenthttp.NewQuizzes(assessmentapp.NewCompletionService(assessmentRepository), identityService, assessmentAttemptService)
 	assessmentAttemptsHandler := assessmenthttp.NewAttempts(assessmentAttemptService, identityService)
 	assessmentAssignmentsHandler := assessmenthttp.NewAssignments(assessmentAssignmentService, identityService)
 	assessmentPlacementsHandler := assessmenthttp.NewPlacements(assessmentPlacementService, identityService)
@@ -327,6 +334,7 @@ func main() {
 		NavigationPreferences:    learningnavigation.NewHandler(learningnavigation.NewService(learningnavigation.NewPostgres(db)), identityService),
 		QuestionBank:             questionHandler,
 		Assessments:              assessmentHandler,
+		Quizzes:                  quizzesHandler,
 		AssessmentAttempts:       assessmentAttemptsHandler,
 		AssessmentAssignments:    assessmentAssignmentsHandler,
 		AssessmentPlacements:     assessmentPlacementsHandler,

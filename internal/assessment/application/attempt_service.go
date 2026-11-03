@@ -24,6 +24,7 @@ type AttemptRepository interface {
 	GetResult(context.Context, string) (assessment.Result, error)
 	ListResults(context.Context, string, int, int) (assessment.ResultPage, error)
 	GetResultDetail(context.Context, string, string) (assessment.ResultDetail, error)
+	SingleShotSubmit(context.Context, string, string, assessment.SingleShotSubmissionRequest) (assessment.ResultDetail, error)
 }
 
 type SubmissionEvidenceSource interface {
@@ -200,3 +201,68 @@ func (s *AttemptService) ResultDetail(ctx context.Context, a identity.User, id s
 	}
 	return s.repo.GetResultDetail(ctx, a.ID, id)
 }
+
+func (s *AttemptService) SingleShotSubmit(
+	ctx context.Context,
+	actor identity.User,
+	assessmentID string,
+	req assessment.SingleShotSubmissionRequest,
+) (assessment.SingleShotQuizResultDTO, error) {
+	if requireStudent(actor) != nil {
+		return assessment.SingleShotQuizResultDTO{}, ErrForbidden
+	}
+	assessmentID = strings.TrimSpace(assessmentID)
+	if assessmentID == "" {
+		return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
+	}
+	if req.Answers == nil {
+		req.Answers = map[string]int{}
+	}
+
+	detail, err := s.repo.SingleShotSubmit(ctx, actor.ID, assessmentID, req)
+	if err != nil {
+		return assessment.SingleShotQuizResultDTO{}, err
+	}
+
+	if s.evidenceSink != nil {
+		if source, ok := s.repo.(SubmissionEvidenceSource); ok {
+			evidence, err := source.LearningSubmissionEvidence(ctx, actor.ID, detail.Result.AttemptID)
+			if err == nil {
+				_ = s.evidenceSink.ApplyAssessmentSubmission(ctx, evidence)
+			}
+		}
+	}
+
+	dateStr := detail.Result.FinalizedAt.Format("2006-01-02")
+	timeSpentStr := assessment.FormatTimeSpent(detail.Result.TimeSpentSeconds)
+
+	skills := []assessment.ResultSkillAnalysisItem{}
+	if detail.SkillAnalysis != nil && len(detail.SkillAnalysis.Items) > 0 {
+		skills = detail.SkillAnalysis.Items
+	}
+	review := detail.Questions
+	if review == nil {
+		review = []assessment.ReviewQuestion{}
+	}
+
+	return assessment.SingleShotQuizResultDTO{
+		ID:               detail.Result.AttemptID,
+		AttemptID:        detail.Result.AttemptID,
+		QuizID:           detail.AssessmentID,
+		QuizTitle:        detail.Title,
+		Score:            detail.Result.Score,
+		TotalQuestions:   detail.Result.TotalQuestions,
+		CorrectAnswers:   detail.Result.CorrectAnswers,
+		WrongAnswers:     detail.Result.WrongAnswers,
+		Unanswered:       detail.Result.Unanswered,
+		Passed:           detail.Result.Passed,
+		TimeSpentSeconds: detail.Result.TimeSpentSeconds,
+		TimeSpent:        timeSpentStr,
+		Date:             dateStr,
+		FinalizedAt:      detail.Result.FinalizedAt,
+		SkillsAnalysis:   skills,
+		QuestionReview:   review,
+		Result:           detail.Result,
+	}, nil
+}
+

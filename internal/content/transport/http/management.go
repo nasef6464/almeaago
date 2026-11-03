@@ -17,9 +17,20 @@ func NewManagement(service *contentapp.Service, auth Authenticator, fonts ...*co
 	return NewManagementWithPresentation(service, auth, fontService, nil)
 }
 
-func NewManagementWithPresentation(service *contentapp.Service, auth Authenticator, fonts *contentapp.FontService, homepage *contentapp.HomepageService) http.Handler {
-	h := &Handler{service: service, auth: auth, fonts: fonts, homepage: homepage}
+func NewManagementWithPresentation(
+	service *contentapp.Service,
+	auth Authenticator,
+	fonts *contentapp.FontService,
+	homepage *contentapp.HomepageService,
+	contact ...*contentapp.ContactWidgetService,
+) http.Handler {
+	var contactService *contentapp.ContactWidgetService
+	if len(contact) > 0 {
+		contactService = contact[0]
+	}
+	h := &Handler{service: service, auth: auth, fonts: fonts, homepage: homepage, contact: contactService}
 	r := chi.NewRouter()
+	r.Get("/public-contact-widget", h.getPublicContactWidget)
 	if fonts != nil {
 		r.Get("/platform-font-settings", h.getFontSettings)
 		r.Patch("/platform-font-settings", h.patchFontSettings)
@@ -31,6 +42,20 @@ func NewManagementWithPresentation(service *contentapp.Service, auth Authenticat
 	r.Get("/trainer-scopes/{userId}", h.getTrainerScope)
 	r.Put("/trainer-scopes/{userId}", h.setTrainerScope)
 	return r
+}
+
+func (h *Handler) getPublicContactWidget(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "public, max-age=60")
+	if h.contact == nil {
+		writeJSON(w, http.StatusOK, content.DefaultContactWidgetSettings())
+		return
+	}
+	settings, err := h.contact.Get(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusOK, content.DefaultContactWidgetSettings())
+		return
+	}
+	writeJSON(w, http.StatusOK, settings)
 }
 
 func (h *Handler) getTrainerScope(w http.ResponseWriter, r *http.Request) {

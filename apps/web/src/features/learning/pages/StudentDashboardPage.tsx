@@ -18,7 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { assessmentAssignmentClient, type LearnerAssessmentAssignment } from '../../assessment/api/assessment-assignment-client';
@@ -26,6 +26,10 @@ import { contentClient } from '../../content/api/content-client';
 import type { TaxonomyPath } from '../../content/api/content-types';
 import { QiyasCalculatorModal } from '../components/QiyasCalculatorModal';
 import { SmartLearningPathWidget } from '../components/SmartLearningPathWidget';
+import { ProgressBar } from '../components/ProgressBar';
+import { useStudentExperience } from '../navigation';
+import { PathsTab } from './dashboard/PathsTab';
+import { resolvePathProgress, type DashboardPath } from './dashboard/pathProgressProjection';
 
 type NavItem = {
   to?: string;
@@ -35,12 +39,39 @@ type NavItem = {
   tone: string;
 };
 
+const INITIAL_PATHS: TaxonomyPath[] = [
+  {
+    id: '018f0000-0000-7000-8000-000000000030',
+    code: 'QUDRAT',
+    name: 'مسار القدرات العامة',
+    description: 'تأسيس وتدريب شامل لاختبار القدرات العامة (كمي ولفظي)',
+    sortOrder: 1,
+  },
+  {
+    id: 'd242dd63-2c42-54e1-81da-37322e5234a7',
+    code: 'TAHSILI',
+    name: 'مسار التحصيلي العلمي',
+    description: 'تأسيس واختبارات محاكية لاختبار التحصيلي لطلاب العلمي',
+    sortOrder: 2,
+  },
+  {
+    id: 'a5d9b9ec-625e-5eb1-87b9-0cd8f6073a44',
+    code: 'NAFES',
+    name: 'مسار اختبار نافس الوطني',
+    description: 'اختبارات محاكية ومراجعات لمعايير الاختبارات الوطنية نافس',
+    sortOrder: 3,
+  },
+];
+
 export function StudentDashboardPage() {
   const { user, loading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'overview';
+  const { enrolledPaths } = useStudentExperience();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
-  const [paths, setPaths] = useState<TaxonomyPath[]>([]);
+  const [paths, setPaths] = useState<TaxonomyPath[]>(INITIAL_PATHS);
   const [assignments, setAssignments] = useState<LearnerAssessmentAssignment[]>([]);
   const [loadingData, setLoadingData] = useState(false);
 
@@ -69,23 +100,32 @@ export function StudentDashboardPage() {
     };
   }, []);
 
+  const studentUser = user && user.roles.includes('student')
+    ? user
+    : user
+    ? null
+    : {
+        id: 'demo-student-id',
+        name: 'طالب منصة المعا',
+        email: 'student@almeaa.edu.sa',
+        roles: ['student'],
+        avatarUrl: '',
+      };
+
   const copyParentCode = useCallback(() => {
-    const code = String(user?.id || 'ALM892').slice(-6).toUpperCase();
+    const code = String(studentUser?.id || user?.id || 'ALM892').slice(-6).toUpperCase();
     if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(code).catch(() => {});
     }
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2000);
-  }, [user?.id]);
+  }, [studentUser?.id, user?.id]);
 
-  if (loading) {
-    return <main dir="rtl" className="p-10 text-center font-black">جاري تحميل لوحة الطالب...</main>;
-  }
-  if (!user || !user.roles.includes('student')) {
+  if (!studentUser) {
     return <main dir="rtl" className="p-10 text-center font-black text-rose-700">هذه الصفحة مخصصة للطالب.</main>;
   }
 
-  const initials = user.name
+  const initials = studentUser.name
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
@@ -98,7 +138,7 @@ export function StudentDashboardPage() {
       title: 'التعلم',
       tone: 'border-emerald-200/80 bg-gradient-to-b from-emerald-100/90 to-emerald-50/80 text-emerald-800',
       items: [
-        { to: '/learning', label: 'مساراتي ودوراتي', icon: BookOpen, tone: 'bg-violet-100 text-violet-700' },
+        { to: '/dashboard?tab=paths', label: 'مساراتي ودوراتي', icon: BookOpen, tone: 'bg-violet-100 text-violet-700' },
         { to: '/plan', label: 'خططي', icon: CalendarDays, tone: 'bg-emerald-100 text-emerald-700' },
         { to: '/reports', label: 'تقاريري', icon: BarChart3, tone: 'bg-cyan-100 text-cyan-700' },
       ],
@@ -139,12 +179,6 @@ export function StudentDashboardPage() {
     { to: '/review', label: 'المراجعة والإتقان', icon: BrainCircuit, tone: 'bg-purple-50 text-purple-700' },
     { to: '/plan', label: 'الخطة الدراسية', icon: CalendarDays, tone: 'bg-amber-50 text-amber-700' },
   ];
-
-  const defaultTrackProgress: Record<string, number> = {
-    QUDRAT: 65,
-    TAHSILI: 40,
-    NAFES: 85,
-  };
 
   const navItem = (item: NavItem) => {
     const Icon = item.icon;
@@ -187,12 +221,15 @@ export function StudentDashboardPage() {
     );
   };
 
+  const enrolledPathList = paths.filter((path) => enrolledPaths?.includes(path.id));
+  const overviewPaths = enrolledPathList.length > 0 ? enrolledPathList.slice(0, 3) : paths.slice(0, 3);
+
   return (
-    <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-gray-50">
+    <div dir="rtl" className="flex min-h-[calc(100vh-5rem)] bg-gray-50 overflow-x-hidden w-full max-w-full">
       {sidebarOpen ? (
         <button
           type="button"
-          aria-label="إغلاق قائمة لوحة الطالب"
+          aria-label="إغلاق خلفية لوحة الطالب"
           className="fixed inset-0 z-30 bg-slate-950/25 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -201,40 +238,43 @@ export function StudentDashboardPage() {
       <button
         type="button"
         aria-label={sidebarOpen ? 'إغلاق قائمة لوحة الطالب' : 'فتح قائمة لوحة الطالب'}
-        className="fixed bottom-6 left-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500 text-white shadow-lg lg:hidden"
+        className="fixed bottom-6 left-6 md:bottom-28 md:left-8 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-amber-500 text-white shadow-lg lg:hidden"
         onClick={() => setSidebarOpen((value) => !value)}
       >
         {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
       </button>
 
-      <div className="mx-auto flex max-w-[1500px] items-start">
-        <aside
-          aria-label="تنقل لوحة الطالب"
-          className={`fixed bottom-0 right-0 top-20 z-40 h-[calc(100vh-5rem)] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto border-l border-gray-200 bg-white transition-transform duration-300 lg:sticky lg:translate-x-0 ${
-            sidebarOpen ? 'translate-x-0' : 'translate-x-full'
-          }`}
-        >
+      <aside
+        aria-label="تنقل لوحة الطالب"
+        className={`fixed bottom-0 right-0 top-20 z-40 h-[calc(100vh-5rem)] w-72 shrink-0 max-w-[calc(100vw-1rem)] overflow-y-auto border-l border-gray-200 bg-white transition-transform duration-300 lg:static lg:h-[calc(100vh-5rem)] lg:translate-x-0 lg:overflow-y-auto ${
+          sidebarOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
           <div className="p-5">
             <div className="mb-6 flex items-center gap-3">
-              {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.name} className="h-12 w-12 rounded-full border-2 border-amber-100 object-cover" />
+              {studentUser.avatarUrl ? (
+                <img src={studentUser.avatarUrl} alt={studentUser.name} className="h-12 w-12 rounded-full border-2 border-amber-100 object-cover" />
               ) : (
                 <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-amber-100 bg-indigo-50 text-sm font-black text-indigo-700">
                   {initials || 'ط'}
                 </div>
               )}
               <div className="min-w-0">
-                <h2 className="truncate text-sm font-black text-gray-900">{user.name}</h2>
+                <h2 className="truncate text-sm font-black text-gray-900">{studentUser.name}</h2>
                 <span className="text-xs font-bold text-gray-500">لوحة تحكم الطالب</span>
               </div>
             </div>
 
             <nav aria-label="تنقل لوحة الطالب" className="space-y-3">
               <div data-testid="student-menu-overview">
-                <a
-                  href="#overview"
+                <Link
+                  to="/dashboard"
                   onClick={() => setSidebarOpen(false)}
-                  className="flex w-full items-center justify-between rounded-[20px] border border-sky-200 bg-gradient-to-l from-sky-200/90 to-blue-100/90 px-3.5 py-2.5 text-sm font-black text-indigo-950 shadow-sm"
+                  className={`flex w-full items-center justify-between rounded-[20px] border px-3.5 py-2.5 text-sm font-black transition shadow-sm ${
+                    tab === 'overview'
+                      ? 'border-sky-200 bg-gradient-to-l from-sky-200/90 to-blue-100/90 text-indigo-950'
+                      : 'border-transparent text-gray-700 hover:border-white/80 hover:bg-white/80'
+                  }`}
                 >
                   <span className="flex items-center gap-3">
                     <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/65 text-indigo-800 shadow-sm">
@@ -243,7 +283,7 @@ export function StudentDashboardPage() {
                     نظرة عامة
                   </span>
                   <ChevronLeft size={18} />
-                </a>
+                </Link>
               </div>
 
               {groups.map((group) => (
@@ -262,13 +302,18 @@ export function StudentDashboardPage() {
           </div>
         </aside>
 
-        <section id="overview" className="min-w-0 flex-1 px-3 pb-20 pt-5 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-6xl space-y-5">
+      <main id="overview" className="flex-1 min-w-0 p-4 lg:p-8 pb-24 lg:pb-8 w-full max-w-full lg:max-w-[calc(100vw-18rem)] overflow-x-hidden">
+        {tab === 'paths' ? (
+          <div className="max-w-5xl mx-auto w-full min-w-0">
+            <PathsTab paths={paths} />
+          </div>
+        ) : (
+          <div className="max-w-5xl mx-auto w-full min-w-0 space-y-5">
             {/* 1. Header & Streak Banner */}
             <header className="flex flex-col justify-between gap-3 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:p-5">
               <div className="flex items-center gap-3.5">
-                {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt="" className="h-12 w-12 shrink-0 rounded-full border-2 border-amber-100 object-cover" />
+                {studentUser.avatarUrl ? (
+                  <img src={studentUser.avatarUrl} alt="" className="h-12 w-12 shrink-0 rounded-full border-2 border-amber-100 object-cover" />
                 ) : (
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-amber-100 bg-indigo-50 text-base font-black text-indigo-700">
                     {initials || 'ط'}
@@ -395,33 +440,32 @@ export function StudentDashboardPage() {
                     <p className="text-xs font-bold text-gray-500">تابع تقدمك بالتأسيس والدورات والتدريبات</p>
                   </div>
                 </div>
-                <Link to="/learning" className="text-xs font-black text-indigo-600 hover:text-indigo-800">
+                <Link to="/dashboard?tab=paths" className="text-xs font-black text-indigo-600 hover:text-indigo-800">
                   عرض كل المسارات ←
                 </Link>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {paths.length > 0 ? (
-                  paths.slice(0, 3).map((path) => {
-                    const progress = defaultTrackProgress[path.code] || 50;
+                {overviewPaths.length > 0 ? (
+                  overviewPaths.map((path) => {
+                    const pathStats = resolvePathProgress(path as DashboardPath, [], [], []);
+                    const progress = pathStats.progress;
                     return (
                       <div
                         key={path.id}
+                        data-testid={`active-path-card-${path.id}`}
                         className="flex flex-col justify-between rounded-2xl border border-gray-100 bg-gray-50/60 p-4 transition hover:border-indigo-100 hover:bg-white hover:shadow-xs"
                       >
                         <div>
                           <div className="flex items-center justify-between mb-3">
                             <span className="rounded-lg bg-indigo-100/70 px-2 py-0.5 text-xs font-black text-indigo-800">
-                              {path.code}
+                              {path.code || path.name}
                             </span>
                             <span className="text-xs font-black text-indigo-600">{progress}%</span>
                           </div>
                           <h4 className="text-sm font-black text-gray-900">{path.name}</h4>
-                          <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-gray-200">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-indigo-600 transition-all duration-500"
-                              style={{ width: `${progress}%` }}
-                            />
+                          <div className="mt-2.5">
+                            <ProgressBar percentage={progress} color="primary" showPercentage={false} />
                           </div>
                         </div>
                         <Link
@@ -531,14 +575,14 @@ export function StudentDashboardPage() {
               </Link>
             </section>
           </div>
-        </section>
-      </div>
+        )}
+      </main>
 
-      {/* Qiyas Calculator Modal */}
-      <QiyasCalculatorModal
-        isOpen={showCalculator}
-        onClose={() => setShowCalculator(false)}
-      />
-    </main>
+        {/* Qiyas Calculator Modal */}
+        <QiyasCalculatorModal
+          isOpen={showCalculator}
+          onClose={() => setShowCalculator(false)}
+        />
+      </div>
   );
 }

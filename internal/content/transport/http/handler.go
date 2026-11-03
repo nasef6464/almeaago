@@ -24,6 +24,7 @@ type Handler struct {
 	service  *contentapp.Service
 	fonts    *contentapp.FontService
 	homepage *contentapp.HomepageService
+	contact  *contentapp.ContactWidgetService
 	auth     Authenticator
 }
 

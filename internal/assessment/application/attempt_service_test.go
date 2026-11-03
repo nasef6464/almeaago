@@ -59,6 +59,11 @@ func (f *fakeAttemptRepo) GetResultDetail(_ context.Context, student, id string)
 	f.lastDetail = id
 	return f.detail, f.err
 }
+func (f *fakeAttemptRepo) SingleShotSubmit(_ context.Context, student, assessmentID string, req assessment.SingleShotSubmissionRequest) (assessment.ResultDetail, error) {
+	f.lastStudent = student
+	f.lastDetail = assessmentID
+	return f.detail, f.err
+}
 
 func student(id string) identity.User {
 	return identity.User{ID: id, Roles: []identity.Role{identity.RoleStudent}}
@@ -219,5 +224,55 @@ func TestDirectPaidAttemptRequiresCommerceEntitlement(t *testing.T) {
 	out, err := service.Start(context.Background(), student("student-1"), "assessment-1", "start-key-2")
 	if err != nil || out.ID != "attempt-1" {
 		t.Fatalf("entitled direct attempt failed: %#v %v", out, err)
+	}
+}
+
+func TestSingleShotSubmit(t *testing.T) {
+	now := time.Now().UTC()
+	repo := &fakeAttemptRepo{
+		detail: assessment.ResultDetail{
+			AssessmentID: "quiz-123",
+			Title:        "اختبار تجريبي في القدرات",
+			Result: assessment.Result{
+				AttemptID:        "attempt-999",
+				Score:            85.0,
+				TotalQuestions:   10,
+				CorrectAnswers:   8,
+				WrongAnswers:     1,
+				Unanswered:       1,
+				Passed:           true,
+				TimeSpentSeconds: 150,
+				FinalizedAt:      now,
+			},
+		},
+	}
+	service := NewAttemptService(repo)
+
+	req := assessment.SingleShotSubmissionRequest{
+		Answers:          map[string]int{"q-1": 0, "q-2": 2},
+		TimeSpentSeconds: 150,
+		Source:           "exam_runner",
+		SubmissionKey:    "sub-key-123",
+	}
+
+	res, err := service.SingleShotSubmit(context.Background(), student("student-1"), "quiz-123", req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if res.QuizID != "quiz-123" {
+		t.Errorf("expected QuizID='quiz-123', got %s", res.QuizID)
+	}
+	if res.Score != 85.0 {
+		t.Errorf("expected Score=85.0, got %f", res.Score)
+	}
+	if res.TotalQuestions != 10 || res.CorrectAnswers != 8 || res.WrongAnswers != 1 || res.Unanswered != 1 {
+		t.Errorf("unexpected question counts in result: %+v", res)
+	}
+	if !res.Passed {
+		t.Errorf("expected passed=true")
+	}
+	if res.TimeSpent != "2 دقيقة و 30 ثانية" {
+		t.Errorf("expected TimeSpent='2 دقيقة و 30 ثانية', got %q", res.TimeSpent)
 	}
 }

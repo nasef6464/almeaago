@@ -146,6 +146,9 @@ func (r *repoStub) GetLearnerCourseLesson(context.Context, string, string) (cont
 func (r *repoStub) GetLearnerTopic(context.Context, string) (content.LearnerTopic, error) {
 	return content.LearnerTopic{}, nil
 }
+func (r *repoStub) EnrollFreeCourse(context.Context, string, string) (content.CourseEnrollmentResponse, error) {
+	return content.CourseEnrollmentResponse{}, nil
+}
 
 func staffActor(role identity.Role) identity.User {
 	return identity.User{ID: "teacher-1", Roles: []identity.Role{role}}

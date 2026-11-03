@@ -1,6 +1,7 @@
 package contenthttp
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -18,6 +19,8 @@ func NewCourses(service *contentapp.Service, auth Authenticator) http.Handler {
 	r.Put("/{id}", h.updateCourse)
 	r.Patch("/{id}/workflow", h.courseWorkflow)
 	r.Patch("/{id}/publication", h.coursePublication)
+	r.Post("/{id}/enroll", h.enrollCourse)
+	r.Post("/{id}/join", h.enrollCourse)
 	r.Get("/{id}/modules", h.listCourseModules)
 	r.Post("/{id}/modules", h.createCourseModule)
 	r.Put("/{id}/modules/{moduleId}", h.updateCourseModule)
@@ -149,3 +152,29 @@ func (h *Handler) coursePublication(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"course": presentCourse(row)})
 }
+
+func (h *Handler) enrollCourse(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	auth, ok := h.authenticate(w, r, false)
+	if !ok {
+		return
+	}
+	courseID := chi.URLParam(r, "id")
+	resp, err := h.service.EnrollFreeCourse(r.Context(), auth.User, courseID)
+	if err != nil {
+		if errors.Is(err, contentapp.ErrCoursePurchaseRequired) {
+			writeJSON(w, http.StatusForbidden, map[string]any{
+				"success":  false,
+				"enrolled": false,
+				"code":     "COURSE_PURCHASE_REQUIRED",
+				"courseId": courseID,
+				"message":  "Paid course requires verified purchase or package access",
+			})
+			return
+		}
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
