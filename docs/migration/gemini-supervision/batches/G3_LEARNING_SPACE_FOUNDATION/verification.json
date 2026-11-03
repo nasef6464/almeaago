@@ -1,0 +1,33 @@
+{
+  "batch_id": "G3_LEARNING_SPACE_FOUNDATION",
+  "source_sha": "f23bccd43cf25157806c3331121231801cc509bc",
+  "target_sha": "6db77089b0ea862efea86be7856b3e6c0c29f6b9",
+  "checks": [
+    {
+      "check": "go test ./internal/content/transport/http/... ./internal/content/application/...",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "check": "No autostart rule verified in FoundationTopicDialog.tsx",
+      "status": "PASS",
+      "details": "selectedLesson starts empty on mount; user manually triggers video via 'فتح الدرس'."
+    },
+    {
+      "check": "Unified player aspect ratio and YouTube masks verified in SharedVideoPlayer.tsx",
+      "status": "PASS",
+      "details": "aspect-video w-full rounded-3xl with pointer-events-none top/watermark gradient masks matching legacy."
+    },
+    {
+      "command": "npm run typecheck",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run build",
+      "exit_code": 0,
+      "status": "PASS"
+    }
+  ],
+  "reviewer_verdict": "ACCEPTED"
+}
