@@ -18,7 +18,13 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/state/AuthProvider';
 import { attemptClient, type Attempt, type Result } from '../api/attempt-client';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
-import { optionLabel, showOptionText } from '../questionPresentation';
+import {
+  formatQuestionHtmlForDisplay,
+  formatTimerCountdown,
+  getQuizOptionGridClass,
+  optionLabel,
+  showOptionText,
+} from '../questionPresentation';
 
 const key = (prefix: string, id: string) => {
   const storageKey = `${prefix}:${id}`;
@@ -55,6 +61,8 @@ export function AssessmentAttemptPage() {
   const [draftChoice, setDraftChoice] = useState<{ attemptId: string; questionId: string; option: number } | null>(null);
   const [isNightMode, setIsNightMode] = useState(false);
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   const actionRef = useRef('');
   const scopeKey = `${user?.id || ''}:${assessmentId}:${attemptId}`;
@@ -98,6 +106,33 @@ export function AssessmentAttemptPage() {
     void run();
     return () => { active = false; };
   }, [assessmentId, attemptId, loading, user?.id]);
+
+  useEffect(() => {
+    if (!attempt || result) return;
+    if (attempt.expiresAt) {
+      const diff = Math.max(0, Math.floor((new Date(attempt.expiresAt).getTime() - Date.now()) / 1000));
+      setSecondsLeft(diff);
+    } else {
+      setSecondsLeft(null);
+    }
+  }, [attempt?.id, attempt?.expiresAt, result]);
+
+  useEffect(() => {
+    if (!attempt || result) return;
+    const interval = setInterval(() => {
+      if (attempt.expiresAt) {
+        const diff = Math.max(0, Math.floor((new Date(attempt.expiresAt).getTime() - Date.now()) / 1000));
+        setSecondsLeft(diff);
+        if (diff === 0 && !busy && !actionRef.current) {
+          clearInterval(interval);
+          void submit();
+        }
+      } else {
+        setElapsedSeconds((prev) => prev + 1);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [attempt?.id, attempt?.expiresAt, result, busy]);
 
   const answers = useMemo(
     () => new Map((attempt?.answers || []).map((answer) => [answer.questionId, answer])),
@@ -327,14 +362,20 @@ export function AssessmentAttemptPage() {
 
               {/* Timer Pill */}
               <div
-                className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-black ${
-                  isNightMode
+                className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2 font-mono text-xs font-black transition-colors ${
+                  secondsLeft != null && secondsLeft < 180
+                    ? 'border-rose-400 bg-rose-50 text-rose-700 animate-pulse'
+                    : isNightMode
                     ? 'border-slate-700 bg-slate-800 text-amber-300'
                     : 'border-amber-200 bg-amber-50 text-amber-700'
                 }`}
               >
                 <Clock3 size={15} />
-                <span>{attempt.expiresAt ? 'مؤقت نشط' : 'تدريب بدون مؤقت'}</span>
+                <span>
+                  {secondsLeft != null
+                    ? `متبقي: ${formatTimerCountdown(secondsLeft)}`
+                    : `الوقت: ${formatTimerCountdown(elapsedSeconds)}`}
+                </span>
               </div>
 
               {/* Review Flag Button */}
@@ -421,7 +462,12 @@ export function AssessmentAttemptPage() {
           ) : null}
 
           {question.text ? (
-            <h2 className="text-base sm:text-lg font-black leading-relaxed whitespace-pre-wrap">{question.text}</h2>
+            <h2
+              className="text-base sm:text-lg font-black leading-relaxed"
+              dangerouslySetInnerHTML={{
+                __html: formatQuestionHtmlForDisplay(question.text),
+              }}
+            />
           ) : !question.imageAssetId ? (
             <h2 className="text-base font-black">سؤال بصري</h2>
           ) : null}
@@ -441,7 +487,7 @@ export function AssessmentAttemptPage() {
             className={`mt-6 grid gap-3 ${
               imageEmbeddedOptions
                 ? 'grid-cols-4'
-                : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+                : getQuizOptionGridClass(question.options)
             }`}
           >
             {question.options.map((option) => {
