@@ -168,7 +168,9 @@ export const PathsTab: React.FC<PathsTabProps> = ({
                         {path.icon}
                       </div>
                       <div>
-                        <h3 className="font-bold text-xl text-gray-900 mb-1">{path.title}</h3>
+                        <Link to={`/category/${path.id}`} className="hover:text-indigo-600 transition block">
+                          <h3 className="font-bold text-xl text-gray-900 mb-1 hover:text-indigo-600">{path.title}</h3>
+                        </Link>
                         <p className="text-sm text-gray-500">{path.description}</p>
                       </div>
                     </div>

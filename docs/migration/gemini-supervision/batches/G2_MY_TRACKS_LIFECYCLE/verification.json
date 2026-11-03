@@ -1,0 +1,40 @@
+{
+  "batch_id": "G2_MY_TRACKS_LIFECYCLE",
+  "source_sha": "f23bccd43cf25157806c3331121231801cc509bc",
+  "target_sha": "cc35159d2a2335133d5964f77a83d47f9f257b42",
+  "modified_files": [
+    "apps/web/src/features/learning/pages/StudentDashboardPage.tsx",
+    "apps/web/src/features/learning/pages/dashboard/PathsTab.tsx"
+  ],
+  "checks": [
+    {
+      "check": "go test -v ./internal/learning/navigation/...",
+      "exit_code": 0,
+      "status": "PASS",
+      "details": "All HTTP CSRF, Session, Service, and Stage resolution tests passed."
+    },
+    {
+      "check": "node StudentNavigationProvider.test.mjs & studentPathScope.test.mjs",
+      "exit_code": 0,
+      "status": "PASS",
+      "details": "9 tests passed, 0 failed."
+    },
+    {
+      "check": "Route wiring for active path cards to /category/:pathId",
+      "status": "PASS",
+      "details": "Both overview path cards and PathsTab active cards directly open the authoritative legacy path space (/category/:pathId)."
+    },
+    {
+      "command": "npm run typecheck",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run build",
+      "exit_code": 0,
+      "status": "PASS",
+      "duration_sec": 18.63
+    }
+  ],
+  "reviewer_verdict": "ACCEPTED"
+}
