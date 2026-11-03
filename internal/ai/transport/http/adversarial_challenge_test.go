@@ -83,10 +83,9 @@ func (m *mockAdvProviderClient) Call(_ context.Context, _ ai.ProviderSetting, _ 
 		return ai.ProviderCallResult{}, errors.New("upstream provider timeout (504)")
 	}
 	return ai.ProviderCallResult{
-		Text:     "إجابة المعلم الذكي الخارجية",
-		Provider: ai.ProviderOpenAI,
-		Model:    "gpt-4o-mini",
-		Usage:    ai.ProviderUsage{TotalTokens: 25},
+		Text:  "إجابة المعلم الذكي الخارجية",
+		Model: "gpt-4o-mini",
+		Usage: ai.ProviderUsage{TotalTokens: 25},
 	}, nil
 }
 

@@ -453,7 +453,7 @@ export function StudentDashboardPage() {
                     return (
                       <div
                         key={path.id}
-                        data-testid={`active-path-card-${path.id}`}
+                        data-testid={`overview-active-path-card-${path.id}`}
                         className="flex flex-col justify-between rounded-2xl border border-gray-100 bg-gray-50/60 p-4 transition hover:border-indigo-100 hover:bg-white hover:shadow-xs"
                       >
                         <div>
