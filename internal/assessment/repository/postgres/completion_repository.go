@@ -3,20 +3,36 @@ package postgres
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 )
 
+func normalizeTaxonomyCode(input string) (clean, normalized string) {
+	clean = strings.TrimSpace(input)
+	normalized = strings.ToLower(clean)
+	normalized = strings.TrimPrefix(normalized, "p_")
+	normalized = strings.TrimPrefix(normalized, "p-")
+	normalized = strings.TrimPrefix(normalized, "s_")
+	normalized = strings.TrimPrefix(normalized, "s-")
+	return clean, normalized
+}
+
 func (r *Repository) ResolvePathID(ctx context.Context, input string) (string, error) {
+	clean, normalized := normalizeTaxonomyCode(input)
+	if clean == "" {
+		return "", assessment.ErrNotFound
+	}
+
 	var id string
 	err := r.db.QueryRow(ctx, `
 		SELECT id::text
 		FROM paths
-		WHERE (id::text = $1 OR code = $1)
+		WHERE (id::text = $1 OR lower(code) = lower($1) OR lower(code) = $2)
 		  AND status = 'active'
 		LIMIT 1
-	`, input).Scan(&id)
+	`, clean, normalized).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", assessment.ErrNotFound
 	}
@@ -24,7 +40,8 @@ func (r *Repository) ResolvePathID(ctx context.Context, input string) (string, e
 }
 
 func (r *Repository) ResolveSubjectID(ctx context.Context, pathID, input string) (string, error) {
-	if input == "" {
+	clean, normalized := normalizeTaxonomyCode(input)
+	if clean == "" {
 		return "", nil
 	}
 	var id string
@@ -32,10 +49,10 @@ func (r *Repository) ResolveSubjectID(ctx context.Context, pathID, input string)
 		SELECT id::text
 		FROM subjects
 		WHERE path_id = $1::uuid
-		  AND (id::text = $2 OR code = $2)
+		  AND (id::text = $2 OR lower(code) = lower($2) OR lower(code) = $3)
 		  AND status = 'active'
 		LIMIT 1
-	`, pathID, input).Scan(&id)
+	`, pathID, clean, normalized).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", nil
 	}

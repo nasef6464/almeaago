@@ -18,6 +18,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/state/AuthProvider';
 import { attemptClient, type Attempt, type Result } from '../api/attempt-client';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
+import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
 import {
   formatQuestionHtmlForDisplay,
   formatTimerCountdown,
@@ -63,6 +64,7 @@ export function AssessmentAttemptPage() {
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
 
   const actionRef = useRef('');
   const scopeKey = `${user?.id || ''}:${assessmentId}:${attemptId}`;
@@ -478,7 +480,11 @@ export function AssessmentAttemptPage() {
                 isNightMode ? 'border-slate-800 bg-black' : 'border-slate-100 bg-slate-50'
               }`}
             >
-              <QuestionAssetImage assetId={question.imageAssetId} alt={question.imageAlt || 'صورة السؤال'} />
+              <QuestionAssetImage
+                assetId={question.imageAssetId}
+                alt={question.imageAlt || 'صورة السؤال'}
+                onZoom={setZoomImageUrl}
+              />
             </div>
           ) : null}
 
@@ -550,7 +556,11 @@ export function AssessmentAttemptPage() {
 
                   {!imageEmbeddedOptions && option.assetId ? (
                     <div className="mt-2 rounded-xl border bg-slate-50 p-3">
-                      <QuestionAssetImage assetId={option.assetId} alt={`صورة الخيار`} />
+                      <QuestionAssetImage
+                        assetId={option.assetId}
+                        alt="صورة الخيار"
+                        onZoom={setZoomImageUrl}
+                      />
                     </div>
                   ) : null}
                 </div>
@@ -676,6 +686,13 @@ export function AssessmentAttemptPage() {
           </div>
         </div>
       )}
+
+      {/* Full-Screen Image Pan & Zoom Modal */}
+      <QuestionImageZoomModal
+        imageUrl={zoomImageUrl}
+        onClose={() => setZoomImageUrl(null)}
+        altText="تكبير صورة المسألة"
+      />
     </main>
   );
 }

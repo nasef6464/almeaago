@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	contentapp "github.com/nasef6464/almeaago/internal/content/application"
 	content "github.com/nasef6464/almeaago/internal/content/domain"
 	operations "github.com/nasef6464/almeaago/internal/operations/domain"
 )
 
-var ErrCoursePurchaseRequired = errors.New("course purchase required")
+var ErrCoursePurchaseRequired = contentapp.ErrCoursePurchaseRequired
 
 func (r *Repository) EnrollFreeCourse(ctx context.Context, userID, courseID string) (content.CourseEnrollmentResponse, error) {
 	var title string

@@ -30,10 +30,12 @@ export function QuestionAssetImage({
   assetId,
   alt,
   className = '',
+  onZoom,
 }: {
   assetId: string;
   alt: string;
   className?: string;
+  onZoom?: (url: string) => void;
 }) {
   const [retry, setRetry] = useState(0);
   const [state, setState] = useState<ImageState | null>(null);
@@ -94,7 +96,10 @@ export function QuestionAssetImage({
       alt={alt}
       loading="lazy"
       decoding="async"
-      className={className || 'mx-auto max-h-[340px] max-w-full rounded-xl object-contain'}
+      onClick={onZoom ? () => onZoom(current.url) : undefined}
+      className={`${className || 'mx-auto max-h-[340px] max-w-full rounded-xl object-contain'} ${
+        onZoom ? 'cursor-zoom-in hover:opacity-90 transition' : ''
+      }`}
       onError={() => setState({ assetId, url: '', loading: false, error: true })}
     />
   );

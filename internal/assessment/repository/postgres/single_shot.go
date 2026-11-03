@@ -37,6 +37,27 @@ func (r *Repository) SingleShotSubmit(
 	}
 	defer tx.Rollback(ctx)
 
+	// Concurrency Serialization: If submissionKey is provided, serialize concurrent requests
+	// for the same student + submission key using transaction-level advisory locking.
+	if req.SubmissionKey != "" {
+		_, _ = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('single_shot:' || $1 || ':' || $2))`, studentID, req.SubmissionKey)
+
+		// Re-check after acquiring advisory lock (in case a concurrent submission just committed)
+		var existingAttemptID string
+		err := tx.QueryRow(ctx, `
+			SELECT id::text
+			FROM assessment_attempts
+			WHERE (submission_key = $1 OR start_key = $1)
+			  AND student_id = $2::uuid
+			  AND status = 'submitted'
+			LIMIT 1
+		`, req.SubmissionKey, studentID).Scan(&existingAttemptID)
+		if err == nil {
+			_ = tx.Rollback(ctx)
+			return r.GetResultDetail(ctx, studentID, existingAttemptID)
+		}
+	}
+
 	// 2. Resolve Assessment & Published Version
 	var actualAssessmentID, title string
 	var version, maxAttempts int
@@ -111,6 +132,20 @@ func (r *Repository) SingleShotSubmit(
 			return assessment.ResultDetail{}, err
 		}
 		if used >= maxAttempts {
+			if req.SubmissionKey != "" {
+				var existingAttemptID string
+				cErr := tx.QueryRow(ctx, `
+					SELECT id::text
+					FROM assessment_attempts
+					WHERE (submission_key = $1 OR start_key = $1)
+					  AND student_id = $2::uuid
+					LIMIT 1
+				`, req.SubmissionKey, studentID).Scan(&existingAttemptID)
+				if cErr == nil {
+					_ = tx.Rollback(ctx)
+					return r.GetResultDetail(ctx, studentID, existingAttemptID)
+				}
+			}
 			return assessment.ResultDetail{}, assessment.ErrConflict
 		}
 
@@ -139,6 +174,20 @@ func (r *Repository) SingleShotSubmit(
 			RETURNING id::text
 		`, actualAssessmentID, version, studentID, used+1, startKey, timeLimitSeconds).Scan(&attemptID)
 		if err != nil {
+			if req.SubmissionKey != "" {
+				var existingAttemptID string
+				cErr := tx.QueryRow(ctx, `
+					SELECT id::text
+					FROM assessment_attempts
+					WHERE (submission_key = $1 OR start_key = $1)
+					  AND student_id = $2::uuid
+					LIMIT 1
+				`, req.SubmissionKey, studentID).Scan(&existingAttemptID)
+				if cErr == nil {
+					_ = tx.Rollback(ctx)
+					return r.GetResultDetail(ctx, studentID, existingAttemptID)
+				}
+			}
 			return assessment.ResultDetail{}, mapError(err)
 		}
 	} else {
@@ -277,6 +326,20 @@ func (r *Repository) SingleShotSubmit(
 		WHERE id = $1::uuid
 	`, attemptID, submissionKey)
 	if err != nil {
+		if req.SubmissionKey != "" {
+			var existingAttemptID string
+			cErr := tx.QueryRow(ctx, `
+				SELECT id::text
+				FROM assessment_attempts
+				WHERE (submission_key = $1 OR start_key = $1)
+				  AND student_id = $2::uuid
+				LIMIT 1
+			`, req.SubmissionKey, studentID).Scan(&existingAttemptID)
+			if cErr == nil {
+				_ = tx.Rollback(ctx)
+				return r.GetResultDetail(ctx, studentID, existingAttemptID)
+			}
+		}
 		return assessment.ResultDetail{}, mapError(err)
 	}
 

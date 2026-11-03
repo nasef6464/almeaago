@@ -23,6 +23,8 @@ import { useAuth } from '../../auth/state/AuthProvider';
 import { QuestionAssistantPanel } from '../../ai/components/QuestionAssistantPanel';
 import { learningClient } from '../../learning/api/learning-client';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
+import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
+import { ResultDonutChart } from '../components/ResultDonutChart';
 import { optionLabel, showOptionText } from '../questionPresentation';
 import {
   attemptClient,
@@ -78,12 +80,14 @@ function ReviewQuestionCard({
   saved,
   saving,
   onSave,
+  onZoomImage,
 }: {
   question: ReviewQuestion;
   detail: ResultDetail;
   saved: boolean;
   saving: boolean;
   onSave(questionId: string): void;
+  onZoomImage?: (url: string) => void;
 }) {
   const [showAiAssistant, setShowAiAssistant] = useState(false);
 
@@ -143,7 +147,11 @@ function ReviewQuestionCard({
       ) : !question.imageAssetId ? <h3 className="mt-3 text-base font-black text-gray-900">سؤال بصري</h3> : null}
       {question.imageAssetId ? (
         <div className="my-4 overflow-hidden rounded-2xl border border-gray-100 bg-slate-50 p-3 text-center">
-          <QuestionAssetImage assetId={question.imageAssetId} alt={question.imageAlt || 'صورة السؤال'} />
+          <QuestionAssetImage
+            assetId={question.imageAssetId}
+            alt={question.imageAlt || 'صورة السؤال'}
+            onZoom={onZoomImage}
+          />
         </div>
       ) : null}
 
@@ -171,7 +179,11 @@ function ReviewQuestionCard({
               {showOptionText(question.learnerPresentation, Boolean(question.imageAssetId && question.optionsEmbeddedInImage)) ? option.text : ''}
               {!(question.imageAssetId && question.optionsEmbeddedInImage) && option.assetId ? (
                 <div className="mt-2 rounded-xl bg-white p-3">
-                  <QuestionAssetImage assetId={option.assetId} alt={`صورة الخيار ${optionLabel(option.index, question.learnerPresentation)}`} />
+                  <QuestionAssetImage
+                    assetId={option.assetId}
+                    alt={`صورة الخيار ${optionLabel(option.index, question.learnerPresentation)}`}
+                    onZoom={onZoomImage}
+                  />
                 </div>
               ) : null}
               {selected ? <span className="mr-2 text-xs">اختيارك</span> : null}
@@ -247,6 +259,7 @@ export function AssessmentResultsPage() {
   const [detailContext, setDetailContext] = useState('');
   const [savedQuestions, setSavedQuestions] = useState<Set<string>>(() => new Set());
   const [savingQuestion, setSavingQuestion] = useState('');
+  const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
   const activeContext = `${user?.id ?? ''}:${attemptId}`;
   const activeContextRef = useRef(activeContext);
   activeContextRef.current = activeContext;
@@ -393,12 +406,28 @@ export function AssessmentResultsPage() {
           <div className="flex flex-wrap gap-2"><Link to="/review" className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-black text-purple-700">أسئلتي للمراجعة</Link><Link to="/assessments" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">اختبار جديد</Link></div>
         </div>
 
-        {detail.showResultsReport ? <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div className={`rounded-2xl border p-3 text-center ${scoreTone(result.passed)}`}><div className="text-3xl font-black">{result.score.toFixed(1)}%</div><div className="text-xs font-bold">الدرجة</div></div>
-          <div className="rounded-2xl bg-emerald-50 p-3 text-center text-emerald-800"><CheckCircle2 className="mx-auto" size={20}/><div className="mt-1 font-black">{result.correctAnswers}</div><div className="text-xs font-bold">صحيحة</div></div>
-          <div className="rounded-2xl bg-rose-50 p-3 text-center text-rose-800"><XCircle className="mx-auto" size={20}/><div className="mt-1 font-black">{result.wrongAnswers}</div><div className="text-xs font-bold">خاطئة</div></div>
-          <div className="rounded-2xl bg-amber-50 p-3 text-center text-amber-800"><AlertCircle className="mx-auto" size={20}/><div className="mt-1 font-black">{result.unanswered}</div><div className="text-xs font-bold">بدون إجابة</div></div>
-        </div> : <div className="mt-4 rounded-xl bg-gray-50 p-4 text-sm font-bold text-gray-600">تم تسجيل إكمال الاختبار. تقرير الدرجات التفصيلي غير معروض وفق إعدادات هذا الاختبار.</div>}
+        {detail.showResultsReport ? (
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+            <div className="flex justify-center p-2 md:border-l md:border-indigo-100">
+              <ResultDonutChart
+                data={[
+                  { name: 'صحيحة', value: result.correctAnswers, color: '#10b981' },
+                  { name: 'خاطئة', value: result.wrongAnswers, color: '#ef4444' },
+                  { name: 'بدون إجابة', value: result.unanswered, color: '#f59e0b' },
+                ]}
+                centerLabel={`${result.score.toFixed(0)}%`}
+                centerSubLabel={result.passed ? 'ناجح' : 'يحتاج تدريب'}
+                primaryColor="#10b981"
+              />
+            </div>
+            <div className="md:col-span-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className={`rounded-2xl border p-3 text-center ${scoreTone(result.passed)}`}><div className="text-3xl font-black">{result.score.toFixed(1)}%</div><div className="text-xs font-bold">الدرجة</div></div>
+              <div className="rounded-2xl bg-emerald-50 p-3 text-center text-emerald-800"><CheckCircle2 className="mx-auto" size={20}/><div className="mt-1 font-black">{result.correctAnswers}</div><div className="text-xs font-bold">صحيحة</div></div>
+              <div className="rounded-2xl bg-rose-50 p-3 text-center text-rose-800"><XCircle className="mx-auto" size={20}/><div className="mt-1 font-black">{result.wrongAnswers}</div><div className="text-xs font-bold">خاطئة</div></div>
+              <div className="rounded-2xl bg-amber-50 p-3 text-center text-amber-800"><AlertCircle className="mx-auto" size={20}/><div className="mt-1 font-black">{result.unanswered}</div><div className="text-xs font-bold">بدون إجابة</div></div>
+            </div>
+          </div>
+        ) : <div className="mt-4 rounded-xl bg-gray-50 p-4 text-sm font-bold text-gray-600">تم تسجيل إكمال الاختبار. تقرير الدرجات التفصيلي غير معروض وفق إعدادات هذا الاختبار.</div>}
       </header>
         {detail.showResultsReport && detail.skillAnalysis ? (
           <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="attempt-skills-heading">
@@ -494,12 +523,20 @@ export function AssessmentResultsPage() {
                     saved={savedQuestions.has(question.questionId)}
                     saving={savingQuestion === question.questionId}
                     onSave={(questionId) => void saveForReview(questionId)}
+                    onZoomImage={setZoomImageUrl}
                   />
                 ))}
               </div>
             )}
           </>
         )}
+
+      {/* Full-Screen Image Pan & Zoom Modal */}
+      <QuestionImageZoomModal
+        imageUrl={zoomImageUrl}
+        onClose={() => setZoomImageUrl(null)}
+        altText="تكبير صورة المسألة"
+      />
     </main>
   );
 }
