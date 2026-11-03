@@ -1,0 +1,33 @@
+{
+  "batch_id": "G1_STUDENT_DASHBOARD_DIMENSIONS",
+  "source_sha": "f23bccd43cf25157806c3331121231801cc509bc",
+  "target_sha": "7469e88bcc9de7b2d5851363d4fe1183447caf47",
+  "modified_files": [
+    "apps/web/src/features/learning/pages/StudentDashboardPage.tsx",
+    "apps/web/src/features/learning/pages/CourseLearningPage.tsx"
+  ],
+  "checks": [
+    {
+      "check": "Container width expansion from max-w-5xl (1024px) to max-w-7xl (1280px) in StudentDashboardPage.tsx",
+      "status": "PASS",
+      "result": "Eliminated wide gutter side gaps on Desktop (1440px/1920px) and Tablet (820px)"
+    },
+    {
+      "check": "Course player container upgrade to max-w-7xl and aspect-video in CourseLearningPage.tsx",
+      "status": "PASS",
+      "result": "Replaced min-h-56/72 constraint with responsive 16:9 aspect-video w-full"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run build",
+      "exit_code": 0,
+      "status": "PASS",
+      "duration_sec": 20.18
+    }
+  ],
+  "reviewer_verdict": "ACCEPTED"
+}

@@ -1,0 +1,11 @@
+role,action,resource,scope,condition,decision,evidence
+guest,read,public_catalog,global,none,ALLOW,HTTP 200 /api/v1/content/paths
+guest,write,enrollment,global,authenticated_only,DENY,HTTP 401 Unauthorized
+student,read,enrolled_paths,student_id,valid_token,ALLOW,HTTP 200 /api/v1/content/paths/enrolled
+student,write,enroll,course_id,free_or_purchased,ALLOW,HTTP 201 /api/v1/content/courses/:id/enroll
+student,write,enroll,course_id,paid_without_purchase,DENY,HTTP 403 COURSE_PURCHASE_REQUIRED
+student,write,attempt_start,quiz_id,published_quiz,ALLOW,HTTP 201 /api/v1/assessment/attempts
+student,read,other_student_result,attempt_id,mismatched_student_id,DENY,HTTP 403 FORBIDDEN
+school_teacher,read,assigned_classroom,school_id+class_id,active_teacher,ALLOW,HTTP 200 /api/v1/schools/:id/classes
+school_director,write,manage_members,school_id,active_director,ALLOW,HTTP 200 /api/v1/schools/:id/members
+admin,read,admin_command_center,global,role=admin,ALLOW,HTTP 200 /api/v1/admin/*

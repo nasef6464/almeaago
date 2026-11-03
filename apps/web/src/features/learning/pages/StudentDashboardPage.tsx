@@ -304,11 +304,11 @@ export function StudentDashboardPage() {
 
       <main id="overview" className="flex-1 min-w-0 p-4 lg:p-8 pb-24 lg:pb-8 w-full max-w-full lg:max-w-[calc(100vw-18rem)] overflow-x-hidden">
         {tab === 'paths' ? (
-          <div className="max-w-5xl mx-auto w-full min-w-0">
+          <div className="max-w-7xl mx-auto w-full min-w-0">
             <PathsTab paths={paths} />
           </div>
         ) : (
-          <div className="max-w-5xl mx-auto w-full min-w-0 space-y-5">
+          <div className="max-w-7xl mx-auto w-full min-w-0 space-y-6">
             {/* 1. Header & Streak Banner */}
             <header className="flex flex-col justify-between gap-3 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:p-5">
               <div className="flex items-center gap-3.5">

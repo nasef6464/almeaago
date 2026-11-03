@@ -1,0 +1,8 @@
+task_id,agent_name,role,assigned_files,branch,dependencies,handoff_status
+G0_BASELINE_AUDIT,gemini,assistant_engineering_director,"docs/migration/GEMINI_CURRENT_HANDOFF_AR.md,docs/migration/gemini-supervision/*",main,none,COMPLETED
+G1_STUDENT_DASHBOARD_DIMENSIONS,gemini,ui_restoration_lead,"apps/web/src/features/student/StudentDashboardPage.tsx,apps/web/src/features/student/components/SmartLearningPathWidget.tsx",main,G0_BASELINE_AUDIT,READY_FOR_EXECUTION
+G2_MY_TRACKS_LIFECYCLE,gemini,fullstack_parity_lead,"apps/web/src/features/student/tabs/PathsTab.tsx,internal/content/transport/http/courses.go",main,G1_STUDENT_DASHBOARD_DIMENSIONS,PENDING
+G3_LEARNING_SPACE_FOUNDATION,gemini,content_domain_lead,"apps/web/src/features/learning/*,internal/content/*",main,G2_MY_TRACKS_LIFECYCLE,PENDING
+G4_ASSESSMENT_RUNNER_AND_REVIEW,gemini,assessment_domain_lead,"apps/web/src/features/quizzes/*,internal/assessment/*",main,G3_LEARNING_SPACE_FOUNDATION,PENDING
+G5_STUDENT_SERVICES_AND_AI,gemini,ai_services_lead,"apps/web/src/features/ai/*,internal/ai/*",main,G4_ASSESSMENT_RUNNER_AND_REVIEW,PENDING
+G6_SCHOOLS_AND_PLATFORM_ROLES,gemini,organization_domain_lead,"apps/web/src/features/schools/*,internal/school/*",main,G5_STUDENT_SERVICES_AND_AI,PENDING

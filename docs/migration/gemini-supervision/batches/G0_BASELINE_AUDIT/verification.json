@@ -1,0 +1,45 @@
+{
+  "batch_id": "G0_BASELINE_AUDIT",
+  "source_sha": "f23bccd43cf25157806c3331121231801cc509bc",
+  "source_branch": "chatgpt/mnsf26-ingest",
+  "target_sha": "7469e88bcc9de7b2d5851363d4fe1183447caf47",
+  "target_branch": "main",
+  "environment": "Windows PowerShell / Local Developer Workspace / Neon Cloud PostgreSQL",
+  "checks": [
+    {
+      "command": "git branch -vv (target)",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "command": "manage_task list & manage_subagents list",
+      "exit_code": 0,
+      "status": "PASS",
+      "note": "0 active tasks, 0 active subagents"
+    },
+    {
+      "command": "go build -o api_check.exe ./cmd/api",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "command": "go test ./internal/assessment/... ./internal/content/... ./internal/ai/...",
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "command": "npm run typecheck (apps/web)",
+      "exit_code": 0,
+      "status": "PASS",
+      "errors": 0
+    },
+    {
+      "command": "npm run build (apps/web)",
+      "exit_code": 0,
+      "status": "PASS",
+      "duration_sec": 15.15
+    }
+  ],
+  "reviewer_verdict": "ACCEPTED",
+  "constraints_and_limits": "Sequential execution strictly enforced to prevent Quota 429 exhaustion."
+}

@@ -773,7 +773,7 @@ export function CourseLearningPage() {
         </aside>
 
         <section className="flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 md:p-8 w-full max-w-full lg:max-w-[calc(100vw-20rem)] overflow-x-hidden">
-          <div className="max-w-5xl mx-auto w-full min-w-0 space-y-4">
+          <div className="max-w-7xl mx-auto w-full min-w-0 space-y-6">
             <div
               className={`rounded-2xl border p-4 shadow-sm sm:p-5 ${
                 isDarkMode ? 'border-slate-800 bg-[#1e293b]' : 'border-slate-200 bg-white'
@@ -847,8 +847,12 @@ export function CourseLearningPage() {
                     isDarkMode ? 'border-slate-800 bg-[#1e293b]' : 'border-slate-200 bg-white'
                   }`}
                 >
-                  <div className={`relative flex min-h-56 items-center justify-center sm:min-h-72 ${
-                    activeDetail.type === 'video' ? 'bg-black' : isDarkMode ? 'bg-slate-900' : 'bg-slate-100'
+                  <div className={`relative w-full ${
+                    activeDetail.type === 'video' && activeDetail.videoUrl
+                      ? 'aspect-video bg-black'
+                      : isDarkMode
+                      ? 'min-h-56 sm:min-h-72 flex items-center justify-center bg-slate-900'
+                      : 'min-h-56 sm:min-h-72 flex items-center justify-center bg-slate-100'
                   }`}>
                     {activeDetail.type === 'video' && activeDetail.videoUrl ? (
                       <SharedVideoPlayer key={`${selectedScope}:${activeDetail.videoUrl}`} ref={videoRef} url={activeDetail.videoUrl} title={activeDetail.title}
