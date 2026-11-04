@@ -1,0 +1,176 @@
+[
+  {
+    "screen": "Login Modal",
+    "viewport": "desktop_1440",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/01_login_modal_desktop_1440.png",
+    "passed": true
+  },
+  {
+    "screen": "Student Dashboard",
+    "viewport": "desktop_1440",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/02_student_dashboard_desktop_1440.png",
+    "passed": true,
+    "details": {
+      "hasMaxW7xl": true,
+      "mainWidth": 1152,
+      "outerContainerWidth": 1088,
+      "hasWhatsApp": true
+    }
+  },
+  {
+    "screen": "My Tracks Tab",
+    "viewport": "desktop_1440",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/03_my_tracks_desktop_1440.png",
+    "passed": true,
+    "details": {
+      "count": 4,
+      "hrefs": [
+        "/category/path-qudrat",
+        "/category/path-tahsili",
+        "/category/path-qudrat",
+        "/category/path-qudrat"
+      ]
+    }
+  },
+  {
+    "screen": "Category Learning Space",
+    "viewport": "desktop_1440",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/04_category_workspace_desktop_1440.png",
+    "passed": true
+  },
+  {
+    "screen": "Course Player 16:9",
+    "viewport": "desktop_1440",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/05_course_player_desktop_1440.png",
+    "passed": true,
+    "details": {
+      "hasAspectVideo": true,
+      "hasMaxW7xl": true,
+      "videoWidth": 1054,
+      "videoHeight": 593,
+      "aspectRatio": "1.78"
+    }
+  },
+  {
+    "screen": "Post-Exam Results",
+    "viewport": "desktop_1440",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/06_post_exam_results_desktop_1440.png",
+    "passed": true
+  },
+  {
+    "screen": "Login Modal",
+    "viewport": "tablet_820",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/01_login_modal_tablet_820.png",
+    "passed": true
+  },
+  {
+    "screen": "Student Dashboard",
+    "viewport": "tablet_820",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/02_student_dashboard_tablet_820.png",
+    "passed": true,
+    "details": {
+      "hasMaxW7xl": true,
+      "mainWidth": 820,
+      "outerContainerWidth": 788,
+      "hasWhatsApp": true
+    }
+  },
+  {
+    "screen": "My Tracks Tab",
+    "viewport": "tablet_820",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/03_my_tracks_tablet_820.png",
+    "passed": true,
+    "details": {
+      "count": 4,
+      "hrefs": [
+        "/category/path-qudrat",
+        "/category/path-tahsili",
+        "/category/path-qudrat",
+        "/category/path-qudrat"
+      ]
+    }
+  },
+  {
+    "screen": "Category Learning Space",
+    "viewport": "tablet_820",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/04_category_workspace_tablet_820.png",
+    "passed": true
+  },
+  {
+    "screen": "Course Player 16:9",
+    "viewport": "tablet_820",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/05_course_player_tablet_820.png",
+    "passed": true,
+    "details": {
+      "hasAspectVideo": true,
+      "hasMaxW7xl": true,
+      "videoWidth": 754,
+      "videoHeight": 424,
+      "aspectRatio": "1.78"
+    }
+  },
+  {
+    "screen": "Post-Exam Results",
+    "viewport": "tablet_820",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/06_post_exam_results_tablet_820.png",
+    "passed": true
+  },
+  {
+    "screen": "Login Modal",
+    "viewport": "mobile_390",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/01_login_modal_mobile_390.png",
+    "passed": true
+  },
+  {
+    "screen": "Student Dashboard",
+    "viewport": "mobile_390",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/02_student_dashboard_mobile_390.png",
+    "passed": true,
+    "details": {
+      "hasMaxW7xl": true,
+      "mainWidth": 390,
+      "outerContainerWidth": 358,
+      "hasWhatsApp": true
+    }
+  },
+  {
+    "screen": "My Tracks Tab",
+    "viewport": "mobile_390",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/03_my_tracks_mobile_390.png",
+    "passed": true,
+    "details": {
+      "count": 4,
+      "hrefs": [
+        "/category/path-qudrat",
+        "/category/path-tahsili",
+        "/category/path-qudrat",
+        "/category/path-qudrat"
+      ]
+    }
+  },
+  {
+    "screen": "Category Learning Space",
+    "viewport": "mobile_390",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/04_category_workspace_mobile_390.png",
+    "passed": true
+  },
+  {
+    "screen": "Course Player 16:9",
+    "viewport": "mobile_390",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/05_course_player_mobile_390.png",
+    "passed": true,
+    "details": {
+      "hasAspectVideo": true,
+      "hasMaxW7xl": true,
+      "videoWidth": 356,
+      "videoHeight": 200,
+      "aspectRatio": "1.78"
+    }
+  },
+  {
+    "screen": "Post-Exam Results",
+    "viewport": "mobile_390",
+    "path": "C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66/live_student_walkthrough/06_post_exam_results_mobile_390.png",
+    "passed": true
+  }
+]
