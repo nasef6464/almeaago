@@ -74,7 +74,8 @@ for (const width of [390, 1440]) {
       await expect(dialog).toBeVisible();
       await expect(dialog.getByRole('alert')).toHaveText('تعذر تنفيذ طلب التصنيف');
       await expect(page.getByText(`تمت أرشفة ${scenario.name} بنجاح`)).toHaveCount(0);
-      await expect(page.getByLabel(scenario.statusLabel)).toHaveValue('active');
+      // The modal is aria-modal; inspect the immutable server fixture while it is open.
+      expect(scenario.entity === 'path' ? data.paths[0].status : data.subjects[0].status).toBe('active');
       expect(writes).toBe(1);
 
       await dialog.getByRole('button', { name: 'تأكيد الأرشفة' }).click();
