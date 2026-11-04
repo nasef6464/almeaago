@@ -672,7 +672,7 @@ export function TaxonomyAdminPage() {
           : type === 'subject'
             ? taxonomyAdminClient.updateSubject
             : taxonomyAdminClient.updateSkill;
-    await run(
+    return run(
       `status-${type}-${id}`,
       (csrf) => method(id, { status } as never, csrf).then(() => undefined),
       `تم تحديث الحالة إلى «${statusLabels[status]}».`
@@ -3050,7 +3050,7 @@ export function TaxonomyAdminPage() {
             ? 'المادة'
             : 'المهارة';
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in" dir="rtl">
+      <div role="dialog" aria-modal="true" aria-label={`تأكيد أرشفة ${typeLabel}`} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in" dir="rtl">
         <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
@@ -3064,6 +3064,7 @@ export function TaxonomyAdminPage() {
           <p className="text-xs leading-6 text-slate-600 font-medium">
             سيتم نقل {typeLabel} إلى الأرشيف وإخفاؤه عن الطلاب والزوار، مع الحفاظ على كل المحتوى والبيانات وسجلات الطلاب التاريخية دون فقدان.
           </p>
+          {error ? <p role="alert" className="rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-700">{error}</p> : null}
           <div className="flex justify-end gap-2 pt-2 border-t">
             <button
               type="button"
@@ -3074,12 +3075,11 @@ export function TaxonomyAdminPage() {
             </button>
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || pending === `status-${deleteConfirm.type}-${deleteConfirm.id}`}
               onClick={async () => {
                 const target = deleteConfirm;
-                setDeleteConfirm(null);
-                await patchStatus(target.type, target.id, 'archived');
-                setNotice(`تمت أرشفة ${typeLabel} بنجاح`);
+                const saved = await patchStatus(target.type, target.id, 'archived');
+                if (saved) setDeleteConfirm(null);
               }}
               className="rounded-xl bg-rose-600 px-5 py-2 text-xs font-black text-white hover:bg-rose-700 disabled:opacity-50"
             >
