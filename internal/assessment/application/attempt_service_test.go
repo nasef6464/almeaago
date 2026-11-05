@@ -21,10 +21,10 @@ type fakeAttemptRepo struct {
 	lastStudent string
 	lastPage    int
 	lastLimit   int
-	lastDetail  string
-	submitCalls int
+	lastDetail      string
+	submitCalls     int
 	singleShotCalls int
-	access      assessment.AccessContext
+	access          assessment.AccessContext
 }
 
 func (f *fakeAttemptRepo) GetPublishedAccessContext(context.Context, string) (assessment.AccessContext, error) {
