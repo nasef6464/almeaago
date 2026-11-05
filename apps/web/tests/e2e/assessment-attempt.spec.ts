@@ -45,3 +45,42 @@ test('student can see and select image-backed options when choices are not embed
   }
   expect(mediaLookups).toBeGreaterThan(0);
 });
+
+
+test('student can retry a temporarily unavailable option image without losing the attempt', async ({ page }) => {
+  await mock(page);
+  let lookups = 0;
+  const imageId = 'option-retry-asset';
+  const visualQuestion = {
+    ...attempt.questions[0],
+    options: [{ index: 0, text: '٣', assetId: '' }, { index: 1, text: '', assetId: imageId }],
+  };
+  await page.route('**/api/v1/assessments/assessment-1/attempts', route =>
+    json(route, { attempt: { ...attempt, questions: [visualQuestion] } }));
+  await page.route('**/api/v1/media/assets/option-retry-asset', route => {
+    lookups += 1;
+    if (lookups === 1) return json(route, { error: 'temporarily_unavailable' }, 503);
+    return json(route, {
+      asset: {
+        id: imageId,
+        publicUrl: 'https://cdn.example.test/option-retry.png',
+        status: 'active',
+        mimeType: 'image/png',
+      },
+    });
+  });
+  await page.route('https://cdn.example.test/option-retry.png', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==', 'base64'),
+    }));
+
+  await page.goto('/assessments/assessment-1/start');
+  await expect(page.getByText('تعذر تحميل صورة الاختيار ب')).toBeVisible();
+  await page.getByRole('button', { name: 'إعادة تحميل الصورة' }).click();
+  await expect(page.getByRole('img', { name: 'صورة الاختيار ب' })).toHaveAttribute(
+    'src', 'https://cdn.example.test/option-retry.png');
+  expect(lookups).toBe(2);
+  await expect(page.getByRole('heading', { name: 'محاكي كمي' })).toBeVisible();
+});
