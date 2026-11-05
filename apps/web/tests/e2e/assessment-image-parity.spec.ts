@@ -39,17 +39,24 @@ test('transient media API failure permits retry without leaving the attempt', as
   const imageId = 'question-retry-asset';
   const url = 'https://cdn.example.test/question-retry.png';
   await setup(page, { ...question, imageAssetId: imageId, imageAlt: 'صورة السؤال' });
+  // React StrictMode may mount the image twice, aborting the first lookup.
+  // Keep every pre-retry lookup failing so the UI must expose a real retry.
   let lookups = 0;
+  let retryRequested = false;
   await page.route('**/api/v1/media/assets/question-retry-asset', route => {
     lookups += 1;
-    return lookups === 1 ? json(route, { error: 'temporarily_unavailable' }, 503) : json(route, { asset: { id: imageId, publicUrl: url, status: 'active', mimeType: 'image/svg+xml' } });
+    return retryRequested
+      ? json(route, { asset: { id: imageId, publicUrl: url, status: 'active', mimeType: 'image/svg+xml' } })
+      : json(route, { error: 'temporarily_unavailable' }, 503);
   });
   await page.route(url, route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageA }));
   await page.goto('/assessments/assessment-1/start');
   await expect(page.getByText('تعذر تحميل صورة السؤال')).toBeVisible();
+  retryRequested = true;
+  const previousLookups = lookups;
   await page.getByRole('button', { name: 'إعادة تحميل الصورة' }).click();
   await expect(page.getByRole('img', { name: 'صورة السؤال' })).toHaveAttribute('src', url);
-  expect(lookups).toBe(2);
+  expect(lookups).toBeGreaterThan(previousLookups);
   await expect(page.getByRole('heading', { name: 'محاكي كمي' })).toBeVisible();
 });
 
