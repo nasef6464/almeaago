@@ -89,3 +89,30 @@ for (const width of [390, 1440]) {
     });
   }
 }
+
+
+for (const scenario of cases) {
+  test(`archive ${scenario.entity} denies forbidden mutation without changing state`, async ({ page }) => {
+    const data = fixture();
+    await setup(page, data);
+    let rejectedWrites = 0;
+    await page.route(`**/api/v1/taxonomy/admin/${scenario.endpoint}/${scenario.id}`, route => {
+      rejectedWrites += 1;
+      expect(route.request().method()).toBe('PATCH');
+      expect(route.request().postDataJSON()).toEqual({ status: 'archived' });
+      return route.fulfill({ status: 403, json: { message: 'Forbidden' } });
+    });
+
+    await page.getByRole('button', { name: scenario.action, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: `تأكيد أرشفة ${scenario.name}` });
+    await dialog.getByRole('button', { name: 'تأكيد الأرشفة' }).click();
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('alert')).toBeVisible();
+    await expect(page.getByLabel(scenario.statusLabel)).toHaveValue('active');
+    expect(rejectedWrites).toBe(1);
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByLabel(scenario.statusLabel)).toHaveValue('active');
+    expect(rejectedWrites).toBe(1);
+  });
+}
