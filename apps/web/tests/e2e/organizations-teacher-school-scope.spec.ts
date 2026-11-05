@@ -185,3 +185,30 @@ test('teacher class total is stable when two subject assignments have stale rost
   await expect(rosterCard).toContainText('34');
   await expect(rosterCard).not.toContainText('32');
 });
+
+test('teacher overview isolates roster totals when schools share a class identifier', async ({ page }) => {
+  await auth(page);
+  await page.route('**/api/v1/schools/teacher-workspace', route => json(route, {
+    personas: { platformTrainer: false, schoolTeacher: true },
+    schools: [
+      { schoolId: 'school-a', schoolName: 'مدرسة ألف', source: 'membership', assignments: [
+        { assignmentId: 'a-math', classId: 'shared-class', className: 'فصل ألف', subjectId: 'math', studentCount: 11 },
+        { assignmentId: 'a-science', classId: 'shared-class', className: 'فصل ألف', subjectId: 'science', studentCount: 9 },
+      ] },
+      { schoolId: 'school-b', schoolName: 'مدرسة باء', source: 'membership', assignments: [
+        { assignmentId: 'b-math', classId: 'shared-class', className: 'فصل باء', subjectId: 'math', studentCount: 23 },
+      ] },
+    ],
+  }));
+  await page.goto('/school-teacher-dashboard?schoolId=school-a');
+  const rosterCard = page.getByText('طلاب فصولي').locator('..');
+  await expect(rosterCard).toContainText('11');
+  await expect(rosterCard).not.toContainText('34');
+  await page.getByLabel('المدرسة الحالية').selectOption('school-b');
+  await expect(rosterCard).toContainText('23');
+  await expect(page.getByText('فصل ألف')).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByLabel('المدرسة الحالية')).toHaveValue('school-b');
+  await expect(rosterCard).toContainText('23');
+  await expect(page.getByText('فصل ألف')).toHaveCount(0);
+});
