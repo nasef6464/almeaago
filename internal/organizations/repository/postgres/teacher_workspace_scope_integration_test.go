@@ -123,8 +123,8 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			allowed, err := repo.CanTeachSubject(ctx, teacher, tc.pathID, tc.subjectID)
 			if err != nil {
-			t.Fatal(err)
-		}
+				t.Fatal(err)
+			}
 			if allowed != tc.allowed {
 				t.Fatalf("CanTeachSubject(%s,%s) = %v, want %v", tc.pathID, tc.subjectID, allowed, tc.allowed)
 			}
@@ -137,8 +137,8 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 	}
 	allowed, err := repo.CanTeachSubject(ctx, teacher, pathA, subject)
 	if err != nil {
-			t.Fatal(err)
-		}
+		t.Fatal(err)
+	}
 	if allowed {
 		t.Fatal("revoked school membership still authorizes subject teaching")
 	}
@@ -151,8 +151,8 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 	}
 	allowed, err = repo.CanTeachSubject(ctx, teacher, pathA, subject)
 	if err != nil {
-			t.Fatal(err)
-		}
+		t.Fatal(err)
+	}
 	if allowed {
 		t.Fatal("inactive subject still authorized")
 	}
