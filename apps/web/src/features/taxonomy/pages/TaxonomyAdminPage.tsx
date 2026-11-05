@@ -3069,8 +3069,9 @@ export function TaxonomyAdminPage() {
           <div className="flex justify-end gap-2 pt-2 border-t">
             <button
               type="button"
+              disabled={busy || pending === `status-${deleteConfirm.type}-${deleteConfirm.id}`}
               onClick={() => setDeleteConfirm(null)}
-              className="rounded-xl border px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-50"
+              className="rounded-xl border px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-50 disabled:opacity-50"
             >
               إلغاء
             </button>
