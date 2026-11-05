@@ -21,13 +21,16 @@ func (r *Repository) TeacherWorkspace(
 			(
 				SELECT count(*)::int
 				FROM class_memberships cm
-				JOIN school_memberships sm
-				  ON sm.user_id = cm.user_id
-				 AND sm.school_id = s.id
-				 AND sm.role = 'student'
-				 AND sm.status = 'active'
 				WHERE cm.class_id = c.id
 				  AND cm.status = 'active'
+				  AND EXISTS (
+					SELECT 1
+					FROM school_memberships sm
+					WHERE sm.user_id = cm.user_id
+					  AND sm.school_id = s.id
+					  AND sm.role = 'student'
+					  AND sm.status = 'active'
+				  )
 			) AS student_count
 		FROM teaching_assignments ta
 		JOIN school_memberships teacher_membership
