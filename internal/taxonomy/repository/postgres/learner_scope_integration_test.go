@@ -38,6 +38,8 @@ func TestTaxonomyLearnerScopeFollowsLevelVisibilityPostgres(t *testing.T) {
 
 	const path = "00000000-0000-0000-0000-000000000801"
 	const otherPath = "00000000-0000-0000-0000-000000000802"
+	const childPath = "00000000-0000-0000-0000-000000000807"
+	const childSubject = "00000000-0000-0000-0000-000000000808"
 	const level = "00000000-0000-0000-0000-000000000803"
 	const leveledSubject = "00000000-0000-0000-0000-000000000804"
 	const noLevelSubject = "00000000-0000-0000-0000-000000000805"
@@ -45,13 +47,15 @@ func TestTaxonomyLearnerScopeFollowsLevelVisibilityPostgres(t *testing.T) {
 	fixtures := []string{
 		`INSERT INTO paths(id,code,name,status) VALUES
           ('` + path + `','SCOPE-PATH','مسار','active'),
-          ('` + otherPath + `','SCOPE-OTHER','مسار آخر','active')`,
+          ('` + otherPath + `','SCOPE-OTHER','مسار آخر','active'),
+          ('` + childPath + `','SCOPE-CHILD','مسار فرعي','active')`,
 		`INSERT INTO levels(id,path_id,code,name,status) VALUES
           ('` + level + `','` + path + `','L1','المرحلة','active')`,
 		`INSERT INTO subjects(id,path_id,level_id,code,name,status) VALUES
           ('` + leveledSubject + `','` + path + `','` + level + `','LEVELED','مادة بمرحلة','active'),
           ('` + noLevelSubject + `','` + path + `',NULL,'NOLEVEL','مادة بدون مرحلة','active'),
-          ('` + otherSubject + `','` + otherPath + `',NULL,'OTHER','مادة خارج المسار','active')`,
+          ('` + otherSubject + `','` + otherPath + `',NULL,'OTHER','مادة خارج المسار','active'),
+          ('` + childSubject + `','` + childPath + `',NULL,'CHILD','مادة فرعية','active')`,
 	}
 	for _, query := range fixtures {
 		if _, err := db.Exec(ctx, query); err != nil {
@@ -189,6 +193,37 @@ func TestTaxonomyLearnerScopeFollowsLevelVisibilityPostgres(t *testing.T) {
 			assertHierarchy(target.table+" "+status, status == "active")
 		}
 	}
+
+	// An active nested path must disappear from all learner surfaces while its
+	// ancestor is archived, without deleting its own row or child subject.
+	if _, err := db.Exec(ctx, "UPDATE paths SET parent_path_id=$1::uuid WHERE id=$2::uuid", path, childPath); err != nil {
+		t.Fatal(err)
+	}
+	assertChild := func(want bool) {
+		t.Helper()
+		bootstrap, err := repo.PublicBootstrap(ctx, true)
+		if err != nil { t.Fatal(err) }
+		var visiblePath, visibleSubject bool
+		for _, row := range bootstrap.Paths { if row.ID == childPath { visiblePath = true } }
+		for _, row := range bootstrap.Subjects { if row.ID == childSubject { visibleSubject = true } }
+		if visiblePath != want || visibleSubject != want {
+			t.Fatalf("nested path visibility: path=%v subject=%v want=%v", visiblePath, visibleSubject, want)
+		}
+		allowed, err := repo.ValidateMasteryGoalScope(ctx, childPath, childSubject)
+		if err != nil || allowed != want { t.Fatalf("nested mastery scope=%v err=%v want=%v", allowed, err, want) }
+		allowed, err = repo.ValidateStudyPlanScope(ctx, childPath, []string{childSubject})
+		if err != nil || allowed != want { t.Fatalf("nested study plan scope=%v err=%v want=%v", allowed, err, want) }
+		admin, err := repo.AdminBootstrap(ctx)
+		if err != nil { t.Fatal(err) }
+		var retained bool
+		for _, row := range admin.Paths { if row.ID == childPath { retained = row.ParentPathID == path } }
+		if !retained { t.Fatal("admin lost nested path parent relationship") }
+	}
+	assertChild(true)
+	if _, err := db.Exec(ctx, "UPDATE paths SET status='archived' WHERE id=$1::uuid", path); err != nil { t.Fatal(err) }
+	assertChild(false)
+	if _, err := db.Exec(ctx, "UPDATE paths SET status='active' WHERE id=$1::uuid", path); err != nil { t.Fatal(err) }
+	assertChild(true)
 
 	assertScope("active", true)
 	for _, status := range []string{"inactive", "archived", "active"} {
