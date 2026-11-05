@@ -94,7 +94,7 @@ export function TeacherWorkspacePage() {
           <p className="mt-1 text-xs font-bold text-gray-500">{school?.schoolName || 'لا توجد مدرسة مسندة'}</p>
           {workspace.schools.length > 1 || hasUnknownSchool ? <div className="mt-3">
             <label htmlFor="teacher-school" className="mb-1 block text-xs font-bold text-slate-600">المدرسة الحالية</label>
-            <select id="teacher-school" value={school?.schoolId || ''} onChange={event => {
+            <select id="teacher-school" value={hasUnknownSchool ? '' : school?.schoolId || ''} onChange={event => {
               setSearchParams(previous => {
                 const next = new URLSearchParams(previous);
                 next.set('schoolId', event.target.value);
