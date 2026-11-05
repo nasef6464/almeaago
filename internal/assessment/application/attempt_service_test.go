@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -318,5 +319,42 @@ func TestSingleShotLearningHandoffRequiresEvidenceSource(t *testing.T) {
 		assessment.SingleShotSubmissionRequest{SubmissionKey: "submission-key"})
 	if err == nil {
 		t.Fatal("missing evidence source must not silently drop skill analysis")
+	}
+}
+
+func TestSingleShotRejectsInvalidSubmissionBeforeRepository(t *testing.T) {
+	tests := []struct {
+		name string
+		request assessment.SingleShotSubmissionRequest
+	}{
+		{"missing idempotency key", assessment.SingleShotSubmissionRequest{Answers: map[string]int{"q-1": 0}}},
+		{"oversized idempotency key", assessment.SingleShotSubmissionRequest{SubmissionKey: strings.Repeat("x", 161)}},
+		{"negative answer index", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", Answers: map[string]int{"q-1": -1}}},
+		{"empty question id", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", Answers: map[string]int{" ": 0}}},
+		{"negative duration", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", TimeSpentSeconds: -1}},
+		{"excessive duration", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", TimeSpentSeconds: 86401}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &fakeAttemptRepo{}
+			service := NewAttemptService(repo)
+			_, err := service.SingleShotSubmit(context.Background(), student("student-1"), "quiz-1", tc.request)
+			if !errors.Is(err, ErrInvalidInput) {
+				t.Fatalf("expected invalid input before persistence, got %v", err)
+			}
+			if repo.lastStudent != "" {
+				t.Fatal("invalid submission reached repository")
+			}
+		})
+	}
+}
+
+func TestSingleShotRejectsTeacherBeforeRepository(t *testing.T) {
+	repo := &fakeAttemptRepo{}
+	service := NewAttemptService(repo)
+	_, err := service.SingleShotSubmit(context.Background(), identity.User{ID: "teacher-1", Roles: []identity.Role{identity.RoleTeacher}}, "quiz-1",
+		assessment.SingleShotSubmissionRequest{SubmissionKey: "key"})
+	if !errors.Is(err, ErrForbidden) || repo.lastStudent != "" {
+		t.Fatalf("teacher submission should be denied before persistence: err=%v student=%q", err, repo.lastStudent)
 	}
 }
