@@ -43,6 +43,16 @@ func (r *Repository) TeacherWorkspace(
 		WHERE ta.teacher_id = $1::uuid
 		  AND ta.status = 'active'
 		  AND EXISTS (
+			SELECT 1 FROM users teacher_user
+			WHERE teacher_user.id = ta.teacher_id
+			  AND teacher_user.status = 'active'
+		  )
+		  AND EXISTS (
+			SELECT 1 FROM user_roles teacher_role
+			WHERE teacher_role.user_id = ta.teacher_id
+			  AND teacher_role.role = 'teacher'
+		  )
+		  AND EXISTS (
 			SELECT 1 FROM school_memberships teacher_membership
 			WHERE teacher_membership.school_id = ta.school_id
 			  AND teacher_membership.user_id = ta.teacher_id
