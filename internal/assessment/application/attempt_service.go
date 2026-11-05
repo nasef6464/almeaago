@@ -225,11 +225,16 @@ func (s *AttemptService) SingleShotSubmit(
 	}
 
 	if s.evidenceSink != nil {
-		if source, ok := s.repo.(SubmissionEvidenceSource); ok {
-			evidence, err := source.LearningSubmissionEvidence(ctx, actor.ID, detail.Result.AttemptID)
-			if err == nil {
-				_ = s.evidenceSink.ApplyAssessmentSubmission(ctx, evidence)
-			}
+		source, ok := s.repo.(SubmissionEvidenceSource)
+		if !ok {
+			return assessment.SingleShotQuizResultDTO{}, errors.New("assessment learning evidence source is not configured")
+		}
+		evidence, err := source.LearningSubmissionEvidence(ctx, actor.ID, detail.Result.AttemptID)
+		if err != nil {
+			return assessment.SingleShotQuizResultDTO{}, err
+		}
+		if err := s.evidenceSink.ApplyAssessmentSubmission(ctx, evidence); err != nil {
+			return assessment.SingleShotQuizResultDTO{}, err
 		}
 	}
 
