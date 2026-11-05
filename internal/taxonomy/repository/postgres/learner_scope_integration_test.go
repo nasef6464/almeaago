@@ -202,27 +202,53 @@ func TestTaxonomyLearnerScopeFollowsLevelVisibilityPostgres(t *testing.T) {
 	assertChild := func(want bool) {
 		t.Helper()
 		bootstrap, err := repo.PublicBootstrap(ctx, true)
-		if err != nil { t.Fatal(err) }
+		if err != nil {
+			t.Fatal(err)
+		}
 		var visiblePath, visibleSubject bool
-		for _, row := range bootstrap.Paths { if row.ID == childPath { visiblePath = true } }
-		for _, row := range bootstrap.Subjects { if row.ID == childSubject { visibleSubject = true } }
+		for _, row := range bootstrap.Paths {
+			if row.ID == childPath {
+				visiblePath = true
+			}
+		}
+		for _, row := range bootstrap.Subjects {
+			if row.ID == childSubject {
+				visibleSubject = true
+			}
+		}
 		if visiblePath != want || visibleSubject != want {
 			t.Fatalf("nested path visibility: path=%v subject=%v want=%v", visiblePath, visibleSubject, want)
 		}
 		allowed, err := repo.ValidateMasteryGoalScope(ctx, childPath, childSubject)
-		if err != nil || allowed != want { t.Fatalf("nested mastery scope=%v err=%v want=%v", allowed, err, want) }
+		if err != nil || allowed != want {
+			t.Fatalf("nested mastery scope=%v err=%v want=%v", allowed, err, want)
+		}
 		allowed, err = repo.ValidateStudyPlanScope(ctx, childPath, []string{childSubject})
-		if err != nil || allowed != want { t.Fatalf("nested study plan scope=%v err=%v want=%v", allowed, err, want) }
+		if err != nil || allowed != want {
+			t.Fatalf("nested study plan scope=%v err=%v want=%v", allowed, err, want)
+		}
 		admin, err := repo.AdminBootstrap(ctx)
-		if err != nil { t.Fatal(err) }
+		if err != nil {
+			t.Fatal(err)
+		}
 		var retained bool
-		for _, row := range admin.Paths { if row.ID == childPath { retained = row.ParentPathID == path } }
-		if !retained { t.Fatal("admin lost nested path parent relationship") }
+		for _, row := range admin.Paths {
+			if row.ID == childPath {
+				retained = row.ParentPathID == path
+			}
+		}
+		if !retained {
+			t.Fatal("admin lost nested path parent relationship")
+		}
 	}
 	assertChild(true)
-	if _, err := db.Exec(ctx, "UPDATE paths SET status='archived' WHERE id=$1::uuid", path); err != nil { t.Fatal(err) }
+	if _, err := db.Exec(ctx, "UPDATE paths SET status='archived' WHERE id=$1::uuid", path); err != nil {
+		t.Fatal(err)
+	}
 	assertChild(false)
-	if _, err := db.Exec(ctx, "UPDATE paths SET status='active' WHERE id=$1::uuid", path); err != nil { t.Fatal(err) }
+	if _, err := db.Exec(ctx, "UPDATE paths SET status='active' WHERE id=$1::uuid", path); err != nil {
+		t.Fatal(err)
+	}
 	assertChild(true)
 
 	assertScope("active", true)
