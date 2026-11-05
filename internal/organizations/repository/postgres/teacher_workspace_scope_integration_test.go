@@ -251,6 +251,22 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 	if _, err := pool.Exec(ctx, "UPDATE school_memberships SET status='inactive' WHERE school_id=$1 AND user_id=$2 AND role='teacher'", schoolB, teacher); err != nil {
 		t.Fatal(err)
 	}
+	// The same teacher may retain school A, but school B's independent subject
+	// grant must be revoked as soon as B's membership is disabled.
+	allowed, err = repo.CanTeachSubject(ctx, teacher, pathB, subjectB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if allowed {
+		t.Fatal("revoked school B still authorizes its subject")
+	}
+	allowed, err = repo.CanTeachSubject(ctx, teacher, pathA, subject)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !allowed {
+		t.Fatal("revoking school B unexpectedly revoked school A subject")
+	}
 	workspace, err = repo.TeacherWorkspace(ctx, teacher)
 	if err != nil {
 		t.Fatal(err)
