@@ -108,6 +108,50 @@ func TestTaxonomyLearnerScopeFollowsLevelVisibilityPostgres(t *testing.T) {
 		}
 	}
 
+	// Archiving a parent path or subject must hide learner content without
+	// deleting the canonical child rows. Restoring the same UUIDs must make
+	// existing relationships visible again (no destructive recreation).
+	assertHierarchy := func(label string, wantVisible bool) {
+		t.Helper()
+		bootstrap, err := repo.PublicBootstrap(ctx, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		visible := false
+		for _, subject := range bootstrap.Subjects {
+			if subject.ID == leveledSubject {
+				visible = true
+			}
+		}
+		if visible != wantVisible {
+			t.Fatalf("%s subject visible=%v want=%v", label, visible, wantVisible)
+		}
+		goal, err := repo.ValidateMasteryGoalScope(ctx, path, leveledSubject)
+		if err != nil || goal != wantVisible {
+			t.Fatalf("%s goal allowed=%v err=%v want=%v", label, goal, err, wantVisible)
+		}
+		plan, err := repo.ValidateStudyPlanScope(ctx, path, []string{leveledSubject})
+		if err != nil || plan != wantVisible {
+			t.Fatalf("%s plan allowed=%v err=%v want=%v", label, plan, err, wantVisible)
+		}
+		var parentID, levelID string
+		if err := db.QueryRow(ctx, "SELECT path_id::text, level_id::text FROM subjects WHERE id=$1::uuid", leveledSubject).Scan(&parentID, &levelID); err != nil {
+			t.Fatal(err)
+		}
+		if parentID != path || levelID != level {
+			t.Fatalf("%s archive/restore changed subject relationships: path=%s level=%s", label, parentID, levelID)
+		}
+	}
+	assertHierarchy("initial", true)
+	for _, target := range []struct{ table, id string }{{"subjects", leveledSubject}, {"paths", path}} {
+		for _, status := range []string{"archived", "active"} {
+			if _, err := db.Exec(ctx, "UPDATE "+target.table+" SET status=$1 WHERE id=$2::uuid", status, target.id); err != nil {
+				t.Fatal(err)
+			}
+			assertHierarchy(target.table+" "+status, status == "active")
+		}
+	}
+
 	assertScope("active", true)
 	for _, status := range []string{"inactive", "archived", "active"} {
 		if _, err := db.Exec(ctx, "UPDATE levels SET status=$1 WHERE id=$2::uuid", status, level); err != nil {
