@@ -91,6 +91,36 @@ for (const width of [390, 1440]) {
 }
 
 
+test('archive confirmation disables duplicate submission until API completes', async ({ page }) => {
+  const data = fixture();
+  await setup(page, data);
+  let writes = 0;
+  let release: (() => void) | undefined;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/v1/taxonomy/admin/paths/path-1', async route => {
+    writes += 1;
+    expect(route.request().method()).toBe('PATCH');
+    await gate;
+    data.paths[0].status = 'archived';
+    await route.fulfill({ json: { path: data.paths[0] } });
+  });
+  await page.getByRole('button', { name: 'أرشفة المسار', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'تأكيد أرشفة المسار' });
+  const confirm = dialog.getByRole('button', { name: 'تأكيد الأرشفة' });
+  try {
+    await confirm.click();
+    await expect(confirm).toBeDisabled();
+    await expect(dialog).toBeVisible();
+    expect(writes).toBe(1);
+  } finally {
+    release?.();
+  }
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByLabel('حالة القدرات')).toHaveValue('archived');
+  expect(writes).toBe(1);
+});
+
+
 for (const scenario of cases) {
   test(`archive ${scenario.entity} denies forbidden mutation without changing state`, async ({ page }) => {
     const data = fixture();
