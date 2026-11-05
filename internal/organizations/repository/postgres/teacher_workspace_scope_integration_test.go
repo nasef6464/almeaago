@@ -53,6 +53,8 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		"CREATE TABLE teaching_assignments (id uuid PRIMARY KEY, school_id uuid, teacher_id uuid, class_id uuid, subject_id uuid, status text)",
 		"CREATE TABLE school_memberships (school_id uuid, user_id uuid, role text, status text)",
 		"CREATE TABLE class_memberships (class_id uuid, user_id uuid, status text)",
+		"CREATE TABLE paths (id uuid PRIMARY KEY, status text)",
+		"CREATE TABLE subjects (id uuid PRIMARY KEY, path_id uuid, status text)",
 	} {
 		if _, err := pool.Exec(ctx, ddl); err != nil {
 			t.Fatal(err)
@@ -68,12 +70,17 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 	const subject = "00000000-0000-0000-0000-000000008031"
 	const assignmentA = "00000000-0000-0000-0000-000000008041"
 	const assignmentB = "00000000-0000-0000-0000-000000008042"
+	const pathA = "00000000-0000-0000-0000-000000008051"
+	const pathB = "00000000-0000-0000-0000-000000008052"
+	const subjectB = "00000000-0000-0000-0000-000000008032"
 	fixtures := []struct {
 		sql  string
 		args []any
 	}{
 		{"INSERT INTO users VALUES ($1,'active'),($2,'active'),($3,'active')", []any{teacher, studentA, studentB}},
 		{"INSERT INTO user_roles VALUES ($1,'teacher')", []any{teacher}},
+		{"INSERT INTO paths VALUES ($1,'active'),($2,'active')", []any{pathA, pathB}},
+		{"INSERT INTO subjects VALUES ($1,$2,'active'),($3,$4,'active')", []any{subject, pathA, subjectB, pathB}},
 		{"INSERT INTO schools VALUES ($1,'مدرسة ألف','active'),($2,'مدرسة باء','active')", []any{schoolA, schoolB}},
 		{"INSERT INTO classes VALUES ($1,$2,'الأول ألف','active'),($3,$4,'الثاني باء','active')", []any{classA, schoolA, classB, schoolB}},
 		{"INSERT INTO school_memberships VALUES ($1,$3,'teacher','active'),($2,$3,'teacher','active'),($1,$4,'student','active'),($2,$5,'student','active')", []any{schoolA, schoolB, teacher, studentA, studentB}},
@@ -102,6 +109,37 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 			t.Fatalf("cross-school class disclosure %+v", school)
 		}
 	}
+	// Authorization must follow the real assignment's subject and path,
+	// not just the caller's global teacher role or another school's roster.
+	for _, tc := range []struct {
+		name, pathID, subjectID string
+		allowed bool
+	}{
+		{"assigned subject", pathA, subject, true},
+		{"unassigned subject", pathB, subjectB, false},
+		{"mismatched path", pathB, subject, false},
+		{"mismatched subject", pathA, subjectB, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			allowed, err := repo.CanTeachSubject(ctx, teacher, tc.pathID, tc.subjectID)
+			if err != nil { t.Fatal(err) }
+			if allowed != tc.allowed { t.Fatalf("CanTeachSubject(%s,%s) = %v, want %v", tc.pathID, tc.subjectID, allowed, tc.allowed) }
+		})
+	}
+	// Revoking a school membership must revoke subject teaching permission
+	// even while the assignment and global teacher role remain active.
+	if _, err := pool.Exec(ctx, "UPDATE school_memberships SET status='inactive' WHERE school_id=$1 AND user_id=$2 AND role='teacher'", schoolA, teacher); err != nil { t.Fatal(err) }
+	allowed, err := repo.CanTeachSubject(ctx, teacher, pathA, subject)
+	if err != nil { t.Fatal(err) }
+	if allowed { t.Fatal("revoked school membership still authorizes subject teaching") }
+	if _, err := pool.Exec(ctx, "UPDATE school_memberships SET status='active' WHERE school_id=$1 AND user_id=$2 AND role='teacher'", schoolA, teacher); err != nil { t.Fatal(err) }
+	// Disabled content must not remain teachable through a stale assignment.
+	if _, err := pool.Exec(ctx, "UPDATE subjects SET status='inactive' WHERE id=$1", subject); err != nil { t.Fatal(err) }
+	allowed, err = repo.CanTeachSubject(ctx, teacher, pathA, subject)
+	if err != nil { t.Fatal(err) }
+	if allowed { t.Fatal("inactive subject still authorized") }
+	if _, err := pool.Exec(ctx, "UPDATE subjects SET status='active' WHERE id=$1", subject); err != nil { t.Fatal(err) }
+
 	// Duplicate teacher membership rows must not duplicate assignments or
 	// produce a second copy of the same school/class in the HTTP response.
 	if _, err := pool.Exec(ctx, "INSERT INTO school_memberships VALUES ($1,$2,'teacher','active')", schoolA, teacher); err != nil {
