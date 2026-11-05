@@ -72,7 +72,7 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		sql  string
 		args []any
 	}{
-		{"INSERT INTO users VALUES ($1,'active')", []any{teacher}},
+		{"INSERT INTO users VALUES ($1,'active'),($2,'active'),($3,'active')", []any{teacher, studentA, studentB}},
 		{"INSERT INTO user_roles VALUES ($1,'teacher')", []any{teacher}},
 		{"INSERT INTO schools VALUES ($1,'مدرسة ألف','active'),($2,'مدرسة باء','active')", []any{schoolA, schoolB}},
 		{"INSERT INTO classes VALUES ($1,$2,'الأول ألف','active'),($3,$4,'الثاني باء','active')", []any{classA, schoolA, classB, schoolB}},
@@ -142,6 +142,32 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 	for _, school := range workspace.Schools {
 		if len(school.Assignments) != 1 || school.Assignments[0].StudentCount != 1 {
 			t.Fatalf("duplicate or foreign student inflated school roster: %+v", school)
+		}
+	}
+	// A disabled student account must not be counted merely because both
+	// school and class memberships remain active. Re-enabling restores it.
+	if _, err := pool.Exec(ctx, "UPDATE users SET status='inactive' WHERE id=$1", studentA); err != nil {
+		t.Fatal(err)
+	}
+	workspace, err = repo.TeacherWorkspace(ctx, teacher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, school := range workspace.Schools {
+		if school.SchoolID == schoolA && school.Assignments[0].StudentCount != 0 {
+			t.Fatalf("disabled student identity still counted: %+v", school)
+		}
+	}
+	if _, err := pool.Exec(ctx, "UPDATE users SET status='active' WHERE id=$1", studentA); err != nil {
+		t.Fatal(err)
+	}
+	workspace, err = repo.TeacherWorkspace(ctx, teacher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, school := range workspace.Schools {
+		if school.SchoolID == schoolA && school.Assignments[0].StudentCount != 1 {
+			t.Fatalf("restored student identity missing from roster: %+v", school)
 		}
 	}
 	if _, err := pool.Exec(ctx, "UPDATE school_memberships SET status='inactive' WHERE school_id=$1 AND user_id=$2 AND role='student'", schoolA, studentA); err != nil {
