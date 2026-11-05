@@ -315,6 +315,28 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 	if _, err := pool.Exec(ctx, "UPDATE users SET status='active' WHERE id=$1", teacher); err != nil {
 		t.Fatal(err)
 	}
+	// Subject-level authorization must obey the same global identity and
+	// school-state revocations as workspace visibility, not just assignment status.
+	for _, tc := range []struct {
+		name, revoke, restore string
+	}{
+		{"global teacher role", "DELETE FROM user_roles WHERE user_id='00000000-0000-0000-0000-000000008001'", "INSERT INTO user_roles VALUES ('00000000-0000-0000-0000-000000008001','teacher')"},
+		{"teacher identity", "UPDATE users SET status='inactive' WHERE id='00000000-0000-0000-0000-000000008001'", "UPDATE users SET status='active' WHERE id='00000000-0000-0000-0000-000000008001'"},
+		{"class status", "UPDATE classes SET status='inactive' WHERE id='00000000-0000-0000-0000-000000008021'", "UPDATE classes SET status='active' WHERE id='00000000-0000-0000-0000-000000008021'"},
+		{"school status", "UPDATE schools SET status='inactive' WHERE id='00000000-0000-0000-0000-000000008011'", "UPDATE schools SET status='active' WHERE id='00000000-0000-0000-0000-000000008011'"},
+		{"assignment status", "UPDATE teaching_assignments SET status='inactive' WHERE id='00000000-0000-0000-0000-000000008041'", "UPDATE teaching_assignments SET status='active' WHERE id='00000000-0000-0000-0000-000000008041'"},
+	} {
+		t.Run("subject grant revoked by "+tc.name, func(t *testing.T) {
+			if _, err := pool.Exec(ctx, tc.revoke); err != nil { t.Fatal(err) }
+			allowed, err := repo.CanTeachSubject(ctx, teacher, pathA, subject)
+			if err != nil { t.Fatal(err) }
+			if allowed { t.Fatalf("%s still authorizes subject", tc.name) }
+			if _, err := pool.Exec(ctx, tc.restore); err != nil { t.Fatal(err) }
+			allowed, err = repo.CanTeachSubject(ctx, teacher, pathA, subject)
+			if err != nil { t.Fatal(err) }
+			if !allowed { t.Fatalf("%s restoration did not restore authorized subject", tc.name) }
+		})
+	}
 	// A valid teacher assignment must not expose an inactive school. This also
 	// guards against non-archived inactive statuses accidentally being visible.
 	if _, err := pool.Exec(ctx, "UPDATE teaching_assignments SET status='active' WHERE id=$1", assignmentA); err != nil {
