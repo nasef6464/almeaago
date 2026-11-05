@@ -3,7 +3,8 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 const student = { id: 'student-1', email: 'student@example.com', name: 'طالب', status: 'active', avatarUrl: '', emailVerified: true, role: 'student', roles: ['student'] };
 const question = { id: 'q-1', version: 3, sectionId: '', sortOrder: 1, points: 1, type: 'mcq', text: 'اختر الشكل الصحيح', imageAssetId: '', imageAlt: '', optionsEmbeddedInImage: false, videoUrl: '', difficulty: 'easy', options: [{ index: 0, text: '', assetId: '' }, { index: 1, text: '', assetId: '' }] };
 const attempt = { id: 'attempt-1', assessmentId: 'assessment-1', assessmentVersion: 2, attemptNumber: 1, status: 'in_progress', title: 'محاكي كمي', startedAt: '2026-09-26T10:00:00Z', expiresAt: null, submittedAt: null, showProgressBar: true, requireAnswerBeforeNext: false, allowQuestionReview: true, randomizeOptions: false, questions: [question], answers: [] };
-const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==', 'base64');
+const imageA = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" fill="red"/></svg>';
+const imageB = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle cx="16" cy="16" r="12" fill="blue"/></svg>';
 function json(route: Route, payload: unknown, status = 200) { return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(payload) }); }
 async function setup(page: Page, updatedQuestion: typeof question) {
   await page.route('**/api/v1/auth/me', route => json(route, { user: student }));
@@ -15,13 +16,13 @@ async function setup(page: Page, updatedQuestion: typeof question) {
 test('separate choice images remain selectable at mobile, tablet and desktop widths', async ({ page }) => {
   const firstId = 'option-image-asset-a';
   const secondId = 'option-image-asset-b';
-  const firstUrl = 'https://cdn.example.test/option-a.png';
-  const secondUrl = 'https://cdn.example.test/option-b.png';
+  const firstUrl = 'https://cdn.example.test/option-a.svg';
+  const secondUrl = 'https://cdn.example.test/option-b.svg';
   await setup(page, { ...question, options: [{ index: 0, text: '', assetId: firstId }, { index: 1, text: '', assetId: secondId }] });
-  await page.route('**/api/v1/media/assets/option-image-asset-a', route => json(route, { asset: { id: firstId, publicUrl: firstUrl, status: 'active', mimeType: 'image/png' } }));
-  await page.route('**/api/v1/media/assets/option-image-asset-b', route => json(route, { asset: { id: secondId, publicUrl: secondUrl, status: 'active', mimeType: 'image/png' } }));
-  await page.route(firstUrl, route => route.fulfill({ status: 200, contentType: 'image/png', body: png }));
-  await page.route(secondUrl, route => route.fulfill({ status: 200, contentType: 'image/png', body: png }));
+  await page.route('**/api/v1/media/assets/option-image-asset-a', route => json(route, { asset: { id: firstId, publicUrl: firstUrl, status: 'active', mimeType: 'image/svg+xml' } }));
+  await page.route('**/api/v1/media/assets/option-image-asset-b', route => json(route, { asset: { id: secondId, publicUrl: secondUrl, status: 'active', mimeType: 'image/svg+xml' } }));
+  await page.route(firstUrl, route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageA }));
+  await page.route(secondUrl, route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageB }));
   for (const width of [390, 820, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/assessments/assessment-1/start');
@@ -41,9 +42,9 @@ test('transient media API failure permits retry without leaving the attempt', as
   let lookups = 0;
   await page.route('**/api/v1/media/assets/question-retry-asset', route => {
     lookups += 1;
-    return lookups === 1 ? json(route, { error: 'temporarily_unavailable' }, 503) : json(route, { asset: { id: imageId, publicUrl: url, status: 'active', mimeType: 'image/png' } });
+    return lookups === 1 ? json(route, { error: 'temporarily_unavailable' }, 503) : json(route, { asset: { id: imageId, publicUrl: url, status: 'active', mimeType: 'image/svg+xml' } });
   });
-  await page.route(url, route => route.fulfill({ status: 200, contentType: 'image/png', body: png }));
+  await page.route(url, route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageA }));
   await page.goto('/assessments/assessment-1/start');
   await expect(page.getByText('تعذر تحميل صورة السؤال')).toBeVisible();
   await page.getByRole('button', { name: 'إعادة تحميل الصورة' }).click();
