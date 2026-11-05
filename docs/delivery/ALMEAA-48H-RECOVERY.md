@@ -1,7 +1,7 @@
-# ALMEAA — 48-hour recovery and delivery control (2026-11-05)
+# ALMEAA — 24-hour recovery and delivery control (2026-11-05)
 
 ## Non-negotiable outcome
-Restore the Legacy user journeys on Go + PostgreSQL with exact visual/behavioral parity. No redesign, production deployment, fake green tests, secret changes, or new draft PRs for work already owned by an open PR. **48 hours is a target, not an evidence-free completion promise.** Unverified areas remain explicitly incomplete.
+Restore the Legacy user journeys on Go + PostgreSQL with exact visual/behavioral parity. No redesign, production deployment, fake green tests, secret changes, or new draft PRs for work already owned by an open PR. **24 hours is a target, not an evidence-free completion promise.** Unverified areas remain explicitly incomplete.
 
 ## Current evidence and first blocker
 - Existing open PRs: DevOps #265 and #266, admin #264, student #262 and #269, schools #268.
@@ -27,13 +27,14 @@ No lane modifies another lane's owned UI or assessment engine. API contracts and
 4. Attach CI URL, screenshot/trace if applicable, precise SQL persistence assertion and reload proof; mock-only tests are regression coverage, never full-stack acceptance.
 5. Obtain review and all required green checks before merge. Verify post-merge main; never deploy to production as part of recovery.
 
-## Timeboxes and stop conditions
-- **0–4 hours:** capture live baseline and CI logs; fix the first common red gate in #265; coordinate #267.
-- **4–12 hours:** run shared test infrastructure and enable real isolated DB evidence; each feature lane chooses one end-to-end slice.
-- **12–30 hours:** implement/test student, taxonomy, and schools slices in parallel; keep PR count stable.
-- **30–42 hours:** visual/functional Legacy comparison, fix regressions, complete reviews.
-- **42–48 hours:** merge only green/reviewed slices, re-run main, publish explicit completed/remaining matrix and next checkpoints.
-- If a gate stays red, mark slice **blocked/incomplete**; never invent a finish percentage or call an unmerged mock test a delivered feature.
+## Timeboxes and stop conditions (24-hour target)
+- **0–2 hours:** inspect current main/PR SHAs and first common red CI gate; fix or isolate its root cause on #265, without bypassing parity.
+- **2–6 hours:** verify disposable PostgreSQL+Go+Chromium workflow and share API/tenant fixtures. Feature owners compare old PRs against current main.
+- **6–17 hours:** parallel, isolated vertical slices: student attempt persistence/results; admin archive/restore; school cross-tenant access and reporting. Each must include real HTTP→PostgreSQL readback, RBAC and regression tests.
+- **17–21 hours:** Chromium E2E, Legacy screenshots at 390/820/1440, bug fixes, and review.
+- **21–24 hours:** merge only green and reviewed PRs; re-run main; report verified complete vs incomplete. No production deployment.
+- **Critical path:** shared CI must become trustworthy early. If any lane is blocked, switch it to another independently testable Legacy parity slice; do not replace integration proof with mocks.
+- **Risk:** 24 hours cannot guarantee full platform parity. Unverified or blocked features are explicitly incomplete; no arbitrary test relaxations.
 
 ## Next concrete actions
 1. DevOps: inspect artifact screenshots and select metrics from Database CI 42024619529, fix real 390px drift on #265, rerun.
