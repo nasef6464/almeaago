@@ -13,16 +13,22 @@ async function setup(page: Page, updatedQuestion: typeof question) {
 }
 
 test('separate choice images remain selectable at mobile, tablet and desktop widths', async ({ page }) => {
-  const imageId = 'option-image-asset';
-  const url = 'https://cdn.example.test/option.png';
-  await setup(page, { ...question, imageAssetId: imageId, imageAlt: 'صورة السؤال', options: [{ index: 0, text: '', assetId: imageId }, { index: 1, text: '', assetId: imageId }] });
-  await page.route('**/api/v1/media/assets/option-image-asset', route => json(route, { asset: { id: imageId, publicUrl: url, status: 'active', mimeType: 'image/png' } }));
-  await page.route(url, route => route.fulfill({ status: 200, contentType: 'image/png', body: png }));
+  const firstId = 'option-image-asset-a';
+  const secondId = 'option-image-asset-b';
+  const firstUrl = 'https://cdn.example.test/option-a.png';
+  const secondUrl = 'https://cdn.example.test/option-b.png';
+  await setup(page, { ...question, options: [{ index: 0, text: '', assetId: firstId }, { index: 1, text: '', assetId: secondId }] });
+  await page.route('**/api/v1/media/assets/option-image-asset-a', route => json(route, { asset: { id: firstId, publicUrl: firstUrl, status: 'active', mimeType: 'image/png' } }));
+  await page.route('**/api/v1/media/assets/option-image-asset-b', route => json(route, { asset: { id: secondId, publicUrl: secondUrl, status: 'active', mimeType: 'image/png' } }));
+  await page.route(firstUrl, route => route.fulfill({ status: 200, contentType: 'image/png', body: png }));
+  await page.route(secondUrl, route => route.fulfill({ status: 200, contentType: 'image/png', body: png }));
   for (const width of [390, 820, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/assessments/assessment-1/start');
     await expect(page.getByRole('img', { name: 'صورة الاختيار أ' })).toBeVisible();
     await expect(page.getByRole('img', { name: 'صورة الاختيار ب' })).toBeVisible();
+    await expect(page.getByRole('img', { name: 'صورة الاختيار أ' })).toHaveAttribute('src', firstUrl);
+    await expect(page.getByRole('img', { name: 'صورة الاختيار ب' })).toHaveAttribute('src', secondUrl);
     await page.getByRole('button', { name: /صورة الاختيار ب/ }).click();
     await expect(page.getByRole('button', { name: /صورة الاختيار ب/ })).toHaveClass(/border-amber-500/);
   }
