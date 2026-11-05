@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	taxonomy "github.com/nasef6464/almeaago/internal/taxonomy/domain"
 )
 
 // TestTaxonomyLearnerScopeFollowsLevelVisibilityPostgres checks the manager-to-
@@ -36,6 +38,17 @@ func TestTaxonomyLearnerScopeFollowsLevelVisibilityPostgres(t *testing.T) {
 		}
 	}
 
+	// Shadow the mutation audit tables so real Go transactions remain isolated.
+	for _, statement := range []string{
+		"CREATE TEMP TABLE users (id uuid PRIMARY KEY)",
+		"CREATE TEMP TABLE audit_logs (actor_user_id uuid, action text, resource_type text, resource_id text, status text, metadata jsonb)",
+		"INSERT INTO users(id) VALUES ('00000000-0000-0000-0000-000000000899')",
+	} {
+		if _, err := db.Exec(ctx, statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	const actor = "00000000-0000-0000-0000-000000000899"
 	const path = "00000000-0000-0000-0000-000000000801"
 	const otherPath = "00000000-0000-0000-0000-000000000802"
 	const childPath = "00000000-0000-0000-0000-000000000807"
@@ -186,12 +199,22 @@ func TestTaxonomyLearnerScopeFollowsLevelVisibilityPostgres(t *testing.T) {
 	}
 	assertHierarchy("initial", true)
 	for _, target := range []struct{ table, id string }{{"subjects", leveledSubject}, {"paths", path}} {
-		for _, status := range []string{"archived", "active"} {
-			if _, err := db.Exec(ctx, "UPDATE "+target.table+" SET status=$1 WHERE id=$2::uuid", status, target.id); err != nil {
-				t.Fatal(err)
+		for _, status := range []taxonomy.Status{taxonomy.StatusArchived, taxonomy.StatusActive} {
+			if target.table == "subjects" {
+				if _, err := repo.UpdateSubject(ctx, actor, target.id, taxonomy.SubjectPatch{Status: &status}); err != nil {
+					t.Fatalf("UpdateSubject %s: %v", status, err)
+				}
+			} else {
+				if _, err := repo.UpdatePath(ctx, actor, target.id, taxonomy.PathPatch{Status: &status}); err != nil {
+					t.Fatalf("UpdatePath %s: %v", status, err)
+				}
 			}
-			assertHierarchy(target.table+" "+status, status == "active")
+			assertHierarchy(target.table+" "+string(status), status == taxonomy.StatusActive)
 		}
+	}
+	var auditCount int
+	if err := db.QueryRow(ctx, "SELECT count(*) FROM audit_logs WHERE actor_user_id=$1::uuid AND action IN ('taxonomy.path.update','taxonomy.subject.update')", actor).Scan(&auditCount); err != nil || auditCount != 4 {
+		t.Fatalf("archive/restore audit writes=%d err=%v want=4", auditCount, err)
 	}
 
 	// An active nested path must disappear from all learner surfaces while its
