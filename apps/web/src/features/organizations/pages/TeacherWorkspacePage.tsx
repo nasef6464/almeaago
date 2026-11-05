@@ -79,7 +79,11 @@ export function TeacherWorkspacePage() {
     ? workspace.schools.find(item => item.schoolId === requestedSchoolId)
     : workspace.schools[0];
   const hasUnknownSchool = Boolean(requestedSchoolId && !school);
-  const students = school?.assignments.reduce((total, assignment) => total + assignment.studentCount, 0) || 0;
+  // One class can have several subject assignments. Count its roster once,
+  // rather than multiplying the same students by the number of subjects.
+  const students = school ? Array.from(
+    new Map(school.assignments.map(assignment => [assignment.classId, assignment.studentCount])).values(),
+  ).reduce((total, count) => total + count, 0) : 0;
 
   return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 px-3 py-5 sm:px-6" data-testid="teacher-workspace">
     <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[300px_1fr]">
