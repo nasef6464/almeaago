@@ -81,9 +81,16 @@ export function TeacherWorkspacePage() {
   const hasUnknownSchool = Boolean(requestedSchoolId && !school);
   // One class can have several subject assignments. Count its roster once,
   // rather than multiplying the same students by the number of subjects.
-  const students = school ? Array.from(
-    new Map(school.assignments.map(assignment => [assignment.classId, assignment.studentCount])).values(),
-  ).reduce((total, count) => total + count, 0) : 0;
+  const studentsByClass = new Map<string, number>();
+  for (const assignment of school?.assignments ?? []) {
+    // Subject assignments can carry slightly different roster snapshots.
+    // Never let a stale, smaller snapshot overwrite the same class roster.
+    studentsByClass.set(assignment.classId, Math.max(
+      studentsByClass.get(assignment.classId) ?? 0,
+      assignment.studentCount,
+    ));
+  }
+  const students = Array.from(studentsByClass.values()).reduce((total, count) => total + count, 0);
 
   return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 px-3 py-5 sm:px-6" data-testid="teacher-workspace">
     <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[300px_1fr]">
