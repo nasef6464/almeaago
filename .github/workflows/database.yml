@@ -29,6 +29,7 @@ jobs:
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
 
       - name: Apply every migration
+        id: migrations
         shell: bash
         run: |
           set -euo pipefail
@@ -140,6 +141,9 @@ jobs:
           retention-days: 7
 
       - name: Verify current schema constraints
+        id: schema_constraints
+        # Run independently of browser parity failures; keep the job red on either failure.
+        if: ${{ !cancelled() && steps.migrations.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -322,6 +326,8 @@ jobs:
           check "select exists(select 1 from pg_constraint where conname='ai_usage_daily_scope_type_check')"
 
       - name: Roll back every migration
+        id: rollback_migrations
+        if: ${{ !cancelled() && steps.schema_constraints.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -334,6 +340,7 @@ jobs:
           test "$(psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "select to_regclass('public.users') is null")" = "t"
 
       - name: Re-apply every migration
+        if: ${{ !cancelled() && steps.rollback_migrations.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
