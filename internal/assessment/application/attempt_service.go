@@ -281,4 +281,3 @@ func (s *AttemptService) SingleShotSubmit(
 		Result:           detail.Result,
 	}, nil
 }
-
