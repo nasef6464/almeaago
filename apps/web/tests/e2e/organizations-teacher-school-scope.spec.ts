@@ -143,3 +143,23 @@ test('classroom rejects a revoked school assignment instead of silently choosing
   expect(questionRequests).toBe(0);
   await expect(page.getByText('الحصة الحالية')).toHaveCount(0);
 });
+
+test('teacher overview counts each class roster once across multiple subject assignments', async ({ page }) => {
+  await auth(page);
+  await page.route('**/api/v1/schools/teacher-workspace', route => json(route, {
+    personas: { platformTrainer: false, schoolTeacher: true },
+    schools: [{
+      schoolId: 'school-a', schoolName: 'مدرسة ألف', source: 'membership',
+      assignments: [
+        { assignmentId: 'math-a', classId: 'class-a', className: 'الأول ألف', subjectId: 'math', studentCount: 11 },
+        { assignmentId: 'science-a', classId: 'class-a', className: 'الأول ألف', subjectId: 'science', studentCount: 11 },
+        { assignmentId: 'math-b', classId: 'class-b', className: 'الثاني ألف', subjectId: 'math', studentCount: 23 },
+      ],
+    }],
+  }));
+  await page.goto('/school-teacher-dashboard?schoolId=school-a');
+  await expect(page.getByTestId('teacher-workspace')).toBeVisible();
+  const rosterCard = page.getByText('طلاب فصولي').locator('..');
+  await expect(rosterCard).toContainText('34');
+  await expect(rosterCard).not.toContainText('45');
+});
