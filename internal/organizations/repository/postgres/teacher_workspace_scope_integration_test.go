@@ -46,6 +46,8 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 	}
 	defer pool.Close()
 	for _, ddl := range []string{
+		"CREATE TABLE users (id uuid PRIMARY KEY, status text)",
+		"CREATE TABLE user_roles (user_id uuid, role text)",
 		"CREATE TABLE schools (id uuid PRIMARY KEY, name text, status text)",
 		"CREATE TABLE classes (id uuid PRIMARY KEY, school_id uuid, name text, status text)",
 		"CREATE TABLE teaching_assignments (id uuid PRIMARY KEY, school_id uuid, teacher_id uuid, class_id uuid, subject_id uuid, status text)",
@@ -70,6 +72,8 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		sql  string
 		args []any
 	}{
+		{"INSERT INTO users VALUES ($1,'active')", []any{teacher}},
+		{"INSERT INTO user_roles VALUES ($1,'teacher')", []any{teacher}},
 		{"INSERT INTO schools VALUES ($1,'مدرسة ألف','active'),($2,'مدرسة باء','active')", []any{schoolA, schoolB}},
 		{"INSERT INTO classes VALUES ($1,$2,'الأول ألف','active'),($3,$4,'الثاني باء','active')", []any{classA, schoolA, classB, schoolB}},
 		{"INSERT INTO school_memberships VALUES ($1,$3,'teacher','active'),($2,$3,'teacher','active'),($1,$4,'student','active'),($2,$5,'student','active')", []any{schoolA, schoolB, teacher, studentA, studentB}},
@@ -171,6 +175,37 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 	}
 	if len(workspace.Schools) != 0 {
 		t.Fatalf("inactive teaching assignments still visible: %+v", workspace.Schools)
+	}
+	// A stale active assignment and school membership must not override a
+	// revoked global teacher role or a disabled identity.
+	if _, err := pool.Exec(ctx, "UPDATE teaching_assignments SET status='active' WHERE id=$1", assignmentA); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, "DELETE FROM user_roles WHERE user_id=$1", teacher); err != nil {
+		t.Fatal(err)
+	}
+	workspace, err = repo.TeacherWorkspace(ctx, teacher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(workspace.Schools) != 0 {
+		t.Fatalf("revoked global teacher role still exposes assignments: %+v", workspace.Schools)
+	}
+	if _, err := pool.Exec(ctx, "INSERT INTO user_roles VALUES ($1,'teacher')", teacher); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, "UPDATE users SET status='inactive' WHERE id=$1", teacher); err != nil {
+		t.Fatal(err)
+	}
+	workspace, err = repo.TeacherWorkspace(ctx, teacher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(workspace.Schools) != 0 {
+		t.Fatalf("inactive teacher identity still exposes assignments: %+v", workspace.Schools)
+	}
+	if _, err := pool.Exec(ctx, "UPDATE users SET status='active' WHERE id=$1", teacher); err != nil {
+		t.Fatal(err)
 	}
 	// A valid teacher assignment must not expose an inactive school. This also
 	// guards against non-archived inactive statuses accidentally being visible.
