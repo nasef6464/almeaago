@@ -52,3 +52,28 @@ test('transient media API failure permits retry without leaving the attempt', as
   expect(lookups).toBe(2);
   await expect(page.getByRole('heading', { name: 'محاكي كمي' })).toBeVisible();
 });
+
+test('failed answer save clears optimistic choice and permits a successful retry', async ({ page }) => {
+  const imageId = 'retry-choice-image';
+  const url = 'https://cdn.example.test/retry-choice.svg';
+  await setup(page, { ...question, options: [{ index: 0, text: '', assetId: '' }, { index: 1, text: '', assetId: imageId }] });
+  await page.route('**/api/v1/media/assets/retry-choice-image', route => json(route, { asset: { id: imageId, publicUrl: url, status: 'active', mimeType: 'image/svg+xml' } }));
+  await page.route(url, route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageB }));
+  let saves = 0;
+  await page.route('**/api/v1/assessment-attempts/attempt-1/answers/q-1', route => {
+    saves += 1;
+    return saves === 1
+      ? json(route, { error: 'temporary failure' }, 503)
+      : json(route, { attempt: { ...attempt, questions: [{ ...question, options: [{ index: 0, text: '', assetId: '' }, { index: 1, text: '', assetId: imageId }] }], answers: [{ questionId: 'q-1', selectedOptionIndex: 1, markedForReview: false }] } });
+  });
+  await page.goto('/assessments/assessment-1/start');
+  const choice = page.getByRole('button', { name: /صورة الاختيار ب/ });
+  await expect(choice).toBeVisible();
+  await choice.click();
+  await expect.poll(() => saves).toBe(1);
+  await expect(choice).toBeEnabled();
+  await expect(choice).not.toHaveClass(/border-indigo-600/);
+  await choice.click();
+  await expect.poll(() => saves).toBe(2);
+  await expect(choice).toHaveClass(/border-indigo-600/);
+});
