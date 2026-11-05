@@ -98,6 +98,27 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 			t.Fatalf("cross-school class disclosure %+v", school)
 		}
 	}
+	// Duplicate teacher membership rows must not duplicate assignments or
+	// produce a second copy of the same school/class in the HTTP response.
+	if _, err := pool.Exec(ctx, "INSERT INTO school_memberships VALUES ($1,$2,'teacher','active')", schoolA, teacher); err != nil {
+		t.Fatal(err)
+	}
+	workspace, err = repo.TeacherWorkspace(ctx, teacher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(workspace.Schools) != 2 {
+		t.Fatalf("duplicate teacher membership changed school count: %+v", workspace.Schools)
+	}
+	for _, school := range workspace.Schools {
+		if len(school.Assignments) != 1 {
+			t.Fatalf("duplicate teacher membership inflated assignments: %+v", school)
+		}
+	}
+	// A duplicate class_memberships row must not double-count the same pupil.
+	if _, err := pool.Exec(ctx, "INSERT INTO class_memberships VALUES ($1,$2,'active')", classA, studentA); err != nil {
+		t.Fatal(err)
+	}
 	// A duplicate active school membership must not multiply the class roster.
 	// A class member without an active student membership in that school must
 	// never be counted, even when their class_memberships row is active.
