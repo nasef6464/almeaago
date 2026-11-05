@@ -105,6 +105,18 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 		FROM levels l
 		JOIN paths p ON p.id = l.path_id AND p.status = 'active'
 		WHERE l.status = 'active'
+		  AND NOT EXISTS (
+		    WITH RECURSIVE ancestors AS (
+		      SELECT parent.id, parent.parent_path_id, parent.status, ARRAY[parent.id] AS visited
+		      FROM paths child JOIN paths parent ON parent.id = child.parent_path_id
+		      WHERE child.id = p.id
+		      UNION ALL
+		      SELECT parent.id, parent.parent_path_id, parent.status, a.visited || parent.id
+		      FROM ancestors a JOIN paths parent ON parent.id = a.parent_path_id
+		      WHERE NOT parent.id = ANY(a.visited)
+		    )
+		    SELECT 1 FROM ancestors WHERE status <> 'active'
+		  )
 		ORDER BY p.sort_order, l.sort_order, l.id
 	`)
 	if err != nil {
@@ -138,6 +150,18 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 		JOIN paths p ON p.id = s.path_id AND p.status = 'active'
 		LEFT JOIN levels l ON l.id = s.level_id AND l.path_id = s.path_id
 		WHERE s.status = 'active'
+		  AND NOT EXISTS (
+		    WITH RECURSIVE ancestors AS (
+		      SELECT parent.id, parent.parent_path_id, parent.status, ARRAY[parent.id] AS visited
+		      FROM paths child JOIN paths parent ON parent.id = child.parent_path_id
+		      WHERE child.id = p.id
+		      UNION ALL
+		      SELECT parent.id, parent.parent_path_id, parent.status, a.visited || parent.id
+		      FROM ancestors a JOIN paths parent ON parent.id = a.parent_path_id
+		      WHERE NOT parent.id = ANY(a.visited)
+		    )
+		    SELECT 1 FROM ancestors WHERE status <> 'active'
+		  )
 		  AND (s.level_id IS NULL OR l.status = 'active')
 		ORDER BY p.sort_order, s.sort_order, s.id
 	`)
@@ -182,6 +206,18 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 		LEFT JOIN levels l ON l.id = s.level_id AND l.path_id = s.path_id
 		LEFT JOIN skills parent ON parent.id = sk.parent_skill_id
 		WHERE sk.status = 'active'
+		  AND NOT EXISTS (
+		    WITH RECURSIVE ancestors AS (
+		      SELECT parent.id, parent.parent_path_id, parent.status, ARRAY[parent.id] AS visited
+		      FROM paths child JOIN paths parent ON parent.id = child.parent_path_id
+		      WHERE child.id = p.id
+		      UNION ALL
+		      SELECT parent.id, parent.parent_path_id, parent.status, a.visited || parent.id
+		      FROM ancestors a JOIN paths parent ON parent.id = a.parent_path_id
+		      WHERE NOT parent.id = ANY(a.visited)
+		    )
+		    SELECT 1 FROM ancestors WHERE status <> 'active'
+		  )
 		  AND (s.level_id IS NULL OR l.status = 'active')
 		  AND (sk.parent_skill_id IS NULL OR
 		       (parent.status = 'active' AND parent.kind = 'main' AND parent.subject_id = sk.subject_id))
@@ -344,6 +380,18 @@ func (r *Repository) ValidateMasteryGoalScope(ctx context.Context, pathID, subje
 				SELECT 1
 				FROM paths p
 				WHERE p.id=$1::uuid AND p.status='active'
+		  AND NOT EXISTS (
+		    WITH RECURSIVE ancestors AS (
+		      SELECT parent.id, parent.parent_path_id, parent.status, ARRAY[parent.id] AS visited
+		      FROM paths child JOIN paths parent ON parent.id = child.parent_path_id
+		      WHERE child.id = p.id
+		      UNION ALL
+		      SELECT parent.id, parent.parent_path_id, parent.status, a.visited || parent.id
+		      FROM ancestors a JOIN paths parent ON parent.id = a.parent_path_id
+		      WHERE NOT parent.id = ANY(a.visited)
+		    )
+		    SELECT 1 FROM ancestors WHERE status <> 'active'
+		  )
 			)
 		`, pathID).Scan(&ok)
 		return ok, err
@@ -358,6 +406,18 @@ func (r *Repository) ValidateMasteryGoalScope(ctx context.Context, pathID, subje
 			WHERE p.id=$1::uuid
 			  AND s.id=$2::uuid
 			  AND p.status='active'
+		  AND NOT EXISTS (
+		    WITH RECURSIVE ancestors AS (
+		      SELECT parent.id, parent.parent_path_id, parent.status, ARRAY[parent.id] AS visited
+		      FROM paths child JOIN paths parent ON parent.id = child.parent_path_id
+		      WHERE child.id = p.id
+		      UNION ALL
+		      SELECT parent.id, parent.parent_path_id, parent.status, a.visited || parent.id
+		      FROM ancestors a JOIN paths parent ON parent.id = a.parent_path_id
+		      WHERE NOT parent.id = ANY(a.visited)
+		    )
+		    SELECT 1 FROM ancestors WHERE status <> 'active'
+		  )
 			  AND s.status='active'
 			  AND (s.level_id IS NULL OR l.status='active')
 		)
@@ -374,6 +434,18 @@ func (r *Repository) ValidateStudyPlanScope(ctx context.Context, pathID string, 
 		SELECT EXISTS(
 			SELECT 1 FROM paths p
 			WHERE p.id=$1::uuid AND p.status='active'
+		  AND NOT EXISTS (
+		    WITH RECURSIVE ancestors AS (
+		      SELECT parent.id, parent.parent_path_id, parent.status, ARRAY[parent.id] AS visited
+		      FROM paths child JOIN paths parent ON parent.id = child.parent_path_id
+		      WHERE child.id = p.id
+		      UNION ALL
+		      SELECT parent.id, parent.parent_path_id, parent.status, a.visited || parent.id
+		      FROM ancestors a JOIN paths parent ON parent.id = a.parent_path_id
+		      WHERE NOT parent.id = ANY(a.visited)
+		    )
+		    SELECT 1 FROM ancestors WHERE status <> 'active'
+		  )
 		)
 		AND NOT EXISTS(
 			SELECT 1
