@@ -351,7 +351,13 @@ export function TaxonomyAdminPage() {
     });
   }, [courses, selectedPath, subjects]);
 
+  // React state updates are asynchronous: two rapid clicks can enter run()
+  // before the pending state disables the confirmation button. A synchronous
+  // guard prevents duplicate archive/restore writes and conflicting statuses.
+  const mutationInFlight = useRef(false);
   async function run(key: string, action: (csrf: string) => Promise<void>, success: string) {
+    if (mutationInFlight.current) return false;
+    mutationInFlight.current = true;
     setPending(key);
     setError('');
     setNotice('');
@@ -365,6 +371,7 @@ export function TaxonomyAdminPage() {
       setError(e instanceof Error ? e.message : 'تعذر تنفيذ عملية التصنيف');
       return false;
     } finally {
+      mutationInFlight.current = false;
       setPending('');
     }
   }
