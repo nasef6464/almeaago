@@ -45,6 +45,8 @@ func (r *Repository) TeacherWorkspace(
 		  ON c.id = ta.class_id
 		 AND c.school_id = ta.school_id
 		 AND c.status = 'active'
+		JOIN subjects subj ON subj.id = ta.subject_id AND subj.status = 'active'
+		JOIN paths learning_path ON learning_path.id = subj.path_id AND learning_path.status = 'active'
 		WHERE ta.teacher_id = $1::uuid
 		  AND ta.status = 'active'
 		  AND EXISTS (
