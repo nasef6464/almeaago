@@ -552,17 +552,16 @@ export function AssessmentAttemptPage() {
                         {isSelected ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
                       </span>
                     </div>
+                    {!imageEmbeddedOptions && option.assetId ? (
+                      <span className="mt-2 block w-full rounded-xl border bg-slate-50 p-3">
+                        <QuestionAssetImage
+                          assetId={option.assetId}
+                          alt={`صورة الاختيار ${['أ', 'ب', 'ج', 'د', 'هـ'][option.index] || option.index + 1}`}
+                          onZoom={setZoomImageUrl}
+                        />
+                      </span>
+                    ) : null}
                   </button>
-
-                  {!imageEmbeddedOptions && option.assetId ? (
-                    <div className="mt-2 rounded-xl border bg-slate-50 p-3">
-                      <QuestionAssetImage
-                        assetId={option.assetId}
-                        alt="صورة الخيار"
-                        onZoom={setZoomImageUrl}
-                      />
-                    </div>
-                  ) : null}
                 </div>
               );
             })}
