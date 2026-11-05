@@ -263,6 +263,28 @@ func TestTaxonomyLearnerScopeFollowsLevelVisibilityPostgres(t *testing.T) {
 		if !retained {
 			t.Fatal("admin lost nested path parent relationship")
 		}
+		// The archived parent must never cascade its status into an active
+		// child path or its subject. Both must remain editable/restorable in
+		// the manager bootstrap with the original IDs and relationships.
+		var childStatus, subjectStatus, subjectPath string
+		if err := db.QueryRow(ctx, "SELECT status FROM paths WHERE id=$1::uuid", childPath).Scan(&childStatus); err != nil {
+			t.Fatal(err)
+		}
+		if err := db.QueryRow(ctx, "SELECT status, path_id::text FROM subjects WHERE id=$1::uuid", childSubject).Scan(&subjectStatus, &subjectPath); err != nil {
+			t.Fatal(err)
+		}
+		if childStatus != "active" || subjectStatus != "active" || subjectPath != childPath {
+			t.Fatalf("archive mutated nested children: path status=%s subject status=%s subject path=%s", childStatus, subjectStatus, subjectPath)
+		}
+		var adminSubjectFound bool
+		for _, row := range admin.Subjects {
+			if row.ID == childSubject {
+				adminSubjectFound = row.PathID == childPath && row.Status == taxonomy.StatusActive
+			}
+		}
+		if !adminSubjectFound {
+			t.Fatal("admin lost active nested subject or its original path relationship")
+		}
 	}
 	assertChild(true)
 	// Exercise the production repository mutation, not a direct SQL shortcut:
