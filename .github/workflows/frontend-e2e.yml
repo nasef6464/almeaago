@@ -60,6 +60,34 @@ jobs:
           test -x "$BROWSER_PATH"
           PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$BROWSER_PATH" npm run e2e:local -- tests/e2e/organizations-director.spec.ts --grep "school director desktop runs bounded student class and teacher operations"
       - run: npm run e2e
+      - name: Summarize failing browser tests without changing the test verdict
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report = Path('test-results/playwright-results.json')
+          if not report.exists():
+              print('No Playwright JSON report was produced; check the test runner logs.')
+              raise SystemExit(0)
+          data = json.loads(report.read_text())
+          failures = []
+          def walk(suites):
+              for suite in suites:
+                  for spec in suite.get('specs', []):
+                      for test in spec.get('tests', []):
+                          if test.get('status') not in ('expected', 'skipped'):
+                              failures.append((spec.get('file', suite.get('file', 'unknown')), spec.get('title', ''), test.get('status', 'unknown')))
+                  walk(suite.get('suites', []))
+          walk(data.get('suites', []))
+          lines = ['### Playwright browser verdict', '',
+                   f"Passed: {data.get('stats', {}).get('expected', 0)}; failed/unexpected: {len(failures)}; skipped: {data.get('stats', {}).get('skipped', 0)}", '']
+          lines += [f'- `{path}`: {title} ({status})' for path, title, status in failures]
+          with open(__import__('os').environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              out.write('\n'.join(lines) + '\n')
+          print('\n'.join(lines[:45]))
+          PY
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4
