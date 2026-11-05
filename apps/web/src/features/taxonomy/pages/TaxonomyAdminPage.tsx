@@ -576,8 +576,9 @@ export function TaxonomyAdminPage() {
     if (!selectedSubject || !skillForm.code.trim() || !skillForm.name.trim()) {
       return setError('أدخل كود واسم المهارة.');
     }
+    let saved: boolean;
     if (editingSkill) {
-      await run(
+      saved = await run(
         'update-skill',
         (csrf) =>
           taxonomyAdminClient
@@ -595,7 +596,7 @@ export function TaxonomyAdminPage() {
         'تم حفظ تعديلات المهارة بنجاح.'
       );
     } else {
-      await run(
+      saved = await run(
         'create-skill',
         (csrf) =>
           taxonomyAdminClient
@@ -615,7 +616,7 @@ export function TaxonomyAdminPage() {
         'تم إنشاء المهارة بنجاح.'
       );
     }
-    setIsSkillModalOpen(false);
+    if (saved) setIsSkillModalOpen(false);
   };
 
   // --- Package Actions ---
@@ -623,7 +624,7 @@ export function TaxonomyAdminPage() {
     if (!selectedPath || !pkgForm.code.trim() || !pkgForm.name.trim()) {
       return setError('أدخل كود واسم الباقة.');
     }
-    await run(
+    const saved = await run(
       'create-package',
       (csrf) =>
         commerceClient
@@ -659,7 +660,7 @@ export function TaxonomyAdminPage() {
           .then(() => undefined),
       'تم إنشاء باقة المسار بنجاح.'
     );
-    setIsPackageModalOpen(false);
+    if (saved) setIsPackageModalOpen(false);
   };
 
   // --- Status Patch ---
