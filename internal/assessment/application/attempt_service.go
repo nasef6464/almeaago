@@ -212,8 +212,19 @@ func (s *AttemptService) SingleShotSubmit(
 		return assessment.SingleShotQuizResultDTO{}, ErrForbidden
 	}
 	assessmentID = strings.TrimSpace(assessmentID)
-	if assessmentID == "" {
+	// Validate before writing an attempt: the same bounded idempotency key is
+	// required for both normal and single-shot submissions.
+	if assessmentID == "" || key(req.SubmissionKey) == "" || strings.TrimSpace(req.SubmissionKey) == "" {
 		return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
+	}
+	req.SubmissionKey = key(req.SubmissionKey)
+	if req.TimeSpentSeconds < 0 || req.TimeSpentSeconds > 86400 {
+		return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
+	}
+	for questionID, option := range req.Answers {
+		if strings.TrimSpace(questionID) == "" || option < 0 {
+			return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
+		}
 	}
 	if req.Answers == nil {
 		req.Answers = map[string]int{}
