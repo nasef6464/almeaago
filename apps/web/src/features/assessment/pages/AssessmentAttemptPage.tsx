@@ -178,6 +178,9 @@ export function AssessmentAttemptPage() {
       }
     } catch (cause) {
       if (scopeRef.current === actionScope) {
+        // A failed save must not leave a phantom pending choice: retry and submit
+        // remain available, while only server-confirmed answers count as saved.
+        setDraftChoice(null);
         setError(cause instanceof Error ? cause.message : 'تعذر حفظ الإجابة');
       }
     } finally {
