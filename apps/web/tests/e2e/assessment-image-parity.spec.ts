@@ -31,7 +31,7 @@ test('separate choice images remain selectable at mobile, tablet and desktop wid
     await expect(page.getByRole('img', { name: 'صورة الاختيار أ' })).toHaveAttribute('src', firstUrl);
     await expect(page.getByRole('img', { name: 'صورة الاختيار ب' })).toHaveAttribute('src', secondUrl);
     await page.getByRole('button', { name: /صورة الاختيار ب/ }).click();
-    await expect(page.getByRole('button', { name: /صورة الاختيار ب/ })).toHaveClass(/border-amber-500/);
+    await expect(page.getByRole('button', { name: /صورة الاختيار ب/ })).toHaveClass(/border-indigo-600/);
   }
 });
 
