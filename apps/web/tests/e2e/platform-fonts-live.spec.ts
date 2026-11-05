@@ -47,7 +47,7 @@ test('original font editor persists through real Go identity and PostgreSQL',asy
    const clip=await panel(p).boundingBox();expect(clip).not.toBeNull();
    return p.screenshot({path:`test-results/font-${name}-component-${width}.png`,fullPage:true,clip:clip!,animations:'disabled'});
   };
-  const expected=await capture(original,'source');
+  // Wait for font faces and two animation frames on both documents before pixel parity.\n  // Preserve the strict byte-for-byte comparison; this only removes capture races.\n  const settleFonts=async(p:typeof page)=>p.evaluate(async()=>{\n   await document.fonts.ready;\n   await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));\n  });\n  await Promise.all([settleFonts(original),settleFonts(page)]);\n  const expected=await capture(original,'source');
   const actual=await capture(page,'go');
   const metrics=async(p:typeof page)=>p.locator('select').evaluateAll(elements=>elements.map(element=>{
    const style=getComputedStyle(element);const rect=element.getBoundingClientRect();
