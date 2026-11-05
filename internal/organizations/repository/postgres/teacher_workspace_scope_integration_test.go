@@ -168,6 +168,46 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Teacher workspace and subject authorization must agree when content is
+	// deactivated. An active teaching assignment must not expose a retired
+	// subject or its parent path, including in a different school.
+	for _, tc := range []struct {
+		name, table, id string
+	}{
+		{"subject", "subjects", subject},
+		{"path", "paths", pathA},
+	} {
+		t.Run("workspace excludes inactive "+tc.name, func(t *testing.T) {
+			if _, err := pool.Exec(ctx, "UPDATE "+tc.table+" SET status='inactive' WHERE id=$1", tc.id); err != nil {
+				t.Fatal(err)
+			}
+			workspace, err := repo.TeacherWorkspace(ctx, teacher)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(workspace.Schools) != 1 || workspace.Schools[0].SchoolID != schoolB {
+				t.Fatalf("inactive %s exposed school A or removed school B: %+v", tc.name, workspace.Schools)
+			}
+			allowed, err := repo.CanTeachSubject(ctx, teacher, pathA, subject)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if allowed {
+				t.Fatalf("inactive %s still authorizes teaching", tc.name)
+			}
+			if _, err := pool.Exec(ctx, "UPDATE "+tc.table+" SET status='active' WHERE id=$1", tc.id); err != nil {
+				t.Fatal(err)
+			}
+			workspace, err = repo.TeacherWorkspace(ctx, teacher)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(workspace.Schools) != 2 {
+				t.Fatalf("restored %s did not restore school A: %+v", tc.name, workspace.Schools)
+			}
+		})
+	}
+
 	// Duplicate teacher membership rows must not duplicate assignments or
 	// produce a second copy of the same school/class in the HTTP response.
 	if _, err := pool.Exec(ctx, "INSERT INTO school_memberships VALUES ($1,$2,'teacher','active')", schoolA, teacher); err != nil {
