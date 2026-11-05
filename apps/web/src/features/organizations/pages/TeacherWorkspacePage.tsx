@@ -119,7 +119,9 @@ export function TeacherWorkspacePage() {
                 if (!item) return null;
                 const Icon = item.icon;
                 const classes = 'flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-right text-xs font-bold ';
-                if (id === 'overview') return <Link key={id} aria-current="page" to={'/school-teacher-dashboard' + (school ? '?schoolId=' + encodeURIComponent(school.schoolId) : '')} className={classes + 'border-indigo-200 bg-indigo-50 text-indigo-800'}><Icon size={19} />{item.label}</Link>;
+                if (id === 'overview') return school
+                  ? <Link key={id} aria-current="page" to={'/school-teacher-dashboard?schoolId=' + encodeURIComponent(school.schoolId)} className={classes + 'border-indigo-200 bg-indigo-50 text-indigo-800'}><Icon size={19} />{item.label}</Link>
+                  : <span key={id} aria-disabled="true" className={classes + 'border-slate-200 bg-white text-slate-400'}><Icon size={19} />{item.label}</span>;
                 if (id === 'smart-classroom' && school?.assignments.length) return <Link key={id} to={classroomURL(school.schoolId, school.assignments[0].assignmentId)} className={classes + 'border-slate-200 bg-white text-slate-700'}><Icon size={19} />{item.label}</Link>;
                 return <span key={id} aria-disabled="true" className={classes + 'border-slate-200 bg-white text-slate-400'}><Icon size={19} />{item.label}</span>;
               })}
