@@ -100,7 +100,7 @@ export function QuestionAssetImage({
       alt={alt}
       loading="lazy"
       decoding="async"
-      onClick={onZoom ? () => onZoom(current.url) : undefined}
+      onClick={onZoom ? (event) => { event.stopPropagation(); onZoom(current.url); } : undefined}
       className={`${className || 'mx-auto max-h-[340px] max-w-full rounded-xl object-contain'} ${
         onZoom ? 'cursor-zoom-in hover:opacity-90 transition' : ''
       }`}
