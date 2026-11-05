@@ -16,6 +16,15 @@ on:
       - "apps/web/tests/e2e/**"
       - "apps/web/playwright.config.ts"
       - "apps/web/package.json"
+      # Browser journeys depend on Go HTTP contracts and persisted schema, not just React.
+      - "cmd/api/**"
+      - "internal/assessment/**"
+      - "internal/learning/**"
+      - "internal/taxonomy/**"
+      - "internal/organizations/**"
+      - "internal/content/**"
+      - "internal/identity/**"
+      - "migrations/**"
       - ".github/workflows/frontend-e2e.yml"
       - "docs/**"
   push:
@@ -25,6 +34,15 @@ on:
       - "apps/web/tests/e2e/**"
       - "apps/web/playwright.config.ts"
       - "apps/web/package.json"
+      # Browser journeys depend on Go HTTP contracts and persisted schema, not just React.
+      - "cmd/api/**"
+      - "internal/assessment/**"
+      - "internal/learning/**"
+      - "internal/taxonomy/**"
+      - "internal/organizations/**"
+      - "internal/content/**"
+      - "internal/identity/**"
+      - "migrations/**"
       - ".github/workflows/frontend-e2e.yml"
 
 concurrency:
