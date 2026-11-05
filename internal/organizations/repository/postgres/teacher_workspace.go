@@ -37,7 +37,7 @@ func (r *Repository) TeacherWorkspace(
 		 AND teacher_membership.status = 'active'
 		JOIN schools s
 		  ON s.id = ta.school_id
-		 AND s.status <> 'archived'
+		 AND s.status = 'active'
 		JOIN classes c
 		  ON c.id = ta.class_id
 		 AND c.school_id = ta.school_id
