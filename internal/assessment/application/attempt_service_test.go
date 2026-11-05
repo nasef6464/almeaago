@@ -13,20 +13,19 @@ import (
 )
 
 type fakeAttemptRepo struct {
-	a           assessment.Attempt
-	r           assessment.Result
-	page        assessment.ResultPage
-	detail      assessment.ResultDetail
-	err         error
-	lastStudent string
-	lastPage    int
-	lastLimit   int
+	a               assessment.Attempt
+	r               assessment.Result
+	page            assessment.ResultPage
+	detail          assessment.ResultDetail
+	err             error
+	lastStudent     string
+	lastPage        int
+	lastLimit       int
 	lastDetail      string
 	submitCalls     int
 	singleShotCalls int
 	access          assessment.AccessContext
 }
-
 func (f *fakeAttemptRepo) GetPublishedAccessContext(context.Context, string) (assessment.AccessContext, error) {
 	if f.access.AssessmentKind == "" {
 		return assessment.AccessContext{AssessmentKind: assessment.KindNormal, BaseAccess: assessment.AccessFree, PathID: "path-1", SubjectID: "subject-1"}, f.err
