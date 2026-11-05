@@ -296,7 +296,7 @@ func TestSingleShotLearningHandoffFailureIsRetryable(t *testing.T) {
 	service := NewAttemptServiceWithLearning(repo, sink)
 	request := assessment.SingleShotSubmissionRequest{
 		SubmissionKey: "same-submission-key",
-		Answers: map[string]int{"q-1": 1},
+		Answers:       map[string]int{"q-1": 1},
 	}
 	if _, err := service.SingleShotSubmit(context.Background(), student("student-1"), "quiz-1", request); err == nil {
 		t.Fatal("learning handoff failure must not be reported as a successful result")
@@ -324,7 +324,7 @@ func TestSingleShotLearningHandoffRequiresEvidenceSource(t *testing.T) {
 
 func TestSingleShotRejectsInvalidSubmissionBeforeRepository(t *testing.T) {
 	tests := []struct {
-		name string
+		name    string
 		request assessment.SingleShotSubmissionRequest
 	}{
 		{"missing idempotency key", assessment.SingleShotSubmissionRequest{Answers: map[string]int{"q-1": 0}}},
