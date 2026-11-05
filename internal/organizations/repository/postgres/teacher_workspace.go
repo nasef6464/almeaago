@@ -19,7 +19,7 @@ func (r *Repository) TeacherWorkspace(
 			c.name,
 			COALESCE(ta.subject_id::text, ''),
 			(
-				SELECT count(*)::int
+				SELECT count(DISTINCT cm.user_id)::int
 				FROM class_memberships cm
 				WHERE cm.class_id = c.id
 				  AND cm.status = 'active'
@@ -33,11 +33,6 @@ func (r *Repository) TeacherWorkspace(
 				  )
 			) AS student_count
 		FROM teaching_assignments ta
-		JOIN school_memberships teacher_membership
-		  ON teacher_membership.school_id = ta.school_id
-		 AND teacher_membership.user_id = ta.teacher_id
-		 AND teacher_membership.role = 'teacher'
-		 AND teacher_membership.status = 'active'
 		JOIN schools s
 		  ON s.id = ta.school_id
 		 AND s.status = 'active'
@@ -47,6 +42,13 @@ func (r *Repository) TeacherWorkspace(
 		 AND c.status = 'active'
 		WHERE ta.teacher_id = $1::uuid
 		  AND ta.status = 'active'
+		  AND EXISTS (
+			SELECT 1 FROM school_memberships teacher_membership
+			WHERE teacher_membership.school_id = ta.school_id
+			  AND teacher_membership.user_id = ta.teacher_id
+			  AND teacher_membership.role = 'teacher'
+			  AND teacher_membership.status = 'active'
+		  )
 		ORDER BY s.name, s.id, c.name, c.id, ta.id
 	`, userID)
 	if err != nil {
