@@ -30,6 +30,18 @@ test('separate choice images remain selectable at mobile, tablet and desktop wid
     await expect(page.getByRole('img', { name: 'صورة الاختيار ب' })).toBeVisible();
     await expect(page.getByRole('img', { name: 'صورة الاختيار أ' })).toHaveAttribute('src', firstUrl);
     await expect(page.getByRole('img', { name: 'صورة الاختيار ب' })).toHaveAttribute('src', secondUrl);
+    // Zoom must not bubble into the enclosing choice button or save an answer.
+    let savesFromZoom = 0;
+    const countSaves = (request: import('@playwright/test').Request) => {
+      if (request.url().includes('/answers/q-1')) savesFromZoom += 1;
+    };
+    page.on('request', countSaves);
+    await page.getByRole('img', { name: 'صورة الاختيار ب' }).click();
+    await expect(page.getByRole('dialog', { name: 'تكبير صورة السؤال' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /صورة الاختيار ب/ })).not.toHaveClass(/border-indigo-600/);
+    expect(savesFromZoom).toBe(0);
+    await page.getByRole('dialog', { name: 'تكبير صورة السؤال' }).getByRole('button', { name: /إغلاق/ }).click();
+    page.off('request', countSaves);
     await page.getByRole('button', { name: /صورة الاختيار ب/ }).click();
     await expect(page.getByRole('button', { name: /صورة الاختيار ب/ })).toHaveClass(/border-indigo-600/);
   }
