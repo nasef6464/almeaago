@@ -31,6 +31,7 @@ jobs:
           sqlc version
       - run: sqlc compile
       - name: Check gofmt
+        id: gofmt
         shell: bash
         run: |
           status=0
@@ -47,5 +48,11 @@ jobs:
             fi
           done < <(find cmd internal -type f -name '*.go' -print0)
           exit "$status"
-      - run: go vet ./...
-      - run: go test ./...
+      # Formatting failures must keep CI red, but should not hide independent
+      # vet/test failures in unrelated packages during the 24h recovery.
+      - name: Go vet all packages
+        if: ${{ !cancelled() && steps.gofmt.outcome != 'cancelled' }}
+        run: go vet ./...
+      - name: Go test all packages
+        if: ${{ !cancelled() && steps.gofmt.outcome != 'cancelled' }}
+        run: go test ./...
