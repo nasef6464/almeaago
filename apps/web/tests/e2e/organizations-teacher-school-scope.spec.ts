@@ -70,6 +70,7 @@ test('teacher workspace fails closed, retries the same school, and never falls b
   await page.getByRole('button', { name: 'إعادة المحاولة' }).click();
   await expect(page.getByText('المدرسة المحددة لم تعد ضمن تكليفاتك')).toBeVisible();
   await expect(page.getByLabel('المدرسة الحالية')).toHaveValue('');
+  await expect(page.getByRole('navigation', { name: 'تنقل لوحة معلم المدرسة' }).getByRole('link', { name: 'نظرة عامة' })).toHaveCount(0);
   await expect(page.getByText('الأول ألف')).toHaveCount(0);
   await expect(page.getByText('الثاني باء')).toHaveCount(0);
 });
