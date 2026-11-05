@@ -134,6 +134,44 @@ func TestTaxonomyLearnerScopeFollowsLevelVisibilityPostgres(t *testing.T) {
 		if err != nil || plan != wantVisible {
 			t.Fatalf("%s plan allowed=%v err=%v want=%v", label, plan, err, wantVisible)
 		}
+		// Admin must retain the same canonical entities and exact archived status
+		// even while the public learner bootstrap hides them. This is essential
+		// for restoring the existing record instead of recreating children.
+		admin, err := repo.AdminBootstrap(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var foundPath, foundSubject bool
+		for _, row := range admin.Paths {
+			if row.ID == path {
+				foundPath = true
+				var status string
+				if err := db.QueryRow(ctx, "SELECT status FROM paths WHERE id=$1::uuid", path).Scan(&status); err != nil {
+					t.Fatal(err)
+				}
+				if string(row.Status) != status {
+					t.Fatalf("%s admin path status=%s persisted=%s", label, row.Status, status)
+				}
+			}
+		}
+		for _, row := range admin.Subjects {
+			if row.ID == leveledSubject {
+				foundSubject = true
+				if row.PathID != path || row.LevelID != level {
+					t.Fatalf("%s admin subject relationship changed: %+v", label, row)
+				}
+				var status string
+				if err := db.QueryRow(ctx, "SELECT status FROM subjects WHERE id=$1::uuid", leveledSubject).Scan(&status); err != nil {
+					t.Fatal(err)
+				}
+				if string(row.Status) != status {
+					t.Fatalf("%s admin subject status=%s persisted=%s", label, row.Status, status)
+				}
+			}
+		}
+		if !foundPath || !foundSubject {
+			t.Fatalf("%s admin lost archived entities: path=%v subject=%v", label, foundPath, foundSubject)
+		}
 		var parentID, levelID string
 		if err := db.QueryRow(ctx, "SELECT path_id::text, level_id::text FROM subjects WHERE id=$1::uuid", leveledSubject).Scan(&parentID, &levelID); err != nil {
 			t.Fatal(err)
