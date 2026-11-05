@@ -49,7 +49,7 @@ test('original font editor persists through real Go identity and PostgreSQL',asy
    // 390px; the pinned reference is the font component alone. Exclude only
    // fixed-position nodes outside the compared panel during this capture.
    // Do not hide any element inside the panel or relax pixel equality.
-   const hidden=await p.evaluate(()=>{
+   await p.evaluate(()=>{
     const heading=[...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].find(e=>e.textContent?.trim()==='إدارة خطوط المنصة');
     const panel=heading?.parentElement?.parentElement?.parentElement;
     if(!panel)throw new Error('Font comparison panel not found');
@@ -61,7 +61,6 @@ test('original font editor persists through real Go identity and PostgreSQL',asy
      node.dataset.fontParityOriginalVisibility=node.style.visibility;
      node.style.visibility='hidden';changed.push(node);
     }
-    return changed.length;
    });
    const screenshot=await p.screenshot({path:`test-results/font-${name}-component-${width}.png`,fullPage:true,clip:clip!,animations:'disabled'});
    await p.evaluate(()=>{
