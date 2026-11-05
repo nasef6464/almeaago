@@ -45,7 +45,32 @@ test('original font editor persists through real Go identity and PostgreSQL',asy
   const capture=async(p:typeof page,name:string)=>{
    await p.evaluate(()=>window.scrollTo(0,0));
    const clip=await panel(p).boundingBox();expect(clip).not.toBeNull();
-   return p.screenshot({path:`test-results/font-${name}-component-${width}.png`,fullPage:true,clip:clip!,animations:'disabled'});
+   // The live app mounts floating support/call shortcuts over the font panel at
+   // 390px; the pinned reference is the font component alone. Exclude only
+   // fixed-position nodes outside the compared panel during this capture.
+   // Do not hide any element inside the panel or relax pixel equality.
+   const hidden=await p.evaluate(()=>{
+    const heading=[...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].find(e=>e.textContent?.trim()==='إدارة خطوط المنصة');
+    const panel=heading?.parentElement?.parentElement?.parentElement;
+    if(!panel)throw new Error('Font comparison panel not found');
+    const changed:HTMLElement[]=[];
+    for(const node of document.querySelectorAll<HTMLElement>('body *')){
+     if(panel.contains(node)||node.contains(panel))continue;
+     if(getComputedStyle(node).position!=='fixed')continue;
+     if(node.getBoundingClientRect().width===0)continue;
+     node.dataset.fontParityOriginalVisibility=node.style.visibility;
+     node.style.visibility='hidden';changed.push(node);
+    }
+    return changed.length;
+   });
+   const screenshot=await p.screenshot({path:`test-results/font-${name}-component-${width}.png`,fullPage:true,clip:clip!,animations:'disabled'});
+   await p.evaluate(()=>{
+    for(const node of document.querySelectorAll<HTMLElement>('[data-font-parity-original-visibility]')){
+     node.style.visibility=node.dataset.fontParityOriginalVisibility??'';
+     delete node.dataset.fontParityOriginalVisibility;
+    }
+   });
+   return screenshot;
   };
   // Wait for font faces and two animation frames on both documents before pixel parity.
   // Preserve the strict byte-for-byte comparison; this only removes capture races.
