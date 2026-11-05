@@ -42,7 +42,7 @@ const cases = [
   { entity: 'subject', id: 'subject-1', endpoint: 'subjects', action: 'أرشفة المادة', name: 'المادة', statusLabel: 'حالة الكمي' },
 ] as const;
 
-for (const width of [390, 1440]) {
+for (const width of [390, 820, 1440]) {
   for (const scenario of cases) {
     test(`archive ${scenario.entity} reports 503 and permits safe retry at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
