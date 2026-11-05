@@ -276,3 +276,47 @@ func TestSingleShotSubmit(t *testing.T) {
 		t.Errorf("expected TimeSpent='2 دقيقة و 30 ثانية', got %q", res.TimeSpent)
 	}
 }
+
+func TestSingleShotLearningHandoffFailureIsRetryable(t *testing.T) {
+	repo := &fakeAttemptEvidenceRepo{
+		fakeAttemptRepo: &fakeAttemptRepo{detail: assessment.ResultDetail{
+			AssessmentID: "quiz-1",
+			Result: assessment.Result{
+				AttemptID: "attempt-1", FinalizedAt: time.Now().UTC(),
+			},
+		}},
+		event: learning.SubmissionEvidence{
+			AssessmentID: "quiz-1", AssessmentVersion: 1,
+			PathID: "path-1", SubjectID: "subject-1", OccurredAt: time.Now(),
+			Questions: []learning.QuestionEvidence{{QuestionID: "q-1", QuestionVersion: 1}},
+		},
+	}
+	sink := &fakeEvidenceSink{failFirst: true}
+	service := NewAttemptServiceWithLearning(repo, sink)
+	request := assessment.SingleShotSubmissionRequest{
+		SubmissionKey: "same-submission-key",
+		Answers: map[string]int{"q-1": 1},
+	}
+	if _, err := service.SingleShotSubmit(context.Background(), student("student-1"), "quiz-1", request); err == nil {
+		t.Fatal("learning handoff failure must not be reported as a successful result")
+	}
+	result, err := service.SingleShotSubmit(context.Background(), student("student-1"), "quiz-1", request)
+	if err != nil {
+		t.Fatalf("idempotent retry must complete learning handoff: %v", err)
+	}
+	if result.AttemptID != "attempt-1" || sink.calls != 2 || repo.sourceCalls != 2 {
+		t.Fatalf("retry mismatch result=%#v sink=%d source=%d", result, sink.calls, repo.sourceCalls)
+	}
+}
+
+func TestSingleShotLearningHandoffRequiresEvidenceSource(t *testing.T) {
+	repo := &fakeAttemptRepo{detail: assessment.ResultDetail{
+		Result: assessment.Result{AttemptID: "attempt-1", FinalizedAt: time.Now().UTC()},
+	}}
+	service := NewAttemptServiceWithLearning(repo, &fakeEvidenceSink{})
+	_, err := service.SingleShotSubmit(context.Background(), student("student-1"), "quiz-1",
+		assessment.SingleShotSubmissionRequest{SubmissionKey: "submission-key"})
+	if err == nil {
+		t.Fatal("missing evidence source must not silently drop skill analysis")
+	}
+}
