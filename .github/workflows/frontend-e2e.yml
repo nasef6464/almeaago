@@ -90,21 +90,40 @@ jobs:
               print('No Playwright JSON report was produced; check the test runner logs.')
               raise SystemExit(0)
           data = json.loads(report.read_text())
+          from collections import Counter
+          from os import environ
           failures = []
+          def owner(path):
+              p = path.lower()
+              if any(key in p for key in ('student-', 'assessment-', 'quiz-', 'learning-')):
+                  return 'student-learning (#269)'
+              if any(key in p for key in ('school-', 'organizations-', 'supervisor-', 'director-')):
+                  return 'schools (#268)'
+              if any(key in p for key in ('taxonomy-', 'admin-', 'course-', 'content-')):
+                  return 'central-admin (#264)'
+              return 'integration (#265)'
           def walk(suites):
               for suite in suites:
                   for spec in suite.get('specs', []):
                       for test in spec.get('tests', []):
                           if test.get('status') not in ('expected', 'skipped'):
-                              failures.append((spec.get('file', suite.get('file', 'unknown')), spec.get('title', ''), test.get('status', 'unknown')))
+                              path = spec.get('file', suite.get('file', 'unknown'))
+                              results = test.get('results', [])
+                              errors = [err.get('message', '') for result in results for err in result.get('errors', [])]
+                              first_error = next((e.splitlines()[0][:240] for e in errors if e), 'see trace')
+                              failures.append((path, spec.get('title', ''), test.get('status', 'unknown'), first_error))
                   walk(suite.get('suites', []))
           walk(data.get('suites', []))
+          counts = Counter(owner(path) for path, _, _, _ in failures)
           lines = ['### Playwright browser verdict', '',
-                   f"Passed: {data.get('stats', {}).get('expected', 0)}; failed/unexpected: {len(failures)}; skipped: {data.get('stats', {}).get('skipped', 0)}", '']
-          lines += [f'- `{path}`: {title} ({status})' for path, title, status in failures]
-          with open(__import__('os').environ['GITHUB_STEP_SUMMARY'], 'a') as out:
-              out.write('\n'.join(lines) + '\n')
-          print('\n'.join(lines[:45]))
+                   f"Passed: {data.get('stats', {}).get('expected', 0)}; failed/unexpected: {len(failures)}; skipped: {data.get('stats', {}).get('skipped', 0)}", '',
+                   '#### Triage by owning lane (filename heuristic; confirm before assigning)', '']
+          lines += [f'- {team}: {count} failing cases' for team, count in sorted(counts.items())]
+          lines += ['', '#### Failed tests and first assertion', '']
+          lines += [f'- `{path}`: {title} ({status}) — {error}' for path, title, status, error in failures]
+          with open(environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              out.write('\\n'.join(lines) + '\\n')
+          print('\\n'.join(lines[:55]))
           PY
       - name: Upload browser evidence
         if: always()
