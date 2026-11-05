@@ -22,6 +22,8 @@ type fakeAttemptRepo struct {
 	lastPage    int
 	lastLimit   int
 	lastDetail  string
+	submitCalls int
+	singleShotCalls int
 	access      assessment.AccessContext
 }
 
@@ -44,6 +46,7 @@ func (f *fakeAttemptRepo) SaveAnswer(context.Context, string, string, string, as
 	return f.a, f.err
 }
 func (f *fakeAttemptRepo) Submit(context.Context, string, string, string) (assessment.Result, error) {
+	f.submitCalls++
 	return f.r, f.err
 }
 func (f *fakeAttemptRepo) GetResult(context.Context, string) (assessment.Result, error) {
@@ -61,6 +64,7 @@ func (f *fakeAttemptRepo) GetResultDetail(_ context.Context, student, id string)
 	return f.detail, f.err
 }
 func (f *fakeAttemptRepo) SingleShotSubmit(_ context.Context, student, assessmentID string, req assessment.SingleShotSubmissionRequest) (assessment.ResultDetail, error) {
+	f.singleShotCalls++
 	f.lastStudent = student
 	f.lastDetail = assessmentID
 	return f.detail, f.err
@@ -320,6 +324,9 @@ func TestSingleShotLearningHandoffRequiresEvidenceSource(t *testing.T) {
 	if err == nil {
 		t.Fatal("missing evidence source must not silently drop skill analysis")
 	}
+	if repo.singleShotCalls != 0 {
+		t.Fatal("missing evidence source must fail before single-shot persistence")
+	}
 }
 
 func TestSingleShotRejectsInvalidSubmissionBeforeRepository(t *testing.T) {
@@ -356,5 +363,17 @@ func TestSingleShotRejectsTeacherBeforeRepository(t *testing.T) {
 		assessment.SingleShotSubmissionRequest{SubmissionKey: "key"})
 	if !errors.Is(err, ErrForbidden) || repo.lastStudent != "" {
 		t.Fatalf("teacher submission should be denied before persistence: err=%v student=%q", err, repo.lastStudent)
+	}
+}
+
+func TestAttemptSubmitMissingLearningSourceDoesNotFinalize(t *testing.T) {
+	repo := &fakeAttemptRepo{r: assessment.Result{AttemptID: "attempt-1"}}
+	service := NewAttemptServiceWithLearning(repo, &fakeEvidenceSink{})
+	_, err := service.Submit(context.Background(), student("student-1"), "attempt-1", "submission-key")
+	if err == nil {
+		t.Fatal("missing evidence source must fail closed")
+	}
+	if repo.submitCalls != 0 {
+		t.Fatalf("submission finalized before evidence integration was validated: %d", repo.submitCalls)
 	}
 }
