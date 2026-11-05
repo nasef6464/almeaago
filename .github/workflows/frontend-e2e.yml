@@ -6,6 +6,9 @@ on:
     paths:
       - "apps/web/src/app/App.tsx"
       - "apps/web/src/features/learning/navigation/**"
+      - "apps/web/src/features/admin/**"
+      - "apps/web/src/features/organizations/**"
+      - "apps/web/src/features/assessment/**"
       - "apps/web/src/features/learning/**"
       - "apps/web/src/features/public/components/**"
       - "apps/web/src/features/content/**"
@@ -15,10 +18,20 @@ on:
       - "apps/web/package.json"
       - ".github/workflows/frontend-e2e.yml"
       - "docs/**"
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/src/**"
+      - "apps/web/tests/e2e/**"
+      - "apps/web/playwright.config.ts"
+      - "apps/web/package.json"
+      - ".github/workflows/frontend-e2e.yml"
 
 concurrency:
   group: frontend-e2e-${{ github.ref }}
-  cancel-in-progress: true
+  # Preserve a completed browser verdict for each exact PR head and post-merge main.
+  # Superseded runs can queue rather than silently erasing the only E2E evidence.
+  cancel-in-progress: false
 
 permissions:
   contents: read
