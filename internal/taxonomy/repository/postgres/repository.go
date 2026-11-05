@@ -51,9 +51,21 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 
 	pathRows, err := r.db.Query(ctx, `
 		SELECT id::text, code, name, COALESCE(parent_path_id::text, ''), description, sort_order, COALESCE(presentation, '{}'::jsonb)
-		FROM paths
-		WHERE status = 'active'
-		ORDER BY sort_order, id
+		FROM paths p
+		WHERE p.status = 'active'
+		  AND NOT EXISTS (
+		    WITH RECURSIVE ancestors AS (
+		      SELECT parent.id, parent.parent_path_id, parent.status, ARRAY[parent.id] AS visited
+		      FROM paths child JOIN paths parent ON parent.id = child.parent_path_id
+		      WHERE child.id = p.id
+		      UNION ALL
+		      SELECT parent.id, parent.parent_path_id, parent.status, a.visited || parent.id
+		      FROM ancestors a JOIN paths parent ON parent.id = a.parent_path_id
+		      WHERE NOT parent.id = ANY(a.visited)
+		    )
+		    SELECT 1 FROM ancestors WHERE status <> 'active'
+		  )
+		ORDER BY p.sort_order, p.id
 	`)
 	if err != nil {
 		return result, err
