@@ -39,7 +39,9 @@ permissions:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Full Chromium suite exceeded the previous 15-minute job budget after 165+ tests.
+    # Preserve every test and the browser evidence; allow the suite to finish.
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: apps/web
