@@ -137,6 +137,14 @@ func (s *AttemptService) Submit(ctx context.Context, a identity.User, id, submis
 	if strings.TrimSpace(id) == "" || submissionKey == "" {
 		return assessment.Result{}, ErrInvalidInput
 	}
+	// Fail before finalizing the attempt if learning handoff cannot possibly run.
+	// A finalized attempt without a configured evidence source cannot be retried
+	// safely into the student's skill analysis.
+	if s.evidenceSink != nil {
+		if _, ok := s.repo.(SubmissionEvidenceSource); !ok {
+			return assessment.Result{}, errors.New("assessment learning evidence source is not configured")
+		}
+	}
 	result, err := s.repo.Submit(ctx, a.ID, id, submissionKey)
 	if err != nil {
 		return result, err
@@ -230,6 +238,14 @@ func (s *AttemptService) SingleShotSubmit(
 		req.Answers = map[string]int{}
 	}
 
+	// Validate the learning integration before the repository commits a
+	// single-shot result. A missing evidence source is a configuration error,
+	// not a successful assessment with silently missing skill analysis.
+	if s.evidenceSink != nil {
+		if _, ok := s.repo.(SubmissionEvidenceSource); !ok {
+			return assessment.SingleShotQuizResultDTO{}, errors.New("assessment learning evidence source is not configured")
+		}
+	}
 	detail, err := s.repo.SingleShotSubmit(ctx, actor.ID, assessmentID, req)
 	if err != nil {
 		return assessment.SingleShotQuizResultDTO{}, err
