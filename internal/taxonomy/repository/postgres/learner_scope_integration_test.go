@@ -272,8 +272,12 @@ func TestTaxonomyLearnerScopeFollowsLevelVisibilityPostgres(t *testing.T) {
 		if err != nil {
 			t.Fatalf("nested parent UpdatePath %s: %v", status, err)
 		}
-		if updated.ID != path || updated.Status != status {
-			t.Fatalf("nested parent update returned %+v, want id=%s status=%s", updated, path, status)
+		if updated.ID != path {
+			t.Fatalf("nested parent update returned id=%s, want=%s", updated.ID, path)
+		}
+		var persistedStatus string
+		if err := db.QueryRow(ctx, "SELECT status FROM paths WHERE id=$1::uuid", path).Scan(&persistedStatus); err != nil || persistedStatus != string(status) {
+			t.Fatalf("nested parent persisted status=%s err=%v want=%s", persistedStatus, err, status)
 		}
 		assertChild(status == taxonomy.StatusActive)
 	}
