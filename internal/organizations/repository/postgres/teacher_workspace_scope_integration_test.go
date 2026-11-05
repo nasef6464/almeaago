@@ -324,6 +324,7 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		{"teacher identity", "UPDATE users SET status='inactive' WHERE id='00000000-0000-0000-0000-000000008001'", "UPDATE users SET status='active' WHERE id='00000000-0000-0000-0000-000000008001'"},
 		{"class status", "UPDATE classes SET status='inactive' WHERE id='00000000-0000-0000-0000-000000008021'", "UPDATE classes SET status='active' WHERE id='00000000-0000-0000-0000-000000008021'"},
 		{"school status", "UPDATE schools SET status='inactive' WHERE id='00000000-0000-0000-0000-000000008011'", "UPDATE schools SET status='active' WHERE id='00000000-0000-0000-0000-000000008011'"},
+		{"path status", "UPDATE paths SET status='inactive' WHERE id='00000000-0000-0000-0000-000000008051'", "UPDATE paths SET status='active' WHERE id='00000000-0000-0000-0000-000000008051'"},
 		{"assignment status", "UPDATE teaching_assignments SET status='inactive' WHERE id='00000000-0000-0000-0000-000000008041'", "UPDATE teaching_assignments SET status='active' WHERE id='00000000-0000-0000-0000-000000008041'"},
 	} {
 		t.Run("subject grant revoked by "+tc.name, func(t *testing.T) {
