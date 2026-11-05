@@ -85,7 +85,7 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		{"INSERT INTO classes VALUES ($1,$2,'الأول ألف','active'),($3,$4,'الثاني باء','active')", []any{classA, schoolA, classB, schoolB}},
 		{"INSERT INTO school_memberships VALUES ($1,$3,'teacher','active'),($2,$3,'teacher','active'),($1,$4,'student','active'),($2,$5,'student','active')", []any{schoolA, schoolB, teacher, studentA, studentB}},
 		{"INSERT INTO class_memberships VALUES ($1,$3,'active'),($2,$4,'active')", []any{classA, classB, studentA, studentB}},
-		{"INSERT INTO teaching_assignments VALUES ($1,$3,$5,$6,$8,'active'),($2,$4,$5,$7,$8,'active')", []any{assignmentA, assignmentB, schoolA, schoolB, teacher, classA, classB, subject}},
+		{"INSERT INTO teaching_assignments VALUES ($1,$3,$5,$6,$8,'active'),($2,$4,$5,$7,$9,'active')", []any{assignmentA, assignmentB, schoolA, schoolB, teacher, classA, classB, subject, subjectB}},
 	}
 	for _, f := range fixtures {
 		if _, err := pool.Exec(ctx, f.sql, f.args...); err != nil {
@@ -116,7 +116,7 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		allowed bool
 	}{
 		{"assigned subject", pathA, subject, true},
-		{"unassigned subject", pathB, subjectB, false},
+		{"other authorized school's subject", pathB, subjectB, true},
 		{"mismatched path", pathB, subject, false},
 		{"mismatched subject", pathA, subjectB, false},
 	} {
@@ -141,6 +141,14 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 	}
 	if allowed {
 		t.Fatal("revoked school membership still authorizes subject teaching")
+	}
+	// Revoking school A must not revoke a separate valid assignment in school B.
+	allowed, err = repo.CanTeachSubject(ctx, teacher, pathB, subjectB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !allowed {
+		t.Fatal("revoking school A unexpectedly revoked school B teaching permission")
 	}
 	if _, err := pool.Exec(ctx, "UPDATE school_memberships SET status='active' WHERE school_id=$1 AND user_id=$2 AND role='teacher'", schoolA, teacher); err != nil {
 		t.Fatal(err)
