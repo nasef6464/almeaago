@@ -557,6 +557,7 @@ export function AssessmentAttemptPage() {
                         <QuestionAssetImage
                           assetId={option.assetId}
                           alt={`صورة الاختيار ${['أ', 'ب', 'ج', 'د', 'هـ'][option.index] || option.index + 1}`}
+                          showRetryButton={false}
                           onZoom={setZoomImageUrl}
                         />
                       </span>
