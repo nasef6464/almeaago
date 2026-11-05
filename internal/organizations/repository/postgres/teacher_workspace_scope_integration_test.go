@@ -327,14 +327,26 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		{"assignment status", "UPDATE teaching_assignments SET status='inactive' WHERE id='00000000-0000-0000-0000-000000008041'", "UPDATE teaching_assignments SET status='active' WHERE id='00000000-0000-0000-0000-000000008041'"},
 	} {
 		t.Run("subject grant revoked by "+tc.name, func(t *testing.T) {
-			if _, err := pool.Exec(ctx, tc.revoke); err != nil { t.Fatal(err) }
+			if _, err := pool.Exec(ctx, tc.revoke); err != nil {
+				t.Fatal(err)
+			}
 			allowed, err := repo.CanTeachSubject(ctx, teacher, pathA, subject)
-			if err != nil { t.Fatal(err) }
-			if allowed { t.Fatalf("%s still authorizes subject", tc.name) }
-			if _, err := pool.Exec(ctx, tc.restore); err != nil { t.Fatal(err) }
+			if err != nil {
+				t.Fatal(err)
+			}
+			if allowed {
+				t.Fatalf("%s still authorizes subject", tc.name)
+			}
+			if _, err := pool.Exec(ctx, tc.restore); err != nil {
+				t.Fatal(err)
+			}
 			allowed, err = repo.CanTeachSubject(ctx, teacher, pathA, subject)
-			if err != nil { t.Fatal(err) }
-			if !allowed { t.Fatalf("%s restoration did not restore authorized subject", tc.name) }
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !allowed {
+				t.Fatalf("%s restoration did not restore authorized subject", tc.name)
+			}
 		})
 	}
 	// A valid teacher assignment must not expose an inactive school. This also
