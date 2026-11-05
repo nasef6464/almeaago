@@ -10,7 +10,11 @@ export default defineConfig({
   expect: { timeout: 5_000 },
   fullyParallel: false,
   retries: 0,
-  reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
+  reporter: [
+    ['list'],
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
+    ...(process.env.CI ? [['json', { outputFile: 'test-results/playwright-results.json' }] as const] : []),
+  ],
   use: {
     baseURL: 'http://127.0.0.1:4173',
     trace: 'retain-on-failure',
