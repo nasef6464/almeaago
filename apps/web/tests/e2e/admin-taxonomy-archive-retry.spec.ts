@@ -110,6 +110,9 @@ test('archive confirmation disables duplicate submission until API completes', a
   try {
     await confirm.click();
     await expect(confirm).toBeDisabled();
+    // Do not dismiss an in-flight archive: its late success must not silently
+    // change a record after the manager believes the operation was cancelled.
+    await expect(dialog.getByRole('button', { name: 'إلغاء' })).toBeDisabled();
     await expect(dialog).toBeVisible();
     expect(writes).toBe(1);
   } finally {
