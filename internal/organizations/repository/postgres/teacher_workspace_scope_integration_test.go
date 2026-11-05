@@ -118,4 +118,29 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 	if len(workspace.Schools) != 0 {
 		t.Fatalf("inactive teaching assignments still visible: %+v", workspace.Schools)
 	}
+	// A valid teacher assignment must not expose an inactive school. This also
+	// guards against non-archived inactive statuses accidentally being visible.
+	if _, err := pool.Exec(ctx, "UPDATE teaching_assignments SET status='active' WHERE id=$1", assignmentA); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, "UPDATE schools SET status='inactive' WHERE id=$1", schoolA); err != nil {
+		t.Fatal(err)
+	}
+	workspace, err = repo.TeacherWorkspace(ctx, teacher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(workspace.Schools) != 0 {
+		t.Fatalf("inactive school still visible to teacher: %+v", workspace.Schools)
+	}
+	if _, err := pool.Exec(ctx, "UPDATE schools SET status='archived' WHERE id=$1", schoolA); err != nil {
+		t.Fatal(err)
+	}
+	workspace, err = repo.TeacherWorkspace(ctx, teacher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(workspace.Schools) != 0 {
+		t.Fatalf("archived school still visible to teacher: %+v", workspace.Schools)
+	}
 }
