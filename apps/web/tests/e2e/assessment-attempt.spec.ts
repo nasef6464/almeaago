@@ -7,7 +7,14 @@ test('student starts autosaves submits and sees server result',async({page})=>{a
 
 test('student can see and select image-backed options when choices are not embedded in question image', async ({ page }) => {
   await mock(page);
-  const image = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><circle cx="40" cy="40" r="24" fill="#2563eb"/></svg>').toString('base64');
+  const image = 'image-asset-1';
+  const imageUrl = 'https://cdn.example.test/question.png';
+  let mediaLookups = 0;
+  await page.route('**/api/v1/media/assets/image-asset-1', route => {
+    mediaLookups += 1;
+    return json(route, { asset: { id: image, publicUrl: imageUrl, status: 'active', mimeType: 'image/png' } });
+  });
+  await page.route(imageUrl, route => route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==', 'base64') }));
   const visualQuestion = {
     ...attempt.questions[0],
     text: 'اختر الشكل الصحيح',
@@ -32,7 +39,9 @@ test('student can see and select image-backed options when choices are not embed
     await expect(page.getByRole('img', { name: 'صورة السؤال' })).toBeVisible();
     await expect(page.getByRole('img', { name: 'صورة الاختيار أ' })).toBeVisible();
     await expect(page.getByRole('img', { name: 'صورة الاختيار ب' })).toBeVisible();
+    await expect(page.getByRole('img', { name: 'صورة الاختيار ب' })).toHaveAttribute('src', imageUrl);
     await page.getByRole('button', { name: /صورة الاختيار ب/ }).click();
     await expect(page.getByRole('button', { name: /صورة الاختيار ب/ })).toHaveClass(/border-amber-500/);
   }
+  expect(mediaLookups).toBeGreaterThan(0);
 });
