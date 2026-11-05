@@ -122,23 +122,43 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			allowed, err := repo.CanTeachSubject(ctx, teacher, tc.pathID, tc.subjectID)
-			if err != nil { t.Fatal(err) }
-			if allowed != tc.allowed { t.Fatalf("CanTeachSubject(%s,%s) = %v, want %v", tc.pathID, tc.subjectID, allowed, tc.allowed) }
+			if err != nil {
+			t.Fatal(err)
+		}
+			if allowed != tc.allowed {
+				t.Fatalf("CanTeachSubject(%s,%s) = %v, want %v", tc.pathID, tc.subjectID, allowed, tc.allowed)
+			}
 		})
 	}
 	// Revoking a school membership must revoke subject teaching permission
 	// even while the assignment and global teacher role remain active.
-	if _, err := pool.Exec(ctx, "UPDATE school_memberships SET status='inactive' WHERE school_id=$1 AND user_id=$2 AND role='teacher'", schoolA, teacher); err != nil { t.Fatal(err) }
+	if _, err := pool.Exec(ctx, "UPDATE school_memberships SET status='inactive' WHERE school_id=$1 AND user_id=$2 AND role='teacher'", schoolA, teacher); err != nil {
+		t.Fatal(err)
+	}
 	allowed, err := repo.CanTeachSubject(ctx, teacher, pathA, subject)
-	if err != nil { t.Fatal(err) }
-	if allowed { t.Fatal("revoked school membership still authorizes subject teaching") }
-	if _, err := pool.Exec(ctx, "UPDATE school_memberships SET status='active' WHERE school_id=$1 AND user_id=$2 AND role='teacher'", schoolA, teacher); err != nil { t.Fatal(err) }
+	if err != nil {
+			t.Fatal(err)
+		}
+	if allowed {
+		t.Fatal("revoked school membership still authorizes subject teaching")
+	}
+	if _, err := pool.Exec(ctx, "UPDATE school_memberships SET status='active' WHERE school_id=$1 AND user_id=$2 AND role='teacher'", schoolA, teacher); err != nil {
+		t.Fatal(err)
+	}
 	// Disabled content must not remain teachable through a stale assignment.
-	if _, err := pool.Exec(ctx, "UPDATE subjects SET status='inactive' WHERE id=$1", subject); err != nil { t.Fatal(err) }
+	if _, err := pool.Exec(ctx, "UPDATE subjects SET status='inactive' WHERE id=$1", subject); err != nil {
+		t.Fatal(err)
+	}
 	allowed, err = repo.CanTeachSubject(ctx, teacher, pathA, subject)
-	if err != nil { t.Fatal(err) }
-	if allowed { t.Fatal("inactive subject still authorized") }
-	if _, err := pool.Exec(ctx, "UPDATE subjects SET status='active' WHERE id=$1", subject); err != nil { t.Fatal(err) }
+	if err != nil {
+			t.Fatal(err)
+		}
+	if allowed {
+		t.Fatal("inactive subject still authorized")
+	}
+	if _, err := pool.Exec(ctx, "UPDATE subjects SET status='active' WHERE id=$1", subject); err != nil {
+		t.Fatal(err)
+	}
 
 	// Duplicate teacher membership rows must not duplicate assignments or
 	// produce a second copy of the same school/class in the HTTP response.
