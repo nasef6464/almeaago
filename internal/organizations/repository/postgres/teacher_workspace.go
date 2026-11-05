@@ -24,6 +24,11 @@ func (r *Repository) TeacherWorkspace(
 				WHERE cm.class_id = c.id
 				  AND cm.status = 'active'
 				  AND EXISTS (
+					SELECT 1 FROM users student_user
+					WHERE student_user.id = cm.user_id
+					  AND student_user.status = 'active'
+				  )
+				  AND EXISTS (
 					SELECT 1
 					FROM school_memberships sm
 					WHERE sm.user_id = cm.user_id
