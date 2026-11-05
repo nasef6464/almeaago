@@ -146,3 +146,43 @@ for (const scenario of cases) {
     expect(rejectedWrites).toBe(1);
   });
 }
+
+
+// Restore must use the same persisted mutation contract as archive. The
+// status selector is the Legacy-compatible way to reactivate an archived row.
+for (const width of [390, 820, 1440]) {
+  for (const scenario of cases) {
+    test(`restore ${scenario.entity} preserves archived state on 503 then persists on retry at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const data = fixture();
+      if (scenario.entity === 'path') data.paths[0].status = 'archived';
+      else data.subjects[0].status = 'archived';
+      await setup(page, data);
+
+      const selector = page.getByLabel(scenario.statusLabel);
+      await expect(selector).toHaveValue('archived');
+      let writes = 0;
+      await page.route(`**/api/v1/taxonomy/admin/${scenario.endpoint}/${scenario.id}`, route => {
+        writes += 1;
+        expect(route.request().method()).toBe('PATCH');
+        expect(route.request().headers()['x-csrf-token']).toBe('csrf-archive');
+        expect(route.request().postDataJSON()).toEqual({ status: 'active' });
+        if (writes === 1) return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+        if (scenario.entity === 'path') data.paths[0].status = 'active';
+        else data.subjects[0].status = 'active';
+        return route.fulfill({ json: { [scenario.entity]: scenario.entity === 'path' ? data.paths[0] : data.subjects[0] } });
+      });
+
+      await selector.selectOption('active');
+      await expect(page.getByRole('alert')).toBeVisible();
+      // A failed restore must never become a false success, including after reload.
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(page.getByLabel(scenario.statusLabel)).toHaveValue('archived');
+      await page.getByLabel(scenario.statusLabel).selectOption('active');
+      await expect(page.getByLabel(scenario.statusLabel)).toHaveValue('active');
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(page.getByLabel(scenario.statusLabel)).toHaveValue('active');
+      expect(writes).toBe(2);
+    });
+  }
+}
