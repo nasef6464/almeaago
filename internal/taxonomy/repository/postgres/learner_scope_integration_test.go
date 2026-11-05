@@ -265,14 +265,21 @@ func TestTaxonomyLearnerScopeFollowsLevelVisibilityPostgres(t *testing.T) {
 		}
 	}
 	assertChild(true)
-	if _, err := db.Exec(ctx, "UPDATE paths SET status='archived' WHERE id=$1::uuid", path); err != nil {
-		t.Fatal(err)
+	// Exercise the production repository mutation, not a direct SQL shortcut:
+	// both archive and restore must retain nested path/subject references.
+	for _, status := range []taxonomy.Status{taxonomy.StatusArchived, taxonomy.StatusActive} {
+		updated, err := repo.UpdatePath(ctx, actor, path, taxonomy.PathPatch{Status: &status})
+		if err != nil {
+			t.Fatalf("nested parent UpdatePath %s: %v", status, err)
+		}
+		if updated.ID != path || updated.Status != status {
+			t.Fatalf("nested parent update returned %+v, want id=%s status=%s", updated, path, status)
+		}
+		assertChild(status == taxonomy.StatusActive)
 	}
-	assertChild(false)
-	if _, err := db.Exec(ctx, "UPDATE paths SET status='active' WHERE id=$1::uuid", path); err != nil {
-		t.Fatal(err)
+	if err := db.QueryRow(ctx, "SELECT count(*) FROM audit_logs WHERE actor_user_id=$1::uuid AND action='taxonomy.path.update'", actor).Scan(&auditCount); err != nil || auditCount != 4 {
+		t.Fatalf("nested archive/restore path audit writes=%d err=%v want=4", auditCount, err)
 	}
-	assertChild(true)
 
 	assertScope("active", true)
 	for _, status := range []string{"inactive", "archived", "active"} {
