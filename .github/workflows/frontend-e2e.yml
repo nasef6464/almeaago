@@ -18,6 +18,9 @@ on:
       - "apps/web/package.json"
       # Browser journeys depend on Go HTTP contracts and persisted schema, not just React.
       - "cmd/api/**"
+      - "internal/platform/httpserver/**"
+      - "db/**"
+      - "sqlc.yaml"
       - "internal/assessment/**"
       - "internal/learning/**"
       - "internal/taxonomy/**"
@@ -36,6 +39,9 @@ on:
       - "apps/web/package.json"
       # Browser journeys depend on Go HTTP contracts and persisted schema, not just React.
       - "cmd/api/**"
+      - "internal/platform/httpserver/**"
+      - "db/**"
+      - "sqlc.yaml"
       - "internal/assessment/**"
       - "internal/learning/**"
       - "internal/taxonomy/**"
