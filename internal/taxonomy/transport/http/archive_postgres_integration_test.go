@@ -177,12 +177,20 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 			before = "archived"
 		}
 		assertStatus("skills", subSkillID, before)
+		var auditBefore int
+		if err := db.QueryRow(ctx, "SELECT count(*) FROM audit_logs").Scan(&auditBefore); err != nil {
+			t.Fatal(err)
+		}
 		rec := request(http.MethodPatch, url, body, admin, "valid-csrf")
 		if rec.Code != http.StatusOK {
 			t.Fatalf("skill %s HTTP=%d body=%s", status, rec.Code, rec.Body.String())
 		}
 		assertStatus("skills", subSkillID, status)
 		assertStatus("skills", mainSkillID, "active")
+		var auditAfter int
+		if err := db.QueryRow(ctx, "SELECT count(*) FROM audit_logs").Scan(&auditAfter); err != nil || auditAfter != auditBefore+1 {
+			t.Fatalf("skill audit count after %s: before=%d after=%d err=%v", status, auditBefore, auditAfter, err)
+		}
 		public := request(http.MethodGet, "/bootstrap", "", mutationAuth{}, "")
 		if public.Code != http.StatusOK {
 			t.Fatalf("skill readback HTTP=%d body=%s", public.Code, public.Body.String())
@@ -261,6 +269,9 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 	}
 	var count int
 	if err := db.QueryRow(ctx, "SELECT count(*) FROM audit_logs WHERE actor_user_id=$1::uuid AND action IN ('taxonomy.path.update','taxonomy.subject.update')", actor).Scan(&count); err != nil || count != 4 {
-		t.Fatalf("audit count=%d err=%v want=4", count, err)
+		t.Fatalf("path/subject audit count=%d err=%v want=4", count, err)
+	}
+	if err := db.QueryRow(ctx, "SELECT count(*) FROM audit_logs WHERE actor_user_id=$1::uuid AND action='taxonomy.skill.update'", actor).Scan(&count); err != nil || count != 2 {
+		t.Fatalf("skill audit count=%d err=%v want=2", count, err)
 	}
 }
