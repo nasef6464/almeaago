@@ -240,10 +240,18 @@ func (s *AttemptService) SingleShotSubmit(
 	}
 	// Copy answers so normalization cannot mutate the caller's map.
 	answers := make(map[string]int, len(req.Answers))
+	seenQuestionIDs := make(map[string]struct{}, len(req.Answers))
 	for questionID, option := range req.Answers {
-		if strings.TrimSpace(questionID) == "" || option < -1 {
+		// Normalize IDs before persistence and reject ambiguous duplicates:
+		// two caller keys must never silently overwrite the same answer row.
+		questionID = strings.TrimSpace(questionID)
+		if questionID == "" || option < -1 {
 			return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
 		}
+		if _, exists := seenQuestionIDs[questionID]; exists {
+			return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
+		}
+		seenQuestionIDs[questionID] = struct{}{}
 		// Legacy sends -1 for unanswered questions. PostgreSQL represents
 		// these as missing answer rows, so omit the sentinel when persisting.
 		if option >= 0 {
