@@ -31,6 +31,7 @@ type fakeAttemptRepo struct {
 	singleShotCalls int
 	lastSingleShot  assessment.SingleShotSubmissionRequest
 	access          assessment.AccessContext
+	existingStart   *assessment.Attempt
 }
 
 func (f *fakeAttemptRepo) GetPublishedAccessContext(context.Context, string) (assessment.AccessContext, error) {
@@ -40,6 +41,9 @@ func (f *fakeAttemptRepo) GetPublishedAccessContext(context.Context, string) (as
 	return f.access, f.err
 }
 func (f *fakeAttemptRepo) FindDirectStart(context.Context, string, string, string) (assessment.Attempt, bool, error) {
+	if f.existingStart != nil {
+		return *f.existingStart, true, f.err
+	}
 	return assessment.Attempt{}, false, f.err
 }
 func (f *fakeAttemptRepo) Start(context.Context, string, string, string) (assessment.Attempt, error) {
@@ -92,6 +96,31 @@ func TestAttemptStudentOnly(t *testing.T) {
 	_, e := s.Start(context.Background(), identity.User{ID: "t", Roles: []identity.Role{identity.RoleTeacher}}, "a", "key")
 	if !errors.Is(e, ErrForbidden) {
 		t.Fatalf("want forbidden got %v", e)
+	}
+}
+
+func TestIdempotentStartRejectsMismatchedRepositoryReadback(t *testing.T) {
+	cases := []struct {
+		name string
+		attempt assessment.Attempt
+		wantForbidden bool
+	}{
+		{"another student", assessment.Attempt{ID: "attempt-1", StudentID: "other", AssessmentID: "quiz-1"}, true},
+		{"another assessment", assessment.Attempt{ID: "attempt-1", StudentID: "student-1", AssessmentID: "quiz-2"}, true},
+		{"matching owner and assessment", assessment.Attempt{ID: "attempt-1", StudentID: "student-1", AssessmentID: "quiz-1"}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &fakeAttemptRepo{existingStart: &tc.attempt}
+			got, err := NewAttemptService(repo).Start(context.Background(), student("student-1"), "quiz-1", "retry-key")
+			if tc.wantForbidden {
+				if !errors.Is(err, ErrForbidden) || got.ID != "" {
+					t.Fatalf("foreign idempotency readback leaked: attempt=%+v err=%v", got, err)
+				}
+			} else if err != nil || got.ID != "attempt-1" {
+				t.Fatalf("matching retry must return original attempt: attempt=%+v err=%v", got, err)
+			}
+		})
 	}
 }
 
