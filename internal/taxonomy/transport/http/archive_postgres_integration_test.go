@@ -151,6 +151,64 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 		}
 	}
 	assertReadback(true, true)
+	// A skill has its own archive lifecycle: archiving the subskill must
+	// neither delete its parent nor break the subject/parent foreign keys.
+	for _, status := range []string{"archived", "active"} {
+		body := `{"status":"` + status + `"}`
+		url := "/admin/skills/" + subSkillID
+		for _, denied := range []struct {
+			name string
+			auth mutationAuth
+			csrf string
+			code int
+		}{
+			{"student", mutationAuth{user: identity.User{ID: actor, Roles: []identity.Role{identity.RoleStudent}}}, "valid-csrf", http.StatusForbidden},
+			{"teacher", mutationAuth{user: identity.User{ID: actor, Roles: []identity.Role{identity.RoleTeacher}}}, "valid-csrf", http.StatusForbidden},
+			{"missing-csrf", admin, "", http.StatusForbidden},
+			{"unauthenticated", mutationAuth{authErr: errors.New("no session")}, "valid-csrf", http.StatusUnauthorized},
+		} {
+			rec := request(http.MethodPatch, url, body, denied.auth, denied.csrf)
+			if rec.Code != denied.code {
+				t.Fatalf("skill %s %s: HTTP=%d want=%d body=%s", status, denied.name, rec.Code, denied.code, rec.Body.String())
+			}
+		}
+		before := "active"
+		if status == "active" {
+			before = "archived"
+		}
+		assertStatus("skills", subSkillID, before)
+		rec := request(http.MethodPatch, url, body, admin, "valid-csrf")
+		if rec.Code != http.StatusOK {
+			t.Fatalf("skill %s HTTP=%d body=%s", status, rec.Code, rec.Body.String())
+		}
+		assertStatus("skills", subSkillID, status)
+		assertStatus("skills", mainSkillID, "active")
+		public := request(http.MethodGet, "/bootstrap", "", mutationAuth{}, "")
+		if public.Code != http.StatusOK {
+			t.Fatalf("skill readback HTTP=%d body=%s", public.Code, public.Body.String())
+		}
+		var response struct {
+			Skills []struct {
+				ID string `json:"id"`
+			} `json:"skills"`
+		}
+		if err := json.Unmarshal(public.Body.Bytes(), &response); err != nil {
+			t.Fatal(err)
+		}
+		mainVisible, subVisible := false, false
+		for _, skill := range response.Skills {
+			mainVisible = mainVisible || skill.ID == mainSkillID
+			subVisible = subVisible || skill.ID == subSkillID
+		}
+		if !mainVisible || subVisible != (status == "active") {
+			t.Fatalf("skill HTTP readback main=%v sub=%v after %s", mainVisible, subVisible, status)
+		}
+		var subject, parent string
+		if err := db.QueryRow(ctx, "SELECT subject_id::text,parent_skill_id::text FROM skills WHERE id=$1::uuid", subSkillID).Scan(&subject, &parent); err != nil || subject != subjectID || parent != mainSkillID {
+			t.Fatalf("skill relations after %s: subject=%s parent=%s err=%v", status, subject, parent, err)
+		}
+	}
+	assertReadback(true, true)
 	for _, target := range []struct{ resource, table, id string }{
 		{"subjects", "subjects", subjectID},
 		{"paths", "paths", pathID},
