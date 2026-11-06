@@ -16,7 +16,7 @@ import (
 // mutationAuth isolates the HTTP security boundary. The nil repository is
 // intentional: denied requests must not reach any persistence operation.
 type mutationAuth struct {
-	user identity.User
+	user    identity.User
 	authErr error
 	csrfErr error
 }
@@ -40,10 +40,10 @@ func TestTaxonomyArchiveRestoreHTTPRejectsUnauthorizedMutations(t *testing.T) {
 	for _, resource := range []string{"paths", "subjects", "levels", "skills"} {
 		for _, status := range []string{"archived", "active"} {
 			for _, tc := range []struct {
-				name string
-				auth mutationAuth
+				name  string
+				auth  mutationAuth
 				token string
-				want int
+				want  int
 			}{
 				{"no-session", mutationAuth{authErr: errors.New("no session")}, "valid-csrf", http.StatusUnauthorized},
 				{"missing-csrf", mutationAuth{user: identity.User{Roles: []identity.Role{identity.RoleAdmin}}}, "", http.StatusForbidden},
