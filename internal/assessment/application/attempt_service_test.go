@@ -22,6 +22,8 @@ type fakeAttemptRepo struct {
 	lastPage        int
 	lastLimit       int
 	lastDetail      string
+	lastResultID    string
+	attemptReads    int
 	submitCalls     int
 	singleShotCalls int
 	lastSingleShot assessment.SingleShotSubmissionRequest
@@ -40,7 +42,9 @@ func (f *fakeAttemptRepo) FindDirectStart(context.Context, string, string, strin
 func (f *fakeAttemptRepo) Start(context.Context, string, string, string) (assessment.Attempt, error) {
 	return f.a, f.err
 }
-func (f *fakeAttemptRepo) GetAttempt(context.Context, string) (assessment.Attempt, error) {
+func (f *fakeAttemptRepo) GetAttempt(_ context.Context, id string) (assessment.Attempt, error) {
+	f.attemptReads++
+	f.lastResultID = id
 	return f.a, f.err
 }
 func (f *fakeAttemptRepo) SaveAnswer(context.Context, string, string, string, assessment.AnswerWrite) (assessment.Attempt, error) {
@@ -50,7 +54,8 @@ func (f *fakeAttemptRepo) Submit(context.Context, string, string, string) (asses
 	f.submitCalls++
 	return f.r, f.err
 }
-func (f *fakeAttemptRepo) GetResult(context.Context, string) (assessment.Result, error) {
+func (f *fakeAttemptRepo) GetResult(_ context.Context, id string) (assessment.Result, error) {
+	f.lastResultID = id
 	return f.r, f.err
 }
 func (f *fakeAttemptRepo) ListResults(_ context.Context, student string, page, limit int) (assessment.ResultPage, error) {
@@ -89,6 +94,23 @@ func TestAttemptOwnership(t *testing.T) {
 	_, e := s.Get(context.Background(), student("me"), "x")
 	if !errors.Is(e, ErrForbidden) {
 		t.Fatalf("want forbidden got %v", e)
+	}
+}
+
+func TestResultValidatesAndNormalizesAttemptIDBeforeRepository(t *testing.T) {
+	repo := &fakeAttemptRepo{a: assessment.Attempt{ID: "attempt-1", StudentID: "student-1"}}
+	service := NewAttemptService(repo)
+	if _, err := service.Result(context.Background(), student("student-1"), "   "); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("blank attempt ID must be rejected: %v", err)
+	}
+	if repo.attemptReads != 0 {
+		t.Fatal("blank attempt ID reached repository")
+	}
+	if _, err := service.Result(context.Background(), student("student-1"), " attempt-1 "); err != nil {
+		t.Fatalf("normalized result lookup failed: %v", err)
+	}
+	if repo.lastResultID != "attempt-1" || repo.attemptReads != 1 {
+		t.Fatalf("unexpected repository result ID=%q reads=%d", repo.lastResultID, repo.attemptReads)
 	}
 }
 
