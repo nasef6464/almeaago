@@ -124,11 +124,11 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		workspace.Schools[0].Assignments[0].AssignmentID != assignmentB {
 		t.Fatalf("cross-school assignment forged a visible class: %+v", workspace.Schools)
 	}
-	allowed, err := repo.CanTeachSubject(ctx, teacher, pathA, subject)
+	forgedAllowed, err := repo.CanTeachSubject(ctx, teacher, pathA, subject)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if allowed {
+	if forgedAllowed {
 		t.Fatal("cross-school assignment forged subject teaching permission")
 	}
 	if _, err := pool.Exec(ctx, "UPDATE teaching_assignments SET school_id=$1 WHERE id=$2", schoolA, assignmentA); err != nil {
