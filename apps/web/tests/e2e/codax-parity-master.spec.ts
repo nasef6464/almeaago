@@ -21,10 +21,16 @@ test.describe('ALMEAA CODAX 1:1 Parity Suite - Tier 1: Feature Coverage', () => 
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
-    const aside = page.locator('aside');
-    if (await aside.isVisible()) {
-      const box = await aside.boundingBox();
-      expect(box).not.toBeNull();
+    // The dashboard can render a navigation aside and a contextual aside.
+    // Check each visible sidebar independently; a multi-match locator must not
+    // throw a strict-mode error before any responsive layout assertion runs.
+    const asides = page.locator('aside:visible');
+    const count = await asides.count();
+    for (let index = 0; index < count; index++) {
+      const box = await asides.nth(index).boundingBox();
+      expect(box, `visible sidebar ${index} has a layout box`).not.toBeNull();
+      expect(box!.width, `visible sidebar ${index} has positive width`).toBeGreaterThan(0);
+      expect(box!.height, `visible sidebar ${index} has positive height`).toBeGreaterThan(0);
     }
   });
 
