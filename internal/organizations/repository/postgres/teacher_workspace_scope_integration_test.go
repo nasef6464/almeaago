@@ -113,7 +113,7 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 	// not just the caller's global teacher role or another school's roster.
 	for _, tc := range []struct {
 		name, pathID, subjectID string
-		allowed                  bool
+		allowed                 bool
 	}{
 		{"assigned subject", pathA, subject, true},
 		{"other authorized school's subject", pathB, subjectB, true},
