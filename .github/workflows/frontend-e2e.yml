@@ -4,30 +4,19 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - "apps/web/src/app/App.tsx"
-      - "apps/web/src/features/learning/navigation/**"
-      - "apps/web/src/features/admin/**"
-      - "apps/web/src/features/organizations/**"
-      - "apps/web/src/features/assessment/**"
-      - "apps/web/src/features/learning/**"
-      - "apps/web/src/features/public/components/**"
-      - "apps/web/src/features/content/**"
-      - "apps/web/src/features/presentation/**"
+      # All frontend source changes can affect shared routing/auth and browser parity.
+      - "apps/web/src/**"
       - "apps/web/tests/e2e/**"
       - "apps/web/playwright.config.ts"
       - "apps/web/package.json"
-      # Browser journeys depend on Go HTTP contracts and persisted schema, not just React.
+      # The browser depends on the Go API, security middleware and persisted schema.
       - "cmd/api/**"
-      - "internal/platform/httpserver/**"
+      - "internal/**"
       - "db/**"
-      - "sqlc.yaml"
-      - "internal/assessment/**"
-      - "internal/learning/**"
-      - "internal/taxonomy/**"
-      - "internal/organizations/**"
-      - "internal/content/**"
-      - "internal/identity/**"
       - "migrations/**"
+      - "sqlc.yaml"
+      - "go.mod"
+      - "go.sum"
       - ".github/workflows/frontend-e2e.yml"
       - "docs/**"
   push:
@@ -39,15 +28,11 @@ on:
       - "apps/web/package.json"
       # Browser journeys depend on Go HTTP contracts and persisted schema, not just React.
       - "cmd/api/**"
-      - "internal/platform/httpserver/**"
+      - "internal/**"
       - "db/**"
       - "sqlc.yaml"
-      - "internal/assessment/**"
-      - "internal/learning/**"
-      - "internal/taxonomy/**"
-      - "internal/organizations/**"
-      - "internal/content/**"
-      - "internal/identity/**"
+      - "go.mod"
+      - "go.sum"
       - "migrations/**"
       - ".github/workflows/frontend-e2e.yml"
 
