@@ -80,10 +80,13 @@ test('taxonomy admin desktop manages lifecycle-safe hierarchy with csrf',async({
   await page.getByPlaceholder('مثال: القدرات العامة').fill('التحصيلي');
   await page.getByRole('button',{name:'حفظ المسار'}).click();
   await expect(page.getByText('تم إنشاء المسار بنجاح.')).toBeVisible();
-  await expect(page.getByRole('button',{name:/التحصيلي SAT نشط/})).toBeVisible();
+  // Path rows are selectable cards, not buttons; verify the newly persisted
+  // bootstrap row, then select the existing path for its status mutation.
+  await expect(page.getByTestId('taxonomy-admin-page').getByText('التحصيلي',{exact:true})).toBeVisible();
   expect(observed.createPathCsrf).toBe('csrf-taxonomy');
 
-  await page.getByLabel('حالة المسار').selectOption('inactive');
+  await page.getByTestId('taxonomy-admin-page').getByText('القدرات',{exact:true}).first().click();
+  await page.getByLabel('حالة القدرات').selectOption('inactive');
   await expect(page.getByText('تم تحديث الحالة إلى «غير نشط».')).toBeVisible();
   expect(observed.patchPathCsrf).toBe('csrf-taxonomy');
 
