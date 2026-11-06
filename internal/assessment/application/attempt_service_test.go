@@ -368,6 +368,7 @@ func TestSingleShotRejectsInvalidSubmissionBeforeRepository(t *testing.T) {
 		{"oversized idempotency key", assessment.SingleShotSubmissionRequest{SubmissionKey: strings.Repeat("x", 161)}},
 		{"invalid answer index below unanswered sentinel", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", Answers: map[string]int{"q-1": -2}}},
 		{"empty question id", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", Answers: map[string]int{" ": 0}}},
+		{"ambiguous normalized question IDs", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", Answers: map[string]int{"q-1": 0, " q-1 ": 1}}},
 		{"negative duration", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", TimeSpentSeconds: -1}},
 		{"excessive duration", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", TimeSpentSeconds: 86401}},
 	}
@@ -408,6 +409,25 @@ func TestSingleShotUnansweredLegacySentinelIsOmittedWithoutMutatingCaller(t *tes
 	}
 	if repo.singleShotCalls != 1 {
 		t.Fatalf("expected exactly one persistence call, got %d", repo.singleShotCalls)
+	}
+}
+
+func TestSingleShotNormalizesQuestionIDsWithoutMutatingCaller(t *testing.T) {
+	repo := &fakeAttemptRepo{}
+	service := NewAttemptService(repo)
+	answers := map[string]int{" q-answered ": 2, " q-unanswered ": -1}
+	request := assessment.SingleShotSubmissionRequest{SubmissionKey: "normalized-questions", Answers: answers}
+	if _, err := service.SingleShotSubmit(context.Background(), student("student-1"), "quiz-1", request); err != nil {
+		t.Fatalf("normalized submission failed: %v", err)
+	}
+	if len(repo.lastSingleShot.Answers) != 1 || repo.lastSingleShot.Answers["q-answered"] != 2 {
+		t.Fatalf("unexpected normalized persisted answers: %#v", repo.lastSingleShot.Answers)
+	}
+	if _, exists := repo.lastSingleShot.Answers[" q-answered "]; exists {
+		t.Fatal("unnormalized question ID reached persistence")
+	}
+	if len(answers) != 2 || answers[" q-answered "] != 2 || answers[" q-unanswered "] != -1 {
+		t.Fatalf("caller map mutated: %#v", answers)
 	}
 }
 
