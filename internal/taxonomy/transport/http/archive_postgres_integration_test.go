@@ -63,14 +63,11 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 	repo := taxonomypg.New(db)
 	service := taxonomyapp.NewService(repo)
 	admin := mutationAuth{user: identity.User{ID: actor, Roles: []identity.Role{identity.RoleAdmin}}}
-	router := New(service, admin)
-
 	request := func(method, url, body string, auth mutationAuth, csrf string) *httptest.ResponseRecorder {
 		t.Helper()
+		// Use the request's exact authenticator. Reusing the admin router for
+		// a student sharing the fixture ID would bypass the RBAC check.
 		h := New(service, auth)
-		if auth.user.ID == actor && auth.authErr == nil && auth.csrfErr == nil {
-			h = router
-		}
 		req := httptest.NewRequest(method, url, strings.NewReader(body)).WithContext(ctx)
 		req.Header.Set("Content-Type", "application/json")
 		if csrf != "" {
