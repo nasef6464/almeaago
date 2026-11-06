@@ -157,10 +157,10 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 		body := `{"status":"` + status + `"}`
 		url := "/admin/skills/" + subSkillID
 		for _, denied := range []struct {
-			name string
-			auth mutationAuth
-			csrf string
-			code int
+			name	string
+			auth	mutationAuth
+			csrf	string
+			code	int
 		}{
 			{"student", mutationAuth{user: identity.User{ID: actor, Roles: []identity.Role{identity.RoleStudent}}}, "valid-csrf", http.StatusForbidden},
 			{"teacher", mutationAuth{user: identity.User{ID: actor, Roles: []identity.Role{identity.RoleTeacher}}}, "valid-csrf", http.StatusForbidden},
