@@ -2,8 +2,8 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -125,7 +125,7 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 	router := organizationshttp.New(orgapp.NewService(repo), schoolScopeHTTPAuth{})
 	for _, tc := range []struct {
 		name, token string
-		status int
+		status    int
 		schoolIDs []string
 	}{
 		{"school A only", schoolAOnlyTeacher, http.StatusOK, []string{schoolA}},
@@ -136,7 +136,7 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		t.Run("HTTP "+tc.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/teacher-workspace", nil)
 			if tc.token != "" {
-				req.AddCookie(&http.Cookie{Name: "session", Value: tc.token})
+				req.AddCookie(&http.Cookie{Name: "almeaa_access_token", Value: tc.token})
 				req.Header.Set("Authorization", "Bearer "+tc.token)
 			}
 			rec := httptest.NewRecorder()
@@ -144,16 +144,30 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 			if rec.Code != tc.status {
 				t.Fatalf("HTTP status = %d, want %d: %s", rec.Code, tc.status, rec.Body.String())
 			}
-			if rec.Code != http.StatusOK { return }
-			var payload struct { Schools []struct { SchoolID string `json:"schoolId"` } `json:"schools"` }
-			if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil { t.Fatal(err) }
+			if rec.Code != http.StatusOK {
+				return
+			}
+			var payload struct {
+				Schools []struct {
+					SchoolID string `json:"schoolId"`
+				} `json:"schools"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+				t.Fatal(err)
+			}
 			if len(payload.Schools) != len(tc.schoolIDs) {
 				t.Fatalf("HTTP school disclosure: %+v, want %v", payload.Schools, tc.schoolIDs)
 			}
 			for _, school := range payload.Schools {
 				found := false
-				for _, id := range tc.schoolIDs { if school.SchoolID == id { found = true } }
-				if !found { t.Fatalf("foreign school exposed over HTTP: %s", school.SchoolID) }
+				for _, id := range tc.schoolIDs {
+					if school.SchoolID == id {
+						found = true
+					}
+				}
+				if !found {
+					t.Fatalf("foreign school exposed over HTTP: %s", school.SchoolID)
+				}
 			}
 			if got := rec.Header().Get("Cache-Control"); got != "private, no-store" {
 				t.Fatalf("teacher workspace cache control = %q", got)
@@ -171,8 +185,12 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		t.Fatalf("CSRF rejection status = %d, want 403: %s", rec.Code, rec.Body.String())
 	}
 	var forbiddenCount int
-	if err := pool.QueryRow(ctx, "SELECT count(*) FROM schools WHERE name='Cross tenant'").Scan(&forbiddenCount); err != nil { t.Fatal(err) }
-	if forbiddenCount != 0 { t.Fatal("CSRF rejected request mutated PostgreSQL") }
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM schools WHERE name='Cross tenant'").Scan(&forbiddenCount); err != nil {
+		t.Fatal(err)
+	}
+	if forbiddenCount != 0 {
+		t.Fatal("CSRF rejected request mutated PostgreSQL")
+	}
 	workspace, err := repo.TeacherWorkspace(ctx, teacher)
 	if err != nil {
 		t.Fatal(err)
