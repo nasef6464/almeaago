@@ -48,6 +48,29 @@ permissions:
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: almeaa
+          POSTGRES_PASSWORD: almeaa
+          POSTGRES_DB: almeaa
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U almeaa -d almeaa"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+      REDIS_URL: redis://127.0.0.1:6379/0
+      CLASSROOM_PIN_SECRET: ci-disposable-classroom-pin-secret
+      WEB_ORIGIN: http://127.0.0.1:4173
+      PGPASSWORD: almeaa
     # Full Chromium suite exceeded the previous 15-minute job budget after 165+ tests.
     # Preserve every test and the browser evidence; allow the suite to finish.
     timeout-minutes: 35
@@ -56,6 +79,42 @@ jobs:
         working-directory: apps/web
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Apply schema migrations to disposable PostgreSQL
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          mapfile -t migrations < <(find migrations -maxdepth 1 -name '*.up.sql' -type f | sort)
+          test "${#migrations[@]}" -gt 0
+          for file in "${migrations[@]}"; do
+            psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f "$file" >/dev/null
+          done
+      - name: Start real Go API and verify HTTP readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          go run ./cmd/api > /tmp/almeaa-e2e-api.log 2>&1 &
+          echo $! > /tmp/almeaa-e2e-api.pid
+          ready=0
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8080/health >/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$(cat /tmp/almeaa-e2e-api.pid)" 2>/dev/null; then
+              cat /tmp/almeaa-e2e-api.log
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/almeaa-e2e-api.log
+            exit 1
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -116,6 +175,10 @@ jobs:
               out.write('\n'.join(lines) + '\n')
           print('\n'.join(lines[:55]))
           PY
+      - name: Print Go API diagnostics on failure
+        if: failure()
+        shell: bash
+        run: tail -n 150 /tmp/almeaa-e2e-api.log 2>/dev/null || true
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4
