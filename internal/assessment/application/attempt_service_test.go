@@ -24,6 +24,7 @@ type fakeAttemptRepo struct {
 	lastDetail      string
 	submitCalls     int
 	singleShotCalls int
+	lastSingleShot assessment.SingleShotSubmissionRequest
 	access          assessment.AccessContext
 }
 
@@ -65,6 +66,7 @@ func (f *fakeAttemptRepo) GetResultDetail(_ context.Context, student, id string)
 }
 func (f *fakeAttemptRepo) SingleShotSubmit(_ context.Context, student, assessmentID string, req assessment.SingleShotSubmissionRequest) (assessment.ResultDetail, error) {
 	f.singleShotCalls++
+	f.lastSingleShot = req
 	f.lastStudent = student
 	f.lastDetail = assessmentID
 	return f.detail, f.err
@@ -369,6 +371,15 @@ func TestSingleShotUnansweredLegacySentinelIsOmittedWithoutMutatingCaller(t *tes
 	}
 	if got := answers["q-unanswered"]; got != -1 {
 		t.Fatalf("caller answers map was mutated: %d", got)
+	}
+	if _, exists := repo.lastSingleShot.Answers["q-unanswered"]; exists {
+		t.Fatal("unanswered sentinel must not reach the persistence layer")
+	}
+	if got := repo.lastSingleShot.Answers["q-answered"]; got != 2 || len(repo.lastSingleShot.Answers) != 1 {
+		t.Fatalf("answered choices must be preserved exactly: %#v", repo.lastSingleShot.Answers)
+	}
+	if repo.singleShotCalls != 1 {
+		t.Fatalf("expected exactly one persistence call, got %d", repo.singleShotCalls)
 	}
 }
 
