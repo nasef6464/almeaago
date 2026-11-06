@@ -39,7 +39,7 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 	}
 	defer db.Close()
 
-	for _, table := range []string{"paths", "levels", "subjects"} {
+	for _, table := range []string{"paths", "levels", "subjects", "skills"} {
 		if _, err := db.Exec(ctx, "CREATE TEMP TABLE "+table+" (LIKE public."+table+" INCLUDING DEFAULTS INCLUDING CONSTRAINTS)"); err != nil {
 			t.Fatalf("shadow %s: %v", table, err)
 		}
@@ -51,6 +51,8 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 		"INSERT INTO paths(id,code,name,status) VALUES ('00000000-0000-0000-0000-000000000801','HTTP-PATH','Path','active')",
 		"INSERT INTO levels(id,path_id,code,name,status) VALUES ('00000000-0000-0000-0000-000000000803','00000000-0000-0000-0000-000000000801','HTTP-LEVEL','Level','active')",
 		"INSERT INTO subjects(id,path_id,level_id,code,name,status) VALUES ('00000000-0000-0000-0000-000000000804','00000000-0000-0000-0000-000000000801','00000000-0000-0000-0000-000000000803','HTTP-SUBJECT','Subject','active')",
+		"INSERT INTO skills(id,subject_id,code,name,kind,status) VALUES ('00000000-0000-0000-0000-000000000805','00000000-0000-0000-0000-000000000804','HTTP-MAIN','Main skill','main','active')",
+		"INSERT INTO skills(id,subject_id,parent_skill_id,code,name,kind,status) VALUES ('00000000-0000-0000-0000-000000000806','00000000-0000-0000-0000-000000000804','00000000-0000-0000-0000-000000000805','HTTP-SUB','Sub skill','sub','active')",
 	} {
 		if _, err := db.Exec(ctx, stmt); err != nil {
 			t.Fatal(err)
@@ -60,6 +62,8 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 	const pathID = "00000000-0000-0000-0000-000000000801"
 	const subjectID = "00000000-0000-0000-0000-000000000804"
 	const levelID = "00000000-0000-0000-0000-000000000803"
+	const mainSkillID = "00000000-0000-0000-0000-000000000805"
+	const subSkillID = "00000000-0000-0000-0000-000000000806"
 	repo := taxonomypg.New(db)
 	service := taxonomyapp.NewService(repo)
 	admin := mutationAuth{user: identity.User{ID: actor, Roles: []identity.Role{identity.RoleAdmin}}}
@@ -86,9 +90,8 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 	}
 	assertReadback := func(wantPath, wantSubject bool) {
 		t.Helper()
-		// Read the learner endpoint as an actual student, not as an administrator.
-		student := mutationAuth{user: identity.User{ID: actor, Roles: []identity.Role{identity.RoleStudent}}}
-		public := request(http.MethodGet, "/bootstrap", "", student, "")
+		// /bootstrap is public by design. RBAC is checked on admin endpoints.
+		public := request(http.MethodGet, "/bootstrap", "", mutationAuth{}, "")
 		if public.Code != http.StatusOK {
 			t.Fatalf("public HTTP=%d body=%s", public.Code, public.Body.String())
 		}
@@ -99,6 +102,9 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 			Subjects []struct {
 				ID string `json:"id"`
 			} `json:"subjects"`
+			Skills []struct {
+				ID string `json:"id"`
+			} `json:"skills"`
 		}
 		if err := json.Unmarshal(public.Body.Bytes(), &body); err != nil {
 			t.Fatal(err)
@@ -114,8 +120,22 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 				subjectVisible = true
 			}
 		}
-		if pathVisible != wantPath || subjectVisible != wantSubject {
-			t.Fatalf("HTTP learner readback path=%v subject=%v want=%v/%v", pathVisible, subjectVisible, wantPath, wantSubject)
+		skillCount := 0
+		for _, row := range body.Skills {
+			if row.ID == mainSkillID || row.ID == subSkillID {
+				skillCount++
+			}
+		}
+		wantSkills := 0
+		if wantSubject {
+			wantSkills = 2
+		}
+		if pathVisible != wantPath || subjectVisible != wantSubject || skillCount != wantSkills {
+			t.Fatalf("HTTP public readback path=%v subject=%v skills=%d want=%v/%v/%d", pathVisible, subjectVisible, skillCount, wantPath, wantSubject, wantSkills)
+		}
+		deniedRead := request(http.MethodGet, "/admin/bootstrap", "", mutationAuth{user: identity.User{ID: actor, Roles: []identity.Role{identity.RoleStudent}}}, "")
+		if deniedRead.Code != http.StatusForbidden {
+			t.Fatalf("student admin bootstrap HTTP=%d want=403", deniedRead.Code)
 		}
 		adminRead := request(http.MethodGet, "/admin/bootstrap", "", admin, "")
 		if adminRead.Code != http.StatusOK || !strings.Contains(adminRead.Body.String(), subjectID) || !strings.Contains(adminRead.Body.String(), pathID) {
@@ -124,6 +144,10 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 		var savedPath, savedLevel string
 		if err := db.QueryRow(ctx, "SELECT path_id::text,level_id::text FROM subjects WHERE id=$1::uuid", subjectID).Scan(&savedPath, &savedLevel); err != nil || savedPath != pathID || savedLevel != levelID {
 			t.Fatalf("subject FK changed: path=%s level=%s err=%v", savedPath, savedLevel, err)
+		}
+		var skillSubject, parentID string
+		if err := db.QueryRow(ctx, "SELECT subject_id::text,parent_skill_id::text FROM skills WHERE id=$1::uuid", subSkillID).Scan(&skillSubject, &parentID); err != nil || skillSubject != subjectID || parentID != mainSkillID {
+			t.Fatalf("subskill FK changed: subject=%s parent=%s err=%v", skillSubject, parentID, err)
 		}
 	}
 	assertReadback(true, true)
