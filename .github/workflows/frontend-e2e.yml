@@ -83,6 +83,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Apply schema migrations to disposable PostgreSQL
+        working-directory: .
         shell: bash
         run: |
           set -euo pipefail
@@ -94,6 +95,7 @@ jobs:
             psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f "$file" >/dev/null
           done
       - name: Start real Go API and verify HTTP readiness
+        working-directory: .
         shell: bash
         run: |
           set -euo pipefail
