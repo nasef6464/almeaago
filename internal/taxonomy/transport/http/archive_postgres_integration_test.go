@@ -13,7 +13,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	identityapp "github.com/nasef6464/almeaago/internal/identity/application"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	taxonomyapp "github.com/nasef6464/almeaago/internal/taxonomy/application"
 	taxonomypg "github.com/nasef6464/almeaago/internal/taxonomy/repository/postgres"
