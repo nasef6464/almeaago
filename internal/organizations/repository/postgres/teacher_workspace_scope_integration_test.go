@@ -61,6 +61,7 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		}
 	}
 	const teacher = "00000000-0000-0000-0000-000000008001"
+	const schoolAOnlyTeacher = "00000000-0000-0000-0000-000000008004"
 	const studentA = "00000000-0000-0000-0000-000000008002"
 	const studentB = "00000000-0000-0000-0000-000000008003"
 	const schoolA = "00000000-0000-0000-0000-000000008011"
@@ -77,15 +78,15 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		sql  string
 		args []any
 	}{
-		{"INSERT INTO users VALUES ($1,'active'),($2,'active'),($3,'active')", []any{teacher, studentA, studentB}},
-		{"INSERT INTO user_roles VALUES ($1,'teacher')", []any{teacher}},
+		{"INSERT INTO users VALUES ($1,'active'),($2,'active'),($3,'active'),($4,'active')", []any{teacher, studentA, studentB, schoolAOnlyTeacher}},
+		{"INSERT INTO user_roles VALUES ($1,'teacher'),($2,'teacher')", []any{teacher, schoolAOnlyTeacher}},
 		{"INSERT INTO paths VALUES ($1,'active'),($2,'active')", []any{pathA, pathB}},
 		{"INSERT INTO subjects VALUES ($1,$2,'active'),($3,$4,'active')", []any{subject, pathA, subjectB, pathB}},
 		{"INSERT INTO schools VALUES ($1,'مدرسة ألف','active'),($2,'مدرسة باء','active')", []any{schoolA, schoolB}},
 		{"INSERT INTO classes VALUES ($1,$2,'الأول ألف','active'),($3,$4,'الثاني باء','active')", []any{classA, schoolA, classB, schoolB}},
-		{"INSERT INTO school_memberships VALUES ($1,$3,'teacher','active'),($2,$3,'teacher','active'),($1,$4,'student','active'),($2,$5,'student','active')", []any{schoolA, schoolB, teacher, studentA, studentB}},
+		{"INSERT INTO school_memberships VALUES ($1,$3,'teacher','active'),($2,$3,'teacher','active'),($1,$4,'student','active'),($2,$5,'student','active'),($1,$6,'teacher','active')", []any{schoolA, schoolB, teacher, studentA, studentB, schoolAOnlyTeacher}},
 		{"INSERT INTO class_memberships VALUES ($1,$3,'active'),($2,$4,'active')", []any{classA, classB, studentA, studentB}},
-		{"INSERT INTO teaching_assignments VALUES ($1,$3,$5,$6,$8,'active'),($2,$4,$5,$7,$9,'active')", []any{assignmentA, assignmentB, schoolA, schoolB, teacher, classA, classB, subject, subjectB}},
+		{"INSERT INTO teaching_assignments VALUES ($1,$3,$5,$6,$8,'active'),($2,$4,$5,$7,$9,'active'),($10,$3,$11,$6,$8,'active')", []any{assignmentA, assignmentB, schoolA, schoolB, teacher, classA, classB, subject, subjectB, "00000000-0000-0000-0000-000000008043", schoolAOnlyTeacher}},
 	}
 	for _, f := range fixtures {
 		if _, err := pool.Exec(ctx, f.sql, f.args...); err != nil {
@@ -108,6 +109,24 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 			school.SchoolID == schoolB && school.Assignments[0].ClassID != classB {
 			t.Fatalf("cross-school class disclosure %+v", school)
 		}
+	}
+	// A separate teacher assigned only to school A must never discover school B,
+	// even when another teacher has valid assignments in both schools.
+	scopedWorkspace, err := repo.TeacherWorkspace(ctx, schoolAOnlyTeacher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(scopedWorkspace.Schools) != 1 || scopedWorkspace.Schools[0].SchoolID != schoolA ||
+		len(scopedWorkspace.Schools[0].Assignments) != 1 ||
+		scopedWorkspace.Schools[0].Assignments[0].ClassID != classA {
+		t.Fatalf("school A-only teacher can see foreign school or lost own class: %+v", scopedWorkspace.Schools)
+	}
+	allowedForScopedTeacher, err := repo.CanTeachSubject(ctx, schoolAOnlyTeacher, pathB, subjectB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if allowedForScopedTeacher {
+		t.Fatal("school A-only teacher received school B subject permission")
 	}
 	// A forged assignment linking a class in school A to school B must not
 	// disclose the class roster or grant teaching rights in either school.
