@@ -23,6 +23,9 @@ type fakeAttemptRepo struct {
 	lastLimit       int
 	lastDetail      string
 	lastResultID    string
+	lastSavedID     string
+	lastSavedQID    string
+	lastSubmitID    string
 	attemptReads    int
 	submitCalls     int
 	singleShotCalls int
@@ -47,10 +50,13 @@ func (f *fakeAttemptRepo) GetAttempt(_ context.Context, id string) (assessment.A
 	f.lastResultID = id
 	return f.a, f.err
 }
-func (f *fakeAttemptRepo) SaveAnswer(context.Context, string, string, string, assessment.AnswerWrite) (assessment.Attempt, error) {
+func (f *fakeAttemptRepo) SaveAnswer(_ context.Context, _ string, id, qid string, _ assessment.AnswerWrite) (assessment.Attempt, error) {
+	f.lastSavedID = id
+	f.lastSavedQID = qid
 	return f.a, f.err
 }
-func (f *fakeAttemptRepo) Submit(context.Context, string, string, string) (assessment.Result, error) {
+func (f *fakeAttemptRepo) Submit(_ context.Context, _ string, id, _ string) (assessment.Result, error) {
+	f.lastSubmitID = id
 	f.submitCalls++
 	return f.r, f.err
 }
@@ -424,5 +430,36 @@ func TestAttemptSubmitMissingLearningSourceDoesNotFinalize(t *testing.T) {
 	}
 	if repo.submitCalls != 0 {
 		t.Fatalf("submission finalized before evidence integration was validated: %d", repo.submitCalls)
+	}
+}
+
+func TestAttemptIdentifiersAreValidatedAndNormalized(t *testing.T) {
+	repo := &fakeAttemptRepo{a: assessment.Attempt{ID: "attempt-1", StudentID: "student-1"}}
+	service := NewAttemptService(repo)
+	actor := student("student-1")
+	if _, err := service.Get(context.Background(), actor, "   "); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("blank attempt read must fail before repository: %v", err)
+	}
+	if repo.attemptReads != 0 {
+		t.Fatal("blank attempt read reached repository")
+	}
+	if _, err := service.Get(context.Background(), actor, " attempt-1 "); err != nil {
+		t.Fatalf("trimmed attempt read: %v", err)
+	}
+	if repo.lastResultID != "attempt-1" {
+		t.Fatalf("attempt read used unnormalized ID %q", repo.lastResultID)
+	}
+	option := 1
+	if _, err := service.Save(context.Background(), actor, " attempt-1 ", " q-1 ", assessment.AnswerWrite{SelectedOptionIndex: &option}); err != nil {
+		t.Fatalf("trimmed answer save: %v", err)
+	}
+	if repo.lastSavedID != "attempt-1" || repo.lastSavedQID != "q-1" {
+		t.Fatalf("answer persistence received id=%q question=%q", repo.lastSavedID, repo.lastSavedQID)
+	}
+	if _, err := service.Submit(context.Background(), actor, " attempt-1 ", "submission-key"); err != nil {
+		t.Fatalf("trimmed attempt submission: %v", err)
+	}
+	if repo.lastSubmitID != "attempt-1" {
+		t.Fatalf("submission received unnormalized ID %q", repo.lastSubmitID)
 	}
 }
