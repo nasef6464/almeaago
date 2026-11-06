@@ -22,12 +22,16 @@ type mutationAuth struct {
 }
 
 func (a mutationAuth) Authenticate(context.Context, string) (identityapp.Authenticated, error) {
-	if a.authErr != nil { return identityapp.Authenticated{}, a.authErr }
+	if a.authErr != nil {
+		return identityapp.Authenticated{}, a.authErr
+	}
 	return identityapp.Authenticated{User: a.user}, nil
 }
 
 func (a mutationAuth) VerifyCSRF(_ identityapp.Authenticated, token string) error {
-	if a.csrfErr != nil || token != "valid-csrf" { return errors.New("invalid csrf") }
+	if a.csrfErr != nil || token != "valid-csrf" {
+		return errors.New("invalid csrf")
+	}
 	return nil
 }
 
@@ -52,7 +56,9 @@ func TestTaxonomyArchiveRestoreHTTPRejectsUnauthorizedMutations(t *testing.T) {
 					router := New(taxonomyapp.NewService(nil), tc.auth)
 					req := httptest.NewRequest(http.MethodPatch, "/admin/"+resource+"/"+id, strings.NewReader(`{"status":"`+status+`"}`))
 					req.Header.Set("Content-Type", "application/json")
-					if tc.token != "" { req.Header.Set("X-CSRF-Token", tc.token) }
+					if tc.token != "" {
+						req.Header.Set("X-CSRF-Token", tc.token)
+					}
 					rec := httptest.NewRecorder()
 					router.ServeHTTP(rec, req)
 					if rec.Code != tc.want {
