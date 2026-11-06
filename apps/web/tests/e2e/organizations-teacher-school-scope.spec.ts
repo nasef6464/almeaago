@@ -69,6 +69,8 @@ test('teacher workspace fails closed, retries the same school, and never falls b
   unavailable = false;
   await page.getByRole('button', { name: 'إعادة المحاولة' }).click();
   await expect(page.getByText('المدرسة المحددة لم تعد ضمن تكليفاتك')).toBeVisible();
+  await expect(page.getByLabel('المدرسة الحالية')).toHaveValue('');
+  await expect(page.getByRole('navigation', { name: 'تنقل لوحة معلم المدرسة' }).getByRole('link', { name: 'نظرة عامة' })).toHaveCount(0);
   await expect(page.getByText('الأول ألف')).toHaveCount(0);
   await expect(page.getByText('الثاني باء')).toHaveCount(0);
 });
@@ -142,4 +144,71 @@ test('classroom rejects a revoked school assignment instead of silently choosing
   await expect(page.getByRole('alert')).toContainText('النطاق المحدد لم يعد ضمن تكليفاتك');
   expect(questionRequests).toBe(0);
   await expect(page.getByText('الحصة الحالية')).toHaveCount(0);
+});
+
+test('teacher overview counts each class roster once across multiple subject assignments', async ({ page }) => {
+  await auth(page);
+  await page.route('**/api/v1/schools/teacher-workspace', route => json(route, {
+    personas: { platformTrainer: false, schoolTeacher: true },
+    schools: [{
+      schoolId: 'school-a', schoolName: 'مدرسة ألف', source: 'membership',
+      assignments: [
+        { assignmentId: 'math-a', classId: 'class-a', className: 'الأول ألف', subjectId: 'math', studentCount: 11 },
+        { assignmentId: 'science-a', classId: 'class-a', className: 'الأول ألف', subjectId: 'science', studentCount: 11 },
+        { assignmentId: 'math-b', classId: 'class-b', className: 'الثاني ألف', subjectId: 'math', studentCount: 23 },
+      ],
+    }],
+  }));
+  await page.goto('/school-teacher-dashboard?schoolId=school-a');
+  await expect(page.getByTestId('teacher-workspace')).toBeVisible();
+  const rosterCard = page.getByText('طلاب فصولي').locator('..');
+  await expect(rosterCard).toContainText('34');
+  await expect(rosterCard).not.toContainText('45');
+});
+
+test('teacher class total is stable when two subject assignments have stale roster snapshots', async ({ page }) => {
+  await auth(page);
+  await page.route('**/api/v1/schools/teacher-workspace', route => json(route, {
+    personas: { platformTrainer: false, schoolTeacher: true },
+    schools: [{
+      schoolId: 'school-a', schoolName: 'مدرسة ألف', source: 'membership',
+      assignments: [
+        { assignmentId: 'math-a', classId: 'class-a', className: 'الأول ألف', subjectId: 'math', studentCount: 11 },
+        { assignmentId: 'science-a', classId: 'class-a', className: 'الأول ألف', subjectId: 'science', studentCount: 9 },
+        { assignmentId: 'math-b', classId: 'class-b', className: 'الثاني ألف', subjectId: 'math', studentCount: 23 },
+      ],
+    }],
+  }));
+  await page.goto('/school-teacher-dashboard?schoolId=school-a');
+  await expect(page.getByTestId('teacher-workspace')).toBeVisible();
+  const rosterCard = page.getByText('طلاب فصولي').locator('..');
+  await expect(rosterCard).toContainText('34');
+  await expect(rosterCard).not.toContainText('32');
+});
+
+test('teacher overview isolates roster totals when schools share a class identifier', async ({ page }) => {
+  await auth(page);
+  await page.route('**/api/v1/schools/teacher-workspace', route => json(route, {
+    personas: { platformTrainer: false, schoolTeacher: true },
+    schools: [
+      { schoolId: 'school-a', schoolName: 'مدرسة ألف', source: 'membership', assignments: [
+        { assignmentId: 'a-math', classId: 'shared-class', className: 'فصل ألف', subjectId: 'math', studentCount: 11 },
+        { assignmentId: 'a-science', classId: 'shared-class', className: 'فصل ألف', subjectId: 'science', studentCount: 9 },
+      ] },
+      { schoolId: 'school-b', schoolName: 'مدرسة باء', source: 'membership', assignments: [
+        { assignmentId: 'b-math', classId: 'shared-class', className: 'فصل باء', subjectId: 'math', studentCount: 23 },
+      ] },
+    ],
+  }));
+  await page.goto('/school-teacher-dashboard?schoolId=school-a');
+  const rosterCard = page.getByText('طلاب فصولي').locator('..');
+  await expect(rosterCard).toContainText('11');
+  await expect(rosterCard).not.toContainText('34');
+  await page.getByLabel('المدرسة الحالية').selectOption('school-b');
+  await expect(rosterCard).toContainText('23');
+  await expect(page.getByText('فصل ألف')).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByLabel('المدرسة الحالية')).toHaveValue('school-b');
+  await expect(rosterCard).toContainText('23');
+  await expect(page.getByText('فصل ألف')).toHaveCount(0);
 });
