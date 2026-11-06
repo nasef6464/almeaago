@@ -335,7 +335,7 @@ func TestSingleShotRejectsInvalidSubmissionBeforeRepository(t *testing.T) {
 	}{
 		{"missing idempotency key", assessment.SingleShotSubmissionRequest{Answers: map[string]int{"q-1": 0}}},
 		{"oversized idempotency key", assessment.SingleShotSubmissionRequest{SubmissionKey: strings.Repeat("x", 161)}},
-		{"negative answer index", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", Answers: map[string]int{"q-1": -1}}},
+		{"invalid answer index below unanswered sentinel", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", Answers: map[string]int{"q-1": -2}}},
 		{"empty question id", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", Answers: map[string]int{" ": 0}}},
 		{"negative duration", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", TimeSpentSeconds: -1}},
 		{"excessive duration", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", TimeSpentSeconds: 86401}},
@@ -352,6 +352,22 @@ func TestSingleShotRejectsInvalidSubmissionBeforeRepository(t *testing.T) {
 				t.Fatal("invalid submission reached repository")
 			}
 		})
+	}
+}
+
+func TestSingleShotUnansweredLegacySentinelIsOmittedWithoutMutatingCaller(t *testing.T) {
+	repo := &fakeAttemptRepo{}
+	service := NewAttemptService(repo)
+	answers := map[string]int{"q-unanswered": -1, "q-answered": 2}
+	request := assessment.SingleShotSubmissionRequest{
+		SubmissionKey: "legacy-unanswered",
+		Answers: answers,
+	}
+	if _, err := service.SingleShotSubmit(context.Background(), student("student-1"), "quiz-1", request); err != nil {
+		t.Fatalf("legacy unanswered sentinel should be accepted: %v", err)
+	}
+	if got := answers["q-unanswered"]; got != -1 {
+		t.Fatalf("caller answers map was mutated: %d", got)
 	}
 }
 
