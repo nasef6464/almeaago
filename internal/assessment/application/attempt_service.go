@@ -100,7 +100,11 @@ func (s *AttemptService) Get(ctx context.Context, a identity.User, id string) (a
 	if requireStudent(a) != nil {
 		return assessment.Attempt{}, ErrForbidden
 	}
-	x, e := s.repo.GetAttempt(ctx, strings.TrimSpace(id))
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return assessment.Attempt{}, ErrInvalidInput
+	}
+	x, e := s.repo.GetAttempt(ctx, id)
 	if e != nil {
 		return x, e
 	}
@@ -126,15 +130,16 @@ func (s *AttemptService) Save(ctx context.Context, a identity.User, id, qid stri
 	if w.SelectedOptionIndex != nil && *w.SelectedOptionIndex < 0 {
 		return assessment.Attempt{}, ErrInvalidInput
 	}
-	return s.repo.SaveAnswer(ctx, a.ID, id, qid, w)
+	return s.repo.SaveAnswer(ctx, a.ID, strings.TrimSpace(id), strings.TrimSpace(qid), w)
 }
 
 func (s *AttemptService) Submit(ctx context.Context, a identity.User, id, submissionKey string) (assessment.Result, error) {
 	if requireStudent(a) != nil {
 		return assessment.Result{}, ErrForbidden
 	}
+	id = strings.TrimSpace(id)
 	submissionKey = key(submissionKey)
-	if strings.TrimSpace(id) == "" || submissionKey == "" {
+	if id == "" || submissionKey == "" {
 		return assessment.Result{}, ErrInvalidInput
 	}
 	// Fail before finalizing the attempt if learning handoff cannot possibly run.
