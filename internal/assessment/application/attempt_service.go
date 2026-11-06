@@ -170,7 +170,11 @@ func (s *AttemptService) Result(ctx context.Context, a identity.User, id string)
 	if requireStudent(a) != nil {
 		return assessment.Result{}, ErrForbidden
 	}
-	x, e := s.repo.GetAttempt(ctx, strings.TrimSpace(id))
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return assessment.Result{}, ErrInvalidInput
+	}
+	x, e := s.repo.GetAttempt(ctx, id)
 	if e != nil {
 		return assessment.Result{}, e
 	}
