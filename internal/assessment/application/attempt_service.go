@@ -229,19 +229,19 @@ func (s *AttemptService) SingleShotSubmit(
 	if req.TimeSpentSeconds < 0 || req.TimeSpentSeconds > 86400 {
 		return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
 	}
+	// Copy answers so normalization cannot mutate the caller's map.
+	answers := make(map[string]int, len(req.Answers))
 	for questionID, option := range req.Answers {
 		if strings.TrimSpace(questionID) == "" || option < -1 {
 			return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
 		}
 		// Legacy sends -1 for unanswered questions. PostgreSQL represents
-		// these as missing answer rows, so remove the sentinel before writing.
-		if option == -1 {
-			delete(req.Answers, questionID)
+		// these as missing answer rows, so omit the sentinel when persisting.
+		if option >= 0 {
+			answers[questionID] = option
 		}
 	}
-	if req.Answers == nil {
-		req.Answers = map[string]int{}
-	}
+	req.Answers = answers
 
 	// Validate the learning integration before the repository commits a
 	// single-shot result. A missing evidence source is a configuration error,
