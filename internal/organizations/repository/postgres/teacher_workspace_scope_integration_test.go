@@ -3,13 +3,37 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	identityapp "github.com/nasef6464/almeaago/internal/identity/application"
+	identitydomain "github.com/nasef6464/almeaago/internal/identity/domain"
+	orgapp "github.com/nasef6464/almeaago/internal/organizations/application"
+	organizationshttp "github.com/nasef6464/almeaago/internal/organizations/transport/http"
 )
+
+
+type schoolScopeHTTPAuth struct{}
+
+func (schoolScopeHTTPAuth) Authenticate(_ context.Context, token string) (identityapp.Authenticated, error) {
+	if token == "" {
+		return identityapp.Authenticated{}, identityapp.ErrUnauthenticated
+	}
+	return identityapp.Authenticated{User: identitydomain.User{ID: token}}, nil
+}
+func (schoolScopeHTTPAuth) VerifyCSRF(_ identityapp.Authenticated, token string) error {
+	if token != "valid-test-csrf" {
+		return identityapp.ErrCSRF
+	}
+	return nil
+}
 
 // An isolated PostgreSQL schema exercises the same query used by
 // GET /api/v1/schools/teacher-workspace, without production fixtures.
@@ -94,6 +118,61 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		}
 	}
 	repo := New(pool, nil)
+
+	// Exercise the actual HTTP router and application service against the
+	// same disposable PostgreSQL fixture. Authentication here is a test
+	// double: real session and CSRF integration still require separate proof.
+	router := organizationshttp.New(orgapp.NewService(repo), schoolScopeHTTPAuth{})
+	for _, tc := range []struct {
+		name, token string
+		status int
+		schoolIDs []string
+	}{
+		{"school A only", schoolAOnlyTeacher, http.StatusOK, []string{schoolA}},
+		{"both authorized schools", teacher, http.StatusOK, []string{schoolA, schoolB}},
+		{"student cannot discover teacher schools", studentB, http.StatusOK, nil},
+		{"unauthenticated", "", http.StatusUnauthorized, nil},
+	} {
+		t.Run("HTTP "+tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/teacher-workspace", nil)
+			if tc.token != "" {
+				req.AddCookie(&http.Cookie{Name: "session", Value: tc.token})
+				req.Header.Set("Authorization", "Bearer "+tc.token)
+			}
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+			if rec.Code != tc.status {
+				t.Fatalf("HTTP status = %d, want %d: %s", rec.Code, tc.status, rec.Body.String())
+			}
+			if rec.Code != http.StatusOK { return }
+			var payload struct { Schools []struct { SchoolID string `json:"schoolId"` } `json:"schools"` }
+			if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil { t.Fatal(err) }
+			if len(payload.Schools) != len(tc.schoolIDs) {
+				t.Fatalf("HTTP school disclosure: %+v, want %v", payload.Schools, tc.schoolIDs)
+			}
+			for _, school := range payload.Schools {
+				found := false
+				for _, id := range tc.schoolIDs { if school.SchoolID == id { found = true } }
+				if !found { t.Fatalf("foreign school exposed over HTTP: %s", school.SchoolID) }
+			}
+			if got := rec.Header().Get("Cache-Control"); got != "private, no-store" {
+				t.Fatalf("teacher workspace cache control = %q", got)
+			}
+		})
+	}
+	// A write with an invalid CSRF token must be rejected before reaching
+	// any school mutation, even for an otherwise authenticated identity.
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"code":"FORBIDDEN","name":"Cross tenant"}`))
+	req.Header.Set("Authorization", "Bearer "+teacher)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("CSRF rejection status = %d, want 403: %s", rec.Code, rec.Body.String())
+	}
+	var forbiddenCount int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM schools WHERE name='Cross tenant'").Scan(&forbiddenCount); err != nil { t.Fatal(err) }
+	if forbiddenCount != 0 { t.Fatal("CSRF rejected request mutated PostgreSQL") }
 	workspace, err := repo.TeacherWorkspace(ctx, teacher)
 	if err != nil {
 		t.Fatal(err)
