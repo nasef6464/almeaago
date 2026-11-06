@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,14 +19,17 @@ import (
 	organizationshttp "github.com/nasef6464/almeaago/internal/organizations/transport/http"
 )
 
-
 type schoolScopeHTTPAuth struct{}
 
 func (schoolScopeHTTPAuth) Authenticate(_ context.Context, token string) (identityapp.Authenticated, error) {
 	if token == "" {
 		return identityapp.Authenticated{}, identityapp.ErrUnauthenticated
 	}
-	return identityapp.Authenticated{User: identitydomain.User{ID: token}}, nil
+	roles := []identitydomain.Role{identitydomain.RoleTeacher}
+	if token == "00000000-0000-0000-0000-000000008003" {
+		roles = []identitydomain.Role{identitydomain.RoleStudent}
+	}
+	return identityapp.Authenticated{User: identitydomain.User{ID: token, Roles: roles}}, nil
 }
 func (schoolScopeHTTPAuth) VerifyCSRF(_ identityapp.Authenticated, token string) error {
 	if token != "valid-test-csrf" {
@@ -125,12 +128,12 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 	router := organizationshttp.New(orgapp.NewService(repo), schoolScopeHTTPAuth{})
 	for _, tc := range []struct {
 		name, token string
-		status    int
-		schoolIDs []string
+		status      int
+		schoolIDs   []string
 	}{
 		{"school A only", schoolAOnlyTeacher, http.StatusOK, []string{schoolA}},
 		{"both authorized schools", teacher, http.StatusOK, []string{schoolA, schoolB}},
-		{"student cannot discover teacher schools", studentB, http.StatusOK, nil},
+		{"student cannot discover teacher schools", studentB, http.StatusForbidden, nil},
 		{"unauthenticated", "", http.StatusUnauthorized, nil},
 	} {
 		t.Run("HTTP "+tc.name, func(t *testing.T) {
