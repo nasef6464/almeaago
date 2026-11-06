@@ -230,8 +230,13 @@ func (s *AttemptService) SingleShotSubmit(
 		return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
 	}
 	for questionID, option := range req.Answers {
-		if strings.TrimSpace(questionID) == "" || option < 0 {
+		if strings.TrimSpace(questionID) == "" || option < -1 {
 			return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
+		}
+		// Legacy sends -1 for unanswered questions. PostgreSQL represents
+		// these as missing answer rows, so remove the sentinel before writing.
+		if option == -1 {
+			delete(req.Answers, questionID)
 		}
 	}
 	if req.Answers == nil {
