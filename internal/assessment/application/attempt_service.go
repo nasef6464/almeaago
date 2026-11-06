@@ -80,6 +80,11 @@ func (s *AttemptService) Start(ctx context.Context, a identity.User, assessmentI
 		return assessment.Attempt{}, err
 	}
 	if found {
+		// Never trust an idempotency lookup to authorize another student's attempt.
+		// Validate the returned identity even when the repository scopes its query.
+		if existing.StudentID != a.ID || existing.AssessmentID != assessmentID {
+			return assessment.Attempt{}, ErrForbidden
+		}
 		return existing, nil
 	}
 	scope, err := s.repo.GetPublishedAccessContext(ctx, assessmentID)
