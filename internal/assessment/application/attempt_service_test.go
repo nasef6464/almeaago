@@ -26,6 +26,7 @@ type fakeAttemptRepo struct {
 	singleShotCalls int
 	access          assessment.AccessContext
 }
+
 func (f *fakeAttemptRepo) GetPublishedAccessContext(context.Context, string) (assessment.AccessContext, error) {
 	if f.access.AssessmentKind == "" {
 		return assessment.AccessContext{AssessmentKind: assessment.KindNormal, BaseAccess: assessment.AccessFree, PathID: "path-1", SubjectID: "subject-1"}, f.err
@@ -361,7 +362,7 @@ func TestSingleShotUnansweredLegacySentinelIsOmittedWithoutMutatingCaller(t *tes
 	answers := map[string]int{"q-unanswered": -1, "q-answered": 2}
 	request := assessment.SingleShotSubmissionRequest{
 		SubmissionKey: "legacy-unanswered",
-		Answers: answers,
+		Answers:       answers,
 	}
 	if _, err := service.SingleShotSubmit(context.Background(), student("student-1"), "quiz-1", request); err != nil {
 		t.Fatalf("legacy unanswered sentinel should be accepted: %v", err)
