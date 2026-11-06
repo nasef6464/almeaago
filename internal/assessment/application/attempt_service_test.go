@@ -101,8 +101,8 @@ func TestAttemptStudentOnly(t *testing.T) {
 
 func TestIdempotentStartRejectsMismatchedRepositoryReadback(t *testing.T) {
 	cases := []struct {
-		name string
-		attempt assessment.Attempt
+		name          string
+		attempt       assessment.Attempt
 		wantForbidden bool
 	}{
 		{"another student", assessment.Attempt{ID: "attempt-1", StudentID: "other", AssessmentID: "quiz-1"}, true},
