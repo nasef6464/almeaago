@@ -89,7 +89,9 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 	}
 	assertReadback := func(wantPath, wantSubject bool) {
 		t.Helper()
-		public := request(http.MethodGet, "/bootstrap", "", admin, "")
+		// Read the learner endpoint as an actual student, not as an administrator.
+		student := mutationAuth{user: identity.User{ID: actor, Roles: []identity.Role{identity.RoleStudent}}}
+		public := request(http.MethodGet, "/bootstrap", "", student, "")
 		if public.Code != http.StatusOK {
 			t.Fatalf("public HTTP=%d body=%s", public.Code, public.Body.String())
 		}
@@ -155,12 +157,21 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 			if status == "active" {
 				before = "archived"
 			}
+			// Rejected mutations must not alter the persisted row or emit an audit write.
 			assertStatus(target.table, target.id, before)
+			var auditBefore int
+			if err := db.QueryRow(ctx, "SELECT count(*) FROM audit_logs").Scan(&auditBefore); err != nil {
+				t.Fatal(err)
+			}
 			rec := request(http.MethodPatch, url, body, admin, "valid-csrf")
 			if rec.Code != http.StatusOK {
 				t.Fatalf("%s %s HTTP=%d body=%s", target.resource, status, rec.Code, rec.Body.String())
 			}
 			assertStatus(target.table, target.id, status)
+			var auditAfter int
+			if err := db.QueryRow(ctx, "SELECT count(*) FROM audit_logs").Scan(&auditAfter); err != nil || auditAfter != auditBefore+1 {
+				t.Fatalf("audit write count after authorized %s %s: before=%d after=%d err=%v", target.resource, status, auditBefore, auditAfter, err)
+			}
 			want := status == "active"
 			if target.resource == "subjects" {
 				assertReadback(true, want)
