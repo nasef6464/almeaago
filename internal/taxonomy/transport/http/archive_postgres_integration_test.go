@@ -94,18 +94,26 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 			t.Fatalf("public HTTP=%d body=%s", public.Code, public.Body.String())
 		}
 		var body struct {
-			Paths []struct{ ID string `json:"id"` } `json:"paths"`
-			Subjects []struct{ ID string `json:"id"` } `json:"subjects"`
+			Paths []struct {
+				ID string `json:"id"`
+			} `json:"paths"`
+			Subjects []struct {
+				ID string `json:"id"`
+			} `json:"subjects"`
 		}
 		if err := json.Unmarshal(public.Body.Bytes(), &body); err != nil {
 			t.Fatal(err)
 		}
 		pathVisible, subjectVisible := false, false
 		for _, row := range body.Paths {
-			if row.ID == pathID { pathVisible = true }
+			if row.ID == pathID {
+				pathVisible = true
+			}
 		}
 		for _, row := range body.Subjects {
-			if row.ID == subjectID { subjectVisible = true }
+			if row.ID == subjectID {
+				subjectVisible = true
+			}
 		}
 		if pathVisible != wantPath || subjectVisible != wantSubject {
 			t.Fatalf("HTTP learner readback path=%v subject=%v want=%v/%v", pathVisible, subjectVisible, wantPath, wantSubject)
@@ -125,9 +133,14 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 		{"paths", "paths", pathID},
 	} {
 		for _, status := range []string{"archived", "active"} {
-			url := "/admin/"+target.resource+"/"+target.id
-			body := `{"status":"`+status+`"}`
-			for _, denied := range []struct{ name string; auth mutationAuth; csrf string; code int }{
+			url := "/admin/" + target.resource + "/" + target.id
+			body := `{"status":"` + status + `"}`
+			for _, denied := range []struct {
+				name string
+				auth mutationAuth
+				csrf string
+				code int
+			}{
 				{"student", mutationAuth{user: identity.User{ID: actor, Roles: []identity.Role{identity.RoleStudent}}}, "valid-csrf", http.StatusForbidden},
 				{"missing-csrf", admin, "", http.StatusForbidden},
 				{"invalid-csrf", admin, "invalid", http.StatusForbidden},
@@ -139,7 +152,9 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 				}
 			}
 			before := "active"
-			if status == "active" { before = "archived" }
+			if status == "active" {
+				before = "archived"
+			}
 			assertStatus(target.table, target.id, before)
 			rec := request(http.MethodPatch, url, body, admin, "valid-csrf")
 			if rec.Code != http.StatusOK {
