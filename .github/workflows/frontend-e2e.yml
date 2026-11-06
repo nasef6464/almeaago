@@ -122,8 +122,8 @@ jobs:
           lines += ['', '#### Failed tests and first assertion', '']
           lines += [f'- `{path}`: {title} ({status}) — {error}' for path, title, status, error in failures]
           with open(environ['GITHUB_STEP_SUMMARY'], 'a') as out:
-              out.write('\\n'.join(lines) + '\\n')
-          print('\\n'.join(lines[:55]))
+              out.write('\n'.join(lines) + '\n')
+          print('\n'.join(lines[:55]))
           PY
       - name: Upload browser evidence
         if: always()
