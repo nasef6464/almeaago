@@ -29,7 +29,7 @@ type fakeAttemptRepo struct {
 	attemptReads    int
 	submitCalls     int
 	singleShotCalls int
-	lastSingleShot assessment.SingleShotSubmissionRequest
+	lastSingleShot  assessment.SingleShotSubmissionRequest
 	access          assessment.AccessContext
 }
 
