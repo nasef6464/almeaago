@@ -109,6 +109,38 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 			t.Fatalf("cross-school class disclosure %+v", school)
 		}
 	}
+	// A forged assignment linking a class in school A to school B must not
+	// disclose the class roster or grant teaching rights in either school.
+	// The class-school relationship is checked independently of membership.
+	if _, err := pool.Exec(ctx, "UPDATE teaching_assignments SET school_id=$1 WHERE id=$2", schoolB, assignmentA); err != nil {
+		t.Fatal(err)
+	}
+	workspace, err = repo.TeacherWorkspace(ctx, teacher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(workspace.Schools) != 1 || workspace.Schools[0].SchoolID != schoolB ||
+		len(workspace.Schools[0].Assignments) != 1 ||
+		workspace.Schools[0].Assignments[0].AssignmentID != assignmentB {
+		t.Fatalf("cross-school assignment forged a visible class: %+v", workspace.Schools)
+	}
+	allowed, err := repo.CanTeachSubject(ctx, teacher, pathA, subject)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if allowed {
+		t.Fatal("cross-school assignment forged subject teaching permission")
+	}
+	if _, err := pool.Exec(ctx, "UPDATE teaching_assignments SET school_id=$1 WHERE id=$2", schoolA, assignmentA); err != nil {
+		t.Fatal(err)
+	}
+	workspace, err = repo.TeacherWorkspace(ctx, teacher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(workspace.Schools) != 2 {
+		t.Fatalf("restored school assignment did not restore both schools: %+v", workspace.Schools)
+	}
 	// Authorization must follow the real assignment's subject and path,
 	// not just the caller's global teacher role or another school's roster.
 	for _, tc := range []struct {
