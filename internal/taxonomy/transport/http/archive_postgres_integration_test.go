@@ -217,6 +217,46 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 		}
 	}
 	assertReadback(true, true)
+	// Parent-skill archival must hide active descendants without cascading
+	// destructive updates to their persisted status or parent relationship.
+	for _, status := range []string{"archived", "active"} {
+		body := `{"status":"` + status + `"}`
+		url := "/admin/skills/" + mainSkillID
+		for _, denied := range []mutationAuth{
+			{user: identity.User{ID: actor, Roles: []identity.Role{identity.RoleStudent}}},
+			{user: identity.User{ID: actor, Roles: []identity.Role{identity.RoleTeacher}}},
+		} {
+			if rec := request(http.MethodPatch, url, body, denied, "valid-csrf"); rec.Code != http.StatusForbidden {
+				t.Fatalf("parent skill %s unauthorized HTTP=%d", status, rec.Code)
+			}
+		}
+		if rec := request(http.MethodPatch, url, body, admin, ""); rec.Code != http.StatusForbidden {
+			t.Fatalf("parent skill %s missing CSRF HTTP=%d", status, rec.Code)
+		}
+		if rec := request(http.MethodPatch, url, body, admin, "valid-csrf"); rec.Code != http.StatusOK {
+			t.Fatalf("parent skill %s HTTP=%d body=%s", status, rec.Code, rec.Body.String())
+		}
+		assertStatus("skills", mainSkillID, status)
+		assertStatus("skills", subSkillID, "active")
+		var savedSubject, savedParent string
+		if err := db.QueryRow(ctx, "SELECT subject_id::text,parent_skill_id::text FROM skills WHERE id=$1::uuid", subSkillID).Scan(&savedSubject, &savedParent); err != nil || savedSubject != subjectID || savedParent != mainSkillID {
+			t.Fatalf("parent skill %s child FK changed: subject=%s parent=%s err=%v", status, savedSubject, savedParent, err)
+		}
+		public := request(http.MethodGet, "/bootstrap", "", mutationAuth{}, "")
+		if public.Code != http.StatusOK {
+			t.Fatalf("parent skill %s public HTTP=%d", status, public.Code)
+		}
+		var response struct { Skills []struct { ID string `json:"id"` } `json:"skills"` }
+		if err := json.Unmarshal(public.Body.Bytes(), &response); err != nil { t.Fatal(err) }
+		count := 0
+		for _, skill := range response.Skills {
+			if skill.ID == mainSkillID || skill.ID == subSkillID { count++ }
+		}
+		want := 0
+		if status == "active" { want = 2 }
+		if count != want { t.Fatalf("parent skill %s learner count=%d want=%d", status, count, want) }
+	}
+	assertReadback(true, true)
 	for _, target := range []struct{ resource, table, id string }{
 		{"subjects", "subjects", subjectID},
 		{"paths", "paths", pathID},
@@ -271,7 +311,7 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 	if err := db.QueryRow(ctx, "SELECT count(*) FROM audit_logs WHERE actor_user_id=$1::uuid AND action IN ('taxonomy.path.update','taxonomy.subject.update')", actor).Scan(&count); err != nil || count != 4 {
 		t.Fatalf("path/subject audit count=%d err=%v want=4", count, err)
 	}
-	if err := db.QueryRow(ctx, "SELECT count(*) FROM audit_logs WHERE actor_user_id=$1::uuid AND action='taxonomy.skill.update'", actor).Scan(&count); err != nil || count != 2 {
-		t.Fatalf("skill audit count=%d err=%v want=2", count, err)
+	if err := db.QueryRow(ctx, "SELECT count(*) FROM audit_logs WHERE actor_user_id=$1::uuid AND action='taxonomy.skill.update'", actor).Scan(&count); err != nil || count != 4 {
+		t.Fatalf("skill audit count=%d err=%v want=4", count, err)
 	}
 }
