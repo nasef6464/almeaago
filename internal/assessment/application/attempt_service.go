@@ -80,6 +80,11 @@ func (s *AttemptService) Start(ctx context.Context, a identity.User, assessmentI
 		return assessment.Attempt{}, err
 	}
 	if found {
+		// Never trust an idempotency lookup to authorize another student's attempt.
+		// Validate the returned identity even when the repository scopes its query.
+		if existing.StudentID != a.ID || existing.AssessmentID != assessmentID {
+			return assessment.Attempt{}, ErrForbidden
+		}
 		return existing, nil
 	}
 	scope, err := s.repo.GetPublishedAccessContext(ctx, assessmentID)
@@ -100,7 +105,11 @@ func (s *AttemptService) Get(ctx context.Context, a identity.User, id string) (a
 	if requireStudent(a) != nil {
 		return assessment.Attempt{}, ErrForbidden
 	}
-	x, e := s.repo.GetAttempt(ctx, strings.TrimSpace(id))
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return assessment.Attempt{}, ErrInvalidInput
+	}
+	x, e := s.repo.GetAttempt(ctx, id)
 	if e != nil {
 		return x, e
 	}
@@ -126,16 +135,25 @@ func (s *AttemptService) Save(ctx context.Context, a identity.User, id, qid stri
 	if w.SelectedOptionIndex != nil && *w.SelectedOptionIndex < 0 {
 		return assessment.Attempt{}, ErrInvalidInput
 	}
-	return s.repo.SaveAnswer(ctx, a.ID, id, qid, w)
+	return s.repo.SaveAnswer(ctx, a.ID, strings.TrimSpace(id), strings.TrimSpace(qid), w)
 }
 
 func (s *AttemptService) Submit(ctx context.Context, a identity.User, id, submissionKey string) (assessment.Result, error) {
 	if requireStudent(a) != nil {
 		return assessment.Result{}, ErrForbidden
 	}
+	id = strings.TrimSpace(id)
 	submissionKey = key(submissionKey)
-	if strings.TrimSpace(id) == "" || submissionKey == "" {
+	if id == "" || submissionKey == "" {
 		return assessment.Result{}, ErrInvalidInput
+	}
+	// Fail before finalizing the attempt if learning handoff cannot possibly run.
+	// A finalized attempt without a configured evidence source cannot be retried
+	// safely into the student's skill analysis.
+	if s.evidenceSink != nil {
+		if _, ok := s.repo.(SubmissionEvidenceSource); !ok {
+			return assessment.Result{}, errors.New("assessment learning evidence source is not configured")
+		}
 	}
 	result, err := s.repo.Submit(ctx, a.ID, id, submissionKey)
 	if err != nil {
@@ -162,7 +180,11 @@ func (s *AttemptService) Result(ctx context.Context, a identity.User, id string)
 	if requireStudent(a) != nil {
 		return assessment.Result{}, ErrForbidden
 	}
-	x, e := s.repo.GetAttempt(ctx, strings.TrimSpace(id))
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return assessment.Result{}, ErrInvalidInput
+	}
+	x, e := s.repo.GetAttempt(ctx, id)
 	if e != nil {
 		return assessment.Result{}, e
 	}
@@ -212,24 +234,61 @@ func (s *AttemptService) SingleShotSubmit(
 		return assessment.SingleShotQuizResultDTO{}, ErrForbidden
 	}
 	assessmentID = strings.TrimSpace(assessmentID)
-	if assessmentID == "" {
+	// Validate before writing an attempt: the same bounded idempotency key is
+	// required for both normal and single-shot submissions.
+	if assessmentID == "" || key(req.SubmissionKey) == "" || strings.TrimSpace(req.SubmissionKey) == "" {
 		return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
 	}
-	if req.Answers == nil {
-		req.Answers = map[string]int{}
+	req.SubmissionKey = key(req.SubmissionKey)
+	if req.TimeSpentSeconds < 0 || req.TimeSpentSeconds > 86400 {
+		return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
 	}
+	// Copy answers so normalization cannot mutate the caller's map.
+	answers := make(map[string]int, len(req.Answers))
+	seenQuestionIDs := make(map[string]struct{}, len(req.Answers))
+	for questionID, option := range req.Answers {
+		// Normalize IDs before persistence and reject ambiguous duplicates:
+		// two caller keys must never silently overwrite the same answer row.
+		questionID = strings.TrimSpace(questionID)
+		if questionID == "" || option < -1 {
+			return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
+		}
+		if _, exists := seenQuestionIDs[questionID]; exists {
+			return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
+		}
+		seenQuestionIDs[questionID] = struct{}{}
+		// Legacy sends -1 for unanswered questions. PostgreSQL represents
+		// these as missing answer rows, so omit the sentinel when persisting.
+		if option >= 0 {
+			answers[questionID] = option
+		}
+	}
+	req.Answers = answers
 
+	// Validate the learning integration before the repository commits a
+	// single-shot result. A missing evidence source is a configuration error,
+	// not a successful assessment with silently missing skill analysis.
+	if s.evidenceSink != nil {
+		if _, ok := s.repo.(SubmissionEvidenceSource); !ok {
+			return assessment.SingleShotQuizResultDTO{}, errors.New("assessment learning evidence source is not configured")
+		}
+	}
 	detail, err := s.repo.SingleShotSubmit(ctx, actor.ID, assessmentID, req)
 	if err != nil {
 		return assessment.SingleShotQuizResultDTO{}, err
 	}
 
 	if s.evidenceSink != nil {
-		if source, ok := s.repo.(SubmissionEvidenceSource); ok {
-			evidence, err := source.LearningSubmissionEvidence(ctx, actor.ID, detail.Result.AttemptID)
-			if err == nil {
-				_ = s.evidenceSink.ApplyAssessmentSubmission(ctx, evidence)
-			}
+		source, ok := s.repo.(SubmissionEvidenceSource)
+		if !ok {
+			return assessment.SingleShotQuizResultDTO{}, errors.New("assessment learning evidence source is not configured")
+		}
+		evidence, err := source.LearningSubmissionEvidence(ctx, actor.ID, detail.Result.AttemptID)
+		if err != nil {
+			return assessment.SingleShotQuizResultDTO{}, err
+		}
+		if err := s.evidenceSink.ApplyAssessmentSubmission(ctx, evidence); err != nil {
+			return assessment.SingleShotQuizResultDTO{}, err
 		}
 	}
 
@@ -265,4 +324,3 @@ func (s *AttemptService) SingleShotSubmit(
 		Result:           detail.Result,
 	}, nil
 }
-
