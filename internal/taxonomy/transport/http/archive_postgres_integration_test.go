@@ -246,15 +246,27 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 		if public.Code != http.StatusOK {
 			t.Fatalf("parent skill %s public HTTP=%d", status, public.Code)
 		}
-		var response struct { Skills []struct { ID string `json:"id"` } `json:"skills"` }
-		if err := json.Unmarshal(public.Body.Bytes(), &response); err != nil { t.Fatal(err) }
+		var response struct {
+			Skills []struct {
+				ID string `json:"id"`
+			} `json:"skills"`
+		}
+		if err := json.Unmarshal(public.Body.Bytes(), &response); err != nil {
+			t.Fatal(err)
+		}
 		count := 0
 		for _, skill := range response.Skills {
-			if skill.ID == mainSkillID || skill.ID == subSkillID { count++ }
+			if skill.ID == mainSkillID || skill.ID == subSkillID {
+				count++
+			}
 		}
 		want := 0
-		if status == "active" { want = 2 }
-		if count != want { t.Fatalf("parent skill %s learner count=%d want=%d", status, count, want) }
+		if status == "active" {
+			want = 2
+		}
+		if count != want {
+			t.Fatalf("parent skill %s learner count=%d want=%d", status, count, want)
+		}
 	}
 	assertReadback(true, true)
 	for _, target := range []struct{ resource, table, id string }{
