@@ -1910,7 +1910,7 @@ export function TaxonomyAdminPage() {
                                 <StatusSelect
                                   label={`حالة ${sub.name}`}
                                   value={sub.status}
-                                  onChange={(v) => void patchStatus('subject', sub.id, v)}
+                                  onChange={(v) => requestStatusChange('subject', sub.id, sub.name, v)}
                                 />
                               </div>
 
