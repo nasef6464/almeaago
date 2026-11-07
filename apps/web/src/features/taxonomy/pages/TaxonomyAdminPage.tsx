@@ -687,6 +687,17 @@ export function TaxonomyAdminPage() {
     );
   }
 
+  // Status dropdowns must use the same confirmation boundary as archive buttons.
+  // Otherwise selecting "archived" silently bypasses the manager's warning.
+  function requestStatusChange(type: 'path' | 'level' | 'subject' | 'skill', id: string, name: string, status: TaxonomyStatus) {
+    if (status === 'archived') {
+      setError('');
+      setDeleteConfirm({ open: true, type, id, name });
+      return;
+    }
+    void patchStatus(type, id, status);
+  }
+
   // Quick Toggle Path Presentation
   async function togglePathSetting(
     key: 'showInNavbar' | 'showSubjectCards' | 'showMockExamCard' | 'showPackageCard',
@@ -1111,7 +1122,7 @@ export function TaxonomyAdminPage() {
                           <StatusSelect
                             label={`حالة مهارة ${sk.name}`}
                             value={sk.status}
-                            onChange={(v) => void patchStatus('skill', sk.id, v)}
+                            onChange={(v) => requestStatusChange('skill', sk.id, sk.name, v)}
                           />
                         </div>
                       </div>
@@ -1755,7 +1766,7 @@ export function TaxonomyAdminPage() {
                     <StatusSelect
                       label={`حالة ${selectedPath.name}`}
                       value={selectedPath.status}
-                      onChange={(v) => void patchStatus('path', selectedPath.id, v)}
+                      onChange={(v) => requestStatusChange('path', selectedPath.id, selectedPath.name, v)}
                     />
                   </div>
                 </div>
@@ -1993,7 +2004,7 @@ export function TaxonomyAdminPage() {
                                 <StatusSelect
                                   label={`حالة ${lvl.name}`}
                                   value={lvl.status}
-                                  onChange={(v) => void patchStatus('level', lvl.id, v)}
+                                  onChange={(v) => requestStatusChange('level', lvl.id, lvl.name, v)}
                                 />
                               </div>
                               <h4 className="text-base font-black text-slate-900">{lvl.name}</h4>
