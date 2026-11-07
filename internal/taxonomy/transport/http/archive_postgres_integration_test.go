@@ -44,6 +44,19 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 			t.Fatalf("shadow %s: %v", table, err)
 		}
 	}
+	// LIKE INCLUDING CONSTRAINTS does not copy foreign keys. Recreate the
+	// production relationship edges in this isolated test schema.
+	for _, stmt := range []string{
+		"ALTER TABLE levels ADD CONSTRAINT test_levels_path_fk FOREIGN KEY (path_id) REFERENCES paths(id)",
+		"ALTER TABLE subjects ADD CONSTRAINT test_subjects_path_fk FOREIGN KEY (path_id) REFERENCES paths(id)",
+		"ALTER TABLE subjects ADD CONSTRAINT test_subjects_level_fk FOREIGN KEY (level_id) REFERENCES levels(id)",
+		"ALTER TABLE skills ADD CONSTRAINT test_skills_subject_fk FOREIGN KEY (subject_id) REFERENCES subjects(id)",
+		"ALTER TABLE skills ADD CONSTRAINT test_skills_parent_fk FOREIGN KEY (parent_skill_id) REFERENCES skills(id)",
+	} {
+		if _, err := db.Exec(ctx, stmt); err != nil {
+			t.Fatalf("shadow FK setup %q: %v", stmt, err)
+		}
+	}
 	for _, stmt := range []string{
 		"CREATE TEMP TABLE users (id uuid PRIMARY KEY)",
 		"CREATE TEMP TABLE audit_logs (actor_user_id uuid, action text, resource_type text, resource_id text, status text, metadata jsonb)",
