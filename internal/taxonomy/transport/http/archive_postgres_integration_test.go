@@ -327,22 +327,36 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 			t.Fatalf("level %s public readback HTTP=%d body=%s", status, public.Code, public.Body.String())
 		}
 		var response struct {
-			Levels []struct { ID string `json:"id"` } `json:"levels"`
-			Subjects []struct { ID string `json:"id"` } `json:"subjects"`
-			Skills []struct { ID string `json:"id"` } `json:"skills"`
+			Levels []struct {
+				ID string `json:"id"`
+			} `json:"levels"`
+			Subjects []struct {
+				ID string `json:"id"`
+			} `json:"subjects"`
+			Skills []struct {
+				ID string `json:"id"`
+			} `json:"skills"`
 		}
 		if err := json.Unmarshal(public.Body.Bytes(), &response); err != nil {
 			t.Fatal(err)
 		}
 		levelVisible, subjectVisible, skillCount := false, false, 0
-		for _, row := range response.Levels { levelVisible = levelVisible || row.ID == levelID }
-		for _, row := range response.Subjects { subjectVisible = subjectVisible || row.ID == subjectID }
+		for _, row := range response.Levels {
+			levelVisible = levelVisible || row.ID == levelID
+		}
+		for _, row := range response.Subjects {
+			subjectVisible = subjectVisible || row.ID == subjectID
+		}
 		for _, row := range response.Skills {
-			if row.ID == mainSkillID || row.ID == subSkillID { skillCount++ }
+			if row.ID == mainSkillID || row.ID == subSkillID {
+				skillCount++
+			}
 		}
 		want := status == "active"
 		wantSkills := 0
-		if want { wantSkills = 2 }
+		if want {
+			wantSkills = 2
+		}
 		if levelVisible != want || subjectVisible != want || skillCount != wantSkills {
 			t.Fatalf("level %s learner readback level=%v subject=%v skills=%d", status, levelVisible, subjectVisible, skillCount)
 		}
