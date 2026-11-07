@@ -222,3 +222,44 @@ test('archive confirmation ignores two synchronous clicks before React commits p
   await expect(page.getByLabel('حالة القدرات')).toHaveValue('archived');
   expect(writes).toBe(1);
 });
+
+// Archive via the status selector must never bypass the same confirmation
+// required by the dedicated archive button. Cancel must perform zero writes.
+for (const width of [390, 820, 1440]) {
+  for (const scenario of cases) {
+    test(`status dropdown archive ${scenario.entity} requires confirmation at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const data = fixture();
+      await setup(page, data);
+      let writes = 0;
+      await page.route(`**/api/v1/taxonomy/admin/${scenario.endpoint}/${scenario.id}`, route => {
+        writes++;
+        expect(route.request().method()).toBe('PATCH');
+        expect(route.request().headers()['x-csrf-token']).toBe('csrf-archive');
+        expect(route.request().postDataJSON()).toEqual({ status: 'archived' });
+        if (scenario.entity === 'path') data.paths[0].status = 'archived';
+        else data.subjects[0].status = 'archived';
+        return route.fulfill({ json: { [scenario.entity]: scenario.entity === 'path' ? data.paths[0] : data.subjects[0] } });
+      });
+
+      const selector = page.getByLabel(scenario.statusLabel);
+      await selector.selectOption('archived');
+      const dialog = page.getByRole('dialog', { name: `تأكيد أرشفة ${scenario.name}` });
+      await expect(dialog).toBeVisible();
+      await expect(selector).toHaveValue('active');
+      expect(writes).toBe(0);
+      await dialog.getByRole('button', { name: 'إلغاء' }).click();
+      await expect(dialog).toHaveCount(0);
+      expect(writes).toBe(0);
+      await expect(selector).toHaveValue('active');
+
+      await selector.selectOption('archived');
+      await dialog.getByRole('button', { name: 'تأكيد الأرشفة' }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(selector).toHaveValue('archived');
+      expect(writes).toBe(1);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(page.getByLabel(scenario.statusLabel)).toHaveValue('archived');
+    });
+  }
+}
