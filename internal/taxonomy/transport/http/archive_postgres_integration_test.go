@@ -282,6 +282,84 @@ func TestTaxonomyArchiveRestoreHTTPPostgres(t *testing.T) {
 		}
 	}
 	assertReadback(true, true)
+	// Level archive/restore must hide its subjects and skills from learners,
+	// without changing the stored subject.level_id or any skill foreign key.
+	// The administrator must still see the canonical rows and be able to restore.
+	for _, status := range []string{"archived", "active"} {
+		url := "/admin/levels/" + levelID
+		body := `{"status":"` + status + `"}`
+		for _, denied := range []struct {
+			name string
+			auth mutationAuth
+			csrf string
+			code int
+		}{
+			{"student", mutationAuth{user: identity.User{ID: actor, Roles: []identity.Role{identity.RoleStudent}}}, "valid-csrf", http.StatusForbidden},
+			{"teacher", mutationAuth{user: identity.User{ID: actor, Roles: []identity.Role{identity.RoleTeacher}}}, "valid-csrf", http.StatusForbidden},
+			{"missing-csrf", admin, "", http.StatusForbidden},
+			{"unauthenticated", mutationAuth{authErr: errors.New("no session")}, "valid-csrf", http.StatusUnauthorized},
+		} {
+			rec := request(http.MethodPatch, url, body, denied.auth, denied.csrf)
+			if rec.Code != denied.code {
+				t.Fatalf("level %s %s: HTTP=%d want=%d body=%s", status, denied.name, rec.Code, denied.code, rec.Body.String())
+			}
+		}
+		before := "active"
+		if status == "active" {
+			before = "archived"
+		}
+		assertStatus("levels", levelID, before)
+		var auditBefore int
+		if err := db.QueryRow(ctx, "SELECT count(*) FROM audit_logs").Scan(&auditBefore); err != nil {
+			t.Fatal(err)
+		}
+		rec := request(http.MethodPatch, url, body, admin, "valid-csrf")
+		if rec.Code != http.StatusOK {
+			t.Fatalf("level %s HTTP=%d body=%s", status, rec.Code, rec.Body.String())
+		}
+		assertStatus("levels", levelID, status)
+		var auditAfter int
+		if err := db.QueryRow(ctx, "SELECT count(*) FROM audit_logs").Scan(&auditAfter); err != nil || auditAfter != auditBefore+1 {
+			t.Fatalf("level %s audit before=%d after=%d err=%v", status, auditBefore, auditAfter, err)
+		}
+		public := request(http.MethodGet, "/bootstrap", "", mutationAuth{}, "")
+		if public.Code != http.StatusOK {
+			t.Fatalf("level %s public readback HTTP=%d body=%s", status, public.Code, public.Body.String())
+		}
+		var response struct {
+			Levels []struct { ID string `json:"id"` } `json:"levels"`
+			Subjects []struct { ID string `json:"id"` } `json:"subjects"`
+			Skills []struct { ID string `json:"id"` } `json:"skills"`
+		}
+		if err := json.Unmarshal(public.Body.Bytes(), &response); err != nil {
+			t.Fatal(err)
+		}
+		levelVisible, subjectVisible, skillCount := false, false, 0
+		for _, row := range response.Levels { levelVisible = levelVisible || row.ID == levelID }
+		for _, row := range response.Subjects { subjectVisible = subjectVisible || row.ID == subjectID }
+		for _, row := range response.Skills {
+			if row.ID == mainSkillID || row.ID == subSkillID { skillCount++ }
+		}
+		want := status == "active"
+		wantSkills := 0
+		if want { wantSkills = 2 }
+		if levelVisible != want || subjectVisible != want || skillCount != wantSkills {
+			t.Fatalf("level %s learner readback level=%v subject=%v skills=%d", status, levelVisible, subjectVisible, skillCount)
+		}
+		adminRead := request(http.MethodGet, "/admin/bootstrap", "", admin, "")
+		if adminRead.Code != http.StatusOK || !strings.Contains(adminRead.Body.String(), levelID) || !strings.Contains(adminRead.Body.String(), subjectID) {
+			t.Fatalf("level %s admin canonical readback HTTP=%d body=%s", status, adminRead.Code, adminRead.Body.String())
+		}
+		var storedLevel string
+		if err := db.QueryRow(ctx, "SELECT level_id::text FROM subjects WHERE id=$1::uuid", subjectID).Scan(&storedLevel); err != nil || storedLevel != levelID {
+			t.Fatalf("level %s subject relationship=%s err=%v", status, storedLevel, err)
+		}
+		var storedParent string
+		if err := db.QueryRow(ctx, "SELECT parent_skill_id::text FROM skills WHERE id=$1::uuid", subSkillID).Scan(&storedParent); err != nil || storedParent != mainSkillID {
+			t.Fatalf("level %s skill parent relationship=%s err=%v", status, storedParent, err)
+		}
+	}
+	assertReadback(true, true)
 	for _, target := range []struct{ resource, table, id string }{
 		{"subjects", "subjects", subjectID},
 		{"paths", "paths", pathID},
