@@ -46,10 +46,16 @@ func (r *Repository) List(ctx context.Context, query question.ListQuery) (questi
 				WHERE qsl.question_id=q.id
 				ORDER BY CASE qsl.relation_type WHEN 'main' THEN 0 WHEN 'sub' THEN 1 ELSE 2 END, qsl.skill_id
 			),
-			q.updated_at
+			q.updated_at,
+			COALESCE(qv.text_content, ''),
+			COALESCE(a.public_url, ''),
+			COALESCE(qv.image_asset_id::text, ''),
+			COALESCE(qv.options_embedded_in_image, false)
 		FROM questions q
 		JOIN question_versions qv
 		  ON qv.question_id=q.id AND qv.version=q.current_version
+		LEFT JOIN assets a
+		  ON a.id=qv.image_asset_id
 		WHERE ` + strings.Join(clauses, " AND ") + fmt.Sprintf(`
 		ORDER BY q.updated_at DESC, q.id DESC
 		LIMIT $%d OFFSET $%d
@@ -85,6 +91,10 @@ func (r *Repository) List(ctx context.Context, query question.ListQuery) (questi
 			&row.MainSkillID,
 			&row.SkillIDs,
 			&row.UpdatedAt,
+			&row.Text,
+			&row.ImageURL,
+			&row.ImageAssetID,
+			&row.OptionsEmbeddedInImage,
 		); err != nil {
 			return question.QuestionPage{}, err
 		}

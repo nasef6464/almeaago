@@ -365,10 +365,11 @@ func (r *Repository) getPublicAttempt(ctx context.Context, id string, hash []byt
 
 	rows, err := r.db.Query(ctx, `
 		SELECT aq.question_id::text,aq.question_version,COALESCE(aq.section_id::text,''),aq.sort_order,aq.points,
-		       qv.question_type,qv.text_content,COALESCE(qv.image_asset_id::text,''),qv.image_alt,
+		       qv.question_type,qv.text_content,COALESCE(qv.image_asset_id::text,''),COALESCE(a.public_url,''),qv.image_alt,
 		       qv.options_embedded_in_image,COALESCE(qv.video_url,''),COALESCE(qv.difficulty,''),jsonb_build_object('learnerPresentation',qv.source_meta->'learnerPresentation')
 		  FROM assessment_version_questions aq
 		  JOIN question_versions qv ON qv.question_id=aq.question_id AND qv.version=aq.question_version
+		  LEFT JOIN assets a ON a.id=qv.image_asset_id
 		 WHERE aq.assessment_id=$1::uuid AND aq.assessment_version=$2
 		 ORDER BY
 		   CASE WHEN $3 THEN md5($4||aq.question_id::text) ELSE lpad(aq.sort_order::text,12,'0') END,
@@ -384,7 +385,7 @@ func (r *Repository) getPublicAttempt(ctx context.Context, id string, hash []byt
 		var presentation []byte
 		if err = rows.Scan(
 			&q.ID, &q.Version, &q.SectionID, &q.SortOrder, &q.Points, &q.Type, &q.Text,
-			&q.ImageAssetID, &q.ImageAlt, &q.OptionsEmbeddedInImage, &q.VideoURL, &q.Difficulty, &presentation,
+			&q.ImageAssetID, &q.ImageURL, &q.ImageAlt, &q.OptionsEmbeddedInImage, &q.VideoURL, &q.Difficulty, &presentation,
 		); err != nil {
 			return out, err
 		}

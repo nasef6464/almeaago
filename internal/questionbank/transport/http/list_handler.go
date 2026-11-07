@@ -185,12 +185,16 @@ func presentSummaries(rows []question.QuestionSummary) []map[string]any {
 			"examType":          row.ExamType,
 			"source":            row.Source,
 			"year":              row.SourceYear,
-			"hasImage":          row.HasImage,
-			"hasVideo":          row.HasVideo,
-			"hasExplanation":    row.HasExplanation,
-			"mainSkillId":       row.MainSkillID,
-			"skillIds":          row.SkillIDs,
-			"updatedAt":         row.UpdatedAt,
+			"hasImage":               row.HasImage,
+			"hasVideo":               row.HasVideo,
+			"hasExplanation":         row.HasExplanation,
+			"text":                   row.Text,
+			"imageUrl":               row.ImageURL,
+			"imageAssetId":           row.ImageAssetID,
+			"optionsEmbeddedInImage": row.OptionsEmbeddedInImage,
+			"mainSkillId":            row.MainSkillID,
+			"skillIds":               row.SkillIDs,
+			"updatedAt":              row.UpdatedAt,
 		})
 	}
 	return result

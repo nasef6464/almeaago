@@ -142,7 +142,23 @@ export function AssessmentAttemptPage() {
   );
   const question = attempt?.questions[index];
   const saved = question ? answers.get(question.id) : undefined;
-  const imageEmbeddedOptions = Boolean(question?.imageAssetId && question.optionsEmbeddedInImage);
+  const hasImage = Boolean(question?.imageUrl || question?.imageAssetId);
+  const isTahsili = Boolean(
+    attempt?.title?.includes('تحصيلي') ||
+    attempt?.title?.includes('فيزياء') ||
+    attempt?.title?.includes('كيمياء') ||
+    attempt?.title?.includes('أحياء') ||
+    attempt?.title?.includes('رياضيات') ||
+    question?.id?.toLowerCase().includes('tah') ||
+    question?.id?.toLowerCase().includes('phys') ||
+    question?.id?.toLowerCase().includes('chem') ||
+    question?.id?.toLowerCase().includes('bio')
+  );
+  const imageEmbeddedOptions = Boolean(
+    (hasImage && question?.optionsEmbeddedInImage) ||
+    (hasImage && isTahsili) ||
+    (hasImage && (!question?.text || question?.text.trim() === '' || question?.text === 'سؤال بصري'))
+  );
 
   const answeredCount = answers.size;
   const totalQuestions = attempt?.questions.length || 0;
@@ -463,28 +479,48 @@ export function AssessmentAttemptPage() {
             </div>
           ) : null}
 
-          {question.text ? (
+          {/* نص السؤال يظهر فقط إذا لم يكن السؤال معتمداً كلياً على الصورة أو إذا لم تكن هناك صورة */}
+          {!imageEmbeddedOptions && question.text ? (
             <h2
               className="text-base sm:text-lg font-black leading-relaxed"
               dangerouslySetInnerHTML={{
                 __html: formatQuestionHtmlForDisplay(question.text),
               }}
             />
-          ) : !question.imageAssetId ? (
-            <h2 className="text-base font-black">سؤال بصري</h2>
+          ) : !hasImage ? (
+            <h2 className="text-base font-black">{question.text || 'سؤال بصري'}</h2>
           ) : null}
 
-          {question.imageAssetId ? (
+          {/* صورة السؤال المعتمدة مع إمكانية التكبير */}
+          {hasImage ? (
             <div
               className={`my-4 overflow-hidden rounded-2xl border p-3 text-center ${
                 isNightMode ? 'border-slate-800 bg-black' : 'border-slate-100 bg-slate-50'
               }`}
             >
-              <QuestionAssetImage
-                assetId={question.imageAssetId}
-                alt={question.imageAlt || 'صورة السؤال'}
-                onZoom={setZoomImageUrl}
-              />
+              <button
+                type="button"
+                onClick={() => setZoomImageUrl(question.imageUrl || null)}
+                className="group relative block w-full cursor-zoom-in"
+                title="اضغط لتكبير الصورة وفحص الرسم البياني أو الهندسي"
+              >
+                {question.imageUrl ? (
+                  <img
+                    src={question.imageUrl}
+                    alt={question.imageAlt || 'صورة السؤال'}
+                    className="mx-auto max-h-[380px] sm:max-h-[460px] w-full object-contain rounded-xl transition-transform duration-200 group-hover:scale-[1.01]"
+                  />
+                ) : question.imageAssetId ? (
+                  <QuestionAssetImage
+                    assetId={question.imageAssetId}
+                    alt={question.imageAlt || 'صورة السؤال'}
+                    onZoom={setZoomImageUrl}
+                  />
+                ) : null}
+              </button>
+              <div className="mt-2 flex items-center justify-center">
+                <span className="text-[11px] font-bold text-slate-400">اضغط على الصورة للتكبير الكامل 🔍</span>
+              </div>
             </div>
           ) : null}
 
@@ -508,7 +544,7 @@ export function AssessmentAttemptPage() {
                     type="button"
                     disabled={savingAnswer || busy}
                     onClick={() => void choose(option.index)}
-                    className={`min-h-[76px] w-full rounded-2xl border-2 px-4 py-3 text-right transition-all flex flex-col justify-center ${
+                    className={`${imageEmbeddedOptions ? 'min-h-[58px] sm:min-h-[64px]' : 'min-h-[76px]'} w-full rounded-2xl border-2 px-4 py-3 text-right transition-all flex flex-col justify-center ${
                       isSelected
                         ? isNightMode
                           ? 'border-indigo-400 bg-indigo-500/25 text-white ring-2 ring-indigo-400/40'
@@ -534,6 +570,7 @@ export function AssessmentAttemptPage() {
                               option.index,
                               question.learnerPresentation,
                               imageEmbeddedOptions ? option.text : undefined,
+                              isTahsili,
                             )}
                           </span>
                         ) : null}

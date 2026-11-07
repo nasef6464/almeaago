@@ -146,6 +146,7 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 			qv.question_type,
 			qv.text_content,
 			COALESCE(qv.image_asset_id::text,''),
+			COALESCE(a.public_url,''),
 			qv.image_alt,
 			qv.options_embedded_in_image,
 			COALESCE(qv.video_url,''),
@@ -164,6 +165,8 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 		JOIN question_versions qv
 		  ON qv.question_id=aq.question_id
 		 AND qv.version=aq.question_version
+		LEFT JOIN assets a
+		  ON a.id=qv.image_asset_id
 		LEFT JOIN assessment_answers aa
 		  ON aa.attempt_id=$3::uuid
 		 AND aa.question_id=aq.question_id
@@ -197,6 +200,7 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 			&q.Type,
 			&q.Text,
 			&q.ImageAssetID,
+			&q.ImageURL,
 			&q.ImageAlt,
 			&q.OptionsEmbeddedInImage,
 			&q.VideoURL,

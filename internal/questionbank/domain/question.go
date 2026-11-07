@@ -84,6 +84,7 @@ type QuestionVersion struct {
 	QuestionType           QuestionType
 	TextContent            string
 	ImageAssetID           string
+	ImageURL               string
 	ImageAlt               string
 	OptionsEmbeddedInImage bool
 	CorrectOptionIndex     *int
@@ -131,6 +132,7 @@ type VersionCommand struct {
 	QuestionType           QuestionType
 	TextContent            string
 	ImageAssetID           string
+	ImageURL               string
 	ImageAlt               string
 	OptionsEmbeddedInImage bool
 	CorrectOptionIndex     *int

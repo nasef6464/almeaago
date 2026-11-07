@@ -28,6 +28,7 @@ type LearnerQuestion struct {
 	Type                   string                        `json:"type"`
 	Text                   string                        `json:"text"`
 	ImageAssetID           string                        `json:"imageAssetId"`
+	ImageURL               string                        `json:"imageUrl,omitempty"`
 	ImageAlt               string                        `json:"imageAlt"`
 	OptionsEmbeddedInImage bool                          `json:"optionsEmbeddedInImage"`
 	LearnerPresentation    *question.LearnerPresentation `json:"learnerPresentation,omitempty"`

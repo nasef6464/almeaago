@@ -21,6 +21,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { QuestionAssistantPanel } from '../../ai/components/QuestionAssistantPanel';
+import { InteractiveSmartTeacher } from '../../ai/components/InteractiveSmartTeacher';
 import { learningClient } from '../../learning/api/learning-client';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
 import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
@@ -81,6 +82,7 @@ function ReviewQuestionCard({
   saving,
   onSave,
   onZoomImage,
+  onOpenSmartTeacher,
 }: {
   question: ReviewQuestion;
   detail: ResultDetail;
@@ -88,6 +90,7 @@ function ReviewQuestionCard({
   saving: boolean;
   onSave(questionId: string): void;
   onZoomImage?: (url: string) => void;
+  onOpenSmartTeacher?: (question: ReviewQuestion) => void;
 }) {
   const [showAiAssistant, setShowAiAssistant] = useState(false);
 
@@ -142,17 +145,36 @@ function ReviewQuestionCard({
         </div>
       ) : null}
 
-      {question.text ? (
-        <h3 className="mt-3 whitespace-pre-wrap text-base font-black text-gray-900">{question.text}</h3>
-      ) : !question.imageAssetId ? <h3 className="mt-3 text-base font-black text-gray-900">سؤال بصري</h3> : null}
-      {question.imageAssetId ? (
+      {/* صورة السؤال المعتمدة */}
+      {question.imageUrl || question.imageAssetId ? (
         <div className="my-4 overflow-hidden rounded-2xl border border-gray-100 bg-slate-50 p-3 text-center">
-          <QuestionAssetImage
-            assetId={question.imageAssetId}
-            alt={question.imageAlt || 'صورة السؤال'}
-            onZoom={onZoomImage}
-          />
+          <button
+            type="button"
+            onClick={() => question.imageUrl ? onZoomImage?.(question.imageUrl) : undefined}
+            className="group relative block w-full cursor-zoom-in"
+            title="اضغط لتكبير الصورة وفحص الرسم البياني أو الهندسي"
+          >
+            {question.imageUrl ? (
+              <img
+                src={question.imageUrl}
+                alt={question.imageAlt || 'صورة السؤال'}
+                className="mx-auto max-h-[380px] w-full object-contain rounded-xl transition-transform duration-200 group-hover:scale-[1.01]"
+              />
+            ) : question.imageAssetId ? (
+              <QuestionAssetImage
+                assetId={question.imageAssetId}
+                alt={question.imageAlt || 'صورة السؤال'}
+                onZoom={onZoomImage}
+              />
+            ) : null}
+          </button>
         </div>
+      ) : null}
+
+      {!question.optionsEmbeddedInImage && !question.imageUrl && question.text ? (
+        <h3 className="mt-3 whitespace-pre-wrap text-base font-black text-gray-900">{question.text}</h3>
+      ) : !question.imageUrl && !question.imageAssetId ? (
+        <h3 className="mt-3 text-base font-black text-gray-900">{question.text || 'سؤال بصري'}</h3>
       ) : null}
 
       <div className={`mt-4 grid gap-2 ${question.imageAssetId && question.optionsEmbeddedInImage ? 'grid-cols-4' : ''}`}>
@@ -222,18 +244,29 @@ function ReviewQuestionCard({
       ) : null}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
-        <button
-          type="button"
-          onClick={() => setShowAiAssistant((prev) => !prev)}
-          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black shadow-xs transition ${
-            showAiAssistant
-              ? 'border border-violet-300 bg-violet-600 text-white'
-              : 'border border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100'
-          }`}
-        >
-          <BrainCircuit size={15} className={showAiAssistant ? 'text-white' : 'text-violet-600'} />
-          {showAiAssistant ? 'إخفاء المعلم الذكي' : 'اسأل المعلم الذكي عن هذا السؤال 💡'}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onOpenSmartTeacher?.(question)}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 px-4 py-2 text-xs font-black text-white shadow-xs transition hover:from-emerald-700 hover:to-indigo-700 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Sparkles size={15} className="text-amber-300" />
+            <span>افتح المعلم الذكي والسبورة التفاعلية 🧑‍🏫</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowAiAssistant((prev) => !prev)}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black shadow-xs transition ${
+              showAiAssistant
+                ? 'border border-violet-300 bg-violet-600 text-white'
+                : 'border border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100'
+            }`}
+          >
+            <BrainCircuit size={15} className={showAiAssistant ? 'text-white' : 'text-violet-600'} />
+            {showAiAssistant ? 'إخفاء المساعد' : 'اسأل المساعد النصي 💡'}
+          </button>
+        </div>
       </div>
 
       {showAiAssistant ? (
@@ -260,6 +293,7 @@ export function AssessmentResultsPage() {
   const [savedQuestions, setSavedQuestions] = useState<Set<string>>(() => new Set());
   const [savingQuestion, setSavingQuestion] = useState('');
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
+  const [activeSmartTeacherQuestion, setActiveSmartTeacherQuestion] = useState<ReviewQuestion | null>(null);
   const activeContext = `${user?.id ?? ''}:${attemptId}`;
   const activeContextRef = useRef(activeContext);
   activeContextRef.current = activeContext;
@@ -268,6 +302,7 @@ export function AssessmentResultsPage() {
     setSaveError('');
     setSavingQuestion('');
     setFilter('all');
+    setActiveSmartTeacherQuestion(null);
   }, [activeContext]);
 
   useEffect(() => {
@@ -524,12 +559,34 @@ export function AssessmentResultsPage() {
                     saving={savingQuestion === question.questionId}
                     onSave={(questionId) => void saveForReview(questionId)}
                     onZoomImage={setZoomImageUrl}
+                    onOpenSmartTeacher={setActiveSmartTeacherQuestion}
                   />
                 ))}
               </div>
             )}
           </>
         )}
+
+      {/* Interactive Smart Teacher & Whiteboard Modal */}
+      {activeSmartTeacherQuestion && detail ? (
+        <InteractiveSmartTeacher
+          isOpen={Boolean(activeSmartTeacherQuestion)}
+          onClose={() => setActiveSmartTeacherQuestion(null)}
+          questionId={activeSmartTeacherQuestion.questionId}
+          questionText={activeSmartTeacherQuestion.text}
+          explanation={activeSmartTeacherQuestion.explanation}
+          solvingStrategy={activeSmartTeacherQuestion.solvingStrategy}
+          options={activeSmartTeacherQuestion.options?.map((opt, idx) => ({
+            index: idx,
+            label: optionLabel(idx),
+            text: opt.text,
+          }))}
+          selectedOptionIndex={activeSmartTeacherQuestion.selectedOptionIndex}
+          correctOptionIndex={activeSmartTeacherQuestion.correctOptionIndex}
+          resultId={detail.result.attemptId}
+          context="result_review"
+        />
+      ) : null}
 
       {/* Full-Screen Image Pan & Zoom Modal */}
       <QuestionImageZoomModal

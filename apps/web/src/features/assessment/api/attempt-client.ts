@@ -16,6 +16,7 @@ export interface AttemptQuestion {
   type: string;
   text: string;
   imageAssetId: string;
+  imageUrl?: string;
   imageAlt: string;
   optionsEmbeddedInImage: boolean;
   learnerPresentation?: LearnerQuestionPresentation;
@@ -89,6 +90,7 @@ export interface ReviewQuestion {
   type: string;
   text: string;
   imageAssetId: string;
+  imageUrl?: string;
   imageAlt: string;
   optionsEmbeddedInImage: boolean;
   learnerPresentation?: LearnerQuestionPresentation;

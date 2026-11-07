@@ -761,7 +761,66 @@ export function QuestionBankAdminPage(){
     <section className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
       <article className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5">
         <div className="flex items-center justify-between"><h2 className="font-black">الأسئلة المطابقة</h2>{busy?<Loader2 className="animate-spin text-violet-700" size={18}/>:<span className="text-xs font-bold text-gray-400">{rows.length}{hasMore?'+' : ''}</span>}</div>
-        <div className="mt-4 overflow-hidden rounded-2xl border"><div className="hidden bg-gray-50 px-3 py-2 text-xs font-black text-gray-500 md:grid md:grid-cols-[1.2fr_1fr_1fr_auto_1fr_auto] md:items-center md:gap-3"><span>الكود</span><span>النوع</span><span>الحالة</span><span>النسخة</span><span>أدلة</span><span /></div><div className="divide-y">{rows.map(row=><article key={row.id} className="grid grid-cols-2 gap-2 p-3 text-sm md:grid-cols-[1.2fr_1fr_1fr_auto_1fr_auto] md:items-center md:gap-3"><div className="min-w-0 truncate font-black text-gray-900">{row.questionCode}</div><div className="text-xs font-bold text-gray-500 md:text-sm md:font-normal">{typeLabel[row.type]}</div><span className="w-fit rounded-full bg-gray-50 px-2 py-1 text-[11px] font-black text-gray-600 ring-1 ring-gray-200">{statusLabel[row.workflowStatus]}</span><div className="text-xs font-black text-gray-500 md:text-sm">v{row.currentVersion}</div><div className="min-w-0 truncate text-[11px] font-bold text-gray-400">{row.hasImage?'صورة · ':''}{row.hasVideo?'فيديو · ':''}{row.hasExplanation?'شرح':''}{!row.hasImage&&!row.hasVideo&&!row.hasExplanation?'بدون وسائط إضافية':''}</div><button type="button" onClick={()=>void openQuestion(row.id)} className="justify-self-end rounded-xl border bg-white px-3 py-2 text-xs font-black">فتح</button></article>)}</div></div>{!busy&&rows.length===0?<div className="p-8 text-center text-sm text-gray-500">لا توجد أسئلة مطابقة.</div>:null}
+        <div className="mt-4 overflow-hidden rounded-2xl border">
+          <div className="divide-y">
+            {rows.map((row) => (
+              <article key={row.id} className="p-3 text-sm transition hover:bg-slate-50/70">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-gray-900">{row.questionCode}</span>
+                    <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">{typeLabel[row.type]}</span>
+                    <span className="w-fit rounded-full bg-gray-50 px-2 py-0.5 text-[11px] font-black text-gray-600 ring-1 ring-gray-200">
+                      {statusLabel[row.workflowStatus]}
+                    </span>
+                    <span className="text-xs font-bold text-gray-400">v{row.currentVersion}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-[11px] font-bold text-gray-400">
+                      {row.hasImage || row.imageUrl ? 'صورة · ' : ''}
+                      {row.hasVideo ? 'فيديو · ' : ''}
+                      {row.hasExplanation ? 'شرح' : ''}
+                      {!row.hasImage && !row.imageUrl && !row.hasVideo && !row.hasExplanation ? 'بدون وسائط' : ''}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void openQuestion(row.id)}
+                      className="rounded-xl border border-indigo-200 bg-white px-3 py-1.5 text-xs font-black text-indigo-700 hover:bg-indigo-50 shadow-xs cursor-pointer"
+                    >
+                      فتح وتفاصيل
+                    </button>
+                  </div>
+                </div>
+
+                {/* معاينة صورة السؤال في الصف إن وجدت */}
+                {row.imageUrl ? (
+                  <div className="mt-2.5 w-full max-w-[440px] overflow-hidden rounded-xl border border-indigo-100/90 bg-white p-1.5 shadow-xs">
+                    <img
+                      src={row.imageUrl}
+                      alt={row.questionCode}
+                      className="max-h-40 sm:max-h-48 w-full object-contain rounded-lg cursor-pointer hover:scale-[1.01] transition-transform"
+                      onClick={() => void openQuestion(row.id)}
+                    />
+                  </div>
+                ) : row.imageAssetId ? (
+                  <div className="mt-2.5 w-full max-w-[440px] overflow-hidden rounded-xl border border-indigo-100/90 bg-white p-1.5 shadow-xs">
+                    <QuestionAssetImage
+                      assetId={row.imageAssetId}
+                      alt={row.questionCode}
+                      className="max-h-40 sm:max-h-48 w-full object-contain rounded-lg cursor-pointer"
+                    />
+                  </div>
+                ) : null}
+
+                {/* نص السؤال إن وجد */}
+                {row.text ? (
+                  <p className="mt-1.5 text-xs font-medium text-slate-700 line-clamp-2">
+                    {row.text}
+                  </p>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </div>{!busy&&rows.length===0?<div className="p-8 text-center text-sm text-gray-500">لا توجد أسئلة مطابقة.</div>:null}
       </article>
 
       <article className="rounded-3xl border bg-white p-4 shadow-sm sm:p-5">
@@ -819,14 +878,22 @@ export function QuestionBankAdminPage(){
             ) : null}
 
             {/* صورة السؤال الحقيقية */}
-            {detail.version.imageAssetId ? (
+            {detail.version.imageUrl || detail.version.imageAssetId ? (
               <div className="overflow-hidden rounded-2xl border border-violet-100 bg-white p-3 shadow-xs">
                 <p className="mb-2 text-xs font-black text-violet-800">صورة السؤال المعتمدة:</p>
-                <QuestionAssetImage
-                  assetId={detail.version.imageAssetId}
-                  alt={detail.questionCode}
-                  className="mx-auto max-h-64 rounded-xl object-contain"
-                />
+                {detail.version.imageUrl ? (
+                  <img
+                    src={detail.version.imageUrl}
+                    alt={detail.questionCode}
+                    className="mx-auto max-h-72 sm:max-h-80 w-full rounded-xl object-contain"
+                  />
+                ) : (
+                  <QuestionAssetImage
+                    assetId={detail.version.imageAssetId}
+                    alt={detail.questionCode}
+                    className="mx-auto max-h-72 sm:max-h-80 rounded-xl object-contain"
+                  />
+                )}
               </div>
             ) : null}
 

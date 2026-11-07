@@ -19,6 +19,10 @@ export interface QuestionSummary{
   hasImage:boolean;
   hasVideo:boolean;
   hasExplanation:boolean;
+  text?:string;
+  imageUrl?:string;
+  imageAssetId?:string;
+  optionsEmbeddedInImage?:boolean;
   mainSkillId:string;
   skillIds:string[];
   updatedAt:string;
@@ -49,6 +53,7 @@ export interface QuestionDetail extends QuestionSummary{
     type:QuestionType;
     text:string;
     imageAssetId:string;
+    imageUrl?:string;
     imageAlt:string;
     optionsEmbeddedInImage:boolean;
     correctOptionIndex:number|null;

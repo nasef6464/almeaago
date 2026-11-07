@@ -180,20 +180,21 @@ func (r *Repository) Get(ctx context.Context, questionID string) (question.Quest
 			COALESCE(q.approved_by::text,''), q.approved_at, q.reviewer_notes,
 			COALESCE(q.revenue_share_percentage::float8,-1), q.created_at, q.updated_at,
 			qv.version, qv.question_type, qv.text_content, COALESCE(qv.image_asset_id::text,''),
-			qv.image_alt, qv.options_embedded_in_image, qv.correct_option_index,
+			COALESCE(a.public_url,''), qv.image_alt, qv.options_embedded_in_image, qv.correct_option_index,
 			qv.explanation, qv.hint, qv.solving_strategy, COALESCE(qv.video_url,''),
 			qv.source_meta, qv.ai_context, qv.voice_explanation, COALESCE(qv.difficulty,''),
 			COALESCE(qv.exam_type,''), COALESCE(qv.source,''), qv.source_year,
 			COALESCE(qv.created_by::text,''), qv.revision_note, qv.created_at
 		FROM questions q
 		JOIN question_versions qv ON qv.question_id=q.id AND qv.version=q.current_version
+		LEFT JOIN assets a ON a.id=qv.image_asset_id
 		WHERE q.id=$1::uuid
 	`, questionID).Scan(
 		&row.ID, &row.QuestionCode, &row.CurrentVersion, &row.WorkflowStatus, &row.OwnerType,
 		&ownerID, &row.PathID, &row.SubjectID, &createdBy, &assignedTeacherID,
 		&approvedBy, &approvedAt, &row.ReviewerNotes, &revenue, &row.CreatedAt, &row.UpdatedAt,
 		&row.Version.Version, &row.Version.QuestionType, &row.Version.TextContent, &row.Version.ImageAssetID,
-		&row.Version.ImageAlt, &row.Version.OptionsEmbeddedInImage, &correctOptionIndex,
+		&row.Version.ImageURL, &row.Version.ImageAlt, &row.Version.OptionsEmbeddedInImage, &correctOptionIndex,
 		&row.Version.Explanation, &row.Version.Hint, &row.Version.SolvingStrategy, &row.Version.VideoURL,
 		&sourceMeta, &aiContext, &voiceExplanation, &row.Version.Difficulty,
 		&row.Version.ExamType, &row.Version.Source, &sourceYear, &row.Version.CreatedBy,
