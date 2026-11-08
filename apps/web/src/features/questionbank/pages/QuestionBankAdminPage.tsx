@@ -779,12 +779,44 @@ export function QuestionBankAdminPage() {
   }
 
   if (authLoading) return <main className="p-10 text-center font-black">جاري التحقق من الصلاحيات...</main>;
-  if (!isAdmin && !isTeacher)
+  if (!user) {
     return (
-      <main dir="rtl" className="p-10 text-center font-black text-rose-700">
-        مركز بنك الأسئلة متاح للمشرفين على التأليف فقط.
+      <main dir="rtl" className="min-h-[50vh] flex flex-col items-center justify-center p-10 text-center space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-2 border border-amber-200">
+          <ShieldCheck size={32} />
+        </div>
+        <h2 className="text-xl font-black text-gray-800">يرجى تسجيل الدخول للوصول إلى مركز بنك الأسئلة</h2>
+        <p className="text-sm font-bold text-gray-500 max-w-md">
+          يتطلب بنك الأسئلة صلاحيات مدير المنصة أو مشرف التأليف.
+        </p>
+        <Link
+          to="/login"
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 text-white font-black hover:bg-indigo-700 transition-colors shadow-sm"
+        >
+          تسجيل الدخول الآن
+        </Link>
       </main>
     );
+  }
+  if (!isAdmin && !isTeacher) {
+    return (
+      <main dir="rtl" className="min-h-[50vh] flex flex-col items-center justify-center p-10 text-center space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-2 border border-rose-200">
+          <AlertCircle size={32} />
+        </div>
+        <h2 className="text-xl font-black text-rose-800">مركز بنك الأسئلة متاح للمشرفين على التأليف فقط</h2>
+        <p className="text-sm font-bold text-gray-500 max-w-md">
+          حسابك الحالي ({user.email}) لا يمتلك صلاحيات إدارة المحتوى. يرجى الدخول بحساب المشرف/المدير.
+        </p>
+        <Link
+          to="/login"
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-800 text-white font-black hover:bg-slate-900 transition-colors"
+        >
+          التبديل إلى حساب المدير
+        </Link>
+      </main>
+    );
+  }
 
   return (
     <main dir="rtl" className="mx-auto max-w-7xl space-y-5 pb-12" data-testid="question-bank-admin">
