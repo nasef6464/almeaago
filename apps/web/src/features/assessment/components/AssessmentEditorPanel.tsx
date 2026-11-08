@@ -101,17 +101,20 @@ export function AssessmentEditorPanel(p: Props) {
   useEffect(() => {
     if (!p.assessmentId) return;
     const c = new AbortController();
+    setLoading(true);
+    setError('');
     assessmentClient
       .get(p.assessmentId, c.signal)
       .then((r) => {
+        if (c.signal.aborted) return;
         setDetail(r.assessment);
         setCode(r.assessment.code);
         setVersion(r.assessment.version);
         setSections(r.assessment.sections || []);
         setQuestions(r.assessment.questions || []);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'تعذر تحميل الاختبار'))
-      .finally(() => setLoading(false));
+      .catch((e) => { if (!c.signal.aborted) setError(e instanceof Error ? e.message : 'تعذر تحميل الاختبار'); })
+      .finally(() => { if (!c.signal.aborted) setLoading(false); });
     return () => c.abort();
   }, [p.assessmentId]);
 
