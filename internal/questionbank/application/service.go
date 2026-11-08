@@ -540,7 +540,7 @@ func validAdminTransition(from, to question.WorkflowStatus) bool {
 	case question.WorkflowPendingReview:
 		return to == question.WorkflowApproved || to == question.WorkflowRejected || to == question.WorkflowDraft || to == question.WorkflowArchived
 	case question.WorkflowApproved:
-		return to == question.WorkflowArchived
+		return to == question.WorkflowRejected || to == question.WorkflowArchived
 	default:
 		return false
 	}

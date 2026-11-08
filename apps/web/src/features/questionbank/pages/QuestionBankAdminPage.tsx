@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  Copy,
   Edit2,
   ExternalLink,
   Eye,
@@ -47,6 +48,7 @@ import {
   questionBankClient,
   type ImportResult,
   type MediaAsset,
+  type QuestionCreateWrite,
   type QuestionDetail,
   type QuestionFilters,
   type QuestionSummary,
@@ -335,16 +337,188 @@ export function QuestionBankAdminPage() {
     const targetRow = targetId ? rows.find((r) => r.id === targetId) : detail;
     const version = targetRow ? targetRow.currentVersion : 1;
     await run('workflow-' + qId, async (csrf) => {
-      const res = await questionBankClient.workflow(qId, version, nextStatus, '', csrf);
+      let curVer = version;
+      if (
+        nextStatus === 'approved' &&
+        targetRow &&
+        (targetRow.workflowStatus === 'draft' || targetRow.workflowStatus === 'rejected')
+      ) {
+        const pr = await questionBankClient.workflow(qId, curVer, 'pending_review', 'تقديم للمراجعة للاعتماد', csrf);
+        curVer = pr.question.currentVersion;
+      }
+      const res = await questionBankClient.workflow(qId, curVer, nextStatus, '', csrf);
       if (detail && detail.id === qId) setDetail(res.question);
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === qId
+            ? { ...r, workflowStatus: res.question.workflowStatus, currentVersion: res.question.currentVersion }
+            : r
+        )
+      );
       setNotice(
         nextStatus === 'approved'
           ? 'تم اعتماد السؤال بنجاح'
           : nextStatus === 'rejected'
             ? 'تم رفض السؤال'
-            : 'تم تحديث حالة السؤال'
+            : nextStatus === 'archived'
+              ? 'تم أرشفة/حذف السؤال بنجاح'
+              : 'تم تحديث حالة السؤال'
       );
       setReload((x) => x + 1);
+    });
+  }
+
+  async function duplicateQuestion(row: QuestionSummary) {
+    await run('duplicate-' + row.id, async (csrf) => {
+      const full = await questionBankClient.get(row.id);
+      const q = full.question;
+      const v = q.version;
+      const baseCode = row.questionCode.replace(/_COPY_\d+$/i, '');
+      const newCode = `${baseCode}_COPY_${Date.now().toString().slice(-4)}`;
+      const baseText = v.text || row.text || 'سؤال مكرر';
+      const newText = baseText.includes('(نسخة)') ? baseText : `${baseText} (نسخة)`;
+
+      const pathId = q.pathId || row.pathId || taxonomy.paths[0]?.id || 'general';
+      const subjectId = q.subjectId || row.subjectId || taxonomy.subjects[0]?.id || 'general';
+
+      let options = (q.options || []).map((o) => ({
+        text: o.text || '',
+        assetId: o.assetId || '',
+      }));
+      if (options.length < 2 && (v.type === 'mcq' || !v.type || v.type === 'true_false')) {
+        options = [
+          { text: 'أ', assetId: '' },
+          { text: 'ب', assetId: '' },
+          { text: 'ج', assetId: '' },
+          { text: 'د', assetId: '' },
+        ];
+      }
+
+      const correctOptionIndex =
+        v.correctOptionIndex != null && v.correctOptionIndex >= 0 && v.correctOptionIndex < options.length
+          ? v.correctOptionIndex
+          : 0;
+
+      let links: Array<{ skillId: string; relationType: 'main' | 'sub' | 'secondary' }> = [];
+      const sourceLinks = q.skillLinks || [];
+      const existingMain = sourceLinks.find((l) => l.relationType === 'main');
+      if (existingMain) {
+        links.push({ skillId: existingMain.skillId, relationType: 'main' });
+        for (const l of sourceLinks) {
+          if (l.skillId !== existingMain.skillId) {
+            links.push({ skillId: l.skillId, relationType: l.relationType || 'sub' });
+          }
+        }
+      } else {
+        const subId = sourceLinks[0]?.skillId || row.mainSkillId || row.skillIds?.[0] || '';
+        const subSkill = taxonomy.skills.find((s) => s.id === subId);
+        if (subSkill?.parentSkillId) {
+          links.push({ skillId: subSkill.parentSkillId, relationType: 'main' });
+          links.push({ skillId: subSkill.id, relationType: 'sub' });
+        } else if (subSkill?.kind === 'main') {
+          links.push({ skillId: subSkill.id, relationType: 'main' });
+        } else {
+          const subjectMain = taxonomy.skills.find(
+            (s) => s.subjectId === subjectId && s.kind === 'main'
+          );
+          if (subjectMain) {
+            links.push({ skillId: subjectMain.id, relationType: 'main' });
+            if (subSkill && subSkill.parentSkillId === subjectMain.id) {
+              links.push({ skillId: subSkill.id, relationType: 'sub' });
+            }
+          }
+        }
+      }
+
+      const payload: QuestionCreateWrite = {
+        questionCode: newCode,
+        ownerType: 'platform',
+        ownerId: '',
+        assignedTeacherId: '',
+        version: {
+          pathId,
+          subjectId,
+          type: v.type || row.type || 'mcq',
+          text: newText,
+          imageAssetId: v.imageAssetId || '',
+          imageAlt: v.imageAlt || '',
+          optionsEmbeddedInImage: Boolean(v.optionsEmbeddedInImage),
+          correctOptionIndex,
+          explanation: v.explanation || '',
+          hint: v.hint || '',
+          solvingStrategy: v.solvingStrategy || '',
+          videoUrl: v.videoUrl || '',
+          sourceMeta: (v.sourceMeta as Record<string, unknown>) || {},
+          aiContext: (v.aiContext as Record<string, unknown>) || {},
+          voiceExplanation: (v.voiceExplanation as Record<string, unknown>) || {},
+          difficulty: v.difficulty || row.difficulty || 'medium',
+          examType: v.examType || '',
+          source: v.source || '',
+          year: v.year ?? null,
+          revisionNote: `نسخة مكررة من ${row.questionCode}`,
+          options,
+          skillLinks: links,
+        },
+      };
+
+      const res = await questionBankClient.create(payload, csrf);
+      const mainLink = links.find((l) => l.relationType === 'main');
+      const newSummary: QuestionSummary = {
+        id: res.question.id,
+        questionCode: res.question.questionCode,
+        currentVersion: res.question.currentVersion,
+        workflowStatus: res.question.workflowStatus,
+        ownerType: res.question.ownerType,
+        ownerId: res.question.ownerId,
+        pathId: res.question.pathId,
+        subjectId: res.question.subjectId,
+        assignedTeacherId: res.question.assignedTeacherId,
+        type: res.question.version.type,
+        difficulty: res.question.version.difficulty,
+        examType: res.question.version.examType,
+        source: res.question.version.source,
+        year: res.question.version.year,
+        hasImage: Boolean(res.question.version.imageAssetId || res.question.version.imageUrl),
+        hasVideo: Boolean(res.question.version.videoUrl),
+        hasExplanation: Boolean(res.question.version.explanation),
+        text: res.question.version.text,
+        imageUrl: res.question.version.imageUrl,
+        imageAssetId: res.question.version.imageAssetId,
+        optionsEmbeddedInImage: res.question.version.optionsEmbeddedInImage,
+        mainSkillId: mainLink ? mainLink.skillId : '',
+        skillIds: links.map((l) => l.skillId),
+        updatedAt: new Date().toISOString(),
+      };
+      setRows((prev) => [newSummary, ...prev]);
+      setCoverage((prev) => ({
+        ...prev,
+        questionsTotal: prev.questionsTotal + 1,
+      }));
+      setNotice(`تم نسخ السؤال بنجاح بالكود الجديد: ${newCode}`);
+    });
+  }
+
+  async function deleteQuestion(rowId: string) {
+    const row = rows.find((r) => r.id === rowId);
+    const code = row?.questionCode || 'هذا السؤال';
+    if (!window.confirm(`هل أنت متأكد من حذف ${code} (أرشفته)؟`)) {
+      return;
+    }
+    await run('delete-' + rowId, async (csrf) => {
+      const version = row ? row.currentVersion : 1;
+      await questionBankClient.workflow(rowId, version, 'archived', 'تم الحذف من جدول بنك الأسئلة', csrf);
+      setRows((prev) => prev.filter((r) => r.id !== rowId));
+      setSelectedQuestionIds((prev) => {
+        if (!prev.has(rowId)) return prev;
+        const next = new Set(prev);
+        next.delete(rowId);
+        return next;
+      });
+      setCoverage((prev) => ({
+        ...prev,
+        questionsTotal: Math.max(0, prev.questionsTotal - 1),
+      }));
+      setNotice(`تم حذف (أرشفة) السؤال ${code} بنجاح`);
     });
   }
 
@@ -1432,12 +1606,12 @@ export function QuestionBankAdminPage() {
                     }
                   />
                 </th>
-                <th className="px-6 py-4 text-sm font-black text-gray-700 min-w-[340px]">نص السؤال</th>
-                <th className="px-6 py-4 text-sm font-black text-gray-700 min-w-[180px]">المهارات الفرعية</th>
-                <th className="px-6 py-4 text-sm font-black text-gray-700">الصعوبة</th>
-                <th className="px-6 py-4 text-sm font-black text-gray-700 min-w-[160px]">الاستخدام والأداء</th>
-                <th className="px-6 py-4 text-sm font-black text-gray-700">الحالة</th>
-                <th className="px-6 py-4 text-sm font-black text-gray-700 min-w-[150px]">الإجراءات</th>
+                <th className="px-4 py-4 text-sm font-black text-gray-700 min-w-[280px]">نص السؤال</th>
+                <th className="px-4 py-4 text-sm font-black text-gray-700 min-w-[150px]">المهارات الفرعية</th>
+                <th className="px-4 py-4 text-sm font-black text-gray-700">الصعوبة</th>
+                <th className="px-4 py-4 text-sm font-black text-gray-700 min-w-[140px]">الاستخدام والأداء</th>
+                <th className="px-4 py-4 text-sm font-black text-gray-700">الحالة</th>
+                <th className="px-4 py-4 text-center text-sm font-black text-gray-700 min-w-[150px]">الإجراءات</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -1634,48 +1808,74 @@ export function QuestionBankAdminPage() {
                       </td>
 
                       {/* 6. الإجراءات */}
-                      <td className="px-6 py-4 align-top whitespace-nowrap">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {isAdmin && row.workflowStatus !== 'approved' && (
+                      <td className="px-4 py-4 align-top whitespace-nowrap min-w-[150px]">
+                        <div className="flex flex-col items-center justify-center gap-1.5 w-full">
+                          {/* الصف العلوي: اعتماد/رفض + معاينة + نسخ */}
+                          <div className="flex items-center gap-1">
+                            {isAdmin && row.workflowStatus !== 'approved' && (
+                              <button
+                                type="button"
+                                onClick={() => void workflow('approved', row.id)}
+                                className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer border border-emerald-200/60"
+                                title="اعتماد السؤال"
+                              >
+                                اعتماد
+                              </button>
+                            )}
+                            {isAdmin && row.workflowStatus !== 'rejected' && (
+                              <button
+                                type="button"
+                                onClick={() => void workflow('rejected', row.id)}
+                                className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer border border-rose-200/60"
+                                title="رفض السؤال"
+                              >
+                                رفض
+                              </button>
+                            )}
                             <button
                               type="button"
-                              onClick={() => void workflow('approved', row.id)}
-                              className="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer border border-emerald-200"
+                              onClick={() => {
+                                const media = resolveQuestionMedia(row.text, row.imageUrl);
+                                if (media.resolvedImage || row.imageUrl) {
+                                  setZoomImageUrl(media.resolvedImage || row.imageUrl || null);
+                                } else {
+                                  void openQuestion(row.id);
+                                }
+                              }}
+                              className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                              title="معاينة السؤال"
                             >
-                              اعتماد
+                              <Eye size={17} />
                             </button>
-                          )}
-                          {isAdmin && row.workflowStatus !== 'rejected' && (
                             <button
                               type="button"
-                              onClick={() => void workflow('rejected', row.id)}
-                              className="px-2.5 py-1 text-xs font-bold text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors cursor-pointer border border-red-200"
+                              onClick={() => void duplicateQuestion(row)}
+                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                              title="نسخ السؤال"
                             >
-                              رفض
+                              <Copy size={17} />
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (row.imageUrl) {
-                                setZoomImageUrl(row.imageUrl);
-                              } else {
-                                void openQuestion(row.id);
-                              }
-                            }}
-                            className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                            title="معاينة السؤال"
-                          >
-                            <Eye size={17} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void openQuestion(row.id)}
-                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                            title="تعديل السؤال وعرضه"
-                          >
-                            <Edit2 size={17} />
-                          </button>
+                          </div>
+
+                          {/* الصف السفلي: تعديل + حذف */}
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => void openQuestion(row.id)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              title="تعديل السؤال"
+                            >
+                              <Edit2 size={17} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void deleteQuestion(row.id)}
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="حذف السؤال"
+                            >
+                              <Trash2 size={17} />
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
