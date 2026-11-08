@@ -18,6 +18,7 @@ import {
   HelpCircle,
   AlertCircle,
   Eye,
+  X,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { assessmentClient } from '../api/assessment-client';
@@ -400,13 +401,18 @@ export function AssessmentEditorPanel(p: Props) {
       ) : null}
 
       {/* Header Bar */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={p.onCancel}
-          className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 font-black text-gray-700 shadow-xs hover:bg-gray-50"
-        >
-          <ArrowRight size={18} /> العودة لمركز الاختبارات
-        </button>
+      <div data-testid="assessment-editor-header" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            aria-label="العودة لمركز الاختبارات"
+            onClick={p.onCancel}
+            className="rounded-lg p-2 transition-colors hover:bg-gray-200"
+          >
+            <X size={20} className="text-gray-500" />
+          </button>
+          <h1 className="text-xl font-bold text-gray-800">{p.assessmentId ? 'تعديل الاختبار' : 'إنشاء اختبار جديد'}</h1>
+        </div>
         <div className="flex flex-wrap gap-2">
           {detail && detail.workflowStatus !== 'approved' ? (
             <button
@@ -435,7 +441,7 @@ export function AssessmentEditorPanel(p: Props) {
           <button
             disabled={saving}
             onClick={save}
-            className="rounded-xl bg-amber-500 px-6 py-2 font-black text-slate-950 shadow-xs hover:bg-amber-400 disabled:opacity-50"
+            className="rounded-xl bg-indigo-600 px-6 py-2 font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
           >
             {saving ? 'جاري الحفظ...' : 'حفظ الاختبار'}
           </button>
@@ -456,9 +462,7 @@ export function AssessmentEditorPanel(p: Props) {
                 </span>
               ) : null}
             </div>
-            <h1 className="mt-2 text-2xl font-black">
-              {p.assessmentId ? `تعديل: ${version.title || 'بدون عنوان'}` : 'إنشاء وتصميم اختبار جديد'}
-            </h1>
+            {p.assessmentId ? <p className="mt-2 text-lg font-black">{version.title || 'بدون عنوان'}</p> : null}
             <p className="mt-1 text-xs text-slate-400">
               منشئ الاختبارات الموحد — يدعم الاختبارات العادية، محاكيات قياس الصارمة بالأقسام، والتوليد الآلي للأسئلة.
             </p>
