@@ -449,34 +449,34 @@ export function AssessmentEditorPanel(p: Props) {
       </div>
 
       {/* Main Title & Kind Badge */}
-      <section className="rounded-3xl bg-slate-950 p-6 text-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-6">
           <div>
             <div className="flex items-center gap-2">
-              <span className="rounded-lg bg-amber-500/20 px-2.5 py-1 text-xs font-black text-amber-400">
+              <span className="rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-black text-indigo-700">
                 {version.kind === 'mock' ? 'MOCK EXAM · محاكي قياس' : 'REGULAR EXAM · اختبار قياسي'}
               </span>
               {detail ? (
-                <span className="rounded-lg bg-slate-800 px-2 py-0.5 text-xs text-slate-400">
+                <span className="rounded-lg bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
                   {detail.code} · v{detail.currentVersion}
                 </span>
               ) : null}
             </div>
-            {p.assessmentId ? <p className="mt-2 text-lg font-black">{version.title || 'بدون عنوان'}</p> : null}
-            <p className="mt-1 text-xs text-slate-400">
+            {p.assessmentId ? <p className="mt-2 text-lg font-black text-gray-800">{version.title || 'بدون عنوان'}</p> : null}
+            <p className="mt-1 text-xs text-gray-500">
               منشئ الاختبارات الموحد — يدعم الاختبارات العادية، محاكيات قياس الصارمة بالأقسام، والتوليد الآلي للأسئلة.
             </p>
           </div>
 
           {/* Mode Switcher */}
-          <div className="flex rounded-2xl bg-slate-900 p-1.5 border border-slate-800">
+          <div className="flex flex-wrap rounded-xl border border-gray-200 bg-gray-50 p-1">
             <button
               type="button"
               onClick={() => setVersion((v) => ({ ...v, kind: 'normal', normalMode: 'exam' }))}
               className={`rounded-xl px-4 py-2 text-xs font-black transition ${
                 version.kind === 'normal'
-                  ? 'bg-amber-500 text-slate-950 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
               اختبار عادي (تقييم / تدريب)
@@ -493,7 +493,7 @@ export function AssessmentEditorPanel(p: Props) {
               className={`rounded-xl px-4 py-2 text-xs font-black transition ${
                 version.kind === 'mock'
                   ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+                  : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
               محاكي قياس رسمي (أقسام ومؤقت)
@@ -502,52 +502,28 @@ export function AssessmentEditorPanel(p: Props) {
         </div>
 
         {/* Tab Navigation */}
-        <div className="mt-6 flex flex-wrap gap-2 border-t border-slate-800 pt-4">
-          <button
-            type="button"
-            onClick={() => setActiveTab('info')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
-              activeTab === 'info'
-                ? 'bg-white text-slate-950 shadow-xs'
-                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-900'
-            }`}
-          >
-            <FileQuestion size={16} /> 1. البيانات الأساسية
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('sections')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
-              activeTab === 'sections'
-                ? 'bg-white text-slate-950 shadow-xs'
-                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-900'
-            }`}
-          >
-            <Layers size={16} /> 2. الأقسام والمؤقت ({sections.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('questions')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
-              activeTab === 'questions'
-                ? 'bg-white text-slate-950 shadow-xs'
-                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-900'
-            }`}
-          >
-            <CheckCircle2 size={16} /> 3. انتقاء وتوليد الأسئلة ({questions.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('settings')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
-              activeTab === 'settings'
-                ? 'bg-white text-slate-950 shadow-xs'
-                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-900'
-            }`}
-          >
-            <Settings size={16} /> 4. الإعدادات والسياسات
-          </button>
-        </div>
+        <nav aria-label="أقسام منشئ الاختبارات" className="flex flex-wrap border-t border-gray-200 bg-white px-2 sm:px-6">
+          {([
+            { id: 'info', label: 'المعلومات الأساسية', Icon: FileQuestion },
+            { id: 'questions', label: 'الأسئلة', Icon: CheckCircle2 },
+            { id: 'settings', label: 'الإعدادات', Icon: Settings },
+            { id: 'sections', label: 'الأقسام والمؤقت', Icon: Layers },
+          ] as const).map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={activeTab === id}
+              onClick={() => setActiveTab(id)}
+              className={`flex items-center gap-2 border-b-2 px-4 py-4 text-sm font-bold transition-colors ${
+                activeTab === id
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+              }`}
+            >
+              <Icon size={18} /> {label}
+            </button>
+          ))}
+        </nav>
       </section>
 
       {/* Notifications */}
