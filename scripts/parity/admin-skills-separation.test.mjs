@@ -54,6 +54,7 @@ function load(relative, initialStates = []) {
     if (id.endsWith('/components/pathReadiness')) return {
       buildPathReadinessSummary: () => ({ total: 0, visible: 0, hidden: 0, subjects: 0, packages: 0 }),
     };
+    if (id.endsWith('/components/packageScope')) return load('features/taxonomy/components/packageScope.ts');
     if (id.endsWith('/lesson-link-write')) return load('features/content/api/lesson-link-write.ts');
     if (id.endsWith('/LessonEditorPanel')) return load('features/content/components/LessonEditorPanel.tsx');
     if (id.endsWith('/VideoQuestionPicker') || id === './VideoQuestionPicker') return { VideoQuestionPicker: () => null };
