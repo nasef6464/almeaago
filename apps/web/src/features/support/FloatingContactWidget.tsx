@@ -1,48 +1,52 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Phone } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
-export interface FloatingContactWidgetProps {
-  whatsappNumber?: string;
-  whatsappMessage?: string;
-  showOnPublicPages?: boolean;
-  showOnDashboardPages?: boolean;
+interface ContactSettings {
+  enabled: boolean;
+  channel: string;
+  whatsappNumber: string;
+  whatsappMessage: string;
+  openInNewTab: boolean;
+  showOnPublicPages: boolean;
+  showOnDashboardPages: boolean;
 }
 
-export const FloatingContactWidget: React.FC<FloatingContactWidgetProps> = ({
-  whatsappNumber = '966500000000',
-  whatsappMessage = 'مرحبًا بكم في منصة المئة، لدي استفسار بخصوص...',
-  showOnPublicPages = true,
-  showOnDashboardPages = true,
-}) => {
+export const FloatingContactWidget: React.FC = () => {
   const location = useLocation();
+  const [settings, setSettings] = useState<ContactSettings | null>(null);
 
-  const isVisible = useMemo(() => {
-    const path = location.pathname || '/';
-    const isDashboard =
-      path.includes('dashboard') ||
-      path.startsWith('/assessments') ||
-      path.startsWith('/assessment-results') ||
-      path.startsWith('/profile') ||
-      path.startsWith('/reports');
-    if (isDashboard) return showOnDashboardPages;
-    return showOnPublicPages;
-  }, [location.pathname, showOnDashboardPages, showOnPublicPages]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const apiBase = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+    fetch(`${apiBase}/api/v1/content/public-contact-widget`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error('Contact settings unavailable');
+        return response.json() as Promise<ContactSettings>;
+      })
+      .then(setSettings)
+      .catch(() => { if (!controller.signal.aborted) setSettings(null); });
+    return () => controller.abort();
+  }, []);
 
   const whatsappHref = useMemo(() => {
-    const cleanNumber = String(whatsappNumber).replace(/[^\d]/g, '');
-    if (!cleanNumber) return '';
-    const text = encodeURIComponent(whatsappMessage);
-    return `https://wa.me/${cleanNumber}?text=${text}`;
-  }, [whatsappNumber, whatsappMessage]);
+    if (!settings?.enabled || settings.channel !== 'whatsapp') return '';
+    const path = location.pathname || '/';
+    const isDashboard = path.includes('dashboard') || path.startsWith('/assessments') ||
+      path.startsWith('/assessment-results') || path.startsWith('/profile') || path.startsWith('/reports');
+    if (isDashboard ? !settings.showOnDashboardPages : !settings.showOnPublicPages) return '';
+    const number = String(settings.whatsappNumber || '').replace(/[^\d]/g, '');
+    if (!number) return '';
+    return `https://wa.me/${number}?text=${encodeURIComponent(settings.whatsappMessage || '')}`;
+  }, [settings, location.pathname]);
 
-  if (!isVisible || !whatsappHref) return null;
+  if (!whatsappHref || !settings) return null;
 
   return (
     <aside aria-label="تواصل معنا عبر واتساب">
       <a
         href={whatsappHref}
-        target="_blank"
+        target={settings.openInNewTab ? '_blank' : '_self'}
         rel="noreferrer"
         className="fixed bottom-24 right-4 sm:bottom-8 sm:right-8 bg-[#25D366] hover:bg-[#20bd5a] text-white p-3.5 sm:p-4 rounded-full shadow-lg transition-all z-40 flex items-center justify-center hover:scale-105 active:scale-95"
         aria-label="تواصل معنا عبر واتساب"
