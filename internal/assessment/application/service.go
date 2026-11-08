@@ -30,7 +30,7 @@ type Service struct{ repo Repository }
 func NewService(repo Repository) *Service { return &Service{repo: repo} }
 
 func normalizeList(actor identity.User, q *assessment.ListQuery) error {
-	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) {
+	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleSupervisor) {
 		return ErrForbidden
 	}
 	if q.Page == 0 {
@@ -61,7 +61,7 @@ func (s *Service) List(ctx context.Context, actor identity.User, q assessment.Li
 	return s.repo.List(ctx, q)
 }
 func (s *Service) Get(ctx context.Context, actor identity.User, id string) (assessment.Assessment, error) {
-	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) {
+	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleSupervisor) {
 		return assessment.Assessment{}, ErrForbidden
 	}
 	a, err := s.repo.Get(ctx, strings.TrimSpace(id))
