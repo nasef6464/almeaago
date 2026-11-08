@@ -862,6 +862,58 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 		t.Fatal(err)
 	}
 	setVisibility("paths/"+path, true)
+	// Approved assessment visibility changes independently of publication and
+	// version history; existing attempts stay recoverable while hidden.
+	definitionHandler := assessmenthttp.New(assessmentapp.NewService(assessRepo), auth)
+	visibilityCall := func(token, csrf, body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/"+assessID+"/visibility", strings.NewReader(body))
+		req.AddCookie(&http.Cookie{Name: identitysession.CookieName, Value: token})
+		req.Header.Set("X-CSRF-Token", csrf)
+		out := httptest.NewRecorder()
+		definitionHandler.ServeHTTP(out, req)
+		return out
+	}
+	var revision, currentVersion, publishedVersion int
+	if err = db.QueryRow(ctx, `SELECT revision,current_version,published_version FROM assessments WHERE id=$1`, assessID).Scan(&revision, &currentVersion, &publishedVersion); err != nil {
+		t.Fatal(err)
+	}
+	hideBody := fmt.Sprintf(`{"expectedRevision":%d,"isVisible":false}`, revision)
+	if result := visibilityCall(studentToken, studentCSRF, hideBody); result.Code != http.StatusForbidden {
+		t.Fatalf("student changed visibility: %d %s", result.Code, result.Body.String())
+	}
+	if result := visibilityCall(adminToken, "invalid", hideBody); result.Code != http.StatusForbidden {
+		t.Fatalf("invalid csrf changed visibility: %d %s", result.Code, result.Body.String())
+	}
+	if result := visibilityCall(adminToken, adminCSRF, hideBody); result.Code != http.StatusOK {
+		t.Fatalf("admin hide: %d %s", result.Code, result.Body.String())
+	}
+	var visible, published bool
+	var afterRevision, afterCurrent, afterPublished int
+	if err = db.QueryRow(ctx, `SELECT is_visible,is_published,revision,current_version,published_version FROM assessments WHERE id=$1`, assessID).Scan(&visible, &published, &afterRevision, &afterCurrent, &afterPublished); err != nil {
+		t.Fatal(err)
+	}
+	if visible || !published || afterRevision != revision+1 || afterCurrent != currentVersion || afterPublished != publishedVersion {
+		t.Fatalf("visibility changed publication or version: visible=%v published=%v revision=%d current=%d publishedVersion=%d", visible, published, afterRevision, afterCurrent, afterPublished)
+	}
+	if _, err = assessRepo.GetPublishedAccessContext(ctx, assessID); err == nil {
+		t.Fatal("hidden assessment allowed a new direct access")
+	}
+	if again, err := directService.Start(ctx, studentUser, assessID, "direct-existing-"+suffix); err != nil || again.ID != directAttempt.ID {
+		t.Fatalf("hidden assessment lost existing attempt: %+v %v", again, err)
+	}
+	if result := visibilityCall(adminToken, adminCSRF, fmt.Sprintf(`{"expectedRevision":%d,"isVisible":true}`, revision)); result.Code != http.StatusConflict {
+		t.Fatalf("stale visibility update: %d %s", result.Code, result.Body.String())
+	}
+	if result := visibilityCall(adminToken, adminCSRF, fmt.Sprintf(`{"expectedRevision":%d,"isVisible":true}`, afterRevision)); result.Code != http.StatusOK {
+		t.Fatalf("admin show: %d %s", result.Code, result.Body.String())
+	}
+	if _, err = assessRepo.GetPublishedAccessContext(ctx, assessID); err != nil {
+		t.Fatalf("restored assessment not accessible: %v", err)
+	}
+	var visibilityAudits int
+	if err = db.QueryRow(ctx, `SELECT count(*) FROM audit_logs WHERE action='assessment.visibility' AND resource_type='assessment' AND resource_id=$1`, assessID).Scan(&visibilityAudits); err != nil || visibilityAudits != 2 {
+		t.Fatalf("visibility audit count=%d error=%v", visibilityAudits, err)
+	}
 	if os.Getenv("COMMERCE_JOURNEY_BROWSER") == "1" {
 		var browserLevel string
 		if err = db.QueryRow(ctx, `INSERT INTO levels(path_id,code,name) VALUES($1,$2,'مرحلة فحص تجريبية') RETURNING id::text`, path, "BL"+suffix).Scan(&browserLevel); err != nil {

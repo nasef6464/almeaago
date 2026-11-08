@@ -22,6 +22,7 @@ type Repository interface {
 	List(ctx context.Context, query assessment.ListQuery) (assessment.Page, error)
 	SetWorkflow(ctx context.Context, actorUserID, id string, expectedRevision int, status assessment.WorkflowStatus, notes string) (assessment.Assessment, error)
 	SetPublication(ctx context.Context, actorUserID, id string, expectedRevision int, published bool) (assessment.Assessment, error)
+	SetVisibility(ctx context.Context, actorUserID, id string, expectedRevision int, visible bool) (assessment.Assessment, error)
 	CanAuthor(ctx context.Context, userID, pathID, subjectID string) (bool, error)
 }
 
@@ -207,4 +208,21 @@ func (s *Service) SetPublication(ctx context.Context, actor identity.User, id st
 		return assessment.Assessment{}, ErrWorkflow
 	}
 	return s.repo.SetPublication(ctx, actor.ID, id, rev, published)
+}
+
+func (s *Service) SetVisibility(ctx context.Context, actor identity.User, id string, rev int, visible bool) (assessment.Assessment, error) {
+	if rev < 1 {
+		return assessment.Assessment{}, ErrInvalidInput
+	}
+	if !actor.HasRole(identity.RoleAdmin) {
+		return assessment.Assessment{}, ErrForbidden
+	}
+	a, err := s.Get(ctx, actor, id)
+	if err != nil {
+		return assessment.Assessment{}, err
+	}
+	if a.WorkflowStatus == assessment.WorkflowArchived {
+		return assessment.Assessment{}, ErrWorkflow
+	}
+	return s.repo.SetVisibility(ctx, actor.ID, a.ID, rev, visible)
 }

@@ -89,6 +89,7 @@ export function AssessmentEditorPanel(p: Props) {
   const [loading, setLoading] = useState(Boolean(p.assessmentId));
   const [saving, setSaving] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
   const [error, setError] = useState('');
   const [successNotice, setSuccessNotice] = useState('');
 
@@ -391,6 +392,24 @@ export function AssessmentEditorPanel(p: Props) {
       p.onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر تحديث النشر');
+    }
+  }
+
+  async function changeApprovedVisibility(visible: boolean) {
+    if (!p.assessmentId || !detail || !p.isAdmin || visibilitySaving) return;
+    setVisibilitySaving(true);
+    setError('');
+    setSuccessNotice('');
+    try {
+      const csrf = await p.getCsrfToken();
+      const response = await assessmentClient.visibility(p.assessmentId, detail.revision, visible, csrf);
+      setDetail(response.assessment);
+      setIsVisible(response.assessment.isVisible);
+      setSuccessNotice(visible ? 'تم إظهار الاختبار للطلاب.' : 'تم إخفاء الاختبار عن الطلاب.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'تعذر تغيير ظهور الاختبار');
+    } finally {
+      setVisibilitySaving(false);
     }
   }
 
@@ -706,15 +725,18 @@ export function AssessmentEditorPanel(p: Props) {
             <input
               type="checkbox"
               checked={isVisible}
-              disabled={detail?.workflowStatus === 'approved' || detail?.workflowStatus === 'archived'}
-              onChange={(e) => setIsVisible(e.target.checked)}
+              disabled={visibilitySaving || detail?.workflowStatus === 'archived' || (detail?.workflowStatus === 'approved' && !p.isAdmin)}
+              onChange={(e) => {
+                if (detail?.workflowStatus === 'approved') void changeApprovedVisibility(e.target.checked);
+                else setIsVisible(e.target.checked);
+              }}
               className="h-4 w-4 accent-indigo-600"
             />
             إظهار الاختبار للطلاب
           </label>
-          <p className="text-xs text-gray-600">تُحفظ إعدادات الظهور والوصول مع الاختبار؛ يلزم اعتماد الاختبار ونشره قبل إتاحته.</p>
+          <p className="text-xs text-gray-600">{detail?.workflowStatus === 'approved' ? 'تغيير الظهور يُحفظ فورًا ولا يغيّر حالة النشر. إخفاء الاختبار قد يمنع إتاحته في التعيينات والجلسات المرتبطة حتى إعادة إظهاره.' : 'تُحفظ إعدادات الظهور والوصول مع الاختبار؛ يلزم اعتماد الاختبار ونشره قبل إتاحته.'}</p>
           {detail?.workflowStatus === 'approved' || detail?.workflowStatus === 'archived' ? (
-            <p className="rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-800">لا يمكن تعديل هذه الإعدادات بالحفظ العادي بعد اعتماد الاختبار أو أرشفته.</p>
+            <p className="rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-800">لا يمكن تعديل نوع الوصول بالحفظ العادي بعد اعتماد الاختبار أو أرشفته.</p>
           ) : null}
         </section>
       ) : null}

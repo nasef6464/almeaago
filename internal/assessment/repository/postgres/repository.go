@@ -181,6 +181,26 @@ func (r *Repository) SetPublication(ctx context.Context, actor, id string, rev i
 	return r.Get(ctx, id)
 }
 
+func (r *Repository) SetVisibility(ctx context.Context, actor, id string, rev int, visible bool) (assessment.Assessment, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return assessment.Assessment{}, err
+	}
+	defer tx.Rollback(ctx)
+	var out string
+	err = tx.QueryRow(ctx, `UPDATE assessments SET is_visible=$3,revision=revision+1,updated_at=now() WHERE id=$1::uuid AND revision=$2 AND workflow_status <> 'archived' RETURNING id::text`, id, rev, visible).Scan(&out)
+	if err != nil {
+		return assessment.Assessment{}, r.mapUpdate(ctx, tx, id, rev, err)
+	}
+	if err = r.auditTx(ctx, tx, operations.AuditEvent{ActorUserID: actor, Action: "assessment.visibility", ResourceType: "assessment", ResourceID: id, Metadata: map[string]any{"isVisible": visible}}); err != nil {
+		return assessment.Assessment{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return assessment.Assessment{}, err
+	}
+	return r.Get(ctx, id)
+}
+
 func (r *Repository) Get(ctx context.Context, id string) (assessment.Assessment, error) {
 	var a assessment.Assessment
 	var ownerUser, ownerSchool, assigned string

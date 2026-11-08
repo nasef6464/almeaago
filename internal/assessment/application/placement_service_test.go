@@ -120,6 +120,9 @@ func (r *definitionRepoStub) SetWorkflow(context.Context, string, string, int, a
 func (r *definitionRepoStub) SetPublication(context.Context, string, string, int, bool) (assessment.Assessment, error) {
 	return assessment.Assessment{}, nil
 }
+func (r *definitionRepoStub) SetVisibility(context.Context, string, string, int, bool) (assessment.Assessment, error) {
+	return assessment.Assessment{}, nil
+}
 func (r *definitionRepoStub) CanAuthor(context.Context, string, string, string) (bool, error) {
 	return true, nil
 }
