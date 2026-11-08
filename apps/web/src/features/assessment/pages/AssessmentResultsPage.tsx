@@ -93,6 +93,17 @@ function ReviewQuestionCard({
   onOpenSmartTeacher?: (question: ReviewQuestion) => void;
 }) {
   const [showAiAssistant, setShowAiAssistant] = useState(false);
+  const resolvedImageUrl = useMemo(() => {
+    if (question.imageUrl) return question.imageUrl;
+    const txt = question.text?.trim() || '';
+    if (/^image:/i.test(txt)) return txt.replace(/^image:/i, '').trim();
+    if (/^https?:\/\/.+\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(txt)) return txt;
+    const imgMatch = txt.match(/<img\s+[^>]*src=["']([^"']+)["']/i);
+    if (imgMatch) return imgMatch[1];
+    const mdMatch = txt.match(/!\[.*?\]\((https?:\/\/[^\s)]+)\)/i);
+    if (mdMatch) return mdMatch[1];
+    return null;
+  }, [question.imageUrl, question.text]);
 
   return (
     <article className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -146,17 +157,17 @@ function ReviewQuestionCard({
       ) : null}
 
       {/* صورة السؤال المعتمدة */}
-      {question.imageUrl || question.imageAssetId ? (
+      {resolvedImageUrl || question.imageAssetId ? (
         <div className="my-4 overflow-hidden rounded-2xl border border-gray-100 bg-slate-50 p-3 text-center">
           <button
             type="button"
-            onClick={() => question.imageUrl ? onZoomImage?.(question.imageUrl) : undefined}
+            onClick={() => resolvedImageUrl ? onZoomImage?.(resolvedImageUrl) : undefined}
             className="group relative block w-full cursor-zoom-in"
             title="اضغط لتكبير الصورة وفحص الرسم البياني أو الهندسي"
           >
-            {question.imageUrl ? (
+            {resolvedImageUrl ? (
               <img
-                src={question.imageUrl}
+                src={resolvedImageUrl}
                 alt={question.imageAlt || 'صورة السؤال'}
                 className="mx-auto max-h-[380px] w-full object-contain rounded-xl transition-transform duration-200 group-hover:scale-[1.01]"
               />

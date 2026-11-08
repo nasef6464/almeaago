@@ -142,7 +142,18 @@ export function AssessmentAttemptPage() {
   );
   const question = attempt?.questions[index];
   const saved = question ? answers.get(question.id) : undefined;
-  const hasImage = Boolean(question?.imageUrl || question?.imageAssetId);
+  const resolvedImageUrl = useMemo(() => {
+    if (question?.imageUrl) return question.imageUrl;
+    const txt = question?.text?.trim() || '';
+    if (/^image:/i.test(txt)) return txt.replace(/^image:/i, '').trim();
+    if (/^https?:\/\/.+\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(txt)) return txt;
+    const imgMatch = txt.match(/<img\s+[^>]*src=["']([^"']+)["']/i);
+    if (imgMatch) return imgMatch[1];
+    const mdMatch = txt.match(/!\[.*?\]\((https?:\/\/[^\s)]+)\)/i);
+    if (mdMatch) return mdMatch[1];
+    return null;
+  }, [question?.imageUrl, question?.text]);
+  const hasImage = Boolean(resolvedImageUrl || question?.imageAssetId);
   const isTahsili = Boolean(
     attempt?.title?.includes('تحصيلي') ||
     attempt?.title?.includes('فيزياء') ||
@@ -500,13 +511,13 @@ export function AssessmentAttemptPage() {
             >
               <button
                 type="button"
-                onClick={() => setZoomImageUrl(question.imageUrl || null)}
+                onClick={() => setZoomImageUrl(resolvedImageUrl || null)}
                 className="group relative block w-full cursor-zoom-in"
                 title="اضغط لتكبير الصورة وفحص الرسم البياني أو الهندسي"
               >
-                {question.imageUrl ? (
+                {resolvedImageUrl ? (
                   <img
-                    src={question.imageUrl}
+                    src={resolvedImageUrl}
                     alt={question.imageAlt || 'صورة السؤال'}
                     className="mx-auto max-h-[380px] sm:max-h-[460px] w-full object-contain rounded-xl transition-transform duration-200 group-hover:scale-[1.01]"
                   />

@@ -68,6 +68,32 @@ const typeLabel: Record<QuestionType, string> = {
   essay: 'مقالي',
 };
 
+export function resolveQuestionMedia(text?: string, imageUrl?: string): { displayText: string; resolvedImage: string } {
+  let img = imageUrl?.trim() || '';
+  let txt = text?.trim() || '';
+
+  if (!img && txt) {
+    if (/^image:/i.test(txt)) {
+      img = txt.replace(/^image:/i, '').trim();
+      txt = '';
+    } else if (/^https?:\/\/.+\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(txt)) {
+      img = txt;
+      txt = '';
+    } else {
+      const imgMatch = txt.match(/<img\s+[^>]*src=["']([^"']+)["']/i);
+      if (imgMatch) {
+        img = imgMatch[1];
+      } else {
+        const mdMatch = txt.match(/!\[.*?\]\((https?:\/\/[^\s)]+)\)/i);
+        if (mdMatch) {
+          img = mdMatch[1];
+        }
+      }
+    }
+  }
+  return { displayText: txt, resolvedImage: img };
+}
+
 export function QuestionBankAdminPage() {
   const [searchParams] = useSearchParams();
   const selectedSkillId = searchParams.get('skillId')?.trim() || '';
@@ -106,7 +132,17 @@ export function QuestionBankAdminPage() {
   const [reload, setReload] = useState(0);
   const [detail, setDetail] = useState<QuestionDetail | null>(null);
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
+  const [imageOnlyFilter, setImageOnlyFilter] = useState<'all' | 'with_image' | 'without_image'>('all');
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(() => new Set());
+
+  const displayedRows = useMemo(() => {
+    if (imageOnlyFilter === 'all') return rows;
+    return rows.filter((r) => {
+      const media = resolveQuestionMedia(r.text, r.imageUrl);
+      const hasImg = Boolean(media.resolvedImage || r.imageAssetId || r.hasImage);
+      return imageOnlyFilter === 'with_image' ? hasImg : !hasImg;
+    });
+  }, [rows, imageOnlyFilter]);
   const [showCreate, setShowCreate] = useState(false);
   const [create, setCreate] = useState({
     questionCode: '',
@@ -849,12 +885,69 @@ export function QuestionBankAdminPage() {
                 صعب
               </button>
             </div>
+
+            {/* فلتر الصور */}
+            <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-gray-200">
+              <span className="text-xs font-bold text-gray-500 px-2 flex items-center gap-1">
+                <FileImage size={13} className="text-sky-600" />
+                الصور:
+              </span>
+              <button
+                type="button"
+                onClick={() => setImageOnlyFilter('all')}
+                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  imageOnlyFilter === 'all'
+                    ? 'bg-sky-600 text-white shadow-xs'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                الكل
+              </button>
+              <button
+                type="button"
+                onClick={() => setImageOnlyFilter('with_image')}
+                className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  imageOnlyFilter === 'with_image'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-emerald-700 hover:bg-emerald-50'
+                }`}
+              >
+                <FileImage size={12} />
+                مصور فقط
+              </button>
+              <button
+                type="button"
+                onClick={() => setImageOnlyFilter('without_image')}
+                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  imageOnlyFilter === 'without_image'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-amber-700 hover:bg-amber-50'
+                }`}
+              >
+                نصي فقط
+              </button>
+            </div>
+
+            {/* اختصار سريع لأسئلة التحصيلي المصورة */}
+            <button
+              type="button"
+              onClick={() => {
+                setFilters((prev) => ({ ...prev, search: 'TAH', page: 1 }));
+                setImageOnlyFilter('all');
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black rounded-xl bg-violet-100 text-violet-800 border border-violet-200 hover:bg-violet-200 transition-all cursor-pointer shadow-xs"
+              title="عرض أسئلة التحصيلي المصورة مع خياراتها ورسومها"
+            >
+              <span>📸</span>
+              <span>أسئلة التحصيلي المصورة (50+ سؤال)</span>
+            </button>
           </div>
 
           {/* زر إعادة ضبط الفلاتر */}
           <button
             type="button"
             onClick={() => {
+              setImageOnlyFilter('all');
               setFilters({
                 page: 1,
                 limit: 50,
@@ -1323,17 +1416,18 @@ export function QuestionBankAdminPage() {
                     جاري تحميل بنك الأسئلة والصور...
                   </td>
                 </tr>
-              ) : rows.length === 0 ? (
+              ) : displayedRows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-12 text-center text-sm font-bold text-gray-400">
                     لا توجد أسئلة تطابق معايير الفلترة المحددة.
                   </td>
                 </tr>
               ) : (
-                rows.map((row) => {
+                displayedRows.map((row) => {
                   const isSelected = selectedQuestionIds.has(row.id);
                   const mainSkill = taxonomy.skills.find((s) => s.id === row.mainSkillId);
                   const subSkills = taxonomy.skills.filter((s) => (row.skillIds || []).includes(s.id));
+                  const { displayText, resolvedImage } = resolveQuestionMedia(row.text, row.imageUrl);
                   return (
                     <tr
                       key={row.id}
@@ -1351,21 +1445,21 @@ export function QuestionBankAdminPage() {
                       {/* 1. نص وصورة السؤال المباشرة (مع الشارات) */}
                       <td className="px-6 py-4 align-top">
                         <div className="space-y-2.5">
-                          {row.text ? (
+                          {displayText ? (
                             <div className="text-sm font-semibold text-gray-800 leading-relaxed max-w-[560px]">
-                              {row.text}
+                              {displayText}
                             </div>
                           ) : null}
 
                           {/* بطاقة صورة السؤال المباشرة الكبيرة */}
-                          {row.imageUrl ? (
+                          {resolvedImage ? (
                             <div
                               className="w-full max-w-[480px] sm:max-w-[560px] overflow-hidden rounded-xl border border-indigo-100/90 bg-slate-50 p-2 shadow-xs group cursor-pointer hover:border-indigo-300 transition-all"
-                              onClick={() => setZoomImageUrl(row.imageUrl || null)}
+                              onClick={() => setZoomImageUrl(resolvedImage || null)}
                               title="اضغط لتكبير صورة السؤال"
                             >
                               <img
-                                src={row.imageUrl}
+                                src={resolvedImage}
                                 alt={row.questionCode}
                                 className="h-48 sm:h-56 w-full object-contain cursor-pointer hover:scale-[1.02] transition-transform duration-200"
                                 loading="lazy"
@@ -1389,7 +1483,7 @@ export function QuestionBankAdminPage() {
                                 اضغط معاينة لرؤية السؤال كاملاً.
                               </div>
                             </div>
-                          ) : !row.text ? (
+                          ) : !displayText ? (
                             <div className="text-sm text-gray-400">سؤال بدون نص أو صورة</div>
                           ) : null}
 
