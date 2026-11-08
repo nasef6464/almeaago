@@ -11,12 +11,14 @@ import (
 )
 
 type placementRepoStub struct {
-	placement   assessment.Placement
-	page        assessment.PlacementPage
-	learner     assessment.LearnerPlacementPage
-	attempt     assessment.Attempt
-	lastLearner assessment.LearnerPlacementQuery
-	access      assessment.AccessContext
+	placement     assessment.Placement
+	page          assessment.PlacementPage
+	learner       assessment.LearnerPlacementPage
+	attempt       assessment.Attempt
+	lastLearner   assessment.LearnerPlacementQuery
+	access        assessment.AccessContext
+	startCalls    int
+	foundExisting bool
 }
 
 func (r *placementRepoStub) CreatePlacement(context.Context, string, string, assessment.PlacementWrite) (assessment.Placement, error) {
@@ -50,16 +52,52 @@ func (r *placementRepoStub) GetPlacementAccessContext(context.Context, string) (
 	}, nil
 }
 func (r *placementRepoStub) FindPlacementStart(context.Context, string, string, string) (assessment.Attempt, bool, error) {
-	return assessment.Attempt{}, false, nil
+	return r.attempt, r.foundExisting, nil
 }
 func (r *placementRepoStub) StartPlacement(context.Context, string, string, string) (assessment.Attempt, error) {
+	r.startCalls++
 	return r.attempt, nil
 }
 
-type placementContentStub struct{ ok bool }
+type placementContentStub struct {
+	ok     bool
+	hidden bool
+}
 
 func (c placementContentStub) ValidateAssessmentPlacementTarget(context.Context, string, string, string, string, string, string) (bool, error) {
 	return c.ok, nil
+}
+func (c placementContentStub) LearnerAssessmentScopeVisible(context.Context, string, string) (bool, error) {
+	return !c.hidden, nil
+}
+
+func TestHiddenScopeBlocksNewPlacementsButPreservesExistingAttempt(t *testing.T) {
+	for _, slot := range []assessment.PlacementSlot{assessment.PlacementTraining, assessment.PlacementTests, assessment.PlacementFoundation, assessment.PlacementCourse} {
+		repo := &placementRepoStub{placement: assessment.Placement{ID: "placement", Slot: slot, PathID: "path", SubjectID: "subject", IsVisible: true}}
+		query := assessment.LearnerPlacementQuery{Slot: slot, PathID: "path", SubjectID: "subject"}
+		if slot == assessment.PlacementFoundation {
+			repo.placement.TopicID = "topic"
+			query.TopicID = "topic"
+		}
+		if slot == assessment.PlacementCourse {
+			repo.placement.CourseID = "course"
+			query.CourseID = "course"
+		}
+		s := NewPlacementService(repo, nil, placementContentStub{ok: true, hidden: true})
+		student := identity.User{ID: "student", Roles: []identity.Role{identity.RoleStudent}}
+		if _, err := s.Learner(context.Background(), student, query); err == nil {
+			t.Fatalf("%s hidden listing allowed", slot)
+		}
+		if _, err := s.Start(context.Background(), student, "placement", "start-key"); err == nil || repo.startCalls != 0 {
+			t.Fatalf("%s hidden start: %v", slot, err)
+		}
+		repo.foundExisting = true
+		repo.attempt = assessment.Attempt{ID: "existing"}
+		attempt, err := s.Start(context.Background(), student, "placement", "start-key")
+		if err != nil || attempt.ID != "existing" || repo.startCalls != 0 {
+			t.Fatalf("%s existing attempt: %+v %v", slot, attempt, err)
+		}
+	}
 }
 
 type definitionRepoStub struct{ a assessment.Assessment }

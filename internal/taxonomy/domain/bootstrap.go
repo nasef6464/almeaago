@@ -10,6 +10,7 @@ type PathSettings struct {
 }
 
 type Path struct {
+	IsVisible        *bool
 	ShowInHome       *bool
 	ShowInNavbar     *bool
 	ShowSubjectCards *bool
@@ -30,6 +31,7 @@ type Path struct {
 }
 
 type Level struct {
+	IsVisible *bool
 	ID        string
 	PathID    string
 	Code      string
@@ -41,6 +43,7 @@ type Level struct {
 }
 
 type Subject struct {
+	IsVisible *bool
 	Icon      string
 	IconURL   string
 	IconStyle string

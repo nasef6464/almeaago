@@ -12,13 +12,22 @@ import (
 func (r *Repository) GetPublishedAccessContext(ctx context.Context, assessmentID string) (assessment.AccessContext, error) {
 	var out assessment.AccessContext
 	err := r.db.QueryRow(ctx, `
+WITH RECURSIVE public_paths AS (
+ SELECT id FROM paths WHERE parent_path_id IS NULL AND status='active' AND COALESCE(presentation->>'isVisible','true') <> 'false'
+ UNION ALL SELECT p.id FROM paths p JOIN public_paths parent ON p.parent_path_id=parent.id
+ WHERE p.status='active' AND COALESCE(p.presentation->>'isVisible','true') <> 'false'
+)
 SELECT a.id::text,v.assessment_kind,v.access_type,v.path_id::text,COALESCE(v.subject_id::text,'')
 FROM assessments a
 JOIN assessment_versions v ON v.assessment_id=a.id AND v.version=a.published_version
+JOIN public_paths p ON p.id=v.path_id
+LEFT JOIN subjects s ON s.id=v.subject_id AND s.path_id=p.id
+LEFT JOIN levels l ON l.id=s.level_id AND l.path_id=p.id
 WHERE a.id=$1::uuid
   AND a.workflow_status='approved'
   AND a.is_published=true
   AND a.is_visible=true
+  AND (v.subject_id IS NULL OR (s.status='active' AND COALESCE(s.presentation->>'isVisible','true') <> 'false' AND (s.level_id IS NULL OR (l.status='active' AND COALESCE(l.presentation->>'isVisible','true') <> 'false'))))
 `, assessmentID).Scan(&out.AssessmentID, &out.AssessmentKind, &out.BaseAccess, &out.PathID, &out.SubjectID)
 	if err != nil {
 		return out, mapError(err)

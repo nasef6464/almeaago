@@ -36,6 +36,7 @@ type PathWrite struct {
 }
 
 type PathPatch struct {
+	IsVisible        *bool         `json:"isVisible,omitempty"`
 	ShowInHome       *bool         `json:"showInHome,omitempty"`
 	ShowInNavbar     *bool         `json:"showInNavbar,omitempty"`
 	ShowSubjectCards *bool         `json:"showSubjectCards,omitempty"`
@@ -63,6 +64,7 @@ type LevelWrite struct {
 }
 
 type LevelPatch struct {
+	IsVisible *bool   `json:"isVisible,omitempty"`
 	Name      *string `json:"name,omitempty"`
 	SortOrder *int    `json:"sortOrder,omitempty"`
 	Status    *Status `json:"status,omitempty"`
@@ -84,6 +86,7 @@ type SubjectWrite struct {
 }
 
 type SubjectPatch struct {
+	IsVisible *bool          `json:"isVisible,omitempty"`
 	Icon      *string        `json:"icon,omitempty"`
 	IconURL   *string        `json:"iconUrl,omitempty"`
 	IconStyle *string        `json:"iconStyle,omitempty"`

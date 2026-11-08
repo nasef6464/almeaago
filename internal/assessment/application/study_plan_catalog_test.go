@@ -14,6 +14,9 @@ type studyPlanCatalogRepoStub struct {
 func (s studyPlanCatalogRepoStub) ListStudyPlanResources(context.Context, string, string, []string, []string, int) ([]assessment.StudyPlanResource, error) {
 	return s.items, nil
 }
+func (s studyPlanCatalogRepoStub) CompletedStudyPlanAssessments(context.Context, string, []string) (map[string]bool, error) {
+	return nil, nil
+}
 
 func TestStudyPlanCatalogExcludesCommerceLockedAssessment(t *testing.T) {
 	repo := studyPlanCatalogRepoStub{items: []assessment.StudyPlanResource{

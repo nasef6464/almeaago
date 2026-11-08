@@ -12,6 +12,7 @@ import {
   CreditCard,
   ExternalLink,
   Eye,
+  EyeOff,
   FileQuestion,
   GraduationCap,
   Layers,
@@ -20,6 +21,7 @@ import {
   Loader2,
   Package,
   PackagePlus,
+  Pencil,
   Plus,
   RefreshCcw,
   Save,
@@ -27,6 +29,7 @@ import {
   Settings,
   Sparkles,
   Target,
+  Trash2,
   X,
 } from 'lucide-react';
 
@@ -53,6 +56,7 @@ import { assessmentClient } from '../../assessment/api/assessment-client';
 import type { AssessmentSummary } from '../../assessment/api/assessment-types';
 import { AdminBreadcrumbHeader } from '../components/AdminBreadcrumbHeader';
 import { EducationalIconPicker } from '../components/EducationalIconPicker';
+import { packageAppliesToPath } from '../components/packageScope';
 import {
   getPathIcon,
   getSubjectIcon,
@@ -163,7 +167,8 @@ export function TaxonomyAdminPage() {
     code: '',
     name: '',
     priceMinor: 9900,
-    contentType: 'all' as CommerceContentType,
+    subjectId: '',
+    contentTypes: ['all'] as CommerceContentType[],
   });
 
   // Skills Modal State
@@ -189,7 +194,7 @@ export function TaxonomyAdminPage() {
   const [librarySearch, setLibrarySearch] = useState('');
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
   const [libraryForm, setLibraryForm] = useState({ title: '', url: '', description: '' });
-  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; type: 'path' | 'level' | 'subject' | 'skill'; id: string; name: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; type: 'path' | 'level' | 'subject' | 'skill'; id: string; name: string; action?: 'delete' } | null>(null);
 
   // Search & Filter State
   const [pathSearch, setPathSearch] = useState('');
@@ -418,21 +423,23 @@ export function TaxonomyAdminPage() {
     if (!pathForm.code.trim() || !pathForm.name.trim()) {
       return setError('أدخل كود واسم المسار.');
     }
+    const { stageLabel, stageSelection, ...pathFields } = pathForm;
     const payload = {
-      ...pathForm,
+      ...pathFields,
       code: pathForm.code.trim(),
       name: pathForm.name.trim(),
       settings: {
-        stageLabel: pathForm.stageLabel,
-        stageSelection: pathForm.stageSelection,
+        stageLabel,
+        stageSelection,
       },
     };
 
     let saved: boolean;
     if (editingPath) {
+      const { code: _code, ...patch } = payload;
       saved = await run(
         'update-path',
-        (csrf) => taxonomyAdminClient.updatePath(editingPath.id, payload, csrf).then(() => undefined),
+        (csrf) => taxonomyAdminClient.updatePath(editingPath.id, patch, csrf).then(() => undefined),
         'تم حفظ تعديلات المسار بنجاح.'
       );
     } else {
@@ -623,7 +630,8 @@ export function TaxonomyAdminPage() {
     if (!selectedPath || !pkgForm.code.trim() || !pkgForm.name.trim()) {
       return setError('أدخل كود واسم الباقة.');
     }
-    await run(
+    if (pkgForm.contentTypes.length === 0) return setError('اختر نوع محتوى واحدًا على الأقل.');
+    const saved = await run(
       'create-package',
       (csrf) =>
         commerceClient
@@ -643,15 +651,15 @@ export function TaxonomyAdminPage() {
                 packageKind: 'bundle',
                 seatCapacity: null,
                 validityDays: null,
-                items: [
+                items: pkgForm.contentTypes.map((contentType) => (
                   {
-                    scopeType: pkgForm.contentType === 'all' ? 'all' : 'content_type',
+                    scopeType: pkgForm.subjectId ? 'subject' : 'path',
                     courseId: '',
-                    pathId: selectedPath.id,
-                    subjectId: '',
-                    contentType: pkgForm.contentType === 'all' ? '' : (pkgForm.contentType as CommerceContentType),
-                  },
-                ],
+                    pathId: pkgForm.subjectId ? '' : selectedPath.id,
+                    subjectId: pkgForm.subjectId,
+                    contentType: contentType === 'all' ? '' : contentType,
+                  }
+                )),
               },
             },
             csrf
@@ -659,7 +667,22 @@ export function TaxonomyAdminPage() {
           .then(() => undefined),
       'تم إنشاء باقة المسار بنجاح.'
     );
-    setIsPackageModalOpen(false);
+    if (saved) setIsPackageModalOpen(false);
+  };
+
+  const togglePackageVisibility = async (pkg: CommerceProduct) => {
+    await run(`package-visibility-${pkg.id}`, async (csrf) => {
+      const { product } = await commerceClient.product(pkg.id);
+      if (!product.package?.items?.length) throw new Error('تعذر تحميل نطاق الباقة؛ لم يتم تغييرها.');
+      await commerceClient.updateProduct(product, {
+        code: product.code, productType: product.productType, name: product.name,
+        description: product.description, status: product.status, accessMode: product.accessMode,
+        priceMinor: product.priceMinor, currency: product.currency, courseId: product.courseId,
+        isVisible: !product.isVisible,
+        package: { packageKind: product.package.packageKind, seatCapacity: product.package.seatCapacity,
+          validityDays: product.package.validityDays, items: product.package.items },
+      }, csrf);
+    }, pkg.isVisible ? 'تم إخفاء الباقة من العرض مع بقاء وصول المشتركين.' : 'تم إظهار الباقة للطلاب.');
   };
 
   // --- Status Patch ---
@@ -672,11 +695,17 @@ export function TaxonomyAdminPage() {
           : type === 'subject'
             ? taxonomyAdminClient.updateSubject
             : taxonomyAdminClient.updateSkill;
-    await run(
+    return await run(
       `status-${type}-${id}`,
       (csrf) => method(id, { status } as never, csrf).then(() => undefined),
       `تم تحديث الحالة إلى «${statusLabels[status]}».`
     );
+  }
+
+  async function toggleVisibility(type: 'path' | 'level' | 'subject', id: string, isVisible?: boolean) {
+    const method = type === 'path' ? taxonomyAdminClient.updatePath : type === 'level' ? taxonomyAdminClient.updateLevel : taxonomyAdminClient.updateSubject;
+    const next = isVisible === false;
+    await run(`visibility-${type}-${id}`, csrf => method(id, {isVisible: next}, csrf).then(() => undefined), next ? 'تم تفعيل الظهور؛ يشترط أن يكون العنصر والعناصر الأعلى منه نشطة وظاهرة.' : 'تم إخفاء العنصر من الموقع.');
   }
 
   // Quick Toggle Path Presentation
@@ -1621,7 +1650,7 @@ export function TaxonomyAdminPage() {
                         setSelectedPathId(path.id);
                         setSelectedSubjectId(null);
                       }}
-                      className={`group relative flex items-center justify-between rounded-2xl border p-3 transition-all cursor-pointer ${
+                      className={`group relative flex flex-col gap-2 rounded-2xl border p-3 transition-all cursor-pointer ${
                         isSelected
                           ? 'border-indigo-400 bg-indigo-50/70 shadow-xs ring-2 ring-indigo-500/20'
                           : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-slate-50'
@@ -1639,9 +1668,9 @@ export function TaxonomyAdminPage() {
                           {getPathIcon(path, 'w-6 h-6 object-contain')}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <strong className="block text-sm font-black text-slate-900 truncate">{path.name}</strong>
-                          <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono mt-0.5">
-                            <span>{path.code}</span>
+                          <strong className="block break-words text-sm font-black text-slate-900">{path.name}</strong>
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 font-mono mt-0.5">
+                            <span className="break-all">{path.code}</span>
                             <span className={`text-[10px] font-black ${path.status === 'active' ? 'text-emerald-600' : 'text-slate-400'}`}>
                               • {statusLabels[path.status]}
                             </span>
@@ -1649,7 +1678,12 @@ export function TaxonomyAdminPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1">
+                      <div className="flex flex-wrap items-center justify-end gap-1">
+                        <button type="button" disabled={!!pending} onClick={(e) => { e.stopPropagation(); void toggleVisibility('path', path.id, path.isVisible); }} aria-label={`${path.isVisible === false ? 'إظهار' : 'إخفاء'} المسار ${path.name}`} title={path.isVisible === false ? 'إظهار المسار على الموقع' : 'إخفاء المسار من الموقع'} className="rounded-lg p-1.5 text-slate-500 hover:bg-indigo-100 disabled:opacity-50">
+                          {path.isVisible === false ? <EyeOff size={15}/> : <Eye size={15}/>}
+                        </button>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); openEditPath(path); }} aria-label={`تعديل المسار ${path.name}`} title="تعديل المسار" className="rounded-lg p-1.5 text-slate-500 hover:bg-indigo-100"><Pencil size={15}/></button>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteConfirm({open:true,type:'path',id:path.id,name:path.name,action:'delete'}); }} aria-label={`حذف المسار ${path.name}`} title="حذف المسار" className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50"><Trash2 size={15}/></button>
                         <Link
                           to={`/category/${path.id}`}
                           target="_blank"
@@ -1685,8 +1719,8 @@ export function TaxonomyAdminPage() {
                   borderTop: `4px solid ${pathColor.text}`,
                 }}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex min-w-0 items-center gap-4">
                     <div
                       className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl shadow-xs border"
                       style={{
@@ -1719,7 +1753,7 @@ export function TaxonomyAdminPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 shrink-0 self-end sm:self-center">
+                  <div className="flex max-w-full min-w-0 flex-wrap items-center gap-2">
                     <Link
                       to={`/category/${selectedPath.id}`}
                       target="_blank"
@@ -1749,6 +1783,8 @@ export function TaxonomyAdminPage() {
                       value={selectedPath.status}
                       onChange={(v) => void patchStatus('path', selectedPath.id, v)}
                     />
+                    <button type="button" onClick={() => setDeleteConfirm({ open: true, type: 'path', id: selectedPath.id, name: selectedPath.name, action: 'delete' })} className="rounded-xl border border-rose-300 px-3 py-2 text-xs font-black text-rose-700">حذف المسار</button>
+                    <button type="button" disabled={!!pending} onClick={() => void toggleVisibility('path', selectedPath.id, selectedPath.isVisible)} className="rounded-xl border px-3 py-2 text-xs font-black text-indigo-700 disabled:opacity-50">{selectedPath.isVisible === false ? 'إظهار المسار على الموقع' : 'إخفاء المسار من الموقع'}</button>
                   </div>
                 </div>
 
@@ -1906,8 +1942,8 @@ export function TaxonomyAdminPage() {
                               </div>
                             </div>
 
-                            <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5">
+                            <div className="mt-5 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex max-w-full min-w-0 flex-wrap items-center gap-1.5">
                                 <button
                                   type="button"
                                   onClick={() => openEditSubject(sub)}
@@ -1923,6 +1959,8 @@ export function TaxonomyAdminPage() {
                                 >
                                   <Archive size={13} />
                                 </button>
+                                <button type="button" onClick={() => setDeleteConfirm({ open: true, type: 'subject', id: sub.id, name: sub.name, action: 'delete' })} className="rounded-xl border border-rose-300 px-2 py-1.5 text-xs font-black text-rose-700">حذف</button>
+                                <button type="button" disabled={!!pending} onClick={() => void toggleVisibility('subject', sub.id, sub.isVisible)} className="rounded-xl border px-2 py-1.5 text-xs font-black text-indigo-700 disabled:opacity-50">{sub.isVisible === false ? 'إظهار المادة' : 'إخفاء المادة'}</button>
                               </div>
                               <button
                                 type="button"
@@ -1994,7 +2032,7 @@ export function TaxonomyAdminPage() {
                                 <span>{levelSubjects.length} مواد مرتبطة</span>
                               </div>
                             </div>
-                            <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+                            <div className="mt-5 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-end gap-2">
                               <button
                                 type="button"
                                 onClick={() => openEditLevel(lvl)}
@@ -2010,6 +2048,8 @@ export function TaxonomyAdminPage() {
                               >
                                 <Archive size={13} />
                               </button>
+                              <button type="button" onClick={() => setDeleteConfirm({ open: true, type: 'level', id: lvl.id, name: lvl.name, action: 'delete' })} className="rounded-xl border border-rose-300 px-2 py-1.5 text-xs font-black text-rose-700">حذف</button>
+                              <button type="button" disabled={!!pending} onClick={() => void toggleVisibility('level', lvl.id, lvl.isVisible)} className="rounded-xl border px-2 py-1.5 text-xs font-black text-indigo-700 disabled:opacity-50">{lvl.isVisible === false ? 'إظهار المرحلة' : 'إخفاء المرحلة'}</button>
                             </div>
                           </div>
                         );
@@ -2172,7 +2212,8 @@ export function TaxonomyAdminPage() {
                           code: `${selectedPath.code}-PKG-1`,
                           name: `باقة ${selectedPath.name} الشاملة`,
                           priceMinor: 9900,
-                          contentType: 'all',
+                          subjectId: '',
+                          contentTypes: ['all'],
                         });
                         setIsPackageModalOpen(true);
                       }}
@@ -2185,7 +2226,7 @@ export function TaxonomyAdminPage() {
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                     {packages
-                      .filter((p: CommerceProduct) => p.package?.items?.some((item: CommercePackageItem) => item.pathId === selectedPath.id || !item.pathId))
+                      .filter((p: CommerceProduct) => packageAppliesToPath(p.package?.items || [], selectedPath.id, data.subjects, courses))
                       .map((pkg) => (
                         <div key={pkg.id} className="rounded-3xl border border-gray-100 bg-white p-5 shadow-xs flex flex-col justify-between">
                           <div>
@@ -2202,6 +2243,10 @@ export function TaxonomyAdminPage() {
                           </div>
                           <div className="mt-4 pt-3 border-t border-gray-100 text-xs font-bold text-slate-500">
                             كود الباقة: <span className="font-mono text-slate-800">{pkg.code}</span>
+                            <button type="button" disabled={!!pending} onClick={() => void togglePackageVisibility(pkg)}
+                              className="mt-3 block rounded-xl border px-3 py-2 text-xs font-black text-indigo-700 disabled:opacity-50">
+                              {pkg.isVisible ? 'إخفاء الباقة' : 'إظهار الباقة'}
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -2365,6 +2410,20 @@ export function TaxonomyAdminPage() {
                   className="w-full rounded-xl border p-2.5 text-xs font-mono font-bold uppercase disabled:bg-gray-100"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-black text-slate-700 mb-1">المسار الرئيسي</label>
+              <select
+                value={pathForm.parentPathId}
+                onChange={(e) => setPathForm({ ...pathForm, parentPathId: e.target.value })}
+                className="w-full rounded-xl border p-2.5 text-xs font-bold"
+              >
+                <option value="">مسار رئيسي</option>
+                {data.paths.filter((path) => !path.parentPathId && path.id !== editingPath?.id).map((path) => (
+                  <option key={path.id} value={path.id}>{path.name}</option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -2787,20 +2846,36 @@ export function TaxonomyAdminPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-black text-slate-700 mb-1">مساحات التعلم المفتوحة للطالب</label>
+              <label className="block text-xs font-black text-slate-700 mb-1">نطاق الباقة</label>
               <select
-                value={pkgForm.contentType}
-                onChange={(e) => setPkgForm({ ...pkgForm, contentType: e.target.value as CommerceContentType })}
+                value={pkgForm.subjectId}
+                onChange={(e) => setPkgForm({ ...pkgForm, subjectId: e.target.value })}
                 className="w-full rounded-xl border p-2.5 text-xs font-bold bg-white"
               >
-                <option value="all">كل محتوى ومساحات المسار (شاملة)</option>
-                <option value="courses">الدورات التدريبية فقط</option>
-                <option value="foundation">التأسيس والدروس فقط</option>
-                <option value="tests">الاختبارات والتقييمات فقط</option>
-                <option value="mock_exams">الاختبارات المحاكية فقط</option>
-                <option value="library">المكتبة والمراجع فقط</option>
+                <option value="">المسار الحالي كاملًا</option>
+                {subjects.filter((subject) => subject.status === 'active').map((subject) => (
+                  <option key={subject.id} value={subject.id}>{subject.name}</option>
+                ))}
               </select>
             </div>
+            <fieldset className="space-y-2 rounded-xl border p-3">
+              <legend className="px-1 text-xs font-black text-slate-700">ماذا تفتح الباقة داخل النطاق؟</legend>
+              {([
+                ['all', 'جميع المحتويات'], ['courses', 'الدورات'], ['foundation', 'التأسيس'],
+                ['banks', 'التدريبات'], ['tests', 'الاختبارات'], ['mock_exams', 'المحاكيات'], ['library', 'المكتبة'],
+              ] as [CommerceContentType, string][]).map(([kind, label]) => (
+                <label key={kind} className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                  <input type="checkbox" checked={pkgForm.contentTypes.includes(kind)} onChange={(event) => {
+                    setPkgForm((current) => ({ ...current, contentTypes: kind === 'all'
+                      ? (event.target.checked ? ['all'] : [])
+                      : event.target.checked
+                        ? [...current.contentTypes.filter((value) => value !== 'all'), kind]
+                        : current.contentTypes.filter((value) => value !== kind) }));
+                  }} />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
           </div>
 
           <div className="flex justify-end gap-2 border-t pt-4">
@@ -3057,12 +3132,12 @@ export function TaxonomyAdminPage() {
               <Archive size={24} />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900">تأكيد أرشفة {typeLabel}</h3>
+              <h3 className="text-base font-black text-slate-900">تأكيد {deleteConfirm.action === 'delete' ? 'حذف' : 'أرشفة'} {typeLabel}</h3>
               <p className="text-xs text-slate-500 font-bold mt-0.5">«{deleteConfirm.name}»</p>
             </div>
           </div>
           <p className="text-xs leading-6 text-slate-600 font-medium">
-            سيتم نقل {typeLabel} إلى الأرشيف وإخفاؤه عن الطلاب والزوار، مع الحفاظ على كل المحتوى والبيانات وسجلات الطلاب التاريخية دون فقدان.
+            {deleteConfirm.action === 'delete' ? `سيُحذف ${typeLabel} نهائيًا إذا لم تكن له بيانات مرتبطة. إذا وُجدت ارتباطات فلن يتم الحذف، ويمكنك استخدام الأرشفة.` : `سيتم نقل ${typeLabel} إلى الأرشيف وإخفاؤه عن الطلاب والزوار، مع الحفاظ على البيانات.`}
           </p>
           <div className="flex justify-end gap-2 pt-2 border-t">
             <button
@@ -3078,12 +3153,17 @@ export function TaxonomyAdminPage() {
               onClick={async () => {
                 const target = deleteConfirm;
                 setDeleteConfirm(null);
-                await patchStatus(target.type, target.id, 'archived');
-                setNotice(`تمت أرشفة ${typeLabel} بنجاح`);
+                if (target.action === 'delete' && target.type !== 'skill') {
+                  const saved = await run(`delete-${target.type}-${target.id}`, (csrf) => taxonomyAdminClient.deleteRecord(target.type as 'path' | 'level' | 'subject', target.id, csrf).then(() => undefined), `تم حذف ${typeLabel} نهائيًا.`);
+                  if (saved && target.type === 'subject') setSelectedSubjectId(null);
+                  return;
+                }
+                const saved = await patchStatus(target.type, target.id, 'archived');
+                if (saved) setNotice(`تمت أرشفة ${typeLabel} بنجاح`);
               }}
               className="rounded-xl bg-rose-600 px-5 py-2 text-xs font-black text-white hover:bg-rose-700 disabled:opacity-50"
             >
-              تأكيد الأرشفة
+              {deleteConfirm.action === 'delete' ? 'تأكيد الحذف النهائي' : 'تأكيد الأرشفة'}
             </button>
           </div>
         </div>
