@@ -553,6 +553,7 @@ export function AssessmentAttemptPage() {
                 <div key={option.index}>
                   <button
                     type="button"
+                    aria-pressed={isSelected}
                     disabled={savingAnswer || busy}
                     onClick={() => void choose(option.index)}
                     className={`${imageEmbeddedOptions ? 'min-h-[58px] sm:min-h-[64px]' : 'min-h-[76px]'} w-full rounded-2xl border-2 px-4 py-3 text-right transition-all flex flex-col justify-center ${
