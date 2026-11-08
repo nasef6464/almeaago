@@ -247,8 +247,7 @@ export function QuestionBankAdminPage() {
       questionBankClient.list(effectiveFilters, c.signal),
       questionBankClient.coverage(effectiveFilters, c.signal),
     ])
-      .then(([page, cov]) => {
-        setRows(page.items);
+      .then(async ([page, cov]) => {
         setHasMore(page.hasMore);
         setCoverage({
           questionsTotal: cov.questionsTotal,
@@ -258,6 +257,39 @@ export function QuestionBankAdminPage() {
           mainSkillCoverage: cov.mainSkillCoverage,
           subSkillCoverage: cov.subSkillCoverage,
         });
+
+        const needsHydration = page.items.length > 0 && page.items.some((r) => r.text === undefined && !r.imageUrl);
+        setRows(page.items);
+
+        if (needsHydration && !c.signal.aborted) {
+          const hydratedItems = [...page.items];
+          const batchSize = 10;
+          for (let i = 0; i < hydratedItems.length; i += batchSize) {
+            if (c.signal.aborted) return;
+            const chunk = hydratedItems.slice(i, i + batchSize);
+            await Promise.all(
+              chunk.map(async (item, idx) => {
+                try {
+                  const detail = await questionBankClient.get(item.id, c.signal);
+                  if (detail.question?.version) {
+                    hydratedItems[i + idx] = {
+                      ...item,
+                      text: detail.question.version.text,
+                      imageAssetId: detail.question.version.imageAssetId || item.imageAssetId,
+                      imageUrl: detail.question.version.imageUrl || item.imageUrl,
+                      optionsEmbeddedInImage: detail.question.version.optionsEmbeddedInImage,
+                    };
+                  }
+                } catch {
+                  // ignore detail fetch errors
+                }
+              }),
+            );
+            if (!c.signal.aborted) {
+              setRows([...hydratedItems]);
+            }
+          }
+        }
       })
       .catch((e) => {
         if (!c.signal.aborted) setError(e instanceof Error ? e.message : 'تعذر تحميل بنك الأسئلة');
