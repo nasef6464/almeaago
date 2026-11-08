@@ -1576,6 +1576,26 @@ export function QuestionBankAdminPage() {
                 >
                   <AlertCircle size={15} /> رفض جماعي ({selectedQuestionIds.size})
                 </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const count = selectedQuestionIds.size;
+                    if (!window.confirm(`هل أنت متأكد من حذف وأرشفة ${count} سؤال/أسئلة محددة؟`)) {
+                      return;
+                    }
+                    const ids = Array.from(selectedQuestionIds);
+                    for (const id of ids) {
+                      await workflow('archived', id);
+                    }
+                    setRows((prev) => prev.filter((r) => !ids.includes(r.id)));
+                    setSelectedQuestionIds(new Set());
+                    setNotice(`تم حذف وأرشفة ${count} سؤال بنجاح`);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-colors shadow-xs cursor-pointer"
+                  title="حذف وأرشفة جميع الأسئلة المحددة"
+                >
+                  <Trash2 size={15} /> حذف جماعي ({selectedQuestionIds.size})
+                </button>
               </>
             )}
             <button
