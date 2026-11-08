@@ -23,6 +23,7 @@ export interface QuestionSummary{
   imageUrl?:string;
   imageAssetId?:string;
   optionsEmbeddedInImage?:boolean;
+  options?:QuestionOption[];
   mainSkillId:string;
   skillIds:string[];
   updatedAt:string;

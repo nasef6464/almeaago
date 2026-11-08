@@ -260,7 +260,7 @@ export function QuestionBankAdminPage() {
           subSkillCoverage: cov.subSkillCoverage,
         });
 
-        const needsHydration = page.items.length > 0 && page.items.some((r) => r.text === undefined && !r.imageUrl);
+        const needsHydration = page.items.length > 0 && page.items.some((r) => ((!r.text || !r.text.trim()) && !r.imageUrl) || !r.options);
         setRows(page.items);
 
         if (needsHydration && !c.signal.aborted) {
@@ -276,10 +276,11 @@ export function QuestionBankAdminPage() {
                   if (detail.question?.version) {
                     hydratedItems[i + idx] = {
                       ...item,
-                      text: detail.question.version.text,
+                      text: detail.question.version.text || item.text,
                       imageAssetId: detail.question.version.imageAssetId || item.imageAssetId,
                       imageUrl: detail.question.version.imageUrl || item.imageUrl,
                       optionsEmbeddedInImage: detail.question.version.optionsEmbeddedInImage,
+                      options: detail.question.options || item.options,
                     };
                   }
                 } catch {
@@ -1713,6 +1714,26 @@ export function QuestionBankAdminPage() {
                             <div className="text-sm text-gray-400">سؤال بدون نص أو صورة</div>
                           ) : null}
 
+                          {/* خيارات السؤال أ، ب، ج، د المطابقة للشكل القديم */}
+                          {row.options && row.options.length > 0 && !row.optionsEmbeddedInImage && (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1 max-w-[560px]">
+                              {row.options.map((opt, oIdx) => {
+                                const letter = ['A', 'B', 'C', 'D'][oIdx] || String.fromCharCode(65 + oIdx);
+                                return (
+                                  <div
+                                    key={oIdx}
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200/70 text-xs font-semibold text-gray-700"
+                                  >
+                                    <span className="w-5 h-5 flex items-center justify-center rounded-md bg-indigo-100 text-indigo-700 font-bold text-[11px] shrink-0">
+                                      {letter}
+                                    </span>
+                                    <span className="truncate font-medium">{opt.text || `خيار ${letter}`}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
                           {/* شارات السؤال المرجعية */}
                           <div className="flex flex-wrap items-center gap-2 pt-1.5 border-t border-gray-100">
                             <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100">
@@ -1751,15 +1772,19 @@ export function QuestionBankAdminPage() {
                           {mainSkill ? (
                             <div className="text-xs font-black text-gray-800">{mainSkill.name}</div>
                           ) : null}
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-col gap-1">
                             {subSkills.length > 0 ? (
                               subSkills.map((sk) => (
-                                <span
-                                  key={sk.id}
-                                  className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md text-[11px] font-bold border border-indigo-100"
-                                >
-                                  {sk.name}
-                                </span>
+                                <div key={sk.id} className="flex flex-col gap-0.5">
+                                  {sk.code ? (
+                                    <span className="inline-block w-fit px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                      {sk.code}
+                                    </span>
+                                  ) : null}
+                                  <span className="text-xs font-semibold text-gray-700">
+                                    {sk.name}
+                                  </span>
+                                </div>
                               ))
                             ) : (
                               <span className="text-xs text-gray-400">غير مرتبط</span>
@@ -1827,30 +1852,31 @@ export function QuestionBankAdminPage() {
                         </span>
                       </td>
 
-                      {/* 6. الإجراءات */}
-                      <td className="px-4 py-4 align-top whitespace-nowrap min-w-[150px]">
+                      {/* 6. الإجراءات - مطابقة دقيقة 1:1 للصورة القديمة */}
+                      <td className="px-4 py-4 align-top whitespace-nowrap min-w-[140px]">
                         <div className="flex flex-col items-center justify-center gap-1.5 w-full">
-                          {/* الصف العلوي: اعتماد/رفض + معاينة + نسخ */}
+                          {/* الصف العلوي: اعتماد/رفض (زر واحد فقط حسب الحالة) + معاينة + نسخ */}
                           <div className="flex items-center gap-1">
-                            {isAdmin && row.workflowStatus !== 'approved' && (
-                              <button
-                                type="button"
-                                onClick={() => void workflow('approved', row.id)}
-                                className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer border border-emerald-200/60"
-                                title="اعتماد السؤال"
-                              >
-                                اعتماد
-                              </button>
-                            )}
-                            {isAdmin && row.workflowStatus !== 'rejected' && (
-                              <button
-                                type="button"
-                                onClick={() => void workflow('rejected', row.id)}
-                                className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer border border-rose-200/60"
-                                title="رفض السؤال"
-                              >
-                                رفض
-                              </button>
+                            {isAdmin && (
+                              row.workflowStatus === 'approved' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void workflow('rejected', row.id)}
+                                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer border border-rose-200/60"
+                                  title="رفض السؤال"
+                                >
+                                  رفض
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => void workflow('approved', row.id)}
+                                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer border border-emerald-200/60"
+                                  title="اعتماد السؤال"
+                                >
+                                  اعتماد
+                                </button>
+                              )
                             )}
                             <button
                               type="button"
@@ -1878,7 +1904,7 @@ export function QuestionBankAdminPage() {
                           </div>
 
                           {/* الصف السفلي: تعديل + حذف */}
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-2">
                             <button
                               type="button"
                               onClick={() => void openQuestion(row.id)}
