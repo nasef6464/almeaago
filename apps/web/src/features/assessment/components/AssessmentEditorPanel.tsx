@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Eye,
   X,
+  Users,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { assessmentClient } from '../api/assessment-client';
@@ -76,7 +77,7 @@ const baseVersion = (pathId: string, subjectId: string): AssessmentVersion => ({
 });
 
 export function AssessmentEditorPanel(p: Props) {
-  const [activeTab, setActiveTab] = useState<'info' | 'sections' | 'questions' | 'settings'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'sections' | 'questions' | 'settings' | 'access'>('info');
   const [detail, setDetail] = useState<AssessmentDetail | null>(null);
   const [code, setCode] = useState('');
   const [version, setVersion] = useState<AssessmentVersion>(() => baseVersion(p.initialPathId, p.initialSubjectId));
@@ -87,6 +88,7 @@ export function AssessmentEditorPanel(p: Props) {
   const [qDifficulty, setQDifficulty] = useState<string>('all');
   const [loading, setLoading] = useState(Boolean(p.assessmentId));
   const [saving, setSaving] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
   const [error, setError] = useState('');
   const [successNotice, setSuccessNotice] = useState('');
 
@@ -111,6 +113,7 @@ export function AssessmentEditorPanel(p: Props) {
         setDetail(r.assessment);
         setCode(r.assessment.code);
         setVersion(r.assessment.version);
+        setIsVisible(r.assessment.isVisible);
         setSections(r.assessment.sections || []);
         setQuestions(r.assessment.questions || []);
       })
@@ -348,7 +351,7 @@ export function AssessmentEditorPanel(p: Props) {
         ownerUserId: detail?.ownerUserId || '',
         ownerSchoolId: detail?.ownerSchoolId || '',
         assignedTeacherId: detail?.assignedTeacherId || '',
-        isVisible: detail?.isVisible ?? true,
+        isVisible,
         version: {
           ...version,
           timeLimitSeconds: version.timeLimitSeconds ? Number(version.timeLimitSeconds) : null,
@@ -507,6 +510,7 @@ export function AssessmentEditorPanel(p: Props) {
             { id: 'info', label: 'المعلومات الأساسية', Icon: FileQuestion },
             { id: 'questions', label: 'الأسئلة', Icon: CheckCircle2 },
             { id: 'settings', label: 'الإعدادات', Icon: Settings },
+            { id: 'access', label: 'الصلاحيات والنشر', Icon: Users },
             { id: 'sections', label: 'الأقسام والمؤقت', Icon: Layers },
           ] as const).map(({ id, label, Icon }) => (
             <button
@@ -616,27 +620,7 @@ export function AssessmentEditorPanel(p: Props) {
           </div>
 
           <div className="space-y-4 rounded-3xl border bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-black text-gray-900">سياسة الوصول ونمط الاختبار</h2>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700">سياسة الاستحقاق والوصول</label>
-              <select
-                aria-label="سياسة وصول الاختبار"
-                value={version.accessType}
-                onChange={(e) =>
-                  setVersion((v) => ({
-                    ...v,
-                    accessType: e.target.value as AssessmentVersion['accessType'],
-                  }))
-                }
-                className="mt-1 w-full rounded-xl border p-3 text-sm font-bold"
-              >
-                <option value="free">مجاني (متاح لجميع الطلاب دون اشتراك)</option>
-                <option value="paid">مدفوع / مشمول ضمن باقات المسار أو المادة</option>
-                <option value="private">خاص وموجه لمجموعات وفصول محددة</option>
-                <option value="course_only">داخل محتوى دورة تدريبية فقط</option>
-              </select>
-            </div>
+            <h2 className="text-lg font-black text-gray-900">نمط الاختبار</h2>
 
             {version.kind === 'normal' ? (
               <div>
@@ -694,6 +678,44 @@ export function AssessmentEditorPanel(p: Props) {
               </button>
             </div>
           </div>
+        </section>
+      ) : null}
+
+      {activeTab === 'access' ? (
+        <section className="space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-gray-800">الصلاحيات والنشر</h2>
+          <div>
+            <label htmlFor="assessment-access-type" className="mb-2 block text-sm font-bold text-gray-700">نوع الوصول</label>
+            <select
+              id="assessment-access-type"
+              aria-label="سياسة وصول الاختبار"
+              value={version.accessType}
+              disabled={detail?.workflowStatus === 'approved' || detail?.workflowStatus === 'archived'}
+              onChange={(e) => setVersion((v) => ({ ...v, accessType: e.target.value as AssessmentVersion['accessType'] }))}
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 disabled:bg-gray-100"
+            >
+              <option value="free">مجاني للجميع</option>
+              <option value="paid">ضمن باقة / يحتاج تفعيل</option>
+              <option value="private">خاص وموجه</option>
+              <option value="course_only">داخل الدورات فقط</option>
+            </select>
+            {version.accessType === 'private' ? <p className="mt-2 text-xs text-gray-600">لا يتاح الوصول المباشر لهذا الاختبار؛ يحتاج الطالب إلى تعيين موجه.</p> : null}
+            {version.accessType === 'course_only' ? <p className="mt-2 text-xs text-gray-600">يفتح من موضع مرتبط بدورة مع تحقق صلاحية الوصول للدورة.</p> : null}
+          </div>
+          <label className="flex items-center gap-3 border-t border-gray-100 pt-4 text-sm font-bold text-gray-800">
+            <input
+              type="checkbox"
+              checked={isVisible}
+              disabled={detail?.workflowStatus === 'approved' || detail?.workflowStatus === 'archived'}
+              onChange={(e) => setIsVisible(e.target.checked)}
+              className="h-4 w-4 accent-indigo-600"
+            />
+            إظهار الاختبار للطلاب
+          </label>
+          <p className="text-xs text-gray-600">تُحفظ إعدادات الظهور والوصول مع الاختبار؛ يلزم اعتماد الاختبار ونشره قبل إتاحته.</p>
+          {detail?.workflowStatus === 'approved' || detail?.workflowStatus === 'archived' ? (
+            <p className="rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-800">لا يمكن تعديل هذه الإعدادات بالحفظ العادي بعد اعتماد الاختبار أو أرشفته.</p>
+          ) : null}
         </section>
       ) : null}
 
