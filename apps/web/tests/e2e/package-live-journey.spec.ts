@@ -45,6 +45,17 @@ test('isolated real package storefront and checkout', async ({page,browser}) => 
   await expect(modal).toContainText('رقم الطلب');
   expect((await page.request.get(lessonURL)).status()).toBe(403);
   await page.screenshot({path:'test-results/package-live-checkout.png',fullPage:true});
+  const checkoutOverflow=await page.evaluate(() => {
+    const viewport=document.documentElement.clientWidth;
+    const offenders=[...document.querySelectorAll('body *')].flatMap(element => {
+      const rect=element.getBoundingClientRect();
+      if (rect.right <= viewport + 1 && rect.left >= -1) return [];
+      const style=getComputedStyle(element);
+      return [{tag:element.tagName, className:typeof element.className === 'string' ? element.className.slice(0,160) : '', left:Math.round(rect.left), right:Math.round(rect.right), position:style.position}];
+    }).slice(0,20);
+    return {viewport, scrollWidth:document.documentElement.scrollWidth, offenders};
+  });
+  expect(checkoutOverflow, `checkout has horizontal overflow: ${JSON.stringify(checkoutOverflow)}`).toMatchObject({scrollWidth:checkoutOverflow.viewport});
   try {
     await adminPage.goto('/admin-dashboard/commerce',{waitUntil:'domcontentloaded'});
     const requestRow=adminPage.getByRole('article').filter({hasText:packageName});
