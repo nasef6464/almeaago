@@ -61,84 +61,84 @@ const (
 )
 
 type Assessment struct {
-	ID                string
-	Code              string
-	OwnerType         OwnerType
-	OwnerUserID       string
-	OwnerSchoolID     string
-	AssignedTeacherID string
-	WorkflowStatus    WorkflowStatus
-	ReviewerNotes     string
-	CurrentVersion    int
-	PublishedVersion  *int
-	IsPublished       bool
-	IsVisible         bool
-	Revision          int
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	Version           Version
-	Sections          []Section
-	Questions         []QuestionPlacement
+	ID                string              `json:"id"`
+	Code              string              `json:"code"`
+	OwnerType         OwnerType           `json:"ownerType"`
+	OwnerUserID       string              `json:"ownerUserId"`
+	OwnerSchoolID     string              `json:"ownerSchoolId"`
+	AssignedTeacherID string              `json:"assignedTeacherId"`
+	WorkflowStatus    WorkflowStatus      `json:"workflowStatus"`
+	ReviewerNotes     string              `json:"reviewerNotes"`
+	CurrentVersion    int                 `json:"currentVersion"`
+	PublishedVersion  *int                `json:"publishedVersion"`
+	IsPublished       bool                `json:"isPublished"`
+	IsVisible         bool                `json:"isVisible"`
+	Revision          int                 `json:"revision"`
+	CreatedAt         time.Time           `json:"createdAt"`
+	UpdatedAt         time.Time           `json:"updatedAt"`
+	Version           Version             `json:"version"`
+	Sections          []Section           `json:"sections"`
+	Questions         []QuestionPlacement `json:"questions"`
 }
 
 type Version struct {
-	Version                 int
-	AccessType              AccessType
-	Title                   string
-	Description             string
-	PathID                  string
-	SubjectID               string
-	Kind                    Kind
-	NormalMode              NormalMode
-	ShowExplanations        bool
-	ShowAnswers             bool
-	ShowResultsReport       bool
-	ReturnToSourceOnFinish  bool
-	MaxAttempts             int
-	PassingScore            float64
-	TimeLimitSeconds        *int
-	RandomizeQuestions      bool
-	RandomizeOptions        bool
-	ShowProgressBar         bool
-	RequireAnswerBeforeNext bool
-	AllowQuestionReview     bool
-	OptionLayout            string
-	MockCategory            string
-	MockTargetScore         *float64
-	MockStrictSectionLock   *bool
-	MockPresentationMode    string
-	Presentation            json.RawMessage
-	RevisionNote            string
+	Version                 int             `json:"version"`
+	AccessType              AccessType      `json:"accessType"`
+	Title                   string          `json:"title"`
+	Description             string          `json:"description"`
+	PathID                  string          `json:"pathId"`
+	SubjectID               string          `json:"subjectId"`
+	Kind                    Kind            `json:"kind"`
+	NormalMode              NormalMode      `json:"normalMode"`
+	ShowExplanations        bool            `json:"showExplanations"`
+	ShowAnswers             bool            `json:"showAnswers"`
+	ShowResultsReport       bool            `json:"showResultsReport"`
+	ReturnToSourceOnFinish  bool            `json:"returnToSourceOnFinish"`
+	MaxAttempts             int             `json:"maxAttempts"`
+	PassingScore            float64         `json:"passingScore"`
+	TimeLimitSeconds        *int            `json:"timeLimitSeconds"`
+	RandomizeQuestions      bool            `json:"randomizeQuestions"`
+	RandomizeOptions        bool            `json:"randomizeOptions"`
+	ShowProgressBar         bool            `json:"showProgressBar"`
+	RequireAnswerBeforeNext bool            `json:"requireAnswerBeforeNext"`
+	AllowQuestionReview     bool            `json:"allowQuestionReview"`
+	OptionLayout            string          `json:"optionLayout"`
+	MockCategory            string          `json:"mockCategory"`
+	MockTargetScore         *float64        `json:"mockTargetScore"`
+	MockStrictSectionLock   *bool           `json:"mockStrictSectionLock"`
+	MockPresentationMode    string          `json:"mockPresentationMode"`
+	Presentation            json.RawMessage `json:"presentation"`
+	RevisionNote            string          `json:"revisionNote"`
 }
 
 type Section struct {
-	ID               string
-	Title            string
-	SubjectID        string
-	SortOrder        int
-	TimeLimitSeconds *int
-	Domain           string
-	StrictLock       bool
+	ID               string `json:"id"`
+	Title            string `json:"title"`
+	SubjectID        string `json:"subjectId"`
+	SortOrder        int    `json:"sortOrder"`
+	TimeLimitSeconds *int   `json:"timeLimitSeconds"`
+	Domain           string `json:"domain"`
+	StrictLock       bool   `json:"strictLock"`
 }
 
 type QuestionPlacement struct {
-	QuestionID      string
-	QuestionVersion int
-	SectionID       string
-	SortOrder       int
-	Points          float64
+	QuestionID      string  `json:"questionId"`
+	QuestionVersion int     `json:"questionVersion"`
+	SectionID       string  `json:"sectionId"`
+	SortOrder       int     `json:"sortOrder"`
+	Points          float64 `json:"points"`
 }
 
 type Write struct {
-	Code              string
-	OwnerType         OwnerType
-	OwnerUserID       string
-	OwnerSchoolID     string
-	AssignedTeacherID string
-	IsVisible         bool
-	Version           Version
-	Sections          []Section
-	Questions         []QuestionPlacement
+	Code              string              `json:"code"`
+	OwnerType         OwnerType           `json:"ownerType"`
+	OwnerUserID       string              `json:"ownerUserId"`
+	OwnerSchoolID     string              `json:"ownerSchoolId"`
+	AssignedTeacherID string              `json:"assignedTeacherId"`
+	IsVisible         bool                `json:"isVisible"`
+	Version           Version             `json:"version"`
+	Sections          []Section           `json:"sections"`
+	Questions         []QuestionPlacement `json:"questions"`
 }
 
 type ListQuery struct {
@@ -152,23 +152,23 @@ type ListQuery struct {
 }
 
 type Summary struct {
-	ID             string
-	Code           string
-	Title          string
-	PathID         string
-	SubjectID      string
-	Kind           Kind
-	WorkflowStatus WorkflowStatus
-	OwnerType      OwnerType
-	Revision       int
-	CurrentVersion int
-	IsPublished    bool
-	UpdatedAt      time.Time
+	ID             string         `json:"id"`
+	Code           string         `json:"code"`
+	Title          string         `json:"title"`
+	PathID         string         `json:"pathId"`
+	SubjectID      string         `json:"subjectId"`
+	Kind           Kind           `json:"kind"`
+	WorkflowStatus WorkflowStatus `json:"workflowStatus"`
+	OwnerType      OwnerType      `json:"ownerType"`
+	Revision       int            `json:"revision"`
+	CurrentVersion int            `json:"currentVersion"`
+	IsPublished    bool           `json:"isPublished"`
+	UpdatedAt      time.Time      `json:"updatedAt"`
 }
 
 type Page struct {
-	Items   []Summary
-	Page    int
-	Limit   int
-	HasMore bool
+	Items   []Summary `json:"items"`
+	Page    int       `json:"page"`
+	Limit   int       `json:"limit"`
+	HasMore bool      `json:"hasMore"`
 }
