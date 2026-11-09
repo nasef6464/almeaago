@@ -22,6 +22,7 @@ import {
   LogIn,
   Shield,
   Gift,
+  CreditCard,
 } from 'lucide-react';
 import { afterHeaderLoginPath, useAuth } from './authAdapter';
 import { isStagingEnv } from './headerApi';
@@ -375,8 +376,10 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
                     {item.children ? <ChevronDown size={14} /> : null}
                   </Link>
 
-                  {item.children && activeDropdown === item.id ? (
-                    <div className="absolute top-full right-0 w-72 sm:w-80 bg-white dark:bg-slate-900 shadow-2xl rounded-2xl border border-slate-100 dark:border-slate-800 border-t-2 border-t-amber-500 py-2.5 animate-fade-in z-50 backdrop-blur-md">
+                  {item.children && activeDropdown === item.id ? (() => {
+                    const isCompactDropdown = item.id === 'more' || (item.children.length <= 4 && !item.children.some((c: any) => c.isGroup));
+                    return (
+                    <div className={`absolute top-full right-0 ${isCompactDropdown ? 'w-52' : 'w-72 sm:w-80'} bg-white dark:bg-slate-900 shadow-2xl rounded-2xl border border-slate-100 dark:border-slate-800 border-t-2 border-t-amber-500 py-2 animate-fade-in z-50 backdrop-blur-md`}>
                       {item.children.map((child: Record<string, any>, childIndex: number) => {
                         if (child.isDivider) {
                           return <div key={`divider-${childIndex}`} className="h-px bg-slate-100 dark:bg-slate-800 my-1.5 mx-3" />;
@@ -509,6 +512,12 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
                           );
                         }
 
+                        const childIcon = child.id === 'pricing' ? (
+                          <CreditCard size={15} className="text-amber-500 shrink-0" />
+                        ) : child.id === 'blog' ? (
+                          <BookOpen size={15} className="text-indigo-500 shrink-0" />
+                        ) : null;
+
                         return (
                           <Link
                             key={`child-${child.id}-${childIndex}`}
@@ -517,14 +526,16 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
                               setActiveDropdown(null);
                               setActiveStageId(null);
                             }}
-                            className="block py-2 text-xs font-bold transition-colors text-slate-700 dark:text-slate-200 hover:bg-indigo-50/70 dark:hover:bg-indigo-900/30 hover:text-indigo-700 dark:hover:text-indigo-300 px-3 mx-2 rounded-lg"
+                            className="flex items-center gap-2.5 py-2 text-xs font-bold transition-colors text-slate-700 dark:text-slate-200 hover:bg-indigo-50/70 dark:hover:bg-indigo-900/40 hover:text-indigo-700 dark:hover:text-indigo-300 px-3 mx-1.5 rounded-xl"
                           >
-                            {child.label}
+                            {childIcon}
+                            <span>{child.label}</span>
                           </Link>
                         );
                       })}
                     </div>
-                  ) : null}
+                  );
+                })() : null}
                 </div>
               );
             })}

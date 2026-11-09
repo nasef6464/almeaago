@@ -61,7 +61,7 @@ function formatGoalDate(value: string) {
     : date.toLocaleDateString('ar-SA', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export function ReviewLibraryPage() {
+export function ReviewLibraryPage({ embedded }: { embedded?: boolean } = {}) {
   const { user, loading: authLoading, getCsrfToken } = useAuth();
   const [searchParams] = useSearchParams();
   const [taxonomy, setTaxonomy] = useState<TaxonomyCore>({ paths: [], subjects: [] });
@@ -249,23 +249,27 @@ export function ReviewLibraryPage() {
   }
 
   if (authLoading) {
-    return <main className="p-10 text-center font-black">جاري التحقق من الجلسة...</main>;
+    return <div className="p-10 text-center font-black">جاري التحقق من الجلسة...</div>;
   }
   if (!user || !user.roles.includes('student')) {
-    return <main className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</main>;
+    return <div className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</div>;
   }
 
+  const ContainerTag = embedded ? 'div' : 'main';
+
   return (
-    <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-gray-50 px-3 py-6 sm:px-6">
+    <ContainerTag dir="rtl" className={embedded ? "w-full max-w-5xl mx-auto space-y-4" : "min-h-[calc(100vh-5rem)] bg-gray-50 px-3 py-6 sm:px-6"}>
       <div className="mx-auto flex max-w-5xl flex-col gap-4">
         <header className="order-1 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between" data-testid="legacy-review-library">
           <div className="flex items-center gap-3">
-            <Link to="/dashboard" className="text-gray-500 transition hover:text-gray-700" aria-label="العودة للوحة الطالب">
-              <ArrowRight />
-            </Link>
+            {!embedded ? (
+              <Link to="/dashboard" className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition" aria-label="العودة للوحة الطالب">
+                <ArrowRight />
+              </Link>
+            ) : null}
             <div>
-              <h1 className="text-xl font-black text-emerald-700 sm:text-2xl">أسئلتي للمراجعة</h1>
-              <p className="mt-1 text-xs font-bold text-gray-500 sm:text-sm">المحفوظة والأخطاء في مكان واحد.</p>
+              <h1 className="text-xl font-black text-emerald-700 dark:text-emerald-400 sm:text-2xl">أسئلتي للمراجعة</h1>
+              <p className="mt-1 text-xs font-bold text-gray-500 dark:text-slate-400 sm:text-sm">المحفوظة والأخطاء في مكان واحد.</p>
             </div>
           </div>
           {pathId ? (
@@ -673,6 +677,6 @@ export function ReviewLibraryPage() {
           </button>
         </div>
       </div>
-    </main>
+    </ContainerTag>
   );
 }

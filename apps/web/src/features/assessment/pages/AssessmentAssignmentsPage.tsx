@@ -25,7 +25,7 @@ function pendingStartKey(studentId: string, assignmentId: string): string {
   return value;
 }
 
-export function AssessmentAssignmentsPage() {
+export function AssessmentAssignmentsPage({ embedded }: { embedded?: boolean } = {}) {
   const { user, loading: authLoading, getCsrfToken } = useAuth();
   const navigate = useNavigate();
   const [rows, setRows] = useState<LearnerAssessmentAssignment[]>([]);
@@ -87,14 +87,16 @@ export function AssessmentAssignmentsPage() {
   }
 
   if (authLoading || busy) {
-    return <main className="p-10 text-center font-black">جاري تحميل التكليفات...</main>;
+    return <div className="p-10 text-center font-black">جاري تحميل التكليفات...</div>;
   }
   if (!user?.roles.includes('student')) {
-    return <main className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</main>;
+    return <div className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</div>;
   }
 
+  const ContainerTag = embedded ? 'div' : 'main';
+
   return (
-    <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-gray-50 px-3 py-6 sm:px-6">
+    <ContainerTag dir="rtl" className={embedded ? "w-full max-w-4xl mx-auto space-y-4" : "min-h-[calc(100vh-5rem)] bg-gray-50 px-3 py-6 sm:px-6"}>
       <div className="mx-auto max-w-4xl space-y-4">
         <header className="rounded-3xl bg-slate-950 p-5 text-white">
           <div className="flex items-center gap-2 text-amber-400">
@@ -143,6 +145,6 @@ export function AssessmentAssignmentsPage() {
           </section>
         ) : null}
       </div>
-    </main>
+    </ContainerTag>
   );
 }

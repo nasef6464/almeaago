@@ -30,6 +30,12 @@ import { ProgressBar } from '../components/ProgressBar';
 import { useStudentExperience } from '../navigation';
 import { PathsTab } from './dashboard/PathsTab';
 import { resolvePathProgress, type DashboardPath } from './dashboard/pathProgressProjection';
+import { ReportsPage } from '../../reporting/pages/ReportsPage';
+import { StudyPlanPage } from './StudyPlanPage';
+import { ReviewLibraryPage } from './ReviewLibraryPage';
+import { AssessmentAvailabilityPage } from '../../assessment/pages/AssessmentAvailabilityPage';
+import { AssessmentAssignmentsPage } from '../../assessment/pages/AssessmentAssignmentsPage';
+import { AssessmentResultsPage } from '../../assessment/pages/AssessmentResultsPage';
 
 type NavItem = {
   to?: string;
@@ -139,8 +145,8 @@ export function StudentDashboardPage() {
       tone: 'border-emerald-200/80 bg-gradient-to-b from-emerald-100/90 to-emerald-50/80 text-emerald-800 dark:border-emerald-800/60 dark:from-emerald-950/70 dark:to-emerald-900/40 dark:text-emerald-300',
       items: [
         { to: '/dashboard?tab=paths', label: 'مساراتي ودوراتي', icon: BookOpen, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
-        { to: '/plan', label: 'خططي', icon: CalendarDays, tone: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' },
-        { to: '/reports', label: 'تقاريري', icon: BarChart3, tone: 'bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300' },
+        { to: '/dashboard?tab=plan', label: 'خططي', icon: CalendarDays, tone: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' },
+        { to: '/dashboard?tab=reports', label: 'تقاريري', icon: BarChart3, tone: 'bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300' },
       ],
     },
     {
@@ -148,9 +154,9 @@ export function StudentDashboardPage() {
       title: 'الاختبارات',
       tone: 'border-rose-200/80 bg-gradient-to-b from-rose-100/90 to-rose-50/80 text-rose-800 dark:border-rose-800/60 dark:from-rose-950/70 dark:to-rose-900/40 dark:text-rose-300',
       items: [
-        { to: '/assessments', label: 'اختبارات المنصة', icon: ClipboardCheck, tone: 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300' },
-        { to: '/assessment-assignments', label: 'الاختبارات الموجهة', icon: Target, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
-        { to: '/assessment-results', label: 'اختباراتي ونتائجي', icon: RouteIcon, tone: 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300' },
+        { to: '/dashboard?tab=assessments', label: 'اختبارات المنصة', icon: ClipboardCheck, tone: 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300' },
+        { to: '/dashboard?tab=assignments', label: 'الاختبارات الموجهة', icon: Target, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
+        { to: '/dashboard?tab=results', label: 'اختباراتي ونتائجي', icon: RouteIcon, tone: 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300' },
       ],
     },
     {
@@ -159,7 +165,7 @@ export function StudentDashboardPage() {
       tone: 'border-violet-200/80 bg-gradient-to-b from-violet-100/90 to-violet-50/80 text-violet-800 dark:border-violet-800/60 dark:from-violet-950/70 dark:to-violet-900/40 dark:text-violet-300',
       items: [
         { onClick: () => setShowCalculator(true), label: 'حاسبة النسبة الموزونة', icon: Calculator, tone: 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300' },
-        { to: '/review', label: 'أسئلتي للمراجعة', icon: BrainCircuit, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
+        { to: '/dashboard?tab=review', label: 'أسئلتي للمراجعة', icon: BrainCircuit, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
         { to: '/classroom/join', label: 'الفصل الذكي', icon: Radio, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
       ],
     },
@@ -211,12 +217,20 @@ export function StudentDashboardPage() {
         </button>
       );
     }
+    const isItemActive = item.to && item.to.includes('tab=')
+      ? item.to.includes(`tab=${tab}`)
+      : false;
+
     return (
       <Link
         key={item.to}
         to={item.to || '/'}
         onClick={() => setSidebarOpen(false)}
-        className="group flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2 text-sm font-bold text-gray-800 dark:text-gray-100 transition hover:border-white/80 dark:hover:border-slate-700 hover:bg-white/90 dark:hover:bg-slate-800/90"
+        className={`group flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-sm transition ${
+          isItemActive
+            ? 'border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-800 shadow-xs ring-1 ring-indigo-200 dark:ring-indigo-900/60 font-black text-indigo-900 dark:text-white'
+            : 'border-transparent font-bold text-gray-800 dark:text-gray-100 hover:border-white/80 dark:hover:border-slate-700 hover:bg-white/90 dark:hover:bg-slate-800/90'
+        }`}
       >
         {content}
       </Link>
@@ -311,6 +325,30 @@ export function StudentDashboardPage() {
         {tab === 'paths' ? (
           <div className="max-w-7xl mx-auto w-full min-w-0">
             <PathsTab paths={paths} />
+          </div>
+        ) : tab === 'reports' ? (
+          <div className="max-w-7xl mx-auto w-full min-w-0">
+            <ReportsPage embedded={true} />
+          </div>
+        ) : tab === 'plan' ? (
+          <div className="max-w-7xl mx-auto w-full min-w-0">
+            <StudyPlanPage embedded={true} />
+          </div>
+        ) : tab === 'review' ? (
+          <div className="max-w-7xl mx-auto w-full min-w-0">
+            <ReviewLibraryPage embedded={true} />
+          </div>
+        ) : tab === 'assessments' ? (
+          <div className="max-w-7xl mx-auto w-full min-w-0">
+            <AssessmentAvailabilityPage embedded={true} />
+          </div>
+        ) : tab === 'assignments' ? (
+          <div className="max-w-7xl mx-auto w-full min-w-0">
+            <AssessmentAssignmentsPage embedded={true} />
+          </div>
+        ) : tab === 'results' ? (
+          <div className="max-w-7xl mx-auto w-full min-w-0">
+            <AssessmentResultsPage embedded={true} />
           </div>
         ) : (
           <div className="max-w-7xl mx-auto w-full min-w-0 space-y-6">

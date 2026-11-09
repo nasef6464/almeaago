@@ -60,7 +60,7 @@ function taskLink(item:StudyPlanItem,plan:StudyPlan){
   return '';
 }
 
-export function StudyPlanPage(){
+export function StudyPlanPage({ embedded }: { embedded?: boolean } = {}){
   const{user,loading:authLoading,getCsrfToken}=useAuth();
   const[taxonomy,setTaxonomy]=useState<TaxonomyCore>({paths:[],subjects:[]});
   const[pathId,setPathId]=useState('');
@@ -182,17 +182,21 @@ export function StudyPlanPage(){
   const progress=current?.items.length?Math.round(completed/current.items.length*100):0;
   const selectedPath=taxonomy.paths.find(x=>x.id===pathId)||null;
 
-  if(authLoading||busy)return <main className="p-10 text-center font-black">جاري تحميل الخطة...</main>;
-  if(!user||!user.roles.includes('student'))return <main className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</main>;
+  if(authLoading||busy)return <div className="p-10 text-center font-black">جاري تحميل الخطة...</div>;
+  if(!user||!user.roles.includes('student'))return <div className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</div>;
 
-  return <main dir="rtl" className="mx-auto max-w-6xl space-y-6 px-3 pb-20 pt-5 sm:px-6">
+  const ContainerTag = embedded ? 'div' : 'main';
+
+  return <ContainerTag dir="rtl" className={`mx-auto max-w-6xl space-y-6 ${embedded ? 'p-0 w-full' : 'px-3 pb-20 pt-5 sm:px-6'}`}>
     <header className="flex items-center gap-3 sm:gap-4">
-      <Link to="/" className="text-gray-500 transition hover:text-gray-700" aria-label="العودة للوحة الطالب">
-        <ArrowRight size={24}/>
-      </Link>
+      {!embedded ? (
+        <Link to="/dashboard" className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition" aria-label="العودة للوحة الطالب">
+          <ArrowRight size={24}/>
+        </Link>
+      ) : null}
       <div>
-        <h1 className="text-2xl font-black leading-tight text-indigo-900">خططي</h1>
-        <p className="mt-1 text-sm font-bold text-gray-500">ابدأ بمهمة اليوم، والباقي نمشيه معك خطوة بخطوة.</p>
+        <h1 className="text-2xl font-black leading-tight text-indigo-900 dark:text-white">خططي</h1>
+        <p className="mt-1 text-sm font-bold text-gray-500 dark:text-slate-400">ابدأ بمهمة اليوم، والباقي نمشيه معك خطوة بخطوة.</p>
       </div>
     </header>
 
@@ -330,5 +334,5 @@ export function StudyPlanPage(){
         </article>)}</div>}
       </section>
     </section>:!hasPlans&&!error?<div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-10 text-center font-bold text-gray-500">{statusView==='active'?'لا توجد خطة نشطة لهذا المسار بعد.':'لا توجد خطط مؤرشفة.'}</div>:null}
-  </main>;
+  </ContainerTag>;
 }

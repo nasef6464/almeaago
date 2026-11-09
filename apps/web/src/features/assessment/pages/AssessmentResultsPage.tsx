@@ -289,7 +289,7 @@ function ReviewQuestionCard({
   );
 }
 
-export function AssessmentResultsPage() {
+export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {}) {
   const { attemptId = '' } = useParams();
   const { user, loading: authLoading, getCsrfToken } = useAuth();
   const [history, setHistory] = useState<ResultListItem[]>([]);
@@ -389,31 +389,35 @@ export function AssessmentResultsPage() {
   }, [detail, filter]);
 
   if (authLoading || busy || (attemptId && detailContext !== activeContext && !error)) {
-    return <main className="p-10 text-center font-black">جاري تحميل النتائج...</main>;
+    return <div className="p-10 text-center font-black">جاري تحميل النتائج...</div>;
   }
   if (!user) {
-    return <main className="p-10 text-center font-black text-rose-700">يلزم تسجيل الدخول.</main>;
+    return <div className="p-10 text-center font-black text-rose-700">يلزم تسجيل الدخول.</div>;
   }
   if (error) {
-    return <main className="p-10 text-center font-black text-rose-700">{error}</main>;
+    return <div className="p-10 text-center font-black text-rose-700">{error}</div>;
   }
+
+  const ContainerTag = embedded ? 'div' : 'main';
 
   if (!attemptId) {
     const passedOnPage = history.filter((item) => item.showResultsReport && item.passed).length;
     const visibleScores = history.filter((item) => item.showResultsReport).map((item) => item.score);
     const bestOnPage = visibleScores.length ? Math.max(...visibleScores) : null;
     return (
-      <main dir="rtl" className="mx-auto max-w-4xl space-y-5 px-3 pb-20 pt-5 sm:px-6">
-        <header className="rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 via-white to-sky-50/40 p-5 shadow-sm">
+      <ContainerTag dir="rtl" className={`mx-auto max-w-4xl space-y-5 ${embedded ? 'p-0 w-full' : 'px-3 pb-20 pt-5 sm:px-6'}`}>
+        <header className="rounded-3xl border border-indigo-100 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/70 via-white to-sky-50/40 dark:from-indigo-950/60 dark:via-slate-900 dark:to-slate-900 p-5 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <Link to="/" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="العودة للوحة الطالب"><ArrowRight size={20}/></Link>
+              {!embedded ? (
+                <Link to="/dashboard" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm" aria-label="العودة للوحة الطالب"><ArrowRight size={20}/></Link>
+              ) : null}
               <div>
-                <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-black text-gray-900 sm:text-2xl">اختباراتي</h1><span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-black text-indigo-700">سجل الإنجاز</span></div>
-                <p className="mt-1 text-xs font-bold text-gray-500 sm:text-sm">محاولاتك ونتائجك المحفوظة من الخادم، مرتبة من الأحدث.</p>
+                <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-black text-gray-900 dark:text-white sm:text-2xl">اختباراتي</h1><span className="rounded-full bg-indigo-100 dark:bg-indigo-950/60 px-2.5 py-0.5 text-xs font-black text-indigo-700 dark:text-indigo-300">سجل الإنجاز</span></div>
+                <p className="mt-1 text-xs font-bold text-gray-500 dark:text-slate-400 sm:text-sm">محاولاتك ونتائجك المحفوظة من الخادم، مرتبة من الأحدث.</p>
               </div>
             </div>
-            <Link to="/assessments" className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800"><Target size={16}/>مركز الاختبارات</Link>
+            <Link to={embedded ? "/dashboard?tab=assessments" : "/assessments"} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/50 px-4 py-3 text-sm font-black text-amber-800 dark:text-amber-300"><Target size={16}/>مركز الاختبارات</Link>
           </div>
         </header>
 
@@ -432,7 +436,7 @@ export function AssessmentResultsPage() {
           <span className="text-xs font-black text-gray-500">صفحة {page}</span>
           <button type="button" disabled={!hasMore} onClick={()=>setPage((value)=>value+1)} className="inline-flex items-center gap-1 rounded-xl border bg-white px-3 py-2 text-sm font-black disabled:opacity-40">التالي<ChevronLeft size={16}/></button>
         </div>
-      </main>
+      </ContainerTag>
     );
   }
 

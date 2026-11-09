@@ -64,24 +64,24 @@ export const PricingComparisonMatrix: React.FC<PricingComparisonMatrixProps> = (
   };
 
   return (
-    <div className="mt-16 pt-10 border-t border-slate-200" id="packages-comparison" dir="rtl">
+    <div className="mt-16 pt-10 border-t border-slate-200 dark:border-slate-800" id="packages-comparison" dir="rtl">
       {/* Header section */}
       <div className="text-center max-w-3xl mx-auto mb-10">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50 border border-indigo-200/80 text-indigo-800 text-xs sm:text-sm font-black mb-3.5 shadow-2xs">
-          <Sparkles className="w-4 h-4 text-indigo-600" />
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800/80 text-indigo-800 dark:text-indigo-300 text-xs sm:text-sm font-black mb-3.5 shadow-2xs">
+          <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
           <span>مقارنة المزايا حسب الفئة العمرية والمرحلة الدراسية</span>
         </div>
-        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 leading-tight">
+        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 dark:text-white leading-tight">
           العضويات حسب المرحلة الدراسية
         </h2>
-        <p className="mt-3 text-sm sm:text-base text-slate-600 leading-relaxed">
+        <p className="mt-3 text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed">
           العضويات المدفوعة المتاحة للشراء تظهر في البطاقات المنشورة أعلاه.
         </p>
       </div>
 
       {/* Stage Switcher Tabs */}
       <div className="flex justify-center mb-8 px-2">
-        <div className="inline-flex flex-wrap sm:flex-nowrap p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200 shadow-inner max-w-full gap-1 sm:gap-2">
+        <div className="inline-flex flex-wrap sm:flex-nowrap p-1.5 bg-slate-100/90 dark:bg-slate-900/90 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner max-w-full gap-1 sm:gap-2">
           {(
             [
               { key: 'high', label: 'المرحلة الثانوية', icon: <GraduationCap className="w-4 h-4" /> },
@@ -97,8 +97,8 @@ export const PricingComparisonMatrix: React.FC<PricingComparisonMatrixProps> = (
                 onClick={() => setActiveStage(tab.key)}
                 className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-black transition-all ${
                   isActive
-                    ? 'bg-white text-indigo-700 shadow-sm border border-indigo-100 scale-[1.02]'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                    ? 'bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 shadow-sm border border-indigo-100 dark:border-slate-700 scale-[1.02]'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800/60'
                 }`}
               >
                 {tab.icon}
@@ -110,32 +110,32 @@ export const PricingComparisonMatrix: React.FC<PricingComparisonMatrixProps> = (
       </div>
 
       {/* Stage Audience Banner */}
-      <div className="mb-8 rounded-2xl bg-gradient-to-l from-indigo-50/80 via-blue-50/60 to-white border border-indigo-100/90 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+      <div className="mb-8 rounded-2xl bg-gradient-to-l from-indigo-50/80 via-blue-50/60 to-white dark:from-indigo-950/60 dark:via-slate-900 dark:to-slate-900 border border-indigo-100/90 dark:border-indigo-900/60 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
         <div className="flex items-start gap-3">
           <div className="p-2.5 bg-indigo-600 text-white rounded-xl shadow-xs mt-0.5 shrink-0">
             {currentStageData.icon}
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-base sm:text-lg font-black text-slate-900">{currentStageData.label}</span>
-              <span className="text-xs font-bold px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-md">
+              <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white">{currentStageData.label}</span>
+              <span className="text-xs font-bold px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300 rounded-md">
                 {currentStageData.targetAudience}
               </span>
             </div>
-            <p className="text-xs sm:text-sm text-slate-600 mt-1 leading-6">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1 leading-6">
               {currentStageData.decisionMakerNote}
             </p>
           </div>
         </div>
         <div className="text-left shrink-0">
-          <span className="text-xs text-indigo-700 font-extrabold bg-white px-3 py-1.5 rounded-xl border border-indigo-200/80 shadow-2xs inline-block">
+          <span className="text-xs text-indigo-700 dark:text-indigo-300 font-extrabold bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-indigo-200/80 dark:border-indigo-800 shadow-2xs inline-block">
             {currentStageData.tagline}
           </span>
         </div>
       </div>
 
       {/* Responsive Comparison Table Container */}
-      <div className="overflow-x-auto rounded-3xl border border-slate-200 bg-white shadow-xs">
+      <div className="overflow-x-auto rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
         <table className="w-full min-w-[680px] border-collapse text-right">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50/70">
