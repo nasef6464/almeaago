@@ -423,7 +423,7 @@ func (s *Service) SendCampaign(
 	actor identity.User,
 	input communication.CampaignWrite,
 ) (communication.CampaignResult, error) {
-	if requireAdmin(actor) != nil {
+	if requireActor(actor) != nil || (!actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleSupervisor)) {
 		return communication.CampaignResult{}, ErrForbidden
 	}
 	return s.sendCampaign(ctx, actor.ID, input, "")

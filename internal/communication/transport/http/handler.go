@@ -340,6 +340,7 @@ func (h *Handler) adminSend(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := h.service.SendCampaign(r.Context(), authenticated.User, input)
 	if err != nil {
+		println("DEBUG SEND CAMPAIGN ERROR:", err.Error())
 		writeError(w, err)
 		return
 	}

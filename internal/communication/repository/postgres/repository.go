@@ -250,7 +250,7 @@ func (r *Repository) CreateCampaign(
 			metadata
 		) VALUES(
 			$1::uuid,$2,$3,$4,$5,$6,$7,$8::uuid,$9,$10,$11,$12,NULLIF($13,'')::uuid,
-			jsonb_build_object('recipientName',$14)
+			jsonb_build_object('recipientName',$14::text)
 		)
 	`
 	batch := &pgx.Batch{}
