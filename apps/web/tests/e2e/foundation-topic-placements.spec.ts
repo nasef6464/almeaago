@@ -26,6 +26,49 @@ async function setup(page: Page) {
     return route.fulfill({ json: { items: [], ads: [], announcements: [], unreadCount: 0, hasMore: false } });
   });
 }
+
+test('a locked topic opens for a student when the server confirms entitlement', async ({page}) => {
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/foundation/topic-locked', route => route.fulfill({json:{topic:{...topics[2],isLocked:false,pathId:'path-1',subjectId:'subject-1',lessons:[{id:'paid-lesson',title:'شرح ضمن الباقة',description:'',type:'video',durationSeconds:60,isLocked:true,isPreview:false,commerceLocked:false,sortOrder:1}],libraryItems:[]}}}));
+  await page.goto('/category/path-1?subject=subject-1&tab=skills&topic=topic-locked&content=lessons');
+  const dialog=page.getByTestId('foundation-topic-dialog');
+  await expect(dialog.getByText('شرح ضمن الباقة')).toBeVisible();
+  await expect(dialog.getByText('هذا الموضوع ضمن باقة التأسيس')).toHaveCount(0);
+  await expect(dialog.locator('video[autoplay], iframe[src*="autoplay=1"]')).toHaveCount(0);
+});
+
+test('guest sees free and paid training, signs in for free and can view packages for paid', async ({page}) => {
+  test.setTimeout(90_000);
+  await setup(page);
+  await page.route('**/api/v1/auth/me', route => route.fulfill({status:401,json:{message:'login required'}}));
+  await page.route('**/api/v1/assessment-placements/available?**', route => route.fulfill({json:{items:[
+    {...placement('free'),slot:'training',title:'تدريب مجاني',accessAllowed:true,canStart:true,accessType:'free'},
+    {...placement('paid'),slot:'training',title:'تدريب ضمن باقة',accessAllowed:false,canStart:false,accessType:'package',accessReason:'package_required'},
+  ],page:1,limit:50,hasMore:false}}));
+  await page.goto('/category/path-1?subject=subject-1&tab=questions', {waitUntil:'domcontentloaded'});
+  await expect(page.getByRole('heading', {name:'كمي',exact:true})).toBeVisible();
+  await expect(page.getByLabel('المادة', {exact:true})).toHaveCount(0);
+  const free=page.getByRole('article').filter({hasText:'تدريب مجاني'});
+  const paid=page.getByRole('article').filter({hasText:'تدريب ضمن باقة'});
+  await expect(free).toBeVisible(); await expect(paid).toBeVisible();
+  await page.screenshot({path:'test-results/package-training-guest.png',fullPage:true});
+  await free.getByRole('button',{name:/ابدأ التدريب/}).click();
+  await expect(page).toHaveURL(/\/login\?returnTo=/);
+  await page.goto('/category/path-1?subject=subject-1&tab=questions', {waitUntil:'domcontentloaded'});
+  await page.getByRole('article').filter({hasText:'تدريب ضمن باقة'}).getByRole('button',{name:/فتح الباقة/}).click();
+  await expect(page).toHaveURL(/tab=packages/);
+});
+
+test('student with entitlement can start the paid training', async ({page}) => {
+  await setup(page);
+  await page.route('**/api/v1/assessment-placements/available?**', route => route.fulfill({json:{items:[{...placement('owned'),slot:'training',title:'تدريب مفعّل',accessType:'package',accessAllowed:true,accessReason:'user_entitlement',canStart:true}],page:1,limit:50,hasMore:false}}));
+  let starts=0;
+  await page.route('**/api/v1/assessment-placements/owned/start', route => {starts++; return route.fulfill({json:{attempt:{id:'owned-attempt'}}});});
+  await page.goto('/category/path-1?subject=subject-1&tab=questions');
+  await page.getByRole('article').filter({hasText:'تدريب مفعّل'}).getByRole('button',{name:/ابدأ التدريب/}).click();
+  await expect(page).toHaveURL(/assessment-attempts\/owned-attempt/);
+  expect(starts).toBe(1);
+});
 const open = (page: Page, topicId = 'topic-main') => page.goto(`/category/path-1?subject=subject-1&tab=skills&topic=${topicId}&content=quizzes`);
 
 test('foundation lesson is opened only when selected and rejects an incorrect lesson response', async ({ page }) => {
@@ -64,7 +107,7 @@ test('foundation lesson is opened only when selected and rejects an incorrect le
   await expect(dialog.getByLabel('الدرس المحدد')).toHaveCount(0);
   await expect(dialog.getByText('درس ثان', { exact: true })).toBeVisible();
   await dialog.getByRole('button', { name: 'فتح الدرس: درس ثان' }).click();
-  await expect(dialog.getByRole('heading', { name: 'درس ثان' })).toBeVisible();
+  await expect(dialog.getByRole('dialog', { name: 'الدرس المحدد' }).getByRole('heading', { name: 'درس ثان' })).toBeVisible();
   expect(reads).toBe(3);
 });
 

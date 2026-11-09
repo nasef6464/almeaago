@@ -45,6 +45,36 @@ async function openEditor(page: Page, scenario: typeof cases[number]) {
   return page.getByRole('heading', { name: scenario.title, exact: true }).locator('../..');
 }
 
+for (const width of [390,820,1440]) {
+  test(`taxonomy management controls stay inside cards at ${width}px`, async ({page}) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({width,height:900});
+    await setup(page,fixture());
+    const pathName=page.locator('strong').filter({hasText:'القدرات'}).first();
+    await expect(pathName).toBeVisible();
+    expect(await pathName.evaluate(node=>node.scrollWidth<=node.clientWidth)).toBe(true);
+    const pathCard=page.getByRole('heading',{name:'القدرات',exact:true}).locator('xpath=ancestor::article');
+    const subjectCard=page.locator('div.rounded-3xl').filter({has:page.getByRole('heading',{name:'الكمي',exact:true})});
+    async function controlsFit(card: ReturnType<Page['locator']>, names: string[]) {
+      const bounds=await card.boundingBox(); expect(bounds).not.toBeNull();
+      for(const name of names) {
+        const button=card.getByRole('button',{name,exact:true}); await expect(button).toBeVisible();
+        const box=await button.boundingBox(); expect(box).not.toBeNull();
+        expect(box!.x).toBeGreaterThanOrEqual(bounds!.x-1);
+        expect(box!.x+box!.width).toBeLessThanOrEqual(bounds!.x+bounds!.width+1);
+      }
+    }
+    await controlsFit(pathCard,['حذف المسار','إخفاء المسار من الموقع']);
+    await controlsFit(subjectCard,['حذف','إخفاء المادة','مساحة العمل']);
+    await page.screenshot({path:`test-results/taxonomy-subject-controls-${width}.png`,fullPage:true});
+    await page.getByRole('button',{name:/^المراحل التعليمية/}).click();
+    const levelCard=page.locator('div.rounded-3xl').filter({has:page.getByRole('heading',{name:'الأولى',exact:true})});
+    await controlsFit(levelCard,['حذف','إخفاء المرحلة','تعديل المرحلة']);
+    await page.screenshot({path:`test-results/taxonomy-level-controls-${width}.png`,fullPage:true});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true);
+  });
+}
+
 for (const width of [390, 820, 1440]) {
   for (const scenario of cases) {
     test(`taxonomy ${scenario.kind} edit preserves draft and retries after null 503 at ${width}px`, async ({ page }) => {

@@ -10,6 +10,7 @@ import (
 )
 
 type pathPresRaw struct {
+	IsVisible        *bool                 `json:"isVisible,omitempty"`
 	Color            string                `json:"color,omitempty"`
 	Icon             string                `json:"icon,omitempty"`
 	IconURL          string                `json:"iconUrl,omitempty"`
@@ -23,11 +24,13 @@ type pathPresRaw struct {
 }
 
 type levelPresRaw struct {
-	Icon    string `json:"icon,omitempty"`
-	IconURL string `json:"iconUrl,omitempty"`
+	IsVisible *bool  `json:"isVisible,omitempty"`
+	Icon      string `json:"icon,omitempty"`
+	IconURL   string `json:"iconUrl,omitempty"`
 }
 
 type subjectPresRaw struct {
+	IsVisible *bool          `json:"isVisible,omitempty"`
 	Color     string         `json:"color,omitempty"`
 	Icon      string         `json:"icon,omitempty"`
 	IconURL   string         `json:"iconUrl,omitempty"`
@@ -68,6 +71,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 		if len(presBytes) > 0 {
 			var pres pathPresRaw
 			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.IsVisible = pres.IsVisible
 				row.Color = pres.Color
 				row.Icon = pres.Icon
 				row.IconURL = pres.IconURL
@@ -108,6 +112,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 		if len(presBytes) > 0 {
 			var pres levelPresRaw
 			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.IsVisible = pres.IsVisible
 				row.Icon = pres.Icon
 				row.IconURL = pres.IconURL
 			}
@@ -142,6 +147,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 		if len(presBytes) > 0 {
 			var pres subjectPresRaw
 			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.IsVisible = pres.IsVisible
 				row.Color = pres.Color
 				row.Icon = pres.Icon
 				row.IconURL = pres.IconURL
@@ -158,7 +164,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	subjectRows.Close()
 
 	if !includeSkills {
-		return result, nil
+		return filterPublicVisibility(result), nil
 	}
 
 	skillRows, err := r.db.Query(ctx, `
@@ -189,7 +195,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	if err := skillRows.Err(); err != nil {
 		return result, err
 	}
-	return result, nil
+	return filterPublicVisibility(result), nil
 }
 
 func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, error) {
@@ -216,6 +222,7 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 		if len(presBytes) > 0 {
 			var pres pathPresRaw
 			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.IsVisible = pres.IsVisible
 				row.Color = pres.Color
 				row.Icon = pres.Icon
 				row.IconURL = pres.IconURL
@@ -254,6 +261,7 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 		if len(presBytes) > 0 {
 			var pres levelPresRaw
 			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.IsVisible = pres.IsVisible
 				row.Icon = pres.Icon
 				row.IconURL = pres.IconURL
 			}
@@ -284,6 +292,7 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 		if len(presBytes) > 0 {
 			var pres subjectPresRaw
 			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.IsVisible = pres.IsVisible
 				row.Color = pres.Color
 				row.Icon = pres.Icon
 				row.IconURL = pres.IconURL

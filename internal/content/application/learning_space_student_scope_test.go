@@ -52,3 +52,19 @@ func TestStudentLearningSpacePreservesMatchingScopeAndRepositoryFailure(t *testi
 		t.Fatalf("repository failure must propagate, not become an empty catalog: %v", err)
 	}
 }
+
+func TestLearningSpaceShowsFoundationUnlockedOnlyForEntitledStudent(t *testing.T) {
+	repo := &studentScopeRepo{repoStub: &repoStub{}, response: content.LearningSpace{PathID: "path-1", SubjectID: "subject-1", Foundation: []content.LearnerTopicSummary{{ID: "topic", IsLocked: true}}}}
+	access := &foundationAccessStub{allow: true}
+	s := NewServiceWithAuthorScope(repo, repo, access)
+	student := identity.User{ID: "student-1", Roles: []identity.Role{identity.RoleStudent}}
+	result, err := s.LearningSpace(context.Background(), student, "path-1", "subject-1", 24)
+	if err != nil || result.Foundation[0].IsLocked || access.path != "path-1" || access.subject != "subject-1" {
+		t.Fatalf("entitled result=%+v err=%v", result, err)
+	}
+	repo.response.Foundation[0].IsLocked = true
+	result, err = s.LearningSpace(context.Background(), identity.User{}, "path-1", "subject-1", 24)
+	if err != nil || !result.Foundation[0].IsLocked {
+		t.Fatalf("guest result=%+v err=%v", result, err)
+	}
+}

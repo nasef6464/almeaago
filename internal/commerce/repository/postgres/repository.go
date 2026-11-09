@@ -95,6 +95,35 @@ LIMIT $4 OFFSET $5
 		out.HasMore = true
 		out.Items = out.Items[:limit]
 	}
+	rows.Close()
+	packageIndexes := make(map[string]int)
+	packageIDs := make([]string, 0)
+	for i := range out.Items {
+		if out.Items[i].Package != nil {
+			id := out.Items[i].Package.ID
+			packageIndexes[id] = i
+			packageIDs = append(packageIDs, id)
+		}
+	}
+	if len(packageIDs) > 0 {
+		items, e := r.db.Query(ctx, `SELECT package_id::text,scope_type,COALESCE(course_id::text,''),COALESCE(path_id::text,''),COALESCE(subject_id::text,''),COALESCE(content_type,'') FROM commerce_package_items WHERE package_id::text=ANY($1::text[]) ORDER BY package_id,scope_type,course_id,path_id,subject_id,content_type`, packageIDs)
+		if e != nil {
+			return out, e
+		}
+		defer items.Close()
+		for items.Next() {
+			var packageID string
+			var item commerce.PackageItem
+			if e = items.Scan(&packageID, &item.ScopeType, &item.CourseID, &item.PathID, &item.SubjectID, &item.ContentType); e != nil {
+				return out, e
+			}
+			index := packageIndexes[packageID]
+			out.Items[index].Package.Items = append(out.Items[index].Package.Items, item)
+		}
+		if e = items.Err(); e != nil {
+			return out, e
+		}
+	}
 	return out, nil
 }
 
@@ -356,7 +385,6 @@ WITH active_entitlements AS (
       OR (
         granted_product.product_type IN ('package','membership')
         AND granted_product.status='active'
-        AND granted_product.is_visible=true
         AND (e.subject_type='user' OR pkg.seat_capacity IS NULL)
         AND EXISTS(
           SELECT 1
@@ -365,8 +393,8 @@ WITH active_entitlements AS (
             AND (
               pi.scope_type='all'
               OR (pi.scope_type='course' AND pi.course_id=$4::uuid)
-              OR (pi.scope_type='path' AND pi.path_id=$5::uuid)
-              OR (pi.scope_type='subject' AND pi.subject_id=$6::uuid)
+              OR (pi.scope_type='path' AND pi.path_id=$5::uuid AND (pi.content_type IS NULL OR pi.content_type IN ('courses','all')))
+              OR (pi.scope_type='subject' AND pi.subject_id=$6::uuid AND (pi.content_type IS NULL OR pi.content_type IN ('courses','all')))
               OR (pi.scope_type='content_type' AND pi.content_type IN ('courses','all'))
             )
         )

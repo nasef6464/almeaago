@@ -169,7 +169,9 @@ function FoundationTopicTraining({ pathId, subjectId, topicId }: { pathId: strin
 
 export function FoundationTopicDialog({ pathId, subjectId, topic, topics, contentTab, onSelectTopic, onSelectContent, onClose }: Props) {
   const { user } = useAuth();
-  const [detail, setDetail] = useState<LearnerTopic | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [detail, setDetail] = useState<{ scope: string; topic: LearnerTopic } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
@@ -181,7 +183,8 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
 
   const root = topics.find((item) => item.id === topic.parentTopicId) || topic;
   const children = topics.filter((item) => item.parentTopicId === root.id).sort((a, b) => a.sortOrder - b.sortOrder);
-  const detailForTopic = detail?.id === topic.id ? detail : null;
+  const detailScope = JSON.stringify([user?.id || '', pathId, subjectId, topic.id]);
+  const detailForTopic = detail?.scope === detailScope ? detail.topic : null;
 
   useEffect(() => { setSelectedLesson(''); }, [user?.id, pathId, subjectId, topic.id, contentTab]);
   useEffect(() => {
@@ -200,15 +203,13 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
   useEffect(() => {
     setDetail(null);
     setError('');
-    if (topic.isLocked) {
-      setLoading(false);
-      return;
-    }
     const controller = new AbortController();
     setLoading(true);
     contentClient.learnerTopic(topic.id, controller.signal)
       .then(({ topic: next }) => {
-        if (!controller.signal.aborted) setDetail(next);
+        if (controller.signal.aborted) return;
+        if (!next || next.id !== topic.id || next.pathId !== pathId || next.subjectId !== subjectId) throw new Error('تعذر التحقق من نطاق الموضوع.');
+        setDetail({ scope: detailScope, topic: next });
       })
       .catch((reason) => {
         if (!controller.signal.aborted) {
@@ -219,7 +220,7 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [topic.id, topic.isLocked, retry]);
+  }, [topic.id, pathId, subjectId, user?.id, detailScope, retry]);
 
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
@@ -276,11 +277,6 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
             <section className="flex-1 overflow-y-auto p-4 sm:p-6">
               {contentTab === 'quizzes' ? (
                 <FoundationTopicTraining pathId={pathId} subjectId={subjectId} topicId={topic.id} />
-              ) : topic.isLocked ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center font-bold text-amber-800">
-                  <Lock className="mx-auto mb-3" size={26} />
-                  هذا الموضوع ضمن باقة التأسيس
-                </div>
               ) : loading ? (
                 <p className="py-10 text-center font-bold text-gray-500">جاري تحميل المحتوى...</p>
               ) : error ? (
@@ -288,6 +284,11 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
                   <p>{error}</p>
                   <button type="button" onClick={() => setRetry((value) => value + 1)}
                     className="mt-3 rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white">إعادة المحاولة</button>
+                </div>
+              ) : !detailForTopic || detailForTopic.isLocked ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center font-bold text-amber-800">
+                  <Lock className="mx-auto mb-3" size={26} />
+                  هذا الموضوع ضمن باقة التأسيس
                 </div>
               ) : contentTab === 'lessons' ? (
                 detailForTopic?.lessons.length ? (
@@ -298,7 +299,7 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
                           <h3 className="font-bold text-gray-900">{lesson.title}</h3>
                           {lesson.description ? <p className="mt-1 text-sm text-gray-500">{lesson.description}</p> : null}
                         </div>
-                        <button type="button" aria-label={`فتح الدرس: ${lesson.title}`} onClick={() => { setSelectedLesson(lesson.id); setLessonRetry(0); }} className="inline-flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700">
+                        <button type="button" aria-label={`فتح الدرس: ${lesson.title}`} onClick={() => { if (!user) { navigate(`/login?returnTo=${encodeURIComponent(location.pathname + location.search + location.hash)}`); return; } setSelectedLesson(lesson.id); setLessonRetry(0); }} className="inline-flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700">
                           {lesson.isLocked || lesson.commerceLocked ? <Lock size={16} /> : <Video size={16} />} فتح الدرس
                         </button>
                       </article>
@@ -326,6 +327,8 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
                             <Lock size={14} />
                             <span>ضمن الباقة</span>
                           </span>
+                        ) : !user ? (
+                          <button type="button" onClick={() => navigate(`/login?returnTo=${encodeURIComponent(location.pathname + location.search + location.hash)}`)} className="rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700">سجل الدخول لفتح الملف</button>
                         ) : item.externalUrl ? (
                           <a
                             href={item.externalUrl}

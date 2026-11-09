@@ -36,13 +36,27 @@ func New(service *taxonomyapp.Service, authenticators ...Authenticator) http.Han
 	r.Get("/admin/bootstrap", h.adminBootstrap)
 	r.Post("/admin/paths", h.createPath)
 	r.Patch("/admin/paths/{id}", h.updatePath)
+	r.Delete("/admin/paths/{id}", h.deleteTaxonomy("path"))
 	r.Post("/admin/levels", h.createLevel)
 	r.Patch("/admin/levels/{id}", h.updateLevel)
+	r.Delete("/admin/levels/{id}", h.deleteTaxonomy("level"))
 	r.Post("/admin/subjects", h.createSubject)
 	r.Patch("/admin/subjects/{id}", h.updateSubject)
+	r.Delete("/admin/subjects/{id}", h.deleteTaxonomy("subject"))
 	r.Post("/admin/skills", h.createSkill)
 	r.Patch("/admin/skills/{id}", h.updateSkill)
 	return r
+}
+
+func (h *Handler) deleteTaxonomy(kind string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		auth, ok := h.authenticateMutation(w, r)
+		if !ok {
+			return
+		}
+		err := h.service.DeleteTaxonomy(r.Context(), auth.User, kind, chi.URLParam(r, "id"))
+		writeMutation(w, http.StatusOK, map[string]any{"deleted": true}, err)
+	}
 }
 
 func (h *Handler) authenticateRead(w http.ResponseWriter, r *http.Request) (identityapp.Authenticated, bool) {
@@ -184,6 +198,8 @@ func writeMutation(w http.ResponseWriter, status int, body any, err error) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Forbidden"})
 	case errors.Is(err, taxonomy.ErrNotFound):
 		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Taxonomy record not found"})
+	case errors.Is(err, taxonomy.ErrHasDependencies):
+		writeJSON(w, http.StatusConflict, map[string]string{"message": "لا يمكن الحذف لوجود بيانات مرتبطة. انقل المحتوى والارتباطات أو استخدم الأرشفة."})
 	case errors.Is(err, taxonomy.ErrConflict):
 		writeJSON(w, http.StatusConflict, map[string]string{"message": "Taxonomy hierarchy conflict"})
 	default:
@@ -249,6 +265,7 @@ func (h *Handler) bootstrap(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminPathResponse struct {
+	IsVisible        *bool  `json:"isVisible,omitempty"`
 	ID               string `json:"id"`
 	Code             string `json:"code"`
 	Name             string `json:"name"`
@@ -268,6 +285,7 @@ type adminPathResponse struct {
 	Settings         any    `json:"settings,omitempty"`
 }
 type adminLevelResponse struct {
+	IsVisible *bool  `json:"isVisible,omitempty"`
 	ID        string `json:"id"`
 	PathID    string `json:"pathId"`
 	Code      string `json:"code"`
@@ -278,6 +296,7 @@ type adminLevelResponse struct {
 	IconURL   string `json:"iconUrl,omitempty"`
 }
 type adminSubjectResponse struct {
+	IsVisible *bool          `json:"isVisible,omitempty"`
 	ID        string         `json:"id"`
 	PathID    string         `json:"pathId"`
 	LevelID   string         `json:"levelId,omitempty"`
@@ -358,6 +377,7 @@ func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
 	paths := make([]adminPathResponse, 0, len(value.Paths))
 	for _, row := range value.Paths {
 		paths = append(paths, adminPathResponse{
+			IsVisible:        row.IsVisible,
 			ID:               row.ID,
 			Code:             row.Code,
 			Name:             row.Name,
@@ -380,6 +400,7 @@ func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
 	levels := make([]adminLevelResponse, 0, len(value.Levels))
 	for _, row := range value.Levels {
 		levels = append(levels, adminLevelResponse{
+			IsVisible: row.IsVisible,
 			ID:        row.ID,
 			PathID:    row.PathID,
 			Code:      row.Code,
@@ -393,6 +414,7 @@ func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
 	subjects := make([]adminSubjectResponse, 0, len(value.Subjects))
 	for _, row := range value.Subjects {
 		subjects = append(subjects, adminSubjectResponse{
+			IsVisible: row.IsVisible,
 			ID:        row.ID,
 			PathID:    row.PathID,
 			LevelID:   row.LevelID,

@@ -48,6 +48,10 @@ type publicationInput struct {
 	ExpectedRevision int  `json:"expectedRevision"`
 	Published        bool `json:"published"`
 }
+type visibilityInput struct {
+	ExpectedRevision int   `json:"expectedRevision"`
+	IsVisible        *bool `json:"isVisible"`
+}
 
 func New(service *app.Service, auth Authenticator, attemptServices ...*app.AttemptService) http.Handler {
 	return NewWithDistribution(service, auth, nil, nil, attemptServices...)
@@ -67,6 +71,7 @@ func NewWithDistribution(service *app.Service, auth Authenticator, assignmentSer
 	r.Patch("/{id}", h.update)
 	r.Post("/{id}/workflow", h.workflow)
 	r.Post("/{id}/publication", h.publication)
+	r.Post("/{id}/visibility", h.visibility)
 	r.Post("/{id}/attempts", h.startAttempt)
 	r.Post("/{id}/submit", h.singleShotSubmit)
 	r.Get("/{id}/assignments", h.listAssignments)
@@ -212,6 +217,27 @@ func (h *Handler) publication(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, map[string]any{"assessment": x})
 }
+func (h *Handler) visibility(w http.ResponseWriter, r *http.Request) {
+	a, ok := h.authenticate(w, r, true)
+	if !ok {
+		return
+	}
+	var in visibilityInput
+	if !decode(w, r, &in) {
+		return
+	}
+	if in.IsVisible == nil {
+		writeError(w, app.ErrInvalidInput)
+		return
+	}
+	result, err := h.service.SetVisibility(r.Context(), a.User, chi.URLParam(r, "id"), in.ExpectedRevision, *in.IsVisible)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"assessment": result})
+}
+
 func writeError(w http.ResponseWriter, e error) {
 	switch {
 	case errors.Is(e, app.ErrInvalidInput):

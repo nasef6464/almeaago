@@ -52,6 +52,7 @@ jobs:
           # The overlay leaves all current checkout files intact, even on error.
           if go test -overlay "$red_dir/overlay.json" \
             ./internal/taxonomy/repository/postgres/repository.go \
+            ./internal/taxonomy/repository/postgres/public_visibility.go \
             ./internal/taxonomy/repository/postgres/mutations.go \
             ./internal/taxonomy/repository/postgres/path_parent_cycle_integration_test.go \
             -run TestAdminPathParentCyclePostgres -count=1 -v > "$red_dir/taxonomy-red.log" 2>&1; then

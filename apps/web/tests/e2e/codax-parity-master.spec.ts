@@ -21,7 +21,7 @@ test.describe('ALMEAA CODAX 1:1 Parity Suite - Tier 1: Feature Coverage', () => 
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
-    const aside = page.locator('aside');
+    const aside = page.getByRole('complementary', { name: 'تنقل لوحة الطالب' });
     if (await aside.isVisible()) {
       const box = await aside.boundingBox();
       expect(box).not.toBeNull();

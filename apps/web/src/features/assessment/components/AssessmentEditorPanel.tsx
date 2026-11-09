@@ -18,6 +18,8 @@ import {
   HelpCircle,
   AlertCircle,
   Eye,
+  X,
+  Users,
 } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { assessmentClient } from '../api/assessment-client';
@@ -75,7 +77,7 @@ const baseVersion = (pathId: string, subjectId: string): AssessmentVersion => ({
 });
 
 export function AssessmentEditorPanel(p: Props) {
-  const [activeTab, setActiveTab] = useState<'info' | 'sections' | 'questions' | 'settings'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'sections' | 'questions' | 'settings' | 'access'>('info');
   const [detail, setDetail] = useState<AssessmentDetail | null>(null);
   const [code, setCode] = useState('');
   const [version, setVersion] = useState<AssessmentVersion>(() => baseVersion(p.initialPathId, p.initialSubjectId));
@@ -86,6 +88,8 @@ export function AssessmentEditorPanel(p: Props) {
   const [qDifficulty, setQDifficulty] = useState<string>('all');
   const [loading, setLoading] = useState(Boolean(p.assessmentId));
   const [saving, setSaving] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
   const [error, setError] = useState('');
   const [successNotice, setSuccessNotice] = useState('');
 
@@ -101,17 +105,21 @@ export function AssessmentEditorPanel(p: Props) {
   useEffect(() => {
     if (!p.assessmentId) return;
     const c = new AbortController();
+    setLoading(true);
+    setError('');
     assessmentClient
       .get(p.assessmentId, c.signal)
       .then((r) => {
+        if (c.signal.aborted) return;
         setDetail(r.assessment);
         setCode(r.assessment.code);
         setVersion(r.assessment.version);
+        setIsVisible(r.assessment.isVisible);
         setSections(r.assessment.sections || []);
         setQuestions(r.assessment.questions || []);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'تعذر تحميل الاختبار'))
-      .finally(() => setLoading(false));
+      .catch((e) => { if (!c.signal.aborted) setError(e instanceof Error ? e.message : 'تعذر تحميل الاختبار'); })
+      .finally(() => { if (!c.signal.aborted) setLoading(false); });
     return () => c.abort();
   }, [p.assessmentId]);
 
@@ -344,7 +352,7 @@ export function AssessmentEditorPanel(p: Props) {
         ownerUserId: detail?.ownerUserId || '',
         ownerSchoolId: detail?.ownerSchoolId || '',
         assignedTeacherId: detail?.assignedTeacherId || '',
-        isVisible: detail?.isVisible ?? true,
+        isVisible,
         version: {
           ...version,
           timeLimitSeconds: version.timeLimitSeconds ? Number(version.timeLimitSeconds) : null,
@@ -387,6 +395,24 @@ export function AssessmentEditorPanel(p: Props) {
     }
   }
 
+  async function changeApprovedVisibility(visible: boolean) {
+    if (!p.assessmentId || !detail || !p.isAdmin || visibilitySaving) return;
+    setVisibilitySaving(true);
+    setError('');
+    setSuccessNotice('');
+    try {
+      const csrf = await p.getCsrfToken();
+      const response = await assessmentClient.visibility(p.assessmentId, detail.revision, visible, csrf);
+      setDetail(response.assessment);
+      setIsVisible(response.assessment.isVisible);
+      setSuccessNotice(visible ? 'تم إظهار الاختبار للطلاب.' : 'تم إخفاء الاختبار عن الطلاب.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'تعذر تغيير ظهور الاختبار');
+    } finally {
+      setVisibilitySaving(false);
+    }
+  }
+
   if (loading) return <div className="p-10 text-center font-black">جاري تحميل منشئ الاختبار...</div>;
 
   return (
@@ -397,13 +423,18 @@ export function AssessmentEditorPanel(p: Props) {
       ) : null}
 
       {/* Header Bar */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={p.onCancel}
-          className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 font-black text-gray-700 shadow-xs hover:bg-gray-50"
-        >
-          <ArrowRight size={18} /> العودة لمركز الاختبارات
-        </button>
+      <div data-testid="assessment-editor-header" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            aria-label="العودة لمركز الاختبارات"
+            onClick={p.onCancel}
+            className="rounded-lg p-2 transition-colors hover:bg-gray-200"
+          >
+            <X size={20} className="text-gray-500" />
+          </button>
+          <h1 className="text-xl font-bold text-gray-800">{p.assessmentId ? 'تعديل الاختبار' : 'إنشاء اختبار جديد'}</h1>
+        </div>
         <div className="flex flex-wrap gap-2">
           {detail && detail.workflowStatus !== 'approved' ? (
             <button
@@ -432,7 +463,7 @@ export function AssessmentEditorPanel(p: Props) {
           <button
             disabled={saving}
             onClick={save}
-            className="rounded-xl bg-amber-500 px-6 py-2 font-black text-slate-950 shadow-xs hover:bg-amber-400 disabled:opacity-50"
+            className="rounded-xl bg-indigo-600 px-6 py-2 font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
           >
             {saving ? 'جاري الحفظ...' : 'حفظ الاختبار'}
           </button>
@@ -440,36 +471,34 @@ export function AssessmentEditorPanel(p: Props) {
       </div>
 
       {/* Main Title & Kind Badge */}
-      <section className="rounded-3xl bg-slate-950 p-6 text-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-6">
           <div>
             <div className="flex items-center gap-2">
-              <span className="rounded-lg bg-amber-500/20 px-2.5 py-1 text-xs font-black text-amber-400">
+              <span className="rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-black text-indigo-700">
                 {version.kind === 'mock' ? 'MOCK EXAM · محاكي قياس' : 'REGULAR EXAM · اختبار قياسي'}
               </span>
               {detail ? (
-                <span className="rounded-lg bg-slate-800 px-2 py-0.5 text-xs text-slate-400">
+                <span className="rounded-lg bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
                   {detail.code} · v{detail.currentVersion}
                 </span>
               ) : null}
             </div>
-            <h1 className="mt-2 text-2xl font-black">
-              {p.assessmentId ? `تعديل: ${version.title || 'بدون عنوان'}` : 'إنشاء وتصميم اختبار جديد'}
-            </h1>
-            <p className="mt-1 text-xs text-slate-400">
+            {p.assessmentId ? <p className="mt-2 text-lg font-black text-gray-800">{version.title || 'بدون عنوان'}</p> : null}
+            <p className="mt-1 text-xs text-gray-500">
               منشئ الاختبارات الموحد — يدعم الاختبارات العادية، محاكيات قياس الصارمة بالأقسام، والتوليد الآلي للأسئلة.
             </p>
           </div>
 
           {/* Mode Switcher */}
-          <div className="flex rounded-2xl bg-slate-900 p-1.5 border border-slate-800">
+          <div className="flex flex-wrap rounded-xl border border-gray-200 bg-gray-50 p-1">
             <button
               type="button"
               onClick={() => setVersion((v) => ({ ...v, kind: 'normal', normalMode: 'exam' }))}
               className={`rounded-xl px-4 py-2 text-xs font-black transition ${
                 version.kind === 'normal'
-                  ? 'bg-amber-500 text-slate-950 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
               اختبار عادي (تقييم / تدريب)
@@ -486,7 +515,7 @@ export function AssessmentEditorPanel(p: Props) {
               className={`rounded-xl px-4 py-2 text-xs font-black transition ${
                 version.kind === 'mock'
                   ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+                  : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
               محاكي قياس رسمي (أقسام ومؤقت)
@@ -495,52 +524,29 @@ export function AssessmentEditorPanel(p: Props) {
         </div>
 
         {/* Tab Navigation */}
-        <div className="mt-6 flex flex-wrap gap-2 border-t border-slate-800 pt-4">
-          <button
-            type="button"
-            onClick={() => setActiveTab('info')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
-              activeTab === 'info'
-                ? 'bg-white text-slate-950 shadow-xs'
-                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-900'
-            }`}
-          >
-            <FileQuestion size={16} /> 1. البيانات الأساسية
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('sections')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
-              activeTab === 'sections'
-                ? 'bg-white text-slate-950 shadow-xs'
-                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-900'
-            }`}
-          >
-            <Layers size={16} /> 2. الأقسام والمؤقت ({sections.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('questions')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
-              activeTab === 'questions'
-                ? 'bg-white text-slate-950 shadow-xs'
-                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-900'
-            }`}
-          >
-            <CheckCircle2 size={16} /> 3. انتقاء وتوليد الأسئلة ({questions.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('settings')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
-              activeTab === 'settings'
-                ? 'bg-white text-slate-950 shadow-xs'
-                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-900'
-            }`}
-          >
-            <Settings size={16} /> 4. الإعدادات والسياسات
-          </button>
-        </div>
+        <nav aria-label="أقسام منشئ الاختبارات" className="flex flex-wrap border-t border-gray-200 bg-white px-2 sm:px-6">
+          {([
+            { id: 'info', label: 'المعلومات الأساسية', Icon: FileQuestion },
+            { id: 'questions', label: 'الأسئلة', Icon: CheckCircle2 },
+            { id: 'settings', label: 'الإعدادات', Icon: Settings },
+            { id: 'access', label: 'الصلاحيات والنشر', Icon: Users },
+            { id: 'sections', label: 'الأقسام والمؤقت', Icon: Layers },
+          ] as const).map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={activeTab === id}
+              onClick={() => setActiveTab(id)}
+              className={`flex items-center gap-2 border-b-2 px-4 py-4 text-sm font-bold transition-colors ${
+                activeTab === id
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+              }`}
+            >
+              <Icon size={18} /> {label}
+            </button>
+          ))}
+        </nav>
       </section>
 
       {/* Notifications */}
@@ -633,27 +639,7 @@ export function AssessmentEditorPanel(p: Props) {
           </div>
 
           <div className="space-y-4 rounded-3xl border bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-black text-gray-900">سياسة الوصول ونمط الاختبار</h2>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700">سياسة الاستحقاق والوصول</label>
-              <select
-                aria-label="سياسة وصول الاختبار"
-                value={version.accessType}
-                onChange={(e) =>
-                  setVersion((v) => ({
-                    ...v,
-                    accessType: e.target.value as AssessmentVersion['accessType'],
-                  }))
-                }
-                className="mt-1 w-full rounded-xl border p-3 text-sm font-bold"
-              >
-                <option value="free">مجاني (متاح لجميع الطلاب دون اشتراك)</option>
-                <option value="paid">مدفوع / مشمول ضمن باقات المسار أو المادة</option>
-                <option value="private">خاص وموجه لمجموعات وفصول محددة</option>
-                <option value="course_only">داخل محتوى دورة تدريبية فقط</option>
-              </select>
-            </div>
+            <h2 className="text-lg font-black text-gray-900">نمط الاختبار</h2>
 
             {version.kind === 'normal' ? (
               <div>
@@ -711,6 +697,47 @@ export function AssessmentEditorPanel(p: Props) {
               </button>
             </div>
           </div>
+        </section>
+      ) : null}
+
+      {activeTab === 'access' ? (
+        <section className="space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-gray-800">الصلاحيات والنشر</h2>
+          <div>
+            <label htmlFor="assessment-access-type" className="mb-2 block text-sm font-bold text-gray-700">نوع الوصول</label>
+            <select
+              id="assessment-access-type"
+              aria-label="سياسة وصول الاختبار"
+              value={version.accessType}
+              disabled={detail?.workflowStatus === 'approved' || detail?.workflowStatus === 'archived'}
+              onChange={(e) => setVersion((v) => ({ ...v, accessType: e.target.value as AssessmentVersion['accessType'] }))}
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 disabled:bg-gray-100"
+            >
+              <option value="free">مجاني للجميع</option>
+              <option value="paid">ضمن باقة / يحتاج تفعيل</option>
+              <option value="private">خاص وموجه</option>
+              <option value="course_only">داخل الدورات فقط</option>
+            </select>
+            {version.accessType === 'private' ? <p className="mt-2 text-xs text-gray-600">لا يتاح الوصول المباشر لهذا الاختبار؛ يحتاج الطالب إلى تعيين موجه.</p> : null}
+            {version.accessType === 'course_only' ? <p className="mt-2 text-xs text-gray-600">يفتح من موضع مرتبط بدورة مع تحقق صلاحية الوصول للدورة.</p> : null}
+          </div>
+          <label className="flex items-center gap-3 border-t border-gray-100 pt-4 text-sm font-bold text-gray-800">
+            <input
+              type="checkbox"
+              checked={isVisible}
+              disabled={visibilitySaving || detail?.workflowStatus === 'archived' || (detail?.workflowStatus === 'approved' && !p.isAdmin)}
+              onChange={(e) => {
+                if (detail?.workflowStatus === 'approved') void changeApprovedVisibility(e.target.checked);
+                else setIsVisible(e.target.checked);
+              }}
+              className="h-4 w-4 accent-indigo-600"
+            />
+            إظهار الاختبار للطلاب
+          </label>
+          <p className="text-xs text-gray-600">{detail?.workflowStatus === 'approved' ? 'تغيير الظهور يُحفظ فورًا ولا يغيّر حالة النشر. إخفاء الاختبار قد يمنع إتاحته في التعيينات والجلسات المرتبطة حتى إعادة إظهاره.' : 'تُحفظ إعدادات الظهور والوصول مع الاختبار؛ يلزم اعتماد الاختبار ونشره قبل إتاحته.'}</p>
+          {detail?.workflowStatus === 'approved' || detail?.workflowStatus === 'archived' ? (
+            <p className="rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-800">لا يمكن تعديل نوع الوصول بالحفظ العادي بعد اعتماد الاختبار أو أرشفته.</p>
+          ) : null}
         </section>
       ) : null}
 

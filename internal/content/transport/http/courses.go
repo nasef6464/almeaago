@@ -177,4 +177,3 @@ func (h *Handler) enrollCourse(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
-

@@ -39,9 +39,22 @@ jobs:
         run: |
           set -euo pipefail
           FILE=internal/content/repository/postgres/learning_space.go
+          TEST=internal/content/repository/postgres/learner_placement_scope_integration_test.go
           BASE=98b0f6d9ad0bba031936d950d087c0bd3d19b7bb
           cp "$FILE" /tmp/content-placement-green.go
-          trap 'cp /tmp/content-placement-green.go "$FILE"' EXIT
+          cp "$TEST" /tmp/content-placement-green-test.go
+          trap 'cp /tmp/content-placement-green.go "$FILE"; cp /tmp/content-placement-green-test.go "$TEST"' EXIT
+          # The historical implementation predates the foundation-lesson reader.
+          # Keep the original placement regression in RED; restore every newer
+          # assertion for GREEN instead of accepting a compilation failure.
+          python3 - "$TEST" <<'PY'
+          import pathlib, sys
+          path = pathlib.Path(sys.argv[1])
+          text = path.read_text()
+          marker = '\tif row, err := repo.GetLearnerFoundationLesson('
+          assert text.count(marker) == 1
+          path.write_text(text[:text.index(marker)] + '}\n')
+          PY
           git fetch --no-tags --depth=1 origin "$BASE"
           git show "$BASE:$FILE" > "$FILE"
           if go test ./internal/content/repository/postgres -run TestLearnerPlacementScopePostgres -count=1 -v > /tmp/content-placement-red.log 2>&1; then
@@ -53,4 +66,5 @@ jobs:
           grep -q "course leaked foreign-subject lesson" /tmp/content-placement-red.log
           echo "RED confirmed against unmodified Go main"
           cp /tmp/content-placement-green.go "$FILE"
+          cp /tmp/content-placement-green-test.go "$TEST"
           go test ./internal/content/repository/postgres -run TestLearnerPlacementScopePostgres -count=1 -v

@@ -15,7 +15,7 @@ const learningSpace = (pathId = 'p1', subjectId = 's1') => ({
   library: { items: [], hasMore: false },
 });
 const topicDetail = (row = topic) => ({
-  topic: { ...row, lessons: [{ id: 'lesson-1', title: 'شرح النسب', description: '', type: 'video', durationSeconds: 600, isLocked: false, isPreview: false, commerceLocked: false, sortOrder: 1 }],
+  topic: { ...row, pathId: 'p1', subjectId: 's1', lessons: [{ id: 'lesson-1', title: 'شرح النسب', description: '', type: 'video', durationSeconds: 600, isLocked: false, isPreview: false, commerceLocked: false, sortOrder: 1 }],
     libraryItems: [{ id: 'support-1', title: 'ملف النسب', description: '', type: 'pdf', isLocked: false }] },
 });
 function json(route: Route, body: unknown, status = 200) {
@@ -72,7 +72,7 @@ test('topic tab and subtopic selection survive reload and browser back', async (
   await expect(dialog).toHaveCount(0);
 });
 
-test('locked topic does not fetch placement details or reveal lesson metadata', async ({ page }) => {
+test('locked topic checks entitlement without revealing lesson metadata', async ({ page }) => {
   await setup(page);
   let reads = 0;
   await page.route('**/api/v1/learning-spaces/foundation/t2', (route) => { reads += 1; return json(route, topicDetail(locked)); });
@@ -80,7 +80,7 @@ test('locked topic does not fetch placement details or reveal lesson metadata', 
   const dialog = page.getByTestId('foundation-topic-dialog');
   await expect(dialog).toContainText('هذا الموضوع ضمن باقة التأسيس');
   await expect(dialog).not.toContainText('شرح النسب');
-  expect(reads).toBe(0);
+  expect(reads).toBeGreaterThan(0);
 });
 
 test('failed topic detail request offers retry without losing selection', async ({ page }) => {

@@ -3,6 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 // Opt-in escape hatch for restricted ephemeral environments where the Playwright
 // browser CDN is unreachable. Normal CI runs keep using Playwright's pinned binary.
 const localChromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?.trim();
+const webPort = process.env.E2E_WEB_PORT || '4173';
+if (!/^\d{1,5}$/.test(webPort) || Number(webPort) < 1 || Number(webPort) > 65535) throw new Error('Invalid E2E_WEB_PORT');
+const webURL = `http://127.0.0.1:${webPort}`;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -12,7 +15,7 @@ export default defineConfig({
   retries: 0,
   reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: webURL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
@@ -28,9 +31,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 4173',
-    url: 'http://127.0.0.1:4173',
+    command: `npm run dev -- --host 127.0.0.1 --port ${webPort}`,
+    url: webURL,
     reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
+    timeout: 120_000,
   },
 });

@@ -204,7 +204,7 @@ test.describe('Learning Space & Foundation Workspace Parity', () => {
     await page.goto('/category/p_qudrat?subject=sub_quant&tab=questions');
 
     // 1. Verify header breadcrumb and subject identity
-    await expect(page.getByRole('heading', { name: 'القدرات العامة (القدرات العامة - كمي)' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'القدرات العامة - كمي', exact: true })).toBeVisible();
 
     // 2. Verify Training tab is active
     const trainingTab = page.getByRole('button', { name: 'التدريب', exact: true });

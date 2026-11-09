@@ -307,4 +307,3 @@ func TestChallenge_SingleShotSubmit_ConcurrentDuplicateKeyIdempotency(t *testing
 		}
 	}
 }
-

@@ -939,7 +939,6 @@ func defaultChatSuggestions(msg string) []string {
 	}
 }
 
-
 func (s *Service) callProviderChain(
 	ctx context.Context,
 	prompt string,

@@ -92,6 +92,7 @@ export interface FoundationTopicSummary {
 }
 
 export interface TaxonomyPath {
+  color?: string;
   showInHome?: boolean;
   id: string;
   code: string;
@@ -102,6 +103,7 @@ export interface TaxonomyPath {
 }
 
 export interface TaxonomySubject {
+  color?: string;
   id: string;
   pathId: string;
   levelId?: string;
