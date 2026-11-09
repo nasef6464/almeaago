@@ -4,21 +4,43 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - "apps/web/src/app/App.tsx"
-      - "apps/web/src/features/learning/navigation/**"
-      - "apps/web/src/features/learning/**"
-      - "apps/web/src/features/public/components/**"
-      - "apps/web/src/features/content/**"
-      - "apps/web/src/features/presentation/**"
+      # All frontend source changes can affect shared routing/auth and browser parity.
+      - "apps/web/src/**"
       - "apps/web/tests/e2e/**"
       - "apps/web/playwright.config.ts"
       - "apps/web/package.json"
+      # The browser depends on the Go API, security middleware and persisted schema.
+      - "cmd/api/**"
+      - "internal/**"
+      - "db/**"
+      - "migrations/**"
+      - "sqlc.yaml"
+      - "go.mod"
+      - "go.sum"
       - ".github/workflows/frontend-e2e.yml"
       - "docs/**"
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/src/**"
+      - "apps/web/tests/e2e/**"
+      - "apps/web/playwright.config.ts"
+      - "apps/web/package.json"
+      # Browser journeys depend on Go HTTP contracts and persisted schema, not just React.
+      - "cmd/api/**"
+      - "internal/**"
+      - "db/**"
+      - "sqlc.yaml"
+      - "go.mod"
+      - "go.sum"
+      - "migrations/**"
+      - ".github/workflows/frontend-e2e.yml"
 
 concurrency:
   group: frontend-e2e-${{ github.ref }}
-  cancel-in-progress: true
+  # Preserve a completed browser verdict for each exact PR head and post-merge main.
+  # Superseded runs can queue rather than silently erasing the only E2E evidence.
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -26,12 +48,75 @@ permissions:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: almeaa
+          POSTGRES_PASSWORD: almeaa
+          POSTGRES_DB: almeaa
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U almeaa -d almeaa"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+      REDIS_URL: redis://127.0.0.1:6379/0
+      CLASSROOM_PIN_SECRET: ci-disposable-classroom-pin-secret
+      WEB_ORIGIN: http://127.0.0.1:4173
+      PGPASSWORD: almeaa
+    # Full Chromium suite exceeded the previous 15-minute job budget after 165+ tests.
+    # Preserve every test and the browser evidence; allow the suite to finish.
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: apps/web
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Apply schema migrations to disposable PostgreSQL
+        working-directory: .
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          mapfile -t migrations < <(find migrations -maxdepth 1 -name '*.up.sql' -type f | sort)
+          test "${#migrations[@]}" -gt 0
+          for file in "${migrations[@]}"; do
+            psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f "$file" >/dev/null
+          done
+      - name: Start real Go API and verify HTTP readiness
+        working-directory: .
+        shell: bash
+        run: |
+          set -euo pipefail
+          go run ./cmd/api > /tmp/almeaa-e2e-api.log 2>&1 &
+          echo $! > /tmp/almeaa-e2e-api.pid
+          ready=0
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8080/health/ready >/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$(cat /tmp/almeaa-e2e-api.pid)" 2>/dev/null; then
+              cat /tmp/almeaa-e2e-api.log
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/almeaa-e2e-api.log
+            exit 1
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -45,6 +130,57 @@ jobs:
           test -x "$BROWSER_PATH"
           PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$BROWSER_PATH" npm run e2e:local -- tests/e2e/organizations-director.spec.ts --grep "school director desktop runs bounded student class and teacher operations"
       - run: npm run e2e
+      - name: Summarize failing browser tests without changing the test verdict
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report = Path('test-results/playwright-results.json')
+          if not report.exists():
+              print('No Playwright JSON report was produced; check the test runner logs.')
+              raise SystemExit(0)
+          data = json.loads(report.read_text())
+          from collections import Counter
+          from os import environ
+          failures = []
+          def owner(path):
+              p = path.lower()
+              if any(key in p for key in ('student-', 'assessment-', 'quiz-', 'learning-')):
+                  return 'student-learning (#269)'
+              if any(key in p for key in ('school-', 'organizations-', 'supervisor-', 'director-')):
+                  return 'schools (#268)'
+              if any(key in p for key in ('taxonomy-', 'admin-', 'course-', 'content-')):
+                  return 'central-admin (#264)'
+              return 'integration (#265)'
+          def walk(suites):
+              for suite in suites:
+                  for spec in suite.get('specs', []):
+                      for test in spec.get('tests', []):
+                          if test.get('status') not in ('expected', 'skipped'):
+                              path = spec.get('file', suite.get('file', 'unknown'))
+                              results = test.get('results', [])
+                              errors = [err.get('message', '') for result in results for err in result.get('errors', [])]
+                              first_error = next((e.splitlines()[0][:240] for e in errors if e), 'see trace')
+                              failures.append((path, spec.get('title', ''), test.get('status', 'unknown'), first_error))
+                  walk(suite.get('suites', []))
+          walk(data.get('suites', []))
+          counts = Counter(owner(path) for path, _, _, _ in failures)
+          lines = ['### Playwright browser verdict', '',
+                   f"Passed: {data.get('stats', {}).get('expected', 0)}; failed/unexpected: {len(failures)}; skipped: {data.get('stats', {}).get('skipped', 0)}", '',
+                   '#### Triage by owning lane (filename heuristic; confirm before assigning)', '']
+          lines += [f'- {team}: {count} failing cases' for team, count in sorted(counts.items())]
+          lines += ['', '#### Failed tests and first assertion', '']
+          lines += [f'- `{path}`: {title} ({status}) — {error}' for path, title, status, error in failures]
+          with open(environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              out.write('\n'.join(lines) + '\n')
+          print('\n'.join(lines[:55]))
+          PY
+      - name: Print Go API diagnostics on failure
+        if: failure()
+        shell: bash
+        run: tail -n 150 /tmp/almeaa-e2e-api.log 2>/dev/null || true
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4

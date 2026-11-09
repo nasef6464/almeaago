@@ -53,8 +53,21 @@ test('baseline records the Node mount table and detects its exact Go comparison'
   const comparison = compareMounts(baseline.mounts, go);
   assert.equal(baseline.sourceFile, 'server/src/routes/index.ts');
   assert.equal(comparison.legacyMounts, 33);
-  assert.equal(comparison.targetMounts, 33);
+  // Go main@29593d18 has 35 explicit mounts, including the search, public
+  // article, and the two quiz registrations. Mounts are NOT endpoint parity.
+  assert.equal(comparison.targetMounts, 35);
   assert.equal(comparison.legacyUniquePrefixes, 30);
-  assert.equal(comparison.targetUniquePrefixes, 33);
-  assert.deepEqual(comparison.sharedExactPrefixes, ['/api/school-access']);
+  assert.equal(comparison.targetUniquePrefixes, 35);
+  assert.deepEqual(comparison.sharedExactPrefixes, ['/api/quizzes', '/api/school-access']);
+  assert.deepEqual(
+    go.filter(({ prefix }) => [
+      '/api/v1/search', '/api/v1/public/articles', '/api/v1/quizzes', '/api/quizzes',
+    ].includes(prefix)),
+    [
+      { prefix: '/api/v1/search', owner: 'deps.Search' },
+      { prefix: '/api/v1/public/articles', owner: 'deps.PublicArticles' },
+      { prefix: '/api/v1/quizzes', owner: 'deps.Quizzes' },
+      { prefix: '/api/quizzes', owner: 'deps.Quizzes' },
+    ],
+  );
 });
