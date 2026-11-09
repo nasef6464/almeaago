@@ -182,6 +182,20 @@ export function StudentDashboardPage() {
 
   const navItem = (item: NavItem) => {
     const Icon = item.icon;
+    const content = (
+      <>
+        <span className="flex min-w-0 flex-1 items-center gap-3">
+          <span className={'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-xs ' + item.tone}>
+            <Icon size={17} />
+          </span>
+          <span className="text-sm font-black text-gray-800 leading-tight whitespace-nowrap overflow-visible">
+            {item.label}
+          </span>
+        </span>
+        <ChevronLeft size={16} className="shrink-0 text-gray-400 group-hover:text-indigo-600 group-hover:-translate-x-0.5 transition-all" />
+      </>
+    );
+
     if (item.onClick) {
       return (
         <button
@@ -191,15 +205,9 @@ export function StudentDashboardPage() {
             setSidebarOpen(false);
             item.onClick?.();
           }}
-          className="flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2 text-sm font-bold text-gray-800 transition hover:border-white/80 hover:bg-white/80 text-right"
+          className="group flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2 text-sm font-bold text-gray-800 transition hover:border-white/80 hover:bg-white/90 text-right"
         >
-          <span className="flex min-w-0 items-center gap-3">
-            <span className={'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ' + item.tone}>
-              <Icon size={17} />
-            </span>
-            <span className="truncate">{item.label}</span>
-          </span>
-          <ChevronLeft size={15} className="shrink-0 text-gray-400" />
+          {content}
         </button>
       );
     }
@@ -208,15 +216,9 @@ export function StudentDashboardPage() {
         key={item.to}
         to={item.to || '/'}
         onClick={() => setSidebarOpen(false)}
-        className="flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2 text-sm font-bold text-gray-800 transition hover:border-white/80 hover:bg-white/80"
+        className="group flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2 text-sm font-bold text-gray-800 transition hover:border-white/80 hover:bg-white/90"
       >
-        <span className="flex min-w-0 items-center gap-3">
-          <span className={'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ' + item.tone}>
-            <Icon size={17} />
-          </span>
-          <span className="truncate">{item.label}</span>
-        </span>
-        <ChevronLeft size={15} className="shrink-0 text-gray-400" />
+        {content}
       </Link>
     );
   };
@@ -246,22 +248,25 @@ export function StudentDashboardPage() {
 
       <aside
         aria-label="تنقل لوحة الطالب"
-        className={`fixed bottom-0 right-0 top-20 z-40 h-[calc(100vh-5rem)] w-72 shrink-0 max-w-[calc(100vw-1rem)] overflow-y-auto border-l border-gray-200 bg-white transition-transform duration-300 lg:static lg:h-[calc(100vh-5rem)] lg:translate-x-0 lg:overflow-y-auto ${
+        className={`fixed bottom-0 right-0 top-20 z-40 h-[calc(100vh-5rem)] w-80 shrink-0 max-w-[calc(100vw-1rem)] overflow-y-auto border-l border-gray-200 bg-white transition-transform duration-300 lg:static lg:h-[calc(100vh-5rem)] lg:translate-x-0 lg:overflow-y-auto ${
           sidebarOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-          <div className="p-5">
+          <div className="p-4 sm:p-5">
             <div className="mb-6 flex items-center gap-3">
               {studentUser.avatarUrl ? (
-                <img src={studentUser.avatarUrl} alt={studentUser.name} className="h-12 w-12 rounded-full border-2 border-amber-100 object-cover" />
+                <img src={studentUser.avatarUrl} alt={studentUser.name} className="h-12 w-12 shrink-0 rounded-full border-2 border-amber-100 object-cover" />
               ) : (
-                <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-amber-100 bg-indigo-50 text-sm font-black text-indigo-700">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-amber-100 bg-indigo-50 text-sm font-black text-indigo-700">
                   {initials || 'ط'}
                 </div>
               )}
-              <div className="min-w-0">
-                <h2 className="truncate text-sm font-black text-gray-900">{studentUser.name}</h2>
-                <span className="text-xs font-bold text-gray-500">لوحة تحكم الطالب</span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-black text-gray-900 leading-snug break-words">{studentUser.name}</h2>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="text-xs font-bold text-gray-500 truncate">لوحة تحكم الطالب المعتمدة</span>
+                </div>
               </div>
             </div>
 
@@ -270,19 +275,19 @@ export function StudentDashboardPage() {
                 <Link
                   to="/dashboard"
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex w-full items-center justify-between rounded-[20px] border px-3.5 py-2.5 text-sm font-black transition shadow-sm ${
+                  className={`group flex w-full items-center justify-between rounded-[20px] border px-3.5 py-2.5 text-sm font-black transition shadow-xs ${
                     tab === 'overview'
-                      ? 'border-sky-200 bg-gradient-to-l from-sky-200/90 to-blue-100/90 text-indigo-950'
+                      ? 'border-sky-200 bg-gradient-to-l from-sky-200/90 to-blue-100/90 text-indigo-950 font-black'
                       : 'border-transparent text-gray-700 hover:border-white/80 hover:bg-white/80'
                   }`}
                 >
                   <span className="flex items-center gap-3">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/65 text-indigo-800 shadow-sm">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/75 text-indigo-800 shadow-xs">
                       <Home size={18} />
                     </span>
-                    نظرة عامة
+                    <span className="whitespace-nowrap font-black">نظرة عامة</span>
                   </span>
-                  <ChevronLeft size={18} />
+                  <ChevronLeft size={16} className="shrink-0 text-gray-400 group-hover:text-indigo-600 transition-colors" />
                 </Link>
               </div>
 
@@ -302,7 +307,7 @@ export function StudentDashboardPage() {
           </div>
         </aside>
 
-      <main id="overview" className="flex-1 min-w-0 p-4 lg:p-8 pb-24 lg:pb-8 w-full max-w-full lg:max-w-[calc(100vw-18rem)] overflow-x-hidden">
+      <main id="overview" className="flex-1 min-w-0 p-4 lg:p-8 pb-24 lg:pb-8 w-full max-w-full lg:max-w-[calc(100vw-20rem)] overflow-x-hidden">
         {tab === 'paths' ? (
           <div className="max-w-7xl mx-auto w-full min-w-0">
             <PathsTab paths={paths} />

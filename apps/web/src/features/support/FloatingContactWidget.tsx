@@ -17,17 +17,24 @@ export const FloatingContactWidget: React.FC<FloatingContactWidgetProps> = ({
 }) => {
   const location = useLocation();
 
-  const isVisible = useMemo(() => {
+  const isDashboard = useMemo(() => {
     const path = location.pathname || '/';
-    const isDashboard =
+    return (
       path.includes('dashboard') ||
       path.startsWith('/assessments') ||
       path.startsWith('/assessment-results') ||
       path.startsWith('/profile') ||
-      path.startsWith('/reports');
-    if (isDashboard) return showOnDashboardPages;
-    return showOnPublicPages;
-  }, [location.pathname, showOnDashboardPages, showOnPublicPages]);
+      path.startsWith('/reports') ||
+      path.startsWith('/instructor-dashboard') ||
+      path.startsWith('/trainer-dashboard') ||
+      path.startsWith('/coach-dashboard') ||
+      path.startsWith('/parent-dashboard') ||
+      path.startsWith('/supervisor-dashboard') ||
+      path.startsWith('/teacher-workspace')
+    );
+  }, [location.pathname]);
+
+  const isVisible = isDashboard ? showOnDashboardPages : showOnPublicPages;
 
   const whatsappHref = useMemo(() => {
     const cleanNumber = String(whatsappNumber).replace(/[^\d]/g, '');
@@ -44,7 +51,11 @@ export const FloatingContactWidget: React.FC<FloatingContactWidgetProps> = ({
         href={whatsappHref}
         target="_blank"
         rel="noreferrer"
-        className="fixed bottom-24 right-4 sm:bottom-8 sm:right-8 bg-[#25D366] hover:bg-[#20bd5a] text-white p-3.5 sm:p-4 rounded-full shadow-lg transition-all z-40 flex items-center justify-center hover:scale-105 active:scale-95"
+        className={`fixed ${
+          isDashboard
+            ? 'bottom-24 left-6 sm:bottom-24 sm:left-6 md:bottom-24 md:left-8'
+            : 'bottom-24 right-4 sm:bottom-8 sm:right-8'
+        } bg-[#25D366] hover:bg-[#20bd5a] text-white p-3.5 sm:p-4 rounded-full shadow-lg transition-all z-30 flex items-center justify-center hover:scale-105 active:scale-95`}
         aria-label="تواصل معنا عبر واتساب"
         title="تواصل معنا عبر واتساب"
       >
