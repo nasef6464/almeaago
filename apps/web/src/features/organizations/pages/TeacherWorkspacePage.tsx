@@ -79,7 +79,18 @@ export function TeacherWorkspacePage() {
     ? workspace.schools.find(item => item.schoolId === requestedSchoolId)
     : workspace.schools[0];
   const hasUnknownSchool = Boolean(requestedSchoolId && !school);
-  const students = school?.assignments.reduce((total, assignment) => total + assignment.studentCount, 0) || 0;
+  // One class can have several subject assignments. Count its roster once,
+  // rather than multiplying the same students by the number of subjects.
+  const studentsByClass = new Map<string, number>();
+  for (const assignment of school?.assignments ?? []) {
+    // Subject assignments can carry slightly different roster snapshots.
+    // Never let a stale, smaller snapshot overwrite the same class roster.
+    studentsByClass.set(assignment.classId, Math.max(
+      studentsByClass.get(assignment.classId) ?? 0,
+      assignment.studentCount,
+    ));
+  }
+  const students = Array.from(studentsByClass.values()).reduce((total, count) => total + count, 0);
 
   return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 px-3 py-5 sm:px-6" data-testid="teacher-workspace">
     <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[300px_1fr]">
@@ -90,7 +101,7 @@ export function TeacherWorkspacePage() {
           <p className="mt-1 text-xs font-bold text-gray-500">{school?.schoolName || 'لا توجد مدرسة مسندة'}</p>
           {workspace.schools.length > 1 || hasUnknownSchool ? <div className="mt-3">
             <label htmlFor="teacher-school" className="mb-1 block text-xs font-bold text-slate-600">المدرسة الحالية</label>
-            <select id="teacher-school" value={school?.schoolId || ''} onChange={event => {
+            <select id="teacher-school" value={hasUnknownSchool ? '' : school?.schoolId || ''} onChange={event => {
               setSearchParams(previous => {
                 const next = new URLSearchParams(previous);
                 next.set('schoolId', event.target.value);
@@ -115,7 +126,9 @@ export function TeacherWorkspacePage() {
                 if (!item) return null;
                 const Icon = item.icon;
                 const classes = 'flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-right text-xs font-bold ';
-                if (id === 'overview') return <Link key={id} aria-current="page" to={'/school-teacher-dashboard' + (school ? '?schoolId=' + encodeURIComponent(school.schoolId) : '')} className={classes + 'border-indigo-200 bg-indigo-50 text-indigo-800'}><Icon size={19} />{item.label}</Link>;
+                if (id === 'overview') return school
+                  ? <Link key={id} aria-current="page" to={'/school-teacher-dashboard?schoolId=' + encodeURIComponent(school.schoolId)} className={classes + 'border-indigo-200 bg-indigo-50 text-indigo-800'}><Icon size={19} />{item.label}</Link>
+                  : <span key={id} aria-disabled="true" className={classes + 'border-slate-200 bg-white text-slate-400'}><Icon size={19} />{item.label}</span>;
                 if (id === 'smart-classroom' && school?.assignments.length) return <Link key={id} to={classroomURL(school.schoolId, school.assignments[0].assignmentId)} className={classes + 'border-slate-200 bg-white text-slate-700'}><Icon size={19} />{item.label}</Link>;
                 return <span key={id} aria-disabled="true" className={classes + 'border-slate-200 bg-white text-slate-400'}><Icon size={19} />{item.label}</span>;
               })}
