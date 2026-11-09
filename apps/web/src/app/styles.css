@@ -35,6 +35,282 @@ body {
   overflow-x: clip;
 }
 
+/* ========================================================
+   PLATFORM-WIDE UNIFIED DARK MODE SYSTEM (نظام الوضع الليلي الشامل)
+   ======================================================== */
+
+html.dark {
+  color-scheme: dark;
+  background-color: #0b0f19 !important;
+  color: #f3f4f6 !important;
+}
+
+html.dark body {
+  background-color: #0b0f19 !important;
+  color: #f3f4f6 !important;
+}
+
+html.dark #root {
+  background-color: #0b0f19 !important;
+  color: #f3f4f6 !important;
+}
+
+html.dark main {
+  color: #f3f4f6;
+}
+
+/* 1. Background Overrides in Dark Mode */
+html.dark .bg-white {
+  background-color: #111827 !important;
+}
+
+html.dark .bg-gray-50,
+html.dark .bg-slate-50,
+html.dark .bg-zinc-50,
+html.dark .bg-neutral-50 {
+  background-color: #0b0f19 !important;
+}
+
+html.dark .bg-gray-100,
+html.dark .bg-slate-100,
+html.dark .bg-zinc-100 {
+  background-color: #1f2937 !important;
+}
+
+html.dark .bg-gray-200,
+html.dark .bg-slate-200 {
+  background-color: #374151 !important;
+}
+
+/* 2. Interactive Surfaces & Cards */
+html.dark aside {
+  background-color: #111827 !important;
+  border-color: #1f2937 !important;
+}
+
+html.dark button.bg-white,
+html.dark a.bg-white {
+  background-color: #1f2937 !important;
+  color: #f3f4f6 !important;
+  border-color: #374151 !important;
+}
+
+html.dark button.bg-white:hover,
+html.dark a.bg-white:hover {
+  background-color: #374151 !important;
+}
+
+/* 3. Border Overrides */
+html.dark .border-gray-100,
+html.dark .border-slate-100,
+html.dark .border-zinc-100,
+html.dark .border-gray-200,
+html.dark .border-slate-200,
+html.dark .border-zinc-200 {
+  border-color: #1f2937 !important;
+}
+
+html.dark .border-gray-300,
+html.dark .border-slate-300 {
+  border-color: #374151 !important;
+}
+
+html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #1f2937 !important;
+}
+
+/* 4. Typography High-Contrast in Dark Mode */
+html.dark .text-gray-900,
+html.dark .text-slate-900,
+html.dark .text-slate-950,
+html.dark .text-gray-800,
+html.dark .text-slate-800,
+html.dark .text-zinc-900,
+html.dark .text-neutral-900 {
+  color: #f9fafb !important;
+}
+
+html.dark .text-gray-700,
+html.dark .text-slate-700,
+html.dark .text-zinc-700 {
+  color: #e5e7eb !important;
+}
+
+html.dark .text-gray-600,
+html.dark .text-slate-600,
+html.dark .text-gray-500,
+html.dark .text-slate-500 {
+  color: #9ca3af !important;
+}
+
+html.dark .text-gray-400,
+html.dark .text-slate-400 {
+  color: #6b7280 !important;
+}
+
+/* 5. Form Elements (Inputs, Selects, Textareas) */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.dark select,
+html.dark textarea {
+  background-color: #1e293b !important;
+  color: #f9fafb !important;
+  border-color: #334155 !important;
+}
+
+html.dark select option {
+  background-color: #1e293b !important;
+  color: #f9fafb !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* 6. Tables & Lists */
+html.dark table {
+  color: #f3f4f6 !important;
+}
+
+html.dark thead {
+  background-color: #1f2937 !important;
+}
+
+html.dark thead th {
+  color: #9ca3af !important;
+}
+
+html.dark tbody tr {
+  border-color: #1f2937 !important;
+}
+
+html.dark tbody tr:hover {
+  background-color: rgba(31, 41, 55, 0.5) !important;
+}
+
+/* 7. Shadows */
+html.dark .shadow-sm,
+html.dark .shadow-xs,
+html.dark .shadow-md,
+html.dark .shadow-lg,
+html.dark .shadow-xl,
+html.dark .shadow-2xl {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* 8. Modals, Popups, and Dropdowns */
+html.dark [role="dialog"],
+html.dark [role="dialog"] > div {
+  background-color: #111827 !important;
+  color: #f9fafb !important;
+}
+
+/* 9. Soft Tinted Badges & Panels */
+html.dark .bg-indigo-50, html.dark [class*="bg-indigo-50/"] {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+}
+html.dark .text-indigo-950, html.dark .text-indigo-900, html.dark .text-indigo-800 {
+  color: #a5b4fc !important;
+}
+html.dark .border-indigo-100, html.dark .border-indigo-200 {
+  border-color: rgba(99, 102, 241, 0.25) !important;
+}
+
+html.dark .bg-emerald-50, html.dark [class*="bg-emerald-50/"] {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+}
+html.dark .text-emerald-950, html.dark .text-emerald-900, html.dark .text-emerald-800 {
+  color: #6ee7b7 !important;
+}
+html.dark .border-emerald-100, html.dark .border-emerald-200 {
+  border-color: rgba(16, 185, 129, 0.25) !important;
+}
+
+html.dark .bg-amber-50, html.dark [class*="bg-amber-50/"] {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+}
+html.dark .text-amber-950, html.dark .text-amber-900, html.dark .text-amber-800 {
+  color: #fcd34d !important;
+}
+html.dark .border-amber-100, html.dark .border-amber-200 {
+  border-color: rgba(245, 158, 11, 0.25) !important;
+}
+
+html.dark .bg-rose-50, html.dark [class*="bg-rose-50/"] {
+  background-color: rgba(244, 63, 94, 0.15) !important;
+}
+html.dark .text-rose-950, html.dark .text-rose-900, html.dark .text-rose-800 {
+  color: #fda4af !important;
+}
+html.dark .border-rose-100, html.dark .border-rose-200 {
+  border-color: rgba(244, 63, 94, 0.25) !important;
+}
+
+html.dark .bg-sky-50, html.dark [class*="bg-sky-50/"] {
+  background-color: rgba(14, 165, 233, 0.15) !important;
+}
+html.dark .text-sky-950, html.dark .text-sky-900, html.dark .text-sky-800 {
+  color: #7dd3fc !important;
+}
+html.dark .border-sky-100, html.dark .border-sky-200 {
+  border-color: rgba(14, 165, 233, 0.25) !important;
+}
+
+html.dark .bg-purple-50, html.dark [class*="bg-purple-50/"] {
+  background-color: rgba(168, 85, 247, 0.15) !important;
+}
+html.dark .text-purple-950, html.dark .text-purple-900, html.dark .text-purple-800 {
+  color: #d8b4fe !important;
+}
+
+html.dark .bg-cyan-50, html.dark [class*="bg-cyan-50/"] {
+  background-color: rgba(6, 182, 212, 0.15) !important;
+}
+html.dark .text-cyan-950, html.dark .text-cyan-900, html.dark .text-cyan-800 {
+  color: #67e8f9 !important;
+}
+
+html.dark .bg-orange-50, html.dark [class*="bg-orange-50/"] {
+  background-color: rgba(249, 115, 22, 0.15) !important;
+}
+html.dark .text-orange-950, html.dark .text-orange-900, html.dark .text-orange-800 {
+  color: #fdba74 !important;
+}
+
+html.dark .bg-violet-50, html.dark [class*="bg-violet-50/"] {
+  background-color: rgba(139, 92, 246, 0.15) !important;
+}
+html.dark .text-violet-950, html.dark .text-violet-900, html.dark .text-violet-800 {
+  color: #c4b5fd !important;
+}
+
+/* 10. Gradients Normalization */
+html.dark .from-white {
+  --tw-gradient-from: #111827 var(--tw-gradient-from-position) !important;
+}
+html.dark .via-white {
+  --tw-gradient-stops: var(--tw-gradient-from), #111827 var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+}
+html.dark .to-white {
+  --tw-gradient-to: #111827 var(--tw-gradient-to-position) !important;
+}
+
+/* 11. KaTeX Math in Dark Mode */
+html.dark .katex,
+html.dark .katex-display,
+html.dark .katex-html {
+  color: #f9fafb !important;
+}
+
+/* 12. Smart Classroom & Teaching Board */
+html.dark .teaching-board,
+html.dark .whiteboard-canvas {
+  background-color: #0f172a !important;
+  border-color: #334155 !important;
+}
+
 button,
 input,
 textarea,
@@ -45,7 +321,6 @@ select {
 button {
   -webkit-tap-highlight-color: transparent;
 }
-
 
 h1,
 h2,
@@ -64,7 +339,6 @@ button,
 .platform-button-font {
   font-family: var(--platform-font-button), var(--platform-font-body), "Tajawal", ui-sans-serif, system-ui, sans-serif;
 }
-
 
 @keyframes legacy-blob-motion {
   0%, 100% { transform: translate(0, 0) scale(1); }

@@ -136,39 +136,39 @@ export function StudentDashboardPage() {
     {
       id: 'learning',
       title: 'التعلم',
-      tone: 'border-emerald-200/80 bg-gradient-to-b from-emerald-100/90 to-emerald-50/80 text-emerald-800',
+      tone: 'border-emerald-200/80 bg-gradient-to-b from-emerald-100/90 to-emerald-50/80 text-emerald-800 dark:border-emerald-800/60 dark:from-emerald-950/70 dark:to-emerald-900/40 dark:text-emerald-300',
       items: [
-        { to: '/dashboard?tab=paths', label: 'مساراتي ودوراتي', icon: BookOpen, tone: 'bg-violet-100 text-violet-700' },
-        { to: '/plan', label: 'خططي', icon: CalendarDays, tone: 'bg-emerald-100 text-emerald-700' },
-        { to: '/reports', label: 'تقاريري', icon: BarChart3, tone: 'bg-cyan-100 text-cyan-700' },
+        { to: '/dashboard?tab=paths', label: 'مساراتي ودوراتي', icon: BookOpen, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
+        { to: '/plan', label: 'خططي', icon: CalendarDays, tone: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' },
+        { to: '/reports', label: 'تقاريري', icon: BarChart3, tone: 'bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300' },
       ],
     },
     {
       id: 'exams',
       title: 'الاختبارات',
-      tone: 'border-rose-200/80 bg-gradient-to-b from-rose-100/90 to-rose-50/80 text-rose-800',
+      tone: 'border-rose-200/80 bg-gradient-to-b from-rose-100/90 to-rose-50/80 text-rose-800 dark:border-rose-800/60 dark:from-rose-950/70 dark:to-rose-900/40 dark:text-rose-300',
       items: [
-        { to: '/assessments', label: 'اختبارات المنصة', icon: ClipboardCheck, tone: 'bg-rose-100 text-rose-700' },
-        { to: '/assessment-assignments', label: 'الاختبارات الموجهة', icon: Target, tone: 'bg-sky-100 text-sky-700' },
-        { to: '/assessment-results', label: 'اختباراتي ونتائجي', icon: RouteIcon, tone: 'bg-amber-100 text-amber-700' },
+        { to: '/assessments', label: 'اختبارات المنصة', icon: ClipboardCheck, tone: 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300' },
+        { to: '/assessment-assignments', label: 'الاختبارات الموجهة', icon: Target, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
+        { to: '/assessment-results', label: 'اختباراتي ونتائجي', icon: RouteIcon, tone: 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300' },
       ],
     },
     {
       id: 'tools',
       title: 'الأدوات',
-      tone: 'border-violet-200/80 bg-gradient-to-b from-violet-100/90 to-violet-50/80 text-violet-800',
+      tone: 'border-violet-200/80 bg-gradient-to-b from-violet-100/90 to-violet-50/80 text-violet-800 dark:border-violet-800/60 dark:from-violet-950/70 dark:to-violet-900/40 dark:text-violet-300',
       items: [
-        { onClick: () => setShowCalculator(true), label: 'حاسبة النسبة الموزونة', icon: Calculator, tone: 'bg-indigo-100 text-indigo-700' },
-        { to: '/review', label: 'أسئلتي للمراجعة', icon: BrainCircuit, tone: 'bg-violet-100 text-violet-700' },
-        { to: '/classroom/join', label: 'الفصل الذكي', icon: Radio, tone: 'bg-sky-100 text-sky-700' },
+        { onClick: () => setShowCalculator(true), label: 'حاسبة النسبة الموزونة', icon: Calculator, tone: 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300' },
+        { to: '/review', label: 'أسئلتي للمراجعة', icon: BrainCircuit, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
+        { to: '/classroom/join', label: 'الفصل الذكي', icon: Radio, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
       ],
     },
     {
       id: 'support',
       title: 'الدعم والمتابعة',
-      tone: 'border-orange-200/80 bg-gradient-to-b from-orange-100/90 to-orange-50/80 text-orange-800',
+      tone: 'border-orange-200/80 bg-gradient-to-b from-orange-100/90 to-orange-50/80 text-orange-800 dark:border-orange-800/60 dark:from-orange-950/70 dark:to-orange-900/40 dark:text-orange-300',
       items: [
-        { to: '/notifications', label: 'الإشعارات', icon: Bell, tone: 'bg-orange-100 text-orange-700' },
+        { to: '/notifications', label: 'الإشعارات', icon: Bell, tone: 'bg-orange-100 dark:bg-orange-900/60 text-orange-700 dark:text-orange-300' },
       ],
     },
   ];
@@ -205,7 +205,7 @@ export function StudentDashboardPage() {
             setSidebarOpen(false);
             item.onClick?.();
           }}
-          className="group flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2 text-sm font-bold text-gray-800 transition hover:border-white/80 hover:bg-white/90 text-right"
+          className="group flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2 text-sm font-bold text-gray-800 dark:text-gray-100 transition hover:border-white/80 dark:hover:border-slate-700 hover:bg-white/90 dark:hover:bg-slate-800/90 text-right"
         >
           {content}
         </button>
@@ -216,7 +216,7 @@ export function StudentDashboardPage() {
         key={item.to}
         to={item.to || '/'}
         onClick={() => setSidebarOpen(false)}
-        className="group flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2 text-sm font-bold text-gray-800 transition hover:border-white/80 hover:bg-white/90"
+        className="group flex w-full items-center justify-between rounded-2xl border border-transparent px-3 py-2 text-sm font-bold text-gray-800 dark:text-gray-100 transition hover:border-white/80 dark:hover:border-slate-700 hover:bg-white/90 dark:hover:bg-slate-800/90"
       >
         {content}
       </Link>
@@ -277,8 +277,8 @@ export function StudentDashboardPage() {
                   onClick={() => setSidebarOpen(false)}
                   className={`group flex w-full items-center justify-between rounded-[20px] border px-3.5 py-2.5 text-sm font-black transition shadow-xs ${
                     tab === 'overview'
-                      ? 'border-sky-200 bg-gradient-to-l from-sky-200/90 to-blue-100/90 text-indigo-950 font-black'
-                      : 'border-transparent text-gray-700 hover:border-white/80 hover:bg-white/80'
+                      ? 'border-sky-200 dark:border-sky-800/80 bg-gradient-to-l from-sky-200/90 to-blue-100/90 dark:from-sky-950/80 dark:to-indigo-950/80 text-indigo-950 dark:text-white font-black'
+                      : 'border-transparent text-gray-700 dark:text-gray-200 hover:border-white/80 dark:hover:border-slate-700 hover:bg-white/80 dark:hover:bg-slate-800'
                   }`}
                 >
                   <span className="flex items-center gap-3">
@@ -298,7 +298,7 @@ export function StudentDashboardPage() {
                   className={'rounded-[22px] border p-2.5 shadow-sm ' + group.tone}
                 >
                   <div className="px-2.5 pb-2 pt-1 text-base font-black">{group.title}</div>
-                  <div className="space-y-1 rounded-[16px] bg-white/60 p-1.5 ring-1 ring-white/70">
+                  <div className="space-y-1 rounded-[16px] bg-white/70 dark:bg-slate-900/80 p-1.5 ring-1 ring-white/70 dark:ring-slate-800/80">
                     {group.items.map(navItem)}
                   </div>
                 </section>
@@ -350,16 +350,16 @@ export function StudentDashboardPage() {
             {/* 2. Student Today Focus */}
             <section
               data-testid="student-today-focus"
-              className="rounded-3xl border border-emerald-100 bg-gradient-to-l from-emerald-50 via-white to-white p-5 shadow-sm"
+              className="rounded-3xl border border-emerald-100 dark:border-emerald-900/60 bg-gradient-to-l from-emerald-50 via-white to-white dark:from-emerald-950/60 dark:via-slate-900 dark:to-slate-900 p-5 shadow-sm"
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">
+                  <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 px-3 py-1 text-xs font-black text-emerald-800 dark:text-emerald-300">
                     <Sparkles size={14} />
                     <span>خطوتك المقترحة اليوم</span>
                   </div>
-                  <h2 className="text-lg font-black text-gray-900 sm:text-xl">تابع خطتك في مساحة التعلم الذكية</h2>
-                  <p className="mt-1 text-xs font-medium leading-6 text-gray-600 sm:text-sm">
+                  <h2 className="text-lg font-black text-gray-900 dark:text-white sm:text-xl">تابع خطتك في مساحة التعلم الذكية</h2>
+                  <p className="mt-1 text-xs font-medium leading-6 text-gray-600 dark:text-gray-300 sm:text-sm">
                     تأسيس مهارات، تدريبات ذكية مكثفة واختبارات محاكية تقيس مستواك وتحدد خطوتك التالية تلقائيًا.
                   </p>
                 </div>
@@ -384,7 +384,7 @@ export function StudentDashboardPage() {
                     setShowCalculator(true);
                   }
                 }}
-                className="group rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/70 via-indigo-50/40 to-white p-4 shadow-xs hover:border-indigo-200 hover:shadow-md transition cursor-pointer flex items-center justify-between"
+                className="group rounded-2xl border border-indigo-100 dark:border-indigo-900/60 bg-gradient-to-r from-indigo-50/70 via-indigo-50/40 to-white dark:from-indigo-950/60 dark:via-slate-900 dark:to-slate-900 p-4 shadow-xs hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-md transition cursor-pointer flex items-center justify-between"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black shrink-0 shadow-sm group-hover:scale-105 transition-transform">
@@ -392,39 +392,39 @@ export function StudentDashboardPage() {
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-black text-gray-900 text-sm sm:text-base truncate">حاسبة النسبة الموزونة</h3>
-                      <span className="rounded-md bg-indigo-100 px-1.5 py-0.5 text-[10px] font-black text-indigo-700">قياس</span>
+                      <h3 className="font-black text-gray-900 dark:text-white text-sm sm:text-base truncate">حاسبة النسبة الموزونة</h3>
+                      <span className="rounded-md bg-indigo-100 dark:bg-indigo-900/60 px-1.5 py-0.5 text-[10px] font-black text-indigo-700 dark:text-indigo-300">قياس</span>
                     </div>
-                    <p className="text-xs text-gray-500 font-medium truncate mt-0.5">احسب نسبتك الموزونة وفرصتك بالجامعات السعودية.</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium truncate mt-0.5">احسب نسبتك الموزونة وفرصتك بالجامعات السعودية.</p>
                   </div>
                 </div>
-                <div className="text-indigo-600 bg-indigo-100/70 p-2 rounded-xl shrink-0 mr-2 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                <div className="text-indigo-600 dark:text-indigo-300 bg-indigo-100/70 dark:bg-indigo-900/50 p-2 rounded-xl shrink-0 mr-2 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
                   <ChevronLeft size={18} />
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-purple-50/70 via-indigo-50/40 to-white p-4 shadow-xs flex items-center justify-between">
+              <div className="rounded-2xl border border-indigo-100 dark:border-purple-900/60 bg-gradient-to-r from-purple-50/70 via-indigo-50/40 to-white dark:from-purple-950/60 dark:via-slate-900 dark:to-slate-900 p-4 shadow-xs flex items-center justify-between">
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-11 h-11 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center font-black shrink-0 text-lg shadow-xs">
+                  <div className="w-11 h-11 rounded-2xl bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 flex items-center justify-center font-black shrink-0 text-lg shadow-xs">
                     🔗
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-black text-gray-900 text-sm sm:text-base truncate">كود ربط ولي الأمر</h3>
-                    <p className="text-xs text-gray-500 font-medium truncate mt-0.5">شاركه مع ولي أمرك لمتابعة تقدمك ونتائجك.</p>
+                    <h3 className="font-black text-gray-900 dark:text-white text-sm sm:text-base truncate">كود ربط ولي الأمر</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium truncate mt-0.5">شاركه مع ولي أمرك لمتابعة تقدمك ونتائجك.</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-purple-100 shadow-xs shrink-0 mr-2">
-                  <span className="font-mono font-black text-indigo-900 text-sm tracking-wider">
+                <div className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-purple-100 dark:border-purple-900/50 shadow-xs shrink-0 mr-2">
+                  <span className="font-mono font-black text-indigo-900 dark:text-indigo-200 text-sm tracking-wider">
                     {String(user?.id || 'ALM892').slice(-6).toUpperCase()}
                   </span>
                   <button
                     type="button"
                     onClick={copyParentCode}
-                    className="text-indigo-600 hover:text-indigo-800 bg-indigo-50 p-1.5 rounded-lg flex items-center gap-1 text-xs font-black transition-colors"
+                    className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/70 p-1.5 rounded-lg flex items-center gap-1 text-xs font-black transition-colors"
                     title="نسخ الكود"
                   >
                     <Copy size={14} />
-                    {copiedCode && <span className="text-[10px] text-emerald-600 font-black">تم النسخ ✓</span>}
+                    {copiedCode && <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-black">تم النسخ ✓</span>}
                   </button>
                 </div>
               </div>

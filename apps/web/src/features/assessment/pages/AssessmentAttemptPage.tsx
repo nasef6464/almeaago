@@ -60,7 +60,38 @@ export function AssessmentAttemptPage() {
   const [index, setIndex] = useState(0);
   const [savingAnswer, setSavingAnswer] = useState(false);
   const [draftChoice, setDraftChoice] = useState<{ attemptId: string; questionId: string; option: number } | null>(null);
-  const [isNightMode, setIsNightMode] = useState(false);
+  const [isNightMode, setIsNightMode] = useState(() => {
+    if (typeof document !== 'undefined') {
+      return document.documentElement.classList.contains('dark') || localStorage.getItem('almeaa_theme') === 'dark';
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleThemeChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ theme: 'light' | 'dark' }>;
+      if (customEvent.detail?.theme) {
+        setIsNightMode(customEvent.detail.theme === 'dark');
+      }
+    };
+    window.addEventListener('almeaa_theme_change', handleThemeChange);
+    return () => window.removeEventListener('almeaa_theme_change', handleThemeChange);
+  }, []);
+
+  const toggleNightMode = () => {
+    const next = !isNightMode;
+    setIsNightMode(next);
+    if (typeof document !== 'undefined') {
+      if (next) {
+        document.documentElement.classList.add('dark');
+        try { localStorage.setItem('almeaa_theme', 'dark'); } catch {}
+      } else {
+        document.documentElement.classList.remove('dark');
+        try { localStorage.setItem('almeaa_theme', 'light'); } catch {}
+      }
+      window.dispatchEvent(new CustomEvent('almeaa_theme_change', { detail: { theme: next ? 'dark' : 'light' } }));
+    }
+  };
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -377,7 +408,7 @@ export function AssessmentAttemptPage() {
               {/* Day / Night Toggle */}
               <button
                 type="button"
-                onClick={() => setIsNightMode((v) => !v)}
+                onClick={toggleNightMode}
                 className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition ${
                   isNightMode
                     ? 'border-slate-700 bg-slate-800 text-amber-300 hover:bg-slate-700'
