@@ -50,6 +50,7 @@ import { UsersAdminPage } from '../features/auth/pages/UsersAdminPage';
 import { SchoolDirectorDashboardPage } from '../features/organizations/pages/SchoolDirectorDashboardPage';
 import { SupervisorDashboardPage } from '../features/organizations/pages/SupervisorDashboardPage';
 import { TeacherWorkspacePage } from '../features/organizations/pages/TeacherWorkspacePage';
+import { PlatformTrainerDashboardPage } from '../features/organizations/pages/PlatformTrainerDashboardPage';
 import { StudentDashboardPage } from '../features/learning/pages/StudentDashboardPage';
 import { PublicLandingPage } from '../features/public/pages/PublicLandingPage';
 import { CoursesPage } from '../features/public/pages/CoursesPage';
@@ -222,6 +223,9 @@ export function App() {
         <Route path="/plan" element={<StudyPlanPage />} />
         <Route path="/school-teacher-dashboard" element={<TeacherWorkspacePage />} />
         <Route path="/school-teacher-dashboard/classroom" element={<ClassroomTeacherPage />} />
+        <Route path="/instructor-dashboard" element={<PlatformTrainerDashboardPage />} />
+        <Route path="/trainer-dashboard" element={<PlatformTrainerDashboardPage />} />
+        <Route path="/coach-dashboard" element={<PlatformTrainerDashboardPage />} />
         <Route path="/classroom/join" element={<ClassroomJoinPage />} />
         <Route path="/classroom/:sessionId" element={<ClassroomStudentPage />} />
         <Route path="/classroom/:sessionId/projector" element={<ClassroomProjectorPage />} />
