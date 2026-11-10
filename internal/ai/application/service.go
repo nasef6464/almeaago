@@ -62,6 +62,7 @@ type OperationsReader interface {
 type ProviderClient interface {
 	SecretConfigured(ai.Provider) bool
 	Call(context.Context, ai.ProviderSetting, string) (ai.ProviderCallResult, error)
+	CallMultimodal(context.Context, ai.ProviderSetting, string, *ai.ChatImageData, bool) (ai.ProviderCallResult, error)
 }
 
 type Config struct {

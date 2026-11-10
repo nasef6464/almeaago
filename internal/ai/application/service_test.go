@@ -180,6 +180,10 @@ func (p *providerStub) Call(_ context.Context, setting ai.ProviderSetting, promp
 	return p.results[setting.Provider], nil
 }
 
+func (p *providerStub) CallMultimodal(ctx context.Context, setting ai.ProviderSetting, prompt string, media *ai.ChatImageData, jsonResponse bool) (ai.ProviderCallResult, error) {
+	return p.Call(ctx, setting, prompt)
+}
+
 func student() identity.User {
 	return identity.User{ID: "student-1", Roles: []identity.Role{identity.RoleStudent}}
 }
