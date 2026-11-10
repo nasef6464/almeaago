@@ -7,3 +7,4 @@ if (Test-Path $envFile) {
     }
 }
 & (Join-Path $PSScriptRoot "bin\api.exe")
+
