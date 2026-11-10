@@ -422,7 +422,9 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
               <FeatureCard icon={<Users size={22} className="text-blue-600"/>} classes="bg-blue-100 border-blue-200" badge="تعلم منظم" title="مسارات واضحة" description="مسارات ومادة وتأسيس ودورات مرتبة بحيث تصل لما تحتاجه بسرعة."/>
               <FeatureCard icon={<BarChart3 size={22} className="text-emerald-600"/>} classes="bg-emerald-100 border-emerald-200" badge="تحليل" title="تحليل الأداء" description="تقارير ومراجعة وخطوة تالية تساعدك على توجيه وقتك لمواضع الاحتياج."/>
               <FeatureCard icon={<ShoppingCart size={22} className="text-indigo-600"/>} classes="bg-indigo-100 border-indigo-200" badge="وصول خادمي" title="باقات ووصول واضح" description="الوصول والدفع والاشتراكات تبقى حقائق خادمية ولا تعتمد على إخفاء عناصر الواجهة."/>
-              <FeatureCard icon={<Award size={22} className="text-cyan-600"/>} classes="bg-cyan-100 border-cyan-200" badge="مدارس" title="مدارس وفصول ذكية" description="مساحة عمل للمدارس والمعلمين والمشرفين مع فصل ذكي وتدخلات وتقارير."/>
+              <Link to="/for-schools" className="block text-right transition-transform hover:-translate-y-1">
+                <FeatureCard icon={<Award size={22} className="text-cyan-600"/>} classes="bg-cyan-100 border-cyan-200" badge="شراكة المدارس 🇸🇦" title="منظومة المدارس والفصول الذكية" description="شعار مدرستك الخاص، استيراد نور بضغطة زر، المعلم السقراطي، وتوليد الاختبارات من PDF."/>
+              </Link>
               <FeatureCard icon={<Book size={22} className="text-amber-600"/>} classes="bg-amber-100 border-amber-200" badge="شاملة" title="ملفات ومراجعات" description="مكتبة وتأسيس ومراجعة تحفظ رحلة التعلم في مكان واحد."/>
             </div>
           </div>

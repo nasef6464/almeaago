@@ -14,6 +14,7 @@ import {
   Play,
   Sparkles,
   Target,
+  Volume2,
   XCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -22,6 +23,7 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../auth/state/AuthProvider';
 import { QuestionAssistantPanel } from '../../ai/components/QuestionAssistantPanel';
 import { InteractiveSmartTeacher } from '../../ai/components/InteractiveSmartTeacher';
+import { StepSolutionModal } from '../../classroom/components/whiteboard/StepSolutionPlayer';
 import { learningClient } from '../../learning/api/learning-client';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
 import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
@@ -83,6 +85,7 @@ function ReviewQuestionCard({
   onSave,
   onZoomImage,
   onOpenSmartTeacher,
+  onOpenStepSolution,
 }: {
   question: ReviewQuestion;
   detail: ResultDetail;
@@ -91,6 +94,7 @@ function ReviewQuestionCard({
   onSave(questionId: string): void;
   onZoomImage?: (url: string) => void;
   onOpenSmartTeacher?: (question: ReviewQuestion) => void;
+  onOpenStepSolution?: (question: ReviewQuestion) => void;
 }) {
   const [showAiAssistant, setShowAiAssistant] = useState(false);
   const resolvedImageUrl = useMemo(() => {
@@ -258,6 +262,15 @@ function ReviewQuestionCard({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
+            onClick={() => onOpenStepSolution?.(question)}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-xs font-black text-white shadow-xs transition hover:from-indigo-700 hover:to-violet-700 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Volume2 size={15} className="text-amber-300" />
+            <span>شرح صوتي خطوة بخطوة بالسبورة 🎙️</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => onOpenSmartTeacher?.(question)}
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 px-4 py-2 text-xs font-black text-white shadow-xs transition hover:from-emerald-700 hover:to-indigo-700 hover:scale-[1.02] active:scale-[0.98]"
           >
@@ -305,6 +318,7 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
   const [savingQuestion, setSavingQuestion] = useState('');
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
   const [activeSmartTeacherQuestion, setActiveSmartTeacherQuestion] = useState<ReviewQuestion | null>(null);
+  const [activeStepSolverQuestion, setActiveStepSolverQuestion] = useState<ReviewQuestion | null>(null);
   const activeContext = `${user?.id ?? ''}:${attemptId}`;
   const activeContextRef = useRef(activeContext);
   activeContextRef.current = activeContext;
@@ -314,6 +328,7 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
     setSavingQuestion('');
     setFilter('all');
     setActiveSmartTeacherQuestion(null);
+    setActiveStepSolverQuestion(null);
   }, [activeContext]);
 
   useEffect(() => {
@@ -578,12 +593,24 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
                     onSave={(questionId) => void saveForReview(questionId)}
                     onZoomImage={setZoomImageUrl}
                     onOpenSmartTeacher={setActiveSmartTeacherQuestion}
+                    onOpenStepSolution={setActiveStepSolverQuestion}
                   />
                 ))}
               </div>
             )}
           </>
         )}
+
+      {/* Step Solution Player (Audio + KaTeX + Whiteboard Steps) */}
+      {activeStepSolverQuestion ? (
+        <StepSolutionModal
+          isOpen={Boolean(activeStepSolverQuestion)}
+          onClose={() => setActiveStepSolverQuestion(null)}
+          questionText={activeStepSolverQuestion.text}
+          explanation={activeStepSolverQuestion.explanation}
+          solvingStrategy={activeStepSolverQuestion.solvingStrategy}
+        />
+      ) : null}
 
       {/* Interactive Smart Teacher & Whiteboard Modal */}
       {activeSmartTeacherQuestion && detail ? (

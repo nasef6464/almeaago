@@ -151,6 +151,7 @@ export function buildHeaderNavigation({homepageSettings,paths,levels,subjects,us
 
     const moreChildren = [
       isNavVisible('pricing') ? { id: 'pricing', label: getNavLabel('pricing', 'العضويات'), link: '/pricing', iconName: 'gift' } : null,
+      isNavVisible('schools') ? { id: 'schools', label: getNavLabel('schools', 'شراكة المدارس'), link: '/for-schools', iconName: 'building' } : null,
       isNavVisible('blog') ? { id: 'blog', label: getNavLabel('blog', text.blog), link: '/blog', iconName: 'layout-grid' } : null,
     ].filter(Boolean);
 

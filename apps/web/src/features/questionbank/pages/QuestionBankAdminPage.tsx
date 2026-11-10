@@ -43,6 +43,7 @@ import { contentClient } from '../../content/api/content-client';
 import type { TaxonomyFull } from '../../content/api/content-types';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
 import { QuestionPresentationEditor } from '../components/QuestionPresentationEditor';
+import { QuestionDrawingPad } from '../components/QuestionDrawingPad';
 import { QuestionImageZoomModal } from '../../assessment/components/QuestionImageZoomModal';
 import {
   questionBankClient,
@@ -524,6 +525,19 @@ export function QuestionBankAdminPage() {
   }
 
   const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+  const [showDrawingPad, setShowDrawingPad] = useState(false);
+
+  async function handleInsertDrawing(dataUrl: string) {
+    try {
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `geom-drawing-${Date.now()}.png`, { type: 'image/png' });
+      await handleImageFile(file);
+      setShowDrawingPad(false);
+    } catch {
+      setError('تعذر حفظ وإدراج الرسم الهندسي.');
+    }
+  }
 
   function updateOption(index: number, value: string) {
     setCreate((x) => ({ ...x, options: x.options.map((v, i) => (i === index ? value : v)) }));
@@ -1518,21 +1532,40 @@ export function QuestionBankAdminPage() {
 
               {/* Upload image box */}
               <div className="rounded-2xl border border-violet-200 bg-white p-3.5 shadow-xs">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <ImageUp size={18} className="text-violet-700" />
                     <h3 className="font-black text-sm">صورة السؤال — لصق أو رفع فوري</h3>
                   </div>
-                  {imagePreviewUrl || mediaAsset || create.imageAssetId ? (
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={removeImage}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
+                      onClick={() => setShowDrawingPad((prev) => !prev)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-black text-indigo-700 hover:bg-indigo-100 transition"
+                      data-testid="question-editor-toggle-drawing"
                     >
-                      <Trash2 size={14} /> حذف الصورة
+                      <span>📐 {showDrawingPad ? 'إخفاء لوحة الرسم' : 'رسم شكل هندسي'}</span>
                     </button>
-                  ) : null}
+                    {imagePreviewUrl || mediaAsset || create.imageAssetId ? (
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
+                      >
+                        <Trash2 size={14} /> حذف الصورة
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
+
+                {showDrawingPad && (
+                  <div className="mt-3">
+                    <QuestionDrawingPad
+                      onInsertImage={(dataUrl) => void handleInsertDrawing(dataUrl)}
+                      onClose={() => setShowDrawingPad(false)}
+                    />
+                  </div>
+                )}
 
                 <div className="mt-3 space-y-2" onPaste={handlePasteImage}>
                   <input

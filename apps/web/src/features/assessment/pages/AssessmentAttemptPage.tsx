@@ -96,6 +96,10 @@ export function AssessmentAttemptPage() {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
+  const [lockedSectionIds, setLockedSectionIds] = useState<Set<string>>(() => new Set());
+  const [showSectionConfirmModal, setShowSectionConfirmModal] = useState(false);
+  const [sectionNotice, setSectionNotice] = useState('');
+  const [sectionSecondsLeft, setSectionSecondsLeft] = useState<number | null>(null);
 
   const actionRef = useRef('');
   const scopeKey = `${user?.id || ''}:${assessmentId}:${attemptId}`;
@@ -112,6 +116,10 @@ export function AssessmentAttemptPage() {
     setIndex(0);
     setDraftChoice(null);
     setSavingAnswer(false);
+    setLockedSectionIds(new Set());
+    setShowSectionConfirmModal(false);
+    setSectionNotice('');
+    setSectionSecondsLeft(null);
     actionRef.current = '';
     setError('');
     setBusy(true);
@@ -209,6 +217,100 @@ export function AssessmentAttemptPage() {
     () => Array.from(answers.values()).filter((a) => a.markedForReview).length,
     [answers],
   );
+
+  const isMockExam = useMemo(() => {
+    const t = (attempt?.title || '').toLowerCase();
+    return t.includes('محاكي') || t.includes('قياس') || t.includes('تجريبي') || t.includes('mock');
+  }, [attempt?.title]);
+
+  const sectionGroups = useMemo(() => {
+    if (!attempt?.questions || attempt.questions.length === 0) return [];
+    const map = new Map<string, number[]>();
+    attempt.questions.forEach((q, idx) => {
+      const sId = q.sectionId || 'sec_default';
+      if (!map.has(sId)) map.set(sId, []);
+      map.get(sId)!.push(idx);
+    });
+
+    const groups: Array<{ id: string; title: string; indices: number[] }> = [];
+    let num = 1;
+    for (const [id, indices] of map.entries()) {
+      groups.push({
+        id,
+        title: map.size > 1 ? `القسم ${num}` : 'القسم العام',
+        indices,
+      });
+      num++;
+    }
+    return groups;
+  }, [attempt?.questions]);
+
+  const currentSection = useMemo(() => {
+    if (!question || sectionGroups.length === 0) return null;
+    return sectionGroups.find((g) => g.indices.includes(index)) || sectionGroups[0];
+  }, [question, index, sectionGroups]);
+
+  const currentSectionIdx = useMemo(() => {
+    if (!currentSection) return 0;
+    return sectionGroups.findIndex((g) => g.id === currentSection.id);
+  }, [currentSection, sectionGroups]);
+
+  const hasNextSection = sectionGroups.length > 1 && currentSectionIdx < sectionGroups.length - 1;
+  const isLastQuestionInSection = useMemo(() => {
+    if (!currentSection) return false;
+    return currentSection.indices[currentSection.indices.length - 1] === index;
+  }, [currentSection, index]);
+
+  useEffect(() => {
+    if (!isMockExam || sectionGroups.length <= 1) {
+      setSectionSecondsLeft(null);
+      return;
+    }
+    setSectionSecondsLeft(25 * 60);
+  }, [currentSection?.id, isMockExam, sectionGroups.length]);
+
+  useEffect(() => {
+    if (sectionSecondsLeft == null || result || busy) return;
+    const interval = setInterval(() => {
+      setSectionSecondsLeft((prev) => {
+        if (prev == null || prev <= 1) {
+          clearInterval(interval);
+          if (currentSection) {
+            setLockedSectionIds((old) => new Set([...old, currentSection.id]));
+            if (hasNextSection) {
+              const nextGroup = sectionGroups[currentSectionIdx + 1];
+              setIndex(nextGroup.indices[0]);
+              setSectionNotice(`⏱ انتهى وقت ${currentSection.title} وتم قفله تلقائياً، انتقلت إلى ${nextGroup.title}.`);
+            } else {
+              void submit();
+            }
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sectionSecondsLeft, result, busy, currentSection?.id, hasNextSection, currentSectionIdx, sectionGroups]);
+
+  function navigateToQuestion(idx: number) {
+    const targetQ = attempt?.questions[idx];
+    if (!targetQ) return;
+    if (targetQ.sectionId && lockedSectionIds.has(targetQ.sectionId)) {
+      setError('🔒 هذا القسم مغلق وفق معايير الاختبار المحاكي لقياس، لا يمكن الرجوع لأسئلته.');
+      return;
+    }
+    if (sectionGroups.length > 1 && currentSection && !currentSection.indices.includes(idx)) {
+      const targetGroup = sectionGroups.find((g) => g.indices.includes(idx));
+      const targetIdx = targetGroup ? sectionGroups.indexOf(targetGroup) : -1;
+      if (targetIdx > currentSectionIdx) {
+        setError(`يلزم إنهاء ${currentSection.title} أولاً قبل الانتقال إلى ${targetGroup?.title || 'القسم التالي'}.`);
+        return;
+      }
+    }
+    setIndex(idx);
+    setError('');
+  }
 
   async function choose(option: number) {
     if (!attempt || !question || busy || actionRef.current) return;
@@ -400,7 +502,15 @@ export function AssessmentAttemptPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-bold text-amber-500">اختبار جاري</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-bold text-amber-500">اختبار جاري</p>
+                {sectionGroups.length > 1 && currentSection ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-2.5 py-0.5 text-xs font-black text-indigo-400">
+                    <Lock size={11} />
+                    {currentSection.title} من {sectionGroups.length}
+                  </span>
+                ) : null}
+              </div>
               <h1 className="text-lg font-black">{attempt.title}</h1>
             </div>
 
@@ -420,7 +530,24 @@ export function AssessmentAttemptPage() {
                 <span>{isNightMode ? 'نهاري' : 'ليلي'}</span>
               </button>
 
-              {/* Timer Pill */}
+              {/* Section Timer Pill (Qiyas Strict Mode) */}
+              {sectionSecondsLeft != null && (
+                <div
+                  className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2 font-mono text-xs font-black transition-colors ${
+                    sectionSecondsLeft < 180
+                      ? 'border-rose-400 bg-rose-50 text-rose-700 animate-pulse'
+                      : isNightMode
+                      ? 'border-indigo-800 bg-indigo-950 text-indigo-300'
+                      : 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                  }`}
+                  title="مؤقت القسم الحالي وفق معايير قياس"
+                >
+                  <Clock3 size={15} />
+                  <span>متبقي للقسم: {formatTimerCountdown(sectionSecondsLeft)}</span>
+                </div>
+              )}
+
+              {/* Overall Timer Pill */}
               <div
                 className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2 font-mono text-xs font-black transition-colors ${
                   secondsLeft != null && secondsLeft < 180
@@ -481,6 +608,18 @@ export function AssessmentAttemptPage() {
         </header>
 
         {error ? <div className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700 text-xs">{error}</div> : null}
+        {sectionNotice ? (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 font-black text-amber-900 text-xs flex items-center justify-between shadow-xs">
+            <span>{sectionNotice}</span>
+            <button
+              type="button"
+              onClick={() => setSectionNotice('')}
+              className="rounded-lg p-1 text-amber-800 hover:text-amber-950 font-black cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
 
         {/* Question Area Card */}
         <section
@@ -657,7 +796,7 @@ export function AssessmentAttemptPage() {
           <button
             type="button"
             disabled={index === 0 || savingAnswer || busy || draftChoice?.attemptId === attempt.id}
-            onClick={() => setIndex((v) => Math.max(0, v - 1))}
+            onClick={() => navigateToQuestion(Math.max(0, index - 1))}
             className={`flex items-center justify-center gap-1.5 rounded-xl border px-5 py-2.5 text-xs font-black transition disabled:opacity-40 ${
               isNightMode
                 ? 'border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700'
@@ -668,20 +807,24 @@ export function AssessmentAttemptPage() {
             <span>السابق</span>
           </button>
 
-          {/* Question Number Ribbon (1:1 with Legacy) */}
+          {/* Question Number Ribbon (1:1 with Legacy + Strict Section Locks) */}
           <div className="flex max-w-full gap-1 overflow-x-auto px-2 py-1 lg:max-w-[60%] scrollbar-thin">
             {attempt.questions.map((q, idx) => {
               const isCurrent = index === idx;
               const isAnswered = answers.has(q.id);
               const isReview = answers.get(q.id)?.markedForReview;
+              const isLocked = Boolean(q.sectionId && lockedSectionIds.has(q.sectionId));
 
               return (
                 <button
                   key={q.id}
                   type="button"
-                  onClick={() => setIndex(idx)}
+                  disabled={isLocked}
+                  onClick={() => navigateToQuestion(idx)}
                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black transition-all ${
-                    isCurrent
+                    isLocked
+                      ? 'border border-slate-300 bg-slate-200 text-slate-400 opacity-60 cursor-not-allowed dark:border-slate-800 dark:bg-slate-800 dark:text-slate-600'
+                      : isCurrent
                       ? 'bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-400'
                       : isReview
                       ? 'border border-amber-300 bg-amber-100 text-amber-800 shadow-2xs'
@@ -691,29 +834,46 @@ export function AssessmentAttemptPage() {
                       ? 'border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
                       : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
                   }`}
-                  title={`السؤال ${idx + 1}`}
+                  title={isLocked ? `السؤال ${idx + 1} (قسم مغلق)` : `السؤال ${idx + 1}`}
                 >
-                  {idx + 1}
+                  {isLocked ? <Lock size={12} /> : idx + 1}
                 </button>
               );
             })}
           </div>
 
-          <button
-            type="button"
-            disabled={
-              savingAnswer ||
-              busy ||
-              draftChoice?.attemptId === attempt.id ||
-              index === attempt.questions.length - 1 ||
-              (attempt.requireAnswerBeforeNext && !saved)
-            }
-            onClick={() => setIndex((v) => Math.min(attempt.questions.length - 1, v + 1))}
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-6 py-2.5 text-xs font-black text-white hover:bg-indigo-700 transition disabled:opacity-40 shadow-xs"
-          >
-            <span>التالي</span>
-            <ArrowLeft size={16} />
-          </button>
+          {isLastQuestionInSection && hasNextSection ? (
+            <button
+              type="button"
+              disabled={
+                savingAnswer ||
+                busy ||
+                draftChoice?.attemptId === attempt.id ||
+                (attempt.requireAnswerBeforeNext && !saved)
+              }
+              onClick={() => setShowSectionConfirmModal(true)}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-600 px-5 py-2.5 text-xs font-black text-white hover:bg-amber-700 transition disabled:opacity-40 shadow-xs"
+            >
+              <span>إنهاء {currentSection?.title} والانتقال للقسم التالي</span>
+              <ArrowLeft size={16} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={
+                savingAnswer ||
+                busy ||
+                draftChoice?.attemptId === attempt.id ||
+                index === attempt.questions.length - 1 ||
+                (attempt.requireAnswerBeforeNext && !saved)
+              }
+              onClick={() => navigateToQuestion(index + 1)}
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-6 py-2.5 text-xs font-black text-white hover:bg-indigo-700 transition disabled:opacity-40 shadow-xs"
+            >
+              <span>التالي</span>
+              <ArrowLeft size={16} />
+            </button>
+          )}
         </footer>
       </div>
 
@@ -760,6 +920,48 @@ export function AssessmentAttemptPage() {
                 className="flex-1 rounded-xl border border-slate-200 bg-slate-100 py-3 text-sm font-black text-slate-700 hover:bg-slate-200"
               >
                 العودة للحل
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Section Lock Modal (Qiyas Strict Section Lock) */}
+      {showSectionConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs" dir="rtl">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 text-center shadow-2xl">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
+              <Lock size={30} />
+            </div>
+            <h2 className="text-xl font-black text-slate-900">هل أنت متأكد من إنهاء {currentSection?.title}؟</h2>
+            <p className="mt-3 text-xs font-bold leading-relaxed text-slate-600">
+              وفق المعايير الصارمة لاختبارات قياس المحاكية، سيتم <strong>قفل هذا القسم نهائياً</strong> ولن تتمكن من العودة لأسئلته أو مراجعتها بعد الانتقال.
+            </p>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (currentSection) {
+                    setLockedSectionIds((prev) => new Set([...prev, currentSection.id]));
+                  }
+                  setShowSectionConfirmModal(false);
+                  if (hasNextSection) {
+                    const nextGroup = sectionGroups[currentSectionIdx + 1];
+                    setIndex(nextGroup.indices[0]);
+                    setSectionNotice(`🔒 تم قفل ${currentSection?.title} والانتقال إلى ${nextGroup.title}.`);
+                  }
+                }}
+                className="flex-1 rounded-xl bg-amber-600 py-3 text-sm font-black text-white hover:bg-amber-700 shadow-sm"
+              >
+                نعم، اقفل القسم وانتقل
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSectionConfirmModal(false)}
+                className="flex-1 rounded-xl border border-slate-200 bg-slate-100 py-3 text-sm font-black text-slate-700 hover:bg-slate-200"
+              >
+                البقاء في القسم
               </button>
             </div>
           </div>

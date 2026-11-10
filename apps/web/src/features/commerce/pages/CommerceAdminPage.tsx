@@ -1,4 +1,4 @@
-import {BadgeDollarSign,CheckCircle2,KeyRound,Loader2,PackagePlus,Percent,ReceiptText,RefreshCcw,Save,ShieldCheck,XCircle} from 'lucide-react';
+import {BadgeDollarSign,CheckCircle2,Download,KeyRound,Layers,Loader2,PackagePlus,Percent,ReceiptText,RefreshCcw,Save,ShieldCheck,Sparkles,XCircle} from 'lucide-react';
 import {useEffect,useMemo,useState} from 'react';
 import {useAuth} from '../../auth/state/AuthProvider';
 import {organizationsClient,type RosterMember,type SchoolClass,type SchoolSummary} from '../../organizations/api/organizations-client';
@@ -25,6 +25,7 @@ export function CommerceAdminPage(){
  const[seatSchoolEntitlement,setSeatSchoolEntitlement]=useState('');const[seatClassId,setSeatClassId]=useState('');const[seatUser,setSeatUser]=useState('');
  const[discountCode,setDiscountCode]=useState('');const[discountPercent,setDiscountPercent]=useState(10);const[discountScope,setDiscountScope]=useState<'all'|'product'>('all');const[discountProduct,setDiscountProduct]=useState('');
  const[reload,setReload]=useState(0);
+ const[bulkPrefix,setBulkPrefix]=useState('SCH');const[bulkCount,setBulkCount]=useState(10);const[bulkProduct,setBulkProduct]=useState('');const[bulkSchoolId,setBulkSchoolId]=useState('');const[bulkUses,setBulkUses]=useState(1);const[bulkExpires,setBulkExpires]=useState('');const[bulkBusy,setBulkBusy]=useState(false);const[isBulkOpen,setIsBulkOpen]=useState(false);
 
  useEffect(()=>{if(authLoading||!user||!user.roles.includes('admin'))return;const c=new AbortController();setBusy(true);setError('');
   Promise.all([commerceClient.products(1,100,'','',c.signal),commerceClient.entitlements(1,50,c.signal),commerceClient.discounts(1,50,'','',c.signal),commerceClient.paymentRequests(1,50,'',c.signal),commerceClient.accessCodes(1,50,c.signal),commerceClient.revenueEntries(1,50,'','',c.signal)]).then(([p,e,d,r,a,rev])=>{setProducts(p.items || []);setEntitlements(e.items || []);setDiscounts(d.items || []);setPaymentRequests(r.items || []);setAccessCodes(a.items || []);setRevenueEntries(rev.items || []);setPrices(Object.fromEntries((p.items || []).map(x=>[x.id,x.priceMinor])))}).catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل Commerce')}).finally(()=>{if(!c.signal.aborted)setBusy(false)});return()=>c.abort()
@@ -53,6 +54,93 @@ export function CommerceAdminPage(){
  async function revoke(row:CommerceEntitlement){
   setSaving(row.id);setError('');try{const csrf=await getCsrfToken();await commerceClient.revoke(row,'إلغاء يدوي من الإدارة',csrf);setNotice('تم إلغاء المنحة.');setReload(x=>x+1)}catch(e){setError(e instanceof Error?e.message:'تعذر إلغاء المنحة')}finally{setSaving('')}
  }
+
+ function applyPackagePreset(presetId: 'foundation' | 'excellence' | 'diamond_vip' | 'school') {
+   if (presetId === 'foundation') {
+     setPkgCode('TIER-FOUNDATION');
+     setPkgName('باقة التأسيس الذكي للقدرات');
+     setPkgPrice(14900);
+     setPkgContent('foundation');
+   } else if (presetId === 'excellence') {
+     setPkgCode('TIER-EXCELLENCE-90');
+     setPkgName('باقة التميز والمحاكيات (+90)');
+     setPkgPrice(24900);
+     setPkgContent('mock_exams');
+   } else if (presetId === 'diamond_vip') {
+     setPkgCode('TIER-DIAMOND-VIP');
+     setPkgName('عضوية VIP الماسية الشاملة');
+     setPkgPrice(39900);
+     setPkgContent('all');
+   } else if (presetId === 'school') {
+     setPkgCode('B2B-SCHOOL-CONTRACT');
+     setPkgName('باقة العقد المدرسي الشامل');
+     setPkgPrice(1500000);
+     setPkgContent('all');
+   }
+   setNotice('تم تطبيق قالب الباقة المعتمدة بنجاح.');
+ }
+
+ async function createBulkVouchers() {
+   if (!bulkProduct || !bulkExpires) {
+     setError('حدد باقة الأكواد المجمعة وتاريخ الانتهاء.');
+     return;
+   }
+   const count = Math.max(1, Math.min(100, bulkCount));
+   const prefix = (bulkPrefix.trim() || 'SCH').toUpperCase();
+   setBulkBusy(true);
+   setError('');
+   setNotice('');
+   try {
+     const csrf = await getCsrfToken();
+     let created = 0;
+     for (let i = 1; i <= count; i++) {
+       const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+       const code = `${prefix}-${String(i).padStart(3, '0')}-${randomPart}`;
+       await commerceClient.createAccessCode({
+         code,
+         productId: bulkProduct,
+         schoolId: bulkSchoolId,
+         maxUses: Math.max(1, Math.trunc(bulkUses)),
+         expiresAt: new Date(bulkExpires).toISOString(),
+       }, csrf);
+       created++;
+     }
+     setNotice(`تم توليد ${created} كود تفعيل مجمّع بنجاح.`);
+     setReload((x) => x + 1);
+   } catch (e) {
+     setError(e instanceof Error ? e.message : 'تعذر توليد الأكواد المجمعة');
+   } finally {
+     setBulkBusy(false);
+   }
+ }
+
+ function exportVouchersToCsv() {
+   if (accessCodes.length === 0) {
+     setError('لا توجد أكواد تفعيل لتصديرها.');
+     return;
+   }
+   const headers = ['كود التفعيل', 'معرف الباقة', 'المدرسة', 'الاستخدام الحالي', 'الحد الأقصى', 'الحالة', 'تاريخ الانتهاء'];
+   const rows = accessCodes.map((c) => [
+     c.code,
+     productNameById.get(c.productId) || c.productId,
+     c.schoolId ? (schoolNameById.get(c.schoolId) || c.schoolId) : 'عام',
+     c.currentUses,
+     c.maxUses,
+     c.status === 'active' ? 'نشط' : 'متوقف',
+     c.expiresAt,
+   ]);
+   const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))].join('\r\n');
+   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+   const url = URL.createObjectURL(blob);
+   const link = document.createElement('a');
+   link.setAttribute('href', url);
+   link.setAttribute('download', `almeaa-vouchers-${new Date().toISOString().slice(0, 10)}.csv`);
+   document.body.appendChild(link);
+   link.click();
+   document.body.removeChild(link);
+   setNotice('تم تصدير ملف CSV للأكواد بنجاح.');
+ }
+
  function discountWrite(row:CommerceDiscount,status=row.status):CommerceDiscountWrite{return {code:row.code,label:row.label,discountType:row.discountType,percentageBps:row.percentageBps,fixedMinor:row.fixedMinor,status,minAmountMinor:row.minAmountMinor,maxRedemptions:row.maxRedemptions,startsAt:row.startsAt,expiresAt:row.expiresAt,scopes:row.scopes}}
  async function createActivationCode(){
   const code=activationCode.trim().toUpperCase();if(!code||!activationProduct||!activationExpires){setError('حدد كود التفعيل والباقة وتاريخ الانتهاء.');return}
@@ -106,7 +194,106 @@ export function CommerceAdminPage(){
   </section>
 
   <section className="grid gap-4 lg:grid-cols-2">
-   <div className="space-y-3 rounded-2xl border bg-white p-4 shadow-sm"><div className="flex items-center gap-2 font-black"><KeyRound size={18}/>أكواد التفعيل</div><p className="text-xs font-bold leading-6 text-gray-500">يمكن تقييد الكود بمدرسة فعلية. العضوية نفسها تظل مملوكة لـ Organizations ولا ينشئ Commerce طالبًا أو عضوية.</p><input aria-label="كود التفعيل الإداري" value={activationCode} onChange={e=>setActivationCode(e.target.value.toUpperCase())} placeholder="SCHOOL-2026" className="w-full rounded-xl border p-2.5 font-mono"/><select aria-label="باقة كود التفعيل" value={activationProduct} onChange={e=>setActivationProduct(e.target.value)} className="w-full rounded-xl border p-2.5"><option value="">اختر باقة</option>{activeProducts.filter(x=>x.accessMode==='paid'&&Boolean(x.package)).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select><select aria-label="مدرسة كود التفعيل" value={activationSchoolId} onChange={e=>setActivationSchoolId(e.target.value)} className="w-full rounded-xl border p-2.5"><option value="">عام — غير مقيّد بمدرسة</option>{schools.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select><input aria-label="عدد استخدامات كود التفعيل" type="number" min={1} value={activationUses} onChange={e=>setActivationUses(Number(e.target.value)||1)} className="w-full rounded-xl border p-2.5"/><input aria-label="انتهاء كود التفعيل" type="datetime-local" value={activationExpires} onChange={e=>setActivationExpires(e.target.value)} className="w-full rounded-xl border p-2.5"/><button type="button" disabled={saving==='access-code'} onClick={()=>void createActivationCode()} className="rounded-xl bg-amber-500 px-4 py-2.5 font-black text-white disabled:opacity-40">إنشاء كود تفعيل</button><div className="max-h-56 divide-y overflow-y-auto">{accessCodes.map(row=><div key={row.id} className="flex items-center justify-between gap-3 py-2 text-sm"><div><strong>{row.code}</strong><div className="text-xs text-gray-500">{row.currentUses}/{row.maxUses} · {row.status} · {row.schoolId?(schoolNameById.get(row.schoolId)||'مدرسة محددة'):'عام'}</div></div><button type="button" onClick={()=>void toggleActivationCode(row)} className="rounded-lg border px-2 py-1 text-xs font-black">{row.status==='active'?'إيقاف':'تفعيل'}</button></div>)}</div></div>
+   <div className="space-y-3 rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between border-b pb-2">
+        <div className="flex items-center gap-2 font-black"><KeyRound size={18}/>أكواد التفعيل والقسائم</div>
+        <button
+          type="button"
+          onClick={exportVouchersToCsv}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-black text-slate-700 hover:bg-slate-100 cursor-pointer"
+          title="تصدير كشف الأكواد لإكسل"
+        >
+          <Download size={13} />
+          <span>تصدير CSV</span>
+        </button>
+      </div>
+
+      <p className="text-xs font-bold leading-6 text-gray-500">
+        يمكن تقييد الكود بمدرسة فعلية، أو توليد حزم أكواد مجمعة لمدارس الشراكة أو الحملات الترويجية.
+      </p>
+
+      {/* Single Code Creation */}
+      <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 space-y-2">
+        <div className="text-xs font-black text-slate-700">إنشاء كود تفعيل مفرد:</div>
+        <input aria-label="كود التفعيل الإداري" value={activationCode} onChange={e=>setActivationCode(e.target.value.toUpperCase())} placeholder="SCHOOL-2026" className="w-full rounded-xl border bg-white p-2 font-mono text-xs font-bold"/>
+        <div className="grid grid-cols-2 gap-2">
+          <select aria-label="باقة كود التفعيل" value={activationProduct} onChange={e=>setActivationProduct(e.target.value)} className="w-full rounded-xl border bg-white p-2 text-xs font-bold">
+            <option value="">اختر باقة</option>
+            {activeProducts.filter(x=>x.accessMode==='paid'&&Boolean(x.package)).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
+          </select>
+          <select aria-label="مدرسة كود التفعيل" value={activationSchoolId} onChange={e=>setActivationSchoolId(e.target.value)} className="w-full rounded-xl border bg-white p-2 text-xs font-bold">
+            <option value="">عام — غير مقيّد بمدرسة</option>
+            {schools.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <input aria-label="عدد استخدامات كود التفعيل" type="number" min={1} value={activationUses} onChange={e=>setActivationUses(Number(e.target.value)||1)} placeholder="مرات الاستخدام" className="w-full rounded-xl border bg-white p-2 text-xs font-bold"/>
+          <input aria-label="انتهاء كود التفعيل" type="datetime-local" value={activationExpires} onChange={e=>setActivationExpires(e.target.value)} className="w-full rounded-xl border bg-white p-2 text-xs font-bold"/>
+        </div>
+        <button type="button" disabled={saving==='access-code'} onClick={()=>void createActivationCode()} className="w-full rounded-xl bg-amber-500 py-2 text-xs font-black text-white hover:bg-amber-600 disabled:opacity-40 cursor-pointer">
+          إنشاء كود مفرد
+        </button>
+      </div>
+
+      {/* Bulk Voucher Generator Accordion */}
+      <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs font-black text-indigo-900">
+            <Layers size={14} className="text-indigo-600" />
+            <span>توليد أكواد مجمعة للمدارس (Bulk Vouchers)</span>
+          </div>
+          <button
+            type="button"
+            onClick={()=>setIsBulkOpen(v=>!v)}
+            className="text-[11px] font-black text-indigo-700 underline cursor-pointer"
+          >
+            {isBulkOpen ? 'إخفاء' : 'فتح المولد المجمع'}
+          </button>
+        </div>
+
+        {isBulkOpen && (
+          <div className="space-y-2 pt-2 border-t border-indigo-200/60">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] font-bold text-indigo-900 mb-0.5">بادئة الكود (Prefix)</label>
+                <input value={bulkPrefix} onChange={e=>setBulkPrefix(e.target.value.toUpperCase())} placeholder="SCH" className="w-full rounded-xl border bg-white p-1.5 font-mono text-xs font-bold"/>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-indigo-900 mb-0.5">عدد الأكواد (حتى 100)</label>
+                <input type="number" min={1} max={100} value={bulkCount} onChange={e=>setBulkCount(Number(e.target.value)||1)} className="w-full rounded-xl border bg-white p-1.5 text-xs font-bold"/>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <select value={bulkProduct} onChange={e=>setBulkProduct(e.target.value)} className="w-full rounded-xl border bg-white p-1.5 text-xs font-bold">
+                <option value="">اختر الباقة</option>
+                {activeProducts.filter(x=>x.accessMode==='paid'&&Boolean(x.package)).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
+              </select>
+              <select value={bulkSchoolId} onChange={e=>setBulkSchoolId(e.target.value)} className="w-full rounded-xl border bg-white p-1.5 text-xs font-bold">
+                <option value="">عام — بدون تقييد</option>
+                {schools.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input type="number" min={1} value={bulkUses} onChange={e=>setBulkUses(Number(e.target.value)||1)} placeholder="استخدامات كل كود" className="w-full rounded-xl border bg-white p-1.5 text-xs font-bold"/>
+              <input type="datetime-local" value={bulkExpires} onChange={e=>setBulkExpires(e.target.value)} className="w-full rounded-xl border bg-white p-1.5 text-xs font-bold"/>
+            </div>
+            <button
+              type="button"
+              disabled={bulkBusy}
+              onClick={()=>void createBulkVouchers()}
+              className="w-full rounded-xl bg-indigo-600 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-40 cursor-pointer"
+            >
+              {bulkBusy ? 'جارٍ توليد الأكواد...' : `توليد ${bulkCount} كود دفعة واحدة 🚀`}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Access Codes List */}
+      <div className="max-h-56 divide-y overflow-y-auto">
+        {accessCodes.map(row=><div key={row.id} className="flex items-center justify-between gap-3 py-2 text-sm"><div><strong>{row.code}</strong><div className="text-xs text-gray-500">{row.currentUses}/{row.maxUses} · {row.status} · {row.schoolId?(schoolNameById.get(row.schoolId)||'مدرسة محددة'):'عام'}</div></div><button type="button" onClick={()=>void toggleActivationCode(row)} className="rounded-lg border px-2 py-1 text-xs font-black cursor-pointer">{row.status==='active'?'إيقاف':'تفعيل'}</button></div>)}
+      </div>
+    </div>
    <div className="space-y-3 rounded-2xl border bg-white p-4 shadow-sm"><div className="flex items-center gap-2 font-black"><ShieldCheck size={18}/>مقاعد المدارس المحدودة</div><p className="text-xs font-bold leading-6 text-gray-500">اختر الطالب من العضوية النشطة في المدرسة بدل إدخال UUID يدويًا؛ Commerce يرسل المعرّف فقط ثم يعيد الخادم التحقق من العضوية والسعة.</p><select aria-label="منحة المدرسة للمقاعد" value={seatSchoolEntitlement} onChange={e=>setSeatSchoolEntitlement(e.target.value)} className="w-full rounded-xl border p-2.5"><option value="">اختر منحة مدرسة</option>{entitlements.filter(x=>x.subjectType==='school'&&x.status==='active').map(x=><option key={x.id} value={x.id}>{schoolNameById.get(x.schoolId)||x.schoolId} · {productNameById.get(x.productId)||x.productId}</option>)}</select><select aria-label="فصل المقعد" value={seatClassId} disabled={!selectedSeatSchoolId} onChange={e=>setSeatClassId(e.target.value)} className="w-full rounded-xl border p-2.5 disabled:opacity-50"><option value="">اختر الفصل</option>{seatClasses.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select><select aria-label="طالب المقعد" value={seatUser} disabled={!seatClassId} onChange={e=>setSeatUser(e.target.value)} className="w-full rounded-xl border p-2.5 disabled:opacity-50"><option value="">اختر الطالب</option>{seatStudents.map(x=><option key={x.userId} value={x.userId}>{x.name}{x.email?` · ${x.email}`:''}</option>)}</select><button type="button" disabled={saving==='seat'||!seatUser} onClick={()=>void assignSeat()} className="rounded-xl bg-emerald-600 px-4 py-2.5 font-black text-white disabled:opacity-40">تخصيص مقعد</button><div className="max-h-56 divide-y overflow-y-auto">{seats.map(row=><div key={row.id} className="flex items-center justify-between py-2 text-sm"><div><strong>{seatStudents.find(x=>x.userId===row.userId)?.name||row.userId}</strong><div className="text-xs text-gray-500">{row.status}</div></div>{row.status==='active'?<button type="button" disabled={saving===row.id} onClick={()=>void revokeSeat(row)} className="rounded-lg border border-rose-200 px-2 py-1 text-xs font-black text-rose-700">إلغاء</button>:null}</div>)}</div></div>
   </section>
 
@@ -117,7 +304,41 @@ export function CommerceAdminPage(){
   <section className="overflow-hidden rounded-2xl border bg-white shadow-sm"><div className="flex items-center gap-2 border-b p-4 font-black"><BadgeDollarSign size={18}/>سجل الإيراد الفعلي وحصص المدربين</div><div className="divide-y">{revenueEntries.length===0?<div className="p-6 text-center text-sm font-bold text-gray-500">لا توجد مبيعات مدفوعة مسجلة بعد.</div>:revenueEntries.map(row=><article key={row.id} className="grid gap-3 p-4 lg:grid-cols-[1fr_auto] lg:items-center"><div><div className="font-black">{row.productType} · {money(row.paidAmountMinor,row.currency)}</div><div className="mt-1 text-xs font-bold text-gray-500">إجمالي {money(row.grossAmountMinor,row.currency)} · خصم {money(row.discountAmountMinor,row.currency)} · التسوية {row.allocationStatus} · الصرف {row.payoutStatus}</div>{row.trainerUserId?<div className="mt-1 text-xs font-black text-indigo-700">المدرب {row.trainerUserId} · نسبة السياسة {row.revenueSharePercentage==null?'غير محددة':row.revenueSharePercentage+'%'}</div>:<div className="mt-1 text-xs font-bold text-gray-400">لا توجد حصة مدرب مرتبطة بهذه المبيعة.</div>}{row.allocationStatus==='allocated'?<div className="mt-1 text-xs font-bold text-emerald-700">رسوم المزود {money(row.providerFeeMinor||0,row.currency)} · حصة المدرب {money(row.trainerShareMinor||0,row.currency)} · حصة المنصة {money(row.platformShareMinor||0,row.currency)}</div>:null}{row.reversalType?<div className="mt-1 text-xs font-black text-rose-700">انعكاس كامل: {row.reversalType} · {money(row.reversedAmountMinor||0,row.currency)} · المرجع {row.reversalReference}</div>:null}</div><div className="flex flex-wrap gap-2">{!row.reversalType&&row.allocationStatus==='pending'?<button type="button" disabled={saving===row.id} onClick={()=>void allocateRevenue(row)} className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white disabled:opacity-40">تسجيل التسوية الفعلية</button>:null}{!row.reversalType&&row.payoutStatus==='pending'&&row.allocationStatus==='allocated'?<button type="button" disabled={saving===row.id} onClick={()=>void markPayout(row)} className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white disabled:opacity-40">تسجيل صرف المدرب</button>:null}{row.allocationStatus==='policy_missing'?<span className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-black text-amber-800">سياسة النسبة غير محددة وقت البيع</span>:null}</div></article>)}</div><div className="border-t bg-slate-50 p-3 text-xs font-bold text-slate-600">لا تُحسب حصة المدرب أو رسوم المزود كتقدير. يجب إدخال أرقام التسوية الفعلية مع مرجع. عند الاسترداد/Chargeback الكامل يُسجل الانعكاس ويُلغى الوصول المرتبط بالدفع؛ لا ينفذ النظام استردادًا خارجيًا أو استرجاعًا آليًا لمبلغ سبق صرفه للمدرب.</div></section>
 
   <section className="grid gap-4 lg:grid-cols-2">
-   <div className="space-y-3 rounded-2xl border bg-white p-4 shadow-sm"><div className="flex items-center gap-2 font-black"><PackagePlus size={18}/>إنشاء باقة</div><input aria-label="كود الباقة" value={pkgCode} onChange={e=>setPkgCode(e.target.value)} placeholder="QUDRAT-ALL" className="w-full rounded-xl border p-2.5"/><input aria-label="اسم الباقة" value={pkgName} onChange={e=>setPkgName(e.target.value)} placeholder="باقة القدرات" className="w-full rounded-xl border p-2.5"/><input aria-label="سعر الباقة بالهللة" type="number" min={1} value={pkgPrice} onChange={e=>setPkgPrice(Number(e.target.value)||0)} className="w-full rounded-xl border p-2.5"/><select aria-label="نطاق محتوى الباقة" value={pkgContent} onChange={e=>setPkgContent(e.target.value as CommerceContentType)} className="w-full rounded-xl border p-2.5"><option value="all">كل المنصة</option><option value="courses">الدورات</option><option value="foundation">التأسيس</option><option value="tests">الاختبارات</option><option value="mock_exams">المحاكيات</option><option value="library">المكتبة</option><option value="banks">بنوك الأسئلة</option></select><button type="button" disabled={saving==='package'} onClick={()=>void createPackage()} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 font-black text-white disabled:opacity-40"><PackagePlus size={17}/>إنشاء</button></div>
+    <div className="space-y-3 rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="flex items-center gap-2 font-black"><PackagePlus size={18}/>إنشاء باقة جديدة</div>
+      <div className="space-y-1.5">
+        <label className="block text-[11px] font-black text-slate-700">قوالب الباقات المعتمدة (Tier Presets):</label>
+        <div className="flex flex-wrap gap-1.5">
+          <button type="button" onClick={()=>applyPackagePreset('foundation')} className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-800 hover:bg-blue-100 cursor-pointer">
+            ⚡ التأسيس (149 ر.س)
+          </button>
+          <button type="button" onClick={()=>applyPackagePreset('excellence')} className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-black text-indigo-800 hover:bg-indigo-100 cursor-pointer">
+            ⭐ التميز (+90) (249 ر.س)
+          </button>
+          <button type="button" onClick={()=>applyPackagePreset('diamond_vip')} className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-black text-amber-900 hover:bg-amber-100 cursor-pointer">
+            👑 VIP الماسية (399 ر.س)
+          </button>
+          <button type="button" onClick={()=>applyPackagePreset('school')} className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-800 hover:bg-emerald-100 cursor-pointer">
+            🏫 عقد مدرسة B2B
+          </button>
+        </div>
+      </div>
+      <input aria-label="كود الباقة" value={pkgCode} onChange={e=>setPkgCode(e.target.value.toUpperCase())} placeholder="QUDRAT-ALL" className="w-full rounded-xl border p-2.5 font-mono text-xs font-bold"/>
+      <input aria-label="اسم الباقة" value={pkgName} onChange={e=>setPkgName(e.target.value)} placeholder="باقة القدرات" className="w-full rounded-xl border p-2.5 text-xs font-bold"/>
+      <input aria-label="سعر الباقة بالهللة" type="number" min={1} value={pkgPrice} onChange={e=>setPkgPrice(Number(e.target.value)||0)} className="w-full rounded-xl border p-2.5 text-xs font-bold"/>
+      <select aria-label="نطاق محتوى الباقة" value={pkgContent} onChange={e=>setPkgContent(e.target.value as CommerceContentType)} className="w-full rounded-xl border p-2.5 text-xs font-bold">
+        <option value="all">كل المنصة</option>
+        <option value="courses">الدورات</option>
+        <option value="foundation">التأسيس</option>
+        <option value="tests">الاختبارات</option>
+        <option value="mock_exams">المحاكيات</option>
+        <option value="library">المكتبة</option>
+        <option value="banks">بنوك الأسئلة</option>
+      </select>
+      <button type="button" disabled={saving==='package'} onClick={()=>void createPackage()} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 font-black text-white hover:bg-indigo-700 disabled:opacity-40 cursor-pointer">
+        <PackagePlus size={17}/>إنشاء الباقة
+      </button>
+    </div>
    <div className="space-y-3 rounded-2xl border bg-white p-4 shadow-sm"><div className="flex items-center gap-2 font-black"><KeyRound size={18}/>منحة وصول يدوية</div><select aria-label="نوع المستفيد" value={subjectType} onChange={e=>setSubjectType(e.target.value as 'user'|'school')} className="w-full rounded-xl border p-2.5"><option value="user">مستخدم</option><option value="school">مدرسة</option></select><input aria-label="معرف المستفيد" value={subjectId} onChange={e=>setSubjectId(e.target.value)} placeholder="UUID" className="w-full rounded-xl border p-2.5"/><select aria-label="المنتج الممنوح" value={grantProduct} onChange={e=>setGrantProduct(e.target.value)} className="w-full rounded-xl border p-2.5"><option value="">اختر المنتج</option>{activeProducts.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select><button type="button" disabled={saving==='grant'} onClick={()=>void grant()} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 font-black text-white disabled:opacity-40"><ShieldCheck size={17}/>منح الوصول</button></div>
   </section>
 

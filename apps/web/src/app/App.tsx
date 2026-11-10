@@ -56,12 +56,14 @@ import { PublicLandingPage } from '../features/public/pages/PublicLandingPage';
 import { CoursesPage } from '../features/public/pages/CoursesPage';
 import { CartPage } from '../features/public/header/commerce/CartPage';
 import { PricingPage } from '../features/public/header/commerce/PricingPage';
+import { PricingPlansPage } from '../features/commerce/pages/PricingPlansPage';
 import { BlogPage } from '../features/public/header/pages/BlogPage';
 import { MockExamsPage } from '../features/public/header/pages/MockExamsPage';
 import { LegacySiteFooter, showPublicFooter } from '../features/public/components/LegacySiteFooter';
 import { Header as OriginalHeader } from '../features/public/header/OriginalHeader';
 import { LegacyCategoryPage } from '../features/public/header/pages/LegacyCategoryPage';
 import { StaticInfoPage } from '../features/public/pages/StaticInfoPage';
+import { SchoolsPitchPage } from '../features/public/pages/SchoolsPitchPage';
 import { StudentNavigationProvider, StudentPathBar } from '../features/learning/navigation';
 
 import { PlatformFontBootstrap } from '../features/presentation/PlatformFontBootstrap';
@@ -177,7 +179,10 @@ export function App() {
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/dashboard" element={<StudentDashboardPage />} />
         <Route path="/courses" element={<CoursesPage />} />
-        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/pricing" element={<PricingPlansPage />} />
+        <Route path="/memberships" element={<PricingPlansPage />} />
+        <Route path="/for-schools" element={<SchoolsPitchPage />} />
+        <Route path="/schools" element={<SchoolsPitchPage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/mock-exams" element={<MockExamsPage />} />

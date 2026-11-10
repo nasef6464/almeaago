@@ -23,6 +23,7 @@ import {
   Shield,
   Gift,
   CreditCard,
+  Building2,
 } from 'lucide-react';
 import { afterHeaderLoginPath, useAuth } from './authAdapter';
 import { isStagingEnv } from './headerApi';
@@ -32,6 +33,7 @@ import { sanitizeHomepageSettings } from '../../presentation/homepageSanitizer';
 import { ThemeToggle } from './dependencies/ThemeToggle';
 import { SearchModal } from './dependencies/SearchModal';
 import { NotificationBell } from './dependencies/NotificationBell';
+import { StudentMembershipBadge } from '../../commerce/components/StudentMembershipBadge';
 
 const NavIcons: Record<string, React.ReactNode> = {
   home: <Home size={18} />,
@@ -517,6 +519,8 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
 
                         const childIcon = child.id === 'pricing' ? (
                           <CreditCard size={15} className="text-amber-500 shrink-0" />
+                        ) : child.id === 'schools' ? (
+                          <Building2 size={15} className="text-emerald-500 shrink-0" />
                         ) : child.id === 'blog' ? (
                           <BookOpen size={15} className="text-indigo-500 shrink-0" />
                         ) : null;
@@ -562,6 +566,12 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
                 {cartItems.length}
               </span>
             </Link>
+
+            {user ? (
+              <div className="hidden sm:inline-flex items-center">
+                <StudentMembershipBadge />
+              </div>
+            ) : null}
 
             <div className="relative">
               {user ? (
