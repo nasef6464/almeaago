@@ -32,11 +32,11 @@ export const PricingPage: React.FC = () => {
   };
 
   return (
-    <div data-testid="pricing-memberships-page" className="min-h-screen bg-slate-50 dark:bg-slate-950 bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 px-4 py-10 text-slate-900 dark:text-slate-100 transition-colors" dir="rtl">
+    <div data-testid="pricing-memberships-page" className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-10 text-slate-900 dark:text-slate-100 transition-colors" dir="rtl">
       <div className="mx-auto max-w-6xl">
         <div className="text-center">
           <h1 className="text-3xl font-black text-gray-900 dark:text-white sm:text-4xl">عضويات المنصة</h1>
-          <p className="mt-3 text-sm text-gray-600 dark:text-slate-300 sm:text-base">
+          <p className="mt-3 text-sm text-gray-600 dark:text-gray-300 sm:text-base font-bold">
             العضوية هنا اشتراك عام على مستوى المنصة. باقات المسارات والمدارس تدار بشكل مستقل داخل المسارات والمدارس.
           </p>
           {referralRef && (

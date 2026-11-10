@@ -17,7 +17,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { QuestionAssistantPanel } from '../../ai/components/QuestionAssistantPanel';
@@ -390,6 +390,9 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
 
   if (authLoading || busy || (attemptId && detailContext !== activeContext && !error)) {
     return <div className="p-10 text-center font-black">جاري تحميل النتائج...</div>;
+  }
+  if (!attemptId && !embedded && (!user || user?.roles.includes('student'))) {
+    return <Navigate to="/dashboard?tab=results" replace />;
   }
   if (!user) {
     return <div className="p-10 text-center font-black text-rose-700">يلزم تسجيل الدخول.</div>;

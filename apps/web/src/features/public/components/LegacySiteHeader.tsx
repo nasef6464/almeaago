@@ -327,7 +327,7 @@ function LegacySiteHeaderContent({ onAuth }: { onAuth(mode: AuthMode): void }) {
                         ) : null}
 
                         <Link
-                          to="/courses"
+                          to="/dashboard?tab=paths"
                           onClick={() => setUserMenuOpen(false)}
                           className="flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
                         >
@@ -336,7 +336,7 @@ function LegacySiteHeaderContent({ onAuth }: { onAuth(mode: AuthMode): void }) {
                         </Link>
 
                         <Link
-                          to="/mock-exams"
+                          to="/dashboard?tab=assessments"
                           onClick={() => setUserMenuOpen(false)}
                           className="flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
                         >
@@ -345,7 +345,7 @@ function LegacySiteHeaderContent({ onAuth }: { onAuth(mode: AuthMode): void }) {
                         </Link>
 
                         <Link
-                          to="/reports"
+                          to="/dashboard?tab=reports"
                           onClick={() => setUserMenuOpen(false)}
                           className="flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
                         >

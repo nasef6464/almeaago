@@ -377,9 +377,12 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
                   </Link>
 
                   {item.children && activeDropdown === item.id ? (() => {
-                    const isCompactDropdown = item.id === 'more' || (item.children.length <= 4 && !item.children.some((c: any) => c.isGroup));
+                    const isMore = item.id === 'more';
+                    const isCompactDropdown = isMore || (item.children.length <= 4 && !item.children.some((c: any) => c.isGroup));
+                    const alignClass = isMore ? 'left-0 right-auto' : 'right-0';
+                    const widthClass = isMore ? 'w-48' : isCompactDropdown ? 'w-56' : 'w-72 sm:w-80';
                     return (
-                    <div className={`absolute top-full right-0 ${isCompactDropdown ? 'w-52' : 'w-72 sm:w-80'} bg-white dark:bg-slate-900 shadow-2xl rounded-2xl border border-slate-100 dark:border-slate-800 border-t-2 border-t-amber-500 py-2 animate-fade-in z-50 backdrop-blur-md`}>
+                    <div className={`absolute top-full ${alignClass} ${widthClass} bg-white dark:bg-slate-900 shadow-2xl rounded-2xl border border-slate-100 dark:border-slate-800 border-t-2 border-t-amber-500 py-2 animate-fade-in z-50 backdrop-blur-md`}>
                       {item.children.map((child: Record<string, any>, childIndex: number) => {
                         if (child.isDivider) {
                           return <div key={`divider-${childIndex}`} className="h-px bg-slate-100 dark:bg-slate-800 my-1.5 mx-3" />;
@@ -589,10 +592,10 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
                   </div>
 
                   {isUserMenuOpen ? (
-                    <div className="absolute top-full left-0 mt-2 w-64 bg-white shadow-xl rounded-xl border border-gray-100 py-2 animate-fade-in z-50">
-                      <div className="px-4 py-3 border-b border-gray-100 mb-2">
-                        <p className="font-bold text-gray-800">{user.displayName || text.guest}</p>
-                        <p className="text-xs text-gray-500">{user.email}</p>
+                    <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-gray-100 dark:border-slate-800 py-2 animate-fade-in z-50">
+                      <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-800 mb-2">
+                        <p className="font-bold text-gray-800 dark:text-gray-100">{user.displayName || text.guest}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
                       </div>
 
                       {user.role === 'teacher' ? (
@@ -607,9 +610,9 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
                       ) : (
                         <UserMenuItem to={getDashboardPathForRole(user.role, user)} icon={<LayoutGrid size={18} />} label={text.dashboard} />
                       )}
-                      <UserMenuItem to="/dashboard?tab=my-courses" icon={<BookOpen size={18} />} label={text.courses} />
-                      <UserMenuItem to="/my-quizzes" icon={<FileText size={18} />} label={text.quizzes} />
-                      <UserMenuItem to="/achievements" icon={<Award size={18} />} label={text.achievements} />
+                      <UserMenuItem to="/dashboard?tab=paths" icon={<BookOpen size={18} />} label={text.courses} />
+                      <UserMenuItem to="/dashboard?tab=assessments" icon={<FileText size={18} />} label={text.quizzes} />
+                      <UserMenuItem to="/dashboard?tab=reports" icon={<Award size={18} />} label="تقاريري وإنجازاتي" />
                       <UserMenuItem to="/profile" icon={<User size={18} />} label={text.profile} />
 
                       {isPrivilegedUser ? (
@@ -620,7 +623,7 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
                         />
                       ) : null}
 
-                      <div className="border-t border-gray-100 mt-2 pt-2">
+                      <div className="border-t border-gray-100 dark:border-slate-800 mt-2 pt-2">
                         <button
                           data-logout-explicit="true"
                           onClick={async () => {
@@ -628,7 +631,7 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
                             setIsUserMenuOpen(false);
                             navigate('/?auth=login', { replace: true });
                           }}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium transition-colors"
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 dark:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-950/40 font-medium transition-colors"
                         >
                           <LogOut size={18} />
                           {text.logout}
@@ -1284,7 +1287,7 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
 const UserMenuItem = ({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) => (
   <Link
     to={to}
-    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-700 transition-colors font-medium"
+    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-600 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-slate-800 hover:text-blue-700 dark:hover:text-blue-400 transition-colors font-medium"
   >
     {icon}
     {label}

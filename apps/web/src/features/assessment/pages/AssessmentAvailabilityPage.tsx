@@ -1,6 +1,6 @@
 import {ArrowRight,BookOpenCheck,CheckCircle2,ChevronLeft,ChevronRight,FileText,Loader2,Play,Target} from 'lucide-react';
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {Link,useNavigate,useSearchParams} from 'react-router-dom';
+import {Link,Navigate,useNavigate,useSearchParams} from 'react-router-dom';
 import {useAuth} from '../../auth/state/AuthProvider';
 import {contentClient} from '../../content/api/content-client';
 import type {LearningSpace,TaxonomyCore} from '../../content/api/content-types';
@@ -22,7 +22,11 @@ useEffect(()=>{setPage(1);if(slot!=='course')setCourseId('');if(slot!=='foundati
 const contextReady=Boolean(pathId&&subjectId&&((slot==='course'&&courseId)||(slot==='foundation'&&topicId)||slot==='training'||slot==='tests'));
 useEffect(()=>{if(authLoading||!user||!user.roles.includes('student')||!contextReady){setRows([]);setHasMore(false);setBusy(false);setListFailed(false);return}const c=new AbortController();setBusy(true);setRows([]);setHasMore(false);setListFailed(false);setError('');assessmentPlacementClient.available({page,limit:30,slot,pathId,subjectId,courseId:slot==='course'?courseId:undefined,topicId:slot==='foundation'?topicId:undefined},c.signal).then(r=>{if(c.signal.aborted)return;setRows(r.items);setHasMore(r.hasMore)}).catch(e=>{if(!c.signal.aborted){setRows([]);setHasMore(false);setListFailed(true);setError(e instanceof Error?e.message:'تعذر تحميل الاختبارات المتاحة')}}).finally(()=>{if(!c.signal.aborted)setBusy(false)});return()=>c.abort()},[authLoading,contextReady,courseId,page,pathId,slot,subjectId,topicId,user]);
 async function start(row:LearnerAssessmentPlacement){if(startingRef.current||!row.accessAllowed||!row.canStart)return;startingRef.current=row.placementId;setStarting(row.placementId);setError('');try{const csrf=await getCsrfToken();const r=await assessmentPlacementClient.start(row.placementId,placementKey(row.placementId),csrf);sessionStorage.removeItem(`assessment-placement-start:${row.placementId}`);navigate(`/assessment-attempts/${r.attempt.id}`)}catch(e){setError(e instanceof Error?e.message:'تعذر بدء الاختبار')}finally{startingRef.current='';setStarting('')}}
-if(authLoading)return <div className="p-10 text-center font-black">جاري التحقق من الجلسة...</div>;if(!user||!user.roles.includes('student'))return <div className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</div>;
+if(authLoading)return <div className="p-10 text-center font-black">جاري التحقق من الجلسة...</div>;
+if(!embedded && (!user || user.roles.includes('student'))){
+  return <Navigate to="/dashboard?tab=assessments" replace />;
+}
+if(!user||!user.roles.includes('student'))return <div className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</div>;
 
 const ContainerTag = embedded ? 'div' : 'main';
 
@@ -78,7 +82,9 @@ return <ContainerTag dir="rtl" className={`mx-auto max-w-5xl space-y-6 ${embedde
     <h2 className="mt-2 font-black text-gray-900 dark:text-white">لا توجد اختبارات مطلوبة هنا الآن</h2>
     <p className="mt-1 text-xs font-bold text-gray-500 dark:text-slate-400">عند نشر اختبار لهذا المكان وبصلاحية مناسبة سيظهر هنا تلقائيًا.</p>
   </div>:<section className="grid gap-4 md:grid-cols-2">{rows.map(row=>{
-    const displayTitle = (row.title || 'اختبار تقييمي').replace(/:\s*undefined|undefined/gi, ': مهارات عامة');
+    const displayTitle = (row.title || 'اختبار تقييمي')
+      .replace(/:\s*(undefined|null)/gi, ': مهارات عامة')
+      .replace(/\b(undefined|null)\b/gi, 'مهارات عامة');
     return (
     <article key={row.placementId} className="flex flex-col rounded-2xl border border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm transition hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md">
     <div className="flex items-start justify-between gap-3">

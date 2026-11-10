@@ -223,6 +223,8 @@ export function App() {
         <Route path="/plan" element={<StudyPlanPage />} />
         <Route path="/school-teacher-dashboard" element={<TeacherWorkspacePage />} />
         <Route path="/school-teacher-dashboard/classroom" element={<ClassroomTeacherPage />} />
+        <Route path="/classroom/teacher" element={<ClassroomTeacherPage />} />
+        <Route path="/classroom/:sessionId/teacher" element={<ClassroomTeacherPage />} />
         <Route path="/instructor-dashboard" element={<PlatformTrainerDashboardPage />} />
         <Route path="/trainer-dashboard" element={<PlatformTrainerDashboardPage />} />
         <Route path="/coach-dashboard" element={<PlatformTrainerDashboardPage />} />

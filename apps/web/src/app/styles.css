@@ -292,8 +292,8 @@ html.dark .from-slate-50,
 html.dark .from-gray-50,
 html.dark .from-zinc-50,
 html.dark .from-neutral-50 {
-  --tw-gradient-from: #0b0f19 var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgba(11, 15, 25, 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-from: #0b0f19 !important;
+  --tw-gradient-to: rgba(11, 15, 25, 0) !important;
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
 }
 
@@ -302,7 +302,7 @@ html.dark .via-slate-50,
 html.dark .via-gray-50,
 html.dark .via-zinc-50,
 html.dark .via-neutral-50 {
-  --tw-gradient-stops: var(--tw-gradient-from), #111827 var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #111827, var(--tw-gradient-to) !important;
 }
 
 html.dark .to-white,
@@ -310,17 +310,17 @@ html.dark .to-slate-50,
 html.dark .to-gray-50,
 html.dark .to-zinc-50,
 html.dark .to-neutral-50 {
-  --tw-gradient-to: #0b0f19 var(--tw-gradient-to-position) !important;
+  --tw-gradient-to: #0b0f19 !important;
 }
 
 html.dark .from-slate-100,
 html.dark .from-gray-100 {
-  --tw-gradient-from: #1f2937 var(--tw-gradient-from-position) !important;
+  --tw-gradient-from: #1f2937 !important;
 }
 
 html.dark .to-slate-100,
 html.dark .to-gray-100 {
-  --tw-gradient-to: #1f2937 var(--tw-gradient-to-position) !important;
+  --tw-gradient-to: #1f2937 !important;
 }
 
 /* 11. KaTeX Math in Dark Mode */

@@ -1,20 +1,26 @@
 import {
   BarChart3,
   Bell,
+  Bookmark,
   BookOpen,
-  BrainCircuit,
+  Brain,
   Calculator,
   CalendarDays,
   ChevronLeft,
-  ClipboardCheck,
   ClipboardList,
   Copy,
+  FileText,
+  GraduationCap,
+  Headphones,
   Home,
+  LayoutDashboard,
   Menu,
-  Radio,
+  MessageCircle,
   Route as RouteIcon,
   Sparkles,
+  Star,
   Target,
+  Wrench,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -29,11 +35,17 @@ import { SmartLearningPathWidget } from '../components/SmartLearningPathWidget';
 import { ProgressBar } from '../components/ProgressBar';
 import { useStudentExperience } from '../navigation';
 import { PathsTab } from './dashboard/PathsTab';
+import { MyCoursesTab } from './dashboard/MyCoursesTab';
+import { SessionsTab } from './dashboard/SessionsTab';
+import { SmartPathTab } from './dashboard/SmartPathTab';
+import { MockExamsTab } from './dashboard/MockExamsTab';
+import { FlashcardsTab } from './dashboard/FlashcardsTab';
+import { QATab } from './dashboard/QATab';
+import { MyRequestsTab } from './dashboard/MyRequestsTab';
 import { resolvePathProgress, type DashboardPath } from './dashboard/pathProgressProjection';
 import { ReportsPage } from '../../reporting/pages/ReportsPage';
 import { StudyPlanPage } from './StudyPlanPage';
 import { ReviewLibraryPage } from './ReviewLibraryPage';
-import { AssessmentAvailabilityPage } from '../../assessment/pages/AssessmentAvailabilityPage';
 import { AssessmentAssignmentsPage } from '../../assessment/pages/AssessmentAssignmentsPage';
 import { AssessmentResultsPage } from '../../assessment/pages/AssessmentResultsPage';
 
@@ -138,52 +150,63 @@ export function StudentDashboardPage() {
     .map((part) => part[0])
     .join('');
 
-  const groups: Array<{ id: string; title: string; tone: string; items: NavItem[] }> = [
+  const learningShortcuts: NavItem[] = [
+    { to: '/dashboard?tab=paths', label: 'مساراتي', icon: RouteIcon, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
+    { to: '/dashboard?tab=my-courses', label: 'دوراتي', icon: BookOpen, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
+    { to: '/dashboard?tab=sessions', label: 'جلساتي', icon: CalendarDays, tone: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' },
+  ];
+
+  const groups: Array<{ id: string; title: string; icon: typeof GraduationCap; tone: string; items: NavItem[] }> = [
     {
-      id: 'learning',
-      title: 'التعلم',
+      id: 'journey',
+      title: 'رحلتي التعليمية',
+      icon: GraduationCap,
       tone: 'border-emerald-200/80 bg-gradient-to-b from-emerald-100/90 to-emerald-50/80 text-emerald-800 dark:border-emerald-800/60 dark:from-emerald-950/70 dark:to-emerald-900/40 dark:text-emerald-300',
       items: [
-        { to: '/dashboard?tab=paths', label: 'مساراتي ودوراتي', icon: BookOpen, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
-        { to: '/dashboard?tab=plan', label: 'خططي', icon: CalendarDays, tone: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' },
-        { to: '/dashboard?tab=reports', label: 'تقاريري', icon: BarChart3, tone: 'bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300' },
+        { to: '/dashboard?tab=smart-path', label: 'المسار الذكي', icon: Brain, tone: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' },
+        { to: '/dashboard?tab=plan', label: 'خططي', icon: CalendarDays, tone: 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300' },
+        { to: '/dashboard?tab=reports', label: 'تقاريري', icon: BarChart3, tone: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' },
       ],
     },
     {
       id: 'exams',
       title: 'الاختبارات',
+      icon: FileText,
       tone: 'border-rose-200/80 bg-gradient-to-b from-rose-100/90 to-rose-50/80 text-rose-800 dark:border-rose-800/60 dark:from-rose-950/70 dark:to-rose-900/40 dark:text-rose-300',
       items: [
-        { to: '/dashboard?tab=assessments', label: 'اختبارات المنصة', icon: ClipboardCheck, tone: 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300' },
-        { to: '/dashboard?tab=assignments', label: 'الاختبارات الموجهة', icon: Target, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
-        { to: '/dashboard?tab=results', label: 'اختباراتي ونتائجي', icon: RouteIcon, tone: 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300' },
+        { to: '/dashboard?tab=quizzes', label: 'الاختبارات السابقة', icon: FileText, tone: 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300' },
+        { to: '/dashboard?tab=school-tests', label: 'الاختبارات المدرسية', icon: Target, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
+        { to: '/dashboard?tab=mock-exams', label: 'الاختبارات المحاكية', icon: Star, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
       ],
     },
     {
       id: 'tools',
       title: 'الأدوات',
+      icon: Wrench,
       tone: 'border-violet-200/80 bg-gradient-to-b from-violet-100/90 to-violet-50/80 text-violet-800 dark:border-violet-800/60 dark:from-violet-950/70 dark:to-violet-900/40 dark:text-violet-300',
       items: [
+        { to: '/dashboard?tab=favorites', label: 'أسئلتي للمراجعة', icon: Bookmark, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
+        { to: '/dashboard?tab=flashcards', label: 'بطاقات التذكر', icon: Copy, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
         { onClick: () => setShowCalculator(true), label: 'حاسبة النسبة الموزونة', icon: Calculator, tone: 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300' },
-        { to: '/dashboard?tab=review', label: 'أسئلتي للمراجعة', icon: BrainCircuit, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
-        { to: '/classroom/join', label: 'الفصل الذكي', icon: Radio, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
       ],
     },
     {
       id: 'support',
-      title: 'الدعم والمتابعة',
+      title: 'الدعم',
+      icon: Headphones,
       tone: 'border-orange-200/80 bg-gradient-to-b from-orange-100/90 to-orange-50/80 text-orange-800 dark:border-orange-800/60 dark:from-orange-950/70 dark:to-orange-900/40 dark:text-orange-300',
       items: [
-        { to: '/notifications', label: 'الإشعارات', icon: Bell, tone: 'bg-orange-100 dark:bg-orange-900/60 text-orange-700 dark:text-orange-300' },
+        { to: '/dashboard?tab=qa', label: 'سؤال وجواب', icon: MessageCircle, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
+        { to: '/dashboard?tab=requests', label: 'طلباتي', icon: ClipboardList, tone: 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300' },
       ],
     },
   ];
 
   const overviewCards: Array<{ to: string; label: string; icon: typeof Home; tone: string }> = [
-    { to: '/learning', label: 'مساحة التعلم', icon: BookOpen, tone: 'bg-indigo-50 text-indigo-700' },
-    { to: '/assessments', label: 'الاختبارات', icon: ClipboardCheck, tone: 'bg-blue-50 text-blue-700' },
-    { to: '/review', label: 'المراجعة والإتقان', icon: BrainCircuit, tone: 'bg-purple-50 text-purple-700' },
-    { to: '/plan', label: 'الخطة الدراسية', icon: CalendarDays, tone: 'bg-amber-50 text-amber-700' },
+    { to: '/dashboard?tab=smart-path', label: 'المسار الذكي', icon: Brain, tone: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300' },
+    { to: '/dashboard?tab=mock-exams', label: 'الاختبارات المحاكية', icon: Star, tone: 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300' },
+    { to: '/dashboard?tab=favorites', label: 'المراجعة والإتقان', icon: Bookmark, tone: 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300' },
+    { to: '/dashboard?tab=reports', label: 'تقارير الأداء', icon: BarChart3, tone: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300' },
   ];
 
   const navItem = (item: NavItem) => {
@@ -285,6 +308,7 @@ export function StudentDashboardPage() {
             </div>
 
             <nav aria-label="تنقل لوحة الطالب" className="space-y-3">
+              {/* Primary overview */}
               <div data-testid="student-menu-overview">
                 <Link
                   to="/dashboard"
@@ -296,8 +320,8 @@ export function StudentDashboardPage() {
                   }`}
                 >
                   <span className="flex items-center gap-3">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/75 text-indigo-800 shadow-xs">
-                      <Home size={18} />
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/75 dark:bg-slate-800 text-indigo-800 dark:text-indigo-300 shadow-xs">
+                      <LayoutDashboard size={18} />
                     </span>
                     <span className="whitespace-nowrap font-black">نظرة عامة</span>
                   </span>
@@ -305,18 +329,33 @@ export function StudentDashboardPage() {
                 </Link>
               </div>
 
-              {groups.map((group) => (
-                <section
-                  key={group.id}
-                  data-testid={`student-menu-group-${group.id}`}
-                  className={'rounded-[22px] border p-2.5 shadow-sm ' + group.tone}
-                >
-                  <div className="px-2.5 pb-2 pt-1 text-base font-black">{group.title}</div>
-                  <div className="space-y-1 rounded-[16px] bg-white/70 dark:bg-slate-900/80 p-1.5 ring-1 ring-white/70 dark:ring-slate-800/80">
-                    {group.items.map(navItem)}
-                  </div>
-                </section>
-              ))}
+              {/* Main learning shortcuts — intentionally unlabeled to match legacy codax */}
+              <div
+                data-testid="student-menu-group-learning"
+                className="space-y-1 rounded-[20px] border border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/90 p-2 shadow-sm"
+              >
+                {learningShortcuts.map(navItem)}
+              </div>
+
+              {/* Groups with section headers and icons */}
+              {groups.map((group) => {
+                const GroupIcon = group.icon;
+                return (
+                  <section
+                    key={group.id}
+                    data-testid={`student-menu-group-${group.id}`}
+                    className={'rounded-[22px] border p-2.5 shadow-sm ' + group.tone}
+                  >
+                    <div className="flex items-center gap-2 px-2.5 pb-2 pt-1 text-base font-black">
+                      <GroupIcon size={19} aria-hidden="true" />
+                      <span>{group.title}</span>
+                    </div>
+                    <div className="space-y-1 rounded-[16px] bg-white/70 dark:bg-slate-900/80 p-1.5 ring-1 ring-white/70 dark:ring-slate-800/80">
+                      {group.items.map(navItem)}
+                    </div>
+                  </section>
+                );
+              })}
             </nav>
           </div>
         </aside>
@@ -326,29 +365,53 @@ export function StudentDashboardPage() {
           <div className="max-w-7xl mx-auto w-full min-w-0">
             <PathsTab paths={paths} />
           </div>
-        ) : tab === 'reports' ? (
+        ) : tab === 'my-courses' ? (
           <div className="max-w-7xl mx-auto w-full min-w-0">
-            <ReportsPage embedded={true} />
+            <MyCoursesTab />
+          </div>
+        ) : tab === 'sessions' ? (
+          <div className="max-w-7xl mx-auto w-full min-w-0">
+            <SessionsTab />
+          </div>
+        ) : tab === 'smart-path' ? (
+          <div className="max-w-7xl mx-auto w-full min-w-0">
+            <SmartPathTab />
           </div>
         ) : tab === 'plan' ? (
           <div className="max-w-7xl mx-auto w-full min-w-0">
             <StudyPlanPage embedded={true} />
           </div>
-        ) : tab === 'review' ? (
+        ) : tab === 'reports' ? (
           <div className="max-w-7xl mx-auto w-full min-w-0">
-            <ReviewLibraryPage embedded={true} />
+            <ReportsPage embedded={true} />
           </div>
-        ) : tab === 'assessments' ? (
+        ) : tab === 'quizzes' || tab === 'results' ? (
           <div className="max-w-7xl mx-auto w-full min-w-0">
-            <AssessmentAvailabilityPage embedded={true} />
+            <AssessmentResultsPage embedded={true} />
           </div>
-        ) : tab === 'assignments' ? (
+        ) : tab === 'school-tests' || tab === 'assignments' ? (
           <div className="max-w-7xl mx-auto w-full min-w-0">
             <AssessmentAssignmentsPage embedded={true} />
           </div>
-        ) : tab === 'results' ? (
+        ) : tab === 'mock-exams' || tab === 'assessments' ? (
           <div className="max-w-7xl mx-auto w-full min-w-0">
-            <AssessmentResultsPage embedded={true} />
+            <MockExamsTab />
+          </div>
+        ) : tab === 'favorites' || tab === 'review' ? (
+          <div className="max-w-7xl mx-auto w-full min-w-0">
+            <ReviewLibraryPage embedded={true} />
+          </div>
+        ) : tab === 'flashcards' ? (
+          <div className="max-w-7xl mx-auto w-full min-w-0">
+            <FlashcardsTab />
+          </div>
+        ) : tab === 'qa' ? (
+          <div className="max-w-7xl mx-auto w-full min-w-0">
+            <QATab />
+          </div>
+        ) : tab === 'requests' ? (
+          <div className="max-w-7xl mx-auto w-full min-w-0">
+            <MyRequestsTab />
           </div>
         ) : (
           <div className="max-w-7xl mx-auto w-full min-w-0 space-y-6">
@@ -542,7 +605,7 @@ export function StudentDashboardPage() {
                       <p className="text-xs font-bold text-gray-500">مهام دراسية موجهة من المدرسة أو المعلم</p>
                     </div>
                   </div>
-                  <Link to="/assessment-assignments" className="text-xs font-black text-sky-700 hover:text-sky-900">
+                  <Link to="/dashboard?tab=assignments" className="text-xs font-black text-sky-700 hover:text-sky-900">
                     عرض الكل ←
                   </Link>
                 </div>
@@ -601,15 +664,15 @@ export function StudentDashboardPage() {
 
             {/* 8. Additional Quick Links */}
             <section className="grid gap-3 md:grid-cols-3">
-              <Link to="/assessment-assignments" className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4 hover:shadow-xs transition">
+              <Link to="/dashboard?tab=assignments" className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4 hover:shadow-xs transition">
                 <Target className="text-sky-700" size={20} />
                 <h2 className="mt-2 text-sm font-black text-sky-950">اختبارات موجهة لك</h2>
                 <p className="mt-1 text-xs font-bold leading-6 text-sky-800/70">تكليفات المدرسة أو المعلم ضمن الصلاحية الفعلية.</p>
               </Link>
-              <Link to="/reports" className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 hover:shadow-xs transition">
+              <Link to="/dashboard?tab=reports" className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 hover:shadow-xs transition">
                 <BarChart3 className="text-emerald-700" size={20} />
                 <h2 className="mt-2 text-sm font-black text-emerald-950">تقرير الأداء</h2>
-                <p className="mt-1 text-xs font-bold leading-6 text-emerald-800/70">ملخص أدائك والمهارات التي تحتاج متابعة من Reporting V2.</p>
+                <p className="mt-1 text-xs font-bold leading-6 text-emerald-800/70">تحليل ذكي لمستواك ونتائجك وخطة التدخل العلاجي.</p>
               </Link>
               <Link to="/notifications" className="rounded-2xl border border-orange-100 bg-orange-50/70 p-4 hover:shadow-xs transition">
                 <Bell className="text-orange-700" size={20} />

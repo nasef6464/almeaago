@@ -14,7 +14,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 
 import { QuestionAssistantPanel } from '../../ai/components/QuestionAssistantPanel';
 import { QuestionAssetImage } from '../components/QuestionAssetImage';
@@ -250,6 +250,9 @@ export function ReviewLibraryPage({ embedded }: { embedded?: boolean } = {}) {
 
   if (authLoading) {
     return <div className="p-10 text-center font-black">جاري التحقق من الجلسة...</div>;
+  }
+  if (!embedded && (!user || user?.roles.includes('student'))) {
+    return <Navigate to="/dashboard?tab=review" replace />;
   }
   if (!user || !user.roles.includes('student')) {
     return <div className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</div>;

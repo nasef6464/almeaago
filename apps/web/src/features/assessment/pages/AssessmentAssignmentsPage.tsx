@@ -1,6 +1,6 @@
 import { ClipboardList, Loader2, Play } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import {
@@ -88,6 +88,9 @@ export function AssessmentAssignmentsPage({ embedded }: { embedded?: boolean } =
 
   if (authLoading || busy) {
     return <div className="p-10 text-center font-black">جاري تحميل التكليفات...</div>;
+  }
+  if (!embedded && (!user || user?.roles.includes('student'))) {
+    return <Navigate to="/dashboard?tab=assignments" replace />;
   }
   if (!user?.roles.includes('student')) {
     return <div className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</div>;

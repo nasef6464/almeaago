@@ -67,3 +67,123 @@ export interface ClassroomCompetition{
  state:ClassroomChallenge;participantCount:number;leaderboard:ClassroomCompetitionStanding[];podium:ClassroomCompetitionStanding[];
  scoring:{correctAnswerPoints:number;speedBonus:boolean};
 }
+
+// ==========================================
+// Whiteboard Types (السبورة الذكية التفاعلية)
+// ==========================================
+export type WhiteboardTool = 'pen' | 'highlighter' | 'eraser' | 'line' | 'arrow' | 'rectangle' | 'circle' | 'triangle' | 'coordinate_plane' | 'text' | 'formula';
+export type WhiteboardTheme = 'white' | 'math_grid' | 'lined' | 'dark_chalkboard';
+
+export interface WhiteboardPoint {
+  x: number;
+  y: number;
+}
+
+export interface WhiteboardElement {
+  id: string;
+  tool: WhiteboardTool;
+  color: string;
+  strokeWidth: number;
+  points?: WhiteboardPoint[];
+  // For geometric shapes & text
+  startX?: number;
+  startY?: number;
+  endX?: number;
+  endY?: number;
+  text?: string;
+  formula?: string;
+  filled?: boolean;
+}
+
+export interface WhiteboardSnapshot {
+  sessionId: string;
+  timestamp: number;
+  theme: WhiteboardTheme;
+  elements: WhiteboardElement[];
+}
+
+// ==========================================
+// xAPI (Experience API / Tin Can) Types
+// ==========================================
+export interface XAPIActor {
+  name: string;
+  account: {
+    homePage: string;
+    name: string;
+  };
+}
+
+export interface XAPIVerb {
+  id: string;
+  display: Record<string, string>;
+}
+
+export interface XAPIObject {
+  id: string;
+  definition?: {
+    name?: Record<string, string>;
+    description?: Record<string, string>;
+    type?: string;
+  };
+}
+
+export interface XAPIResult {
+  score?: {
+    raw?: number;
+    min?: number;
+    max?: number;
+    scaled?: number;
+  };
+  success?: boolean;
+  completion?: boolean;
+  response?: string;
+  duration?: string;
+}
+
+export interface XAPIContext {
+  contextActivities?: {
+    category?: Array<{ id: string; definition?: { name?: Record<string, string> } }>;
+    grouping?: Array<{ id: string; definition?: { name?: Record<string, string> } }>;
+  };
+  extensions?: Record<string, unknown>;
+}
+
+export interface XAPIStatement {
+  id: string;
+  timestamp: string;
+  actor: XAPIActor;
+  verb: XAPIVerb;
+  object: XAPIObject;
+  result?: XAPIResult;
+  context?: XAPIContext;
+}
+
+// ==========================================
+// Quick Poll Types (التصويت والاستبيان الفوري)
+// ==========================================
+export type PollType = 'options_4' | 'options_2' | 'true_false' | 'open_vote';
+
+export interface LivePollQuestion {
+  id: string;
+  type: PollType;
+  prompt: string;
+  options: string[];
+  correctOptionIndex?: number | null;
+  timeLimitSeconds: number;
+  startedAt?: string;
+}
+
+// ==========================================
+// Skill Mastery & Remedial Bridge
+// ==========================================
+export interface SkillMasteryStat {
+  skillId: string;
+  skillName: string;
+  sectionName?: string;
+  totalQuestions: number;
+  correctCount: number;
+  accuracy: number;
+  isWeak: boolean;
+  targetStudentIds: string[];
+}
+
