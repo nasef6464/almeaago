@@ -91,6 +91,29 @@ func (c *Client) Call(
 	}
 }
 
+func (c *Client) CallMultimodal(
+	ctx context.Context,
+	setting ai.ProviderSetting,
+	prompt string,
+	media *ai.ChatImageData,
+	jsonResponse bool,
+) (ai.ProviderCallResult, error) {
+	if strings.TrimSpace(prompt) == "" && (media == nil || strings.TrimSpace(media.Data) == "") {
+		return ai.ProviderCallResult{}, errors.New("provider_empty_prompt")
+	}
+	if !c.SecretConfigured(setting.Provider) {
+		return ai.ProviderCallResult{}, errors.New("provider_not_configured")
+	}
+	switch setting.Provider {
+	case ai.ProviderGemini:
+		return c.callGeminiMultimodal(ctx, setting, prompt, media, jsonResponse)
+	case ai.ProviderOpenRouter, ai.ProviderQwen, ai.ProviderDeepSeek, ai.ProviderOpenAI:
+		return c.callOpenAIMultimodal(ctx, setting, prompt, media, jsonResponse)
+	default:
+		return c.Call(ctx, setting, prompt)
+	}
+}
+
 func canonicalExternalBase(provider ai.Provider, raw string) (string, error) {
 	raw = strings.TrimSpace(raw)
 	defaults := map[ai.Provider]string{
@@ -108,7 +131,13 @@ func canonicalExternalBase(provider ai.Provider, raw string) (string, error) {
 		return expected, nil
 	}
 	parsed, err := url.Parse(raw)
-	if err != nil || parsed.Scheme != "https" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+	if err != nil {
+		return "", errors.New("provider_base_url_invalid")
+	}
+	if parsed.Hostname() == "127.0.0.1" || parsed.Hostname() == "localhost" {
+		return strings.TrimSuffix(raw, "/"), nil
+	}
+	if parsed.Scheme != "https" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return "", errors.New("provider_base_url_invalid")
 	}
 	expectedURL, _ := url.Parse(expected)
@@ -182,6 +211,92 @@ func (c *Client) callGemini(
 	return ai.ProviderCallResult{Text: text, Usage: usage, Model: model}, nil
 }
 
+func (c *Client) callGeminiMultimodal(
+	ctx context.Context,
+	setting ai.ProviderSetting,
+	prompt string,
+	media *ai.ChatImageData,
+	jsonResponse bool,
+) (ai.ProviderCallResult, error) {
+	base, err := canonicalExternalBase(ai.ProviderGemini, setting.BaseURL)
+	if err != nil {
+		return ai.ProviderCallResult{}, err
+	}
+	model := strings.TrimSpace(setting.Model)
+	if model == "" {
+		return ai.ProviderCallResult{}, errors.New("provider_model_missing")
+	}
+	endpoint := fmt.Sprintf("%s/v1beta/models/%s:generateContent?key=%s", base, url.PathEscape(model), url.QueryEscape(c.cfg.GeminiAPIKey))
+
+	parts := make([]any, 0, 2)
+	if strings.TrimSpace(prompt) != "" {
+		parts = append(parts, map[string]any{"text": prompt})
+	}
+	if media != nil && strings.TrimSpace(media.Data) != "" {
+		mimeType := strings.TrimSpace(media.MimeType)
+		if mimeType == "" {
+			mimeType = "image/jpeg"
+		}
+		parts = append(parts, map[string]any{
+			"inlineData": map[string]any{
+				"mimeType": mimeType,
+				"data":     media.Data,
+			},
+		})
+	}
+
+	genConfig := map[string]any{
+		"maxOutputTokens": setting.MaxOutputTokens,
+	}
+	if jsonResponse {
+		genConfig["responseMimeType"] = "application/json"
+	}
+
+	body := map[string]any{
+		"contents":         []any{map[string]any{"parts": parts}},
+		"generationConfig": genConfig,
+	}
+	var payload struct {
+		Candidates []struct {
+			Content struct {
+				Parts []struct {
+					Text string `json:"text"`
+				} `json:"parts"`
+			} `json:"content"`
+		} `json:"candidates"`
+		Usage struct {
+			Prompt int `json:"promptTokenCount"`
+			Output int `json:"candidatesTokenCount"`
+			Total  int `json:"totalTokenCount"`
+			Cached int `json:"cachedContentTokenCount"`
+		} `json:"usageMetadata"`
+	}
+	if err = c.postJSON(ctx, endpoint, body, nil, &payload); err != nil {
+		return ai.ProviderCallResult{}, err
+	}
+	text := ""
+	if len(payload.Candidates) > 0 {
+		textParts := make([]string, 0, len(payload.Candidates[0].Content.Parts))
+		for _, part := range payload.Candidates[0].Content.Parts {
+			if strings.TrimSpace(part.Text) != "" {
+				textParts = append(textParts, strings.TrimSpace(part.Text))
+			}
+		}
+		text = strings.TrimSpace(strings.Join(textParts, "\n"))
+	}
+	if text == "" {
+		return ai.ProviderCallResult{}, errors.New("provider_empty_response")
+	}
+	usage := ai.ProviderUsage{
+		InputTokens:  payload.Usage.Prompt,
+		OutputTokens: payload.Usage.Output,
+		TotalTokens:  payload.Usage.Total,
+		CachedTokens: payload.Usage.Cached,
+	}
+	usage = normalizeUsage(usage, prompt, text)
+	return ai.ProviderCallResult{Text: text, Usage: usage, Model: model}, nil
+}
+
 func (c *Client) callOpenAICompatible(
 	ctx context.Context,
 	setting ai.ProviderSetting,
@@ -201,6 +316,84 @@ func (c *Client) callOpenAICompatible(
 		"messages":    []any{map[string]any{"role": "user", "content": prompt}},
 		"temperature": 0.25,
 		"max_tokens":  setting.MaxOutputTokens,
+	}
+	headers := map[string]string{"Authorization": "Bearer " + apiKey}
+	if setting.Provider == ai.ProviderOpenRouter {
+		headers["X-Title"] = "ALMEAA"
+	}
+	var payload struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+		Usage struct {
+			Prompt  int `json:"prompt_tokens"`
+			Output  int `json:"completion_tokens"`
+			Total   int `json:"total_tokens"`
+			Details struct {
+				Cached int `json:"cached_tokens"`
+			} `json:"prompt_tokens_details"`
+		} `json:"usage"`
+	}
+	if err = c.postJSON(ctx, base+"/chat/completions", body, headers, &payload); err != nil {
+		return ai.ProviderCallResult{}, err
+	}
+	if len(payload.Choices) == 0 || strings.TrimSpace(payload.Choices[0].Message.Content) == "" {
+		return ai.ProviderCallResult{}, errors.New("provider_empty_response")
+	}
+	text := strings.TrimSpace(payload.Choices[0].Message.Content)
+	usage := normalizeUsage(ai.ProviderUsage{
+		InputTokens:  payload.Usage.Prompt,
+		OutputTokens: payload.Usage.Output,
+		TotalTokens:  payload.Usage.Total,
+		CachedTokens: payload.Usage.Details.Cached,
+	}, prompt, text)
+	return ai.ProviderCallResult{Text: text, Usage: usage, Model: model}, nil
+}
+
+func (c *Client) callOpenAIMultimodal(
+	ctx context.Context,
+	setting ai.ProviderSetting,
+	prompt string,
+	media *ai.ChatImageData,
+	jsonResponse bool,
+) (ai.ProviderCallResult, error) {
+	base, err := canonicalExternalBase(setting.Provider, setting.BaseURL)
+	if err != nil {
+		return ai.ProviderCallResult{}, err
+	}
+	model := strings.TrimSpace(setting.Model)
+	if model == "" {
+		return ai.ProviderCallResult{}, errors.New("provider_model_missing")
+	}
+	apiKey := c.apiKey(setting.Provider)
+
+	var contentParts []any
+	if strings.TrimSpace(prompt) != "" {
+		contentParts = append(contentParts, map[string]any{"type": "text", "text": prompt})
+	}
+	if media != nil && strings.TrimSpace(media.Data) != "" {
+		mimeType := strings.TrimSpace(media.MimeType)
+		if mimeType == "" {
+			mimeType = "image/jpeg"
+		}
+		contentParts = append(contentParts, map[string]any{
+			"type": "image_url",
+			"image_url": map[string]any{
+				"url": fmt.Sprintf("data:%s;base64,%s", mimeType, media.Data),
+			},
+		})
+	}
+
+	body := map[string]any{
+		"model":       model,
+		"messages":    []any{map[string]any{"role": "user", "content": contentParts}},
+		"temperature": 0.25,
+		"max_tokens":  setting.MaxOutputTokens,
+	}
+	if jsonResponse {
+		body["response_format"] = map[string]any{"type": "json_object"}
 	}
 	headers := map[string]string{"Authorization": "Bearer " + apiKey}
 	if setting.Provider == ai.ProviderOpenRouter {
