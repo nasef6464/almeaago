@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { AiExamGeneratorModal } from '../../assessment/components/AiExamGeneratorModal';
 import {
   Activity, AlertTriangle, ArrowRight, Award, BarChart, BarChart3, Bell,
   CheckCircle, CheckCircle2, ClipboardList, Clock, Copy, Download, Dumbbell,
@@ -83,6 +84,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
   const [feedback, setFeedback] = useState('');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [composeModalOpen, setComposeModalOpen] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
 
   // Compose State
   const [composeSubject, setComposeSubject] = useState('القدرات العامة - القسم الكمي');
@@ -554,6 +556,13 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
               <span className="hidden sm:inline">جدول منظم</span>
             </button>
           </div>
+
+          <button
+            onClick={() => setAiModalOpen(true)}
+            className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2.5 text-xs sm:text-sm font-black text-white hover:from-violet-700 hover:to-indigo-700 shadow-md shadow-indigo-500/20 transition-all hover:scale-102 cursor-pointer"
+          >
+            <Sparkles size={18} /> توليد من PDF / صورة (AI)
+          </button>
 
           <button
             onClick={() => setCreateModalOpen(true)}
@@ -1738,6 +1747,37 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
           </div>
         </div>
       )}
+      {/* AI PDF/Image Exam Generator Modal */}
+      <AiExamGeneratorModal
+        isOpen={aiModalOpen}
+        onClose={() => setAiModalOpen(false)}
+        schoolId={schoolId}
+        onCreated={(qs) => {
+          const newQuizItem: AssessmentItem = {
+            id: 'ai-quiz-' + Date.now(),
+            code: 'AI-' + Math.floor(1000 + Math.random() * 9000),
+            title: `اختبار الذكاء الاصطناعي - ${qs.length} أسئلة مستخرجة`,
+            pathName: 'القدرات والتحصيلي',
+            subjectName: 'قياس الذكي',
+            gradeName: 'الصف الثالث الثانوي',
+            className: 'جميع الفصول',
+            kind: 'mock',
+            workflowStatus: 'approved',
+            isPublished: true,
+            totalQuestions: qs.length,
+            durationMinutes: Math.max(15, qs.length * 2),
+            stats: {
+              participantsCount: 0,
+              totalTargetStudents: students.length || 35,
+              participationRate: 0,
+              avgScore: 0,
+            },
+          };
+          setAssessments((prev) => [newQuizItem, ...prev]);
+          setFeedback(`✅ تم توليد واعتماد ونشر "${newQuizItem.title}" بالذكاء الاصطناعي بنجاح!`);
+          setTimeout(() => setFeedback(''), 4500);
+        }}
+      />
     </div>
   );
 };
