@@ -53,6 +53,7 @@ import { ClassroomLivePollModal } from '../components/session/ClassroomLivePollM
 import { ClassroomChallengeController } from '../components/session/ClassroomChallengeController';
 import { SmartWhiteboardCanvas } from '../components/whiteboard/SmartWhiteboardCanvas';
 import { StepSolutionPlayer } from '../components/whiteboard/StepSolutionPlayer';
+import { ClassroomTeacherMobileRemote } from '../components/session/ClassroomTeacherMobileRemote';
 import { ClassroomPostSessionReport } from '../components/analytics/ClassroomPostSessionReport';
 import { xapi } from '../api/classroom-xapi';
 
@@ -1099,6 +1100,22 @@ export function ClassroomTeacherPage() {
             setNotice(`تم إطلاق السؤال اللحظي: "${poll.prompt}"`);
             setTimeout(() => setNotice(''), 5000);
           }}
+        />
+
+        {/* Mobile Remote Sticky Bar for Teacher on Smartphones */}
+        <ClassroomTeacherMobileRemote
+          isSessionActive={Boolean(session && session.status === 'live')}
+          currentOrdinal={session?.activeQuestionOrdinal}
+          totalQuestions={presentation?.questions.length || 0}
+          responseCount={activeAggregate?.responseCount || 0}
+          expectedCount={attendance?.present || roster.length || 1}
+          isRevealed={Boolean(activeQuestion?.revealed)}
+          onToggleReveal={() => void reveal()}
+          hasActiveBatch={Boolean(session?.activeBatchId)}
+          isEndingBatch={busy === 'end_batch'}
+          onEndBatch={() => void endBatch()}
+          onOpenPushDrawer={() => setPushDrawerOpen(true)}
+          onOpenRosterDrawer={() => setRosterDrawerOpen(true)}
         />
       </div>
     </main>
