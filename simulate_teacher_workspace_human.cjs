@@ -2,7 +2,7 @@ const { chromium } = require('C:/almeaago/almeaago/apps/web/node_modules/playwri
 
 const BASE_URL = 'http://127.0.0.1:5173';
 const API_BASE = 'http://127.0.0.1:8080';
-const ARTIFACT_DIR = 'C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66';
+const ARTIFACT_DIR = process.env.ARTIFACT_DIR || 'C:/Users/nasef/.gemini/antigravity/brain/3387613e-8116-41d7-a510-0d9d92453cb5/screenshots';
 
 async function loginAndGetCookies(email, password) {
   const res = await fetch(`${API_BASE}/api/v1/auth/login`, {

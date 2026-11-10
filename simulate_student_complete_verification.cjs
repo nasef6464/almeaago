@@ -1,7 +1,7 @@
 const { chromium } = require('C:/almeaago/almeaago/apps/web/node_modules/playwright');
 const path = require('path');
 
-const ARTIFACT_DIR = 'C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66';
+const ARTIFACT_DIR = process.env.ARTIFACT_DIR || 'C:/Users/nasef/.gemini/antigravity/brain/3387613e-8116-41d7-a510-0d9d92453cb5/screenshots';
 const WEB_BASE = 'http://127.0.0.1:5173';
 const API_BASE = 'http://127.0.0.1:8080';
 
@@ -101,15 +101,16 @@ async function loginAndGetCookies(email, password) {
     console.log('✅ Captured 122_student_qiyas_calculator_modal.png');
 
     // Close Modal
-    const closeBtn = page.locator('button[aria-label="إغلاق"]').first();
+    await page.keyboard.press('Escape');
+    const closeBtn = page.locator('button[aria-label="إغلاق"], button:has-text("إغلاق")').first();
     if (await closeBtn.isVisible()) {
       await closeBtn.click();
-      await page.waitForTimeout(500);
     }
+    await page.waitForTimeout(600);
 
     // 4. Test Paths Tab
-    console.log('4. Navigating to Paths Tab (مساراتي ودوراتي)...');
-    const pathsLink = page.locator('a:has-text("مساراتي ودوراتي")').first();
+    console.log('4. Navigating to Paths Tab (مساراتي)...');
+    const pathsLink = page.locator('a:has-text("مساراتي"), button:has-text("مساراتي")').first();
     await pathsLink.click();
     await page.waitForTimeout(2000);
 
