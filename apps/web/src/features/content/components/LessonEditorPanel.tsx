@@ -1,8 +1,27 @@
-import { CheckCircle2, HelpCircle, Loader2, Play, Plus, RotateCcw, Save, Search, Trash2, Video, X } from 'lucide-react';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import {
+  CheckCircle2,
+  Clock,
+  Eye,
+  HelpCircle,
+  Loader2,
+  Play,
+  Plus,
+  RotateCcw,
+  Save,
+  Search,
+  Trash2,
+  Video,
+  X,
+} from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
 import { contentClient } from '../api/content-client';
 import { VideoQuestionPicker } from './VideoQuestionPicker';
+import {
+  SharedVideoPlayer,
+  type SharedVideoPlayerHandle,
+} from '../../learning/components/SharedVideoPlayer';
+import { normalizeQuestionHtml } from '../../../lib/questionHtml';
 import type {
   CreateLessonInput,
   LessonDetail,
@@ -98,6 +117,9 @@ export function LessonEditorPanel({
   const [skillIds, setSkillIds] = useState<string[]>(() => [...new Set([...initialSkillIds, ...requiredSkillIds])]);
   const [interactiveQuestions, setInteractiveQuestions] = useState<InteractiveVideoQuestion[]>([]);
   const [showQuestionPicker, setShowQuestionPicker] = useState(false);
+  const [showVideoPreview, setShowVideoPreview] = useState(false);
+  const [previewVideoTime, setPreviewVideoTime] = useState(0);
+  const previewPlayerRef = useRef<SharedVideoPlayerHandle | null>(null);
 
   function addInteractiveQuestion() {
     const newQ: InteractiveVideoQuestion = {
@@ -136,6 +158,9 @@ export function LessonEditorPanel({
         const parsed = JSON.parse(row.contentText);
         if (Array.isArray(parsed.interactiveQuestions)) {
           setInteractiveQuestions(parsed.interactiveQuestions);
+        }
+        if (typeof parsed.text === 'string') {
+          setContentText(parsed.text);
         }
       } catch {
         // ignore non-json
@@ -208,7 +233,7 @@ export function LessonEditorPanel({
 
   const lockedByWorkflow = Boolean(
     existing &&
-      (existing.workflowStatus === 'approved' || existing.workflowStatus === 'archived'),
+    (existing.workflowStatus === 'approved' || existing.workflowStatus === 'archived'),
   );
   const scopeMismatch = Boolean(existing && lockScope && (
     existing.pathId !== initialPathId || existing.subjectId !== initialSubjectId ||
@@ -237,7 +262,15 @@ export function LessonEditorPanel({
 
     let finalContent = contentText.trim();
     if (type === 'video') {
-      finalContent = JSON.stringify({ interactiveQuestions });
+      let existingObj: Record<string, any> = {};
+      try {
+        existingObj = JSON.parse(contentText);
+      } catch { }
+      finalContent = JSON.stringify({
+        ...existingObj,
+        text: typeof existingObj.text === 'string' ? existingObj.text : (contentText || ''),
+        interactiveQuestions,
+      });
     }
 
     const base: CreateLessonInput = {
@@ -320,365 +353,446 @@ export function LessonEditorPanel({
         </div>
 
         <div className="flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
-        {lockScope ? <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">{scopeContext === 'skill' ? `نطاق الدرس مثبت على المسار والمادة للمهارة ${requiredSkillName || 'المحددة'}.` : 'نطاق المعلم مثبت على المسار والمادة المختارين.'}</div> : null}
-        {scopeMismatch ? <div role="alert" className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">الدرس لا ينتمي إلى هذه المهارة أو مادتها. لا يمكن حفظه من هنا.</div> : null}
-        {lockedByWorkflow ? <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">الدرس معتمد أو مؤرشف؛ التعديل المباشر مقفول في الـBackend.</div> : null}
-        {error ? <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">{error}</div> : null}
+          {lockScope ? <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800">{scopeContext === 'skill' ? `نطاق الدرس مثبت على المسار والمادة للمهارة ${requiredSkillName || 'المحددة'}.` : 'نطاق المعلم مثبت على المسار والمادة المختارين.'}</div> : null}
+          {scopeMismatch ? <div role="alert" className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">الدرس لا ينتمي إلى هذه المهارة أو مادتها. لا يمكن حفظه من هنا.</div> : null}
+          {lockedByWorkflow ? <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">الدرس معتمد أو مؤرشف؛ التعديل المباشر مقفول في الـBackend.</div> : null}
+          {error ? <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">{error}</div> : null}
 
-        <section className="grid gap-5 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 md:grid-cols-2">
-          <label className="space-y-2 md:col-span-2">
-            <span className="text-sm font-black text-gray-700">عنوان الدرس *</span>
-            <input disabled={!canMutate} value={title} maxLength={240} onChange={(event) => setTitle(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold disabled:bg-gray-50" />
-          </label>
-
-          <label className="space-y-2">
-            <span className="text-sm font-black text-gray-700">المسار *</span>
-            <select disabled={!canMutate || lockScope} value={pathId} onChange={(event) => { setPathId(event.target.value); setSubjectId(''); setSkillIds([]); }} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold disabled:bg-gray-50">
-              <option value="">اختر المسار</option>
-              {taxonomy.paths.map((path) => <option key={path.id} value={path.id}>{path.name}</option>)}
-            </select>
-          </label>
-
-          <label className="space-y-2">
-            <span className="text-sm font-black text-gray-700">المادة *</span>
-            <select disabled={!canMutate || lockScope || !pathId} value={subjectId} onChange={(event) => { setSubjectId(event.target.value); setSkillIds([]); }} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold disabled:bg-gray-50">
-              <option value="">اختر المادة</option>
-              {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
-            </select>
-          </label>
-
-          <label className="space-y-2">
-            <span className="text-sm font-black text-gray-700">نوع الدرس</span>
-            <select disabled={!canMutate} value={type} onChange={(event) => setType(event.target.value as LessonType)} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold disabled:bg-gray-50">
-              {lessonTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-            </select>
-          </label>
-
-          <label className="space-y-2">
-            <span className="text-sm font-black text-gray-700">المدة بالثواني</span>
-            <input disabled={!canMutate} type="number" min={0} value={durationSeconds} onChange={(event) => setDurationSeconds(Number(event.target.value))} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold disabled:bg-gray-50" />
-          </label>
-
-          <label className="space-y-2 md:col-span-2">
-            <span className="text-sm font-black text-gray-700">الوصف</span>
-            <textarea disabled={!canMutate} rows={4} maxLength={12000} value={description} onChange={(event) => setDescription(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-medium leading-7 disabled:bg-gray-50" />
-          </label>
-        </section>
-
-        {(type === 'text' || type === 'assignment') ? (
-          <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-            <label className="space-y-2">
-              <span className="text-sm font-black text-gray-700">المحتوى النصي *</span>
-              <textarea disabled={!canMutate} rows={12} maxLength={50000} value={contentText} onChange={(event) => setContentText(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-3 text-sm font-medium leading-7 disabled:bg-gray-50" />
+          <section className="grid gap-5 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 md:grid-cols-2">
+            <label className="space-y-2 md:col-span-2">
+              <span className="text-sm font-black text-gray-700">عنوان الدرس *</span>
+              <input disabled={!canMutate} value={title} maxLength={240} onChange={(event) => setTitle(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold disabled:bg-gray-50" />
             </label>
-          </section>
-        ) : null}
 
-        {type === 'video' ? (
-          <section className="grid gap-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 md:grid-cols-[180px_1fr]">
             <label className="space-y-2">
-              <span className="text-sm font-black text-gray-700">مصدر الفيديو</span>
-              <select disabled={!canMutate} value={videoSource} onChange={(event) => setVideoSource(event.target.value as CreateLessonInput['videoSource'])} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold disabled:bg-gray-50">
-                <option value="youtube">YouTube</option>
-                <option value="vimeo">Vimeo</option>
-                <option value="upload">Media/R2</option>
+              <span className="text-sm font-black text-gray-700">المسار *</span>
+              <select disabled={!canMutate || lockScope} value={pathId} onChange={(event) => { setPathId(event.target.value); setSubjectId(''); setSkillIds([]); }} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold disabled:bg-gray-50">
+                <option value="">اختر المسار</option>
+                {taxonomy.paths.map((path) => <option key={path.id} value={path.id}>{path.name}</option>)}
               </select>
             </label>
+
             <label className="space-y-2">
-              <span className="text-sm font-black text-gray-700">رابط الفيديو</span>
-              <input disabled={!canMutate} type="url" maxLength={2048} value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold disabled:bg-gray-50" placeholder="https://..." />
+              <span className="text-sm font-black text-gray-700">المادة *</span>
+              <select disabled={!canMutate || lockScope || !pathId} value={subjectId} onChange={(event) => { setSubjectId(event.target.value); setSkillIds([]); }} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold disabled:bg-gray-50">
+                <option value="">اختر المادة</option>
+                {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+              </select>
             </label>
-            {videoSource === 'upload' ? <p className="md:col-span-2 text-xs font-bold text-amber-700">رفع Media/R2 المباشر موجود في الـBackend؛ منتقي الملفات داخل Lesson Builder سيأتي في شريحة Media UI حتى لا تمر البايتات عبر Go.</p> : null}
-          </section>
-        ) : null}
 
-        {type === 'video' ? (
-          <section className="rounded-3xl border border-indigo-100 bg-indigo-50/40 p-5 shadow-sm sm:p-6 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h4 className="font-black text-gray-900 flex items-center gap-2">
-                  <HelpCircle size={18} className="text-indigo-600" /> أسئلة داخل الفيديو (Interactive Video)
-                </h4>
-                <p className="text-xs font-bold text-gray-500 mt-0.5">
-                  تظهر للطالب عند توقيت محدد أثناء تشغيل الفيديو لتثبيت المفهوم وتجميد الفيديو للمتابعة.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={!canMutate}
-                  onClick={() => setShowQuestionPicker(true)}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 cursor-pointer shadow-xs"
-                >
-                  <Search size={15} /> اختيار من بنك الأسئلة
-                </button>
-                <button
-                  type="button"
-                  disabled={!canMutate}
-                  onClick={addInteractiveQuestion}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer shadow-xs"
-                >
-                  <Plus size={15} /> إضافة سؤال يدوي
-                </button>
-              </div>
-            </div>
-
-            {showQuestionPicker && (
-              <VideoQuestionPicker
-                context={{ pathId, subjectId }}
-                excludedQuestionIds={interactiveQuestions.map((q) => q.id)}
-                selectionMode="multiple"
-                onConfirm={(selectedQuestions) => {
-                  const newItems: InteractiveVideoQuestion[] = selectedQuestions.map((sq, i) => ({
-                    id: sq.id || `iq-${Date.now()}-${i}`,
-                    timestamp: 30 * (interactiveQuestions.length + i + 1),
-                    rewatchTimestamp: 0,
-                    actionOnFail: 'rewatch',
-                    mustPass: true,
-                    inlineQuestion: {
-                      text: sq.text,
-                      options: sq.options,
-                      correctOptionIndex: sq.correctOptionIndex,
-                    },
-                  }));
-                  setInteractiveQuestions((prev) => [...prev, ...newItems]);
-                  setShowQuestionPicker(false);
-                }}
-                onClose={() => setShowQuestionPicker(false)}
-              />
-            )}
-
-            {interactiveQuestions.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-indigo-200 bg-white p-6 text-center text-xs font-bold text-gray-400">
-                لا توجد أسئلة تفاعلية مضافة لهذا الفيديو بعد. أضف سؤالاً ليظهر في توقيت محدد أثناء المشاهدة.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {interactiveQuestions.map((q, idx) => {
-                  const minutes = Math.floor(q.timestamp / 60);
-                  const seconds = q.timestamp % 60;
-                  const rewatchMin = Math.floor(q.rewatchTimestamp / 60);
-                  const rewatchSec = q.rewatchTimestamp % 60;
-                  return (
-                    <div key={q.id} className="rounded-2xl border border-indigo-100 bg-white p-4 shadow-xs space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg">
-                          سؤال {idx + 1}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={!canMutate}
-                          onClick={() => removeInteractiveQuestion(q.id)}
-                          className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 transition cursor-pointer"
-                          title="حذف السؤال"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-black text-gray-700 mb-1">نص السؤال *</label>
-                        <input
-                          disabled={!canMutate}
-                          value={q.inlineQuestion.text}
-                          onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
-                            ...prev,
-                            inlineQuestion: { ...prev.inlineQuestion, text: e.target.value },
-                          }))}
-                          placeholder="اكتب نص السؤال الذي سيظهر للطالب في هذا التوقيت..."
-                          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold"
-                        />
-                      </div>
-
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {q.inlineQuestion.options.map((opt, optIdx) => (
-                          <div key={optIdx} className="flex items-center gap-2">
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-600">
-                              {['أ', 'ب', 'ج', 'د'][optIdx] || optIdx + 1}
-                            </span>
-                            <input
-                              disabled={!canMutate}
-                              value={opt}
-                              onChange={(e) => {
-                                const newOpts = [...q.inlineQuestion.options];
-                                newOpts[optIdx] = e.target.value;
-                                updateInteractiveQuestion(q.id, (prev) => ({
-                                  ...prev,
-                                  inlineQuestion: { ...prev.inlineQuestion, options: newOpts },
-                                }));
-                              }}
-                              placeholder={`الخيار ${optIdx + 1}`}
-                              className="min-w-0 flex-1 rounded-xl border border-gray-200 px-2.5 py-1.5 text-xs font-medium"
-                            />
-                            <input
-                              type="radio"
-                              name={`correct-opt-${q.id}`}
-                              checked={q.inlineQuestion.correctOptionIndex === optIdx}
-                              onChange={() => updateInteractiveQuestion(q.id, (prev) => ({
-                                ...prev,
-                                inlineQuestion: { ...prev.inlineQuestion, correctOptionIndex: optIdx },
-                              }))}
-                              className="accent-emerald-600 cursor-pointer"
-                              title="الإجابة الصحيحة"
-                            />
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="grid gap-3 pt-2 border-t border-gray-100 sm:grid-cols-4">
-                        <div>
-                          <label className="block text-[11px] font-bold text-gray-600 mb-1">التوقيت: دقيقة</label>
-                          <input
-                            disabled={!canMutate}
-                            type="number"
-                            min={0}
-                            value={minutes}
-                            onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
-                              ...prev,
-                              timestamp: Math.max(0, Number(e.target.value) || 0) * 60 + (prev.timestamp % 60),
-                            }))}
-                            className="w-full rounded-xl border border-gray-200 p-2 text-xs font-bold"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-gray-600 mb-1">التوقيت: ثانية</label>
-                          <input
-                            disabled={!canMutate}
-                            type="number"
-                            min={0}
-                            max={59}
-                            value={seconds}
-                            onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
-                              ...prev,
-                              timestamp: Math.floor(prev.timestamp / 60) * 60 + Math.min(59, Math.max(0, Number(e.target.value) || 0)),
-                            }))}
-                            className="w-full rounded-xl border border-gray-200 p-2 text-xs font-bold"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-gray-600 mb-1">عند الخطأ</label>
-                          <select
-                            disabled={!canMutate}
-                            value={q.actionOnFail}
-                            onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
-                              ...prev,
-                              actionOnFail: e.target.value as 'continue' | 'rewatch',
-                            }))}
-                            className="w-full rounded-xl border border-gray-200 bg-white p-2 text-xs font-bold"
-                          >
-                            <option value="continue">متابعة الدرس</option>
-                            <option value="rewatch">إعادة المشاهدة من مقطع</option>
-                          </select>
-                        </div>
-                        <div className="flex items-end pb-1">
-                          <label className="flex items-center gap-2 text-xs font-black text-gray-700 cursor-pointer">
-                            <input
-                              disabled={!canMutate}
-                              type="checkbox"
-                              checked={q.mustPass}
-                              onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
-                                ...prev,
-                                mustPass: e.target.checked,
-                              }))}
-                              className="accent-indigo-600 h-4 w-4 rounded"
-                            />
-                            إجابة مطلوبة للمتابعة
-                          </label>
-                        </div>
-                      </div>
-
-                      {q.actionOnFail === 'rewatch' ? (
-                        <div className="grid gap-2 grid-cols-2 rounded-xl bg-amber-50 border border-amber-200 p-2.5 max-w-sm">
-                          <label className="text-[11px] font-bold text-amber-900">
-                            الرجوع إلى: دقيقة
-                            <input
-                              disabled={!canMutate}
-                              type="number"
-                              min={0}
-                              value={rewatchMin}
-                              onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
-                                ...prev,
-                                rewatchTimestamp: Math.max(0, Number(e.target.value) || 0) * 60 + (prev.rewatchTimestamp % 60),
-                              }))}
-                              className="mt-1 w-full rounded-lg border border-amber-300 bg-white p-1.5 text-xs font-bold"
-                            />
-                          </label>
-                          <label className="text-[11px] font-bold text-amber-900">
-                            الرجوع إلى: ثانية
-                            <input
-                              disabled={!canMutate}
-                              type="number"
-                              min={0}
-                              max={59}
-                              value={rewatchSec}
-                              onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
-                                ...prev,
-                                rewatchTimestamp: Math.floor(prev.rewatchTimestamp / 60) * 60 + Math.min(59, Math.max(0, Number(e.target.value) || 0)),
-                              }))}
-                              className="mt-1 w-full rounded-lg border border-amber-300 bg-white p-1.5 text-xs font-bold"
-                            />
-                          </label>
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        ) : null}
-
-        {liveType ? (
-          <section className="grid gap-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 md:grid-cols-2">
             <label className="space-y-2">
-              <span className="text-sm font-black text-gray-700">رابط الاجتماع *</span>
-              <input disabled={!canMutate} type="url" maxLength={2048} value={meetingUrl} onChange={(event) => setMeetingUrl(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold disabled:bg-gray-50" />
+              <span className="text-sm font-black text-gray-700">نوع الدرس</span>
+              <select disabled={!canMutate} value={type} onChange={(event) => setType(event.target.value as LessonType)} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold disabled:bg-gray-50">
+                {lessonTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
             </label>
+
             <label className="space-y-2">
-              <span className="text-sm font-black text-gray-700">موعد الاجتماع *</span>
-              <input disabled={!canMutate} type="datetime-local" value={meetingAt} onChange={(event) => setMeetingAt(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold disabled:bg-gray-50" />
+              <span className="text-sm font-black text-gray-700">المدة بالثواني</span>
+              <input disabled={!canMutate} type="number" min={0} value={durationSeconds} onChange={(event) => setDurationSeconds(Number(event.target.value))} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold disabled:bg-gray-50" />
             </label>
+
             <label className="space-y-2 md:col-span-2">
-              <span className="text-sm font-black text-gray-700">تعليمات الانضمام</span>
-              <textarea disabled={!canMutate} rows={4} maxLength={10000} value={joinInstructions} onChange={(event) => setJoinInstructions(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-medium disabled:bg-gray-50" />
+              <span className="text-sm font-black text-gray-700">الوصف</span>
+              <textarea disabled={!canMutate} rows={4} maxLength={12000} value={description} onChange={(event) => setDescription(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-medium leading-7 disabled:bg-gray-50" />
             </label>
-            <label className="space-y-2">
-              <span className="text-sm font-black text-gray-700">رابط التسجيل</span>
-              <input disabled={!canMutate} type="url" maxLength={2048} value={recordingUrl} onChange={(event) => setRecordingUrl(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold disabled:bg-gray-50" />
+          </section>
+
+          {(type === 'text' || type === 'assignment') ? (
+            <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+              <label className="space-y-2">
+                <span className="text-sm font-black text-gray-700">المحتوى النصي *</span>
+                <textarea disabled={!canMutate} rows={12} maxLength={50000} value={contentText} onChange={(event) => setContentText(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-3 text-sm font-medium leading-7 disabled:bg-gray-50" />
+              </label>
+            </section>
+          ) : null}
+
+          {type === 'video' ? (
+            <section className="grid gap-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 md:grid-cols-[180px_1fr]">
+              <label className="space-y-2">
+                <span className="text-sm font-black text-gray-700">مصدر الفيديو</span>
+                <select disabled={!canMutate} value={videoSource} onChange={(event) => setVideoSource(event.target.value as CreateLessonInput['videoSource'])} className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold disabled:bg-gray-50">
+                  <option value="youtube">YouTube</option>
+                  <option value="vimeo">Vimeo</option>
+                  <option value="upload">Media/R2</option>
+                </select>
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm font-black text-gray-700">رابط الفيديو</span>
+                <input disabled={!canMutate} type="url" maxLength={2048} value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold disabled:bg-gray-50" placeholder="https://..." />
+              </label>
+              {videoSource === 'upload' ? <p className="md:col-span-2 text-xs font-bold text-amber-700">رفع Media/R2 المباشر موجود في الـBackend؛ منتقي الملفات داخل Lesson Builder سيأتي في شريحة Media UI حتى لا تمر البايتات عبر Go.</p> : null}
+              {videoUrl ? (
+                <div className="md:col-span-2 pt-2 border-t border-gray-100 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setShowVideoPreview((v) => !v)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-3 py-1.5 text-xs font-black text-indigo-700 hover:bg-indigo-50 transition cursor-pointer"
+                    >
+                      <Eye size={15} />
+                      {showVideoPreview ? 'إخفاء معاينة الفيديو' : 'معاينة الفيديو وضبط التوقيت التفاعلي'}
+                    </button>
+                    {showVideoPreview ? (
+                      <span className="text-xs font-mono font-bold text-gray-500">
+                        موضع التشغيل الحالي:{' '}
+                        <span className="font-black text-indigo-600">
+                          {Math.floor(previewVideoTime / 60)}:
+                          {String(previewVideoTime % 60).padStart(2, '0')}
+                        </span>
+                      </span>
+                    ) : null}
+                  </div>
+                  {showVideoPreview ? (
+                    <div className="max-w-xl mx-auto w-full aspect-video rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-black">
+                      <SharedVideoPlayer
+                        ref={previewPlayerRef}
+                        url={videoUrl}
+                        title={title || 'معاينة الفيديو'}
+                        onTimeUpdate={(sec) => setPreviewVideoTime(Math.floor(sec))}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
+          {type === 'video' ? (
+            <section className="rounded-3xl border border-indigo-100 bg-indigo-50/40 p-5 shadow-sm sm:p-6 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h4 className="font-black text-gray-900 flex items-center gap-2">
+                    <HelpCircle size={18} className="text-indigo-600" /> أسئلة داخل الفيديو (Interactive Video)
+                  </h4>
+                  <p className="text-xs font-bold text-gray-500 mt-0.5">
+                    تظهر للطالب عند توقيت محدد أثناء تشغيل الفيديو لتثبيت المفهوم وتجميد الفيديو للمتابعة.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={!canMutate}
+                    onClick={() => setShowQuestionPicker(true)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 cursor-pointer shadow-xs"
+                  >
+                    <Search size={15} /> اختيار من بنك الأسئلة
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!canMutate}
+                    onClick={addInteractiveQuestion}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer shadow-xs"
+                  >
+                    <Plus size={15} /> إضافة سؤال يدوي
+                  </button>
+                </div>
+              </div>
+
+              {showQuestionPicker && (
+                <VideoQuestionPicker
+                  context={{ pathId, subjectId }}
+                  excludedQuestionIds={interactiveQuestions.map((q) => q.id)}
+                  selectionMode="multiple"
+                  onConfirm={(selectedQuestions) => {
+                    const newItems: InteractiveVideoQuestion[] = selectedQuestions.map((sq, i) => ({
+                      id: sq.id || `iq-${Date.now()}-${i}`,
+                      timestamp: 30 * (interactiveQuestions.length + i + 1),
+                      rewatchTimestamp: 0,
+                      actionOnFail: 'rewatch',
+                      mustPass: true,
+                      inlineQuestion: {
+                        text: sq.text,
+                        options: sq.options,
+                        correctOptionIndex: sq.correctOptionIndex,
+                      },
+                    }));
+                    setInteractiveQuestions((prev) => [...prev, ...newItems]);
+                    setShowQuestionPicker(false);
+                  }}
+                  onClose={() => setShowQuestionPicker(false)}
+                />
+              )}
+
+              {interactiveQuestions.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-indigo-200 bg-white p-6 text-center text-xs font-bold text-gray-400">
+                  لا توجد أسئلة تفاعلية مضافة لهذا الفيديو بعد. أضف سؤالاً ليظهر في توقيت محدد أثناء المشاهدة.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {interactiveQuestions.map((q, idx) => {
+                    const minutes = Math.floor(q.timestamp / 60);
+                    const seconds = q.timestamp % 60;
+                    const rewatchMin = Math.floor(q.rewatchTimestamp / 60);
+                    const rewatchSec = q.rewatchTimestamp % 60;
+                    return (
+                      <div key={q.id} className="rounded-2xl border border-indigo-100 bg-white p-4 shadow-xs space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg">
+                            سؤال {idx + 1}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={!canMutate}
+                            onClick={() => removeInteractiveQuestion(q.id)}
+                            className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 transition cursor-pointer"
+                            title="حذف السؤال"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-black text-gray-700 mb-1">نص السؤال *</label>
+                          <input
+                            disabled={!canMutate}
+                            value={q.inlineQuestion.text}
+                            onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
+                              ...prev,
+                              inlineQuestion: { ...prev.inlineQuestion, text: e.target.value },
+                            }))}
+                            placeholder="اكتب نص السؤال الذي سيظهر للطالب في هذا التوقيت..."
+                            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold"
+                          />
+                          {q.inlineQuestion.text.includes('$') ? (
+                            <div className="mt-1.5 rounded-lg border border-indigo-100 bg-indigo-50/60 p-2 text-xs text-indigo-900">
+                              <span className="font-bold text-[10px] text-indigo-600 block mb-0.5">معاينة المعادلات (KaTeX):</span>
+                              <div
+                                dangerouslySetInnerHTML={{
+                                  __html: normalizeQuestionHtml(q.inlineQuestion.text),
+                                }}
+                              />
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {q.inlineQuestion.options.map((opt, optIdx) => (
+                            <div key={optIdx} className="flex items-center gap-2">
+                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-600">
+                                {['أ', 'ب', 'ج', 'د'][optIdx] || optIdx + 1}
+                              </span>
+                              <input
+                                disabled={!canMutate}
+                                value={opt}
+                                onChange={(e) => {
+                                  const newOpts = [...q.inlineQuestion.options];
+                                  newOpts[optIdx] = e.target.value;
+                                  updateInteractiveQuestion(q.id, (prev) => ({
+                                    ...prev,
+                                    inlineQuestion: { ...prev.inlineQuestion, options: newOpts },
+                                  }));
+                                }}
+                                placeholder={`الخيار ${optIdx + 1}`}
+                                className="min-w-0 flex-1 rounded-xl border border-gray-200 px-2.5 py-1.5 text-xs font-medium"
+                              />
+                              <input
+                                type="radio"
+                                name={`correct-opt-${q.id}`}
+                                checked={q.inlineQuestion.correctOptionIndex === optIdx}
+                                onChange={() => updateInteractiveQuestion(q.id, (prev) => ({
+                                  ...prev,
+                                  inlineQuestion: { ...prev.inlineQuestion, correctOptionIndex: optIdx },
+                                }))}
+                                className="accent-emerald-600 cursor-pointer"
+                                title="الإجابة الصحيحة"
+                              />
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="space-y-2 pt-2 border-t border-gray-100">
+                          <div className="grid gap-3 sm:grid-cols-4">
+                            <div>
+                              <label className="block text-[11px] font-bold text-gray-600 mb-1">التوقيت: دقيقة</label>
+                              <input
+                                disabled={!canMutate}
+                                type="number"
+                                min={0}
+                                value={minutes}
+                                onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
+                                  ...prev,
+                                  timestamp: Math.max(0, Number(e.target.value) || 0) * 60 + (prev.timestamp % 60),
+                                }))}
+                                className="w-full rounded-xl border border-gray-200 p-2 text-xs font-bold"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold text-gray-600 mb-1">التوقيت: ثانية</label>
+                              <input
+                                disabled={!canMutate}
+                                type="number"
+                                min={0}
+                                max={59}
+                                value={seconds}
+                                onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
+                                  ...prev,
+                                  timestamp: Math.floor(prev.timestamp / 60) * 60 + Math.min(59, Math.max(0, Number(e.target.value) || 0)),
+                                }))}
+                                className="w-full rounded-xl border border-gray-200 p-2 text-xs font-bold"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold text-gray-600 mb-1">عند الخطأ</label>
+                              <select
+                                disabled={!canMutate}
+                                value={q.actionOnFail}
+                                onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
+                                  ...prev,
+                                  actionOnFail: e.target.value as 'continue' | 'rewatch',
+                                }))}
+                                className="w-full rounded-xl border border-gray-200 bg-white p-2 text-xs font-bold"
+                              >
+                                <option value="continue">متابعة الدرس</option>
+                                <option value="rewatch">إعادة المشاهدة من مقطع</option>
+                              </select>
+                            </div>
+                            <div className="flex items-end pb-1">
+                              <label className="flex items-center gap-2 text-xs font-black text-gray-700 cursor-pointer">
+                                <input
+                                  disabled={!canMutate}
+                                  type="checkbox"
+                                  checked={q.mustPass}
+                                  onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
+                                    ...prev,
+                                    mustPass: e.target.checked,
+                                  }))}
+                                  className="accent-indigo-600 h-4 w-4 rounded"
+                                />
+                                إجابة مطلوبة للمتابعة
+                              </label>
+                            </div>
+                          </div>
+
+                          {videoUrl ? (
+                            <div className="flex items-center gap-2 pt-1">
+                              <button
+                                type="button"
+                                disabled={!canMutate}
+                                onClick={() => {
+                                  const time = previewPlayerRef.current
+                                    ? Math.floor(previewPlayerRef.current.currentTime)
+                                    : previewVideoTime;
+                                  updateInteractiveQuestion(q.id, (prev) => ({ ...prev, timestamp: time }));
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50/70 px-2.5 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-100 transition cursor-pointer"
+                                title="استخدام موضع تشغيل الفيديو الحالي كزمن ظهور السؤال"
+                              >
+                                <Clock size={13} />
+                                استخدام توقيت المشغل الحالي ({Math.floor(previewVideoTime / 60)}:{String(previewVideoTime % 60).padStart(2, '0')})
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+
+                        {q.actionOnFail === 'rewatch' ? (
+                          <div className="grid gap-2 grid-cols-2 rounded-xl bg-amber-50 border border-amber-200 p-2.5 max-w-md">
+                            <label className="text-[11px] font-bold text-amber-900">
+                              الرجوع إلى: دقيقة
+                              <input
+                                disabled={!canMutate}
+                                type="number"
+                                min={0}
+                                value={rewatchMin}
+                                onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
+                                  ...prev,
+                                  rewatchTimestamp: Math.max(0, Number(e.target.value) || 0) * 60 + (prev.rewatchTimestamp % 60),
+                                }))}
+                                className="mt-1 w-full rounded-lg border border-amber-300 bg-white p-1.5 text-xs font-bold"
+                              />
+                            </label>
+                            <label className="text-[11px] font-bold text-amber-900">
+                              الرجوع إلى: ثانية
+                              <input
+                                disabled={!canMutate}
+                                type="number"
+                                min={0}
+                                max={59}
+                                value={rewatchSec}
+                                onChange={(e) => updateInteractiveQuestion(q.id, (prev) => ({
+                                  ...prev,
+                                  rewatchTimestamp: Math.floor(prev.rewatchTimestamp / 60) * 60 + Math.min(59, Math.max(0, Number(e.target.value) || 0)),
+                                }))}
+                                className="mt-1 w-full rounded-lg border border-amber-300 bg-white p-1.5 text-xs font-bold"
+                              />
+                            </label>
+                            {videoUrl ? (
+                              <button
+                                type="button"
+                                disabled={!canMutate}
+                                onClick={() => {
+                                  const time = previewPlayerRef.current
+                                    ? Math.floor(previewPlayerRef.current.currentTime)
+                                    : previewVideoTime;
+                                  updateInteractiveQuestion(q.id, (prev) => ({ ...prev, rewatchTimestamp: time }));
+                                }}
+                                className="col-span-2 mt-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-300 bg-amber-100/80 px-2.5 py-1 text-[11px] font-bold text-amber-900 hover:bg-amber-200 transition cursor-pointer"
+                              >
+                                <RotateCcw size={13} />
+                                ضبط نقطة المراجعة على توقيت المشغل ({Math.floor(previewVideoTime / 60)}:{String(previewVideoTime % 60).padStart(2, '0')})
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          ) : null}
+
+          {liveType ? (
+            <section className="grid gap-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 md:grid-cols-2">
+              <label className="space-y-2">
+                <span className="text-sm font-black text-gray-700">رابط الاجتماع *</span>
+                <input disabled={!canMutate} type="url" maxLength={2048} value={meetingUrl} onChange={(event) => setMeetingUrl(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold disabled:bg-gray-50" />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm font-black text-gray-700">موعد الاجتماع *</span>
+                <input disabled={!canMutate} type="datetime-local" value={meetingAt} onChange={(event) => setMeetingAt(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold disabled:bg-gray-50" />
+              </label>
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-sm font-black text-gray-700">تعليمات الانضمام</span>
+                <textarea disabled={!canMutate} rows={4} maxLength={10000} value={joinInstructions} onChange={(event) => setJoinInstructions(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-medium disabled:bg-gray-50" />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm font-black text-gray-700">رابط التسجيل</span>
+                <input disabled={!canMutate} type="url" maxLength={2048} value={recordingUrl} onChange={(event) => setRecordingUrl(event.target.value)} className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold disabled:bg-gray-50" />
+              </label>
+              <label className="flex items-center gap-3 rounded-xl border border-gray-200 p-3 text-sm font-black text-gray-700">
+                <input disabled={!canMutate} type="checkbox" checked={showRecording} onChange={(event) => setShowRecording(event.target.checked)} />
+                إظهار التسجيل بعد اللقاء
+              </label>
+            </section>
+          ) : null}
+
+          <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+            <h2 className="font-black text-gray-900">المهارات *</h2>
+            {taxonomyLoading ? <div className="mt-3 text-xs font-bold text-gray-500">جاري تحميل المهارات...</div> : null}
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {skills.map((skill) => {
+                const checked = skillIds.includes(skill.id);
+                return (
+                  <label key={skill.id} className={`flex items-start gap-3 rounded-xl border p-3 text-sm ${checked ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200'}`}>
+                    <input disabled={!canMutate || requiredSkillIds.includes(skill.id)} type="checkbox" checked={checked} onChange={() => setSkillIds((current) => checked ? current.filter((id) => id !== skill.id) : [...current, skill.id])} className="mt-1" />
+                    <span className="font-bold text-gray-800">{skill.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="grid gap-3 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:grid-cols-2 sm:p-6">
+            <label className="flex items-center gap-3 rounded-xl border border-gray-200 p-3 text-sm font-black text-gray-700">
+              <input disabled={!canMutate} type="checkbox" checked={isVisible} onChange={(event) => setIsVisible(event.target.checked)} />
+              ظاهر على المنصة
             </label>
             <label className="flex items-center gap-3 rounded-xl border border-gray-200 p-3 text-sm font-black text-gray-700">
-              <input disabled={!canMutate} type="checkbox" checked={showRecording} onChange={(event) => setShowRecording(event.target.checked)} />
-              إظهار التسجيل بعد اللقاء
+              <input disabled={!canMutate} type="checkbox" checked={isLocked} onChange={(event) => setIsLocked(event.target.checked)} />
+              مغلق حسب الوصول
             </label>
           </section>
-        ) : null}
-
-        <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="font-black text-gray-900">المهارات *</h2>
-          {taxonomyLoading ? <div className="mt-3 text-xs font-bold text-gray-500">جاري تحميل المهارات...</div> : null}
-          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {skills.map((skill) => {
-              const checked = skillIds.includes(skill.id);
-              return (
-                <label key={skill.id} className={`flex items-start gap-3 rounded-xl border p-3 text-sm ${checked ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200'}`}>
-                  <input disabled={!canMutate || requiredSkillIds.includes(skill.id)} type="checkbox" checked={checked} onChange={() => setSkillIds((current) => checked ? current.filter((id) => id !== skill.id) : [...current, skill.id])} className="mt-1" />
-                  <span className="font-bold text-gray-800">{skill.name}</span>
-                </label>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="grid gap-3 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:grid-cols-2 sm:p-6">
-          <label className="flex items-center gap-3 rounded-xl border border-gray-200 p-3 text-sm font-black text-gray-700">
-            <input disabled={!canMutate} type="checkbox" checked={isVisible} onChange={(event) => setIsVisible(event.target.checked)} />
-            ظاهر على المنصة
-          </label>
-          <label className="flex items-center gap-3 rounded-xl border border-gray-200 p-3 text-sm font-black text-gray-700">
-            <input disabled={!canMutate} type="checkbox" checked={isLocked} onChange={(event) => setIsLocked(event.target.checked)} />
-            مغلق حسب الوصول
-          </label>
-        </section>
 
         </div>
 

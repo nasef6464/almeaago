@@ -147,7 +147,7 @@ func presentLearnerTopic(row content.LearnerTopic) map[string]any {
 }
 
 func presentLearnerCourseSummary(row content.LearnerCourseSummary) map[string]any {
-	return map[string]any{
+	result := map[string]any{
 		"id":                 row.ID,
 		"title":              row.Title,
 		"description":        row.Description,
@@ -158,6 +158,10 @@ func presentLearnerCourseSummary(row content.LearnerCourseSummary) map[string]an
 		"dripContentEnabled": row.DripContentEnabled,
 		"certificateEnabled": row.CertificateEnabled,
 	}
+	if len(row.Presentation) > 0 {
+		result["presentation"] = row.Presentation
+	}
+	return result
 }
 
 func presentLearnerTopicSummary(row content.LearnerTopicSummary) map[string]any {

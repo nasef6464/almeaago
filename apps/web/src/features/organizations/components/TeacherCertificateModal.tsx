@@ -7,6 +7,7 @@ interface TeacherCertificateModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultSchoolName?: string;
+  defaultSchoolLogo?: string;
   defaultTeacherName?: string;
   defaultClassName?: string;
   suggestedStudents?: Array<{ id: string; name: string }>;
@@ -37,6 +38,7 @@ export const TeacherCertificateModal: React.FC<TeacherCertificateModalProps> = (
   isOpen,
   onClose,
   defaultSchoolName = 'مدارس المئة النموذجية الأهلية',
+  defaultSchoolLogo = '',
   defaultTeacherName = 'أ. فهد القحطاني - معلم القدرات',
   defaultClassName = 'الصف الثالث الثانوي (أ)',
   suggestedStudents = [
@@ -48,6 +50,7 @@ export const TeacherCertificateModal: React.FC<TeacherCertificateModalProps> = (
 }) => {
   const [studentName, setStudentName] = useState(suggestedStudents[0]?.name || 'فيصل بن سعد');
   const [schoolName, setSchoolName] = useState(defaultSchoolName);
+  const [schoolLogo, setSchoolLogo] = useState(defaultSchoolLogo);
   const [teacherName, setTeacherName] = useState(defaultTeacherName);
   const [className, setClassName] = useState(defaultClassName);
   const [kind, setKind] = useState<CertificateKind>('smart_classroom_hero');
@@ -99,7 +102,7 @@ export const TeacherCertificateModal: React.FC<TeacherCertificateModalProps> = (
         </div>
 
         {/* Configuration Controls Bar */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 p-5 bg-slate-50/70 border-b border-slate-100 text-xs font-bold">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 p-5 bg-slate-50/70 border-b border-slate-100 text-xs font-bold">
           <div>
             <label className="block text-slate-600 mb-1">اسم الطالب المكرم</label>
             <input
@@ -128,6 +131,17 @@ export const TeacherCertificateModal: React.FC<TeacherCertificateModalProps> = (
               value={schoolName}
               onChange={(e) => setSchoolName(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-600 mb-1">شعار المدرسة (رابط)</label>
+            <input
+              type="text"
+              value={schoolLogo}
+              onChange={(e) => setSchoolLogo(e.target.value)}
+              placeholder="https://.../logo.png"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-[11px] text-slate-800 focus:outline-none focus:border-indigo-500"
             />
           </div>
 
@@ -162,9 +176,18 @@ export const TeacherCertificateModal: React.FC<TeacherCertificateModalProps> = (
 
             {/* School & Platform Logos Header */}
             <div className="flex items-center justify-between border-b border-amber-200/60 pb-4 mb-5">
-              <div className="text-right">
-                <p className="text-xs font-black text-amber-800">{schoolName}</p>
-                <p className="text-[10px] text-slate-500">إشراف قسم التوجيه والتفوق الدراسي</p>
+              <div className="flex items-center gap-3">
+                {schoolLogo ? (
+                  <img
+                    src={schoolLogo}
+                    alt={schoolName}
+                    className="h-11 w-11 object-contain rounded-xl border border-amber-200 bg-white p-1 shadow-xs"
+                  />
+                ) : null}
+                <div className="text-right">
+                  <p className="text-xs font-black text-amber-800">{schoolName}</p>
+                  <p className="text-[10px] text-slate-500">إشراف قسم التوجيه والتفوق الدراسي</p>
+                </div>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 rounded-xl border border-amber-200/70 text-amber-800 text-xs font-black">
                 <Sparkles size={14} className="text-amber-500" /> منصة المئة التعليمية
@@ -211,11 +234,20 @@ export const TeacherCertificateModal: React.FC<TeacherCertificateModalProps> = (
                 <p className="text-[10px] text-emerald-600 font-black">توقيع معتمد ✓</p>
               </div>
 
-              <div className="text-center">
-                <div className="rounded-lg bg-slate-50 border border-slate-200 px-2 py-1 text-[10px] text-slate-500 font-mono" dir="ltr">
+              <div className="text-center flex flex-col items-center">
+                <div className="mb-1.5 flex h-12 w-12 items-center justify-center rounded-lg border border-amber-300/80 bg-white p-1 shadow-2xs">
+                  <svg className="h-full w-full text-slate-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor" fillOpacity="0.15" stroke="currentColor" />
+                    <rect x="16" y="2" width="6" height="6" rx="1" fill="currentColor" fillOpacity="0.15" stroke="currentColor" />
+                    <rect x="2" y="16" width="6" height="6" rx="1" fill="currentColor" fillOpacity="0.15" stroke="currentColor" />
+                    <path d="M10 4h4M10 8h4M4 10v4M8 10v4M12 12h.01M16 12h4M12 16v4M16 16h2v2h-2zM20 20h.01" />
+                  </svg>
+                </div>
+                <div className="rounded-lg bg-slate-50 border border-slate-200 px-2 py-0.5 text-[9px] text-slate-600 font-mono" dir="ltr">
                   {certCode}
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">{dateStr}</p>
+                <p className="text-[8px] font-black text-emerald-700 mt-0.5">رمز تحقق موثوق QR</p>
+                <p className="text-[9px] text-slate-400">{dateStr}</p>
               </div>
 
               <div className="text-left">

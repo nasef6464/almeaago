@@ -50,6 +50,9 @@ func normalizeContractWrite(input org.SchoolContractWrite) (org.SchoolContractWr
 	}
 	sort.Slice(modules, func(i, j int) bool { return modules[i] < modules[j] })
 	input.Modules = modules
+	if len(input.Metadata) == 0 {
+		input.Metadata = []byte("{}")
+	}
 	return input, nil
 }
 

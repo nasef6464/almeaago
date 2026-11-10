@@ -215,6 +215,7 @@ export interface CourseModule {
 
 export type LessonType =
   | 'video'
+  | 'quiz'
   | 'file'
   | 'text'
   | 'assignment'

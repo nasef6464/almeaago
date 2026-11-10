@@ -1,6 +1,7 @@
 package organizationshttp
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -51,6 +52,10 @@ func presentSchoolContract(contract org.SchoolContract) map[string]any {
 	for _, module := range contract.Modules {
 		modules = append(modules, string(module))
 	}
+	metadata := contract.Metadata
+	if len(metadata) == 0 {
+		metadata = []byte("{}")
+	}
 	return map[string]any{
 		"id":         contract.ID,
 		"schoolId":   contract.SchoolID,
@@ -59,6 +64,7 @@ func presentSchoolContract(contract org.SchoolContract) map[string]any {
 		"validFrom":  contract.ValidFrom,
 		"validUntil": contract.ValidUntil,
 		"revision":   contract.Revision,
+		"metadata":   json.RawMessage(metadata),
 		"createdAt":  contract.CreatedAt,
 		"updatedAt":  contract.UpdatedAt,
 	}
@@ -88,11 +94,12 @@ func (h *schoolContractHandler) upsert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var payload struct {
-		Status           org.SchoolContractStatus
-		Modules          []org.SchoolModule
-		ValidFrom        *time.Time
-		ValidUntil       *time.Time
-		ExpectedRevision int
+		Status           org.SchoolContractStatus `json:"status"`
+		Modules          []org.SchoolModule       `json:"modules"`
+		ValidFrom        *time.Time               `json:"validFrom"`
+		ValidUntil       *time.Time               `json:"validUntil"`
+		ExpectedRevision int                      `json:"expectedRevision"`
+		Metadata         json.RawMessage          `json:"metadata"`
 	}
 	if !decodeJSON(w, r, &payload) {
 		return
@@ -103,6 +110,7 @@ func (h *schoolContractHandler) upsert(w http.ResponseWriter, r *http.Request) {
 		ValidFrom:        payload.ValidFrom,
 		ValidUntil:       payload.ValidUntil,
 		ExpectedRevision: payload.ExpectedRevision,
+		Metadata:         payload.Metadata,
 	})
 	if err != nil {
 		writeError(w, err)

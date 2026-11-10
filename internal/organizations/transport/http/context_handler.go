@@ -7,12 +7,14 @@ import (
 )
 
 type schoolContextResponse struct {
-	SchoolID    string   `json:"schoolId"`
-	SchoolName  string   `json:"schoolName"`
-	Role        string   `json:"role"`
-	Permissions []string `json:"permissions"`
-	Modules     []string `json:"modules"`
-	Source      string   `json:"source"`
+	SchoolID     string   `json:"schoolId"`
+	SchoolName   string   `json:"schoolName"`
+	Role         string   `json:"role"`
+	Permissions  []string `json:"permissions"`
+	Modules      []string `json:"modules"`
+	AllowedPaths []string `json:"allowedPaths"`
+	LogoURL      string   `json:"logoUrl"`
+	Source       string   `json:"source"`
 }
 
 func (h *Handler) schoolContexts(w http.ResponseWriter, r *http.Request) {
@@ -42,12 +44,18 @@ func presentSchoolContext(context orgdomain.SchoolContext) schoolContextResponse
 	if modules == nil {
 		modules = []string{}
 	}
+	allowedPaths := context.AllowedPaths
+	if allowedPaths == nil {
+		allowedPaths = []string{}
+	}
 	return schoolContextResponse{
-		SchoolID:    context.SchoolID,
-		SchoolName:  context.SchoolName,
-		Role:        string(context.Role),
-		Permissions: permissions,
-		Modules:     modules,
-		Source:      context.Source,
+		SchoolID:     context.SchoolID,
+		SchoolName:   context.SchoolName,
+		Role:         string(context.Role),
+		Permissions:  permissions,
+		Modules:      modules,
+		AllowedPaths: allowedPaths,
+		LogoURL:      context.LogoURL,
+		Source:       context.Source,
 	}
 }

@@ -79,12 +79,14 @@ type SchoolMembership struct {
 }
 
 type SchoolContext struct {
-	SchoolID    string
-	SchoolName  string
-	Role        identity.Role
-	Permissions []string
-	Modules     []string
-	Source      string
+	SchoolID     string
+	SchoolName   string
+	Role         identity.Role
+	Permissions  []string
+	Modules      []string
+	AllowedPaths []string
+	LogoURL      string
+	Source       string
 }
 
 type MembershipWrite struct {

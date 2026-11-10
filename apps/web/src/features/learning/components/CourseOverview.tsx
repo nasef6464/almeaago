@@ -23,6 +23,7 @@ import {
   Star,
   User,
   Video,
+  X,
 } from 'lucide-react';
 
 export type TabType = 'syllabus' | 'description' | 'tests' | 'qa' | 'files';
@@ -64,6 +65,18 @@ export interface CourseOverviewData {
   currency?: string;
   rating?: number;
   studentsCount?: number;
+  fakeStudentsCount?: number;
+  fakeRating?: number;
+  trailerVideoUrl?: string;
+  reviews?: Array<{
+    id: string;
+    authorName: string;
+    rating: number;
+    createdAt: string;
+    comment: string;
+    verified?: boolean;
+    reply?: string;
+  }>;
   modules: Array<{
     id: string;
     title: string;
@@ -160,6 +173,7 @@ export function CourseOverview({
     }
   });
   const [shareNotice, setShareNotice] = useState('');
+  const [showTrailerModal, setShowTrailerModal] = useState(false);
   const [expandedModules, setExpandedModules] = useState<string[]>(() =>
     course.modules.length > 0 ? [course.modules[0].id] : [],
   );
@@ -343,6 +357,8 @@ export function CourseOverview({
   const courseOriginalPrice = Number(course.originalPrice || 0);
   const hasDiscount = courseOriginalPrice > coursePrice && coursePrice > 0;
   const isFree = coursePrice <= 0;
+  const audienceCount = (Number(course.studentsCount) || 0) + (Number(course.fakeStudentsCount) || 0) || 55;
+  const displayRating = course.fakeRating ? Math.min(Number(course.fakeRating) || 5, 5) : (Number(course.rating) || 4.9);
 
   const testsList = useMemo(() => {
     if (course.assessments && course.assessments.length > 0) {
@@ -438,6 +454,15 @@ export function CourseOverview({
                       <Award size={14} /> شهادة إتمام معتمدة
                     </span>
                   ) : null}
+                  {course.trailerVideoUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowTrailerModal(true)}
+                      className="bg-indigo-500/30 hover:bg-indigo-500/50 text-indigo-200 border border-indigo-400/40 text-xs font-black px-3 py-1 rounded-full flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      <PlayCircle size={14} className="text-indigo-400" /> مشاهدة برومو الدورة
+                    </button>
+                  ) : null}
                 </div>
 
                 <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black leading-tight tracking-tight text-white drop-shadow-sm break-words">
@@ -474,7 +499,7 @@ export function CourseOverview({
                       <div className="min-w-0">
                         <p className="text-[11px] font-bold text-slate-400">التقييم</p>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-black text-white">{(course.rating || 4.9).toFixed(1)}</span>
+                          <span className="text-sm font-black text-white">{displayRating.toFixed(1)}</span>
                           <span className="text-[10px] font-bold text-amber-400">★ ★ ★ ★ ★</span>
                         </div>
                       </div>
@@ -488,8 +513,8 @@ export function CourseOverview({
                         <BarChart size={20} />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-slate-400">طلاب مسجل</p>
-                        <p className="truncate text-sm font-black text-emerald-400">+{course.studentsCount || 55} طالب</p>
+                        <p className="text-[11px] font-bold text-slate-400">الطلاب المسجلون</p>
+                        <p className="truncate text-sm font-black text-emerald-400">+{audienceCount.toLocaleString()} طالب</p>
                       </div>
                     </div>
                   </div>
@@ -1030,9 +1055,15 @@ export function CourseOverview({
                 <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                   <button
                     type="button"
-                    onClick={() => onContinue()}
+                    onClick={() => {
+                      if (course.trailerVideoUrl) {
+                        setShowTrailerModal(true);
+                      } else {
+                        onContinue();
+                      }
+                    }}
                     className="w-14 h-14 rounded-full bg-white/90 text-indigo-600 hover:bg-white hover:scale-105 transition-all shadow-xl flex items-center justify-center cursor-pointer"
-                    aria-label="بدء المعاينة"
+                    aria-label="بدء المعاينة أو مشاهدة البرومو"
                   >
                     <PlayCircle size={32} />
                   </button>
@@ -1172,6 +1203,51 @@ export function CourseOverview({
 
         </div>
       </div>
+
+      {/* Promo Trailer Modal */}
+      {showTrailerModal && course.trailerVideoUrl ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-4xl overflow-hidden rounded-3xl bg-slate-900 shadow-2xl border border-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4 text-white">
+              <div className="flex items-center gap-2">
+                <PlayCircle size={20} className="text-indigo-400" />
+                <span className="font-black text-sm">الفيديو الترويجي · {course.title}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTrailerModal(false)}
+                className="rounded-xl p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="relative aspect-video w-full bg-black">
+              {course.trailerVideoUrl.includes('youtube.com') || course.trailerVideoUrl.includes('youtu.be') ? (
+                <iframe
+                  src={
+                    course.trailerVideoUrl.includes('embed')
+                      ? course.trailerVideoUrl
+                      : course.trailerVideoUrl.includes('v=')
+                      ? `https://www.youtube.com/embed/${new URL(course.trailerVideoUrl).searchParams.get('v')}`
+                      : `https://www.youtube.com/embed/${course.trailerVideoUrl.split('/').pop()}`
+                  }
+                  title="Course Promo Video"
+                  className="h-full w-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  src={course.trailerVideoUrl}
+                  controls
+                  autoPlay
+                  className="h-full w-full object-contain"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

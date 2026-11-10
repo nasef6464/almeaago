@@ -38,7 +38,88 @@ import {
   type DirectorStudent,
   type DirectorTeacher,
   type DirectorAssignment,
+  type SchoolContractData,
 } from '../api/organizations-client';
+
+export const PACKAGE_TIERS = [
+  {
+    id: 'tier_foundation',
+    name: 'باقة التأسيس',
+    badge: 'الأساسية',
+    description: 'تشمل مسار القدرات وبنك الأسئلة التفاعلي وتأسيس الفصول والمقاعد المدرسية.',
+    color: 'border-blue-200 bg-blue-50/50 text-blue-800',
+    modules: ['SCHOOL_CORE', 'QUESTION_BANK', 'PATHS_AND_COURSES'],
+    allowedPaths: ['qudurat_general'],
+    maxSeats: 200,
+    maxClasses: 5,
+  },
+  {
+    id: 'tier_excellence',
+    name: 'باقة التميز الأكاديمي',
+    badge: 'الأكثر طلباً ⭐',
+    description: 'تشمل القدرات والتحصيلي والفصول الذكية ونظام الاختبارات والتقييمات المدرسية الشامل.',
+    color: 'border-indigo-300 bg-indigo-50/70 text-indigo-900',
+    modules: ['SCHOOL_CORE', 'QUESTION_BANK', 'SCHOOL_ASSESSMENTS', 'PATHS_AND_COURSES', 'INTERACTIVE_VIDEO', 'SMART_CLASSROOM'],
+    allowedPaths: ['qudurat_general', 'tahsili_science'],
+    maxSeats: 500,
+    maxClasses: 15,
+  },
+  {
+    id: 'tier_smart_vip',
+    name: 'باقة المدرسة الذكية VIP',
+    badge: 'VIP شاملة 👑',
+    description: 'جميع وحدات المنصة الـ 11 بالكامل، الشعار المميز، ذكاء رادار نافس والتحليلات التنفيذية العليا.',
+    color: 'border-amber-300 bg-amber-50/70 text-amber-900',
+    modules: [
+      'SCHOOL_CORE',
+      'QUESTION_BANK',
+      'SCHOOL_ASSESSMENTS',
+      'PATHS_AND_COURSES',
+      'INTERACTIVE_VIDEO',
+      'SMART_CLASSROOM',
+      'SCHOOL_INTELLIGENCE',
+      'INTERVENTION_CENTER',
+      'LIVE_TUTORING',
+      'WHITE_LABEL',
+      'EXECUTIVE_ANALYTICS',
+    ],
+    allowedPaths: ['qudurat_general', 'tahsili_science', 'tahsili_arts', 'nafis_national'],
+    maxSeats: 2000,
+    maxClasses: 50,
+  },
+  {
+    id: 'custom',
+    name: 'وضع التخصيص الحر',
+    badge: 'مخصص',
+    description: 'تحكم تفصيلي كامل في اختيار وتفعيل كل موديول ومسار وسعة المقاعد حسب بنود العقد.',
+    color: 'border-slate-200 bg-slate-50 text-slate-800',
+    modules: [],
+    allowedPaths: [],
+    maxSeats: 500,
+    maxClasses: 15,
+  },
+] as const;
+
+export const ALL_CONTRACT_MODULES = [
+  { id: 'SCHOOL_CORE', title: 'نواة المدرسة والفصول (School Core)', desc: 'إدارة الهيكل التنظيمي والفصول وإسناد الكادر التعليمي.' },
+  { id: 'QUESTION_BANK', title: 'بنك الأسئلة المدرسية (Question Bank)', desc: 'إتاحة آلاف الأسئلة المصنفة مع الشروحات ونماذج الحل.' },
+  { id: 'SCHOOL_ASSESSMENTS', title: 'التقييمات والاختبارات (School Assessments)', desc: 'إنشاء اختبارات دورية ومحاكاة قدرات وتحصيلي بمستويات قياس.' },
+  { id: 'PATHS_AND_COURSES', title: 'المسارات والمقررات (Paths & Courses)', desc: 'المحتوى التعليمي التأسيسي والمتقدم والتسلسل المهاري.' },
+  { id: 'INTERACTIVE_VIDEO', title: 'الفيديو التفاعلي (Interactive Video)', desc: 'شروحات مرئية تفاعلية تتوقف لطرح أسئلة قياس فهم فورية.' },
+  { id: 'SMART_CLASSROOM', title: 'الحصة الذكية (Smart Classroom)', desc: 'جلسات تفاعلية حية وتحديات تنافسية مباشرة داخل الفصل.' },
+  { id: 'SCHOOL_INTELLIGENCE', title: 'ذكاء المدرسة ورادار نافس (School Intelligence)', desc: 'تحليل الفجوات المهارية ورادار الجاهزية للاختبارات الوطنية.' },
+  { id: 'INTERVENTION_CENTER', title: 'مركز التدخلات العلاجية (Intervention Center)', desc: 'خطط علاجية وتوجيه مهاري آلي للطلاب المتعثرين.' },
+  { id: 'LIVE_TUTORING', title: 'الدروس المساندة المباشرة (Live Tutoring)', desc: 'فصول تقوية وبث مباشر للمراجعات المكثفة ليلة الاختبار.' },
+  { id: 'WHITE_LABEL', title: 'الهوية والشعار المميز (White-Label & Branding)', desc: 'ظهور شعار المدرسة في اللوحات والتقارير والشهادات الرسمية.' },
+  { id: 'EXECUTIVE_ANALYTICS', title: 'التحليلات التنفيذية (Executive Analytics)', desc: 'تقارير الأداء الشامل ومؤشرات القيادة لملاك ومدراء المجمعات.' },
+] as const;
+
+export const ALL_CONTRACT_PATHS = [
+  { id: 'qudurat_general', name: 'القدرات العامة (علمي وأدبي)', badge: 'قدرات' },
+  { id: 'tahsili_science', name: 'التحصيلي العلمي (رياضيات، فيزياء، كيمياء، أحياء)', badge: 'تحصيلي علمي' },
+  { id: 'tahsili_arts', name: 'التحصيلي الأدبي', badge: 'تحصيلي أدبي' },
+  { id: 'nafis_national', name: 'اختبارات نافس الوطنية (جودة التعليم)', badge: 'نافس' },
+] as const;
 
 interface SchoolPortfolioStats {
   classesCount: number;
@@ -88,7 +169,19 @@ export function SchoolsAdminPage() {
   const [students, setStudents] = useState<DirectorStudent[]>([]);
   const [teachers, setTeachers] = useState<DirectorTeacher[]>([]);
   const [assignments, setAssignments] = useState<DirectorAssignment[]>([]);
-  const [contractData, setContractData] = useState<Record<string, unknown> | null>(null);
+  const [contractData, setContractData] = useState<SchoolContractData | null>(null);
+  const [contractModules, setContractModules] = useState<string[]>([]);
+  const [contractStatus, setContractStatus] = useState<'active' | 'inactive' | 'expired'>('active');
+  const [contractValidFrom, setContractValidFrom] = useState<string>('');
+  const [contractValidUntil, setContractValidUntil] = useState<string>('');
+  const [contractAllowedPaths, setContractAllowedPaths] = useState<string[]>([]);
+  const [contractLogoUrl, setContractLogoUrl] = useState<string>('');
+  const [contractMaxSeats, setContractMaxSeats] = useState<number>(500);
+  const [contractMaxClasses, setContractMaxClasses] = useState<number>(15);
+  const [contractTier, setContractTier] = useState<string>('tier_excellence');
+  const [contractSaving, setContractSaving] = useState(false);
+  const [contractNotice, setContractNotice] = useState<string | null>(null);
+  const [contractError, setContractError] = useState<string | null>(null);
 
   // Modals & Panels
   const [isWizardOpen, setIsWizardOpen] = useState(false);
@@ -180,9 +273,29 @@ export function SchoolsAdminPage() {
       }
 
       if (contractRes.status === 'fulfilled' && contractRes.value.contract) {
-        setContractData(contractRes.value.contract);
+        const c = contractRes.value.contract;
+        setContractData(c);
+        setContractModules(c.modules || []);
+        setContractStatus(c.status || 'active');
+        setContractValidFrom(c.validFrom ? c.validFrom.split('T')[0] : '');
+        setContractValidUntil(c.validUntil ? c.validUntil.split('T')[0] : '');
+        const meta = c.metadata || {};
+        setContractAllowedPaths(meta.allowedPaths || ['qudurat_general', 'tahsili_science']);
+        setContractLogoUrl(meta.logoUrl || '');
+        setContractMaxSeats(typeof meta.maxSeats === 'number' ? meta.maxSeats : 500);
+        setContractMaxClasses(typeof meta.maxClasses === 'number' ? meta.maxClasses : 15);
+        setContractTier(meta.packageTier || 'tier_excellence');
       } else {
         setContractData(null);
+        setContractModules(['SCHOOL_CORE', 'QUESTION_BANK', 'SCHOOL_ASSESSMENTS', 'PATHS_AND_COURSES', 'INTERACTIVE_VIDEO', 'SMART_CLASSROOM']);
+        setContractStatus('active');
+        setContractValidFrom('');
+        setContractValidUntil('');
+        setContractAllowedPaths(['qudurat_general', 'tahsili_science']);
+        setContractLogoUrl('');
+        setContractMaxSeats(500);
+        setContractMaxClasses(15);
+        setContractTier('tier_excellence');
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'تعذر تحميل بيانات المدرسة';
@@ -267,6 +380,69 @@ export function SchoolsAdminPage() {
   }, [schools, classes.length, students.length, teachers.length]);
 
   // Handlers
+  const handleSelectPackageTier = (tierId: string) => {
+    setContractTier(tierId);
+    const found = PACKAGE_TIERS.find((t) => t.id === tierId);
+    if (found && tierId !== 'custom') {
+      setContractModules([...found.modules]);
+      setContractAllowedPaths([...found.allowedPaths]);
+      setContractMaxSeats(found.maxSeats);
+      setContractMaxClasses(found.maxClasses);
+    }
+  };
+
+  const handleToggleModule = (modId: string) => {
+    setContractTier('custom');
+    setContractModules((prev) =>
+      prev.includes(modId) ? prev.filter((m) => m !== modId) : [...prev, modId]
+    );
+  };
+
+  const handleTogglePath = (pathId: string) => {
+    setContractTier('custom');
+    setContractAllowedPaths((prev) =>
+      prev.includes(pathId) ? prev.filter((p) => p !== pathId) : [...prev, pathId]
+    );
+  };
+
+  const handleSaveContract = async () => {
+    if (!selectedSchool) return;
+    try {
+      setContractSaving(true);
+      setContractError(null);
+      setContractNotice(null);
+      const csrf = await getCsrfToken();
+      const payload = {
+        status: contractStatus,
+        modules: contractModules,
+        validFrom: contractValidFrom ? new Date(contractValidFrom).toISOString() : null,
+        validUntil: contractValidUntil ? new Date(contractValidUntil).toISOString() : null,
+        expectedRevision: contractData?.revision || 0,
+        metadata: {
+          packageTier: contractTier,
+          allowedPaths: contractAllowedPaths,
+          maxSeats: Number(contractMaxSeats) || 0,
+          maxClasses: Number(contractMaxClasses) || 0,
+          logoUrl: contractLogoUrl.trim(),
+          branding: {
+            subtitle: `${selectedSchool.name} - ترخيص معتمد`,
+          },
+        },
+      };
+
+      const res = await organizationsClient.updateContract(selectedSchool.id, payload, csrf);
+      if (res && res.contract) {
+        setContractData(res.contract);
+        setContractNotice('✅ تم حفظ بنود العقد والهوية بنجاح وتحديث التراخيص.');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'تعذر حفظ إعدادات العقد';
+      setContractError(msg);
+    } finally {
+      setContractSaving(false);
+    }
+  };
+
   const handleCreateSchool = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!wizardForm.name.trim() || !wizardForm.code.trim()) {
@@ -539,11 +715,10 @@ export function SchoolsAdminPage() {
                 <button
                   key={f.id}
                   onClick={() => setStatusFilter(f.id)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition whitespace-nowrap ${
-                    statusFilter === f.id
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition whitespace-nowrap ${statusFilter === f.id
                       ? 'bg-slate-900 text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   {f.label}
                 </button>
@@ -580,19 +755,18 @@ export function SchoolsAdminPage() {
                           {s.code}
                         </span>
                         <span
-                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${
-                            stats.readinessStatus === 'ready'
+                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${stats.readinessStatus === 'ready'
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
                               : stats.readinessStatus === 'near_ready'
-                              ? 'bg-amber-50 text-amber-700 border border-amber-100'
-                              : 'bg-rose-50 text-rose-700 border border-rose-100'
-                          }`}
+                                ? 'bg-amber-50 text-amber-700 border border-amber-100'
+                                : 'bg-rose-50 text-rose-700 border border-rose-100'
+                            }`}
                         >
                           {stats.readinessStatus === 'ready'
                             ? 'جاهز تشغيلياً'
                             : stats.readinessStatus === 'near_ready'
-                            ? 'قريب من الجاهزية'
-                            : 'يحتاج تدخل'}
+                              ? 'قريب من الجاهزية'
+                              : 'يحتاج تدخل'}
                         </span>
                       </div>
 
@@ -607,13 +781,12 @@ export function SchoolsAdminPage() {
                         </div>
                         <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-100">
                           <div
-                            className={`h-full transition-all duration-500 ${
-                              stats.readinessScore >= 75
+                            className={`h-full transition-all duration-500 ${stats.readinessScore >= 75
                                 ? 'bg-emerald-500'
                                 : stats.readinessScore >= 50
-                                ? 'bg-amber-500'
-                                : 'bg-rose-500'
-                            }`}
+                                  ? 'bg-amber-500'
+                                  : 'bg-rose-500'
+                              }`}
                             style={{ width: `${stats.readinessScore}%` }}
                           />
                         </div>
@@ -783,11 +956,10 @@ export function SchoolsAdminPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`shrink-0 rounded-xl px-4 py-2.5 text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-                  activeTab === tab.id
+                className={`shrink-0 rounded-xl px-4 py-2.5 text-xs font-bold transition whitespace-nowrap cursor-pointer ${activeTab === tab.id
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-gray-600 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 {tab.label}
               </button>
@@ -897,9 +1069,8 @@ export function SchoolsAdminPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedClassId('')}
-                  className={`rounded-xl px-4 py-2 text-xs font-black transition ${
-                    selectedClassId === '' ? 'bg-slate-900 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-                  }`}
+                  className={`rounded-xl px-4 py-2 text-xs font-black transition ${selectedClassId === '' ? 'bg-slate-900 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                    }`}
                 >
                   كافة الطلاب ({students.length})
                 </button>
@@ -908,9 +1079,8 @@ export function SchoolsAdminPage() {
                     key={cls.id}
                     type="button"
                     onClick={() => setSelectedClassId(cls.id)}
-                    className={`rounded-xl px-4 py-2 text-xs font-black transition ${
-                      selectedClassId === cls.id ? 'bg-slate-900 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-                    }`}
+                    className={`rounded-xl px-4 py-2 text-xs font-black transition ${selectedClassId === cls.id ? 'bg-slate-900 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                      }`}
                   >
                     {cls.name} ({students.filter((s) => s.classId === cls.id).length})
                   </button>
@@ -1015,11 +1185,10 @@ export function SchoolsAdminPage() {
                           <td className="p-4">{code.usedBy || '—'}</td>
                           <td className="p-4">
                             <span
-                              className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                                code.status === 'active'
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-black ${code.status === 'active'
                                   ? 'bg-emerald-50 text-emerald-700'
                                   : 'bg-gray-100 text-gray-600'
-                              }`}
+                                }`}
                             >
                               {code.status === 'active' ? 'متاح للاستخدام' : 'مستخدم'}
                             </span>
@@ -1153,29 +1322,319 @@ export function SchoolsAdminPage() {
           {/* ── Workspace Tab 7: Contract & Safety ── */}
           {activeTab === 'contract' && (
             <div className="space-y-6">
-              <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
-                <h2 className="text-lg font-black text-gray-900">إعدادات العقد والوحدات المفعلة</h2>
-                <p className="text-xs font-bold text-gray-500">
-                  التحكم في وحدات المنصة المفعلة للمدرسة، الفصول الذكية، التقييمات، والوصول الآمن.
-                </p>
-
-                <div className="space-y-3">
-                  {[
-                    { title: 'وحدة الفصول الذكية (Smart Classroom)', desc: 'تمكين المعلمين والطلاب من جلسات الحصص المباشرة والأنشطة.', active: true },
-                    { title: 'بنك التقييمات والاختبارات المدرسية', desc: 'إتاحة إنشاء اختبارات دورية ومحاكاة قدرات/تحصيلي للمدرسة.', active: true },
-                    { title: 'بوابة أولياء الأمور والمتابعة المباشرة', desc: 'إرسال تقارير الأداء ومؤشرات التقدم لأولياء الأمور.', active: true },
-                    { title: 'بوابة المشرف التربوي', desc: 'تمكين المشرفين من متابعة جودة الفصول والتقارير.', active: true },
-                  ].map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                      <div>
-                        <div className="text-sm font-black text-gray-800">{item.title}</div>
-                        <div className="text-xs font-bold text-gray-500 mt-0.5">{item.desc}</div>
-                      </div>
-                      <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 border border-emerald-100">
-                        مفعل بالعقد
+              {/* Header & Save Action Bar */}
+              <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 pb-5">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-black text-gray-900">إدارة العقود والباقات المرنة والشعار المميز</h2>
+                      <span className="rounded-full bg-indigo-50 px-3 py-0.5 text-xs font-black text-indigo-700 border border-indigo-100">
+                        النسخة التعاقدية #{contractData?.revision ?? 1}
+                      </span>
+                      <span
+                        className={`rounded-full px-3 py-0.5 text-xs font-black border ${contractStatus === 'active'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-rose-50 text-rose-700 border-rose-200'
+                          }`}
+                      >
+                        {contractStatus === 'active' ? 'العقد سارٍ ونشط' : 'العقد غير نشط'}
                       </span>
                     </div>
-                  ))}
+                    <p className="text-xs font-bold text-gray-500 mt-1">
+                      تحديد قوالب الباقات المعتمدة، ترخيص المسارات التعليمية، تفعيل موديولات المنصة الـ 11، وضبط الشعار والهوية المدرسية.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveContract}
+                    disabled={contractSaving}
+                    className="flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3 text-sm font-black text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 disabled:opacity-50 transition-all cursor-pointer"
+                  >
+                    <Sparkles size={18} />
+                    <span>{contractSaving ? 'جاري الحفظ والاعتماد...' : 'حفظ واعتماد بنود العقد'}</span>
+                  </button>
+                </div>
+
+                {contractNotice && (
+                  <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-black text-emerald-800 flex items-center gap-2">
+                    <CheckCircle2 size={16} />
+                    <span>{contractNotice}</span>
+                  </div>
+                )}
+                {contractError && (
+                  <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-black text-rose-800 flex items-center gap-2">
+                    <AlertCircle size={16} />
+                    <span>{contractError}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* 1. Package Tier Selection Cards */}
+              <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
+                <div>
+                  <h3 className="text-base font-black text-gray-900">1. قوالب الباقات التعاقدية المسبقة (Package Tiers)</h3>
+                  <p className="text-xs text-gray-500 font-bold">اختر قالباً تعاقدياً لملء الوحدات والمسارات والمقاعد الموصى بها، أو اختر التخصيص الحر.</p>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  {PACKAGE_TIERS.map((tier) => {
+                    const isSelected = contractTier === tier.id;
+                    return (
+                      <div
+                        key={tier.id}
+                        onClick={() => handleSelectPackageTier(tier.id)}
+                        className={`cursor-pointer rounded-2xl border-2 p-4 transition-all relative ${isSelected
+                            ? 'border-indigo-600 bg-indigo-50/40 shadow-md ring-2 ring-indigo-600/10'
+                            : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-xs'
+                          }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-gray-500">{tier.badge}</span>
+                          {isSelected && (
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-white">
+                              <Check size={12} />
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="mt-2 text-sm font-black text-gray-900">{tier.name}</h4>
+                        <p className="mt-1 text-[11px] leading-5 text-gray-500 font-bold">{tier.description}</p>
+                        {tier.id !== 'custom' && (
+                          <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-[10px] font-black text-gray-600">
+                            <span>{tier.modules.length} موديولات</span>
+                            <span>{tier.maxSeats} مقعد</span>
+                            <span>{tier.maxClasses} فصل</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 2. Licensed Paths & School Capacity */}
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Allowed Learning Paths */}
+                <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
+                  <h3 className="text-base font-black text-gray-900">2. المسارات التعليمية المرخصة للمدرسة (`allowedPaths`)</h3>
+                  <p className="text-xs text-gray-500 font-bold">حدد المسارات التدريبية التي يحق لطلاب ومعلمي المدرسة الوصول إليها.</p>
+
+                  <div className="space-y-2.5">
+                    {ALL_CONTRACT_PATHS.map((path) => {
+                      const isAllowed = contractAllowedPaths.includes(path.id);
+                      return (
+                        <div
+                          key={path.id}
+                          onClick={() => handleTogglePath(path.id)}
+                          className={`flex cursor-pointer items-center justify-between rounded-2xl border p-3.5 transition-all ${isAllowed
+                              ? 'border-indigo-300 bg-indigo-50/50 text-indigo-950 font-black'
+                              : 'border-gray-200 bg-gray-50/50 text-gray-600 hover:bg-gray-100/50'
+                            }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={isAllowed}
+                              onChange={() => handleTogglePath(path.id)}
+                              className="h-4 w-4 rounded-sm border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <div>
+                              <span className="text-xs font-black">{path.name}</span>
+                            </div>
+                          </div>
+                          <span className="rounded-full bg-white px-2.5 py-0.5 text-[10px] font-black border border-gray-200 shadow-2xs">
+                            {path.badge}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Capacity & Dates */}
+                <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
+                  <h3 className="text-base font-black text-gray-900">3. سعة التراخيص وفترة السريان</h3>
+                  <p className="text-xs text-gray-500 font-bold">ضبط الحد الأقصى للمقاعد والفصول وتواريخ سريان العقد.</p>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-xs font-black text-gray-700">سعة مقاعد الطلاب (Max Seats)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={contractMaxSeats}
+                        onChange={(e) => {
+                          setContractTier('custom');
+                          setContractMaxSeats(Number(e.target.value) || 0);
+                        }}
+                        className="mt-1 w-full rounded-xl border border-gray-200 p-2.5 text-xs font-bold focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black text-gray-700">الحد الأقصى للفصول (Max Classes)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={contractMaxClasses}
+                        onChange={(e) => {
+                          setContractTier('custom');
+                          setContractMaxClasses(Number(e.target.value) || 0);
+                        }}
+                        className="mt-1 w-full rounded-xl border border-gray-200 p-2.5 text-xs font-bold focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black text-gray-700">تاريخ بدء السريان</label>
+                      <input
+                        type="date"
+                        value={contractValidFrom}
+                        onChange={(e) => setContractValidFrom(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-gray-200 p-2.5 text-xs font-bold focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black text-gray-700">تاريخ انتهاء السريان</label>
+                      <input
+                        type="date"
+                        value={contractValidUntil}
+                        onChange={(e) => setContractValidUntil(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-gray-200 p-2.5 text-xs font-bold focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <label className="block text-xs font-black text-gray-700 mb-1">حالة العقد التعاقدي</label>
+                    <div className="flex gap-2">
+                      {(['active', 'inactive', 'expired'] as const).map((st) => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => setContractStatus(st)}
+                          className={`rounded-xl px-4 py-2 text-xs font-black border transition-all ${contractStatus === st
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                              : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                            }`}
+                        >
+                          {st === 'active' ? 'نشط (Active)' : st === 'inactive' ? 'معلق (Inactive)' : 'منتهي (Expired)'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. School Logo & Branding Customization */}
+              <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
+                <div>
+                  <h3 className="text-base font-black text-gray-900">4. هوية وشعار المدرسة (School Branding & White-Label Logo)</h3>
+                  <p className="text-xs text-gray-500 font-bold">
+                    شعار وهوية المدرسة التي تظهر في رأس شاشات الطلاب والمعلمين، وعلى الشهادات والتقارير المطبوعة.
+                  </p>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-3">
+                  <div className="md:col-span-2 space-y-3">
+                    <div>
+                      <label className="block text-xs font-black text-gray-700">رابط الشعار الرسمي للمدرسة (Logo URL)</label>
+                      <input
+                        type="text"
+                        value={contractLogoUrl}
+                        onChange={(e) => setContractLogoUrl(e.target.value)}
+                        placeholder="https://.../school-logo.png"
+                        className="mt-1 w-full rounded-xl border border-gray-200 p-2.5 font-mono text-xs text-gray-800 focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <span className="text-[11px] font-bold text-gray-500">شعارات نموذجية سريعة للتجربة:</span>
+                      <div className="mt-1.5 flex flex-wrap gap-2">
+                        {[
+                          { label: 'شعار مدارس الفرسان النموذجية', url: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=160&auto=format&fit=crop&q=80' },
+                          { label: 'شعار مجمع الرياض التعليمي', url: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=160&auto=format&fit=crop&q=80' },
+                          { label: 'شعار دار العلوم الأهلية', url: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=160&auto=format&fit=crop&q=80' },
+                        ].map((preset, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setContractLogoUrl(preset.url)}
+                            className="rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-bold text-gray-700 hover:bg-gray-100"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Logo Live Preview */}
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 flex flex-col items-center justify-center text-center">
+                    <span className="text-[11px] font-black text-gray-500 mb-2">معاينة الشعار الحية</span>
+                    {contractLogoUrl.trim() ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <img
+                          src={contractLogoUrl.trim()}
+                          alt="School Logo Preview"
+                          className="h-20 w-20 rounded-2xl border border-gray-200 bg-white p-2 object-contain shadow-sm"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+                          }}
+                        />
+                        <span className="text-[10px] font-black text-emerald-700">✓ جاهز للظهور في اللوحات والشهادات</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 text-gray-400 py-3">
+                        <Building2 size={36} />
+                        <span className="text-[11px] font-bold">لم يتم تحديد شعار بعد</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. The 11 Modular Entitlements Grid */}
+              <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                  <div>
+                    <h3 className="text-base font-black text-gray-900">5. حزمة الميزات الـ 11 للتحكم بالوحدات المدرسية (11 Modules)</h3>
+                    <p className="text-xs text-gray-500 font-bold">
+                      يمكنك تشغيل أو إيقاف أي موديول حسب المتفق عليه في عقد المدرسة.
+                    </p>
+                  </div>
+                  <span className="text-xs font-black text-indigo-700">
+                    مفعل: {contractModules.length} من {ALL_CONTRACT_MODULES.length}
+                  </span>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {ALL_CONTRACT_MODULES.map((mod) => {
+                    const isEnabled = contractModules.includes(mod.id);
+                    return (
+                      <div
+                        key={mod.id}
+                        onClick={() => handleToggleModule(mod.id)}
+                        className={`cursor-pointer rounded-2xl border p-4 transition-all flex flex-col justify-between ${isEnabled
+                            ? 'border-emerald-300 bg-emerald-50/40 shadow-xs'
+                            : 'border-gray-200 bg-gray-50/30 opacity-75 hover:opacity-100 hover:border-gray-300'
+                          }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-black text-gray-900">{mod.title}</span>
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-[10px] font-black border ${isEnabled
+                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                  : 'bg-gray-100 text-gray-500 border-gray-200'
+                                }`}
+                            >
+                              {isEnabled ? 'مفعل بالعقد ✓' : 'معطل'}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[11px] leading-5 text-gray-500 font-bold">{mod.desc}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

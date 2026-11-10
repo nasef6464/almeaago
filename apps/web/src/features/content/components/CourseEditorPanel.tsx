@@ -7,17 +7,26 @@ import {
   ExternalLink,
   Eye,
   FileText,
+  HelpCircle,
   Layers3,
   Link2,
   Loader2,
+  Play,
   Plus,
+  Radio,
   Save,
+  Sparkles,
+  Star,
   Tag,
   Trash2,
+  Users,
+  Video,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
+import { assessmentClient } from '../../assessment/api/assessment-client';
+import type { AssessmentSummary } from '../../assessment/api/assessment-types';
 import { contentClient } from '../api/content-client';
 import type {
   CourseDetail,
@@ -90,6 +99,17 @@ export function CourseEditorPanel({
   const [originalPrice, setOriginalPrice] = useState(0);
   const [currency, setCurrency] = useState('ر.س');
 
+  // Marketing & Social Proof (Legacy Parity)
+  const [fakeStudentsCount, setFakeStudentsCount] = useState(0);
+  const [fakeRating, setFakeRating] = useState(5.0);
+  const [trailerVideoUrl, setTrailerVideoUrl] = useState('');
+  const [category, setCategory] = useState('القدرات العامة');
+
+  // Central Assessments Integration
+  const [approvedAssessments, setApprovedAssessments] = useState<AssessmentSummary[]>([]);
+  const [selectedCentralAssessmentId, setSelectedCentralAssessmentId] = useState('');
+  const [selectedQuizByModule, setSelectedQuizByModule] = useState<Record<string, string>>({});
+
   // Files & Attachments
   const [courseFiles, setCourseFiles] = useState<Array<{ id: string; title: string; size: string; url?: string; access: 'free_preview' | 'enrolled_paid' }>>([]);
   const [newFileTitle, setNewFileTitle] = useState('');
@@ -97,7 +117,7 @@ export function CourseEditorPanel({
   const [newFileAccess, setNewFileAccess] = useState<'free_preview' | 'enrolled_paid'>('free_preview');
 
   // Assessments
-  const [courseAssessments, setCourseAssessments] = useState<Array<{ id: string; title: string; phase: 'pre_course' | 'during_course' | 'final_course'; durationMinutes: number; questionsCount: number; access: 'free_preview' | 'enrolled_paid' }>>([]);
+  const [courseAssessments, setCourseAssessments] = useState<Array<{ id: string; title: string; phase: 'pre_course' | 'during_course' | 'final_course'; durationMinutes: number; questionsCount: number; access: 'free_preview' | 'enrolled_paid'; quizId?: string }>>([]);
   const [newAssessmentTitle, setNewAssessmentTitle] = useState('');
   const [newAssessmentPhase, setNewAssessmentPhase] = useState<'pre_course' | 'during_course' | 'final_course'>('during_course');
   const [newAssessmentMinutes, setNewAssessmentMinutes] = useState(30);
@@ -128,6 +148,10 @@ export function CourseEditorPanel({
     setPrice(pres.price ?? 0);
     setOriginalPrice(pres.originalPrice ?? 0);
     setCurrency(pres.currency || 'ر.س');
+    setFakeStudentsCount(pres.fakeStudentsCount ?? 0);
+    setFakeRating(pres.fakeRating ?? 5.0);
+    setTrailerVideoUrl(pres.trailerVideoUrl || '');
+    setCategory(pres.category || 'القدرات العامة');
     setCourseFiles(Array.isArray(pres.files) ? pres.files : []);
     setCourseAssessments(Array.isArray(pres.assessments) ? pres.assessments : []);
   }
@@ -150,6 +174,15 @@ export function CourseEditorPanel({
         applyCourse(courseResult.course);
         setModules(sortModules(moduleResult.modules));
         setTaxonomy(taxonomyResult);
+        // Load approved assessments from central assessment center for curriculum & assessments tabs
+        assessmentClient.list({
+          pathId: courseResult.course.pathId,
+          subjectId: courseResult.course.subjectId,
+          workflowStatus: 'approved',
+          limit: 100,
+        }, controller.signal).then((res) => {
+          setApprovedAssessments(res.items || []);
+        }).catch(() => undefined);
       })
       .catch((cause: unknown) => {
         if (controller.signal.aborted) return;
@@ -230,6 +263,10 @@ export function CourseEditorPanel({
       price: Math.max(0, Number(price) || 0),
       originalPrice: Math.max(0, Number(originalPrice) || 0),
       currency: currency || 'ر.س',
+      fakeStudentsCount: Math.max(0, Number(fakeStudentsCount) || 0),
+      fakeRating: Math.min(5, Math.max(1, Number(fakeRating) || 5)),
+      trailerVideoUrl: trailerVideoUrl.trim(),
+      category: category.trim(),
       files: courseFiles,
       assessments: courseAssessments,
     };
@@ -395,6 +432,91 @@ export function CourseEditorPanel({
       onChanged();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'تعذر إزالة الدرس من القسم.');
+    } finally {
+      setMutating(false);
+    }
+  }
+
+  async function attachQuizToModule(module: CourseModule) {
+    if (!course || !canMutate) return;
+    const quizId = selectedQuizByModule[module.id];
+    if (!quizId) return;
+    const assessment = approvedAssessments.find((a) => a.id === quizId);
+    if (!assessment) return;
+
+    setMutating(true);
+    setError('');
+    try {
+      const csrf = await getCsrfToken();
+      const lessonRes = await contentClient.createLesson({
+        pathId: course.pathId,
+        subjectId: course.subjectId,
+        title: `اختبار: ${assessment.title}`,
+        description: `اختبار تقييمي معتمد مستورد من مركز الاختبارات`,
+        type: 'quiz',
+        contentText: JSON.stringify({ quizId: assessment.id, kind: assessment.kind }),
+        durationSeconds: (assessment.currentVersion || 20) * 60,
+        videoUrl: '',
+        videoSource: '',
+        meetingUrl: '',
+        meetingAt: null,
+        recordingUrl: '',
+        joinInstructions: '',
+        showRecording: false,
+        isVisible: true,
+        isLocked: false,
+        skillIds: [],
+        assetIds: [],
+      }, csrf);
+
+      const isPreview = Boolean(previewByModule[module.id]);
+      const result = await contentClient.placeCourseLesson(
+        courseId,
+        module.id,
+        lessonRes.lesson.id,
+        {
+          expectedRevision: course.revision,
+          sortOrder: module.lessons.length + 1,
+          isPreview,
+        },
+        csrf,
+      );
+      setCourse({ ...course, revision: result.courseRevision });
+      await refreshModules();
+      setSelectedQuizByModule((prev) => ({ ...prev, [module.id]: '' }));
+      setNotice(`تم ربط الاختبار "${assessment.title}" بالقسم بنجاح.`);
+      onChanged();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'تعذر ربط الاختبار بالقسم.');
+    } finally {
+      setMutating(false);
+    }
+  }
+
+  async function toggleLessonPreview(module: CourseModule, lessonId: string, currentIsPreview: boolean) {
+    if (!course || !canMutate) return;
+    setMutating(true);
+    setError('');
+    try {
+      const csrf = await getCsrfToken();
+      const placement = module.lessons.find((l) => l.lessonId === lessonId);
+      const result = await contentClient.placeCourseLesson(
+        courseId,
+        module.id,
+        lessonId,
+        {
+          expectedRevision: course.revision,
+          sortOrder: placement?.sortOrder || 1,
+          isPreview: !currentIsPreview,
+        },
+        csrf,
+      );
+      setCourse({ ...course, revision: result.courseRevision });
+      await refreshModules();
+      setNotice('تم تحديث إعداد المعاينة المجانية للدرس.');
+      onChanged();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'تعذر تحديث إعداد المعاينة.');
     } finally {
       setMutating(false);
     }
@@ -695,6 +817,77 @@ export function CourseEditorPanel({
               </div>
             </section>
 
+            {/* Social Proof & Marketing */}
+            <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 space-y-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Sparkles size={18} className="text-amber-500" />
+                  <h2 className="text-lg font-black text-gray-900">أرقام الظهور والتسويق (Social Proof & Stats)</h2>
+                </div>
+                <p className="mt-1 text-xs text-gray-500 font-medium">
+                  حدد أعداد الطلاب المعروضة والتقييمات الإضافية لتعزيز ثقة الطلاب وإبراز الإقبال، وفيديو الإعلان التشويقي.
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <label className="space-y-1.5">
+                  <span className="text-xs font-black text-gray-700">الطلاب المسجلون المعروضون (Fake Students)</span>
+                  <input
+                    disabled={!canMutate}
+                    type="number"
+                    min={0}
+                    value={fakeStudentsCount}
+                    onChange={(e) => setFakeStudentsCount(Number(e.target.value) || 0)}
+                    placeholder="مثال: 1250"
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold"
+                  />
+                  <span className="text-[10px] text-gray-400">يضاف إلى العدد الفعلي للظهور للزوار والطلاب</span>
+                </label>
+
+                <label className="space-y-1.5">
+                  <span className="text-xs font-black text-gray-700">التقييم المعروض (Fake Rating)</span>
+                  <input
+                    disabled={!canMutate}
+                    type="number"
+                    min={1}
+                    max={5}
+                    step={0.1}
+                    value={fakeRating}
+                    onChange={(e) => setFakeRating(Number(e.target.value) || 5.0)}
+                    placeholder="5.0"
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold"
+                  />
+                  <span className="text-[10px] text-gray-400">التقييم بالنجوم المعروض على بطاقة الدورة (1 - 5)</span>
+                </label>
+
+                <label className="space-y-1.5">
+                  <span className="text-xs font-black text-gray-700">تصنيف الدورة (Category)</span>
+                  <input
+                    disabled={!canMutate}
+                    type="text"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    placeholder="القدرات العامة"
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold"
+                  />
+                  <span className="text-[10px] text-gray-400">يظهر كشارة تصنيفية على بطاقة الدورة</span>
+                </label>
+
+                <label className="space-y-1.5">
+                  <span className="text-xs font-black text-gray-700">فيديو البرومو / المعاينة (Trailer URL)</span>
+                  <input
+                    disabled={!canMutate}
+                    type="url"
+                    value={trailerVideoUrl}
+                    onChange={(e) => setTrailerVideoUrl(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=..."
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-bold"
+                  />
+                  <span className="text-[10px] text-gray-400">فيديو تعريفي تشويقي يفتح مجاناً للزوار</span>
+                </label>
+              </div>
+            </section>
+
             <div className="flex justify-end">
               <button
                 type="submit"
@@ -829,6 +1022,61 @@ export function CourseEditorPanel({
                   حدد اختبارات تحديد المستوى القبلية، الاختبارات الدورية، والاختبار الشامل النهائي للدورة.
                 </p>
               </div>
+
+              {/* Pick from central assessment center */}
+              {approvedAssessments.length > 0 ? (
+                <div className="p-4 rounded-2xl border border-indigo-200 bg-indigo-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 flex-1">
+                    <Award size={18} className="text-indigo-600 shrink-0" />
+                    <select
+                      value={selectedCentralAssessmentId}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        setSelectedCentralAssessmentId(id);
+                        const found = approvedAssessments.find((a) => a.id === id);
+                        if (found) {
+                          setNewAssessmentTitle(found.title);
+                          setNewAssessmentQuestions(20);
+                        }
+                      }}
+                      className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-gray-800"
+                    >
+                      <option value="">استيراد اختبار جاهز من مركز الاختبارات المعتمد...</option>
+                      {approvedAssessments.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.title} ({a.kind === 'mock' ? 'محاكي قياس' : 'اختبار تقييمي'} • {a.code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!selectedCentralAssessmentId}
+                    onClick={() => {
+                      if (!selectedCentralAssessmentId) return;
+                      const found = approvedAssessments.find((a) => a.id === selectedCentralAssessmentId);
+                      if (!found) return;
+                      setCourseAssessments((prev) => [
+                        ...prev,
+                        {
+                          id: `test-center-${found.id}-${Date.now()}`,
+                          quizId: found.id,
+                          title: found.title,
+                          phase: newAssessmentPhase,
+                          durationMinutes: newAssessmentMinutes,
+                          questionsCount: newAssessmentQuestions,
+                          access: newAssessmentPhase === 'pre_course' ? 'free_preview' : 'enrolled_paid',
+                        },
+                      ]);
+                      setSelectedCentralAssessmentId('');
+                      setNewAssessmentTitle('');
+                    }}
+                    className="rounded-xl bg-indigo-600 text-white px-4 py-2 text-xs font-black hover:bg-indigo-700 disabled:opacity-40 cursor-pointer shrink-0"
+                  >
+                    إرفاق كاختبار مرحلي بالدورة
+                  </button>
+                </div>
+              ) : null}
 
               {/* Add assessment form */}
               <div className="p-4 rounded-2xl border border-dashed border-gray-200 bg-slate-50/70 grid gap-3 sm:grid-cols-[1fr_140px_100px_100px_auto] sm:items-end">
@@ -1003,7 +1251,20 @@ export function CourseEditorPanel({
                           <div className="font-black text-gray-800">{lessonName(placement.lessonId)}</div>
                           <div className="mt-1 flex items-center gap-2 text-xs font-bold text-gray-500">
                             <span>ترتيب {placement.sortOrder}</span>
-                            {placement.isPreview ? <span className="inline-flex items-center gap-1 text-emerald-700"><Eye size={13} />معاينة مجانية</span> : <span>ضمن الاشتراك</span>}
+                            <button
+                              type="button"
+                              disabled={!canMutate || mutating || module.status === 'archived'}
+                              onClick={() => void toggleLessonPreview(module, placement.lessonId, placement.isPreview)}
+                              className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-black transition cursor-pointer ${
+                                placement.isPreview
+                                  ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                  : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                              }`}
+                              title="اضغط للتبديل بين مجاني للمعاينة أو مدفوع"
+                            >
+                              <Eye size={12} />
+                              {placement.isPreview ? 'معاينة مجانية (اضغط للتحويل لمدفوع)' : 'ضمن الاشتراك (اضغط للإتاحة كمعاينة)'}
+                            </button>
                           </div>
                         </div>
                         <button type="button" disabled={!canMutate || mutating || module.status === 'archived'} onClick={() => void removeLesson(module, placement.lessonId)} className="inline-flex items-center justify-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-800 disabled:opacity-50">
@@ -1014,21 +1275,61 @@ export function CourseEditorPanel({
                     ))}
 
                   {module.status === 'active' ? (
-                    <div className="grid gap-2 border-t border-gray-100 pt-3 md:grid-cols-[1fr_auto_auto] md:items-center">
-                      <select disabled={!canMutate || mutating} value={selectedLessonByModule[module.id] || ''} onChange={(event) => setSelectedLessonByModule((current) => ({ ...current, [module.id]: event.target.value }))} className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold disabled:bg-gray-50">
-                        <option value="">استدعاء درس موجود...</option>
-                        {lessonOptions
-                          .filter((lesson) => !module.lessons.some((placement) => placement.lessonId === lesson.id))
-                          .map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.title}</option>)}
-                      </select>
-                      <label className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-xs font-black text-gray-700">
-                        <input disabled={!canMutate || mutating} type="checkbox" checked={Boolean(previewByModule[module.id])} onChange={(event) => setPreviewByModule((current) => ({ ...current, [module.id]: event.target.checked }))} />
-                        معاينة مجانية
-                      </label>
-                      <button type="button" disabled={!canMutate || mutating || !selectedLessonByModule[module.id]} onClick={() => void attachLesson(module)} className="inline-flex items-center justify-center gap-1 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-50">
-                        <Link2 size={15} />
-                        ربط الدرس
-                      </button>
+                    <div className="space-y-2 border-t border-gray-100 pt-3">
+                      {/* Attach platform lesson */}
+                      <div className="grid gap-2 md:grid-cols-[1fr_auto_auto] md:items-center">
+                        <select disabled={!canMutate || mutating} value={selectedLessonByModule[module.id] || ''} onChange={(event) => setSelectedLessonByModule((current) => ({ ...current, [module.id]: event.target.value }))} className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold disabled:bg-gray-50">
+                          <option value="">استدعاء درس مرئي / نصي موجود...</option>
+                          {lessonOptions
+                            .filter((lesson) => !module.lessons.some((placement) => placement.lessonId === lesson.id))
+                            .map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.title}</option>)}
+                        </select>
+                        <label className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-xs font-black text-gray-700">
+                          <input disabled={!canMutate || mutating} type="checkbox" checked={Boolean(previewByModule[module.id])} onChange={(event) => setPreviewByModule((current) => ({ ...current, [module.id]: event.target.checked }))} />
+                          معاينة مجانية
+                        </label>
+                        <button type="button" disabled={!canMutate || mutating || !selectedLessonByModule[module.id]} onClick={() => void attachLesson(module)} className="inline-flex items-center justify-center gap-1 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-50 cursor-pointer">
+                          <Link2 size={15} />
+                          ربط الدرس
+                        </button>
+                      </div>
+
+                      {/* Attach central assessment quiz */}
+                      {approvedAssessments.length > 0 ? (
+                        <div className="grid gap-2 md:grid-cols-[1fr_auto_auto] md:items-center bg-amber-50/50 p-2.5 rounded-xl border border-dashed border-amber-200">
+                          <select
+                            disabled={!canMutate || mutating}
+                            value={selectedQuizByModule[module.id] || ''}
+                            onChange={(event) => setSelectedQuizByModule((current) => ({ ...current, [module.id]: event.target.value }))}
+                            className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-bold disabled:bg-gray-50 text-gray-800"
+                          >
+                            <option value="">إرفاق اختبار معتمد من مركز الاختبارات (Quiz / Assessment)...</option>
+                            {approvedAssessments.map((quiz) => (
+                              <option key={quiz.id} value={quiz.id}>
+                                📝 {quiz.title} ({quiz.kind === 'mock' ? 'محاكي قياس' : 'تقييمي'} • {quiz.code})
+                              </option>
+                            ))}
+                          </select>
+                          <label className="flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-1.5 text-xs font-black text-amber-800">
+                            <input
+                              disabled={!canMutate || mutating}
+                              type="checkbox"
+                              checked={Boolean(previewByModule[module.id])}
+                              onChange={(event) => setPreviewByModule((current) => ({ ...current, [module.id]: event.target.checked }))}
+                            />
+                            معاينة مجانية
+                          </label>
+                          <button
+                            type="button"
+                            disabled={!canMutate || mutating || !selectedQuizByModule[module.id]}
+                            onClick={() => void attachQuizToModule(module)}
+                            className="inline-flex items-center justify-center gap-1 rounded-xl bg-amber-600 hover:bg-amber-700 px-4 py-2 text-xs font-black text-white disabled:opacity-50 cursor-pointer"
+                          >
+                            <Award size={14} />
+                            إرفاق الاختبار بالقسم
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>

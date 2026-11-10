@@ -111,7 +111,13 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
   // Load auxiliary schools and taxonomy once
   useEffect(() => {
     organizationsClient.schools().then((res) => setSchools(res.schools || [])).catch(() => {});
-    contentClient.taxonomyCore().then(setTaxonomy).catch(() => {});
+    contentClient.taxonomyCore().then((res) => {
+      if (res && Array.isArray((res as any).paths)) {
+        setTaxonomy(res);
+      } else if (res && (res as any).core && Array.isArray((res as any).core.paths)) {
+        setTaxonomy((res as any).core);
+      }
+    }).catch(() => {});
   }, []);
 
   // Load Users List and Summary
@@ -470,7 +476,7 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
               <tbody className="divide-y divide-gray-100">
                 {users.map((u) => {
                   const schoolName = schools.find((s) => s.id === u.schoolId)?.name;
-                  const managedPaths = taxonomy.paths.filter((p) => u.managedPathIds?.includes(p.id)).map((p) => p.name);
+                  const managedPaths = (taxonomy?.paths || []).filter((p) => u.managedPathIds?.includes(p.id)).map((p) => p.name);
 
                   return (
                     <tr key={u.id} className="hover:bg-slate-50/50 transition">
@@ -702,7 +708,7 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
                         onChange={(e) => setCreateForm({ ...createForm, managedPathIds: Array.from(e.target.selectedOptions, (o) => o.value) })}
                         className="w-full rounded-xl border border-gray-200 bg-white p-2 text-xs font-bold h-24"
                       >
-                        {taxonomy.paths.map((p) => (
+                        {(taxonomy?.paths || []).map((p) => (
                           <option key={p.id} value={p.id}>{p.name}</option>
                         ))}
                       </select>
@@ -805,7 +811,7 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
                       onChange={(e) => setEditForm({ ...editForm, managedPathIds: Array.from(e.target.selectedOptions, (o) => o.value) })}
                       className="w-full rounded-xl border border-gray-200 bg-white p-2 text-xs font-bold h-24"
                     >
-                      {taxonomy.paths.map((p) => (
+                      {(taxonomy?.paths || []).map((p) => (
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
                     </select>

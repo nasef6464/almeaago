@@ -78,6 +78,10 @@ export function CourseView() {
           currency: presentation.currency || 'ر.س',
           rating: presentation.rating || 4.9,
           studentsCount: presentation.studentsCount || 55,
+          fakeStudentsCount: presentation.fakeStudentsCount ?? 0,
+          fakeRating: presentation.fakeRating,
+          trailerVideoUrl: presentation.trailerVideoUrl || '',
+          reviews: presentation.reviews || [],
           modules: lc.modules.map((m) => ({
             id: m.id,
             title: m.title,
@@ -143,6 +147,10 @@ export function CourseView() {
             currency: presentation.currency || 'ر.س',
             rating: presentation.rating || 4.9,
             studentsCount: presentation.studentsCount || 55,
+            fakeStudentsCount: presentation.fakeStudentsCount ?? 0,
+            fakeRating: presentation.fakeRating,
+            trailerVideoUrl: presentation.trailerVideoUrl || '',
+            reviews: presentation.reviews || [],
             modules: mods.map((m) => ({
               id: m.id,
               title: m.title,

@@ -33,6 +33,7 @@ import {
   Eye,
   Video,
   Menu,
+  RotateCcw,
 } from 'lucide-react';
 
 import { useAuth } from '../../auth/state/AuthProvider';
@@ -167,6 +168,12 @@ export function SupervisorDashboardPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [skillPathFilter, setSkillPathFilter] = useState('all');
   const [skillSubjectFilter, setSkillSubjectFilter] = useState('all');
+  const [skillClassFilter, setSkillClassFilter] = useState('all');
+  const [skillGradeFilter, setSkillGradeFilter] = useState('all');
+  const [skillStudentFilter, setSkillStudentFilter] = useState('all');
+  const [skillLevelFilter, setSkillLevelFilter] = useState<'all' | 'critical' | 'watch' | 'mastered'>('all');
+  const [skillSearchQuery, setSkillSearchQuery] = useState('');
+  const [skillsViewMode, setSkillsViewMode] = useState<'cards' | 'matrix'>('cards');
 
   // Modals & Overlays State
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
@@ -438,28 +445,87 @@ export function SupervisorDashboardPage() {
     const groupCount = Math.max(classesList.length, 3);
     const pendingFollowUpCount = studentsList.filter((s) => (s.status === 'danger' || s.average < 70) && !s.hasAssignedFollowUp).length;
 
-    // Weakest skills aggregation
-    const skillMap = new Map<string, { skill: string; total: number; count: number; affectedStudents: number }>();
+    // Skill taxonomy classification helper
+    const getSkillTaxonomy = (skillName: string): { pathName: string; subjectName: string } => {
+      const name = skillName.trim();
+      if (['التناظر اللفظي', 'استيعاب المقروء', 'إكمال الجمل', 'الخطأ السياقي', 'المفردة الشاذة'].some((k) => name.includes(k))) {
+        return { pathName: 'القدرات العامة', subjectName: 'القدرات اللفظي' };
+      }
+      if (['الميكانيكا والمقذوفات', 'الكهرومغناطيسية', 'الفيزياء النووية', 'الضوء والموجات', 'الحركة والقوة'].some((k) => name.includes(k))) {
+        return { pathName: 'التحصيلي العلمي', subjectName: 'فيزياء التحصيلي' };
+      }
+      if (['حساب المثلثات', 'الاشتقاق والتكامل', 'المصفوفات والمتجهات', 'الدوال والمعادلات', 'المتجهات'].some((k) => name.includes(k))) {
+        return { pathName: 'التحصيلي العلمي', subjectName: 'رياضيات التحصيلي' };
+      }
+      if (['الروابط الكيميائية والديناميكا', 'الحسابات الكيميائية', 'الكيمياء العضوية', 'الاتزان الكيميائي'].some((k) => name.includes(k))) {
+        return { pathName: 'التحصيلي العلمي', subjectName: 'كيمياء التحصيلي' };
+      }
+      if (['التراكيب الخلوية والوراثة', 'علم البيئة والتصنيف', 'أجهزة جسم الإنسان', 'المناعة'].some((k) => name.includes(k))) {
+        return { pathName: 'التحصيلي العلمي', subjectName: 'أحياء التحصيلي' };
+      }
+      return { pathName: 'القدرات العامة', subjectName: 'القدرات الكمي' };
+    };
+
+    // Multi-dimensional skills aggregation
+    const skillMap = new Map<string, {
+      skill: string;
+      total: number;
+      count: number;
+      affectedStudents: number;
+      classNames: Set<string>;
+      gradeNames: Set<string>;
+      studentIds: Set<string>;
+      studentNames: Set<string>;
+      weakStudentIds: Set<string>;
+    }>();
+
     studentsList.forEach((s) => {
       s.resultsList.forEach((r) => {
         (r.skillsAnalysis || []).forEach((sk) => {
-          const cur = skillMap.get(sk.skill) || { skill: sk.skill, total: 0, count: 0, affectedStudents: 0 };
+          const cur = skillMap.get(sk.skill) || {
+            skill: sk.skill,
+            total: 0,
+            count: 0,
+            affectedStudents: 0,
+            classNames: new Set<string>(),
+            gradeNames: new Set<string>(),
+            studentIds: new Set<string>(),
+            studentNames: new Set<string>(),
+            weakStudentIds: new Set<string>(),
+          };
           cur.total += sk.mastery;
           cur.count += 1;
-          if (sk.mastery < 70) cur.affectedStudents += 1;
+          cur.classNames.add(s.className);
+          cur.gradeNames.add(s.gradeName);
+          cur.studentIds.add(s.id);
+          cur.studentNames.add(s.name);
+          if (sk.mastery < 70) {
+            cur.affectedStudents += 1;
+            cur.weakStudentIds.add(s.id);
+          }
           skillMap.set(sk.skill, cur);
         });
       });
     });
 
     const weakestSkills = Array.from(skillMap.values())
-      .map((sk) => ({
-        key: sk.skill,
-        skill: sk.skill,
-        mastery: sk.count ? Math.round(sk.total / sk.count) : 0,
-        attempts: sk.count,
-        affectedStudents: sk.affectedStudents,
-      }))
+      .map((sk) => {
+        const tax = getSkillTaxonomy(sk.skill);
+        return {
+          key: sk.skill,
+          skill: sk.skill,
+          pathName: tax.pathName,
+          subjectName: tax.subjectName,
+          classNames: Array.from(sk.classNames),
+          gradeNames: Array.from(sk.gradeNames),
+          studentIds: Array.from(sk.studentIds),
+          studentNames: Array.from(sk.studentNames),
+          weakStudentIds: Array.from(sk.weakStudentIds),
+          mastery: sk.count ? Math.round(sk.total / sk.count) : 0,
+          attempts: sk.count,
+          affectedStudents: sk.affectedStudents,
+        };
+      })
       .sort((a, b) => a.mastery - b.mastery);
 
     // Group / Class Snapshots
@@ -531,15 +597,86 @@ export function SupervisorDashboardPage() {
     return supervisorScopeSummary.allStudentsList.find((s) => s.id === selectedStudentId) || null;
   }, [selectedStudentId, supervisorScopeSummary.allStudentsList]);
 
-  // Skills Overview Breakdown for Skills Tab
+  // Multi-dimensional filtered skills list
+  const filteredSkillsList = useMemo(() => {
+    return supervisorScopeSummary.weakestSkills.filter((sk) => {
+      // 1. Path filter
+      if (skillPathFilter === 'qudrat' && !sk.pathName.includes('القدرات')) return false;
+      if (skillPathFilter === 'tahsili' && !sk.pathName.includes('التحصيلي')) return false;
+      if (skillPathFilter === 'nafes' && !sk.pathName.includes('نافس')) return false;
+
+      // 2. Subject filter
+      if (skillSubjectFilter !== 'all' && !sk.subjectName.includes(skillSubjectFilter)) return false;
+
+      // 3. Class filter
+      if (skillClassFilter !== 'all') {
+        const targetClass = classesList.find((c) => c.id === skillClassFilter);
+        const targetName = targetClass ? targetClass.name : skillClassFilter;
+        if (!sk.classNames.some((cn) => cn.includes(targetName))) return false;
+      }
+
+      // 4. Grade filter
+      if (skillGradeFilter !== 'all' && !sk.gradeNames.some((gn) => gn.includes(skillGradeFilter))) return false;
+
+      // 5. Student filter
+      if (skillStudentFilter !== 'all' && !sk.studentIds.includes(skillStudentFilter)) return false;
+
+      // 6. Level filter
+      if (skillLevelFilter === 'critical' && sk.mastery >= 60) return false;
+      if (skillLevelFilter === 'watch' && (sk.mastery < 60 || sk.mastery >= 75)) return false;
+      if (skillLevelFilter === 'mastered' && sk.mastery < 75) return false;
+
+      // 7. Search Query
+      if (skillSearchQuery.trim()) {
+        const q = skillSearchQuery.trim().toLowerCase();
+        const matchName = sk.skill.toLowerCase().includes(q);
+        const matchSubject = sk.subjectName.toLowerCase().includes(q);
+        const matchPath = sk.pathName.toLowerCase().includes(q);
+        const matchClasses = sk.classNames.some((c) => c.toLowerCase().includes(q));
+        if (!matchName && !matchSubject && !matchPath && !matchClasses) return false;
+      }
+
+      return true;
+    });
+  }, [
+    supervisorScopeSummary.weakestSkills,
+    skillPathFilter,
+    skillSubjectFilter,
+    skillClassFilter,
+    skillGradeFilter,
+    skillStudentFilter,
+    skillLevelFilter,
+    skillSearchQuery,
+    classesList,
+  ]);
+
   const skillsOverviewList = useMemo(() => {
-    const list = supervisorScopeSummary.weakestSkills;
     return {
-      critical: list.filter((s) => s.mastery < 60),
-      watch: list.filter((s) => s.mastery >= 60 && s.mastery < 75),
-      mastered: list.filter((s) => s.mastery >= 75),
+      critical: filteredSkillsList.filter((s) => s.mastery < 60),
+      watch: filteredSkillsList.filter((s) => s.mastery >= 60 && s.mastery < 75),
+      mastered: filteredSkillsList.filter((s) => s.mastery >= 75),
+      all: filteredSkillsList,
     };
-  }, [supervisorScopeSummary.weakestSkills]);
+  }, [filteredSkillsList]);
+
+  const resetSkillFilters = () => {
+    setSkillPathFilter('all');
+    setSkillSubjectFilter('all');
+    setSkillClassFilter('all');
+    setSkillGradeFilter('all');
+    setSkillStudentFilter('all');
+    setSkillLevelFilter('all');
+    setSkillSearchQuery('');
+  };
+
+  const hasActiveSkillFilters =
+    skillPathFilter !== 'all' ||
+    skillSubjectFilter !== 'all' ||
+    skillClassFilter !== 'all' ||
+    skillGradeFilter !== 'all' ||
+    skillStudentFilter !== 'all' ||
+    skillLevelFilter !== 'all' ||
+    skillSearchQuery.trim() !== '';
 
   // Actions
   const handlePrint = () => {
@@ -1352,123 +1489,438 @@ export function SupervisorDashboardPage() {
               </div>
             )}
 
-            {/* TAB 6: SKILLS MAP */}
+            {/* TAB 6: SKILLS MAP (نظام الفلترة الشامل للمهارات) */}
             {activeTab === 'skills' && (
               <div className="space-y-6">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                {/* Header & View Switcher */}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h1 className="text-2xl font-black text-gray-900">خريطة تمكن المهارات (Curriculum Skills Map)</h1>
-                    <p className="mt-1 text-sm text-gray-500">خريطة توضيحية لنسبة تمكن الطلاب مع مصفوفة الفصول والمهارات الدقيقة.</p>
+                    <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
+                      <Target className="text-indigo-600" /> خريطة تمكن المهارات (Curriculum Skills Map)
+                    </h1>
+                    <p className="mt-1 text-sm text-gray-500">
+                      فلترة دقيقة للمهارات حسب المسارات والمواد والمراحل والفصول والطلاب · تصنيف القوة والضعف والتدخل الفوري.
+                    </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <select
-                      value={skillPathFilter}
-                      onChange={(e) => setSkillPathFilter(e.target.value)}
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700"
-                    >
-                      <option value="all">كل المسارات (القدرات + التحصيلي)</option>
-                      <option value="qudrat">مسار القدرات العامة</option>
-                      <option value="tahsili">مسار التحصيلي العلمي</option>
-                    </select>
+
+                  <div className="flex items-center gap-2">
+                    {/* View Switcher: Cards vs Matrix */}
+                    <div className="flex items-center rounded-2xl border border-gray-200 bg-white p-1 shadow-2xs">
+                      <button
+                        onClick={() => setSkillsViewMode('cards')}
+                        className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-black transition-all cursor-pointer ${
+                          skillsViewMode === 'cards' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span>بطاقات المهارات</span>
+                      </button>
+                      <button
+                        onClick={() => setSkillsViewMode('matrix')}
+                        className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-black transition-all cursor-pointer ${
+                          skillsViewMode === 'matrix' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        <span>مصفوفة طالب × مهارة</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                <ClassSkillsMapPanel
-                  students={supervisorScopeSummary.allStudentsList}
-                  groupSnapshots={supervisorScopeSummary.groupSnapshots}
-                  onSelectStudent={(id) => setSelectedStudentId(id)}
-                />
+                {/* MULTI-DIMENSIONAL SKILLS FILTER TOOLBAR */}
+                <div className="rounded-3xl border border-gray-200/80 bg-white p-4 sm:p-5 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-3 text-xs font-black text-gray-700">
+                    <span className="flex items-center gap-1.5 text-indigo-700">
+                      <Filter size={15} /> فلترة منظومة المهارات الشاملة (منع التكدس)
+                    </span>
+                    <span className="text-gray-500 font-bold">
+                      عرض <span className="text-indigo-600 font-black">{filteredSkillsList.length}</span> من أصل <span className="text-gray-900">{supervisorScopeSummary.weakestSkills.length}</span> مهارة
+                    </span>
+                  </div>
 
-                <div className="border-t border-gray-100 pt-4">
-                  <h3 className="text-sm font-black text-gray-700 mb-4">تفصيل المهارات حسب مستوى التمكن</h3>
+                  {/* 6 Dropdowns Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                    {/* 1. Mastery Level */}
+                    <div>
+                      <label className="text-[11px] font-black text-gray-600 mb-1 block">مستوى التمكن</label>
+                      <select
+                        value={skillLevelFilter}
+                        onChange={(e) => setSkillLevelFilter(e.target.value as any)}
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50/80 px-2.5 py-1.5 text-xs font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      >
+                        <option value="all">كل المستويات</option>
+                        <option value="critical">مهارات حرجة (&lt; 60%)</option>
+                        <option value="watch">قيد التعزيز (60% - 74%)</option>
+                        <option value="mastered">مهارات متقنة (≥ 75%)</option>
+                      </select>
+                    </div>
+
+                    {/* 2. Path */}
+                    <div>
+                      <label className="text-[11px] font-black text-gray-600 mb-1 block">المسار التعليمي</label>
+                      <select
+                        value={skillPathFilter}
+                        onChange={(e) => setSkillPathFilter(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50/80 px-2.5 py-1.5 text-xs font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      >
+                        <option value="all">كل المسارات</option>
+                        <option value="qudrat">القدرات العامة</option>
+                        <option value="tahsili">التحصيلي العلمي</option>
+                        <option value="nafes">نافس الوطني</option>
+                      </select>
+                    </div>
+
+                    {/* 3. Subject */}
+                    <div>
+                      <label className="text-[11px] font-black text-gray-600 mb-1 block">المادة الدراسية</label>
+                      <select
+                        value={skillSubjectFilter}
+                        onChange={(e) => setSkillSubjectFilter(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50/80 px-2.5 py-1.5 text-xs font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      >
+                        <option value="all">كل المواد</option>
+                        <option value="القدرات الكمي">القدرات الكمي</option>
+                        <option value="القدرات اللفظي">القدرات اللفظي</option>
+                        <option value="رياضيات">رياضيات التحصيلي</option>
+                        <option value="فيزياء">فيزياء التحصيلي</option>
+                        <option value="كيمياء">كيمياء التحصيلي</option>
+                        <option value="أحياء">أحياء التحصيلي</option>
+                      </select>
+                    </div>
+
+                    {/* 4. Class */}
+                    <div>
+                      <label className="text-[11px] font-black text-gray-600 mb-1 block">الفصل الدراسي</label>
+                      <select
+                        value={skillClassFilter}
+                        onChange={(e) => setSkillClassFilter(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50/80 px-2.5 py-1.5 text-xs font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      >
+                        <option value="all">كل الفصول</option>
+                        {classesList.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 5. Grade */}
+                    <div>
+                      <label className="text-[11px] font-black text-gray-600 mb-1 block">المرحلة الدراسية</label>
+                      <select
+                        value={skillGradeFilter}
+                        onChange={(e) => setSkillGradeFilter(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50/80 px-2.5 py-1.5 text-xs font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      >
+                        <option value="all">كل المراحل</option>
+                        <option value="الثالث الثانوي">الصف الثالث الثانوي</option>
+                        <option value="الثاني الثانوي">الصف الثاني الثانوي</option>
+                      </select>
+                    </div>
+
+                    {/* 6. Specific Student */}
+                    <div>
+                      <label className="text-[11px] font-black text-gray-600 mb-1 block">تحديد الطالب</label>
+                      <select
+                        value={skillStudentFilter}
+                        onChange={(e) => setSkillStudentFilter(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50/80 px-2.5 py-1.5 text-xs font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      >
+                        <option value="all">كل الطلاب</option>
+                        {supervisorScopeSummary.allStudentsList.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Search & Reset */}
+                  <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+                    <div className="relative flex-1">
+                      <Search size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        value={skillSearchQuery}
+                        onChange={(e) => setSkillSearchQuery(e.target.value)}
+                        placeholder="بحث باسم المهارة أو المادة أو الفصل..."
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2 pr-10 pl-4 text-xs font-medium focus:border-indigo-500 focus:bg-white focus:outline-none transition-all"
+                      />
+                      {skillSearchQuery && (
+                        <button
+                          onClick={() => setSkillSearchQuery('')}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    {hasActiveSkillFilters && (
+                      <button
+                        onClick={resetSkillFilters}
+                        className="flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer shrink-0"
+                      >
+                        <RotateCcw size={13} />
+                        <span>إعادة ضبط فلاتر المهارات</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Active Chips */}
+                  {hasActiveSkillFilters && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-gray-100 text-xs">
+                      <span className="font-bold text-gray-500 ml-1">تصفية المهارات النشطة:</span>
+                      {skillLevelFilter !== 'all' && (
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[11px] font-bold text-indigo-700">
+                          المستوى: {skillLevelFilter === 'critical' ? 'حرجة' : skillLevelFilter === 'watch' ? 'قيد التعزيز' : 'متقنة'}
+                          <button onClick={() => setSkillLevelFilter('all')}><X size={11} /></button>
+                        </span>
+                      )}
+                      {skillPathFilter !== 'all' && (
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[11px] font-bold text-indigo-700">
+                          المسار: {skillPathFilter === 'qudrat' ? 'القدرات العامة' : skillPathFilter === 'tahsili' ? 'التحصيلي العلمي' : 'نافس الوطني'}
+                          <button onClick={() => setSkillPathFilter('all')}><X size={11} /></button>
+                        </span>
+                      )}
+                      {skillSubjectFilter !== 'all' && (
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 border border-blue-200 px-2 py-0.5 text-[11px] font-bold text-blue-700">
+                          المادة: {skillSubjectFilter}
+                          <button onClick={() => setSkillSubjectFilter('all')}><X size={11} /></button>
+                        </span>
+                      )}
+                      {skillClassFilter !== 'all' && (
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
+                          الفصل: {classesList.find((c) => c.id === skillClassFilter)?.name || skillClassFilter}
+                          <button onClick={() => setSkillClassFilter('all')}><X size={11} /></button>
+                        </span>
+                      )}
+                      {skillStudentFilter !== 'all' && (
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-purple-50 border border-purple-200 px-2 py-0.5 text-[11px] font-bold text-purple-700">
+                          الطالب: {supervisorScopeSummary.allStudentsList.find((s) => s.id === skillStudentFilter)?.name || skillStudentFilter}
+                          <button onClick={() => setSkillStudentFilter('all')}><X size={11} /></button>
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Critical Skills */}
-                  <div className="rounded-2xl border border-rose-100 bg-rose-50/20 p-5 shadow-xs space-y-4">
-                    <div className="flex items-center justify-between border-b border-rose-100 pb-3">
-                      <h3 className="text-base font-black text-rose-800 flex items-center gap-2">
-                        <AlertTriangle size={18} /> مهارات حرجة (ضعف شديد)
-                      </h3>
-                      <span className="rounded-md bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700">{skillsOverviewList.critical.length} مهارات</span>
+                {/* View 1: Matrix View */}
+                {skillsViewMode === 'matrix' ? (
+                  <ClassSkillsMapPanel
+                    students={supervisorScopeSummary.allStudentsList.filter((s) => {
+                      if (skillClassFilter !== 'all' && s.classId !== skillClassFilter && s.className !== skillClassFilter) return false;
+                      if (skillStudentFilter !== 'all' && s.id !== skillStudentFilter) return false;
+                      return true;
+                    })}
+                    groupSnapshots={supervisorScopeSummary.groupSnapshots}
+                    onSelectStudent={(id) => setSelectedStudentId(id)}
+                  />
+                ) : (
+                  /* View 2: Clean Organized Cards View */
+                  filteredSkillsList.length === 0 ? (
+                    <div className="rounded-3xl border border-dashed border-gray-200 bg-white py-16 text-center shadow-xs">
+                      <Target size={40} className="mx-auto text-gray-300 mb-3" />
+                      <p className="text-sm font-black text-gray-700">لا توجد مهارات تطابق هذه التصفية</p>
+                      <p className="text-xs text-gray-400 mt-1">جرّب إلغاء بعض الفلاتر لاستعراض باقي المهارات الأكاديمية.</p>
+                      <button
+                        onClick={resetSkillFilters}
+                        className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700"
+                      >
+                        عرض جميع المهارات
+                      </button>
                     </div>
-                    {skillsOverviewList.critical.map((sk) => (
-                      <div key={sk.key} className="rounded-xl border border-white bg-white p-4 shadow-xs space-y-3">
-                        <div className="flex justify-between items-start">
-                          <h4 className="text-sm font-bold text-gray-900 truncate max-w-[70%]">{sk.skill}</h4>
-                          <span className="rounded-lg bg-rose-50 px-2 py-0.5 text-xs font-black text-rose-600">{sk.mastery}%</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-                          <div className="h-full rounded-full bg-rose-500" style={{ width: `${Math.max(6, sk.mastery)}%` }} />
-                        </div>
-                        <div className="flex justify-between items-center text-[11px] text-gray-500 pt-1">
-                          <span>{sk.affectedStudents} طلاب متعثرين</span>
-                          <button
-                            onClick={() => setSelectedSkillFilter({ name: sk.skill, level: 'critical', students: supervisorScopeSummary.allStudentsList.filter((s) => s.weakSkills.includes(sk.skill)).map((s) => s.id) })}
-                            className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
-                          >
-                            عرض الطلاب ←
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  ) : skillLevelFilter !== 'all' ? (
+                    /* Specific Level Grid */
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredSkillsList.map((sk) => {
+                        const isCritical = sk.mastery < 60;
+                        const isWatch = sk.mastery >= 60 && sk.mastery < 75;
+                        const cardBg = isCritical ? 'border-rose-200 bg-rose-50/20' : isWatch ? 'border-amber-200 bg-amber-50/20' : 'border-emerald-200 bg-emerald-50/20';
+                        const badgeColor = isCritical ? 'bg-rose-50 text-rose-700 border-rose-200' : isWatch ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                        const barColor = isCritical ? 'bg-rose-500' : isWatch ? 'bg-amber-500' : 'bg-emerald-500';
 
-                  {/* Watch Skills */}
-                  <div className="rounded-2xl border border-amber-100 bg-amber-50/20 p-5 shadow-xs space-y-4">
-                    <div className="flex items-center justify-between border-b border-amber-100 pb-3">
-                      <h3 className="text-base font-black text-amber-800 flex items-center gap-2">
-                        <Activity size={18} /> مهارات قيد التطوير والتعزيز
-                      </h3>
-                      <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">{skillsOverviewList.watch.length} مهارات</span>
-                    </div>
-                    {skillsOverviewList.watch.map((sk) => (
-                      <div key={sk.key} className="rounded-xl border border-white bg-white p-4 shadow-xs space-y-3">
-                        <div className="flex justify-between items-start">
-                          <h4 className="text-sm font-bold text-gray-900 truncate max-w-[70%]">{sk.skill}</h4>
-                          <span className="rounded-lg bg-amber-50 px-2 py-0.5 text-xs font-black text-amber-600">{sk.mastery}%</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-                          <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.max(6, sk.mastery)}%` }} />
-                        </div>
-                        <div className="flex justify-between items-center text-[11px] text-gray-500 pt-1">
-                          <span>{sk.affectedStudents} طلاب يحتاجون تعزيز</span>
-                          <button
-                            onClick={() => setSelectedSkillFilter({ name: sk.skill, level: 'watch', students: supervisorScopeSummary.allStudentsList.filter((s) => s.weakSkills.includes(sk.skill)).map((s) => s.id) })}
-                            className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
-                          >
-                            عرض الطلاب ←
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                        return (
+                          <div key={sk.key} className={`rounded-2xl border p-4 shadow-xs hover:shadow-md transition-all bg-white flex flex-col justify-between ${cardBg}`}>
+                            <div>
+                              <div className="flex justify-between items-start gap-2">
+                                <h4 className="text-sm font-black text-gray-900 leading-snug">{sk.skill}</h4>
+                                <span className={`rounded-lg px-2 py-0.5 text-xs font-black border shrink-0 ${badgeColor}`}>
+                                  {sk.mastery}%
+                                </span>
+                              </div>
 
-                  {/* Mastered Skills */}
-                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/20 p-5 shadow-xs space-y-4">
-                    <div className="flex items-center justify-between border-b border-emerald-100 pb-3">
-                      <h3 className="text-base font-black text-emerald-800 flex items-center gap-2">
-                        <CheckCircle2 size={18} /> مهارات ممتازة (تمكن عالي)
-                      </h3>
-                      <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">{skillsOverviewList.mastered.length} مهارات</span>
+                              <div className="mt-2.5 flex flex-wrap gap-1.5 text-[10px] font-bold text-gray-500">
+                                <span className="rounded-md bg-gray-100 px-2 py-0.5">{sk.pathName}</span>
+                                <span className="rounded-md bg-indigo-50 text-indigo-700 px-2 py-0.5">{sk.subjectName}</span>
+                                <span className="rounded-md bg-slate-100 px-2 py-0.5">{sk.classNames[0] || 'عام'}</span>
+                              </div>
+
+                              <div className="mt-3">
+                                <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                                  <div className={`h-full ${barColor} rounded-full transition-all duration-700`} style={{ width: `${Math.max(6, sk.mastery)}%` }} />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+                              <span className="font-bold text-gray-500">{sk.affectedStudents} طلاب متأثرين</span>
+                              <div className="flex items-center gap-2">
+                                {isCritical && (
+                                  <button
+                                    onClick={() => {
+                                      setActiveTab('tests');
+                                    }}
+                                    className="rounded-lg bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1 text-[11px] font-black transition-colors cursor-pointer"
+                                  >
+                                    خطة علاجية ←
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => setSelectedSkillFilter({ name: sk.skill, level: isCritical ? 'critical' : isWatch ? 'watch' : 'mastered', students: sk.weakStudentIds })}
+                                  className="font-black text-indigo-600 hover:text-indigo-800 transition-colors"
+                                >
+                                  عرض الطلاب ←
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    {skillsOverviewList.mastered.map((sk) => (
-                      <div key={sk.key} className="rounded-xl border border-white bg-white p-4 shadow-xs space-y-3">
-                        <div className="flex justify-between items-start">
-                          <h4 className="text-sm font-bold text-gray-900 truncate max-w-[70%]">{sk.skill}</h4>
-                          <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-black text-emerald-600">{sk.mastery}%</span>
+                  ) : (
+                    /* Default 3-Column Categorized View */
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {/* 1. Critical Skills */}
+                      <div className="rounded-3xl border border-rose-100 bg-rose-50/20 p-5 shadow-xs space-y-4">
+                        <div className="flex items-center justify-between border-b border-rose-100 pb-3">
+                          <h3 className="text-base font-black text-rose-800 flex items-center gap-2">
+                            <AlertTriangle size={18} /> مهارات حرجة (ضعف شديد)
+                          </h3>
+                          <span className="rounded-md bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700">
+                            {skillsOverviewList.critical.length} مهارات
+                          </span>
                         </div>
-                        <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-                          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.max(6, sk.mastery)}%` }} />
-                        </div>
-                        <div className="flex justify-between items-center text-[11px] text-gray-500 pt-1">
-                          <span>التمكن ممتاز للطلاب</span>
-                          <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 rounded px-1.5 py-0.5">جاهزة</span>
-                        </div>
+                        {skillsOverviewList.critical.length === 0 ? (
+                          <p className="text-xs text-gray-400 text-center py-6">لا توجد مهارات حرجة تطابق الفلاتر المحددة.</p>
+                        ) : (
+                          skillsOverviewList.critical.map((sk) => (
+                            <div key={sk.key} className="rounded-2xl border border-white bg-white p-4 shadow-xs space-y-3 hover:shadow-sm transition-all">
+                              <div className="flex justify-between items-start gap-2">
+                                <h4 className="text-sm font-bold text-gray-900 leading-snug">{sk.skill}</h4>
+                                <span className="rounded-lg bg-rose-50 px-2 py-0.5 text-xs font-black text-rose-600 border border-rose-100 shrink-0">
+                                  {sk.mastery}%
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-1 text-[10px] font-bold text-gray-500">
+                                <span className="rounded bg-gray-50 px-1.5 py-0.5">{sk.subjectName}</span>
+                                <span className="rounded bg-gray-50 px-1.5 py-0.5">{sk.classNames[0] || 'عام'}</span>
+                              </div>
+                              <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                                <div className="h-full rounded-full bg-rose-500" style={{ width: `${Math.max(6, sk.mastery)}%` }} />
+                              </div>
+                              <div className="flex justify-between items-center text-[11px] text-gray-500 pt-1">
+                                <span>{sk.affectedStudents} طلاب متعثرين</span>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setActiveTab('tests');
+                                    }}
+                                    className="rounded bg-rose-50 text-rose-700 px-2 py-0.5 font-bold hover:bg-rose-100 transition-colors"
+                                  >
+                                    خطة علاجية
+                                  </button>
+                                  <button
+                                    onClick={() => setSelectedSkillFilter({ name: sk.skill, level: 'critical', students: sk.weakStudentIds })}
+                                    className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                                  >
+                                    عرض الطلاب ←
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
-                    ))}
-                  </div>
-                </div>
+
+                      {/* 2. Watch Skills */}
+                      <div className="rounded-3xl border border-amber-100 bg-amber-50/20 p-5 shadow-xs space-y-4">
+                        <div className="flex items-center justify-between border-b border-amber-100 pb-3">
+                          <h3 className="text-base font-black text-amber-800 flex items-center gap-2">
+                            <Activity size={18} /> مهارات قيد التطوير والتعزيز
+                          </h3>
+                          <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">
+                            {skillsOverviewList.watch.length} مهارات
+                          </span>
+                        </div>
+                        {skillsOverviewList.watch.length === 0 ? (
+                          <p className="text-xs text-gray-400 text-center py-6">لا توجد مهارات قيد التعزيز تطابق الفلاتر.</p>
+                        ) : (
+                          skillsOverviewList.watch.map((sk) => (
+                            <div key={sk.key} className="rounded-2xl border border-white bg-white p-4 shadow-xs space-y-3 hover:shadow-sm transition-all">
+                              <div className="flex justify-between items-start gap-2">
+                                <h4 className="text-sm font-bold text-gray-900 leading-snug">{sk.skill}</h4>
+                                <span className="rounded-lg bg-amber-50 px-2 py-0.5 text-xs font-black text-amber-600 border border-amber-100 shrink-0">
+                                  {sk.mastery}%
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-1 text-[10px] font-bold text-gray-500">
+                                <span className="rounded bg-gray-50 px-1.5 py-0.5">{sk.subjectName}</span>
+                                <span className="rounded bg-gray-50 px-1.5 py-0.5">{sk.classNames[0] || 'عام'}</span>
+                              </div>
+                              <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                                <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.max(6, sk.mastery)}%` }} />
+                              </div>
+                              <div className="flex justify-between items-center text-[11px] text-gray-500 pt-1">
+                                <span>{sk.affectedStudents} طلاب يحتاجون تعزيز</span>
+                                <button
+                                  onClick={() => setSelectedSkillFilter({ name: sk.skill, level: 'watch', students: sk.weakStudentIds })}
+                                  className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                                >
+                                  عرض الطلاب ←
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {/* 3. Mastered Skills */}
+                      <div className="rounded-3xl border border-emerald-100 bg-emerald-50/20 p-5 shadow-xs space-y-4">
+                        <div className="flex items-center justify-between border-b border-emerald-100 pb-3">
+                          <h3 className="text-base font-black text-emerald-800 flex items-center gap-2">
+                            <CheckCircle2 size={18} /> مهارات ممتازة (تمكن عالي)
+                          </h3>
+                          <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
+                            {skillsOverviewList.mastered.length} مهارات
+                          </span>
+                        </div>
+                        {skillsOverviewList.mastered.length === 0 ? (
+                          <p className="text-xs text-gray-400 text-center py-6">لا توجد مهارات متقنة تطابق الفلاتر المحددة.</p>
+                        ) : (
+                          skillsOverviewList.mastered.map((sk) => (
+                            <div key={sk.key} className="rounded-2xl border border-white bg-white p-4 shadow-xs space-y-3 hover:shadow-sm transition-all">
+                              <div className="flex justify-between items-start gap-2">
+                                <h4 className="text-sm font-bold text-gray-900 leading-snug">{sk.skill}</h4>
+                                <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-black text-emerald-600 border border-emerald-100 shrink-0">
+                                  {sk.mastery}%
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-1 text-[10px] font-bold text-gray-500">
+                                <span className="rounded bg-gray-50 px-1.5 py-0.5">{sk.subjectName}</span>
+                                <span className="rounded bg-gray-50 px-1.5 py-0.5">{sk.classNames[0] || 'عام'}</span>
+                              </div>
+                              <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.max(6, sk.mastery)}%` }} />
+                              </div>
+                              <div className="flex justify-between items-center text-[11px] text-gray-500 pt-1">
+                                <span>التمكن ممتاز للطلاب</span>
+                                <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 rounded px-2 py-0.5">جاهزة</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )
+                )}
               </div>
             )}
 

@@ -5,6 +5,7 @@ import {
   type QuestionDetail,
   type QuestionSummary,
 } from '../../questionbank/api/questionbank-client';
+import { normalizeQuestionHtml } from '../../../lib/questionHtml';
 
 export interface VideoQuestionPickerContext {
   pathId?: string;
@@ -221,17 +222,15 @@ export const VideoQuestionPicker: React.FC<VideoQuestionPickerProps> = ({
                   <div
                     key={q.id}
                     onClick={() => toggleQuestion(q)}
-                    className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-all ${
-                      isSelected
+                    className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-all ${isSelected
                         ? 'border-indigo-600 bg-indigo-50/50 shadow-xs'
                         : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`flex h-6 w-6 items-center justify-center rounded-lg border transition ${
-                          isSelected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white'
-                        }`}
+                        className={`flex h-6 w-6 items-center justify-center rounded-lg border transition ${isSelected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-gray-300 bg-white'
+                          }`}
                       >
                         {isSelected ? <Check size={14} /> : null}
                       </div>
@@ -242,9 +241,12 @@ export const VideoQuestionPicker: React.FC<VideoQuestionPickerProps> = ({
                             {q.difficulty}
                           </span>
                         </div>
-                        <p className="mt-1 line-clamp-1 text-sm font-medium text-gray-800">
-                          {q.source || q.questionCode}
-                        </p>
+                        <div
+                          className="mt-1 line-clamp-2 text-sm font-medium text-gray-800"
+                          dangerouslySetInnerHTML={{
+                            __html: normalizeQuestionHtml(q.text || q.source || q.questionCode),
+                          }}
+                        />
                       </div>
                     </div>
                     <button
@@ -310,10 +312,17 @@ export const VideoQuestionPicker: React.FC<VideoQuestionPickerProps> = ({
 
       {/* Preview Dialog */}
       {previewingQuestion ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b pb-3">
-              <span className="font-mono text-sm font-bold text-indigo-600">{previewingQuestion.questionCode}</span>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-sm font-black text-indigo-600">
+                  {previewingQuestion.questionCode}
+                </span>
+                <span className="rounded-lg bg-gray-100 px-2 py-0.5 text-xs font-bold text-gray-600">
+                  {previewingQuestion.difficulty}
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={() => setPreviewingQuestion(null)}
@@ -323,20 +332,50 @@ export const VideoQuestionPicker: React.FC<VideoQuestionPickerProps> = ({
               </button>
             </div>
             <div className="mt-4">
-              <p className="text-base font-bold text-gray-900">{previewingQuestion.version?.text}</p>
+              {previewingQuestion.version?.imageAssetId ? (
+                <div className="mb-3 overflow-hidden rounded-xl border border-gray-100 bg-gray-50 p-2 text-center">
+                  <img
+                    src={`/api/v1/media/assets/${previewingQuestion.version.imageAssetId}`}
+                    alt="صورة السؤال"
+                    className="max-h-52 w-full object-contain mx-auto"
+                  />
+                </div>
+              ) : null}
+              <div
+                className="text-base font-bold leading-relaxed text-gray-900"
+                dangerouslySetInnerHTML={{
+                  __html: normalizeQuestionHtml(previewingQuestion.version?.text),
+                }}
+              />
               <div className="mt-4 space-y-2">
-                {previewingQuestion.options?.map((opt, i) => (
-                  <div
-                    key={i}
-                    className={`rounded-xl border p-2.5 text-sm font-medium ${
-                      i === previewingQuestion.version?.correctOptionIndex
-                        ? 'border-emerald-500 bg-emerald-50 font-bold text-emerald-900'
-                        : 'border-gray-200 bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    {opt.text}
-                  </div>
-                ))}
+                {previewingQuestion.options?.map((opt, i) => {
+                  const isCorrect = i === previewingQuestion.version?.correctOptionIndex;
+                  return (
+                    <div
+                      key={i}
+                      className={`flex items-center justify-between rounded-xl border p-3 text-sm font-medium ${isCorrect
+                          ? 'border-emerald-500 bg-emerald-50 font-bold text-emerald-900'
+                          : 'border-gray-200 bg-gray-50 text-gray-700'
+                        }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[11px] font-black text-slate-700">
+                          {['أ', 'ب', 'ج', 'د', 'هـ'][i] || i + 1}
+                        </span>
+                        <span
+                          dangerouslySetInnerHTML={{
+                            __html: normalizeQuestionHtml(typeof opt === 'string' ? opt : opt.text),
+                          }}
+                        />
+                      </div>
+                      {isCorrect ? (
+                        <span className="rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-black text-white">
+                          الإجابة الصحيحة
+                        </span>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

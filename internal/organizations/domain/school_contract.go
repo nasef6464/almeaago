@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type SchoolModule string
 
@@ -57,6 +60,7 @@ type SchoolContract struct {
 	ValidFrom  *time.Time
 	ValidUntil *time.Time
 	Revision   int
+	Metadata   json.RawMessage
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
@@ -67,4 +71,5 @@ type SchoolContractWrite struct {
 	ValidFrom        *time.Time
 	ValidUntil       *time.Time
 	ExpectedRevision int
+	Metadata         json.RawMessage
 }

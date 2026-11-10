@@ -409,6 +409,7 @@ type LearnerCourseSummary struct {
 	ThumbnailAssetID   string
 	DripContentEnabled bool
 	CertificateEnabled bool
+	Presentation       json.RawMessage
 }
 
 type LearnerTopicSummary struct {

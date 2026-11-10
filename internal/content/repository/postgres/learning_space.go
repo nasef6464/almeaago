@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/jackc/pgx/v5"
 
@@ -34,7 +35,8 @@ func (r *Repository) GetLearningSpace(ctx context.Context, pathID, subjectID str
 
 	courseRows, err := r.db.Query(ctx, `
 		SELECT c.id::text,c.title,c.description,c.instructor_name,c.duration_minutes,c.level,
-		       COALESCE(a.id::text,''),c.drip_content_enabled,c.certificate_enabled
+		       COALESCE(a.id::text,''),c.drip_content_enabled,c.certificate_enabled,
+		       COALESCE(c.presentation, '{}'::jsonb)
 		FROM courses c
 		LEFT JOIN assets a ON a.id=c.thumbnail_asset_id AND a.status='active'
 		WHERE c.path_id=$1::uuid AND c.subject_id=$2::uuid
@@ -47,6 +49,7 @@ func (r *Repository) GetLearningSpace(ctx context.Context, pathID, subjectID str
 	}
 	for courseRows.Next() {
 		var row content.LearnerCourseSummary
+		var presentationBytes []byte
 		if err := courseRows.Scan(
 			&row.ID,
 			&row.Title,
@@ -57,10 +60,12 @@ func (r *Repository) GetLearningSpace(ctx context.Context, pathID, subjectID str
 			&row.ThumbnailAssetID,
 			&row.DripContentEnabled,
 			&row.CertificateEnabled,
+			&presentationBytes,
 		); err != nil {
 			courseRows.Close()
 			return content.LearningSpace{}, err
 		}
+		row.Presentation = json.RawMessage(presentationBytes)
 		result.Courses = append(result.Courses, row)
 	}
 	if err := courseRows.Err(); err != nil {
@@ -144,9 +149,11 @@ func (r *Repository) GetLearningSpace(ctx context.Context, pathID, subjectID str
 func (r *Repository) GetLearnerCourse(ctx context.Context, courseID string) (content.LearnerCourse, error) {
 	var result content.LearnerCourse
 	var thumbnailAssetID string
+	var presentationBytes []byte
 	err := r.db.QueryRow(ctx, `
 		SELECT c.id::text,c.title,c.description,c.instructor_name,c.duration_minutes,c.level,
-		       COALESCE(a.id::text,''),c.drip_content_enabled,c.certificate_enabled
+		       COALESCE(a.id::text,''),c.drip_content_enabled,c.certificate_enabled,
+		       COALESCE(c.presentation, '{}'::jsonb)
 		FROM courses c
 		LEFT JOIN assets a ON a.id=c.thumbnail_asset_id AND a.status='active'
 		WHERE c.id=$1::uuid
@@ -161,11 +168,13 @@ func (r *Repository) GetLearnerCourse(ctx context.Context, courseID string) (con
 		&thumbnailAssetID,
 		&result.Course.DripContentEnabled,
 		&result.Course.CertificateEnabled,
+		&presentationBytes,
 	)
 	if err != nil {
 		return content.LearnerCourse{}, mapError(err)
 	}
 	result.Course.ThumbnailAssetID = thumbnailAssetID
+	result.Course.Presentation = json.RawMessage(presentationBytes)
 
 	moduleRows, err := r.db.Query(ctx, `
 		SELECT id::text,title,description,sort_order

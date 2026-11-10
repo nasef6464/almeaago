@@ -1,21 +1,35 @@
 import {
   AlertCircle,
   ArrowRight,
+  Award,
   BookOpen,
+  Calendar,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronUp,
+  Clock,
+  Download,
+  ExternalLink,
+  FileText,
   HelpCircle,
   Loader2,
   Lock,
   Menu,
+  MessageSquare,
   Moon,
   PauseCircle,
   PlayCircle,
+  Radio,
   RotateCcw,
+  Send,
+  Share2,
   ShoppingCart,
+  Sparkles,
+  Star,
   Sun,
+  User,
+  Video,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -43,6 +57,7 @@ function progressLabel(progress: LessonProgress | null) {
   return 'لم يبدأ بعد';
 }
 
+// Interactive Video Question Contract
 export interface InteractiveVideoQuestion {
   id: string;
   timestamp: number;
@@ -54,119 +69,6 @@ export interface InteractiveVideoQuestion {
     options: string[];
     correctOptionIndex: number;
   };
-}
-
-function VideoQuestionOverlay({
-  question,
-  onAnswer,
-  onSkip,
-}: {
-  question: InteractiveVideoQuestion;
-  onAnswer: (isCorrect: boolean) => void;
-  onSkip: () => void;
-}) {
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState<{ isCorrect: boolean; message: string } | null>(null);
-
-  const handleSelect = (idx: number) => {
-    setSelectedIdx(idx);
-    const isCorrect = idx === question.inlineQuestion.correctOptionIndex;
-    if (isCorrect) {
-      setFeedback({ isCorrect: true, message: 'إجابة صحيحة وممتازة! أحسنت.' });
-      setTimeout(() => {
-        onAnswer(true);
-      }, 1000);
-    } else {
-      if (question.actionOnFail === 'rewatch') {
-        const rewatchMin = Math.floor(question.rewatchTimestamp / 60);
-        const rewatchSec = String(question.rewatchTimestamp % 60).padStart(2, '0');
-        setFeedback({
-          isCorrect: false,
-          message: `إجابة غير صحيحة. سيتم الرجوع إلى الدقيقة ${rewatchMin}:${rewatchSec} لمراجعة الشرح.`,
-        });
-        setTimeout(() => {
-          onAnswer(false);
-        }, 2200);
-      } else {
-        setFeedback({
-          isCorrect: false,
-          message: question.mustPass
-            ? 'إجابة غير صحيحة. يجب اختيار الإجابة الصحيحة للاستمرار.'
-            : 'إجابة غير صحيحة. يمكنك المحاولة مجددًا أو المتابعة.',
-        });
-      }
-    }
-  };
-
-  return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" dir="rtl">
-      <div className="w-full max-w-xl rounded-3xl border border-indigo-200/40 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-        <div className="mb-3 flex items-center justify-between">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
-            <HelpCircle size={14} />
-            سؤال تفاعلي أثناء الدرس
-          </span>
-          <span className="text-xs font-bold text-slate-500">
-            {Math.floor(question.timestamp / 60)}:{String(question.timestamp % 60).padStart(2, '0')}
-          </span>
-        </div>
-
-        <h3 className="mb-4 text-base font-black leading-relaxed text-slate-900 dark:text-white">
-          {question.inlineQuestion.text}
-        </h3>
-
-        <div className="space-y-2.5">
-          {question.inlineQuestion.options.map((option, idx) => {
-            const isSelected = selectedIdx === idx;
-            const isCorrect = idx === question.inlineQuestion.correctOptionIndex;
-            let btnClass = 'border-slate-200 bg-slate-50 hover:border-indigo-400 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-200';
-            if (selectedIdx !== null) {
-              if (isSelected && isCorrect) {
-                btnClass = 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200';
-              } else if (isSelected && !isCorrect) {
-                btnClass = 'border-rose-500 bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200';
-              }
-            }
-            return (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handleSelect(idx)}
-                disabled={Boolean(feedback?.isCorrect)}
-                className={`flex w-full items-center justify-between rounded-2xl border p-3.5 text-right text-sm font-bold transition ${btnClass}`}
-              >
-                <span>{option}</span>
-                {isSelected && isCorrect ? <CheckCircle2 size={18} className="shrink-0 text-emerald-600" /> : null}
-                {isSelected && !isCorrect ? <X size={18} className="shrink-0 text-rose-600" /> : null}
-              </button>
-            );
-          })}
-        </div>
-
-        {feedback ? (
-          <div className={`mt-4 rounded-xl p-3 text-xs font-bold leading-6 ${
-            feedback.isCorrect
-              ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-              : 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-          }`}>
-            {feedback.message}
-          </div>
-        ) : null}
-
-        {!question.mustPass && !feedback?.isCorrect ? (
-          <div className="mt-4 flex justify-end">
-            <button
-              type="button"
-              onClick={onSkip}
-              className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-            >
-              متابعة بدون إجابة الآن
-            </button>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
 }
 
 export function CourseLearningPage() {
@@ -212,13 +114,53 @@ export function CourseLearningPage() {
     } catch {}
     return new Set();
   });
-  const [activeInteractiveQuestion, setActiveInteractiveQuestion] = useState<InteractiveVideoQuestion | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`almeaa_answered:${courseId}:${lessonId}`);
+      setAnsweredQuestionIds(stored ? new Set(JSON.parse(stored)) : new Set());
+    } catch {
+      setAnsweredQuestionIds(new Set());
+    }
+  }, [courseId, lessonId]);
 
   const lessons = useMemo(() => flattenLessons(course), [course]);
   const selectedSummary = lessons.find((item) => item.id === lessonId) || null;
   const selectedIndex = lessons.findIndex((item) => item.id === lessonId);
   const previousLesson = selectedIndex > 0 ? lessons[selectedIndex - 1] : null;
   const nextLesson = selectedIndex >= 0 ? lessons[selectedIndex + 1] || null : null;
+
+  // Bottom Workspace State
+  const [bottomTab, setBottomTab] = useState<'notes' | 'files' | 'qa' | 'assessments' | 'certificate'>('notes');
+  const [newCommentText, setNewCommentText] = useState('');
+  const [lessonComments, setLessonComments] = useState<Array<{ id: string; authorName: string; createdAt: string; text: string; isInstructor?: boolean }>>(() => {
+    try {
+      const stored = localStorage.getItem(`lesson_comments_${courseId}_${lessonId}`);
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return [
+      {
+        id: 'lc-1',
+        authorName: 'سارة العتيبي',
+        createdAt: 'منذ يومين',
+        text: 'شرح ممتاز ومفهوم لجميع استراتيجيات هذا الدرس، جزاكم الله خيراً.',
+      },
+      {
+        id: 'lc-2',
+        authorName: 'فريق المنصة',
+        createdAt: 'منذ يوم',
+        text: 'أهلاً بك يا سارة، بالتوفيق لكِ دائماً، وفي حال واجهتِ أي صعوبة في المسائل يمكنكِ طرح سؤالكِ هنا.',
+        isInstructor: true,
+      },
+    ];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`lesson_comments_${courseId}_${lessonId}`, JSON.stringify(lessonComments));
+    } catch {}
+  }, [lessonComments, courseId, lessonId]);
+
   const context = useMemo(
     () => ({ contextType: 'course' as const, courseId, topicId: '' }),
     [courseId],
@@ -229,6 +171,58 @@ export function CourseLearningPage() {
   // A canonical lesson can be reused in several courses. Match both context and lesson.
   const activeDetail = loadedScope === selectedScope ? detail : null;
   const activeProgress = loadedScope === selectedScope ? progress : null;
+
+  const parsedQuizInfo = useMemo(() => {
+    if (!activeDetail) return null;
+    if (activeDetail.type === 'quiz') {
+      try {
+        const obj = JSON.parse(activeDetail.contentText);
+        return obj && typeof obj === 'object' && obj.quizId ? obj : { quizId: activeDetail.id };
+      } catch {
+        return { quizId: activeDetail.id };
+      }
+    }
+    return null;
+  }, [activeDetail]);
+
+  const parsedMeetingInfo = useMemo(() => {
+    if (!activeDetail) return null;
+    const isLive = ['live_youtube', 'zoom', 'google_meet', 'teams'].includes(activeDetail.type);
+    if (!isLive) return null;
+    try {
+      const obj = JSON.parse(activeDetail.contentText);
+      return obj && typeof obj === 'object' ? obj : null;
+    } catch {
+      return null;
+    }
+  }, [activeDetail]);
+
+  const coursePresentation = useMemo(() => {
+    if (!course) return {} as any;
+    try {
+      const pres = (course as any).presentation;
+      if (typeof pres === 'string') return JSON.parse(pres);
+      if (typeof pres === 'object' && pres !== null) return pres;
+    } catch {}
+    return {} as any;
+  }, [course]);
+
+  const courseAssessmentsList = useMemo(() => {
+    return Array.isArray(coursePresentation.assessments) ? coursePresentation.assessments : [];
+  }, [coursePresentation]);
+
+  const courseFilesList = useMemo(() => {
+    return Array.isArray(coursePresentation.files) ? coursePresentation.files : [];
+  }, [coursePresentation]);
+
+  const completedLessonsCount = useMemo(() => {
+    return lessons.filter((l: any) => l.completed || (l.id === lessonId && activeProgress?.status === 'completed')).length;
+  }, [lessons, lessonId, activeProgress]);
+
+  const completionPercent = useMemo(() => {
+    if (!lessons.length) return 0;
+    return Math.min(100, Math.round((completedLessonsCount / lessons.length) * 100));
+  }, [completedLessonsCount, lessons.length]);
 
   const interactiveQuestions = useMemo<InteractiveVideoQuestion[]>(() => {
     if (!activeDetail || activeDetail.type !== 'video' || !activeDetail.contentText) {
@@ -266,33 +260,25 @@ export function CourseLearningPage() {
     return '';
   }, [activeDetail]);
 
-  function handleInteractiveAnswer(isCorrect: boolean) {
-    if (!activeInteractiveQuestion) return;
-    const currentQ = activeInteractiveQuestion;
-    if (isCorrect || !currentQ.mustPass) {
-      setAnsweredQuestionIds((prev) => {
-        const next = new Set(prev).add(currentQ.id);
-        try { localStorage.setItem(`almeaa_answered:${courseId}:${lessonId}`, JSON.stringify(Array.from(next))); } catch {}
-        return next;
-      });
-    }
-    if (!isCorrect && currentQ.actionOnFail === 'rewatch') {
-      if (videoRef.current) {
-        videoRef.current.seek(Math.max(0, currentQ.rewatchTimestamp || 0));
-      }
-    }
-    setActiveInteractiveQuestion(null);
-    if (isCorrect || (!isCorrect && currentQ.actionOnFail === 'rewatch')) {
-      videoRef.current?.play();
-    }
-  }
+  const playerQuestions = useMemo(() => {
+    return interactiveQuestions.map((q) => ({
+      id: q.id,
+      timestamp: q.timestamp,
+      text: q.inlineQuestion.text,
+      options: q.inlineQuestion.options,
+      correctOptionIndex: q.inlineQuestion.correctOptionIndex,
+      mustPass: q.mustPass,
+      actionOnFail: q.actionOnFail,
+      rewatchTimestamp: q.rewatchTimestamp,
+    }));
+  }, [interactiveQuestions]);
 
-  function handleInteractiveSkip() {
-    if (!activeInteractiveQuestion || activeInteractiveQuestion.mustPass) return;
-    const currentQ = activeInteractiveQuestion;
-    setAnsweredQuestionIds((prev) => new Set(prev).add(currentQ.id));
-    setActiveInteractiveQuestion(null);
-    videoRef.current?.play();
+  function handleQuestionAnswered(questionId: string, isCorrect: boolean, allAnsweredIds: string[]) {
+    const nextSet = new Set(allAnsweredIds);
+    setAnsweredQuestionIds(nextSet);
+    try {
+      localStorage.setItem(`almeaa_answered:${courseId}:${lessonId}`, JSON.stringify(allAnsweredIds));
+    } catch {}
   }
 
   useEffect(() => {
@@ -455,16 +441,6 @@ export function CourseLearningPage() {
     const current = Math.floor(currentTime);
     if (current - lastSaved.current >= 15) {
       void persistVideoPosition(current, true);
-    }
-
-    if (interactiveQuestions.length > 0 && !activeInteractiveQuestion) {
-      const due = interactiveQuestions.find(
-        (q) => !answeredQuestionIds.has(q.id) && Math.abs(currentTime - q.timestamp) <= 1.5,
-      );
-      if (due) {
-        videoRef.current?.pause();
-        setActiveInteractiveQuestion(due);
-      }
     }
   }
 
@@ -855,11 +831,19 @@ export function CourseLearningPage() {
                       : 'min-h-56 sm:min-h-72 flex items-center justify-center bg-slate-100'
                   }`}>
                     {activeDetail.type === 'video' && activeDetail.videoUrl ? (
-                      <SharedVideoPlayer key={`${selectedScope}:${activeDetail.videoUrl}`} ref={videoRef} url={activeDetail.videoUrl} title={activeDetail.title}
+                      <SharedVideoPlayer
+                        key={`${selectedScope}:${activeDetail.videoUrl}`}
+                        ref={videoRef}
+                        url={activeDetail.videoUrl}
+                        title={activeDetail.title}
                         initialPositionSeconds={activeProgress?.positionSeconds || 0}
-                        requireControllable={interactiveQuestions.some(question => question.mustPass)}
+                        initialAnsweredQuestionIds={Array.from(answeredQuestionIds)}
+                        interactiveQuestions={playerQuestions}
+                        requireControllable={interactiveQuestions.some((question) => question.mustPass)}
                         onTimeUpdate={onTimeUpdate}
-                        onPause={(seconds) => void persistVideoPosition(seconds)} />
+                        onPause={(seconds) => void persistVideoPosition(seconds)}
+                        onQuestionAnswered={handleQuestionAnswered}
+                      />
                     ) : activeDetail.type === 'video' ? (
                       <div className="max-w-xl p-8 text-center text-white">
                         <PlayCircle className="mx-auto text-indigo-300" size={54} />
@@ -868,32 +852,104 @@ export function CourseLearningPage() {
                           يرجى التواصل مع إدارة المسار أو المدرب لإضافة محتوى الفيديو المعتمد لهذا الدرس.
                         </p>
                       </div>
+                    ) : (activeDetail.type === 'quiz' || parsedQuizInfo) ? (
+                      <div className="p-8 text-center max-w-lg mx-auto">
+                        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto mb-4 border border-amber-500/20">
+                          <Award size={36} />
+                        </div>
+                        <span className="inline-block px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 text-xs font-black mb-2">
+                          اختبار تقييمي معتمد
+                        </span>
+                        <h3 className={`text-xl font-black mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {activeDetail.title}
+                        </h3>
+                        <p className={`text-xs font-bold leading-6 mb-6 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
+                          {activeDetail.description || 'اختبار لقياس فهم واستيعاب المهارات المستهدفة في هذه الوحدة من الدورة.'}
+                        </p>
+                        <Link
+                          to={`/assessments/${parsedQuizInfo?.quizId || activeDetail.id}/start`}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-500 hover:bg-amber-600 px-6 py-3 text-sm font-black text-slate-950 shadow-md transition"
+                        >
+                          بدء الاختبار الآن
+                          <ArrowRight size={17} />
+                        </Link>
+                      </div>
+                    ) : ['live_youtube', 'zoom', 'google_meet', 'teams'].includes(activeDetail.type) ? (
+                      <div className="p-8 text-center max-w-lg mx-auto">
+                        <div className="w-16 h-16 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto mb-4 border border-rose-500/20">
+                          <Radio size={36} className="animate-pulse" />
+                        </div>
+                        <span className="inline-block px-3 py-1 rounded-full bg-rose-500/10 text-rose-500 text-xs font-black mb-2">
+                          بث تدريبي تفاعلي مباشر
+                        </span>
+                        <h3 className={`text-xl font-black mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {activeDetail.title}
+                        </h3>
+                        <p className={`text-xs font-bold leading-6 mb-6 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
+                          {activeDetail.description || 'جلسة تدريب وبث مباشر مع المدرب لمناقشة المسائل والشروحات التفاعلية.'}
+                        </p>
+                        {parsedMeetingInfo?.meetingUrl ? (
+                          <a
+                            href={parsedMeetingInfo.meetingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-600 hover:bg-rose-700 px-6 py-3 text-sm font-black text-white shadow-md transition"
+                          >
+                            الانضمام للبث المباشر
+                            <ExternalLink size={17} />
+                          </a>
+                        ) : (
+                          <div className="text-xs font-bold text-slate-400">سيتم إتاحة رابط الاجتماع قبل موعد البث بدقائق.</div>
+                        )}
+                      </div>
+                    ) : activeDetail.type === 'file' ? (
+                      <div className="p-8 text-center max-w-lg mx-auto">
+                        <div className="w-16 h-16 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center mx-auto mb-4 border border-blue-500/20">
+                          <FileText size={36} />
+                        </div>
+                        <span className="inline-block px-3 py-1 rounded-full bg-blue-500/10 text-blue-500 text-xs font-black mb-2">
+                          مستند / مذكرة تعليمية
+                        </span>
+                        <h3 className={`text-xl font-black mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {activeDetail.title}
+                        </h3>
+                        <p className={`text-xs font-bold leading-6 mb-6 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
+                          {activeDetail.description || 'مذكرة قابلة للتحميل تحتوي على ملخص شامل للقوانين والتمارين.'}
+                        </p>
+                        {activeDetail.videoUrl ? (
+                          <a
+                            href={activeDetail.videoUrl}
+                            download
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 px-6 py-3 text-sm font-black text-white shadow-md transition"
+                          >
+                            تحميل الملف المرفق
+                            <Download size={17} />
+                          </a>
+                        ) : null}
+                      </div>
                     ) : (
                       <div className="p-8 text-center">
                         <BookOpen className="mx-auto text-indigo-500" size={48} />
                         <div className={`mt-3 text-sm font-black ${
                           isDarkMode ? 'text-slate-300' : 'text-gray-600'
                         }`}>
-                          محتوى الدرس
+                          {activeDetail.title}
                         </div>
                       </div>
                     )}
-
-                    {activeInteractiveQuestion ? (
-                      <VideoQuestionOverlay
-                        question={activeInteractiveQuestion}
-                        onAnswer={handleInteractiveAnswer}
-                        onSkip={handleInteractiveSkip}
-                      />
-                    ) : null}
                   </div>
 
                   <div className="p-5 sm:p-6">
                     {interactiveQuestions.length > 0 ? (
-                      <div className="mb-4 flex items-center gap-2 rounded-2xl bg-indigo-50/70 p-3 text-xs font-bold text-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200">
-                        <HelpCircle size={16} className="text-indigo-600 shrink-0" />
-                        <span>
-                          يحتوي هذا الدرس على {interactiveQuestions.length} سؤال تفاعلي يظهر تلقائيًا عند لحظات محددة من الشرح.
+                      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-indigo-50/70 p-3.5 text-xs font-bold text-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200 border border-indigo-100 dark:border-indigo-900/40">
+                        <div className="flex items-center gap-2">
+                          <HelpCircle size={16} className="text-indigo-600 shrink-0" />
+                          <span>
+                            يحتوي هذا الدرس على {interactiveQuestions.length} سؤال تفاعلي ({requiredVideoQuestionIds.length} إلزامي للمتابعة).
+                          </span>
+                        </div>
+                        <span className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-black text-indigo-700 shadow-xs dark:bg-slate-800 dark:text-indigo-300">
+                          تم إجابة {answeredQuestionIds.size} من {interactiveQuestions.length}
                         </span>
                       </div>
                     ) : null}
@@ -974,6 +1030,325 @@ export function CourseLearningPage() {
                     الدرس التالي
                     <ChevronLeft size={17} />
                   </button>
+                </div>
+
+                {/* 5-Tab Learning Workspace Below Player */}
+                <div className={`rounded-3xl border shadow-sm overflow-hidden transition-colors ${
+                  isDarkMode ? 'border-slate-800 bg-[#1e293b]' : 'border-gray-200/80 bg-white'
+                }`}>
+                  {/* Tab Navigation Headers */}
+                  <div className={`flex items-center overflow-x-auto border-b px-3 py-2 gap-1 sm:gap-2 ${
+                    isDarkMode ? 'border-slate-800 bg-slate-900/50' : 'border-gray-100 bg-slate-50/70'
+                  }`}>
+                    <button
+                      type="button"
+                      onClick={() => setBottomTab('notes')}
+                      className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-black transition cursor-pointer whitespace-nowrap ${
+                        bottomTab === 'notes'
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <BookOpen size={15} />
+                      الشرح والملاحظات
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBottomTab('files')}
+                      className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-black transition cursor-pointer whitespace-nowrap ${
+                        bottomTab === 'files'
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <FileText size={15} />
+                      الملفات والمرفقات ({courseFilesList.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBottomTab('qa')}
+                      className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-black transition cursor-pointer whitespace-nowrap ${
+                        bottomTab === 'qa'
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <MessageSquare size={15} />
+                      الأسئلة والنقاش ({lessonComments.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBottomTab('assessments')}
+                      className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-black transition cursor-pointer whitespace-nowrap ${
+                        bottomTab === 'assessments'
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <HelpCircle size={15} />
+                      اختبارات الدورة ({courseAssessmentsList.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBottomTab('certificate')}
+                      className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-black transition cursor-pointer whitespace-nowrap ${
+                        bottomTab === 'certificate'
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : isDarkMode ? 'text-slate-400 hover:text-slate-200' : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <Award size={15} />
+                      الشهادة والإنجاز
+                    </button>
+                  </div>
+
+                  {/* Tab Contents */}
+                  <div className="p-5 sm:p-6">
+                    {/* 1. NOTES TAB */}
+                    {bottomTab === 'notes' && (
+                      <div className="space-y-4">
+                        <h4 className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {activeDetail.title}
+                        </h4>
+                        <p className={`text-sm leading-8 ${isDarkMode ? 'text-slate-300' : 'text-gray-600'}`}>
+                          {activeDetail.description || 'لا يوجد وصف إضافي لهذا الدرس.'}
+                        </p>
+                        {lessonTextDescription ? (
+                          <div className={`whitespace-pre-wrap rounded-2xl p-4 text-sm leading-8 border ${
+                            isDarkMode ? 'bg-slate-900/60 border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200/80 text-gray-800'
+                          }`}>
+                            {lessonTextDescription}
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+
+                    {/* 2. FILES TAB */}
+                    {bottomTab === 'files' && (
+                      <div className="space-y-3">
+                        {courseFilesList.length === 0 ? (
+                          <div className={`text-center py-8 text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
+                            لا توجد ملفات مرفقة مع هذه الدورة حالياً.
+                          </div>
+                        ) : (
+                          courseFilesList.map((file: any, idx: number) => (
+                            <div
+                              key={file.id || idx}
+                              className={`flex items-center justify-between p-3.5 rounded-2xl border transition ${
+                                isDarkMode ? 'border-slate-800 bg-slate-900/40 hover:bg-slate-900' : 'border-gray-200 bg-gray-50/50 hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center shrink-0">
+                                  <FileText size={20} />
+                                </div>
+                                <div>
+                                  <div className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                    {file.title || `ملف تدريبي ${idx + 1}`}
+                                  </div>
+                                  <div className="text-xs text-gray-400 mt-0.5">
+                                    {file.size || 'ملف PDF'}
+                                  </div>
+                                </div>
+                              </div>
+                              <a
+                                href={file.url || '#'}
+                                target="_blank"
+                                rel="noreferrer"
+                                download
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition"
+                              >
+                                <Download size={14} />
+                                تحميل
+                              </a>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+
+                    {/* 3. QA TAB */}
+                    {bottomTab === 'qa' && (
+                      <div className="space-y-4">
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            if (!newCommentText.trim()) return;
+                            const comment = {
+                              id: `c-${Date.now()}`,
+                              authorName: user?.name || 'طالب المنصة',
+                              createdAt: 'الآن',
+                              text: newCommentText.trim(),
+                            };
+                            setLessonComments((prev) => [comment, ...prev]);
+                            setNewCommentText('');
+                          }}
+                          className="space-y-2.5"
+                        >
+                          <textarea
+                            rows={3}
+                            value={newCommentText}
+                            onChange={(e) => setNewCommentText(e.target.value)}
+                            placeholder="اطرح استفسارك أو سؤالك حول هذا الدرس وسيقوم المدرب بالرد عليك..."
+                            className={`w-full rounded-2xl border p-3.5 text-sm font-medium outline-none transition focus:ring-2 focus:ring-indigo-500/20 ${
+                              isDarkMode
+                                ? 'border-slate-700 bg-slate-900 text-white placeholder-slate-500 focus:border-indigo-500'
+                                : 'border-gray-200 bg-gray-50 text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:bg-white'
+                            }`}
+                          />
+                          <div className="flex justify-end">
+                            <button
+                              type="submit"
+                              disabled={!newCommentText.trim()}
+                              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700 transition disabled:opacity-50 cursor-pointer"
+                            >
+                              <Send size={14} />
+                              نشر التعليق / السؤال
+                            </button>
+                          </div>
+                        </form>
+
+                        <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-slate-800">
+                          {lessonComments.map((comm) => (
+                            <div
+                              key={comm.id}
+                              className={`p-3.5 rounded-2xl border ${
+                                comm.isInstructor
+                                  ? isDarkMode
+                                    ? 'border-indigo-900/50 bg-indigo-950/20'
+                                    : 'border-indigo-100 bg-indigo-50/50'
+                                  : isDarkMode
+                                  ? 'border-slate-800 bg-slate-900/40'
+                                  : 'border-gray-200 bg-white'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-1.5">
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-xs font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                    {comm.authorName}
+                                  </span>
+                                  {comm.isInstructor ? (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-600 text-white">
+                                      مدرب الدورة
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <span className="text-[11px] text-gray-400">{comm.createdAt}</span>
+                              </div>
+                              <p className={`text-xs sm:text-sm leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-gray-700'}`}>
+                                {comm.text}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 4. ASSESSMENTS TAB */}
+                    {bottomTab === 'assessments' && (
+                      <div className="space-y-3">
+                        {courseAssessmentsList.length === 0 ? (
+                          <div className={`text-center py-8 text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
+                            لا توجد اختبارات مرحلية معينة لهذه الدورة في الوقت الحالي.
+                          </div>
+                        ) : (
+                          courseAssessmentsList.map((test: any, idx: number) => {
+                            const phaseLabels: Record<string, string> = {
+                              pre_course: 'اختبار قبلي تشخيصي',
+                              milestone: 'اختبار مرحلي',
+                              final_course: 'اختبار شامل نهائي',
+                            };
+                            return (
+                              <div
+                                key={test.id || idx}
+                                className={`flex items-center justify-between p-4 rounded-2xl border transition ${
+                                  isDarkMode ? 'border-slate-800 bg-slate-900/40' : 'border-gray-200 bg-gray-50/50'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+                                    <HelpCircle size={20} />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <span className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                        {test.title}
+                                      </span>
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                        {phaseLabels[test.phase] || 'اختبار تقييمي'}
+                                      </span>
+                                    </div>
+                                    <div className="text-xs text-gray-400 mt-1">
+                                      {test.durationMinutes || 30} دقيقة • {test.questionsCount || 20} سؤال
+                                    </div>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(`/assessments?courseId=${courseId}&assessmentId=${test.id}`)}
+                                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 transition cursor-pointer"
+                                >
+                                  بدء الاختبار
+                                  <ChevronLeft size={14} />
+                                </button>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+
+                    {/* 5. CERTIFICATE TAB */}
+                    {bottomTab === 'certificate' && (
+                      <div className="space-y-5 text-center py-4">
+                        <div className="w-16 h-16 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto border border-amber-500/20">
+                          <Award size={36} />
+                        </div>
+                        <div>
+                          <h4 className={`text-base font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            شهادة إتمام الدورة التدريبية
+                          </h4>
+                          <p className={`text-xs mt-1 max-w-md mx-auto ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
+                            احصل على شهادتك المعتمدة بمجرد إكمال جميع دروس الدورة واجتياز الاختبارات المقررة.
+                          </p>
+                        </div>
+
+                        <div className="max-w-md mx-auto space-y-2">
+                          <div className="flex items-center justify-between text-xs font-bold text-gray-500">
+                            <span>نسبة الإنجاز الحالية</span>
+                            <span className="font-black text-indigo-600">{completionPercent}%</span>
+                          </div>
+                          <div className="h-3 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-all duration-500"
+                              style={{ width: `${completionPercent}%` }}
+                            />
+                          </div>
+                          <div className="text-[11px] text-gray-400">
+                            {completedLessonsCount} من أصل {lessons.length} درس مكتمل
+                          </div>
+                        </div>
+
+                        {completionPercent >= 100 ? (
+                          <div className="pt-3">
+                            <button
+                              type="button"
+                              onClick={() => alert('مبارك لك! جاري إعداد وتوليد وثيقة شهادتك المعتمدة...')}
+                              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 font-black text-white hover:bg-emerald-700 transition shadow-lg cursor-pointer text-sm"
+                            >
+                              <Download size={18} />
+                              تحميل وثيقة الشهادة (PDF)
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 px-4 py-2 text-xs font-bold text-amber-700 dark:text-amber-300">
+                            <Lock size={14} />
+                            أكمل بقية الدروس لتفعيل زر إصدار الشهادة
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </>
             ) : (

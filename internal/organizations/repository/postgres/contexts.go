@@ -32,7 +32,29 @@ func (r *Repository) SchoolContexts(
 				  AND (sc.valid_from IS NULL OR sc.valid_from <= now())
 				  AND (sc.valid_until IS NULL OR sc.valid_until >= now())
 				ORDER BY scm.module_code
-			)::text[]
+			)::text[],
+			COALESCE(
+				NULLIF(s.metadata->>'logoUrl', ''),
+				(
+					SELECT sc.metadata->>'logoUrl'
+					FROM school_contracts sc
+					WHERE sc.school_id = sm.school_id
+					  AND sc.status = 'active'
+					LIMIT 1
+				),
+				''
+			),
+			COALESCE(
+				(
+					SELECT ARRAY(SELECT jsonb_array_elements_text(sc.metadata->'allowedPaths'))
+					FROM school_contracts sc
+					WHERE sc.school_id = sm.school_id
+					  AND sc.status = 'active'
+					  AND jsonb_typeof(sc.metadata->'allowedPaths') = 'array'
+					LIMIT 1
+				),
+				ARRAY[]::text[]
+			)
 		FROM school_memberships sm
 		JOIN schools s ON s.id = sm.school_id
 		WHERE sm.user_id = $1::uuid
@@ -54,6 +76,8 @@ func (r *Repository) SchoolContexts(
 			&item.Role,
 			&item.Permissions,
 			&item.Modules,
+			&item.LogoURL,
+			&item.AllowedPaths,
 		); err != nil {
 			return nil, err
 		}
@@ -62,6 +86,9 @@ func (r *Repository) SchoolContexts(
 		}
 		if item.Modules == nil {
 			item.Modules = []string{}
+		}
+		if item.AllowedPaths == nil {
+			item.AllowedPaths = []string{}
 		}
 		item.Source = "membership"
 		contexts = append(contexts, item)

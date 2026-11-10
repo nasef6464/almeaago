@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/jackc/pgx/v5"
@@ -20,6 +21,7 @@ func scanSchoolContract(row rowScanner) (org.SchoolContract, error) {
 		&out.ValidFrom,
 		&out.ValidUntil,
 		&out.Revision,
+		&out.Metadata,
 		&moduleStrings,
 		&out.CreatedAt,
 		&out.UpdatedAt,
@@ -30,6 +32,9 @@ func scanSchoolContract(row rowScanner) (org.SchoolContract, error) {
 	out.Modules = make([]org.SchoolModule, 0, len(moduleStrings))
 	for _, module := range moduleStrings {
 		out.Modules = append(out.Modules, org.SchoolModule(module))
+	}
+	if len(out.Metadata) == 0 {
+		out.Metadata = []byte("{}")
 	}
 	return out, nil
 }
@@ -42,6 +47,7 @@ const schoolContractSelect = `
 		sc.valid_from,
 		sc.valid_until,
 		sc.revision,
+		COALESCE(sc.metadata, '{}'::jsonb),
 		ARRAY(
 			SELECT scm.module_code
 			FROM school_contract_modules scm
@@ -82,6 +88,11 @@ func (r *Repository) UpsertSchoolContract(
 		FOR UPDATE
 	`, schoolID).Scan(&contractID, &revision)
 
+	metaBytes := write.Metadata
+	if len(metaBytes) == 0 {
+		metaBytes = []byte("{}")
+	}
+
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		if write.ExpectedRevision != 0 {
@@ -89,13 +100,13 @@ func (r *Repository) UpsertSchoolContract(
 		}
 		err = tx.QueryRow(ctx, `
 			INSERT INTO school_contracts(
-				school_id,status,valid_from,valid_until,created_by,updated_by
+				school_id,status,valid_from,valid_until,metadata,created_by,updated_by
 			)
-			SELECT s.id,$2,$3,$4,$5::uuid,$5::uuid
+			SELECT s.id,$2,$3,$4,$5::jsonb,$6::uuid,$6::uuid
 			FROM schools s
 			WHERE s.id=$1::uuid
 			RETURNING id::text,revision
-		`, schoolID, write.Status, write.ValidFrom, write.ValidUntil, actorID).Scan(&contractID, &revision)
+		`, schoolID, write.Status, write.ValidFrom, write.ValidUntil, metaBytes, actorID).Scan(&contractID, &revision)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return org.SchoolContract{}, org.ErrNotFound
 		}
@@ -110,13 +121,24 @@ func (r *Repository) UpsertSchoolContract(
 		}
 		err = tx.QueryRow(ctx, `
 			UPDATE school_contracts
-			SET status=$2,valid_from=$3,valid_until=$4,revision=revision+1,
-			    updated_by=$5::uuid,updated_at=now()
+			SET status=$2,valid_from=$3,valid_until=$4,metadata=$5::jsonb,revision=revision+1,
+			    updated_by=$6::uuid,updated_at=now()
 			WHERE id=$1::uuid
 			RETURNING revision
-		`, contractID, write.Status, write.ValidFrom, write.ValidUntil, actorID).Scan(&revision)
+		`, contractID, write.Status, write.ValidFrom, write.ValidUntil, metaBytes, actorID).Scan(&revision)
 		if err != nil {
 			return org.SchoolContract{}, err
+		}
+	}
+
+	var metaMap map[string]any
+	if err := json.Unmarshal(metaBytes, &metaMap); err == nil {
+		if logo, ok := metaMap["logoUrl"].(string); ok && logo != "" {
+			_, _ = tx.Exec(ctx, `
+				UPDATE schools
+				SET metadata = jsonb_set(COALESCE(metadata, '{}'::jsonb), '{logoUrl}', to_jsonb($2::text), true)
+				WHERE id = $1::uuid
+			`, schoolID, logo)
 		}
 	}
 
