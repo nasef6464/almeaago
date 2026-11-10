@@ -2,17 +2,21 @@ package aihttp
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	aiapp "github.com/nasef6464/almeaago/internal/ai/application"
 	ai "github.com/nasef6464/almeaago/internal/ai/domain"
 	identityapp "github.com/nasef6464/almeaago/internal/identity/application"
+	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	identitysession "github.com/nasef6464/almeaago/internal/identity/transport/session"
 )
 
@@ -38,6 +42,7 @@ func New(service *aiapp.Service, auth Authenticator) http.Handler {
 	r.Post("/admin/copilot", h.adminCopilot)
 	r.Post("/question-assistant", h.questionAssistant)
 	r.Post("/chat", h.studentChat)
+	r.Post("/generate-assessment", h.generateAssessment)
 	return r
 }
 
@@ -365,7 +370,7 @@ func (h *Handler) studentChat(w http.ResponseWriter, r *http.Request) {
 		History        []ai.ChatTurn     `json:"history"`
 		Context        ai.ChatContext    `json:"context"`
 	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&payload); err != nil {
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2<<20)).Decode(&payload); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
 		return
 	}
@@ -382,6 +387,78 @@ func (h *Handler) studentChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *Handler) generateAssessment(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authn(w, r, true)
+	if !ok {
+		return
+	}
+
+	allowed := false
+	for _, role := range auth.User.Roles {
+		if role == identity.RoleTeacher || role == identity.RoleAdmin || role == identity.RoleSchoolAdmin || role == identity.RoleSupervisor {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Only teachers and administrators can generate assessments"})
+		return
+	}
+
+	var input ai.GenerateAssessmentInput
+
+	contentType := r.Header.Get("Content-Type")
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Failed to parse form or file exceeds 10MB limit"})
+			return
+		}
+		input.PromptText = r.FormValue("prompt")
+		input.SchoolID = r.FormValue("schoolId")
+
+		file, header, err := r.FormFile("file")
+		if err == nil && file != nil {
+			defer file.Close()
+			dataBytes, err := io.ReadAll(http.MaxBytesReader(w, file, 10<<20))
+			if err != nil {
+				writeJSON(w, http.StatusBadRequest, map[string]string{"message": "File exceeds 10MB limit"})
+				return
+			}
+			mime := header.Header.Get("Content-Type")
+			if mime == "" || mime == "application/octet-stream" {
+				mime = http.DetectContentType(dataBytes)
+			}
+			input.Media = &ai.ChatImageData{
+				Data:     base64.StdEncoding.EncodeToString(dataBytes),
+				MimeType: mime,
+			}
+		}
+	} else {
+		var payload struct {
+			PromptText string            `json:"promptText"`
+			SchoolID   string            `json:"schoolId"`
+			Media      *ai.ChatImageData `json:"media"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 10<<20)).Decode(&payload); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+			return
+		}
+		input.PromptText = payload.PromptText
+		input.SchoolID = payload.SchoolID
+		input.Media = payload.Media
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+
+	result, err := h.service.GenerateAssessment(ctx, auth.User, input)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func writeError(w http.ResponseWriter, err error) {

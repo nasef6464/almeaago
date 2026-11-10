@@ -89,6 +89,10 @@ func (m *mockAdvProviderClient) Call(_ context.Context, _ ai.ProviderSetting, _ 
 	}, nil
 }
 
+func (m *mockAdvProviderClient) CallMultimodal(ctx context.Context, s ai.ProviderSetting, prompt string, media *ai.ChatImageData, jsonResponse bool) (ai.ProviderCallResult, error) {
+	return m.Call(ctx, s, prompt)
+}
+
 type advAuthStub struct {
 	users map[string]identity.User
 }
