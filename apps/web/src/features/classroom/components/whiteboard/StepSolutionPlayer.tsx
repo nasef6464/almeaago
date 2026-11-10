@@ -12,19 +12,23 @@ import {
   CheckCircle2,
   Moon,
   Sun,
+  X,
 } from 'lucide-react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
+import { phoneticArabicFromKatex } from '../../../ai/services/aiMediaClient';
+import { parseChalkboardSteps } from '../../utils/chalkboardParser';
 
-interface Step {
+export interface Step {
   stepNumber: number;
   title: string;
   explanation: string;
   latex?: string;
 }
 
-interface StepSolutionPlayerProps {
+export interface StepSolutionPlayerProps {
   questionText?: string;
+  explanation?: string;
   steps?: Step[];
   onComplete?: () => void;
 }
@@ -58,23 +62,31 @@ const DEFAULT_STEPS: Step[] = [
 
 export const StepSolutionPlayer: React.FC<StepSolutionPlayerProps> = ({
   questionText = 'أوجد قيمة x في المعادلة الآتية:',
-  steps = DEFAULT_STEPS,
+  explanation,
+  steps,
   onComplete,
 }) => {
+  const resolvedSteps = useMemo(() => {
+    if (steps && steps.length > 0) return steps;
+    if (explanation) return parseChalkboardSteps(explanation, questionText);
+    return DEFAULT_STEPS;
+  }, [steps, explanation, questionText]);
+
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const timerRef = useRef<any>(null);
 
-  const activeStep = steps[currentStepIdx] || steps[0];
+  const activeStep = resolvedSteps[currentStepIdx] || resolvedSteps[0];
 
-  // Speech synthesis for step narration
+  // Speech synthesis for step narration with phonetic KaTeX vocalization
   const speakStep = (text: string) => {
     if (!soundEnabled || !('speechSynthesis' in window)) return;
     try {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
+      const phoneticText = phoneticArabicFromKatex(text);
+      const utterance = new SpeechSynthesisUtterance(phoneticText);
       utterance.lang = 'ar-SA';
       utterance.rate = 0.95;
       window.speechSynthesis.speak(utterance);
@@ -95,7 +107,7 @@ export const StepSolutionPlayer: React.FC<StepSolutionPlayerProps> = ({
     }
 
     timerRef.current = setTimeout(() => {
-      if (currentStepIdx < steps.length - 1) {
+      if (currentStepIdx < resolvedSteps.length - 1) {
         setCurrentStepIdx((prev) => prev + 1);
       } else {
         setIsPlaying(false);
@@ -106,7 +118,7 @@ export const StepSolutionPlayer: React.FC<StepSolutionPlayerProps> = ({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [isPlaying, currentStepIdx, steps.length, onComplete]);
+  }, [isPlaying, currentStepIdx, resolvedSteps.length, onComplete]);
 
   const renderFormula = (formula: string) => {
     try {
@@ -179,7 +191,7 @@ export const StepSolutionPlayer: React.FC<StepSolutionPlayerProps> = ({
       <div className="relative min-h-[280px] p-6 flex flex-col justify-center items-center text-center">
         {/* Step indicator badge */}
         <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/15 px-3 py-1 text-xs font-black text-indigo-400">
-          <span>الخطوة {activeStep.stepNumber} من {steps.length}</span>
+          <span>الخطوة {activeStep.stepNumber} من {resolvedSteps.length}</span>
         </div>
 
         {/* Step Title */}
@@ -198,7 +210,7 @@ export const StepSolutionPlayer: React.FC<StepSolutionPlayerProps> = ({
 
       {/* Progress Dots */}
       <div className="flex items-center justify-center gap-2 pb-4">
-        {steps.map((_, idx) => (
+        {resolvedSteps.map((_, idx) => (
           <button
             key={idx}
             type="button"
@@ -255,10 +267,10 @@ export const StepSolutionPlayer: React.FC<StepSolutionPlayerProps> = ({
 
           <button
             type="button"
-            disabled={currentStepIdx === steps.length - 1}
+            disabled={currentStepIdx === resolvedSteps.length - 1}
             onClick={() => {
               setIsPlaying(false);
-              setCurrentStepIdx((prev) => Math.min(steps.length - 1, prev + 1));
+              setCurrentStepIdx((prev) => Math.min(resolvedSteps.length - 1, prev + 1));
             }}
             className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-700 hover:bg-slate-800 disabled:opacity-30"
           >
@@ -269,6 +281,118 @@ export const StepSolutionPlayer: React.FC<StepSolutionPlayerProps> = ({
         <div className="text-xs font-bold text-slate-400">
           {isPlaying ? 'تشغيل تلقائي جارٍ…' : 'جاهز للشرح'}
         </div>
+      </div>
+    </div>
+  );
+};
+
+export function buildStepsFromQuestion(
+  questionText?: string,
+  explanation?: string,
+  solvingStrategy?: string
+): Step[] {
+  const text = (questionText || '').trim();
+  const expl = (explanation || '').trim();
+  const strat = (solvingStrategy || '').trim();
+
+  if (expl || strat) {
+    const steps: Step[] = [];
+
+    steps.push({
+      stepNumber: 1,
+      title: 'تحليل معطيات المسألة والمطلوب',
+      explanation: text || 'نحدد المعطيات الأساسية ونفهم المطلوب الرياضي بدقة.',
+      latex: text.match(/(\$[^$]+\$)|(\$\$[^$]+\$\$)/)?.[0]?.replace(/\$/g, ''),
+    });
+
+    if (strat) {
+      steps.push({
+        stepNumber: steps.length + 1,
+        title: 'استراتيجية الحل والقانون المتبع',
+        explanation: strat,
+        latex: strat.match(/(\$[^$]+\$)|(\$\$[^$]+\$\$)/)?.[0]?.replace(/\$/g, ''),
+      });
+    }
+
+    if (expl) {
+      const parts = expl.split(/(?:\r?\n)+|(?<=[.؛])\s+/).map((s) => s.trim()).filter((s) => s.length > 5);
+      if (parts.length > 1) {
+        parts.forEach((part, idx) => {
+          steps.push({
+            stepNumber: steps.length + 1,
+            title: `خطوة الحل ${idx + 1}`,
+            explanation: part,
+            latex: part.match(/(\$[^$]+\$)|(\$\$[^$]+\$\$)/)?.[0]?.replace(/\$/g, ''),
+          });
+        });
+      } else {
+        steps.push({
+          stepNumber: steps.length + 1,
+          title: 'خطوات الحل الرياضي والتبسيط',
+          explanation: expl,
+          latex: expl.match(/(\$[^$]+\$)|(\$\$[^$]+\$\$)/)?.[0]?.replace(/\$/g, ''),
+        });
+      }
+    }
+
+    steps.push({
+      stepNumber: steps.length + 1,
+      title: 'النتيجة النهائية والتحقق',
+      explanation: 'بذلك نصل إلى الإجابة النموذجية الصحيحة وفق معايير قياس المعتمدة.',
+    });
+
+    return steps;
+  }
+
+  return DEFAULT_STEPS;
+}
+
+export interface StepSolutionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  questionText?: string;
+  explanation?: string;
+  solvingStrategy?: string;
+  steps?: Step[];
+}
+
+export const StepSolutionModal: React.FC<StepSolutionModalProps> = ({
+  isOpen,
+  onClose,
+  questionText,
+  explanation,
+  solvingStrategy,
+  steps,
+}) => {
+  if (!isOpen) return null;
+
+  const resolvedSteps = useMemo(() => {
+    if (steps && steps.length > 0) return steps;
+    return buildStepsFromQuestion(questionText, explanation, solvingStrategy);
+  }, [steps, questionText, explanation, solvingStrategy]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="شرح المسألة خطوة بخطوة بالصوت والسبورة"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/80 backdrop-blur-md animate-fade-in"
+      dir="rtl"
+    >
+      <div className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl shadow-2xl border border-slate-700/60 bg-slate-950">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute left-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 transition"
+          title="إغلاق النافذة"
+          aria-label="إغلاق النافذة"
+        >
+          <X size={18} />
+        </button>
+        <StepSolutionPlayer
+          questionText={questionText}
+          steps={resolvedSteps}
+        />
       </div>
     </div>
   );
