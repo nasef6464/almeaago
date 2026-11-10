@@ -72,7 +72,7 @@ import { BackupAdminPage } from '../features/operations/pages/BackupAdminPage';
 import { PlatformFontsPage } from '../features/presentation/PlatformFontsPage';
 import {HomepagePage} from '../features/presentation/HomepagePage';
 import {isHomepageLocation, isPlatformFontsLocation } from '../features/presentation/navigation';
-import { ChatWidget } from '../features/support/ChatWidget';
+import { ChatWidget } from '../features/ai/components/ChatWidget';
 import { FloatingContactWidget } from '../features/support/FloatingContactWidget';
 
 type ModalMode = 'login' | 'signup' | null;
