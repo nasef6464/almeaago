@@ -172,6 +172,7 @@ func main() {
 	questionService := questionapp.NewServiceWithAuthorScope(questionRepository, authorScope)
 	classroomQuestionReader := questionapp.NewClassroomReader(questionRepository)
 	schoolContractService := orgapp.NewSchoolContractService(organizationsRepository)
+	schoolInquiryService := orgapp.NewSchoolInquiryService(organizationsRepository)
 	realtimeRepository := realtimerepo.New(db, auditWriter)
 	realtimeBroker := realtimeredis.New(redisClient)
 	realtimeService := realtimeapp.NewService(
@@ -299,7 +300,7 @@ func main() {
 		questionhttp.Options{Import: questionImportService},
 	)
 	mediaHandler := mediahttp.New(mediaService, identityService)
-	organizationsHandler := organizationshttp.New(organizationsService, identityService)
+	organizationsHandler := organizationshttp.New(organizationsService, identityService, schoolInquiryService)
 	schoolContractsHandler := organizationshttp.NewSchoolContractHandler(schoolContractService, identityService)
 	classroomHandler := realtimehttp.New(realtimeService, identityService, realtimeBroker, cfg.WebOrigin)
 	parentService := parentapp.NewService(organizationsService, identityRepository, assessmentRepository, learningRepository)

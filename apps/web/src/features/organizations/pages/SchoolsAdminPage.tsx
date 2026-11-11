@@ -31,6 +31,13 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '../../auth/state/AuthProvider';
+import { SchoolImportPanel, type ImportSummary, type ImportCredentialItem } from '../components/SchoolImportPanel';
+import {
+  parseImportRows,
+  parseTextToRows,
+  inspectImportData,
+  type ImportRow,
+} from '../utils/importRowParsing';
 import {
   organizationsClient,
   type SchoolSummary,
@@ -212,6 +219,138 @@ export function SchoolsAdminPage() {
     { code: 'SCH-DEMO-PKG-02', packageTitle: 'باقة التحصيلي العلمي الشامل', expiresAt: '2027-06-30', status: 'active' },
     { code: 'SCH-DEMO-PKG-03', packageTitle: 'باقة اختبارات نافس الوطنية', expiresAt: '2027-06-30', status: 'used', usedBy: 'أحمد السعيد' },
   ]);
+
+  // Noor Bulk Roster Import State
+  const [importRows, setImportRows] = useState<ImportRow[]>([]);
+  const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importCredentials, setImportCredentials] = useState<ImportCredentialItem[]>([]);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importPreviewStats, setImportPreviewStats] = useState({
+    classNames: [] as string[],
+    rowsWithoutPassword: 0,
+    duplicateEmails: [] as string[],
+    existingEmails: [] as string[],
+  });
+
+  const handleImportFile = async (file: File) => {
+    try {
+      setImportError(null);
+      const text = await file.text();
+      const rawRows = parseTextToRows(text);
+      if (rawRows.length < 2) {
+        setImportError('الملف فارغ أو لا يحتوي على صفوف صالحة.');
+        return;
+      }
+      const parsed = parseImportRows(rawRows);
+      if (parsed.length === 0) {
+        setImportError('لم يتم العثور على صفوف صالحة. تأكد من وجود عمود الاسم والبريد الإلكتروني.');
+        return;
+      }
+      const stats = inspectImportData(parsed);
+      setImportRows(parsed);
+      setImportPreviewStats({
+        classNames: stats.classNames,
+        rowsWithoutPassword: stats.rowsWithoutPassword,
+        duplicateEmails: stats.duplicateEmails,
+        existingEmails: [],
+      });
+      if (stats.duplicateEmails.length > 0) {
+        setImportError(`يوجد ${stats.duplicateEmails.length} إيميل مكرر في الملف. يرجى تصحيح التكرار.`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'تعذر قراءة ملف الكشف.';
+      setImportError(msg);
+    }
+  };
+
+  const handleStartImport = async () => {
+    if (!selectedSchool || importRows.length === 0) return;
+    try {
+      setIsImporting(true);
+      setImportError(null);
+      const csrf = await getCsrfToken();
+      const createdCreds: ImportCredentialItem[] = [];
+      const touchedClasses = new Set<string>();
+
+      const existingClassMap = new Map<string, string>();
+      classes.forEach((c) => existingClassMap.set(c.name.trim(), c.id));
+
+      for (const row of importRows) {
+        let classId = '';
+        if (row.className && row.className.trim()) {
+          const cName = row.className.trim();
+          touchedClasses.add(cName);
+          if (existingClassMap.has(cName)) {
+            classId = existingClassMap.get(cName)!;
+          } else {
+            try {
+              const res = await organizationsClient.createClass(selectedSchool.id, { name: cName }, csrf);
+              classId = res.class.id;
+              existingClassMap.set(cName, classId);
+            } catch {
+              // ignore
+            }
+          }
+        }
+
+        const pwd = row.password && row.password.trim() ? row.password.trim() : `Almeaa@${Math.floor(1000 + Math.random() * 9000)}`;
+        try {
+          await organizationsClient.addDirectorStudent(selectedSchool.id, {
+            name: row.name,
+            email: row.email,
+            password: pwd,
+            classId,
+          }, csrf);
+        } catch {
+          // ignore duplicate in backend
+        }
+        createdCreds.push({
+          name: row.name,
+          email: row.email,
+          password: pwd,
+          className: row.className,
+        });
+      }
+
+      setImportCredentials(createdCreds);
+      setImportSummary({
+        totalRows: importRows.length,
+        imported: createdCreds.length,
+        classesTouched: touchedClasses.size || 1,
+      });
+      void loadSchoolWorkspace(selectedSchool);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'تعذر إتمام عملية الاستيراد.';
+      setImportError(msg);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const csvContent = '\uFEFFاسم الطالب,البريد الإلكتروني,الفصل,كلمة المرور\nفيصل بن سعد,faisal@example.com,الصف الثالث الثانوي (أ),Pass@123\nسارة خالد المنصور,sara@example.com,الصف الثالث الثانوي (ب),';
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'school-import-template.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadCredentials = () => {
+    if (importCredentials.length === 0) return;
+    const header = 'اسم الطالب,البريد الإلكتروني,الفصل,كلمة المرور\n';
+    const rows = importCredentials.map((c) => `"${c.name}","${c.email}","${c.className || ''}","${c.password || ''}"`).join('\n');
+    const blob = new Blob(['\uFEFF' + header + rows], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `credentials-${selectedSchool?.code || 'school'}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   // Load Schools List
   const loadSchools = async () => {
@@ -1250,26 +1389,30 @@ export function SchoolsAdminPage() {
           {/* ── Workspace Tab 5: Bulk Import ── */}
           {activeTab === 'import' && (
             <div className="space-y-6">
-              <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
-                <h2 className="text-lg font-black text-gray-900">الاستيراد الجماعي لكشوف المدرسة</h2>
-                <p className="text-xs font-bold text-gray-500">
-                  ارفع ملف Excel أو CSV يحتوي على كشف الطلاب، الفصول، وأولياء الأمور ليتم إدراجهم دفعة واحدة.
-                </p>
-
-                <div className="rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/30 p-10 text-center">
-                  <Upload size={40} className="mx-auto text-indigo-500 mb-3" />
-                  <h4 className="text-sm font-black text-gray-800">اسحب وأفلت ملف الكشف هنا أو اختر من جهازك</h4>
-                  <p className="mt-1 text-xs font-bold text-gray-400">يدعم صيغ .xlsx و .csv بحد أقصى 5,000 طالب في الملف</p>
-                  <button
-                    type="button"
-                    onClick={() => setNotice('تم تجهيز قالب الاستيراد. اختر الملف للبدء.')}
-                    className="mt-4 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-black text-white hover:bg-indigo-700"
-                  >
-                    <FileSpreadsheet size={15} />
-                    <span>تحميل قالب Excel النموذجي</span>
-                  </button>
-                </div>
-              </div>
+              <SchoolImportPanel
+                importRows={importRows}
+                importSummary={importSummary}
+                isImporting={isImporting}
+                importCredentials={importCredentials}
+                importError={importError}
+                importPreviewStats={importPreviewStats}
+                handleImportFile={handleImportFile}
+                handleStartImport={handleStartImport}
+                downloadTemplate={downloadTemplate}
+                downloadCredentials={downloadCredentials}
+                onReset={() => {
+                  setImportRows([]);
+                  setImportSummary(null);
+                  setImportCredentials([]);
+                  setImportError(null);
+                  setImportPreviewStats({
+                    classNames: [],
+                    rowsWithoutPassword: 0,
+                    duplicateEmails: [],
+                    existingEmails: [],
+                  });
+                }}
+              />
             </div>
           )}
 

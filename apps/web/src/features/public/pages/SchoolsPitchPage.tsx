@@ -1,4 +1,4 @@
-import React, { useId, useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Award,
@@ -25,6 +25,7 @@ import {
   Laptop,
   Layers,
   Lightbulb,
+  Loader2,
   MessageSquare,
   Mic,
   Phone,
@@ -44,6 +45,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { organizationsClient, SchoolInquiryPayload } from '../../organizations/api/organizations-client';
 
 // Pricing baseline constants aligned with backend and administration tiers
 export const SCHOOL_PRICING_TIERS = [
@@ -139,12 +141,14 @@ export function SchoolsPitchPage() {
   const [selectedPaths, setSelectedPaths] = useState<string[]>(['qudurat', 'tahsili']);
   const [notes, setNotes] = useState('');
   const [formSubmitting, setFormSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [submissionSuccess, setSubmissionSuccess] = useState<null | {
     refNumber: string;
     schoolName: string;
     studentCount: number;
     tierName: string;
     totalAnnualEstimate: number;
+    isOfflineBuffer?: boolean;
   }>(null);
 
   // FAQ Accordion state
@@ -196,52 +200,80 @@ export function SchoolsPitchPage() {
     }
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis?.cancel();
+    };
+  }, []);
+
+  const handleSocraticStepChange = (newStep: number) => {
+    if (isPlayingSocraticAudio) {
+      setIsPlayingSocraticAudio(false);
+      window.speechSynthesis?.cancel();
+    }
+    setSocraticStep(newStep);
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!schoolName.trim() || !phone.trim() || !directorName.trim()) {
-      alert('يرجى كتابة اسم المدرسة، واسم المسؤول، ورقم الجوال للتواصل.');
+      setSubmitError('يرجى كتابة اسم المدرسة، واسم المسؤول، ورقم الجوال للتواصل.');
       return;
     }
 
     setFormSubmitting(true);
+    setSubmitError(null);
 
     const ref = `SCH-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
 
-    const inquiryData = {
+    const inquiryData: SchoolInquiryPayload = {
       refNumber: ref,
       schoolName: schoolName.trim(),
       city,
       directorName: directorName.trim(),
       phone: phone.trim(),
-      email: email.trim(),
+      email: email.trim() || undefined,
       studentCount,
       tierId: selectedTier.id,
       tierName: selectedTier.name,
       paths: selectedPaths,
-      notes: notes.trim(),
+      notes: notes.trim() || undefined,
       totalAnnualEstimate: pricingSummary.totalContract,
-      createdAt: new Date().toISOString(),
     };
 
-    // Store in localStorage for audit & administration inspection
+    // 1. Audit / Offline Resilience Buffer in localStorage
     try {
       const existing = JSON.parse(localStorage.getItem('almeaa_school_inquiries') || '[]');
-      existing.unshift(inquiryData);
+      existing.unshift({ ...inquiryData, createdAt: new Date().toISOString() });
       localStorage.setItem('almeaa_school_inquiries', JSON.stringify(existing));
     } catch {
       // Ignore storage errors
     }
 
-    setTimeout(() => {
-      setFormSubmitting(false);
+    // 2. Network execution with graceful fallback
+    try {
+      const response = await organizationsClient.submitSchoolInquiry(inquiryData);
+      setSubmissionSuccess({
+        refNumber: response.refNumber || ref,
+        schoolName: inquiryData.schoolName,
+        studentCount: inquiryData.studentCount,
+        tierName: inquiryData.tierName,
+        totalAnnualEstimate: inquiryData.totalAnnualEstimate,
+      });
+    } catch (networkErr: unknown) {
+      console.warn('Backend inquiry submission fallback to local buffer:', networkErr);
+      // Graceful fallback: lead is safely buffered; present modal with WhatsApp confirmation
       setSubmissionSuccess({
         refNumber: ref,
-        schoolName: schoolName.trim(),
-        studentCount,
-        tierName: selectedTier.name,
-        totalAnnualEstimate: pricingSummary.totalContract,
+        schoolName: inquiryData.schoolName,
+        studentCount: inquiryData.studentCount,
+        tierName: inquiryData.tierName,
+        totalAnnualEstimate: inquiryData.totalAnnualEstimate,
+        isOfflineBuffer: true,
       });
-    }, 700);
+    } finally {
+      setFormSubmitting(false);
+    }
   };
 
   const togglePathSelection = (pathKey: string) => {
@@ -516,6 +548,7 @@ export function SchoolsPitchPage() {
                   </p>
                   <div className="pt-2">
                     <button
+                      data-testid="socratic-audio-toggle"
                       onClick={toggleSocraticAudio}
                       className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black px-5 py-3 text-xs shadow-lg transition-all cursor-pointer"
                     >
@@ -533,7 +566,7 @@ export function SchoolsPitchPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setSocraticStep(Math.max(1, socraticStep - 1))}
+                        onClick={() => handleSocraticStepChange(Math.max(1, socraticStep - 1))}
                         disabled={socraticStep === 1}
                         className="px-2 py-1 rounded bg-slate-800 text-xs text-slate-300 disabled:opacity-40"
                       >
@@ -541,7 +574,7 @@ export function SchoolsPitchPage() {
                       </button>
                       <span className="text-xs font-black text-amber-400">خطوة {socraticStep} من 3</span>
                       <button
-                        onClick={() => setSocraticStep(Math.min(3, socraticStep + 1))}
+                        onClick={() => handleSocraticStepChange(Math.min(3, socraticStep + 1))}
                         disabled={socraticStep === 3}
                         className="px-2 py-1 rounded bg-slate-800 text-xs text-slate-300 disabled:opacity-40"
                       >
@@ -867,6 +900,7 @@ export function SchoolsPitchPage() {
                   </div>
 
                   <input
+                    data-testid="roi-student-slider"
                     type="range"
                     min="50"
                     max="2000"
@@ -877,11 +911,12 @@ export function SchoolsPitchPage() {
                   />
 
                   {/* Preset quick buttons */}
-                  <div className="mt-3 flex items-center gap-2 text-xs font-bold text-slate-400">
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-400">
                     <span>خيارات سريعة:</span>
                     {[100, 250, 500, 1000, 1500].map((num) => (
                       <button
                         key={num}
+                        data-testid={`roi-preset-${num}`}
                         type="button"
                         onClick={() => setStudentCount(num)}
                         className={`px-2.5 py-1 rounded-lg border text-xs font-black transition-all cursor-pointer ${
@@ -905,6 +940,7 @@ export function SchoolsPitchPage() {
                     {SCHOOL_PRICING_TIERS.map((tier) => (
                       <button
                         key={tier.id}
+                        data-testid={`roi-tier-${tier.id}`}
                         type="button"
                         onClick={() => setSelectedTierId(tier.id)}
                         className={`p-3 rounded-xl border text-right transition-all cursor-pointer ${
@@ -1024,15 +1060,17 @@ export function SchoolsPitchPage() {
 
           <form
             onSubmit={handleFormSubmit}
+            noValidate
             className="mt-12 rounded-3xl border border-slate-800 bg-slate-900/90 p-6 sm:p-10 shadow-2xl space-y-6"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               {/* School Name */}
               <div>
-                <label className="text-xs font-black text-slate-300 block mb-2">
+                <label htmlFor="school-name-input" className="text-xs font-black text-slate-300 block mb-2">
                   اسم المدرسة أو المجمع التعليمي <span className="text-rose-500">*</span>
                 </label>
                 <input
+                  id="school-name-input"
                   type="text"
                   required
                   placeholder="مثال: مدارس الأندلس الأهلية للبنين"
@@ -1044,10 +1082,11 @@ export function SchoolsPitchPage() {
 
               {/* City */}
               <div>
-                <label className="text-xs font-black text-slate-300 block mb-2">
+                <label htmlFor="city-select" className="text-xs font-black text-slate-300 block mb-2">
                   المدينة / المنطقة التعليمية <span className="text-rose-500">*</span>
                 </label>
                 <select
+                  id="city-select"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   className="w-full rounded-xl bg-slate-950 border border-slate-700 px-4 py-3 text-xs font-bold text-white focus:border-emerald-500 focus:outline-hidden"
@@ -1066,10 +1105,11 @@ export function SchoolsPitchPage() {
 
               {/* Director / Representative Name */}
               <div>
-                <label className="text-xs font-black text-slate-300 block mb-2">
+                <label htmlFor="director-name-input" className="text-xs font-black text-slate-300 block mb-2">
                   اسم المسؤول / مدير المدرسة / المشرف <span className="text-rose-500">*</span>
                 </label>
                 <input
+                  id="director-name-input"
                   type="text"
                   required
                   placeholder="مثال: أ. عبدالعزيز القحطاني"
@@ -1081,10 +1121,11 @@ export function SchoolsPitchPage() {
 
               {/* Mobile Phone */}
               <div>
-                <label className="text-xs font-black text-slate-300 block mb-2">
+                <label htmlFor="phone-input" className="text-xs font-black text-slate-300 block mb-2">
                   رقم الجوال للتواصل عبر الواتساب <span className="text-rose-500">*</span>
                 </label>
                 <input
+                  id="phone-input"
                   type="tel"
                   required
                   dir="ltr"
@@ -1097,10 +1138,11 @@ export function SchoolsPitchPage() {
 
               {/* Official Email */}
               <div className="sm:col-span-2">
-                <label className="text-xs font-black text-slate-300 block mb-2">
+                <label htmlFor="email-input" className="text-xs font-black text-slate-300 block mb-2">
                   البريد الإلكتروني الرسمي للمدرسة (اختياري)
                 </label>
                 <input
+                  id="email-input"
                   type="email"
                   dir="ltr"
                   placeholder="admin@school.edu.sa"
@@ -1159,10 +1201,11 @@ export function SchoolsPitchPage() {
 
             {/* Notes */}
             <div>
-              <label className="text-xs font-black text-slate-300 block mb-2">
+              <label htmlFor="notes-textarea" className="text-xs font-black text-slate-300 block mb-2">
                 ملاحظات أو متطلبات خاصة (اختياري)
               </label>
               <textarea
+                id="notes-textarea"
                 rows={3}
                 placeholder="اذكر أي تفاصيل إضافية مثل موعد بدء التدريب المطلوب أو الرغبة في تجربة حية للمعلمين..."
                 value={notes}
@@ -1171,13 +1214,30 @@ export function SchoolsPitchPage() {
               />
             </div>
 
+            {submitError && (
+              <div className="rounded-xl bg-rose-500/10 border border-rose-500/30 p-4 text-xs font-bold text-rose-300">
+                {submitError}
+              </div>
+            )}
+
             {/* Submit Button */}
             <button
+              data-testid="school-proposal-submit"
               type="submit"
               disabled={formSubmitting}
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 hover:from-emerald-400 hover:to-indigo-500 text-slate-950 font-black text-sm shadow-xl transition-all cursor-pointer disabled:opacity-50"
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 hover:from-emerald-400 hover:to-indigo-500 text-slate-950 font-black text-sm shadow-xl transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {formSubmitting ? 'جارٍ إرسال الطلب واعتماد الرقم المرجعي...' : 'إرسال طلب العرض الرسمي وتفعيل الحساب التجريبي 📨'}
+              {formSubmitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin text-slate-950" />
+                  <span>جارٍ إرسال الطلب واعتماد الرقم المرجعي...</span>
+                </>
+              ) : (
+                <>
+                  <Send size={18} />
+                  <span>إرسال طلب العرض الرسمي وتفعيل الحساب التجريبي 📨</span>
+                </>
+              )}
             </button>
           </form>
         </div>
@@ -1224,11 +1284,11 @@ export function SchoolsPitchPage() {
             <div className="pt-2 flex flex-col sm:flex-row gap-3">
               <a
                 href={`https://wa.me/966500000000?text=${encodeURIComponent(
-                  `السلام عليكم، تم تقديم طلب شراكة مدرسة برقم مرجعي: ${submissionSuccess.refNumber} لصالح ${submissionSuccess.schoolName}. نرجو تزويدنا بالعرض وتفعيل الحساب التجريبي.`
+                  `السلام عليكم ورحمة الله،\nتم تقديم طلب شراكة مدرسية عبر منصة المئة:\n- الرقم المرجعي: ${submissionSuccess.refNumber}\n- المدرسة: ${submissionSuccess.schoolName}\n- الباقة: ${submissionSuccess.tierName}\n- عدد الطلاب: ${submissionSuccess.studentCount} طالب\n- التقدير السنوي: ${formatMoney(submissionSuccess.totalAnnualEstimate)}\nنرجو تزويدنا بالعرض المالي المعتمد وتفعيل النسخة التجريبية.`
                 )}`}
                 target="_blank"
                 rel="noreferrer"
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 text-xs shadow-md transition-all"
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 text-xs shadow-md transition-all cursor-pointer"
               >
                 <Phone size={14} />
                 <span>متابعة فورية عبر الواتساب 💬</span>

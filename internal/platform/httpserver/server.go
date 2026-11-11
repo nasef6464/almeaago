@@ -88,11 +88,22 @@ func New(addr string, deps Dependencies) *http.Server {
 	if deps.Identity != nil {
 		router.Mount("/api/v1/auth", deps.Identity)
 	}
-	if deps.Organizations != nil {
-		router.Mount("/api/v1/schools", deps.Organizations)
-	}
 	if deps.SchoolContracts != nil {
 		router.Mount("/api/v1/school-contracts", deps.SchoolContracts)
+		// Dual-mount contract route at /api/v1/schools/{schoolId}/contract with identical behavior
+		schoolContractBridge := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			schoolID := chi.URLParam(r, "schoolId")
+			reqCtx := context.WithValue(r.Context(), chi.RouteCtxKey, chi.NewRouteContext())
+			adaptedReq := r.WithContext(reqCtx)
+			adaptedReq.URL.Path = "/" + schoolID
+			adaptedReq.URL.RawPath = "/" + schoolID
+			deps.SchoolContracts.ServeHTTP(w, adaptedReq)
+		})
+		router.Get("/api/v1/schools/{schoolId}/contract", schoolContractBridge)
+		router.Put("/api/v1/schools/{schoolId}/contract", schoolContractBridge)
+	}
+	if deps.Organizations != nil {
+		router.Mount("/api/v1/schools", deps.Organizations)
 	}
 	if deps.Classroom != nil {
 		router.Mount("/api/v1/classroom", deps.Classroom)

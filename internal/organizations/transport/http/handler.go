@@ -24,14 +24,20 @@ type Authenticator interface {
 }
 
 type Handler struct {
-	service *orgapp.Service
-	auth    Authenticator
+	service        *orgapp.Service
+	inquiryService *orgapp.SchoolInquiryService
+	auth           Authenticator
 }
 
-func New(service *orgapp.Service, auth Authenticator) http.Handler {
-	h := &Handler{service: service, auth: auth}
+func New(service *orgapp.Service, auth Authenticator, inquiryService ...*orgapp.SchoolInquiryService) http.Handler {
+	var inqSvc *orgapp.SchoolInquiryService
+	if len(inquiryService) > 0 {
+		inqSvc = inquiryService[0]
+	}
+	h := &Handler{service: service, auth: auth, inquiryService: inqSvc}
 	r := chi.NewRouter()
 
+	r.Post("/inquiries", h.createSchoolInquiry)
 	r.Get("/context", h.schoolContexts)
 	r.Get("/teacher-workspace", h.teacherWorkspace)
 	r.Get("/", h.listSchools)

@@ -44,6 +44,7 @@ const NavIcons: Record<string, React.ReactNode> = {
   'layout-grid': <LayoutGrid size={18} />,
   gift: <Gift size={18} />,
   award: <Award size={18} />,
+  building: <Building2 size={18} />,
 };
 
 const text = {

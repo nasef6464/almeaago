@@ -95,6 +95,26 @@ export interface DirectorAssessmentSettings {
 export interface DirectorAssessmentCreateInput {
   title: string; targetScope: 'school' | 'class' | 'classes' | 'selected'; classId: string; classIds?: string[]; studentIds?: string[]; pathId: string; subjectId: string; questionIds: string[]; settings?: DirectorAssessmentSettings;
 }
+export interface SchoolInquiryPayload {
+  refNumber: string;
+  schoolName: string;
+  city: string;
+  directorName: string;
+  phone: string;
+  email?: string;
+  studentCount: number;
+  tierId: string;
+  tierName: string;
+  paths: string[];
+  notes?: string;
+  totalAnnualEstimate: number;
+}
+export interface SchoolInquiryResponse {
+  success: boolean;
+  refNumber: string;
+  id?: string;
+  message?: string;
+}
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const r = await fetch(BASE + path, { ...init, credentials: 'include', headers: { Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers } });
@@ -197,10 +217,18 @@ export const organizationsClient = {
     return request<{ success: boolean }>(`/api/v1/schools/${encodeURIComponent(schoolId)}/classes/${encodeURIComponent(classId)}`, { method: 'DELETE', headers: csrfHeaders(csrf) });
   },
   contract(schoolId: string, signal?: AbortSignal) {
-    return request<{ contract: SchoolContractData }>(`/api/v1/school-contracts/${encodeURIComponent(schoolId)}`, { signal });
+    return request<{ contract: SchoolContractData }>(`/api/v1/schools/${encodeURIComponent(schoolId)}/contract`, { signal })
+      .catch(() => request<{ contract: SchoolContractData }>(`/api/v1/school-contracts/${encodeURIComponent(schoolId)}`, { signal }));
   },
   updateContract(schoolId: string, payload: unknown, csrf: string) {
-    return request<{ contract: SchoolContractData }>(`/api/v1/school-contracts/${encodeURIComponent(schoolId)}`, { method: 'PUT', headers: csrfHeaders(csrf), body: JSON.stringify(payload) });
+    return request<{ contract: SchoolContractData }>(`/api/v1/schools/${encodeURIComponent(schoolId)}/contract`, { method: 'PUT', headers: csrfHeaders(csrf), body: JSON.stringify(payload) })
+      .catch(() => request<{ contract: SchoolContractData }>(`/api/v1/school-contracts/${encodeURIComponent(schoolId)}`, { method: 'PUT', headers: csrfHeaders(csrf), body: JSON.stringify(payload) }));
+  },
+  schoolContract(schoolId: string, signal?: AbortSignal) {
+    return this.contract(schoolId, signal);
+  },
+  updateSchoolContract(schoolId: string, payload: unknown, csrf: string) {
+    return this.updateContract(schoolId, payload, csrf);
   },
   assignments(schoolId: string, signal?: AbortSignal) {
     return request<{ assignments: unknown[] }>(`/api/v1/schools/${encodeURIComponent(schoolId)}/assignments`, { signal });
@@ -219,5 +247,12 @@ export const organizationsClient = {
   },
   upsertDirectorAssignment(schoolId: string, payload: { teacherId: string; classId: string; subjectId?: string; status: 'active' | 'inactive' }, csrf: string) {
     return request<{ assignment: DirectorAssignment }>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/assignments`, { method: 'PUT', headers: csrfHeaders(csrf), body: JSON.stringify(payload) });
+  },
+  submitSchoolInquiry(payload: SchoolInquiryPayload, signal?: AbortSignal): Promise<SchoolInquiryResponse> {
+    return request<SchoolInquiryResponse>('/api/v1/schools/inquiries', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      signal,
+    });
   },
 };

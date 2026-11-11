@@ -46,6 +46,7 @@ import { TaxonomyAdminPage } from '../features/taxonomy/pages/TaxonomyAdminPage'
 import { SkillsAdminPage } from '../features/taxonomy/pages/SkillsAdminPage';
 import { QuestionBankAdminPage } from '../features/questionbank/pages/QuestionBankAdminPage';
 import { SchoolsAdminPage } from '../features/organizations/pages/SchoolsAdminPage';
+import { CertificatePage } from '../features/organizations/pages/CertificatePage';
 import { UsersAdminPage } from '../features/auth/pages/UsersAdminPage';
 import { SchoolDirectorDashboardPage } from '../features/organizations/pages/SchoolDirectorDashboardPage';
 import { SupervisorDashboardPage } from '../features/organizations/pages/SupervisorDashboardPage';
@@ -240,6 +241,9 @@ export function App() {
         <Route path="/supervisor-dashboard/interventions" element={<SchoolInterventionsPage />} />
         <Route path="/school-director-dashboard" element={<SchoolDirectorDashboardPage />} />
         <Route path="/school-director-dashboard/interventions" element={<SchoolInterventionsPage />} />
+        <Route path="/certificate/:code" element={<CertificatePage />} />
+        <Route path="/verify/cert/:code" element={<CertificatePage />} />
+        <Route path="/verify/:code" element={<CertificatePage />} />
         <Route path="/parent-dashboard" element={<ParentDashboardPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

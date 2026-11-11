@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Award, CheckCircle2, MessageCircle, Printer, Trophy, X, Zap, Sparkles } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 export type CertificateKind = 'excellence' | 'smart_classroom_hero' | 'persistence';
 
@@ -235,13 +236,14 @@ export const TeacherCertificateModal: React.FC<TeacherCertificateModalProps> = (
               </div>
 
               <div className="text-center flex flex-col items-center">
-                <div className="mb-1.5 flex h-12 w-12 items-center justify-center rounded-lg border border-amber-300/80 bg-white p-1 shadow-2xs">
-                  <svg className="h-full w-full text-slate-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor" fillOpacity="0.15" stroke="currentColor" />
-                    <rect x="16" y="2" width="6" height="6" rx="1" fill="currentColor" fillOpacity="0.15" stroke="currentColor" />
-                    <rect x="2" y="16" width="6" height="6" rx="1" fill="currentColor" fillOpacity="0.15" stroke="currentColor" />
-                    <path d="M10 4h4M10 8h4M4 10v4M8 10v4M12 12h.01M16 12h4M12 16v4M16 16h2v2h-2zM20 20h.01" />
-                  </svg>
+                <div className="mb-1.5 flex items-center justify-center rounded-xl border border-amber-300/80 bg-white p-1.5 shadow-2xs">
+                  <QRCodeSVG
+                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/certificate/${certCode}`}
+                    size={80}
+                    fgColor="#1e293b"
+                    level="M"
+                    includeMargin={false}
+                  />
                 </div>
                 <div className="rounded-lg bg-slate-50 border border-slate-200 px-2 py-0.5 text-[9px] text-slate-600 font-mono" dir="ltr">
                   {certCode}

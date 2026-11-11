@@ -259,11 +259,10 @@ export const PricingPlansPage: React.FC = () => {
                     key={cycleKey}
                     type="button"
                     onClick={() => setBillingCycle(cycleKey)}
-                    className={`relative rounded-xl px-4 sm:px-6 py-2 text-xs sm:text-sm font-black transition-all cursor-pointer ${
-                      isActive
-                        ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md shadow-amber-500/20'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
+                    className={`relative rounded-xl px-4 sm:px-6 py-2 text-xs sm:text-sm font-black transition-all cursor-pointer ${isActive
+                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md shadow-amber-500/20'
+                      : 'text-slate-400 hover:text-white'
+                      }`}
                   >
                     <span>{config.shortLabel}</span>
                     {config.badge && (
@@ -293,13 +292,12 @@ export const PricingPlansPage: React.FC = () => {
             return (
               <div
                 key={tier.id}
-                className={`relative flex flex-col justify-between rounded-3xl p-6 sm:p-7 transition-all duration-300 backdrop-blur-xl ${
-                  isVip
-                    ? 'border-2 border-amber-400/80 bg-gradient-to-b from-amber-950/40 via-slate-900/90 to-slate-950 shadow-2xl shadow-amber-500/15 lg:-translate-y-2'
-                    : isExcellence
+                className={`relative flex flex-col justify-between rounded-3xl p-6 sm:p-7 transition-all duration-300 backdrop-blur-xl ${isVip
+                  ? 'border-2 border-amber-400/80 bg-gradient-to-b from-amber-950/40 via-slate-900/90 to-slate-950 shadow-2xl shadow-amber-500/15 lg:-translate-y-2'
+                  : isExcellence
                     ? 'border-2 border-indigo-500/80 bg-gradient-to-b from-indigo-950/40 via-slate-900/90 to-slate-950 shadow-xl shadow-indigo-500/10'
                     : 'border border-slate-800/80 bg-slate-900/60 hover:border-slate-700'
-                }`}
+                  }`}
               >
                 {/* Popular / VIP Floating Tag */}
                 {tier.popularTag && (
@@ -312,13 +310,12 @@ export const PricingPlansPage: React.FC = () => {
                   {/* Badge & Target */}
                   <div className="flex items-center justify-between">
                     <span
-                      className={`inline-block rounded-xl px-2.5 py-0.5 text-[11px] font-black ${
-                        isVip
-                          ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
-                          : isExcellence
+                      className={`inline-block rounded-xl px-2.5 py-0.5 text-[11px] font-black ${isVip
+                        ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
+                        : isExcellence
                           ? 'bg-indigo-400/20 text-indigo-300 border border-indigo-400/30'
                           : 'bg-slate-800 text-slate-300'
-                      }`}
+                        }`}
                     >
                       {tier.badge}
                     </span>
@@ -357,13 +354,12 @@ export const PricingPlansPage: React.FC = () => {
                       {tier.highlights.map((feat, idx) => (
                         <li key={idx} className="flex items-start gap-2.5">
                           <span
-                            className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${
-                              isVip
-                                ? 'bg-amber-400 text-slate-950'
-                                : isExcellence
+                            className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${isVip
+                              ? 'bg-amber-400 text-slate-950'
+                              : isExcellence
                                 ? 'bg-indigo-400 text-slate-950'
                                 : 'bg-emerald-500/20 text-emerald-400'
-                            }`}
+                              }`}
                           >
                             <Check size={11} strokeWidth={3} />
                           </span>
@@ -379,21 +375,20 @@ export const PricingPlansPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleSelectTier(tier)}
-                    className={`w-full py-3 px-5 rounded-2xl text-xs sm:text-sm font-black transition-all cursor-pointer text-center ${
-                      isVip
-                        ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 text-slate-950 hover:brightness-110 shadow-lg shadow-amber-500/25'
-                        : isExcellence
+                    className={`w-full py-3 px-5 rounded-2xl text-xs sm:text-sm font-black transition-all cursor-pointer text-center ${isVip
+                      ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-500 text-slate-950 hover:brightness-110 shadow-lg shadow-amber-500/25'
+                      : isExcellence
                         ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/25'
                         : tier.id === 'free_starter'
-                        ? 'border border-slate-700 bg-slate-800 hover:bg-slate-700 text-white'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white'
-                    }`}
+                          ? 'border border-slate-700 bg-slate-800 hover:bg-slate-700 text-white'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }`}
                   >
                     {tier.id === 'free_starter'
                       ? 'ابدأ التجربة المجانية'
                       : isVip
-                      ? 'امتلك عضوية VIP الماسية 💎'
-                      : 'اشترك الآن في الباقة'}
+                        ? 'امتلك عضوية VIP الماسية 💎'
+                        : 'اشترك الآن في الباقة'}
                   </button>
                 </div>
               </div>

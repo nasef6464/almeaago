@@ -23,8 +23,10 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Upload,
   Users,
   UsersRound,
+  X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -36,6 +38,13 @@ import { DirectorAssessmentReportPanel } from '../components/DirectorAssessmentR
 import { DirectorTeacherAssignments } from '../components/DirectorTeacherAssignments';
 import { SupervisorTestsManager } from '../components/SupervisorTestsManager';
 import { SchoolDirectorBreadcrumb, SchoolDirectorSectionNav, directorNavItems, type DirectorSectionID } from '../components/SchoolDirectorSectionNav';
+import { SchoolImportPanel, type ImportSummary, type ImportCredentialItem } from '../components/SchoolImportPanel';
+import {
+  parseImportRows,
+  parseTextToRows,
+  inspectImportData,
+  type ImportRow,
+} from '../utils/importRowParsing';
 import {
   organizationsClient,
   type DirectorAssignment,
@@ -89,6 +98,139 @@ export function SchoolDirectorDashboardPage(){
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferStudent, setTransferStudent] = useState<DirectorStudent | null>(null);
   const [transferTargetClassId, setTransferTargetClassId] = useState('');
+
+  // Noor Bulk Import Modal State
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importRows, setImportRows] = useState<ImportRow[]>([]);
+  const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importCredentials, setImportCredentials] = useState<ImportCredentialItem[]>([]);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importPreviewStats, setImportPreviewStats] = useState({
+    classNames: [] as string[],
+    rowsWithoutPassword: 0,
+    duplicateEmails: [] as string[],
+    existingEmails: [] as string[],
+  });
+
+  const handleDirectorImportFile = async (file: File) => {
+    try {
+      setImportError(null);
+      const text = await file.text();
+      const rawRows = parseTextToRows(text);
+      if (rawRows.length < 2) {
+        setImportError('الملف فارغ أو لا يحتوي على صفوف صالحة.');
+        return;
+      }
+      const parsed = parseImportRows(rawRows);
+      if (parsed.length === 0) {
+        setImportError('لم يتم العثور على صفوف صالحة. تأكد من وجود عمود الاسم والبريد الإلكتروني.');
+        return;
+      }
+      const stats = inspectImportData(parsed);
+      setImportRows(parsed);
+      setImportPreviewStats({
+        classNames: stats.classNames,
+        rowsWithoutPassword: stats.rowsWithoutPassword,
+        duplicateEmails: stats.duplicateEmails,
+        existingEmails: [],
+      });
+      if (stats.duplicateEmails.length > 0) {
+        setImportError(`يوجد ${stats.duplicateEmails.length} إيميل مكرر في الملف. يرجى تصحيح التكرار.`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'تعذر قراءة ملف الكشف.';
+      setImportError(msg);
+    }
+  };
+
+  const handleDirectorStartImport = async () => {
+    if (!selectedSchool || importRows.length === 0) return;
+    try {
+      setIsImporting(true);
+      setImportError(null);
+      const csrf = await getCsrfToken();
+      const createdCreds: ImportCredentialItem[] = [];
+      const touchedClasses = new Set<string>();
+
+      const existingClassMap = new Map<string, string>();
+      classes.forEach((c) => existingClassMap.set(c.name.trim(), c.id));
+
+      for (const row of importRows) {
+        let classId = '';
+        if (row.className && row.className.trim()) {
+          const cName = row.className.trim();
+          touchedClasses.add(cName);
+          if (existingClassMap.has(cName)) {
+            classId = existingClassMap.get(cName)!;
+          } else {
+            try {
+              const res = await organizationsClient.createDirectorClass(selectedSchool.schoolId, cName, csrf);
+              classId = res.classroom.classId;
+              existingClassMap.set(cName, classId);
+            } catch {
+              // ignore
+            }
+          }
+        }
+
+        const pwd = row.password && row.password.trim() ? row.password.trim() : `Almeaa@${Math.floor(1000 + Math.random() * 9000)}`;
+        try {
+          await organizationsClient.addDirectorStudent(selectedSchool.schoolId, {
+            name: row.name,
+            email: row.email,
+            password: pwd,
+            classId,
+          }, csrf);
+        } catch {
+          // ignore duplicate in backend
+        }
+        createdCreds.push({
+          name: row.name,
+          email: row.email,
+          password: pwd,
+          className: row.className,
+        });
+      }
+
+      setImportCredentials(createdCreds);
+      setImportSummary({
+        totalRows: importRows.length,
+        imported: createdCreds.length,
+        classesTouched: touchedClasses.size || 1,
+      });
+      void refresh();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'تعذر إتمام عملية الاستيراد.';
+      setImportError(msg);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const downloadDirectorTemplate = () => {
+    const csvContent = '\uFEFFاسم الطالب,البريد الإلكتروني,الفصل,كلمة المرور\nفيصل بن سعد,faisal@example.com,الصف الثالث الثانوي (أ),Pass@123\nسارة خالد المنصور,sara@example.com,الصف الثالث الثانوي (ب),';
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'school-import-template.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadDirectorCredentials = () => {
+    if (importCredentials.length === 0) return;
+    const header = 'اسم الطالب,البريد الإلكتروني,الفصل,كلمة المرور\n';
+    const rows = importCredentials.map((c) => `"${c.name}","${c.email}","${c.className || ''}","${c.password || ''}"`).join('\n');
+    const blob = new Blob(['\uFEFF' + header + rows], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `credentials-${selectedSchool?.schoolName || 'school'}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   // Skills Radar States for School Director
   const [skillLevelFilter, setSkillLevelFilter] = useState<'all' | 'critical' | 'watch' | 'mastered'>('all');
@@ -1254,12 +1396,63 @@ export function SchoolDirectorDashboardPage(){
 
     {/* SECTION: STUDENTS */}
     {section==='students'&&has('SCHOOL_STUDENTS_VIEW')?<section className="mt-7 rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-xs font-black text-indigo-600">تشغيل الطلاب</p><h2 className="mt-1 text-xl font-black">طلاب {selectedSchool.schoolName}</h2></div><div className="flex flex-col gap-2 sm:flex-row"><div className="relative"><Search className="absolute right-3 top-2.5 text-slate-400" size={17}/><input aria-label="بحث الطلاب" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')void refresh(search)}} placeholder="ابحث بالاسم أو البريد" className="w-full rounded-xl border py-2 pr-9 pl-3 text-sm"/></div>{has('SCHOOL_STUDENTS_ADD')?<button type="button" onClick={()=>setShowAdd(x=>!x)} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white"><Plus size={17}/> إضافة طالب</button>:null}</div></div>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-xs font-black text-indigo-600">تشغيل الطلاب</p><h2 className="mt-1 text-xl font-black">طلاب {selectedSchool.schoolName}</h2></div><div className="flex flex-col gap-2 sm:flex-row"><div className="relative"><Search className="absolute right-3 top-2.5 text-slate-400" size={17}/><input aria-label="بحث الطلاب" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')void refresh(search)}} placeholder="ابحث بالاسم أو البريد" className="w-full rounded-xl border py-2 pr-9 pl-3 text-sm"/></div>{has('SCHOOL_STUDENTS_ADD')?<button type="button" onClick={()=>setShowImportModal(true)} className="flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 py-2 text-sm font-black text-indigo-700 hover:bg-indigo-50"><Upload size={17}/> استيراد كشف نور</button>:null}{has('SCHOOL_STUDENTS_ADD')?<button type="button" onClick={()=>setShowAdd(x=>!x)} className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white"><Plus size={17}/> إضافة طالب</button>:null}</div></div>
 
       <p className="mt-2 text-xs font-bold text-slate-500">عدد الطلاب في القائمة: {studentTotal}</p>
       {showAdd&&has('SCHOOL_STUDENTS_ADD')?<div className="mt-5 grid gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 sm:grid-cols-2 xl:grid-cols-5"><input aria-label="اسم الطالب الجديد" value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})} placeholder="اسم الطالب" className="rounded-xl border px-3 py-2 text-sm"/><input aria-label="بريد الطالب الجديد" value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} placeholder="البريد الإلكتروني" className="rounded-xl border px-3 py-2 text-sm"/><input aria-label="كلمة مرور الطالب الجديد" type="password" value={draft.password} onChange={e=>setDraft({...draft,password:e.target.value})} placeholder="كلمة مرور مؤقتة" className="rounded-xl border px-3 py-2 text-sm"/><select aria-label="فصل الطالب الجديد" value={draft.classId} onChange={e=>setDraft({...draft,classId:e.target.value})} className="rounded-xl border px-3 py-2 text-sm"><option value="">اختر الفصل</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><button type="button" disabled={pending==='add'} onClick={()=>void addStudent()} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white disabled:opacity-50">إنشاء وربط</button></div>:null}
 
       {!has('SCHOOL_STUDENTS_VIEW')?<div className="mt-6 rounded-2xl border border-dashed p-8 text-center text-sm text-slate-500">صلاحية عرض الطلاب غير مفعلة لهذا الربط.</div>:students.length===0&&!busy?<div className="mt-6 rounded-2xl border border-dashed p-8 text-center text-sm text-slate-500">لا يوجد طلاب مطابقون حاليًا.</div>:<div className="mt-5 overflow-hidden rounded-2xl border"><div className="hidden bg-slate-50 px-4 py-3 text-xs font-black text-slate-500 lg:grid lg:grid-cols-[1.4fr_.55fr_1fr_auto] lg:items-center lg:gap-3"><span>الطالب</span><span>الحالة</span><span>الفصل</span><span>عمليات مفوضة</span></div><div className="divide-y">{students.map(student=>editing.studentId===student.studentId?<article key={student.studentId} className="grid gap-3 p-4 lg:grid-cols-[1fr_auto] lg:items-center"><div className="grid gap-2 sm:grid-cols-2"><input aria-label="تعديل اسم الطالب" value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})} className="rounded-xl border px-3 py-2"/><input aria-label="تعديل جوال الطالب" value={editing.phone} onChange={e=>setEditing({...editing,phone:e.target.value})} className="rounded-xl border px-3 py-2" placeholder="رقم الجوال"/><p className="text-xs font-bold text-slate-500 sm:col-span-2">تعديل بيانات أساسية فقط؛ لا تغيير للبريد أو الدور.</p></div><div className="flex gap-2"><button type="button" onClick={()=>void saveStudent()} className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white">حفظ</button><button type="button" onClick={()=>setEditing({studentId:'',name:'',phone:''})} className="rounded-xl border bg-white px-4 py-2 text-xs font-black text-slate-600">إلغاء</button></div></article>:<article key={student.studentId} className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[1.4fr_.55fr_1fr_auto] lg:items-center"><div className="min-w-0"><b className="block truncate">{student.name}</b><span className="mt-1 block break-all text-xs font-bold text-slate-500">{student.email}{student.phone?` · ${student.phone}`:''}</span></div><span className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-black ${student.isActive?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}`}>{student.isActive?'نشط':'موقوف'}</span><div>{has('SCHOOL_STUDENTS_MOVE_CLASS')?<select aria-label={`فصل ${student.name}`} value={student.classId||''} disabled={pending===student.studentId} onChange={e=>void moveStudent(student.studentId,e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm"><option value="">بدون فصل</option>{classes.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>:<span className="text-sm font-bold">{student.className||'بدون فصل'}</span>}</div><div className="flex gap-2 sm:justify-end">{canOptional('SCHOOL_STUDENTS_UPDATE_BASIC')?<button aria-label={`تعديل ${student.name}`} type="button" onClick={()=>setEditing({studentId:student.studentId,name:student.name,phone:student.phone||''})} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border bg-white text-indigo-700"><Pencil size={15}/></button>:null}{canOptional('SCHOOL_STUDENTS_DEACTIVATE')?<button aria-label={student.isActive?`تعطيل ${student.name}`:`تفعيل ${student.name}`} type="button" onClick={()=>void toggleStudent(student)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border bg-white"><Power size={15}/></button>:null}</div></article>)}</div></div>}
+
+      {/* Noor Bulk Roster Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs overflow-y-auto" dir="rtl">
+          <div className="relative my-auto w-full max-w-4xl rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
+                  <Upload size={20} />
+                </span>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">استيراد كشف طلاب نظام نور</h3>
+                  <p className="text-xs text-slate-500">رفع ومعاينة كشوفات الفصول والطلاب واستيرادها إلى المدرسة مباشرة</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowImportModal(false)}
+                className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <SchoolImportPanel
+              importRows={importRows}
+              importSummary={importSummary}
+              isImporting={isImporting}
+              importCredentials={importCredentials}
+              importError={importError}
+              importPreviewStats={importPreviewStats}
+              handleImportFile={handleDirectorImportFile}
+              handleStartImport={handleDirectorStartImport}
+              downloadTemplate={downloadDirectorTemplate}
+              downloadCredentials={downloadDirectorCredentials}
+              onReset={() => {
+                setImportRows([]);
+                setImportSummary(null);
+                setImportCredentials([]);
+                setImportError(null);
+                setImportPreviewStats({
+                  classNames: [],
+                  rowsWithoutPassword: 0,
+                  duplicateEmails: [],
+                  existingEmails: [],
+                });
+              }}
+            />
+          </div>
+        </div>
+      )}
     </section>:null}
 
     {/* SECTION: CLASSES & TEACHERS */}
