@@ -1,8 +1,23 @@
 import { defineConfig, devices } from '@playwright/test';
+import fs from 'node:fs';
 
-// Opt-in escape hatch for restricted ephemeral environments where the Playwright
-// browser CDN is unreachable. Normal CI runs keep using Playwright's pinned binary.
-const localChromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?.trim();
+function resolveChromiumPath(): string | undefined {
+  const candidates = [
+    process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+    'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    'C:/Users/nasef/AppData/Local/ms-playwright/chromium-1248/chrome-win64/chrome.exe',
+    'C:/Users/nasef/AppData/Local/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-win64/chrome-headless-shell.exe',
+  ].filter(Boolean);
+
+  for (const c of candidates) {
+    if (c && fs.existsSync(c as string)) {
+      return c as string;
+    }
+  }
+  return undefined;
+}
+
+const localChromiumExecutable = resolveChromiumPath();
 
 export default defineConfig({
   testDir: './tests/e2e',

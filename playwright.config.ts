@@ -4,6 +4,7 @@ import fs from 'fs';
 function resolveChromiumPath(): string | undefined {
   const candidates = [
     process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+    'C:/Program Files/Google/Chrome/Application/chrome.exe',
     'C:/Users/nasef/AppData/Local/ms-playwright/chromium-1248/chrome-win64/chrome.exe',
     'C:/Users/nasef/AppData/Local/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-win64/chrome-headless-shell.exe',
   ].filter(Boolean);

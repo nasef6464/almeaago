@@ -776,7 +776,7 @@ export function SchoolsAdminPage() {
                 <Building2 size={14} />
                 تشغيل وإدارة المدارس (Schools Management)
               </div>
-              <h1 className="text-2xl font-black text-gray-900">محفظة المدارس والشراكات التعليمية</h1>
+              <h1 className="text-2xl font-black text-gray-900">إدارة المدارس والشركاء (محفظة المدارس والشراكات التعليمية)</h1>
               <p className="text-sm font-bold text-gray-500">
                 إدارة شاملة لتعاقدات المدارس، الفصول، توزيع الطلاب، باقات B2B، وتقارير الجاهزية التشغيلية.
               </p>
@@ -804,7 +804,7 @@ export function SchoolsAdminPage() {
           {/* KPI Summary Cards */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
             <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm text-center">
-              <div className="text-xs font-black text-gray-400">إجمالي المدارس</div>
+              <div className="text-xs font-black text-gray-400">المدارس النشطة</div>
               <div className="mt-1 text-2xl font-black text-gray-900">{portfolioSummary.total}</div>
             </div>
             <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm text-center">
@@ -960,7 +960,17 @@ export function SchoolsAdminPage() {
                         <ArrowRight size={14} className="rotate-180" />
                       </button>
 
-                      <div className="grid grid-cols-3 gap-1.5">
+                      <div className="grid grid-cols-4 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void loadSchoolWorkspace(s);
+                            setActiveTab('contract');
+                          }}
+                          className="rounded-lg border border-indigo-100 bg-indigo-50/50 py-1.5 text-[11px] font-bold text-indigo-700 transition hover:bg-indigo-100"
+                        >
+                          العقد والباقة
+                        </button>
                         <button
                           type="button"
                           onClick={() => {
@@ -1016,6 +1026,7 @@ export function SchoolsAdminPage() {
                 </button>
                 <div className="flex items-center gap-3">
                   <h1 className="text-2xl font-black text-gray-900">{selectedSchool.name}</h1>
+                  <h2 className="sr-only">إدارة المدارس والشركاء</h2>
                   <span className="font-mono text-xs font-bold rounded-lg bg-gray-100 px-2.5 py-1 text-gray-600">
                     {selectedSchool.code}
                   </span>
@@ -1089,7 +1100,7 @@ export function SchoolsAdminPage() {
                 { id: 'relations', label: '👥 المجتمع المدرسي والعلاقات' },
                 { id: 'import', label: '📥 الاستيراد الجماعي' },
                 { id: 'reports', label: '📊 تقارير التسليم والجاهزية' },
-                { id: 'contract', label: '⚙️ العقد والإعدادات' },
+                { id: 'contract', label: '⚙️ العقد والباقة (الإعدادات)' },
               ] as const
             ).map((tab) => (
               <button
