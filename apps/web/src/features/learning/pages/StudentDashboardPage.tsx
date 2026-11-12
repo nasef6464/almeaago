@@ -35,6 +35,7 @@ import { SmartLearningPathWidget } from '../components/SmartLearningPathWidget';
 import { ProgressBar } from '../components/ProgressBar';
 import { DailySpeedDrillCard } from '../components/DailySpeedDrillCard';
 import { ReferralAmbassadorCard } from '../components/ReferralAmbassadorCard';
+import { StudentNextActionStrip } from '../components/StudentNextActionStrip';
 import { useStudentExperience } from '../navigation';
 import { PathsTab } from './dashboard/PathsTab';
 import { MyCoursesTab } from './dashboard/MyCoursesTab';
@@ -475,6 +476,17 @@ export function StudentDashboardPage() {
                 </Link>
               </div>
             </section>
+
+            {/* Student Next Action Strip (Smart Tutor Kicker) */}
+            <StudentNextActionStrip
+              title="مواصلة تأسيس مسار القدرات العامة (الكمي واللفظي)"
+              description="لديك 4 دروس تدريبية جاهزة للمراجعة مع تقنيات الحل السريع، وبنك أسئلة قياس التفاعلي."
+              primaryLabel="واصل التعلم الآن"
+              primaryHref="/learning"
+              secondaryLabel="عرض خطتي الأسبوعية"
+              secondaryHref="/plan"
+              tone="indigo"
+            />
 
             {/* Daily Speed Drill 60-Second Challenge */}
             <DailySpeedDrillCard userId={studentUser.id} />

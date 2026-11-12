@@ -118,6 +118,22 @@ export const authClient = {
     return request<{ csrfToken: string }>('/api/v1/auth/csrf');
   },
 
+  updateProfile(patch: { name?: string; avatar?: string }, csrfToken: string) {
+    return request<{ user: AuthUser }>('/api/v1/auth/me/profile', {
+      method: 'PATCH',
+      headers: { 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify(patch),
+    });
+  },
+
+  updateIdentity(patch: { nationalId?: string | null; phone?: string | null }, csrfToken: string) {
+    return request<{ user: AuthUser }>('/api/v1/auth/me/identity', {
+      method: 'PATCH',
+      headers: { 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify(patch),
+    });
+  },
+
   logout(csrfToken: string) {
     return request<void>('/api/v1/auth/logout', {
       method: 'POST',

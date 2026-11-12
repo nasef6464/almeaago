@@ -27,6 +27,8 @@ interface AuthContextValue {
   verifyEmail(token: string): ReturnType<typeof authClient.verifyEmail>;
   resendEmailVerification(): ReturnType<typeof authClient.resendEmailVerification>;
   getCsrfToken(): Promise<string>;
+  updateProfile(patch: { name?: string; avatar?: string }): Promise<AuthUser>;
+  updateIdentity(patch: { nationalId?: string | null; phone?: string | null }): Promise<AuthUser>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -147,6 +149,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
       getCsrfToken() {
         return ensureCsrf();
+      },
+
+      async updateProfile(patch) {
+        const token = await ensureCsrf();
+        const result = await authClient.updateProfile(patch, token);
+        setUser(result.user);
+        return result.user;
+      },
+
+      async updateIdentity(patch) {
+        const token = await ensureCsrf();
+        const result = await authClient.updateIdentity(patch, token);
+        setUser(result.user);
+        return result.user;
       },
     }),
     [csrfToken, ensureCsrf, loading, user],

@@ -623,7 +623,7 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
                       )}
                       <UserMenuItem to="/dashboard?tab=paths" icon={<BookOpen size={18} />} label={text.courses} />
                       <UserMenuItem to="/dashboard?tab=assessments" icon={<FileText size={18} />} label={text.quizzes} />
-                      <UserMenuItem to="/dashboard?tab=reports" icon={<Award size={18} />} label="تقاريري وإنجازاتي" />
+                      <UserMenuItem to="/achievements" icon={<Award size={18} />} label="أوسمتي وإنجازاتي" />
                       <UserMenuItem to="/profile" icon={<User size={18} />} label={text.profile} />
 
                       {isPrivilegedUser ? (

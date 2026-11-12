@@ -20,6 +20,7 @@ import {
   saveDailyDrillRecord,
   getTodayDateKey,
 } from './dailySpeedDrillData';
+import { ShareScorecard } from './ShareScorecard';
 
 interface DailySpeedDrillModalProps {
   isOpen: boolean;
@@ -224,6 +225,7 @@ export const DailySpeedDrillModal: React.FC<DailySpeedDrillModalProps> = ({
               {currentQ.options.map((opt, idx) => (
                 <button
                   key={idx}
+                  data-testid={`drill-opt-${idx}`}
                   onClick={() => handleSelectOption(idx)}
                   className="w-full text-right p-3.5 sm:p-4 rounded-xl font-bold text-sm sm:text-base border transition-all duration-150 bg-white dark:bg-slate-800/90 border-slate-200 dark:border-slate-700 hover:border-amber-400 hover:bg-amber-50/70 dark:hover:bg-amber-950/30 active:scale-[0.99] flex items-center justify-between group"
                 >
@@ -269,27 +271,18 @@ export const DailySpeedDrillModal: React.FC<DailySpeedDrillModalProps> = ({
               </div>
             </div>
 
-            {/* Social Share Strip */}
-            <div className="flex items-center justify-center gap-2 flex-wrap">
-              <button
-                onClick={handleShareWhatsApp}
-                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-xs"
-              >
-                <Share2 size={14} />
-                <span>مشاركة بالواتساب</span>
-              </button>
-              <button
-                onClick={handleShareX}
-                className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-xs"
-              >
-                <span>مشاركة على X</span>
-              </button>
-              <button
-                onClick={handleCopyLink}
-                className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors"
-              >
-                {copiedShare ? 'تم النسخ! ✓' : 'نسخ النتيجة'}
-              </button>
+            {/* Royal Share Scorecard */}
+            <div className="py-2">
+              <ShareScorecard
+                result={{
+                  score: Math.round((currentScore / (questions.length || 1)) * 100),
+                  title: 'تحدي الـ 60 ثانية اليومي',
+                  correctAnswers: currentScore,
+                  totalQuestions: questions.length,
+                  timeSpent: `${totalTimeSpent} ثانية`,
+                  badgeLabel: currentScore >= 4 ? 'نجم السرعة ⚡' : 'طالب مثابر',
+                }}
+              />
             </div>
 
             {/* Tactical Solutions Section */}

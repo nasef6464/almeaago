@@ -48,6 +48,9 @@ import { QuestionBankAdminPage } from '../features/questionbank/pages/QuestionBa
 import { SchoolsAdminPage } from '../features/organizations/pages/SchoolsAdminPage';
 import { CertificatePage } from '../features/organizations/pages/CertificatePage';
 import { UsersAdminPage } from '../features/auth/pages/UsersAdminPage';
+import { ProfilePage } from '../features/auth/pages/ProfilePage';
+import { AchievementsPage } from '../features/learning/pages/AchievementsPage';
+import { PwaInstallBanner } from '../features/presentation/PwaInstallBanner';
 import { SchoolDirectorDashboardPage } from '../features/organizations/pages/SchoolDirectorDashboardPage';
 import { SupervisorDashboardPage } from '../features/organizations/pages/SupervisorDashboardPage';
 import { TeacherWorkspacePage } from '../features/organizations/pages/TeacherWorkspacePage';
@@ -245,12 +248,15 @@ export function App() {
         <Route path="/verify/cert/:code" element={<CertificatePage />} />
         <Route path="/verify/:code" element={<CertificatePage />} />
         <Route path="/parent-dashboard" element={<ParentDashboardPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/achievements" element={<AchievementsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
 
       {showPublicFooter(location.pathname) ? <LegacySiteFooter /> : null}
 
       <AnnouncementAdsOverlay />
+      <PwaInstallBanner />
 
       <ChatWidget />
       <FloatingContactWidget />

@@ -76,6 +76,7 @@ export const DailySpeedDrillCard: React.FC<DailySpeedDrillCardProps> = ({
                   </div>
                 </div>
                 <button
+                  data-testid="start-daily-drill-btn"
                   onClick={() => setIsModalOpen(true)}
                   className="px-4 py-2.5 rounded-xl bg-white text-amber-700 font-black text-xs sm:text-sm hover:bg-amber-50 transition-all active:scale-95 shadow-xs flex items-center gap-1.5"
                 >
@@ -91,6 +92,7 @@ export const DailySpeedDrillCard: React.FC<DailySpeedDrillCardProps> = ({
                   <span>+1 ستريك</span>
                 </div>
                 <button
+                  data-testid="start-daily-drill-btn"
                   onClick={() => setIsModalOpen(true)}
                   className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white text-orange-600 font-black text-xs sm:text-sm hover:bg-amber-50 hover:shadow-lg transition-all active:scale-95 shadow-md flex items-center justify-center gap-1.5"
                 >
