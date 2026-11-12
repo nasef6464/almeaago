@@ -33,6 +33,8 @@ import type { TaxonomyPath } from '../../content/api/content-types';
 import { QiyasCalculatorModal } from '../components/QiyasCalculatorModal';
 import { SmartLearningPathWidget } from '../components/SmartLearningPathWidget';
 import { ProgressBar } from '../components/ProgressBar';
+import { DailySpeedDrillCard } from '../components/DailySpeedDrillCard';
+import { ReferralAmbassadorCard } from '../components/ReferralAmbassadorCard';
 import { useStudentExperience } from '../navigation';
 import { PathsTab } from './dashboard/PathsTab';
 import { MyCoursesTab } from './dashboard/MyCoursesTab';
@@ -473,6 +475,12 @@ export function StudentDashboardPage() {
                 </Link>
               </div>
             </section>
+
+            {/* Daily Speed Drill 60-Second Challenge */}
+            <DailySpeedDrillCard userId={studentUser.id} />
+
+            {/* Referral Ambassador Reward Card */}
+            <ReferralAmbassadorCard userId={studentUser.id} userName={studentUser.name} />
 
             {/* 3. Student Tools: Qiyas Calculator & Parent Link Code */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
