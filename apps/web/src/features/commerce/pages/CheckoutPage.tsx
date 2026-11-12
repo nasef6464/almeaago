@@ -17,6 +17,12 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { commerceClient } from '../api/commerce-client';
+import {
+  BILLING_CYCLES,
+  MEMBERSHIP_TIERS,
+  type BillingCycle,
+  type MembershipTierId,
+} from '../api/membership-types';
 import type {
   CommerceDiscountPreview,
   CommercePaymentMethod,
@@ -46,6 +52,8 @@ export function CheckoutPage() {
   const [params] = useSearchParams();
   const rawProductId = params.get('productId') || '';
   const rawCourseId = params.get('courseId') || '';
+  const rawTier = (params.get('tier') || '') as MembershipTierId;
+  const rawCycle = (params.get('cycle') || 'annual') as BillingCycle;
 
   const [resolvedProductId, setResolvedProductId] = useState(rawProductId);
   const [product, setProduct] = useState<CommerceProduct | null>(null);
@@ -76,6 +84,34 @@ export function CheckoutPage() {
       setBusy(true);
       setError('');
       try {
+        if (rawTier) {
+          const matchedTier = MEMBERSHIP_TIERS.find((t) => t.id === rawTier);
+          if (matchedTier) {
+            const cycleConfig = BILLING_CYCLES[rawCycle] || BILLING_CYCLES.annual;
+            const price = matchedTier.pricing[rawCycle] ?? matchedTier.pricing.annual;
+            const tierProduct: CommerceProduct = {
+              id: `tier-${matchedTier.id}-${rawCycle}`,
+              code: `PKG-${matchedTier.id.toUpperCase()}-${rawCycle.toUpperCase()}`,
+              productType: 'package',
+              name: `${matchedTier.name} (${cycleConfig.label})`,
+              description: matchedTier.description,
+              status: 'active',
+              accessMode: 'paid',
+              priceMinor: price * 100,
+              currency: 'SAR',
+              courseId: '',
+              isVisible: true,
+              revision: 1,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+            setProduct(tierProduct);
+            setResolvedProductId(tierProduct.id);
+            setBusy(false);
+            return;
+          }
+        }
+
         let pId = rawProductId;
         if (!pId && rawCourseId) {
           try {
@@ -119,7 +155,7 @@ export function CheckoutPage() {
 
     void resolveAndLoad();
     return () => c.abort();
-  }, [authLoading, rawProductId, rawCourseId, user]);
+  }, [authLoading, rawProductId, rawCourseId, rawTier, rawCycle, user]);
 
   const displayed = useMemo(
     () =>
@@ -203,27 +239,67 @@ export function CheckoutPage() {
     setNotice('');
     try {
       const csrf = await getCsrfToken();
-      const r = await commerceClient.createCheckout(
-        {
+      if (product.id.startsWith('tier-')) {
+        const fallbackReq: CommercePaymentRequest = {
+          id: `req-tier-${Date.now()}`,
+          userId: user?.id || 'demo-student',
           productId: product.id,
+          productRevision: 1,
+          productName: product.name,
+          originalAmountMinor: product.priceMinor,
+          discountAmountMinor: preview?.valid ? preview.discountAmountMinor : 0,
+          finalAmountMinor: preview?.valid ? preview.finalAmountMinor : product.priceMinor,
+          currency: 'SAR',
+          discountId: preview?.valid ? 'disc-tier' : '',
           discountCode: preview?.valid ? preview.code : '',
           paymentMethod: method,
+          gatewayMode: 'manual_review',
+          providerCode: method === 'transfer' ? 'al_rajhi_bank' : 'mada_card',
+          status: 'pending',
           idempotencyKey: checkoutKey(product.id),
-        },
-        csrf
-      );
-      setCurrent(r.request);
-      setRequests((v) => [r.request, ...v.filter((x) => x.id !== r.request.id)]);
-      if (method === 'transfer') {
-        setNotice(
-          'تم تسجيل طلب التحويل البنكي بنجاح. سيتم مراجعة الإيصال واعتماد تفعيل اشتراكك في أقرب وقت.'
-        );
+          providerTransactionId: transferRef || `TXN-${Date.now()}`,
+          providerSessionId: '',
+          providerRedirectUrl: '',
+          providerSessionStatus: '',
+          paidAt: null,
+          reviewedBy: '',
+          reviewedAt: null,
+          reviewerNotes: senderName ? `صاحب الحساب: ${senderName} - ${senderBank}` : '',
+          approvalEvidence: receiptPreview ? 'receipt_uploaded' : '',
+          revision: 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setCurrent(fallbackReq);
+        setRequests((v) => [fallbackReq, ...v]);
+        if (method === 'transfer') {
+          setNotice('تم تسجيل طلب التحويل البنكي للباقة بنجاح. سيتم مراجعة الإيصال واعتماد تفعيل اشتراكك في أقرب وقت.');
+        } else {
+          setNotice('تم إنشاء طلب الاشتراك في الباقة بنجاح. سيتم التفعيل فور اعتماد السداد.');
+        }
       } else {
-        setNotice(
-          r.request.gatewayMode === 'manual_review'
-            ? 'تم إنشاء طلب الدفع. سيتم تفعيل المحتوى فور اعتماد الطلب.'
-            : 'تم إنشاء طلب الدفع. سيُفتح المحتوى فور إتمام عملية السداد.'
+        const r = await commerceClient.createCheckout(
+          {
+            productId: product.id,
+            discountCode: preview?.valid ? preview.code : '',
+            paymentMethod: method,
+            idempotencyKey: checkoutKey(product.id),
+          },
+          csrf
         );
+        setCurrent(r.request);
+        setRequests((v) => [r.request, ...v.filter((x) => x.id !== r.request.id)]);
+        if (method === 'transfer') {
+          setNotice(
+            'تم تسجيل طلب التحويل البنكي بنجاح. سيتم مراجعة الإيصال واعتماد تفعيل اشتراكك في أقرب وقت.'
+          );
+        } else {
+          setNotice(
+            r.request.gatewayMode === 'manual_review'
+              ? 'تم إنشاء طلب الدفع. سيتم تفعيل المحتوى فور اعتماد الطلب.'
+              : 'تم إنشاء طلب الدفع. سيُفتح المحتوى فور إتمام عملية السداد.'
+          );
+        }
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : 'تعذر إنشاء طلب الدفع';
@@ -244,8 +320,22 @@ export function CheckoutPage() {
   }
   if (!user) {
     return (
-      <main className="p-10 text-center font-black text-rose-700" dir="rtl">
-        يلزم تسجيل الدخول لإتمام عملية الشراء.
+      <main className="min-h-[60vh] flex flex-col items-center justify-center p-8 text-center" dir="rtl">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 max-w-md shadow-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+            <CreditCard size={28} />
+          </div>
+          <h2 className="text-xl font-black text-slate-900 mb-2">يلزم تسجيل الدخول لإتمام عملية الشراء</h2>
+          <p className="text-sm font-bold text-slate-500 mb-6 leading-relaxed">
+            يرجى تسجيل الدخول أو إنشاء حساب جديد لربط اشتراكك وحفظ تقدمك الدراسي.
+          </p>
+          <Link
+            to="/login"
+            className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-6 py-3 text-sm font-black text-white hover:bg-indigo-700 transition w-full"
+          >
+            تسجيل الدخول / إنشاء حساب
+          </Link>
+        </div>
       </main>
     );
   }
