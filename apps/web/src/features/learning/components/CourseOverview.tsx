@@ -660,14 +660,19 @@ export function CourseOverview({
                                     <div
                                       key={lesson.id}
                                       onClick={() => {
-                                        if (!isLocked) onContinue(lesson.id);
+                                        if (isLocked) {
+                                          navigate(`/checkout?courseId=${course.id}`);
+                                        } else {
+                                          onContinue(lesson.id);
+                                        }
                                       }}
-                                      className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3.5 rounded-xl border transition-all ${
+                                      title={isLocked ? 'هذا الدرس يتطلب الاشتراك في الدورة - اضغط للشراء والتفعيل' : 'اضغط لمتابعة الدرس'}
+                                      className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3.5 rounded-xl border transition-all cursor-pointer ${
                                         isLocked
-                                          ? 'bg-amber-50/40 border-amber-200/60 cursor-not-allowed opacity-90'
+                                          ? 'bg-amber-50/40 border-amber-200/60 hover:bg-amber-100/60 opacity-90'
                                           : isCompleted
-                                            ? 'bg-emerald-50/30 border-emerald-200/60 hover:bg-emerald-50 cursor-pointer'
-                                            : 'bg-white border-slate-200/80 hover:border-indigo-300 hover:bg-indigo-50/20 cursor-pointer'
+                                            ? 'bg-emerald-50/30 border-emerald-200/60 hover:bg-emerald-50'
+                                            : 'bg-white border-slate-200/80 hover:border-indigo-300 hover:bg-indigo-50/20'
                                       }`}
                                     >
                                       <div className="flex items-center gap-3 min-w-0">
@@ -724,7 +729,9 @@ export function CourseOverview({
 
                                       <div className="flex items-center gap-2 shrink-0">
                                         {isLocked ? (
-                                          <Lock size={16} className="text-amber-500" />
+                                          <span className="text-xs font-black text-amber-700 flex items-center gap-1 hover:underline">
+                                            <Lock size={14} className="text-amber-600" /> اشترك لفتح الدرس ←
+                                          </span>
                                         ) : isCompleted ? (
                                           <span className="text-xs font-bold text-emerald-600">إعادة الدرس ←</span>
                                         ) : (
