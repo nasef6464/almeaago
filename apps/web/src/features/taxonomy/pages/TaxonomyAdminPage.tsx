@@ -127,6 +127,7 @@ export function TaxonomyAdminPage() {
     icon: '📚',
     iconUrl: '',
     iconStyle: 'default',
+    showInHome: true,
     showInNavbar: true,
     showSubjectCards: true,
     showMockExamCard: true,
@@ -382,6 +383,7 @@ export function TaxonomyAdminPage() {
       icon: '📚',
       iconUrl: '',
       iconStyle: 'default',
+      showInHome: true,
       showInNavbar: true,
       showSubjectCards: true,
       showMockExamCard: true,
@@ -404,6 +406,7 @@ export function TaxonomyAdminPage() {
       icon: path.icon || '📚',
       iconUrl: path.iconUrl || '',
       iconStyle: path.iconStyle || 'default',
+      showInHome: path.showInHome !== false,
       showInNavbar: path.showInNavbar !== false,
       showSubjectCards: path.showSubjectCards !== false,
       showMockExamCard: path.showMockExamCard !== false,
@@ -422,6 +425,8 @@ export function TaxonomyAdminPage() {
       ...pathForm,
       code: pathForm.code.trim(),
       name: pathForm.name.trim(),
+      showInHome: pathForm.showInHome,
+      showInNavbar: pathForm.showInNavbar,
       settings: {
         stageLabel: pathForm.stageLabel,
         stageSelection: pathForm.stageSelection,
@@ -2368,26 +2373,61 @@ export function TaxonomyAdminPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-black text-slate-700 mb-1">لون المسار الرئيسي</label>
+              <label className="block text-xs font-black text-slate-700 mb-1.5">لون المسار الرئيسي (يظهر في البطاقات والشريط الخارجي)</label>
               <div className="flex flex-wrap gap-2">
-                {['indigo', 'purple', 'emerald', 'amber', 'rose', 'blue', 'gray'].map((colorName) => {
-                  const c = resolveColor(colorName);
-                  const isSelected = pathForm.color === colorName;
+                {[
+                  { id: 'purple', label: 'بنفسجي (القدرات)' },
+                  { id: 'emerald', label: 'زمردي (نافس)' },
+                  { id: 'blue', label: 'كوبالتي (التحصيلي)' },
+                  { id: 'indigo', label: 'نيلي' },
+                  { id: 'teal', label: 'تركواز' },
+                  { id: 'amber', label: 'ذهبي' },
+                  { id: 'rose', label: 'وردي' },
+                  { id: 'cyan', label: 'سماوي' },
+                  { id: 'gray', label: 'رمادي' },
+                ].map((colorItem) => {
+                  const c = resolveColor(colorItem.id);
+                  const isSelected = pathForm.color === colorItem.id;
                   return (
                     <button
-                      key={colorName}
+                      key={colorItem.id}
                       type="button"
-                      onClick={() => setPathForm({ ...pathForm, color: colorName })}
+                      onClick={() => setPathForm({ ...pathForm, color: colorItem.id })}
                       className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold border transition ${
-                        isSelected ? 'ring-2 ring-indigo-500 shadow-xs' : 'opacity-80 hover:opacity-100'
+                        isSelected ? 'ring-2 ring-indigo-500 shadow-sm scale-105' : 'opacity-80 hover:opacity-100'
                       }`}
                       style={{ backgroundColor: c.soft, borderColor: c.border, color: c.text }}
                     >
                       <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.text }} />
-                      <span>{colorName}</span>
+                      <span>{colorItem.label}</span>
                     </button>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Places where path is displayed */}
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5 space-y-2.5">
+              <span className="block text-xs font-black text-slate-800">أماكن ظهور المسار في المنصة:</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs hover:border-indigo-400 transition">
+                  <input
+                    type="checkbox"
+                    checked={pathForm.showInHome}
+                    onChange={(e) => setPathForm({ ...pathForm, showInHome: e.target.checked })}
+                    className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>إظهار في الصفحة الرئيسية</span>
+                </label>
+                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs hover:border-indigo-400 transition">
+                  <input
+                    type="checkbox"
+                    checked={pathForm.showInNavbar}
+                    onChange={(e) => setPathForm({ ...pathForm, showInNavbar: e.target.checked })}
+                    className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>إظهار في الشريط العلوي (القائمة)</span>
+                </label>
               </div>
             </div>
 

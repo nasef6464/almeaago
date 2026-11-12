@@ -122,6 +122,7 @@ export const taxonomyAdminClient = {
       icon?: string;
       iconUrl?: string;
       iconStyle?: string;
+      showInHome?: boolean;
       showInNavbar?: boolean;
       showSubjectCards?: boolean;
       showMockExamCard?: boolean;
@@ -144,6 +145,7 @@ export const taxonomyAdminClient = {
       icon: string;
       iconUrl: string;
       iconStyle: string;
+      showInHome: boolean;
       showInNavbar: boolean;
       showSubjectCards: boolean;
       showMockExamCard: boolean;

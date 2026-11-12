@@ -56,6 +56,23 @@ function resolveThemeColor(value?: string, fallback = '#4f46e5'): string {
   return themeColorMap[value.toLowerCase()] || fallback;
 }
 
+function resolvePathThemeColor(path: { name?: string; code?: string; color?: unknown }): string {
+  if (typeof path.color === 'string' && path.color) {
+    return resolveThemeColor(path.color);
+  }
+  const norm = normalizeArabic(path.name || path.code || '');
+  if (norm.includes('نافس') || (path.code || '').toUpperCase() === 'NAFES') {
+    return '#047857'; // Emerald
+  }
+  if (norm.includes('تحصيلي') || (path.code || '').toUpperCase() === 'TAHSILI') {
+    return '#1d4ed8'; // Royal Blue
+  }
+  if (norm.includes('قدرات') || (path.code || '').toUpperCase().includes('QUDRAT')) {
+    return '#6d28d9'; // Royal Purple
+  }
+  return '#4f46e5';
+}
+
 function getSubjectIcon(subject: { name: string; iconUrl?: string }) {
   if (subject.iconUrl) {
     return <img src={subject.iconUrl} alt="" className="h-8 w-8 object-contain" />;
@@ -179,7 +196,7 @@ export function LegacyCategoryPage() {
     return <LearningSpacePage />;
   }
 
-  const pathColor = resolveThemeColor(typeof path.color === 'string' ? path.color : undefined, '#4f46e5');
+  const pathColor = resolvePathThemeColor(path);
   const pathLevels = experience.levels.filter((l) => l.pathId === path.id);
   const selectedLevelId = params.get('level');
 

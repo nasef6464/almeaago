@@ -54,6 +54,21 @@ interface DynamicPathTheme {
   icon: React.ReactNode;
 }
 
+function resolvePathTarget(path: TaxonomyPath): string {
+  const code = (path.code || '').toUpperCase();
+  const name = path.name || '';
+  if (code.includes('QUDRAT') || name.includes('قدرات')) {
+    return '/category/p_qudrat';
+  }
+  if (code === 'NAFES' || name.includes('نافس')) {
+    return '/category/p_nafes';
+  }
+  if (code === 'TAHSILI' || name.includes('تحصيلي')) {
+    return '/category/p_tahsili';
+  }
+  return `/category/${encodeURIComponent(path.id)}`;
+}
+
 function resolveDynamicPathTheme(path: TaxonomyPath, index: number): DynamicPathTheme {
   const code = (path.code || '').toUpperCase();
   const name = path.name || '';
@@ -62,7 +77,7 @@ function resolveDynamicPathTheme(path: TaxonomyPath, index: number): DynamicPath
   const customIconUrl = (path as any).iconUrl;
 
   // 1. National Nafes Benchmark Exam (Saudi Royal Emerald & Gold)
-  if (code === 'NAFES' || name.includes('نافس')) {
+  if (customColor === 'emerald' || code === 'NAFES' || name.includes('نافس')) {
     return {
       primaryGradient: 'from-emerald-600 to-teal-700',
       glowColor: 'rgba(5, 150, 105, 0.20)',
@@ -81,7 +96,7 @@ function resolveDynamicPathTheme(path: TaxonomyPath, index: number): DynamicPath
   }
 
   // 2. Tahsili Scientific Achievement (Deep Royal Blue)
-  if (code === 'TAHSILI' || name.includes('تحصيلي')) {
+  if (customColor === 'blue' || code === 'TAHSILI' || name.includes('تحصيلي')) {
     return {
       primaryGradient: 'from-blue-600 to-indigo-600',
       glowColor: 'rgba(37, 99, 235, 0.20)',
@@ -101,7 +116,7 @@ function resolveDynamicPathTheme(path: TaxonomyPath, index: number): DynamicPath
   }
 
   // 3. Qudrat General Aptitude (Royal Purple / Violet)
-  if (code.includes('QUDRAT') || name.includes('قدرات')) {
+  if (customColor === 'purple' || code.includes('QUDRAT') || name.includes('قدرات')) {
     return {
       primaryGradient: 'from-purple-600 to-indigo-700',
       glowColor: 'rgba(124, 58, 237, 0.20)',
@@ -122,7 +137,7 @@ function resolveDynamicPathTheme(path: TaxonomyPath, index: number): DynamicPath
   if (customColor) {
     const c = resolveColor(customColor);
     return {
-      primaryGradient: 'from-slate-700 to-slate-900',
+      primaryGradient: `from-[${c.text}] to-slate-900`,
       glowColor: `${c.text}25`,
       borderColor: c.border,
       softBg: 'bg-white',
@@ -160,10 +175,11 @@ function resolveDynamicPathTheme(path: TaxonomyPath, index: number): DynamicPath
 
 function OrganicPathCard({ path, index }: { path: TaxonomyPath; index: number }) {
   const theme = resolveDynamicPathTheme(path, index);
+  const targetUrl = resolvePathTarget(path);
 
   return (
     <Link
-      to={`/learning?pathId=${encodeURIComponent(path.id)}`}
+      to={targetUrl}
       data-testid={`path-card-${path.code || index}`}
       className="group relative flex flex-col items-center text-center overflow-hidden rounded-3xl bg-white p-5 sm:p-6 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl border border-slate-200/80 hover:border-transparent active:scale-[0.99]"
       style={{
@@ -318,7 +334,19 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
     return()=>window.clearInterval(timer);
   },[isHeroHovered,hero.autoRotateImages,hero.rotateIntervalSeconds,heroGallery.length]);
 
-  const paths=useMemo(()=>[...taxonomy.paths].sort((a,b)=>a.sortOrder-b.sortOrder),[taxonomy.paths]);
+  const paths=useMemo(()=>{
+    const seen = new Set<string>();
+    const list: TaxonomyPath[] = [];
+    for (const p of taxonomy.paths) {
+      const code = (p.code || '').toUpperCase();
+      const key = code.includes('QUDRAT') ? 'QUDRAT' : code === 'NAFES' ? 'NAFES' : code === 'TAHSILI' ? 'TAHSILI' : p.id;
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push(p);
+      }
+    }
+    return list.sort((a,b)=>a.sortOrder-b.sortOrder);
+  },[taxonomy.paths]);
   const homepagePaths=paths.filter(path=>path.showInHome!==false);
   const visiblePaths=settings.featuredPathIds?.some(id=>homepagePaths.some(p=>p.id===id))?homepagePaths.filter(p=>settings.featuredPathIds!.includes(p.id)):homepagePaths;
   const showcase=showcaseTab==='daylight'?PLATFORM_DAYLIGHT_IMAGES:PLATFORM_SHOWCASE_IMAGES;
