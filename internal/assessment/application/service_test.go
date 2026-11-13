@@ -32,6 +32,14 @@ func (s *stubRepo) SetWorkflow(context.Context, string, string, int, assessment.
 func (s *stubRepo) SetPublication(context.Context, string, string, int, bool) (assessment.Assessment, error) {
 	return s.item, nil
 }
+func (s *stubRepo) SetVisibility(_ context.Context, _, _ string, rev int, visible bool) (assessment.Assessment, error) {
+	if s.item.Revision != rev {
+		return assessment.Assessment{}, assessment.ErrVersionConflict
+	}
+	s.item.IsVisible = visible
+	s.item.Revision++
+	return s.item, nil
+}
 func (s *stubRepo) CanAuthor(context.Context, string, string, string) (bool, error) {
 	return s.can, nil
 }
@@ -79,5 +87,57 @@ func TestPublicationRequiresAdminApprovedAndQuestions(t *testing.T) {
 	r.item.Questions = []assessment.QuestionPlacement{{QuestionID: "q", QuestionVersion: 1, Points: 1}}
 	if _, err := s.SetPublication(context.Background(), admin(), "x", 1, true); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestVisibilityRequiresAdminAndKeepsPublishedAssessment(t *testing.T) {
+	r := &stubRepo{item: assessment.Assessment{ID: "x", WorkflowStatus: assessment.WorkflowApproved, Revision: 2, IsPublished: true, IsVisible: true}}
+	s := NewService(r)
+	if _, err := s.SetVisibility(context.Background(), teacher(), "x", 2, false); err != ErrForbidden {
+		t.Fatalf("teacher must not change visibility: %v", err)
+	}
+	if _, err := s.SetVisibility(context.Background(), admin(), "x", 0, false); err != ErrInvalidInput {
+		t.Fatalf("revision is required: %v", err)
+	}
+	result, err := s.SetVisibility(context.Background(), admin(), "x", 2, false)
+	if err != nil || result.IsVisible || !result.IsPublished {
+		t.Fatalf("hide must preserve publication: %+v %v", result, err)
+	}
+	if _, err := s.SetVisibility(context.Background(), admin(), "x", 2, true); err != assessment.ErrVersionConflict {
+		t.Fatalf("stale revision must conflict: %v", err)
+	}
+	result, err = s.SetVisibility(context.Background(), admin(), "x", 3, true)
+	if err != nil || !result.IsVisible || !result.IsPublished {
+		t.Fatalf("show must preserve publication: %+v %v", result, err)
+	}
+	r.item.WorkflowStatus = assessment.WorkflowArchived
+	if _, err := s.SetVisibility(context.Background(), admin(), "x", 4, true); err != ErrWorkflow {
+		t.Fatalf("archived assessment must not be changed: %v", err)
+	}
+}
+
+func TestCreateRejectsDuplicateSectionIDs(t *testing.T) {
+	s := NewService(&stubRepo{})
+	w := assessment.Write{Code: "Q", OwnerType: assessment.OwnerPlatform, Version: assessment.Version{Title: "محاكي", PathID: "p", MaxAttempts: 1, PassingScore: 60}, Sections: []assessment.Section{{ID: "same", Title: "أول", SortOrder: 1}, {ID: "same", Title: "ثان", SortOrder: 2}}}
+	if _, err := s.Create(context.Background(), admin(), w); err != ErrInvalidInput {
+		t.Fatalf("duplicate section IDs must be rejected: %v", err)
+	}
+}
+
+func TestStrictMockCannotPublishWithoutCompleteSections(t *testing.T) {
+	strict := true
+	a := assessment.Assessment{ID: "m", WorkflowStatus: assessment.WorkflowApproved, Revision: 1, Version: assessment.Version{Kind: assessment.KindMock, MockPresentationMode: "qiyas_strict", MockStrictSectionLock: &strict}, Sections: []assessment.Section{{ID: "s1", Title: "الأول"}, {ID: "s2", Title: "الثاني"}}, Questions: []assessment.QuestionPlacement{{QuestionID: "q1", SectionID: "s1"}}}
+	repo := &stubRepo{item: a}
+	service := NewService(repo)
+	if _, err := service.SetPublication(context.Background(), admin(), "m", 1, true); err != ErrWorkflow {
+		t.Fatalf("empty section must not publish: %v", err)
+	}
+	repo.item.Questions = append(repo.item.Questions, assessment.QuestionPlacement{QuestionID: "q2", SectionID: ""})
+	if _, err := service.SetPublication(context.Background(), admin(), "m", 1, true); err != ErrWorkflow {
+		t.Fatalf("unassigned question must not publish: %v", err)
+	}
+	repo.item.Questions[1].SectionID = "s2"
+	if _, err := service.SetPublication(context.Background(), admin(), "m", 1, true); err != nil {
+		t.Fatalf("complete sections must publish: %v", err)
 	}
 }

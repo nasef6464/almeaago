@@ -42,6 +42,7 @@ type StudyPlanContentResolver interface {
 
 type StudyPlanAssessmentResolver interface {
 	ListStudyPlanResources(context.Context, string, string, []string, []string, int) ([]assessment.StudyPlanResource, error)
+	CompletedStudyPlanAssessments(context.Context, string, []string) (map[string]bool, error)
 }
 
 type StudyPlanService struct {
@@ -624,12 +625,20 @@ func (s *StudyPlanService) hydrate(
 		assessmentByID[item.PlacementID] = item
 	}
 	refs := make([]learning.StudyPlanLessonRef, 0)
+	assessmentRefs := make([]string, 0)
 	for _, item := range plan.Items {
 		if item.ItemType == learning.StudyPlanLesson {
 			refs = append(refs, learning.StudyPlanLessonRef{LessonID: item.LessonID, CourseID: item.CourseID})
 		}
+		if item.ItemType == learning.StudyPlanAssessment && item.AssessmentPlacementID != "" {
+			assessmentRefs = append(assessmentRefs, item.AssessmentPlacementID)
+		}
 	}
 	completedLessons, err := s.repo.CompletedStudyPlanLessons(ctx, student, refs)
+	if err != nil {
+		return plan, err
+	}
+	completedAssessments, err := s.assessments.CompletedStudyPlanAssessments(ctx, student, assessmentRefs)
 	if err != nil {
 		return plan, err
 	}
@@ -638,6 +647,7 @@ func (s *StudyPlanService) hydrate(
 		item.Available = false
 		switch item.ItemType {
 		case learning.StudyPlanLesson:
+			item.Completed = completedLessons[item.LessonID+":"+item.CourseID]
 			if resource, ok := contentByKey["lesson:"+item.LessonID+":"+item.CourseID]; ok {
 				item.Title = resource.Title
 				item.Completed = completedLessons[item.LessonID+":"+item.CourseID]
@@ -650,6 +660,7 @@ func (s *StudyPlanService) hydrate(
 				item.Available = true
 			}
 		case learning.StudyPlanAssessment:
+			item.Completed = completedAssessments[item.AssessmentPlacementID]
 			if resource, ok := assessmentByID[item.AssessmentPlacementID]; ok {
 				item.Title = resource.Title
 				item.Completed = resource.Completed

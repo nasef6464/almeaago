@@ -10,6 +10,7 @@ import (
 )
 
 type pathPresRaw struct {
+	IsVisible        *bool                 `json:"isVisible,omitempty"`
 	Color            string                `json:"color,omitempty"`
 	Icon             string                `json:"icon,omitempty"`
 	IconURL          string                `json:"iconUrl,omitempty"`
@@ -23,11 +24,13 @@ type pathPresRaw struct {
 }
 
 type levelPresRaw struct {
-	Icon    string `json:"icon,omitempty"`
-	IconURL string `json:"iconUrl,omitempty"`
+	IsVisible *bool  `json:"isVisible,omitempty"`
+	Icon      string `json:"icon,omitempty"`
+	IconURL   string `json:"iconUrl,omitempty"`
 }
 
 type subjectPresRaw struct {
+	IsVisible *bool          `json:"isVisible,omitempty"`
 	Color     string         `json:"color,omitempty"`
 	Icon      string         `json:"icon,omitempty"`
 	IconURL   string         `json:"iconUrl,omitempty"`
@@ -68,6 +71,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 		if len(presBytes) > 0 {
 			var pres pathPresRaw
 			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.IsVisible = pres.IsVisible
 				row.Color = pres.Color
 				row.Icon = pres.Icon
 				row.IconURL = pres.IconURL
@@ -108,6 +112,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 		if len(presBytes) > 0 {
 			var pres levelPresRaw
 			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.IsVisible = pres.IsVisible
 				row.Icon = pres.Icon
 				row.IconURL = pres.IconURL
 			}
@@ -142,6 +147,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 		if len(presBytes) > 0 {
 			var pres subjectPresRaw
 			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.IsVisible = pres.IsVisible
 				row.Color = pres.Color
 				row.Icon = pres.Icon
 				row.IconURL = pres.IconURL
@@ -158,17 +164,22 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	subjectRows.Close()
 
 	if !includeSkills {
-		return result, nil
+		return filterPublicVisibility(result), nil
+	}
+	result.Sections, err = r.skillSections(ctx, false)
+	if err != nil {
+		return result, err
 	}
 
 	skillRows, err := r.db.Query(ctx, `
 		SELECT sk.id::text, sk.subject_id::text, COALESCE(sk.parent_skill_id::text, ''),
-		       sk.code, sk.name, sk.description, sk.kind, sk.sort_order
+		       sk.code, sk.name, sk.description, sk.kind, sk.sort_order, COALESCE(sec.id::text, '')
 		FROM skills sk
 		JOIN subjects s ON s.id = sk.subject_id AND s.status = 'active'
 		JOIN paths p ON p.id = s.path_id AND p.status = 'active'
 		LEFT JOIN levels l ON l.id = s.level_id AND l.path_id = s.path_id
 		LEFT JOIN skills parent ON parent.id = sk.parent_skill_id
+		LEFT JOIN taxonomy_skill_sections sec ON sec.id = COALESCE(sk.section_id, parent.section_id) AND sec.subject_id = sk.subject_id AND sec.status = 'active'
 		WHERE sk.status = 'active'
 		  AND (s.level_id IS NULL OR l.status = 'active')
 		  AND (sk.parent_skill_id IS NULL OR
@@ -181,7 +192,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	defer skillRows.Close()
 	for skillRows.Next() {
 		var row taxonomy.Skill
-		if err := skillRows.Scan(&row.ID, &row.SubjectID, &row.ParentSkillID, &row.Code, &row.Name, &row.Description, &row.Kind, &row.SortOrder); err != nil {
+		if err := skillRows.Scan(&row.ID, &row.SubjectID, &row.ParentSkillID, &row.Code, &row.Name, &row.Description, &row.Kind, &row.SortOrder, &row.SectionID); err != nil {
 			return result, err
 		}
 		result.Skills = append(result.Skills, row)
@@ -189,7 +200,7 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	if err := skillRows.Err(); err != nil {
 		return result, err
 	}
-	return result, nil
+	return filterPublicVisibility(result), nil
 }
 
 func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, error) {
@@ -216,6 +227,7 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 		if len(presBytes) > 0 {
 			var pres pathPresRaw
 			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.IsVisible = pres.IsVisible
 				row.Color = pres.Color
 				row.Icon = pres.Icon
 				row.IconURL = pres.IconURL
@@ -254,6 +266,7 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 		if len(presBytes) > 0 {
 			var pres levelPresRaw
 			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.IsVisible = pres.IsVisible
 				row.Icon = pres.Icon
 				row.IconURL = pres.IconURL
 			}
@@ -284,6 +297,7 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 		if len(presBytes) > 0 {
 			var pres subjectPresRaw
 			if err := json.Unmarshal(presBytes, &pres); err == nil {
+				row.IsVisible = pres.IsVisible
 				row.Color = pres.Color
 				row.Icon = pres.Icon
 				row.IconURL = pres.IconURL
@@ -299,11 +313,15 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 	}
 	subjectRows.Close()
 
+	result.Sections, err = r.skillSections(ctx, true)
+	if err != nil {
+		return result, err
+	}
 	skillRows, err := r.db.Query(ctx, `
-		SELECT id::text, subject_id::text, COALESCE(parent_skill_id::text, ''),
-		       code, name, description, kind, sort_order, status
-		FROM skills
-		ORDER BY subject_id, kind, sort_order, id
+		SELECT sk.id::text, sk.subject_id::text, COALESCE(sk.parent_skill_id::text, ''),
+		       sk.code, sk.name, sk.description, sk.kind, sk.sort_order, sk.status, COALESCE(sk.section_id::text, parent.section_id::text, '')
+		FROM skills sk LEFT JOIN skills parent ON parent.id=sk.parent_skill_id AND parent.subject_id=sk.subject_id
+		ORDER BY sk.subject_id, sk.kind, sk.sort_order, sk.id
 	`)
 	if err != nil {
 		return result, err
@@ -311,7 +329,7 @@ func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, er
 	defer skillRows.Close()
 	for skillRows.Next() {
 		var row taxonomy.Skill
-		if err := skillRows.Scan(&row.ID, &row.SubjectID, &row.ParentSkillID, &row.Code, &row.Name, &row.Description, &row.Kind, &row.SortOrder, &row.Status); err != nil {
+		if err := skillRows.Scan(&row.ID, &row.SubjectID, &row.ParentSkillID, &row.Code, &row.Name, &row.Description, &row.Kind, &row.SortOrder, &row.Status, &row.SectionID); err != nil {
 			return result, err
 		}
 		result.Skills = append(result.Skills, row)
