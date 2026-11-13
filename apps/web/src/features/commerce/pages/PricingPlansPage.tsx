@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '../../auth/state/AuthProvider';
+import { commerceClient } from '../api/commerce-client';
 import {
   BILLING_CYCLES,
   MEMBERSHIP_TIERS,
@@ -35,7 +36,7 @@ import {
 } from '../api/membership-types';
 
 export const PricingPlansPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, getCsrfToken } = useAuth();
   const navigate = useNavigate();
 
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('annual');
@@ -47,8 +48,14 @@ export const PricingPlansPage: React.FC = () => {
 
   const handleRedeemCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!accessCode.trim()) {
+    const code = accessCode.trim();
+    if (!code) {
       setRedeemError('الرجاء إدخال رمز تفعيل صحيح.');
+      return;
+    }
+    if (!user) {
+      setRedeemError('سجّل الدخول أولاً ثم أدخل رمز التفعيل.');
+      navigate('/login');
       return;
     }
 
@@ -57,22 +64,18 @@ export const PricingPlansPage: React.FC = () => {
     setRedeemSuccess(null);
 
     try {
-      // Simulate/call voucher endpoint
-      await new Promise((resolve) => setTimeout(resolve, 600));
-
-      const codeNormalized = accessCode.trim().toUpperCase();
-      if (codeNormalized.startsWith('SCH-') || codeNormalized.startsWith('B2B-') || codeNormalized.includes('SCHOOL')) {
-        setRedeemSuccess(
-          'تهانينا! تم تفعيل كود المدرسة بنجاح ورُبط حسابك بمدرستك الشريكة مع صلاحيات كاملة لمسارات القدرات وبنك الأسئلة.'
-        );
-      } else if (codeNormalized.startsWith('VIP') || codeNormalized.startsWith('DIAMOND')) {
-        setRedeemSuccess('رائع! تم تفعيل كود العضوية الماسية VIP لمدة عام كامل.');
-      } else {
-        setRedeemSuccess('تم تفعيل رمز الوصول بنجاح! تم فتح المحتوى التعليمي المصرح به.');
-      }
+      // Real server redemption: it validates the code, consumes a use and
+      // issues the canonical entitlement. Nothing is granted locally.
+      const csrf = await getCsrfToken();
+      const result = await commerceClient.redeemAccessCode(code, csrf);
+      setRedeemSuccess('تم تفعيل رمز الوصول بنجاح. أصبح المحتوى المصرح به متاحاً لحسابك.');
       setAccessCode('');
-    } catch (err: any) {
-      setRedeemError(err?.message || 'تعذر التحقق من رمز التفعيل. يرجى التأكد من الرمز وإعادة المحاولة.');
+    } catch (err) {
+      setRedeemError(
+        err instanceof Error
+          ? err.message
+          : 'تعذر التحقق من رمز التفعيل. يرجى التأكد من الرمز وإعادة المحاولة.'
+      );
     } finally {
       setRedeemLoading(false);
     }

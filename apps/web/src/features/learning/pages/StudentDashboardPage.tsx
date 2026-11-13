@@ -97,6 +97,10 @@ export function StudentDashboardPage() {
   const [loadingData, setLoadingData] = useState(false);
 
   useEffect(() => {
+    if (loading || !user || !user.roles.includes('student')) {
+      setLoadingData(false);
+      return;
+    }
     let active = true;
     const controller = new AbortController();
     setLoadingData(true);
@@ -119,19 +123,9 @@ export function StudentDashboardPage() {
       active = false;
       controller.abort();
     };
-  }, []);
+  }, [loading, user]);
 
-  const studentUser = user && user.roles.includes('student')
-    ? user
-    : user
-    ? null
-    : {
-        id: 'demo-student-id',
-        name: 'طالب منصة المعا',
-        email: 'student@almeaa.edu.sa',
-        roles: ['student'],
-        avatarUrl: '',
-      };
+  const studentUser = user && user.roles.includes('student') ? user : null;
 
   const copyParentCode = useCallback(() => {
     const code = String(studentUser?.id || user?.id || 'ALM892').slice(-6).toUpperCase();
@@ -142,8 +136,37 @@ export function StudentDashboardPage() {
     setTimeout(() => setCopiedCode(false), 2000);
   }, [studentUser?.id, user?.id]);
 
+  if (loading) {
+    return (
+      <main dir="rtl" className="p-10 text-center font-black text-slate-500">
+        جاري التحقق من الحساب...
+      </main>
+    );
+  }
+
+  if (!user) {
+    return (
+      <main dir="rtl" className="mx-auto max-w-lg px-4 py-16 text-center">
+        <h1 className="text-2xl font-black text-slate-900">سجّل الدخول لعرض لوحتك</h1>
+        <p className="mt-2 text-sm font-bold leading-7 text-slate-500">
+          لوحة الطالب تعرض مساراتك ودوراتك ونتائجك، وتحتاج إلى حساب مسجّل.
+        </p>
+        <Link
+          to="/login"
+          className="mt-5 inline-flex rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white"
+        >
+          تسجيل الدخول
+        </Link>
+      </main>
+    );
+  }
+
   if (!studentUser) {
-    return <main dir="rtl" className="p-10 text-center font-black text-rose-700">هذه الصفحة مخصصة للطالب.</main>;
+    return (
+      <main dir="rtl" className="p-10 text-center font-black text-rose-700">
+        هذه الصفحة مخصصة للطالب.
+      </main>
+    );
   }
 
   const initials = studentUser.name

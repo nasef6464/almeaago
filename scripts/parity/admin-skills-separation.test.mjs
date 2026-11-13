@@ -63,6 +63,8 @@ function load(relative, initialStates = []) {
       isHomepageLocation: () => false, isPlatformFontsLocation: () => false,
       buildHomepageHref: () => '/admin-dashboard?tab=homepage', buildPlatformFontsHref: () => '/admin-dashboard?tab=platform-fonts',
     };
+    if (id.endsWith('/SharedVideoPlayer')) return { SharedVideoPlayer: () => null, resolveVideoSource: () => null };
+    if (id.endsWith('/lib/questionHtml')) return { normalizeQuestionHtml: (value) => value ?? '' };
     return require(id);
   };
   const module = { exports: {} };

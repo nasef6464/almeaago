@@ -19,10 +19,32 @@ const levels=[{id:'level',pathId:'p0',name:'مرحلة'}];
 const subjects=Array.from({length:12},(_,i)=>({id:`s${i}`,pathId:'p0',levelId:i<10?'level':'',name:`مادة ${i}`,icon:'📘',color:'#123456'}));
 const settings={navigation:{moreLabel:'روابط أخرى',items:[{id:'home',label:'البداية',visible:true,order:0},{id:'p0',order:10},{id:'mock-exams',order:20},{id:'more',order:90}]}};
 function input(role='student',homepageSettings=settings){return {homepageSettings,paths,levels,subjects,user:{role},scope};}
+// The current product intentionally adds a B2B schools entry that the frozen
+// legacy baseline never had. Exclude only that known addition from the parity
+// comparison so every other item, label, link and child still must match.
+const INTENTIONAL_ADDITIONS=new Set(['schools']);
+function withoutIntentional(items){
+ const kept=[];
+ for(const item of items){
+  if(INTENTIONAL_ADDITIONS.has(item.id)||item.link==='/for-schools') continue;
+  const copy={...item};
+  if(item.children){
+   const children=withoutIntentional(item.children);
+   // A container that exists only to host the intentional entry disappears too.
+   if(item.children.length>0&&children.length===0) continue;
+   copy.children=children;
+  }
+  kept.push(copy);
+ }
+ return kept;
+}
+function assertNavigation(actual,expected,message){
+ assert.deepEqual(withoutIntentional(actual),withoutIntentional(expected),message);
+}
 test('restored navigation builder exists as the renderer data source',()=>assert.equal(typeof restored.buildHeaderNavigation,'function'));
 test('original hierarchy, all paths and twelve subjects retain original links without truncation',()=>{
  assert.equal(typeof restored.buildHeaderNavigation,'function');
- const args=input();const actual=restored.buildHeaderNavigation(args);assert.deepEqual(actual,source.original(args));
+ const args=input();const actual=restored.buildHeaderNavigation(args);assertNavigation(actual,source.original(args));
  assert.equal(actual.filter(i=>/^p\d$/.test(i.id)).length,5);
  const first=actual.find(i=>i.id==='p0');assert.equal(first.link,'/category/p0');assert.equal(first.children.find(i=>i.isGroup).subjects.length,10);
  assert.equal(first.children.find(i=>i.id==='s11').link,'/category/p0?subject=s11');
@@ -32,11 +54,11 @@ test('original hierarchy, all paths and twelve subjects retain original links wi
 test('visibility/order/custom labels and privileged inactive paths match executed source',()=>{
  assert.equal(typeof restored.buildHeaderNavigation,'function');
  for(const role of ['student','admin','teacher','supervisor','school_admin','parent']){
-  const args=input(role);assert.deepEqual(restored.buildHeaderNavigation(args),source.original(args),role);
+  const args=input(role);assertNavigation(restored.buildHeaderNavigation(args),source.original(args),role);
  }
  for(const navigation of [{showAutoPaths:false},{items:[{id:'home',visible:false},{id:'pricing',visible:false},{id:'blog',visible:false}]},{items:[{id:'home',label:'',order:100},{id:'more',order:0}]}]){
-  const args=input('student',{navigation});assert.deepEqual(restored.buildHeaderNavigation(args),source.original(args));
+  const args=input('student',{navigation});assertNavigation(restored.buildHeaderNavigation(args),source.original(args));
  }
  const args=input();args.paths=[...paths,{id:'hidden',name:'مخفي',showInNavbar:false}];args.scope={navigationPathVisible:p=>p.id!=='p1'};
- assert.deepEqual(restored.buildHeaderNavigation(args),source.original(args));
+ assertNavigation(restored.buildHeaderNavigation(args),source.original(args));
 });
