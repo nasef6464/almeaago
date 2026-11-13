@@ -194,7 +194,8 @@ function ReviewQuestionCard({
       ) : null}
 
       <div className={`mt-4 grid gap-2 ${imageEmbeddedOptions ? 'grid-cols-4' : ''}`}>
-        {question.options.map((option) => {
+        {question.options.map((option, displayIndex) => {
+          const labelIndex = imageEmbeddedOptions ? option.index : displayIndex;
           const selected = question.selectedOptionIndex === option.index;
           const correct =
             detail.showAnswers && question.correctOptionIndex === option.index;
@@ -212,14 +213,14 @@ function ReviewQuestionCard({
               }`}
             >
               {imageEmbeddedOptions || question.learnerPresentation?.showOptionLabels !== false ? <span className="ml-2 inline-block min-w-7 rounded-lg bg-white p-1 text-center">
-                {optionLabel(option.index, question.learnerPresentation, imageEmbeddedOptions ? option.text : undefined, imageEmbeddedOptions && question.options.some(item => /^[a-d]$/i.test(item.text.trim())))}
+                {optionLabel(labelIndex, question.learnerPresentation, imageEmbeddedOptions ? option.text : undefined, imageEmbeddedOptions && question.options.some(item => /^[a-d]$/i.test(item.text.trim())))}
               </span> : null}
               {!imageEmbeddedOptions && showOptionText(question.learnerPresentation, false) ? option.text : ''}
               {!imageEmbeddedOptions && option.assetId ? (
                 <div className="mt-2 rounded-xl bg-white p-3">
                   <QuestionAssetImage
                     assetId={option.assetId}
-                    alt={`صورة الخيار ${optionLabel(option.index, question.learnerPresentation)}`}
+                    alt={`صورة الخيار ${optionLabel(labelIndex, question.learnerPresentation)}`}
                     onZoom={onZoomImage}
                   />
                 </div>

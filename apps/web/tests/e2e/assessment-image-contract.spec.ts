@@ -39,3 +39,12 @@ test('public barcode displays image and labels only',async({page})=>{
   await expect(page.getByRole('button',{name:'A',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'B',exact:true})).toBeVisible();
 });
+
+test('review labels follow shuffled display order while answer identity stays unchanged',async({page})=>{
+  await auth(page);
+  const question={...imageQuestion,imageUrl:'',imageAssetId:'',text:'سؤال نصي',passage:'',learnerPresentation:{optionLabelStyle:'latin',showOptionText:true,showOptionLabels:true},options:[{index:1,text:'الخيار الثاني',assetId:''},{index:0,text:'الخيار الأول',assetId:''}],questionId:'q1',questionVersion:1,selectedOptionIndex:1,correctOptionIndex:0,answered:true,correct:false,markedForReview:false,timeSpentSeconds:1};
+  await page.route('**/api/v1/assessment-attempts/attempt-1/review',r=>r.fulfill({json:{detail:{result,assessmentId:'a1',assessmentVersion:1,title:'اختبار',attemptNumber:1,allowQuestionReview:true,showAnswers:true,showExplanations:true,showResultsReport:true,questions:[question]}}}));
+  await page.goto('/assessment-results/attempt-1',{waitUntil:'domcontentloaded'});
+  await expect(page.locator('div').filter({hasText:/^A\s*الخيار الثاني\s*اختيارك$/}).last()).toBeVisible();
+  await expect(page.locator('div').filter({hasText:/^B\s*الخيار الأول\s*الإجابة الصحيحة$/}).last()).toBeVisible();
+});
