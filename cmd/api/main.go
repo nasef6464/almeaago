@@ -16,6 +16,7 @@ import (
 	airepo "github.com/nasef6464/almeaago/internal/ai/repository/postgres"
 	aihttp "github.com/nasef6464/almeaago/internal/ai/transport/http"
 	assessmentapp "github.com/nasef6464/almeaago/internal/assessment/application"
+	assessmentcatalog "github.com/nasef6464/almeaago/internal/assessment/catalog"
 	assessmentrepo "github.com/nasef6464/almeaago/internal/assessment/repository/postgres"
 	assessmenthttp "github.com/nasef6464/almeaago/internal/assessment/transport/http"
 	commerceapp "github.com/nasef6464/almeaago/internal/commerce/application"
@@ -30,6 +31,8 @@ import (
 	contentapp "github.com/nasef6464/almeaago/internal/content/application"
 	contentrepo "github.com/nasef6464/almeaago/internal/content/repository/postgres"
 	contenthttp "github.com/nasef6464/almeaago/internal/content/transport/http"
+	discoveryapp "github.com/nasef6464/almeaago/internal/discovery/application"
+	discoveryhttp "github.com/nasef6464/almeaago/internal/discovery/transport/http"
 	"github.com/nasef6464/almeaago/internal/identity/application"
 	googleprovider "github.com/nasef6464/almeaago/internal/identity/provider/google"
 	whatsappprovider "github.com/nasef6464/almeaago/internal/identity/provider/whatsapp"
@@ -171,6 +174,16 @@ func main() {
 	questionRepository := questionrepo.New(db, auditWriter)
 	questionService := questionapp.NewServiceWithAuthorScope(questionRepository, authorScope)
 	classroomQuestionReader := questionapp.NewClassroomReader(questionRepository)
+
+	// Public discovery is a read-only composition over Content, Question Bank and
+	// the published Assessment catalog. It must never grant access to protected
+	// content: it only returns bounded previews and canonical destinations.
+	discoveryService := discoveryapp.NewService(contentRepository, questionRepository)
+	discoveryHandler := discoveryhttp.New(discoveryService)
+	publicArticlesHandler := discoveryhttp.NewArticles(discoveryapp.NewArticleService(contentRepository))
+	publicMockCatalogHandler := assessmentcatalog.NewHandler(
+		assessmentcatalog.NewService(assessmentcatalog.NewPostgres(db)),
+	)
 	schoolContractService := orgapp.NewSchoolContractService(organizationsRepository)
 	schoolInquiryService := orgapp.NewSchoolInquiryService(organizationsRepository)
 	realtimeRepository := realtimerepo.New(db, auditWriter)
@@ -324,6 +337,7 @@ func main() {
 
 	server := httpserver.New(cfg.HTTPAddr, httpserver.Dependencies{
 		Logger:                   logger,
+		AllowedOrigins:           cfg.WebOrigin,
 		DB:                       db,
 		Redis:                    redisClient,
 		Identity:                 identityHandler,
@@ -359,6 +373,9 @@ func main() {
 		AI:                       aiHandler,
 		Commerce:                 commerceHandler,
 		LegacySchoolAccess:       legacySchoolAccessHandler,
+		Search:                   discoveryHandler,
+		PublicArticles:           publicArticlesHandler,
+		PublicMockExams:          publicMockCatalogHandler,
 	})
 
 	go func() {

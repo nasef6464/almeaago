@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -15,6 +16,7 @@ import (
 
 type Dependencies struct {
 	Logger                   *slog.Logger
+	AllowedOrigins           string
 	DB                       *pgxpool.Pool
 	Redis                    *redis.Client
 	Identity                 http.Handler
@@ -62,6 +64,8 @@ func New(addr string, deps Dependencies) *http.Server {
 		middleware.RealIP,
 		middleware.Recoverer,
 		middleware.Compress(5),
+		securityHeaders,
+		corsAllowList(deps.AllowedOrigins),
 		requestLogger(deps.Logger),
 	)
 
@@ -213,6 +217,65 @@ func New(addr string, deps Dependencies) *http.Server {
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
+	}
+}
+
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		header := w.Header()
+		header.Set("X-Content-Type-Options", "nosniff")
+		header.Set("X-Frame-Options", "DENY")
+		header.Set("Referrer-Policy", "no-referrer")
+		header.Set("Cross-Origin-Resource-Policy", "same-origin")
+		header.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		// The API only emits JSON/CSV; it never renders documents, so the
+		// strictest policy is safe here and blocks injected markup from loading.
+		header.Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+		if r.TLS != nil || strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")), "https") {
+			header.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// corsAllowList only reflects origins explicitly configured for the deployment.
+// The public web app normally proxies /api through its own origin, so this is a
+// narrow allowance for direct-origin tooling rather than a permissive wildcard.
+func corsAllowList(rawOrigins string) func(http.Handler) http.Handler {
+	allowed := make(map[string]struct{})
+	for _, value := range strings.Split(rawOrigins, ",") {
+		origin := strings.TrimRight(strings.TrimSpace(value), "/")
+		if origin != "" {
+			allowed[origin] = struct{}{}
+		}
+	}
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := strings.TrimSpace(r.Header.Get("Origin"))
+			normalized := strings.TrimRight(origin, "/")
+			_, originAllowed := allowed[normalized]
+
+			if origin != "" && originAllowed {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Add("Vary", "Origin")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, X-CSRF-Token, X-Request-Id")
+				w.Header().Set("Access-Control-Max-Age", "600")
+			}
+
+			if r.Method == http.MethodOptions {
+				if origin != "" && !originAllowed {
+					http.Error(w, "origin not allowed", http.StatusForbidden)
+					return
+				}
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
 	}
 }
 
