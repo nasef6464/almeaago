@@ -789,7 +789,7 @@ export function TaxonomyAdminPage() {
         />
 
         {/* Feedback Messages */}
-        {error && !isPathModalOpen && !isLevelModalOpen && !isSubjectModalOpen ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 font-bold text-rose-700">{error}</div> : null}
+        {error && !isPathModalOpen && !isLevelModalOpen && !isSubjectModalOpen && !deleteConfirm?.open ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 font-bold text-rose-700">{error}</div> : null}
         {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 font-bold text-emerald-700">{notice}</div> : null}
 
         {/* Subject Workspace Tabs */}
@@ -1596,7 +1596,7 @@ export function TaxonomyAdminPage() {
       </header>
 
       {/* ── Feedback Banners ── */}
-      {error && !isPathModalOpen && !isLevelModalOpen && !isSubjectModalOpen ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 font-bold text-rose-700">{error}</div> : null}
+      {error && !isPathModalOpen && !isLevelModalOpen && !isSubjectModalOpen && !deleteConfirm?.open ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 font-bold text-rose-700">{error}</div> : null}
       {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 font-bold text-emerald-700">{notice}</div> : null}
       {busy ? (
         <div className="flex items-center justify-center gap-2 rounded-2xl border bg-white p-8 font-black text-gray-500">
