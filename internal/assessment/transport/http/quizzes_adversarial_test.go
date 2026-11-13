@@ -102,6 +102,15 @@ type mockAdversarialAttemptRepo struct {
 func (m *mockAdversarialAttemptRepo) GetPublishedAccessContext(context.Context, string) (assessment.AccessContext, error) {
 	return assessment.AccessContext{AssessmentKind: assessment.KindNormal, BaseAccess: assessment.AccessFree, PathID: "path-1", SubjectID: "subject-1"}, nil
 }
+func (m *mockAdversarialAttemptRepo) DirectPlacementAccessContexts(context.Context, string) (bool, []assessment.AccessContext, error) {
+	return false, nil, nil
+}
+func (m *mockAdversarialAttemptRepo) GetSingleShotAccessContext(context.Context, string) (assessment.AccessContext, bool, error) {
+	return assessment.AccessContext{AssessmentKind: assessment.KindNormal, BaseAccess: assessment.AccessFree}, false, nil
+}
+func (m *mockAdversarialAttemptRepo) FindSingleShotResult(context.Context, string, string, string) (assessment.ResultDetail, bool, error) {
+	return assessment.ResultDetail{}, false, nil
+}
 func (m *mockAdversarialAttemptRepo) FindDirectStart(context.Context, string, string, string) (assessment.Attempt, bool, error) {
 	return assessment.Attempt{}, false, nil
 }
@@ -307,4 +316,3 @@ func TestChallenge_SingleShotSubmit_ConcurrentDuplicateKeyIdempotency(t *testing
 		}
 	}
 }
-

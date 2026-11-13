@@ -20,6 +20,7 @@ function render(brand,user=null){
     if(id.startsWith('./dependencies/'))return {[id.split('/').pop()]:()=>null};
     if(id==='./navigation')return {buildHeaderNavigation:()=>[]};
     if(id.includes('homepageSanitizer'))return {};
+    if(id.includes('StudentMembershipBadge'))return {StudentMembershipBadge:()=>null};
     return require(id);
   };
   new Function('require','module','exports',ts.transpileModule(source,{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS}}).outputText)(resolve,mod,mod.exports);

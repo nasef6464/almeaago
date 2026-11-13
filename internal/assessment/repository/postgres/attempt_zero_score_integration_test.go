@@ -80,4 +80,22 @@ INSERT INTO assessment_answers(attempt_id,question_id,question_version,selected_
 			t.Fatalf("unexpected result: %+v", result)
 		}
 	}
+	if _, err = db.Exec(ctx, `INSERT INTO assessment_attempts(id,student_id,assessment_id,assessment_version,status,expires_at) VALUES
+('00000000-0000-0000-0000-000000000013','00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000003',1,'in_progress',now()-interval '1 minute'),
+('00000000-0000-0000-0000-000000000014','00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000003',1,'expired',now()-interval '1 minute');
+INSERT INTO assessment_answers(attempt_id,question_id,question_version,selected_option_index,time_spent_seconds) VALUES
+('00000000-0000-0000-0000-000000000013','00000000-0000-0000-0000-000000000004',1,1,1),
+('00000000-0000-0000-0000-000000000014','00000000-0000-0000-0000-000000000004',1,1,1);`); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"00000000-0000-0000-0000-000000000013", "00000000-0000-0000-0000-000000000014"} {
+		result, err := New(db, zeroScoreAudit{}).Submit(ctx, "00000000-0000-0000-0000-000000000001", id, "expired-"+id)
+		if err != nil || result.Score != 100 {
+			t.Fatalf("expired attempt must score saved answers: %+v %v", result, err)
+		}
+		retry, err := New(db, zeroScoreAudit{}).Submit(ctx, "00000000-0000-0000-0000-000000000001", id, "expired-"+id)
+		if err != nil || retry.AttemptID != result.AttemptID {
+			t.Fatalf("retry must be idempotent: %+v %v", retry, err)
+		}
+	}
 }

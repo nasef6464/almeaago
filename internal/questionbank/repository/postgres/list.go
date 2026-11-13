@@ -292,7 +292,7 @@ func buildListFilters(query question.ListQuery) ([]string, []any) {
 		}
 	}
 	if query.Difficulty != "" {
-		add("qv.difficulty=$%d", query.Difficulty)
+		add("lower(qv.difficulty)=lower($%d)", query.Difficulty)
 	}
 	if query.QuestionType != "" {
 		add("qv.question_type=$%d", string(query.QuestionType))

@@ -126,3 +126,50 @@ func TestCommerceAccessErrorsFailClosed(t *testing.T) {
 		t.Fatalf("expected fail-closed commerce error allowed=%v err=%v", allowed, err)
 	}
 }
+
+// Base and placement policies are evaluated independently here. The service
+// must additionally gate direct access through the current visible placements.
+func TestFreeBaseAndPackagePlacementPoliciesRemainDistinct(t *testing.T) {
+	scope := assessment.AccessContext{AssessmentKind: assessment.KindNormal, BaseAccess: assessment.AccessFree, PlacementSlot: assessment.PlacementTraining, PlacementAccess: assessment.PlacementAccessPackage, PathID: "path-1", SubjectID: "subject-1"}
+	resolver := &recordingCommerceAccess{commerceAccessStub: commerceAccessStub{allowed: false, reason: "package_required"}}
+	placementAllowed, _, err := resolvePlacementAssessmentAccess(context.Background(), resolver, "student-1", scope)
+	if err != nil || placementAllowed {
+		t.Fatalf("unsubscribed learner must be denied at package placement: allowed=%v err=%v", placementAllowed, err)
+	}
+	directAllowed, reason, err := resolveDirectAssessmentAccess(context.Background(), resolver, "student-1", scope)
+	if err != nil || !directAllowed || reason != "free_assessment" {
+		t.Fatalf("current independent direct policy changed: allowed=%v reason=%q err=%v", directAllowed, reason, err)
+	}
+}
+
+func TestTrainingPlacementUsesTrainingPackageScope(t *testing.T) {
+	resolver := &recordingCommerceAccess{commerceAccessStub: commerceAccessStub{allowed: true, reason: "user_entitlement"}}
+	scope := assessment.AccessContext{AssessmentKind: assessment.KindNormal, PlacementSlot: assessment.PlacementTraining, PlacementAccess: assessment.PlacementAccessPackage, PathID: "path-1", SubjectID: "subject-1"}
+	allowed, _, err := resolvePlacementAssessmentAccess(context.Background(), resolver, "student-1", scope)
+	if err != nil || !allowed || !resolver.packageOnly || resolver.contentType != commerce.ContentBanks {
+		t.Fatalf("training package scope: allowed=%v type=%q packageOnly=%v err=%v", allowed, resolver.contentType, resolver.packageOnly, err)
+	}
+}
+
+func TestAssessmentPlacementUsesItsLearningContentScope(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		slot assessment.PlacementSlot
+		kind assessment.Kind
+		want commerce.ContentType
+	}{
+		{"foundation", assessment.PlacementFoundation, assessment.KindNormal, commerce.ContentFoundation},
+		{"course", assessment.PlacementCourse, assessment.KindNormal, commerce.ContentCourses},
+		{"tests", assessment.PlacementTests, assessment.KindNormal, commerce.ContentTests},
+		{"mock priority", assessment.PlacementFoundation, assessment.KindMock, commerce.ContentMockExams},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resolver := &recordingCommerceAccess{commerceAccessStub: commerceAccessStub{allowed: true}}
+			scope := assessment.AccessContext{AssessmentKind: tc.kind, PlacementSlot: tc.slot, PlacementAccess: assessment.PlacementAccessPackage, PathID: "path", SubjectID: "subject"}
+			_, _, err := resolvePlacementAssessmentAccess(context.Background(), resolver, "student", scope)
+			if err != nil || resolver.contentType != tc.want {
+				t.Fatalf("got=%s want=%s err=%v", resolver.contentType, tc.want, err)
+			}
+		})
+	}
+}

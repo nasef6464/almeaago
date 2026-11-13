@@ -234,7 +234,7 @@ func (r *Repository) CacheEntry(
 	var out ai.CacheEntry
 	err := r.db.QueryRow(ctx, `
 		SELECT
-			cache_key,user_id::text,review_card_id::text,question_id::text,question_version,
+			cache_key,user_id::text,COALESCE(review_card_id::text,''),question_id::text,question_version,
 			help_level,prompt_version,response_text,provider,model,expires_at,created_at,updated_at
 		FROM ai_question_assist_cache
 		WHERE cache_key=$1 AND expires_at>$2
@@ -262,7 +262,7 @@ func (r *Repository) PutCacheEntry(ctx context.Context, entry ai.CacheEntry) err
 			cache_key,user_id,review_card_id,question_id,question_version,help_level,
 			prompt_version,response_text,provider,model,expires_at
 		) VALUES(
-			$1,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7,$8,$9,$10,$11
+			$1,$2::uuid,NULLIF($3,'')::uuid,$4::uuid,$5,$6,$7,$8,$9,$10,$11
 		)
 		ON CONFLICT(cache_key) DO UPDATE SET
 			response_text=EXCLUDED.response_text,

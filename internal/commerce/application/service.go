@@ -114,11 +114,11 @@ func normalizePackageItems(items []commerce.PackageItem) ([]commerce.PackageItem
 				return nil, ErrInvalidInput
 			}
 		case commerce.ScopePath:
-			if item.PathID == "" || item.CourseID != "" || item.SubjectID != "" || item.ContentType != "" {
+			if item.PathID == "" || item.CourseID != "" || item.SubjectID != "" || (item.ContentType != "" && !commerce.ValidContentType(item.ContentType)) {
 				return nil, ErrInvalidInput
 			}
 		case commerce.ScopeSubject:
-			if item.SubjectID == "" || item.CourseID != "" || item.PathID != "" || item.ContentType != "" {
+			if item.SubjectID == "" || item.CourseID != "" || item.PathID != "" || (item.ContentType != "" && !commerce.ValidContentType(item.ContentType)) {
 				return nil, ErrInvalidInput
 			}
 		case commerce.ScopeContentType:
