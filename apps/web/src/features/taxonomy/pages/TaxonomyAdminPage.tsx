@@ -352,7 +352,13 @@ export function TaxonomyAdminPage() {
     });
   }, [courses, selectedPath, subjects]);
 
+  // React state updates are asynchronous: two rapid clicks can enter run()
+  // before the pending state disables the confirmation button. A synchronous
+  // guard prevents duplicate archive/restore writes and conflicting statuses.
+  const mutationInFlight = useRef(false);
   async function run(key: string, action: (csrf: string) => Promise<void>, success: string) {
+    if (mutationInFlight.current) return false;
+    mutationInFlight.current = true;
     setPending(key);
     setError('');
     setNotice('');
@@ -366,6 +372,7 @@ export function TaxonomyAdminPage() {
       setError(e instanceof Error ? e.message : 'تعذر تنفيذ عملية التصنيف');
       return false;
     } finally {
+      mutationInFlight.current = false;
       setPending('');
     }
   }
@@ -581,8 +588,9 @@ export function TaxonomyAdminPage() {
     if (!selectedSubject || !skillForm.code.trim() || !skillForm.name.trim()) {
       return setError('أدخل كود واسم المهارة.');
     }
+    let saved: boolean;
     if (editingSkill) {
-      await run(
+      saved = await run(
         'update-skill',
         (csrf) =>
           taxonomyAdminClient
@@ -600,7 +608,7 @@ export function TaxonomyAdminPage() {
         'تم حفظ تعديلات المهارة بنجاح.'
       );
     } else {
-      await run(
+      saved = await run(
         'create-skill',
         (csrf) =>
           taxonomyAdminClient
@@ -620,7 +628,7 @@ export function TaxonomyAdminPage() {
         'تم إنشاء المهارة بنجاح.'
       );
     }
-    setIsSkillModalOpen(false);
+    if (saved) setIsSkillModalOpen(false);
   };
 
   // --- Package Actions ---
@@ -628,7 +636,7 @@ export function TaxonomyAdminPage() {
     if (!selectedPath || !pkgForm.code.trim() || !pkgForm.name.trim()) {
       return setError('أدخل كود واسم الباقة.');
     }
-    await run(
+    const saved = await run(
       'create-package',
       (csrf) =>
         commerceClient
@@ -664,7 +672,7 @@ export function TaxonomyAdminPage() {
           .then(() => undefined),
       'تم إنشاء باقة المسار بنجاح.'
     );
-    setIsPackageModalOpen(false);
+    if (saved) setIsPackageModalOpen(false);
   };
 
   // --- Status Patch ---
@@ -677,11 +685,22 @@ export function TaxonomyAdminPage() {
           : type === 'subject'
             ? taxonomyAdminClient.updateSubject
             : taxonomyAdminClient.updateSkill;
-    await run(
+    return run(
       `status-${type}-${id}`,
       (csrf) => method(id, { status } as never, csrf).then(() => undefined),
       `تم تحديث الحالة إلى «${statusLabels[status]}».`
     );
+  }
+
+  // Status dropdowns must use the same confirmation boundary as archive buttons.
+  // Otherwise selecting "archived" silently bypasses the manager's warning.
+  function requestStatusChange(type: 'path' | 'level' | 'subject' | 'skill', id: string, name: string, status: TaxonomyStatus) {
+    if (status === 'archived') {
+      setError('');
+      setDeleteConfirm({ open: true, type, id, name });
+      return;
+    }
+    void patchStatus(type, id, status);
   }
 
   // Quick Toggle Path Presentation
@@ -1108,7 +1127,7 @@ export function TaxonomyAdminPage() {
                           <StatusSelect
                             label={`حالة مهارة ${sk.name}`}
                             value={sk.status}
-                            onChange={(v) => void patchStatus('skill', sk.id, v)}
+                            onChange={(v) => requestStatusChange('skill', sk.id, sk.name, v)}
                           />
                         </div>
                       </div>
@@ -1752,7 +1771,7 @@ export function TaxonomyAdminPage() {
                     <StatusSelect
                       label={`حالة ${selectedPath.name}`}
                       value={selectedPath.status}
-                      onChange={(v) => void patchStatus('path', selectedPath.id, v)}
+                      onChange={(v) => requestStatusChange('path', selectedPath.id, selectedPath.name, v)}
                     />
                   </div>
                 </div>
@@ -1896,7 +1915,7 @@ export function TaxonomyAdminPage() {
                                 <StatusSelect
                                   label={`حالة ${sub.name}`}
                                   value={sub.status}
-                                  onChange={(v) => void patchStatus('subject', sub.id, v)}
+                                  onChange={(v) => requestStatusChange('subject', sub.id, sub.name, v)}
                                 />
                               </div>
 
@@ -1990,7 +2009,7 @@ export function TaxonomyAdminPage() {
                                 <StatusSelect
                                   label={`حالة ${lvl.name}`}
                                   value={lvl.status}
-                                  onChange={(v) => void patchStatus('level', lvl.id, v)}
+                                  onChange={(v) => requestStatusChange('level', lvl.id, lvl.name, v)}
                                 />
                               </div>
                               <h4 className="text-base font-black text-slate-900">{lvl.name}</h4>
@@ -3090,7 +3109,7 @@ export function TaxonomyAdminPage() {
             ? 'المادة'
             : 'المهارة';
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in" dir="rtl">
+      <div role="dialog" aria-modal="true" aria-label={`تأكيد أرشفة ${typeLabel}`} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in" dir="rtl">
         <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
@@ -3104,22 +3123,23 @@ export function TaxonomyAdminPage() {
           <p className="text-xs leading-6 text-slate-600 font-medium">
             سيتم نقل {typeLabel} إلى الأرشيف وإخفاؤه عن الطلاب والزوار، مع الحفاظ على كل المحتوى والبيانات وسجلات الطلاب التاريخية دون فقدان.
           </p>
+          {error ? <p role="alert" className="rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-700">{error}</p> : null}
           <div className="flex justify-end gap-2 pt-2 border-t">
             <button
               type="button"
+              disabled={busy || pending === `status-${deleteConfirm.type}-${deleteConfirm.id}`}
               onClick={() => setDeleteConfirm(null)}
-              className="rounded-xl border px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-50"
+              className="rounded-xl border px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-50 disabled:opacity-50"
             >
               إلغاء
             </button>
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || pending === `status-${deleteConfirm.type}-${deleteConfirm.id}`}
               onClick={async () => {
                 const target = deleteConfirm;
-                setDeleteConfirm(null);
-                await patchStatus(target.type, target.id, 'archived');
-                setNotice(`تمت أرشفة ${typeLabel} بنجاح`);
+                const saved = await patchStatus(target.type, target.id, 'archived');
+                if (saved) setDeleteConfirm(null);
               }}
               className="rounded-xl bg-rose-600 px-5 py-2 text-xs font-black text-white hover:bg-rose-700 disabled:opacity-50"
             >
