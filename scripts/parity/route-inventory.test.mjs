@@ -34,7 +34,7 @@ test('the reviewed legacy snapshot can be compared to the current Go App route t
   const diff = compareRoutes(legacy.paths, goRoutes);
   assert.equal(legacy.sourceFile, 'app/AppRouteTree.tsx');
   assert.equal(diff.legacyCount, 55);
-  // Refreshed 2026-11-13 against the current App route tree (83 explicit routes).
+  // Refreshed 2026-11-13 against the combined App route tree (85 explicit routes).
   // The legacy baseline stays frozen; only the target-side drift is re-baselined.
   assert.equal(diff.targetCount, 85);
   assert.equal(diff.sharedCount, 41);

@@ -108,6 +108,7 @@ function ReviewQuestionCard({
     if (mdMatch) return mdMatch[1];
     return null;
   }, [question.imageUrl, question.text]);
+  const imageEmbeddedOptions = Boolean(resolvedImageUrl || question.imageAssetId);
 
   return (
     <article className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -148,7 +149,7 @@ function ReviewQuestionCard({
         {saved ? 'تم الحفظ' : saving ? 'جاري الحفظ...' : 'حفظ للمراجعة'}
       </button>
 
-      {question.passage ? (
+      {!imageEmbeddedOptions && question.passage ? (
         <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs leading-relaxed text-amber-950">
           <div className="mb-1.5 flex items-center gap-1.5 font-black text-amber-900">
             <BookOpen size={14} className="text-amber-700" />
@@ -186,13 +187,13 @@ function ReviewQuestionCard({
         </div>
       ) : null}
 
-      {!question.optionsEmbeddedInImage && !question.imageUrl && question.text ? (
+      {!imageEmbeddedOptions && question.text ? (
         <h3 className="mt-3 whitespace-pre-wrap text-base font-black text-gray-900">{question.text}</h3>
-      ) : !question.imageUrl && !question.imageAssetId ? (
+      ) : !resolvedImageUrl && !question.imageAssetId ? (
         <h3 className="mt-3 text-base font-black text-gray-900">{question.text || 'سؤال بصري'}</h3>
       ) : null}
 
-      <div className={`mt-4 grid gap-2 ${question.imageAssetId && question.optionsEmbeddedInImage ? 'grid-cols-4' : ''}`}>
+      <div className={`mt-4 grid gap-2 ${imageEmbeddedOptions ? 'grid-cols-4' : ''}`}>
         {question.options.map((option) => {
           const selected = question.selectedOptionIndex === option.index;
           const correct =
@@ -200,7 +201,7 @@ function ReviewQuestionCard({
           return (
             <div
               key={option.index}
-              className={`rounded-xl border p-3 text-sm font-bold ${question.imageAssetId && question.optionsEmbeddedInImage ? 'text-center' : ''} ${
+              className={`rounded-xl border p-3 text-sm font-bold ${imageEmbeddedOptions ? 'text-center' : ''} ${
                 correct
                   ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
                   : selected && !question.correct
@@ -210,11 +211,11 @@ function ReviewQuestionCard({
                       : 'border-gray-100 bg-gray-50 text-gray-700'
               }`}
             >
-              {question.learnerPresentation?.showOptionLabels !== false ? <span className="ml-2 inline-block min-w-7 rounded-lg bg-white p-1 text-center">
-                {optionLabel(option.index, question.learnerPresentation, question.optionsEmbeddedInImage ? option.text : undefined, question.optionsEmbeddedInImage && question.options.some(item => /^[a-d]$/i.test(item.text.trim())))}
+              {imageEmbeddedOptions || question.learnerPresentation?.showOptionLabels !== false ? <span className="ml-2 inline-block min-w-7 rounded-lg bg-white p-1 text-center">
+                {optionLabel(option.index, question.learnerPresentation, imageEmbeddedOptions ? option.text : undefined, imageEmbeddedOptions && question.options.some(item => /^[a-d]$/i.test(item.text.trim())))}
               </span> : null}
-              {showOptionText(question.learnerPresentation, Boolean(question.imageAssetId && question.optionsEmbeddedInImage)) ? option.text : ''}
-              {!(question.imageAssetId && question.optionsEmbeddedInImage) && option.assetId ? (
+              {!imageEmbeddedOptions && showOptionText(question.learnerPresentation, false) ? option.text : ''}
+              {!imageEmbeddedOptions && option.assetId ? (
                 <div className="mt-2 rounded-xl bg-white p-3">
                   <QuestionAssetImage
                     assetId={option.assetId}
@@ -258,7 +259,7 @@ function ReviewQuestionCard({
         </div>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+      {detail.showAnswers && detail.showExplanations ? <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -291,11 +292,11 @@ function ReviewQuestionCard({
             {showAiAssistant ? 'إخفاء المساعد' : 'اسأل المساعد النصي 💡'}
           </button>
         </div>
-      </div>
+      </div> : null}
 
-      {showAiAssistant ? (
+      {showAiAssistant && detail.showAnswers && detail.showExplanations ? (
         <div className="mt-3">
-          <QuestionAssistantPanel reviewCardId={question.questionId} />
+          <QuestionAssistantPanel questionId={question.questionId} attemptId={detail.result.attemptId} />
         </div>
       ) : null}
     </article>

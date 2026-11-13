@@ -392,6 +392,55 @@ paths:
         "403": { description: Student role/scope or CSRF denied }
         "409": { description: Attempt budget/session state conflict }
 
+  /api/v1/search:
+    get:
+      operationId: publicSearch
+      description: >
+        Bounded public preview search over published courses, lessons and
+        questions. Results are previews plus canonical destinations; this
+        endpoint never grants access to protected content.
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 120 }
+        - in: query
+          name: type
+          schema: { type: string, enum: [all, course, lesson, question], default: all }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 20, default: 20 }
+      responses:
+        "200": { description: Bounded public preview results }
+        "400": { description: Invalid search query }
+        "500": { description: Search unavailable }
+
+  /api/v1/public/articles:
+    get:
+      operationId: publicArticles
+      description: Published public text articles in bounded pages.
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200": { description: Published public articles }
+        "400": { description: Invalid article pagination }
+        "500": { description: Articles unavailable }
+
+  /api/v1/public/mock-exams:
+    get:
+      operationId: publicMockExams
+      description: >
+        Published platform mock assessment summaries. Counts never join
+        question bodies or answer keys.
+      responses:
+        "200": { description: Published mock assessment summaries }
+        "503": { description: Mock catalog unavailable }
+
   /api/v1/public-assessments/{code}/start:
     post:
       operationId: assessmentPublicSessionStart

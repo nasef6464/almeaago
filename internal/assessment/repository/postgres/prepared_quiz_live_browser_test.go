@@ -83,7 +83,7 @@ func TestPreparedQuizLiveBrowser(t *testing.T) {
 	}
 	sort.Strings(files)
 	for _, file := range files {
-		if strings.Compare(filepath.Base(file), "000059_") >= 0 {
+		if strings.Compare(filepath.Base(file), "000061_") >= 0 {
 			continue
 		}
 		sql, e := os.ReadFile(file)
