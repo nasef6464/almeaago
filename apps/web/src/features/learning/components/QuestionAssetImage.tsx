@@ -31,11 +31,13 @@ export function QuestionAssetImage({
   alt,
   className = '',
   onZoom,
+  showRetryButton = true,
 }: {
   assetId: string;
   alt: string;
   className?: string;
   onZoom?: (url: string) => void;
+  showRetryButton?: boolean;
 }) {
   const [retry, setRetry] = useState(0);
   const [state, setState] = useState<ImageState | null>(null);
@@ -83,9 +85,11 @@ export function QuestionAssetImage({
     return (
       <span className="block rounded-xl border border-amber-200 bg-amber-50 p-3 text-center text-xs font-bold text-amber-800">
         <span className="block">تعذر تحميل {alt}</span>
-        <button type="button" className="mt-2 rounded-lg border border-amber-300 bg-white px-3 py-1" onClick={() => setRetry(value => value + 1)}>
-          إعادة تحميل الصورة
-        </button>
+        {showRetryButton ? (
+          <button type="button" className="mt-2 rounded-lg border border-amber-300 bg-white px-3 py-1" onClick={() => setRetry(value => value + 1)}>
+            إعادة تحميل الصورة
+          </button>
+        ) : null}
       </span>
     );
   }
@@ -96,7 +100,7 @@ export function QuestionAssetImage({
       alt={alt}
       loading="lazy"
       decoding="async"
-      onClick={onZoom ? () => onZoom(current.url) : undefined}
+      onClick={onZoom ? (event) => { event.stopPropagation(); onZoom(current.url); } : undefined}
       className={`${className || 'mx-auto max-h-[340px] max-w-full rounded-xl object-contain'} ${
         onZoom ? 'cursor-zoom-in hover:opacity-90 transition' : ''
       }`}
