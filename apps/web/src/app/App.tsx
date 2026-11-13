@@ -19,6 +19,7 @@ import { AssessmentAttemptPage } from '../features/assessment/pages/AssessmentAt
 import { AssessmentResultsPage } from '../features/assessment/pages/AssessmentResultsPage';
 import { AssessmentAvailabilityPage } from '../features/assessment/pages/AssessmentAvailabilityPage';
 import { SelfQuizPage } from '../features/assessment/pages/SelfQuizPage';
+import { PreparedQuizAdminPage } from '../features/assessment/pages/PreparedQuizAdminPage';
 import { AssessmentAssignmentsPage } from '../features/assessment/pages/AssessmentAssignmentsPage';
 import { ReviewLibraryPage } from '../features/learning/pages/ReviewLibraryPage';
 import { ReviewPracticePage } from '../features/learning/pages/ReviewPracticePage';
@@ -199,6 +200,7 @@ export function App() {
         <Route path="/admin-dashboard/taxonomy" element={<AdminDashboardShell><TaxonomyAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/questions" element={<AdminDashboardShell><QuestionBankAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/assessments" element={<AdminDashboardShell><AssessmentAdminPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/assessments/:assessmentId/prepared" element={<AdminDashboardShell><PreparedQuizAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/commerce" element={<AdminDashboardShell><CommerceAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/users" element={<AdminDashboardShell><UsersAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/trainers" element={<AdminDashboardShell><UsersAdminPage defaultRoleFilter="platform_trainer" pageTitle="إدارة المدربين والمعلمين" /></AdminDashboardShell>} />
