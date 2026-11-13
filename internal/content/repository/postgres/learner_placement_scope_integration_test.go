@@ -56,7 +56,8 @@ func TestLearnerPlacementScopePostgres(t *testing.T) {
 			id uuid PRIMARY KEY, path_id uuid, subject_id uuid,
 			title text, description text, instructor_name text, duration_minutes int,
 			level text, thumbnail_asset_id uuid, drip_content_enabled bool,
-			certificate_enabled bool, workflow_status text, is_published bool, is_visible bool)`,
+			certificate_enabled bool, workflow_status text, is_published bool, is_visible bool,
+			presentation jsonb NOT NULL DEFAULT '{}')`,
 		`CREATE TABLE course_modules (
 			id uuid PRIMARY KEY, course_id uuid, status text,
 			sort_order int, title text, description text)`,
@@ -102,7 +103,7 @@ func TestLearnerPlacementScopePostgres(t *testing.T) {
 	}{
 		{`INSERT INTO paths(id,status) VALUES($1,'active')`, []any{pathID}},
 		{`INSERT INTO subjects(id,path_id,status) VALUES($1,$3,'active'),($2,$3,'active')`, []any{subjectID, otherSubjectID, pathID}},
-		{`INSERT INTO courses VALUES($1,$2,$3,'course','','teacher',30,'beginner',NULL,false,false,'approved',true,true)`, []any{courseID, pathID, subjectID}},
+		{`INSERT INTO courses VALUES($1,$2,$3,'course','','teacher',30,'beginner',NULL,false,false,'approved',true,true,'{}')`, []any{courseID, pathID, subjectID}},
 		{`INSERT INTO course_modules VALUES($1,$2,'active',0,'module','')`, []any{moduleID, courseID}},
 		{`INSERT INTO lessons VALUES($1,$2,$3,$4,'','video',60,false,'approved',true,'body','','')`, []any{allowedLessonID, pathID, subjectID, "allowed"}},
 		{`INSERT INTO lessons VALUES($1,$2,$3,$4,'','video',60,false,'approved',true,'body','','')`, []any{foreignLessonID, pathID, otherSubjectID, "foreign"}},
