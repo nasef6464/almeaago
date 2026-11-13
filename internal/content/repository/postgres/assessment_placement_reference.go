@@ -2,6 +2,12 @@ package postgres
 
 import "context"
 
+// Visibility is checked only for learner discovery and new attempts. Authoring
+// remains possible while a path or subject is hidden from the site.
+func (r *Repository) LearnerAssessmentScopeVisible(ctx context.Context, pathID, subjectID string) (bool, error) {
+	return r.learningTaxonomyExists(ctx, pathID, subjectID)
+}
+
 // ValidateAssessmentPlacementTarget is Content's bounded read contract for Assessment.
 // Assessment owns the placement row; Content owns whether a referenced learning location
 // is currently learner-safe and belongs to the requested taxonomy scope.
@@ -11,7 +17,9 @@ func (r *Repository) ValidateAssessmentPlacementTarget(
 ) (bool, error) {
 	switch slot {
 	case "training", "tests":
-		return r.learningTaxonomyExists(ctx, pathID, subjectID)
+		var ok bool
+		err := r.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM paths p JOIN subjects s ON s.path_id=p.id WHERE p.id=$1::uuid AND s.id=$2::uuid AND p.status='active' AND s.status='active')`, pathID, subjectID).Scan(&ok)
+		return ok, err
 	case "foundation":
 		var ok bool
 		err := r.db.QueryRow(ctx, `

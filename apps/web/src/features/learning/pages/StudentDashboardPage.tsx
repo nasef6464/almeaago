@@ -97,19 +97,23 @@ export function StudentDashboardPage() {
   const [loadingData, setLoadingData] = useState(false);
 
   useEffect(() => {
+    if (loading || !user || !user.roles.includes('student')) {
+      setLoadingData(false);
+      return;
+    }
     let active = true;
     const controller = new AbortController();
     setLoadingData(true);
 
     Promise.allSettled([
       contentClient.taxonomyCore(controller.signal),
-      assessmentAssignmentClient.mine(1, 4, controller.signal),
+      tab === 'overview' ? assessmentAssignmentClient.mine(1, 4, controller.signal) : Promise.resolve(null),
     ]).then(([taxResult, assignResult]) => {
       if (!active) return;
       if (taxResult.status === 'fulfilled') {
         setPaths(taxResult.value.paths || []);
       }
-      if (assignResult.status === 'fulfilled') {
+      if (assignResult.status === 'fulfilled' && assignResult.value) {
         setAssignments(assignResult.value.items || []);
       }
       setLoadingData(false);
@@ -119,19 +123,9 @@ export function StudentDashboardPage() {
       active = false;
       controller.abort();
     };
-  }, []);
+  }, [loading, tab, user]);
 
-  const studentUser = user && user.roles.includes('student')
-    ? user
-    : user
-    ? null
-    : {
-        id: 'demo-student-id',
-        name: 'طالب منصة المعا',
-        email: 'student@almeaa.edu.sa',
-        roles: ['student'],
-        avatarUrl: '',
-      };
+  const studentUser = user && user.roles.includes('student') ? user : null;
 
   const copyParentCode = useCallback(() => {
     const code = String(studentUser?.id || user?.id || 'ALM892').slice(-6).toUpperCase();
@@ -142,8 +136,37 @@ export function StudentDashboardPage() {
     setTimeout(() => setCopiedCode(false), 2000);
   }, [studentUser?.id, user?.id]);
 
+  if (loading) {
+    return (
+      <main dir="rtl" className="p-10 text-center font-black text-slate-500">
+        جاري التحقق من الحساب...
+      </main>
+    );
+  }
+
+  if (!user) {
+    return (
+      <main dir="rtl" className="mx-auto max-w-lg px-4 py-16 text-center">
+        <h1 className="text-2xl font-black text-slate-900">سجّل الدخول لعرض لوحتك</h1>
+        <p className="mt-2 text-sm font-bold leading-7 text-slate-500">
+          لوحة الطالب تعرض مساراتك ودوراتك ونتائجك، وتحتاج إلى حساب مسجّل.
+        </p>
+        <Link
+          to="/login"
+          className="mt-5 inline-flex rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white"
+        >
+          تسجيل الدخول
+        </Link>
+      </main>
+    );
+  }
+
   if (!studentUser) {
-    return <main dir="rtl" className="p-10 text-center font-black text-rose-700">هذه الصفحة مخصصة للطالب.</main>;
+    return (
+      <main dir="rtl" className="p-10 text-center font-black text-rose-700">
+        هذه الصفحة مخصصة للطالب.
+      </main>
+    );
   }
 
   const initials = studentUser.name
@@ -157,6 +180,7 @@ export function StudentDashboardPage() {
     { to: '/dashboard?tab=paths', label: 'مساراتي', icon: RouteIcon, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
     { to: '/dashboard?tab=my-courses', label: 'دوراتي', icon: BookOpen, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
     { to: '/dashboard?tab=sessions', label: 'جلساتي', icon: CalendarDays, tone: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' },
+    { to: '/quiz', label: 'اختبار ساهر', icon: Sparkles, tone: 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300' },
   ];
 
   const groups: Array<{ id: string; title: string; icon: typeof GraduationCap; tone: string; items: NavItem[] }> = [

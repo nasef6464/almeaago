@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -133,8 +134,18 @@ type mockAttemptRepo struct {
 	err    error
 }
 
+func (m *mockAttemptRepo) GetSingleShotAccessContext(context.Context, string) (assessment.AccessContext, bool, error) {
+	return assessment.AccessContext{AssessmentKind: assessment.KindNormal, BaseAccess: assessment.AccessFree}, false, nil
+}
+func (m *mockAttemptRepo) FindSingleShotResult(context.Context, string, string, string) (assessment.ResultDetail, bool, error) {
+	return assessment.ResultDetail{}, false, nil
+}
+
 func (m *mockAttemptRepo) GetPublishedAccessContext(context.Context, string) (assessment.AccessContext, error) {
 	return assessment.AccessContext{}, nil
+}
+func (m *mockAttemptRepo) DirectPlacementAccessContexts(context.Context, string) (bool, []assessment.AccessContext, error) {
+	return false, nil, nil
 }
 func (m *mockAttemptRepo) FindDirectStart(context.Context, string, string, string) (assessment.Attempt, bool, error) {
 	return assessment.Attempt{}, false, nil
@@ -215,5 +226,26 @@ func TestQuizzesSingleShotSubmit(t *testing.T) {
 	}
 	if res.TimeSpent != "3 دقيقة" {
 		t.Errorf("expected '3 دقيقة', got %q", res.TimeSpent)
+	}
+}
+
+func TestQuizzesSingleShotRejectsInvalidCSRF(t *testing.T) {
+	student := identity.User{ID: "student-1", Roles: []identity.Role{identity.RoleStudent}}
+	repo := &mockAttemptRepo{}
+	h := NewQuizzes(nil, rejectedVisibilityCSRF{staticAuth{user: student}}, assessmentapp.NewAttemptService(repo))
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/quiz-1/submit", strings.NewReader(`{"answers":{},"submissionKey":"csrf-test"}`)))
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF submission: status=%d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestAssessmentsSingleShotRejectsInvalidCSRF(t *testing.T) {
+	student := identity.User{ID: "student-1", Roles: []identity.Role{identity.RoleStudent}}
+	h := New(nil, rejectedVisibilityCSRF{staticAuth{user: student}}, assessmentapp.NewAttemptService(&mockAttemptRepo{}))
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/quiz-1/submit", strings.NewReader(`{"answers":{},"submissionKey":"csrf-test"}`)))
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("invalid CSRF submission: status=%d body=%s", w.Code, w.Body.String())
 	}
 }

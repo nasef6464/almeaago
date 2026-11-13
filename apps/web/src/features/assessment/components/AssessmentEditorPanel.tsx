@@ -18,9 +18,11 @@ import {
   HelpCircle,
   AlertCircle,
   Eye,
+  X,
+  Users,
 } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
-import { assessmentClient } from '../api/assessment-client';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { assessmentClient, AssessmentHttpError } from '../api/assessment-client';
 import type {
   AssessmentDetail,
   AssessmentQuestionPlacement,
@@ -31,6 +33,7 @@ import type {
 } from '../api/assessment-types';
 import type { TaxonomyCore } from '../../content/api/content-types';
 import { QuestionImageZoomModal } from './QuestionImageZoomModal';
+import { PreparedQuizAdminPanel } from './PreparedQuizAdminPanel';
 
 interface Props {
   assessmentId?: string;
@@ -65,7 +68,7 @@ const baseVersion = (pathId: string, subjectId: string): AssessmentVersion => ({
   showProgressBar: true,
   requireAnswerBeforeNext: false,
   allowQuestionReview: true,
-  optionLayout: 'vertical',
+  optionLayout: 'auto',
   mockCategory: '',
   mockTargetScore: null,
   mockStrictSectionLock: null,
@@ -74,18 +77,38 @@ const baseVersion = (pathId: string, subjectId: string): AssessmentVersion => ({
   revisionNote: '',
 });
 
+function editableFingerprint(code: string, isVisible: boolean, version: AssessmentVersion, sections: AssessmentSection[], questions: AssessmentQuestionPlacement[]) {
+  return JSON.stringify({ code: code.trim(), isVisible, version: { ...version, timeLimitSeconds: version.timeLimitSeconds ? Number(version.timeLimitSeconds) : null }, sections, questions });
+}
+
 export function AssessmentEditorPanel(p: Props) {
-  const [activeTab, setActiveTab] = useState<'info' | 'sections' | 'questions' | 'settings'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'sections' | 'questions' | 'settings' | 'access'>('info');
   const [detail, setDetail] = useState<AssessmentDetail | null>(null);
   const [code, setCode] = useState('');
   const [version, setVersion] = useState<AssessmentVersion>(() => baseVersion(p.initialPathId, p.initialSubjectId));
   const [sections, setSections] = useState<AssessmentSection[]>([]);
   const [questions, setQuestions] = useState<AssessmentQuestionPlacement[]>([]);
   const [qRows, setQRows] = useState<QuestionSummary[]>([]);
+  const [qKnown, setQKnown] = useState<Record<string, QuestionSummary>>({});
+  const [qPagination, setQPagination] = useState({ scope: '', page: 1 });
+  const [qHasMore, setQHasMore] = useState(false);
+  const [qLoading, setQLoading] = useState(false);
+  const [qError, setQError] = useState('');
+  const [qReload, setQReload] = useState(0);
   const [qSearch, setQSearch] = useState('');
+  const [questionSubjectId, setQuestionSubjectId] = useState('');
   const [qDifficulty, setQDifficulty] = useState<string>('all');
+  const qScope = JSON.stringify([version.kind, version.pathId, version.subjectId, questionSubjectId, qSearch, qDifficulty]);
+  const qPage = qPagination.scope === qScope ? qPagination.page : 1;
   const [loading, setLoading] = useState(Boolean(p.assessmentId));
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [createdId, setCreatedId] = useState('');
+  const [writeUncertain, setWriteUncertain] = useState(false);
+  const savedWrite = useRef<{ assessment: AssessmentDetail; fingerprint: string } | null>(null);
+  const effectiveId = p.assessmentId || createdId;
+  const [isVisible, setIsVisible] = useState(true);
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
   const [error, setError] = useState('');
   const [successNotice, setSuccessNotice] = useState('');
 
@@ -94,6 +117,8 @@ export function AssessmentEditorPanel(p: Props) {
 
   // Auto-generation modal
   const [showAutoGenerate, setShowAutoGenerate] = useState(false);
+  const [autoGenerating, setAutoGenerating] = useState(false);
+  const autoGenerationRef = useRef<AbortController | null>(null);
   const [autoGenCount, setAutoGenCount] = useState<number>(20);
   const [autoGenDifficulty, setAutoGenDifficulty] = useState<string>('all');
   const [autoGenSectionId, setAutoGenSectionId] = useState<string>('');
@@ -101,17 +126,23 @@ export function AssessmentEditorPanel(p: Props) {
   useEffect(() => {
     if (!p.assessmentId) return;
     const c = new AbortController();
+    savedWrite.current = null;
+    setLoading(true);
+    setError('');
     assessmentClient
       .get(p.assessmentId, c.signal)
       .then((r) => {
+        if (c.signal.aborted) return;
         setDetail(r.assessment);
         setCode(r.assessment.code);
         setVersion(r.assessment.version);
+        setIsVisible(r.assessment.isVisible);
         setSections(r.assessment.sections || []);
         setQuestions(r.assessment.questions || []);
+        savedWrite.current = { assessment: r.assessment, fingerprint: editableFingerprint(r.assessment.code, r.assessment.isVisible, r.assessment.version, r.assessment.sections || [], r.assessment.questions || []) };
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'تعذر تحميل الاختبار'))
-      .finally(() => setLoading(false));
+      .catch((e) => { if (!c.signal.aborted) setError(e instanceof Error ? e.message : 'تعذر تحميل الاختبار'); })
+      .finally(() => { if (!c.signal.aborted) setLoading(false); });
     return () => c.abort();
   }, [p.assessmentId]);
 
@@ -141,24 +172,33 @@ export function AssessmentEditorPanel(p: Props) {
 
   // Load questions for picking
   useEffect(() => {
-    if (!version.pathId || !version.subjectId) {
+    const searchSubject = version.kind === 'mock' ? questionSubjectId : version.subjectId;
+    if (!version.pathId || !searchSubject) {
       setQRows([]);
+      setQHasMore(false);
+      setQError('');
+      setQLoading(false);
       return;
     }
     const c = new AbortController();
+    setQRows([]);
+    setQHasMore(false);
+    setQError('');
+    setQLoading(true);
     const t = window.setTimeout(
       () =>
         assessmentClient
-          .questions(version.pathId, version.subjectId, qSearch.trim(), qDifficulty, 100, c.signal)
-          .then((r) => setQRows(r.items))
-          .catch(() => setQRows([])),
+          .questions(version.pathId, searchSubject, qSearch.trim(), qDifficulty, 100, c.signal, qPage)
+          .then((r) => { if (!c.signal.aborted) { setQRows(r.items); setQHasMore(r.hasMore); setQKnown((known) => ({ ...known, ...Object.fromEntries(r.items.map((item) => [item.id, item])) })); } })
+          .catch(() => { if (!c.signal.aborted) setQError('تعذر تحميل بنك الأسئلة. تحقق من الصلاحية أو الاتصال ثم حاول مجددًا.'); })
+          .finally(() => { if (!c.signal.aborted) setQLoading(false); }),
       250
     );
     return () => {
       window.clearTimeout(t);
       c.abort();
     };
-  }, [qSearch, qDifficulty, version.pathId, version.subjectId]);
+  }, [qSearch, qDifficulty, qReload, qPage, questionSubjectId, version.kind, version.pathId, version.subjectId]);
 
   // Add individual question
   function addQuestion(q: QuestionSummary, targetSectionId = '') {
@@ -168,7 +208,7 @@ export function AssessmentEditorPanel(p: Props) {
       {
         questionId: q.id,
         questionVersion: q.currentVersion,
-        sectionId: targetSectionId || (sections[0]?.id ?? ''),
+        sectionId: targetSectionId || (version.kind === 'mock' ? '' : sections[0]?.id ?? ''),
         sortOrder: x.length + 1,
         points: 1,
       },
@@ -180,33 +220,70 @@ export function AssessmentEditorPanel(p: Props) {
     setQuestions((prev) => prev.filter((_, i) => i !== index));
   }
 
-  // Auto-generate questions
-  function handleAutoGenerate() {
-    let pool = qRows.filter((q) => !questions.some((existing) => existing.questionId === q.id));
-    if (autoGenDifficulty !== 'all') {
-      pool = pool.filter((q) => (q.difficulty || '').toLowerCase() === autoGenDifficulty.toLowerCase());
-    }
+  useEffect(() => () => { autoGenerationRef.current?.abort(); }, [version.pathId, version.subjectId, version.kind, questionSubjectId]);
 
-    // Shuffle pool
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    const chosen = shuffled.slice(0, autoGenCount);
-
-    if (chosen.length === 0) {
-      setError('لم يتم العثور على أسئلة تطابق معايير التوليد التلقائي.');
+  // Sample the whole approved subject bank, not just the visible first page.
+  async function handleAutoGenerate() {
+    const subjectId = version.kind === 'mock' ? questionSubjectId : version.subjectId;
+    if (version.kind === 'mock' && (!autoGenSectionId || !sections.some((section) => section.id === autoGenSectionId))) {
+      setError('أضف قسمًا للمحاكي واختره قبل توليد أسئلته.');
       return;
     }
-
-    const newPlacements: AssessmentQuestionPlacement[] = chosen.map((q, idx) => ({
-      questionId: q.id,
-      questionVersion: q.currentVersion,
-      sectionId: autoGenSectionId || (sections[0]?.id ?? ''),
-      sortOrder: questions.length + idx + 1,
-      points: 1,
-    }));
-
-    setQuestions((prev) => [...prev, ...newPlacements]);
-    setShowAutoGenerate(false);
-    setSuccessNotice(`تمت إضافة ${newPlacements.length} سؤال تلقائياً بنجاح.`);
+    if (!version.pathId || !subjectId || autoGenerating) {
+      setError('اختر المسار والمادة قبل اختيار الأسئلة عشوائيًا.');
+      return;
+    }
+    const targetSection = sections.find((section) => section.id === autoGenSectionId);
+    if (version.kind === 'mock' && targetSection?.subjectId && targetSection.subjectId !== subjectId) {
+      setError('مادة بنك الأسئلة لا تطابق مادة القسم المحدد.');
+      return;
+    }
+    const remaining = Math.min(autoGenCount, Math.max(0, 500 - questions.length));
+    if (!remaining) { setError('وصل الاختبار للحد الأقصى لعدد الأسئلة.'); return; }
+    const controller = new AbortController();
+    autoGenerationRef.current?.abort();
+    autoGenerationRef.current = controller;
+    setAutoGenerating(true);
+    setError('');
+    const excluded = new Set(questions.map((question) => question.questionId));
+    const seen = new Set<string>();
+    const chosen: QuestionSummary[] = [];
+    let matching = 0;
+    try {
+      let page = 1;
+      let hasMore = true;
+      while (hasMore) {
+        if (page > 1000) throw new Error('تعذر إكمال قراءة صفحات بنك الأسئلة.');
+        const result = await assessmentClient.questions(version.pathId, subjectId, '', autoGenDifficulty, 100, controller.signal, page);
+        for (const question of result.items) {
+          if (excluded.has(question.id) || seen.has(question.id)) continue;
+          seen.add(question.id);
+          matching++;
+          if (chosen.length < remaining) chosen.push(question);
+          else {
+            const position = Math.floor(Math.random() * matching);
+            if (position < remaining) chosen[position] = question;
+          }
+        }
+        hasMore = result.hasMore;
+        page++;
+      }
+      if (controller.signal.aborted) return;
+      if (!chosen.length) { setError('لم يتم العثور على أسئلة تطابق معايير التوليد التلقائي.'); return; }
+      setQKnown((known) => ({ ...known, ...Object.fromEntries(chosen.map((item) => [item.id, item])) }));
+      const targetSectionId = autoGenSectionId;
+      setQuestions((current) => {
+        const existing = new Set(current.map((question) => question.questionId));
+        const additions = chosen.filter((question) => !existing.has(question.id)).slice(0, Math.max(0, 500 - current.length));
+        return [...current, ...additions.map((question, index) => ({ questionId: question.id, questionVersion: question.currentVersion, sectionId: targetSectionId, sortOrder: current.length + index + 1, points: 1 }))];
+      });
+      setShowAutoGenerate(false);
+      setSuccessNotice(`تم اختيار ${chosen.length} سؤال من بنك المادة${chosen.length < autoGenCount ? '؛ المتاح أقل من العدد المطلوب' : ''}.`);
+    } catch (cause) {
+      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'تعذر اختيار أسئلة البنك.');
+    } finally {
+      if (autoGenerationRef.current === controller) { autoGenerationRef.current = null; setAutoGenerating(false); }
+    }
   }
 
   // Generate standard Tahsili Qiyas Sections (4 sections x 25 min)
@@ -218,40 +295,40 @@ export function AssessmentEditorPanel(p: Props) {
 
     const tahsiliSections: AssessmentSection[] = [
       {
-        id: `sec_tah_math_${Date.now()}`,
+        id: crypto.randomUUID(),
         title: 'القسم الأول — الرياضيات',
         subjectId: mathSubj?.id || version.subjectId,
         sortOrder: 1,
         timeLimitSeconds: 1500, // 25 min
         domain: 'math',
-        strictLock: true,
+        strictLock: version.mockPresentationMode !== 'flexible',
       },
       {
-        id: `sec_tah_phys_${Date.now() + 1}`,
+        id: crypto.randomUUID(),
         title: 'القسم الثاني — الفيزياء',
         subjectId: physSubj?.id || version.subjectId,
         sortOrder: 2,
         timeLimitSeconds: 1500, // 25 min
         domain: 'physics',
-        strictLock: true,
+        strictLock: version.mockPresentationMode !== 'flexible',
       },
       {
-        id: `sec_tah_chem_${Date.now() + 2}`,
+        id: crypto.randomUUID(),
         title: 'القسم الثالث — الكيمياء',
         subjectId: chemSubj?.id || version.subjectId,
         sortOrder: 3,
         timeLimitSeconds: 1500, // 25 min
         domain: 'chemistry',
-        strictLock: true,
+        strictLock: version.mockPresentationMode !== 'flexible',
       },
       {
-        id: `sec_tah_bio_${Date.now() + 3}`,
+        id: crypto.randomUUID(),
         title: 'القسم الرابع — الأحياء',
         subjectId: bioSubj?.id || version.subjectId,
         sortOrder: 4,
         timeLimitSeconds: 1500, // 25 min
         domain: 'biology',
-        strictLock: true,
+        strictLock: version.mockPresentationMode !== 'flexible',
       },
     ];
 
@@ -259,8 +336,11 @@ export function AssessmentEditorPanel(p: Props) {
     setVersion((v) => ({
       ...v,
       kind: 'mock',
+      normalMode: '',
       mockCategory: 'tahsili',
-      mockStrictSectionLock: true,
+      mockTargetScore: v.mockTargetScore ?? v.passingScore,
+      mockStrictSectionLock: v.mockPresentationMode !== 'flexible',
+      mockPresentationMode: v.mockPresentationMode || 'qiyas_strict',
       timeLimitSeconds: 6000, // 100 min total
     }));
     setSuccessNotice('تم توليد أقسام محاكي التحصيلي القياسي (4 أقسام × 25 دقيقة) بنجاح.');
@@ -273,49 +353,49 @@ export function AssessmentEditorPanel(p: Props) {
 
     const qudratSections: AssessmentSection[] = [
       {
-        id: `sec_qud_1_${Date.now()}`,
+        id: crypto.randomUUID(),
         title: 'القسم الأول — كمي',
         subjectId: quantSubj?.id || version.subjectId,
         sortOrder: 1,
         timeLimitSeconds: 1500,
         domain: 'quantitative',
-        strictLock: true,
+        strictLock: version.mockPresentationMode !== 'flexible',
       },
       {
-        id: `sec_qud_2_${Date.now() + 1}`,
+        id: crypto.randomUUID(),
         title: 'القسم الثاني — لفظي',
         subjectId: verbalSubj?.id || version.subjectId,
         sortOrder: 2,
         timeLimitSeconds: 1500,
         domain: 'verbal',
-        strictLock: true,
+        strictLock: version.mockPresentationMode !== 'flexible',
       },
       {
-        id: `sec_qud_3_${Date.now() + 2}`,
+        id: crypto.randomUUID(),
         title: 'القسم الثالث — كمي',
         subjectId: quantSubj?.id || version.subjectId,
         sortOrder: 3,
         timeLimitSeconds: 1500,
         domain: 'quantitative',
-        strictLock: true,
+        strictLock: version.mockPresentationMode !== 'flexible',
       },
       {
-        id: `sec_qud_4_${Date.now() + 3}`,
+        id: crypto.randomUUID(),
         title: 'القسم الرابع — لفظي',
         subjectId: verbalSubj?.id || version.subjectId,
         sortOrder: 4,
         timeLimitSeconds: 1500,
         domain: 'verbal',
-        strictLock: true,
+        strictLock: version.mockPresentationMode !== 'flexible',
       },
       {
-        id: `sec_qud_5_${Date.now() + 4}`,
+        id: crypto.randomUUID(),
         title: 'القسم الخامس — كمي',
         subjectId: quantSubj?.id || version.subjectId,
         sortOrder: 5,
         timeLimitSeconds: 1500,
         domain: 'quantitative',
-        strictLock: true,
+        strictLock: version.mockPresentationMode !== 'flexible',
       },
     ];
 
@@ -323,18 +403,25 @@ export function AssessmentEditorPanel(p: Props) {
     setVersion((v) => ({
       ...v,
       kind: 'mock',
+      normalMode: '',
       mockCategory: 'qudrat',
-      mockStrictSectionLock: true,
+      mockTargetScore: v.mockTargetScore ?? v.passingScore,
+      mockStrictSectionLock: v.mockPresentationMode !== 'flexible',
+      mockPresentationMode: v.mockPresentationMode || 'qiyas_strict',
       timeLimitSeconds: 7500, // 125 min total
     }));
     setSuccessNotice('تم توليد أقسام محاكي القدرات القياسي (5 أقسام × 25 دقيقة) بنجاح.');
   }
 
   // Save handler
-  async function save() {
+  async function save(andPublish = false) {
+    if (savingRef.current || visibilitySaving || writeUncertain) return;
+    savingRef.current = true;
     setSaving(true);
     setError('');
     setSuccessNotice('');
+    let uncertain = false;
+    let confirmed = false;
     try {
       const csrf = await p.getCsrfToken();
       const input = {
@@ -344,7 +431,7 @@ export function AssessmentEditorPanel(p: Props) {
         ownerUserId: detail?.ownerUserId || '',
         ownerSchoolId: detail?.ownerSchoolId || '',
         assignedTeacherId: detail?.assignedTeacherId || '',
-        isVisible: detail?.isVisible ?? true,
+        isVisible,
         version: {
           ...version,
           timeLimitSeconds: version.timeLimitSeconds ? Number(version.timeLimitSeconds) : null,
@@ -352,38 +439,120 @@ export function AssessmentEditorPanel(p: Props) {
         sections,
         questions,
       };
-      if (p.assessmentId) {
-        await assessmentClient.update(p.assessmentId, input, csrf);
-      } else {
-        await assessmentClient.create(input, csrf);
+      // Ownership is normalized by the server for teachers; track only fields
+      // the editor can change so a retry does not create an extra version.
+      const fingerprint = editableFingerprint(code, isVisible, version, sections, questions);
+      let current = savedWrite.current?.fingerprint === fingerprint ? savedWrite.current.assessment : null;
+      confirmed = Boolean(current);
+      if (!current) {
+        if (detail?.workflowStatus === 'approved') {
+          throw new Error('الاختبار معتمد؛ يلزم إعادته إلى المسودة قبل تعديل محتواه.');
+        }
+        let response: { assessment: AssessmentDetail };
+        try {
+          response = effectiveId
+            ? await assessmentClient.update(effectiveId, input, csrf)
+            : await assessmentClient.create(input, csrf);
+        } catch (cause) {
+          // A transport/server failure can occur after commit. Do not create or
+          // update another version until the administrator checks the list.
+          if (!(cause instanceof AssessmentHttpError) || cause.status >= 500) { uncertain = true; setWriteUncertain(true); }
+          throw cause;
+        }
+        current = response.assessment;
+        confirmed = true;
+        savedWrite.current = { assessment: current, fingerprint };
+        setDetail(current);
+        if (!p.assessmentId) setCreatedId(current.id);
+      }
+      if (andPublish) {
+        const advance = async (status: AssessmentWorkflowStatus) => {
+          try {
+            return (await assessmentClient.workflow(current!.id, current!.revision, status, '', csrf)).assessment;
+          } catch (cause) {
+            // A response can be lost after the server committed the transition.
+            const latest = await assessmentClient.get(current!.id).catch(() => null);
+            if (latest?.assessment.workflowStatus === status) return latest.assessment;
+            throw cause;
+          }
+        };
+        if (current.workflowStatus === 'draft' || current.workflowStatus === 'rejected') {
+          current = await advance('pending_review');
+          savedWrite.current = { assessment: current, fingerprint }; setDetail(current);
+        }
+        if (p.isAdmin && current.workflowStatus === 'pending_review') {
+          current = await advance('approved');
+          savedWrite.current = { assessment: current, fingerprint }; setDetail(current);
+        }
+        if (p.isAdmin && current.workflowStatus === 'approved' && !current.isPublished) {
+          try {
+            current = (await assessmentClient.publication(current.id, current.revision, true, csrf)).assessment;
+          } catch (cause) {
+            const latest = await assessmentClient.get(current.id).catch(() => null);
+            if (!latest?.assessment.isPublished) throw cause;
+            current = latest.assessment;
+          }
+          savedWrite.current = { assessment: current, fingerprint }; setDetail(current);
+        }
+        if (p.isAdmin ? !current.isPublished : current.workflowStatus !== 'pending_review') {
+          throw new Error('تعذر استكمال حالة الاختبار المطلوبة.');
+        }
       }
       p.onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر حفظ الاختبار');
+      const reason = e instanceof Error ? e.message : 'تعذر حفظ الاختبار';
+      if (uncertain) setError('تعذر تأكيد نتيجة الحفظ. ارجع إلى قائمة الاختبارات وابحث بالكود قبل إعادة المحاولة حتى لا تُنشئ نسخة أخرى.');
+      else if (confirmed) setError(`حُفظ الاختبار، لكن لم تكتمل العملية: ${reason} يمكنك إعادة المحاولة لنفس الاختبار.`);
+      else setError(reason);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
 
   async function workflow(status: AssessmentWorkflowStatus) {
-    if (!p.assessmentId || !detail) return;
+    if (!effectiveId || !detail || savingRef.current || visibilitySaving) return;
+    savingRef.current = true; setSaving(true); setError('');
     try {
       const csrf = await p.getCsrfToken();
-      await assessmentClient.workflow(p.assessmentId, detail.revision, status, '', csrf);
-      p.onSaved();
+      const response = await assessmentClient.workflow(effectiveId, detail.revision, status, '', csrf);
+      if (status === 'draft') {
+        setDetail(response.assessment);
+        if (savedWrite.current) savedWrite.current.assessment = response.assessment;
+        setSuccessNotice('أُعيد الاختبار إلى المسودة وأُلغي نشره؛ يمكنك تعديل المحتوى ثم إعادة نشره.');
+      } else p.onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر تحديث الحالة');
-    }
+    } finally { savingRef.current = false; setSaving(false); }
   }
 
   async function publish() {
-    if (!p.assessmentId || !detail) return;
+    if (!effectiveId || !detail || savingRef.current || visibilitySaving) return;
+    savingRef.current = true; setSaving(true); setError('');
     try {
       const csrf = await p.getCsrfToken();
-      await assessmentClient.publication(p.assessmentId, detail.revision, !detail.isPublished, csrf);
+      await assessmentClient.publication(effectiveId, detail.revision, !detail.isPublished, csrf);
       p.onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر تحديث النشر');
+    } finally { savingRef.current = false; setSaving(false); }
+  }
+
+  async function changeApprovedVisibility(visible: boolean) {
+    if (!effectiveId || !detail || !p.isAdmin || visibilitySaving) return;
+    setVisibilitySaving(true);
+    setError('');
+    setSuccessNotice('');
+    try {
+      const csrf = await p.getCsrfToken();
+      const response = await assessmentClient.visibility(effectiveId, detail.revision, visible, csrf);
+      setDetail(response.assessment);
+      setIsVisible(response.assessment.isVisible);
+      setSuccessNotice(visible ? 'تم إظهار الاختبار للطلاب.' : 'تم إخفاء الاختبار عن الطلاب.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'تعذر تغيير ظهور الاختبار');
+    } finally {
+      setVisibilitySaving(false);
     }
   }
 
@@ -391,19 +560,25 @@ export function AssessmentEditorPanel(p: Props) {
 
   return (
     <main dir="rtl" className="mx-auto max-w-7xl space-y-4">
+      <fieldset disabled={saving || visibilitySaving} className="contents">
       {/* Zoom Modal */}
       {zoomedImageUrl ? (
         <QuestionImageZoomModal imageUrl={zoomedImageUrl} onClose={() => setZoomedImageUrl(null)} />
       ) : null}
 
       {/* Header Bar */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={p.onCancel}
-          className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 font-black text-gray-700 shadow-xs hover:bg-gray-50"
-        >
-          <ArrowRight size={18} /> العودة لمركز الاختبارات
-        </button>
+      <div data-testid="assessment-editor-header" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            aria-label="العودة لمركز الاختبارات"
+            onClick={p.onCancel}
+            className="rounded-lg p-2 transition-colors hover:bg-gray-200"
+          >
+            <X size={20} className="text-gray-500" />
+          </button>
+          <h1 className="text-xl font-bold text-gray-800">{effectiveId ? 'تعديل الاختبار' : 'إنشاء اختبار جديد'}</h1>
+        </div>
         <div className="flex flex-wrap gap-2">
           {detail && detail.workflowStatus !== 'approved' ? (
             <button
@@ -423,6 +598,15 @@ export function AssessmentEditorPanel(p: Props) {
           ) : null}
           {p.isAdmin && detail?.workflowStatus === 'approved' ? (
             <button
+              type="button"
+              onClick={() => void workflow('draft')}
+              className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 font-bold text-amber-800"
+            >
+              إعادة للمسودة وإلغاء النشر
+            </button>
+          ) : null}
+          {p.isAdmin && detail?.workflowStatus === 'approved' ? (
+            <button
               onClick={publish}
               className="rounded-xl bg-slate-900 px-4 py-2 font-bold text-white shadow-xs hover:bg-slate-800"
             >
@@ -430,9 +614,9 @@ export function AssessmentEditorPanel(p: Props) {
             </button>
           ) : null}
           <button
-            disabled={saving}
-            onClick={save}
-            className="rounded-xl bg-amber-500 px-6 py-2 font-black text-slate-950 shadow-xs hover:bg-amber-400 disabled:opacity-50"
+            disabled={saving || writeUncertain}
+            onClick={() => void save()}
+            className="rounded-xl bg-indigo-600 px-6 py-2 font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
           >
             {saving ? 'جاري الحفظ...' : 'حفظ الاختبار'}
           </button>
@@ -440,36 +624,34 @@ export function AssessmentEditorPanel(p: Props) {
       </div>
 
       {/* Main Title & Kind Badge */}
-      <section className="rounded-3xl bg-slate-950 p-6 text-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-6">
           <div>
             <div className="flex items-center gap-2">
-              <span className="rounded-lg bg-amber-500/20 px-2.5 py-1 text-xs font-black text-amber-400">
+              <span className="rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-black text-indigo-700">
                 {version.kind === 'mock' ? 'MOCK EXAM · محاكي قياس' : 'REGULAR EXAM · اختبار قياسي'}
               </span>
               {detail ? (
-                <span className="rounded-lg bg-slate-800 px-2 py-0.5 text-xs text-slate-400">
+                <span className="rounded-lg bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
                   {detail.code} · v{detail.currentVersion}
                 </span>
               ) : null}
             </div>
-            <h1 className="mt-2 text-2xl font-black">
-              {p.assessmentId ? `تعديل: ${version.title || 'بدون عنوان'}` : 'إنشاء وتصميم اختبار جديد'}
-            </h1>
-            <p className="mt-1 text-xs text-slate-400">
+            {effectiveId ? <p className="mt-2 text-lg font-black text-gray-800">{version.title || 'بدون عنوان'}</p> : null}
+            <p className="mt-1 text-xs text-gray-500">
               منشئ الاختبارات الموحد — يدعم الاختبارات العادية، محاكيات قياس الصارمة بالأقسام، والتوليد الآلي للأسئلة.
             </p>
           </div>
 
           {/* Mode Switcher */}
-          <div className="flex rounded-2xl bg-slate-900 p-1.5 border border-slate-800">
+          <div className="flex flex-wrap rounded-xl border border-gray-200 bg-gray-50 p-1">
             <button
               type="button"
-              onClick={() => setVersion((v) => ({ ...v, kind: 'normal', normalMode: 'exam' }))}
+              onClick={() => setVersion((v) => ({ ...v, kind: 'normal', normalMode: v.normalMode || 'exam', mockCategory: '', mockTargetScore: null, mockStrictSectionLock: null, mockPresentationMode: '' }))}
               className={`rounded-xl px-4 py-2 text-xs font-black transition ${
                 version.kind === 'normal'
-                  ? 'bg-amber-500 text-slate-950 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
               اختبار عادي (تقييم / تدريب)
@@ -480,13 +662,17 @@ export function AssessmentEditorPanel(p: Props) {
                 setVersion((v) => ({
                   ...v,
                   kind: 'mock',
-                  mockStrictSectionLock: true,
+                  normalMode: '',
+                  mockCategory: v.mockCategory || (isTahsili ? 'tahsili' : isQudrat ? 'qudrat' : 'specialized'),
+                  mockTargetScore: v.mockTargetScore ?? v.passingScore,
+                  mockStrictSectionLock: v.mockStrictSectionLock ?? true,
+                  mockPresentationMode: v.mockPresentationMode || 'qiyas_strict',
                 }))
               }
               className={`rounded-xl px-4 py-2 text-xs font-black transition ${
                 version.kind === 'mock'
                   ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+                  : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
               محاكي قياس رسمي (أقسام ومؤقت)
@@ -495,52 +681,29 @@ export function AssessmentEditorPanel(p: Props) {
         </div>
 
         {/* Tab Navigation */}
-        <div className="mt-6 flex flex-wrap gap-2 border-t border-slate-800 pt-4">
-          <button
-            type="button"
-            onClick={() => setActiveTab('info')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
-              activeTab === 'info'
-                ? 'bg-white text-slate-950 shadow-xs'
-                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-900'
-            }`}
-          >
-            <FileQuestion size={16} /> 1. البيانات الأساسية
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('sections')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
-              activeTab === 'sections'
-                ? 'bg-white text-slate-950 shadow-xs'
-                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-900'
-            }`}
-          >
-            <Layers size={16} /> 2. الأقسام والمؤقت ({sections.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('questions')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
-              activeTab === 'questions'
-                ? 'bg-white text-slate-950 shadow-xs'
-                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-900'
-            }`}
-          >
-            <CheckCircle2 size={16} /> 3. انتقاء وتوليد الأسئلة ({questions.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('settings')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition ${
-              activeTab === 'settings'
-                ? 'bg-white text-slate-950 shadow-xs'
-                : 'bg-slate-900/60 text-slate-300 hover:bg-slate-900'
-            }`}
-          >
-            <Settings size={16} /> 4. الإعدادات والسياسات
-          </button>
-        </div>
+        <nav aria-label="أقسام منشئ الاختبارات" className="flex flex-wrap border-t border-gray-200 bg-white px-2 sm:px-6">
+          {([
+            { id: 'info', label: 'المعلومات الأساسية', Icon: FileQuestion },
+            { id: 'questions', label: 'الأسئلة', Icon: CheckCircle2 },
+            { id: 'settings', label: 'الإعدادات', Icon: Settings },
+            { id: 'access', label: 'الصلاحيات والنشر', Icon: Users },
+            { id: 'sections', label: 'الأقسام والمؤقت', Icon: Layers },
+          ] as const).map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={activeTab === id}
+              onClick={() => setActiveTab(id)}
+              className={`flex items-center gap-2 border-b-2 px-4 py-4 text-sm font-bold transition-colors ${
+                activeTab === id
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+              }`}
+            >
+              <Icon size={18} /> {label}
+            </button>
+          ))}
+        </nav>
       </section>
 
       {/* Notifications */}
@@ -564,7 +727,7 @@ export function AssessmentEditorPanel(p: Props) {
             <div>
               <label className="block text-xs font-bold text-gray-700">كود الاختبار الفريد *</label>
               <input
-                disabled={Boolean(p.assessmentId)}
+                disabled={Boolean(effectiveId)}
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 placeholder="مثال: EXAM-TAH-PHYS-01 أو MOCK-QUD-01"
@@ -600,7 +763,7 @@ export function AssessmentEditorPanel(p: Props) {
                   aria-label="مسار الاختبار"
                   disabled={p.lockScope && Boolean(p.initialPathId)}
                   value={version.pathId}
-                  onChange={(e) => setVersion((v) => ({ ...v, pathId: e.target.value, subjectId: '' }))}
+                  onChange={(e) => { setQuestionSubjectId(''); setVersion((v) => ({ ...v, pathId: e.target.value, subjectId: '' })); }}
                   className="mt-1 w-full rounded-xl border p-3 text-sm font-bold"
                 >
                   <option value="">اختر المسار</option>
@@ -613,7 +776,7 @@ export function AssessmentEditorPanel(p: Props) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700">المادة الأساسية *</label>
+                <label className="block text-xs font-bold text-gray-700">المادة الأساسية {version.kind === 'mock' ? '(اختياري للمحاكي)' : '*'}</label>
                 <select
                   aria-label="مادة الاختبار"
                   disabled={p.lockScope && Boolean(p.initialSubjectId)}
@@ -633,27 +796,7 @@ export function AssessmentEditorPanel(p: Props) {
           </div>
 
           <div className="space-y-4 rounded-3xl border bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-black text-gray-900">سياسة الوصول ونمط الاختبار</h2>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700">سياسة الاستحقاق والوصول</label>
-              <select
-                aria-label="سياسة وصول الاختبار"
-                value={version.accessType}
-                onChange={(e) =>
-                  setVersion((v) => ({
-                    ...v,
-                    accessType: e.target.value as AssessmentVersion['accessType'],
-                  }))
-                }
-                className="mt-1 w-full rounded-xl border p-3 text-sm font-bold"
-              >
-                <option value="free">مجاني (متاح لجميع الطلاب دون اشتراك)</option>
-                <option value="paid">مدفوع / مشمول ضمن باقات المسار أو المادة</option>
-                <option value="private">خاص وموجه لمجموعات وفصول محددة</option>
-                <option value="course_only">داخل محتوى دورة تدريبية فقط</option>
-              </select>
-            </div>
+            <h2 className="text-lg font-black text-gray-900">نمط الاختبار</h2>
 
             {version.kind === 'normal' ? (
               <div>
@@ -689,14 +832,30 @@ export function AssessmentEditorPanel(p: Props) {
               <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 text-xs font-medium text-indigo-950 space-y-2">
                 <div className="flex items-center gap-2 font-black text-indigo-900">
                   <Award size={18} className="text-indigo-600" />
-                  <span>طبيعة محاكي قياس الرسمي (Mock Exam)</span>
+                  <span>نمط تجربة المحاكي</span>
                 </div>
-                <p>
-                  يتم تقسيم الاختبار إلى أقسام زمنية مستقلة مثل اختبارات قياس تماماً. لا يتم احتساب الاختبار مكتملاً إلا
-                  بعد إنهاء جميع الأقسام بالتتابع.
-                </p>
-                <div className="flex items-center gap-2 pt-1 font-bold text-indigo-700">
-                  <Lock size={15} /> قفل الأقسام الصارم مفعّل تلقائياً لمنع العودة لقسم سابق.
+                <label className="block text-xs font-bold text-indigo-900">تصنيف المحاكي
+                  <select aria-label="تصنيف المحاكي" value={version.mockCategory} onChange={(event) => setVersion((current) => ({ ...current, mockCategory: event.target.value }))} className="mt-1 w-full rounded-xl border border-indigo-200 bg-white p-2 text-sm">
+                    <option value="qudrat">القدرات</option>
+                    <option value="tahsili">التحصيلي</option>
+                    <option value="specialized">مسار آخر، مثل نافس</option>
+                  </select>
+                </label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {([
+                    ['qiyas_strict', 'محاكي قياس الصارم', 'أقسام بمؤقت وقفل يمنع الرجوع للأقسام السابقة.'],
+                    ['flexible', 'النمط المرن', 'التنقل بين الأقسام والأسئلة بحرية.'],
+                  ] as const).map(([mode, label, description]) => (
+                    <button key={mode} type="button" aria-pressed={version.mockPresentationMode === mode}
+                      onClick={() => {
+                        const strict = mode === 'qiyas_strict';
+                        setVersion((v) => ({ ...v, mockPresentationMode: mode, mockStrictSectionLock: strict }));
+                        setSections((current) => current.map((section) => ({ ...section, strictLock: strict })));
+                      }}
+                      className={`rounded-xl border p-3 text-right ${version.mockPresentationMode === mode ? 'border-indigo-500 bg-white font-bold text-indigo-900 ring-2 ring-indigo-300' : 'border-gray-200 bg-white hover:border-indigo-300'}`}>
+                      <span className="block font-black">{label}</span><span className="mt-1 block text-gray-500">{description}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
@@ -711,6 +870,48 @@ export function AssessmentEditorPanel(p: Props) {
               </button>
             </div>
           </div>
+        </section>
+      ) : null}
+
+      {activeTab === 'access' ? (
+        <section className="space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-gray-800">الصلاحيات والنشر</h2>
+          <div>
+            <label htmlFor="assessment-access-type" className="mb-2 block text-sm font-bold text-gray-700">نوع الوصول</label>
+            <select
+              id="assessment-access-type"
+              aria-label="سياسة وصول الاختبار"
+              value={version.accessType}
+              disabled={detail?.workflowStatus === 'approved' || detail?.workflowStatus === 'archived'}
+              onChange={(e) => setVersion((v) => ({ ...v, accessType: e.target.value as AssessmentVersion['accessType'] }))}
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 disabled:bg-gray-100"
+            >
+              <option value="free">مجاني للجميع</option>
+              <option value="paid">ضمن باقة / يحتاج تفعيل</option>
+              <option value="private">خاص وموجه</option>
+              <option value="course_only">داخل الدورات فقط</option>
+            </select>
+            {version.accessType === 'private' ? <p className="mt-2 text-xs text-gray-600">لا يتاح الوصول المباشر لهذا الاختبار؛ يحتاج الطالب إلى تعيين موجه.</p> : null}
+            {version.accessType === 'course_only' ? <p className="mt-2 text-xs text-gray-600">يفتح من موضع مرتبط بدورة مع تحقق صلاحية الوصول للدورة.</p> : null}
+          </div>
+          <label className="flex items-center gap-3 border-t border-gray-100 pt-4 text-sm font-bold text-gray-800">
+            <input
+              type="checkbox"
+              checked={isVisible}
+              disabled={visibilitySaving || detail?.workflowStatus === 'archived' || (detail?.workflowStatus === 'approved' && !p.isAdmin)}
+              onChange={(e) => {
+                if (detail?.workflowStatus === 'approved') void changeApprovedVisibility(e.target.checked);
+                else setIsVisible(e.target.checked);
+              }}
+              className="h-4 w-4 accent-indigo-600"
+            />
+            إظهار الاختبار للطلاب
+          </label>
+          <p className="text-xs text-gray-600">{detail?.workflowStatus === 'approved' ? 'تغيير الظهور يُحفظ فورًا ولا يغيّر حالة النشر. إخفاء الاختبار قد يمنع إتاحته في التعيينات والجلسات المرتبطة حتى إعادة إظهاره.' : 'تُحفظ إعدادات الظهور والوصول مع الاختبار؛ يلزم اعتماد الاختبار ونشره قبل إتاحته.'}</p>
+          {detail?.workflowStatus === 'approved' || detail?.workflowStatus === 'archived' ? (
+            <p className="rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-800">لا يمكن تعديل نوع الوصول بالحفظ العادي بعد اعتماد الاختبار أو أرشفته.</p>
+          ) : null}
+          {p.isAdmin && effectiveId && version.kind === 'normal' && detail?.workflowStatus !== 'archived' && <PreparedQuizAdminPanel assessmentId={effectiveId} getCsrfToken={p.getCsrfToken} />}
         </section>
       ) : null}
 
@@ -747,13 +948,13 @@ export function AssessmentEditorPanel(p: Props) {
                   setSections((s) => [
                     ...s,
                     {
-                      id: `sec_${Date.now()}`,
+                      id: crypto.randomUUID(),
                       title: `القسم ${s.length + 1}`,
                       subjectId: version.subjectId,
                       sortOrder: s.length + 1,
                       timeLimitSeconds: 1500, // 25 min default
                       domain: 'general',
-                      strictLock: version.kind === 'mock',
+                      strictLock: version.kind === 'mock' && version.mockPresentationMode !== 'flexible',
                     },
                   ])
                 }
@@ -958,7 +1159,7 @@ export function AssessmentEditorPanel(p: Props) {
                     onChange={(e) => setAutoGenDifficulty(e.target.value)}
                     className="w-full rounded-xl border bg-white p-2.5 text-xs font-bold"
                   >
-                    <option value="all">كل المستويات (توزيع متوازن)</option>
+                    <option value="all">كل المستويات</option>
                     <option value="Easy">سهل فقط</option>
                     <option value="Medium">متوسط فقط</option>
                     <option value="Hard">صعب وتحدي</option>
@@ -972,7 +1173,7 @@ export function AssessmentEditorPanel(p: Props) {
                     onChange={(e) => setAutoGenSectionId(e.target.value)}
                     className="w-full rounded-xl border bg-white p-2.5 text-xs font-bold"
                   >
-                    <option value="">بدون قسم / عام</option>
+                    <option value="">{version.kind === 'mock' ? 'اختر قسم المحاكي' : 'بدون قسم / عام'}</option>
                     {sections.map((s, idx) => (
                       <option key={s.id || idx} value={s.id}>
                         {s.title}
@@ -985,7 +1186,8 @@ export function AssessmentEditorPanel(p: Props) {
               <div className="flex justify-end pt-2">
                 <button
                   type="button"
-                  onClick={handleAutoGenerate}
+                  onClick={() => void handleAutoGenerate()}
+                  disabled={autoGenerating}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2 text-xs font-black text-white hover:bg-indigo-700 shadow-xs"
                 >
                   <Sparkles size={15} /> بدء التوليد والإضافة الآن
@@ -1003,6 +1205,15 @@ export function AssessmentEditorPanel(p: Props) {
                 <span className="text-xs font-bold text-gray-400">{qRows.length} سؤال متاح</span>
               </div>
 
+              {version.kind === 'mock' ? (
+                <label className="block text-xs font-bold text-gray-700">
+                  مادة البحث في بنك الأسئلة
+                  <select aria-label="مادة البحث في بنك الأسئلة" value={questionSubjectId} onChange={(e) => setQuestionSubjectId(e.target.value)} className="mt-1 w-full rounded-xl border p-2 text-xs font-bold">
+                    <option value="">اختر المادة للبحث عن أسئلتها</option>
+                    {subjects.map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}
+                  </select>
+                </label>
+              ) : null}
               <div className="grid gap-2 sm:grid-cols-2">
                 <div className="relative">
                   <Search className="absolute right-3 top-2.5 text-gray-400" size={16} />
@@ -1027,7 +1238,14 @@ export function AssessmentEditorPanel(p: Props) {
               </div>
 
               <div className="max-h-[560px] space-y-3 overflow-y-auto pr-1">
-                {qRows.length === 0 ? (
+                {qLoading ? (
+                  <div className="p-8 text-center text-xs text-gray-500">جاري تحميل الأسئلة...</div>
+                ) : qError ? (
+                  <div role="alert" className="space-y-2 rounded-xl bg-rose-50 p-4 text-xs font-bold text-rose-800">
+                    <p>{qError}</p>
+                    <button type="button" onClick={() => setQReload((value) => value + 1)} className="rounded-lg border border-rose-300 px-3 py-2">إعادة المحاولة</button>
+                  </div>
+                ) : qRows.length === 0 ? (
                   <div className="p-8 text-center text-xs text-gray-400">
                     لا توجد أسئلة مطابقة للبحث في هذا المسار والمادة.
                   </div>
@@ -1062,6 +1280,7 @@ export function AssessmentEditorPanel(p: Props) {
 
                             <button
                               type="button"
+                              aria-label={`إضافة السؤال ${q.questionCode}`}
                               disabled={isAdded}
                               onClick={() => addQuestion(q)}
                               className={`rounded-xl px-3 py-1 text-xs font-black transition ${
@@ -1095,6 +1314,11 @@ export function AssessmentEditorPanel(p: Props) {
                   })
                 )}
               </div>
+              <div className="flex items-center justify-center gap-3 text-xs font-bold">
+                <button type="button" aria-label="الصفحة السابقة للأسئلة" disabled={qLoading || qPage <= 1} onClick={() => setQPagination({ scope: qScope, page: qPage - 1 })} className="rounded-lg border px-3 py-2 disabled:opacity-40">السابق</button>
+                <span>الصفحة {qPage}</span>
+                <button type="button" aria-label="الصفحة التالية للأسئلة" disabled={qLoading || !!qError || !qHasMore} onClick={() => setQPagination({ scope: qScope, page: qPage + 1 })} className="rounded-lg border px-3 py-2 disabled:opacity-40">التالي</button>
+              </div>
             </div>
 
             {/* Added Questions List */}
@@ -1113,7 +1337,7 @@ export function AssessmentEditorPanel(p: Props) {
                   </div>
                 ) : (
                   questions.map((q, idx) => {
-                    const meta = qRows.find((item) => item.id === q.questionId);
+                    const meta = qKnown[q.questionId];
                     return (
                       <div
                         key={q.questionId}
@@ -1338,16 +1562,17 @@ export function AssessmentEditorPanel(p: Props) {
               </button>
               <button
                 type="button"
-                disabled={saving}
-                onClick={save}
+                disabled={saving || writeUncertain}
+                onClick={() => void save(true)}
                 className="rounded-xl bg-amber-500 px-6 py-2.5 text-xs font-black text-slate-950 shadow-xs hover:bg-amber-400 disabled:opacity-50"
               >
-                {saving ? 'جاري الحفظ...' : 'حفظ ونشر الاختبار الآن'}
+                {saving ? 'جاري الحفظ...' : p.isAdmin ? 'حفظ ونشر الاختبار الآن' : 'حفظ وإرسال للمراجعة'}
               </button>
             </div>
           </div>
         </section>
       ) : null}
+      </fieldset>
     </main>
   );
 }

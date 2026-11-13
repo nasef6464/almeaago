@@ -94,5 +94,7 @@ test('student question assistant is scoped to owned review card and can return t
  expect(assistBody).toEqual({reviewCardId:'card-1',helpLevel:'hint',message:''});
  await expect(page.getByText('شرح موثوق احتياطي')).toBeVisible();
  await expect(page.getByTestId('question-assistant').getByText('اجمع العددين.',{exact:true})).toBeVisible();
+ await page.goto('/review?pathId=path-1&subjectId=subject-1&tab=mistakes');
+ await expect(page).toHaveURL(/pathId=path-1.*subjectId=subject-1.*tab=review.*mode=mistakes|pathId=path-1.*subjectId=subject-1.*mode=mistakes.*tab=review/);
  await page.screenshot({path:'test-results/ai-question-assistant-mobile.png',fullPage:true});
 });

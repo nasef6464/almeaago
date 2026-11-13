@@ -55,6 +55,7 @@ function load(relative, initialStates = []) {
       buildPathReadinessSummary: () => ({ total: 0, visible: 0, hidden: 0, subjects: 0, packages: 0 }),
     };
     if (id.endsWith('/lesson-link-write')) return load('features/content/api/lesson-link-write.ts');
+    if (id.endsWith('/packageScope')) return load('features/taxonomy/components/packageScope.ts');
     if (id.endsWith('/LessonEditorPanel')) return load('features/content/components/LessonEditorPanel.tsx');
     if (id.endsWith('/VideoQuestionPicker') || id === './VideoQuestionPicker') return { VideoQuestionPicker: () => null };
     if (id.endsWith('/FoundationEditorPanel') || id.includes('FoundationEditorPanel')) return { FoundationEditorPanel: () => null };
@@ -63,6 +64,8 @@ function load(relative, initialStates = []) {
       isHomepageLocation: () => false, isPlatformFontsLocation: () => false,
       buildHomepageHref: () => '/admin-dashboard?tab=homepage', buildPlatformFontsHref: () => '/admin-dashboard?tab=platform-fonts',
     };
+    if (id.endsWith('/SharedVideoPlayer')) return { SharedVideoPlayer: () => null, resolveVideoSource: () => null };
+    if (id.endsWith('/lib/questionHtml')) return { normalizeQuestionHtml: (value) => value ?? '' };
     return require(id);
   };
   const module = { exports: {} };

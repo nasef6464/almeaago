@@ -33,12 +33,13 @@ export function AssessmentAssignmentsPage({ embedded }: { embedded?: boolean } =
   const [starting, setStarting] = useState('');
   const [error, setError] = useState('');
   const startingRef = useRef(false);
+  const studentId = user?.roles.includes('student') ? user.id : '';
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || !embedded) return;
     setRows([]);
     setError('');
-    if (!user?.roles.includes('student')) {
+    if (!studentId) {
       setBusy(false);
       return;
     }
@@ -58,7 +59,7 @@ export function AssessmentAssignmentsPage({ embedded }: { embedded?: boolean } =
         if (!controller.signal.aborted) setBusy(false);
       });
     return () => controller.abort();
-  }, [authLoading, user]);
+  }, [authLoading, embedded, studentId]);
 
   async function start(row: LearnerAssessmentAssignment) {
     if (startingRef.current || !user?.id || !row.canStart) return;
@@ -86,7 +87,7 @@ export function AssessmentAssignmentsPage({ embedded }: { embedded?: boolean } =
     }
   }
 
-  if (authLoading || busy) {
+  if (authLoading || (embedded && busy)) {
     return <div className="p-10 text-center font-black">جاري تحميل التكليفات...</div>;
   }
   if (!embedded && (!user || user?.roles.includes('student'))) {

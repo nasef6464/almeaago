@@ -13,10 +13,11 @@ import (
 )
 
 type studyPlanRepoStub struct {
-	plan      learning.StudyPlan
-	page      learning.StudyPlanPage
-	lastWrite learning.StudyPlanWrite
-	lastItems []learning.StudyPlanItemSeed
+	plan             learning.StudyPlan
+	page             learning.StudyPlanPage
+	lastWrite        learning.StudyPlanWrite
+	lastItems        []learning.StudyPlanItemSeed
+	completedLessons map[string]bool
 }
 
 func (r *studyPlanRepoStub) CreateStudyPlan(_ context.Context, _ string, w learning.StudyPlanWrite, items []learning.StudyPlanItemSeed) (learning.StudyPlan, error) {
@@ -37,7 +38,7 @@ func (r *studyPlanRepoStub) UpdateStudyPlan(_ context.Context, _ string, _ strin
 }
 func (r *studyPlanRepoStub) DeleteStudyPlan(context.Context, string, string) error { return nil }
 func (r *studyPlanRepoStub) CompletedStudyPlanLessons(context.Context, string, []learning.StudyPlanLessonRef) (map[string]bool, error) {
-	return map[string]bool{}, nil
+	return r.completedLessons, nil
 }
 
 type studyPlanTaxonomyStub struct{ ok bool }
@@ -59,15 +60,40 @@ func (s studyPlanContentStub) ListStudyPlanResources(context.Context, string, []
 }
 
 type studyPlanAssessmentStub struct {
-	items []assessment.StudyPlanResource
+	items     []assessment.StudyPlanResource
+	completed map[string]bool
 }
 
 func (s studyPlanAssessmentStub) ListStudyPlanResources(context.Context, string, string, []string, []string, int) ([]assessment.StudyPlanResource, error) {
 	return s.items, nil
 }
+func (s studyPlanAssessmentStub) CompletedStudyPlanAssessments(context.Context, string, []string) (map[string]bool, error) {
+	return s.completed, nil
+}
 
 func planStudent() identity.User {
 	return identity.User{ID: "student-1", Roles: []identity.Role{identity.RoleStudent}}
+}
+
+func TestStudyPlanKeepsHiddenItemsAndRestoresThem(t *testing.T) {
+	plan := learning.StudyPlan{StudyPlanSummary: learning.StudyPlanSummary{PathID: "path-1"}, Items: []learning.StudyPlanItem{
+		{ID: "item-lesson", ItemType: learning.StudyPlanLesson, LessonID: "lesson-1", CourseID: "course-1", Title: "درس"},
+		{ID: "item-assessment", ItemType: learning.StudyPlanAssessment, AssessmentPlacementID: "placement-1", Title: "تدريب"},
+	}}
+	repo := &studyPlanRepoStub{completedLessons: map[string]bool{"lesson-1:course-1": true}}
+	hidden := NewStudyPlanService(repo, studyPlanTaxonomyStub{ok: true}, studyPlanContentStub{ok: true}, studyPlanAssessmentStub{completed: map[string]bool{"placement-1": true}})
+	result, err := hidden.hydrate(context.Background(), "student-1", plan)
+	if err != nil || len(result.Items) != 2 || result.Items[0].Available || result.Items[1].Available || result.Items[0].ID != "item-lesson" || result.Items[1].ID != "item-assessment" {
+		t.Fatalf("hidden plan items lost or accessible: %+v %v", result.Items, err)
+	}
+	if !result.Items[0].Completed || !result.Items[1].Completed {
+		t.Fatalf("hidden completed history disappeared: %+v", result.Items)
+	}
+	visible := NewStudyPlanService(repo, studyPlanTaxonomyStub{ok: true}, studyPlanContentStub{ok: true, items: []content.StudyPlanResource{{Kind: content.StudyPlanLessonResource, ID: "lesson-1", CourseID: "course-1", Title: "درس"}}}, studyPlanAssessmentStub{items: []assessment.StudyPlanResource{{PlacementID: "placement-1", Title: "تدريب", Completed: true}}})
+	result, err = visible.hydrate(context.Background(), "student-1", plan)
+	if err != nil || len(result.Items) != 2 || !result.Items[0].Available || !result.Items[1].Available || !result.Items[1].Completed {
+		t.Fatalf("restored items or result missing: %+v %v", result.Items, err)
+	}
 }
 func validPlanWrite() learning.StudyPlanWrite {
 	return learning.StudyPlanWrite{

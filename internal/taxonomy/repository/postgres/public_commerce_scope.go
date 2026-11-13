@@ -12,10 +12,10 @@ func (r *Repository) PublicCommerceScopeVisible(ctx context.Context, pathID, sub
 	var visible bool
 	err := r.db.QueryRow(ctx, `
 		WITH RECURSIVE public_paths AS (
-			SELECT id FROM paths WHERE parent_path_id IS NULL AND status='active'
+			SELECT id FROM paths WHERE parent_path_id IS NULL AND status='active' AND COALESCE(presentation->>'isVisible','true') <> 'false'
 			UNION ALL
 			SELECT p.id FROM paths p JOIN public_paths parent ON parent.id=p.parent_path_id
-			WHERE p.status='active'
+			WHERE p.status='active' AND COALESCE(p.presentation->>'isVisible','true') <> 'false'
 		)
 		SELECT EXISTS (
 			SELECT 1 FROM public_paths p WHERE p.id::text=$1 AND $2=''
@@ -25,7 +25,8 @@ func (r *Repository) PublicCommerceScopeVisible(ctx context.Context, pathID, sub
 			LEFT JOIN levels level ON level.id=s.level_id AND level.path_id=p.id
 			WHERE s.id::text=$2 AND ($1='' OR p.id::text=$1)
 			AND s.status='active'
-			AND (s.level_id IS NULL OR level.status='active')
+			AND COALESCE(s.presentation->>'isVisible','true') <> 'false'
+			AND (s.level_id IS NULL OR (level.status='active' AND COALESCE(level.presentation->>'isVisible','true') <> 'false'))
 		)
 	`, pathID, subjectID).Scan(&visible)
 	return visible, err

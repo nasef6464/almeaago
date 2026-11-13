@@ -18,6 +18,8 @@ import { AssessmentAdminPage } from '../features/assessment/pages/AssessmentAdmi
 import { AssessmentAttemptPage } from '../features/assessment/pages/AssessmentAttemptPage';
 import { AssessmentResultsPage } from '../features/assessment/pages/AssessmentResultsPage';
 import { AssessmentAvailabilityPage } from '../features/assessment/pages/AssessmentAvailabilityPage';
+import { SelfQuizPage } from '../features/assessment/pages/SelfQuizPage';
+import { PreparedQuizAdminPage } from '../features/assessment/pages/PreparedQuizAdminPage';
 import { AssessmentAssignmentsPage } from '../features/assessment/pages/AssessmentAssignmentsPage';
 import { ReviewLibraryPage } from '../features/learning/pages/ReviewLibraryPage';
 import { ReviewPracticePage } from '../features/learning/pages/ReviewPracticePage';
@@ -151,7 +153,7 @@ export function App() {
 
 
   const inAdminWorkspace = location.pathname.startsWith('/admin-dashboard');
-  const hideSiteHeader = inAdminWorkspace || location.pathname.endsWith('/projector');
+  const hideSiteHeader = inAdminWorkspace || location.pathname.endsWith('/projector') || location.pathname === '/quiz';
 
   return (
     <StudentNavigationProvider>
@@ -198,6 +200,7 @@ export function App() {
         <Route path="/admin-dashboard/taxonomy" element={<AdminDashboardShell><TaxonomyAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/questions" element={<AdminDashboardShell><QuestionBankAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/assessments" element={<AdminDashboardShell><AssessmentAdminPage /></AdminDashboardShell>} />
+        <Route path="/admin-dashboard/assessments/:assessmentId/prepared" element={<AdminDashboardShell><PreparedQuizAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/commerce" element={<AdminDashboardShell><CommerceAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/users" element={<AdminDashboardShell><UsersAdminPage /></AdminDashboardShell>} />
         <Route path="/admin-dashboard/trainers" element={<AdminDashboardShell><UsersAdminPage defaultRoleFilter="platform_trainer" pageTitle="إدارة المدربين والمعلمين" /></AdminDashboardShell>} />
@@ -212,6 +215,7 @@ export function App() {
         <Route path="/admin-dashboard/backups" element={<AdminDashboardShell><BackupAdminPage /></AdminDashboardShell>} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/assessments" element={<AssessmentAvailabilityPage />} />
+        <Route path="/quiz" element={<SelfQuizPage />} />
         <Route path="/assessment-assignments" element={<AssessmentAssignmentsPage />} />
         <Route path="/barcode-test" element={<PublicBarcodeAssessmentPage />} />
         <Route path="/barcode-test/:code" element={<PublicBarcodeAssessmentPage />} />
@@ -258,8 +262,12 @@ export function App() {
       <AnnouncementAdsOverlay />
       <PwaInstallBanner />
 
-      <ChatWidget />
-      <FloatingContactWidget />
+      {location.pathname !== '/quiz' ? (
+        <>
+          <ChatWidget />
+          <FloatingContactWidget />
+        </>
+      ) : null}
 
       {hideSiteHeader ? (
         <AuthModal open={modalMode !== null} initialSignUp={modalMode === 'signup'} onClose={closeModal} />

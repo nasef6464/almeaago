@@ -237,69 +237,38 @@ export function CheckoutPage() {
     setSaving(true);
     setError('');
     setNotice('');
+    if (product.id.startsWith('tier-')) {
+      // Membership tiers are not yet backed by a server-side product. Fail closed
+      // instead of fabricating a local "pending" request that grants nothing.
+      setError(
+        'شراء العضوية إلكترونياً غير مفعّل بعد. فعّل باقتك برمز التفعيل من صفحة الباقات، أو تواصل مع الدعم لإتمام الاشتراك.'
+      );
+      setSaving(false);
+      return;
+    }
     try {
       const csrf = await getCsrfToken();
-      if (product.id.startsWith('tier-')) {
-        const fallbackReq: CommercePaymentRequest = {
-          id: `req-tier-${Date.now()}`,
-          userId: user?.id || 'demo-student',
+      const r = await commerceClient.createCheckout(
+        {
           productId: product.id,
-          productRevision: 1,
-          productName: product.name,
-          originalAmountMinor: product.priceMinor,
-          discountAmountMinor: preview?.valid ? preview.discountAmountMinor : 0,
-          finalAmountMinor: preview?.valid ? preview.finalAmountMinor : product.priceMinor,
-          currency: 'SAR',
-          discountId: preview?.valid ? 'disc-tier' : '',
           discountCode: preview?.valid ? preview.code : '',
           paymentMethod: method,
-          gatewayMode: 'manual_review',
-          providerCode: method === 'transfer' ? 'al_rajhi_bank' : 'mada_card',
-          status: 'pending',
           idempotencyKey: checkoutKey(product.id),
-          providerTransactionId: transferRef || `TXN-${Date.now()}`,
-          providerSessionId: '',
-          providerRedirectUrl: '',
-          providerSessionStatus: '',
-          paidAt: null,
-          reviewedBy: '',
-          reviewedAt: null,
-          reviewerNotes: senderName ? `صاحب الحساب: ${senderName} - ${senderBank}` : '',
-          approvalEvidence: receiptPreview ? 'receipt_uploaded' : '',
-          revision: 1,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        setCurrent(fallbackReq);
-        setRequests((v) => [fallbackReq, ...v]);
-        if (method === 'transfer') {
-          setNotice('تم تسجيل طلب التحويل البنكي للباقة بنجاح. سيتم مراجعة الإيصال واعتماد تفعيل اشتراكك في أقرب وقت.');
-        } else {
-          setNotice('تم إنشاء طلب الاشتراك في الباقة بنجاح. سيتم التفعيل فور اعتماد السداد.');
-        }
-      } else {
-        const r = await commerceClient.createCheckout(
-          {
-            productId: product.id,
-            discountCode: preview?.valid ? preview.code : '',
-            paymentMethod: method,
-            idempotencyKey: checkoutKey(product.id),
-          },
-          csrf
+        },
+        csrf
+      );
+      setCurrent(r.request);
+      setRequests((v) => [r.request, ...v.filter((x) => x.id !== r.request.id)]);
+      if (method === 'transfer') {
+        setNotice(
+          'تم تسجيل طلب التحويل البنكي بنجاح. سيتم مراجعة الإيصال واعتماد تفعيل اشتراكك في أقرب وقت.'
         );
-        setCurrent(r.request);
-        setRequests((v) => [r.request, ...v.filter((x) => x.id !== r.request.id)]);
-        if (method === 'transfer') {
-          setNotice(
-            'تم تسجيل طلب التحويل البنكي بنجاح. سيتم مراجعة الإيصال واعتماد تفعيل اشتراكك في أقرب وقت.'
-          );
-        } else {
-          setNotice(
-            r.request.gatewayMode === 'manual_review'
-              ? 'تم إنشاء طلب الدفع. سيتم تفعيل المحتوى فور اعتماد الطلب.'
-              : 'تم إنشاء طلب الدفع. سيُفتح المحتوى فور إتمام عملية السداد.'
-          );
-        }
+      } else {
+        setNotice(
+          r.request.gatewayMode === 'manual_review'
+            ? 'تم إنشاء طلب الدفع. سيتم تفعيل المحتوى فور اعتماد الطلب.'
+            : 'تم إنشاء طلب الدفع. سيُفتح المحتوى فور إتمام عملية السداد.'
+        );
       }
     } catch (e) {
       const message = e instanceof Error ? e.message : 'تعذر إنشاء طلب الدفع';

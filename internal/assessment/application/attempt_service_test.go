@@ -7,6 +7,7 @@ import (
 	"time"
 
 	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
+	commerce "github.com/nasef6464/almeaago/internal/commerce/domain"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	learning "github.com/nasef6464/almeaago/internal/learning/domain"
 )
@@ -30,8 +31,18 @@ func (f *fakeAttemptRepo) GetPublishedAccessContext(context.Context, string) (as
 	}
 	return f.access, f.err
 }
+func (f *fakeAttemptRepo) DirectPlacementAccessContexts(context.Context, string) (bool, []assessment.AccessContext, error) {
+	return false, nil, f.err
+}
 func (f *fakeAttemptRepo) FindDirectStart(context.Context, string, string, string) (assessment.Attempt, bool, error) {
 	return assessment.Attempt{}, false, f.err
+}
+func (f *fakeAttemptRepo) GetSingleShotAccessContext(ctx context.Context, id string) (assessment.AccessContext, bool, error) {
+	scope, err := f.GetPublishedAccessContext(ctx, id)
+	return scope, false, err
+}
+func (f *fakeAttemptRepo) FindSingleShotResult(context.Context, string, string, string) (assessment.ResultDetail, bool, error) {
+	return assessment.ResultDetail{}, false, f.err
 }
 func (f *fakeAttemptRepo) Start(context.Context, string, string, string) (assessment.Attempt, error) {
 	return f.a, f.err
@@ -104,6 +115,29 @@ func TestAttemptAnswerShape(t *testing.T) {
 	negative := -1
 	if _, e := s.Save(context.Background(), student("s"), "a", "q", assessment.AnswerWrite{SelectedOptionIndex: &negative}); !errors.Is(e, ErrInvalidInput) {
 		t.Fatalf("negative option: want invalid got %v", e)
+	}
+}
+
+func TestSelfQuizCanMarkOrClearAnUnansweredQuestion(t *testing.T) {
+	s := NewAttemptService(&fakeAttemptRepo{a: assessment.Attempt{ID: "attempt", StudentID: "s"}})
+	for _, marked := range []bool{true, false} {
+		if _, err := s.Save(context.Background(), student("s"), "attempt", "q", assessment.AnswerWrite{MarkedForReview: marked}); err != nil {
+			t.Fatalf("self blank answer marked=%v: %v", marked, err)
+		}
+	}
+	prepared := NewAttemptService(&fakeAttemptRepo{a: assessment.Attempt{ID: "attempt", StudentID: "s", AssessmentID: "prepared"}})
+	if _, err := prepared.Save(context.Background(), student("s"), "attempt", "q", assessment.AnswerWrite{}); err != nil {
+		t.Fatalf("prepared blank rejected: %v", err)
+	}
+	if _, err := s.Save(context.Background(), student("other"), "attempt", "q", assessment.AnswerWrite{}); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("other student blank accepted: %v", err)
+	}
+}
+
+func TestPreparedAttemptCanPersistUnansweredTime(t *testing.T) {
+	s := NewAttemptService(&fakeAttemptRepo{a: assessment.Attempt{ID: "attempt", StudentID: "s", AssessmentID: "prepared"}})
+	if _, err := s.Save(context.Background(), student("s"), "attempt", "q", assessment.AnswerWrite{TimeSpentSeconds: 12}); err != nil {
+		t.Fatalf("save unanswered time: %v", err)
 	}
 }
 
@@ -274,5 +308,47 @@ func TestSingleShotSubmit(t *testing.T) {
 	}
 	if res.TimeSpent != "2 دقيقة و 30 ثانية" {
 		t.Errorf("expected TimeSpent='2 دقيقة و 30 ثانية', got %q", res.TimeSpent)
+	}
+}
+
+func TestResultTopicLockReflectsPurchasedFoundationAccess(t *testing.T) {
+	detail := assessment.ResultDetail{SkillAnalysis: &assessment.ResultSkillAnalysis{Complete: true, Items: []assessment.ResultSkillAnalysisItem{
+		{PathID: "p", SubjectID: "s", SkillID: "skill-1", FoundationTopics: []assessment.ResultFoundationTopic{{ID: "paid-1", IsLocked: true}, {ID: "free", IsLocked: false}}},
+		{PathID: "p", SubjectID: "s", SkillID: "skill-2", FoundationTopics: []assessment.ResultFoundationTopic{{ID: "paid-2", IsLocked: true}}},
+	}}}
+	repo := &fakeAttemptRepo{detail: detail}
+	access := &recordingCommerceAccess{commerceAccessStub: commerceAccessStub{allowed: true}}
+	service := NewAttemptServiceWithLearningAndCommerce(repo, nil, access)
+	got, err := service.ResultDetail(context.Background(), student("student-1"), "attempt-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, skill := range got.SkillAnalysis.Items {
+		for _, topic := range skill.FoundationTopics {
+			if topic.IsLocked {
+				t.Fatalf("purchased topic remains locked: %+v", topic)
+			}
+		}
+	}
+	if access.calls != 1 || access.contentType != commerce.ContentFoundation || !access.packageOnly {
+		t.Fatalf("wrong access scope: %+v", access)
+	}
+}
+
+func TestResultTopicRemainsLockedWhenAccessDeniedOrUnavailable(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		access *recordingCommerceAccess
+	}{
+		{"denied", &recordingCommerceAccess{commerceAccessStub: commerceAccessStub{allowed: false}}},
+		{"unavailable", &recordingCommerceAccess{commerceAccessStub: commerceAccessStub{err: errors.New("unavailable")}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &fakeAttemptRepo{detail: assessment.ResultDetail{SkillAnalysis: &assessment.ResultSkillAnalysis{Items: []assessment.ResultSkillAnalysisItem{{PathID: "p", SubjectID: "s", FoundationTopics: []assessment.ResultFoundationTopic{{ID: "topic", IsLocked: true}}}}}}}
+			got, err := NewAttemptServiceWithLearningAndCommerce(repo, nil, tc.access).ResultDetail(context.Background(), student("student-1"), "attempt-1")
+			if err != nil || !got.SkillAnalysis.Items[0].FoundationTopics[0].IsLocked {
+				t.Fatalf("topic opened without entitlement: %+v %v", got, err)
+			}
+		})
 	}
 }

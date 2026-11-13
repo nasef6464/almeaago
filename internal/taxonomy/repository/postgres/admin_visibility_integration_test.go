@@ -16,6 +16,7 @@ import (
 	identityapp "github.com/nasef6464/almeaago/internal/identity/application"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	taxonomyapp "github.com/nasef6464/almeaago/internal/taxonomy/application"
+	taxonomy "github.com/nasef6464/almeaago/internal/taxonomy/domain"
 	taxonomyhttp "github.com/nasef6464/almeaago/internal/taxonomy/transport/http"
 )
 
@@ -26,7 +27,7 @@ func TestAdminVisibilityReachesLearnerPostgres(t *testing.T) {
 	if os.Getenv("TAXONOMY_VISIBILITY_DB_TEST") != "1" || os.Getenv("DATABASE_URL") == "" {
 		t.Skip("TAXONOMY_VISIBILITY_DB_TEST=1 and disposable DATABASE_URL required")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	url := os.Getenv("DATABASE_URL")
 	admin, err := pgxpool.New(ctx, url)
@@ -75,12 +76,13 @@ func TestAdminVisibilityReachesLearnerPostgres(t *testing.T) {
         )`,
 		`CREATE TABLE users(id uuid PRIMARY KEY)`,
 		`CREATE TABLE audit_logs(actor_user_id uuid, action text, resource_type text, resource_id text, status text, metadata jsonb)`,
+		`CREATE TABLE taxonomy_skill_sections(id uuid PRIMARY KEY DEFAULT uuidv7(), subject_id uuid NOT NULL, name text NOT NULL, sort_order integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'active',updated_at timestamptz NOT NULL DEFAULT now())`,
 		`CREATE TABLE skills (
             id uuid PRIMARY KEY, subject_id uuid NOT NULL REFERENCES subjects(id),
-            parent_skill_id uuid REFERENCES skills(id), code text NOT NULL,
+			parent_skill_id uuid REFERENCES skills(id), section_id uuid, code text NOT NULL,
             name text NOT NULL, description text NOT NULL DEFAULT '',
             kind text NOT NULL, sort_order integer NOT NULL DEFAULT 0,
-            status text NOT NULL DEFAULT 'active'
+			status text NOT NULL DEFAULT 'active', updated_at timestamptz NOT NULL DEFAULT now()
         )`,
 	} {
 		if _, err := db.Exec(ctx, ddl); err != nil {
@@ -127,7 +129,26 @@ func TestAdminVisibilityReachesLearnerPostgres(t *testing.T) {
 		}
 	}
 
+	const skillSection = "01900000-0000-7000-8000-000000009109"
+	if _, err = db.Exec(ctx, `INSERT INTO taxonomy_skill_sections(id,subject_id,name) VALUES($1,$2,'group')`, skillSection, subjectActive); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec(ctx, `UPDATE skills SET section_id=$1 WHERE id=$2`, skillSection, mainActive); err != nil {
+		t.Fatal(err)
+	}
 	r := New(db)
+	initial, err := r.PublicBootstrap(ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(initial.Sections) != 1 || initial.Sections[0].ID != skillSection {
+		t.Fatalf("section missing: %+v", initial.Sections)
+	}
+	for _, skill := range initial.Skills {
+		if (skill.ID == mainActive || skill.ID == subActive) && skill.SectionID != skillSection {
+			t.Fatalf("skill did not inherit section: %+v", skill)
+		}
+	}
 	hasSubject := func(id string) bool {
 		bootstrap, err := r.PublicBootstrap(ctx, true)
 		if err != nil {
@@ -160,6 +181,26 @@ func TestAdminVisibilityReachesLearnerPostgres(t *testing.T) {
 	}
 	if hasSkill(subOrphan) {
 		t.Fatal("active sub-skill must be hidden while its main skill is inactive")
+	}
+	sectionService := taxonomyapp.NewService(r)
+	adminActor := identity.User{ID: actor, Roles: []identity.Role{identity.RoleAdmin}}
+	createdSection, err := sectionService.CreateSkillSection(ctx, adminActor, taxonomy.SkillSectionWrite{SubjectID: subjectNoLevel, Name: "other section"})
+	if err != nil {
+		t.Fatalf("create section: %v", err)
+	}
+	if _, err = sectionService.SetSkillSection(ctx, adminActor, mainActive, createdSection.ID); !errors.Is(err, taxonomy.ErrConflict) {
+		t.Fatalf("cross-subject assignment: %v", err)
+	}
+	archived := "archived"
+	if _, err = sectionService.UpdateSkillSection(ctx, adminActor, createdSection.ID, taxonomy.SkillSectionPatch{Status: &archived}); err != nil {
+		t.Fatalf("archive: %v", err)
+	}
+	active := "active"
+	if _, err = sectionService.UpdateSkillSection(ctx, adminActor, createdSection.ID, taxonomy.SkillSectionPatch{Status: &active}); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	if _, err = sectionService.SetSkillSection(ctx, adminActor, subActive, skillSection); !errors.Is(err, taxonomy.ErrConflict) {
+		t.Fatalf("sub-skill assignment: %v", err)
 	}
 
 	ok, err := r.ValidateMasteryGoalScope(ctx, path, subjectInactiveLevel)

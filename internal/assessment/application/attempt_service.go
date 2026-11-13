@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
+	commerce "github.com/nasef6464/almeaago/internal/commerce/domain"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	learning "github.com/nasef6464/almeaago/internal/learning/domain"
 )
@@ -16,6 +17,7 @@ var ErrResultUnavailable = assessment.ErrResultUnavailable
 
 type AttemptRepository interface {
 	GetPublishedAccessContext(context.Context, string) (assessment.AccessContext, error)
+	DirectPlacementAccessContexts(context.Context, string) (bool, []assessment.AccessContext, error)
 	FindDirectStart(context.Context, string, string, string) (assessment.Attempt, bool, error)
 	Start(context.Context, string, string, string) (assessment.Attempt, error)
 	GetAttempt(context.Context, string) (assessment.Attempt, error)
@@ -25,6 +27,36 @@ type AttemptRepository interface {
 	ListResults(context.Context, string, int, int) (assessment.ResultPage, error)
 	GetResultDetail(context.Context, string, string) (assessment.ResultDetail, error)
 	SingleShotSubmit(context.Context, string, string, assessment.SingleShotSubmissionRequest) (assessment.ResultDetail, error)
+}
+
+type StrictSectionAdvancer interface {
+	AdvanceStrictSection(context.Context, string, string, string) (assessment.Attempt, error)
+}
+
+type QuestionTimeRecorder interface {
+	RecordQuestionTime(context.Context, string, string, string, int) (int, error)
+}
+
+func (s *AttemptService) RecordTime(ctx context.Context, actor identity.User, id, questionID string, seconds int) (int, error) {
+	if requireStudent(actor) != nil {
+		return 0, ErrForbidden
+	}
+	id, questionID = strings.TrimSpace(id), strings.TrimSpace(questionID)
+	if id == "" || questionID == "" || seconds < 0 || seconds > 86400 {
+		return 0, ErrInvalidInput
+	}
+	recorder, ok := s.repo.(QuestionTimeRecorder)
+	if !ok {
+		return 0, ErrWorkflow
+	}
+	return recorder.RecordQuestionTime(ctx, actor.ID, id, questionID, seconds)
+}
+
+// Single-shot submissions must use the same direct entitlement policy as an
+// ordinary attempt, while allowing an owned completed submission to be retried.
+type singleShotAccessRepository interface {
+	GetSingleShotAccessContext(context.Context, string) (assessment.AccessContext, bool, error)
+	FindSingleShotResult(context.Context, string, string, string) (assessment.ResultDetail, bool, error)
 }
 
 type SubmissionEvidenceSource interface {
@@ -58,6 +90,21 @@ func requireStudent(a identity.User) error {
 	return nil
 }
 
+func (s *AttemptService) AdvanceSection(ctx context.Context, actor identity.User, id, expectedSectionID string) (assessment.Attempt, error) {
+	if err := requireStudent(actor); err != nil {
+		return assessment.Attempt{}, err
+	}
+	id, expectedSectionID = strings.TrimSpace(id), strings.TrimSpace(expectedSectionID)
+	if id == "" || expectedSectionID == "" {
+		return assessment.Attempt{}, ErrInvalidInput
+	}
+	advancer, ok := s.repo.(StrictSectionAdvancer)
+	if !ok {
+		return assessment.Attempt{}, ErrWorkflow
+	}
+	return advancer.AdvanceStrictSection(ctx, actor.ID, id, expectedSectionID)
+}
+
 func key(v string) string {
 	v = strings.TrimSpace(v)
 	if len(v) > 160 {
@@ -86,7 +133,7 @@ func (s *AttemptService) Start(ctx context.Context, a identity.User, assessmentI
 	if err != nil {
 		return assessment.Attempt{}, err
 	}
-	allowed, _, err := resolveDirectAssessmentAccess(ctx, s.access, a.ID, scope)
+	allowed, _, err := s.canAccessDirectAssessment(ctx, a.ID, scope)
 	if err != nil {
 		return assessment.Attempt{}, err
 	}
@@ -94,6 +141,46 @@ func (s *AttemptService) Start(ctx context.Context, a identity.User, assessmentI
 		return assessment.Attempt{}, ErrForbidden
 	}
 	return s.repo.Start(ctx, a.ID, assessmentID, startKey)
+}
+
+func (s *AttemptService) canAccessDirectAssessment(ctx context.Context, studentID string, scope assessment.AccessContext) (bool, string, error) {
+	hasPlacements, scopes, err := s.repo.DirectPlacementAccessContexts(ctx, scope.AssessmentID)
+	if err != nil {
+		return false, "", err
+	}
+	if !hasPlacements {
+		return resolveDirectAssessmentAccess(ctx, s.access, studentID, scope)
+	}
+	var accessErr error
+	reason := "unavailable"
+	for _, placement := range scopes {
+		allowed, placementReason, err := resolvePlacementAssessmentAccess(ctx, s.access, studentID, placement)
+		if err != nil {
+			accessErr = err
+			continue
+		}
+		if allowed {
+			return true, placementReason, nil
+		}
+		if placementReason == "package_required" || placementReason == "paid_required" || reason == "unavailable" {
+			reason = placementReason
+		}
+	}
+	return false, reason, accessErr
+}
+
+// PreviewDirectAccess reports the same access policy as a new direct start,
+// without creating an attempt. An empty student ID represents a guest.
+func (s *AttemptService) PreviewDirectAccess(ctx context.Context, studentID, assessmentID string) (bool, string, error) {
+	assessmentID = strings.TrimSpace(assessmentID)
+	if assessmentID == "" {
+		return false, "", ErrInvalidInput
+	}
+	scope, err := s.repo.GetPublishedAccessContext(ctx, assessmentID)
+	if err != nil {
+		return false, "", err
+	}
+	return s.canAccessDirectAssessment(ctx, strings.TrimSpace(studentID), scope)
 }
 
 func (s *AttemptService) Get(ctx context.Context, a identity.User, id string) (assessment.Attempt, error) {
@@ -118,7 +205,13 @@ func (s *AttemptService) Save(ctx context.Context, a identity.User, id, qid stri
 		return assessment.Attempt{}, ErrInvalidInput
 	}
 	if w.SelectedOptionIndex == nil && strings.TrimSpace(w.TextAnswer) == "" {
-		return assessment.Attempt{}, ErrInvalidInput
+		attempt, err := s.repo.GetAttempt(ctx, strings.TrimSpace(id))
+		if err != nil {
+			return assessment.Attempt{}, err
+		}
+		if attempt.StudentID != a.ID {
+			return assessment.Attempt{}, ErrForbidden
+		}
 	}
 	if w.SelectedOptionIndex != nil && strings.TrimSpace(w.TextAnswer) != "" {
 		return assessment.Attempt{}, ErrInvalidInput
@@ -199,7 +292,34 @@ func (s *AttemptService) ResultDetail(ctx context.Context, a identity.User, id s
 	if id == "" {
 		return assessment.ResultDetail{}, ErrInvalidInput
 	}
-	return s.repo.GetResultDetail(ctx, a.ID, id)
+	detail, err := s.repo.GetResultDetail(ctx, a.ID, id)
+	if err != nil || detail.SkillAnalysis == nil || s.access == nil {
+		return detail, err
+	}
+	// The stored topic flag describes package gating, not this student's
+	// entitlement. Resolve it once per subject before displaying a lock.
+	type scope struct{ path, subject string }
+	decisions := make(map[scope]bool)
+	for i := range detail.SkillAnalysis.Items {
+		skill := &detail.SkillAnalysis.Items[i]
+		for j := range skill.FoundationTopics {
+			topic := &skill.FoundationTopics[j]
+			if !topic.IsLocked {
+				continue
+			}
+			key := scope{skill.PathID, skill.SubjectID}
+			allowed, checked := decisions[key]
+			if !checked {
+				decision, accessErr := s.access.CheckAssessmentAccess(ctx, a.ID, key.path, key.subject, "", commerce.ContentFoundation, true)
+				allowed = accessErr == nil && decision.Allowed
+				decisions[key] = allowed
+			}
+			if allowed {
+				topic.IsLocked = false
+			}
+		}
+	}
+	return detail, nil
 }
 
 func (s *AttemptService) SingleShotSubmit(
@@ -219,9 +339,41 @@ func (s *AttemptService) SingleShotSubmit(
 		req.Answers = map[string]int{}
 	}
 
-	detail, err := s.repo.SingleShotSubmit(ctx, actor.ID, assessmentID, req)
-	if err != nil {
-		return assessment.SingleShotQuizResultDTO{}, err
+	accessRepo, ok := s.repo.(singleShotAccessRepository)
+	if !ok {
+		return assessment.SingleShotQuizResultDTO{}, ErrWorkflow
+	}
+	var detail assessment.ResultDetail
+	var found bool
+	var err error
+	if req.SubmissionKey != "" {
+		detail, found, err = accessRepo.FindSingleShotResult(ctx, actor.ID, assessmentID, req.SubmissionKey)
+		if err != nil {
+			return assessment.SingleShotQuizResultDTO{}, err
+		}
+	}
+	if !found {
+		var scope assessment.AccessContext
+		var strict bool
+		scope, strict, err = accessRepo.GetSingleShotAccessContext(ctx, assessmentID)
+		if err != nil {
+			return assessment.SingleShotQuizResultDTO{}, err
+		}
+		if strict {
+			return assessment.SingleShotQuizResultDTO{}, ErrForbidden
+		}
+		var allowed bool
+		allowed, _, err = s.canAccessDirectAssessment(ctx, actor.ID, scope)
+		if err != nil {
+			return assessment.SingleShotQuizResultDTO{}, err
+		}
+		if !allowed {
+			return assessment.SingleShotQuizResultDTO{}, ErrForbidden
+		}
+		detail, err = s.repo.SingleShotSubmit(ctx, actor.ID, assessmentID, req)
+		if err != nil {
+			return assessment.SingleShotQuizResultDTO{}, err
+		}
 	}
 
 	if s.evidenceSink != nil {
@@ -265,4 +417,3 @@ func (s *AttemptService) SingleShotSubmit(
 		Result:           detail.Result,
 	}, nil
 }
-

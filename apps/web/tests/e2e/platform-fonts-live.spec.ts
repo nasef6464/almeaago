@@ -45,7 +45,9 @@ test('original font editor persists through real Go identity and PostgreSQL',asy
   const capture=async(p:typeof page,name:string)=>{
    await p.evaluate(()=>window.scrollTo(0,0));
    const clip=await panel(p).boundingBox();expect(clip).not.toBeNull();
-   return p.screenshot({path:`test-results/font-${name}-component-${width}.png`,fullPage:true,clip:clip!,animations:'disabled'});
+   // The full-page screenshot above retains floating platform widgets. They are
+   // outside this editor component and have no counterpart in the source fixture.
+   return p.screenshot({path:`test-results/font-${name}-component-${width}.png`,fullPage:true,clip:clip!,animations:'disabled',style:'aside[aria-label="تواصل معنا عبر واتساب"], button[aria-label="المساعد الذكي الصوتي"] { visibility: hidden !important; }'});
   };
   const expected=await capture(original,'source');
   const actual=await capture(page,'go');

@@ -188,7 +188,7 @@ func publicContentTypes(p commerce.Product) []commerce.ContentType {
 	if p.Package != nil {
 		for _, i := range p.Package.Items {
 			kind := i.ContentType
-			if i.ScopeType == commerce.ScopeAll || i.ScopeType == commerce.ScopePath || i.ScopeType == commerce.ScopeSubject {
+			if i.ScopeType == commerce.ScopeAll || ((i.ScopeType == commerce.ScopePath || i.ScopeType == commerce.ScopeSubject) && (kind == "" || kind == commerce.ContentAll)) {
 				return []commerce.ContentType{commerce.ContentAll}
 			}
 			if i.ScopeType == commerce.ScopeCourse {

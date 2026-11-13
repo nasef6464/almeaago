@@ -33,6 +33,25 @@ type Service struct{ repo Repository }
 
 func NewService(repo Repository) *Service { return &Service{repo: repo} }
 
+type deletionRepository interface {
+	DeleteTaxonomy(context.Context, string, string, string) error
+}
+
+func (s *Service) DeleteTaxonomy(ctx context.Context, actor identity.User, kind, id string) error {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return ErrForbidden
+	}
+	id = strings.TrimSpace(id)
+	if id == "" || (kind != "path" && kind != "subject" && kind != "level") {
+		return ErrInvalidInput
+	}
+	repo, ok := s.repo.(deletionRepository)
+	if !ok {
+		return errors.New("taxonomy deletion unavailable")
+	}
+	return repo.DeleteTaxonomy(ctx, actor.ID, kind, id)
+}
+
 func (s *Service) PublicBootstrap(ctx context.Context, phase string) (taxonomy.Bootstrap, error) {
 	switch phase {
 	case "", "full", "compact":
@@ -72,7 +91,8 @@ func (s *Service) UpdatePath(ctx context.Context, actor identity.User, pathID st
 		v := strings.TrimSpace(*patch.ParentPathID)
 		patch.ParentPathID = &v
 	}
-	if pathID == "" || !validCommonPatch(patch.Name, patch.Description, patch.SortOrder, patch.Status, patch.ParentPathID != nil || patch.ShowInNavbar != nil || patch.ShowInHome != nil) {
+	presentationChanged := patch.IsVisible != nil || patch.ShowInNavbar != nil || patch.ShowInHome != nil || patch.ShowSubjectCards != nil || patch.ShowMockExamCard != nil || patch.ShowPackageCard != nil || patch.Color != nil || patch.Icon != nil || patch.IconURL != nil || patch.IconStyle != nil || patch.Settings.HasValues()
+	if pathID == "" || !validCommonPatch(patch.Name, patch.Description, patch.SortOrder, patch.Status, patch.ParentPathID != nil || presentationChanged) {
 		return taxonomy.Path{}, ErrInvalidInput
 	}
 	return s.repo.UpdatePath(ctx, actor.ID, pathID, patch)
@@ -94,7 +114,7 @@ func (s *Service) UpdateLevel(ctx context.Context, actor identity.User, levelID 
 		return taxonomy.Level{}, ErrForbidden
 	}
 	levelID = strings.TrimSpace(levelID)
-	if levelID == "" || !validCommonPatch(patch.Name, nil, patch.SortOrder, patch.Status, false) {
+	if levelID == "" || !validCommonPatch(patch.Name, nil, patch.SortOrder, patch.Status, patch.IsVisible != nil) {
 		return taxonomy.Level{}, ErrInvalidInput
 	}
 	return s.repo.UpdateLevel(ctx, actor.ID, levelID, patch)
@@ -120,7 +140,7 @@ func (s *Service) UpdateSubject(ctx context.Context, actor identity.User, subjec
 		v := strings.TrimSpace(*patch.LevelID)
 		patch.LevelID = &v
 	}
-	if subjectID == "" || !validCommonPatch(patch.Name, nil, patch.SortOrder, patch.Status, patch.LevelID != nil) {
+	if subjectID == "" || !validCommonPatch(patch.Name, nil, patch.SortOrder, patch.Status, patch.LevelID != nil || patch.IsVisible != nil) {
 		return taxonomy.Subject{}, ErrInvalidInput
 	}
 	return s.repo.UpdateSubject(ctx, actor.ID, subjectID, patch)
