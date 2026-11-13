@@ -28,6 +28,7 @@ type LearnerQuestion struct {
 	Type                   string                        `json:"type"`
 	Text                   string                        `json:"text"`
 	ImageAssetID           string                        `json:"imageAssetId"`
+	ImageURL               string                        `json:"imageUrl,omitempty"`
 	ImageAlt               string                        `json:"imageAlt"`
 	OptionsEmbeddedInImage bool                          `json:"optionsEmbeddedInImage"`
 	LearnerPresentation    *question.LearnerPresentation `json:"learnerPresentation,omitempty"`
@@ -44,6 +45,16 @@ type SavedAnswer struct {
 	MarkedForReview     bool      `json:"markedForReview"`
 	LastSavedAt         time.Time `json:"lastSavedAt"`
 }
+
+// SectionProgress is authoritative server state for a strict mock attempt.
+type SectionProgress struct {
+	CurrentSectionID string     `json:"currentSectionId"`
+	StartedAt        time.Time  `json:"startedAt"`
+	Deadline         *time.Time `json:"deadline,omitempty"`
+	ServerTime       time.Time  `json:"serverTime"`
+	Finished         bool       `json:"finished"`
+}
+
 type Attempt struct {
 	ID                      string            `json:"id"`
 	AssessmentID            string            `json:"assessmentId"`
@@ -54,12 +65,19 @@ type Attempt struct {
 	Title                   string            `json:"title"`
 	StartedAt               time.Time         `json:"startedAt"`
 	ExpiresAt               *time.Time        `json:"expiresAt"`
+	ServerTime              *time.Time        `json:"serverTime,omitempty"`
 	SubmittedAt             *time.Time        `json:"submittedAt"`
 	ShowProgressBar         bool              `json:"showProgressBar"`
 	RequireAnswerBeforeNext bool              `json:"requireAnswerBeforeNext"`
 	AllowQuestionReview     bool              `json:"allowQuestionReview"`
 	ShowResultsReport       bool              `json:"showResultsReport"`
 	RandomizeOptions        bool              `json:"randomizeOptions"`
+	Kind                    Kind              `json:"kind"`
+	MockPresentationMode    string            `json:"mockPresentationMode,omitempty"`
+	MockStrictSectionLock   *bool             `json:"mockStrictSectionLock,omitempty"`
+	Sections                []Section         `json:"sections"`
+	SectionProgress         *SectionProgress  `json:"sectionProgress,omitempty"`
+	TotalQuestions          int               `json:"totalQuestions"`
 	Questions               []LearnerQuestion `json:"questions"`
 	Answers                 []SavedAnswer     `json:"answers"`
 }

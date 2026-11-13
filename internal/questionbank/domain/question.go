@@ -84,6 +84,7 @@ type QuestionVersion struct {
 	QuestionType           QuestionType
 	TextContent            string
 	ImageAssetID           string
+	ImageURL               string
 	ImageAlt               string
 	OptionsEmbeddedInImage bool
 	CorrectOptionIndex     *int
@@ -118,6 +119,7 @@ type CreateCommand struct {
 	QuestionCode      string
 	PathID            string
 	SubjectID         string
+	SectionID         string
 	OwnerType         OwnerType
 	OwnerID           string
 	AssignedTeacherID string
@@ -131,6 +133,7 @@ type VersionCommand struct {
 	QuestionType           QuestionType
 	TextContent            string
 	ImageAssetID           string
+	ImageURL               string
 	ImageAlt               string
 	OptionsEmbeddedInImage bool
 	CorrectOptionIndex     *int

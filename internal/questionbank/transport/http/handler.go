@@ -40,6 +40,8 @@ func New(service *questionapp.Service, auth Authenticator, options ...Options) h
 	r.Get("/coverage", h.coverage)
 	r.Get("/{id}", h.learnerGet)
 	r.Get("/{id}/staff", h.staffGet)
+	r.Get("/{id}/section", h.getQuestionSection)
+	r.Put("/{id}/section", h.setQuestionSection)
 	r.Post("/{id}/versions", h.appendVersion)
 	r.Patch("/{id}/workflow", h.setWorkflow)
 	if h.importService != nil {
@@ -158,7 +160,7 @@ func presentStaff(row question.Question) map[string]any {
 		"revenueSharePercentage": row.RevenueSharePercentage,
 		"version": map[string]any{
 			"version": row.Version.Version, "type": row.Version.QuestionType, "text": row.Version.TextContent,
-			"imageAssetId": row.Version.ImageAssetID, "imageAlt": row.Version.ImageAlt,
+			"imageAssetId": row.Version.ImageAssetID, "imageUrl": row.Version.ImageURL, "imageAlt": row.Version.ImageAlt,
 			"optionsEmbeddedInImage": row.Version.OptionsEmbeddedInImage, "correctOptionIndex": row.Version.CorrectOptionIndex,
 			"explanation": row.Version.Explanation, "hint": row.Version.Hint, "solvingStrategy": row.Version.SolvingStrategy,
 			"videoUrl": row.Version.VideoURL, "sourceMeta": json.RawMessage(row.Version.SourceMeta), "aiContext": json.RawMessage(row.Version.AIContext),
@@ -175,7 +177,7 @@ func presentLearner(row question.Question) map[string]any {
 	return map[string]any{
 		"id": row.ID, "questionCode": row.QuestionCode, "version": row.CurrentVersion,
 		"pathId": row.PathID, "subjectId": row.SubjectID, "type": row.Version.QuestionType,
-		"text": row.Version.TextContent, "imageAssetId": row.Version.ImageAssetID, "imageAlt": row.Version.ImageAlt,
+		"text": row.Version.TextContent, "imageAssetId": row.Version.ImageAssetID, "imageUrl": row.Version.ImageURL, "imageAlt": row.Version.ImageAlt,
 		"optionsEmbeddedInImage": row.Version.OptionsEmbeddedInImage, "videoUrl": row.Version.VideoURL,
 		"difficulty": row.Version.Difficulty, "examType": row.Version.ExamType,
 		"embeddedOptionTexts": learnerEmbeddedOptionTexts(row.Version.AIContext),

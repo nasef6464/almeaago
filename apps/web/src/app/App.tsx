@@ -17,6 +17,7 @@ import { AdminOverviewPage } from '../features/content/pages/AdminOverviewPage';
 import { AssessmentAdminPage } from '../features/assessment/pages/AssessmentAdminPage';
 import { AssessmentAttemptPage } from '../features/assessment/pages/AssessmentAttemptPage';
 import { AssessmentResultsPage } from '../features/assessment/pages/AssessmentResultsPage';
+import { SelfQuizPage } from '../features/assessment/pages/SelfQuizPage';
 import { AssessmentAvailabilityPage } from '../features/assessment/pages/AssessmentAvailabilityPage';
 import { AssessmentAssignmentsPage } from '../features/assessment/pages/AssessmentAssignmentsPage';
 import { ReviewLibraryPage } from '../features/learning/pages/ReviewLibraryPage';
@@ -144,7 +145,7 @@ export function App() {
 
 
   const inAdminWorkspace = location.pathname.startsWith('/admin-dashboard');
-  const hideSiteHeader = inAdminWorkspace || location.pathname.endsWith('/projector');
+  const hideSiteHeader = inAdminWorkspace || location.pathname.endsWith('/projector') || location.pathname === '/quiz';
 
   return (
     <StudentNavigationProvider>
@@ -202,6 +203,7 @@ export function App() {
         <Route path="/admin-dashboard/backups" element={<AdminDashboardShell><BackupAdminPage /></AdminDashboardShell>} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/assessments" element={<AssessmentAvailabilityPage />} />
+        <Route path="/quiz" element={<SelfQuizPage />} />
         <Route path="/assessment-assignments" element={<AssessmentAssignmentsPage />} />
         <Route path="/barcode-test" element={<PublicBarcodeAssessmentPage />} />
         <Route path="/barcode-test/:code" element={<PublicBarcodeAssessmentPage />} />
@@ -237,8 +239,7 @@ export function App() {
 
       <AnnouncementAdsOverlay />
 
-      <ChatWidget />
-      <FloatingContactWidget />
+      {location.pathname !== '/quiz' ? <><ChatWidget /><FloatingContactWidget /></> : null}
 
       {hideSiteHeader ? (
         <AuthModal open={modalMode !== null} initialSignUp={modalMode === 'signup'} onClose={closeModal} />

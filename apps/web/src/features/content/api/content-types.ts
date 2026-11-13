@@ -92,6 +92,7 @@ export interface FoundationTopicSummary {
 }
 
 export interface TaxonomyPath {
+  color?: string;
   showInHome?: boolean;
   id: string;
   code: string;
@@ -102,6 +103,7 @@ export interface TaxonomyPath {
 }
 
 export interface TaxonomySubject {
+  color?: string;
   id: string;
   pathId: string;
   levelId?: string;
@@ -121,11 +123,19 @@ export interface TaxonomyLevel {
 export interface TaxonomySkill {
   id: string;
   subjectId: string;
+  sectionId?: string;
   parentSkillId?: string;
   code: string;
   name: string;
   description: string;
   kind: string;
+  sortOrder: number;
+}
+
+export interface TaxonomySkillSection {
+  id: string;
+  subjectId: string;
+  name: string;
   sortOrder: number;
 }
 
@@ -136,6 +146,7 @@ export interface TaxonomyCore {
 }
 
 export interface TaxonomyFull extends TaxonomyCore {
+  sections?: TaxonomySkillSection[];
   skills: TaxonomySkill[];
 }
 

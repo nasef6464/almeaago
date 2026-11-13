@@ -42,6 +42,10 @@ func (h *QuizzesHandler) singleShotSubmit(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "Authentication required"})
 		return
 	}
+	if h.auth.VerifyCSRF(auth, r.Header.Get("X-CSRF-Token")) != nil {
+		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Invalid CSRF token"})
+		return
+	}
 	assessmentID := chi.URLParam(r, "id")
 	var input assessment.SingleShotSubmissionRequest
 	if !decode(w, r, &input) {

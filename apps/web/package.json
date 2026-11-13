@@ -11,6 +11,8 @@
     "e2e:local": "bash ./scripts/e2e-local.sh"
   },
   "dependencies": {
+    "@types/katex": "^0.16.8",
+    "katex": "^0.19.1",
     "lucide-react": "0.554.0",
     "plyr": "^3.8.4",
     "qrcode.react": "^4.2.0",

@@ -55,6 +55,26 @@ func TestTaxonomyMutationRequiresPlatformAdmin(t *testing.T) {
 	}
 }
 
+func TestPathPresentationSettingsCanBeUpdatedIndependently(t *testing.T) {
+	s := NewService(&mutationRepoStub{})
+	value := false
+	tests := map[string]taxonomy.PathPatch{
+		"mock":     {ShowMockExamCard: &value},
+		"packages": {ShowPackageCard: &value},
+		"subjects": {ShowSubjectCards: &value},
+	}
+	for name, patch := range tests {
+		t.Run(name, func(t *testing.T) {
+			if _, err := s.UpdatePath(context.Background(), taxonomyActor(identity.RoleAdmin), "path-1", patch); err != nil {
+				t.Fatalf("presentation-only update rejected: %v", err)
+			}
+			if _, err := s.UpdatePath(context.Background(), taxonomyActor(identity.RoleTeacher), "path-1", patch); !errors.Is(err, ErrForbidden) {
+				t.Fatalf("expected forbidden for teacher, got %v", err)
+			}
+		})
+	}
+}
+
 func TestSubSkillRequiresParent(t *testing.T) {
 	s := NewService(&mutationRepoStub{})
 	_, err := s.CreateSkill(context.Background(), taxonomyActor(identity.RoleAdmin), taxonomy.SkillWrite{SubjectID: "subject-1", Code: "S1", Name: "Skill", Kind: "sub"})

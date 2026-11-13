@@ -1,5 +1,5 @@
 import {Link} from 'react-router-dom';
-import {Award,ChevronRight,ChevronLeft,FileQuestion,Clock,Layers} from 'lucide-react';
+import {Award,ChevronRight,ChevronLeft,FileQuestion,Clock,Layers,Lock} from 'lucide-react';
 import {Card} from './Card';
 import {LearningCatalogCounters} from './LearningCatalogCounters';
 import type {pathMockCatalog} from './path-mocks';
@@ -31,8 +31,8 @@ const resolveThemeColor = (value?: string, fallback = '#4f46e5') => {
     return themeColorMap[value.toLowerCase()] || fallback;
 };
 
-export type PathMockViewProps={path:{id:string;name:string;color?:string};subjects:{id:string;name:string}[];catalogView:ReturnType<typeof pathMockCatalog>;guest:boolean;isStudent:boolean;returnTo:string;starting:string;startError:string;onStart:(id:string)=>void;onBack:()=>void};
-export function PathMockExamsView({path,subjects,catalogView,guest,isStudent,returnTo,starting,startError,onStart,onBack}:PathMockViewProps){
+export type PathMockViewProps={path:{id:string;name:string;color?:string};subjects:{id:string;name:string}[];catalogView:ReturnType<typeof pathMockCatalog>;guest:boolean;isStudent:boolean;returnTo:string;starting:string;startError:string;accessById:Record<string,'allowed'|'purchased'|'locked'|'unavailable'|'error'|'loading'>;onRetryAccess:()=>void;onStart:(id:string)=>void;onBack:()=>void};
+export function PathMockExamsView({path,subjects,catalogView,guest,isStudent,returnTo,starting,startError,accessById,onRetryAccess,onStart,onBack}:PathMockViewProps){
  const style={color:resolveThemeColor(path.color)};
         return (
             <div className="bg-gray-50 min-h-screen pb-20">
@@ -76,6 +76,7 @@ export function PathMockExamsView({path,subjects,catalogView,guest,isStudent,ret
                                                         </span>
                                                     </h2>
                                                     <div className="mt-2.5 flex flex-wrap gap-2 text-xs font-bold text-slate-600">
+                                                        {['locked','purchased'].includes(accessById[quiz.id || '']) ? <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-800">{accessById[quiz.id || ''] === 'locked' ? <Lock size={13}/> : null} ضمن باقة</span> : null}
                                                         <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100/90 border border-slate-200/60 px-2.5 py-1 text-slate-700">
                                                             <FileQuestion size={13} className="text-slate-500" />
                                                             {quiz.questionCount} سؤال
@@ -93,7 +94,7 @@ export function PathMockExamsView({path,subjects,catalogView,guest,isStudent,ret
                                                 </div>
                                             </div>
                                             <div className="shrink-0 flex items-center gap-2 self-end md:self-center">
-                                                {guest ? <Link to={`${returnTo}&auth=login`} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 px-6 py-3 text-sm font-black text-white shadow-xs hover:shadow-md transition-all cursor-pointer">تسجيل الدخول لبدء الاختبار<ChevronLeft size={16}/></Link> : isStudent ? (
+                                                {accessById[quiz.id || ''] === 'locked' ? <Link to={`/category/${encodeURIComponent(path.id)}?${new URLSearchParams({...quiz.subjectId ? {subject:quiz.subjectId} : {},tab:'packages',content:'mockExams'})}`} className="inline-flex items-center justify-center rounded-xl border border-amber-300 bg-amber-50 px-6 py-3 text-sm font-black text-amber-800">عرض الباقة</Link> : accessById[quiz.id || ''] === 'unavailable' ? <p className="text-sm font-bold text-gray-500">الاختبار غير متاح للبدء المباشر.</p> : accessById[quiz.id || ''] === 'error' ? <button type="button" onClick={onRetryAccess} className="rounded-xl border border-rose-200 px-4 py-3 text-sm font-bold text-rose-700">تعذر التحقق، أعد المحاولة</button> : !accessById[quiz.id || ''] || accessById[quiz.id || ''] === 'loading' ? <p role="status" className="text-sm font-bold text-gray-500">جاري التحقق من الإتاحة...</p> : guest ? <Link to={`${returnTo}&auth=login`} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 px-6 py-3 text-sm font-black text-white shadow-xs hover:shadow-md transition-all cursor-pointer">تسجيل الدخول لبدء الاختبار<ChevronLeft size={16}/></Link> : isStudent ? (
                                                     <button
                                                         type="button"
                                                         disabled={Boolean(starting) || !quiz.id}

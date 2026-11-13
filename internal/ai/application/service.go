@@ -11,6 +11,7 @@ import (
 	"time"
 
 	ai "github.com/nasef6464/almeaago/internal/ai/domain"
+	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	learning "github.com/nasef6464/almeaago/internal/learning/domain"
 	operations "github.com/nasef6464/almeaago/internal/operations/domain"
@@ -55,6 +56,10 @@ type QuestionReader interface {
 	ReviewBatch(context.Context, []question.ReviewRef) ([]question.ReviewProjection, error)
 }
 
+type ResultReviewReader interface {
+	GetResultDetail(context.Context, string, string) (assessment.ResultDetail, error)
+}
+
 type OperationsReader interface {
 	Readiness(context.Context, identity.User) (operations.Readiness, error)
 }
@@ -78,6 +83,7 @@ type Service struct {
 	repo       Repository
 	learning   LearningReader
 	questions  QuestionReader
+	results    ResultReviewReader
 	providers  ProviderClient
 	operations OperationsReader
 	cfg        Config
@@ -86,6 +92,8 @@ type Service struct {
 	mu      sync.Mutex
 	flights map[string]*assistFlight
 }
+
+func (s *Service) SetResultReviewReader(reader ResultReviewReader) { s.results = reader }
 
 type assistFlight struct {
 	done chan struct{}
@@ -537,8 +545,56 @@ func (s *Service) QuestionAssist(
 	var card learning.ReviewCard
 	var q question.ReviewProjection
 	var resolved bool
-
+	resultID := input.AttemptID
+	// A real owned review card is itself the authority for legacy clients,
+	// whose historical attempt/result identifiers were distinct opaque IDs.
 	if input.ReviewCardID != "" {
+		resultID = ""
+	}
+	if input.ReviewCardID == "" && input.ResultID != "" {
+		if resultID != "" && resultID != input.ResultID {
+			return ai.QuestionAssistResult{}, ErrInvalidInput
+		} else {
+			resultID = input.ResultID
+		}
+	}
+	if resultID != "" {
+		if input.QuestionID == "" || s.results == nil || s.questions == nil {
+			return ai.QuestionAssistResult{}, ErrNotFound
+		}
+		detail, err := s.results.GetResultDetail(ctx, actor.ID, resultID)
+		if err != nil {
+			if errors.Is(err, assessment.ErrNotFound) || errors.Is(err, assessment.ErrResultUnavailable) {
+				return ai.QuestionAssistResult{}, ErrNotFound
+			}
+			return ai.QuestionAssistResult{}, err
+		}
+		if !detail.AllowQuestionReview || !detail.ShowAnswers || !detail.ShowExplanations {
+			return ai.QuestionAssistResult{}, ErrForbidden
+		}
+		var version int
+		for _, item := range detail.Questions {
+			if item.QuestionID == input.QuestionID {
+				version = item.QuestionVersion
+				break
+			}
+		}
+		if version < 1 {
+			return ai.QuestionAssistResult{}, ErrNotFound
+		}
+		rows, err := s.questions.ReviewBatch(ctx, []question.ReviewRef{{QuestionID: input.QuestionID, Version: version}})
+		if err != nil {
+			return ai.QuestionAssistResult{}, err
+		}
+		if len(rows) != 1 || rows[0].ID != input.QuestionID || rows[0].Version != version {
+			return ai.QuestionAssistResult{}, ErrNotFound
+		}
+		q = rows[0]
+		card = learning.ReviewCard{QuestionID: q.ID, QuestionVersion: q.Version}
+		resolved = true
+	}
+
+	if !resolved && input.ReviewCardID != "" {
 		if s.learning == nil {
 			return ai.QuestionAssistResult{}, ErrNotFound
 		}
@@ -565,21 +621,9 @@ func (s *Service) QuestionAssist(
 		}
 	}
 
-	if !resolved && input.QuestionID != "" && s.questions != nil {
-		rows, err := s.questions.ReviewBatch(ctx, []question.ReviewRef{{
-			QuestionID: input.QuestionID, Version: 1,
-		}})
-		if err == nil && len(rows) == 1 {
-			q = rows[0]
-			card = learning.ReviewCard{
-				ID:              "direct-" + input.QuestionID,
-				QuestionID:      q.ID,
-				QuestionVersion: q.Version,
-			}
-			resolved = true
-		}
-	}
-
+	// A bare question ID is not proof of entitlement to a trusted question
+	// version. Free-form requests use only the text supplied by the student;
+	// trusted question material requires an owned review card or result above.
 	if !resolved {
 		qid := input.QuestionID
 		if qid == "" {
@@ -939,7 +983,6 @@ func defaultChatSuggestions(msg string) []string {
 	}
 }
 
-
 func (s *Service) callProviderChain(
 	ctx context.Context,
 	prompt string,
@@ -1126,7 +1169,7 @@ func buildCacheKey(
 	input ai.QuestionAssistInput,
 ) string {
 	normalizedMessage := strings.Join(strings.Fields(input.Message), " ")
-	raw := strings.Join([]string{
+	parts := []string{
 		userID,
 		card.ID,
 		card.QuestionID,
@@ -1134,7 +1177,13 @@ func buildCacheKey(
 		string(input.HelpLevel),
 		normalizedMessage,
 		PromptVersionQuestionTutor,
-	}, "|")
+	}
+	if strings.HasPrefix(card.ID, "direct-") {
+		// Invalidate legacy direct-ID cache entries, which may contain trusted
+		// material, and distinguish different free-form questions for this user.
+		parts = append(parts, "untrusted-text-v2", strings.Join(strings.Fields(input.QuestionText), " "))
+	}
+	raw := strings.Join(parts, "|")
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:])
 }

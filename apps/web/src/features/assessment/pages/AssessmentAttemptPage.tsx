@@ -19,6 +19,7 @@ import { useAuth } from '../../auth/state/AuthProvider';
 import { attemptClient, type Attempt, type Result } from '../api/attempt-client';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
 import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
+import { useQuestionActiveTime } from '../useQuestionActiveTime';
 import {
   formatQuestionHtmlForDisplay,
   formatTimerCountdown,
@@ -26,6 +27,20 @@ import {
   optionLabel,
   showOptionText,
 } from '../questionPresentation';
+
+function displayAttemptError(message: string): string {
+  const messages: Record<string, string> = {
+    Forbidden: 'لا تملك صلاحية الوصول إلى هذا الاختبار.',
+    'Authentication required': 'سجّل الدخول للمتابعة.',
+    'Invalid CSRF token': 'انتهت جلسة الحماية؛ حدّث الصفحة وحاول مرة أخرى.',
+    'Attempt expired': 'انتهى وقت الاختبار، وسيتم تسليم الإجابات المحفوظة.',
+    'Attempt already submitted': 'تم تسليم هذا الاختبار من قبل.',
+    'Attempt not found': 'لم يتم العثور على هذه المحاولة.',
+    'Attempt conflicts with assessment state': 'تعذر تنفيذ العملية في حالة الاختبار الحالية.',
+    'Failed to fetch': 'تعذر الاتصال بالخادم. تحقق من اتصالك وحاول مرة أخرى.',
+  };
+  return messages[message] || message;
+}
 
 const key = (prefix: string, id: string) => {
   const storageKey = `${prefix}:${id}`;
@@ -62,11 +77,15 @@ export function AssessmentAttemptPage() {
   const [draftChoice, setDraftChoice] = useState<{ attemptId: string; questionId: string; option: number } | null>(null);
   const [isNightMode, setIsNightMode] = useState(false);
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
+  const [showConfirmSection, setShowConfirmSection] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [sectionSecondsLeft, setSectionSecondsLeft] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
 
   const actionRef = useRef('');
+  const autoFinishedAttemptRef = useRef('');
+  const deadlineRef = useRef<number | null>(null);
   const scopeKey = `${user?.id || ''}:${assessmentId}:${attemptId}`;
   const scopeRef = useRef(scopeKey);
   scopeRef.current = scopeKey;
@@ -80,6 +99,7 @@ export function AssessmentAttemptPage() {
     setResult(null);
     setIndex(0);
     setDraftChoice(null);
+    setShowConfirmSection(false);
     setSavingAnswer(false);
     actionRef.current = '';
     setError('');
@@ -89,6 +109,18 @@ export function AssessmentAttemptPage() {
         if (attemptId) {
           const response = await attemptClient.get(attemptId);
           if (active) setAttempt(response.attempt);
+          if (response.attempt.status === 'submitted') {
+            // Retry the same submission key to finish any interrupted evidence
+            // handoff; another browser can still read the already saved result.
+            let submitted: { result: Result };
+            try {
+              const csrf = await getCsrfRef.current();
+              submitted = await attemptClient.submit(attemptId, key('assessment-submit', `${user.id}:${attemptId}`), csrf);
+            } catch {
+              submitted = await attemptClient.result(attemptId);
+            }
+            if (active) setResult(submitted.result);
+          }
         } else if (assessmentId) {
           const csrf = await getCsrfRef.current();
           if (!active) return;
@@ -112,20 +144,29 @@ export function AssessmentAttemptPage() {
   useEffect(() => {
     if (!attempt || result) return;
     if (attempt.expiresAt) {
-      const diff = Math.max(0, Math.floor((new Date(attempt.expiresAt).getTime() - Date.now()) / 1000));
-      setSecondsLeft(diff);
+      const serverNow = attempt.serverTime ? new Date(attempt.serverTime).getTime() : Date.now();
+      const remaining = new Date(attempt.expiresAt).getTime() - serverNow;
+      deadlineRef.current = performance.now() + Math.max(0, remaining);
+      setSecondsLeft(Math.max(0, Math.ceil(remaining / 1000)));
     } else {
+      deadlineRef.current = null;
       setSecondsLeft(null);
     }
-  }, [attempt?.id, attempt?.expiresAt, result]);
+  }, [attempt?.id, attempt?.expiresAt, attempt?.serverTime, result]);
 
   useEffect(() => {
     if (!attempt || result) return;
     const interval = setInterval(() => {
       if (attempt.expiresAt) {
-        const diff = Math.max(0, Math.floor((new Date(attempt.expiresAt).getTime() - Date.now()) / 1000));
+        const diff = Math.max(0, Math.ceil(((deadlineRef.current ?? performance.now()) - performance.now()) / 1000));
         setSecondsLeft(diff);
         if (diff === 0 && !busy && !actionRef.current) {
+          if (draftChoice?.attemptId === attempt.id) {
+            // A disconnected, unsaved draft cannot be accepted after the
+            // deadline. Let submission use the server's last saved answer.
+            setDraftChoice(null);
+            return;
+          }
           clearInterval(interval);
           void submit();
         }
@@ -134,19 +175,82 @@ export function AssessmentAttemptPage() {
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [attempt?.id, attempt?.expiresAt, result, busy]);
+  }, [attempt?.id, attempt?.expiresAt, result, busy, draftChoice?.attemptId]);
+
+  useEffect(() => {
+    const progress = attempt?.sectionProgress;
+    if (!attempt || !progress?.deadline || !progress.serverTime || result) {
+      setSectionSecondsLeft(null);
+      return;
+    }
+    const remaining = new Date(progress.deadline).getTime() - new Date(progress.serverTime).getTime();
+    if (!Number.isFinite(remaining)) { setSectionSecondsLeft(null); return; }
+    const localDeadline = Date.now() + Math.max(0, remaining);
+    const scope = scopeKey;
+    let active = true;
+    let refreshing = false;
+    let retryAt = 0;
+    const tick = () => {
+      const seconds = Math.max(0, Math.ceil((localDeadline - Date.now()) / 1000));
+      setSectionSecondsLeft(seconds);
+      if (seconds || refreshing || actionRef.current || Date.now() < retryAt) return;
+      refreshing = true;
+      attemptClient.get(attempt.id).then((response) => {
+        if (!active || scopeRef.current !== scope) return;
+        if (response.attempt.sectionProgress?.currentSectionId !== progress.currentSectionId) {
+          setIndex(0);
+          setShowConfirmSection(false);
+        }
+        setAttempt(response.attempt);
+      }).catch((cause) => {
+        if (active && scopeRef.current === scope) setError(cause instanceof Error ? cause.message : 'تعذر تحديث وقت القسم');
+        retryAt = Date.now() + 5000;
+      }).finally(() => { refreshing = false; });
+    };
+    tick();
+    const interval = window.setInterval(tick, 1000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [attempt?.id, attempt?.sectionProgress?.currentSectionId, attempt?.sectionProgress?.deadline, attempt?.sectionProgress?.serverTime, result, scopeKey]);
 
   const answers = useMemo(
     () => new Map((attempt?.answers || []).map((answer) => [answer.questionId, answer])),
     [attempt],
   );
-  const question = attempt?.questions[index];
+  const question = attempt?.questions?.[index];
+  const currentSection = attempt?.sections?.find((section) => section.id === attempt.sectionProgress?.currentSectionId);
+  // The legacy runner applies this setting to ordinary tests, not mock exams.
+  const requireAnswerBeforeNext = attempt?.kind !== 'mock' && attempt?.requireAnswerBeforeNext === true;
   const saved = question ? answers.get(question.id) : undefined;
-  const imageEmbeddedOptions = Boolean(question?.imageAssetId && question.optionsEmbeddedInImage);
+  const currentAnswered = saved?.selectedOptionIndex != null || Boolean(saved?.textAnswer?.trim());
+  const questionTime = useQuestionActiveTime(user?.id || '', attempt?.id || '', question?.id || '', saved?.timeSpentSeconds || 0, Boolean(attempt && !result && attempt.status === 'in_progress'));
+  const resolvedImageUrl = useMemo(() => {
+    if (question?.imageUrl) return question.imageUrl;
+    const txt = question?.text?.trim() || '';
+    if (/^image:/i.test(txt)) return txt.replace(/^image:/i, '').trim();
+    if (/^https?:\/\/.+\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(txt)) return txt;
+    const imgMatch = txt.match(/<img\s+[^>]*src=["']([^"']+)["']/i);
+    if (imgMatch) return imgMatch[1];
+    const mdMatch = txt.match(/!\[.*?\]\((https?:\/\/[^\s)]+)\)/i);
+    if (mdMatch) return mdMatch[1];
+    return null;
+  }, [question?.imageUrl, question?.text]);
+  const hasImage = Boolean(resolvedImageUrl || question?.imageAssetId);
+  const isTahsili = Boolean(
+    attempt?.title?.includes('تحصيلي') ||
+    attempt?.title?.includes('فيزياء') ||
+    attempt?.title?.includes('كيمياء') ||
+    attempt?.title?.includes('أحياء') ||
+    attempt?.title?.includes('رياضيات') ||
+    question?.id?.toLowerCase().includes('tah') ||
+    question?.id?.toLowerCase().includes('phys') ||
+    question?.id?.toLowerCase().includes('chem') ||
+    question?.id?.toLowerCase().includes('bio')
+  );
+  const imageEmbeddedOptions = hasImage;
 
-  const answeredCount = answers.size;
-  const totalQuestions = attempt?.questions.length || 0;
-  const unansweredCount = totalQuestions - answeredCount;
+  const answeredCount = Array.from(answers.values()).filter(a => a.selectedOptionIndex != null || Boolean(a.textAnswer?.trim())).length;
+  const totalQuestions = attempt?.totalQuestions ?? attempt?.questions?.length ?? 0;
+  const unansweredCount = Math.max(0, totalQuestions - answeredCount);
   const markedForReviewCount = useMemo(
     () => Array.from(answers.values()).filter((a) => a.markedForReview).length,
     [answers],
@@ -169,15 +273,16 @@ export function AssessmentAttemptPage() {
         option,
         saved?.markedForReview || false,
         csrf,
+        questionTime(),
       );
       if (scopeRef.current !== actionScope) return;
       setAttempt(response.attempt);
       setDraftChoice(null);
-      if (attempt.requireAnswerBeforeNext && index < attempt.questions.length - 1) {
-        setIndex((value) => value + 1);
-      }
     } catch (cause) {
       if (scopeRef.current === actionScope) {
+        // A late answer cannot be saved; unblock automatic finalization of the
+        // answers the server accepted before the deadline.
+        if (cause instanceof Error && cause.message === 'Attempt expired') setDraftChoice(null);
         setError(cause instanceof Error ? cause.message : 'تعذر حفظ الإجابة');
       }
     } finally {
@@ -186,12 +291,68 @@ export function AssessmentAttemptPage() {
     }
   }
 
+  async function persistCurrentTime(csrf: string) {
+    if (!attempt || !question) return;
+    const seconds = questionTime();
+    if (seconds <= (saved?.timeSpentSeconds || 0)) return;
+    const response = await attemptClient.recordTime(attempt.id, question.id, seconds, csrf);
+    if (scopeRef.current === scopeKey) setAttempt(current => {
+      if (!current || current.id !== attempt.id) return current;
+      const existing = current.answers.find(answer => answer.questionId === question.id);
+      const updated = existing
+        ? { ...existing, timeSpentSeconds: response.timeSpentSeconds }
+        : { questionId: question.id, selectedOptionIndex: null, textAnswer: '', timeSpentSeconds: response.timeSpentSeconds, markedForReview: false, lastSavedAt: new Date().toISOString() };
+      return { ...current, answers: existing ? current.answers.map(answer => answer.questionId === question.id ? updated : answer) : [...current.answers, updated] };
+    });
+  }
+
+  async function changeQuestion(nextIndex: number) {
+    if (!attempt || !question || nextIndex === index || busy || savingAnswer || actionRef.current || draftChoice?.attemptId === attempt.id) return;
+    if (requireAnswerBeforeNext && nextIndex > index && attempt.questions.slice(index, nextIndex).some(item => { const answer = answers.get(item.id); return answer?.selectedOptionIndex == null && !answer?.textAnswer?.trim(); })) return;
+    const actionScope = scopeKey;
+    actionRef.current = actionScope;
+    setSavingAnswer(true);
+    setError('');
+    try {
+      const csrf = await getCsrfToken();
+      if (scopeRef.current !== actionScope) return;
+      await persistCurrentTime(csrf);
+      if (scopeRef.current === actionScope) setIndex(nextIndex);
+    } catch (cause) {
+      if (scopeRef.current === actionScope) setError(cause instanceof Error ? cause.message : 'تعذر حفظ وقت السؤال');
+    } finally {
+      if (actionRef.current === actionScope) actionRef.current = '';
+      if (scopeRef.current === actionScope) setSavingAnswer(false);
+    }
+  }
+
+  async function advanceSection() {
+    const expected = attempt?.sectionProgress?.currentSectionId;
+    if (!attempt || !expected || busy || savingAnswer || actionRef.current || draftChoice?.attemptId === attempt.id) return;
+    const actionScope = scopeKey;
+    actionRef.current = actionScope;
+    setBusy(true);
+    setShowConfirmSection(false);
+    setError('');
+    try {
+      const csrf = await getCsrfToken();
+      try { await persistCurrentTime(csrf); } catch (cause) {
+        if (!(cause instanceof Error && (cause.message === 'Attempt conflicts with assessment state' || cause.message === 'Attempt expired'))) throw cause;
+      }
+      if (scopeRef.current !== actionScope) return;
+      const response = await attemptClient.advanceSection(attempt.id, expected, csrf);
+      if (scopeRef.current !== actionScope) return;
+      setAttempt(response.attempt);
+      setIndex(0);
+    } catch (cause) {
+      if (scopeRef.current === actionScope) setError(cause instanceof Error ? cause.message : 'تعذر الانتقال للقسم التالي');
+    } finally {
+      if (scopeRef.current === actionScope) { actionRef.current = ''; setBusy(false); }
+    }
+  }
+
   async function toggleReview() {
     if (!attempt || !question || busy || actionRef.current || draftChoice?.attemptId === attempt.id) return;
-    if (saved?.selectedOptionIndex == null) {
-      setError('أجب عن السؤال أولًا ثم يمكنك تعليمه للمراجعة.');
-      return;
-    }
     const actionScope = scopeKey;
     actionRef.current = actionScope;
     setSavingAnswer(true);
@@ -202,9 +363,10 @@ export function AssessmentAttemptPage() {
       const response = await attemptClient.save(
         attempt.id,
         question.id,
-        saved.selectedOptionIndex,
-        !saved.markedForReview,
+        saved?.selectedOptionIndex ?? null,
+        !saved?.markedForReview,
         csrf,
+        questionTime(),
       );
       if (scopeRef.current === actionScope) setAttempt(response.attempt);
     } catch (cause) {
@@ -227,6 +389,10 @@ export function AssessmentAttemptPage() {
     try {
       const csrf = await getCsrfToken();
       if (scopeRef.current !== actionScope) return;
+      try { await persistCurrentTime(csrf); } catch (cause) {
+        if (!(cause instanceof Error && (cause.message === 'Attempt expired' || cause.message === 'Attempt already submitted'))) throw cause;
+      }
+      if (scopeRef.current !== actionScope) return;
       const response = await attemptClient.submit(
         attempt.id,
         key('assessment-submit', `${user?.id || ''}:${attempt.id}`),
@@ -246,11 +412,34 @@ export function AssessmentAttemptPage() {
     }
   }
 
+  useEffect(() => {
+    if (!attempt?.sectionProgress?.finished || result || busy || actionRef.current || autoFinishedAttemptRef.current === attempt.id) return;
+    autoFinishedAttemptRef.current = attempt.id;
+    void submit();
+  }, [attempt?.id, attempt?.sectionProgress?.finished, busy, result]);
+
+  useEffect(() => {
+    if (!attempt || !question || result || attempt.status !== 'in_progress' || attempt.sectionProgress?.finished || (attempt.sectionProgress && question.sectionId !== attempt.sectionProgress.currentSectionId)) return;
+    const interval = window.setInterval(() => {
+      if (document.visibilityState !== 'visible' || !document.hasFocus() || actionRef.current || draftChoice?.attemptId === attempt.id || questionTime() <= (saved?.timeSpentSeconds || 0)) return;
+      const actionScope = scopeKey;
+      actionRef.current = actionScope;
+      setSavingAnswer(true);
+      void getCsrfToken().then(persistCurrentTime).catch(() => {
+        if (scopeRef.current === actionScope) setError('تعذر حفظ وقت السؤال، أعد المحاولة عند استعادة الاتصال.');
+      }).finally(() => {
+        if (actionRef.current === actionScope) actionRef.current = '';
+        if (scopeRef.current === actionScope) setSavingAnswer(false);
+      });
+    }, 15000);
+    return () => window.clearInterval(interval);
+  }, [attempt?.id, attempt?.status, question?.id, saved?.timeSpentSeconds, saved?.selectedOptionIndex, saved?.markedForReview, draftChoice?.attemptId, result, scopeKey]);
+
   if (loading || (busy && !attempt)) {
     return <main className="p-10 text-center font-black">جاري فتح الاختبار...</main>;
   }
   if (error && !attempt) {
-    return <main className="p-10 text-center font-black text-rose-700">{error}</main>;
+    return <main dir="rtl" className="p-10 text-center font-black text-rose-700">{displayAttemptError(error)}</main>;
   }
   if (result) {
     return (
@@ -308,6 +497,9 @@ export function AssessmentAttemptPage() {
         </div>
       </main>
     );
+  }
+  if (attempt?.sectionProgress?.finished && !question) {
+    return <main dir="rtl" className="p-10 text-center"><p className="font-black">انتهت أقسام الاختبار.</p><button type="button" disabled={busy} onClick={() => void submit()} className="mt-4 rounded-xl bg-indigo-600 px-5 py-3 font-bold text-white">تسليم الاختبار</button>{error ? <p role="alert">{displayAttemptError(error)}</p> : null}</main>;
   }
   if (!attempt || !question) {
     return <main className="p-10 text-center font-black">لا توجد أسئلة متاحة.</main>;
@@ -384,7 +576,7 @@ export function AssessmentAttemptPage() {
               {attempt.allowQuestionReview ? (
                 <button
                   type="button"
-                  disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id || saved?.selectedOptionIndex == null}
+                  disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id}
                   onClick={() => void toggleReview()}
                   className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition disabled:opacity-40 ${
                     saved?.markedForReview
@@ -403,7 +595,8 @@ export function AssessmentAttemptPage() {
               <button
                 type="button"
                 onClick={() => setShowConfirmSubmit(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-black text-white hover:bg-amber-600 shadow-xs"
+                disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-black text-white hover:bg-amber-600 shadow-xs disabled:opacity-50"
               >
                 <Send size={14} />
                 <span>إنهاء الاختبار</span>
@@ -422,8 +615,9 @@ export function AssessmentAttemptPage() {
           ) : null}
         </header>
 
-        {error ? <div className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700 text-xs">{error}</div> : null}
+        {error ? <div role="alert" className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700 text-xs">{displayAttemptError(error)}</div> : null}
 
+        {currentSection ? <div className="mb-4 rounded-xl bg-indigo-50 p-3 text-center font-bold text-indigo-900"><span>{currentSection.title}</span>{sectionSecondsLeft != null ? <span className="ms-3 text-xs">وقت القسم: {formatTimerCountdown(sectionSecondsLeft)}</span> : null}</div> : null}
         {/* Question Area Card */}
         <section
           className={`rounded-3xl border p-5 sm:p-7 shadow-xs transition-colors ${
@@ -447,7 +641,7 @@ export function AssessmentAttemptPage() {
             </span>
           </div>
 
-          {question.passage ? (
+          {!hasImage && question.passage ? (
             <div
               className={`mb-4 rounded-2xl border p-4 text-xs leading-relaxed ${
                 isNightMode
@@ -463,28 +657,48 @@ export function AssessmentAttemptPage() {
             </div>
           ) : null}
 
-          {question.text ? (
+          {/* نص السؤال يظهر فقط إذا لم يكن السؤال معتمداً كلياً على الصورة أو إذا لم تكن هناك صورة */}
+          {!imageEmbeddedOptions && question.text ? (
             <h2
               className="text-base sm:text-lg font-black leading-relaxed"
               dangerouslySetInnerHTML={{
                 __html: formatQuestionHtmlForDisplay(question.text),
               }}
             />
-          ) : !question.imageAssetId ? (
-            <h2 className="text-base font-black">سؤال بصري</h2>
+          ) : !hasImage ? (
+            <h2 className="text-base font-black">{question.text || 'سؤال بصري'}</h2>
           ) : null}
 
-          {question.imageAssetId ? (
+          {/* صورة السؤال المعتمدة مع إمكانية التكبير */}
+          {hasImage ? (
             <div
               className={`my-4 overflow-hidden rounded-2xl border p-3 text-center ${
                 isNightMode ? 'border-slate-800 bg-black' : 'border-slate-100 bg-slate-50'
               }`}
             >
-              <QuestionAssetImage
-                assetId={question.imageAssetId}
-                alt={question.imageAlt || 'صورة السؤال'}
-                onZoom={setZoomImageUrl}
-              />
+              <button
+                type="button"
+                onClick={() => setZoomImageUrl(resolvedImageUrl || null)}
+                className="group relative block w-full cursor-zoom-in"
+                title="اضغط لتكبير الصورة وفحص الرسم البياني أو الهندسي"
+              >
+                {resolvedImageUrl ? (
+                  <img
+                    src={resolvedImageUrl}
+                    alt={question.imageAlt || 'صورة السؤال'}
+                    className="mx-auto max-h-[380px] sm:max-h-[460px] w-full object-contain rounded-xl transition-transform duration-200 group-hover:scale-[1.01]"
+                  />
+                ) : question.imageAssetId ? (
+                  <QuestionAssetImage
+                    assetId={question.imageAssetId}
+                    alt={question.imageAlt || 'صورة السؤال'}
+                    onZoom={setZoomImageUrl}
+                  />
+                ) : null}
+              </button>
+              <div className="mt-2 flex items-center justify-center">
+                <span className="text-[11px] font-bold text-slate-400">اضغط على الصورة للتكبير الكامل 🔍</span>
+              </div>
             </div>
           ) : null}
 
@@ -496,7 +710,7 @@ export function AssessmentAttemptPage() {
                 : getQuizOptionGridClass(question.options)
             }`}
           >
-            {question.options.map((option) => {
+            {question.options.map((option, displayIndex) => {
               const isSelected =
                 (draftChoice?.attemptId === attempt.id && draftChoice.questionId === question.id
                   ? draftChoice.option
@@ -506,9 +720,10 @@ export function AssessmentAttemptPage() {
                 <div key={option.index}>
                   <button
                     type="button"
+                    aria-pressed={isSelected}
                     disabled={savingAnswer || busy}
                     onClick={() => void choose(option.index)}
-                    className={`min-h-[76px] w-full rounded-2xl border-2 px-4 py-3 text-right transition-all flex flex-col justify-center ${
+                    className={`${imageEmbeddedOptions ? 'min-h-[58px] sm:min-h-[64px]' : 'min-h-[76px]'} w-full rounded-2xl border-2 px-4 py-3 text-right transition-all flex flex-col justify-center ${
                       isSelected
                         ? isNightMode
                           ? 'border-indigo-400 bg-indigo-500/25 text-white ring-2 ring-indigo-400/40'
@@ -520,7 +735,7 @@ export function AssessmentAttemptPage() {
                   >
                     <div className="flex h-full items-center justify-between gap-2.5">
                       <span className="min-w-0 flex-1 text-sm font-black leading-6">
-                        {question.learnerPresentation?.showOptionLabels !== false ? (
+                        {imageEmbeddedOptions || question.learnerPresentation?.showOptionLabels !== false ? (
                           <span
                             className={`ml-2 inline-flex h-7 w-7 items-center justify-center rounded-lg text-xs font-black ${
                               isSelected
@@ -531,13 +746,14 @@ export function AssessmentAttemptPage() {
                             }`}
                           >
                             {optionLabel(
-                              option.index,
+                              imageEmbeddedOptions || isTahsili ? option.index : displayIndex,
                               question.learnerPresentation,
                               imageEmbeddedOptions ? option.text : undefined,
+                              isTahsili,
                             )}
                           </span>
                         ) : null}
-                        {showOptionText(question.learnerPresentation, imageEmbeddedOptions) ? option.text : ''}
+                        {!imageEmbeddedOptions && showOptionText(question.learnerPresentation, false) ? option.text : ''}
                       </span>
 
                       <span
@@ -575,10 +791,11 @@ export function AssessmentAttemptPage() {
             isNightMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'
           }`}
         >
+          {currentSection && index === attempt.questions.length - 1 ? <button type="button" disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id || (requireAnswerBeforeNext && !currentAnswered)} onClick={() => setShowConfirmSection(true)} className="rounded-xl bg-indigo-700 px-5 py-3 text-xs font-black text-white disabled:opacity-40">إنهاء القسم والانتقال</button> : null}
           <button
             type="button"
             disabled={index === 0 || savingAnswer || busy || draftChoice?.attemptId === attempt.id}
-            onClick={() => setIndex((v) => Math.max(0, v - 1))}
+            onClick={() => void changeQuestion(Math.max(0, index - 1))}
             className={`flex items-center justify-center gap-1.5 rounded-xl border px-5 py-2.5 text-xs font-black transition disabled:opacity-40 ${
               isNightMode
                 ? 'border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700'
@@ -593,14 +810,16 @@ export function AssessmentAttemptPage() {
           <div className="flex max-w-full gap-1 overflow-x-auto px-2 py-1 lg:max-w-[60%] scrollbar-thin">
             {attempt.questions.map((q, idx) => {
               const isCurrent = index === idx;
-              const isAnswered = answers.has(q.id);
+              const savedAnswer = answers.get(q.id);
+              const isAnswered = savedAnswer?.selectedOptionIndex != null || Boolean(savedAnswer?.textAnswer?.trim());
               const isReview = answers.get(q.id)?.markedForReview;
 
               return (
                 <button
                   key={q.id}
                   type="button"
-                  onClick={() => setIndex(idx)}
+                  disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id || (requireAnswerBeforeNext && idx > index && attempt.questions.slice(index, idx).some(item => { const answer = answers.get(item.id); return answer?.selectedOptionIndex == null && !answer?.textAnswer?.trim(); }))}
+                  onClick={() => void changeQuestion(idx)}
                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black transition-all ${
                     isCurrent
                       ? 'bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-400'
@@ -627,9 +846,9 @@ export function AssessmentAttemptPage() {
               busy ||
               draftChoice?.attemptId === attempt.id ||
               index === attempt.questions.length - 1 ||
-              (attempt.requireAnswerBeforeNext && !saved)
+              (requireAnswerBeforeNext && !currentAnswered)
             }
-            onClick={() => setIndex((v) => Math.min(attempt.questions.length - 1, v + 1))}
+            onClick={() => void changeQuestion(Math.min(attempt.questions.length - 1, index + 1))}
             className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-6 py-2.5 text-xs font-black text-white hover:bg-indigo-700 transition disabled:opacity-40 shadow-xs"
           >
             <span>التالي</span>
@@ -637,6 +856,19 @@ export function AssessmentAttemptPage() {
           </button>
         </footer>
       </div>
+
+      {showConfirmSection && currentSection ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="تأكيد إنهاء القسم" dir="rtl">
+          <div className="w-full max-w-lg space-y-4 rounded-3xl border-2 border-violet-950 bg-white p-6 text-center shadow-2xl">
+            <h2 className="text-xl font-black">إنهاء {currentSection.title} والانتقال؟</h2>
+            <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">بعد تأكيد الانتقال سيُغلق هذا القسم، ولن تتمكن من العودة إليه أو تعديل إجاباته.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button type="button" onClick={() => setShowConfirmSection(false)} className="rounded-xl border border-gray-300 px-4 py-3 font-bold">العودة لمراجعة القسم</button>
+              <button type="button" onClick={() => void advanceSection()} disabled={busy} className="rounded-xl bg-indigo-600 px-4 py-3 font-bold text-white disabled:opacity-40">تأكيد الانتقال</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Confirmation Submit Modal (1:1 with Legacy) */}
       {showConfirmSubmit && (
@@ -670,7 +902,7 @@ export function AssessmentAttemptPage() {
               <button
                 type="button"
                 onClick={() => void submit()}
-                disabled={busy}
+                disabled={busy || savingAnswer || draftChoice?.attemptId === attempt.id}
                 className="flex-1 rounded-xl bg-indigo-600 py-3 text-sm font-black text-white hover:bg-indigo-700 shadow-sm"
               >
                 نعم، قم بالتسليم

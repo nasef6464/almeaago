@@ -24,6 +24,53 @@ async function auth(page: Page) {
   await page.route('**/api/v1/auth/csrf', (route) => json(route, { csrfToken: 'csrf' }));
 }
 
+test('review numbers the displayed first question and honors image-embedded choices from URLs', async ({ page }) => {
+  test.setTimeout(120_000);
+  await auth(page);
+  await page.route('**/api/v1/assessment-attempts/attempt-1/review', route => json(route, { detail: {
+    result: { attemptId: 'attempt-1', score: 100, totalQuestions: 1, correctAnswers: 1, wrongAnswers: 0, unanswered: 0, passed: true, timeSpentSeconds: 1, finalizedAt: new Date().toISOString() },
+    assessmentId: '', assessmentVersion: 0, title: 'اختبار ذاتي', attemptNumber: 1, allowQuestionReview: true, showAnswers: true, showExplanations: true, showResultsReport: true,
+    questions: [{ questionId: 'q1', questionVersion: 1, sectionId: '', sortOrder: 1, points: 1, type: 'mcq', text: '', imageAssetId: '', imageUrl: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>', imageAlt: 'صورة السؤال', optionsEmbeddedInImage: true, options: [{ index: 0, text: 'نص موجود داخل الصورة', assetId: '' }], selectedOptionIndex: 0, correctOptionIndex: 0, answered: true, correct: true, markedForReview: false, timeSpentSeconds: 1 }],
+  } }));
+  await page.goto('/assessment-results/attempt-1', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('سؤال 1 · 1 درجة')).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText('نص موجود داخل الصورة')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'اختبار جديد' })).toHaveAttribute('href', '/quiz?mode=self');
+});
+
+test('review hides AI text and choice text whenever the question has an image', async ({ page }) => {
+  await auth(page);
+  await page.route('**/api/v1/assessment-attempts/attempt-1/review', route => json(route, { detail: {
+    result: { attemptId: 'attempt-1', score: 100, totalQuestions: 1, correctAnswers: 1, wrongAnswers: 0, unanswered: 0, passed: true, timeSpentSeconds: 1, finalizedAt: new Date().toISOString() },
+    assessmentId: 'assessment-1', assessmentVersion: 1, title: 'اختبار', attemptNumber: 1, allowQuestionReview: true, showAnswers: true, showExplanations: true, showResultsReport: true,
+    questions: [{ questionId: 'q1', questionVersion: 1, sectionId: '', sortOrder: 1, points: 1, type: 'mcq', text: 'نص للذكاء الاصطناعي', passage: 'قطعة للذكاء الاصطناعي', imageAssetId: '', imageUrl: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>', imageAlt: 'صورة السؤال', optionsEmbeddedInImage: false, learnerPresentation: {optionLabelStyle:'latin',showOptionText:true,showOptionLabels:false}, options: [{ index: 0, text: 'ثلاثون', assetId: '' }], selectedOptionIndex: 0, correctOptionIndex: 0, answered: true, correct: true, markedForReview: false, timeSpentSeconds: 1 }],
+  } }));
+  await page.goto('/assessment-results/attempt-1', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('img', { name: 'صورة السؤال' })).toBeVisible();
+  await expect(page.getByText('نص للذكاء الاصطناعي')).toHaveCount(0);
+  await expect(page.getByText('قطعة للذكاء الاصطناعي')).toHaveCount(0);
+  await expect(page.getByText('ثلاثون', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('A', { exact: true })).toBeVisible();
+});
+
+test('weak skill directs student to its own foundation and focused quiz', async ({ page }) => {
+  test.setTimeout(120_000);
+  await auth(page);
+  const skill = { pathId:'path-1', subjectId:'subject-1', subjectName:'الكمي', skillId:'skill-1', skillName:'القسمة', questionCount:1, correctCount:0, mastery:0, status:'weak', foundationTopics:[{id:'topic-1',title:'قابلية القسمة',isLocked:false}] };
+  await page.route('**/api/v1/assessment-attempts/attempt-1/review', route => json(route, { detail: {
+    result:{attemptId:'attempt-1',score:0,totalQuestions:1,correctAnswers:0,wrongAnswers:1,unanswered:0,passed:false,timeSpentSeconds:5,finalizedAt:new Date().toISOString()},assessmentId:'assessment-1',assessmentVersion:1,title:'اختبار',attemptNumber:1,allowQuestionReview:false,showAnswers:false,showExplanations:false,showResultsReport:true,skillAnalysis:{complete:true,items:[skill]},
+  } }));
+  await page.goto('/assessment-results/attempt-1',{waitUntil:'domcontentloaded'});
+  const link=page.getByRole('link',{name:'اختبار إضافي لهذه المهارة'});
+  await expect(link).toBeVisible({timeout:30000});
+  const href=await link.getAttribute('href');
+  const url=new URL(href!,'http://local');
+  expect(url.pathname).toBe('/quiz');
+  expect(Object.fromEntries(url.searchParams)).toMatchObject({pathId:'path-1',subjectId:'subject-1',skillIds:'skill-1',evidenceType:'remediation'});
+  await expect(page.getByRole('link',{name:'شرح التأسيس'})).toHaveAttribute('href',/topic=topic-1/);
+  await expect(page.getByRole('link',{name:'تدريبات الموضوع'})).toHaveAttribute('href',/content=quizzes/);
+});
+
 const historyItem = {
   attemptId: 'attempt-1',
   assessmentId: 'assessment-1',
@@ -154,4 +201,13 @@ test('mobile review filters wrong unanswered and marked questions without leakin
   await page.getByRole('button', { name: 'للمراجعة', exact: true }).click();
   await expect(page.getByText('٢ + ٢ = ؟')).toBeVisible();
   await page.screenshot({ path: 'test-results/assessment-result-review-mobile.png', fullPage: true });
+});
+
+test('review labels follow shuffled display positions while keeping answer identity', async ({ page }) => {
+  test.setTimeout(90000);
+  await page.goto('/tests/e2e/fixtures/result-review/', { waitUntil: 'domcontentloaded' });
+  const selected = page.locator('div').filter({ hasText: /^أ\s*الخيار الثاني\s*اختيارك$/ }).last();
+  const correct = page.locator('div').filter({ hasText: /^ب\s*الخيار الأول\s*الإجابة الصحيحة$/ }).last();
+  await expect(selected).toBeVisible();
+  await expect(correct).toBeVisible();
 });

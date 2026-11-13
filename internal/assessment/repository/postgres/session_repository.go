@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -365,10 +366,11 @@ func (r *Repository) getPublicAttempt(ctx context.Context, id string, hash []byt
 
 	rows, err := r.db.Query(ctx, `
 		SELECT aq.question_id::text,aq.question_version,COALESCE(aq.section_id::text,''),aq.sort_order,aq.points,
-		       qv.question_type,qv.text_content,COALESCE(qv.image_asset_id::text,''),qv.image_alt,
+		       qv.question_type,qv.text_content,COALESCE(qv.image_asset_id::text,''),COALESCE(a.public_url,''),qv.image_alt,
 		       qv.options_embedded_in_image,COALESCE(qv.video_url,''),COALESCE(qv.difficulty,''),jsonb_build_object('learnerPresentation',qv.source_meta->'learnerPresentation')
 		  FROM assessment_version_questions aq
 		  JOIN question_versions qv ON qv.question_id=aq.question_id AND qv.version=aq.question_version
+		  LEFT JOIN assets a ON a.id=qv.image_asset_id
 		 WHERE aq.assessment_id=$1::uuid AND aq.assessment_version=$2
 		 ORDER BY
 		   CASE WHEN $3 THEN md5($4||aq.question_id::text) ELSE lpad(aq.sort_order::text,12,'0') END,
@@ -384,7 +386,7 @@ func (r *Repository) getPublicAttempt(ctx context.Context, id string, hash []byt
 		var presentation []byte
 		if err = rows.Scan(
 			&q.ID, &q.Version, &q.SectionID, &q.SortOrder, &q.Points, &q.Type, &q.Text,
-			&q.ImageAssetID, &q.ImageAlt, &q.OptionsEmbeddedInImage, &q.VideoURL, &q.Difficulty, &presentation,
+			&q.ImageAssetID, &q.ImageURL, &q.ImageAlt, &q.OptionsEmbeddedInImage, &q.VideoURL, &q.Difficulty, &presentation,
 		); err != nil {
 			return out, err
 		}
@@ -420,7 +422,16 @@ func (r *Repository) getPublicAttempt(ctx context.Context, id string, hash []byt
 			out.Questions[idx].Options = append(out.Questions[idx].Options, option)
 		}
 	}
-	return out, optionRows.Err()
+	if err := optionRows.Err(); err != nil {
+		return out, err
+	}
+	for i := range out.Questions {
+		q := &out.Questions[i]
+		if learnerQuestionHasImage(q.ImageAssetID, q.ImageURL, q.Text) {
+			sort.Slice(q.Options, func(i, j int) bool { return q.Options[i].Index < q.Options[j].Index })
+		}
+	}
+	return out, nil
 }
 
 func (r *Repository) SubmitPublic(ctx context.Context, code string, in assessment.PublicSubmitInput) (assessment.PublicSubmission, error) {
@@ -652,15 +663,18 @@ func (r *Repository) LiveByCode(ctx context.Context, student, code string) (asse
 		   AND (
 			 s.school_id IS NULL
 			 OR EXISTS(
-				SELECT 1 FROM school_memberships sm
-				 WHERE sm.school_id=s.school_id AND sm.user_id=$1::uuid AND sm.status='active'
+				SELECT 1 FROM school_memberships sm JOIN schools school ON school.id=sm.school_id AND school.status='active'
+				 WHERE sm.school_id=s.school_id AND sm.user_id=$1::uuid AND sm.role='student' AND sm.status='active'
 			 )
 		   )
 		   AND (
 			 s.class_id IS NULL
 			 OR EXISTS(
-				SELECT 1 FROM class_memberships cm
+				SELECT 1 FROM class_memberships cm JOIN classes class ON class.id=cm.class_id AND class.status='active'
+				 JOIN schools school ON school.id=class.school_id AND school.status='active'
 				 WHERE cm.class_id=s.class_id AND cm.user_id=$1::uuid AND cm.status='active'
+				 AND (s.school_id IS NULL OR class.school_id=s.school_id)
+				 AND EXISTS (SELECT 1 FROM school_memberships pupil WHERE pupil.school_id=class.school_id AND pupil.user_id=$1::uuid AND pupil.role='student' AND pupil.status='active')
 			 )
 		   )
 	`, student, code).Scan(
@@ -719,11 +733,11 @@ func (r *Repository) StartLive(ctx context.Context, student, sessionID, startKey
 		   AND a.is_visible=true
 		   AND (
 			 s.school_id IS NULL
-			 OR EXISTS(SELECT 1 FROM school_memberships sm WHERE sm.school_id=s.school_id AND sm.user_id=$2::uuid AND sm.status='active')
+			 OR EXISTS(SELECT 1 FROM school_memberships sm JOIN schools school ON school.id=sm.school_id AND school.status='active' WHERE sm.school_id=s.school_id AND sm.user_id=$2::uuid AND sm.role='student' AND sm.status='active')
 		   )
 		   AND (
 			 s.class_id IS NULL
-			 OR EXISTS(SELECT 1 FROM class_memberships cm WHERE cm.class_id=s.class_id AND cm.user_id=$2::uuid AND cm.status='active')
+			 OR EXISTS(SELECT 1 FROM class_memberships cm JOIN classes class ON class.id=cm.class_id AND class.status='active' JOIN schools school ON school.id=class.school_id AND school.status='active' WHERE cm.class_id=s.class_id AND cm.user_id=$2::uuid AND cm.status='active' AND (s.school_id IS NULL OR class.school_id=s.school_id) AND EXISTS (SELECT 1 FROM school_memberships pupil WHERE pupil.school_id=class.school_id AND pupil.user_id=$2::uuid AND pupil.role='student' AND pupil.status='active'))
 		   )
 		 FOR UPDATE OF s
 	`, sessionID, student).Scan(&assessmentID, &version, &maxAttempts, &timeLimit, &closesAt)

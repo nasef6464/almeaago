@@ -9,7 +9,7 @@ const levels:Array<[AiHelpLevel,string]>= [
  ['hint','تلميح'],['stronger_hint','تلميح أقوى'],['concept','الفكرة'],['steps','خطوات'],['follow_up','سؤال متابعة'],
 ];
 
-export function QuestionAssistantPanel({reviewCardId}:{reviewCardId:string}){
+export function QuestionAssistantPanel({reviewCardId,questionId,attemptId}:{reviewCardId?:string;questionId?:string;attemptId?:string}){
  const{getCsrfToken}=useAuth();
  const[level,setLevel]=useState<AiHelpLevel>('hint');
  const[message,setMessage]=useState('');
@@ -21,7 +21,7 @@ export function QuestionAssistantPanel({reviewCardId}:{reviewCardId:string}){
   setLevel(nextLevel);setBusy(true);setError('');
   try{
    const csrf=await getCsrfToken();
-   const response=await aiClient.questionAssistant({reviewCardId,helpLevel:nextLevel,message:message.trim()},csrf);
+   const response=await aiClient.questionAssistant({reviewCardId,questionId,attemptId,helpLevel:nextLevel,message:message.trim()},csrf);
    setResult(response.result);
   }catch(e){setError(e instanceof Error?e.message:'تعذر تشغيل مساعد السؤال')}
   finally{setBusy(false)}

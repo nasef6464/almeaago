@@ -18,5 +18,5 @@ export const aiClient={
  usage:(signal?:AbortSignal)=>request<{usage:AiUsageSummary}>('/api/v1/ai/admin/usage',{},signal),
  readiness:(signal?:AbortSignal)=>request<{readiness:AiAdminReadiness}>('/api/v1/ai/admin/readiness',{},signal),
  copilot:(message:string,csrf:string)=>request<{result:AiAdminCopilotResult}>('/api/v1/ai/admin/copilot',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({message})}),
- questionAssistant:(input:{reviewCardId:string;helpLevel:AiHelpLevel;message:string},csrf:string)=>request<{result:AiQuestionAssistResult}>('/api/v1/ai/question-assistant',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(input)}),
+ questionAssistant:(input:{reviewCardId?:string;questionId?:string;attemptId?:string;resultId?:string;helpLevel:AiHelpLevel;message:string},csrf:string)=>request<{result:AiQuestionAssistResult}>('/api/v1/ai/question-assistant',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(input)}),
 };

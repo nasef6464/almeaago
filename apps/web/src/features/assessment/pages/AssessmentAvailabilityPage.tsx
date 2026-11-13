@@ -81,7 +81,7 @@ return <main dir="rtl" className="mx-auto max-w-5xl space-y-6 px-3 pb-20 pt-5 sm
       <span className="rounded-lg bg-gray-50 px-2.5 py-1">المحاولات {row.attemptCount} من {row.maxAttempts}</span>
       <span className="rounded-lg bg-gray-50 px-2.5 py-1">الإصدار v{row.assessmentVersion}</span>
     </div>
-    {!row.accessAllowed?<p className="mt-4 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs font-bold leading-6 text-amber-800">الوصول لهذا الاختبار يتحقق من Commerce على الخادم عند العرض وعند بدء المحاولة.</p>:null}
+    {!row.accessAllowed?<p className="mt-4 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs font-bold leading-6 text-amber-800">{accessLabel(row)}</p>:null}
     <div className="mt-auto pt-4">
       <button type="button" disabled={!row.accessAllowed||!row.canStart||Boolean(starting)} onClick={()=>void start(row)} className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-white transition disabled:opacity-40 ${row.accessAllowed?'bg-indigo-600 hover:bg-indigo-700':'bg-slate-500'}`}>{starting===row.placementId?<Loader2 size={18} className="animate-spin"/>:<Play size={18}/>} {accessLabel(row)}</button>
     </div>

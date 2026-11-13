@@ -24,26 +24,30 @@ type ListQuery struct {
 }
 
 type QuestionSummary struct {
-	ID                string
-	QuestionCode      string
-	CurrentVersion    int
-	WorkflowStatus    WorkflowStatus
-	OwnerType         OwnerType
-	OwnerID           string
-	PathID            string
-	SubjectID         string
-	AssignedTeacherID string
-	QuestionType      QuestionType
-	Difficulty        string
-	ExamType          string
-	Source            string
-	SourceYear        *int
-	HasImage          bool
-	HasVideo          bool
-	HasExplanation    bool
-	MainSkillID       string
-	SkillIDs          []string
-	UpdatedAt         time.Time
+	ID                     string
+	QuestionCode           string
+	CurrentVersion         int
+	WorkflowStatus         WorkflowStatus
+	OwnerType              OwnerType
+	OwnerID                string
+	PathID                 string
+	SubjectID              string
+	AssignedTeacherID      string
+	QuestionType           QuestionType
+	Difficulty             string
+	ExamType               string
+	Source                 string
+	SourceYear             *int
+	HasImage               bool
+	HasVideo               bool
+	HasExplanation         bool
+	Text                   string
+	ImageURL               string
+	ImageAssetID           string
+	OptionsEmbeddedInImage bool
+	MainSkillID            string
+	SkillIDs               []string
+	UpdatedAt              time.Time
 }
 
 type QuestionPage struct {

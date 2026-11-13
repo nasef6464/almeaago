@@ -45,7 +45,14 @@ test('original font editor persists through real Go identity and PostgreSQL',asy
   const capture=async(p:typeof page,name:string)=>{
    await p.evaluate(()=>window.scrollTo(0,0));
    const clip=await panel(p).boundingBox();expect(clip).not.toBeNull();
-   return p.screenshot({path:`test-results/font-${name}-component-${width}.png`,fullPage:true,clip:clip!,animations:'disabled'});
+   // Global floating controls sit above this tall panel but are outside the
+   // font editor being compared. Keep them available in the real interface.
+   const overlayStyle=await p.addStyleTag({content:'button[aria-label="فتح المساعد الذكي"], aside[aria-label="تواصل معنا عبر واتساب"] { visibility: hidden !important; }'});
+   try {
+    return await p.screenshot({path:`test-results/font-${name}-component-${width}.png`,fullPage:true,clip:clip!,animations:'disabled'});
+   } finally {
+    await overlayStyle.evaluate(element=>element.remove());
+   }
   };
   const expected=await capture(original,'source');
   const actual=await capture(page,'go');

@@ -14,6 +14,14 @@ type ScopedAccessRepository interface {
 // CheckFoundationAccess resolves paid foundation access for the exact subject
 // and path. Free content is handled by Content before calling this method.
 func (s *Service) CheckFoundationAccess(ctx context.Context, userID, pathID, subjectID string) (commerce.AccessDecision, error) {
+	return s.checkSubjectPackageAccess(ctx, userID, pathID, subjectID, commerce.ContentFoundation)
+}
+
+func (s *Service) CheckLibraryAccess(ctx context.Context, userID, pathID, subjectID string) (commerce.AccessDecision, error) {
+	return s.checkSubjectPackageAccess(ctx, userID, pathID, subjectID, commerce.ContentLibrary)
+}
+
+func (s *Service) checkSubjectPackageAccess(ctx context.Context, userID, pathID, subjectID string, contentType commerce.ContentType) (commerce.AccessDecision, error) {
 	userID, pathID, subjectID = strings.TrimSpace(userID), strings.TrimSpace(pathID), strings.TrimSpace(subjectID)
 	if userID == "" || pathID == "" || subjectID == "" {
 		return commerce.AccessDecision{}, ErrInvalidInput
@@ -30,7 +38,7 @@ func (s *Service) CheckFoundationAccess(ctx context.Context, userID, pathID, sub
 			return commerce.AccessDecision{}, err
 		}
 	}
-	return repo.ResolveScopedAccess(ctx, userID, schools, pathID, subjectID, "", commerce.ContentFoundation, true)
+	return repo.ResolveScopedAccess(ctx, userID, schools, pathID, subjectID, "", contentType, true)
 }
 
 func (s *Service) CheckAssessmentAccess(
@@ -44,7 +52,7 @@ func (s *Service) CheckAssessmentAccess(
 	subjectID = strings.TrimSpace(subjectID)
 	courseID = strings.TrimSpace(courseID)
 	if userID == "" || pathID == "" ||
-		(contentType != commerce.ContentTests && contentType != commerce.ContentMockExams) {
+		(contentType != commerce.ContentBanks && contentType != commerce.ContentTests && contentType != commerce.ContentMockExams && contentType != commerce.ContentFoundation && contentType != commerce.ContentCourses) {
 		return commerce.AccessDecision{}, ErrInvalidInput
 	}
 	repo, ok := s.repo.(ScopedAccessRepository)

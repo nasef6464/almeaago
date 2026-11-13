@@ -19,6 +19,10 @@ export interface QuestionSummary{
   hasImage:boolean;
   hasVideo:boolean;
   hasExplanation:boolean;
+  text?:string;
+  imageUrl?:string;
+  imageAssetId?:string;
+  optionsEmbeddedInImage?:boolean;
   mainSkillId:string;
   skillIds:string[];
   updatedAt:string;
@@ -49,6 +53,7 @@ export interface QuestionDetail extends QuestionSummary{
     type:QuestionType;
     text:string;
     imageAssetId:string;
+    imageUrl?:string;
     imageAlt:string;
     optionsEmbeddedInImage:boolean;
     correctOptionIndex:number|null;
@@ -95,6 +100,7 @@ export interface QuestionVersionWrite{
 export interface QuestionCreateWrite{
   questionCode:string;
   ownerType:'platform'|'teacher';
+  sectionId?:string;
   ownerId:string;
   assignedTeacherId:string;
   version:QuestionVersionWrite;
@@ -179,6 +185,8 @@ async function sha256Hex(file:File){
 }
 
 export const questionBankClient={
+  section:(id:string,signal?:AbortSignal)=>request<{sectionId:string}>(`/api/v1/questions/${encodeURIComponent(id)}/section`,{signal}),
+  setSection:(id:string,sectionId:string,csrf:string)=>request<{sectionId:string}>(`/api/v1/questions/${encodeURIComponent(id)}/section`,{method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({sectionId})}),
   list(filters:QuestionFilters,signal?:AbortSignal){
     return request<QuestionPage>(`/api/v1/questions?${qs(filters)}`,{signal});
   },

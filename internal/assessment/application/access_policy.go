@@ -43,6 +43,16 @@ func resolveCommerceAccess(
 	if err != nil {
 		return false, "invalid_assessment_kind", err
 	}
+	if scope.AssessmentKind == assessment.KindNormal {
+		switch scope.PlacementSlot {
+		case assessment.PlacementTraining:
+			contentType = commerce.ContentBanks
+		case assessment.PlacementFoundation:
+			contentType = commerce.ContentFoundation
+		case assessment.PlacementCourse:
+			contentType = commerce.ContentCourses
+		}
+	}
 	decision, err := resolver.CheckAssessmentAccess(
 		ctx, userID, scope.PathID, scope.SubjectID, scope.CourseID, contentType, packageOnly,
 	)

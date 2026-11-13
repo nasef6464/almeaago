@@ -16,6 +16,7 @@ async function auth(page:Page,user:typeof admin|typeof teacher){
 const taxonomy={
   paths:[{id:'path-1',code:'QDR',name:'القدرات',description:'',sortOrder:1}],
   subjects:[{id:'subject-1',pathId:'path-1',code:'QNT',name:'الكمي',sortOrder:1}],
+  sections:[{id:'00000000-0000-0000-0000-000000000004',subjectId:'subject-1',name:'قسم الأعداد',sortOrder:1}],
   skills:[
     {id:'skill-main',subjectId:'subject-1',code:'NUM',name:'الأعداد',description:'',kind:'main',sortOrder:1},
     {id:'skill-sub',subjectId:'subject-1',parentSkillId:'skill-main',code:'NUM-1',name:'النسب',description:'',kind:'sub',sortOrder:1},
@@ -40,6 +41,7 @@ function detail(status='draft'){
 }
 async function mockBase(page:Page){
   await page.route('**/api/v1/taxonomy/bootstrap?phase=full',r=>json(r,taxonomy));
+  await page.route('**/api/v1/questions/question-1/section',r=>json(r,{sectionId:''}));
   await page.route('**/api/v1/questions/coverage?**',r=>json(r,{
     questionsTotal:1,approved:0,pendingReview:0,unlinked:0,mainSkillCoverage:1,subSkillCoverage:0,
     skills:[{skillId:'skill-main',relationType:'main',questionCount:1}],skillPage:1,skillLimit:50,skillsHasMore:false,
@@ -63,14 +65,16 @@ test('question presentation stores label-only choices separately from their text
   let payload:any;
   await page.route('**/api/v1/questions/',r=>{payload=r.request().postDataJSON();return json(r,{question:detail()},201)});
   await openAnswerDraft(page);
+  await page.getByLabel('قسم السؤال الجديد').selectOption('00000000-0000-0000-0000-000000000004');
   await page.getByLabel('رقم السؤال الاختياري').fill('23');
-  await page.getByLabel('حروف الاختيارات الافتراضية').selectOption('latin');
-  await page.getByLabel('إظهار نص الاختيارات').uncheck();
+  await page.getByLabel('أحرف الخيارات الافتراضية').selectOption('latin');
+  await page.getByLabel('إظهار نص الخيارات').uncheck();
   await page.getByLabel('رمز الخيار 1').fill('A');
   await page.getByLabel('الإجابة الصحيحة 2').check();
   await page.getByRole('button',{name:'حفظ السؤال كمسودة'}).click();
-  await expect(page.getByText('تم إنشاء السؤال كمسودة بإصدار أول.')).toBeVisible();
+  await expect(page.getByText('تم حفظ السؤال الجديد كمسودة معتمدة.')).toBeVisible();
   expect(payload.version.options).toEqual(Array.from({length:4},()=>({text:'',assetId:''})));
+  expect(payload.sectionId).toBe('00000000-0000-0000-0000-000000000004');
   expect(payload.version.correctOptionIndex).toBe(1);
   expect(payload.version.sourceMeta.learnerPresentation).toMatchObject({questionNumber:'23',optionLabelStyle:'latin',showOptionText:false,showOptionLabels:true,optionLabels:['A','','','']});
 });

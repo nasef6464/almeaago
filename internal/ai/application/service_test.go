@@ -2,6 +2,8 @@ package application
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"strings"
 	"sync"
@@ -9,6 +11,7 @@ import (
 	"time"
 
 	ai "github.com/nasef6464/almeaago/internal/ai/domain"
+	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	learning "github.com/nasef6464/almeaago/internal/learning/domain"
 	operations "github.com/nasef6464/almeaago/internal/operations/domain"
@@ -122,6 +125,84 @@ type learningStub struct {
 	lastStudent string
 	lastCardID  string
 	err         error
+}
+
+type resultReviewStub struct {
+	detail           assessment.ResultDetail
+	err              error
+	student, attempt string
+}
+
+func (r *resultReviewStub) GetResultDetail(_ context.Context, student, attempt string) (assessment.ResultDetail, error) {
+	r.student, r.attempt = student, attempt
+	return r.detail, r.err
+}
+
+func TestQuestionAssistUsesOwnedResultQuestionVersion(t *testing.T) {
+	reader := &resultReviewStub{detail: assessment.ResultDetail{AllowQuestionReview: true, ShowAnswers: true, ShowExplanations: true, Questions: []assessment.ReviewQuestion{{QuestionID: "question-1", QuestionVersion: 3}}}}
+	questions := &questionStub{row: reviewQuestion()}
+	service := NewService(&repoStub{}, &learningStub{}, questions, &providerStub{}, Config{})
+	service.SetResultReviewReader(reader)
+	_, err := service.QuestionAssist(context.Background(), student(), ai.QuestionAssistInput{AttemptID: "attempt-1", ResultID: "attempt-1", QuestionID: "question-1", HelpLevel: ai.HelpHint})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reader.student != "student-1" || reader.attempt != "attempt-1" || len(questions.refs) != 1 || questions.refs[0].Version != 3 {
+		t.Fatalf("unscoped result lookup: %+v %+v", reader, questions.refs)
+	}
+	reader.detail.ShowAnswers = false
+	if _, err = service.QuestionAssist(context.Background(), student(), ai.QuestionAssistInput{AttemptID: "attempt-1", QuestionID: "question-1", HelpLevel: ai.HelpHint}); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("hidden answers exposed: %v", err)
+	}
+	reader.detail.ShowAnswers = true
+	if _, err = service.QuestionAssist(context.Background(), student(), ai.QuestionAssistInput{AttemptID: "attempt-1", QuestionID: "other-question", HelpLevel: ai.HelpHint}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("question outside attempt accepted: %v", err)
+	}
+	reader.err = assessment.ErrNotFound
+	if _, err = service.QuestionAssist(context.Background(), student(), ai.QuestionAssistInput{AttemptID: "other-attempt", QuestionID: "question-1", HelpLevel: ai.HelpHint}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("other student's attempt accepted: %v", err)
+	}
+	if _, err = service.QuestionAssist(context.Background(), student(), ai.QuestionAssistInput{AttemptID: "attempt-1", ResultID: "different", QuestionID: "question-1", HelpLevel: ai.HelpHint}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("conflicting result identifiers accepted: %v", err)
+	}
+}
+
+func TestQuestionAssistDirectIDCannotReadTrustedQuestionOrOldCache(t *testing.T) {
+	now := time.Date(2026, 9, 27, 8, 0, 0, 0, time.UTC)
+	legacyRaw := strings.Join([]string{"student-1", "direct-question-1", "question-1", "1", string(ai.HelpSteps), "", PromptVersionQuestionTutor}, "|")
+	legacyDigest := sha256.Sum256([]byte(legacyRaw))
+	legacyKey := hex.EncodeToString(legacyDigest[:])
+	repo := &repoStub{
+		settings: []ai.ProviderSetting{{Provider: ai.ProviderGemini, Enabled: true, Model: "test-model", Priority: 10, MaxOutputTokens: 800}},
+		cache:    map[string]ai.CacheEntry{legacyKey: {ResponseText: "OLD_TRUSTED_SECRET", ExpiresAt: now.Add(time.Hour)}},
+	}
+	trusted := reviewQuestion()
+	trusted.Version = 1
+	trusted.Hint, trusted.SolvingStrategy, trusted.Explanation = "TRUSTED_SECRET", "TRUSTED_SECRET", "TRUSTED_SECRET"
+	questions := &questionStub{row: trusted}
+	provider := &providerStub{configured: map[ai.Provider]bool{ai.ProviderGemini: true}, results: map[ai.Provider]ai.ProviderCallResult{ai.ProviderGemini: {Text: "رد عام", Model: "test-model"}}, errors: map[ai.Provider]error{}}
+	service := NewService(repo, nil, questions, provider, Config{})
+	service.now = func() time.Time { return now }
+	for _, text := range []string{"", "FREE_FORM_SENTINEL"} {
+		out, err := service.QuestionAssist(context.Background(), student(), ai.QuestionAssistInput{QuestionID: "question-1", QuestionText: text, HelpLevel: ai.HelpSteps})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if out.CacheHit || strings.Contains(out.Text, "TRUSTED_SECRET") {
+			t.Fatalf("direct request leaked old cache: %+v", out)
+		}
+	}
+	if len(questions.refs) != 0 {
+		t.Fatalf("bare ID read trusted material: %+v", questions.refs)
+	}
+	if len(provider.prompts) != 2 || !strings.Contains(provider.prompts[1], "FREE_FORM_SENTINEL") {
+		t.Fatalf("free-form prompt missing: %+v", provider.prompts)
+	}
+	for _, prompt := range provider.prompts {
+		if strings.Contains(prompt, "TRUSTED_SECRET") {
+			t.Fatal("bare ID leaked trusted explanation to provider")
+		}
+	}
 }
 
 func (l *learningStub) GetReviewCard(_ context.Context, student, cardID string) (learning.ReviewCard, error) {

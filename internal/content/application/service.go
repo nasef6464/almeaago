@@ -318,4 +318,3 @@ func (s *Service) EnrollFreeCourse(ctx context.Context, actor identity.User, cou
 	}
 	return s.repo.EnrollFreeCourse(ctx, actor.ID, courseID)
 }
-
