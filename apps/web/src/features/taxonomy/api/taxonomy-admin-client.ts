@@ -21,6 +21,7 @@ export interface SubjectDisplayInput {
 }
 
 export interface AdminTaxonomyPath {
+  isVisible?: boolean;
   id: string;
   code: string;
   name: string;
@@ -41,6 +42,7 @@ export interface AdminTaxonomyPath {
 }
 
 export interface AdminTaxonomyLevel {
+  isVisible?: boolean;
   id: string;
   pathId: string;
   code: string;
@@ -52,6 +54,7 @@ export interface AdminTaxonomyLevel {
 }
 
 export interface AdminTaxonomySubject {
+  isVisible?: boolean;
   id: string;
   pathId: string;
   levelId?: string;
@@ -108,6 +111,12 @@ function mutation(path: string, method: 'POST' | 'PATCH', body: unknown, csrf: s
 }
 
 export const taxonomyAdminClient = {
+  deleteRecord(type: 'path' | 'level' | 'subject', id: string, csrf: string) {
+    const plural = { path: 'paths', level: 'levels', subject: 'subjects' }[type];
+    return request<{deleted: boolean}>(`/api/v1/taxonomy/admin/${plural}/${encodeURIComponent(id)}`, {
+      method: 'DELETE', headers: { 'X-CSRF-Token': csrf },
+    });
+  },
   bootstrap(signal?: AbortSignal) {
     return request<AdminTaxonomyBootstrap>('/api/v1/taxonomy/admin/bootstrap', { signal });
   },
@@ -136,6 +145,7 @@ export const taxonomyAdminClient = {
   updatePath(
     id: string,
     input: Partial<{
+      isVisible: boolean;
       name: string;
       parentPathId: string;
       description: string;
@@ -172,6 +182,7 @@ export const taxonomyAdminClient = {
   updateLevel(
     id: string,
     input: Partial<{
+      isVisible: boolean;
       name: string;
       sortOrder: number;
       status: TaxonomyStatus;
@@ -201,6 +212,7 @@ export const taxonomyAdminClient = {
   updateSubject(
     id: string,
     input: Partial<{
+      isVisible: boolean;
       name: string;
       levelId: string;
       sortOrder: number;
