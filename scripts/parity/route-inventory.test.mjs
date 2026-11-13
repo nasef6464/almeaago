@@ -36,9 +36,9 @@ test('the reviewed legacy snapshot can be compared to the current Go App route t
   assert.equal(diff.legacyCount, 55);
   // Refreshed 2026-11-13 against the current App route tree (83 explicit routes).
   // The legacy baseline stays frozen; only the target-side drift is re-baselined.
-  assert.equal(diff.targetCount, 83);
-  assert.equal(diff.sharedCount, 40);
-  assert.equal(diff.legacyOnly.length, 15);
+  assert.equal(diff.targetCount, 84);
+  assert.equal(diff.sharedCount, 41);
+  assert.equal(diff.legacyOnly.length, 14);
   assert.equal(diff.targetOnly.length, 43);
   assert.ok(diff.legacyOnly.includes('/admin/quiz-gen'));
   assert.ok(diff.targetOnly.includes('/admin-dashboard/assessments'));
