@@ -107,13 +107,13 @@ export function StudentDashboardPage() {
 
     Promise.allSettled([
       contentClient.taxonomyCore(controller.signal),
-      assessmentAssignmentClient.mine(1, 4, controller.signal),
+      tab === 'overview' ? assessmentAssignmentClient.mine(1, 4, controller.signal) : Promise.resolve(null),
     ]).then(([taxResult, assignResult]) => {
       if (!active) return;
       if (taxResult.status === 'fulfilled') {
         setPaths(taxResult.value.paths || []);
       }
-      if (assignResult.status === 'fulfilled') {
+      if (assignResult.status === 'fulfilled' && assignResult.value) {
         setAssignments(assignResult.value.items || []);
       }
       setLoadingData(false);
@@ -123,7 +123,7 @@ export function StudentDashboardPage() {
       active = false;
       controller.abort();
     };
-  }, [loading, user]);
+  }, [loading, tab, user]);
 
   const studentUser = user && user.roles.includes('student') ? user : null;
 

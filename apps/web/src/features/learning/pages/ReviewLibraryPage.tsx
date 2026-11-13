@@ -252,7 +252,13 @@ export function ReviewLibraryPage({ embedded }: { embedded?: boolean } = {}) {
     return <div className="p-10 text-center font-black">جاري التحقق من الجلسة...</div>;
   }
   if (!embedded && (!user || user?.roles.includes('student'))) {
-    return <Navigate to="/dashboard?tab=review" replace />;
+    const dashboardParams = new URLSearchParams(searchParams);
+    const requestedReviewTab = dashboardParams.get('tab');
+    if (!dashboardParams.has('mode') && (requestedReviewTab === 'saved' || requestedReviewTab === 'mistakes')) {
+      dashboardParams.set('mode', requestedReviewTab);
+    }
+    dashboardParams.set('tab', 'review');
+    return <Navigate to={`/dashboard?${dashboardParams.toString()}`} replace />;
   }
   if (!user || !user.roles.includes('student')) {
     return <div className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</div>;
