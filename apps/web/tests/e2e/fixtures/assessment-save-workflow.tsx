@@ -11,6 +11,6 @@ function App() {
   const path = live ? '00000000-0000-0000-0000-000000000003' : 'path-1';
   const subject = live ? '00000000-0000-0000-0000-000000000004' : 'subject-1';
   const csrf = async () => live ? (await (await fetch('/api/v1/auth/csrf')).json()).csrfToken : 'csrf';
-  return done ? <p>تم التسليم للقائمة</p> : <AssessmentEditorPanel taxonomy={{ paths: [{ id: path, code: 'p', name: 'مسار', sortOrder: 0 }], subjects: [{ id: subject, pathId: path, code: 's', name: 'مادة', sortOrder: 0 }] }} initialPathId={path} initialSubjectId={subject} isAdmin={isAdmin} lockScope={!isAdmin} getCsrfToken={csrf} onCancel={() => setDone(true)} onSaved={() => setDone(true)} />;
+  return done ? <p>تم التسليم للقائمة</p> : <AssessmentEditorPanel assessmentId={params.get('id') || undefined} taxonomy={{ paths: [{ id: path, code: 'p', name: 'مسار', sortOrder: 0 }], subjects: [{ id: subject, pathId: path, code: 's', name: 'مادة', sortOrder: 0 }] }} initialPathId={path} initialSubjectId={subject} isAdmin={isAdmin} lockScope={!isAdmin} getCsrfToken={csrf} onCancel={() => setDone(true)} onSaved={() => setDone(true)} />;
 }
 createRoot(document.getElementById('root')!).render(<App />);

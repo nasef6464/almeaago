@@ -539,7 +539,8 @@ export function AssessmentEditorPanel(p: Props) {
   }
 
   async function changeApprovedVisibility(visible: boolean) {
-    if (!effectiveId || !detail || !p.isAdmin || visibilitySaving) return;
+    if (!effectiveId || !detail || !p.isAdmin || visibilitySaving || savingRef.current) return;
+    savingRef.current = true;
     setVisibilitySaving(true);
     setError('');
     setSuccessNotice('');
@@ -548,10 +549,12 @@ export function AssessmentEditorPanel(p: Props) {
       const response = await assessmentClient.visibility(effectiveId, detail.revision, visible, csrf);
       setDetail(response.assessment);
       setIsVisible(response.assessment.isVisible);
+      savedWrite.current = { assessment: response.assessment, fingerprint: editableFingerprint(response.assessment.code, response.assessment.isVisible, response.assessment.version, response.assessment.sections || [], response.assessment.questions || []) };
       setSuccessNotice(visible ? 'تم إظهار الاختبار للطلاب.' : 'تم إخفاء الاختبار عن الطلاب.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر تغيير ظهور الاختبار');
     } finally {
+      savingRef.current = false;
       setVisibilitySaving(false);
     }
   }
