@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http/httptest"
 	"os"
@@ -243,6 +245,52 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 			t.Fatalf("activate public session: %v", sessionErr)
 		}
 		publicCode = session.SessionCode
+		// Identical simultaneous starts must reuse one public attempt, even if
+		// both arrive before the first transaction has committed.
+		blocker, lockErr := db.Begin(ctx)
+		if lockErr != nil {
+			t.Fatal(lockErr)
+		}
+		defer blocker.Rollback(context.Background())
+		lockKey := session.ID + ":" + hex.EncodeToString(publicHash("isolated-participant-key-123456"))
+		if _, lockErr = blocker.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, lockKey); lockErr != nil {
+			t.Fatal(lockErr)
+		}
+		type publicStartResult struct {
+			attempt assessment.PublicAttempt
+			err     error
+		}
+		starts := make(chan publicStartResult, 2)
+		for i := 0; i < 2; i++ {
+			go func() {
+				attempt, startErr := repo.StartPublic(ctx, publicCode, "isolated-participant-key-123456", "isolated-concurrent-start-key-123456")
+				starts <- publicStartResult{attempt, startErr}
+			}()
+		}
+		deadline := time.Now().Add(10 * time.Second)
+		for {
+			var waiting int
+			if lockErr = db.QueryRow(ctx, `SELECT count(*) FROM pg_locks l JOIN pg_stat_activity a ON a.pid=l.pid WHERE l.locktype='advisory' AND NOT l.granted AND a.datname=current_database()`).Scan(&waiting); lockErr != nil {
+				t.Fatal(lockErr)
+			}
+			if waiting >= 2 {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("public starts did not both reach the advisory lock: %d", waiting)
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		if lockErr = blocker.Commit(ctx); lockErr != nil {
+			t.Fatal(lockErr)
+		}
+		first, second := <-starts, <-starts
+		if first.err != nil || second.err != nil || first.attempt.ID == "" || first.attempt.ID != second.attempt.ID {
+			t.Fatalf("concurrent public starts: first=%+v second=%+v", first, second)
+		}
+		if _, startErr := repo.StartPublic(ctx, publicCode+"-other", "isolated-participant-key-123456", "isolated-concurrent-start-key-123456"); !errors.Is(startErr, assessment.ErrConflict) {
+			t.Fatalf("public start key reused for a different code: %v", startErr)
+		}
 	}
 	router := chi.NewRouter()
 	router.Mount("/api/v1/auth", identityhttp.New(auth, false, identityhttp.Options{Admin: adminService}))

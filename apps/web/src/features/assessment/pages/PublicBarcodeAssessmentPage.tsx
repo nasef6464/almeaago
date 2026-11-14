@@ -9,6 +9,16 @@ import {QuestionImageZoomModal} from '../components/QuestionImageZoomModal';
 import {optionLabel,showOptionText} from '../questionPresentation';
 
 function stableKey(storage:Storage,key:string){let v=storage.getItem(key);if(!v){v=crypto.randomUUID()+crypto.randomUUID();storage.setItem(key,v)}return v}
+const pendingStarts = new Map<string, ReturnType<typeof assessmentSessionClient.publicStart>>();
+function startOnce(code:string,participant:string,start:string){
+ const key=JSON.stringify([code,participant,start]);
+ const pending=pendingStarts.get(key);if(pending)return pending;
+ const request=assessmentSessionClient.publicStart(code,participant,start);
+ pendingStarts.set(key,request);
+ const remove=()=>{if(pendingStarts.get(key)===request)pendingStarts.delete(key)};
+ void request.then(remove,remove);
+ return request;
+}
 
 function PublicQuestion({question,number,layout,selected,onSelect}:{question:AttemptQuestion;number:number;layout:string;selected:number|undefined;onSelect(index:number):void}) {
  const [zoomImage,setZoomImage]=useState<string|null>(null);
@@ -37,7 +47,7 @@ export function PublicBarcodeAssessmentPage(){
 
 function PublicBarcodeAssessmentForCode({code}:{code:string}){
  const navigate=useNavigate();const[inputCode,setInputCode]=useState('');const[attempt,setAttempt]=useState<PublicAttempt|null>(null);const[answers,setAnswers]=useState<Record<string,number>>({});const[name,setName]=useState('');const[school,setSchool]=useState('');const[classroom,setClassroom]=useState('');const[contact,setContact]=useState('');const[result,setResult]=useState<Result|null>(null);const[resultVisible,setResultVisible]=useState(true);const[error,setError]=useState('');const[busy,setBusy]=useState(Boolean(code));const[startedAt]=useState(()=>Date.now());
- useEffect(()=>{if(!code)return;const participant=stableKey(localStorage,'almeaa:public-participant');const start=stableKey(sessionStorage,'almeaa:public-start:'+code);setBusy(true);assessmentSessionClient.publicStart(code,participant,start).then(x=>setAttempt(x.attempt)).catch(e=>setError(e instanceof Error?e.message:'هذا الاختبار غير متاح الآن')).finally(()=>setBusy(false))},[code]);
+ useEffect(()=>{if(!code)return;let active=true;const participant=stableKey(localStorage,'almeaa:public-participant');const start=stableKey(sessionStorage,'almeaa:public-start:'+code);setBusy(true);setError('');startOnce(code,participant,start).then(x=>{if(active)setAttempt(x.attempt)}).catch(e=>{if(active)setError(e instanceof Error?e.message:'هذا الاختبار غير متاح الآن')}).finally(()=>{if(active)setBusy(false)});return()=>{active=false}},[code]);
  const answered=useMemo(()=>Object.keys(answers).length,[answers]);
  async function submit(){if(!attempt||name.trim().length<2){setError('اكتب اسمك أولًا.');return}if(attempt.requireAnswerBeforeNext&&answered<attempt.questions.length){setError('أجب عن كل الأسئلة قبل الإرسال.');return}setBusy(true);setError('');try{const participant=stableKey(localStorage,'almeaa:public-participant');const submission=stableKey(sessionStorage,'almeaa:public-submit:'+attempt.id);const out=await assessmentSessionClient.publicSubmit(code,{participantKey:participant,publicAttemptId:attempt.id,submissionKey:submission,participantName:name,schoolName:school,classroomName:classroom,contact,timeSpentSeconds:Math.max(0,Math.floor((Date.now()-startedAt)/1000)),answers:attempt.questions.map(q=>({questionId:q.id,selectedOptionIndex:answers[q.id]??null}))});setResultVisible(out.resultVisible);setResult(out.result??null);window.scrollTo({top:0})}catch(e){setError(e instanceof Error?e.message:'تعذر إرسال الاختبار')}finally{setBusy(false)}}
  if(!code)return <main dir="rtl" className="mx-auto max-w-lg p-6"><section className="rounded-3xl border bg-white p-7 text-center shadow-sm"><h1 className="text-2xl font-black">اختبار باركود / عام</h1><p className="mt-2 text-sm text-gray-500">أدخل رمز الجلسة الموجود مع الرابط أو الباركود.</p><input aria-label="رمز الاختبار" value={inputCode} onChange={e=>setInputCode(e.target.value)} className="mt-5 w-full rounded-xl border p-3 text-center font-mono font-black tracking-wider"/><button onClick={()=>navigate('/barcode-test/'+encodeURIComponent(inputCode.trim()))} disabled={!inputCode.trim()} className="mt-3 w-full rounded-xl bg-indigo-600 p-3 font-black text-white disabled:opacity-40">فتح الاختبار</button></section></main>;

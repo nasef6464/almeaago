@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -239,13 +240,15 @@ func (r *Repository) StartPublic(ctx context.Context, code, participantKey, star
 
 	var existingID string
 	var existingHash []byte
+	var existingCode string
 	err = tx.QueryRow(ctx, `
-		SELECT id::text,participant_key_hash
-		  FROM assessment_public_attempts
-		 WHERE start_key=$1
-	`, startKey).Scan(&existingID, &existingHash)
+		SELECT pa.id::text,pa.participant_key_hash,s.session_code
+		  FROM assessment_public_attempts pa
+		  JOIN assessment_sessions s ON s.id=pa.session_id
+		 WHERE pa.start_key=$1
+	`, startKey).Scan(&existingID, &existingHash, &existingCode)
 	if err == nil {
-		if string(existingHash) != string(hash) {
+		if string(existingHash) != string(hash) || !strings.EqualFold(existingCode, code) {
 			return assessment.PublicAttempt{}, assessment.ErrConflict
 		}
 		if err = tx.Commit(ctx); err != nil {
@@ -280,6 +283,27 @@ func (r *Repository) StartPublic(ctx context.Context, code, participantKey, star
 	}
 
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, sessionID+":"+hex.EncodeToString(hash)); err != nil {
+		return assessment.PublicAttempt{}, err
+	}
+
+	// Another request for the same participant may have committed while this
+	// transaction waited for the lock. Reuse its attempt before checking limits.
+	err = tx.QueryRow(ctx, `
+		SELECT pa.id::text,pa.participant_key_hash,s.session_code
+		  FROM assessment_public_attempts pa
+		  JOIN assessment_sessions s ON s.id=pa.session_id
+		 WHERE pa.start_key=$1
+	`, startKey).Scan(&existingID, &existingHash, &existingCode)
+	if err == nil {
+		if string(existingHash) != string(hash) || !strings.EqualFold(existingCode, code) {
+			return assessment.PublicAttempt{}, assessment.ErrConflict
+		}
+		if err = tx.Commit(ctx); err != nil {
+			return assessment.PublicAttempt{}, err
+		}
+		return r.getPublicAttempt(ctx, existingID, hash)
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
 		return assessment.PublicAttempt{}, err
 	}
 

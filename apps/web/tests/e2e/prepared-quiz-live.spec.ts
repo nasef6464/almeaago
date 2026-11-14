@@ -308,10 +308,13 @@ test('اختبار باركود يعرض صورة السؤال وحروفه وي
   test.skip(process.env.PREPARED_QUIZ_LIVE !== '1' || process.env.PREPARED_IMAGE_QUIZ !== '1', 'requires isolated image session');
   test.setTimeout(180_000);
   const code = process.env.PREPARED_PUBLIC_CODE!;
+  let startRequests = 0;
+  page.on('request', request => { if (request.url().endsWith(`/public-assessments/${code}/start`) && request.method() === 'POST') startRequests++; });
   const started = page.waitForResponse(response => response.url().endsWith(`/public-assessments/${code}/start`) && response.request().method() === 'POST');
   await page.goto(`/barcode-test/${code}`, { waitUntil: 'domcontentloaded', timeout: 90_000 });
   const initial = await (await started).json();
   expect(initial.attempt.questions[0].options.map((option: {index:number}) => option.index)).toEqual([0, 1, 2, 3]);
+  expect(startRequests).toBe(1);
   await expect(page.getByRole('img', { name: 'صورة السؤال الكاملة' })).toBeVisible({ timeout: 30_000 });
   await page.getByRole('img', { name: 'صورة السؤال الكاملة' }).click();
   const zoom = page.getByRole('dialog', { name: 'تكبير صورة السؤال' });
