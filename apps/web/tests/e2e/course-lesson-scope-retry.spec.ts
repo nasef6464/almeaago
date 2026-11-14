@@ -160,3 +160,20 @@ test('course notes remain private to the selected lesson and do not claim instru
   await expect(page.getByText('ملاحظتي على الدرس الثاني')).toBeVisible();
   await expect(page.getByText('ملاحظتي على الدرس الأول')).toHaveCount(0);
 });
+
+test('interactive video answers are scoped to the signed-in student', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  const video = { ...detail('lesson-a'), type: 'video', durationSeconds: 120, videoUrl: '/media/test.mp4', videoSource: 'upload', contentText: JSON.stringify({interactiveQuestions: [{id:'question-one',timestamp:1,mustPass:true,actionOnFail:'continue',rewatchTimestamp:0,inlineQuestion:{text:'سؤال',options:['أ','ب'],correctOptionIndex:0}}]}) };
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a', route => json(route, { lesson: video }));
+  await page.route('**/media/test.mp4', route => route.fulfill({ status: 200, headers: { 'Content-Type': 'video/mp4' }, body: '' }));
+  await page.addInitScript(() => {
+    localStorage.setItem('almeaa_answered:course-1:lesson-a', JSON.stringify(['question-one']));
+    localStorage.setItem(`almeaa_answered_v2:${JSON.stringify(['other-student','course-1','lesson-a'])}`, JSON.stringify(['question-one']));
+  });
+  await page.goto('/learning/courses/course-1');
+  await expect(page.getByText('تم إجابة 0 من 1')).toBeVisible();
+  await page.evaluate(() => localStorage.setItem(`almeaa_answered_v2:${JSON.stringify(['student-1','course-1','lesson-a'])}`, JSON.stringify(['question-one'])));
+  await page.reload();
+  await expect(page.getByText('تم إجابة 1 من 1')).toBeVisible();
+});

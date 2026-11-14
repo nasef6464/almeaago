@@ -106,23 +106,19 @@ export function CourseLearningPage() {
   const videoRef = useRef<SharedVideoPlayerHandle | null>(null);
   const lastSaved = useRef(0);
 
-  // Interactive Video state
-  const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<string>>(() => {
-    try {
-      const stored = localStorage.getItem(`almeaa_answered:${courseId}:${lessonId}`);
-      if (stored) return new Set(JSON.parse(stored));
-    } catch {}
-    return new Set();
-  });
-
+  // Interactive answers belong to one learner and one exact course lesson.
+  const answerScope = JSON.stringify([user?.id || '', courseId, lessonId]);
+  const answerStorageKey = `almeaa_answered_v2:${answerScope}`;
+  const [answerState, setAnswerState] = useState<{ scope: string; ids: Set<string> }>({ scope: '', ids: new Set() });
+  const answeredQuestionIds = answerState.scope === answerScope ? answerState.ids : new Set<string>();
   useEffect(() => {
+    let ids: string[] = [];
     try {
-      const stored = localStorage.getItem(`almeaa_answered:${courseId}:${lessonId}`);
-      setAnsweredQuestionIds(stored ? new Set(JSON.parse(stored)) : new Set());
-    } catch {
-      setAnsweredQuestionIds(new Set());
-    }
-  }, [courseId, lessonId]);
+      const parsed: unknown = JSON.parse(localStorage.getItem(answerStorageKey) || '[]');
+      if (Array.isArray(parsed)) ids = parsed.filter((id): id is string => typeof id === 'string');
+    } catch {}
+    setAnswerState({ scope: answerScope, ids: new Set(ids) });
+  }, [answerScope, answerStorageKey]);
 
   const lessons = useMemo(() => flattenLessons(course), [course]);
   const selectedSummary = lessons.find((item) => item.id === lessonId) || null;
@@ -246,9 +242,9 @@ export function CourseLearningPage() {
 
   function handleQuestionAnswered(questionId: string, isCorrect: boolean, allAnsweredIds: string[]) {
     const nextSet = new Set(allAnsweredIds);
-    setAnsweredQuestionIds(nextSet);
+    setAnswerState({ scope: answerScope, ids: nextSet });
     try {
-      localStorage.setItem(`almeaa_answered:${courseId}:${lessonId}`, JSON.stringify(allAnsweredIds));
+      localStorage.setItem(answerStorageKey, JSON.stringify(allAnsweredIds));
     } catch {}
   }
 
@@ -803,7 +799,7 @@ export function CourseLearningPage() {
                   }`}>
                     {activeDetail.type === 'video' && activeDetail.videoUrl ? (
                       <SharedVideoPlayer
-                        key={`${selectedScope}:${activeDetail.videoUrl}`}
+                        key={`${user.id}:${selectedScope}:${activeDetail.videoUrl}`}
                         ref={videoRef}
                         url={activeDetail.videoUrl}
                         title={activeDetail.title}
