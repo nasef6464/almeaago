@@ -30,3 +30,17 @@ test('assignment reports failure honestly and saves only explicitly selected cla
   expect(notifications).toBe(0);
 });
 
+
+test('empty and failed lists never invent exams or student scores', async ({ page }) => {
+  test.setTimeout(120_000);
+  let fail = false;
+  await page.route('**/api/v1/assessments?*', route => fail ? route.fulfill({ status: 500, json: {} }) : route.fulfill({ json: { items: [] } }));
+  await page.goto('/tests/e2e/fixtures/supervisor-assignment.html');
+  await expect(page.getByText('لا توجد اختبارات تطابق هذه التصفية')).toBeVisible();
+  await expect(page.getByText('اختبار القدرات العامة التجريبي')).toHaveCount(0);
+  await expect(page.getByText('غير متاح').first()).toBeVisible();
+  fail = true;
+  await page.reload();
+  await expect(page.getByText('تعذر تحميل قائمة الاختبارات')).toBeVisible();
+  await expect(page.getByText('لا توجد اختبارات تطابق هذه التصفية')).toHaveCount(0);
+});
