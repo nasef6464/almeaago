@@ -50,6 +50,7 @@ import { ReportsPage } from '../../reporting/pages/ReportsPage';
 import { StudyPlanPage } from './StudyPlanPage';
 import { ReviewLibraryPage } from './ReviewLibraryPage';
 import { AssessmentAssignmentsPage } from '../../assessment/pages/AssessmentAssignmentsPage';
+import { AssessmentAvailabilityPage } from '../../assessment/pages/AssessmentAvailabilityPage';
 import { AssessmentResultsPage } from '../../assessment/pages/AssessmentResultsPage';
 
 type NavItem = {
@@ -420,6 +421,8 @@ export function StudentDashboardPage() {
           <div className="max-w-7xl mx-auto w-full min-w-0">
             <AssessmentAssignmentsPage embedded={true} />
           </div>
+        ) : tab === 'platform-assessments' ? (
+          <AssessmentAvailabilityPage embedded />
         ) : tab === 'mock-exams' || tab === 'assessments' ? (
           <div className="max-w-7xl mx-auto w-full min-w-0">
             <MockExamsTab />

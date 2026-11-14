@@ -11,7 +11,8 @@ test('returns to the topic while taking an attempt and after submission',async({
  await page.goto(`/assessment-attempts/a1?${new URLSearchParams({returnTo})}`);
  const link=page.getByRole('link',{name:'العودة لموضوع التأسيس',exact:true});
  await expect(link).toHaveAttribute('href',returnTo);
- await page.getByRole('button',{name:'تسليم الاختبار',exact:true}).click();
+ await page.getByRole('button',{name:'إنهاء الاختبار',exact:true}).click();
+ await page.getByRole('button',{name:'نعم، قم بالتسليم'}).click();
  await expect(page.getByRole('heading',{name:'تم تسليم الاختبار'})).toBeVisible();
  await expect(page.getByRole('link',{name:'العودة لموضوع التأسيس',exact:true})).toHaveAttribute('href',returnTo);
 });
