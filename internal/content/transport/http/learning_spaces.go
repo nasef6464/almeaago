@@ -1,6 +1,7 @@
 package contenthttp
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -120,6 +121,9 @@ func presentLearnerCourse(row content.LearnerCourse) map[string]any {
 		})
 	}
 	result := presentLearnerCourseSummary(row.Course)
+	if len(row.Course.Presentation) > 0 {
+		result["presentation"] = learnerCoursePresentation(row.Course.Presentation, row.AccessAllowed)
+	}
 	result["modules"] = modules
 	result["access"] = map[string]any{
 		"allowed":    row.AccessAllowed,
@@ -146,6 +150,36 @@ func presentLearnerTopic(row content.LearnerTopic) map[string]any {
 	return result
 }
 
+// Summaries are public. Strip non-free file URLs unless the course-specific
+// access decision has already authorized the learner. External URLs themselves
+// still need protection at their hosting provider.
+func learnerCoursePresentation(raw json.RawMessage, allowPaid bool) json.RawMessage {
+	var presentation map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &presentation); err != nil || presentation == nil {
+		return json.RawMessage(`{}`)
+	}
+	if filesRaw, ok := presentation["files"]; ok {
+		var files []map[string]json.RawMessage
+		if err := json.Unmarshal(filesRaw, &files); err != nil {
+			delete(presentation, "files")
+		} else {
+			for _, file := range files {
+				var access string
+				_ = json.Unmarshal(file["access"], &access)
+				if !allowPaid && access != "free_preview" {
+					delete(file, "url")
+				}
+			}
+			presentation["files"], _ = json.Marshal(files)
+		}
+	}
+	encoded, err := json.Marshal(presentation)
+	if err != nil {
+		return json.RawMessage(`{}`)
+	}
+	return encoded
+}
+
 func presentLearnerCourseSummary(row content.LearnerCourseSummary) map[string]any {
 	result := map[string]any{
 		"id":                 row.ID,
@@ -159,7 +193,7 @@ func presentLearnerCourseSummary(row content.LearnerCourseSummary) map[string]an
 		"certificateEnabled": row.CertificateEnabled,
 	}
 	if len(row.Presentation) > 0 {
-		result["presentation"] = row.Presentation
+		result["presentation"] = learnerCoursePresentation(row.Presentation, false)
 	}
 	return result
 }

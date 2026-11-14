@@ -1,3 +1,4 @@
+import { courseFileURL } from '../../learning/courseFileURL';
 import {
   AlertTriangle,
   Award,
@@ -114,6 +115,7 @@ export function CourseEditorPanel({
   const [courseFiles, setCourseFiles] = useState<Array<{ id: string; title: string; size: string; url?: string; access: 'free_preview' | 'enrolled_paid' }>>([]);
   const [newFileTitle, setNewFileTitle] = useState('');
   const [newFileSize, setNewFileSize] = useState('');
+  const [newFileURL, setNewFileURL] = useState('');
   const [newFileAccess, setNewFileAccess] = useState<'free_preview' | 'enrolled_paid'>('free_preview');
 
   // Assessments
@@ -921,6 +923,10 @@ export function CourseEditorPanel({
                   />
                 </label>
                 <label className="space-y-1">
+                  <span className="text-xs font-black text-gray-700">رابط الملف *</span>
+                  <input type="url" value={newFileURL} onChange={(e) => setNewFileURL(e.target.value)} placeholder="https://..." className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold" />
+                </label>
+                <label className="space-y-1">
                   <span className="text-xs font-black text-gray-700">الحجم</span>
                   <input
                     value={newFileSize}
@@ -944,18 +950,21 @@ export function CourseEditorPanel({
                   type="button"
                   onClick={() => {
                     const t = newFileTitle.trim();
-                    if (!t) return;
+                    if (!t || !courseFileURL(newFileURL)) { setError('اكتب اسم الملف ورابطًا صالحًا يبدأ بـ http أو https.'); return; }
+                    setError('');
                     setCourseFiles((prev) => [
                       ...prev,
                       {
                         id: `file-${Date.now()}`,
                         title: t,
-                        size: newFileSize.trim() || '3.5 ميجابايت',
+                        size: newFileSize.trim(),
+                        url: courseFileURL(newFileURL),
                         access: newFileAccess,
                       },
                     ]);
                     setNewFileTitle('');
                     setNewFileSize('');
+                    setNewFileURL('');
                   }}
                   className="rounded-xl bg-slate-800 text-white px-4 py-2 text-xs font-black hover:bg-slate-900 cursor-pointer h-9 flex items-center justify-center gap-1"
                 >

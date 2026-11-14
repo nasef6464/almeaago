@@ -1,3 +1,4 @@
+import { courseFileURL } from '../courseFileURL';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -362,31 +363,7 @@ export function CourseOverview({
 
   const testsList = useMemo(() => course.assessments || [], [course.assessments]);
 
-  const filesList = useMemo(() => {
-    if (course.files && course.files.length > 0) {
-      return course.files;
-    }
-    return [
-      {
-        id: 'file-1',
-        title: `الحقيبة التدريبية الشاملة - ${course.title}.pdf`,
-        size: '6.4 ميجابايت',
-        access: 'free_preview' as const,
-      },
-      {
-        id: 'file-2',
-        title: 'مذكرة القوانين والحلول السريعة المختصرة.pdf',
-        size: '3.1 ميجابايت',
-        access: 'enrolled_paid' as const,
-      },
-      {
-        id: 'file-3',
-        title: 'أوراق العمل ونماذج الواجبات التدريبية.pdf',
-        size: '4.8 ميجابايت',
-        access: 'enrolled_paid' as const,
-      },
-    ];
-  }, [course.files, course.title]);
+  const filesList = useMemo(() => course.files || [], [course.files]);
 
   const objectivesList = course.objectives && course.objectives.length > 0 ? course.objectives : DEFAULT_OBJECTIVES;
   const featuresList = course.features && course.features.length > 0 ? course.features : DEFAULT_FEATURES;
@@ -967,8 +944,9 @@ export function CourseOverview({
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {filesList.length === 0 && <p className="text-sm font-bold text-gray-500">لا توجد ملفات مرفقة بهذه الدورة حاليًا.</p>}
                       {filesList.map((file) => {
-                        const isLocked = file.access === 'enrolled_paid' && !hasAccess;
+                        const isLocked = file.access !== 'free_preview' && !hasAccess;
                         return (
                           <div
                             key={file.id}
@@ -989,29 +967,18 @@ export function CourseOverview({
                               <div className="min-w-0">
                                 <p className="text-sm font-black text-gray-900 truncate">{file.title}</p>
                                 <p className="text-xs text-gray-500 mt-0.5">
-                                  {file.size || 'ملف PDF'} • {isLocked ? 'ضمن شراء الدورة' : 'مفتوح للجميع'}
+                                  {file.size || 'الحجم غير محدد'} • {isLocked ? 'ضمن شراء الدورة' : 'مفتوح للجميع'}
                                 </p>
                               </div>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (isLocked) {
-                                  alert('هذا الملف متاح للمسجلين في الدورة.');
-                                  return;
-                                }
-                                alert(`جارٍ تحميل: ${file.title}`);
-                              }}
-                              className={`p-2.5 rounded-xl border transition-colors cursor-pointer shrink-0 ${
-                                isLocked
-                                  ? 'border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-200'
-                                  : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'
-                              }`}
-                              title={isLocked ? 'يحتاج اشتراك' : 'تحميل الملف'}
-                            >
-                              <Download size={18} />
-                            </button>
+                            {isLocked ? (
+                              <span className="rounded-xl bg-amber-100 p-2 text-xs font-bold text-amber-800">ضمن شراء الدورة</span>
+                            ) : courseFileURL(file.url) ? (
+                              <a href={courseFileURL(file.url)} target="_blank" rel="noopener noreferrer" download aria-label={`تحميل ${file.title}`} className="rounded-xl border border-gray-200 p-2.5 text-indigo-700"><Download size={18} /></a>
+                            ) : (
+                              <span className="text-xs font-bold text-gray-500">الرابط غير متاح</span>
+                            )}
                           </div>
                         );
                       })}

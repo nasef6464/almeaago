@@ -44,6 +44,7 @@ import type {
 import { lessonProgressClient, type LessonProgress } from '../api/learning-client';
 import { SharedVideoPlayer, type SharedVideoPlayerHandle } from '../components/SharedVideoPlayer';
 import { CourseLessonNotes } from '../components/CourseLessonNotes';
+import { courseFileURL } from '../courseFileURL';
 
 function flattenLessons(course: LearnerCourse | null) {
   if (!course) return [] as LearnerLessonSummary[];
@@ -1107,20 +1108,19 @@ export function CourseLearningPage() {
                                     {file.title || `ملف تدريبي ${idx + 1}`}
                                   </div>
                                   <div className="text-xs text-gray-400 mt-0.5">
-                                    {file.size || 'ملف PDF'}
+                                    {file.size || 'الحجم غير محدد'}
                                   </div>
                                 </div>
                               </div>
-                              <a
-                                href={file.url || '#'}
-                                target="_blank"
-                                rel="noreferrer"
-                                download
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition"
-                              >
-                                <Download size={14} />
-                                تحميل
-                              </a>
+                              {file.access !== 'free_preview' && !course.access?.allowed ? (
+                                <span className="text-xs font-bold text-amber-700">ضمن شراء الدورة</span>
+                              ) : courseFileURL(file.url) ? (
+                                <a href={courseFileURL(file.url)} target="_blank" rel="noopener noreferrer" download className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-bold">
+                                  <Download size={14} /> تحميل
+                                </a>
+                              ) : (
+                                <span className="text-xs font-bold text-gray-500">الرابط غير متاح</span>
+                              )}
                             </div>
                           ))
                         )}

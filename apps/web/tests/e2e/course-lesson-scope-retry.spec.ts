@@ -200,3 +200,19 @@ test('course exam buttons use the linked assessment and reject unlinked placehol
   await expect(page).toHaveURL(/\/assessments\/real-quiz\/start\?/);
   expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/course/course-1?tab=tests');
 });
+
+test('course files show only real safe links and lock paid files for guests', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/courses/course-1', route => json(route, { course: { ...course, access: {allowed:false,configured:true,reason:'purchase_required'}, presentation: { files: [
+    {id:'free',title:'ملف مجاني',url:'https://example.test/free.pdf',access:'free_preview'},
+    {id:'paid',title:'ملف مدفوع',url:'https://example.test/paid.pdf',access:'enrolled_paid'},
+    {id:'bad',title:'ملف بلا رابط صالح',url:'javascript:alert(1)',access:'free_preview'},
+  ] } } }));
+  await page.goto('/course/course-1?tab=files');
+  await expect(page.getByRole('link', {name:'تحميل ملف مجاني'})).toHaveAttribute('href','https://example.test/free.pdf');
+  await expect(page.getByRole('link', {name:'تحميل ملف مدفوع'})).toHaveCount(0);
+  await expect(page.getByText('ضمن شراء الدورة').first()).toBeVisible();
+  await expect(page.getByText('الرابط غير متاح')).toBeVisible();
+  await expect(page.getByText('الحقيبة التدريبية الشاملة', {exact:false})).toHaveCount(0);
+});
