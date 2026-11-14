@@ -138,3 +138,25 @@ test('a mismatched progress response is discarded without hiding an authorized l
   await expect(page.getByText('مكتمل', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'تحديد كمكتمل' })).toBeEnabled();
 });
+
+test('course notes remain private to the selected lesson and do not claim instructor delivery', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-b', route => json(route, { lesson: detail('lesson-b') }));
+  await page.goto('/learning/courses/course-1');
+  await page.getByRole('button', { name: 'الملاحظات والنقاش' }).click();
+  await expect(page.getByText('النقاش مع المدرب غير متاح حاليًا.', { exact: false })).toBeVisible();
+  await expect(page.getByText('سارة العتيبي')).toHaveCount(0);
+  await page.getByLabel('ملاحظة خاصة لهذا الدرس').fill('ملاحظتي على الدرس الأول');
+  await page.getByRole('button', { name: 'حفظ ملاحظة خاصة' }).click();
+  await expect(page.getByText('ملاحظتي على الدرس الأول')).toBeVisible();
+  await page.getByRole('button', { name: /الدرس الثاني/ }).click();
+  await expect(page.getByText('نص الدرس الثاني الحصري')).toBeVisible();
+  await expect(page.getByText('ملاحظتي على الدرس الأول')).toHaveCount(0);
+  await page.getByLabel('ملاحظة خاصة لهذا الدرس').fill('ملاحظتي على الدرس الثاني');
+  await page.getByRole('button', { name: 'حفظ ملاحظة خاصة' }).click();
+  await page.reload();
+  await page.getByRole('button', { name: 'الملاحظات والنقاش' }).click();
+  await expect(page.getByText('ملاحظتي على الدرس الثاني')).toBeVisible();
+  await expect(page.getByText('ملاحظتي على الدرس الأول')).toHaveCount(0);
+});

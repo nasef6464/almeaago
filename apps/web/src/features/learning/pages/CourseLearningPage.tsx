@@ -22,7 +22,6 @@ import {
   PlayCircle,
   Radio,
   RotateCcw,
-  Send,
   Share2,
   ShoppingCart,
   Sparkles,
@@ -44,6 +43,7 @@ import type {
 } from '../../content/api/content-types';
 import { lessonProgressClient, type LessonProgress } from '../api/learning-client';
 import { SharedVideoPlayer, type SharedVideoPlayerHandle } from '../components/SharedVideoPlayer';
+import { CourseLessonNotes } from '../components/CourseLessonNotes';
 
 function flattenLessons(course: LearnerCourse | null) {
   if (!course) return [] as LearnerLessonSummary[];
@@ -132,35 +132,6 @@ export function CourseLearningPage() {
 
   // Bottom Workspace State
   const [bottomTab, setBottomTab] = useState<'notes' | 'files' | 'qa' | 'assessments' | 'certificate'>('notes');
-  const [newCommentText, setNewCommentText] = useState('');
-  const [lessonComments, setLessonComments] = useState<Array<{ id: string; authorName: string; createdAt: string; text: string; isInstructor?: boolean }>>(() => {
-    try {
-      const stored = localStorage.getItem(`lesson_comments_${courseId}_${lessonId}`);
-      if (stored) return JSON.parse(stored);
-    } catch {}
-    return [
-      {
-        id: 'lc-1',
-        authorName: 'سارة العتيبي',
-        createdAt: 'منذ يومين',
-        text: 'شرح ممتاز ومفهوم لجميع استراتيجيات هذا الدرس، جزاكم الله خيراً.',
-      },
-      {
-        id: 'lc-2',
-        authorName: 'فريق المنصة',
-        createdAt: 'منذ يوم',
-        text: 'أهلاً بك يا سارة، بالتوفيق لكِ دائماً، وفي حال واجهتِ أي صعوبة في المسائل يمكنكِ طرح سؤالكِ هنا.',
-        isInstructor: true,
-      },
-    ];
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`lesson_comments_${courseId}_${lessonId}`, JSON.stringify(lessonComments));
-    } catch {}
-  }, [lessonComments, courseId, lessonId]);
-
   const context = useMemo(
     () => ({ contextType: 'course' as const, courseId, topicId: '' }),
     [courseId],
@@ -1074,7 +1045,7 @@ export function CourseLearningPage() {
                       }`}
                     >
                       <MessageSquare size={15} />
-                      الأسئلة والنقاش ({lessonComments.length})
+                      الملاحظات والنقاش
                     </button>
                     <button
                       type="button"
@@ -1162,79 +1133,7 @@ export function CourseLearningPage() {
 
                     {/* 3. QA TAB */}
                     {bottomTab === 'qa' && (
-                      <div className="space-y-4">
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            if (!newCommentText.trim()) return;
-                            const comment = {
-                              id: `c-${Date.now()}`,
-                              authorName: user?.name || 'طالب المنصة',
-                              createdAt: 'الآن',
-                              text: newCommentText.trim(),
-                            };
-                            setLessonComments((prev) => [comment, ...prev]);
-                            setNewCommentText('');
-                          }}
-                          className="space-y-2.5"
-                        >
-                          <textarea
-                            rows={3}
-                            value={newCommentText}
-                            onChange={(e) => setNewCommentText(e.target.value)}
-                            placeholder="اطرح استفسارك أو سؤالك حول هذا الدرس وسيقوم المدرب بالرد عليك..."
-                            className={`w-full rounded-2xl border p-3.5 text-sm font-medium outline-none transition focus:ring-2 focus:ring-indigo-500/20 ${
-                              isDarkMode
-                                ? 'border-slate-700 bg-slate-900 text-white placeholder-slate-500 focus:border-indigo-500'
-                                : 'border-gray-200 bg-gray-50 text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:bg-white'
-                            }`}
-                          />
-                          <div className="flex justify-end">
-                            <button
-                              type="submit"
-                              disabled={!newCommentText.trim()}
-                              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700 transition disabled:opacity-50 cursor-pointer"
-                            >
-                              <Send size={14} />
-                              نشر التعليق / السؤال
-                            </button>
-                          </div>
-                        </form>
-
-                        <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-slate-800">
-                          {lessonComments.map((comm) => (
-                            <div
-                              key={comm.id}
-                              className={`p-3.5 rounded-2xl border ${
-                                comm.isInstructor
-                                  ? isDarkMode
-                                    ? 'border-indigo-900/50 bg-indigo-950/20'
-                                    : 'border-indigo-100 bg-indigo-50/50'
-                                  : isDarkMode
-                                  ? 'border-slate-800 bg-slate-900/40'
-                                  : 'border-gray-200 bg-white'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between mb-1.5">
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-xs font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                    {comm.authorName}
-                                  </span>
-                                  {comm.isInstructor ? (
-                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-600 text-white">
-                                      مدرب الدورة
-                                    </span>
-                                  ) : null}
-                                </div>
-                                <span className="text-[11px] text-gray-400">{comm.createdAt}</span>
-                              </div>
-                              <p className={`text-xs sm:text-sm leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-gray-700'}`}>
-                                {comm.text}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                      <CourseLessonNotes key={`${user.id}:${courseId}:${lessonId}`} userId={user.id} courseId={courseId} lessonId={lessonId} isDarkMode={isDarkMode} />
                     )}
 
                     {/* 4. ASSESSMENTS TAB */}
