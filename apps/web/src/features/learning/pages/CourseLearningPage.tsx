@@ -1143,7 +1143,7 @@ export function CourseLearningPage() {
                           courseAssessmentsList.map((test: any, idx: number) => {
                             const phaseLabels: Record<string, string> = {
                               pre_course: 'اختبار قبلي تشخيصي',
-                              milestone: 'اختبار مرحلي',
+                              during_course: 'اختبار مرحلي',
                               final_course: 'اختبار شامل نهائي',
                             };
                             return (
@@ -1167,16 +1167,20 @@ export function CourseLearningPage() {
                                       </span>
                                     </div>
                                     <div className="text-xs text-gray-400 mt-1">
-                                      {test.durationMinutes || 30} دقيقة • {test.questionsCount || 20} سؤال
+                                      {test.durationMinutes > 0 ? `${test.durationMinutes} دقيقة` : 'المدة غير محددة'} • {test.questionsCount > 0 ? `${test.questionsCount} سؤال` : 'عدد الأسئلة غير محدد'}
                                     </div>
                                   </div>
                                 </div>
                                 <button
                                   type="button"
-                                  onClick={() => navigate(`/assessments?courseId=${courseId}&assessmentId=${test.id}`)}
-                                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 transition cursor-pointer"
+                                  disabled={typeof test.quizId !== 'string' || !test.quizId.trim()}
+                                  onClick={() => {
+                                    const returnTo = `/learning/courses/${encodeURIComponent(courseId)}?lesson=${encodeURIComponent(lessonId)}`;
+                                    navigate(`/assessments/${encodeURIComponent(test.quizId.trim())}/start?returnTo=${encodeURIComponent(returnTo)}`);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  بدء الاختبار
+                                  {typeof test.quizId === 'string' && test.quizId.trim() ? 'بدء الاختبار' : 'الاختبار غير مرتبط'}
                                   <ChevronLeft size={14} />
                                 </button>
                               </div>

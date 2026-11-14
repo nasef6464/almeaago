@@ -177,3 +177,26 @@ test('interactive video answers are scoped to the signed-in student', async ({ p
   await page.reload();
   await expect(page.getByText('تم إجابة 1 من 1')).toBeVisible();
 });
+
+test('course exam buttons use the linked assessment and reject unlinked placeholders', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/courses/course-1', route => json(route, { course: { ...course, presentation: { assessments: [
+    { id: 'display-card-1', quizId: 'real-quiz', title: 'اختبار مرتبط', phase: 'during_course', access: 'free_preview' },
+    { id: 'manual-only', title: 'اختبار دون ربط', phase: 'final_course', access: 'free_preview' },
+  ] } } }));
+  let starts = 0;
+  await page.route('**/api/v1/assessments/real-quiz/attempts', route => { starts++; return json(route, {message:'رفض الاختبار التجريبي'}, 403); });
+  await page.goto('/learning/courses/course-1');
+  await page.getByRole('button', {name: /اختبارات الدورة/}).click();
+  await expect(page.getByRole('button', {name:'الاختبار غير مرتبط'})).toBeDisabled();
+  await page.getByRole('button', {name:'بدء الاختبار', exact:true}).click();
+  await expect(page).toHaveURL(/\/assessments\/real-quiz\/start\?/);
+  await expect.poll(() => starts).toBe(1);
+  expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/learning/courses/course-1?lesson=lesson-a');
+  await page.goto('/course/course-1?tab=tests');
+  await expect(page.getByRole('button', {name:'الاختبار غير مرتبط'})).toBeDisabled();
+  await page.getByRole('button', {name:'بدء الاختبار ←'}).click();
+  await expect(page).toHaveURL(/\/assessments\/real-quiz\/start\?/);
+  expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/course/course-1?tab=tests');
+});

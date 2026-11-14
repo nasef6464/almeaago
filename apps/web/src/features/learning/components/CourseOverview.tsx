@@ -360,38 +360,7 @@ export function CourseOverview({
   const audienceCount = (Number(course.studentsCount) || 0) + (Number(course.fakeStudentsCount) || 0) || 55;
   const displayRating = course.fakeRating ? Math.min(Number(course.fakeRating) || 5, 5) : (Number(course.rating) || 4.9);
 
-  const testsList = useMemo(() => {
-    if (course.assessments && course.assessments.length > 0) {
-      return course.assessments;
-    }
-    // Default preview assessments for the course
-    return [
-      {
-        id: `mock-pre-${course.id}`,
-        title: `اختبار تحديد المستوى القبلي - ${course.title}`,
-        phase: 'pre_course' as const,
-        durationMinutes: 25,
-        questionsCount: 20,
-        access: 'free_preview' as const,
-      },
-      {
-        id: `mock-mid-${course.id}`,
-        title: `اختبار المراجعة النصفية - المهارات الأساسية`,
-        phase: 'during_course' as const,
-        durationMinutes: 30,
-        questionsCount: 25,
-        access: 'enrolled_paid' as const,
-      },
-      {
-        id: `mock-final-${course.id}`,
-        title: `الاختبار المحاكي الشامل النهائي - معيار قياس`,
-        phase: 'final_course' as const,
-        durationMinutes: 60,
-        questionsCount: 50,
-        access: 'enrolled_paid' as const,
-      },
-    ];
-  }, [course.assessments, course.id, course.title]);
+  const testsList = useMemo(() => course.assessments || [], [course.assessments]);
 
   const filesList = useMemo(() => {
     if (course.files && course.files.length > 0) {
@@ -797,10 +766,11 @@ export function CourseOverview({
                 {activeTab === 'tests' && (
                   <div className="space-y-6">
                     <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm leading-7 text-indigo-800">
-                      تشمل الدورة حزمة اختبارات محاكية لتحديد المستوى والتدريب المكثف على سرعة الحل ودقة الإجابات قبل الاختبار الفعلي.
+                      الاختبارات المرتبطة بهذه الدورة.
                     </div>
 
                     <div className="space-y-4">
+                      {testsList.length === 0 && <p className="text-sm font-bold text-gray-500">لا توجد اختبارات مرتبطة بهذه الدورة حاليًا.</p>}
                       {testsList.map((test) => {
                         const isLocked = test.access === 'enrolled_paid' && !hasAccess;
                         const phaseName = test.phase === 'pre_course'
@@ -845,19 +815,22 @@ export function CourseOverview({
                                 </div>
                                 <h4 className="text-base font-black text-gray-900 mt-1">{test.title}</h4>
                                 <p className="text-xs text-gray-500 mt-1">
-                                  {test.durationMinutes || 30} دقيقة • {test.questionsCount || 20} سؤال
+                                  {test.durationMinutes ? `${test.durationMinutes} دقيقة` : 'المدة غير محددة'} • {test.questionsCount ? `${test.questionsCount} سؤال` : 'عدد الأسئلة غير محدد'}
                                 </p>
                               </div>
                             </div>
 
                             <button
                               type="button"
+                              disabled={!test.quizId?.trim()}
                               onClick={() => {
                                 if (isLocked) {
                                   alert('هذا الاختبار متاح للمشتركين في الدورة. يمكنك شراء الدورة أو تفعيل الباقة للبدء.');
                                   return;
                                 }
-                                navigate(`/assessments?courseId=${course.id}`);
+                                if (!test.quizId?.trim()) return;
+                                const returnTo = `/course/${encodeURIComponent(course.id)}?tab=tests`;
+                                navigate(`/assessments/${encodeURIComponent(test.quizId.trim())}/start?returnTo=${encodeURIComponent(returnTo)}`);
                               }}
                               className={`rounded-xl px-5 py-2.5 text-xs font-black transition-all shadow-xs cursor-pointer ${
                                 isLocked
@@ -865,7 +838,7 @@ export function CourseOverview({
                                   : 'bg-indigo-600 text-white hover:bg-indigo-700'
                               }`}
                             >
-                              {isLocked ? 'فتح الاختبار' : 'بدء الاختبار ←'}
+                              {!test.quizId?.trim() ? 'الاختبار غير مرتبط' : isLocked ? 'فتح الاختبار' : 'بدء الاختبار ←'}
                             </button>
                           </div>
                         );
