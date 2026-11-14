@@ -230,8 +230,14 @@ func (s *AttemptService) Submit(ctx context.Context, a identity.User, id, submis
 		return assessment.Result{}, ErrForbidden
 	}
 	submissionKey = key(submissionKey)
-	if strings.TrimSpace(id) == "" || submissionKey == "" {
+	id = strings.TrimSpace(id)
+	if id == "" || submissionKey == "" {
 		return assessment.Result{}, ErrInvalidInput
+	}
+	if s.evidenceSink != nil {
+		if _, ok := s.repo.(SubmissionEvidenceSource); !ok {
+			return assessment.Result{}, errors.New("assessment learning evidence source is not configured")
+		}
 	}
 	result, err := s.repo.Submit(ctx, a.ID, id, submissionKey)
 	if err != nil {
@@ -335,11 +341,30 @@ func (s *AttemptService) SingleShotSubmit(
 		return assessment.SingleShotQuizResultDTO{}, ErrForbidden
 	}
 	assessmentID = strings.TrimSpace(assessmentID)
-	if assessmentID == "" {
+	if assessmentID == "" || (strings.TrimSpace(req.SubmissionKey) != "" && key(req.SubmissionKey) == "") || req.TimeSpentSeconds < 0 || req.TimeSpentSeconds > 86400 {
 		return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
 	}
-	if req.Answers == nil {
-		req.Answers = map[string]int{}
+	req.SubmissionKey = key(req.SubmissionKey)
+	answers := make(map[string]int, len(req.Answers))
+	seen := make(map[string]struct{}, len(req.Answers))
+	for questionID, option := range req.Answers {
+		questionID = strings.TrimSpace(questionID)
+		if questionID == "" || option < -1 {
+			return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
+		}
+		if _, exists := seen[questionID]; exists {
+			return assessment.SingleShotQuizResultDTO{}, ErrInvalidInput
+		}
+		seen[questionID] = struct{}{}
+		if option >= 0 {
+			answers[questionID] = option
+		}
+	}
+	req.Answers = answers
+	if s.evidenceSink != nil {
+		if _, ok := s.repo.(SubmissionEvidenceSource); !ok {
+			return assessment.SingleShotQuizResultDTO{}, errors.New("assessment learning evidence source is not configured")
+		}
 	}
 
 	accessRepo, ok := s.repo.(singleShotAccessRepository)
@@ -380,11 +405,13 @@ func (s *AttemptService) SingleShotSubmit(
 	}
 
 	if s.evidenceSink != nil {
-		if source, ok := s.repo.(SubmissionEvidenceSource); ok {
-			evidence, err := source.LearningSubmissionEvidence(ctx, actor.ID, detail.Result.AttemptID)
-			if err == nil {
-				_ = s.evidenceSink.ApplyAssessmentSubmission(ctx, evidence)
-			}
+		source := s.repo.(SubmissionEvidenceSource)
+		evidence, err := source.LearningSubmissionEvidence(ctx, actor.ID, detail.Result.AttemptID)
+		if err != nil {
+			return assessment.SingleShotQuizResultDTO{}, err
+		}
+		if err := s.evidenceSink.ApplyAssessmentSubmission(ctx, evidence); err != nil {
+			return assessment.SingleShotQuizResultDTO{}, err
 		}
 	}
 
