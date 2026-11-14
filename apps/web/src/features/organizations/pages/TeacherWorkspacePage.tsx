@@ -63,9 +63,10 @@ export function TeacherWorkspacePage() {
   );
 
   const [workspace, setWorkspace] = useState<TeacherWorkspace | null>(null);
-  const [selectedSchoolId, setSelectedSchoolId] = useState<string>('');
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string>(() => searchParams.get('schoolId') || '');
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
+  const [workspaceError, setWorkspaceError] = useState('');
   const [feedback, setFeedback] = useState('');
 
   // Modals
@@ -135,18 +136,23 @@ export function TeacherWorkspacePage() {
     if (authLoading || !isTeacher) return;
     setBusy(true);
     setError('');
+    setWorkspaceError('');
     try {
       const res = await organizationsClient.teacherWorkspace();
       setWorkspace(res);
-      if (res.schools.length > 0 && !selectedSchoolId) {
-        setSelectedSchoolId(res.schools[0].schoolId);
-      }
+      if (res.schools.length > 0) setSelectedSchoolId((current) => current || res.schools[0].schoolId);
     } catch (err: any) {
-      setError(err?.message || 'تعذر تحميل مساحة المعلم');
+      setWorkspace(null);
+      setWorkspaceError(err?.message || 'تعذر تحميل مساحة المعلم');
     } finally {
       setBusy(false);
     }
-  }, [authLoading, isTeacher, selectedSchoolId]);
+  }, [authLoading, isTeacher]);
+
+  useEffect(() => {
+    const requestedSchool = searchParams.get('schoolId');
+    if (requestedSchool) setSelectedSchoolId(requestedSchool);
+  }, [searchParams]);
 
   useEffect(() => {
     void loadWorkspace();
@@ -164,14 +170,15 @@ export function TeacherWorkspacePage() {
   }, []);
 
   useEffect(() => {
+    if (authLoading || !isTeacher) return;
     void checkActiveSessions();
     const interval = setInterval(() => void checkActiveSessions(), 6000);
     return () => clearInterval(interval);
-  }, [checkActiveSessions]);
+  }, [authLoading, isTeacher, checkActiveSessions]);
 
   const selectedSchool: TeacherWorkspaceSchool | undefined = useMemo(() => {
     if (!workspace || workspace.schools.length === 0) return undefined;
-    return workspace.schools.find((s) => s.schoolId === selectedSchoolId) || workspace.schools[0];
+    return selectedSchoolId ? workspace.schools.find((s) => s.schoolId === selectedSchoolId) : workspace.schools[0];
   }, [workspace, selectedSchoolId]);
 
   const teacherClasses = useMemo(() => {
@@ -438,7 +445,7 @@ export function TeacherWorkspacePage() {
     setTimeout(() => setFeedback(''), 4000);
   };
 
-  if (authLoading || busy) {
+  if (authLoading || (isTeacher && busy)) {
     return (
       <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 flex flex-col items-center justify-center p-10 font-black">
         <Loader2 className="animate-spin text-indigo-600 mb-3" size={32} />
@@ -450,12 +457,24 @@ export function TeacherWorkspacePage() {
   if (!isTeacher) {
     return (
       <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 flex flex-col items-center justify-center p-10 font-black text-rose-700">
-        هذه المساحة مخصصة للمعلم المخول فقط.
+        هذه المساحة للمعلم المخول.
       </main>
     );
   }
 
-  const studentsCount = selectedSchool?.assignments.reduce((sum, a) => sum + (a.studentCount || 0), 0) || 0;
+  if (workspaceError) {
+    return <main dir="rtl" className="p-10 text-center"><p role="alert" className="font-bold text-rose-700">{workspaceError}</p><button type="button" onClick={() => void loadWorkspace()} className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white">إعادة المحاولة</button></main>;
+  }
+
+  if (workspace && selectedSchoolId && !selectedSchool) {
+    return <main dir="rtl" className="p-10 text-center"><p role="alert" className="font-bold text-rose-700">المدرسة المحددة لم تعد ضمن تكليفاتك. المدرسة المطلوبة غير متاحة لحسابك.</p><Link to="/school-teacher-dashboard" onClick={() => setSelectedSchoolId('')} className="mt-4 inline-block font-bold text-indigo-700">العودة إلى مدارسي</Link></main>;
+  }
+
+  const studentsByClass = new Map<string, number>();
+  for (const assignment of selectedSchool?.assignments ?? []) {
+    studentsByClass.set(assignment.classId, Math.max(studentsByClass.get(assignment.classId) ?? 0, assignment.studentCount ?? 0));
+  }
+  const studentsCount = Array.from(studentsByClass.values()).reduce((sum, count) => sum + count, 0);
 
   return (
     <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 px-3 py-5 sm:px-6" data-testid="teacher-workspace">
@@ -474,8 +493,9 @@ export function TeacherWorkspacePage() {
             {workspace && workspace.schools.length > 1 && (
               <div className="mt-3">
                 <select
+                  aria-label="المدرسة الحالية"
                   value={selectedSchoolId}
-                  onChange={(e) => setSelectedSchoolId(e.target.value)}
+                  onChange={(e) => { const schoolId=e.target.value; setSelectedSchoolId(schoolId); setSearchParams((prev) => { const next=new URLSearchParams(prev); next.set('schoolId',schoolId); return next; }); }}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none"
                 >
                   {workspace.schools.map((s) => (
@@ -649,7 +669,7 @@ export function TeacherWorkspacePage() {
                     <span className="text-xs font-bold text-slate-500">طلاب فصولي</span>
                     <UsersRound size={20} className="text-emerald-600" />
                   </div>
-                  <div className="mt-3 text-2xl font-black text-slate-900">{studentsCount || 4}</div>
+                  <div className="mt-3 text-2xl font-black text-slate-900">{studentsCount}</div>
                   <p className="mt-1 text-[11px] text-slate-400">مسجلون فعلياً في فصولك</p>
                 </div>
 
@@ -707,7 +727,7 @@ export function TeacherWorkspacePage() {
                           المادة: القدرات العامة والتحصيلي · نظام الحصص الذكية المباشر
                         </p>
                         <p className="mt-1 text-xs font-bold text-emerald-700">
-                          {assignment.studentCount || 2} طلاب مسجلين
+                          {assignment.studentCount ?? 0} طلاب مسجلين
                         </p>
                       </div>
 
