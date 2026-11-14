@@ -20,9 +20,24 @@ func NewLessonProgress(service *learningapp.LessonProgressService, auth Authenti
 	h := &LessonProgressHandler{service: service, auth: auth}
 	r := chi.NewRouter()
 	r.Get("/lessons/{lessonId}", h.get)
+	r.Get("/courses/{courseId}/completed", h.courseCompleted)
 	r.Put("/lessons/{lessonId}/video", h.video)
 	r.Post("/lessons/{lessonId}/complete", h.complete)
 	return r
+}
+
+func (h *LessonProgressHandler) courseCompleted(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	a, ok := (&Handler{auth: h.auth}).authn(w, r, false)
+	if !ok {
+		return
+	}
+	items, err := h.service.CourseCompletedLessons(r.Context(), a.User, chi.URLParam(r, "courseId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"courseId": chi.URLParam(r, "courseId"), "completedLessonIds": items})
 }
 
 func lessonContextFromRequest(r *http.Request) learning.LessonProgressContextInput {

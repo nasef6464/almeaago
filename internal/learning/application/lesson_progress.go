@@ -15,6 +15,27 @@ type LessonProgressRepository interface {
 	CompleteLesson(context.Context, string, string, learning.LessonProgressContext, string, string) (learning.LessonProgress, error)
 }
 
+// CourseCompletionReader returns only the authenticated learner's completed
+// placements; callers intersect them with the current course curriculum.
+type CourseCompletionReader interface {
+	CompletedCourseLessons(context.Context, string, string) ([]string, error)
+}
+
+func (s *LessonProgressService) CourseCompletedLessons(ctx context.Context, actor identity.User, courseID string) ([]string, error) {
+	if requireStudent(actor) != nil {
+		return nil, ErrForbidden
+	}
+	courseID = strings.TrimSpace(courseID)
+	if courseID == "" {
+		return nil, ErrInvalidInput
+	}
+	reader, ok := s.repo.(CourseCompletionReader)
+	if !ok {
+		return nil, ErrForbidden
+	}
+	return reader.CompletedCourseLessons(ctx, actor.ID, courseID)
+}
+
 type LessonProgressContentResolver interface {
 	ResolveLessonProgressTarget(context.Context, string, string, string) (bool, string, int, error)
 }

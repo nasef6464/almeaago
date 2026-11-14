@@ -363,6 +363,9 @@ function lessonProgressQuery(input:LessonProgressContextInput){
 }
 
 export const lessonProgressClient={
+  completedCourse(courseId:string,signal?:AbortSignal){
+    return request<{courseId:string;completedLessonIds:string[]}>(`/api/v1/learning-progress/courses/${encodeURIComponent(courseId)}/completed`,{signal});
+  },
   get(lessonId:string,input:LessonProgressContextInput,signal?:AbortSignal){
     return request<{progress:LessonProgress}>(
       `/api/v1/learning-progress/lessons/${encodeURIComponent(lessonId)}?${lessonProgressQuery(input)}`,

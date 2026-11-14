@@ -16,6 +16,30 @@ type lessonProgressRepoStub struct {
 	lastStudent  string
 }
 
+type completionRepoStub struct {
+	lessonProgressRepoStub
+	student, course string
+}
+
+func (r *completionRepoStub) CompletedCourseLessons(_ context.Context, student, course string) ([]string, error) {
+	r.student, r.course = student, course
+	return []string{"lesson-1"}, nil
+}
+func TestCourseCompletionUsesAuthenticatedStudent(t *testing.T) {
+	repo := &completionRepoStub{}
+	service := NewLessonProgressService(repo, nil)
+	items, err := service.CourseCompletedLessons(context.Background(), progressStudent(), "course-1")
+	if err != nil || len(items) != 1 || repo.student != progressStudent().ID || repo.course != "course-1" {
+		t.Fatalf("unexpected scoped result: %#v %#v %v", items, repo, err)
+	}
+	if _, err = service.CourseCompletedLessons(context.Background(), identity.User{}, "course-1"); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected forbidden, got %v", err)
+	}
+	if _, err = service.CourseCompletedLessons(context.Background(), progressStudent(), " "); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected invalid course, got %v", err)
+	}
+}
+
 func (r *lessonProgressRepoStub) GetLessonProgress(_ context.Context, student, lessonID string, ct learning.LessonProgressContext, courseID, topicID string) (learning.LessonProgress, error) {
 	r.lastStudent = student
 	if r.wrongRow != nil {

@@ -35,6 +35,7 @@ function json(route: Route, body: unknown, status = 200) {
 async function setup(page: Page) {
   await page.route('**/api/v1/auth/me', route => json(route, { user: student }));
   await page.route('**/api/v1/auth/csrf', route => json(route, { csrfToken: 'csrf' }));
+  await page.route('**/api/v1/learning-progress/courses/course-1/completed', route => json(route, {courseId:'course-1',completedLessonIds:[]}));
   await page.route('**/api/v1/learning-spaces/courses/course-1', route => json(route, { course }));
   await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a', route => json(route, { lesson: detail('lesson-a') }));
   await page.route('**/api/v1/learning-progress/lessons/*?**', route => {
@@ -215,4 +216,80 @@ test('course files show only real safe links and lock paid files for guests', as
   await expect(page.getByText('ضمن شراء الدورة').first()).toBeVisible();
   await expect(page.getByText('الرابط غير متاح')).toBeVisible();
   await expect(page.getByText('الحقيبة التدريبية الشاملة', {exact:false})).toHaveCount(0);
+});
+
+test('course completion uses server progress and does not issue a fake certificate', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  let completed = ['lesson-a'];
+  await page.route('**/api/v1/learning-progress/courses/course-1/completed', route => json(route, {courseId:'course-1',completedLessonIds:completed}));
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-b', route => json(route, {lesson:detail('lesson-b')}));
+  await page.route('**/api/v1/learning-progress/lessons/lesson-b/complete', route => {completed = ['lesson-a','lesson-b']; return json(route, {progress:progress('lesson-b','completed')});});
+  await page.addInitScript(() => localStorage.setItem('completed_lessons_store', JSON.stringify(['lesson-a','lesson-b'])));
+  await page.goto('/course/course-1');
+  await expect(page.getByText('50%', {exact:true})).toBeVisible();
+  await page.goto('/learning/courses/course-1?lesson=lesson-b');
+  await expect(page.getByText('نص الدرس الثاني الحصري')).toBeVisible();
+  await page.getByRole('button',{name:'الشهادة والإنجاز'}).click();
+  await expect(page.getByText('50%',{exact:true})).toBeVisible();
+  await expect(page.getByText('إصدار الشهادات غير متاح حاليًا.',{exact:false})).toBeVisible();
+  await page.getByRole('button',{name:'تحديد كمكتمل'}).click();
+  await expect(page.getByText('100%',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'تحميل وثيقة الشهادة (PDF)'})).toHaveCount(0);
+  await page.reload();
+  await page.getByRole('button',{name:'الشهادة والإنجاز'}).click();
+  await expect(page.getByText('100%',{exact:true})).toBeVisible();
+});
+
+test('course progress is unavailable when server progress fails', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.route('**/api/v1/learning-progress/courses/course-1/completed', route => json(route,{message:'offline'},503));
+  await page.goto('/course/course-1');
+  await expect(page.getByText('غير متاح',{exact:true})).toBeVisible();
+  await page.goto('/learning/courses/course-1');
+  await page.getByRole('button',{name:'الشهادة والإنجاز'}).click();
+  await expect(page.getByText('تعذر تحميل التقدم')).toBeVisible();
+});
+
+test('a completion response for another lesson cannot update progress or report success', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.route('**/api/v1/learning-progress/lessons/lesson-a/complete', route => json(route,{progress:progress('lesson-b','completed')}));
+  await page.goto('/learning/courses/course-1');
+  await expect(page.getByText('نص الدرس الأول الحصري')).toBeVisible();
+  await page.getByRole('button',{name:'تحديد كمكتمل'}).click();
+  await expect(page.getByText('تعذر تأكيد اكتمال هذا الدرس؛ لم تُستخدم بيانات درس آخر.')).toBeVisible();
+  await expect(page.getByText('تم تسجيل الدرس كمكتمل.')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'تحديد كمكتمل'})).toBeEnabled();
+});
+
+test('course overview does not invent shared discussions or delete old local data', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.addInitScript(() => localStorage.setItem('course_qa_course-1', JSON.stringify([{id:'old',question:'سؤال قديم خاص بالجهاز',replies:[]}])));
+  await page.goto('/course/course-1?tab=qa');
+  await expect(page.getByText('النقاش مع المدرب غير متاح حاليًا.',{exact:false})).toBeVisible();
+  await expect(page.getByText('سارة العتيبي')).toHaveCount(0);
+  await expect(page.getByText('سؤال قديم خاص بالجهاز')).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem('course_qa_course-1'))).toContain('سؤال قديم خاص بالجهاز');
+});
+
+test('late course progress cannot erase a newly confirmed completion', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  let releaseProgress: (() => void) | undefined;
+  await page.route('**/api/v1/learning-progress/courses/course-1/completed', async route => {
+    await new Promise<void>(resolve => { releaseProgress = resolve; });
+    return json(route,{courseId:'course-1',completedLessonIds:[]});
+  });
+  await page.route('**/api/v1/learning-progress/lessons/lesson-a/complete', route => json(route,{progress:progress('lesson-a','completed')}));
+  await page.goto('/learning/courses/course-1');
+  await expect.poll(() => Boolean(releaseProgress)).toBe(true);
+  await expect(page.getByText('نص الدرس الأول الحصري')).toBeVisible();
+  await page.getByRole('button',{name:'تحديد كمكتمل'}).click();
+  await expect(page.getByText('تم تسجيل الدرس كمكتمل.')).toBeVisible();
+  releaseProgress?.();
+  await page.getByRole('button',{name:'الشهادة والإنجاز'}).click();
+  await expect(page.getByText('50%',{exact:true})).toBeVisible();
 });

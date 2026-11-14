@@ -19,7 +19,6 @@ import {
   Lock,
   MessageSquare,
   PlayCircle,
-  Send,
   Share2,
   Star,
   User,
@@ -113,22 +112,7 @@ export interface CourseOverviewProps {
   onTabChange?: (tab: TabType) => void;
   onContinue: (lessonId?: string) => void;
   isStaffViewer?: boolean;
-}
-
-interface QaThread {
-  id: string;
-  authorName: string;
-  authorRole: string;
-  createdAt: string;
-  question: string;
-  replies: Array<{
-    id: string;
-    authorName: string;
-    authorRole: string;
-    createdAt: string;
-    text: string;
-    isInstructor?: boolean;
-  }>;
+  completedLessonIds?: string[] | null;
 }
 
 const DEFAULT_OBJECTIVES = [
@@ -142,7 +126,6 @@ const DEFAULT_FEATURES = [
   'شروحات فيديو تفاعلية بجودة عالية وتدريج منطقي.',
   'ملخصات ومذكرات قابلة للتحميل والمراجعة السريعة.',
   'اختبارات محاكية تقيس مستواك وتحدد نقاط القوة والضعف.',
-  'مساحة نقاش لطرح الأسئلة وتلقي إجابات من المدربين المعتمدين.',
 ];
 
 function formatDurationSeconds(seconds: number): string {
@@ -160,12 +143,10 @@ export function CourseOverview({
   onTabChange,
   onContinue,
   isStaffViewer = false,
+  completedLessonIds: serverCompletedIds = null,
 }: CourseOverviewProps) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
-  const [newQuestion, setNewQuestion] = useState('');
-  const [expandedThreadId, setExpandedThreadId] = useState<string | null>(null);
-  const [replyText, setReplyText] = useState<Record<string, string>>({});
   const [isFavorite, setIsFavorite] = useState(() => {
     try {
       return localStorage.getItem(`course_fav_${course.id}`) === 'true';
@@ -179,71 +160,7 @@ export function CourseOverview({
     course.modules.length > 0 ? [course.modules[0].id] : [],
   );
 
-  // Completed lessons from localStorage
-  const completedLessonIds = useMemo(() => {
-    try {
-      const raw = localStorage.getItem('completed_lessons_store');
-      if (raw) return new Set<string>(JSON.parse(raw));
-    } catch {
-      // ignore
-    }
-    return new Set<string>();
-  }, []);
-
-  // QA Threads persistence
-  const qaStorageKey = `course_qa_${course.id}`;
-  const [qaThreads, setQaThreads] = useState<QaThread[]>(() => {
-    try {
-      const stored = localStorage.getItem(qaStorageKey);
-      if (stored) return JSON.parse(stored);
-    } catch {
-      // ignore
-    }
-    return [
-      {
-        id: 'qa-1',
-        authorName: 'سارة العتيبي',
-        authorRole: 'طالبة',
-        createdAt: 'منذ يومين',
-        question: 'هل الأسئلة في الاختبارات المحاكية تشمل أحدث تجميعات هذا العام؟',
-        replies: [
-          {
-            id: 'rep-1',
-            authorName: course.instructorName || 'فريق المنصة',
-            authorRole: 'المدرب',
-            createdAt: 'منذ يوم',
-            text: 'نعم بالتأكيد، يتم تحديث بنك الأسئلة والاختبارات المحاكية بصفة دورية وفق أحدث نماذج القياس.',
-            isInstructor: true,
-          },
-        ],
-      },
-      {
-        id: 'qa-2',
-        authorName: 'محمد الغامدي',
-        authorRole: 'طالب',
-        createdAt: 'منذ ٤ أيام',
-        question: 'هل يمكن تحميل المذكرات والملفات المرفقة وطباعتها؟',
-        replies: [
-          {
-            id: 'rep-2',
-            authorName: course.instructorName || 'فريق المنصة',
-            authorRole: 'المدرب',
-            createdAt: 'منذ ٣ أيام',
-            text: 'نعم، جميع ملفات الدورة بصيغة PDF قابلة للتحميل والطباعة مباشرة من تبويب ملفات الدورة.',
-            isInstructor: true,
-          },
-        ],
-      },
-    ];
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(qaStorageKey, JSON.stringify(qaThreads));
-    } catch {
-      // ignore
-    }
-  }, [qaThreads, qaStorageKey]);
+  const completedLessonIds = useMemo(() => new Set(serverCompletedIds || []), [serverCompletedIds]);
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -295,55 +212,11 @@ export function CourseOverview({
     }
   };
 
-  const handleAskQuestion = (e: React.FormEvent) => {
-    e.preventDefault();
-    const q = newQuestion.trim();
-    if (!q) return;
-
-    const newThread: QaThread = {
-      id: `qa-${Date.now()}`,
-      authorName: 'طالب المنصة',
-      authorRole: 'طالب',
-      createdAt: 'الآن',
-      question: q,
-      replies: [],
-    };
-    setQaThreads((prev) => [newThread, ...prev]);
-    setNewQuestion('');
-    setExpandedThreadId(newThread.id);
-  };
-
-  const handleSendReply = (threadId: string) => {
-    const text = (replyText[threadId] || '').trim();
-    if (!text) return;
-
-    setQaThreads((prev) =>
-      prev.map((thread) => {
-        if (thread.id !== threadId) return thread;
-        return {
-          ...thread,
-          replies: [
-            ...thread.replies,
-            {
-              id: `rep-${Date.now()}`,
-              authorName: isStaffViewer ? (course.instructorName || 'المدرب') : 'طالب المنصة',
-              authorRole: isStaffViewer ? 'المدرب' : 'طالب',
-              createdAt: 'الآن',
-              text,
-              isInstructor: isStaffViewer,
-            },
-          ],
-        };
-      }),
-    );
-    setReplyText((prev) => ({ ...prev, [threadId]: '' }));
-  };
-
   // Calculations
   const allLessons = useMemo(() => course.modules.flatMap((m) => m.lessons), [course.modules]);
   const totalLessonsCount = allLessons.length;
   const completedLessonsCount = allLessons.filter((l) => completedLessonIds.has(l.id)).length;
-  const progressPercent = totalLessonsCount > 0 ? Math.round((completedLessonsCount / totalLessonsCount) * 100) : 0;
+  const progressPercent = serverCompletedIds === null ? null : totalLessonsCount > 0 ? Math.round((completedLessonsCount / totalLessonsCount) * 100) : 0;
 
   const totalDurationMinutes = course.durationMinutes || Math.round(
     allLessons.reduce((acc, l) => acc + (l.durationSeconds || 0), 0) / 60,
@@ -536,7 +409,7 @@ export function CourseOverview({
                       : 'text-gray-500 hover:text-indigo-600'
                   }`}
                 >
-                  سؤال وجواب ({qaThreads.length})
+                  سؤال وجواب
                 </button>
                 <button
                   type="button"
@@ -826,113 +699,8 @@ export function CourseOverview({
 
                 {/* 4. QA TAB */}
                 {activeTab === 'qa' && (
-                  <div className="space-y-6">
-                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm leading-7 text-indigo-800">
-                      هذه المساحة مخصصة للاستفسار عن محتوى الدورة ومتابعة الردود التعليمية من المدربين المعتمدين.
-                    </div>
-
-                    {/* Ask Form */}
-                    <form onSubmit={handleAskQuestion} className="space-y-3">
-                      <div className="relative">
-                        <textarea
-                          rows={3}
-                          value={newQuestion}
-                          onChange={(e) => setNewQuestion(e.target.value)}
-                          placeholder="اكتب سؤالك أو استفسارك حول منهج الدورة هنا..."
-                          className="w-full rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm font-medium outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-                        />
-                      </div>
-                      <div className="flex justify-end">
-                        <button
-                          type="submit"
-                          disabled={!newQuestion.trim()}
-                          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50 transition cursor-pointer"
-                        >
-                          <Send size={15} />
-                          إرسال السؤال
-                        </button>
-                      </div>
-                    </form>
-
-                    {/* Threads List */}
-                    <div className="space-y-4 pt-4 border-t border-gray-100">
-                      {qaThreads.map((thread) => {
-                        const isExpanded = expandedThreadId === thread.id;
-                        return (
-                          <div key={thread.id} className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-xs space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 font-black flex items-center justify-center text-xs">
-                                  {thread.authorName.charAt(0)}
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-black text-gray-900">{thread.authorName}</span>
-                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">{thread.authorRole}</span>
-                                  </div>
-                                  <span className="text-[11px] text-gray-400">{thread.createdAt}</span>
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => setExpandedThreadId(isExpanded ? null : thread.id)}
-                                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
-                              >
-                                <MessageSquare size={14} />
-                                {thread.replies.length} ردود
-                              </button>
-                            </div>
-
-                            <p className="text-sm font-bold text-gray-800 leading-relaxed pr-10">{thread.question}</p>
-
-                            {/* Replies */}
-                            {isExpanded && (
-                              <div className="pr-10 pt-3 space-y-3 border-t border-gray-100">
-                                {thread.replies.map((reply) => (
-                                  <div
-                                    key={reply.id}
-                                    className={`rounded-xl p-3.5 text-xs font-medium space-y-1 ${
-                                      reply.isInstructor
-                                        ? 'bg-indigo-50/80 border border-indigo-100 text-indigo-950'
-                                        : 'bg-slate-50 text-slate-800'
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-between font-bold">
-                                      <div className="flex items-center gap-1.5">
-                                        <span>{reply.authorName}</span>
-                                        {reply.isInstructor ? (
-                                          <span className="bg-indigo-600 text-white px-1.5 py-0.5 rounded text-[9px]">رد المدرب</span>
-                                        ) : null}
-                                      </div>
-                                      <span className="text-[10px] text-gray-400">{reply.createdAt}</span>
-                                    </div>
-                                    <p className="leading-relaxed">{reply.text}</p>
-                                  </div>
-                                ))}
-
-                                {/* Add Reply */}
-                                <div className="flex gap-2 pt-2">
-                                  <input
-                                    type="text"
-                                    value={replyText[thread.id] || ''}
-                                    onChange={(e) => setReplyText({ ...replyText, [thread.id]: e.target.value })}
-                                    placeholder="أضف رداً..."
-                                    className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs outline-none focus:bg-white focus:border-indigo-400"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSendReply(thread.id)}
-                                    className="rounded-xl bg-slate-800 px-4 py-2 text-xs font-bold text-white hover:bg-slate-900 cursor-pointer"
-                                  >
-                                    رد
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm font-bold text-slate-600" role="status">
+                    النقاش مع المدرب غير متاح حاليًا. لم يُرسل أي سؤال من هذه الصفحة.
                   </div>
                 )}
 
@@ -1039,12 +807,12 @@ export function CourseOverview({
                 <div className="mb-6">
                   <div className="flex justify-between text-xs font-bold text-gray-500 mb-2">
                     <span>نسبة الإنجاز</span>
-                    <span className="font-black text-indigo-600">{progressPercent}%</span>
+                    <span className="font-black text-indigo-600">{progressPercent === null ? 'غير متاح' : `${progressPercent}%`}</span>
                   </div>
                   <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-indigo-600 transition-all duration-700"
-                      style={{ width: `${progressPercent}%` }}
+                      style={{ width: `${progressPercent === null ? 'غير متاح' : `${progressPercent}%`}` }}
                     />
                   </div>
                 </div>
@@ -1057,7 +825,7 @@ export function CourseOverview({
                     className="w-full bg-[#1e293b] text-white py-4 rounded-2xl font-black text-lg hover:bg-slate-800 transition-all shadow-lg mb-4 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <PlayCircle size={22} />
-                    {progressPercent > 0 ? 'متابعة التعلم' : 'ابدأ التعلم الآن'}
+                    {progressPercent === null || progressPercent > 0 ? 'متابعة التعلم' : 'ابدأ التعلم الآن'}
                   </button>
                 ) : isFree ? (
                   <button

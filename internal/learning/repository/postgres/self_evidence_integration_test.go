@@ -13,7 +13,7 @@ func TestSelfQuizEvidenceWriterMultiPathAndReplay(t *testing.T) {
 	_, err := f.db.Exec(f.ctx, `ALTER TABLE mastery_evidence
 		DROP CONSTRAINT mastery_evidence_evidence_type_check,
 		DROP CONSTRAINT mastery_evidence_source_shape,
-		ADD COLUMN self_attempt_id uuid, ADD COLUMN self_attempt_kind text`)
+		ADD COLUMN IF NOT EXISTS self_attempt_id uuid, ADD COLUMN IF NOT EXISTS self_attempt_kind text`)
 	if err != nil {
 		t.Fatal(err)
 	}

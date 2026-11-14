@@ -45,6 +45,7 @@ import { lessonProgressClient, type LessonProgress } from '../api/learning-clien
 import { SharedVideoPlayer, type SharedVideoPlayerHandle } from '../components/SharedVideoPlayer';
 import { CourseLessonNotes } from '../components/CourseLessonNotes';
 import { courseFileURL } from '../courseFileURL';
+import { useCourseCompletion } from '../useCourseCompletion';
 
 function flattenLessons(course: LearnerCourse | null) {
   if (!course) return [] as LearnerLessonSummary[];
@@ -77,6 +78,7 @@ export function CourseLearningPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, loading: authLoading, getCsrfToken } = useAuth();
+  const { completedLessonIds, markCompleted } = useCourseCompletion(courseId, user?.roles?.includes('student') ? user.id : '');
 
   const [course, setCourse] = useState<LearnerCourse | null>(null);
   // Keep the loaded course tied to its route, including during failed transitions.
@@ -184,13 +186,11 @@ export function CourseLearningPage() {
   }, [coursePresentation]);
 
   const completedLessonsCount = useMemo(() => {
-    return lessons.filter((l: any) => l.completed || (l.id === lessonId && activeProgress?.status === 'completed')).length;
-  }, [lessons, lessonId, activeProgress]);
-
-  const completionPercent = useMemo(() => {
-    if (!lessons.length) return 0;
-    return Math.min(100, Math.round((completedLessonsCount / lessons.length) * 100));
-  }, [completedLessonsCount, lessons.length]);
+    if (completedLessonIds === null) return null;
+    const completed = new Set(completedLessonIds);
+    return lessons.filter((lesson) => completed.has(lesson.id)).length;
+  }, [lessons, completedLessonIds]);
+  const completionPercent = completedLessonsCount === null ? null : lessons.length ? Math.round(completedLessonsCount / lessons.length * 100) : 0;
 
   const interactiveQuestions = useMemo<InteractiveVideoQuestion[]>(() => {
     if (!activeDetail || activeDetail.type !== 'video' || !activeDetail.contentText) {
@@ -432,7 +432,13 @@ export function CourseLearningPage() {
       if (selectedScopeRef.current !== writeScope) return;
       const result = await lessonProgressClient.complete(activeDetail.id, context, csrf);
       if (selectedScopeRef.current === writeScope) {
+        if (result.progress?.status !== 'completed' || result.progress.contextType !== 'course' ||
+            result.progress.lessonId?.toLowerCase() !== activeDetail.id.toLowerCase() ||
+            result.progress.courseId?.toLowerCase() !== courseId.toLowerCase()) {
+          throw new Error('تعذر تأكيد اكتمال هذا الدرس؛ لم تُستخدم بيانات درس آخر.');
+        }
         setProgress(result.progress);
+        markCompleted(activeDetail.id);
         setNotice('تم تسجيل الدرس كمكتمل.');
       }
     } catch (reason) {
@@ -1201,43 +1207,27 @@ export function CourseLearningPage() {
                             شهادة إتمام الدورة التدريبية
                           </h4>
                           <p className={`text-xs mt-1 max-w-md mx-auto ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-                            احصل على شهادتك المعتمدة بمجرد إكمال جميع دروس الدورة واجتياز الاختبارات المقررة.
+إصدار الشهادات غير متاح حاليًا. يُعرض تقدم الدروس المسجل أدناه ولا يُعد شهادة إتمام.
                           </p>
                         </div>
 
                         <div className="max-w-md mx-auto space-y-2">
                           <div className="flex items-center justify-between text-xs font-bold text-gray-500">
                             <span>نسبة الإنجاز الحالية</span>
-                            <span className="font-black text-indigo-600">{completionPercent}%</span>
+                            <span className="font-black text-indigo-600">{completionPercent === null ? 'غير متاح' : `${completionPercent}%`}</span>
                           </div>
                           <div className="h-3 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
                             <div
                               className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-all duration-500"
-                              style={{ width: `${completionPercent}%` }}
+                              style={{ width: `${completionPercent === null ? 'غير متاح' : `${completionPercent}%`}` }}
                             />
                           </div>
                           <div className="text-[11px] text-gray-400">
-                            {completedLessonsCount} من أصل {lessons.length} درس مكتمل
+                            {completedLessonsCount === null ? 'تعذر تحميل التقدم' : `${completedLessonsCount} من أصل ${lessons.length} درس مكتمل`}
                           </div>
                         </div>
 
-                        {completionPercent >= 100 ? (
-                          <div className="pt-3">
-                            <button
-                              type="button"
-                              onClick={() => alert('مبارك لك! جاري إعداد وتوليد وثيقة شهادتك المعتمدة...')}
-                              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 font-black text-white hover:bg-emerald-700 transition shadow-lg cursor-pointer text-sm"
-                            >
-                              <Download size={18} />
-                              تحميل وثيقة الشهادة (PDF)
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="inline-flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 px-4 py-2 text-xs font-bold text-amber-700 dark:text-amber-300">
-                            <Lock size={14} />
-                            أكمل بقية الدروس لتفعيل زر إصدار الشهادة
-                          </div>
-                        )}
+
                       </div>
                     )}
                   </div>
