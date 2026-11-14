@@ -633,7 +633,7 @@ export function AssessmentAttemptPage() {
           ) : null}
         </header>
 
-        {error ? <div role="alert" className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700 text-xs">{displayAttemptError(error)}</div> : null}
+        {error ? <div role="alert" className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700 text-xs">{displayAttemptError(error)}{draftChoice?.attemptId === attempt.id && draftChoice.questionId === question.id ? <><span className="block mt-1">الإجابة لم تُحفظ بعد. أعد المحاولة عند توفر الاتصال.</span><button type="button" disabled={savingAnswer || busy} onClick={() => void choose(draftChoice.option)} className="mt-2 rounded-lg border border-rose-300 bg-white px-3 py-1.5 font-bold disabled:opacity-50">إعادة حفظ الإجابة</button></> : null}</div> : null}
 
         {currentSection ? <div className="mb-4 rounded-xl bg-indigo-50 p-3 text-center font-bold text-indigo-900"><span>{currentSection.title}</span>{sectionSecondsLeft != null ? <span className="ms-3 text-xs">وقت القسم: {formatTimerCountdown(sectionSecondsLeft)}</span> : null}</div> : null}
         {/* Question Area Card */}
@@ -694,18 +694,14 @@ export function AssessmentAttemptPage() {
                 isNightMode ? 'border-slate-800 bg-black' : 'border-slate-100 bg-slate-50'
               }`}
             >
-              <button
-                type="button"
-                onClick={() => setZoomImageUrl(resolvedImageUrl || null)}
-                className="group relative block w-full cursor-zoom-in"
-                title="اضغط لتكبير الصورة وفحص الرسم البياني أو الهندسي"
-              >
                 {resolvedImageUrl ? (
+                  <button type="button" onClick={() => setZoomImageUrl(resolvedImageUrl)} className="group relative block w-full cursor-zoom-in" title="اضغط لتكبير الصورة وفحص الرسم البياني أو الهندسي">
                   <img
                     src={resolvedImageUrl}
                     alt={question.imageAlt || 'صورة السؤال'}
                     className="mx-auto max-h-[380px] sm:max-h-[460px] w-full object-contain rounded-xl transition-transform duration-200 group-hover:scale-[1.01]"
                   />
+                  </button>
                 ) : question.imageAssetId ? (
                   <QuestionAssetImage
                     assetId={question.imageAssetId}
@@ -713,7 +709,6 @@ export function AssessmentAttemptPage() {
                     onZoom={setZoomImageUrl}
                   />
                 ) : null}
-              </button>
               <div className="mt-2 flex items-center justify-center">
                 <span className="text-[11px] font-bold text-slate-400">اضغط على الصورة للتكبير الكامل 🔍</span>
               </div>
@@ -729,21 +724,31 @@ export function AssessmentAttemptPage() {
             }`}
           >
             {question.options.map((option, displayIndex) => {
+              const label = optionLabel(
+                imageEmbeddedOptions || isTahsili ? option.index : displayIndex,
+                question.learnerPresentation,
+                imageEmbeddedOptions ? option.text : undefined,
+                isTahsili,
+              );
               const isSelected =
                 (draftChoice?.attemptId === attempt.id && draftChoice.questionId === question.id
                   ? draftChoice.option
                   : saved?.selectedOptionIndex) === option.index;
+              const isUnsaved = isSelected && draftChoice?.attemptId === attempt.id && draftChoice.questionId === question.id && !savingAnswer;
 
               return (
                 <div key={option.index}>
                   <button
                     type="button"
                     aria-pressed={isSelected}
+                    aria-label={!imageEmbeddedOptions && option.assetId ? `${label} ${option.text || ''} صورة الاختيار ${label}` : undefined}
                     disabled={savingAnswer || busy}
                     onClick={() => void choose(option.index)}
                     className={`${imageEmbeddedOptions ? 'min-h-[58px] sm:min-h-[64px]' : 'min-h-[76px]'} w-full rounded-2xl border-2 px-4 py-3 text-right transition-all flex flex-col justify-center ${
                       isSelected
-                        ? isNightMode
+                        ? isUnsaved
+                          ? 'border-amber-500 bg-amber-50 text-amber-950 ring-2 ring-amber-200'
+                          : isNightMode
                           ? 'border-indigo-400 bg-indigo-500/25 text-white ring-2 ring-indigo-400/40'
                           : 'border-indigo-600 bg-indigo-50/90 text-indigo-900 ring-2 ring-indigo-200 shadow-xs'
                         : isNightMode
@@ -763,12 +768,7 @@ export function AssessmentAttemptPage() {
                                 : 'bg-slate-100 text-slate-700'
                             }`}
                           >
-                            {optionLabel(
-                              imageEmbeddedOptions || isTahsili ? option.index : displayIndex,
-                              question.learnerPresentation,
-                              imageEmbeddedOptions ? option.text : undefined,
-                              isTahsili,
-                            )}
+                            {label}
                           </span>
                         ) : null}
                         {!imageEmbeddedOptions && showOptionText(question.learnerPresentation, false) ? option.text : ''}
@@ -792,7 +792,7 @@ export function AssessmentAttemptPage() {
                     <div className="mt-2 rounded-xl border bg-slate-50 p-3">
                       <QuestionAssetImage
                         assetId={option.assetId}
-                        alt="صورة الخيار"
+                        alt={`صورة الاختيار ${label}`}
                         onZoom={setZoomImageUrl}
                       />
                     </div>
