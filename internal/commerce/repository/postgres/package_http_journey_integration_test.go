@@ -906,6 +906,82 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 	if e != nil || !after.Allowed {
 		t.Fatalf("after payment %+v %v", after, e)
 	}
+	t.Run("course file URL follows actual purchase", func(t *testing.T) {
+		var courseID string
+		presentation := `{"files":[{"title":"free","access":"free_preview","url":"https://example.invalid/free.pdf"},{"title":"paid","access":"enrolled_paid","url":"https://example.invalid/paid.pdf"}]}`
+		if err := db.QueryRow(ctx, `INSERT INTO courses(path_id,subject_id,title,workflow_status,is_published,is_visible,owner_type,presentation) VALUES($1,$2,'course file test','approved',true,true,'platform',$3::jsonb) RETURNING id::text`, path, subject, presentation).Scan(&courseID); err != nil {
+			t.Fatal(err)
+		}
+		contentRepo := contentpg.New(db, operationspg.NewAuditWriter())
+		courseCommerce := commerceapp.NewService(repo, contentRepo, taxonomypg.New(db), nil)
+		courseCheckout := commerceapp.NewCheckoutService(repo, commerce.CheckoutPolicy{GatewayMode: commerce.GatewayManualReview, ProviderCode: "manual"}, contentRepo)
+		courseHandler := commercehttp.NewWithAccess(courseCommerce, courseCheckout, accessService, auth, nil)
+		courseCall := func(method, target, token, csrf string, body any) *httptest.ResponseRecorder {
+			t.Helper()
+			b, err := json.Marshal(body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req := httptest.NewRequest(method, target, bytes.NewReader(b))
+			if token != "" {
+				req.AddCookie(&http.Cookie{Name: identitysession.CookieName, Value: token})
+			}
+			req.Header.Set("X-CSRF-Token", csrf)
+			w := httptest.NewRecorder()
+			courseHandler.ServeHTTP(w, req)
+			return w
+		}
+		courseWrite := commerce.ProductWrite{Code: "FILE" + suffix, ProductType: commerce.ProductCourse, Name: "course product", Status: commerce.ProductActive, AccessMode: commerce.AccessPaid, PriceMinor: 1500, Currency: "SAR", CourseID: courseID, IsVisible: true}
+		created := courseCall(http.MethodPost, "/products", adminToken, adminCSRF, courseWrite)
+		if created.Code != http.StatusCreated {
+			t.Fatalf("course product: %d %s", created.Code, created.Body.String())
+		}
+		var courseProduct struct {
+			Product commerce.Product `json:"product"`
+		}
+		if err := json.Unmarshal(created.Body.Bytes(), &courseProduct); err != nil {
+			t.Fatal(err)
+		}
+		contentService := contentapp.NewServiceWithAuthorScope(contentRepo, contentRepo, courseCommerce)
+		learningHandler := contenthttp.NewLearningSpaces(contentService, auth)
+		check := func(token string, wantPaid bool) {
+			t.Helper()
+			req := httptest.NewRequest(http.MethodGet, "/courses/"+courseID, nil)
+			if token != "" {
+				req.AddCookie(&http.Cookie{Name: identitysession.CookieName, Value: token})
+			}
+			w := httptest.NewRecorder()
+			learningHandler.ServeHTTP(w, req)
+			if w.Code != http.StatusOK {
+				t.Fatalf("course details: %d %s", w.Code, w.Body.String())
+			}
+			body := w.Body.String()
+			if !strings.Contains(body, "https://example.invalid/free.pdf") {
+				t.Fatalf("free file missing: %s", body)
+			}
+			if strings.Contains(body, "https://example.invalid/paid.pdf") != wantPaid {
+				t.Fatalf("paid file access want=%v: %s", wantPaid, body)
+			}
+		}
+		check("", false)
+		check(studentToken, false)
+		order := courseCall(http.MethodPost, "/checkout/requests", studentToken, studentCSRF, commerce.CheckoutCreate{ProductID: courseProduct.Product.ID, PaymentMethod: commerce.PaymentTransfer, IdempotencyKey: "file-" + suffix})
+		if order.Code != http.StatusCreated {
+			t.Fatalf("course checkout: %d %s", order.Code, order.Body.String())
+		}
+		var payment struct {
+			Request commerce.PaymentRequest `json:"request"`
+		}
+		if err := json.Unmarshal(order.Body.Bytes(), &payment); err != nil {
+			t.Fatal(err)
+		}
+		approved := courseCall(http.MethodPatch, "/admin/payment-requests/"+payment.Request.ID+"/review", adminToken, adminCSRF, commerce.PaymentReview{ExpectedRevision: payment.Request.Revision, Status: commerce.PaymentPaid, ApprovalEvidence: "test transfer"})
+		if approved.Code != http.StatusOK {
+			t.Fatalf("course payment review: %d %s", approved.Code, approved.Body.String())
+		}
+		check(studentToken, true)
+		check("", false)
+	})
 	write.IsVisible = false
 	update := map[string]any{"expectedRevision": product.Product.Revision, "product": write}
 	w = call(http.MethodPut, "/products/"+product.Product.ID, adminToken, adminCSRF, update)
