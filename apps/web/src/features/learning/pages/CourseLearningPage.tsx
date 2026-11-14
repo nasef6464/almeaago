@@ -1113,13 +1113,6 @@ export function CourseLearningPage() {
                         <p className={`text-sm leading-8 ${isDarkMode ? 'text-slate-300' : 'text-gray-600'}`}>
                           {activeDetail.description || 'لا يوجد وصف إضافي لهذا الدرس.'}
                         </p>
-                        {lessonTextDescription ? (
-                          <div className={`whitespace-pre-wrap rounded-2xl p-4 text-sm leading-8 border ${
-                            isDarkMode ? 'bg-slate-900/60 border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200/80 text-gray-800'
-                          }`}>
-                            {lessonTextDescription}
-                          </div>
-                        ) : null}
                       </div>
                     )}
 
