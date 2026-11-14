@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { AiExamGeneratorModal } from '../../assessment/components/AiExamGeneratorModal';
 import {
   Activity, AlertTriangle, ArrowRight, Award, BarChart, BarChart3, Bell,
@@ -80,7 +80,6 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
   const [assignQuiz, setAssignQuiz] = useState<AssessmentItem | null>(null);
   const [detailQuiz, setDetailQuiz] = useState<AssessmentItem | null>(null);
   const [previewQuiz, setPreviewQuiz] = useState<AssessmentItem | null>(null);
-  const [notifiedQuizId, setNotifiedQuizId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState('');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [composeModalOpen, setComposeModalOpen] = useState(false);
@@ -104,10 +103,10 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState('');
-  const [durationOverride, setDurationOverride] = useState<number>(45);
   const [maxAttempts, setMaxAttempts] = useState<number>(2);
   const [message, setMessage] = useState('');
   const [savingAssign, setSavingAssign] = useState(false);
+  const assigningRef = useRef(false);
 
   useEffect(() => {
     const fetchAssessments = async () => {
@@ -379,101 +378,56 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
     );
   };
 
-  const handleRemindAbsent = async (quiz: AssessmentItem) => {
-    setNotifiedQuizId(quiz.id);
-    try {
-      const csrf = await getCsrf();
-      await fetch('/api/v1/notifications/admin/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrf,
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          channels: ['in_app'],
-          title: `تذكير استحقاق اختبار: ${quiz.title}`,
-          subject: 'تذكير موعد اختبار',
-          body: `عزيزي الطالب، يرجى المسارعة بحل وتأدية "${quiz.title}" قبل إغلاق موعد التسليم لرفع جاهزيتك الأكاديمية.`,
-          userIds: ['018f0000-0000-7000-8000-000000000005'],
-        }),
-      });
-      setFeedback(`✅ تم إرسال تذكير إشعاري فعلي للطلاب المتأخرين في: ${quiz.title}`);
-    } catch {
-      setFeedback(`✅ تم تسجيل التذكير للطلاب المتأخرين في: ${quiz.title}`);
-    } finally {
-      setTimeout(() => {
-        setNotifiedQuizId(null);
-        setFeedback('');
-      }, 4000);
-    }
+  const handleRemindAbsent = async (_quiz: AssessmentItem) => {
+    setFeedback('تعذر إرسال التذكير: قائمة الطلاب المتأخرين غير متاحة حاليًا.');
   };
 
   const handleOpenAssign = (quiz: AssessmentItem) => {
     setAssignQuiz(quiz);
-    setSelectedClassIds(quiz.targetGroupIds || (classes.length ? [classes[0].id] : []));
-    setSelectedStudentIds(quiz.targetUserIds || []);
+    setFeedback('');
+    setSelectedClassIds([]);
+    setSelectedStudentIds([]);
     setDueDate(quiz.dueDate || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]);
-    setDurationOverride(quiz.durationMinutes || 45);
     setMaxAttempts(2);
     setMessage('');
   };
 
   const handleSaveAssign = async () => {
-    if (!assignQuiz) return;
+    if (!assignQuiz || assigningRef.current) return;
+    if (!schoolId || (selectedClassIds.length === 0 && selectedStudentIds.length === 0)) {
+      setFeedback('اختر مدرسة وفصلًا أو طالبًا قبل حفظ التكليف.');
+      return;
+    }
+    assigningRef.current = true;
     setSavingAssign(true);
+    setFeedback('');
     try {
       const csrf = await getCsrf();
-      try {
-        await fetch(`/api/v1/assessments/${encodeURIComponent(assignQuiz.id)}/assignments`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': csrf,
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            schoolId: schoolId || '018f0000-0000-7000-9000-000000000001',
-            classIds: selectedClassIds.length ? selectedClassIds : ['018f0000-0000-7000-9100-000000000001'],
-            userIds: selectedStudentIds.length ? selectedStudentIds : ['018f0000-0000-7000-8000-000000000005'],
-            supervisorMessage: message || `تكليف مدرسي باختبار ${assignQuiz.title}`,
-            opensAt: new Date().toISOString(),
-            closesAt: dueDate ? new Date(dueDate).toISOString() : new Date(Date.now() + 7 * 86400000).toISOString(),
-            maxAttemptsOverride: maxAttempts,
-          }),
-        });
-      } catch {}
-
-      await fetch('/api/v1/notifications/admin/send', {
+      if (!csrf) throw new Error('تعذر التحقق من الجلسة؛ حاول تسجيل الدخول مجددًا.');
+      const response = await fetch(`/api/v1/assessments/${encodeURIComponent(assignQuiz.id)}/assignments`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrf,
-        },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         credentials: 'include',
         body: JSON.stringify({
-          channels: ['in_app'],
-          title: `تكليف باختبار موجه: ${assignQuiz.title}`,
-          subject: 'اختبار موجه جديد',
-          body: message || `تم توجيه اختبار جديد لفصلك الدراسي (${assignQuiz.title})، بمدة ${durationOverride} دقيقة. نأمل البدء بحله قبل تاريخ ${dueDate}.`,
-          userIds: ['018f0000-0000-7000-8000-000000000005'],
+          schoolId,
+          classIds: selectedClassIds,
+          userIds: selectedStudentIds,
+          supervisorMessage: message,
+          opensAt: new Date().toISOString(),
+          closesAt: dueDate ? new Date(dueDate).toISOString() : null,
+          maxAttemptsOverride: maxAttempts,
         }),
       });
-
-      setAssessments((prev) =>
-        prev.map((q) =>
-          q.id === assignQuiz.id
-            ? { ...q, targetGroupIds: selectedClassIds, dueDate, durationMinutes: durationOverride }
-            : q
-        )
-      );
-
-      setFeedback(`✅ تم توجيه وتأكيد اختبار "${assignQuiz.title}" وإرسال إشعار فوري لجميع طلاب الفصل!`);
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body?.message || body?.error?.message || 'تعذر حفظ التكليف.');
+      }
+      setFeedback(`✅ تم حفظ تكليف اختبار "${assignQuiz.title}" للطلاب المحددين.`);
       setAssignQuiz(null);
-      setTimeout(() => setFeedback(''), 4500);
-    } catch {
-      setFeedback('❌ حدث خطأ أثناء توجيه الاختبار');
+    } catch (cause) {
+      setFeedback(cause instanceof Error ? cause.message : 'تعذر حفظ التكليف.');
     } finally {
+      assigningRef.current = false;
       setSavingAssign(false);
     }
   };
@@ -573,7 +527,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
         </div>
       </div>
 
-      {feedback && (
+      {feedback && !assignQuiz && (
         <div className={`rounded-2xl px-5 py-3 text-xs sm:text-sm font-bold border transition-all ${
           feedback.startsWith('✅') ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'
         }`}>
@@ -1104,19 +1058,8 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
                   </div>
 
                   {partRate < 100 && (
-                    <button
-                      onClick={() => handleRemindAbsent(quiz)}
-                      className={`w-full flex items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-black transition-all cursor-pointer ${
-                        notifiedQuizId === quiz.id
-                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                          : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
-                      }`}
-                    >
-                      {notifiedQuizId === quiz.id ? (
-                        <><CheckCircle size={14} /> تم إرسال التذكير بنجاح</>
-                      ) : (
-                        <><Bell size={14} /> تذكير المتأخرين عن الاختبار ({quiz.stats ? quiz.stats.totalTargetStudents - quiz.stats.participantsCount : 0} طالب)</>
-                      )}
+                    <button onClick={() => handleRemindAbsent(quiz)} className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-800 hover:bg-amber-100">
+                      <Bell size={14} /> تذكير المتأخرين
                     </button>
                   )}
                 </div>
@@ -1407,6 +1350,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
             </div>
 
             <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              {feedback && !feedback.startsWith("✅") ? <div role="alert" className="rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-700">{feedback}</div> : null}
               <div>
                 <label className="text-xs font-black text-gray-700 mb-1.5 block">الفصول الدراسية المستهدفة</label>
                 <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto border border-gray-100 p-2.5 rounded-xl bg-gray-50">
@@ -1424,20 +1368,22 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
                       <span className="truncate">{c.name}</span>
                     </label>
                   )) : (
-                    <span className="text-[11px] text-gray-400 col-span-2">الصف الثالث الثانوي (أ)</span>
+                    <span className="text-[11px] text-gray-400 col-span-2">لا توجد فصول متاحة.</span>
                   )}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-black text-gray-700 mb-1.5 block">مدة الاختبار (دقيقة)</label>
+                  <label className="text-xs font-black text-gray-700 mb-1.5 block">مدة الاختبار من إعداداته الأصلية (دقيقة)</label>
                   <input
                     type="number"
                     min="10"
                     max="180"
-                    value={durationOverride}
-                    onChange={(e) => setDurationOverride(Number(e.target.value))}
+                    value={assignQuiz.durationMinutes ?? ''}
+                    placeholder="حسب إعداد الاختبار"
+                    disabled
+                    aria-label="مدة الاختبار من إعداداته الأصلية"
                     className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-bold focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
@@ -1468,7 +1414,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
 
               <div>
                 <label className="text-xs font-black text-gray-700 mb-1.5 block">
-                  {roleMode === 'teacher' ? 'رسالة وتوجيه المعلم للطلاب (تظهر في إشعار الطالب)' : 'رسالة وتوجيه المشرف للطلاب (تظهر في إشعار الطالب)'}
+                  {roleMode === 'teacher' ? 'رسالة المعلم للطلاب (تظهر مع التكليف)' : 'رسالة المشرف للطلاب (تظهر مع التكليف)'}
                 </label>
                 <textarea
                   value={message}
@@ -1490,7 +1436,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
                 className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 {savingAssign ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
-                <span>حفظ وإرسال التوجيه للطلاب</span>
+                <span>حفظ التكليف للطلاب</span>
               </button>
             </div>
           </div>
