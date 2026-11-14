@@ -127,6 +127,9 @@ func (s *AttemptService) Start(ctx context.Context, a identity.User, assessmentI
 		return assessment.Attempt{}, err
 	}
 	if found {
+		if existing.StudentID != a.ID || existing.AssessmentID != assessmentID {
+			return assessment.Attempt{}, ErrForbidden
+		}
 		return existing, nil
 	}
 	scope, err := s.repo.GetPublishedAccessContext(ctx, assessmentID)
