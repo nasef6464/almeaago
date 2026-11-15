@@ -459,6 +459,8 @@ type LearnerCourseModule struct {
 
 type LearnerCourse struct {
 	Course           LearnerCourseSummary
+	PathID           string
+	SubjectID        string
 	Modules          []LearnerCourseModule
 	AccessAllowed    bool
 	AccessConfigured bool

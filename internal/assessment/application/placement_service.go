@@ -254,6 +254,9 @@ func (s *PlacementService) Learner(ctx context.Context, actor identity.User, q a
 	if err != nil {
 		return assessment.LearnerPlacementPage{}, err
 	}
+	if page.Items == nil {
+		page.Items = []assessment.LearnerPlacement{}
+	}
 	isAdminOrTrainer := actor.HasRole(identity.RoleAdmin)
 	for i := range page.Items {
 		item := &page.Items[i]

@@ -125,6 +125,9 @@ func TestLearnerPlacementScopePostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if course.PathID != pathID || course.SubjectID != subjectID {
+		t.Fatalf("course scope mismatch: path=%s subject=%s", course.PathID, course.SubjectID)
+	}
 	if len(course.Modules) != 1 || len(course.Modules[0].Lessons) != 1 ||
 		course.Modules[0].Lessons[0].ID != allowedLessonID {
 		t.Fatalf("course leaked foreign-subject lesson: %+v", course.Modules)

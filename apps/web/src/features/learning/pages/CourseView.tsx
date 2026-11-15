@@ -66,6 +66,8 @@ export function CourseView() {
 
         const overview: CourseOverviewData = {
           id: lc.id,
+          pathId: lc.pathId,
+          subjectId: lc.subjectId,
           title: lc.title,
           description: lc.description,
           instructorName: lc.instructorName || 'فريق المنصة',
@@ -103,7 +105,7 @@ export function CourseView() {
             })),
           })),
           files: presentation.files || [],
-          assessments: presentation.assessments || [],
+          assessments: Array.isArray(presentation.assessments) ? presentation.assessments : [],
           features: presentation.features || [],
           objectives: presentation.objectives || [],
           access: lc.access,
@@ -168,7 +170,7 @@ export function CourseView() {
               })),
             })),
             files: presentation.files || [],
-            assessments: presentation.assessments || [],
+            assessments: Array.isArray(presentation.assessments) ? presentation.assessments : [],
             features: presentation.features || [],
             objectives: presentation.objectives || [],
             access: {

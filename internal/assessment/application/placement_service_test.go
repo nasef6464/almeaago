@@ -188,6 +188,9 @@ func TestLearnerPlacementRequiresExactBoundedContext(t *testing.T) {
 	if out.Limit != 0 && out.Limit > 100 {
 		t.Fatalf("unexpected result limit: %d", out.Limit)
 	}
+	if out.Items == nil {
+		t.Fatal("empty learner placements must serialize as an empty list")
+	}
 }
 
 func TestPlacementStartRevalidatesVisibleContent(t *testing.T) {

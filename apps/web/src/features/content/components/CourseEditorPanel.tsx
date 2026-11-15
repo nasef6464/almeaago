@@ -120,10 +120,9 @@ export function CourseEditorPanel({
 
   // Assessments
   const [courseAssessments, setCourseAssessments] = useState<Array<{ id: string; title: string; phase: 'pre_course' | 'during_course' | 'final_course'; durationMinutes: number; questionsCount: number; access: 'free_preview' | 'enrolled_paid'; quizId?: string }>>([]);
-  const [newAssessmentTitle, setNewAssessmentTitle] = useState('');
   const [newAssessmentPhase, setNewAssessmentPhase] = useState<'pre_course' | 'during_course' | 'final_course'>('during_course');
-  const [newAssessmentMinutes, setNewAssessmentMinutes] = useState(30);
-  const [newAssessmentQuestions, setNewAssessmentQuestions] = useState(20);
+  const [newAssessmentMinutes, setNewAssessmentMinutes] = useState(0);
+  const [newAssessmentQuestions, setNewAssessmentQuestions] = useState(0);
 
   function applyCourse(row: CourseDetail) {
     setCourse(row);
@@ -1028,12 +1027,12 @@ export function CourseEditorPanel({
               <div>
                 <h2 className="text-lg font-black text-gray-900">الاختبارات المرتبطة (Course Assessments)</h2>
                 <p className="mt-1 text-xs text-gray-500 font-medium">
-                  حدد اختبارات تحديد المستوى القبلية، الاختبارات الدورية، والاختبار الشامل النهائي للدورة.
+                  أضف بطاقة لاختبار منشور، ثم فعّل مكان ظهوره لهذه الدورة من مركز الاختبارات وحدد سياسة الوصول. حفظ البطاقة وحده لا يفعّل الاختبار.
                 </p>
               </div>
 
               {/* Pick from central assessment center */}
-              {approvedAssessments.length > 0 ? (
+              {approvedAssessments.some((a) => a.isPublished) ? (
                 <div className="p-4 rounded-2xl border border-indigo-200 bg-indigo-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2 flex-1">
                     <Award size={18} className="text-indigo-600 shrink-0" />
@@ -1042,16 +1041,11 @@ export function CourseEditorPanel({
                       onChange={(e) => {
                         const id = e.target.value;
                         setSelectedCentralAssessmentId(id);
-                        const found = approvedAssessments.find((a) => a.id === id);
-                        if (found) {
-                          setNewAssessmentTitle(found.title);
-                          setNewAssessmentQuestions(20);
-                        }
                       }}
                       className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-gray-800"
                     >
                       <option value="">استيراد اختبار جاهز من مركز الاختبارات المعتمد...</option>
-                      {approvedAssessments.map((a) => (
+                      {approvedAssessments.filter((a) => a.isPublished).map((a) => (
                         <option key={a.id} value={a.id}>
                           {a.title} ({a.kind === 'mock' ? 'محاكي قياس' : 'اختبار تقييمي'} • {a.code})
                         </option>
@@ -1060,10 +1054,10 @@ export function CourseEditorPanel({
                   </div>
                   <button
                     type="button"
-                    disabled={!selectedCentralAssessmentId}
+                    disabled={!canMutate || mutating || !selectedCentralAssessmentId}
                     onClick={() => {
                       if (!selectedCentralAssessmentId) return;
-                      const found = approvedAssessments.find((a) => a.id === selectedCentralAssessmentId);
+                      const found = approvedAssessments.find((a) => a.id === selectedCentralAssessmentId && a.isPublished);
                       if (!found) return;
                       setCourseAssessments((prev) => [
                         ...prev,
@@ -1078,26 +1072,16 @@ export function CourseEditorPanel({
                         },
                       ]);
                       setSelectedCentralAssessmentId('');
-                      setNewAssessmentTitle('');
                     }}
                     className="rounded-xl bg-indigo-600 text-white px-4 py-2 text-xs font-black hover:bg-indigo-700 disabled:opacity-40 cursor-pointer shrink-0"
                   >
-                    إرفاق كاختبار مرحلي بالدورة
+                    إضافة بطاقة الاختبار
                   </button>
                 </div>
-              ) : null}
+              ) : <p className="text-xs font-bold text-amber-700">لا يوجد اختبار منشور في نطاق هذه المادة لإضافته.</p>}
 
-              {/* Add assessment form */}
-              <div className="p-4 rounded-2xl border border-dashed border-gray-200 bg-slate-50/70 grid gap-3 sm:grid-cols-[1fr_140px_100px_100px_auto] sm:items-end">
-                <label className="space-y-1">
-                  <span className="text-xs font-black text-gray-700">عنوان الاختبار *</span>
-                  <input
-                    value={newAssessmentTitle}
-                    onChange={(e) => setNewAssessmentTitle(e.target.value)}
-                    placeholder="مثال: الاختبار القبلي لقياس المستوى"
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold"
-                  />
-                </label>
+              {/* Assessment card details */}
+              <div className="p-4 rounded-2xl border border-dashed border-gray-200 bg-slate-50/70 grid gap-3 sm:grid-cols-3 sm:items-end">
                 <label className="space-y-1">
                   <span className="text-xs font-black text-gray-700">المرحلة</span>
                   <select
@@ -1111,48 +1095,25 @@ export function CourseEditorPanel({
                   </select>
                 </label>
                 <label className="space-y-1">
-                  <span className="text-xs font-black text-gray-700">المدة (د)</span>
+                  <span className="text-xs font-black text-gray-700">المدة للعرض (اختياري)</span>
                   <input
                     type="number"
-                    min={5}
+                    min={0}
                     value={newAssessmentMinutes}
-                    onChange={(e) => setNewAssessmentMinutes(Number(e.target.value) || 25)}
+                    onChange={(e) => setNewAssessmentMinutes(Number(e.target.value) || 0)}
                     className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold"
                   />
                 </label>
                 <label className="space-y-1">
-                  <span className="text-xs font-black text-gray-700">الأسئلة</span>
+                  <span className="text-xs font-black text-gray-700">عدد الأسئلة للعرض (اختياري)</span>
                   <input
                     type="number"
-                    min={1}
+                    min={0}
                     value={newAssessmentQuestions}
-                    onChange={(e) => setNewAssessmentQuestions(Number(e.target.value) || 20)}
+                    onChange={(e) => setNewAssessmentQuestions(Number(e.target.value) || 0)}
                     className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold"
                   />
                 </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const t = newAssessmentTitle.trim();
-                    if (!t) return;
-                    setCourseAssessments((prev) => [
-                      ...prev,
-                      {
-                        id: `test-${Date.now()}`,
-                        title: t,
-                        phase: newAssessmentPhase,
-                        durationMinutes: newAssessmentMinutes,
-                        questionsCount: newAssessmentQuestions,
-                        access: newAssessmentPhase === 'pre_course' ? 'free_preview' : 'enrolled_paid',
-                      },
-                    ]);
-                    setNewAssessmentTitle('');
-                  }}
-                  className="rounded-xl bg-slate-800 text-white px-4 py-2 text-xs font-black hover:bg-slate-900 cursor-pointer h-9 flex items-center justify-center gap-1"
-                >
-                  <Plus size={15} />
-                  ربط اختبار
-                </button>
               </div>
 
               {/* Assessments List */}
@@ -1174,8 +1135,9 @@ export function CourseEditorPanel({
                         </div>
                         <div>
                           <p className="text-sm font-black text-gray-900">{test.title}</p>
+                          {!test.quizId && <p className="text-xs font-bold text-amber-700">هذه بطاقة قديمة دون اختبار مرتبط.</p>}
                           <p className="text-xs text-gray-500">
-                            {test.phase === 'pre_course' ? 'قبلي' : test.phase === 'final_course' ? 'نهائي شامل' : 'دوري'} • {test.durationMinutes} دقيقة • {test.questionsCount} سؤال
+                            {test.phase === 'pre_course' ? 'قبلي' : test.phase === 'final_course' ? 'نهائي شامل' : 'دوري'} • {test.durationMinutes > 0 ? `${test.durationMinutes} دقيقة` : 'مدة غير محددة'} • {test.questionsCount > 0 ? `${test.questionsCount} سؤال` : 'عدد غير محدد'}
                           </p>
                         </div>
                       </div>

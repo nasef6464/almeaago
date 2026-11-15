@@ -125,6 +125,8 @@ func presentLearnerCourse(row content.LearnerCourse) map[string]any {
 		result["presentation"] = learnerCoursePresentation(row.Course.Presentation, row.AccessAllowed)
 	}
 	result["modules"] = modules
+	result["pathId"] = row.PathID
+	result["subjectId"] = row.SubjectID
 	result["access"] = map[string]any{
 		"allowed":    row.AccessAllowed,
 		"configured": row.AccessConfigured,

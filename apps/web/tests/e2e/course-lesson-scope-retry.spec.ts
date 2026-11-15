@@ -6,7 +6,7 @@ const student = {
   status: 'active', avatarUrl: '', emailVerified: true, role: 'student', roles: ['student'],
 };
 const course = {
-  id: 'course-1', title: 'دورة اختبار التنقل', description: '', instructorName: '',
+  id: 'course-1', pathId:'path-1', subjectId:'sub-1', title: 'دورة اختبار التنقل', description: '', instructorName: '',
   durationMinutes: 20, level: 'beginner', thumbnailAssetId: '', dripContentEnabled: false,
   certificateEnabled: false, access: { allowed: true, configured: true, reason: 'free_product' },
   modules: [{
@@ -35,6 +35,7 @@ function json(route: Route, body: unknown, status = 200) {
 async function setup(page: Page) {
   await page.route('**/api/v1/auth/me', route => json(route, { user: student }));
   await page.route('**/api/v1/auth/csrf', route => json(route, { csrfToken: 'csrf' }));
+  await page.route('**/api/v1/assessment-placements/available?*', route => json(route,{items:[],page:1,limit:30,hasMore:false}));
   await page.route('**/api/v1/learning-progress/courses/course-1/completed', route => json(route, {courseId:'course-1',completedLessonIds:[]}));
   await page.route('**/api/v1/learning-spaces/courses/course-1', route => json(route, { course }));
   await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a', route => json(route, { lesson: detail('lesson-a') }));
@@ -179,27 +180,46 @@ test('interactive video answers are scoped to the signed-in student', async ({ p
   await expect(page.getByText('تم إجابة 1 من 1')).toBeVisible();
 });
 
-test('course exam buttons use the linked assessment and reject unlinked placeholders', async ({ page }) => {
+test('course exam starts only through its authorized course placement', async ({ page }) => {
   test.setTimeout(120_000);
   await setup(page);
   await page.route('**/api/v1/learning-spaces/courses/course-1', route => json(route, { course: { ...course, presentation: { assessments: [
-    { id: 'display-card-1', quizId: 'real-quiz', title: 'اختبار مرتبط', phase: 'during_course', access: 'free_preview' },
-    { id: 'manual-only', title: 'اختبار دون ربط', phase: 'final_course', access: 'free_preview' },
+    { id: 'display-card-1', quizId: 'real-quiz', title: 'اختبار مرتبط' },
+    { id: 'manual-only', title: 'اختبار دون ربط' },
   ] } } }));
-  let starts = 0;
-  await page.route('**/api/v1/assessments/real-quiz/attempts', route => { starts++; return json(route, {message:'رفض الاختبار التجريبي'}, 403); });
+  let starts = 0, directStarts = 0;
+  await page.route('**/api/v1/assessment-placements/available?*', route => {
+    const q = new URL(route.request().url()).searchParams;
+    expect([q.get('slot'),q.get('courseId'),q.get('pathId'),q.get('subjectId')]).toEqual(['course','course-1','path-1','sub-1']);
+    return json(route,{items:[{placementId:'placement-1',assessmentId:'real-quiz',title:'اختبار مرتبط',slot:'course',courseId:'course-1',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true}],page:1,hasMore:false});
+  });
+  await page.route('**/api/v1/assessment-placements/placement-1/start', route => { starts++; return json(route,{attempt:{id:'attempt-1',assessmentId:'real-quiz'}}); });
+  await page.route('**/api/v1/assessments/real-quiz/attempts', route => {directStarts++; return json(route,{},500);});
   await page.goto('/learning/courses/course-1');
-  await page.getByRole('button', {name: /اختبارات الدورة/}).click();
-  await expect(page.getByRole('button', {name:'الاختبار غير مرتبط'})).toBeDisabled();
+  await page.getByRole('button', {name: 'اختبارات الدورة'}).click();
+  await expect(page.getByText('لم يُفعّل موضعه في الدورة')).toBeVisible();
   await page.getByRole('button', {name:'بدء الاختبار', exact:true}).click();
-  await expect(page).toHaveURL(/\/assessments\/real-quiz\/start\?/);
-  await expect.poll(() => starts).toBe(1);
+  await expect(page).toHaveURL(/\/assessment-attempts\/attempt-1\?/);
   expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/learning/courses/course-1?lesson=lesson-a');
   await page.goto('/course/course-1?tab=tests');
-  await expect(page.getByRole('button', {name:'الاختبار غير مرتبط'})).toBeDisabled();
-  await page.getByRole('button', {name:'بدء الاختبار ←'}).click();
-  await expect(page).toHaveURL(/\/assessments\/real-quiz\/start\?/);
+  await page.getByRole('button', {name:'بدء الاختبار',exact:true}).click();
+  await expect(page).toHaveURL(/\/assessment-attempts\/attempt-1\?/);
   expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/course/course-1?tab=tests');
+  expect(starts).toBe(2);
+  expect(directStarts).toBe(0);
+});
+
+test('course assessment rejects another course scope and never starts it', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  let starts = 0;
+  await page.route('**/api/v1/assessment-placements/available?*', route => json(route,{items:[{placementId:'wrong',assessmentId:'quiz',title:'غير صحيح',slot:'course',courseId:'another-course',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true}],page:1,hasMore:false}));
+  await page.route('**/api/v1/assessment-placements/*/start', route => {starts++; return json(route,{},500);});
+  await page.goto('/learning/courses/course-1');
+  await page.getByRole('button',{name:'اختبارات الدورة'}).click();
+  await expect(page.getByRole('alert')).toContainText('تعذر التحقق من نطاق اختبارات الدورة');
+  await expect(page.getByRole('button',{name:'بدء الاختبار'})).toHaveCount(0);
+  expect(starts).toBe(0);
 });
 
 test('course files show only real safe links and lock paid files for guests', async ({ page }) => {
@@ -292,4 +312,38 @@ test('late course progress cannot erase a newly confirmed completion', async ({ 
   releaseProgress?.();
   await page.getByRole('button',{name:'الشهادة والإنجاز'}).click();
   await expect(page.getByText('50%',{exact:true})).toBeVisible();
+});
+
+test('guest sees free and locked course assessments and signs in to start', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.route('**/api/v1/auth/me', route => json(route,{message:'unauthenticated'},401));
+  await page.route('**/api/v1/assessment-placements/available?*', route => json(route,{items:[
+    {placementId:'free',assessmentId:'q1',title:'اختبار مجاني',slot:'course',courseId:'course-1',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true},
+    {placementId:'paid',assessmentId:'q2',title:'اختبار مغلق',slot:'course',courseId:'course-1',pathId:'path-1',subjectId:'sub-1',accessAllowed:false,canStart:false},
+  ],page:1,hasMore:false}));
+  await page.goto('/course/course-1?tab=tests');
+  await expect(page.getByText('اختبار مجاني')).toBeVisible();
+  await expect(page.getByText('اختبار مغلق')).toBeVisible();
+  await expect(page.getByRole('link',{name:'تسجيل الدخول للبدء'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'مغلق'})).toBeDisabled();
+});
+
+test('course placement retry reuses the same start key after a failed response', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  const keys: string[] = [];
+  await page.route('**/api/v1/assessment-placements/available?*', route => json(route,{items:[{placementId:'p1',assessmentId:'q1',title:'اختبار الدورة',slot:'course',courseId:'course-1',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true}],page:1,hasMore:false}));
+  await page.route('**/api/v1/assessment-placements/p1/start', route => {
+    keys.push(route.request().postDataJSON().startKey);
+    return keys.length === 1 ? json(route,{message:'تعذر البدء'},503) : json(route,{attempt:{id:'attempt-1',assessmentId:'q1'}});
+  });
+  await page.goto('/learning/courses/course-1');
+  await page.getByRole('button',{name:'اختبارات الدورة'}).click();
+  await page.getByRole('button',{name:'بدء الاختبار'}).click();
+  await expect(page.getByRole('alert')).toContainText('تعذر البدء');
+  await page.getByRole('button',{name:'بدء الاختبار'}).click();
+  await expect(page).toHaveURL(/\/assessment-attempts\/attempt-1\?/);
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toBe(keys[1]);
 });

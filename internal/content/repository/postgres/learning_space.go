@@ -182,6 +182,8 @@ func (r *Repository) GetLearnerCourse(ctx context.Context, courseID string) (con
 	}
 	result.Course.ThumbnailAssetID = thumbnailAssetID
 	result.Course.Presentation = json.RawMessage(presentationBytes)
+	result.PathID = pathID
+	result.SubjectID = subjectID
 
 	moduleRows, err := r.db.Query(ctx, `
 		SELECT id::text,title,description,sort_order

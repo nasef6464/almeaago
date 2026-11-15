@@ -1,4 +1,5 @@
 import { courseFileURL } from '../courseFileURL';
+import { CourseAssessmentList } from './CourseAssessmentList';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -347,7 +348,7 @@ export function CourseOverview({
                       <div className="min-w-0">
                         <p className="text-[11px] font-bold text-slate-400">المنهج والمدة</p>
                         <p className="truncate text-sm font-black text-white">
-                          {totalLessonsCount} درس {testsList.length > 0 ? `• ${testsList.length} اختبار` : ''}
+                          {totalLessonsCount} درس
                         </p>
                       </div>
                     </div>
@@ -398,7 +399,7 @@ export function CourseOverview({
                       : 'text-gray-500 hover:text-indigo-600'
                   }`}
                 >
-                  الاختبارات ({testsList.length})
+                  الاختبارات
                 </button>
                 <button
                   type="button"
@@ -614,87 +615,7 @@ export function CourseOverview({
 
                 {/* 3. TESTS TAB */}
                 {activeTab === 'tests' && (
-                  <div className="space-y-6">
-                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm leading-7 text-indigo-800">
-                      الاختبارات المرتبطة بهذه الدورة.
-                    </div>
-
-                    <div className="space-y-4">
-                      {testsList.length === 0 && <p className="text-sm font-bold text-gray-500">لا توجد اختبارات مرتبطة بهذه الدورة حاليًا.</p>}
-                      {testsList.map((test) => {
-                        const isLocked = test.access === 'enrolled_paid' && !hasAccess;
-                        const phaseName = test.phase === 'pre_course'
-                          ? 'اختبار قبلي'
-                          : test.phase === 'final_course'
-                            ? 'اختبار نهائي شامل'
-                            : 'اختبار تدريبي';
-
-                        return (
-                          <div
-                            key={test.id}
-                            className={`rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transition-all ${
-                              isLocked
-                                ? 'bg-amber-50/40 border-amber-200'
-                                : 'bg-white border-gray-200 hover:border-indigo-300 hover:shadow-xs'
-                            }`}
-                          >
-                            <div className="flex items-center gap-4">
-                              <div
-                                className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-                                  isLocked
-                                    ? 'bg-amber-100 text-amber-700'
-                                    : 'bg-indigo-100 text-indigo-700'
-                                }`}
-                              >
-                                {isLocked ? <Lock size={22} /> : <Award size={22} />}
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-[11px] font-black px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
-                                    {phaseName}
-                                  </span>
-                                  {isLocked ? (
-                                    <span className="text-[11px] font-black px-2 py-0.5 rounded-md bg-amber-100 text-amber-800">
-                                      ضمن شراء الدورة
-                                    </span>
-                                  ) : (
-                                    <span className="text-[11px] font-black px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
-                                      متاح الآن
-                                    </span>
-                                  )}
-                                </div>
-                                <h4 className="text-base font-black text-gray-900 mt-1">{test.title}</h4>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {test.durationMinutes ? `${test.durationMinutes} دقيقة` : 'المدة غير محددة'} • {test.questionsCount ? `${test.questionsCount} سؤال` : 'عدد الأسئلة غير محدد'}
-                                </p>
-                              </div>
-                            </div>
-
-                            <button
-                              type="button"
-                              disabled={!test.quizId?.trim()}
-                              onClick={() => {
-                                if (isLocked) {
-                                  alert('هذا الاختبار متاح للمشتركين في الدورة. يمكنك شراء الدورة أو تفعيل الباقة للبدء.');
-                                  return;
-                                }
-                                if (!test.quizId?.trim()) return;
-                                const returnTo = `/course/${encodeURIComponent(course.id)}?tab=tests`;
-                                navigate(`/assessments/${encodeURIComponent(test.quizId.trim())}/start?returnTo=${encodeURIComponent(returnTo)}`);
-                              }}
-                              className={`rounded-xl px-5 py-2.5 text-xs font-black transition-all shadow-xs cursor-pointer ${
-                                isLocked
-                                  ? 'bg-amber-500 text-white hover:bg-amber-600'
-                                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                              }`}
-                            >
-                              {!test.quizId?.trim() ? 'الاختبار غير مرتبط' : isLocked ? 'فتح الاختبار' : 'بدء الاختبار ←'}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <CourseAssessmentList courseId={course.id} pathId={course.pathId || ''} subjectId={course.subjectId || ''} returnTo={`/course/${encodeURIComponent(course.id)}?tab=tests`} previews={testsList} />
                 )}
 
                 {/* 4. QA TAB */}
@@ -893,7 +814,7 @@ export function CourseOverview({
                       <BarChart size={15} />
                       <span>الاختبارات المحاكية</span>
                     </div>
-                    <span className="font-bold text-gray-700">{testsList.length} اختبار</span>
+                    <span className="font-bold text-gray-700">اختبارات الدورة</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-gray-500">

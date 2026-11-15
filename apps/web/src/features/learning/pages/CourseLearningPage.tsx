@@ -44,6 +44,7 @@ import type {
 import { lessonProgressClient, type LessonProgress } from '../api/learning-client';
 import { SharedVideoPlayer, type SharedVideoPlayerHandle } from '../components/SharedVideoPlayer';
 import { CourseLessonNotes } from '../components/CourseLessonNotes';
+import { CourseAssessmentList } from '../components/CourseAssessmentList';
 import { courseFileURL } from '../courseFileURL';
 import { useCourseCompletion } from '../useCourseCompletion';
 
@@ -1060,7 +1061,7 @@ export function CourseLearningPage() {
                       }`}
                     >
                       <HelpCircle size={15} />
-                      اختبارات الدورة ({courseAssessmentsList.length})
+                      اختبارات الدورة
                     </button>
                     <button
                       type="button"
@@ -1140,60 +1141,7 @@ export function CourseLearningPage() {
 
                     {/* 4. ASSESSMENTS TAB */}
                     {bottomTab === 'assessments' && (
-                      <div className="space-y-3">
-                        {courseAssessmentsList.length === 0 ? (
-                          <div className={`text-center py-8 text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-                            لا توجد اختبارات مرحلية معينة لهذه الدورة في الوقت الحالي.
-                          </div>
-                        ) : (
-                          courseAssessmentsList.map((test: any, idx: number) => {
-                            const phaseLabels: Record<string, string> = {
-                              pre_course: 'اختبار قبلي تشخيصي',
-                              during_course: 'اختبار مرحلي',
-                              final_course: 'اختبار شامل نهائي',
-                            };
-                            return (
-                              <div
-                                key={test.id || idx}
-                                className={`flex items-center justify-between p-4 rounded-2xl border transition ${
-                                  isDarkMode ? 'border-slate-800 bg-slate-900/40' : 'border-gray-200 bg-gray-50/50'
-                                }`}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
-                                    <HelpCircle size={20} />
-                                  </div>
-                                  <div>
-                                    <div className="flex items-center gap-2">
-                                      <span className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                        {test.title}
-                                      </span>
-                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                                        {phaseLabels[test.phase] || 'اختبار تقييمي'}
-                                      </span>
-                                    </div>
-                                    <div className="text-xs text-gray-400 mt-1">
-                                      {test.durationMinutes > 0 ? `${test.durationMinutes} دقيقة` : 'المدة غير محددة'} • {test.questionsCount > 0 ? `${test.questionsCount} سؤال` : 'عدد الأسئلة غير محدد'}
-                                    </div>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  disabled={typeof test.quizId !== 'string' || !test.quizId.trim()}
-                                  onClick={() => {
-                                    const returnTo = `/learning/courses/${encodeURIComponent(courseId)}?lesson=${encodeURIComponent(lessonId)}`;
-                                    navigate(`/assessments/${encodeURIComponent(test.quizId.trim())}/start?returnTo=${encodeURIComponent(returnTo)}`);
-                                  }}
-                                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  {typeof test.quizId === 'string' && test.quizId.trim() ? 'بدء الاختبار' : 'الاختبار غير مرتبط'}
-                                  <ChevronLeft size={14} />
-                                </button>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
+                      <CourseAssessmentList courseId={courseId} pathId={course.pathId || ''} subjectId={course.subjectId || ''} returnTo={`/learning/courses/${encodeURIComponent(courseId)}?lesson=${encodeURIComponent(lessonId)}`} previews={courseAssessmentsList} />
                     )}
 
                     {/* 5. CERTIFICATE TAB */}
