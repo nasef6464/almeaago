@@ -450,6 +450,7 @@ export function CourseEditorPanel({
 
     setMutating(true);
     setError('');
+    let createdLessonId = '';
     try {
       const csrf = await getCsrfToken();
       const lessonRes = await contentClient.createLesson({
@@ -473,6 +474,7 @@ export function CourseEditorPanel({
         assetIds: [],
       }, csrf);
 
+      createdLessonId = lessonRes.lesson.id;
       const isPreview = Boolean(previewByModule[module.id]);
       const result = await contentClient.placeCourseLesson(
         courseId,
@@ -491,7 +493,8 @@ export function CourseEditorPanel({
       setNotice(`أُنشئ درس للاختبار "${assessment.title}". اعتمد الدرس، ثم انشر الدورة وفعّل موضع الاختبار لهذا الدرس من تبويب الاختبارات.`);
       onChanged();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'تعذر ربط الاختبار بالقسم.');
+      const reason = cause instanceof Error ? cause.message : 'تعذر ربط الاختبار بالقسم.';
+      setError(createdLessonId ? `أُنشئ درس الاختبار لكن تعذر ربطه بالقسم: ${reason} الدرس محفوظ برقم ${createdLessonId}؛ أضفه من قائمة الدروس الموجودة بدل إنشائه مجددًا.` : reason);
     } finally {
       setMutating(false);
     }

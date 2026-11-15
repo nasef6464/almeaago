@@ -942,6 +942,18 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 		if err := json.Unmarshal(created.Body.Bytes(), &courseProduct); err != nil {
 			t.Fatal(err)
 		}
+		// Buy a package covering courses rather than the individual course product.
+		packageWrite := commerce.ProductWrite{Code: "COURSEPKG" + suffix, ProductType: commerce.ProductPackage, Name: "course package", Status: commerce.ProductActive, AccessMode: commerce.AccessPaid, PriceMinor: 1500, Currency: "SAR", IsVisible: true, Package: &commerce.PackageWrite{PackageKind: commerce.PackageBundle, Items: []commerce.PackageItem{{ScopeType: commerce.ScopeSubject, SubjectID: subject, ContentType: commerce.ContentCourses}}}}
+		packageResponse := courseCall(http.MethodPost, "/products", adminToken, adminCSRF, packageWrite)
+		if packageResponse.Code != http.StatusCreated {
+			t.Fatalf("course package: %d %s", packageResponse.Code, packageResponse.Body.String())
+		}
+		var packageProduct struct {
+			Product commerce.Product `json:"product"`
+		}
+		if err := json.Unmarshal(packageResponse.Body.Bytes(), &packageProduct); err != nil {
+			t.Fatal(err)
+		}
 		contentService := contentapp.NewServiceWithAuthorScope(contentRepo, contentRepo, courseCommerce)
 		learningHandler := contenthttp.NewLearningSpaces(contentService, auth)
 		var moduleID, paidLessonID, previewLessonID, paidVideoID string
@@ -960,6 +972,48 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 			if _, err := db.Exec(ctx, `INSERT INTO course_lessons(module_id,lesson_id,sort_order,is_preview) VALUES($1,$2,0,$3)`, moduleID, *item.target, item.preview); err != nil {
 				t.Fatal(err)
 			}
+		}
+		// Create a real published question and assessment, then attach it to the paid lesson.
+		var quizID, quizQuestionID string
+		tx, err := db.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer tx.Rollback(ctx)
+		if err = tx.QueryRow(ctx, `INSERT INTO questions(question_code,path_id,subject_id,workflow_status) VALUES($1,$2,$3,'approved') RETURNING id::text`, "COURSEQ"+suffix, path, subject).Scan(&quizQuestionID); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO question_versions(question_id,version,question_type,text_content,correct_option_index) VALUES($1,1,'mcq','course package question',0)`, quizQuestionID); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO question_options(question_id,version,option_index,option_text) VALUES($1,1,0,'yes'),($1,1,1,'no')`, quizQuestionID); err != nil {
+			t.Fatal(err)
+		}
+		if err = tx.QueryRow(ctx, `INSERT INTO assessments(assessment_code,owner_type,workflow_status,is_published,is_visible,published_version) VALUES($1,'platform','approved',true,true,1) RETURNING id::text`, "COURSEEXAM"+suffix).Scan(&quizID); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO assessment_versions(assessment_id,version,title,path_id,subject_id,assessment_kind,normal_mode,version_status,published_at,max_attempts) VALUES($1,1,'course package exam',$2,$3,'normal','exam','published',now(),3)`, quizID, path, subject); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = tx.Exec(ctx, `INSERT INTO assessment_version_questions(assessment_id,assessment_version,question_id,question_version) VALUES($1,1,$2,1)`, quizID, quizQuestionID); err != nil {
+			t.Fatal(err)
+		}
+		if err = tx.Commit(ctx); err != nil {
+			t.Fatal(err)
+		}
+		assessmentRepo := assessmentpg.New(db, operationspg.NewAuditWriter())
+		placements := assessmentapp.NewPlacementServiceWithCommerce(assessmentRepo, assessmentapp.NewService(assessmentRepo), contentRepo, courseCommerce)
+		placed, err := placements.Create(ctx, adminUser, quizID, assessmentdomain.PlacementWrite{Slot: assessmentdomain.PlacementCourse, PathID: path, SubjectID: subject, CourseID: courseID, LessonID: paidLessonID, AccessType: assessmentdomain.PlacementAccessPackage, IsVisible: true})
+		if err != nil {
+			t.Fatalf("create lesson placement: %v", err)
+		}
+		placementQuery := assessmentdomain.LearnerPlacementQuery{Slot: assessmentdomain.PlacementCourse, PathID: path, SubjectID: subject, CourseID: courseID, LessonID: paidLessonID}
+		beforePlacement, err := placements.Learner(ctx, studentUser, placementQuery)
+		if err != nil || len(beforePlacement.Items) != 1 || beforePlacement.Items[0].AccessAllowed {
+			t.Fatalf("placement before package: %+v %v", beforePlacement, err)
+		}
+		if _, err = placements.Start(ctx, studentUser, placed.ID, "before-course-package-"+suffix); !errors.Is(err, assessmentapp.ErrForbidden) {
+			t.Fatalf("start before package: %v", err)
 		}
 		progressService := learningapp.NewLessonProgressService(learningpg.New(db), contentRepo, contentService)
 		progressHandler := learninghttp.NewLessonProgress(progressService, auth)
@@ -1014,7 +1068,7 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 		}
 		check("", false)
 		check(studentToken, false)
-		order := courseCall(http.MethodPost, "/checkout/requests", studentToken, studentCSRF, commerce.CheckoutCreate{ProductID: courseProduct.Product.ID, PaymentMethod: commerce.PaymentTransfer, IdempotencyKey: "file-" + suffix})
+		order := courseCall(http.MethodPost, "/checkout/requests", studentToken, studentCSRF, commerce.CheckoutCreate{ProductID: packageProduct.Product.ID, PaymentMethod: commerce.PaymentTransfer, IdempotencyKey: "file-" + suffix})
 		if order.Code != http.StatusCreated {
 			t.Fatalf("course checkout: %d %s", order.Code, order.Body.String())
 		}
@@ -1030,6 +1084,22 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 		}
 		check(studentToken, true)
 		check("", false)
+		afterPlacement, err := placements.Learner(ctx, studentUser, placementQuery)
+		if err != nil || len(afterPlacement.Items) != 1 || !afterPlacement.Items[0].AccessAllowed {
+			t.Fatalf("placement after package: %+v %v", afterPlacement, err)
+		}
+		otherStudent, err := identityRepo.CreateUser(ctx, "other student", "other"+suffix+"@example.invalid", hash, identity.RoleStudent)
+		if err != nil {
+			t.Fatal(err)
+		}
+		otherPlacement, err := placements.Learner(ctx, otherStudent, placementQuery)
+		if err != nil || len(otherPlacement.Items) != 1 || otherPlacement.Items[0].AccessAllowed {
+			t.Fatalf("package leaked to another student: %+v %v", otherPlacement, err)
+		}
+		attempt, err := placements.Start(ctx, studentUser, placed.ID, "after-course-package-"+suffix)
+		if err != nil || attempt.ID == "" {
+			t.Fatalf("start after package: %+v %v", attempt, err)
+		}
 		if w := progressCall(http.MethodPost, paidLessonID); w.Code != http.StatusOK {
 			t.Fatalf("paid completion after purchase: %d %s", w.Code, w.Body.String())
 		}
@@ -1222,9 +1292,12 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 		t.Fatal(err)
 	}
 	assessRepo := assessmentpg.New(db, operationspg.NewAuditWriter())
-	planService := learningapp.NewStudyPlanService(learningpg.New(db), taxonomypg.New(db), contentpg.New(db, operationspg.NewAuditWriter()), assessmentapp.NewStudyPlanCatalog(assessRepo, nil))
+	planService := learningapp.NewStudyPlanService(learningpg.New(db), taxonomypg.New(db), contentpg.New(db, operationspg.NewAuditWriter()), assessmentapp.NewStudyPlanCatalog(assessRepo, service))
 	planHandler := learninghttp.NewStudyPlans(planService, auth)
 	checkPlan := func(wantAvailable bool) {
+		if _, err := planService.Get(ctx, studentUser, planID); err != nil {
+			t.Fatalf("study plan service: %v", err)
+		}
 		req := httptest.NewRequest(http.MethodGet, "/"+planID, nil)
 		req.AddCookie(&http.Cookie{Name: identitysession.CookieName, Value: studentToken})
 		result := httptest.NewRecorder()
@@ -1324,7 +1397,13 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 	setVisibility("paths/"+path, true)
 	checkPlan(true)
 	planRows, err = assessRepo.ListStudyPlanResources(ctx, student, path, []string{subject}, nil, 50)
-	if err != nil || len(planRows) != 1 || planRows[0].PlacementID != placementID {
+	foundRestored := false
+	for _, row := range planRows {
+		if row.PlacementID == placementID {
+			foundRestored = true
+		}
+	}
+	if err != nil || !foundRestored {
 		t.Fatalf("restored assessment study plan resources: %+v %v", planRows, err)
 	}
 	if _, err = assessRepo.GetPublishedAccessContext(ctx, assessID); err != nil {
