@@ -1,3 +1,4 @@
+import { safeReturnPath, returnPathLabel } from '../navigation/returnPath';
 import {
   AlertTriangle,
   Lock,
@@ -52,22 +53,12 @@ const key = (prefix: string, id: string) => {
   return value;
 };
 
-function safeReturnPath(value: string | null): string {
-  if (!value || !value.startsWith('/') || value.startsWith('//') || /[\\\u0000-\u001f\u007f]/.test(value)) return '';
-  try {
-    const decoded = decodeURIComponent(value);
-    if (decoded.startsWith('//') || /[\\\u0000-\u001f\u007f]/.test(decoded)) return '';
-    const parsed = new URL(value, window.location.origin);
-    return parsed.origin === window.location.origin ? parsed.pathname + parsed.search + parsed.hash : '';
-  } catch { return ''; }
-}
-
 export function AssessmentAttemptPage() {
   const { assessmentId = '', attemptId = '' } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = safeReturnPath(searchParams.get('returnTo'));
-  const returnLabel = returnTo.startsWith('/learning/courses/') ? 'العودة إلى الدرس' : returnTo.startsWith('/course/') ? 'العودة إلى الدورة' : 'العودة لموضوع التأسيس';
+  const returnLabel = returnPathLabel(returnTo);
   const { user, loading, getCsrfToken } = useAuth();
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [result, setResult] = useState<Result | null>(null);
@@ -483,7 +474,7 @@ export function AssessmentAttemptPage() {
               </Link>
             ) : null}
             <Link
-              to={`/assessment-results/${result.attemptId}`}
+              to={`/assessment-results/${encodeURIComponent(result.attemptId)}${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ''}`}
               className="rounded-xl bg-slate-950 px-4 py-2.5 font-black text-white"
             >
               عرض النتيجة والمراجعة
