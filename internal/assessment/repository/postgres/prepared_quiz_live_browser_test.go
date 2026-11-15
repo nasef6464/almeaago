@@ -63,7 +63,7 @@ func TestPreparedQuizLiveBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 45*time.Second)
 		defer cleanupCancel()
 		if _, cleanupErr := admin.Exec(cleanupCtx, "DROP SCHEMA "+quoted+" CASCADE"); cleanupErr != nil {
 			t.Logf("isolated schema cleanup failed: %v", cleanupErr)
@@ -193,6 +193,12 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 	created, err = defs.SetPublication(ctx, adminUser, created.ID, created.Revision, true)
 	if err != nil {
 		t.Fatalf("publish assessment: %v", err)
+	}
+	if os.Getenv("PREPARED_COURSE_PROGRESS") == "1" {
+		_, err = repo.CreatePlacement(ctx, adminUser.ID, created.ID, assessment.PlacementWrite{Slot: assessment.PlacementCourse, PathID: "00000000-0000-0000-0000-000000000003", SubjectID: "00000000-0000-0000-0000-000000000004", CourseID: "00000000-0000-0000-0000-000000000031", LessonID: "00000000-0000-0000-0000-000000000033", AccessType: assessment.PlacementAccessFree, IsVisible: true})
+		if err != nil {
+			t.Fatalf("create browser lesson placement: %v", err)
+		}
 	}
 	if os.Getenv("PREPARED_IMAGE_QUIZ") == "1" {
 		if _, err = db.Exec(ctx, `UPDATE assessment_versions SET randomize_options=true WHERE assessment_id=$1::uuid AND version=1`, created.ID); err != nil {
@@ -328,6 +334,39 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 	webDir, err := filepath.Abs("../../../../apps/web")
 	if err != nil {
 		t.Fatal(err)
+	}
+	// Optional bounded manual inspection on the same disposable fixture.
+	if stopFile := os.Getenv("PREPARED_MANUAL_STOP_FILE"); stopFile != "" {
+		webPort := os.Getenv("PREPARED_QUIZ_E2E_PORT")
+		if webPort == "" {
+			webPort = "4268"
+		}
+		web := exec.CommandContext(ctx, "node", "node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", webPort, "--strictPort")
+		web.Dir = webDir
+		web.Env = append(os.Environ(), "E2E_API_TARGET="+server.URL)
+		if err = web.Start(); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = web.Process.Kill(); _ = web.Wait() }()
+		t.Logf("manual browser fixture listening on 127.0.0.1:%s; stop file %s", webPort, stopFile)
+		timer := time.NewTimer(4 * time.Minute)
+		defer timer.Stop()
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				t.Fatal(ctx.Err())
+			case <-timer.C:
+				t.Fatal("manual browser fixture timed out")
+			case <-ticker.C:
+				if _, statErr := os.Stat(stopFile); statErr == nil {
+					return
+				} else if !os.IsNotExist(statErr) {
+					t.Fatal(statErr)
+				}
+			}
+		}
 	}
 	args := []string{"node_modules/@playwright/test/cli.js", "test", "prepared-quiz-live.spec.ts", "--config=tests/e2e/prepared-quiz-live.config.ts", "--project=chromium", "--workers=1"}
 	if filter := os.Getenv("PREPARED_QUIZ_TEST_FILTER"); filter != "" {

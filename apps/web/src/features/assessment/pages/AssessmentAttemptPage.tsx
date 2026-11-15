@@ -67,6 +67,7 @@ export function AssessmentAttemptPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = safeReturnPath(searchParams.get('returnTo'));
+  const returnLabel = returnTo.startsWith('/learning/courses/') ? 'العودة إلى الدرس' : returnTo.startsWith('/course/') ? 'العودة إلى الدورة' : 'العودة لموضوع التأسيس';
   const { user, loading, getCsrfToken } = useAuth();
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [result, setResult] = useState<Result | null>(null);
@@ -478,7 +479,7 @@ export function AssessmentAttemptPage() {
           <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
             {returnTo ? (
               <Link to={returnTo} className="rounded-xl border px-4 py-2.5 font-black text-slate-700">
-                العودة لموضوع التأسيس
+                {returnLabel}
               </Link>
             ) : null}
             <Link
@@ -546,7 +547,7 @@ export function AssessmentAttemptPage() {
                   : 'border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-200'
               }`}
             >
-              العودة لموضوع التأسيس
+              {returnLabel}
             </Link>
           ) : null}
 
