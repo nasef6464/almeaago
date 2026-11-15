@@ -139,6 +139,16 @@ func placementTeacher(id string) identity.User {
 	return identity.User{ID: id, Roles: []identity.Role{identity.RoleTeacher}}
 }
 
+func TestStaffPlacementListReturnsEmptyArray(t *testing.T) {
+	repo := &placementRepoStub{}
+	defs := NewService(&definitionRepoStub{a: placementDefinition("teacher-1")})
+	service := NewPlacementService(repo, defs, placementContentStub{ok: true})
+	page, err := service.List(context.Background(), placementTeacher("teacher-1"), "assessment-1", 1, 100)
+	if err != nil || page.Items == nil || len(page.Items) != 0 {
+		t.Fatalf("expected empty list, got %#v: %v", page.Items, err)
+	}
+}
+
 func TestPlacementCreateRequiresOwnedPublishedDefinitionAndValidContentTarget(t *testing.T) {
 	repo := &placementRepoStub{placement: assessment.Placement{ID: "p-1"}}
 	defs := NewService(&definitionRepoStub{a: placementDefinition("teacher-1")})

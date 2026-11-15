@@ -197,7 +197,7 @@ test('course exam starts only through its authorized course placement', async ({
   await page.route('**/api/v1/assessments/real-quiz/attempts', route => {directStarts++; return json(route,{},500);});
   await page.goto('/learning/courses/course-1');
   await page.getByRole('button', {name: 'اختبارات الدورة'}).click();
-  await expect(page.getByText('لم يُفعّل موضعه في الدورة')).toBeVisible();
+  await expect(page.getByText('اختبار دون ربط')).toHaveCount(0);
   await page.getByRole('button', {name:'بدء الاختبار', exact:true}).click();
   await expect(page).toHaveURL(/\/assessment-attempts\/attempt-1\?/);
   expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/learning/courses/course-1?lesson=lesson-a');

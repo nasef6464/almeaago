@@ -176,7 +176,7 @@ func (r *Repository) ListLearnerPlacements(ctx context.Context, student string, 
 		  AND p.subject_id=$3::uuid
 		  AND p.slot=$4
 		  AND ($5='' OR p.course_id=NULLIF($5,'')::uuid)
-		  AND ($6='' OR p.lesson_id=NULLIF($6,'')::uuid)
+		  AND ($4<>'course' OR ($6='' AND p.lesson_id IS NULL) OR p.lesson_id=NULLIF($6,'')::uuid)
 		  AND ($7='' OR p.topic_id=NULLIF($7,'')::uuid)
 		ORDER BY p.sort_order,p.id
 		LIMIT $8 OFFSET $9

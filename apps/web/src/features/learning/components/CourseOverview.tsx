@@ -235,7 +235,6 @@ export function CourseOverview({
   const audienceCount = (Number(course.studentsCount) || 0) + (Number(course.fakeStudentsCount) || 0) || 55;
   const displayRating = course.fakeRating ? Math.min(Number(course.fakeRating) || 5, 5) : (Number(course.rating) || 4.9);
 
-  const testsList = useMemo(() => course.assessments || [], [course.assessments]);
 
   const filesList = useMemo(() => course.files || [], [course.files]);
 
@@ -615,7 +614,7 @@ export function CourseOverview({
 
                 {/* 3. TESTS TAB */}
                 {activeTab === 'tests' && (
-                  <CourseAssessmentList courseId={course.id} pathId={course.pathId || ''} subjectId={course.subjectId || ''} returnTo={`/course/${encodeURIComponent(course.id)}?tab=tests`} previews={testsList} />
+                  <CourseAssessmentList courseId={course.id} pathId={course.pathId || ''} subjectId={course.subjectId || ''} returnTo={`/course/${encodeURIComponent(course.id)}?tab=tests`} />
                 )}
 
                 {/* 4. QA TAB */}

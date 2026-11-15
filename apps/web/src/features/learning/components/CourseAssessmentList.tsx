@@ -4,13 +4,12 @@ import { useAuth } from '../../auth/state/AuthProvider';
 import { assessmentPlacementClient } from '../../assessment/api/assessment-placement-client';
 import type { LearnerAssessmentPlacement } from '../../assessment/api/assessment-types';
 
-type Preview = { id?: string; quizId?: string; title?: string };
-type Props = { courseId:string; pathId:string; subjectId:string; returnTo:string; previews?:Preview[] };
+type Props = { courseId:string; pathId:string; subjectId:string; returnTo:string };
 const sameId = (value:unknown, expected:string) => typeof value === 'string' && value.toLowerCase() === expected.toLowerCase();
 
 // Course placement is authoritative: the same exam may have a different
 // entitlement in another location. Never start it through the direct route.
-export function CourseAssessmentList({courseId,pathId,subjectId,returnTo,previews=[]}:Props) {
+export function CourseAssessmentList({courseId,pathId,subjectId,returnTo}:Props) {
   const {user,loading,getCsrfToken} = useAuth();
   const navigate = useNavigate();
   const [rows,setRows] = useState<LearnerAssessmentPlacement[]>([]);
@@ -35,7 +34,7 @@ export function CourseAssessmentList({courseId,pathId,subjectId,returnTo,preview
     assessmentPlacementClient.available({slot:'course',pathId,subjectId,courseId,page,limit:30},controller.signal)
       .then(result => {
         if (controller.signal.aborted || scopeRef.current !== currentScope) return;
-        if (!Array.isArray(result.items) || result.items.some(item => item.slot !== 'course' || !sameId(item.courseId,courseId) || !sameId(item.pathId,pathId) || !sameId(item.subjectId,subjectId))) throw new Error('تعذر التحقق من نطاق اختبارات الدورة.');
+        if (!Array.isArray(result.items) || result.items.some(item => item.slot !== 'course' || Boolean(item.lessonId) || !sameId(item.courseId,courseId) || !sameId(item.pathId,pathId) || !sameId(item.subjectId,subjectId))) throw new Error('تعذر التحقق من نطاق اختبارات الدورة.');
         setRows(previous => page === 1 ? result.items : [...previous,...result.items.filter(item => !previous.some(old => old.placementId === item.placementId))]);
         setLoadedScope(currentScope);
         setHasMore(result.hasMore);
@@ -59,7 +58,6 @@ export function CourseAssessmentList({courseId,pathId,subjectId,returnTo,preview
     } catch (cause) { if (scopeRef.current === currentScope) setError(cause instanceof Error ? cause.message : 'تعذر بدء الاختبار.'); }
     finally { startRef.current=false; if (scopeRef.current === currentScope) setStarting(''); }
   },[user,scope,getCsrfToken,navigate,returnTo]);
-  const missing=(Array.isArray(previews) ? previews : []).filter(preview => !visibleRows.some(row => typeof preview.quizId === 'string' && sameId(row.assessmentId,preview.quizId)));
   if (loading) return <p className="p-4 text-sm">جارٍ التحقق من الجلسة...</p>;
   if (user && !isStudent) return <p className="p-4 text-sm font-bold text-slate-600">ابدأ الاختبار من حساب طالب.</p>;
   if (!pathId || !subjectId) return <p role="alert" className="p-4 text-sm font-bold text-rose-700">تعذر تحديد مسار ومادة الدورة. أعد تحميل الصفحة.</p>;
@@ -71,7 +69,6 @@ export function CourseAssessmentList({courseId,pathId,subjectId,returnTo,preview
       {!user && row.accessAllowed ? <Link to={`/login?returnTo=${encodeURIComponent(returnTo)}`} className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white">تسجيل الدخول للبدء</Link> : <button type="button" disabled={!row.accessAllowed || !row.canStart || Boolean(starting)} onClick={()=>void start(row)} className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white disabled:opacity-50">{starting===row.placementId?'جاري البدء...':row.accessAllowed ? 'بدء الاختبار' : 'مغلق'}</button>}
     </article>)}
     {!busy && !error && loadedScope===scope && visibleRows.length===0 && <p className="p-3 text-sm text-slate-500">لا توجد اختبارات مفعّلة لهذا الموضع حاليًا.</p>}
-    {!busy && !error && loadedScope===scope && !hasMore && missing.map((item,index)=><div key={item.id || index} className="rounded-xl border border-amber-200 p-3 text-sm"><span className="font-bold">{item.title || 'اختبار الدورة'}</span> <span className="text-amber-700">— لم يُفعّل موضعه في الدورة</span></div>)}
     {busy && <p role="status" className="p-3 text-sm">جاري تحميل الاختبارات...</p>}
     {hasMore && !busy && <button type="button" onClick={()=>setPage(value=>value+1)} className="rounded-xl border px-4 py-2 text-sm font-bold">عرض المزيد</button>}
   </div>;

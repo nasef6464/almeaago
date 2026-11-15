@@ -178,10 +178,6 @@ export function CourseLearningPage() {
     return {} as any;
   }, [course]);
 
-  const courseAssessmentsList = useMemo(() => {
-    return Array.isArray(coursePresentation.assessments) ? coursePresentation.assessments : [];
-  }, [coursePresentation]);
-
   const courseFilesList = useMemo(() => {
     return Array.isArray(coursePresentation.files) ? coursePresentation.files : [];
   }, [coursePresentation]);
@@ -1141,7 +1137,7 @@ export function CourseLearningPage() {
 
                     {/* 4. ASSESSMENTS TAB */}
                     {bottomTab === 'assessments' && (
-                      <CourseAssessmentList courseId={courseId} pathId={course.pathId || ''} subjectId={course.subjectId || ''} returnTo={`/learning/courses/${encodeURIComponent(courseId)}?lesson=${encodeURIComponent(lessonId)}`} previews={courseAssessmentsList} />
+                      <CourseAssessmentList courseId={courseId} pathId={course.pathId || ''} subjectId={course.subjectId || ''} returnTo={`/learning/courses/${encodeURIComponent(courseId)}?lesson=${encodeURIComponent(lessonId)}`} />
                     )}
 
                     {/* 5. CERTIFICATE TAB */}

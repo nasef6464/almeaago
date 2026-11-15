@@ -19,6 +19,7 @@ import (
 	assessmentapp "github.com/nasef6464/almeaago/internal/assessment/application"
 	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 	assessmenthttp "github.com/nasef6464/almeaago/internal/assessment/transport/http"
+	contentpg "github.com/nasef6464/almeaago/internal/content/repository/postgres"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	operationspg "github.com/nasef6464/almeaago/internal/operations/repository/postgres"
 )
@@ -68,7 +69,7 @@ func TestPreparedQuizFullHTTPStartGuards(t *testing.T) {
 	}
 	sort.Strings(files)
 	for _, file := range files {
-		if strings.Compare(filepath.Base(file), "000059_") >= 0 {
+		if strings.Compare(filepath.Base(file), "000061_") >= 0 {
 			continue
 		}
 		sql, e := os.ReadFile(file)
@@ -107,6 +108,65 @@ INSERT INTO prepared_quiz_target_users VALUES ('00000000-0000-0000-0000-00000000
 		t.Fatalf("seed: %v", err)
 	}
 	repo := New(db, operationspg.NewAuditWriter())
+	t.Run("course and lesson placements stay separate", func(t *testing.T) {
+		_, err := db.Exec(ctx, `
+INSERT INTO courses(id,path_id,subject_id,title,workflow_status,is_published,is_visible,owner_type) VALUES ('00000000-0000-0000-0000-000000000031','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','Course','approved',true,true,'platform');
+INSERT INTO lessons(id,path_id,subject_id,title,lesson_type,workflow_status,is_visible) VALUES ('00000000-0000-0000-0000-000000000033','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','Lesson','text','approved',true);
+INSERT INTO assessment_learning_placements(id,assessment_id,assessment_version,slot,path_id,subject_id,course_id,lesson_id) VALUES
+ ('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000007',1,'course','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000031',NULL),
+ ('00000000-0000-0000-0000-000000000042','00000000-0000-0000-0000-000000000007',1,'course','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000031','00000000-0000-0000-0000-000000000033');`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			_, _ = db.Exec(context.Background(), `DELETE FROM assessment_learning_placements WHERE id IN ('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000042'); DELETE FROM lessons WHERE id='00000000-0000-0000-0000-000000000033'; DELETE FROM courses WHERE id='00000000-0000-0000-0000-000000000031'`)
+		})
+		query := assessment.LearnerPlacementQuery{Slot: assessment.PlacementCourse, PathID: "00000000-0000-0000-0000-000000000003", SubjectID: "00000000-0000-0000-0000-000000000004", CourseID: "00000000-0000-0000-0000-000000000031", Page: 1, Limit: 10}
+		page, err := repo.ListLearnerPlacements(ctx, "", query)
+		if err != nil || len(page.Items) != 1 || page.Items[0].PlacementID != "00000000-0000-0000-0000-000000000041" {
+			t.Fatalf("course query: %+v %v", page, err)
+		}
+		query.LessonID = "00000000-0000-0000-0000-000000000033"
+		page, err = repo.ListLearnerPlacements(ctx, "", query)
+		if err != nil || len(page.Items) != 1 || page.Items[0].PlacementID != "00000000-0000-0000-0000-000000000042" {
+			t.Fatalf("lesson query: %+v %v", page, err)
+		}
+		// Exercise staff creation, visibility and learner start against real Content and Assessment repositories.
+		if _, err = db.Exec(ctx, `DELETE FROM assessment_learning_placements WHERE id='00000000-0000-0000-0000-000000000041'`); err != nil {
+			t.Fatal(err)
+		}
+		service := assessmentapp.NewPlacementService(repo, assessmentapp.NewService(repo), contentpg.New(db, operationspg.NewAuditWriter()))
+		staff := identity.User{ID: "00000000-0000-0000-0000-000000000001", Roles: []identity.Role{identity.RoleAdmin}}
+		student := identity.User{ID: "00000000-0000-0000-0000-000000000002", Roles: []identity.Role{identity.RoleStudent}}
+		created, err := service.Create(ctx, staff, "00000000-0000-0000-0000-000000000007", assessment.PlacementWrite{Slot: assessment.PlacementCourse, PathID: query.PathID, SubjectID: query.SubjectID, CourseID: query.CourseID, AccessType: assessment.PlacementAccessFree, IsVisible: true})
+		if err != nil {
+			t.Fatalf("staff create: %v", err)
+		}
+		query.LessonID = ""
+		learner, err := service.Learner(ctx, student, query)
+		if err != nil || len(learner.Items) != 1 || learner.Items[0].PlacementID != created.ID || !learner.Items[0].AccessAllowed {
+			t.Fatalf("student sees free placement: %+v %v", learner, err)
+		}
+		hidden, err := service.Patch(ctx, staff, created.ID, assessment.PlacementPatch{ExpectedUpdatedAt: created.UpdatedAt, AccessType: created.AccessType, IsVisible: false})
+		if err != nil {
+			t.Fatalf("hide: %v", err)
+		}
+		learner, err = service.Learner(ctx, student, query)
+		if err != nil || len(learner.Items) != 0 {
+			t.Fatalf("hidden placement visible: %+v %v", learner, err)
+		}
+		if _, err = service.Start(ctx, student, created.ID, "hidden-test-key"); !errors.Is(err, assessmentapp.ErrForbidden) {
+			t.Fatalf("hidden start: %v", err)
+		}
+		shown, err := service.Patch(ctx, staff, hidden.ID, assessment.PlacementPatch{ExpectedUpdatedAt: hidden.UpdatedAt, AccessType: hidden.AccessType, IsVisible: true})
+		if err != nil {
+			t.Fatalf("show: %v", err)
+		}
+		attempt, err := service.Start(ctx, student, shown.ID, "course-test-key")
+		if err != nil || attempt.ID == "" {
+			t.Fatalf("student start: %+v %v", attempt, err)
+		}
+	})
 	defs := assessmentapp.NewService(repo)
 	attempts := assessmentapp.NewAttemptService(repo)
 	place := assessmentapp.NewPlacementService(repo, defs, preparedVisibleContent{})
@@ -288,7 +348,7 @@ INSERT INTO prepared_quiz_target_users VALUES ('00000000-0000-0000-0000-00000000
 	}
 	assert("reactivate", statusCall(administrator, `{"enabled":true}`, "test-csrf"), 200)
 	// The down migration must refuse to remove activation safety while live.
-	down, err := os.ReadFile("../../../../migrations/000058_prepared_quiz_activation.down.sql")
+	down, err := os.ReadFile("../../../../migrations/000060_prepared_quiz_activation.down.sql")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -160,7 +160,14 @@ func (s *PlacementService) List(ctx context.Context, actor identity.User, assess
 	if limit > 100 {
 		limit = 100
 	}
-	return s.repo.ListPlacements(ctx, assessmentID, page, limit)
+	result, err := s.repo.ListPlacements(ctx, assessmentID, page, limit)
+	if err != nil {
+		return assessment.PlacementPage{}, err
+	}
+	if result.Items == nil {
+		result.Items = []assessment.Placement{}
+	}
+	return result, nil
 }
 
 func (s *PlacementService) Patch(ctx context.Context, actor identity.User, placementID string, patch assessment.PlacementPatch) (assessment.Placement, error) {
