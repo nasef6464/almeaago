@@ -45,3 +45,29 @@ test('course admin creates and manages a real placement and it survives reload',
   await expect(page.getByLabel('صلاحية الاختبار المرتبط')).toHaveValue('package');
   expect(creates).toBe(2);
 });
+
+
+test('admin attaches a placement to an approved lesson in the course', async ({ page }) => {
+  test.setTimeout(120_000);
+  const course = {id:'course-1',pathId:'path-1',subjectId:'sub-1',title:'دورة',workflowStatus:'approved',isPublished:true,isVisible:true,revision:1,level:'beginner',presentation:{},skillIds:['skill-1']};
+  await page.route('**/api/v1/taxonomy/bootstrap?phase=full', r => r.fulfill({json:{paths:[{id:'path-1',name:'مسار'}],subjects:[{id:'sub-1',pathId:'path-1',name:'مادة'}],skills:[{id:'skill-1',subjectId:'sub-1',name:'مهارة'}]}}));
+  await page.route('**/api/v1/courses/course-1/modules', r => r.fulfill({json:{modules:[{id:'module-1',courseId:'course-1',title:'قسم',status:'active',sortOrder:1,lessons:[{lessonId:'lesson-a',sortOrder:1,isPreview:false}]}]}}));
+  await page.route('**/api/v1/lessons?*', r => r.fulfill({json:{items:[{id:'lesson-a',title:'الدرس الأول',workflowStatus:'approved',isVisible:true}],hasMore:false}}));
+  await page.route('**/api/v1/assessments?*', r => r.fulfill({json:{items:[{id:'quiz-1',title:'اختبار أصلي',isPublished:true,kind:'normal',code:'Q1'}],hasMore:false}}));
+  await page.route('**/api/v1/courses/course-1', r => r.fulfill({json:{course}}));
+  let placement:any = null;
+  await page.route('**/api/v1/assessments/quiz-1/placements*', r => {
+    if (r.request().method() === 'GET') return r.fulfill({json:{items:placement?[placement]:[],hasMore:false}});
+    const body=r.request().postDataJSON(); expect(body).toMatchObject({slot:'course',courseId:'course-1',lessonId:'lesson-a',accessType:'package'});
+    placement={...body,id:'lesson-placement',assessmentId:'quiz-1',updatedAt:'2026-01-01T00:00:00Z'};
+    return r.fulfill({json:{placement}});
+  });
+  await page.goto('/tests/e2e/fixtures/course-editor-files.html');
+  await page.getByRole('button',{name:/الاختبارات المرتبطة/}).click();
+  await page.getByLabel('اختبار الدورة').selectOption('quiz-1');
+  await page.getByLabel('مكان الاختبار في الدورة').selectOption('lesson-a');
+  await page.getByLabel('صلاحية الاختبار الجديد').selectOption('package');
+  await page.getByRole('button',{name:'تفعيل الاختبار في الدورة'}).click();
+  await expect(page.getByText('ظاهر للطلاب')).toBeVisible();
+  await expect(page.getByLabel('صلاحية الاختبار المرتبط')).toHaveValue('package');
+});

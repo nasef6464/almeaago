@@ -143,19 +143,6 @@ export function CourseLearningPage() {
   const activeDetail = loadedScope === selectedScope ? detail : null;
   const activeProgress = loadedScope === selectedScope ? progress : null;
 
-  const parsedQuizInfo = useMemo(() => {
-    if (!activeDetail) return null;
-    if (activeDetail.type === 'quiz') {
-      try {
-        const obj = JSON.parse(activeDetail.contentText);
-        return obj && typeof obj === 'object' && obj.quizId ? obj : { quizId: activeDetail.id };
-      } catch {
-        return { quizId: activeDetail.id };
-      }
-    }
-    return null;
-  }, [activeDetail]);
-
   const parsedMeetingInfo = useMemo(() => {
     if (!activeDetail) return null;
     const isLive = ['live_youtube', 'zoom', 'google_meet', 'teams'].includes(activeDetail.type);
@@ -823,7 +810,7 @@ export function CourseLearningPage() {
                           يرجى التواصل مع إدارة المسار أو المدرب لإضافة محتوى الفيديو المعتمد لهذا الدرس.
                         </p>
                       </div>
-                    ) : (activeDetail.type === 'quiz' || parsedQuizInfo) ? (
+                    ) : activeDetail.type === 'quiz' ? (
                       <div className="p-8 text-center max-w-lg mx-auto">
                         <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto mb-4 border border-amber-500/20">
                           <Award size={36} />
@@ -837,13 +824,7 @@ export function CourseLearningPage() {
                         <p className={`text-xs font-bold leading-6 mb-6 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
                           {activeDetail.description || 'اختبار لقياس فهم واستيعاب المهارات المستهدفة في هذه الوحدة من الدورة.'}
                         </p>
-                        <Link
-                          to={`/assessments/${parsedQuizInfo?.quizId || activeDetail.id}/start`}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-500 hover:bg-amber-600 px-6 py-3 text-sm font-black text-slate-950 shadow-md transition"
-                        >
-                          بدء الاختبار الآن
-                          <ArrowRight size={17} />
-                        </Link>
+                        <CourseAssessmentList courseId={courseId} pathId={course.pathId || ''} subjectId={course.subjectId || ''} lessonId={lessonId} returnTo={`/learning/courses/${encodeURIComponent(courseId)}?lesson=${encodeURIComponent(lessonId)}`} />
                       </div>
                     ) : ['live_youtube', 'zoom', 'google_meet', 'teams'].includes(activeDetail.type) ? (
                       <div className="p-8 text-center max-w-lg mx-auto">
@@ -977,6 +958,8 @@ export function CourseLearningPage() {
                     </div>
                   </div>
                 </article>
+
+                {activeDetail.type !== 'quiz' && <CourseAssessmentList courseId={courseId} pathId={course.pathId || ''} subjectId={course.subjectId || ''} lessonId={lessonId} hideIfEmpty returnTo={`/learning/courses/${encodeURIComponent(courseId)}?lesson=${encodeURIComponent(lessonId)}`} />}
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <button

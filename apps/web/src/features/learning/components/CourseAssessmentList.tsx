@@ -4,12 +4,12 @@ import { useAuth } from '../../auth/state/AuthProvider';
 import { assessmentPlacementClient } from '../../assessment/api/assessment-placement-client';
 import type { LearnerAssessmentPlacement } from '../../assessment/api/assessment-types';
 
-type Props = { courseId:string; pathId:string; subjectId:string; returnTo:string };
+type Props = { courseId:string; pathId:string; subjectId:string; returnTo:string; lessonId?:string; hideIfEmpty?:boolean };
 const sameId = (value:unknown, expected:string) => typeof value === 'string' && value.toLowerCase() === expected.toLowerCase();
 
 // Course placement is authoritative: the same exam may have a different
 // entitlement in another location. Never start it through the direct route.
-export function CourseAssessmentList({courseId,pathId,subjectId,returnTo}:Props) {
+export function CourseAssessmentList({courseId,pathId,subjectId,returnTo,lessonId='',hideIfEmpty=false}:Props) {
   const {user,loading,getCsrfToken} = useAuth();
   const navigate = useNavigate();
   const [rows,setRows] = useState<LearnerAssessmentPlacement[]>([]);
@@ -20,31 +20,31 @@ export function CourseAssessmentList({courseId,pathId,subjectId,returnTo}:Props)
   const [hasMore,setHasMore] = useState(false);
   const [revision,setRevision] = useState(0);
   const [starting,setStarting] = useState('');
-  const startRef = useRef(false);
-  const scope = JSON.stringify([user?.id || '',courseId,pathId,subjectId]);
+  const startRef = useRef('');
+  const scope = JSON.stringify([user?.id || '',courseId,pathId,subjectId,lessonId]);
   const scopeRef = useRef(scope); scopeRef.current = scope;
   const isStudent = Boolean(user?.roles?.includes('student'));
   const visibleRows = loadedScope === scope ? rows : [];
-  useEffect(() => { setRows([]); setLoadedScope(''); setPage(1); setHasMore(false); setError(''); }, [scope]);
+  useEffect(() => { setRows([]); setLoadedScope(''); setPage(1); setHasMore(false); setError(''); setStarting(''); }, [scope]);
   useEffect(() => {
     if (loading || (user && !isStudent) || !courseId || !pathId || !subjectId) { setBusy(false); return; }
     const controller = new AbortController();
     const currentScope = scope;
     setBusy(true); setError('');
-    assessmentPlacementClient.available({slot:'course',pathId,subjectId,courseId,page,limit:30},controller.signal)
+    assessmentPlacementClient.available({slot:'course',pathId,subjectId,courseId,lessonId,page,limit:30},controller.signal)
       .then(result => {
         if (controller.signal.aborted || scopeRef.current !== currentScope) return;
-        if (!Array.isArray(result.items) || result.items.some(item => item.slot !== 'course' || Boolean(item.lessonId) || !sameId(item.courseId,courseId) || !sameId(item.pathId,pathId) || !sameId(item.subjectId,subjectId))) throw new Error('تعذر التحقق من نطاق اختبارات الدورة.');
+        if (!Array.isArray(result.items) || result.items.some(item => item.slot !== 'course' || (lessonId ? !sameId(item.lessonId,lessonId) : Boolean(item.lessonId)) || !sameId(item.courseId,courseId) || !sameId(item.pathId,pathId) || !sameId(item.subjectId,subjectId))) throw new Error('تعذر التحقق من نطاق اختبارات الدورة.');
         setRows(previous => page === 1 ? result.items : [...previous,...result.items.filter(item => !previous.some(old => old.placementId === item.placementId))]);
         setLoadedScope(currentScope);
         setHasMore(result.hasMore);
       }).catch(cause => { if (!controller.signal.aborted && scopeRef.current === currentScope) { setError(cause instanceof Error ? cause.message : 'تعذر تحميل اختبارات الدورة.'); if(page===1) setRows([]); } })
       .finally(() => { if (!controller.signal.aborted && scopeRef.current === currentScope) setBusy(false); });
     return () => controller.abort();
-  },[loading,isStudent,user,courseId,pathId,subjectId,page,revision,scope]);
+  },[loading,isStudent,user,courseId,pathId,subjectId,lessonId,page,revision,scope]);
   const start = useCallback(async (row:LearnerAssessmentPlacement) => {
-    if (startRef.current || !row.accessAllowed || !row.canStart || !user) return;
-    startRef.current=true; setStarting(row.placementId); setError('');
+    if (startRef.current === scope || !row.accessAllowed || !row.canStart || !user) return;
+    startRef.current=scope; setStarting(row.placementId); setError('');
     const currentScope=scope;
     try {
       const storageKey=`course-placement-start:${user.id}:${row.placementId}`;
@@ -56,11 +56,12 @@ export function CourseAssessmentList({courseId,pathId,subjectId,returnTo}:Props)
       sessionStorage.removeItem(storageKey);
       navigate(`/assessment-attempts/${encodeURIComponent(result.attempt.id)}?returnTo=${encodeURIComponent(returnTo)}`);
     } catch (cause) { if (scopeRef.current === currentScope) setError(cause instanceof Error ? cause.message : 'تعذر بدء الاختبار.'); }
-    finally { startRef.current=false; if (scopeRef.current === currentScope) setStarting(''); }
+    finally { if (startRef.current === currentScope) startRef.current=''; if (scopeRef.current === currentScope) setStarting(''); }
   },[user,scope,getCsrfToken,navigate,returnTo]);
   if (loading) return <p className="p-4 text-sm">جارٍ التحقق من الجلسة...</p>;
   if (user && !isStudent) return <p className="p-4 text-sm font-bold text-slate-600">ابدأ الاختبار من حساب طالب.</p>;
   if (!pathId || !subjectId) return <p role="alert" className="p-4 text-sm font-bold text-rose-700">تعذر تحديد مسار ومادة الدورة. أعد تحميل الصفحة.</p>;
+  if (hideIfEmpty && loadedScope === scope && !busy && !error && visibleRows.length === 0) return null;
   return <div className="space-y-3">
     {!user && <p className="text-sm font-bold text-slate-600">تظهر الاختبارات المتاحة هنا؛ سجّل الدخول بحساب طالب للبدء. <Link className="text-indigo-700 underline" to={`/login?returnTo=${encodeURIComponent(returnTo)}`}>تسجيل الدخول</Link></p>}
     {error && <div role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error} <button type="button" onClick={()=>setRevision(value=>value+1)} className="font-black underline">إعادة المحاولة</button></div>}

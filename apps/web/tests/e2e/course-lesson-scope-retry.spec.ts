@@ -190,6 +190,7 @@ test('course exam starts only through its authorized course placement', async ({
   let starts = 0, directStarts = 0;
   await page.route('**/api/v1/assessment-placements/available?*', route => {
     const q = new URL(route.request().url()).searchParams;
+    if (q.get('lessonId')) return json(route,{items:[],page:1,hasMore:false});
     expect([q.get('slot'),q.get('courseId'),q.get('pathId'),q.get('subjectId')]).toEqual(['course','course-1','path-1','sub-1']);
     return json(route,{items:[{placementId:'placement-1',assessmentId:'real-quiz',title:'اختبار مرتبط',slot:'course',courseId:'course-1',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true}],page:1,hasMore:false});
   });
@@ -213,7 +214,7 @@ test('course assessment rejects another course scope and never starts it', async
   test.setTimeout(120_000);
   await setup(page);
   let starts = 0;
-  await page.route('**/api/v1/assessment-placements/available?*', route => json(route,{items:[{placementId:'wrong',assessmentId:'quiz',title:'غير صحيح',slot:'course',courseId:'another-course',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true}],page:1,hasMore:false}));
+  await page.route('**/api/v1/assessment-placements/available?*', route => new URL(route.request().url()).searchParams.has('lessonId') ? json(route,{items:[],page:1,hasMore:false}) : json(route,{items:[{placementId:'wrong',assessmentId:'quiz',title:'غير صحيح',slot:'course',courseId:'another-course',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true}],page:1,hasMore:false}));
   await page.route('**/api/v1/assessment-placements/*/start', route => {starts++; return json(route,{},500);});
   await page.goto('/learning/courses/course-1');
   await page.getByRole('button',{name:'اختبارات الدورة'}).click();
@@ -333,7 +334,7 @@ test('course placement retry reuses the same start key after a failed response',
   test.setTimeout(120_000);
   await setup(page);
   const keys: string[] = [];
-  await page.route('**/api/v1/assessment-placements/available?*', route => json(route,{items:[{placementId:'p1',assessmentId:'q1',title:'اختبار الدورة',slot:'course',courseId:'course-1',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true}],page:1,hasMore:false}));
+  await page.route('**/api/v1/assessment-placements/available?*', route => new URL(route.request().url()).searchParams.has('lessonId') ? json(route,{items:[],page:1,hasMore:false}) : json(route,{items:[{placementId:'p1',assessmentId:'q1',title:'اختبار الدورة',slot:'course',courseId:'course-1',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true}],page:1,hasMore:false}));
   await page.route('**/api/v1/assessment-placements/p1/start', route => {
     keys.push(route.request().postDataJSON().startKey);
     return keys.length === 1 ? json(route,{message:'تعذر البدء'},503) : json(route,{attempt:{id:'attempt-1',assessmentId:'q1'}});
@@ -346,4 +347,35 @@ test('course placement retry reuses the same start key after a failed response',
   await expect(page).toHaveURL(/\/assessment-attempts\/attempt-1\?/);
   expect(keys).toHaveLength(2);
   expect(keys[0]).toBe(keys[1]);
+});
+
+
+test('lesson quiz starts from the exact lesson placement, not the direct assessment route', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a', route => json(route, {lesson:{...detail('lesson-a'),type:'quiz',contentText:JSON.stringify({quizId:'quiz-lesson'})}}));
+  let direct = 0, starts = 0;
+  await page.route('**/api/v1/assessment-placements/available?*', route => {
+    const q = new URL(route.request().url()).searchParams;
+    expect(q.get('lessonId')).toBe('lesson-a');
+    return json(route,{items:[{placementId:'lesson-placement',assessmentId:'quiz-lesson',title:'اختبار الدرس',slot:'course',courseId:'course-1',lessonId:'lesson-a',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true}],page:1,hasMore:false});
+  });
+  await page.route('**/api/v1/assessment-placements/lesson-placement/start', route => {starts++; return json(route,{attempt:{id:'lesson-attempt',assessmentId:'quiz-lesson'}})});
+  await page.route('**/api/v1/assessments/quiz-lesson/attempts', route => {direct++; return json(route,{},500)});
+  await page.goto('/learning/courses/course-1?lesson=lesson-a');
+  await page.getByRole('button',{name:'بدء الاختبار',exact:true}).click();
+  await expect(page).toHaveURL(/assessment-attempts\/lesson-attempt/);
+  expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/learning/courses/course-1?lesson=lesson-a');
+  expect(starts).toBe(1); expect(direct).toBe(0);
+});
+
+
+test('lesson assessment rejects a placement for a different lesson', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a', route => json(route, {lesson:{...detail('lesson-a'),type:'quiz',contentText:JSON.stringify({quizId:'quiz-lesson'})}}));
+  await page.route('**/api/v1/assessment-placements/available?*', route => json(route,{items:[{placementId:'wrong-lesson',assessmentId:'quiz-lesson',title:'غير صحيح',slot:'course',courseId:'course-1',lessonId:'lesson-b',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true}],page:1,hasMore:false}));
+  await page.goto('/learning/courses/course-1?lesson=lesson-a');
+  await expect(page.getByRole('alert')).toContainText('تعذر التحقق من نطاق اختبارات الدورة');
+  await expect(page.getByRole('button',{name:'بدء الاختبار',exact:true})).toHaveCount(0);
 });

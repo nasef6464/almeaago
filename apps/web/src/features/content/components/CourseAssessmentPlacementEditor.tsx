@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { assessmentPlacementClient } from '../../assessment/api/assessment-placement-client';
 import type { AssessmentPlacement, AssessmentPlacementAccessType, AssessmentSummary } from '../../assessment/api/assessment-types';
 
-type Props = { courseId: string; pathId: string; subjectId: string; courseReady: boolean; assessments: AssessmentSummary[]; getCsrfToken(): Promise<string> };
+type Props = { courseId: string; pathId: string; subjectId: string; courseReady: boolean; assessments: AssessmentSummary[]; lessons: { id:string; title:string }[]; getCsrfToken(): Promise<string> };
 const equalId = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
 // Placement writes belong to Assessment; course presentation is not an access grant.
-export function CourseAssessmentPlacementEditor({ courseId, pathId, subjectId, courseReady, assessments, getCsrfToken }: Props) {
+export function CourseAssessmentPlacementEditor({ courseId, pathId, subjectId, courseReady, assessments, lessons, getCsrfToken }: Props) {
   const [assessmentId, setAssessmentId] = useState('');
+  const [lessonId, setLessonId] = useState('');
   const [rows, setRows] = useState<AssessmentPlacement[]>([]);
   const [access, setAccess] = useState<AssessmentPlacementAccessType>('inherit');
   const [busy, setBusy] = useState(false);
@@ -18,7 +19,7 @@ export function CourseAssessmentPlacementEditor({ courseId, pathId, subjectId, c
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     setRows([]); setLoaded(false); setError('');
-    if (!assessmentId) return;
+    if (!assessmentId) { setBusy(false); return; }
     const controller = new AbortController();
     setBusy(true);
     (async () => {
@@ -32,18 +33,18 @@ export function CourseAssessmentPlacementEditor({ courseId, pathId, subjectId, c
       throw new Error('عدد مواضع الاختبار كبير؛ أدر المواضع من مركز الاختبارات.');
     })().then(items => {
       if (controller.signal.aborted) return;
-      setRows(items.filter(row => row.slot === 'course' && equalId(row.courseId, courseId) && equalId(row.pathId, pathId) && equalId(row.subjectId, subjectId) && !row.lessonId));
+      setRows(items.filter(row => row.slot === 'course' && equalId(row.courseId, courseId) && equalId(row.pathId, pathId) && equalId(row.subjectId, subjectId) && (lessonId ? equalId(row.lessonId, lessonId) : !row.lessonId)));
       setLoaded(true);
     }).catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'تعذر تحميل مواضع الاختبار.'); })
       .finally(() => { if (!controller.signal.aborted) setBusy(false); });
     return () => controller.abort();
-  }, [assessmentId, courseId, pathId, subjectId, revision]);
+  }, [assessmentId, courseId, pathId, subjectId, lessonId, revision]);
   async function create() {
     if (!courseReady || !assessmentId || !loaded || rows.length || saving) return;
     setSaving(true); setError(''); setNotice('');
     try {
-      await assessmentPlacementClient.create(assessmentId, { slot: 'course', pathId, subjectId, courseId, lessonId: '', topicId: '', accessType: access, isVisible: true, sortOrder: 0 }, await getCsrfToken());
-      setNotice('تم ربط الاختبار بالدورة وتفعيل ظهوره.'); setRevision(value => value + 1);
+      await assessmentPlacementClient.create(assessmentId, { slot: 'course', pathId, subjectId, courseId, lessonId, topicId: '', accessType: access, isVisible: true, sortOrder: 0 }, await getCsrfToken());
+      setNotice('تم تفعيل موضع الاختبار بنجاح.'); setRevision(value => value + 1);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'تعذر ربط الاختبار بالدورة.'); }
     finally { setSaving(false); }
   }
@@ -65,6 +66,12 @@ export function CourseAssessmentPlacementEditor({ courseId, pathId, subjectId, c
         <option value="">اختر اختبارًا منشورًا</option>{assessments.filter(item => item.isPublished).map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
       </select>
     </label>
+    <label className="block text-sm font-bold">مكان ظهور الاختبار
+      <select aria-label="مكان الاختبار في الدورة" disabled={saving} value={lessonId} onChange={event => { setRows([]); setLoaded(false); setLessonId(event.target.value); setNotice(''); }} className="mt-1 w-full rounded-xl border p-3">
+        <option value="">الدورة كاملة</option>{lessons.map(lesson => <option key={lesson.id} value={lesson.id}>{lesson.title}</option>)}
+      </select>
+    </label>
+    {lessonId && <p className="text-xs text-gray-600">يجب أن يكون الدرس معتمدًا وظاهرًا ومضافًا لقسم نشط في الدورة.</p>}
     {busy && <p role="status">جاري تحميل مواضع الاختبار...</p>}
     {error && <p role="alert" className="text-sm font-bold text-red-700">{error} <button type="button" className="underline" onClick={() => setRevision(value => value + 1)}>إعادة المحاولة</button></p>}
     {notice && <p role="status" className="text-sm font-bold text-emerald-700">{notice}</p>}

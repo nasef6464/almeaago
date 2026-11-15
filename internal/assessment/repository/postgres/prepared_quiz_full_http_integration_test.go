@@ -19,6 +19,8 @@ import (
 	assessmentapp "github.com/nasef6464/almeaago/internal/assessment/application"
 	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 	assessmenthttp "github.com/nasef6464/almeaago/internal/assessment/transport/http"
+	commerceapp "github.com/nasef6464/almeaago/internal/commerce/application"
+	commercepg "github.com/nasef6464/almeaago/internal/commerce/repository/postgres"
 	contentpg "github.com/nasef6464/almeaago/internal/content/repository/postgres"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	operationspg "github.com/nasef6464/almeaago/internal/operations/repository/postgres"
@@ -112,6 +114,8 @@ INSERT INTO prepared_quiz_target_users VALUES ('00000000-0000-0000-0000-00000000
 		_, err := db.Exec(ctx, `
 INSERT INTO courses(id,path_id,subject_id,title,workflow_status,is_published,is_visible,owner_type) VALUES ('00000000-0000-0000-0000-000000000031','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','Course','approved',true,true,'platform');
 INSERT INTO lessons(id,path_id,subject_id,title,lesson_type,workflow_status,is_visible) VALUES ('00000000-0000-0000-0000-000000000033','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','Lesson','text','approved',true);
+INSERT INTO course_modules(id,course_id,title) VALUES ('00000000-0000-0000-0000-000000000032','00000000-0000-0000-0000-000000000031','Module');
+INSERT INTO course_lessons(module_id,lesson_id,sort_order,is_preview) VALUES ('00000000-0000-0000-0000-000000000032','00000000-0000-0000-0000-000000000033',1,false);
 INSERT INTO assessment_learning_placements(id,assessment_id,assessment_version,slot,path_id,subject_id,course_id,lesson_id) VALUES
  ('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000007',1,'course','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000031',NULL),
  ('00000000-0000-0000-0000-000000000042','00000000-0000-0000-0000-000000000007',1,'course','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000031','00000000-0000-0000-0000-000000000033');`)
@@ -135,7 +139,7 @@ INSERT INTO assessment_learning_placements(id,assessment_id,assessment_version,s
 		if _, err = db.Exec(ctx, `DELETE FROM assessment_learning_placements WHERE id='00000000-0000-0000-0000-000000000041'`); err != nil {
 			t.Fatal(err)
 		}
-		service := assessmentapp.NewPlacementService(repo, assessmentapp.NewService(repo), contentpg.New(db, operationspg.NewAuditWriter()))
+		service := assessmentapp.NewPlacementServiceWithCommerce(repo, assessmentapp.NewService(repo), contentpg.New(db, operationspg.NewAuditWriter()), commerceapp.NewService(commercepg.New(db, operationspg.NewAuditWriter()), nil, nil, nil))
 		staff := identity.User{ID: "00000000-0000-0000-0000-000000000001", Roles: []identity.Role{identity.RoleAdmin}}
 		student := identity.User{ID: "00000000-0000-0000-0000-000000000002", Roles: []identity.Role{identity.RoleStudent}}
 		created, err := service.Create(ctx, staff, "00000000-0000-0000-0000-000000000007", assessment.PlacementWrite{Slot: assessment.PlacementCourse, PathID: query.PathID, SubjectID: query.SubjectID, CourseID: query.CourseID, AccessType: assessment.PlacementAccessFree, IsVisible: true})
@@ -165,6 +169,29 @@ INSERT INTO assessment_learning_placements(id,assessment_id,assessment_version,s
 		attempt, err := service.Start(ctx, student, shown.ID, "course-test-key")
 		if err != nil || attempt.ID == "" {
 			t.Fatalf("student start: %+v %v", attempt, err)
+		}
+		if _, err = db.Exec(ctx, `DELETE FROM assessment_learning_placements WHERE id='00000000-0000-0000-0000-000000000042'`); err != nil {
+			t.Fatal(err)
+		}
+		lessonPlacement, err := service.Create(ctx, staff, "00000000-0000-0000-0000-000000000007", assessment.PlacementWrite{Slot: assessment.PlacementCourse, PathID: query.PathID, SubjectID: query.SubjectID, CourseID: query.CourseID, LessonID: "00000000-0000-0000-0000-000000000033", AccessType: assessment.PlacementAccessPackage, IsVisible: true})
+		if err != nil {
+			t.Fatalf("staff create lesson placement: %v", err)
+		}
+		query.LessonID = lessonPlacement.LessonID
+		learner, err = service.Learner(ctx, student, query)
+		if err != nil || len(learner.Items) != 1 || learner.Items[0].AccessAllowed {
+			t.Fatalf("lesson package should be locked: %+v %v", learner, err)
+		}
+		if _, err = service.Start(ctx, student, lessonPlacement.ID, "locked-lesson-key"); !errors.Is(err, assessmentapp.ErrForbidden) {
+			t.Fatalf("locked lesson start: %v", err)
+		}
+		lessonPlacement, err = service.Patch(ctx, staff, lessonPlacement.ID, assessment.PlacementPatch{ExpectedUpdatedAt: lessonPlacement.UpdatedAt, AccessType: assessment.PlacementAccessFree, IsVisible: true})
+		if err != nil {
+			t.Fatalf("free lesson placement: %v", err)
+		}
+		attempt, err = service.Start(ctx, student, lessonPlacement.ID, "free-lesson-key")
+		if err != nil || attempt.ID == "" {
+			t.Fatalf("free lesson start: %+v %v", attempt, err)
 		}
 	})
 	defs := assessmentapp.NewService(repo)

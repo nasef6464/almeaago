@@ -445,7 +445,7 @@ export function CourseEditorPanel({
     if (!course || !canMutate) return;
     const quizId = selectedQuizByModule[module.id];
     if (!quizId) return;
-    const assessment = approvedAssessments.find((a) => a.id === quizId);
+    const assessment = approvedAssessments.find((a) => a.id === quizId && a.isPublished);
     if (!assessment) return;
 
     setMutating(true);
@@ -459,7 +459,7 @@ export function CourseEditorPanel({
         description: `اختبار تقييمي معتمد مستورد من مركز الاختبارات`,
         type: 'quiz',
         contentText: JSON.stringify({ quizId: assessment.id, kind: assessment.kind }),
-        durationSeconds: (assessment.currentVersion || 20) * 60,
+        durationSeconds: 0,
         videoUrl: '',
         videoSource: '',
         meetingUrl: '',
@@ -488,7 +488,7 @@ export function CourseEditorPanel({
       setCourse({ ...course, revision: result.courseRevision });
       await refreshModules();
       setSelectedQuizByModule((prev) => ({ ...prev, [module.id]: '' }));
-      setNotice(`تم ربط الاختبار "${assessment.title}" بالقسم بنجاح.`);
+      setNotice(`أُنشئ درس للاختبار "${assessment.title}". اعتمد الدرس، ثم انشر الدورة وفعّل موضع الاختبار لهذا الدرس من تبويب الاختبارات.`);
       onChanged();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'تعذر ربط الاختبار بالقسم.');
@@ -1028,7 +1028,7 @@ export function CourseEditorPanel({
           <div className="space-y-5 bg-gray-50 p-4 sm:p-6">
             {assessmentLoadError && <p role="alert" className="text-sm font-bold text-red-700">تعذر تحميل قائمة الاختبارات: {assessmentLoadError}. أعد تحميل الصفحة.</p>}
             {moreAssessments && <p className="text-sm text-amber-700">تُعرض أول 100 نتيجة؛ استخدم مركز الاختبارات للوصول لبقية الاختبارات.</p>}
-            {course && <CourseAssessmentPlacementEditor courseId={course.id} pathId={course.pathId} subjectId={course.subjectId} courseReady={course.workflowStatus === 'approved' && course.isPublished && course.isVisible} assessments={approvedAssessments} getCsrfToken={getCsrfToken} />}
+            {course && <CourseAssessmentPlacementEditor courseId={course.id} pathId={course.pathId} subjectId={course.subjectId} courseReady={course.workflowStatus === 'approved' && course.isPublished && course.isVisible} assessments={approvedAssessments} lessons={Array.from(new Map(modules.filter(module => module.status === 'active').flatMap(module => module.lessons.map(lesson => [lesson.lessonId, { id: lesson.lessonId, title: lessonName(lesson.lessonId) }] as const))).values())} getCsrfToken={getCsrfToken} />}
             {courseAssessments.length > 0 && <section className="space-y-2 rounded-3xl border bg-white p-5">
               <h3 className="font-black">بطاقات قديمة محفوظة</h3>
               <p className="text-sm text-gray-600">هذه بيانات وصفية سابقة؛ استخدم التفعيل أعلاه للتحكم في ظهور الاختبار وصلاحيته.</p>
@@ -1135,7 +1135,7 @@ export function CourseEditorPanel({
                       </div>
 
                       {/* Attach central assessment quiz */}
-                      {approvedAssessments.length > 0 ? (
+                      {approvedAssessments.some(quiz => quiz.isPublished) ? (
                         <div className="grid gap-2 md:grid-cols-[1fr_auto_auto] md:items-center bg-amber-50/50 p-2.5 rounded-xl border border-dashed border-amber-200">
                           <select
                             disabled={!canMutate || mutating}
@@ -1144,7 +1144,7 @@ export function CourseEditorPanel({
                             className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-bold disabled:bg-gray-50 text-gray-800"
                           >
                             <option value="">إرفاق اختبار معتمد من مركز الاختبارات (Quiz / Assessment)...</option>
-                            {approvedAssessments.map((quiz) => (
+                            {approvedAssessments.filter(quiz => quiz.isPublished).map((quiz) => (
                               <option key={quiz.id} value={quiz.id}>
                                 📝 {quiz.title} ({quiz.kind === 'mock' ? 'محاكي قياس' : 'تقييمي'} • {quiz.code})
                               </option>
