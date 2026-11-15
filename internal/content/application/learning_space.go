@@ -219,3 +219,16 @@ func (s *Service) LearnerCourseLesson(ctx context.Context, actor identity.User, 
 	}
 	return row, nil
 }
+
+// ResolveCourseLessonProgressTarget applies the same entitlement and preview
+// rules to progress as to the learner's actual lesson read.
+func (s *Service) ResolveCourseLessonProgressTarget(ctx context.Context, actor identity.User, courseID, lessonID string) (bool, string, int, error) {
+	row, err := s.LearnerCourseLesson(ctx, actor, courseID, lessonID)
+	if errors.Is(err, content.ErrNotFound) || errors.Is(err, ErrForbidden) {
+		return false, "", 0, nil
+	}
+	if err != nil {
+		return false, "", 0, err
+	}
+	return true, string(row.LessonType), row.DurationSeconds, nil
+}

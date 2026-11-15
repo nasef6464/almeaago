@@ -944,6 +944,55 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 		}
 		contentService := contentapp.NewServiceWithAuthorScope(contentRepo, contentRepo, courseCommerce)
 		learningHandler := contenthttp.NewLearningSpaces(contentService, auth)
+		var moduleID, paidLessonID, previewLessonID, paidVideoID string
+		if err := db.QueryRow(ctx, `INSERT INTO course_modules(course_id,title) VALUES($1,'progress module') RETURNING id::text`, courseID).Scan(&moduleID); err != nil {
+			t.Fatal(err)
+		}
+		for _, item := range []struct {
+			target  *string
+			title   string
+			kind    string
+			preview bool
+		}{{&paidLessonID, "paid lesson", "text", false}, {&previewLessonID, "preview lesson", "text", true}, {&paidVideoID, "paid video", "video", false}} {
+			if err := db.QueryRow(ctx, `INSERT INTO lessons(path_id,subject_id,title,lesson_type,duration_seconds,workflow_status,is_visible,is_locked) VALUES($1,$2,$3,$4,120,'approved',true,false) RETURNING id::text`, path, subject, item.title, item.kind).Scan(item.target); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec(ctx, `INSERT INTO course_lessons(module_id,lesson_id,sort_order,is_preview) VALUES($1,$2,0,$3)`, moduleID, *item.target, item.preview); err != nil {
+				t.Fatal(err)
+			}
+		}
+		progressService := learningapp.NewLessonProgressService(learningpg.New(db), contentRepo, contentService)
+		progressHandler := learninghttp.NewLessonProgress(progressService, auth)
+		progressCall := func(method, lessonID string) *httptest.ResponseRecorder {
+			t.Helper()
+			body := fmt.Sprintf(`{"contextType":"course","courseId":"%s"}`, courseID)
+			target := "/lessons/" + lessonID + "/complete"
+			if method == http.MethodGet {
+				target = "/lessons/" + lessonID + "?contextType=course&courseId=" + courseID
+			}
+			if method == http.MethodPut {
+				target = "/lessons/" + lessonID + "/video"
+				body = fmt.Sprintf(`{"contextType":"course","courseId":"%s","positionSeconds":10}`, courseID)
+			}
+			req := httptest.NewRequest(method, target, strings.NewReader(body))
+			req.AddCookie(&http.Cookie{Name: identitysession.CookieName, Value: studentToken})
+			req.Header.Set("X-CSRF-Token", studentCSRF)
+			w := httptest.NewRecorder()
+			progressHandler.ServeHTTP(w, req)
+			return w
+		}
+		if w := progressCall(http.MethodGet, paidLessonID); w.Code != http.StatusNotFound {
+			t.Fatalf("paid progress read before purchase: %d %s", w.Code, w.Body.String())
+		}
+		if w := progressCall(http.MethodPost, paidLessonID); w.Code != http.StatusNotFound {
+			t.Fatalf("paid completion before purchase: %d %s", w.Code, w.Body.String())
+		}
+		if w := progressCall(http.MethodPut, paidVideoID); w.Code != http.StatusNotFound {
+			t.Fatalf("paid video progress before purchase: %d %s", w.Code, w.Body.String())
+		}
+		if w := progressCall(http.MethodPost, previewLessonID); w.Code != http.StatusOK {
+			t.Fatalf("preview completion before purchase: %d %s", w.Code, w.Body.String())
+		}
 		check := func(token string, wantPaid bool) {
 			t.Helper()
 			req := httptest.NewRequest(http.MethodGet, "/courses/"+courseID, nil)
@@ -981,6 +1030,12 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 		}
 		check(studentToken, true)
 		check("", false)
+		if w := progressCall(http.MethodPost, paidLessonID); w.Code != http.StatusOK {
+			t.Fatalf("paid completion after purchase: %d %s", w.Code, w.Body.String())
+		}
+		if w := progressCall(http.MethodPut, paidVideoID); w.Code != http.StatusOK {
+			t.Fatalf("paid video progress after purchase: %d %s", w.Code, w.Body.String())
+		}
 	})
 	write.IsVisible = false
 	update := map[string]any{"expectedRevision": product.Product.Revision, "product": write}

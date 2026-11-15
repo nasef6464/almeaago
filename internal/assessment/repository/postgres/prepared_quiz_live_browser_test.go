@@ -30,6 +30,7 @@ import (
 	learningapp "github.com/nasef6464/almeaago/internal/learning/application"
 	"github.com/nasef6464/almeaago/internal/learning/navigation"
 	learningpg "github.com/nasef6464/almeaago/internal/learning/repository/postgres"
+	learninghttp "github.com/nasef6464/almeaago/internal/learning/transport/http"
 	operationspg "github.com/nasef6464/almeaago/internal/operations/repository/postgres"
 	"github.com/nasef6464/almeaago/internal/platform/security"
 	questionapp "github.com/nasef6464/almeaago/internal/questionbank/application"
@@ -141,6 +142,20 @@ INSERT INTO lessons(id,path_id,subject_id,title,lesson_type,video_url,video_sour
 INSERT INTO topic_lessons(topic_id,lesson_id,sort_order) VALUES ('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000024',1),('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000025',2);`)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if os.Getenv("PREPARED_COURSE_PROGRESS") == "1" {
+		_, err = db.Exec(ctx, `
+INSERT INTO courses(id,path_id,subject_id,title,workflow_status,is_published,is_visible,owner_type) VALUES ('00000000-0000-0000-0000-000000000031','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','دورة تقدم تجريبية','approved',true,true,'platform');
+INSERT INTO course_modules(id,course_id,title) VALUES ('00000000-0000-0000-0000-000000000032','00000000-0000-0000-0000-000000000031','قسم تجريبي');
+INSERT INTO lessons(id,path_id,subject_id,title,lesson_type,content_text,workflow_status,is_visible,is_locked) VALUES
+ ('00000000-0000-0000-0000-000000000033','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','الدرس التجريبي الأول','text','محتوى الدرس الأول','approved',true,false),
+ ('00000000-0000-0000-0000-000000000034','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','الدرس التجريبي الثاني','text','محتوى الدرس الثاني','approved',true,false);
+INSERT INTO course_lessons(module_id,lesson_id,sort_order,is_preview) VALUES
+ ('00000000-0000-0000-0000-000000000032','00000000-0000-0000-0000-000000000033',1,true),
+ ('00000000-0000-0000-0000-000000000032','00000000-0000-0000-0000-000000000034',2,true);`)
+		if err != nil {
+			t.Fatalf("course progress fixture: %v", err)
+		}
 	}
 	if os.Getenv("PREPARED_IMAGE_QUIZ") == "1" {
 		_, err = db.Exec(ctx, `
@@ -300,7 +315,9 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 	router.Mount("/api/v1/public-assessments", assessmenthttp.NewPublicSessions(sessions))
 	router.Mount("/api/v1/taxonomy", taxonomyhttp.New(taxonomyapp.NewService(taxonomypg.New(db)), auth))
 	contentRepo := contentpg.New(db, operationspg.NewAuditWriter())
-	router.Mount("/api/v1/learning-spaces", contenthttp.NewLearningSpaces(contentapp.NewService(contentRepo), auth))
+	contentService := contentapp.NewService(contentRepo)
+	router.Mount("/api/v1/learning-spaces", contenthttp.NewLearningSpaces(contentService, auth))
+	router.Mount("/api/v1/learning-progress", learninghttp.NewLessonProgress(learningapp.NewLessonProgressService(learningpg.New(db), contentRepo, contentService), auth))
 	router.Mount("/api/v1/learning/navigation-preferences", navigation.NewHandler(navigation.NewService(navigation.NewPostgres(db)), auth))
 	router.Mount("/api/v1/assessment-placements", assessmenthttp.NewPlacements(assessmentapp.NewPlacementService(repo, defs, contentRepo), auth))
 	server := httptest.NewServer(router)

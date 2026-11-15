@@ -330,3 +330,33 @@ test('اختبار باركود يعرض صورة السؤال وحروفه وي
   await page.getByRole('button', { name: 'إرسال الاختبار' }).click();
   await expect(page.getByText('100.0%')).toBeVisible({ timeout: 30_000 });
 });
+
+test('تقدم الدورة محفوظ لكل طالب على قاعدة محلية', async ({ page }) => {
+  test.skip(process.env.PREPARED_QUIZ_LIVE !== '1' || process.env.PREPARED_COURSE_PROGRESS !== '1', 'requires isolated course and local database');
+  test.setTimeout(180_000);
+  const courseId = '00000000-0000-0000-0000-000000000031';
+  const firstLesson = '00000000-0000-0000-0000-000000000033';
+  async function login(email: string) {
+    const response = await page.request.post('/api/v1/auth/login', {data:{email,password:process.env.PREPARED_PASSWORD}});
+    expect(response.status()).toBe(200);
+  }
+  await login(process.env.PREPARED_OWNER_EMAIL!);
+  await page.goto(`/learning/courses/${courseId}?lesson=${firstLesson}`, {waitUntil:'domcontentloaded'});
+  await expect(page.getByText('محتوى الدرس الأول')).toBeVisible({timeout:30000});
+  await page.getByRole('button',{name:'الشهادة والإنجاز'}).click();
+  await expect(page.getByText('0%',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'تحديد كمكتمل'}).click();
+  await expect(page.getByText('50%',{exact:true})).toBeVisible();
+  const response = await page.request.get(`/api/v1/learning-progress/courses/${courseId}/completed`);
+  expect(response.status()).toBe(200);
+  expect((await response.json()).completedLessonIds).toEqual([firstLesson]);
+  await page.reload();
+  await page.getByRole('button',{name:'الشهادة والإنجاز'}).click();
+  await expect(page.getByText('50%',{exact:true})).toBeVisible();
+  await login(process.env.PREPARED_OTHER_EMAIL!);
+  await page.reload();
+  await page.getByRole('button',{name:'الشهادة والإنجاز'}).click();
+  await expect(page.getByText('0%',{exact:true})).toBeVisible();
+  const other = await page.request.get(`/api/v1/learning-progress/courses/${courseId}/completed`);
+  expect((await other.json()).completedLessonIds).toEqual([]);
+});

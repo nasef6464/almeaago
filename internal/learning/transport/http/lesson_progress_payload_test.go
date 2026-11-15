@@ -65,6 +65,9 @@ type strictProgressContent struct{}
 func (strictProgressContent) ResolveLessonProgressTarget(context.Context, string, string, string) (bool, string, int, error) {
 	return true, "video", 120, nil
 }
+func (strictProgressContent) ResolveCourseLessonProgressTarget(context.Context, identity.User, string, string) (bool, string, int, error) {
+	return true, "video", 120, nil
+}
 
 func TestLessonProgressHTTPRejectsAmbiguousPayloadBeforeAnyWrite(t *testing.T) {
 	video := `{"contextType":"course","courseId":"course-1","positionSeconds":12}`

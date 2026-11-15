@@ -42,17 +42,24 @@ type LessonProgressContentResolver interface {
 type FoundationLessonProgressResolver interface {
 	ResolveFoundationLessonProgressTarget(context.Context, identity.User, string, string) (bool, string, int, error)
 }
+type CourseLessonProgressResolver interface {
+	ResolveCourseLessonProgressTarget(context.Context, identity.User, string, string) (bool, string, int, error)
+}
 
 type LessonProgressService struct {
 	repo       LessonProgressRepository
-	content    LessonProgressContentResolver
 	foundation FoundationLessonProgressResolver
+	course     CourseLessonProgressResolver
 }
 
 func NewLessonProgressService(repo LessonProgressRepository, content LessonProgressContentResolver, foundation ...FoundationLessonProgressResolver) *LessonProgressService {
-	s := &LessonProgressService{repo: repo, content: content}
+	s := &LessonProgressService{repo: repo}
 	if len(foundation) > 0 {
 		s.foundation = foundation[0]
+		s.course, _ = foundation[0].(CourseLessonProgressResolver)
+	}
+	if s.course == nil {
+		s.course, _ = content.(CourseLessonProgressResolver)
 	}
 	return s
 }
@@ -89,14 +96,10 @@ func (s *LessonProgressService) validateTarget(ctx context.Context, actor identi
 		}
 		return lessonType, duration, nil
 	}
-	if s.content == nil {
+	if s.course == nil {
 		return "", 0, ErrForbidden
 	}
-	contextID := in.CourseID
-	if in.ContextType == learning.LessonProgressFoundation {
-		contextID = in.TopicID
-	}
-	ok, lessonType, duration, err := s.content.ResolveLessonProgressTarget(ctx, string(in.ContextType), contextID, lessonID)
+	ok, lessonType, duration, err := s.course.ResolveCourseLessonProgressTarget(ctx, actor, in.CourseID, lessonID)
 	if err != nil {
 		return "", 0, err
 	}
