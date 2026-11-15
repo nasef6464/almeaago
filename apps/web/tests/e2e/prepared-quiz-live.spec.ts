@@ -360,3 +360,35 @@ test('تقدم الدورة محفوظ لكل طالب على قاعدة محل�
   const other = await page.request.get(`/api/v1/learning-progress/courses/${courseId}/completed`);
   expect((await other.json()).completedLessonIds).toEqual([]);
 });
+
+
+test('اختبار الدرس والنتيجة والمراجعة والعودة بقاعدة محلية', async ({ page }) => {
+  test.skip(process.env.PREPARED_QUIZ_LIVE !== '1' || process.env.PREPARED_COURSE_PROGRESS !== '1', 'requires isolated course and local database');
+  test.setTimeout(240_000);
+  page.setDefaultTimeout(45_000);
+  const courseId = '00000000-0000-0000-0000-000000000031';
+  const lessonId = '00000000-0000-0000-0000-000000000033';
+  const destination = `/learning/courses/${courseId}?lesson=${lessonId}`;
+  const login = await page.request.post('/api/v1/auth/login', {data:{email:process.env.PREPARED_OWNER_EMAIL,password:process.env.PREPARED_PASSWORD}});
+  expect(login.status()).toBe(200);
+  await page.goto(destination, {waitUntil:'domcontentloaded'});
+  await expect(page.getByText('محتوى الدرس الأول')).toBeVisible();
+  await expect(page.getByRole('heading',{name:'اختبار تجريبي جاهز'})).toBeVisible();
+  await page.getByRole('button',{name:'بدء الاختبار',exact:true}).click();
+  await expect(page).toHaveURL(/assessment-attempts\//);
+  await expect(page.getByRole('heading',{name:'سؤال تجريبي'})).toBeVisible();
+  await expect(page.getByRole('link',{name:'العودة إلى الدرس'})).toHaveAttribute('href',destination);
+  await page.getByRole('button',{name:'أ نعم',exact:true}).click();
+  await page.getByRole('button',{name:'إنهاء الاختبار',exact:true}).click();
+  await page.getByRole('button',{name:'نعم، قم بالتسليم'}).click();
+  await expect(page.getByRole('heading',{name:'تم تسليم الاختبار'})).toBeVisible();
+  await page.getByRole('link',{name:'عرض النتيجة والمراجعة'}).click();
+  await expect(page).toHaveURL(/assessment-results\//);
+  await expect(page.getByRole('heading',{name:'اختبار تجريبي جاهز'})).toBeVisible();
+  await expect(page.getByRole('link',{name:'العودة إلى الدرس'})).toHaveAttribute('href',destination);
+  await page.reload({waitUntil:'domcontentloaded'});
+  await expect(page.getByRole('link',{name:'العودة إلى الدرس'})).toHaveAttribute('href',destination);
+  await page.getByRole('link',{name:'العودة إلى الدرس'}).click();
+  await expect(page.getByRole('heading',{name:'الدرس التجريبي الأول',level:2})).toBeVisible();
+  await expect(page.getByText('محتوى الدرس الأول')).toBeVisible();
+});
