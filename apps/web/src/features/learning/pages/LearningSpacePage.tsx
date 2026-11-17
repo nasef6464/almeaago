@@ -35,6 +35,12 @@ import type { LearnerAssessmentPlacement } from '../../assessment/api/assessment
 
 type Tab = LearningTab;
 
+const subjectHeaderColors: Record<string, string> = { purple: '#7c3aed', violet: '#7c3aed', blue: '#2563eb', sky: '#0284c7', cyan: '#0891b2', teal: '#0d9488', emerald: '#10b981', green: '#16a34a', lime: '#65a30d', yellow: '#ca8a04', amber: '#f59e0b', orange: '#ea580c', red: '#dc2626', rose: '#f43f5e', pink: '#db2777', fuchsia: '#c026d3', indigo: '#4f46e5', slate: '#475569', gray: '#6b7280' };
+function subjectHeaderColor(value?: string): string {
+  if (value && /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(value)) return value;
+  return value ? subjectHeaderColors[value.toLowerCase()] || '#4f46e5' : '#4f46e5';
+}
+
 export function LearningSpacePage() {
   const { user, loading: authLoading, getCsrfToken } = useAuth();
   const { pathId: legacyPathId = '' } = useParams<{ pathId?: string }>();
@@ -91,6 +97,8 @@ export function LearningSpacePage() {
   const currentPath = resolvedPath || taxonomy.paths.find((item) => item.id === effectivePathId);
   const currentSubject = resolvedSubject || subjects.find((item) => item.id === effectiveSubjectId);
   const subjectIsInScope = subjects.some((item) => item.id === effectiveSubjectId);
+  const legacySubjectScreen = Boolean(legacyPathId && currentSubject && subjectIsInScope);
+  const currentLevel = taxonomy.levels?.find(level => level.id === selectedLevelId);
 
   const scopeKey = JSON.stringify([user?.id || '', effectivePathId, effectiveSubjectId]);
   const placementScope = `${user?.id || ''}:${effectivePathId}:${effectiveSubjectId}:${tab}`;
@@ -322,7 +330,7 @@ export function LearningSpacePage() {
 
   return (
     <main dir="rtl" data-testid="legacy-learning-space" className="min-h-screen bg-gray-50 pb-20 font-sans overflow-x-clip">
-      {!user && (
+      {!user && !legacySubjectScreen && (
         <div className="mx-auto max-w-7xl px-4 pt-4">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/90 p-3 sm:px-5 shadow-xs">
             <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-indigo-950">
@@ -338,7 +346,19 @@ export function LearningSpacePage() {
           </div>
         </div>
       )}
-      <section className="relative overflow-hidden bg-[#2e2b70] py-7 sm:py-9">
+      {legacySubjectScreen ? (
+        <header className="relative overflow-hidden py-4 text-white shadow-xs sm:py-5" style={{ backgroundColor: subjectHeaderColor(currentSubject?.color || currentPath?.color) }}>
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_55%)]" />
+          <div className="relative z-10 mx-auto flex max-w-7xl flex-col justify-between gap-3 px-4 sm:flex-row sm:items-center">
+            <div>
+              <div className="mb-1 flex items-center gap-2"><span className="inline-flex rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-white/95">{currentLevel ? `${currentLevel.name} • ` : ''}مسار {currentPath?.name}</span></div>
+              <h1 className="break-words text-xl font-black leading-tight sm:text-2xl lg:text-3xl">{currentSubject?.name}</h1>
+              <p className="mt-0.5 text-xs text-white/80 sm:text-sm">مساحة التعلم الذكية: تأسيس، تدريب، واختبارات</p>
+            </div>
+            <button type="button" onClick={() => { const query = new URLSearchParams(); if (selectedLevelId) query.set('level', selectedLevelId); navigate(`/category/${encodeURIComponent(effectivePathId)}${query.size ? `?${query}` : ''}`); }} className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-xs font-bold text-white/95 hover:bg-white/20 sm:self-center"><ChevronRight size={16} /> عودة لصفحة المسار</button>
+          </div>
+        </header>
+      ) : <section className="relative overflow-hidden bg-[#2e2b70] py-7 sm:py-9">
         <div className="relative z-10 mx-auto max-w-7xl px-4 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-black text-indigo-100 backdrop-blur-sm">
             <Award size={14} className="text-amber-300" />
@@ -371,10 +391,10 @@ export function LearningSpacePage() {
         </div>
         <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-indigo-400/10" />
         <div className="pointer-events-none absolute -bottom-12 left-8 h-32 w-32 rounded-full bg-amber-400/10" />
-      </section>
+      </section>}
 
       <div className="mx-auto mt-7 max-w-7xl px-4 sm:px-6 lg:px-8">
-        <section className="grid gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:grid-cols-2">
+        {!legacySubjectScreen && <section className="grid gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:grid-cols-2">
           <label className="relative">
             <Search className="pointer-events-none absolute right-3 top-3 text-gray-400" size={17} />
             <select
@@ -402,14 +422,15 @@ export function LearningSpacePage() {
               <option key={item.id} value={item.id}>{item.name}</option>
             ))}
           </select>
-        </section>
+        </section>}
 
-        <section className="mb-10 mt-7 flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white/95 p-1.5 shadow-sm">
+        <section className={`mb-10 mt-7 flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white/95 p-1.5 shadow-sm ${legacySubjectScreen ? 'mx-auto w-fit' : ''}`}>
           {tabs.map(([id, label, Icon]) => (
             <button
               key={id}
               type="button"
               onClick={() => changeTab(id)}
+              style={legacySubjectScreen && tab === id ? { backgroundColor: subjectHeaderColor(currentSubject?.color || currentPath?.color) } : undefined}
               className={`flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black transition-all sm:px-5 ${
                 tab === id
                   ? 'bg-indigo-600 text-white shadow-sm'
@@ -693,7 +714,7 @@ export function LearningSpacePage() {
               </div>
             ) : tab === 'questions' ? (
               <div className="col-span-full space-y-6">
-                <article className="flex flex-col gap-4 rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-900 to-[#2e2b70] p-6 text-white shadow-md sm:flex-row sm:items-center sm:justify-between sm:p-8">
+                {!legacySubjectScreen && <article className="flex flex-col gap-4 rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-900 to-[#2e2b70] p-6 text-white shadow-md sm:flex-row sm:items-center sm:justify-between sm:p-8">
                   <div className="space-y-2">
                     <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-black text-indigo-200">
                       <Sparkles size={14} className="text-amber-300" />
@@ -704,7 +725,7 @@ export function LearningSpacePage() {
                       تدرب على بنوك الأسئلة المصنفة حسب المهارات مع حلول مفصلة وتصحيح فوري وتدرج تلقائي.
                     </p>
                   </div>
-                </article>
+                </article>}
 
                 {startError && loadedPlacementScope === placementScope ? (
                   <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-bold text-rose-700">
@@ -723,7 +744,7 @@ export function LearningSpacePage() {
                     <p className="text-xs font-bold text-gray-500">جاري تحميل تدريبات وبنوك الأسئلة...</p>
                   </div>
                 ) : trainingPlacements.length > 0 ? (
-                  <div className="space-y-3">
+                  <div className={legacySubjectScreen ? 'mx-auto max-w-4xl space-y-3' : 'space-y-3'}>
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-1 pb-1">
                       <div className="text-xs font-black text-slate-700">
                         قائمة تدريبات المادة ({trainingPlacements.length})
@@ -765,7 +786,7 @@ export function LearningSpacePage() {
                       </div>
                     </div>
 
-                    <div className="grid gap-3.5 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className={legacySubjectScreen ? 'space-y-3' : 'grid gap-3.5 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3'}>
                       {trainingPlacements
                         .filter((row) => {
                           if (trainingFilter === 'free') return row.accessType === 'free';
@@ -781,9 +802,9 @@ export function LearningSpacePage() {
                           return (
                             <article
                               key={row.placementId}
-                              className="group flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-3 sm:p-3.5 shadow-xs transition hover:border-indigo-400 hover:shadow-md text-right min-h-[96px] sm:min-h-[104px]"
+                              className={`group flex flex-col rounded-2xl border border-slate-200/90 bg-white p-3 sm:p-3.5 shadow-xs transition hover:border-indigo-400 hover:shadow-md text-right ${legacySubjectScreen ? 'gap-3 sm:flex-row sm:items-center sm:justify-between' : 'justify-between min-h-[96px] sm:min-h-[104px]'}`}
                             >
-                              <div className="flex items-start gap-3 w-full">
+                              <div className={legacySubjectScreen ? 'flex min-w-0 flex-1 items-start gap-3' : 'flex items-start gap-3 w-full'}>
                                 <div
                                   className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-xs ${
                                     !row.accessAllowed
@@ -843,8 +864,8 @@ export function LearningSpacePage() {
                                 </div>
                               </div>
 
-                              <div className="mt-3 pt-2.5 border-t border-slate-100/80 flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-bold text-slate-400">v{row.assessmentVersion}</span>
+                              <div className={legacySubjectScreen ? 'flex items-center justify-end gap-2 sm:shrink-0' : 'mt-3 pt-2.5 border-t border-slate-100/80 flex items-center justify-between gap-2'}>
+                                {!legacySubjectScreen && <span className="text-[11px] font-bold text-slate-400">v{row.assessmentVersion}</span>}
                                 <button
                                   type="button"
                                   disabled={(!row.accessAllowed && row.accessReason !== 'package_required' && row.accessReason !== 'paid_required') || (row.accessAllowed && !row.canStart) || startingPlacementId === row.placementId}

@@ -133,16 +133,27 @@ test('foundation free filter reflects configured pricing rather than topic posit
 test('locked training leads to path packages without starting an attempt', async ({ page }) => {
   await setup(page);
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/api/v1/taxonomy/bootstrap?phase=core', route => json(route, { ...taxonomy, subjects: [{ ...taxonomy.subjects[0], color: '#f45b12' }, taxonomy.subjects[1]] }));
   let starts = 0;
   const title = 'تدريب ضمن باقة على المهارات الأساسية والمسائل الطويلة الجزء الأول';
   await page.route('**/api/v1/assessment-placements/available?**', route => json(route, { items: [{ placementId: 'paid-training', assessmentId: 'a1', assessmentVersion: 1, title, slot: 'training', pathId: 'p1', subjectId: 's1', accessType: 'package', baseAccessType: 'free', accessAllowed: false, accessReason: 'package_required', canStart: false, attemptCount: 0, maxAttempts: 3 }], hasMore: false }));
   await page.route('**/api/v1/assessment-placements/paid-training/start', route => { starts++; return json(route, {}, 500); });
   await page.goto('/category/p1?subject=s1&tab=questions');
+  const header = page.getByRole('heading', { name: 'كمي', exact: true }).locator('xpath=ancestor::header');
+  await expect(header).toHaveCSS('background-color', 'rgb(244, 91, 18)');
+  await expect(page.getByLabel('المسار')).toHaveCount(0);
+  await expect(page.getByLabel('المادة')).toHaveCount(0);
+  await expect(page.getByText('بنك الأسئلة والتدريب الذكي')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'التدريب', exact: true })).toHaveCSS('background-color', 'rgb(244, 91, 18)');
   const heading = page.getByRole('heading', { name: title });
   await expect(heading).toBeVisible();
   expect(await heading.evaluate(node => node.scrollWidth <= node.clientWidth && getComputedStyle(node).textOverflow !== 'ellipsis')).toBe(true);
   const card = heading.locator('xpath=ancestor::article');
   await page.screenshot({ path: 'test-results/learning-training-paid-mobile.png', fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const cardBox = await card.boundingBox();
+  expect(cardBox?.width).toBeGreaterThan(600);
+  await page.screenshot({ path: 'test-results/learning-training-paid-desktop.png', fullPage: true });
   await card.getByRole('button', { name: 'فتح الباقة' }).click();
   await expect(page).toHaveURL(/\/category\/p1\?tab=packages/);
   expect(starts).toBe(0);

@@ -55,7 +55,7 @@ test('legacy category deep link maps subject and tab onto canonical V2 learning 
  const calls=await mockLearning(page);
  await page.setViewportSize({width:820,height:1180});
  await page.goto('/category/p1?subject=s1&tab=skills');
- await expect(page.getByRole('heading',{name:'قدرات (كمي)'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'كمي',exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'التأسيس'})).toHaveClass(/bg-indigo-600/);
  await expect(page.getByText('أساسيات النسب')).toBeVisible();
  expect(calls()).toBe(1);
