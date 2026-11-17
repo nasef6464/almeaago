@@ -876,6 +876,30 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 	if !found {
 		t.Fatal("package missing from its public path catalog")
 	}
+	for _, check := range []struct {
+		kind string
+		want bool
+	}{{"banks", true}, {"foundation", true}, {"tests", false}} {
+		response := call(http.MethodGet, "/catalog/products?limit=100&pathId="+path+"&subjectId="+subject+"&contentType="+check.kind, "", "", nil)
+		if response.Code != http.StatusOK {
+			t.Fatalf("scoped %s catalog: %d %s", check.kind, response.Code, response.Body.String())
+		}
+		var scoped struct {
+			Items []commerce.PublicProduct `json:"items"`
+		}
+		if err = json.Unmarshal(response.Body.Bytes(), &scoped); err != nil {
+			t.Fatal(err)
+		}
+		present := false
+		for _, item := range scoped.Items {
+			if item.ID == product.Product.ID {
+				present = true
+			}
+		}
+		if present != check.want {
+			t.Fatalf("scoped %s package present=%v want=%v", check.kind, present, check.want)
+		}
+	}
 	create := commerce.CheckoutCreate{ProductID: product.Product.ID, PaymentMethod: commerce.PaymentTransfer, IdempotencyKey: "http-" + suffix, TransferSenderName: "اسم تجريبي", TransferSenderBank: "بنك تجريبي", TransferReference: "REF-123", TransferReceiptURL: "https://example.invalid/receipt"}
 	if w = call(http.MethodPost, "/checkout/requests", "", "", create); w.Code != http.StatusUnauthorized {
 		t.Fatalf("guest checkout %d", w.Code)

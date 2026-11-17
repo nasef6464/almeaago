@@ -27,17 +27,38 @@ type PublicCatalogRepository interface {
 	ListPublicCatalog(context.Context, int, int, string) (commerce.PublicCatalogPage, error)
 }
 
+type ScopedPublicCatalogRepository interface {
+	ListScopedPublicCatalog(context.Context, int, int, string, string, commerce.ContentType) (commerce.PublicCatalogPage, error)
+}
+
 func (s *Service) PublicCatalog(ctx context.Context, page, limit int, scope ...string) (commerce.PublicCatalogPage, error) {
 	page, limit, err := normalizePage(page, limit, 50)
 	if err != nil {
 		return commerce.PublicCatalogPage{}, err
 	}
-	pathID := ""
-	if len(scope) > 1 {
+	pathID, subjectID := "", ""
+	contentType := commerce.ContentType("")
+	if len(scope) > 3 {
 		return commerce.PublicCatalogPage{}, ErrInvalidInput
 	}
-	if len(scope) == 1 {
+	if len(scope) >= 1 {
 		pathID = strings.ToLower(strings.TrimSpace(scope[0]))
+	}
+	if len(scope) >= 2 {
+		subjectID = strings.ToLower(strings.TrimSpace(scope[1]))
+	}
+	if len(scope) >= 3 {
+		contentType = commerce.ContentType(strings.ToLower(strings.TrimSpace(scope[2])))
+	}
+	filtered := subjectID != "" || contentType != ""
+	if filtered && pathID == "" {
+		return commerce.PublicCatalogPage{}, ErrInvalidInput
+	}
+	if subjectID != "" && !publicPathIDPattern.MatchString(subjectID) {
+		return commerce.PublicCatalogPage{}, ErrInvalidInput
+	}
+	if contentType != "" && (!commerce.ValidContentType(contentType) || contentType == commerce.ContentAll) {
+		return commerce.PublicCatalogPage{}, ErrInvalidInput
 	}
 	if pathID != "" {
 		if !publicPathIDPattern.MatchString(pathID) {
@@ -46,7 +67,7 @@ func (s *Service) PublicCatalog(ctx context.Context, page, limit int, scope ...s
 		if s.taxonomy == nil {
 			return commerce.PublicCatalogPage{}, commerce.ErrNotFound
 		}
-		valid, e := s.publicScopeVisible(ctx, pathID, "")
+		valid, e := s.publicScopeVisible(ctx, pathID, subjectID)
 		if e != nil {
 			return commerce.PublicCatalogPage{}, e
 		}
@@ -58,7 +79,16 @@ func (s *Service) PublicCatalog(ctx context.Context, page, limit int, scope ...s
 	if !ok {
 		return commerce.PublicCatalogPage{}, ErrProviderUnavailable
 	}
-	out, err := repo.ListPublicCatalog(ctx, page, limit, pathID)
+	var out commerce.PublicCatalogPage
+	if filtered {
+		scoped, ok := s.repo.(ScopedPublicCatalogRepository)
+		if !ok {
+			return commerce.PublicCatalogPage{}, ErrProviderUnavailable
+		}
+		out, err = scoped.ListScopedPublicCatalog(ctx, page, limit, pathID, subjectID, contentType)
+	} else {
+		out, err = repo.ListPublicCatalog(ctx, page, limit, pathID)
+	}
 	if err != nil {
 		return out, err
 	}
@@ -96,7 +126,15 @@ func (s *Service) PublicCatalog(ctx context.Context, page, limit int, scope ...s
 		if !publicVisible {
 			continue
 		}
-		if pathID != "" {
+		if filtered {
+			matches, e := s.publicPackageMatchesScope(ctx, p, pathID, subjectID, contentType)
+			if e != nil {
+				return commerce.PublicCatalogPage{}, e
+			}
+			if !matches {
+				continue
+			}
+		} else if pathID != "" {
 			matches, e := s.publicProductMatchesPath(ctx, p, pathID)
 			if e != nil {
 				return commerce.PublicCatalogPage{}, e
@@ -118,6 +156,48 @@ func (s *Service) PublicCatalog(ctx context.Context, page, limit int, scope ...s
 	}
 	out.Items = eligible
 	return out, nil
+}
+
+// Match only grants that actually cover the requested scope under the current
+// entitlement resolver. Course-specific items require an exact course ID and
+// therefore cannot be recommended for a whole subject with this contract.
+func (s *Service) publicPackageMatchesScope(ctx context.Context, p commerce.Product, pathID, subjectID string, requested commerce.ContentType) (bool, error) {
+	if p.ProductType == commerce.ProductCourse || p.Package == nil {
+		return false, nil
+	}
+	for _, item := range p.Package.Items {
+		coversType := requested == "" || item.ContentType == "" || item.ContentType == commerce.ContentAll || item.ContentType == requested
+		switch item.ScopeType {
+		case commerce.ScopeAll:
+			return true, nil
+		case commerce.ScopeContentType:
+			if coversType {
+				return true, nil
+			}
+		case commerce.ScopePath:
+			if item.PathID == pathID && coversType {
+				return true, nil
+			}
+		case commerce.ScopeSubject:
+			if !coversType {
+				continue
+			}
+			if subjectID != "" {
+				if item.SubjectID == subjectID {
+					return true, nil
+				}
+				continue
+			}
+			visible, err := s.publicScopeVisible(ctx, pathID, item.SubjectID)
+			if err != nil {
+				return false, err
+			}
+			if visible {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 type PublicPaymentOptions struct {

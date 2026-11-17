@@ -11,5 +11,6 @@ export function safeReturnPath(value: string | null): string {
 export function returnPathLabel(path: string): string {
   if (path.startsWith('/learning/courses/')) return 'العودة إلى الدرس';
   if (path.startsWith('/course/')) return 'العودة إلى الدورة';
+  if ((path.startsWith('/category/') || path.startsWith('/learning?')) && !new URL(path, window.location.origin).searchParams.has('topic')) return 'العودة إلى ساحة التعلم';
   return 'العودة لموضوع التأسيس';
 }

@@ -17,10 +17,43 @@ import (
 // the actual public application service is exercised by these HTTP tests.
 type publicCatalogRouteRepository struct {
 	commerceapp.Repository
-	product commerce.Product
-	reads   int
-	page    int
-	limit   int
+	product       commerce.Product
+	reads         int
+	page          int
+	limit         int
+	scopedPath    string
+	scopedSubject string
+	scopedType    commerce.ContentType
+}
+
+func (r *publicCatalogRouteRepository) ListScopedPublicCatalog(_ context.Context, page, limit int, path, subject string, kind commerce.ContentType) (commerce.PublicCatalogPage, error) {
+	r.reads++
+	r.scopedPath, r.scopedSubject, r.scopedType = path, subject, kind
+	return commerce.PublicCatalogPage{Page: page, Limit: limit, Items: []commerce.PublicProduct{{ID: r.product.ID}}}, nil
+}
+
+type publicCatalogRouteTaxonomy struct{}
+
+func (publicCatalogRouteTaxonomy) ValidCommerceScope(context.Context, string, string) (bool, error) {
+	return true, nil
+}
+func (publicCatalogRouteTaxonomy) PublicCommerceScopeVisible(_ context.Context, path, subject string) (bool, error) {
+	return path == "00000000-0000-0000-0000-000000000001" && (subject == "" || subject == "00000000-0000-0000-0000-000000000002"), nil
+}
+
+func TestPublicCatalogRouteScopesSubjectAndContent(t *testing.T) {
+	repo := &publicCatalogRouteRepository{product: commerce.Product{ID: "membership-1", ProductType: commerce.ProductMembership, Name: "عضوية", Status: commerce.ProductActive, AccessMode: commerce.AccessPaid, PriceMinor: 100, Currency: "SAR", IsVisible: true, Package: &commerce.Package{PackageKind: commerce.PackageMembership, Items: []commerce.PackageItem{{ScopeType: commerce.ScopeAll}}}}}
+	h := New(commerceapp.NewService(repo, nil, publicCatalogRouteTaxonomy{}, nil), nil)
+	response := httptest.NewRecorder()
+	h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/catalog/products?pathId=00000000-0000-0000-0000-000000000001&subjectId=00000000-0000-0000-0000-000000000002&contentType=banks", nil))
+	if response.Code != http.StatusOK || repo.scopedPath != "00000000-0000-0000-0000-000000000001" || repo.scopedSubject != "00000000-0000-0000-0000-000000000002" || repo.scopedType != commerce.ContentBanks {
+		t.Fatalf("scoped route: status=%d repo=%+v body=%s", response.Code, repo, response.Body.String())
+	}
+	response = httptest.NewRecorder()
+	h.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/catalog/products?pathId=00000000-0000-0000-0000-000000000001&subjectId=00000000-0000-0000-0000-000000000099&contentType=banks", nil))
+	if response.Code != http.StatusNotFound || repo.reads != 1 {
+		t.Fatalf("foreign subject was accepted: status=%d reads=%d", response.Code, repo.reads)
+	}
 }
 
 func (r *publicCatalogRouteRepository) ListPublicCatalog(_ context.Context, page, limit int, _ string) (commerce.PublicCatalogPage, error) {
@@ -85,7 +118,7 @@ func TestPublicCatalogRouteUsesCanonicalProjectionWithoutAuthentication(t *testi
 func TestPublicCatalogRouteRetainsPaginationAndScopeValidation(t *testing.T) {
 	repo := &publicCatalogRouteRepository{}
 	handler := New(commerceapp.NewService(repo, nil, nil, nil), nil)
-	for _, query := range []string{"page=not-a-number", "limit=101", "page=-1", "pathId=not-a-uuid"} {
+	for _, query := range []string{"page=not-a-number", "limit=101", "page=-1", "pathId=not-a-uuid", "subjectId=not-a-uuid", "contentType=banks", "pathId=00000000-0000-0000-0000-000000000001&contentType=invalid", "pathId=00000000-0000-0000-0000-000000000001&contentType=all"} {
 		t.Run(query, func(t *testing.T) {
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/catalog/products?"+query, nil))

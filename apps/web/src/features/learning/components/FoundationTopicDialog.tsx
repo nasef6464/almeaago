@@ -8,6 +8,7 @@ import { SharedVideoPlayer } from './SharedVideoPlayer';
 import { lessonProgressClient } from '../api/learning-client';
 import { useAuth } from '../../auth/state/AuthProvider';
 import { assessmentPlacementClient } from '../../assessment/api/assessment-placement-client';
+import { subjectPackagesURL, type SubjectPackageContent } from '../../commerce/navigation/subjectPackages';
 import type { LearnerAssessmentPlacement } from '../../assessment/api/assessment-types';
 
 export type TopicContentTab = 'lessons' | 'quizzes' | 'support';
@@ -119,8 +120,7 @@ function FoundationTopicTraining({ pathId, subjectId, topicId }: { pathId: strin
   const start = async (placement: LearnerAssessmentPlacement) => {
     if (!ready || !current) return;
     if (!placement.accessAllowed && (placement.accessReason === 'package_required' || placement.accessReason === 'paid_required')) {
-      const query = new URLSearchParams({ tab: 'packages', returnTo: location.pathname + location.search + location.hash });
-      navigate(`/category/${encodeURIComponent(pathId)}?${query}`);
+      navigate(subjectPackagesURL(pathId, subjectId, 'foundation', location.pathname + location.search + location.hash));
       return;
     }
     if (!user) {
@@ -177,10 +177,7 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const login = () => navigate(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
-  const openPackages = () => {
-    const query = new URLSearchParams({ tab: 'packages', returnTo: window.location.pathname + window.location.search });
-    navigate(`/category/${encodeURIComponent(pathId)}?${query}`);
-  };
+  const openPackages = (contentType: SubjectPackageContent) => navigate(subjectPackagesURL(pathId, subjectId, contentType, window.location.pathname + window.location.search + window.location.hash));
   const [detail, setDetail] = useState<LearnerTopic | null>(null);
   const [detailKey, setDetailKey] = useState('');
   const [loading, setLoading] = useState(false);
@@ -299,7 +296,7 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center font-bold text-amber-800">
                   <Lock className="mx-auto mb-3" size={26} />
                   هذا الموضوع ضمن باقة التأسيس
-                  <button type="button" onClick={openPackages} className="mx-auto mt-4 block rounded-lg bg-amber-700 px-4 py-2 text-white">عرض باقات المسار</button>
+                  <button type="button" onClick={() => openPackages('foundation')} className="mx-auto mt-4 block rounded-lg bg-amber-700 px-4 py-2 text-white">عرض الباقات</button>
                 </div>
               ) : loading ? (
                 <p className="py-10 text-center font-bold text-gray-500">جاري تحميل المحتوى...</p>
@@ -342,7 +339,7 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
                           {item.description ? <p className="mt-1 text-sm text-gray-500">{item.description}</p> : null}
                         </div>
                         {item.isLocked ? (
-                          <button type="button" onClick={openPackages} className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
+                          <button type="button" onClick={() => openPackages('library')} className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
                             <Lock size={14} />
                             <span>ضمن الباقة</span>
                           </button>

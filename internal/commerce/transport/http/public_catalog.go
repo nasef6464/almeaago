@@ -15,7 +15,7 @@ func (h *Handler) publicCatalog(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 400, map[string]string{"message": "Invalid pagination"})
 		return
 	}
-	out, e := h.service.PublicCatalog(r.Context(), page, limit, r.URL.Query().Get("pathId"))
+	out, e := h.service.PublicCatalog(r.Context(), page, limit, r.URL.Query().Get("pathId"), r.URL.Query().Get("subjectId"), r.URL.Query().Get("contentType"))
 	if e != nil {
 		writeError(w, e)
 		return

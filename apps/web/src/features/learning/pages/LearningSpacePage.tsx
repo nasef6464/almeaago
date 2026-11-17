@@ -31,6 +31,7 @@ import {
   resolveCanonicalSubject,
 } from '../../taxonomy/utils/canonicalPathResolver';
 import { assessmentPlacementClient } from '../../assessment/api/assessment-placement-client';
+import { subjectPackagesURL } from '../../commerce/navigation/subjectPackages';
 import type { LearnerAssessmentPlacement } from '../../assessment/api/assessment-types';
 
 type Tab = LearningTab;
@@ -245,8 +246,7 @@ export function LearningSpacePage() {
   const handleStartPlacement = async (placement: LearnerAssessmentPlacement) => {
     if (authLoading || loadedPlacementScope !== placementScope) return;
     if (!placement.accessAllowed && (placement.accessReason === 'package_required' || placement.accessReason === 'paid_required')) {
-      const query = new URLSearchParams({ tab: 'packages', returnTo: window.location.pathname + window.location.search });
-      navigate(`/category/${encodeURIComponent(effectivePathId)}?${query}`);
+      navigate(subjectPackagesURL(effectivePathId, effectiveSubjectId, tab === 'questions' ? 'banks' : 'tests', window.location.pathname + window.location.search + window.location.hash));
       return;
     }
     if (!user) {
@@ -1227,7 +1227,7 @@ export function LearningSpacePage() {
                     <span className="text-xs font-black uppercase text-gray-400">{item.type || 'ملف'}</span>
                     {item.isLocked ? (
                       <Link
-                        to={`/category/${encodeURIComponent(effectivePathId)}?${new URLSearchParams({ tab: 'packages', returnTo: window.location.pathname + window.location.search })}`}
+                        to={subjectPackagesURL(effectivePathId, effectiveSubjectId, 'library', window.location.pathname + window.location.search + window.location.hash)}
                         className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-1.5 text-xs font-black text-amber-800 hover:bg-amber-100 transition"
                       >
                         <Lock size={13} />

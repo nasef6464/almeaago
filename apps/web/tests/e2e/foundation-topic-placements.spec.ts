@@ -31,8 +31,10 @@ const open = (page: Page, topicId = 'topic-main') => page.goto(`/category/path-1
 test('locked topic and its paid training link to scoped packages', async ({ page }) => {
   await setup(page);
   await page.goto('/category/path-1?subject=subject-1&tab=skills&topic=topic-locked&content=lessons');
-  await page.getByRole('button', { name: 'عرض باقات المسار' }).click();
+  await page.getByRole('button', { name: 'عرض الباقات' }).click();
   await expect(page).toHaveURL(/\/category\/path-1\?tab=packages/);
+  expect(new URL(page.url()).searchParams.get('subjectId')).toBe('subject-1');
+  expect(new URL(page.url()).searchParams.get('contentType')).toBe('foundation');
   await page.route('**/api/v1/assessment-placements/available?**', route => route.fulfill({ json: { items: [placement('paid', 'topic-locked', { accessAllowed: false, accessReason: 'package_required', canStart: false })], hasMore: false } }));
   await open(page, 'topic-locked');
   await page.getByRole('button', { name: 'فتح باقة التدريب: تدريب paid' }).click();

@@ -163,6 +163,9 @@ test('locked training leads to path packages without starting an attempt', async
   await page.screenshot({ path: 'test-results/learning-training-paid-desktop.png', fullPage: true });
   await card.getByRole('button', { name: 'فتح الباقة' }).click();
   await expect(page).toHaveURL(/\/category\/p1\?tab=packages/);
+  const query = new URL(page.url()).searchParams;
+  expect(query.get('subjectId')).toBe('s1'); expect(query.get('contentType')).toBe('banks');
+  expect(query.get('returnTo')).toContain('tab=questions');
   expect(starts).toBe(0);
 });
 
@@ -233,4 +236,61 @@ test('subject progress offers retry when its service is unavailable', async ({ p
   await error.getByRole('button', { name: 'إعادة المحاولة' }).click();
   await expect(page.getByLabel('تقدم تدريبات المادة')).toContainText('أكملت 1 من 4');
   expect(attempts).toBe(2);
+});
+
+test('subject package catalogue retains exact scope and can show the full path', async ({ page }) => {
+  await setup(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const packageA = { id: 'package-a', productType: 'package', name: 'باقة تدريبات كمي', description: '', priceMinor: 1000, currency: 'SAR', publicMembership: false, contentTypes: ['banks'] };
+  const packageB = { ...packageA, id: 'package-b', name: 'باقة مادة أخرى', contentTypes: ['tests'] };
+  await page.route('**/api/v1/commerce/catalog/products/package-a', route => json(route, { product: { ...packageA, accessMode: 'paid' } }));
+  await page.route('**/api/v1/commerce/catalog/payment-options', route => json(route, { methods: ['transfer'], gatewayMode: 'manual_review' }));
+  let release: () => void = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/v1/commerce/catalog/products?**', async route => {
+    const params = new URL(route.request().url()).searchParams;
+    expect(params.get('pathId')).toBe('p1');
+    if (params.has('contentType')) {
+      expect(params.get('subjectId')).toBe('s1'); expect(params.get('contentType')).toBe('banks');
+      return json(route, { items: [packageA], page: 1, limit: 100, hasMore: false });
+    }
+    expect(params.has('subjectId')).toBe(false);
+    await gate;
+    return json(route, { items: [packageA, packageB], page: 1, limit: 100, hasMore: false });
+  });
+  await page.goto('/category/p1?tab=packages&subjectId=s1&contentType=banks&returnTo=%2Fcategory%2Fp1%3Fsubject%3Ds1');
+  await expect(page.getByText('باقات تغطي المحتوى المحدد')).toBeVisible();
+  await expect(page.getByTestId('path-package-card')).toHaveCount(1);
+  await expect(page.getByText('باقة مادة أخرى')).toHaveCount(0);
+  await page.getByTestId('path-package-card').getByRole('button', { name: 'معاينة الباقة' }).click();
+  const preview = page.getByRole('dialog', { name: 'معاينة باقة تدريبات كمي' });
+  await expect(preview).toContainText('التدريب');
+  await page.screenshot({ path: 'test-results/subject-package-preview-mobile.png', fullPage: true });
+  await preview.getByRole('button', { name: 'اشترك الآن' }).click();
+  const payment = page.getByTestId('payment-modal-shell');
+  await expect(payment.getByTestId('payment-continue-purchase')).toBeEnabled();
+  await payment.getByRole('button', { name: 'إغلاق', exact: true }).click();
+  await page.getByTestId('path-package-card').getByRole('button', { name: 'معاينة الباقة' }).click();
+  await expect(preview).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(preview).toHaveCount(0);
+  expect(new URL(page.url()).searchParams.get('contentType')).toBe('banks');
+  const fullPathRequest = page.waitForRequest(request => request.url().includes('/api/v1/commerce/catalog/products?') && !new URL(request.url()).searchParams.has('contentType'));
+  await page.getByRole('button', { name: 'عرض كل باقات المسار' }).click();
+  await fullPathRequest;
+  await expect(page.getByTestId('path-package-card')).toHaveCount(0);
+  release();
+  await expect(page.getByTestId('path-package-card')).toHaveCount(2);
+  await expect(page.getByText('باقة مادة أخرى')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'العودة إلى ساحة التعلم' })).toBeVisible();
+});
+
+test('unknown package content filter does not silently show unrelated offers', async ({ page }) => {
+  await setup(page);
+  let reads = 0;
+  await page.route('**/api/v1/commerce/catalog/products?**', route => { reads++; return json(route, { items: [], hasMore: false }); });
+  await page.goto('/category/p1?tab=packages&subjectId=s1&contentType=unknown');
+  await expect(page.getByRole('alert').filter({ hasText: 'تعذر تحديد المادة ونوع المحتوى المطلوبين.' })).toBeVisible();
+  expect(reads).toBe(0);
+  await expect(page.getByRole('button', { name: 'عرض كل باقات المسار' })).toBeVisible();
 });
