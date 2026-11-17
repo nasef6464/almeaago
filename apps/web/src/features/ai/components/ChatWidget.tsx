@@ -178,7 +178,7 @@ export const ChatWidget: React.FC = () => {
   };
 
   return (
-    <div dir="rtl" className="fixed bottom-6 start-6 z-50 select-none">
+    <div dir="rtl" className="fixed bottom-6 left-6 z-50 select-none">
       {!isOpen && (
         <button
           type="button"
@@ -191,7 +191,7 @@ export const ChatWidget: React.FC = () => {
       )}
 
       {isOpen && (
-        <div className="flex h-[580px] w-[370px] flex-col rounded-3xl border border-indigo-100 bg-white shadow-2xl shadow-slate-900/15 sm:w-[410px] dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex h-[580px] max-h-[calc(100dvh-3rem)] w-[min(370px,calc(100vw-3rem))] flex-col rounded-3xl border border-indigo-100 bg-white shadow-2xl shadow-slate-900/15 sm:w-[410px] dark:border-slate-800 dark:bg-slate-900">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-indigo-50 bg-gradient-to-r from-indigo-900 via-slate-900 to-slate-950 p-4 text-white rounded-t-3xl dark:border-slate-800">
             <div className="flex items-center gap-3">
