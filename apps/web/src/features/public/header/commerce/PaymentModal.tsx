@@ -2,6 +2,7 @@ import React, {useEffect,useRef,useState} from 'react';
 import {CheckCircle2,ChevronLeft,CreditCard,Landmark,Lock,ShieldCheck,Wallet,X} from 'lucide-react';
 import {useAuth} from '../../../auth/state/AuthProvider';
 import {commerceClient} from '../../../commerce/api/commerce-client';
+import {readCheckoutRecovery,rememberCheckoutRecovery,clearCheckoutRecovery} from '../../../commerce/api/checkout-recovery';
 import type {CommerceProduct,CommercePaymentMethod,CommercePaymentRequest,CommerceGatewayMode} from '../../../commerce/api/commerce-types';
 import {publicCommerceClient} from './commerce-public-client';
 import {useHeaderCart} from './useHeaderCart';
@@ -16,12 +17,30 @@ export const PaymentModal:React.FC<Props>=({isOpen,onClose,item,type='course'})=
  const[step,setStep]=useState<'intro'|'method'|'details'|'success'|'previous'>('intro');const[method,setMethod]=useState<CommercePaymentMethod|null>(null);
  const[canonical,setCanonical]=useState<CommerceProduct|null>(null);const[productLoading,setProductLoading]=useState(true);
  const[enabledMethods,setEnabledMethods]=useState<CommercePaymentMethod[]>([]);const[settingsLoading,setSettingsLoading]=useState(true);const[gatewayMode,setGatewayMode]=useState<CommerceGatewayMode>('manual_review');
+ const[recovering,setRecovering]=useState(false);const[recoveryBlocked,setRecoveryBlocked]=useState(false);const[recoveryRevision,setRecoveryRevision]=useState(0);
  const[loading,setLoading]=useState(false);const[accessCode,setAccessCode]=useState('');const[accessCodeLoading,setAccessCodeLoading]=useState(false);
  const[actionError,setActionError]=useState<string|null>(null);const[successMessage,setSuccessMessage]=useState<string|null>(null);const actionErrorRef=useRef<HTMLDivElement|null>(null);
+ const[transferSenderName,setTransferSenderName]=useState('');const[transferSenderBank,setTransferSenderBank]=useState('');const[transferReference,setTransferReference]=useState('');const[transferReceiptUrl,setTransferReceiptUrl]=useState('');
  const[discountCode,setDiscountCode]=useState('');const[discountPreview,setDiscountPreview]=useState<{valid:boolean;originalAmount:number;discountAmount:number;finalAmount:number;message:string}|null>(null);const[discountPreviewLoading,setDiscountPreviewLoading]=useState(false);const[request,setRequest]=useState<CommercePaymentRequest|null>(null);
- useEffect(()=>{operationGeneration.current++;if(!isOpen)return;const c=new AbortController();setLoading(false);setAccessCodeLoading(false);setAccessCode('');setCanonical(null);setProductLoading(true);setStep('intro');setActionError(null);setMethod(null);setDiscountCode('');setDiscountPreview(null);setRequest(null);setSuccessMessage(null);setSettingsLoading(true);setEnabledMethods([]);
+ useEffect(()=>{operationGeneration.current++;if(!isOpen)return;const c=new AbortController();setLoading(false);setAccessCodeLoading(false);setAccessCode('');setTransferSenderName('');setTransferSenderBank('');setTransferReference('');setTransferReceiptUrl('');setCanonical(null);setProductLoading(true);setStep('intro');setActionError(null);setMethod(null);setDiscountCode('');setDiscountPreview(null);setRequest(null);setSuccessMessage(null);setSettingsLoading(true);setEnabledMethods([]);
  publicCommerceClient.paymentOptions(c.signal).then(r=>{if(c.signal.aborted)return;setEnabledMethods(r.methods);setGatewayMode(r.gatewayMode)}).catch(()=>{if(!c.signal.aborted)setActionError('تعذر تحميل إعدادات الدفع. حاول مرة أخرى.')}).finally(()=>{if(!c.signal.aborted)setSettingsLoading(false)});
  if(user)commerceClient.catalogProduct(item.id,c.signal).then(r=>{if(c.signal.aborted)return;if(r.product.accessMode==='paid'&&r.product.priceMinor>0)setCanonical(r.product);else setActionError('هذا المنتج لا يحتاج طلب دفع.')}).catch(e=>{if(!c.signal.aborted)setActionError(e instanceof Error?e.message:'المنتج غير متاح')}).finally(()=>{if(!c.signal.aborted)setProductLoading(false)});else{setProductLoading(false);setActionError('سجل دخولك أولاً لإرسال طلب شراء.')};return()=>{c.abort();operationGeneration.current++};},[isOpen,item.id,user]);
+ useEffect(()=>{
+  if(!isOpen||!user){setRecovering(false);setRecoveryBlocked(false);return}
+  const key=readCheckoutRecovery(user.id,item.id);
+  if(!key){setRecovering(false);setRecoveryBlocked(false);return}
+  const controller=new AbortController();setRecovering(true);setRecoveryBlocked(false);
+  commerceClient.paymentRequestByKey(key,controller.signal).then(found=>{
+   if(controller.signal.aborted)return;
+   if(found){
+    if(found.userId!==user.id||found.productId!==item.id)throw new Error('تعذر التحقق من ملكية الطلب السابق.');
+    setRequest(found);setMethod(found.paymentMethod);setDiscountCode(found.discountCode||'');
+    if(isTerminalCheckoutStatus(found.status))setStep('previous');
+    else{setSuccessMessage(`تم استرجاع الطلب ${found.id} وهو قيد المراجعة.`);setStep('success')}
+   }
+  }).catch(e=>{if(!controller.signal.aborted){setRecoveryBlocked(true);setActionError(e instanceof Error?e.message:'تعذر التحقق من طلب الدفع السابق.')}}).finally(()=>{if(!controller.signal.aborted)setRecovering(false)});
+  return()=>controller.abort();
+ },[isOpen,user?.id,item.id,recoveryRevision]);
  useEffect(()=>{setDiscountPreview(null);setDiscountPreviewLoading(false);if(!isOpen||!canonical||!discountCode.trim())return;let cancelled=false;const timer=setTimeout(()=>{setDiscountPreviewLoading(true);commerceClient.previewDiscount(canonical.id,discountCode).then(({preview:p})=>{if(!cancelled)setDiscountPreview({valid:p.valid,originalAmount:p.originalAmountMinor/100,discountAmount:p.discountAmountMinor/100,finalAmount:p.finalAmountMinor/100,message:p.message})}).catch(e=>{if(!cancelled)setActionError(e.message)}).finally(()=>{if(!cancelled)setDiscountPreviewLoading(false)})},450);return()=>{cancelled=true;clearTimeout(timer)}},[canonical,discountCode,isOpen]);
  useEffect(()=>{if(actionError)actionErrorRef.current?.focus()},[actionError]);
  if(!isOpen)return null;
@@ -33,11 +52,15 @@ export const PaymentModal:React.FC<Props>=({isOpen,onClose,item,type='course'})=
  const handleRedeemAccessCode=async()=>{if(!user||!accessCode.trim()){setActionError('سجل دخولك وأدخل كود التفعيل أولًا.');return}setAccessCodeLoading(true);const generation=operationGeneration.current;try{const csrf=await getCsrfToken();if(generation!==operationGeneration.current)return;await commerceClient.redeemAccessCode(accessCode.trim(),csrf);if(generation!==operationGeneration.current)return;setSuccessMessage('تم تفعيل الكود بنجاح وإضافة الباقة المرتبطة إلى حسابك.');setStep('success')}catch(e){if(generation===operationGeneration.current)setActionError(e instanceof Error?e.message:'تعذر تفعيل الكود الآن.')}finally{if(generation===operationGeneration.current)setAccessCodeLoading(false)}};
  const purchaseIntent=()=>canonical&&method&&user?normalizeCheckoutIntent({actorId:user.id,productId:canonical.id,paymentMethod:method,discountCode}):null;
  const handlePayment=async()=>{
-  const intent=purchaseIntent();if(!intent||request)return;
+  const intent=purchaseIntent();if(!intent||request||recovering||recoveryBlocked)return;
+  if(method==='transfer'&&transferReceiptUrl.trim()){try{const url=new URL(transferReceiptUrl.trim());if(url.protocol!=='https:'||url.username||url.password)throw new Error('invalid')}catch{setActionError('أدخل رابط إيصال صالحًا يبدأ بـ HTTPS دون بيانات دخول.');return}}
   const generation=operationGeneration.current;setLoading(true);setActionError(null);
   try{
    const csrf=await getCsrfToken();if(generation!==operationGeneration.current)return;
-   const {request:r}=await commerceClient.createCheckout({productId:intent.productId,paymentMethod:intent.paymentMethod,discountCode:intent.discountCode,idempotencyKey:checkoutAttempts.get(intent)},csrf);
+   const priorKey=readCheckoutRecovery(intent.actorId,intent.productId);
+   if(priorKey){const found=await commerceClient.paymentRequestByKey(priorKey);if(generation!==operationGeneration.current)return;if(found){if(found.userId!==intent.actorId||found.productId!==intent.productId)throw new Error('تعذر التحقق من ملكية الطلب السابق.');setRequest(found);setMethod(found.paymentMethod);setDiscountCode(found.discountCode||'');if(isTerminalCheckoutStatus(found.status))setStep('previous');else{setSuccessMessage(`تم استرجاع الطلب ${found.id} وهو قيد المراجعة.`);setStep('success')}return}}
+   const checkoutKey=priorKey||checkoutAttempts.get(intent);rememberCheckoutRecovery(intent.actorId,intent.productId,checkoutKey);
+   const {request:r}=await commerceClient.createCheckout({productId:intent.productId,paymentMethod:intent.paymentMethod,discountCode:intent.discountCode,idempotencyKey:checkoutKey,...(method==='transfer'?{transferSenderName:transferSenderName.trim(),transferSenderBank:transferSenderBank.trim(),transferReference:transferReference.trim(),transferReceiptUrl:transferReceiptUrl.trim()}: {})},csrf);
    if(generation!==operationGeneration.current)return;
    setRequest(r);
    if(isTerminalCheckoutStatus(r.status)){setStep('previous');return}
@@ -45,7 +68,7 @@ export const PaymentModal:React.FC<Props>=({isOpen,onClose,item,type='course'})=
   }catch(e){if(generation===operationGeneration.current)setActionError(e instanceof Error?e.message:'تعذر إرسال طلب الدفع الآن.')}
   finally{if(generation===operationGeneration.current)setLoading(false)}
  };
- const beginNewPurchase=()=>{const intent=purchaseIntent();if(!intent||!request||!isTerminalCheckoutStatus(request.status))return;checkoutAttempts.beginNew(intent);setRequest(null);setSuccessMessage(null);setStep('details');setActionError(null)};
+ const beginNewPurchase=()=>{const intent=purchaseIntent();if(!intent||!request||!isTerminalCheckoutStatus(request.status))return;clearCheckoutRecovery(intent.actorId,intent.productId);checkoutAttempts.beginNew(intent);setRequest(null);setSuccessMessage(null);setStep('details');setActionError(null)};
  const renderPrevious=()=>request?<div data-testid="payment-previous-request" className="space-y-5 py-8 text-center"><h3 className="text-2xl font-black text-gray-900">طلب سابق</h3><p className="text-sm font-bold leading-7 text-gray-600">رقم الطلب: {request.id} · الحالة: {request.status}</p><p className="text-sm leading-7 text-gray-500">لم يتم إنشاء طلب جديد. يمكنك بدء طلب شراء آخر بشكل مستقل.</p><button type="button" onClick={beginNewPurchase} className="w-full rounded-2xl bg-indigo-600 px-5 py-3 font-black text-white">بدء طلب شراء جديد</button><button type="button" onClick={onClose} className="w-full rounded-2xl border border-gray-200 px-5 py-3 font-black text-gray-600">إغلاق</button></div>:null;
 
  const renderPaymentDecisionSummary=()=> <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 text-right"><div className="text-sm font-black text-indigo-900">ملخص طلب الشراء</div><div className="mt-3 space-y-2">{[type==='package'?'هذا الطلب يفتح الباقة المختارة فقط':'هذا الطلب يفتح هذا العنصر فقط','لن يتم فتح المحتوى تلقائيًا من المتصفح',gatewayMode==='manual_review'?'تتم مراجعة الطلب وتفعيل الوصول من الإدارة':'يتم تفعيل الوصول بعد تأكيد الدفع'].map(row=><div key={row} className="flex items-start gap-2 text-xs font-bold leading-5 text-indigo-700"><ShieldCheck size={14} className="mt-0.5 shrink-0"/><span>{row}</span></div>)}</div></div>;
@@ -111,7 +134,7 @@ export const PaymentModal:React.FC<Props>=({isOpen,onClose,item,type='course'})=
                 <button
                     type="button"
                     onClick={() => setStep('method')}
-                    disabled={productLoading || Boolean(user && !canonical)}
+                    disabled={productLoading || recovering || recoveryBlocked || Boolean(user && !canonical)}
                     data-testid="payment-continue-purchase"
                     className="flex-1 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-indigo-100 transition-all hover:bg-indigo-700"
                 >
@@ -203,13 +226,12 @@ export const PaymentModal:React.FC<Props>=({isOpen,onClose,item,type='course'})=
             {method === 'transfer' && (
                 <div className="space-y-4">
                     <h3 className="text-xl font-black text-gray-800">بيانات التحويل</h3>
-                    <div className="bg-gray-50 p-6 rounded-2xl space-y-4 border border-gray-100">
-                        {settings.transfer.bankName && <InfoRow label="اسم البنك" value={settings.transfer.bankName} />}
-                        {settings.transfer.iban && <InfoRow label="رقم الآيبان (IBAN)" value={settings.transfer.iban} mono />}
-                        {settings.transfer.accountName && <InfoRow label="اسم المستفيد" value={settings.transfer.accountName} />}
-                        {settings.transfer.accountNumber && <InfoRow label="رقم الحساب" value={settings.transfer.accountNumber} />}
-                    </div>
-                    <input disabled placeholder="رقم مرجع التحويل أو العملية — غير متاح حاليًا" className="w-full p-4 rounded-xl border border-gray-200 opacity-50" />
+                    <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">تواصل مع المنصة للحصول على بيانات الحساب المعتمدة قبل التحويل.</p>
+                    <input value={transferSenderName} onChange={e=>setTransferSenderName(e.target.value)} placeholder="اسم صاحب الحساب المحول منه (اختياري)" className="w-full p-4 rounded-xl border border-gray-200" />
+                    <input value={transferSenderBank} onChange={e=>setTransferSenderBank(e.target.value)} placeholder="اسم البنك المحوّل منه (اختياري)" className="w-full p-4 rounded-xl border border-gray-200" />
+                    <input value={transferReference} onChange={e=>setTransferReference(e.target.value)} placeholder="رقم مرجع التحويل (اختياري)" className="w-full p-4 rounded-xl border border-gray-200" />
+                    <input type="url" value={transferReceiptUrl} onChange={e=>setTransferReceiptUrl(e.target.value)} placeholder="رابط إيصال HTTPS (اختياري)" className="w-full p-4 rounded-xl border border-gray-200" />
+                    <p className="text-xs text-gray-600">أدخل رابطًا متاحًا للإدارة؛ رفع الملفات مباشرة غير متاح حاليًا.</p>
                 </div>
             )}
 
@@ -230,7 +252,7 @@ export const PaymentModal:React.FC<Props>=({isOpen,onClose,item,type='course'})=
                 </div>
             )}
 
-            <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">إرفاق الإيصال وبيانات مرجع التحويل أو المحفظة غير متاح حاليًا. لا يتم إرسال هذه البيانات مع الطلب.</div>
+            {method==='wallet' && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">بيانات المحفظة والإيصال غير متاحة حاليًا في الطلب.</div>}
             <input
                 value={discountCode}
                 onChange={(event) => setDiscountCode(event.target.value.toUpperCase().replace(/\s+/g, '').slice(0, 40))}
@@ -306,6 +328,8 @@ export const PaymentModal:React.FC<Props>=({isOpen,onClose,item,type='course'})=
                 </button>
                 <div className="p-5 sm:p-8 md:p-12">
                     {step !== 'success' && renderActionError()}
+                    {recovering && <p role="status" className="mb-3 text-sm font-bold text-slate-600">جارٍ التحقق من طلب سابق...</p>}
+                    {recoveryBlocked && <button type="button" onClick={()=>{setActionError(null);setRecoveryRevision(value=>value+1)}} className="mb-3 rounded-xl border px-4 py-2 text-sm font-bold">إعادة التحقق من الطلب</button>}
                     {step === 'intro' && renderIntro()}
                     {step === 'method' && renderMethodSelector()}
                     {step === 'details' && renderDetails()}
@@ -316,10 +340,3 @@ export const PaymentModal:React.FC<Props>=({isOpen,onClose,item,type='course'})=
         </div>
     );
 };
-
-const InfoRow = ({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) => (
-    <div>
-        <p className="text-xs text-gray-400">{label}</p>
-        <p className={`font-bold text-gray-800 break-all ${mono ? 'font-mono text-indigo-600 text-lg' : ''}`}>{value}</p>
-    </div>
-);

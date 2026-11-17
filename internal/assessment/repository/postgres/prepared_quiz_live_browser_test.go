@@ -20,6 +20,10 @@ import (
 	assessmentapp "github.com/nasef6464/almeaago/internal/assessment/application"
 	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 	assessmenthttp "github.com/nasef6464/almeaago/internal/assessment/transport/http"
+	commerceapp "github.com/nasef6464/almeaago/internal/commerce/application"
+	commerce "github.com/nasef6464/almeaago/internal/commerce/domain"
+	commercepg "github.com/nasef6464/almeaago/internal/commerce/repository/postgres"
+	commercehttp "github.com/nasef6464/almeaago/internal/commerce/transport/http"
 	contentapp "github.com/nasef6464/almeaago/internal/content/application"
 	contentpg "github.com/nasef6464/almeaago/internal/content/repository/postgres"
 	contenthttp "github.com/nasef6464/almeaago/internal/content/transport/http"
@@ -86,7 +90,7 @@ func TestPreparedQuizLiveBrowser(t *testing.T) {
 	}
 	sort.Strings(files)
 	for _, file := range files {
-		if strings.Compare(filepath.Base(file), "000061_") >= 0 {
+		if strings.Compare(filepath.Base(file), "000062_") >= 0 {
 			continue
 		}
 		sql, e := os.ReadFile(file)
@@ -195,7 +199,11 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 		t.Fatalf("publish assessment: %v", err)
 	}
 	if os.Getenv("PREPARED_COURSE_PROGRESS") == "1" {
-		_, err = repo.CreatePlacement(ctx, adminUser.ID, created.ID, assessment.PlacementWrite{Slot: assessment.PlacementCourse, PathID: "00000000-0000-0000-0000-000000000003", SubjectID: "00000000-0000-0000-0000-000000000004", CourseID: "00000000-0000-0000-0000-000000000031", LessonID: "00000000-0000-0000-0000-000000000033", AccessType: assessment.PlacementAccessFree, IsVisible: true})
+		access := assessment.PlacementAccessFree
+		if os.Getenv("PREPARED_COURSE_PURCHASE") == "1" {
+			access = assessment.PlacementAccessPackage
+		}
+		_, err = repo.CreatePlacement(ctx, adminUser.ID, created.ID, assessment.PlacementWrite{Slot: assessment.PlacementCourse, PathID: "00000000-0000-0000-0000-000000000003", SubjectID: "00000000-0000-0000-0000-000000000004", CourseID: "00000000-0000-0000-0000-000000000031", LessonID: "00000000-0000-0000-0000-000000000033", AccessType: access, IsVisible: true})
 		if err != nil {
 			t.Fatalf("create browser lesson placement: %v", err)
 		}
@@ -322,10 +330,26 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 	router.Mount("/api/v1/taxonomy", taxonomyhttp.New(taxonomyapp.NewService(taxonomypg.New(db)), auth))
 	contentRepo := contentpg.New(db, operationspg.NewAuditWriter())
 	contentService := contentapp.NewService(contentRepo)
+	placementService := assessmentapp.NewPlacementService(repo, defs, contentRepo)
+	packageID := ""
+	if os.Getenv("PREPARED_COURSE_PURCHASE") == "1" {
+		commerceRepo := commercepg.New(db, operationspg.NewAuditWriter())
+		commerceService := commerceapp.NewService(commerceRepo, contentRepo, taxonomypg.New(db), nil)
+		product, createErr := commerceService.CreateProduct(ctx, adminUser, commerce.ProductWrite{Code: "LIVE-COURSE-PACKAGE", ProductType: commerce.ProductPackage, Name: "باقة الدورات التجريبية", Status: commerce.ProductActive, AccessMode: commerce.AccessPaid, PriceMinor: 1200, Currency: "SAR", IsVisible: true, Package: &commerce.PackageWrite{PackageKind: commerce.PackageBundle, Items: []commerce.PackageItem{{ScopeType: commerce.ScopeSubject, SubjectID: "00000000-0000-0000-0000-000000000004", ContentType: commerce.ContentCourses}}}})
+		if createErr != nil {
+			t.Fatalf("create browser package: %v", createErr)
+		}
+		packageID = product.ID
+		checkout := commerceapp.NewCheckoutService(commerceRepo, commerce.CheckoutPolicy{GatewayMode: commerce.GatewayManualReview, ProviderCode: "manual"}, contentRepo)
+		access := commerceapp.NewAccessService(commerceRepo, commerceRepo, nil)
+		router.Mount("/api/v1/commerce", commercehttp.NewWithAccess(commerceService, checkout, access, auth, nil))
+		contentService = contentapp.NewServiceWithAuthorScope(contentRepo, contentRepo, commerceService)
+		placementService = assessmentapp.NewPlacementServiceWithCommerce(repo, defs, contentRepo, commerceService)
+	}
 	router.Mount("/api/v1/learning-spaces", contenthttp.NewLearningSpaces(contentService, auth))
 	router.Mount("/api/v1/learning-progress", learninghttp.NewLessonProgress(learningapp.NewLessonProgressService(learningpg.New(db), contentRepo, contentService), auth))
 	router.Mount("/api/v1/learning/navigation-preferences", navigation.NewHandler(navigation.NewService(navigation.NewPostgres(db)), auth))
-	router.Mount("/api/v1/assessment-placements", assessmenthttp.NewPlacements(assessmentapp.NewPlacementService(repo, defs, contentRepo), auth))
+	router.Mount("/api/v1/assessment-placements", assessmenthttp.NewPlacements(placementService, auth))
 	server := httptest.NewServer(router)
 	defer func() {
 		server.CloseClientConnections()
@@ -378,7 +402,7 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 	if webPort == "" {
 		webPort = "4268"
 	}
-	command.Env = append(os.Environ(), "CI=1", "PREPARED_QUIZ_LIVE=1", "E2E_WEB_PORT="+webPort, "E2E_API_TARGET="+server.URL, "PREPARED_ASSESSMENT_ID="+created.ID, "PREPARED_MOCK_ID="+mock.ID, "PREPARED_PUBLIC_CODE="+publicCode, "PREPARED_PASSWORD="+password, "PREPARED_ADMIN_EMAIL=prepared-admin@example.invalid", "PREPARED_OWNER_EMAIL=prepared-owner@example.invalid", "PREPARED_OTHER_EMAIL=prepared-other@example.invalid")
+	command.Env = append(os.Environ(), "CI=1", "PREPARED_QUIZ_LIVE=1", "E2E_WEB_PORT="+webPort, "E2E_API_TARGET="+server.URL, "PREPARED_ASSESSMENT_ID="+created.ID, "PREPARED_PACKAGE_ID="+packageID, "PREPARED_MOCK_ID="+mock.ID, "PREPARED_PUBLIC_CODE="+publicCode, "PREPARED_PASSWORD="+password, "PREPARED_ADMIN_EMAIL=prepared-admin@example.invalid", "PREPARED_OWNER_EMAIL=prepared-owner@example.invalid", "PREPARED_OTHER_EMAIL=prepared-other@example.invalid")
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("prepared live browser: %v\n%s", err, output)

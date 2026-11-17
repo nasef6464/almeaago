@@ -392,3 +392,49 @@ test('اختبار الدرس والنتيجة والمراجعة والعودة
   await expect(page.getByRole('heading',{name:'الدرس التجريبي الأول',level:2})).toBeVisible();
   await expect(page.getByText('محتوى الدرس الأول')).toBeVisible();
 });
+
+
+test('شراء باقة الدورات يفتح اختبار الدرس بعد المراجعة محليًا', async ({ page }) => {
+  test.skip(process.env.PREPARED_QUIZ_LIVE !== '1' || process.env.PREPARED_COURSE_PURCHASE !== '1', 'requires isolated checkout and database');
+  test.setTimeout(300_000);
+  page.setDefaultTimeout(45_000);
+  const courseId='00000000-0000-0000-0000-000000000031';
+  const lessonId='00000000-0000-0000-0000-000000000033';
+  const pathId='00000000-0000-0000-0000-000000000003';
+  const destination=`/learning/courses/${courseId}?lesson=${lessonId}`;
+  async function login(email:string) {
+    const response=await page.request.post('/api/v1/auth/login',{data:{email,password:process.env.PREPARED_PASSWORD}});
+    expect(response.status()).toBe(200); return (await response.json()).csrfToken as string;
+  }
+  await login(process.env.PREPARED_OWNER_EMAIL!);
+  await page.goto(destination,{waitUntil:'domcontentloaded'});
+  await expect(page.getByRole('heading',{name:'اختبار تجريبي جاهز'})).toBeVisible();
+  await page.getByRole('link',{name:'فتح الباقة'}).click();
+  await expect(page).toHaveURL(url => url.pathname === `/category/${pathId}` && url.searchParams.get('tab') === 'packages');
+  const card=page.getByTestId('path-package-card').filter({hasText:'باقة الدورات التجريبية'});
+  await expect(card).toBeVisible();
+  await card.getByRole('button',{name:'اشترك الآن'}).click();
+  const modal=page.getByTestId('payment-modal-shell');
+  await modal.getByTestId('payment-continue-purchase').click();
+  await modal.getByRole('button',{name:/تحويل بنكي/}).click();
+  await modal.getByPlaceholder('اسم صاحب الحساب المحول منه (اختياري)').fill('طالب تجريبي');
+  await modal.getByPlaceholder('اسم البنك المحوّل منه (اختياري)').fill('بنك تجريبي');
+  await modal.getByPlaceholder('رقم مرجع التحويل (اختياري)').fill('LIVE-REF-123');
+  await modal.getByPlaceholder('رابط إيصال HTTPS (اختياري)').fill('https://example.invalid/receipt');
+  const submitted=page.waitForResponse(r=>r.url().endsWith('/api/v1/commerce/checkout/requests')&&r.request().method()==='POST');
+  await modal.getByRole('button',{name:'إنشاء طلب شراء'}).click();
+  const response=await submitted; expect(response.status()).toBe(201);
+  const payment=(await response.json()).request;
+  expect(payment).toMatchObject({productId:process.env.PREPARED_PACKAGE_ID,transferSenderName:'طالب تجريبي',transferSenderBank:'بنك تجريبي',transferReference:'LIVE-REF-123',transferReceiptUrl:'https://example.invalid/receipt',status:'pending'});
+  await expect(modal.getByText('تم تسجيل الطلب بنجاح')).toBeVisible();
+  await page.goto(destination,{waitUntil:'domcontentloaded'});
+  await expect(page.getByRole('link',{name:'فتح الباقة'})).toBeVisible();
+  const adminCsrf=await login(process.env.PREPARED_ADMIN_EMAIL!);
+  const approved=await page.request.patch(`/api/v1/commerce/admin/payment-requests/${payment.id}/review`,{headers:{'X-CSRF-Token':adminCsrf},data:{expectedRevision:payment.revision,status:'paid',approvalEvidence:'local test transfer'}});
+  expect(approved.status()).toBe(200);
+  await login(process.env.PREPARED_OWNER_EMAIL!);
+  await page.goto(destination,{waitUntil:'domcontentloaded'});
+  await expect(page.getByRole('button',{name:'بدء الاختبار',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'بدء الاختبار',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'سؤال تجريبي'})).toBeVisible();
+});

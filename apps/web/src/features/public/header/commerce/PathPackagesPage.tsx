@@ -2,6 +2,7 @@ import React,{useEffect,useState} from 'react';
 import {ChevronRight} from 'lucide-react';
 import {useNavigate,useSearchParams} from 'react-router-dom';
 import {useStudentExperience} from '../../../learning/navigation';
+import {safeReturnPath,returnPathLabel} from '../../../assessment/navigation/returnPath';
 import {publicCommerceClient,type PublicProduct} from './commerce-public-client';
 import {PaymentModal} from './PaymentModal';
 import type {CartItem} from './cart-model';
@@ -25,12 +26,14 @@ export function PathPackagesPage({pathId}:{pathId:string}){
  useEffect(()=>{const c=new AbortController();setCatalogPath(pathId);setRows([]);setBusy(true);setError('');setSelected(null);(async()=>{const products:PublicProduct[]=[];for(let page=1;page<=10000;page++){const r=await publicCommerceClient.catalog(page,c.signal,pathId);products.push(...r.items);if(!r.hasMore)break}if(!c.signal.aborted)setRows(products.filter(p=>p.productType!=='course'))})().catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:'تعذر تحميل العروض والباقات')}).finally(()=>{if(!c.signal.aborted)setBusy(false)});return()=>c.abort()},[pathId,retry]);
  const visibleRows=catalogPath===pathId?rows:[];const currentBusy=busy||catalogPath!==pathId;
  const name=path?.name||'';const color=String(path?.color||'#4f46e5');
+ const returnTo=safeReturnPath(params.get('returnTo'));
  const backToPath=()=>{const q=new URLSearchParams(params);q.delete('tab');q.delete('package');navigate(`/category/${encodeURIComponent(pathId)}${q.size?`?${q}`:''}`)};
  const preview=(id:string)=>{const q=new URLSearchParams(params);q.set('tab','packages');q.set('package',id);navigate(`/category/${encodeURIComponent(pathId)}?${q}`)};
  return <div data-testid="path-packages-page" data-path-id={pathId} className="bg-gray-50 min-h-screen pb-20" dir="rtl">
   <header className="text-white py-7 sm:py-9 text-center relative overflow-hidden" style={{backgroundColor:colors[color]||(/^#[0-9a-f]{3,8}$/i.test(color)?color:'#4f46e5')}}>
    <div className="max-w-7xl mx-auto px-4 relative z-10">
     <button onClick={backToPath} className="flex items-center gap-2 justify-center mx-auto text-white/80 hover:text-white mb-6 transition-colors"><ChevronRight size={20}/> عودة للمسار</button>
+    {returnTo&&<button type="button" onClick={()=>navigate(returnTo)} className="mb-4 rounded-xl border border-white/50 px-4 py-2 text-sm font-bold">{returnPathLabel(returnTo)}</button>}
     <h1 className="text-2xl sm:text-3xl md:text-4xl font-black mb-4 leading-tight break-words">عروض وباقات {name}</h1><p className="text-white/80 text-lg">اختر الباقة الأنسب لك</p>
    </div>
   </header>

@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	commerce "github.com/nasef6464/almeaago/internal/commerce/domain"
@@ -128,6 +129,31 @@ func TestCheckoutDoesNotAcceptClientPriceAndUsesServerPolicy(t *testing.T) {
 	}
 	if repo.input.DiscountCode != "SAVE10" {
 		t.Fatalf("discount not normalized: %#v", repo.input)
+	}
+}
+
+func TestTransferDetailsValidatedAndNormalized(t *testing.T) {
+	repo := &checkoutRepoStub{}
+	service := NewCheckoutService(repo, commerce.CheckoutPolicy{})
+	input := commerce.CheckoutCreate{ProductID: "p", PaymentMethod: commerce.PaymentTransfer, IdempotencyKey: "k", TransferSenderName: "  اسم تجريبي  ", TransferSenderBank: " بنك ", TransferReference: " REF-1 ", TransferReceiptURL: " https://example.invalid/receipt "}
+	if _, err := service.CreateCheckout(context.Background(), checkoutUser(), input); err != nil {
+		t.Fatal(err)
+	}
+	if repo.input.TransferSenderName != "اسم تجريبي" || repo.input.TransferSenderBank != "بنك" || repo.input.TransferReference != "REF-1" || repo.input.TransferReceiptURL != "https://example.invalid/receipt" {
+		t.Fatalf("details not normalized: %+v", repo.input)
+	}
+	for _, raw := range []string{"javascript:alert(1)", "http://example.invalid/x", "https://user:secret@example.invalid/x", "https://example.invalid/\nfoo", strings.Repeat("x", 2049)} {
+		t.Run(raw[:min(len(raw), 20)], func(t *testing.T) {
+			copy := input
+			copy.TransferReceiptURL = raw
+			if _, err := service.CreateCheckout(context.Background(), checkoutUser(), copy); !errors.Is(err, ErrInvalidInput) {
+				t.Fatalf("expected invalid url, got %v", err)
+			}
+		})
+	}
+	input.PaymentMethod = commerce.PaymentCard
+	if _, err := service.CreateCheckout(context.Background(), checkoutUser(), input); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("card accepted transfer details: %v", err)
 	}
 }
 

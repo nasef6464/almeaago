@@ -876,7 +876,7 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 	if !found {
 		t.Fatal("package missing from its public path catalog")
 	}
-	create := commerce.CheckoutCreate{ProductID: product.Product.ID, PaymentMethod: commerce.PaymentTransfer, IdempotencyKey: "http-" + suffix}
+	create := commerce.CheckoutCreate{ProductID: product.Product.ID, PaymentMethod: commerce.PaymentTransfer, IdempotencyKey: "http-" + suffix, TransferSenderName: "اسم تجريبي", TransferSenderBank: "بنك تجريبي", TransferReference: "REF-123", TransferReceiptURL: "https://example.invalid/receipt"}
 	if w = call(http.MethodPost, "/checkout/requests", "", "", create); w.Code != http.StatusUnauthorized {
 		t.Fatalf("guest checkout %d", w.Code)
 	}
@@ -889,6 +889,58 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 	}
 	if err = json.Unmarshal(w.Body.Bytes(), &out); err != nil {
 		t.Fatal(err)
+	}
+	if out.Request.TransferSenderName != create.TransferSenderName || out.Request.TransferSenderBank != create.TransferSenderBank || out.Request.TransferReference != create.TransferReference || out.Request.TransferReceiptURL != create.TransferReceiptURL {
+		t.Fatalf("transfer data missing from response: %+v", out.Request)
+	}
+	userList := call(http.MethodGet, "/checkout/requests", studentToken, studentCSRF, nil)
+	if userList.Code != http.StatusOK || !bytes.Contains(userList.Body.Bytes(), []byte("REF-123")) {
+		t.Fatalf("user transfer details: %d %s", userList.Code, userList.Body.String())
+	}
+	adminList := call(http.MethodGet, "/admin/payment-requests", adminToken, adminCSRF, nil)
+	if adminList.Code != http.StatusOK || !bytes.Contains(adminList.Body.Bytes(), []byte("REF-123")) {
+		t.Fatalf("admin transfer details: %d %s", adminList.Code, adminList.Body.String())
+	}
+	outsider, err := identityRepo.CreateUser(ctx, "outsider", "outsider"+suffix+"@example.invalid", hash, identity.RoleStudent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outsiderToken, outsiderCSRF := login(outsider.Email)
+	lookup := func(token string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "/checkout/requests/by-key", nil)
+		req.Header.Set("X-Checkout-Key", create.IdempotencyKey)
+		if token != "" {
+			req.AddCookie(&http.Cookie{Name: identitysession.CookieName, Value: token})
+		}
+		result := httptest.NewRecorder()
+		h.ServeHTTP(result, req)
+		return result
+	}
+	if result := lookup(studentToken); result.Code != http.StatusOK || !bytes.Contains(result.Body.Bytes(), []byte("REF-123")) || result.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("owner checkout recovery: %d %s", result.Code, result.Body.String())
+	}
+	if result := lookup(outsiderToken); result.Code != http.StatusNotFound {
+		t.Fatalf("other student checkout recovery: %d", result.Code)
+	}
+	if result := lookup(""); result.Code != http.StatusUnauthorized {
+		t.Fatalf("guest checkout recovery: %d", result.Code)
+	}
+	outsiderList := call(http.MethodGet, "/checkout/requests", outsiderToken, outsiderCSRF, nil)
+	if outsiderList.Code != http.StatusOK || bytes.Contains(outsiderList.Body.Bytes(), []byte("REF-123")) {
+		t.Fatalf("transfer details leaked to another student: %d %s", outsiderList.Code, outsiderList.Body.String())
+	}
+	if response := call(http.MethodGet, "/admin/payment-requests", outsiderToken, outsiderCSRF, nil); response.Code != http.StatusForbidden {
+		t.Fatalf("student accessed admin transfer details: %d", response.Code)
+	}
+	retry := call(http.MethodPost, "/checkout/requests", studentToken, studentCSRF, create)
+	if retry.Code != http.StatusCreated {
+		t.Fatalf("identical retry: %d %s", retry.Code, retry.Body.String())
+	}
+	changed := create
+	changed.TransferReference = "DIFFERENT"
+	conflict := call(http.MethodPost, "/checkout/requests", studentToken, studentCSRF, changed)
+	if conflict.Code != http.StatusConflict {
+		t.Fatalf("changed retry must conflict: %d %s", conflict.Code, conflict.Body.String())
 	}
 	review := commerce.PaymentReview{ExpectedRevision: out.Request.Revision, Status: commerce.PaymentPaid, ApprovalEvidence: "test transfer"}
 	reviewPath := "/admin/payment-requests/" + out.Request.ID + "/review"

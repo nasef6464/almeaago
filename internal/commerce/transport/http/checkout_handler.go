@@ -105,6 +105,20 @@ func (h *Handler) myPaymentRequests(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+func (h *Handler) myPaymentRequestByKey(w http.ResponseWriter, r *http.Request) {
+	a, ok := h.authn(w, r, false)
+	if !ok {
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	out, err := h.checkout.MyRequestByKey(r.Context(), a.User, r.Header.Get("X-Checkout-Key"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"request": out})
+}
+
 func (h *Handler) listDiscounts(w http.ResponseWriter, r *http.Request) {
 	a, ok := h.authn(w, r, false)
 	if !ok {
