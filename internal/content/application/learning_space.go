@@ -134,6 +134,10 @@ func (s *Service) LearningSpace(ctx context.Context, actor identity.User, pathID
 	if row.PathID != pathID || row.SubjectID != subjectID {
 		return content.LearningSpace{}, content.ErrConflict
 	}
+	// Preserve the configured price class before entitlement opens a paid topic.
+	for i := range row.Foundation {
+		row.Foundation[i].IsFree = !row.Foundation[i].IsLocked
+	}
 	if strings.TrimSpace(actor.ID) != "" && actor.HasRole(identity.RoleStudent) {
 		for _, topic := range row.Foundation {
 			if topic.IsLocked {
@@ -184,6 +188,7 @@ func (s *Service) LearnerTopic(ctx context.Context, actor identity.User, topicID
 	if err != nil {
 		return content.LearnerTopic{}, err
 	}
+	row.Topic.IsFree = !row.Topic.IsLocked
 	if row.Topic.IsLocked && strings.TrimSpace(actor.ID) != "" && actor.HasRole(identity.RoleStudent) {
 		if access, ok := s.courseAccess.(foundationAccessResolver); ok {
 			decision, err := access.CheckFoundationAccess(ctx, actor.ID, row.PathID, row.SubjectID)

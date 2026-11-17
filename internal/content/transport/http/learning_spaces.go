@@ -208,6 +208,7 @@ func presentLearnerTopicSummary(row content.LearnerTopicSummary) map[string]any 
 		"description":   row.Description,
 		"sortOrder":     row.SortOrder,
 		"isLocked":      row.IsLocked,
+		"isFree":        row.IsFree,
 	}
 }
 

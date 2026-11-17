@@ -419,6 +419,7 @@ type LearnerTopicSummary struct {
 	Description   string
 	SortOrder     int
 	IsLocked      bool
+	IsFree        bool
 }
 
 type LearnerLibrarySummary struct {

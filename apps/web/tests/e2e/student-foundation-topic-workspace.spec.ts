@@ -15,7 +15,7 @@ const learningSpace = (pathId = 'p1', subjectId = 's1') => ({
   library: { items: [], hasMore: false },
 });
 const topicDetail = (row = topic) => ({
-  topic: { ...row, lessons: [{ id: 'lesson-1', title: 'شرح النسب', description: '', type: 'video', durationSeconds: 600, isLocked: false, isPreview: false, commerceLocked: false, sortOrder: 1 }],
+  topic: { ...row, pathId: 'p1', subjectId: 's1', lessons: [{ id: 'lesson-1', title: 'شرح النسب', description: '', type: 'video', durationSeconds: 600, isLocked: false, isPreview: false, commerceLocked: false, sortOrder: 1 }],
     libraryItems: [{ id: 'support-1', title: 'ملف النسب', description: '', type: 'pdf', isLocked: false }] },
 });
 function json(route: Route, body: unknown, status = 200) {
@@ -111,4 +111,74 @@ test('switching learning scope closes stale topic and does not reuse prior subje
   await expect(page.getByText('مبادئ الجبر')).toBeVisible();
   await expect(page.getByText('النسب', { exact: true })).toHaveCount(0);
   await expect(page).not.toHaveURL(/topic=t1/);
+});
+
+test('foundation free filter reflects configured pricing rather than topic position or entitlement', async ({ page }) => {
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/p1/subjects/s1?limit=50', route => json(route, {
+    ...learningSpace(), foundation: { items: [
+      { ...topic, id: 'paid-open', title: 'موضوع مدفوع مفتوح', isFree: false, isLocked: false },
+      { ...topic, id: 'free-second', title: 'موضوع مجاني ثان', sortOrder: 2, isFree: true, isLocked: false },
+    ], hasMore: false },
+  }));
+  await page.goto('/category/p1?subject=s1&tab=skills');
+  await expect(page.getByRole('heading', { name: 'موضوع مدفوع مفتوح' })).toBeVisible();
+  await page.getByRole('button', { name: /المجاني \(1\)/ }).click();
+  await expect(page.getByRole('heading', { name: 'موضوع مجاني ثان' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'موضوع مدفوع مفتوح' })).toHaveCount(0);
+  await page.getByRole('button', { name: /ضمن باقة \(1\)/ }).click();
+  await expect(page.getByRole('heading', { name: 'موضوع مدفوع مفتوح' })).toBeVisible();
+});
+
+test('locked training leads to path packages without starting an attempt', async ({ page }) => {
+  await setup(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  let starts = 0;
+  const title = 'تدريب ضمن باقة على المهارات الأساسية والمسائل الطويلة الجزء الأول';
+  await page.route('**/api/v1/assessment-placements/available?**', route => json(route, { items: [{ placementId: 'paid-training', assessmentId: 'a1', assessmentVersion: 1, title, slot: 'training', pathId: 'p1', subjectId: 's1', accessType: 'package', baseAccessType: 'free', accessAllowed: false, accessReason: 'package_required', canStart: false, attemptCount: 0, maxAttempts: 3 }], hasMore: false }));
+  await page.route('**/api/v1/assessment-placements/paid-training/start', route => { starts++; return json(route, {}, 500); });
+  await page.goto('/category/p1?subject=s1&tab=questions');
+  const heading = page.getByRole('heading', { name: title });
+  await expect(heading).toBeVisible();
+  expect(await heading.evaluate(node => node.scrollWidth <= node.clientWidth && getComputedStyle(node).textOverflow !== 'ellipsis')).toBe(true);
+  const card = heading.locator('xpath=ancestor::article');
+  await page.screenshot({ path: 'test-results/learning-training-paid-mobile.png', fullPage: true });
+  await card.getByRole('button', { name: 'فتح الباقة' }).click();
+  await expect(page).toHaveURL(/\/category\/p1\?tab=packages/);
+  expect(starts).toBe(0);
+});
+
+test('switching student hides prior foundation details before new access loads', async ({ page }) => {
+  await setup(page);
+  let second = false;
+  let release: () => void = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/v1/auth/login', route => { second = true; return json(route, { user: { ...student, id: 'student-2' } }); });
+  await page.route('**/api/v1/learning-spaces/p1/subjects/s1?limit=50', async route => {
+    if (!second) return json(route, learningSpace());
+    await gate;
+    return json(route, { ...learningSpace(), foundation: { items: [{ ...topic, isLocked: true, isFree: false }], hasMore: false } });
+  });
+  await page.route('**/api/v1/learning-spaces/foundation/t1', route => json(route, topicDetail()));
+  await page.goto('/tests/e2e/fixtures/learning-account-scope.html?pathId=p1&subjectId=s1&tab=skills&topic=t1');
+  const dialog = page.getByTestId('foundation-topic-dialog');
+  await expect(dialog.getByText('شرح النسب')).toBeVisible();
+  const newRequest = page.waitForRequest('**/api/v1/learning-spaces/p1/subjects/s1?limit=50');
+  await page.getByRole('button', { name: 'تبديل الطالب' }).click();
+  await newRequest;
+  await expect(page.getByTestId('foundation-topic-dialog')).toHaveCount(0);
+  release();
+  await expect(page.getByTestId('foundation-topic-dialog')).toContainText('هذا الموضوع ضمن باقة التأسيس');
+  await expect(page.getByTestId('foundation-topic-dialog')).not.toContainText('شرح النسب');
+});
+
+test('guest can see free topic and is asked to sign in to open its lesson', async ({ page }) => {
+  await setup(page);
+  await page.route('**/api/v1/auth/me', route => json(route, { user: null }));
+  await page.route('**/api/v1/learning-spaces/foundation/t1', route => json(route, topicDetail()));
+  await page.goto('/category/p1?subject=s1&tab=skills&topic=t1&content=lessons');
+  const dialog = page.getByTestId('foundation-topic-dialog');
+  await dialog.getByRole('button', { name: 'فتح الدرس: شرح النسب' }).click();
+  await expect(page).toHaveURL(/\/login\?returnTo=/);
+  expect(decodeURIComponent(new URL(page.url()).searchParams.get('returnTo') || '')).toContain('topic=t1');
 });

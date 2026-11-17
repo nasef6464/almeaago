@@ -5,7 +5,7 @@ const topics = [
   { id: 'topic-main', parentTopicId: '', title: 'النسب', description: '', sortOrder: 1, isLocked: false },
   { id: 'topic-child', parentTopicId: 'topic-main', title: 'النسب المئوية', description: '', sortOrder: 2, isLocked: false },
   { id: 'topic-locked', parentTopicId: '', title: 'التناسب المقفل', description: '', sortOrder: 3, isLocked: true },
-];
+].map(topic => ({ ...topic, pathId: 'path-1', subjectId: 'subject-1' }));
 const placement = (id = 'placement-1', topicId = 'topic-main', extra = {}) => ({ placementId: id, assessmentId: `assessment-${id}`, assessmentVersion: 1, assessmentKind: 'normal', title: `تدريب ${id}`, slot: 'foundation', pathId: 'path-1', subjectId: 'subject-1', courseId: '', lessonId: '', topicId, sortOrder: 1, attemptCount: 0, maxAttempts: 3, accessType: 'free', baseAccessType: 'free', accessAllowed: true, accessReason: 'free', canStart: true, ...extra });
 async function setup(page: Page) {
   await page.route(url => url.origin !== 'http://127.0.0.1:4173', route => route.abort('blockedbyclient'));
@@ -27,6 +27,17 @@ async function setup(page: Page) {
   });
 }
 const open = (page: Page, topicId = 'topic-main') => page.goto(`/category/path-1?subject=subject-1&tab=skills&topic=${topicId}&content=quizzes`);
+
+test('locked topic and its paid training link to scoped packages', async ({ page }) => {
+  await setup(page);
+  await page.goto('/category/path-1?subject=subject-1&tab=skills&topic=topic-locked&content=lessons');
+  await page.getByRole('button', { name: 'عرض باقات المسار' }).click();
+  await expect(page).toHaveURL(/\/category\/path-1\?tab=packages/);
+  await page.route('**/api/v1/assessment-placements/available?**', route => route.fulfill({ json: { items: [placement('paid', 'topic-locked', { accessAllowed: false, accessReason: 'package_required', canStart: false })], hasMore: false } }));
+  await open(page, 'topic-locked');
+  await page.getByRole('button', { name: 'فتح باقة التدريب: تدريب paid' }).click();
+  await expect(page).toHaveURL(/\/category\/path-1\?tab=packages/);
+});
 
 test('foundation lesson is opened only when selected and rejects an incorrect lesson response', async ({ page }) => {
   await setup(page);
@@ -64,7 +75,7 @@ test('foundation lesson is opened only when selected and rejects an incorrect le
   await expect(dialog.getByLabel('الدرس المحدد')).toHaveCount(0);
   await expect(dialog.getByText('درس ثان', { exact: true })).toBeVisible();
   await dialog.getByRole('button', { name: 'فتح الدرس: درس ثان' }).click();
-  await expect(dialog.getByRole('heading', { name: 'درس ثان' })).toBeVisible();
+  await expect(dialog.getByRole('dialog', { name: 'الدرس المحدد' }).getByRole('heading', { name: 'درس ثان' })).toBeVisible();
   expect(reads).toBe(3);
 });
 

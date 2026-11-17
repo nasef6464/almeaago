@@ -23,7 +23,7 @@ func TestTopicLockReflectsFoundationEntitlement(t *testing.T) {
 	}
 	access.allow = true
 	allowed, err := s.LearnerTopic(context.Background(), student, "topic")
-	if err != nil || allowed.Topic.IsLocked || access.path != "path" || access.subject != "subject" {
+	if err != nil || allowed.Topic.IsLocked || allowed.Topic.IsFree || access.path != "path" || access.subject != "subject" {
 		t.Fatalf("allowed=%+v err=%v", allowed, err)
 	}
 	guest, err := s.LearnerTopic(context.Background(), identity.User{}, "topic")

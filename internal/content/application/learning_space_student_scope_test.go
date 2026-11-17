@@ -54,7 +54,7 @@ func TestStudentLearningSpacePreservesMatchingScopeAndRepositoryFailure(t *testi
 }
 
 func TestLearningSpaceShowsFoundationUnlockedOnlyForEntitledStudent(t *testing.T) {
-	repo := &studentScopeRepo{repoStub: &repoStub{}, response: content.LearningSpace{PathID: "path-1", SubjectID: "subject-1", Foundation: []content.LearnerTopicSummary{{ID: "topic", IsLocked: true}}}}
+	repo := &studentScopeRepo{repoStub: &repoStub{}, response: content.LearningSpace{PathID: "path-1", SubjectID: "subject-1", Foundation: []content.LearnerTopicSummary{{ID: "paid-first", IsLocked: true}, {ID: "free-second", IsLocked: false}}}}
 	access := &foundationAccessStub{allow: true}
 	s := NewServiceWithAuthorScope(repo, repo, access)
 	student := identity.User{ID: "student-1", Roles: []identity.Role{identity.RoleStudent}}
@@ -62,9 +62,15 @@ func TestLearningSpaceShowsFoundationUnlockedOnlyForEntitledStudent(t *testing.T
 	if err != nil || result.Foundation[0].IsLocked || access.path != "path-1" || access.subject != "subject-1" {
 		t.Fatalf("entitled result=%+v err=%v", result, err)
 	}
+	if result.Foundation[0].IsFree || !result.Foundation[1].IsFree {
+		t.Fatalf("entitlement must not change configured free/paid status: %+v", result.Foundation)
+	}
 	repo.response.Foundation[0].IsLocked = true
 	result, err = s.LearningSpace(context.Background(), identity.User{}, "path-1", "subject-1", 24)
 	if err != nil || !result.Foundation[0].IsLocked {
 		t.Fatalf("guest result=%+v err=%v", result, err)
+	}
+	if result.Foundation[0].IsFree || !result.Foundation[1].IsFree {
+		t.Fatalf("guest price classification: %+v", result.Foundation)
 	}
 }
