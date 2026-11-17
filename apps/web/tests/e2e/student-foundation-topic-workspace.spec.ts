@@ -137,14 +137,21 @@ test('locked training leads to path packages without starting an attempt', async
   let starts = 0;
   const title = 'تدريب ضمن باقة على المهارات الأساسية والمسائل الطويلة الجزء الأول';
   await page.route('**/api/v1/assessment-placements/available?**', route => json(route, { items: [{ placementId: 'paid-training', assessmentId: 'a1', assessmentVersion: 1, title, slot: 'training', pathId: 'p1', subjectId: 's1', accessType: 'package', baseAccessType: 'free', accessAllowed: false, accessReason: 'package_required', canStart: false, attemptCount: 0, maxAttempts: 3 }], hasMore: false }));
+  await page.route('**/api/v1/assessment-placements/subject-progress?**', route => {
+    const url = new URL(route.request().url());
+    expect(url.searchParams.get('pathId')).toBe('p1'); expect(url.searchParams.get('subjectId')).toBe('s1'); expect(url.searchParams.get('slot')).toBe('training');
+    return json(route, { total: 75, completed: 2 });
+  });
   await page.route('**/api/v1/assessment-placements/paid-training/start', route => { starts++; return json(route, {}, 500); });
   await page.goto('/category/p1?subject=s1&tab=questions');
   const header = page.getByRole('heading', { name: 'كمي', exact: true }).locator('xpath=ancestor::header');
   await expect(header).toHaveCSS('background-color', 'rgb(244, 91, 18)');
-  await expect(page.getByLabel('المسار')).toHaveCount(0);
-  await expect(page.getByLabel('المادة')).toHaveCount(0);
+  await expect(page.getByLabel('المسار', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('المادة', { exact: true })).toHaveCount(0);
   await expect(page.getByText('بنك الأسئلة والتدريب الذكي')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'التدريب', exact: true })).toHaveCSS('background-color', 'rgb(244, 91, 18)');
+  await expect(page.getByRole('progressbar', { name: 'نسبة إكمال تدريبات المادة' })).toHaveAttribute('aria-valuenow', '2');
+  await expect(page.getByLabel('تقدم تدريبات المادة')).toContainText('أكملت 2 من 75 تدريبات منشورة');
   const heading = page.getByRole('heading', { name: title });
   await expect(heading).toBeVisible();
   expect(await heading.evaluate(node => node.scrollWidth <= node.clientWidth && getComputedStyle(node).textOverflow !== 'ellipsis')).toBe(true);
@@ -192,4 +199,38 @@ test('guest can see free topic and is asked to sign in to open its lesson', asyn
   await dialog.getByRole('button', { name: 'فتح الدرس: شرح النسب' }).click();
   await expect(page).toHaveURL(/\/login\?returnTo=/);
   expect(decodeURIComponent(new URL(page.url()).searchParams.get('returnTo') || '')).toContain('topic=t1');
+});
+
+test('subject progress never carries over when switching students', async ({ page }) => {
+  await setup(page);
+  let second = false;
+  let release: () => void = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/v1/auth/login', route => { second = true; return json(route, { user: { ...student, id: 'student-2' } }); });
+  await page.route('**/api/v1/assessment-placements/available?**', route => json(route, { items: [], hasMore: false }));
+  await page.route('**/api/v1/assessment-placements/subject-progress?**', async route => {
+    if (!second) return json(route, { total: 10, completed: 8 });
+    await gate;
+    return json(route, { total: 10, completed: 1 });
+  });
+  await page.goto('/tests/e2e/fixtures/learning-account-scope.html?pathId=p1&subjectId=s1&tab=questions');
+  await expect(page.getByLabel('تقدم تدريبات المادة')).toContainText('أكملت 8 من 10');
+  const next = page.waitForRequest('**/api/v1/assessment-placements/subject-progress?**');
+  await page.getByRole('button', { name: 'تبديل الطالب' }).click();
+  await next;
+  await expect(page.getByLabel('تقدم تدريبات المادة')).toHaveCount(0);
+  release();
+  await expect(page.getByLabel('تقدم تدريبات المادة')).toContainText('أكملت 1 من 10');
+});
+
+test('subject progress offers retry when its service is unavailable', async ({ page }) => {
+  await setup(page);
+  let attempts = 0;
+  await page.route('**/api/v1/assessment-placements/available?**', route => json(route, { items: [], hasMore: false }));
+  await page.route('**/api/v1/assessment-placements/subject-progress?**', route => ++attempts === 1 ? json(route, { message: 'unavailable' }, 503) : json(route, { total: 4, completed: 1 }));
+  await page.goto('/tests/e2e/fixtures/learning-account-scope.html?pathId=p1&subjectId=s1&tab=questions');
+  const error = page.getByRole('alert').filter({ hasText: 'تعذر تحميل تقدم تدريبات المادة.' });
+  await error.getByRole('button', { name: 'إعادة المحاولة' }).click();
+  await expect(page.getByLabel('تقدم تدريبات المادة')).toContainText('أكملت 1 من 4');
+  expect(attempts).toBe(2);
 });

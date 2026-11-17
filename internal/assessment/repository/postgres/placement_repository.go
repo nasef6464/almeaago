@@ -208,6 +208,23 @@ func (r *Repository) ListLearnerPlacements(ctx context.Context, student string, 
 	return out, nil
 }
 
+func (r *Repository) CountLearnerPlacementProgress(ctx context.Context, student string, q assessment.LearnerPlacementQuery) (assessment.PlacementProgress, error) {
+	var out assessment.PlacementProgress
+	err := r.db.QueryRow(ctx, `
+		SELECT count(*)::int,
+		       count(*) FILTER (WHERE EXISTS (
+		         SELECT 1 FROM assessment_attempts x
+		         WHERE x.placement_id=p.id AND x.student_id=$1::uuid AND x.status='submitted'
+		       ))::int
+		FROM assessment_learning_placements p
+		JOIN assessments d ON d.id=p.assessment_id
+		JOIN assessment_versions v ON v.assessment_id=p.assessment_id AND v.version=p.assessment_version
+		WHERE p.is_visible=true AND d.workflow_status='approved' AND d.is_published=true AND d.is_visible=true
+		  AND p.path_id=$2::uuid AND p.subject_id=$3::uuid AND p.slot=$4
+	`, student, q.PathID, q.SubjectID, string(q.Slot)).Scan(&out.Total, &out.Completed)
+	return out, mapError(err)
+}
+
 func (r *Repository) GetPlacementAccessContext(ctx context.Context, placementID string) (assessment.AccessContext, error) {
 	var out assessment.AccessContext
 	err := r.db.QueryRow(ctx, `

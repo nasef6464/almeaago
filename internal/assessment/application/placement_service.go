@@ -20,6 +20,10 @@ type PlacementRepository interface {
 	StartPlacement(context.Context, string, string, string) (assessment.Attempt, error)
 }
 
+type placementProgressRepository interface {
+	CountLearnerPlacementProgress(context.Context, string, assessment.LearnerPlacementQuery) (assessment.PlacementProgress, error)
+}
+
 type PlacementContentResolver interface {
 	ValidateAssessmentPlacementTarget(context.Context, string, string, string, string, string, string) (bool, error)
 	LearnerAssessmentScopeVisible(context.Context, string, string) (bool, error)
@@ -287,6 +291,32 @@ func (s *PlacementService) Learner(ctx context.Context, actor identity.User, q a
 		item.CanStart = item.AttemptCount < item.MaxAttempts && allowed
 	}
 	return page, nil
+}
+
+// SubjectProgress counts only the signed-in student's submitted placements in
+// the exact visible subject and slot, across all pages.
+func (s *PlacementService) SubjectProgress(ctx context.Context, actor identity.User, pathID, subjectID string, slot assessment.PlacementSlot) (assessment.PlacementProgress, error) {
+	if strings.TrimSpace(actor.ID) == "" || !canAccessLearner(actor) {
+		return assessment.PlacementProgress{}, ErrForbidden
+	}
+	if slot != assessment.PlacementTraining && slot != assessment.PlacementTests {
+		return assessment.PlacementProgress{}, ErrInvalidInput
+	}
+	target := assessment.PlacementWrite{PathID: pathID, SubjectID: subjectID, Slot: slot}
+	if err := normalizePlacementTarget(&target); err != nil {
+		return assessment.PlacementProgress{}, err
+	}
+	if err := s.validateLearnerScope(ctx, target.PathID, target.SubjectID); err != nil {
+		return assessment.PlacementProgress{}, err
+	}
+	if err := s.validateContent(ctx, target); err != nil {
+		return assessment.PlacementProgress{}, err
+	}
+	repo, ok := s.repo.(placementProgressRepository)
+	if !ok {
+		return assessment.PlacementProgress{}, ErrForbidden
+	}
+	return repo.CountLearnerPlacementProgress(ctx, actor.ID, assessment.LearnerPlacementQuery{PathID: target.PathID, SubjectID: target.SubjectID, Slot: slot})
 }
 
 func (s *PlacementService) Start(ctx context.Context, actor identity.User, placementID, startKey string) (assessment.Attempt, error) {

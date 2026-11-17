@@ -64,6 +64,40 @@ type placementContentStub struct {
 	hidden bool
 }
 
+type progressRepoStub struct {
+	*placementRepoStub
+	student string
+	query   assessment.LearnerPlacementQuery
+}
+
+func (r *progressRepoStub) CountLearnerPlacementProgress(_ context.Context, student string, q assessment.LearnerPlacementQuery) (assessment.PlacementProgress, error) {
+	r.student, r.query = student, q
+	return assessment.PlacementProgress{Total: 75, Completed: 2}, nil
+}
+
+func TestSubjectProgressRequiresExactVisibleStudentScope(t *testing.T) {
+	repo := &progressRepoStub{placementRepoStub: &placementRepoStub{}}
+	service := NewPlacementService(repo, nil, placementContentStub{ok: true})
+	student := identity.User{ID: "student-1", Roles: []identity.Role{identity.RoleStudent}}
+	result, err := service.SubjectProgress(context.Background(), student, " path-1 ", " subject-1 ", assessment.PlacementTraining)
+	if err != nil || result.Total != 75 || result.Completed != 2 || repo.student != student.ID || repo.query.PathID != "path-1" || repo.query.SubjectID != "subject-1" {
+		t.Fatalf("invalid progress scope/result: %+v %+v %v", result, repo.query, err)
+	}
+	if _, err := service.SubjectProgress(context.Background(), identity.User{}, "path-1", "subject-1", assessment.PlacementTraining); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("guest access: %v", err)
+	}
+	if _, err := service.SubjectProgress(context.Background(), student, "path-1", "", assessment.PlacementTraining); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("missing subject: %v", err)
+	}
+	if _, err := service.SubjectProgress(context.Background(), student, "path-1", "subject-1", assessment.PlacementCourse); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("invalid slot: %v", err)
+	}
+	hidden := NewPlacementService(repo, nil, placementContentStub{ok: true, hidden: true})
+	if _, err := hidden.SubjectProgress(context.Background(), student, "path-1", "subject-1", assessment.PlacementTraining); err == nil {
+		t.Fatal("hidden subject must not reveal progress")
+	}
+}
+
 func (c placementContentStub) ValidateAssessmentPlacementTarget(context.Context, string, string, string, string, string, string) (bool, error) {
 	return c.ok, nil
 }

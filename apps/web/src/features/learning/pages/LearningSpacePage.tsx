@@ -69,6 +69,8 @@ export function LearningSpacePage() {
   const [placementsError, setPlacementsError] = useState('');
   const [placementsRetry, setPlacementsRetry] = useState(0);
   const [loadedPlacementScope, setLoadedPlacementScope] = useState('');
+  const [subjectProgress, setSubjectProgress] = useState<{ scope: string; total: number; completed: number; error?: string } | null>(null);
+  const [progressRetry, setProgressRetry] = useState(0);
   const startPlacementRef = useRef('');
   const placementMounted = useRef(true);
   useEffect(() => {
@@ -225,6 +227,20 @@ export function LearningSpacePage() {
       });
     return () => controller.abort();
   }, [effectivePathId, effectiveSubjectId, tab, placementsRetry, authLoading, user?.id, subjectIsInScope]);
+
+  useEffect(() => {
+    if (authLoading || !user || !effectivePathId || !effectiveSubjectId || !subjectIsInScope || tab !== 'questions') return;
+    const controller = new AbortController();
+    const scope = placementScope;
+    setSubjectProgress(null);
+    assessmentPlacementClient.subjectProgress(effectivePathId, effectiveSubjectId, 'training', controller.signal)
+      .then(result => {
+        if (controller.signal.aborted) return;
+        if (!Number.isInteger(result.total) || !Number.isInteger(result.completed) || result.total < 0 || result.completed < 0 || result.completed > result.total) throw new Error('invalid progress');
+        setSubjectProgress({ scope, ...result });
+      }).catch(() => { if (!controller.signal.aborted) setSubjectProgress({ scope, total: 0, completed: 0, error: 'تعذر تحميل تقدم تدريبات المادة.' }); });
+    return () => controller.abort();
+  }, [authLoading, user?.id, effectivePathId, effectiveSubjectId, subjectIsInScope, tab, placementScope, progressRetry]);
 
   const handleStartPlacement = async (placement: LearnerAssessmentPlacement) => {
     if (authLoading || loadedPlacementScope !== placementScope) return;
@@ -714,6 +730,12 @@ export function LearningSpacePage() {
               </div>
             ) : tab === 'questions' ? (
               <div className="col-span-full space-y-6">
+                {subjectProgress?.scope === placementScope && subjectProgress.error && <div role="alert" className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-xs font-bold text-rose-700">{subjectProgress.error} <button type="button" onClick={() => setProgressRetry(value => value + 1)} className="underline">إعادة المحاولة</button></div>}
+                {subjectProgress?.scope === placementScope && !subjectProgress.error && subjectProgress.total > 0 && <section aria-label="تقدم تدريبات المادة" className="rounded-xl border border-sky-100 bg-sky-50 p-3 text-xs font-bold text-slate-700">
+                  <div className="flex justify-between gap-3"><span>أكملت {subjectProgress.completed} من {subjectProgress.total} تدريبات منشورة</span><span>{Math.round(subjectProgress.completed * 100 / subjectProgress.total)}%</span></div>
+                  <div role="progressbar" aria-label="نسبة إكمال تدريبات المادة" aria-valuemin={0} aria-valuemax={subjectProgress.total} aria-valuenow={subjectProgress.completed} className="mt-2 h-1.5 overflow-hidden rounded-full bg-sky-100"><div className="h-full rounded-full bg-sky-500" style={{width: `${subjectProgress.completed * 100 / subjectProgress.total}%`}} /></div>
+                  <p className="mt-1 text-[10px] text-slate-500">يشمل العدد التدريبات المنشورة المجانية والمشمولة بالباقات.</p>
+                </section>}
                 {!legacySubjectScreen && <article className="flex flex-col gap-4 rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-900 to-[#2e2b70] p-6 text-white shadow-md sm:flex-row sm:items-center sm:justify-between sm:p-8">
                   <div className="space-y-2">
                     <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-black text-indigo-200">
