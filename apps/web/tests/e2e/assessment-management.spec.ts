@@ -8,4 +8,33 @@ function json(r:Route,b:unknown,s=200){return r.fulfill({status:s,contentType:'a
 async function mock(page:Page,user=admin){await page.route('**/api/v1/auth/me',r=>json(r,{user}));await page.route('**/api/v1/auth/csrf',r=>json(r,{csrfToken:'csrf'}));await page.route('**/api/v1/taxonomy/bootstrap**',r=>json(r,taxonomy));await page.route('**/api/v1/assessments**',r=>{const u=new URL(r.request().url());if(r.request().method()==='GET'&&u.pathname==='/api/v1/assessments')return json(r,{items:[summary],page:1,limit:50,hasMore:false});if(r.request().method()==='GET')return json(r,{assessment:detail});return json(r,{assessment:detail})});await page.route('**/api/v1/questions**',r=>json(r,{items:[{id:'q-2',questionCode:'QDR-002',currentVersion:4,pathId:'path-1',subjectId:'subject-1',workflowStatus:'approved',type:'text',text:'إذا كان س + 2 = 5 فما قيمة س؟',imageAssetId:'',difficulty:'easy'}],page:1,limit:50,hasMore:false}))}
 test('assessment center desktop and builder use bounded version-pinned questions',async({page})=>{await mock(page);await page.setViewportSize({width:1440,height:1000});await page.goto('/admin-dashboard/assessments');await expect(page.getByRole('heading',{name:'مركز الاختبارات'})).toBeVisible();await expect(page.getByText('محاكي القدرات الكمي')).toBeVisible();await page.getByRole('button',{name:'فتح / تعديل'}).click();await expect(page.getByRole('heading',{name:'تعديل الاختبار'})).toBeVisible();await page.getByRole('navigation',{name:'أقسام منشئ الاختبارات'}).getByRole('button',{name:'الصلاحيات والنشر'}).click();await expect(page.getByLabel('سياسة وصول الاختبار')).toHaveValue('free');await page.getByRole('navigation',{name:'أقسام منشئ الاختبارات'}).getByRole('button',{name:'الأسئلة',exact:true}).click();await expect(page.getByText('QDR-002')).toBeVisible();await page.getByRole('button',{name:'إضافة السؤال QDR-002'}).click();await expect(page.getByText('v4')).toBeVisible();await page.screenshot({path:'test-results/assessment-desktop.png',fullPage:true})});
 test('assessment center mobile keeps create and search reachable',async({page})=>{await mock(page);await page.setViewportSize({width:390,height:844});await page.goto('/admin-dashboard/assessments');await page.getByRole('button',{name:'اختبار جديد'}).click();await expect(page.getByRole('heading',{name:'إنشاء اختبار جديد'})).toBeVisible();await page.getByRole('navigation',{name:'أقسام منشئ الاختبارات'}).getByRole('button',{name:'الأسئلة',exact:true}).click();await expect(page.getByLabel('بحث بنك الأسئلة')).toBeVisible();await page.screenshot({path:'test-results/assessment-mobile.png',fullPage:true})});
+test('approved exam visibility retries without changing publication',async({page})=>{
+  await mock(page);
+  const approved={...detail,workflowStatus:'approved',isPublished:true,isVisible:true};
+  let calls=0;
+  await page.route('**/api/v1/assessments**',route=>{
+    const url=new URL(route.request().url());
+    if(route.request().method()==='GET'&&url.pathname==='/api/v1/assessments') return json(route,{items:[approved],page:1,limit:50,hasMore:false});
+    if(url.pathname.endsWith('/visibility')){
+      calls++;
+      expect(route.request().postDataJSON()).toMatchObject({expectedRevision:2,isVisible:false});
+      return calls===1 ? json(route,{message:'تعذر تغيير الظهور'},503) : json(route,{assessment:{...approved,isVisible:false,revision:3}});
+    }
+    return json(route,{assessment:approved});
+  });
+  await page.goto('/admin-dashboard/assessments');
+  await page.getByRole('button',{name:'فتح / تعديل'}).click();
+  await page.getByRole('navigation',{name:'أقسام منشئ الاختبارات'}).getByRole('button',{name:'الصلاحيات والنشر'}).click();
+  const visible=page.getByLabel('إظهار الاختبار للطلاب');
+  await expect(visible).toBeChecked();
+  await visible.click();
+  await expect(page.getByText('تعذر تغيير الظهور')).toBeVisible();
+  await expect(visible).toBeChecked();
+  await visible.click();
+  await expect(visible).not.toBeChecked();
+  await expect(page.getByText('تم إخفاء الاختبار عن الطلاب.')).toBeVisible();
+  await expect(page.getByRole('button',{name:'إلغاء النشر',exact:true})).toBeVisible();
+  await expect(page.getByText('تغيير الظهور يُحفظ فورًا ولا يغيّر حالة النشر.',{exact:false})).toBeVisible();
+  expect(calls).toBe(2);
+});
 test('teacher never issues broad assessment list before exact taxonomy scope',async({page})=>{let lists=0;await mock(page,teacher);await page.route('**/api/v1/assessments**',r=>{const u=new URL(r.request().url());if(r.request().method()==='GET'&&u.pathname==='/api/v1/assessments'){lists++;return json(r,{items:[summary],page:1,limit:50,hasMore:false})}return json(r,{assessment:detail})});await page.goto('/admin-dashboard/assessments');await expect(page.getByText(/اختر المسار ثم المادة/)).toBeVisible();expect(lists).toBe(0);await page.getByLabel('المسار').selectOption('path-1');await page.getByLabel('المادة').selectOption('subject-1');await expect(page.getByText('محاكي القدرات الكمي')).toBeVisible();expect(lists).toBe(1)});
