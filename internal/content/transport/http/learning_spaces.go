@@ -18,8 +18,39 @@ func NewLearningSpaces(service *contentapp.Service, auth Authenticator) http.Han
 	r.Get("/foundation/{id}", h.getLearnerTopic)
 	r.Get("/foundation/{topicId}/lessons/{lessonId}", h.getLearnerFoundationLesson)
 	r.Get("/{pathId}/subjects/{subjectId}/foundation", h.getLearnerFoundationPage)
+	r.Get("/{pathId}/subjects/{subjectId}/resources/{kind}", h.getLearnerResourcePage)
 	r.Get("/{pathId}/subjects/{subjectId}", h.getLearningSpace)
 	return r
+}
+
+func (h *Handler) getLearnerResourcePage(w http.ResponseWriter, r *http.Request) {
+	auth, _ := h.authenticateOptional(r)
+	page, ok := parsePositiveInt(w, r.URL.Query().Get("page"))
+	if !ok {
+		return
+	}
+	limit, ok := parsePositiveInt(w, r.URL.Query().Get("limit"))
+	if !ok {
+		return
+	}
+	kind := chi.URLParam(r, "kind")
+	result, err := h.service.LearnerResourcePage(r.Context(), auth.User, chi.URLParam(r, "pathId"), chi.URLParam(r, "subjectId"), kind, page, limit)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	items := make([]map[string]any, 0)
+	if kind == "courses" {
+		for _, item := range result.Courses {
+			items = append(items, presentLearnerCourseSummary(item))
+		}
+	} else {
+		for _, item := range result.Library {
+			items = append(items, presentLearnerLibrarySummary(item))
+		}
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
+	writeJSON(w, http.StatusOK, map[string]any{"pathId": result.PathID, "subjectId": result.SubjectID, "page": result.Page, "items": items, "hasMore": result.HasMore})
 }
 
 func (h *Handler) getLearnerFoundationPage(w http.ResponseWriter, r *http.Request) {

@@ -421,3 +421,47 @@ test('late foundation page never appears for a different student', async ({ page
   release();
   await expect(page.getByText('صفحة الطالب الأول المتأخرة')).toHaveCount(0);
 });
+
+test('courses and library load subsequent pages with retry', async ({ page }) => {
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/p1/subjects/s1?limit=50', route => json(route, { ...learningSpace(), courses: { items: [], hasMore: true }, library: { items: [], hasMore: true } }));
+  let attempts = 0;
+  await page.route('**/api/v1/learning-spaces/p1/subjects/s1/resources/courses?**', route => {
+    expect(new URL(route.request().url()).searchParams.get('page')).toBe('2');
+    return json(route, { pathId:'p1', subjectId:'s1', page:2, hasMore:false, items:[{ id:'course-later', title:'دورة الصفحة التالية', description:'', instructorName:'', durationMinutes:0, level:'', thumbnailAssetId:'', dripContentEnabled:false, certificateEnabled:false }] });
+  });
+  await page.route('**/api/v1/learning-spaces/p1/subjects/s1/resources/library?**', route => {
+    attempts++;
+    return attempts === 1 ? json(route, { message:'تعذر الاتصال' }, 503) : json(route, { pathId:'p1', subjectId:'s1', page:2, hasMore:false, items:[{ id:'library-later', title:'ملف الصفحة التالية', description:'', type:'pdf', isLocked:true }] });
+  });
+  await page.goto('/category/p1?subject=s1&tab=courses');
+  await page.getByRole('button', { name:'عرض المزيد', exact:true }).click();
+  await expect(page.getByRole('heading', { name:'دورة الصفحة التالية' })).toBeVisible();
+  await page.goto('/category/p1?subject=s1&tab=library');
+  await page.getByRole('button', { name:'عرض المزيد', exact:true }).click();
+  await expect(page.getByRole('alert').filter({ hasText:'تعذر الاتصال' })).toBeVisible();
+  await page.getByRole('button', { name:'إعادة المحاولة' }).click();
+  await expect(page.getByRole('heading', { name:'ملف الصفحة التالية' })).toBeVisible();
+  await expect(page.getByRole('link', { name:'فتح عبر الباقة' })).toBeVisible();
+});
+
+test('late library page is discarded after changing student', async ({ page }) => {
+  await setup(page);
+  let second = false;
+  let release: () => void = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/v1/auth/login', route => { second = true; return json(route, { user:{ ...student, id:'student-2' } }); });
+  await page.route('**/api/v1/learning-spaces/p1/subjects/s1?limit=50', route => json(route, { ...learningSpace(), library:{ items:[], hasMore:!second } }));
+  await page.route('**/api/v1/learning-spaces/p1/subjects/s1/resources/library?**', async route => {
+    await gate;
+    await json(route, { pathId:'p1', subjectId:'s1', page:2, hasMore:false, items:[{ id:'old-file', title:'ملف الطالب السابق', description:'', type:'pdf', isLocked:false, externalUrl:'https://example.com/private' }] }).catch(() => {});
+  });
+  await page.goto('/tests/e2e/fixtures/learning-account-scope.html?pathId=p1&subjectId=s1&tab=library');
+  const oldPage = page.waitForRequest('**/api/v1/learning-spaces/p1/subjects/s1/resources/library?**');
+  await page.getByRole('button', { name:'عرض المزيد', exact:true }).click();
+  await oldPage;
+  await page.getByRole('button', { name:'تبديل الطالب' }).click();
+  await expect(page.getByText('لا يوجد محتوى متاح حاليًا.')).toBeVisible();
+  release();
+  await expect(page.getByText('ملف الطالب السابق')).toHaveCount(0);
+});

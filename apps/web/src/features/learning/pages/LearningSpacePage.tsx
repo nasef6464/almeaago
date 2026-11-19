@@ -34,6 +34,7 @@ import {
 import { assessmentPlacementClient } from '../../assessment/api/assessment-placement-client';
 import { subjectPackagesURL } from '../../commerce/navigation/subjectPackages';
 import type { LearnerAssessmentPlacement } from '../../assessment/api/assessment-types';
+import { useLearnerResourcePages } from './useLearnerResourcePages';
 
 type Tab = LearningTab;
 
@@ -114,6 +115,8 @@ export function LearningSpacePage() {
   const currentPlacementScope = useRef(placementScope);
   currentPlacementScope.current = placementScope;
   const visibleSpace = !authLoading && requestState.key === scopeKey && space?.pathId === effectivePathId && space?.subjectId === effectiveSubjectId ? space : null;
+  const coursePages = useLearnerResourcePages(scopeKey, effectivePathId, effectiveSubjectId, 'courses', visibleSpace?.courses);
+  const libraryPages = useLearnerResourcePages(scopeKey, effectivePathId, effectiveSubjectId, 'library', visibleSpace?.library);
   const busy = requestState.key === scopeKey && requestState.busy;
   const error = requestState.key === scopeKey ? requestState.error : '';
 
@@ -595,7 +598,7 @@ export function LearningSpacePage() {
         ) : visibleSpace ? (
           <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {tab === 'courses' ? (
-              visibleSpace.courses.items.map((course) => (
+              coursePages.items.map((course) => (
                 <article
                   key={course.id}
                   className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
@@ -1245,7 +1248,7 @@ export function LearningSpacePage() {
                 ) : null}
               </div>
             ) : (
-              visibleSpace.library.items.map((item) => (
+              libraryPages.items.map((item) => (
                 <article key={item.id} className="flex h-full flex-col justify-between rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
                   <div>
                     <div className="mb-4 flex items-start justify-between">
@@ -1294,10 +1297,15 @@ export function LearningSpacePage() {
               ))
             )}
 
+            {(tab === 'courses' || tab === 'library') && (tab === 'courses' ? coursePages : libraryPages).hasMore ? (() => {
+              const pages = tab === 'courses' ? coursePages : libraryPages;
+              return <div className="col-span-full text-center">{pages.error && <p role="alert" className="mb-2 text-sm font-bold text-rose-700">{pages.error}</p>}<button type="button" disabled={pages.loading} onClick={() => void pages.loadMore()} className="rounded-xl border border-indigo-200 bg-white px-4 py-2 text-sm font-bold text-indigo-700 disabled:opacity-50">{pages.loading ? 'جاري تحميل المزيد...' : pages.error ? 'إعادة المحاولة' : 'عرض المزيد'}</button></div>;
+            })() : null}
+
             {(
-              (tab === 'courses' && !visibleSpace.courses.items.length) ||
+              (tab === 'courses' && !coursePages.items.length && !coursePages.hasMore) ||
               (tab === 'foundation' && !mainTopics.length && !foundationHasMore) ||
-              (tab === 'library' && !visibleSpace.library.items.length)
+              (tab === 'library' && !libraryPages.items.length && !libraryPages.hasMore)
             ) ? (
               <div className="col-span-full rounded-2xl border bg-white p-10 text-center font-bold text-gray-500">
                 لا يوجد محتوى متاح حاليًا.
