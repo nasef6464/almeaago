@@ -13,6 +13,14 @@ import (
 func NewLearningSpaces(service *contentapp.Service, auth Authenticator) http.Handler {
 	h := &Handler{service: service, auth: auth}
 	r := chi.NewRouter()
+	// Every response in this router may contain account-specific access or URLs,
+	// including errors; never let a browser or shared cache reuse it for another user.
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", "private, no-store")
+			next.ServeHTTP(w, r)
+		})
+	})
 	r.Get("/courses/{id}", h.getLearnerCourse)
 	r.Get("/courses/{courseId}/lessons/{lessonId}", h.getLearnerCourseLesson)
 	r.Get("/foundation/{id}", h.getLearnerTopic)

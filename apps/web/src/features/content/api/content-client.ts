@@ -94,7 +94,7 @@ export const contentClient = {
   learningSpace(pathId: string, subjectId: string, limit = 50, signal?: AbortSignal) {
     return request<LearningSpace>(
       `/api/v1/learning-spaces/${encodeURIComponent(pathId)}/subjects/${encodeURIComponent(subjectId)}?limit=${limit}`,
-      { signal },
+      { signal, cache: 'no-store' },
     );
   },
 
@@ -117,28 +117,28 @@ export const contentClient = {
   learnerCourse(courseId: string, signal?: AbortSignal) {
     return request<{ course: LearnerCourse }>(
       `/api/v1/learning-spaces/courses/${encodeURIComponent(courseId)}`,
-      { signal },
+      { signal, cache: 'no-store' },
     );
   },
 
   learnerCourseLesson(courseId: string, lessonId: string, signal?: AbortSignal) {
     return request<{ lesson: LearnerLessonDetail }>(
       `/api/v1/learning-spaces/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(lessonId)}`,
-      { signal },
+      { signal, cache: 'no-store' },
     );
   },
 
   learnerTopic(topicId: string, signal?: AbortSignal) {
     return request<{ topic: LearnerTopic }>(
       `/api/v1/learning-spaces/foundation/${encodeURIComponent(topicId)}`,
-      { signal },
+      { signal, cache: 'no-store' },
     );
   },
 
   learnerFoundationLesson(topicId: string, lessonId: string, signal?: AbortSignal) {
     return request<{ lesson: LearnerLessonDetail }>(
       `/api/v1/learning-spaces/foundation/${encodeURIComponent(topicId)}/lessons/${encodeURIComponent(lessonId)}`,
-      { signal },
+      { signal, cache: 'no-store' },
     );
   },
 
