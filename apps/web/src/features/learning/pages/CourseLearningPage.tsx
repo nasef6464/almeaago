@@ -44,6 +44,7 @@ import type {
 import { lessonProgressClient, type LessonProgress } from '../api/learning-client';
 import { SharedVideoPlayer, type SharedVideoPlayerHandle } from '../components/SharedVideoPlayer';
 import { CourseLessonNotes } from '../components/CourseLessonNotes';
+import { CourseLessonDiscussion } from '../components/CourseLessonDiscussion';
 import { CourseAssessmentList } from '../components/CourseAssessmentList';
 import { courseFileURL } from '../courseFileURL';
 import { useCourseCompletion } from '../useCourseCompletion';
@@ -1115,7 +1116,10 @@ export function CourseLearningPage() {
 
                     {/* 3. QA TAB */}
                     {bottomTab === 'qa' && (
-                      <CourseLessonNotes key={`${user.id}:${courseId}:${lessonId}`} userId={user.id} courseId={courseId} lessonId={lessonId} isDarkMode={isDarkMode} />
+                      <div className="space-y-6" key={`${user.id}:${courseId}:${lessonId}`}>
+                        <CourseLessonNotes userId={user.id} courseId={courseId} lessonId={lessonId} isDarkMode={isDarkMode} />
+                        {user.roles?.some(role => ['student', 'teacher', 'admin'].includes(role)) && <CourseLessonDiscussion courseId={courseId} lessonId={lessonId} isDarkMode={isDarkMode} getCsrfToken={getCsrfToken} />}
+                      </div>
                     )}
 
                     {/* 4. ASSESSMENTS TAB */}

@@ -30,7 +30,7 @@ export function CourseLessonNotes({ userId, courseId, lessonId, isDarkMode }: {
   return (
     <div className="space-y-4">
       <p className={`text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-        النقاش مع المدرب غير متاح حاليًا. يمكنك حفظ ملاحظات خاصة على هذا الجهاز؛ لا تُرسل إلى المدرب.
+        ملاحظاتك الخاصة تُحفظ على هذا الجهاز ولا تُرسل إلى أحد.
       </p>
       <label className="block text-xs font-bold" htmlFor="private-lesson-note">ملاحظة خاصة لهذا الدرس</label>
       <textarea id="private-lesson-note" rows={3} value={draft} onChange={event => setDraft(event.target.value)}

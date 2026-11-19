@@ -23,6 +23,8 @@ func NewLearningSpaces(service *contentapp.Service, auth Authenticator) http.Han
 	})
 	r.Get("/courses/{id}", h.getLearnerCourse)
 	r.Get("/courses/{courseId}/lessons/{lessonId}", h.getLearnerCourseLesson)
+	r.Get("/courses/{courseId}/lessons/{lessonId}/discussion", h.getLessonDiscussion)
+	r.Post("/courses/{courseId}/lessons/{lessonId}/discussion", h.addLessonDiscussion)
 	r.Get("/foundation/{id}", h.getLearnerTopic)
 	r.Get("/foundation/{topicId}/lessons/{lessonId}", h.getLearnerFoundationLesson)
 	r.Get("/{pathId}/subjects/{subjectId}/foundation", h.getLearnerFoundationPage)

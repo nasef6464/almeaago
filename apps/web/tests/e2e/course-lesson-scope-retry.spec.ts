@@ -39,6 +39,7 @@ async function setup(page: Page) {
   await page.route('**/api/v1/learning-progress/courses/course-1/completed', route => json(route, {courseId:'course-1',completedLessonIds:[]}));
   await page.route('**/api/v1/learning-spaces/courses/course-1', route => json(route, { course }));
   await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a', route => json(route, { lesson: detail('lesson-a') }));
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/*/discussion?*', route => json(route, {items:[],page:1,hasMore:false}));
   await page.route('**/api/v1/learning-progress/lessons/*?**', route => {
     const id = new URL(route.request().url()).pathname.split('/').pop() || '';
     return json(route, { progress: progress(id) });
@@ -147,7 +148,7 @@ test('course notes remain private to the selected lesson and do not claim instru
   await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-b', route => json(route, { lesson: detail('lesson-b') }));
   await page.goto('/learning/courses/course-1');
   await page.getByRole('button', { name: 'الملاحظات والنقاش' }).click();
-  await expect(page.getByText('النقاش مع المدرب غير متاح حاليًا.', { exact: false })).toBeVisible();
+  await expect(page.getByText('ملاحظاتك الخاصة تُحفظ على هذا الجهاز ولا تُرسل إلى أحد.')).toBeVisible();
   await expect(page.getByText('سارة العتيبي')).toHaveCount(0);
   await page.getByLabel('ملاحظة خاصة لهذا الدرس').fill('ملاحظتي على الدرس الأول');
   await page.getByRole('button', { name: 'حفظ ملاحظة خاصة' }).click();
@@ -161,6 +162,93 @@ test('course notes remain private to the selected lesson and do not claim instru
   await page.getByRole('button', { name: 'الملاحظات والنقاش' }).click();
   await expect(page.getByText('ملاحظتي على الدرس الثاني')).toBeVisible();
   await expect(page.getByText('ملاحظتي على الدرس الأول')).toHaveCount(0);
+});
+
+test('lesson discussion retries a lost response without duplicating the message', async ({ page }) => {
+  await setup(page);
+  const rows: Array<{ id:string; parentId:string; authorId:string; authorName:string; body:string; createdAt:string }> = [];
+  const requests: string[] = [];
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a/discussion?*', route => json(route, {items:rows,page:1,hasMore:false}));
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a/discussion', async route => {
+    const body = route.request().postDataJSON();
+    expect(route.request().headers()['x-csrf-token']).toBe('csrf');
+    requests.push(body.requestId);
+    if (!rows.length) {
+      rows.push({id:'message-1',parentId:'',authorId:student.id,authorName:student.name,body:body.body,createdAt:'2026-11-19T00:00:00Z'});
+      await route.abort('failed');
+      return;
+    }
+    return json(route,{item:rows[0]});
+  });
+  await page.goto('/learning/courses/course-1');
+  await page.getByRole('button',{name:'الملاحظات والنقاش'}).click();
+  await expect(page.getByText('لا توجد مناقشات لهذا الدرس بعد.')).toBeVisible();
+  await page.getByLabel('اكتب سؤالك أو مناقشتك').fill('كيف أحل هذا السؤال؟');
+  await page.getByRole('button',{name:'إرسال',exact:true}).click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByLabel('اكتب سؤالك أو مناقشتك')).toHaveValue('كيف أحل هذا السؤال؟');
+  await page.getByRole('button',{name:'إرسال',exact:true}).click();
+  await expect(page.getByText('كيف أحل هذا السؤال؟',{exact:true})).toBeVisible();
+  expect(requests).toHaveLength(2); expect(requests[0]).toBe(requests[1]); expect(rows).toHaveLength(1);
+});
+
+test('late discussion from another lesson is never shown', async ({ page }) => {
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-b', route => json(route, {lesson:detail('lesson-b')}));
+  let release: () => void = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a/discussion?*', async route => {
+    await gate;
+    await json(route,{items:[{id:'a',parentId:'',authorId:'a',authorName:'طالب',body:'مناقشة الدرس الأول',createdAt:'2026-11-19T00:00:00Z'}],page:1,hasMore:false}).catch(() => {});
+  });
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-b/discussion?*', route => json(route,{items:[{id:'b',parentId:'',authorId:'b',authorName:'طالب',body:'مناقشة الدرس الثاني',createdAt:'2026-11-19T00:00:00Z'}],page:1,hasMore:false}));
+  await page.goto('/learning/courses/course-1');
+  const oldRequest = page.waitForRequest('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a/discussion?*');
+  await page.getByRole('button',{name:'الملاحظات والنقاش'}).click();
+  await oldRequest;
+  await page.getByRole('button',{name:/الدرس الثاني/}).click();
+  await expect(page.getByText('نص الدرس الثاني الحصري')).toBeVisible();
+  await page.getByRole('button',{name:'الملاحظات والنقاش'}).click();
+  await expect(page.getByText('مناقشة الدرس الثاني')).toBeVisible();
+  release();
+  await expect(page.getByText('مناقشة الدرس الأول')).toHaveCount(0);
+});
+
+test('discussion loading and sending cannot overwrite the draft or a new message', async ({ page }) => {
+  await setup(page);
+  let releaseLoad: () => void = () => {};
+  let releasePost: () => void = () => {};
+  const loadGate = new Promise<void>(resolve => { releaseLoad = resolve; });
+  const postGate = new Promise<void>(resolve => { releasePost = resolve; });
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a/discussion?*', async route => { await loadGate; return json(route,{items:[],page:1,hasMore:false}); });
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a/discussion', async route => {
+    await postGate;
+    return json(route,{item:{id:'m1',parentId:'',authorId:student.id,authorName:student.name,body:'سؤال محفوظ',createdAt:'2026-11-19T00:00:00Z'}});
+  });
+  await page.goto('/learning/courses/course-1');
+  await page.getByRole('button',{name:'الملاحظات والنقاش'}).click();
+  const input = page.getByLabel('اكتب سؤالك أو مناقشتك');
+  await input.fill('سؤال محفوظ');
+  await expect(page.getByRole('button',{name:'إرسال',exact:true})).toBeDisabled();
+  releaseLoad();
+  await expect(page.getByRole('button',{name:'إرسال',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'إرسال',exact:true}).click();
+  await expect(input).toBeDisabled();
+  releasePost();
+  await expect(page.getByText('سؤال محفوظ',{exact:true})).toBeVisible();
+  await expect(input).toBeEnabled();
+});
+
+test('lesson replies identify their parent even when another question intervenes', async ({ page }) => {
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a/discussion?*', route => json(route,{page:1,hasMore:false,items:[
+    {id:'a',parentId:'',authorId:'a',authorName:'طالب',body:'السؤال الأول',createdAt:'2026-11-19T00:00:00Z'},
+    {id:'b',parentId:'',authorId:'b',authorName:'طالب',body:'السؤال الثاني',createdAt:'2026-11-19T00:00:01Z'},
+    {id:'r',parentId:'a',authorId:'b',authorName:'طالب',body:'إجابة الأول',createdAt:'2026-11-19T00:00:02Z'},
+  ]}));
+  await page.goto('/learning/courses/course-1');
+  await page.getByRole('button',{name:'الملاحظات والنقاش'}).click();
+  await expect(page.getByText('رد على: السؤال الأول')).toBeVisible();
 });
 
 test('interactive video answers are scoped to the signed-in student', async ({ page }) => {

@@ -1092,6 +1092,20 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+		discussionCall := func(method, token, csrf, body string) *httptest.ResponseRecorder {
+			t.Helper()
+			req := httptest.NewRequest(method, "/courses/"+courseID+"/lessons/"+paidLessonID+"/discussion", strings.NewReader(body))
+			if token != "" {
+				req.AddCookie(&http.Cookie{Name: identitysession.CookieName, Value: token})
+			}
+			req.Header.Set("X-CSRF-Token", csrf)
+			w := httptest.NewRecorder()
+			learningHandler.ServeHTTP(w, req)
+			return w
+		}
+		if w := discussionCall(http.MethodGet, studentToken, "", ""); w.Code != http.StatusForbidden {
+			t.Fatalf("paid discussion before purchase: %d %s", w.Code, w.Body.String())
+		}
 		// Create a real published question and assessment, then attach it to the paid lesson.
 		var quizID, quizQuestionID string
 		tx, err := db.Begin(ctx)
@@ -1203,6 +1217,43 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 		}
 		check(studentToken, true)
 		check("", false)
+		message := `{"body":"سؤال الدرس","requestId":"course-message-123456789"}`
+		first := discussionCall(http.MethodPost, studentToken, studentCSRF, message)
+		if first.Code != http.StatusCreated {
+			t.Fatalf("discussion after purchase: %d %s", first.Code, first.Body.String())
+		}
+		retried := discussionCall(http.MethodPost, studentToken, studentCSRF, message)
+		if retried.Code != http.StatusCreated || first.Body.String() != retried.Body.String() {
+			t.Fatalf("discussion retry: %d %s", retried.Code, retried.Body.String())
+		}
+		if w := discussionCall(http.MethodGet, studentToken, "", ""); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "سؤال الدرس") {
+			t.Fatalf("purchased discussion read: %d %s", w.Code, w.Body.String())
+		}
+		if w := discussionCall(http.MethodGet, outsiderToken, "", ""); w.Code != http.StatusForbidden {
+			t.Fatalf("other student discussion leak: %d %s", w.Code, w.Body.String())
+		}
+		if os.Getenv("DISCUSSION_JOURNEY_BROWSER") == "1" {
+			router := chi.NewRouter()
+			router.Mount("/api/v1/auth", identityhttp.New(auth, false))
+			router.Mount("/api/v1/learning-spaces", learningHandler)
+			router.Mount("/api/v1/learning-progress", progressHandler)
+			router.Mount("/api/v1/assessment-placements", assessmenthttp.NewPlacements(placements, auth))
+			router.Mount("/api/v1/taxonomy", taxonomyhttp.New(taxonomyapp.NewService(taxonomypg.New(db)), auth))
+			server := httptest.NewServer(router)
+			defer server.Close()
+			web, err := filepath.Abs("../../../../apps/web")
+			if err != nil {
+				t.Fatal(err)
+			}
+			command := exec.CommandContext(ctx, "node", "node_modules/@playwright/test/cli.js", "test", "tests/e2e/course-discussion-live.spec.ts", "--project=chromium", "--workers=1")
+			command.Dir = web
+			command.Env = append(os.Environ(), "CI=1", "DISCUSSION_LIVE=1", "E2E_API_TARGET="+server.URL, "DISCUSSION_STUDENT_EMAIL="+studentUser.Email, "DISCUSSION_PASSWORD="+password, "DISCUSSION_COURSE_ID="+courseID, "DISCUSSION_LESSON_ID="+paidLessonID)
+			output, err := command.CombinedOutput()
+			t.Log(string(output))
+			if err != nil {
+				t.Fatalf("isolated discussion browser: %v", err)
+			}
+		}
 		afterPlacement, err := placements.Learner(ctx, studentUser, placementQuery)
 		if err != nil || len(afterPlacement.Items) != 1 || !afterPlacement.Items[0].AccessAllowed {
 			t.Fatalf("placement after package: %+v %v", afterPlacement, err)
