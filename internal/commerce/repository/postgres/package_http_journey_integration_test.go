@@ -1232,6 +1232,72 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 		if w := discussionCall(http.MethodGet, outsiderToken, "", ""); w.Code != http.StatusForbidden {
 			t.Fatalf("other student discussion leak: %d %s", w.Code, w.Body.String())
 		}
+		teacher, err := identityRepo.CreateUser(ctx, "course teacher", "teacher-discussion"+suffix+"@example.invalid", hash, identity.RoleTeacher)
+		if err != nil {
+			t.Fatal(err)
+		}
+		otherTeacher, err := identityRepo.CreateUser(ctx, "other teacher", "other-teacher-discussion"+suffix+"@example.invalid", hash, identity.RoleTeacher)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(ctx, `INSERT INTO content_trainer_subject_scopes(user_id,subject_id) VALUES($1,$3),($2,$3)`, teacher.ID, otherTeacher.ID, subject); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(ctx, `UPDATE courses SET assigned_teacher_id=$1 WHERE id=$2`, teacher.ID, courseID); err != nil {
+			t.Fatal(err)
+		}
+		teacherToken, teacherCSRF := login(teacher.Email)
+		otherTeacherToken, _ := login(otherTeacher.Email)
+		if w := discussionCall(http.MethodGet, otherTeacherToken, "", ""); w.Code != http.StatusForbidden {
+			t.Fatalf("unassigned teacher discussion: %d %s", w.Code, w.Body.String())
+		}
+		if w := discussionCall(http.MethodGet, teacherToken, "", ""); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "سؤال الدرس") {
+			t.Fatalf("assigned teacher discussion: %d %s", w.Code, w.Body.String())
+		}
+		var createdMessage struct {
+			Item struct {
+				ID string `json:"id"`
+			} `json:"item"`
+		}
+		if err := json.Unmarshal(first.Body.Bytes(), &createdMessage); err != nil || createdMessage.Item.ID == "" {
+			t.Fatalf("discussion response: %v", err)
+		}
+		replyJSON, _ := json.Marshal(map[string]string{"body": "توضيح المدرب", "parentId": createdMessage.Item.ID, "requestId": "teacher-reply-123456789"})
+		if w := discussionCall(http.MethodPost, teacherToken, teacherCSRF, string(replyJSON)); w.Code != http.StatusCreated {
+			t.Fatalf("assigned teacher reply: %d %s", w.Code, w.Body.String())
+		}
+		if w := discussionCall(http.MethodGet, studentToken, "", ""); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "توضيح المدرب") {
+			t.Fatalf("student reads teacher reply: %d %s", w.Code, w.Body.String())
+		}
+		if os.Getenv("DISCUSSION_TEACHER_BROWSER") == "1" {
+			router := chi.NewRouter()
+			router.Mount("/api/v1/auth", identityhttp.New(auth, false))
+			router.Mount("/api/v1/learning-spaces", learningHandler)
+			router.Mount("/api/v1/courses", contenthttp.NewCourses(contentService, auth))
+			router.Mount("/api/v1/lessons", contenthttp.NewLessons(contentService, auth))
+			router.Mount("/api/v1/assessments", assessmenthttp.New(assessmentapp.NewService(assessmentRepo), auth))
+			router.Mount("/api/v1/taxonomy", taxonomyhttp.New(taxonomyapp.NewService(taxonomypg.New(db)), auth))
+			server := httptest.NewServer(router)
+			defer server.Close()
+			web, err := filepath.Abs("../../../../apps/web")
+			if err != nil {
+				t.Fatal(err)
+			}
+			command := exec.CommandContext(ctx, "node", "node_modules/@playwright/test/cli.js", "test", "tests/e2e/course-discussion-teacher-live.spec.ts", "--project=chromium", "--workers=1")
+			command.Dir = web
+			command.Env = append(os.Environ(), "CI=1", "DISCUSSION_TEACHER_LIVE=1", "E2E_API_TARGET="+server.URL, "DISCUSSION_TEACHER_EMAIL="+teacher.Email, "DISCUSSION_TEACHER_ID="+teacher.ID, "DISCUSSION_STUDENT_EMAIL="+studentUser.Email, "DISCUSSION_PASSWORD="+password, "DISCUSSION_COURSE_ID="+courseID, "DISCUSSION_LESSON_ID="+paidLessonID)
+			output, err := command.CombinedOutput()
+			t.Log(string(output))
+			if err != nil {
+				t.Fatalf("isolated teacher discussion browser: %v", err)
+			}
+		}
+		if _, err := db.Exec(ctx, `DELETE FROM content_trainer_subject_scopes WHERE user_id=$1 AND subject_id=$2`, teacher.ID, subject); err != nil {
+			t.Fatal(err)
+		}
+		if w := discussionCall(http.MethodGet, teacherToken, "", ""); w.Code != http.StatusForbidden {
+			t.Fatalf("out-of-scope teacher discussion: %d %s", w.Code, w.Body.String())
+		}
 		if os.Getenv("DISCUSSION_JOURNEY_BROWSER") == "1" {
 			router := chi.NewRouter()
 			router.Mount("/api/v1/auth", identityhttp.New(auth, false))

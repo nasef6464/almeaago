@@ -479,6 +479,8 @@ export function ContentAdminPage() {
   if (editingCourseId) {
     return (
       <CourseEditorPanel
+        key={`${user.id}:${editingCourseId}`}
+        actorId={user.id}
         courseId={editingCourseId}
         coreTaxonomy={taxonomy}
         isAdmin={isAdmin}

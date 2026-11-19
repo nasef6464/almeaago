@@ -1,5 +1,6 @@
 import { CourseAssessmentPlacementEditor } from './CourseAssessmentPlacementEditor';
 import { courseFileURL } from '../../learning/courseFileURL';
+import { CourseDiscussionEditor } from './CourseDiscussionEditor';
 import {
   AlertTriangle,
   Award,
@@ -11,6 +12,7 @@ import {
   FileText,
   HelpCircle,
   Layers3,
+  MessageSquare,
   Link2,
   Loader2,
   Play,
@@ -42,6 +44,7 @@ import type {
 
 interface CourseEditorPanelProps {
   courseId: string;
+  actorId: string;
   coreTaxonomy: TaxonomyCore;
   isAdmin: boolean;
   lockScope: boolean;
@@ -62,6 +65,7 @@ function sortModules(modules: CourseModule[]) {
 
 export function CourseEditorPanel({
   courseId,
+  actorId,
   coreTaxonomy,
   isAdmin,
   lockScope,
@@ -78,7 +82,7 @@ export function CourseEditorPanel({
   const [debouncedLessonSearch, setDebouncedLessonSearch] = useState('');
   const [selectedLessonByModule, setSelectedLessonByModule] = useState<Record<string, string>>({});
   const [previewByModule, setPreviewByModule] = useState<Record<string, boolean>>({});
-  const [activeTab, setActiveTab] = useState<'curriculum' | 'settings' | 'pricing' | 'files' | 'assessments'>('curriculum');
+  const [activeTab, setActiveTab] = useState<'curriculum' | 'settings' | 'pricing' | 'files' | 'assessments' | 'discussions'>('curriculum');
   const [loading, setLoading] = useState(true);
   const [mutating, setMutating] = useState(false);
   const [error, setError] = useState('');
@@ -625,7 +629,7 @@ export function CourseEditorPanel({
         ) : null}
         {!canMutate ? (
           <div className="m-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
-            الدورة {course.workflowStatus === 'approved' ? 'معتمدة' : 'مؤرشفة'}؛ الـBackend يمنع التعديل المباشر عليها. استخدم دورة العمل المناسبة أولًا.
+            الدورة {course.workflowStatus === 'approved' ? 'معتمدة' : 'مؤرشفة'}؛ لا يمكن تعديلها مباشرة. استخدم إجراءات إدارة الدورة أولًا.
           </div>
         ) : null}
         {notice ? <div className="mx-4 mb-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">{notice}</div> : null}
@@ -682,9 +686,12 @@ export function CourseEditorPanel({
             <Award size={17} />
             الاختبارات المرتبطة ({courseAssessments.length})
           </button>
+          <button type="button" onClick={() => setActiveTab('discussions')} className={`flex items-center justify-center gap-2 border-b-2 px-4 py-4 text-xs sm:text-sm font-black transition shrink-0 ${activeTab === 'discussions' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            <MessageSquare size={17} /> مناقشات الدروس
+          </button>
         </section>
 
-        {activeTab === 'settings' ? (
+        {activeTab === 'discussions' ? <div className="p-4 sm:p-6"><CourseDiscussionEditor key={`${actorId}:${course.id}`} course={course} modules={modules} getCsrfToken={getCsrfToken} /></div> : activeTab === 'settings' ? (
           <form id="course-settings-form" onSubmit={saveSettings} className="space-y-5 bg-gray-50 p-4 sm:p-6">
             <section className="grid gap-5 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 md:grid-cols-2">
               <label className="space-y-2 md:col-span-2">

@@ -7,6 +7,7 @@ import {
   Star, StickyNote, Target, Trash2, Trophy, Users, Video, X, Zap
 } from 'lucide-react';
 import { useAuth } from '../../auth/state/AuthProvider';
+import { Link } from 'react-router-dom';
 
 export interface TrainerCourse {
   id: string;
@@ -302,7 +303,7 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
               <h1 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
                 لوحة مدرب المنصة
                 <span className="text-sm font-bold text-emerald-400 bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 rounded-full">
-                  أ. طارق المحمدي
+                  {user?.name || 'المدرب'}
                 </span>
               </h1>
               <p className="mt-2 text-xs sm:text-sm text-indigo-200/80 max-w-2xl leading-relaxed">
@@ -311,6 +312,7 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              {user?.roles?.some(role => role === 'teacher' || role === 'admin') && <Link to="/admin-dashboard/content?tab=courses" className="flex items-center gap-2 rounded-2xl border border-indigo-300/50 px-5 py-3 text-xs font-black text-white hover:bg-indigo-800"><MessageSquare size={16} /> إدارة الدورات ومناقشات الدروس</Link>}
               <button
                 type="button"
                 onClick={() => setShowScheduleLiveModal(true)}
@@ -332,6 +334,7 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
 
       {/* Main Content Container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4">
+        <p role="status" className="relative z-10 mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-900">البيانات والإحصاءات في هذه اللوحة تجريبية حاليًا. استخدم «إدارة الدورات ومناقشات الدروس» للوصول إلى دوراتك الفعلية.</p>
         {/* Navigation Tabs */}
         <div className="bg-white rounded-3xl p-2 shadow-sm border border-slate-100 flex items-center gap-1.5 overflow-x-auto">
           {[
