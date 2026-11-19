@@ -262,7 +262,7 @@ export function LearningSpacePage() {
       return;
     }
     if (!user) {
-      navigate(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      navigate(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`);
       return;
     }
     if (startPlacementRef.current || !placement.accessAllowed || !placement.canStart || loadedPlacementScope !== placementScope) return;
@@ -393,7 +393,7 @@ export function LearningSpacePage() {
               <span>مرحباً بك! تصفح دروس التأسيس والتدريبات، وسجّل الدخول لحفظ تقدّمك ونتائجك.</span>
             </div>
             <Link
-              to={`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`}
+              to={`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`}
               className="rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-black text-white hover:bg-indigo-700 transition shadow-xs"
             >
               تسجيل الدخول
@@ -1276,7 +1276,7 @@ export function LearningSpacePage() {
                         <span>فتح عبر الباقة</span>
                       </Link>
                     ) : !user ? (
-                      <Link to={`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`} className="rounded-xl bg-indigo-50 px-3.5 py-1.5 text-xs font-black text-indigo-700">سجل الدخول لفتح الملف</Link>
+                      <Link to={`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`} className="rounded-xl bg-indigo-50 px-3.5 py-1.5 text-xs font-black text-indigo-700">سجل الدخول لفتح الملف</Link>
                     ) : item.externalUrl ? (
                       <a
                         href={item.externalUrl}

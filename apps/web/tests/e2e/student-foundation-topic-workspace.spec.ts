@@ -201,11 +201,12 @@ test('guest can see free topic and is asked to sign in to open its lesson', asyn
   await setup(page);
   await page.route('**/api/v1/auth/me', route => json(route, { user: null }));
   await page.route('**/api/v1/learning-spaces/foundation/t1', route => json(route, topicDetail()));
-  await page.goto('/category/p1?subject=s1&tab=skills&topic=t1&content=lessons');
+  await page.goto('/category/p1?subject=s1&tab=skills&topic=t1&content=lessons#lesson-area');
   const dialog = page.getByTestId('foundation-topic-dialog');
   await dialog.getByRole('button', { name: 'فتح الدرس: شرح النسب' }).click();
   await expect(page).toHaveURL(/\/login\?returnTo=/);
   expect(decodeURIComponent(new URL(page.url()).searchParams.get('returnTo') || '')).toContain('topic=t1');
+  expect(new URL(page.url()).searchParams.get('returnTo')).toContain('#lesson-area');
 });
 
 test('subject progress never carries over when switching students', async ({ page }) => {

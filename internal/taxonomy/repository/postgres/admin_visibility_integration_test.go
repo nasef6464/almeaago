@@ -72,7 +72,7 @@ func TestAdminVisibilityReachesLearnerPostgres(t *testing.T) {
             id uuid PRIMARY KEY, path_id uuid NOT NULL REFERENCES paths(id),
             level_id uuid REFERENCES levels(id), code text NOT NULL, name text NOT NULL,
             presentation jsonb NOT NULL DEFAULT '{}'::jsonb,
-            sort_order integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'active'
+            sort_order integer NOT NULL DEFAULT 0, status text NOT NULL DEFAULT 'active', updated_at timestamptz NOT NULL DEFAULT now()
         )`,
 		`CREATE TABLE users(id uuid PRIMARY KEY)`,
 		`CREATE TABLE audit_logs(actor_user_id uuid, action text, resource_type text, resource_id text, status text, metadata jsonb)`,
@@ -240,6 +240,15 @@ func TestAdminVisibilityReachesLearnerPostgres(t *testing.T) {
 	// phantom client-side entitlement. This is a read-scope check, not RBAC.
 	adminHandler := taxonomyhttp.New(taxonomyapp.NewService(r), taxonomyVisibilityAuth{actor: actor, role: identity.RoleAdmin})
 	guestHandler := taxonomyhttp.New(taxonomyapp.NewService(r))
+	for _, visible := range []bool{false, true} {
+		req := httptest.NewRequest(http.MethodPatch, "/admin/subjects/"+subjectActive, strings.NewReader(fmt.Sprintf(`{"isVisible":%t}`, visible)))
+		req.Header.Set("X-CSRF-Token", "test-csrf")
+		response := httptest.NewRecorder()
+		adminHandler.ServeHTTP(response, req)
+		if response.Code != http.StatusOK || hasSubject(subjectActive) != visible {
+			t.Fatalf("subject visibility=%t: status=%d body=%s", visible, response.Code, response.Body.String())
+		}
+	}
 	patchLevel := func(handler http.Handler, status, csrf string, want int) {
 		t.Helper()
 		req := httptest.NewRequest(http.MethodPatch, "/admin/levels/"+levelInactive, strings.NewReader(fmt.Sprintf("{%q:%q}", "status", status)))

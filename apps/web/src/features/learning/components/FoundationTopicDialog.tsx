@@ -124,7 +124,7 @@ function FoundationTopicTraining({ pathId, subjectId, topicId }: { pathId: strin
       return;
     }
     if (!user) {
-      navigate(`/login?returnTo=${encodeURIComponent(location.pathname + location.search)}`);
+      navigate(`/login?returnTo=${encodeURIComponent(location.pathname + location.search + location.hash)}`);
       return;
     }
     const token = active.current.token;
@@ -176,7 +176,7 @@ function FoundationTopicTraining({ pathId, subjectId, topicId }: { pathId: strin
 export function FoundationTopicDialog({ pathId, subjectId, topic, topics, contentTab, onSelectTopic, onSelectContent, onClose }: Props) {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const login = () => navigate(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+  const login = () => navigate(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`);
   const openPackages = (contentType: SubjectPackageContent) => navigate(subjectPackagesURL(pathId, subjectId, contentType, window.location.pathname + window.location.search + window.location.hash));
   const [detail, setDetail] = useState<LearnerTopic | null>(null);
   const [detailKey, setDetailKey] = useState('');
