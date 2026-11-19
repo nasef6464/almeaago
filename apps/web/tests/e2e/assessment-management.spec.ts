@@ -8,6 +8,22 @@ function json(r:Route,b:unknown,s=200){return r.fulfill({status:s,contentType:'a
 async function mock(page:Page,user=admin){await page.route('**/api/v1/auth/me',r=>json(r,{user}));await page.route('**/api/v1/auth/csrf',r=>json(r,{csrfToken:'csrf'}));await page.route('**/api/v1/taxonomy/bootstrap**',r=>json(r,taxonomy));await page.route('**/api/v1/assessments**',r=>{const u=new URL(r.request().url());if(r.request().method()==='GET'&&u.pathname==='/api/v1/assessments')return json(r,{items:[summary],page:1,limit:50,hasMore:false});if(r.request().method()==='GET')return json(r,{assessment:detail});return json(r,{assessment:detail})});await page.route('**/api/v1/questions**',r=>json(r,{items:[{id:'q-2',questionCode:'QDR-002',currentVersion:4,pathId:'path-1',subjectId:'subject-1',workflowStatus:'approved',type:'text',text:'إذا كان س + 2 = 5 فما قيمة س؟',imageAssetId:'',difficulty:'easy'}],page:1,limit:50,hasMore:false}))}
 test('assessment center desktop and builder use bounded version-pinned questions',async({page})=>{await mock(page);await page.setViewportSize({width:1440,height:1000});await page.goto('/admin-dashboard/assessments');await expect(page.getByRole('heading',{name:'مركز الاختبارات'})).toBeVisible();await expect(page.getByText('محاكي القدرات الكمي')).toBeVisible();await page.getByRole('button',{name:'فتح / تعديل'}).click();await expect(page.getByRole('heading',{name:'تعديل الاختبار'})).toBeVisible();await page.getByRole('navigation',{name:'أقسام منشئ الاختبارات'}).getByRole('button',{name:'الصلاحيات والنشر'}).click();await expect(page.getByLabel('سياسة وصول الاختبار')).toHaveValue('free');await page.getByRole('navigation',{name:'أقسام منشئ الاختبارات'}).getByRole('button',{name:'الأسئلة',exact:true}).click();await expect(page.getByText('QDR-002')).toBeVisible();await page.getByRole('button',{name:'إضافة السؤال QDR-002'}).click();await expect(page.getByText('v4')).toBeVisible();await page.screenshot({path:'test-results/assessment-desktop.png',fullPage:true})});
 test('assessment center mobile keeps create and search reachable',async({page})=>{await mock(page);await page.setViewportSize({width:390,height:844});await page.goto('/admin-dashboard/assessments');await page.getByRole('button',{name:'اختبار جديد'}).click();await expect(page.getByRole('heading',{name:'إنشاء اختبار جديد'})).toBeVisible();await page.getByRole('navigation',{name:'أقسام منشئ الاختبارات'}).getByRole('button',{name:'الأسئلة',exact:true}).click();await expect(page.getByLabel('بحث بنك الأسئلة')).toBeVisible();await page.screenshot({path:'test-results/assessment-mobile.png',fullPage:true})});
+test('mobile assistant leaves the question bank count visible',async({page})=>{
+  await mock(page);
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/admin-dashboard/assessments');
+  await page.getByRole('button',{name:'اختبار جديد'}).click();
+  await page.getByRole('navigation',{name:'أقسام منشئ الاختبارات'}).getByRole('button',{name:'الأسئلة',exact:true}).click();
+  const count=page.getByTestId('assessment-bank-count');
+  await count.scrollIntoViewIfNeeded();
+  await count.evaluate(element=>{ const rect=element.getBoundingClientRect(); window.scrollBy(0,rect.top+rect.height/2-(window.innerHeight-52)); });
+  const countBox=await count.boundingBox();
+  const assistantBox=await page.getByRole('button',{name:'المساعد الذكي الصوتي'}).boundingBox();
+  expect(countBox).not.toBeNull(); expect(assistantBox).not.toBeNull();
+  const overlap=countBox!.x<assistantBox!.x+assistantBox!.width && countBox!.x+countBox!.width>assistantBox!.x && countBox!.y<assistantBox!.y+assistantBox!.height && countBox!.y+countBox!.height>assistantBox!.y;
+  expect(overlap).toBe(false);
+  await page.screenshot({path:'test-results/assessment-assistant-count-mobile.png'});
+});
 test('approved exam visibility retries without changing publication',async({page})=>{
   await mock(page);
   const approved={...detail,workflowStatus:'approved',isPublished:true,isVisible:true};

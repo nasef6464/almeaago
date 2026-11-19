@@ -1203,9 +1203,9 @@ export function AssessmentEditorPanel(p: Props) {
           <section className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
             {/* Bank Questions Picker */}
             <div className="rounded-3xl border bg-white p-5 shadow-sm space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2 pl-16 sm:pl-0">
                 <h3 className="font-black text-gray-900 text-sm">البحث في بنك الأسئلة المعتمد</h3>
-                <span className="text-xs font-bold text-gray-400">{qRows.length} سؤال متاح</span>
+                <span data-testid="assessment-bank-count" className="text-xs font-bold text-gray-400">{qRows.length} سؤال متاح</span>
               </div>
 
               {version.kind === 'mock' ? (
