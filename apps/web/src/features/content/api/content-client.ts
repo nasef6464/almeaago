@@ -15,6 +15,7 @@ import type {
   LearnerCourse,
   LearnerLessonDetail,
   LearnerTopic,
+  LearnerTopicSummary,
   LearningSpace,
   LessonDetail,
   LessonSummary,
@@ -92,6 +93,14 @@ export const contentClient = {
     return request<LearningSpace>(
       `/api/v1/learning-spaces/${encodeURIComponent(pathId)}/subjects/${encodeURIComponent(subjectId)}?limit=${limit}`,
       { signal },
+    );
+  },
+
+  learnerFoundationPage(pathId: string, subjectId: string, page: number, signal?: AbortSignal) {
+    const query = new URLSearchParams({ page: String(page), limit: '50' });
+    return request<{ pathId: string; subjectId: string; page: number; items: LearnerTopicSummary[]; hasMore: boolean }>(
+      `/api/v1/learning-spaces/${encodeURIComponent(pathId)}/subjects/${encodeURIComponent(subjectId)}/foundation?${query}`,
+      { signal, cache: 'no-store' },
     );
   },
 

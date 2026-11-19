@@ -63,6 +63,8 @@ export function LearningSpacePage() {
   const [deepTopic, setDeepTopic] = useState<{ key: string; topic: LearnerTopicSummary | null; error: string } | null>(null);
   const [deepTopicRetry, setDeepTopicRetry] = useState(0);
   const learningRequestRef = useRef<{ key: string; promise: Promise<LearningSpace> } | null>(null);
+  const [foundationExtra, setFoundationExtra] = useState<{ scope: string; page: number; items: LearnerTopicSummary[]; hasMore: boolean; loading: boolean; error: string } | null>(null);
+  const foundationRequest = useRef<AbortController | null>(null);
 
   const [trainingPlacements, setTrainingPlacements] = useState<LearnerAssessmentPlacement[]>([]);
   const [testPlacements, setTestPlacements] = useState<LearnerAssessmentPlacement[]>([]);
@@ -105,6 +107,9 @@ export function LearningSpacePage() {
   const currentLevel = taxonomy.levels?.find(level => level.id === selectedLevelId);
 
   const scopeKey = JSON.stringify([user?.id || '', effectivePathId, effectiveSubjectId]);
+  const foundationScope = useRef(scopeKey);
+  foundationScope.current = scopeKey;
+  useEffect(() => () => { foundationRequest.current?.abort(); foundationRequest.current = null; }, [scopeKey]);
   const placementScope = `${user?.id || ''}:${effectivePathId}:${effectiveSubjectId}:${tab}`;
   const currentPlacementScope = useRef(placementScope);
   currentPlacementScope.current = placementScope;
@@ -166,6 +171,9 @@ export function LearningSpacePage() {
       ? learningRequestRef.current.promise
       : contentClient.learningSpace(effectivePathId, effectiveSubjectId, 50);
     learningRequestRef.current = { key: requestKey, promise: request };
+    foundationRequest.current?.abort();
+    foundationRequest.current = null;
+    setFoundationExtra(null);
     setSpace(null);
     setRequestState({ key: requestKey, busy: true, error: '' });
 
@@ -306,8 +314,10 @@ export function LearningSpacePage() {
     }
   }, [currentSubject, tab, tabs, isTabAllowed]);
 
+  const extra = foundationExtra?.scope === scopeKey ? foundationExtra : null;
+  const foundationItems = visibleSpace ? [...visibleSpace.foundation.items, ...(extra?.items || [])] : [];
   const deepTopicKey = JSON.stringify([user?.id || '', effectivePathId, effectiveSubjectId, topicId]);
-  const listedTopic = visibleSpace?.foundation.items.find((item) => item.id === topicId);
+  const listedTopic = foundationItems.find((item) => item.id === topicId);
   useEffect(() => {
     if (!user || !visibleSpace || !subjectIsInScope || !topicId || listedTopic) return;
     const controller = new AbortController();
@@ -325,11 +335,36 @@ export function LearningSpacePage() {
     return () => controller.abort();
   }, [user?.id, visibleSpace, subjectIsInScope, topicId, listedTopic, deepTopicKey, effectivePathId, effectiveSubjectId, deepTopicRetry]);
   const selectedTopic = listedTopic || (deepTopic?.key === deepTopicKey ? deepTopic.topic : null);
-  const mainTopics = visibleSpace?.foundation.items.filter((item) => !item.parentTopicId) || [];
+  const mainTopics = foundationItems.filter((item) => !item.parentTopicId);
   const [foundationFilter, setFoundationFilter] = useState<'all' | 'free' | 'locked'>('all');
   const [trainingFilter, setTrainingFilter] = useState<'all' | 'free' | 'locked'>('all');
 
   const isTopicFree = (topic: LearnerTopicSummary) => topic.isFree === true;
+
+  const loadMoreFoundation = async () => {
+    if (!visibleSpace || foundationRequest.current || !(extra ? extra.hasMore : visibleSpace.foundation.hasMore)) return;
+    const scope = scopeKey;
+    const nextPage = (extra?.page || 1) + 1;
+    const controller = new AbortController();
+    foundationRequest.current = controller;
+    setFoundationExtra({ scope, page: extra?.page || 1, items: extra?.items || [], hasMore: true, loading: true, error: '' });
+    try {
+      const result = await contentClient.learnerFoundationPage(effectivePathId, effectiveSubjectId, nextPage, controller.signal);
+      if (controller.signal.aborted || foundationScope.current !== scope) return;
+      if (result.pathId !== effectivePathId || result.subjectId !== effectiveSubjectId || result.page !== nextPage || !Array.isArray(result.items) || typeof result.hasMore !== 'boolean') throw new Error('تعذر التحقق من صفحة الموضوعات.');
+      const previous = extra?.items || [];
+      const known = new Set([...visibleSpace.foundation.items, ...previous].map(item => item.id));
+      const added = result.items.filter(item => { if (!item || typeof item.id !== 'string' || !item.id || known.has(item.id)) return false; known.add(item.id); return true; });
+      setFoundationExtra({ scope, page: nextPage, items: [...previous, ...added], hasMore: result.hasMore, loading: false, error: '' });
+    } catch (reason) {
+      if (!controller.signal.aborted && foundationScope.current === scope) setFoundationExtra({ scope, page: extra?.page || 1, items: extra?.items || [], hasMore: true, loading: false, error: reason instanceof Error ? reason.message : 'تعذر تحميل مزيد من الموضوعات.' });
+    } finally {
+      if (foundationRequest.current === controller) foundationRequest.current = null;
+    }
+  };
+
+  const foundationHasMore = Boolean(visibleSpace && (extra ? extra.hasMore : visibleSpace.foundation.hasMore));
+  const foundationMore = foundationHasMore ? <div className="mt-4 text-center">{extra?.error && <p role="alert" className="mb-2 text-sm font-bold text-rose-700">{extra.error}</p>}<button type="button" disabled={extra?.loading} onClick={() => void loadMoreFoundation()} className="rounded-xl border border-indigo-200 bg-white px-4 py-2 text-sm font-bold text-indigo-700 disabled:opacity-50">{extra?.loading ? 'جاري تحميل الموضوعات...' : extra?.error ? 'إعادة تحميل الموضوعات' : 'عرض المزيد من موضوعات التأسيس'}</button></div> : null;
 
   if (authLoading) {
     return <main className="p-10 text-center font-black">جاري تحميل مساحة التعلم...</main>;
@@ -622,7 +657,7 @@ export function LearningSpacePage() {
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       }`}
                     >
-                      الكل ({mainTopics.length})
+                      الكل ({mainTopics.length}{foundationHasMore ? ' معروض' : ''})
                     </button>
                     <button
                       type="button"
@@ -633,7 +668,7 @@ export function LearningSpacePage() {
                           : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                       }`}
                     >
-                      المجاني ({mainTopics.filter(isTopicFree).length})
+                      المجاني ({mainTopics.filter(isTopicFree).length}{foundationHasMore ? ' معروض' : ''})
                     </button>
                     <button
                       type="button"
@@ -644,7 +679,7 @@ export function LearningSpacePage() {
                           : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
                       }`}
                     >
-                      ضمن باقة ({mainTopics.filter((t) => t.isFree === false).length})
+                      ضمن باقة ({mainTopics.filter((t) => t.isFree === false).length}{foundationHasMore ? ' معروض' : ''})
                     </button>
                   </div>
                 </div>
@@ -729,6 +764,7 @@ export function LearningSpacePage() {
                       );
                     })}
                 </div>
+                {foundationMore}
               </div>
             ) : tab === 'questions' ? (
               <div className="col-span-full space-y-6">
@@ -1024,6 +1060,7 @@ export function LearningSpacePage() {
                     </div>
                   </div>
                 ) : null}
+                {foundationMore}
               </div>
             ) : tab === 'exams' ? (
               <div className="col-span-full space-y-6">
@@ -1259,7 +1296,7 @@ export function LearningSpacePage() {
 
             {(
               (tab === 'courses' && !visibleSpace.courses.items.length) ||
-              (tab === 'foundation' && !mainTopics.length) ||
+              (tab === 'foundation' && !mainTopics.length && !foundationHasMore) ||
               (tab === 'library' && !visibleSpace.library.items.length)
             ) ? (
               <div className="col-span-full rounded-2xl border bg-white p-10 text-center font-bold text-gray-500">
@@ -1280,7 +1317,7 @@ export function LearningSpacePage() {
           pathId={effectivePathId}
           subjectId={effectiveSubjectId}
           topic={selectedTopic}
-          topics={listedTopic ? visibleSpace.foundation.items : [...visibleSpace.foundation.items, selectedTopic]}
+          topics={listedTopic ? foundationItems : [...foundationItems, selectedTopic]}
           contentTab={contentTab}
           onSelectTopic={(id) => updateQuery({ topic: id, content: contentTab })}
           onSelectContent={(id) => updateQuery({ topic: selectedTopic.id, content: id })}

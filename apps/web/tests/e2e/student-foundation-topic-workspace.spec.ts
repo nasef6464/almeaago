@@ -374,3 +374,50 @@ test('subject access guide clears the previous student while new access loads', 
   release();
   await expect(guide).toContainText('يحتاج باقة');
 });
+
+test('foundation loads beyond first 50 with retry and preserves subtopics', async ({ page }) => {
+  await setup(page);
+  const initial = Array.from({ length: 50 }, (_, index) => ({ ...topic, id: `root-${index}`, title: `موضوع ${index}`, sortOrder: index + 1, isFree: true }));
+  await page.route('**/api/v1/learning-spaces/p1/subjects/s1?limit=50', route => json(route, { ...learningSpace(), foundation: { items: initial, hasMore: true } }));
+  await page.route('**/api/v1/learning-spaces/foundation/root-0', route => json(route, topicDetail(initial[0])));
+  let attempts = 0;
+  await page.route('**/api/v1/learning-spaces/p1/subjects/s1/foundation?**', route => {
+    const query = new URL(route.request().url()).searchParams;
+    expect(query.get('page')).toBe('2'); expect(query.get('limit')).toBe('50');
+    attempts++;
+    return attempts === 1 ? json(route, { message: 'temporary outage' }, 503) : json(route, { pathId:'p1', subjectId:'s1', page:2, hasMore:false, items:[
+      { ...topic, id:'root-50', title:'موضوع بعد الخمسين', sortOrder:51, isFree:true },
+      { ...child, id:'late-child', parentTopicId:'root-0', title:'فرع ظهر في الصفحة الثانية', sortOrder:52, isFree:true },
+    ] });
+  });
+  await page.goto('/category/p1?subject=s1&tab=skills');
+  await page.getByRole('button', { name:'عرض المزيد من موضوعات التأسيس' }).click();
+  await expect(page.getByRole('alert').filter({ hasText:'temporary outage' })).toBeVisible();
+  await page.getByRole('button', { name:'إعادة تحميل الموضوعات' }).click();
+  await expect(page.getByRole('heading', { name:'موضوع بعد الخمسين', exact:true })).toBeVisible();
+  await expect(page.getByRole('button', { name:'عرض المزيد من موضوعات التأسيس' })).toHaveCount(0);
+  await page.getByRole('heading', { name:'موضوع 0', exact:true }).locator('xpath=ancestor::button').click();
+  await expect(page.getByTestId('foundation-topic-dialog').getByRole('button', { name:'فرع ظهر في الصفحة الثانية' })).toBeVisible();
+  expect(attempts).toBe(2);
+});
+
+test('late foundation page never appears for a different student', async ({ page }) => {
+  await setup(page);
+  let second = false;
+  let release: () => void = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/v1/auth/login', route => { second = true; return json(route, { user: { ...student, id:'student-2' } }); });
+  await page.route('**/api/v1/learning-spaces/p1/subjects/s1?limit=50', route => json(route, { ...learningSpace(), foundation: { items: [{ ...topic, title: second ? 'محتوى الطالب الثاني' : 'محتوى الطالب الأول' }], hasMore: !second } }));
+  await page.route('**/api/v1/learning-spaces/p1/subjects/s1/foundation?**', async route => {
+    await gate;
+    await json(route, { pathId:'p1', subjectId:'s1', page:2, hasMore:false, items:[{ ...topic, id:'old-page', title:'صفحة الطالب الأول المتأخرة' }] }).catch(() => {});
+  });
+  await page.goto('/tests/e2e/fixtures/learning-account-scope.html?pathId=p1&subjectId=s1&tab=skills');
+  const oldPage = page.waitForRequest('**/api/v1/learning-spaces/p1/subjects/s1/foundation?**');
+  await page.getByRole('button', { name:'عرض المزيد من موضوعات التأسيس' }).click();
+  await oldPage;
+  await page.getByRole('button', { name:'تبديل الطالب' }).click();
+  await expect(page.getByRole('heading', { name:'محتوى الطالب الثاني', exact:true })).toBeVisible();
+  release();
+  await expect(page.getByText('صفحة الطالب الأول المتأخرة')).toHaveCount(0);
+});
