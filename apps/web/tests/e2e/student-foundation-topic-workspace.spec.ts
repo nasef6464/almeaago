@@ -26,6 +26,10 @@ async function setup(page: Page) {
   await page.route('**/api/v1/content/homepage-settings', (route) => json(route, { brand: {}, navigation: {}, studentExperience: { visibilityMode: 'all' } }));
   await page.route('**/api/v1/learning/navigation-preferences', (route) => json(route, { user: { id: student.id, enrolledPaths: [], pathStageSelections: [] } }));
   await page.route('**/api/v1/taxonomy/bootstrap?phase=core', (route) => json(route, taxonomy));
+  await page.route('**/api/v1/assessment-placements/subject-access-guide?**', route => {
+    const query = new URL(route.request().url()).searchParams;
+    return json(route, { pathId: query.get('pathId'), subjectId: query.get('subjectId'), categories: [], unavailable: ['courses'], complete: false });
+  });
   await page.route('**/api/v1/learning-spaces/p1/subjects/s1?limit=50', (route) => json(route, learningSpace()));
   await page.route('**/api/v1/learning-spaces/p2/subjects/s2?limit=50', (route) => json(route, learningSpace('p2', 's2')));
 }
@@ -293,4 +297,80 @@ test('unknown package content filter does not silently show unrelated offers', a
   await expect(page.getByRole('alert').filter({ hasText: 'تعذر تحديد المادة ونوع المحتوى المطلوبين.' })).toBeVisible();
   expect(reads).toBe(0);
   await expect(page.getByRole('button', { name: 'عرض كل باقات المسار' })).toBeVisible();
+});
+
+test('subject access guide separates free, locked and directed content', async ({ page }) => {
+  await setup(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/api/v1/assessment-placements/subject-access-guide?**', route => json(route, {
+    pathId: 'p1', subjectId: 's1', complete: false, unavailable: ['courses'], categories: [
+      { type: 'foundation', hasContent: true, hasFree: true, hasOpen: true, hasLocked: false, hasRestricted: false },
+      { type: 'banks', hasContent: true, hasFree: false, hasOpen: false, hasLocked: true, hasRestricted: false },
+      { type: 'tests', hasContent: true, hasFree: false, hasOpen: false, hasLocked: false, hasRestricted: true },
+      { type: 'library', hasContent: false, hasFree: false, hasOpen: false, hasLocked: false, hasRestricted: false },
+    ],
+  }));
+  await page.goto('/category/p1?subject=s1&tab=skills');
+  const guide = page.getByRole('region', { name: 'حالة الوصول لهذه المادة' });
+  await expect(guide).toContainText('التأسيس'); await expect(guide).toContainText('يوجد مجاني');
+  await expect(guide).toContainText('التدريب'); await expect(guide).toContainText('يحتاج باقة');
+  await expect(guide).toContainText('الاختبارات'); await expect(guide).toContainText('محتوى موجّه');
+  await expect(guide).toContainText('لم تُحسب حالة الدورات بعد.');
+  await expect(guide).not.toContainText('كل المحتوى المنشور متاح');
+  await guide.screenshot({ path: 'test-results/subject-access-guide-mobile.png' });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await guide.screenshot({ path: 'test-results/subject-access-guide-desktop.png' });
+  await guide.getByRole('link', { name: 'عرض الباقات' }).click();
+  const query = new URL(page.url()).searchParams;
+  expect(query.get('subjectId')).toBe('s1'); expect(query.get('contentType')).toBe('banks');
+});
+
+test('subject access guide reports failures and retries without false access', async ({ page }) => {
+  await setup(page);
+  let calls = 0;
+  let outage = true;
+  await page.route('**/api/v1/assessment-placements/subject-access-guide?**', route => { calls++; return outage ? json(route, { message: 'unavailable' }, 503) : json(route, { pathId: 'p1', subjectId: 's1', categories: [{ type: 'foundation', hasContent: true, hasFree: true, hasOpen: true, hasLocked: false, hasRestricted: false }], unavailable: ['courses'], complete: false }); });
+  await page.goto('/category/p1?subject=s1&tab=skills');
+  const error = page.getByRole('alert').filter({ hasText: 'تعذر التحقق من حالة الوصول للمادة.' });
+  await expect(error).toBeVisible();
+  outage = false;
+  await error.getByRole('button', { name: 'إعادة المحاولة' }).click();
+  await expect(page.getByRole('region', { name: 'حالة الوصول لهذه المادة' })).toContainText('التأسيس');
+  expect(calls).toBeGreaterThan(1);
+});
+
+test('subject guide does not claim a locked course requires only a package', async ({ page }) => {
+  await setup(page);
+  await page.route('**/api/v1/assessment-placements/subject-access-guide?**', route => json(route, {
+    pathId: 'p1', subjectId: 's1', complete: true, unavailable: [], categories: [
+      { type: 'courses', hasContent: true, hasFree: false, hasOpen: false, hasLocked: true, hasRestricted: false },
+    ],
+  }));
+  await page.goto('/category/p1?subject=s1&tab=courses');
+  const guide = page.getByRole('region', { name: 'حالة الوصول لهذه المادة' });
+  await expect(guide).toContainText('يحتاج شراء أو اشتراك');
+  await guide.getByRole('link', { name: 'عرض الباقات' }).click();
+  const query = new URL(page.url()).searchParams;
+  expect(query.get('tab')).toBe('packages'); expect(query.has('contentType')).toBe(false);
+});
+
+test('subject access guide clears the previous student while new access loads', async ({ page }) => {
+  await setup(page);
+  let second = false;
+  let release: () => void = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/v1/auth/login', route => { second = true; return json(route, { user: { ...student, id: 'student-2' } }); });
+  await page.route('**/api/v1/assessment-placements/subject-access-guide?**', async route => {
+    if (second) await gate;
+    return json(route, { pathId: 'p1', subjectId: 's1', categories: [{ type: 'foundation', hasContent: true, hasFree: false, hasOpen: !second, hasLocked: second, hasRestricted: false }], unavailable: ['courses'], complete: false });
+  });
+  await page.goto('/tests/e2e/fixtures/subject-guide-account.html');
+  const guide = page.getByRole('region', { name: 'حالة الوصول لهذه المادة' });
+  await expect(guide).toContainText('مفتوح');
+  const next = page.waitForRequest('**/api/v1/assessment-placements/subject-access-guide?**');
+  await page.getByRole('button', { name: 'تبديل الطالب' }).click();
+  await next;
+  await expect(guide).toHaveCount(0);
+  release();
+  await expect(guide).toContainText('يحتاج باقة');
 });

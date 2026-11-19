@@ -22,6 +22,7 @@ func NewPlacements(service *app.PlacementService, auth Authenticator) http.Handl
 	r := chi.NewRouter()
 	r.Get("/available", h.available)
 	r.Get("/subject-progress", h.subjectProgress)
+	r.Get("/subject-access-guide", h.subjectAccessGuide)
 	r.Patch("/{id}", h.patch)
 	r.Post("/{id}/start", h.start)
 	return r

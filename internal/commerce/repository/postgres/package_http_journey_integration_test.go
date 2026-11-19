@@ -876,6 +876,40 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 	if !found {
 		t.Fatal("package missing from its public path catalog")
 	}
+	var guideTopic string
+	if err = db.QueryRow(ctx, `INSERT INTO foundation_topics(path_id,subject_id,code,title,status,is_visible,is_locked,created_by) VALUES($1,$2,$3,'guide topic','active',true,true,$4) RETURNING id::text`, path, subject, "guide"+suffix, adminUser.ID).Scan(&guideTopic); err != nil {
+		t.Fatal(err)
+	}
+	guideContent := contentpg.New(db, operationspg.NewAuditWriter())
+	guideCommerce := commerceapp.NewService(repo, guideContent, taxonomypg.New(db), nil)
+	guideService := assessmentapp.NewPlacementServiceWithCommerce(assessmentpg.New(db, operationspg.NewAuditWriter()), nil, guideContent, guideCommerce)
+	guideHandler := assessmenthttp.NewPlacements(guideService, auth)
+	readFoundationGuide := func(token string) assessmentdomain.SubjectGuideCategory {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/subject-access-guide?pathId="+path+"&subjectId="+subject, nil)
+		if token != "" {
+			req.AddCookie(&http.Cookie{Name: identitysession.CookieName, Value: token})
+		}
+		response := httptest.NewRecorder()
+		guideHandler.ServeHTTP(response, req)
+		var guide assessmentdomain.SubjectAccessGuide
+		if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &guide) != nil {
+			t.Fatalf("guide %d %s", response.Code, response.Body.String())
+		}
+		for _, category := range guide.Categories {
+			if category.Type == "foundation" {
+				return category
+			}
+		}
+		t.Fatalf("foundation guide missing: %s", response.Body.String())
+		return assessmentdomain.SubjectGuideCategory{}
+	}
+	if guide := readFoundationGuide(""); !guide.HasContent || !guide.HasLocked {
+		t.Fatalf("guest guide before payment: %+v", guide)
+	}
+	if guide := readFoundationGuide(studentToken); !guide.HasContent || !guide.HasLocked {
+		t.Fatalf("student guide before payment: %+v", guide)
+	}
 	for _, check := range []struct {
 		kind string
 		want bool
@@ -981,6 +1015,15 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 	after, e := repo.ResolveScopedAccess(ctx, student, nil, path, subject, "", commerce.ContentBanks, true)
 	if e != nil || !after.Allowed {
 		t.Fatalf("after payment %+v %v", after, e)
+	}
+	if guide := readFoundationGuide(studentToken); !guide.HasContent || !guide.HasOpen || guide.HasLocked {
+		t.Fatalf("student guide after payment: %+v", guide)
+	}
+	if guide := readFoundationGuide(outsiderToken); !guide.HasContent || !guide.HasLocked {
+		t.Fatalf("other student guide after payment: %+v", guide)
+	}
+	if guide := readFoundationGuide(""); !guide.HasContent || !guide.HasLocked {
+		t.Fatalf("guest guide after payment: %+v", guide)
 	}
 	t.Run("course file URL follows actual purchase", func(t *testing.T) {
 		var courseID string

@@ -25,6 +25,7 @@ import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
 import type { LearnerTopicSummary, LearningSpace, TaxonomyCore } from '../../content/api/content-types';
 import { FoundationTopicDialog, type TopicContentTab } from '../components/FoundationTopicDialog';
+import { SubjectAccessGuide } from '../components/SubjectAccessGuide';
 import { parseLearningRoute, subjectsForSelection, type LearningTab } from './learningRouteSelection';
 import {
   resolveCanonicalPath,
@@ -440,6 +441,7 @@ export function LearningSpacePage() {
           </select>
         </section>}
 
+        {legacySubjectScreen && <SubjectAccessGuide pathId={effectivePathId} subjectId={effectiveSubjectId} />}
         <section className={`mb-10 mt-7 flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white/95 p-1.5 shadow-sm ${legacySubjectScreen ? 'mx-auto w-fit' : ''}`}>
           {tabs.map(([id, label, Icon]) => (
             <button
