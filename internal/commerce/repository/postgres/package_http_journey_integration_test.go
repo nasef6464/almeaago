@@ -1833,7 +1833,11 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		command := exec.CommandContext(ctx, "node", "node_modules/@playwright/test/cli.js", "test", "tests/e2e/package-live-journey.spec.ts", "--project=chromium", "--workers=1")
+		args := []string{"node_modules/@playwright/test/cli.js", "test", "tests/e2e/package-live-journey.spec.ts", "--project=chromium", "--workers=1"}
+		if os.Getenv("PACKAGE_SUBJECT_FOCUS") == "1" {
+			args = append(args, "--grep", "isolated subject visibility round trip")
+		}
+		command := exec.CommandContext(ctx, "node", args...)
 		command.Dir = web
 		command.Env = append(os.Environ(), "CI=1", "PACKAGE_LIVE=1", "E2E_API_TARGET="+server.URL, "PACKAGE_STUDENT_EMAIL="+browserStudent.Email, "PACKAGE_ADMIN_EMAIL="+adminUser.Email, "PACKAGE_PASSWORD="+password, "PACKAGE_PATH_ID="+path, "PACKAGE_SUBJECT_ID="+subject, "PACKAGE_LEVEL_ID="+browserLevel, "PACKAGE_TOPIC_ID="+topicID, "PACKAGE_LESSON_ID="+lessonID, "PACKAGE_PRODUCT_ID="+product.Product.ID)
 		output, err := command.CombinedOutput()

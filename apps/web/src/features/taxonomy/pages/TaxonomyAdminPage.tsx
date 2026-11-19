@@ -1615,7 +1615,7 @@ export function TaxonomyAdminPage() {
                 <h2 className="text-base font-black text-slate-900">شجرة المسارات</h2>
               </div>
               <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-black text-indigo-700">
-                {filteredPaths.length} من {data.paths.length}
+                {busy && data.paths.length === 0 ? '...' : `${filteredPaths.length} من ${data.paths.length}`}
               </span>
             </div>
 
@@ -1650,11 +1650,11 @@ export function TaxonomyAdminPage() {
             </div>
 
             <div className="space-y-2 max-h-[550px] overflow-y-auto pl-1">
-              {filteredPaths.length === 0 ? (
+              {filteredPaths.length === 0 ? (!busy && !error ? (
                 <div className="text-center py-8 text-xs text-slate-400 font-bold border border-dashed rounded-2xl p-4">
                   لا توجد مسارات مطابقة لمعايير البحث الحالية.
                 </div>
-              ) : (
+              ) : null) : (
                 filteredPaths.map((path) => {
                   const isSelected = selectedPathId === path.id;
                   const pathTone = resolveColor(path.color);
@@ -1720,11 +1720,11 @@ export function TaxonomyAdminPage() {
 
         {/* ── Left Column: Active Path Workspace ── */}
         <section className="min-w-0 space-y-6">
-          {!selectedPath ? (
+          {!selectedPath ? (!busy && !error ? (
             <div className="rounded-3xl border border-dashed bg-white p-16 text-center font-bold text-gray-400">
               اختر مسارًا من القائمة الجانبية لإدارة محتواه ومواده وإعداداته.
             </div>
-          ) : (
+          ) : null) : (
             <>
               {/* Path Overview Card */}
               <article

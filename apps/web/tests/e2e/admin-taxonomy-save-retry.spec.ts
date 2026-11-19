@@ -30,6 +30,22 @@ async function setup(page: Page, data: ReturnType<typeof fixture>) {
   await expect(page.getByLabel('حالة القدرات')).toBeVisible();
 }
 
+test('path tree does not claim there are no paths while loading or after a load error', async ({ page }) => {
+  await setup(page, fixture());
+  let release: () => void = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/v1/taxonomy/admin/bootstrap', async route => { await gate; await route.fulfill({json:fixture()}); });
+  await page.reload({waitUntil:'domcontentloaded'});
+  await expect(page.getByText('جاري تحميل شجرة المسارات...')).toBeVisible();
+  await expect(page.getByText('لا توجد مسارات مطابقة لمعايير البحث الحالية.')).toHaveCount(0);
+  release();
+  await expect(page.getByLabel('حالة القدرات')).toBeVisible();
+  await page.route('**/api/v1/taxonomy/admin/bootstrap', route => route.fulfill({status:503,json:{message:'تعذر تحميل المسارات'}}));
+  await page.reload({waitUntil:'domcontentloaded'});
+  await expect(page.getByRole('alert')).toContainText('تعذر تحميل المسارات');
+  await expect(page.getByText('لا توجد مسارات مطابقة لمعايير البحث الحالية.')).toHaveCount(0);
+});
+
 async function openEditor(page: Page, scenario: typeof cases[number]) {
   if (scenario.kind === 'path') {
     await page.getByRole('button', { name: 'تعديل المسار', exact: true }).click();

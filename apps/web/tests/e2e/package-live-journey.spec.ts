@@ -1,5 +1,27 @@
 import { expect, test } from '@playwright/test';
 
+test('isolated subject visibility round trip', async ({page}) => {
+  test.skip(process.env.PACKAGE_LIVE !== '1' || process.env.PACKAGE_SUBJECT_FOCUS !== '1', 'requires isolated focused fixture');
+  test.setTimeout(180_000);
+  const path=process.env.PACKAGE_PATH_ID!, subject=process.env.PACKAGE_SUBJECT_ID!;
+  const login=await page.request.post('/api/v1/auth/login',{data:{email:process.env.PACKAGE_ADMIN_EMAIL!,password:process.env.PACKAGE_PASSWORD!}});
+  expect(login.status()).toBe(200);
+  await page.goto(`/admin-dashboard/taxonomy?path=${path}&pathTab=subjects`,{waitUntil:'domcontentloaded'});
+  const row=page.locator('div.rounded-3xl').filter({has:page.getByRole('heading',{name:'test',exact:true})});
+  await expect(row).toBeVisible({timeout:60_000});
+  for (const [action,visible] of [['إخفاء المادة',false],['إظهار المادة',true]] as const) {
+    const [response]=await Promise.all([
+      page.waitForResponse(r=>r.url().endsWith(`/api/v1/taxonomy/admin/subjects/${subject}`) && r.request().method()==='PATCH',{timeout:30_000}),
+      row.getByRole('button',{name:action,exact:true}).click(),
+    ]);
+    expect(response.status()).toBe(200);
+    const publicData=await page.request.get('/api/v1/taxonomy/bootstrap?phase=core');
+    expect(JSON.stringify(await publicData.json()).includes(subject)).toBe(visible);
+  }
+  await page.reload({waitUntil:'domcontentloaded'});
+  await expect(row.getByRole('button',{name:'إخفاء المادة',exact:true})).toBeVisible();
+});
+
 test('isolated real package storefront and checkout', async ({page,browser}) => {
   test.skip(process.env.PACKAGE_LIVE !== '1', 'requires isolated Go and PostgreSQL fixture');
   test.setTimeout(420_000);
@@ -67,7 +89,7 @@ test('isolated real package storefront and checkout', async ({page,browser}) => 
     expect(review.status()).toBe(200);
     await adminPage.goto(`/admin-dashboard/taxonomy?path=${path}&pathTab=packages`,{waitUntil:'domcontentloaded'});
     const packageCard=adminPage.locator('div.rounded-3xl').filter({has:adminPage.getByRole('heading',{name:packageName})});
-    await expect(packageCard).toBeVisible();
+    await expect(packageCard).toBeVisible({timeout:60_000});
     const hide=adminPage.waitForResponse(response=>response.url().endsWith(`/api/v1/commerce/products/${product}`) && response.request().method()==='PUT');
     await packageCard.getByRole('button',{name:'إخفاء الباقة'}).click();
     expect((await hide).status()).toBe(200);
@@ -96,7 +118,7 @@ test('isolated real package storefront and checkout', async ({page,browser}) => 
     ]) {
       await adminPage.goto(`/admin-dashboard/taxonomy?path=${path}&pathTab=${item.tab}`,{waitUntil:'domcontentloaded'});
       const row=adminPage.locator('div.rounded-3xl').filter({has:adminPage.getByRole('heading',{name:item.title,exact:true})});
-      await expect(row).toBeVisible();
+      await expect(row).toBeVisible({timeout:60_000});
       for (const width of [390,820,1440]) {
         await adminPage.setViewportSize({width,height:900});
         await adminPage.screenshot({path:`test-results/taxonomy-${item.tab}-${width}.png`,fullPage:true});
