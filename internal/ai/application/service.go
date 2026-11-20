@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -786,8 +787,25 @@ func (s *Service) generateQuestionAssist(
 	return out, nil
 }
 
+// Legacy question records can encode their image in the question text itself.
+var storyboardLegacyQuestionImage = regexp.MustCompile(`(?i)^https?://.+\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$|<img\s+[^>]*src=["'][^"']+["']|!\[.*?\]\(https?://[^\s)]+\)`)
+
+func storyboardQuestionHasImage(q question.ReviewProjection) bool {
+	if strings.TrimSpace(q.ImageAssetID) != "" || q.OptionsEmbeddedInImage {
+		return true
+	}
+	text := strings.TrimSpace(q.TextContent)
+	if strings.HasPrefix(strings.ToLower(text), "image:") {
+		return strings.TrimSpace(text[len("image:"):]) != ""
+	}
+	return storyboardLegacyQuestionImage.MatchString(text)
+}
+
 func buildFallbackStoryboard(q question.ReviewProjection, input ai.QuestionAssistInput) ai.TeachingStoryboard {
 	textSummary := truncate(q.TextContent, 100)
+	if storyboardQuestionHasImage(q) {
+		textSummary = "راجع صورة السؤال لتحديد المعطيات والمطلوب."
+	}
 	stratSummary := firstNonEmpty(q.SolvingStrategy, q.Hint, "تطبيق العلاقة الرياضية أو اللغوية المباشرة")
 	explSummary := firstNonEmpty(q.Explanation, "الوصول للإجابة الصحيحة بالاستدلال المنطقي")
 	return ai.TeachingStoryboard{

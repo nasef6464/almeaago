@@ -567,3 +567,61 @@ func TestAdminCopilotUsesBoundedOperationsFactsAndIsReadOnlyFallbackSafe(t *test
 		t.Fatalf("copilot interaction not recorded: %#v", repo.interactions)
 	}
 }
+
+// The trusted source text remains available to the provider but must not be
+// copied verbatim to the learner's board when the question is an image.
+func TestQuestionAssistStoryboardDoesNotDisplayImageQuestionContext(t *testing.T) {
+	const secret = "INTERNAL_IMAGE_CONTEXT_ONLY"
+	for _, tc := range []struct {
+		name       string
+		imageAsset string
+		embedded   bool
+	}{
+		{name: "asset", imageAsset: "asset-1"},
+		{name: "embedded", embedded: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			q := reviewQuestion()
+			q.TextContent = secret
+			q.ImageAssetID = tc.imageAsset
+			q.OptionsEmbeddedInImage = tc.embedded
+			repo := &repoStub{settings: []ai.ProviderSetting{{Provider: ai.ProviderGemini, Enabled: true, Model: "test-model", Priority: 10, MaxOutputTokens: 800}}}
+			provider := &providerStub{configured: map[ai.Provider]bool{ai.ProviderGemini: true}, results: map[ai.Provider]ai.ProviderCallResult{ai.ProviderGemini: {Text: "شرح آمن", Model: "test-model"}}, errors: map[ai.Provider]error{}}
+			service := NewService(repo, &learningStub{card: reviewCard()}, &questionStub{row: q}, provider, Config{})
+			out, err := service.QuestionAssist(context.Background(), student(), ai.QuestionAssistInput{ReviewCardID: "card-1", HelpLevel: ai.HelpHint, BoardMode: "storyboard_v1"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(provider.prompts) != 1 || !strings.Contains(provider.prompts[0], secret) {
+				t.Fatalf("provider lost trusted context: %v", provider.prompts)
+			}
+			if out.Storyboard == nil {
+				t.Fatal("missing board")
+			}
+			for _, scene := range out.Storyboard.Scenes {
+				if strings.Contains(scene.Narration, secret) {
+					t.Fatal("context leaked in narration")
+				}
+				for _, action := range scene.Actions {
+					if strings.Contains(action.Content, secret) {
+						t.Fatal("context leaked on board")
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestStoryboardTextQuestionStillDisplaysQuestion(t *testing.T) {
+	q := reviewQuestion()
+	board := buildFallbackStoryboard(q, ai.QuestionAssistInput{})
+	if !strings.Contains(board.Scenes[0].Actions[0].Content, q.TextContent) {
+		t.Fatal("text question disappeared from board")
+	}
+	for _, text := range []string{"image: https://example.invalid/q", "https://example.invalid/q.png", `<img src="https://example.invalid/q">`, "![q](https://example.invalid/q)"} {
+		q.TextContent = text
+		if !storyboardQuestionHasImage(q) {
+			t.Fatalf("legacy image not detected: %q", text)
+		}
+	}
+}

@@ -222,6 +222,21 @@ export function AssessmentEditorPanel(p: Props) {
 
   useEffect(() => () => { autoGenerationRef.current?.abort(); }, [version.pathId, version.subjectId, version.kind, questionSubjectId]);
 
+  function cancelAutoGeneration() {
+    autoGenerationRef.current?.abort();
+  }
+
+  function canReplaceSections() {
+    if (questions.some((question) => question.sectionId && sections.some((section) => section.id === question.sectionId))) {
+      setError('انقل الأسئلة المرتبطة بالأقسام أو احذفها قبل استبدال الأقسام.');
+      return false;
+    }
+    cancelAutoGeneration();
+    setAutoGenSectionId('');
+    setError('');
+    return true;
+  }
+
   // Sample the whole approved subject bank, not just the visible first page.
   async function handleAutoGenerate() {
     const subjectId = version.kind === 'mock' ? questionSubjectId : version.subjectId;
@@ -288,6 +303,7 @@ export function AssessmentEditorPanel(p: Props) {
 
   // Generate standard Tahsili Qiyas Sections (4 sections x 25 min)
   function generateTahsiliSections() {
+    if (!canReplaceSections()) return;
     const mathSubj = subjects.find((s) => s.code.includes('MATH') || s.name.includes('رياضيات'));
     const physSubj = subjects.find((s) => s.code.includes('PHYS') || s.name.includes('فيزياء'));
     const chemSubj = subjects.find((s) => s.code.includes('CHEM') || s.name.includes('كيمياء'));
@@ -348,6 +364,7 @@ export function AssessmentEditorPanel(p: Props) {
 
   // Generate standard Qudrat Qiyas Sections (5 sections x 25 min)
   function generateQudratSections() {
+    if (!canReplaceSections()) return;
     const quantSubj = subjects.find((s) => s.code.includes('QUANT') || s.name.includes('كمي'));
     const verbalSubj = subjects.find((s) => s.code.includes('VERBAL') || s.name.includes('لفظي'));
 
@@ -1004,11 +1021,15 @@ export function AssessmentEditorPanel(p: Props) {
                         <span className="text-gray-500 font-bold">المادة:</span>
                         <select
                           value={sec.subjectId}
-                          onChange={(e) =>
-                            setSections((all) =>
-                              all.map((item, j) => (j === idx ? { ...item, subjectId: e.target.value } : item))
-                            )
-                          }
+                          onChange={(e) => {
+                            if (questions.some((question) => question.sectionId === sec.id)) {
+                              setError('انقل أسئلة هذا القسم أو احذفها قبل تغيير مادته.');
+                              return;
+                            }
+                            cancelAutoGeneration();
+                            setError('');
+                            setSections((all) => all.map((item, j) => (j === idx ? { ...item, subjectId: e.target.value } : item)));
+                          }}
                           className="rounded-xl border bg-white px-2 py-1 text-xs font-bold"
                         >
                           <option value="">عام / مادة الاختبار</option>
@@ -1061,7 +1082,16 @@ export function AssessmentEditorPanel(p: Props) {
                       <button
                         type="button"
                         aria-label={`حذف القسم ${idx + 1}`}
-                        onClick={() => setSections((all) => all.filter((_, j) => j !== idx))}
+                        onClick={() => {
+                          if (questions.some((question) => question.sectionId === sec.id)) {
+                            setError('انقل أسئلة هذا القسم أو احذفها قبل حذف القسم.');
+                            return;
+                          }
+                          cancelAutoGeneration();
+                          setError('');
+                          if (autoGenSectionId === sec.id) setAutoGenSectionId('');
+                          setSections((all) => all.filter((_, j) => j !== idx));
+                        }}
                         className="rounded-xl p-1.5 text-rose-600 hover:bg-rose-50"
                       >
                         <Trash2 size={16} />
@@ -1173,7 +1203,7 @@ export function AssessmentEditorPanel(p: Props) {
                   <label className="block text-xs font-bold text-gray-700 mb-1">تعيين للقسم</label>
                   <select
                     value={autoGenSectionId}
-                    onChange={(e) => setAutoGenSectionId(e.target.value)}
+                    onChange={(e) => { cancelAutoGeneration(); setAutoGenSectionId(e.target.value); }}
                     className="w-full rounded-xl border bg-white p-2.5 text-xs font-bold"
                   >
                     <option value="">{version.kind === 'mock' ? 'اختر قسم المحاكي' : 'بدون قسم / عام'}</option>

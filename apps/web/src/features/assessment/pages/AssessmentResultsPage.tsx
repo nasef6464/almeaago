@@ -39,6 +39,19 @@ import {
 
 type ReviewFilter = 'all' | 'wrong' | 'unanswered' | 'marked';
 
+function resolveReviewImage(question: ReviewQuestion): string | null {
+  if (question.imageUrl) return question.imageUrl;
+  const txt = question.text?.trim() || '';
+  if (/^image:/i.test(txt)) return txt.replace(/^image:/i, '').trim();
+  if (/^https?:\/\/.+\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(txt)) return txt;
+  return txt.match(/<img\s+[^>]*src=["']([^"']+)["']/i)?.[1]
+    || txt.match(/!\[.*?\]\((https?:\/\/[^\s)]+)\)/i)?.[1] || null;
+}
+
+function hasReviewImage(question: ReviewQuestion): boolean {
+  return Boolean(resolveReviewImage(question) || question.imageAssetId);
+}
+
 function scoreTone(passed: boolean) {
   return passed
     ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
@@ -100,17 +113,7 @@ function ReviewQuestionCard({
   onOpenStepSolution?: (question: ReviewQuestion) => void;
 }) {
   const [showAiAssistant, setShowAiAssistant] = useState(false);
-  const resolvedImageUrl = useMemo(() => {
-    if (question.imageUrl) return question.imageUrl;
-    const txt = question.text?.trim() || '';
-    if (/^image:/i.test(txt)) return txt.replace(/^image:/i, '').trim();
-    if (/^https?:\/\/.+\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(txt)) return txt;
-    const imgMatch = txt.match(/<img\s+[^>]*src=["']([^"']+)["']/i);
-    if (imgMatch) return imgMatch[1];
-    const mdMatch = txt.match(/!\[.*?\]\((https?:\/\/[^\s)]+)\)/i);
-    if (mdMatch) return mdMatch[1];
-    return null;
-  }, [question.imageUrl, question.text]);
+  const resolvedImageUrl = useMemo(() => resolveReviewImage(question), [question.imageUrl, question.text]);
   const imageEmbeddedOptions = Boolean(resolvedImageUrl || question.imageAssetId);
 
   return (
@@ -615,7 +618,7 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
         <StepSolutionModal
           isOpen={Boolean(activeStepSolverQuestion)}
           onClose={() => setActiveStepSolverQuestion(null)}
-          questionText={activeStepSolverQuestion.text}
+          questionText={hasReviewImage(activeStepSolverQuestion) ? '' : activeStepSolverQuestion.text}
           explanation={activeStepSolverQuestion.explanation}
           solvingStrategy={activeStepSolverQuestion.solvingStrategy}
         />
@@ -628,6 +631,7 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
           onClose={() => setActiveSmartTeacherQuestion(null)}
           questionId={activeSmartTeacherQuestion.questionId}
           questionText={activeSmartTeacherQuestion.text}
+          hideQuestionTextFromDisplay={hasReviewImage(activeSmartTeacherQuestion)}
           explanation={activeSmartTeacherQuestion.explanation}
           solvingStrategy={activeSmartTeacherQuestion.solvingStrategy}
           options={activeSmartTeacherQuestion.options?.map((opt, idx) => ({
