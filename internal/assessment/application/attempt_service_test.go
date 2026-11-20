@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,16 +13,25 @@ import (
 )
 
 type fakeAttemptRepo struct {
-	a           assessment.Attempt
-	r           assessment.Result
-	page        assessment.ResultPage
-	detail      assessment.ResultDetail
-	err         error
-	lastStudent string
-	lastPage    int
-	lastLimit   int
-	lastDetail  string
-	access      assessment.AccessContext
+	a               assessment.Attempt
+	r               assessment.Result
+	page            assessment.ResultPage
+	detail          assessment.ResultDetail
+	err             error
+	lastStudent     string
+	lastPage        int
+	lastLimit       int
+	lastDetail      string
+	lastResultID    string
+	lastSavedID     string
+	lastSavedQID    string
+	lastSubmitID    string
+	attemptReads    int
+	submitCalls     int
+	singleShotCalls int
+	lastSingleShot  assessment.SingleShotSubmissionRequest
+	access          assessment.AccessContext
+	existingStart   *assessment.Attempt
 }
 
 func (f *fakeAttemptRepo) GetPublishedAccessContext(context.Context, string) (assessment.AccessContext, error) {
@@ -31,21 +41,31 @@ func (f *fakeAttemptRepo) GetPublishedAccessContext(context.Context, string) (as
 	return f.access, f.err
 }
 func (f *fakeAttemptRepo) FindDirectStart(context.Context, string, string, string) (assessment.Attempt, bool, error) {
+	if f.existingStart != nil {
+		return *f.existingStart, true, f.err
+	}
 	return assessment.Attempt{}, false, f.err
 }
 func (f *fakeAttemptRepo) Start(context.Context, string, string, string) (assessment.Attempt, error) {
 	return f.a, f.err
 }
-func (f *fakeAttemptRepo) GetAttempt(context.Context, string) (assessment.Attempt, error) {
+func (f *fakeAttemptRepo) GetAttempt(_ context.Context, id string) (assessment.Attempt, error) {
+	f.attemptReads++
+	f.lastResultID = id
 	return f.a, f.err
 }
-func (f *fakeAttemptRepo) SaveAnswer(context.Context, string, string, string, assessment.AnswerWrite) (assessment.Attempt, error) {
+func (f *fakeAttemptRepo) SaveAnswer(_ context.Context, _ string, id, qid string, _ assessment.AnswerWrite) (assessment.Attempt, error) {
+	f.lastSavedID = id
+	f.lastSavedQID = qid
 	return f.a, f.err
 }
-func (f *fakeAttemptRepo) Submit(context.Context, string, string, string) (assessment.Result, error) {
+func (f *fakeAttemptRepo) Submit(_ context.Context, _ string, id, _ string) (assessment.Result, error) {
+	f.lastSubmitID = id
+	f.submitCalls++
 	return f.r, f.err
 }
-func (f *fakeAttemptRepo) GetResult(context.Context, string) (assessment.Result, error) {
+func (f *fakeAttemptRepo) GetResult(_ context.Context, id string) (assessment.Result, error) {
+	f.lastResultID = id
 	return f.r, f.err
 }
 func (f *fakeAttemptRepo) ListResults(_ context.Context, student string, page, limit int) (assessment.ResultPage, error) {
@@ -60,6 +80,8 @@ func (f *fakeAttemptRepo) GetResultDetail(_ context.Context, student, id string)
 	return f.detail, f.err
 }
 func (f *fakeAttemptRepo) SingleShotSubmit(_ context.Context, student, assessmentID string, req assessment.SingleShotSubmissionRequest) (assessment.ResultDetail, error) {
+	f.singleShotCalls++
+	f.lastSingleShot = req
 	f.lastStudent = student
 	f.lastDetail = assessmentID
 	return f.detail, f.err
@@ -77,11 +99,53 @@ func TestAttemptStudentOnly(t *testing.T) {
 	}
 }
 
+func TestIdempotentStartRejectsMismatchedRepositoryReadback(t *testing.T) {
+	cases := []struct {
+		name          string
+		attempt       assessment.Attempt
+		wantForbidden bool
+	}{
+		{"another student", assessment.Attempt{ID: "attempt-1", StudentID: "other", AssessmentID: "quiz-1"}, true},
+		{"another assessment", assessment.Attempt{ID: "attempt-1", StudentID: "student-1", AssessmentID: "quiz-2"}, true},
+		{"matching owner and assessment", assessment.Attempt{ID: "attempt-1", StudentID: "student-1", AssessmentID: "quiz-1"}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &fakeAttemptRepo{existingStart: &tc.attempt}
+			got, err := NewAttemptService(repo).Start(context.Background(), student("student-1"), "quiz-1", "retry-key")
+			if tc.wantForbidden {
+				if !errors.Is(err, ErrForbidden) || got.ID != "" {
+					t.Fatalf("foreign idempotency readback leaked: attempt=%+v err=%v", got, err)
+				}
+			} else if err != nil || got.ID != "attempt-1" {
+				t.Fatalf("matching retry must return original attempt: attempt=%+v err=%v", got, err)
+			}
+		})
+	}
+}
+
 func TestAttemptOwnership(t *testing.T) {
 	s := NewAttemptService(&fakeAttemptRepo{a: assessment.Attempt{ID: "x", StudentID: "other"}})
 	_, e := s.Get(context.Background(), student("me"), "x")
 	if !errors.Is(e, ErrForbidden) {
 		t.Fatalf("want forbidden got %v", e)
+	}
+}
+
+func TestResultValidatesAndNormalizesAttemptIDBeforeRepository(t *testing.T) {
+	repo := &fakeAttemptRepo{a: assessment.Attempt{ID: "attempt-1", StudentID: "student-1"}}
+	service := NewAttemptService(repo)
+	if _, err := service.Result(context.Background(), student("student-1"), "   "); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("blank attempt ID must be rejected: %v", err)
+	}
+	if repo.attemptReads != 0 {
+		t.Fatal("blank attempt ID reached repository")
+	}
+	if _, err := service.Result(context.Background(), student("student-1"), " attempt-1 "); err != nil {
+		t.Fatalf("normalized result lookup failed: %v", err)
+	}
+	if repo.lastResultID != "attempt-1" || repo.attemptReads != 1 {
+		t.Fatalf("unexpected repository result ID=%q reads=%d", repo.lastResultID, repo.attemptReads)
 	}
 }
 
@@ -274,5 +338,177 @@ func TestSingleShotSubmit(t *testing.T) {
 	}
 	if res.TimeSpent != "2 دقيقة و 30 ثانية" {
 		t.Errorf("expected TimeSpent='2 دقيقة و 30 ثانية', got %q", res.TimeSpent)
+	}
+}
+
+func TestSingleShotLearningHandoffFailureIsRetryable(t *testing.T) {
+	repo := &fakeAttemptEvidenceRepo{
+		fakeAttemptRepo: &fakeAttemptRepo{detail: assessment.ResultDetail{
+			AssessmentID: "quiz-1",
+			Result: assessment.Result{
+				AttemptID: "attempt-1", FinalizedAt: time.Now().UTC(),
+			},
+		}},
+		event: learning.SubmissionEvidence{
+			AssessmentID: "quiz-1", AssessmentVersion: 1,
+			PathID: "path-1", SubjectID: "subject-1", OccurredAt: time.Now(),
+			Questions: []learning.QuestionEvidence{{QuestionID: "q-1", QuestionVersion: 1}},
+		},
+	}
+	sink := &fakeEvidenceSink{failFirst: true}
+	service := NewAttemptServiceWithLearning(repo, sink)
+	request := assessment.SingleShotSubmissionRequest{
+		SubmissionKey: "same-submission-key",
+		Answers:       map[string]int{"q-1": 1},
+	}
+	if _, err := service.SingleShotSubmit(context.Background(), student("student-1"), "quiz-1", request); err == nil {
+		t.Fatal("learning handoff failure must not be reported as a successful result")
+	}
+	result, err := service.SingleShotSubmit(context.Background(), student("student-1"), "quiz-1", request)
+	if err != nil {
+		t.Fatalf("idempotent retry must complete learning handoff: %v", err)
+	}
+	if result.AttemptID != "attempt-1" || sink.calls != 2 || repo.sourceCalls != 2 {
+		t.Fatalf("retry mismatch result=%#v sink=%d source=%d", result, sink.calls, repo.sourceCalls)
+	}
+}
+
+func TestSingleShotLearningHandoffRequiresEvidenceSource(t *testing.T) {
+	repo := &fakeAttemptRepo{detail: assessment.ResultDetail{
+		Result: assessment.Result{AttemptID: "attempt-1", FinalizedAt: time.Now().UTC()},
+	}}
+	service := NewAttemptServiceWithLearning(repo, &fakeEvidenceSink{})
+	_, err := service.SingleShotSubmit(context.Background(), student("student-1"), "quiz-1",
+		assessment.SingleShotSubmissionRequest{SubmissionKey: "submission-key"})
+	if err == nil {
+		t.Fatal("missing evidence source must not silently drop skill analysis")
+	}
+	if repo.singleShotCalls != 0 {
+		t.Fatal("missing evidence source must fail before single-shot persistence")
+	}
+}
+
+func TestSingleShotRejectsInvalidSubmissionBeforeRepository(t *testing.T) {
+	tests := []struct {
+		name    string
+		request assessment.SingleShotSubmissionRequest
+	}{
+		{"missing idempotency key", assessment.SingleShotSubmissionRequest{Answers: map[string]int{"q-1": 0}}},
+		{"oversized idempotency key", assessment.SingleShotSubmissionRequest{SubmissionKey: strings.Repeat("x", 161)}},
+		{"invalid answer index below unanswered sentinel", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", Answers: map[string]int{"q-1": -2}}},
+		{"empty question id", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", Answers: map[string]int{" ": 0}}},
+		{"ambiguous normalized question IDs", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", Answers: map[string]int{"q-1": 0, " q-1 ": 1}}},
+		{"negative duration", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", TimeSpentSeconds: -1}},
+		{"excessive duration", assessment.SingleShotSubmissionRequest{SubmissionKey: "key", TimeSpentSeconds: 86401}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &fakeAttemptRepo{}
+			service := NewAttemptService(repo)
+			_, err := service.SingleShotSubmit(context.Background(), student("student-1"), "quiz-1", tc.request)
+			if !errors.Is(err, ErrInvalidInput) {
+				t.Fatalf("expected invalid input before persistence, got %v", err)
+			}
+			if repo.lastStudent != "" {
+				t.Fatal("invalid submission reached repository")
+			}
+		})
+	}
+}
+
+func TestSingleShotUnansweredLegacySentinelIsOmittedWithoutMutatingCaller(t *testing.T) {
+	repo := &fakeAttemptRepo{}
+	service := NewAttemptService(repo)
+	answers := map[string]int{"q-unanswered": -1, "q-answered": 2}
+	request := assessment.SingleShotSubmissionRequest{
+		SubmissionKey: "legacy-unanswered",
+		Answers:       answers,
+	}
+	if _, err := service.SingleShotSubmit(context.Background(), student("student-1"), "quiz-1", request); err != nil {
+		t.Fatalf("legacy unanswered sentinel should be accepted: %v", err)
+	}
+	if got := answers["q-unanswered"]; got != -1 {
+		t.Fatalf("caller answers map was mutated: %d", got)
+	}
+	if _, exists := repo.lastSingleShot.Answers["q-unanswered"]; exists {
+		t.Fatal("unanswered sentinel must not reach the persistence layer")
+	}
+	if got := repo.lastSingleShot.Answers["q-answered"]; got != 2 || len(repo.lastSingleShot.Answers) != 1 {
+		t.Fatalf("answered choices must be preserved exactly: %#v", repo.lastSingleShot.Answers)
+	}
+	if repo.singleShotCalls != 1 {
+		t.Fatalf("expected exactly one persistence call, got %d", repo.singleShotCalls)
+	}
+}
+
+func TestSingleShotNormalizesQuestionIDsWithoutMutatingCaller(t *testing.T) {
+	repo := &fakeAttemptRepo{}
+	service := NewAttemptService(repo)
+	answers := map[string]int{" q-answered ": 2, " q-unanswered ": -1}
+	request := assessment.SingleShotSubmissionRequest{SubmissionKey: "normalized-questions", Answers: answers}
+	if _, err := service.SingleShotSubmit(context.Background(), student("student-1"), "quiz-1", request); err != nil {
+		t.Fatalf("normalized submission failed: %v", err)
+	}
+	if len(repo.lastSingleShot.Answers) != 1 || repo.lastSingleShot.Answers["q-answered"] != 2 {
+		t.Fatalf("unexpected normalized persisted answers: %#v", repo.lastSingleShot.Answers)
+	}
+	if _, exists := repo.lastSingleShot.Answers[" q-answered "]; exists {
+		t.Fatal("unnormalized question ID reached persistence")
+	}
+	if len(answers) != 2 || answers[" q-answered "] != 2 || answers[" q-unanswered "] != -1 {
+		t.Fatalf("caller map mutated: %#v", answers)
+	}
+}
+
+func TestSingleShotRejectsTeacherBeforeRepository(t *testing.T) {
+	repo := &fakeAttemptRepo{}
+	service := NewAttemptService(repo)
+	_, err := service.SingleShotSubmit(context.Background(), identity.User{ID: "teacher-1", Roles: []identity.Role{identity.RoleTeacher}}, "quiz-1",
+		assessment.SingleShotSubmissionRequest{SubmissionKey: "key"})
+	if !errors.Is(err, ErrForbidden) || repo.lastStudent != "" {
+		t.Fatalf("teacher submission should be denied before persistence: err=%v student=%q", err, repo.lastStudent)
+	}
+}
+
+func TestAttemptSubmitMissingLearningSourceDoesNotFinalize(t *testing.T) {
+	repo := &fakeAttemptRepo{r: assessment.Result{AttemptID: "attempt-1"}}
+	service := NewAttemptServiceWithLearning(repo, &fakeEvidenceSink{})
+	_, err := service.Submit(context.Background(), student("student-1"), "attempt-1", "submission-key")
+	if err == nil {
+		t.Fatal("missing evidence source must fail closed")
+	}
+	if repo.submitCalls != 0 {
+		t.Fatalf("submission finalized before evidence integration was validated: %d", repo.submitCalls)
+	}
+}
+
+func TestAttemptIdentifiersAreValidatedAndNormalized(t *testing.T) {
+	repo := &fakeAttemptRepo{a: assessment.Attempt{ID: "attempt-1", StudentID: "student-1"}}
+	service := NewAttemptService(repo)
+	actor := student("student-1")
+	if _, err := service.Get(context.Background(), actor, "   "); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("blank attempt read must fail before repository: %v", err)
+	}
+	if repo.attemptReads != 0 {
+		t.Fatal("blank attempt read reached repository")
+	}
+	if _, err := service.Get(context.Background(), actor, " attempt-1 "); err != nil {
+		t.Fatalf("trimmed attempt read: %v", err)
+	}
+	if repo.lastResultID != "attempt-1" {
+		t.Fatalf("attempt read used unnormalized ID %q", repo.lastResultID)
+	}
+	option := 1
+	if _, err := service.Save(context.Background(), actor, " attempt-1 ", " q-1 ", assessment.AnswerWrite{SelectedOptionIndex: &option}); err != nil {
+		t.Fatalf("trimmed answer save: %v", err)
+	}
+	if repo.lastSavedID != "attempt-1" || repo.lastSavedQID != "q-1" {
+		t.Fatalf("answer persistence received id=%q question=%q", repo.lastSavedID, repo.lastSavedQID)
+	}
+	if _, err := service.Submit(context.Background(), actor, " attempt-1 ", "submission-key"); err != nil {
+		t.Fatalf("trimmed attempt submission: %v", err)
+	}
+	if repo.lastSubmitID != "attempt-1" {
+		t.Fatalf("submission received unnormalized ID %q", repo.lastSubmitID)
 	}
 }
