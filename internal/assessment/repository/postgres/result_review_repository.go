@@ -316,5 +316,7 @@ func applyReviewPolicy(
 		q.Explanation = explanation
 		q.Hint = hint
 		q.SolvingStrategy = solvingStrategy
+	} else {
+		q.VideoURL = ""
 	}
 }

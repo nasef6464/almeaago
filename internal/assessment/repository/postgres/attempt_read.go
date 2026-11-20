@@ -28,6 +28,9 @@ func (r *Repository) readLearnerQuestions(ctx context.Context, rows pgx.Rows, at
 			return nil, err
 		}
 		q.LearnerPresentation = learnerPresentation(presentation)
+		// video_url is the solution explanation, not question content.
+		// Never deliver it to an in-progress learner attempt.
+		q.VideoURL = ""
 		q.Options = []assessment.LearnerOption{}
 		questions = append(questions, q)
 	}

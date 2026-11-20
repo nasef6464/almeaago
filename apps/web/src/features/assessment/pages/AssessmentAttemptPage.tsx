@@ -637,7 +637,7 @@ export function AssessmentAttemptPage() {
           <div className="mb-4 flex items-center justify-between text-xs font-bold text-slate-500">
             <span>
               {question.learnerPresentation?.showQuestionNumber !== false
-                ? `السؤال ${index + 1} من ${attempt.questions.length}`
+                ? `السؤال ${question.learnerPresentation?.questionNumber || index + 1} من ${attempt.questions.length}`
                 : ''}
             </span>
             <span

@@ -80,6 +80,7 @@ function ResultSummary({ item }: { item: ResultListItem }) {
 
 function ReviewQuestionCard({
   question,
+  displayNumber,
   detail,
   saved,
   saving,
@@ -89,6 +90,7 @@ function ReviewQuestionCard({
   onOpenStepSolution,
 }: {
   question: ReviewQuestion;
+  displayNumber: number;
   detail: ResultDetail;
   saved: boolean;
   saving: boolean;
@@ -115,7 +117,7 @@ function ReviewQuestionCard({
     <article className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-xs font-black text-gray-500">
-          {question.learnerPresentation?.showQuestionNumber !== false ? `سؤال ${question.learnerPresentation?.questionNumber || question.sortOrder + 1} · ` : ''}{question.points} درجة
+          {question.learnerPresentation?.showQuestionNumber !== false ? `سؤال ${question.learnerPresentation?.questionNumber || displayNumber} · ` : ''}{question.points} درجة
         </div>
         <div className="flex gap-2">
           {!question.answered ? (
@@ -242,7 +244,7 @@ function ReviewQuestionCard({
         </div>
       ) : null}
 
-      {question.videoUrl ? (
+      {detail.showExplanations && question.videoUrl ? (
         <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs font-bold text-blue-900">
           <div className="flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white shadow-xs">
@@ -407,6 +409,7 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
     if (filter === 'marked') return questions.filter((question) => question.markedForReview);
     return questions;
   }, [detail, filter]);
+  const displayNumbers = useMemo(() => new Map((detail?.questions || []).map((question, index) => [question.questionId, index + 1])), [detail]);
 
   if (authLoading || busy || (attemptId && detailContext !== activeContext && !error)) {
     return <div className="p-10 text-center font-black">جاري تحميل النتائج...</div>;
@@ -592,6 +595,7 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
                   <ReviewQuestionCard
                     key={`${question.questionId}:${question.questionVersion}`}
                     question={question}
+                    displayNumber={displayNumbers.get(question.questionId) || 1}
                     detail={detail}
                     saved={savedQuestions.has(question.questionId)}
                     saving={savingQuestion === question.questionId}

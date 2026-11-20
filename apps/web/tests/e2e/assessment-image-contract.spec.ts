@@ -66,3 +66,24 @@ test('review labels follow shuffled display order while answer identity stays un
   await expect(page.locator('div').filter({hasText:/^A\s*الخيار الثاني\s*اختيارك$/}).last()).toBeVisible();
   await expect(page.locator('div').filter({hasText:/^B\s*الخيار الأول\s*الإجابة الصحيحة$/}).last()).toBeVisible();
 });
+
+test('attempt uses custom question number',async({page})=>{
+  await auth(page);
+  const question={...imageQuestion,imageUrl:'',text:'سؤال خاص',learnerPresentation:{showQuestionNumber:true,questionNumber:'42'}};
+  await page.route('**/api/v1/assessments/a1/attempts',r=>r.fulfill({json:{attempt:{id:'attempt-1',assessmentId:'a1',assessmentVersion:1,attemptNumber:1,status:'in_progress',title:'اختبار',startedAt:new Date().toISOString(),expiresAt:null,questions:[question],answers:[]}}}));
+  await page.goto('/assessments/a1/start',{waitUntil:'domcontentloaded'});
+  await expect(page.getByText('السؤال 42 من 1')).toBeVisible();
+});
+
+test('filtered review preserves displayed order after question shuffling',async({page})=>{
+  await auth(page);
+  const q=(id:string,sortOrder:number,correct:boolean,presentation?:object)=>({...imageQuestion,id,questionId:id,questionVersion:1,imageUrl:'',text:`نص ${id}`,passage:'',sortOrder,learnerPresentation:presentation,selectedOptionIndex:0,correctOptionIndex:0,answered:true,correct,markedForReview:false,timeSpentSeconds:1});
+  const questions=[q('first',8,true),q('second',1,false),q('third',0,false,{showQuestionNumber:false})];
+  await page.route('**/api/v1/assessment-attempts/attempt-1/review',r=>r.fulfill({json:{detail:{result,assessmentId:'a1',assessmentVersion:1,title:'اختبار',attemptNumber:1,allowQuestionReview:true,showAnswers:true,showExplanations:true,showResultsReport:true,questions}}}));
+  await page.goto('/assessment-results/attempt-1',{waitUntil:'domcontentloaded'});
+  await page.getByRole('button',{name:'أخطأت فيها'}).click();
+  const second=page.getByText('نص second').locator('xpath=ancestor::article');
+  await expect(second).toContainText('سؤال 2');
+  const third=page.getByText('نص third').locator('xpath=ancestor::article');
+  await expect(third).not.toContainText('سؤال 3');
+});

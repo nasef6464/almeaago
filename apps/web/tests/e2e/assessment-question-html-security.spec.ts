@@ -10,3 +10,13 @@ test('question markup is sanitized while formatting and blanks remain visible', 
   await expect(page.locator('h2 svg[onload], h2 a[href^="javascript:"]')).toHaveCount(0);
   expect(await page.evaluate(() => (window as any).questionAttack)).toBeUndefined();
 });
+
+test('shared rich question rendering removes executable markup and keeps math', async ({page}) => {
+  await page.goto('/tests/e2e/fixtures/question-html-safety.html',{waitUntil:'domcontentloaded'});
+  const result=page.getByTestId('normalized');
+  await expect(result.locator('strong')).toHaveText('سؤال');
+  await expect(result.locator('.question-blank')).toBeVisible();
+  await expect(result.locator('.katex')).toHaveCount(1);
+  await expect(result.locator('svg[onload], a[href^="javascript:"]')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).sharedAttack)).toBeUndefined();
+});

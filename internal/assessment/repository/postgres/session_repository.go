@@ -415,6 +415,8 @@ func (r *Repository) getPublicAttempt(ctx context.Context, id string, hash []byt
 			return out, err
 		}
 		q.LearnerPresentation = learnerPresentation(presentation)
+		// Public/barcode attempts must not expose solution videos before submission.
+		q.VideoURL = ""
 		byID[q.ID] = len(out.Questions)
 		out.Questions = append(out.Questions, q)
 	}

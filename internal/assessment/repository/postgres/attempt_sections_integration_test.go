@@ -59,6 +59,7 @@ INSERT INTO assessment_version_questions VALUES
  ('00000000-0000-0000-0000-000000000001',1,'00000000-0000-0000-0000-000000000103',1,'00000000-0000-0000-0000-000000000020',1,1),
  ('00000000-0000-0000-0000-000000000001',1,'00000000-0000-0000-0000-000000000104',1,'00000000-0000-0000-0000-000000000020',2,1);
 INSERT INTO question_versions SELECT question_id,question_version,'text','question',NULL,'',false,'','{}'::jsonb,'easy' FROM assessment_version_questions;
+UPDATE question_versions SET video_url='https://example.invalid/solution';
 `)
 	if err != nil {
 		t.Fatal(err)
@@ -77,6 +78,9 @@ INSERT INTO question_versions SELECT question_id,question_version,'text','questi
 		t.Fatalf("questions %d", len(attempt.Questions))
 	}
 	for i, q := range attempt.Questions {
+		if q.VideoURL != "" {
+			t.Fatalf("attempt leaked a solution video: %q", q.VideoURL)
+		}
 		if q.SectionID != attempt.Sections[i/2].ID {
 			t.Fatalf("question order crosses sections: %+v", attempt.Questions)
 		}

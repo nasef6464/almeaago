@@ -1,5 +1,6 @@
 import React from 'react';
 import katex from 'katex';
+import DOMPurify from 'dompurify';
 import 'katex/dist/katex.min.css';
 import type { BoardElement } from './boardState';
 
@@ -14,7 +15,7 @@ const Formula: React.FC<{ content: string }> = ({ content }) => {
         maxSize: 10,
       });
     } catch {
-      return content;
+      return DOMPurify.sanitize(content, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
     }
   }, [content]);
 
