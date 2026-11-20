@@ -107,7 +107,7 @@ COMMIT;`)
 	if err != nil {
 		t.Fatalf("preexisting prepared attempt: %v", err)
 	}
-	up, err := os.ReadFile("../../../../migrations/000052_self_quiz_attempts.up.sql")
+	up, err := os.ReadFile("../../../../migrations/000054_self_quiz_attempts.up.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,14 +118,14 @@ COMMIT;`)
 	if err = db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM assessment_answers WHERE attempt_id='00000000-0000-0000-0000-000000000106')`).Scan(&oldAnswer); err != nil || !oldAnswer {
 		t.Fatalf("preexisting answer lost during upgrade: %v", err)
 	}
-	timingUp, err := os.ReadFile("../../../../migrations/000053_assessment_unanswered_time.up.sql")
+	timingUp, err := os.ReadFile("../../../../migrations/000055_assessment_unanswered_time.up.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err = db.Exec(ctx, string(timingUp)); err != nil {
 		t.Fatalf("timing migration: %v", err)
 	}
-	aiUp, err := os.ReadFile("../../../../migrations/000054_ai_result_review_cache.up.sql")
+	aiUp, err := os.ReadFile("../../../../migrations/000056_ai_result_review_cache.up.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ COMMIT;`)
 	}
 	// The taxonomy bootstrap used by the browser journey reads section data.
 	// Migration 056 has no dependency on prepared-exam staging 055.
-	sectionUp, err := os.ReadFile("../../../../migrations/000056_taxonomy_skill_sections.up.sql")
+	sectionUp, err := os.ReadFile("../../../../migrations/000058_taxonomy_skill_sections.up.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +180,7 @@ COMMIT;`)
 	if err != nil || len(preparedEvidence.Questions) != 1 || preparedEvidence.Questions[0].Answered {
 		t.Fatalf("prepared unanswered evidence: %+v %v", preparedEvidence, err)
 	}
-	timingDown, err := os.ReadFile("../../../../migrations/000053_assessment_unanswered_time.down.sql")
+	timingDown, err := os.ReadFile("../../../../migrations/000055_assessment_unanswered_time.down.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -699,7 +699,7 @@ INSERT INTO assessment_answers(attempt_id,assessment_id,assessment_version,quest
 	if _, err = db.Exec(ctx, string(timingDown)); err != nil {
 		t.Fatalf("timing downgrade after restore: %v", err)
 	}
-	down, err := os.ReadFile("../../../../migrations/000052_self_quiz_attempts.down.sql")
+	down, err := os.ReadFile("../../../../migrations/000054_self_quiz_attempts.down.sql")
 	if err != nil {
 		t.Fatal(err)
 	}

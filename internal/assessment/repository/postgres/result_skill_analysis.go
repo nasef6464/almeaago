@@ -107,6 +107,7 @@ func (r *Repository) attachResultFoundationTopics(ctx context.Context, items []a
 		JOIN subjects subj ON subj.id=t.subject_id AND subj.path_id=t.path_id AND subj.status='active'
 		JOIN paths p ON p.id=t.path_id AND p.status='active'
 		WHERE l.skill_id=ANY($1::uuid[]) AND t.status='active' AND t.is_visible=true
+		AND (t.parent_topic_id IS NULL OR EXISTS (SELECT 1 FROM foundation_topics parent WHERE parent.id=t.parent_topic_id AND parent.parent_topic_id IS NULL AND parent.path_id=t.path_id AND parent.subject_id=t.subject_id AND parent.status='active' AND parent.is_visible=true))
 		ORDER BY t.sort_order,t.id,l.skill_id LIMIT 10001
 	`, ids)
 	if err != nil {

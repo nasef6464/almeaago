@@ -162,10 +162,50 @@ func TestLearnerPlacementScopePostgres(t *testing.T) {
 	if _, err := repo.GetLearnerFoundationLesson(ctx, topicID, foreignLessonID); !errors.Is(err, content.ErrNotFound) {
 		t.Fatalf("foreign foundation placement leaked: %v", err)
 	}
+	childID := "01900000-0000-7000-8000-000000007001"
+	if _, err := db.Exec(ctx, `INSERT INTO foundation_topics VALUES($1,$2,$3,$4,'child','',1,false,'active',true)`, childID, pathID, subjectID, topicID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(ctx, `INSERT INTO topic_lessons VALUES($1,$2,0)`, childID, allowedLessonID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.GetLearnerFoundationLesson(ctx, childID, allowedLessonID); err != nil {
+		t.Fatalf("visible parent must allow child lesson: %v", err)
+	}
 	if _, err := db.Exec(ctx, `UPDATE foundation_topics SET is_visible=false WHERE id=$1`, topicID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := repo.GetLearnerFoundationLesson(ctx, topicID, allowedLessonID); !errors.Is(err, content.ErrNotFound) {
 		t.Fatalf("hidden topic leaked lesson: %v", err)
+	}
+	if _, err := repo.GetLearnerTopic(ctx, childID); !errors.Is(err, content.ErrNotFound) {
+		t.Fatalf("child of hidden parent leaked: %v", err)
+	}
+	if _, err := repo.GetLearnerFoundationLesson(ctx, childID, allowedLessonID); !errors.Is(err, content.ErrNotFound) {
+		t.Fatalf("child lesson of hidden parent leaked: %v", err)
+	}
+	if ok, err := repo.ValidateAssessmentPlacementTarget(ctx, "foundation", pathID, subjectID, "", "", childID); err != nil || ok {
+		t.Fatalf("hidden parent's child assessment allowed: %v %v", ok, err)
+	}
+	if ok, _, _, err := repo.ResolveLessonProgressTarget(ctx, "foundation", childID, allowedLessonID); err != nil || ok {
+		t.Fatalf("hidden parent's child progress allowed: %v %v", ok, err)
+	}
+	if _, err := db.Exec(ctx, `UPDATE foundation_topics SET is_visible=true,status='archived' WHERE id=$1`, topicID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.GetLearnerTopic(ctx, childID); !errors.Is(err, content.ErrNotFound) {
+		t.Fatalf("child of archived parent leaked: %v", err)
+	}
+	if _, err := db.Exec(ctx, `UPDATE foundation_topics SET status='active',subject_id=$2 WHERE id=$1`, topicID, otherSubjectID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.GetLearnerFoundationLesson(ctx, childID, allowedLessonID); !errors.Is(err, content.ErrNotFound) {
+		t.Fatalf("child of cross-subject parent leaked: %v", err)
+	}
+	if _, err := db.Exec(ctx, `UPDATE foundation_topics SET subject_id=$2 WHERE id=$1`, topicID, subjectID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.GetLearnerFoundationLesson(ctx, childID, allowedLessonID); err != nil {
+		t.Fatalf("restoring parent must restore child: %v", err)
 	}
 }

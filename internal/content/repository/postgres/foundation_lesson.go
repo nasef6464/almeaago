@@ -21,6 +21,7 @@ func (r *Repository) GetLearnerFoundationLesson(ctx context.Context, topicID, le
 		JOIN paths p ON p.id=t.path_id AND p.status='active'
 		JOIN subjects s ON s.id=t.subject_id AND s.path_id=t.path_id AND s.status='active'
 		WHERE t.id=$1::uuid AND l.id=$2::uuid AND t.status='active' AND t.is_visible=true
+		  AND (t.parent_topic_id IS NULL OR EXISTS (SELECT 1 FROM foundation_topics parent WHERE parent.id=t.parent_topic_id AND parent.parent_topic_id IS NULL AND parent.path_id=t.path_id AND parent.subject_id=t.subject_id AND parent.status='active' AND parent.is_visible=true))
 		  AND l.path_id=t.path_id AND l.subject_id=t.subject_id
 		  AND l.workflow_status='approved' AND l.is_visible=true
 	`, topicID, lessonID).Scan(&out.Lesson.ID, &out.Lesson.Title, &out.Lesson.Description,

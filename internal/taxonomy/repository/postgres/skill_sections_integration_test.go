@@ -46,11 +46,11 @@ func TestSkillSectionsMigrationIsolationAndRollback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	up, err := os.ReadFile("../../../../migrations/000056_taxonomy_skill_sections.up.sql")
+	up, err := os.ReadFile("../../../../migrations/000058_taxonomy_skill_sections.up.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
-	down, err := os.ReadFile("../../../../migrations/000056_taxonomy_skill_sections.down.sql")
+	down, err := os.ReadFile("../../../../migrations/000058_taxonomy_skill_sections.down.sql")
 	if err != nil {
 		t.Fatal(err)
 	}

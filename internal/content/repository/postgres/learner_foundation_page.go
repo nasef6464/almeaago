@@ -16,8 +16,9 @@ func (r *Repository) ListLearnerFoundationPage(ctx context.Context, pathID, subj
 		return content.LearnerFoundationPage{}, content.ErrNotFound
 	}
 	rows, err := r.db.Query(ctx, `SELECT id::text,COALESCE(parent_topic_id::text,''),title,description,sort_order,is_locked
-		FROM foundation_topics WHERE path_id=$1::uuid AND subject_id=$2::uuid AND status='active' AND is_visible=true
-		ORDER BY sort_order,id LIMIT $3 OFFSET $4`, pathID, subjectID, limit+1, (page-1)*limit)
+		FROM foundation_topics t WHERE t.path_id=$1::uuid AND t.subject_id=$2::uuid AND t.status='active' AND t.is_visible=true
+		AND (t.parent_topic_id IS NULL OR EXISTS (SELECT 1 FROM foundation_topics parent WHERE parent.id=t.parent_topic_id AND parent.parent_topic_id IS NULL AND parent.path_id=t.path_id AND parent.subject_id=t.subject_id AND parent.status='active' AND parent.is_visible=true))
+		ORDER BY t.sort_order,t.id LIMIT $3 OFFSET $4`, pathID, subjectID, limit+1, (page-1)*limit)
 	if err != nil {
 		return content.LearnerFoundationPage{}, mapError(err)
 	}

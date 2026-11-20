@@ -70,6 +70,17 @@ INSERT INTO foundation_topics VALUES
 	if w.Code != http.StatusOK || w.Header().Get("Cache-Control") != "private, no-store" || !strings.Contains(w.Body.String(), `"title":"late child"`) || !strings.Contains(w.Body.String(), `"isFree":false`) {
 		t.Fatalf("HTTP page: %d %s", w.Code, w.Body.String())
 	}
+	if _, err := db.Exec(ctx, `UPDATE foundation_topics SET is_visible=false WHERE id=md5('topic-1')::uuid`); err != nil {
+		t.Fatal(err)
+	}
+	page, err := repo.ListLearnerFoundationPage(ctx, path, subject, 1, 50)
+	if err != nil || len(page.Items) != 49 || page.HasMore {
+		t.Fatalf("hidden root must hide child in pagination: %+v %v", page, err)
+	}
+	space, err := repo.GetLearningSpace(ctx, path, subject, 50)
+	if err != nil || len(space.Foundation) != 49 || space.FoundationHasMore {
+		t.Fatalf("hidden root must hide child in learning space: %+v %v", space, err)
+	}
 	for _, kind := range []string{"courses", "library"} {
 		first, err := repo.ListLearnerResourcePage(ctx, path, subject, kind, 1, 50)
 		if err != nil || !first.HasMore {

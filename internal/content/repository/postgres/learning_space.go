@@ -80,10 +80,11 @@ func (r *Repository) GetLearningSpace(ctx context.Context, pathID, subjectID str
 
 	topicRows, err := r.db.Query(ctx, `
 		SELECT id::text,COALESCE(parent_topic_id::text,''),title,description,sort_order,is_locked
-		FROM foundation_topics
-		WHERE path_id=$1::uuid AND subject_id=$2::uuid
-		  AND status='active' AND is_visible=true
-		ORDER BY sort_order,id
+		FROM foundation_topics t
+		WHERE t.path_id=$1::uuid AND t.subject_id=$2::uuid
+		  AND t.status='active' AND t.is_visible=true
+		  AND (t.parent_topic_id IS NULL OR EXISTS (SELECT 1 FROM foundation_topics parent WHERE parent.id=t.parent_topic_id AND parent.parent_topic_id IS NULL AND parent.path_id=t.path_id AND parent.subject_id=t.subject_id AND parent.status='active' AND parent.is_visible=true))
+		ORDER BY t.sort_order,t.id
 		LIMIT $3
 	`, pathID, subjectID, limit+1)
 	if err != nil {
@@ -274,8 +275,9 @@ func (r *Repository) GetLearnerTopic(ctx context.Context, topicID string) (conte
 	var result content.LearnerTopic
 	err := r.db.QueryRow(ctx, `
 		SELECT id::text,COALESCE(parent_topic_id::text,''),title,description,sort_order,is_locked,path_id::text,subject_id::text
-		FROM foundation_topics
-		WHERE id=$1::uuid AND status='active' AND is_visible=true
+		FROM foundation_topics t
+		WHERE t.id=$1::uuid AND t.status='active' AND t.is_visible=true
+		  AND (t.parent_topic_id IS NULL OR EXISTS (SELECT 1 FROM foundation_topics parent WHERE parent.id=t.parent_topic_id AND parent.parent_topic_id IS NULL AND parent.path_id=t.path_id AND parent.subject_id=t.subject_id AND parent.status='active' AND parent.is_visible=true))
 	`, topicID).Scan(
 		&result.Topic.ID,
 		&result.Topic.ParentTopicID,
@@ -463,6 +465,7 @@ func (r *Repository) ResolveLessonProgressTarget(ctx context.Context, contextTyp
 			JOIN lessons l ON l.id=tl.lesson_id
 			WHERE t.id=$1::uuid AND l.id=$2::uuid
 			  AND t.status='active' AND t.is_visible=true AND t.is_locked=false
+			  AND (t.parent_topic_id IS NULL OR EXISTS (SELECT 1 FROM foundation_topics parent WHERE parent.id=t.parent_topic_id AND parent.parent_topic_id IS NULL AND parent.path_id=t.path_id AND parent.subject_id=t.subject_id AND parent.status='active' AND parent.is_visible=true))
 			  AND l.path_id=t.path_id AND l.subject_id=t.subject_id
 			  AND l.workflow_status='approved' AND l.is_visible=true AND l.is_locked=false
 			LIMIT 1
