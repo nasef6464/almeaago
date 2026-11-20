@@ -71,7 +71,7 @@ func TestPreparedQuizFullHTTPStartGuards(t *testing.T) {
 	}
 	sort.Strings(files)
 	for _, file := range files {
-		if strings.Compare(filepath.Base(file), "000062_") >= 0 {
+		if strings.Compare(filepath.Base(file), "000063_") >= 0 {
 			continue
 		}
 		sql, e := os.ReadFile(file)
@@ -375,7 +375,7 @@ INSERT INTO assessment_learning_placements(id,assessment_id,assessment_version,s
 	}
 	assert("reactivate", statusCall(administrator, `{"enabled":true}`, "test-csrf"), 200)
 	// The down migration must refuse to remove activation safety while live.
-	down, err := os.ReadFile("../../../../migrations/000060_prepared_quiz_activation.down.sql")
+	down, err := os.ReadFile("../../../../migrations/000061_prepared_quiz_activation.down.sql")
 	if err != nil {
 		t.Fatal(err)
 	}

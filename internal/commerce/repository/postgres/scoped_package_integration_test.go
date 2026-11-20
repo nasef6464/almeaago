@@ -45,7 +45,7 @@ func TestScopedPackageContentPostgres(t *testing.T) {
 	if _, err = db.Exec(ctx, ddl); err != nil {
 		t.Fatal(err)
 	}
-	migration, err := os.ReadFile("../../../../migrations/000051_package_scoped_content_types.up.sql")
+	migration, err := os.ReadFile("../../../../migrations/000054_package_scoped_content_types.up.sql")
 	if err != nil {
 		t.Fatal(err)
 	}

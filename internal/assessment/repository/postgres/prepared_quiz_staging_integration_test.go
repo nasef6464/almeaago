@@ -66,14 +66,14 @@ INSERT INTO assessment_version_questions VALUES ('00000000-0000-0000-0000-000000
 	if err != nil {
 		t.Fatal(err)
 	}
-	migration, err := os.ReadFile("../../../../migrations/000055_prepared_quiz_staging.up.sql")
+	migration, err := os.ReadFile("../../../../migrations/000058_prepared_quiz_staging.up.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err = db.Exec(ctx, string(migration)); err != nil {
 		t.Fatal(err)
 	}
-	guardMigration, err := os.ReadFile("../../../../migrations/000057_prepared_quiz_start_guards.up.sql")
+	guardMigration, err := os.ReadFile("../../../../migrations/000060_prepared_quiz_start_guards.up.sql")
 	if err != nil {
 		t.Fatal(err)
 	}

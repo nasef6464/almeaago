@@ -68,7 +68,7 @@ func TestQuestionCreateSectionIsAtomic(t *testing.T) {
 	}
 	sort.Strings(files)
 	for _, file := range files {
-		if strings.Compare(filepath.Base(file), "000059_") >= 0 {
+		if strings.Compare(filepath.Base(file), "000060_") >= 0 {
 			continue
 		}
 		sql, e := os.ReadFile(file)
@@ -157,7 +157,7 @@ func TestQuestionSectionSameSubjectAndAuditRollback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	up, err := os.ReadFile("../../../../migrations/000058_taxonomy_skill_sections.up.sql")
+	up, err := os.ReadFile("../../../../migrations/000059_taxonomy_skill_sections.up.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
