@@ -145,7 +145,7 @@ export const contentClient = {
   courses(filters: ContentListFilters, signal?: AbortSignal) {
     return request<PageResult<CourseSummary>>(
       `/api/v1/courses?${listQuery(filters)}`,
-      { signal },
+      { signal, cache: 'no-store' },
     );
   },
 

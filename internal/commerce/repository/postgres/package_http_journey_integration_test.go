@@ -1248,6 +1248,23 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 		}
 		teacherToken, teacherCSRF := login(teacher.Email)
 		otherTeacherToken, _ := login(otherTeacher.Email)
+		courseList := func(token string) *httptest.ResponseRecorder {
+			t.Helper()
+			req := httptest.NewRequest(http.MethodGet, "/?page=1&limit=30", nil)
+			req.AddCookie(&http.Cookie{Name: identitysession.CookieName, Value: token})
+			w := httptest.NewRecorder()
+			contenthttp.NewCourses(contentService, auth).ServeHTTP(w, req)
+			if w.Header().Get("Cache-Control") != "private, no-store" {
+				t.Fatalf("teacher course list must not be cached")
+			}
+			return w
+		}
+		if w := courseList(teacherToken); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), courseID) {
+			t.Fatalf("assigned teacher courses: %d %s", w.Code, w.Body.String())
+		}
+		if w := courseList(otherTeacherToken); w.Code != http.StatusOK || strings.Contains(w.Body.String(), courseID) {
+			t.Fatalf("unassigned teacher courses: %d %s", w.Code, w.Body.String())
+		}
 		if w := discussionCall(http.MethodGet, otherTeacherToken, "", ""); w.Code != http.StatusForbidden {
 			t.Fatalf("unassigned teacher discussion: %d %s", w.Code, w.Body.String())
 		}
@@ -1294,6 +1311,9 @@ func TestPackageHTTPCheckoutJourney(t *testing.T) {
 		}
 		if _, err := db.Exec(ctx, `DELETE FROM content_trainer_subject_scopes WHERE user_id=$1 AND subject_id=$2`, teacher.ID, subject); err != nil {
 			t.Fatal(err)
+		}
+		if w := courseList(teacherToken); w.Code != http.StatusOK || strings.Contains(w.Body.String(), courseID) {
+			t.Fatalf("revoked teacher courses: %d %s", w.Code, w.Body.String())
 		}
 		if w := discussionCall(http.MethodGet, teacherToken, "", ""); w.Code != http.StatusForbidden {
 			t.Fatalf("out-of-scope teacher discussion: %d %s", w.Code, w.Body.String())
