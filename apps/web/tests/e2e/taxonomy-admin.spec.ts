@@ -70,19 +70,23 @@ test('taxonomy admin desktop manages lifecycle-safe hierarchy with csrf',async({
   await page.setViewportSize({width:1440,height:1000});
   await page.goto('/admin-dashboard/taxonomy');
 
-  await expect(page.getByRole('heading',{name:'إدارة المسارات'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'إدارة المسارات والمناهج'})).toBeVisible();
   await expect(page.getByText('مسار قديم')).toBeVisible();
   await expect(page.getByTestId('taxonomy-admin-page').getByText('شجرة المهارات')).toHaveCount(0);
   await expect(page.getByRole('button',{name:/حذف/})).toHaveCount(0);
 
-  await page.getByLabel('كود المسار الجديد').fill('sat');
-  await page.getByLabel('اسم المسار الجديد').fill('التحصيلي');
-  await page.getByRole('button',{name:'إنشاء المسار'}).click();
-  await expect(page.getByText('تم إنشاء المسار.')).toBeVisible();
-  await expect(page.getByRole('button',{name:/التحصيلي SAT نشط/})).toBeVisible();
+  await page.getByRole('button',{name:'إضافة مسار جديد'}).click();
+  await page.getByPlaceholder('مثال: QUDRAT').fill('sat');
+  await page.getByPlaceholder('مثال: القدرات العامة').fill('التحصيلي');
+  await page.getByRole('button',{name:'حفظ المسار'}).click();
+  await expect(page.getByText('تم إنشاء المسار بنجاح.')).toBeVisible();
+  // Path rows are selectable cards, not buttons; verify the newly persisted
+  // bootstrap row, then select the existing path for its status mutation.
+  await expect(page.getByTestId('taxonomy-admin-page').getByText('التحصيلي',{exact:true})).toBeVisible();
   expect(observed.createPathCsrf).toBe('csrf-taxonomy');
 
-  await page.getByLabel('حالة المسار').selectOption('inactive');
+  await page.getByTestId('taxonomy-admin-page').getByText('القدرات',{exact:true}).first().click();
+  await page.getByLabel('حالة القدرات').selectOption('inactive');
   await expect(page.getByText('تم تحديث الحالة إلى «غير نشط».')).toBeVisible();
   expect(observed.patchPathCsrf).toBe('csrf-taxonomy');
 
@@ -112,11 +116,13 @@ test('taxonomy admin mobile separates path workspace and skill center controls',
   await page.setViewportSize({width:390,height:844});
   await page.goto('/admin-dashboard/taxonomy');
 
-  await expect(page.getByRole('heading',{name:'إدارة المسارات'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'إدارة المسارات والمناهج'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'شجرة المسارات'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'المواد'})).toBeVisible();
   await expect(page.getByText('شجرة المهارات',{exact:true})).toHaveCount(0);
-  await expect(page.getByLabel('كود المسار الجديد')).toBeVisible();
+  await page.getByRole('button',{name:'إضافة مسار جديد'}).click();
+  await expect(page.getByPlaceholder('مثال: QUDRAT')).toBeVisible();
+  await page.getByRole('button',{name:'إلغاء'}).click();
   await page.screenshot({path:'test-results/taxonomy-admin-mobile.png',fullPage:true});
   await page.goto('/admin-dashboard?tab=skills');
   await expect(page.getByRole('heading',{name:'مركز المهارات'})).toBeVisible();
@@ -132,6 +138,6 @@ test('taxonomy admin page denies teacher persona before issuing admin bootstrap'
   await page.route('**/api/v1/taxonomy/admin/bootstrap',route=>{adminBootstrapCalls+=1;return json(route,seed())});
   await page.goto('/admin-dashboard/taxonomy');
 
-  await expect(page.getByText('إدارة التصنيف متاحة لمدير المنصة فقط.')).toBeVisible();
+  await expect(page.getByText('إدارة التصنيف والمسارات متاحة لمدير المنصة فقط.')).toBeVisible();
   expect(adminBootstrapCalls).toBe(0);
 });
