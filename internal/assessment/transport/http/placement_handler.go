@@ -21,9 +21,25 @@ func NewPlacements(service *app.PlacementService, auth Authenticator) http.Handl
 	h := &PlacementHandler{service: service, auth: auth}
 	r := chi.NewRouter()
 	r.Get("/available", h.available)
+	r.Get("/subject-progress", h.subjectProgress)
+	r.Get("/subject-access-guide", h.subjectAccessGuide)
 	r.Patch("/{id}", h.patch)
 	r.Post("/{id}/start", h.start)
 	return r
+}
+
+func (h *PlacementHandler) subjectProgress(w http.ResponseWriter, r *http.Request) {
+	a, ok := h.authn(w, r, false)
+	if !ok {
+		return
+	}
+	out, err := h.service.SubjectProgress(r.Context(), a.User, r.URL.Query().Get("pathId"), r.URL.Query().Get("subjectId"), assessment.PlacementSlot(r.URL.Query().Get("slot")))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (h *PlacementHandler) authn(w http.ResponseWriter, r *http.Request, csrf bool) (identityapp.Authenticated, bool) {

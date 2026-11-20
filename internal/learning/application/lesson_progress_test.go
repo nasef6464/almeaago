@@ -16,6 +16,30 @@ type lessonProgressRepoStub struct {
 	lastStudent  string
 }
 
+type completionRepoStub struct {
+	lessonProgressRepoStub
+	student, course string
+}
+
+func (r *completionRepoStub) CompletedCourseLessons(_ context.Context, student, course string) ([]string, error) {
+	r.student, r.course = student, course
+	return []string{"lesson-1"}, nil
+}
+func TestCourseCompletionUsesAuthenticatedStudent(t *testing.T) {
+	repo := &completionRepoStub{}
+	service := NewLessonProgressService(repo, nil)
+	items, err := service.CourseCompletedLessons(context.Background(), progressStudent(), "course-1")
+	if err != nil || len(items) != 1 || repo.student != progressStudent().ID || repo.course != "course-1" {
+		t.Fatalf("unexpected scoped result: %#v %#v %v", items, repo, err)
+	}
+	if _, err = service.CourseCompletedLessons(context.Background(), identity.User{}, "course-1"); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected forbidden, got %v", err)
+	}
+	if _, err = service.CourseCompletedLessons(context.Background(), progressStudent(), " "); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected invalid course, got %v", err)
+	}
+}
+
 func (r *lessonProgressRepoStub) GetLessonProgress(_ context.Context, student, lessonID string, ct learning.LessonProgressContext, courseID, topicID string) (learning.LessonProgress, error) {
 	r.lastStudent = student
 	if r.wrongRow != nil {
@@ -83,6 +107,65 @@ func TestFoundationProgressUsesSameAuthorizedLessonBoundary(t *testing.T) {
 
 func (s lessonTargetStub) ResolveLessonProgressTarget(context.Context, string, string, string) (bool, string, int, error) {
 	return s.ok, s.lessonType, s.duration, nil
+}
+func (s lessonTargetStub) ResolveCourseLessonProgressTarget(context.Context, identity.User, string, string) (bool, string, int, error) {
+	return s.ok, s.lessonType, s.duration, nil
+}
+
+type courseAuthorizationStub struct {
+	allowed bool
+	calls   int
+}
+
+type legacyOnlyCourseResolver struct{}
+
+func (legacyOnlyCourseResolver) ResolveLessonProgressTarget(context.Context, string, string, string) (bool, string, int, error) {
+	return true, "video", 120, nil
+}
+
+func TestCourseProgressFailsClosedWithoutEntitlementResolver(t *testing.T) {
+	repo := &lessonProgressRepoStub{}
+	service := NewLessonProgressService(repo, legacyOnlyCourseResolver{})
+	input := learning.LessonProgressContextInput{ContextType: learning.LessonProgressCourse, CourseID: "course-1"}
+	if _, err := service.Complete(context.Background(), progressStudent(), "lesson-1", input); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("missing course entitlement resolver should fail closed: %v", err)
+	}
+	if repo.lastStudent != "" {
+		t.Fatal("missing resolver must not reach progress storage")
+	}
+}
+
+func (s *courseAuthorizationStub) ResolveCourseLessonProgressTarget(_ context.Context, _ identity.User, _, _ string) (bool, string, int, error) {
+	s.calls++
+	return s.allowed, "video", 120, nil
+}
+
+// Implements the foundation interface because the production constructor accepts
+// the content service through that slot; this test exercises the same wiring.
+func (s *courseAuthorizationStub) ResolveFoundationLessonProgressTarget(context.Context, identity.User, string, string) (bool, string, int, error) {
+	return false, "", 0, nil
+}
+func TestCourseProgressRequiresLessonEntitlement(t *testing.T) {
+	repo := &lessonProgressRepoStub{}
+	authorizer := &courseAuthorizationStub{}
+	service := NewLessonProgressService(repo, lessonTargetStub{ok: true}, authorizer)
+	in := learning.LessonProgressContextInput{ContextType: learning.LessonProgressCourse, CourseID: "course-1"}
+	if _, err := service.Get(context.Background(), progressStudent(), "lesson-1", in); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("denied read: %v", err)
+	}
+	if _, err := service.SaveVideo(context.Background(), progressStudent(), "lesson-1", learning.VideoProgressWrite{LessonProgressContextInput: in, PositionSeconds: 10}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("denied video: %v", err)
+	}
+	if _, err := service.Complete(context.Background(), progressStudent(), "lesson-1", in); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("denied completion: %v", err)
+	}
+	if repo.lastStudent != "" || authorizer.calls != 3 {
+		t.Fatalf("denied request reached storage: %+v, calls=%d", repo, authorizer.calls)
+	}
+	authorizer.allowed = true
+	if _, err := service.Complete(context.Background(), progressStudent(), "lesson-1", in); err != nil {
+		t.Fatalf("authorized completion: %v", err)
+	}
 }
 
 func progressStudent() identity.User {

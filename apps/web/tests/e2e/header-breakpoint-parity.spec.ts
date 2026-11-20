@@ -44,3 +44,12 @@ test('public header keeps the original md breakpoint and mobile menu behavior', 
     await header.screenshot({ path: `test-results/header-breakpoint-${width}.png` });
   }
 });
+
+test('student membership remains reachable from account menu at tablet width', async ({page}) => {
+  await prepareGuest(page);
+  await page.route('**/api/v1/auth/me', route => json(route, {user:{id:'student-header',email:'student@example.invalid',name:'طالب',role:'student',roles:['student'],status:'active',emailVerified:true}}));
+  await page.setViewportSize({width:820,height:900});
+  await page.goto('/');
+  await page.getByRole('button', {name:'قائمة المستخدم'}).click();
+  await expect(page.getByRole('button', {name:'حساب تجريبي مجاني', exact:true})).toBeVisible();
+});

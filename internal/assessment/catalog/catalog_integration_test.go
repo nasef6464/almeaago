@@ -90,4 +90,30 @@ func TestPublicMockCatalogPostgresVisibilityAndPublishedSnapshot(t *testing.T) {
 	if len(rows) != 1 || rows[0].ID != wanted || rows[0].Title != "published-snapshot" || rows[0].QuestionCount != 2 || rows[0].SectionCount != 2 || rows[0].TimeLimitSeconds != 1800 {
 		t.Fatalf("unsafe/wrong published catalog: %+v", rows)
 	}
+	var level, subject string
+	if err = db.QueryRow(ctx, `INSERT INTO levels(path_id,code,name) VALUES($1,'L','Level') RETURNING id::text`, path).Scan(&level); err != nil {
+		t.Fatal(err)
+	}
+	if err = db.QueryRow(ctx, `INSERT INTO subjects(path_id,level_id,code,name) VALUES($1,$2,'S','Subject') RETURNING id::text`, path, level).Scan(&subject); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec(ctx, `UPDATE assessment_versions SET subject_id=$2 WHERE assessment_id=$1 AND version=1`, wanted, subject); err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range []struct{ table, id string }{{"paths", path}, {"levels", level}, {"subjects", subject}} {
+		if _, err = db.Exec(ctx, fmt.Sprintf(`UPDATE %s SET presentation='{"isVisible":false}' WHERE id=$1`, item.table), item.id); err != nil {
+			t.Fatal(err)
+		}
+		rows, err = NewPostgres(db).ListPublicMocks(ctx)
+		if err != nil || len(rows) != 0 {
+			t.Fatalf("hidden %s: %+v %v", item.table, rows, err)
+		}
+		if _, err = db.Exec(ctx, fmt.Sprintf(`UPDATE %s SET presentation='{"isVisible":true}' WHERE id=$1`, item.table), item.id); err != nil {
+			t.Fatal(err)
+		}
+		rows, err = NewPostgres(db).ListPublicMocks(ctx)
+		if err != nil || len(rows) != 1 || rows[0].ID != wanted {
+			t.Fatalf("restored %s: %+v %v", item.table, rows, err)
+		}
+	}
 }

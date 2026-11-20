@@ -344,7 +344,11 @@ export function buildStepsFromQuestion(
     return steps;
   }
 
-  return DEFAULT_STEPS;
+  return [{
+    stepNumber: 1,
+    title: 'الشرح غير متاح',
+    explanation: 'لا يوجد شرح أو استراتيجية حل معتمدة لهذا السؤال حتى الآن.',
+  }];
 }
 
 export interface StepSolutionModalProps {

@@ -26,7 +26,16 @@ async function req<T>(path:string,init:RequestInit={}):Promise<T>{
  if(!r.ok){const body=await r.json().catch(()=>({message:'تعذر تنفيذ الطلب'}));throw new Error(body.message||'تعذر تنفيذ الطلب')}
  return r.json() as Promise<T>;
 }
+async function paymentRequestByKey(key:string,signal?:AbortSignal):Promise<CommercePaymentRequest|null>{
+ const response=await fetch(BASE+'/api/v1/commerce/checkout/requests/by-key',{credentials:'include',signal,headers:{Accept:'application/json','X-Checkout-Key':key},cache:'no-store'});
+ if(response.status===404)return null;
+ if(!response.ok)throw new Error('تعذر التحقق من طلب الدفع السابق. حاول مرة أخرى.');
+ const data=await response.json() as {request?:CommercePaymentRequest};
+ if(!data.request?.id || !data.request.userId || !data.request.productId)throw new Error('تعذر التحقق من طلب الدفع السابق. حاول مرة أخرى.');
+ return data.request;
+}
 export const commerceClient={
+ paymentRequestByKey,
  products:(page=1,limit=50,productType:CommerceProductType|''='',search='',signal?:AbortSignal)=>{
    const p=new URLSearchParams({page:String(page),limit:String(limit)});if(productType)p.set('productType',productType);if(search)p.set('search',search);
    return req<CommercePage<CommerceProduct>>(`/api/v1/commerce/products?${p}`,{signal});
@@ -40,7 +49,7 @@ export const commerceClient={
  courseAccess:(courseId:string,signal?:AbortSignal)=>req<{access:CommerceAccessDecision}>(`/api/v1/commerce/access/courses/${encodeURIComponent(courseId)}`,{signal}),
  catalogProduct:(id:string,signal?:AbortSignal)=>req<{product:CommerceProduct}>(`/api/v1/commerce/catalog/products/${encodeURIComponent(id)}`,{signal}),
  previewDiscount:(productId:string,code:string)=>req<{preview:CommerceDiscountPreview}>('/api/v1/commerce/discounts/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({productId,code})}),
- createCheckout:(input:{productId:string;discountCode:string;paymentMethod:CommercePaymentMethod;idempotencyKey:string},csrf:string)=>req<{request:CommercePaymentRequest}>('/api/v1/commerce/checkout/requests',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(input)}),
+ createCheckout:(input:{productId:string;discountCode:string;paymentMethod:CommercePaymentMethod;idempotencyKey:string;transferSenderName?:string;transferSenderBank?:string;transferReference?:string;transferReceiptUrl?:string},csrf:string)=>req<{request:CommercePaymentRequest}>('/api/v1/commerce/checkout/requests',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(input)}),
  myPaymentRequests:(page=1,limit=20,signal?:AbortSignal)=>req<CommercePage<CommercePaymentRequest>>(`/api/v1/commerce/checkout/requests?page=${page}&limit=${limit}`,{signal}),
  discounts:(page=1,limit=50,status:CommerceDiscountStatus|''='',search='',signal?:AbortSignal)=>{const p=new URLSearchParams({page:String(page),limit:String(limit)});if(status)p.set('status',status);if(search)p.set('search',search);return req<CommercePage<CommerceDiscount>>(`/api/v1/commerce/admin/discounts?${p}`,{signal})},
  createDiscount:(discount:CommerceDiscountWrite,csrf:string)=>req<{discount:CommerceDiscount}>('/api/v1/commerce/admin/discounts',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(discount)}),

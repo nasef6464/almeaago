@@ -87,4 +87,25 @@ func TestSchoolWideAssignmentLearnerAudiencePostgres(t *testing.T) {
 			t.Fatalf("unauthorized student could start: %v", err)
 		}
 	}
+	// Public catalog visibility must not silently revoke a school-directed
+	// assignment or broaden its audience to another school.
+	if _, err := tx.Exec(ctx, `UPDATE paths SET presentation='{"isVisible":false}' WHERE id=$1::uuid`, path); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		pupil   string
+		allowed bool
+	}{{pupilA, true}, {pupilB, false}} {
+		items, _, err := listLearnerAssignmentsFrom(ctx, tx, tc.pupil, 1, 10)
+		if err != nil || (len(items) == 1) != tc.allowed {
+			t.Fatalf("hidden public path changed assignment audience for %s: %+v %v", tc.pupil, items, err)
+		}
+		_, _, _, _, err = loadStartAssignedTarget(ctx, tx, tc.pupil, assignmentID)
+		if tc.allowed && err != nil {
+			t.Fatalf("hidden public path blocked assigned pupil: %v", err)
+		}
+		if !tc.allowed && !errors.Is(err, pgx.ErrNoRows) {
+			t.Fatalf("hidden public path broadened audience: %v", err)
+		}
+	}
 }

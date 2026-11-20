@@ -50,6 +50,9 @@ func TestCourseListRejectsInvalidPaginationBeforeRepository(t *testing.T) {
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d body=%s", response.Code, response.Body.String())
 	}
+	if response.Header().Get("Cache-Control") != "private, no-store" {
+		t.Fatalf("course list errors must not be cached: %q", response.Header().Get("Cache-Control"))
+	}
 }
 
 func TestTrainerScopeMutationRequiresCSRF(t *testing.T) {

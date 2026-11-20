@@ -10,6 +10,7 @@ type PathSettings struct {
 }
 
 type Path struct {
+	IsVisible        *bool
 	ShowInHome       *bool
 	ShowInNavbar     *bool
 	ShowSubjectCards *bool
@@ -30,6 +31,7 @@ type Path struct {
 }
 
 type Level struct {
+	IsVisible *bool
 	ID        string
 	PathID    string
 	Code      string
@@ -41,6 +43,7 @@ type Level struct {
 }
 
 type Subject struct {
+	IsVisible *bool
 	Icon      string
 	IconURL   string
 	IconStyle string
@@ -58,6 +61,7 @@ type Subject struct {
 type Skill struct {
 	ID            string
 	SubjectID     string
+	SectionID     string
 	ParentSkillID string
 	Code          string
 	Name          string
@@ -67,10 +71,20 @@ type Skill struct {
 	Status        Status
 }
 
+// SkillSection groups skills within a subject; it is not an exam section.
+type SkillSection struct {
+	ID        string
+	SubjectID string
+	Name      string
+	SortOrder int
+	Status    Status
+}
+
 type Bootstrap struct {
 	Paths    []Path
 	Levels   []Level
 	Subjects []Subject
+	Sections []SkillSection
 	Skills   []Skill
 }
 

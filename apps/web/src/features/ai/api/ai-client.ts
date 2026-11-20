@@ -85,7 +85,7 @@ export const aiClient = {
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
       body: JSON.stringify({ message }),
     }),
-  questionAssistant: (input: { reviewCardId: string; helpLevel: AiHelpLevel; message: string }, csrf: string) =>
+  questionAssistant: (input: { reviewCardId?: string; questionId?: string; attemptId?: string; helpLevel: AiHelpLevel; message: string }, csrf: string) =>
     request<{ result: AiQuestionAssistResult }>('/api/v1/ai/question-assistant', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },

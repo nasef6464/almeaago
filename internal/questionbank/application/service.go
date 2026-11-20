@@ -113,6 +113,7 @@ type VersionInput struct {
 
 type CreateInput struct {
 	QuestionCode      string             `json:"questionCode"`
+	SectionID         string             `json:"sectionId,omitempty"`
 	OwnerType         question.OwnerType `json:"ownerType"`
 	OwnerID           string             `json:"ownerId"`
 	AssignedTeacherID string             `json:"assignedTeacherId"`
@@ -128,6 +129,13 @@ type WorkflowInput struct {
 func (s *Service) Create(ctx context.Context, actor identity.User, input CreateInput) (question.Question, error) {
 	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) {
 		return question.Question{}, ErrForbidden
+	}
+	sectionID := strings.TrimSpace(input.SectionID)
+	if sectionID != "" && !actor.HasRole(identity.RoleAdmin) {
+		return question.Question{}, ErrForbidden
+	}
+	if sectionID != "" && !sectionUUID.MatchString(sectionID) {
+		return question.Question{}, ErrInvalidInput
 	}
 	code := strings.TrimSpace(input.QuestionCode)
 	if code == "" || len(code) > 120 {
@@ -175,6 +183,7 @@ func (s *Service) Create(ctx context.Context, actor identity.User, input CreateI
 		QuestionCode:      code,
 		PathID:            version.PathID,
 		SubjectID:         version.SubjectID,
+		SectionID:         sectionID,
 		OwnerType:         ownerType,
 		OwnerID:           ownerID,
 		AssignedTeacherID: assignedTeacherID,
@@ -473,6 +482,18 @@ func normalizeVersion(input VersionInput) (question.VersionCommand, error) {
 		return question.VersionCommand{}, ErrInvalidInput
 	}
 	if input.OptionsEmbeddedInImage {
+		// Older import clients supply only AI context for the text already in
+		// the image. Materialize choice positions without exposing that text;
+		// answer validation and attempts both require question_options rows.
+		if len(options) == 0 {
+			count := embeddedOptionTextCount(input.AIContext)
+			if count < 2 || count > 12 {
+				return question.VersionCommand{}, ErrInvalidInput
+			}
+			for i := 0; i < count; i++ {
+				options = append(options, question.Option{Index: i})
+			}
+		}
 		if input.ImageAssetID == "" || (len(options) < 2 && !hasEmbeddedOptionTexts(input.AIContext)) {
 			return question.VersionCommand{}, ErrInvalidInput
 		}

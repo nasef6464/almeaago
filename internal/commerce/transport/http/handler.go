@@ -68,6 +68,7 @@ func NewWithProviderSecrets(service *commerceapp.Service, checkout *commerceapp.
 		r.Get("/catalog/products/{id}", h.catalogProduct)
 		r.Post("/discounts/preview", h.previewDiscount)
 		r.Get("/checkout/requests", h.myPaymentRequests)
+		r.Get("/checkout/requests/by-key", h.myPaymentRequestByKey)
 		r.Post("/checkout/requests", h.createCheckout)
 		r.Get("/admin/discounts", h.listDiscounts)
 		r.Post("/admin/discounts", h.createDiscount)

@@ -23,6 +23,7 @@ const pending={
 
 function json(r:Route,b:unknown,s=200){return r.fulfill({status:s,contentType:'application/json',body:JSON.stringify(b)})}
 async function auth(page:Page,user:typeof admin|typeof student){
+ await page.route('**/api/v1/commerce/catalog/payment-options',r=>json(r,{methods:['card','transfer','wallet'],gatewayMode:'manual_review'}));
  await page.route('**/api/v1/auth/me',r=>json(r,{user}));
  await page.route('**/api/v1/auth/csrf',r=>json(r,{csrfToken:'csrf'}));
 }
@@ -63,17 +64,17 @@ test('learner checkout uses server price and creates pending request without bro
  await expect(page.getByText('السعر الأصلي')).toBeVisible();
  await page.getByTestId('payment-access-code-input').fill('access-2026');
  await page.getByTestId('payment-redeem-access-code').click();
- await expect(page.getByText('تم تفعيل كود الوصول. يمكنك العودة للمحتوى الآن.')).toBeVisible();
+ await expect(page.getByText('تم تفعيل كود الوصول بنجاح! يمكنك الآن بدء دراسة المحتوى.')).toBeVisible();
  await page.getByLabel('كود الخصم').fill('save10');
  await page.getByRole('button',{name:'تطبيق'}).click();
- await expect(page.getByText('تم تطبيق SAVE10', {exact:false})).toBeVisible();
- await expect(page.getByText('المبلغ النهائي')).toBeVisible();
+ await expect(page.getByText('تم تطبيق الكوبون (SAVE10)', {exact:false})).toBeVisible();
+ await expect(page.getByText('المبلغ الإجمالي المستحق')).toBeVisible();
 
- await page.getByRole('button',{name:'إنشاء طلب دفع آمن'}).click();
+ await page.getByRole('button',{name:'إنشاء طلب للمراجعة'}).click();
  const statusCard=page.getByTestId('payment-request-status');
  await expect(statusCard).toBeVisible();
- await expect(statusCard).toContainText('لن يتم منح الوصول من الواجهة');
- await expect(statusCard).toContainText('pending');
+ await expect(statusCard).toContainText('يتم تفعيل صلاحيات وصول الدورة');
+ await expect(statusCard).toContainText('طلب الدفع قيد المراجعة والاعتماد');
  await page.screenshot({path:'test-results/commerce-checkout-mobile.png',fullPage:true});
 });
 
@@ -81,7 +82,7 @@ test('admin creates discount and approves pending payment with evidence',async({
  await auth(page,admin);
 
  let discounts:any[]=[];
- let requests:any[]=[pending];
+ let requests:any[]=[{...pending,paymentMethod:'transfer',transferSenderName:'طالب تجريبي',transferSenderBank:'بنك تجريبي',transferReference:'REF-123',transferReceiptUrl:'https://example.invalid/receipt'}];
 
  await page.route('**/api/v1/commerce/products?**',r=>json(r,{items:[product],page:1,limit:100,hasMore:false}));
  await page.route('**/api/v1/commerce/entitlements?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
@@ -111,14 +112,16 @@ test('admin creates discount and approves pending payment with evidence',async({
    expect(body.expectedRevision).toBe(1);
    expect(body.status).toBe('paid');
    expect(body.approvalEvidence.length).toBeGreaterThanOrEqual(6);
-   requests=[];
-   return json(r,{request:{...pending,status:'paid',revision:2,paidAt:'2026-09-26T11:03:00Z',reviewedBy:'admin-1',reviewedAt:'2026-09-26T11:03:00Z',reviewerNotes:body.reviewerNotes,approvalEvidence:body.approvalEvidence}});
+   requests=[{...requests[0],status:'paid',revision:2,paidAt:'2026-09-26T11:03:00Z',reviewedBy:'admin-1',reviewedAt:'2026-09-26T11:03:00Z',reviewerNotes:body.reviewerNotes,approvalEvidence:body.approvalEvidence}];
+   return json(r,{request:requests[0]});
  });
 
  page.on('dialog',dialog=>dialog.accept('bank-ref-7788'));
 
  await page.goto('/admin-dashboard/commerce');
  await expect(page.getByRole('heading',{name:'المنتجات والخصومات وطلبات الدفع'})).toBeVisible();
+ await expect(page.getByText('مرجع التحويل: REF-123')).toBeVisible();
+ await expect(page.getByRole('link',{name:'عرض رابط الإيصال'})).toHaveAttribute('href','https://example.invalid/receipt');
 
  await page.getByLabel('كود الخصم الإداري').fill('SAVE20');
  await page.getByLabel('نسبة الخصم').fill('20');
@@ -131,6 +134,7 @@ test('admin creates discount and approves pending payment with evidence',async({
  await approve.click();
  await expect(page.getByText('تم اعتماد الطلب وإنشاء صلاحية الوصول من الخادم.')).toBeVisible();
  await expect(page.getByText('لا توجد طلبات معلقة.')).toBeVisible();
+ await expect(page.getByText('مرجع التحويل: REF-123')).toBeVisible();
 });
 
 test('admin records factual trainer revenue allocation and payout evidence',async({page})=>{
@@ -172,6 +176,7 @@ test('admin records factual trainer revenue allocation and payout evidence',asyn
 
 test('learner receives only a trusted Tap redirect after server-authoritative checkout',async({page})=>{
  await auth(page,student);
+ await page.route('**/api/v1/commerce/catalog/payment-options',r=>json(r,{methods:['card'],gatewayMode:'payment_link'}));
  await page.route('**/api/v1/commerce/catalog/products/product-course-1',r=>json(r,{product}));
  await page.route('**/api/v1/commerce/checkout/requests?**',r=>json(r,{items:[],page:1,limit:20,hasMore:false}));
  await page.route('**/api/v1/commerce/checkout/requests',async r=>{
@@ -188,7 +193,7 @@ test('learner receives only a trusted Tap redirect after server-authoritative ch
    }},201);
  });
  await page.goto('/checkout?productId=product-course-1');
- await page.getByRole('button',{name:'إنشاء طلب دفع آمن'}).click();
+ await page.getByRole('button',{name:'متابعة الدفع الآمن'}).click();
  const link=page.getByTestId('payment-provider-redirect');
  await expect(link).toBeVisible();
  await expect(link).toHaveAttribute('href','https://tap.example/pay/chg_test_1');
@@ -277,4 +282,81 @@ test('admin uses canonical school context for scoped access codes and capped sea
  await expect.poll(()=>seatCreates).toBe(1);
  expect(orgMutations).toBe(0);
  await page.screenshot({path:'test-results/commerce-school-access-admin.png',fullPage:true});
+});
+
+
+test('transfer details are sent and remain visible in the pending request',async({page})=>{
+ await auth(page,student);
+ let saved:any=null;
+ await page.route('**/api/v1/commerce/checkout/requests/by-key',r=>saved?json(r,{request:saved}):json(r,{message:'not found'},404));
+ await page.route('**/api/v1/commerce/catalog/products/product-course-1',r=>json(r,{product}));
+ await page.route('**/api/v1/commerce/checkout/requests?**',r=>json(r,{items:saved?[saved]:[],page:1,limit:20,hasMore:false}));
+ await page.route('**/api/v1/commerce/checkout/requests',r=>{
+  const body=r.request().postDataJSON();
+  expect(body).toMatchObject({productId:product.id,paymentMethod:'transfer',transferSenderName:'طالب تجريبي',transferSenderBank:'بنك الرياض',transferReference:'REF-123',transferReceiptUrl:'https://example.invalid/receipt'});
+  saved={...pending,...body,providerCode:'manual_transfer',discountCode:'',status:'pending'};
+  return json(r,{request:saved},201);
+ });
+ await page.goto('/checkout?productId=product-course-1');
+ await page.getByLabel('وسيلة الدفع').selectOption('transfer');
+ await expect(page.getByText('SA03 8000 0456 6080 1234 5678')).toHaveCount(0);
+ await page.getByPlaceholder('اسم صاحب الحساب المحول منه (اختياري)').fill('طالب تجريبي');
+ await page.getByLabel('بنك المحوّل').selectOption('بنك الرياض');
+ await page.getByPlaceholder('رقم مرجع التحويل أو آخر 4 أرقام من الحساب (اختياري)').fill('REF-123');
+ await page.getByPlaceholder('https://...').fill('https://example.invalid/receipt');
+ await page.getByRole('button',{name:'تأكيد إرسال طلب التحويل البنكي'}).click();
+ await expect(page.getByTestId('payment-request-status')).toContainText('REF-123');
+ await page.reload();
+ await expect(page.getByTestId('payment-request-status')).toContainText('REF-123');
+});
+
+test('checkout recovers a request after the response is lost without a second purchase',async({page})=>{
+ await auth(page,student);
+ let saved:any=null; let sends=0;
+ await page.route('**/api/v1/commerce/catalog/products/product-course-1',r=>json(r,{product}));
+ await page.route('**/api/v1/commerce/checkout/requests?**',r=>json(r,{items:[],page:1,limit:20,hasMore:false}));
+ await page.route('**/api/v1/commerce/checkout/requests/by-key',r=>saved?json(r,{request:saved}):json(r,{message:'not found'},404));
+ await page.route('**/api/v1/commerce/checkout/requests',async r=>{sends++;saved={...pending,idempotencyKey:r.request().postDataJSON().idempotencyKey};await r.abort('failed')});
+ await page.goto('/checkout?productId=product-course-1');
+ await page.getByRole('button',{name:'إنشاء طلب للمراجعة'}).click();
+ await expect.poll(()=>sends).toBe(1);
+ await page.reload();
+ await expect(page.getByTestId('payment-request-status')).toBeVisible();
+ expect(sends).toBe(1);
+});
+
+
+test('checkout offers only server-enabled payment methods',async({page})=>{
+ await auth(page,student);
+ await page.route('**/api/v1/commerce/catalog/payment-options',r=>json(r,{methods:['transfer'],gatewayMode:'manual_review'}));
+ await page.route('**/api/v1/commerce/catalog/products/product-course-1',r=>json(r,{product}));
+ await page.route('**/api/v1/commerce/checkout/requests?**',r=>json(r,{items:[],page:1,limit:20,hasMore:false}));
+ await page.goto('/checkout?productId=product-course-1');
+ await expect(page.getByLabel('وسيلة الدفع')).toHaveValue('transfer');
+ await expect(page.getByLabel('وسيلة الدفع').locator('option')).toHaveCount(1);
+ await expect(page.getByPlaceholder('اسم صاحب الحساب المحول منه (اختياري)')).toBeVisible();
+});
+
+
+test('checkout refuses an unsafe receipt link before sending',async({page})=>{
+ await auth(page,student);
+ let sends=0;
+ await page.route('**/api/v1/commerce/catalog/products/product-course-1',r=>json(r,{product}));
+ await page.route('**/api/v1/commerce/checkout/requests?**',r=>json(r,{items:[],page:1,limit:20,hasMore:false}));
+ await page.route('**/api/v1/commerce/checkout/requests',r=>{sends++;return json(r,{},500)});
+ await page.goto('/checkout?productId=product-course-1');
+ await page.getByLabel('وسيلة الدفع').selectOption('transfer');
+ await page.getByPlaceholder('https://...').fill('http://example.invalid/receipt');
+ await page.getByRole('button',{name:'تأكيد إرسال طلب التحويل البنكي'}).click();
+ await expect(page.getByText('أدخل رابط إيصال صالحًا يبدأ بـ HTTPS دون بيانات دخول.')).toBeVisible();
+ expect(sends).toBe(0);
+});
+test('checkout fails closed when payment options cannot be loaded',async({page})=>{
+ await auth(page,student);
+ await page.route('**/api/v1/commerce/catalog/payment-options',r=>json(r,{message:'unavailable'},503));
+ await page.route('**/api/v1/commerce/catalog/products/product-course-1',r=>json(r,{product}));
+ await page.route('**/api/v1/commerce/checkout/requests?**',r=>json(r,{items:[],page:1,limit:20,hasMore:false}));
+ await page.goto('/checkout?productId=product-course-1');
+ await expect(page.getByText('تعذر تحميل وسائل الدفع المتاحة. أعد تحميل الصفحة.')).toBeVisible();
+ await expect(page.getByRole('button',{name:'إنشاء طلب للمراجعة'})).toBeDisabled();
 });

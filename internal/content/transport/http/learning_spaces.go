@@ -1,6 +1,7 @@
 package contenthttp
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -12,12 +13,77 @@ import (
 func NewLearningSpaces(service *contentapp.Service, auth Authenticator) http.Handler {
 	h := &Handler{service: service, auth: auth}
 	r := chi.NewRouter()
+	// Every response in this router may contain account-specific access or URLs,
+	// including errors; never let a browser or shared cache reuse it for another user.
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", "private, no-store")
+			next.ServeHTTP(w, r)
+		})
+	})
 	r.Get("/courses/{id}", h.getLearnerCourse)
 	r.Get("/courses/{courseId}/lessons/{lessonId}", h.getLearnerCourseLesson)
+	r.Get("/courses/{courseId}/lessons/{lessonId}/discussion", h.getLessonDiscussion)
+	r.Post("/courses/{courseId}/lessons/{lessonId}/discussion", h.addLessonDiscussion)
 	r.Get("/foundation/{id}", h.getLearnerTopic)
 	r.Get("/foundation/{topicId}/lessons/{lessonId}", h.getLearnerFoundationLesson)
+	r.Get("/{pathId}/subjects/{subjectId}/foundation", h.getLearnerFoundationPage)
+	r.Get("/{pathId}/subjects/{subjectId}/resources/{kind}", h.getLearnerResourcePage)
 	r.Get("/{pathId}/subjects/{subjectId}", h.getLearningSpace)
 	return r
+}
+
+func (h *Handler) getLearnerResourcePage(w http.ResponseWriter, r *http.Request) {
+	auth, _ := h.authenticateOptional(r)
+	page, ok := parsePositiveInt(w, r.URL.Query().Get("page"))
+	if !ok {
+		return
+	}
+	limit, ok := parsePositiveInt(w, r.URL.Query().Get("limit"))
+	if !ok {
+		return
+	}
+	kind := chi.URLParam(r, "kind")
+	result, err := h.service.LearnerResourcePage(r.Context(), auth.User, chi.URLParam(r, "pathId"), chi.URLParam(r, "subjectId"), kind, page, limit)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	items := make([]map[string]any, 0)
+	if kind == "courses" {
+		for _, item := range result.Courses {
+			items = append(items, presentLearnerCourseSummary(item))
+		}
+	} else {
+		for _, item := range result.Library {
+			items = append(items, presentLearnerLibrarySummary(item))
+		}
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
+	writeJSON(w, http.StatusOK, map[string]any{"pathId": result.PathID, "subjectId": result.SubjectID, "page": result.Page, "items": items, "hasMore": result.HasMore})
+}
+
+func (h *Handler) getLearnerFoundationPage(w http.ResponseWriter, r *http.Request) {
+	auth, _ := h.authenticateOptional(r)
+	page, ok := parsePositiveInt(w, r.URL.Query().Get("page"))
+	if !ok {
+		return
+	}
+	limit, ok := parsePositiveInt(w, r.URL.Query().Get("limit"))
+	if !ok {
+		return
+	}
+	result, err := h.service.LearnerFoundationPage(r.Context(), auth.User, chi.URLParam(r, "pathId"), chi.URLParam(r, "subjectId"), page, limit)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	items := make([]map[string]any, 0, len(result.Items))
+	for _, item := range result.Items {
+		items = append(items, presentLearnerTopicSummary(item))
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
+	writeJSON(w, http.StatusOK, map[string]any{"pathId": result.PathID, "subjectId": result.SubjectID, "page": result.Page, "items": items, "hasMore": result.HasMore})
 }
 
 func (h *Handler) getLearnerFoundationLesson(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +186,12 @@ func presentLearnerCourse(row content.LearnerCourse) map[string]any {
 		})
 	}
 	result := presentLearnerCourseSummary(row.Course)
+	if len(row.Course.Presentation) > 0 {
+		result["presentation"] = learnerCoursePresentation(row.Course.Presentation, row.AccessAllowed)
+	}
 	result["modules"] = modules
+	result["pathId"] = row.PathID
+	result["subjectId"] = row.SubjectID
 	result["access"] = map[string]any{
 		"allowed":    row.AccessAllowed,
 		"configured": row.AccessConfigured,
@@ -146,6 +217,36 @@ func presentLearnerTopic(row content.LearnerTopic) map[string]any {
 	return result
 }
 
+// Summaries are public. Strip non-free file URLs unless the course-specific
+// access decision has already authorized the learner. External URLs themselves
+// still need protection at their hosting provider.
+func learnerCoursePresentation(raw json.RawMessage, allowPaid bool) json.RawMessage {
+	var presentation map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &presentation); err != nil || presentation == nil {
+		return json.RawMessage(`{}`)
+	}
+	if filesRaw, ok := presentation["files"]; ok {
+		var files []map[string]json.RawMessage
+		if err := json.Unmarshal(filesRaw, &files); err != nil {
+			delete(presentation, "files")
+		} else {
+			for _, file := range files {
+				var access string
+				_ = json.Unmarshal(file["access"], &access)
+				if !allowPaid && access != "free_preview" {
+					delete(file, "url")
+				}
+			}
+			presentation["files"], _ = json.Marshal(files)
+		}
+	}
+	encoded, err := json.Marshal(presentation)
+	if err != nil {
+		return json.RawMessage(`{}`)
+	}
+	return encoded
+}
+
 func presentLearnerCourseSummary(row content.LearnerCourseSummary) map[string]any {
 	result := map[string]any{
 		"id":                 row.ID,
@@ -159,7 +260,7 @@ func presentLearnerCourseSummary(row content.LearnerCourseSummary) map[string]an
 		"certificateEnabled": row.CertificateEnabled,
 	}
 	if len(row.Presentation) > 0 {
-		result["presentation"] = row.Presentation
+		result["presentation"] = learnerCoursePresentation(row.Presentation, false)
 	}
 	return result
 }
@@ -172,6 +273,7 @@ func presentLearnerTopicSummary(row content.LearnerTopicSummary) map[string]any 
 		"description":   row.Description,
 		"sortOrder":     row.SortOrder,
 		"isLocked":      row.IsLocked,
+		"isFree":        row.IsFree,
 	}
 }
 

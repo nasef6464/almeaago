@@ -119,6 +119,7 @@ type CreateCommand struct {
 	QuestionCode      string
 	PathID            string
 	SubjectID         string
+	SectionID         string
 	OwnerType         OwnerType
 	OwnerID           string
 	AssignedTeacherID string

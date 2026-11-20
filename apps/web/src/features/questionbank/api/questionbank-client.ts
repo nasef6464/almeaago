@@ -100,6 +100,7 @@ export interface QuestionVersionWrite{
 }
 export interface QuestionCreateWrite{
   questionCode:string;
+  sectionId?:string;
   ownerType:'platform'|'teacher';
   ownerId:string;
   assignedTeacherId:string;
@@ -185,6 +186,8 @@ async function sha256Hex(file:File){
 }
 
 export const questionBankClient={
+  section:(id:string,signal?:AbortSignal)=>request<{sectionId:string}>(`/api/v1/questions/${encodeURIComponent(id)}/section`,{signal,cache:'no-store'}),
+  setSection:(id:string,sectionId:string,csrf:string,signal?:AbortSignal)=>request<{sectionId:string}>(`/api/v1/questions/${encodeURIComponent(id)}/section`,{method:'PUT',signal,headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify({sectionId})}),
   list(filters:QuestionFilters,signal?:AbortSignal){
     return request<QuestionPage>(`/api/v1/questions?${qs(filters)}`,{signal});
   },

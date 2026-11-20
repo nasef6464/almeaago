@@ -16,6 +16,10 @@ const (
 )
 
 type SubmissionEvidence struct {
+	// SourceKind is empty for historical prepared assessments; "self" means
+	// the question/skill snapshot belongs to a self-quiz attempt.
+	SourceKind        string
+	EvidenceType      string
 	StudentID         string
 	AttemptID         string
 	AssessmentID      string

@@ -17,17 +17,12 @@ func (r *Repository) SingleShotSubmit(
 ) (assessment.ResultDetail, error) {
 	// 1. Idempotency Check
 	if req.SubmissionKey != "" {
-		var existingAttemptID string
-		err := r.db.QueryRow(ctx, `
-			SELECT id::text
-			FROM assessment_attempts
-			WHERE submission_key = $1
-			  AND student_id = $2::uuid
-			  AND status = 'submitted'
-			LIMIT 1
-		`, req.SubmissionKey, studentID).Scan(&existingAttemptID)
-		if err == nil {
-			return r.GetResultDetail(ctx, studentID, existingAttemptID)
+		result, found, err := r.FindSingleShotResult(ctx, studentID, assessmentID, req.SubmissionKey)
+		if err != nil {
+			return assessment.ResultDetail{}, err
+		}
+		if found {
+			return result, nil
 		}
 	}
 
@@ -40,21 +35,29 @@ func (r *Repository) SingleShotSubmit(
 	// Concurrency Serialization: If submissionKey is provided, serialize concurrent requests
 	// for the same student + submission key using transaction-level advisory locking.
 	if req.SubmissionKey != "" {
-		_, _ = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('single_shot:' || $1 || ':' || $2))`, studentID, req.SubmissionKey)
+		if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('single_shot:' || $1))`, req.SubmissionKey); err != nil {
+			return assessment.ResultDetail{}, err
+		}
 
 		// Re-check after acquiring advisory lock (in case a concurrent submission just committed)
-		var existingAttemptID string
+		var existingAttemptID, owner, status string
+		var sameAssessment bool
 		err := tx.QueryRow(ctx, `
-			SELECT id::text
-			FROM assessment_attempts
-			WHERE (submission_key = $1 OR start_key = $1)
-			  AND student_id = $2::uuid
-			  AND status = 'submitted'
+			SELECT t.id::text,t.student_id::text,t.status,(a.id::text=$2 OR a.assessment_code=$2)
+			FROM assessment_attempts t JOIN assessments a ON a.id=t.assessment_id
+			WHERE (t.submission_key = $1 OR t.start_key = $1)
 			LIMIT 1
-		`, req.SubmissionKey, studentID).Scan(&existingAttemptID)
+		`, req.SubmissionKey, assessmentID).Scan(&existingAttemptID, &owner, &status, &sameAssessment)
 		if err == nil {
-			_ = tx.Rollback(ctx)
-			return r.GetResultDetail(ctx, studentID, existingAttemptID)
+			if owner != studentID || !sameAssessment {
+				return assessment.ResultDetail{}, assessment.ErrConflict
+			}
+			if status == "submitted" {
+				_ = tx.Rollback(ctx)
+				return r.GetResultDetail(ctx, studentID, existingAttemptID)
+			}
+		} else if !errors.Is(err, pgx.ErrNoRows) {
+			return assessment.ResultDetail{}, err
 		}
 	}
 
@@ -132,20 +135,6 @@ func (r *Repository) SingleShotSubmit(
 			return assessment.ResultDetail{}, err
 		}
 		if used >= maxAttempts {
-			if req.SubmissionKey != "" {
-				var existingAttemptID string
-				cErr := tx.QueryRow(ctx, `
-					SELECT id::text
-					FROM assessment_attempts
-					WHERE (submission_key = $1 OR start_key = $1)
-					  AND student_id = $2::uuid
-					LIMIT 1
-				`, req.SubmissionKey, studentID).Scan(&existingAttemptID)
-				if cErr == nil {
-					_ = tx.Rollback(ctx)
-					return r.GetResultDetail(ctx, studentID, existingAttemptID)
-				}
-			}
 			return assessment.ResultDetail{}, assessment.ErrConflict
 		}
 
@@ -174,20 +163,6 @@ func (r *Repository) SingleShotSubmit(
 			RETURNING id::text
 		`, actualAssessmentID, version, studentID, used+1, startKey, timeLimitSeconds).Scan(&attemptID)
 		if err != nil {
-			if req.SubmissionKey != "" {
-				var existingAttemptID string
-				cErr := tx.QueryRow(ctx, `
-					SELECT id::text
-					FROM assessment_attempts
-					WHERE (submission_key = $1 OR start_key = $1)
-					  AND student_id = $2::uuid
-					LIMIT 1
-				`, req.SubmissionKey, studentID).Scan(&existingAttemptID)
-				if cErr == nil {
-					_ = tx.Rollback(ctx)
-					return r.GetResultDetail(ctx, studentID, existingAttemptID)
-				}
-			}
 			return assessment.ResultDetail{}, mapError(err)
 		}
 	} else {
@@ -326,20 +301,6 @@ func (r *Repository) SingleShotSubmit(
 		WHERE id = $1::uuid
 	`, attemptID, submissionKey)
 	if err != nil {
-		if req.SubmissionKey != "" {
-			var existingAttemptID string
-			cErr := tx.QueryRow(ctx, `
-				SELECT id::text
-				FROM assessment_attempts
-				WHERE (submission_key = $1 OR start_key = $1)
-				  AND student_id = $2::uuid
-				LIMIT 1
-			`, req.SubmissionKey, studentID).Scan(&existingAttemptID)
-			if cErr == nil {
-				_ = tx.Rollback(ctx)
-				return r.GetResultDetail(ctx, studentID, existingAttemptID)
-			}
-		}
 		return assessment.ResultDetail{}, mapError(err)
 	}
 

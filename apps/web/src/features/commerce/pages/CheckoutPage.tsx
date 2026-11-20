@@ -10,13 +10,15 @@ import {
   Percent,
   ReceiptText,
   ShieldCheck,
-  UploadCloud,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
+import { safeReturnPath, returnPathLabel } from '../../assessment/navigation/returnPath';
 import { commerceClient } from '../api/commerce-client';
+import { clearCheckoutRecovery, readCheckoutRecovery, rememberCheckoutRecovery } from '../api/checkout-recovery';
+import { publicCommerceClient } from '../../public/header/commerce/commerce-public-client';
 import {
   BILLING_CYCLES,
   MEMBERSHIP_TIERS,
@@ -25,6 +27,7 @@ import {
 } from '../api/membership-types';
 import type {
   CommerceDiscountPreview,
+  CommerceGatewayMode,
   CommercePaymentMethod,
   CommercePaymentRequest,
   CommerceProduct,
@@ -33,20 +36,6 @@ import type {
 const money = (minor: number, currency: string) =>
   new Intl.NumberFormat('ar-SA', { style: 'currency', currency }).format(minor / 100);
 
-function checkoutKey(productId: string) {
-  const k = `commerce-checkout:${productId}`;
-  let value = sessionStorage.getItem(k);
-  if (!value) {
-    value = crypto.randomUUID();
-    sessionStorage.setItem(k, value);
-  }
-  return value;
-}
-
-function resetCheckoutKey(productId: string) {
-  sessionStorage.removeItem(`commerce-checkout:${productId}`);
-}
-
 export function CheckoutPage() {
   const { user, loading: authLoading, getCsrfToken } = useAuth();
   const [params] = useSearchParams();
@@ -54,6 +43,11 @@ export function CheckoutPage() {
   const rawCourseId = params.get('courseId') || '';
   const rawTier = (params.get('tier') || '') as MembershipTierId;
   const rawCycle = (params.get('cycle') || 'annual') as BillingCycle;
+  const returnTo = safeReturnPath(params.get('returnTo'));
+  const scope = JSON.stringify([user?.id || '', rawProductId, rawCourseId, rawTier, rawCycle]);
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+  const [loadedScope, setLoadedScope] = useState('');
 
   const [resolvedProductId, setResolvedProductId] = useState(rawProductId);
   const [product, setProduct] = useState<CommerceProduct | null>(null);
@@ -63,6 +57,10 @@ export function CheckoutPage() {
   const [accessCode, setAccessCode] = useState('');
   const [preview, setPreview] = useState<CommerceDiscountPreview | null>(null);
   const [method, setMethod] = useState<CommercePaymentMethod>('card');
+  const [gatewayMode, setGatewayMode] = useState<CommerceGatewayMode>('manual_review');
+  const [availableMethods, setAvailableMethods] = useState<CommercePaymentMethod[]>([]);
+  const [methodsLoading, setMethodsLoading] = useState(true);
+  const [methodsError, setMethodsError] = useState('');
   const [busy, setBusy] = useState(true);
   const [saving, setSaving] = useState(false);
   const [previewing, setPreviewing] = useState(false);
@@ -71,13 +69,31 @@ export function CheckoutPage() {
 
   // Bank transfer receipt state
   const [senderName, setSenderName] = useState('');
-  const [senderBank, setSenderBank] = useState('مصرف الراجحي');
+  const [senderBank, setSenderBank] = useState('');
   const [transferRef, setTransferRef] = useState('');
-  const [receiptPreview, setReceiptPreview] = useState('');
+  const [receiptUrl, setReceiptUrl] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setMethodsLoading(true);
+    setMethodsError('');
+    publicCommerceClient.paymentOptions(controller.signal).then(options => {
+      if (controller.signal.aborted) return;
+      const allowed = (Array.isArray(options.methods) ? options.methods : []).filter((item): item is CommercePaymentMethod => item === 'card' || item === 'transfer' || item === 'wallet');
+      setGatewayMode(options.gatewayMode);
+      setAvailableMethods(allowed);
+      setMethod(previous => allowed.includes(previous) ? previous : (allowed[0] || 'card'));
+    }).catch(() => { if (!controller.signal.aborted) { setAvailableMethods([]); setMethodsError('تعذر تحميل وسائل الدفع المتاحة. أعد تحميل الصفحة.'); } })
+      .finally(() => { if (!controller.signal.aborted) setMethodsLoading(false); });
+    return () => controller.abort();
+  }, []);
 
   // 1. Resolve productId from courseId if needed
   useEffect(() => {
-    if (authLoading || !user) return;
+    setProduct(null); setCurrent(null); setRequests([]); setPreview(null);
+    setDiscountCode(''); setAccessCode(''); setSenderName(''); setSenderBank('');
+    setTransferRef(''); setReceiptUrl(''); setNotice(''); setError(''); setSaving(false);
+    if (authLoading || !user) { setBusy(false); return; }
     const c = new AbortController();
 
     async function resolveAndLoad() {
@@ -143,19 +159,23 @@ export function CheckoutPage() {
         ]);
 
         if (c.signal.aborted) return;
+        const savedKey = readCheckoutRecovery(user!.id, pId);
+        const restored = savedKey ? await commerceClient.paymentRequestByKey(savedKey, c.signal) : null;
+        if (c.signal.aborted) return;
+        if (restored && (restored.userId !== user!.id || restored.productId !== pId)) throw new Error('تعذر التحقق من صاحب طلب الدفع.');
         setProduct(p.product);
         setRequests(r.items);
-        setCurrent(r.items.find((x) => x.productId === pId && x.status === 'pending') || null);
+        setCurrent(restored || r.items.find((x) => x.productId === pId && x.status === 'pending') || null);
       } catch (e) {
         if (!c.signal.aborted) setError(e instanceof Error ? e.message : 'تعذر تحميل بيانات الشراء');
       } finally {
-        if (!c.signal.aborted) setBusy(false);
+        if (!c.signal.aborted) { setLoadedScope(scope); setBusy(false); }
       }
     }
 
     void resolveAndLoad();
     return () => c.abort();
-  }, [authLoading, rawProductId, rawCourseId, rawTier, rawCycle, user]);
+  }, [authLoading, rawProductId, rawCourseId, rawTier, rawCycle, user, scope]);
 
   const displayed = useMemo(
     () =>
@@ -217,23 +237,19 @@ export function CheckoutPage() {
     }
   }
 
-  function handleReceiptUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setReceiptPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-  }
-
   async function submit() {
-    if (!product || current) return;
-    if (method === 'transfer' && !senderName.trim()) {
-      setError('يرجى كتابة اسم صاحب الحساب المحول منه لإتمام التحقق من الحوالة البنكية.');
-      return;
+    if (!product || !user || current) return;
+    const requestScope = scope;
+    if (methodsLoading || !availableMethods.includes(method)) { setError('وسيلة الدفع غير متاحة حاليًا.'); return; }
+    if (method === 'transfer' && receiptUrl.trim()) {
+      try {
+        const url = new URL(receiptUrl.trim());
+        if (url.protocol !== 'https:' || url.username || url.password) throw new Error('invalid');
+      } catch {
+        setError('أدخل رابط إيصال صالحًا يبدأ بـ HTTPS دون بيانات دخول.');
+        return;
+      }
     }
-
     setSaving(true);
     setError('');
     setNotice('');
@@ -248,20 +264,36 @@ export function CheckoutPage() {
     }
     try {
       const csrf = await getCsrfToken();
+      if (scopeRef.current !== requestScope) return;
+      const previousKey = readCheckoutRecovery(user.id, product.id);
+      if (previousKey) {
+        const previous = await commerceClient.paymentRequestByKey(previousKey);
+        if (scopeRef.current !== requestScope) return;
+        if (previous) {
+          if (previous.userId !== user.id || previous.productId !== product.id) throw new Error('تعذر التحقق من صاحب طلب الدفع.');
+          setCurrent(previous);
+          setNotice('تم استرجاع طلب الدفع السابق وحالته.');
+          return;
+        }
+      }
+      const key = previousKey || crypto.randomUUID();
+      rememberCheckoutRecovery(user.id, product.id, key);
       const r = await commerceClient.createCheckout(
         {
           productId: product.id,
           discountCode: preview?.valid ? preview.code : '',
           paymentMethod: method,
-          idempotencyKey: checkoutKey(product.id),
+          idempotencyKey: key,
+          ...(method === 'transfer' ? { transferSenderName: senderName.trim(), transferSenderBank: senderBank.trim(), transferReference: transferRef.trim(), transferReceiptUrl: receiptUrl.trim() } : {}),
         },
         csrf
       );
+      if (scopeRef.current !== requestScope) return;
       setCurrent(r.request);
       setRequests((v) => [r.request, ...v.filter((x) => x.id !== r.request.id)]);
       if (method === 'transfer') {
         setNotice(
-          'تم تسجيل طلب التحويل البنكي بنجاح. سيتم مراجعة الإيصال واعتماد تفعيل اشتراكك في أقرب وقت.'
+          'تم تسجيل طلب التحويل البنكي. ستراجع الإدارة بيانات الطلب قبل تفعيل الاشتراك.'
         );
       } else {
         setNotice(
@@ -271,15 +303,13 @@ export function CheckoutPage() {
         );
       }
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'تعذر إنشاء طلب الدفع';
-      if (message === 'Payment provider unavailable') resetCheckoutKey(product.id);
-      setError(message);
+      if (scopeRef.current === requestScope) setError(e instanceof Error ? e.message : 'تعذر إنشاء طلب الدفع');
     } finally {
-      setSaving(false);
+      if (scopeRef.current === requestScope) setSaving(false);
     }
   }
 
-  if (authLoading || busy) {
+  if (authLoading || (user && (busy || loadedScope !== scope))) {
     return (
       <main className="p-10 text-center font-black" dir="rtl">
         <Loader2 size={32} className="mx-auto mb-3 animate-spin text-indigo-600" />
@@ -326,6 +356,7 @@ export function CheckoutPage() {
   return (
     <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 px-3 py-6 sm:px-6">
       <div className="mx-auto max-w-3xl space-y-4">
+        {returnTo && <Link to={returnTo} className="inline-block rounded-xl border bg-white px-4 py-2 text-sm font-bold text-indigo-700">{returnPathLabel(returnTo)}</Link>}
         {/* Header */}
         <header className="rounded-3xl bg-slate-950 p-6 text-white shadow-xl">
           <div className="flex items-center gap-2 text-amber-400">
@@ -435,35 +466,25 @@ export function CheckoutPage() {
                 onChange={(e) => setMethod(e.target.value as CommercePaymentMethod)}
                 className="w-full rounded-xl border border-slate-200 p-2.5 text-sm font-black bg-white"
               >
-                <option value="card">💳 بطاقة مدى / فيزا / ماستركارد</option>
-                <option value="transfer">🏛️ تحويل بنكي مباشر (حسابات المؤسسة الرسمية)</option>
-                <option value="wallet">👛 محفظة الطالب / رصيد مسبق</option>
+                {availableMethods.length === 0 ? <option value="">لا توجد وسائل دفع متاحة</option> : null}
+                {availableMethods.includes('card') ? <option value="card">💳 بطاقة بنكية</option> : null}
+                {availableMethods.includes('transfer') ? <option value="transfer">🏛️ تحويل بنكي</option> : null}
+                {availableMethods.includes('wallet') ? <option value="wallet">👛 محفظة إلكترونية</option> : null}
               </select>
             </label>
+
+            {methodsLoading ? <p className="text-xs font-bold text-slate-600">جارٍ تحميل وسائل الدفع...</p> : null}
+            {methodsError ? <p role="alert" className="text-xs font-bold text-rose-700">{methodsError}</p> : null}
+            {!methodsLoading && !methodsError && availableMethods.length === 0 ? <p role="alert" className="text-xs font-bold text-rose-700">لا توجد وسيلة دفع متاحة حاليًا.</p> : null}
 
             {/* Bank Transfer Details Card (When 'transfer' is selected) */}
             {method === 'transfer' && (
               <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4 space-y-3" dir="rtl">
                 <div className="flex items-center gap-2 font-black text-blue-950 text-sm">
                   <Building size={18} className="text-blue-700" />
-                  <span>بيانات الحساب البنكي الرسمي المعتمد:</span>
+                  <span>بيانات التحويل والمراجعة</span>
                 </div>
-                <div className="rounded-xl bg-white p-3 border border-blue-100 space-y-1.5 text-xs text-slate-700 font-bold">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">اسم المستفيد:</span>
-                    <strong className="text-slate-900">مؤسسة المئة التعليمية للتدريب</strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">البنك:</span>
-                    <strong className="text-slate-900">مصرف الراجحي (Al Rajhi Bank)</strong>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">رقم الآيبان (IBAN):</span>
-                    <span className="font-mono font-black text-indigo-700 dir-ltr text-xs select-all">
-                      SA03 8000 0456 6080 1234 5678
-                    </span>
-                  </div>
-                </div>
+                <p className="text-xs font-bold leading-6 text-blue-900">تواصل مع المنصة للحصول على بيانات الحساب المعتمدة قبل التحويل. يُراجع الطلب قبل تفعيل الوصول.</p>
 
                 <div className="pt-2 space-y-2">
                   <span className="block text-xs font-black text-slate-800">بيانات الحوالة البنكية:</span>
@@ -471,14 +492,16 @@ export function CheckoutPage() {
                     <input
                       value={senderName}
                       onChange={(e) => setSenderName(e.target.value)}
-                      placeholder="اسم صاحب الحساب المحول منه *"
+                      placeholder="اسم صاحب الحساب المحول منه (اختياري)"
                       className="rounded-xl border border-slate-300 bg-white p-2.5 text-xs font-bold"
                     />
                     <select
+                      aria-label="بنك المحوّل"
                       value={senderBank}
                       onChange={(e) => setSenderBank(e.target.value)}
                       className="rounded-xl border border-slate-300 bg-white p-2.5 text-xs font-bold"
                     >
+                      <option value="">اختر بنك التحويل (اختياري)</option>
                       <option value="مصرف الراجحي">مصرف الراجحي</option>
                       <option value="البنك الأهلي السعودي">البنك الأهلي السعودي</option>
                       <option value="بنك الرياض">بنك الرياض</option>
@@ -495,25 +518,11 @@ export function CheckoutPage() {
                     className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs font-bold"
                   />
 
-                  {/* Receipt Upload */}
-                  <div className="rounded-xl border border-dashed border-blue-300 bg-white p-3 text-center">
-                    <label className="cursor-pointer block">
-                      <UploadCloud size={24} className="mx-auto text-blue-600 mb-1" />
-                      <span className="text-xs font-black text-blue-800">اضغط لرفع صورة إيصال التحويل البنكي</span>
-                      <input
-                        type="file"
-                        accept="image/*,.pdf"
-                        onChange={handleReceiptUpload}
-                        className="hidden"
-                      />
-                    </label>
-                    {receiptPreview && (
-                      <div className="mt-2 text-xs font-bold text-emerald-700 flex items-center justify-center gap-1">
-                        <CheckCircle2 size={14} />
-                        <span>تم إرفاق صورة الإيصال بنجاح</span>
-                      </div>
-                    )}
-                  </div>
+                  <label className="block space-y-1">
+                    <span className="text-xs font-black text-slate-700">رابط إيصال التحويل (اختياري)</span>
+                    <input type="url" value={receiptUrl} onChange={e => setReceiptUrl(e.target.value)} placeholder="https://..." className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs font-bold" />
+                    <span className="block text-xs text-slate-600">أدخل رابط HTTPS متاحًا للإدارة. رفع الملفات مباشرة غير متاح حاليًا.</span>
+                  </label>
                 </div>
               </div>
             )}
@@ -541,12 +550,12 @@ export function CheckoutPage() {
             {/* Submit Button */}
             <button
               type="button"
-              disabled={saving}
+              disabled={saving || methodsLoading || !availableMethods.includes(method)}
               onClick={() => void submit()}
               className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3.5 text-sm font-black text-white hover:bg-indigo-700 transition disabled:opacity-40 shadow-lg cursor-pointer"
             >
               {saving ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
-              {method === 'transfer' ? 'تأكيد إرسال طلب التحويل البنكي' : 'متابعة الدفع الآمن'}
+              {method === 'transfer' ? 'تأكيد إرسال طلب التحويل البنكي' : gatewayMode === 'payment_link' ? 'متابعة الدفع الآمن' : 'إنشاء طلب للمراجعة'}
             </button>
           </section>
         ) : (
@@ -555,7 +564,7 @@ export function CheckoutPage() {
             <div className="flex items-center gap-2 font-black text-base">
               <ReceiptText size={20} className="text-amber-700" />
               <span>
-                {current.gatewayMode === 'payment_link'
+                {current.status === 'paid' ? 'تم اعتماد طلب الدفع' : current.status !== 'pending' ? ({rejected:'رُفض طلب الدفع',cancelled:'أُلغي طلب الدفع',failed:'تعذر إتمام طلب الدفع',refunded:'استُرد مبلغ الطلب',chargeback:'تم عكس عملية الدفع'}[current.status] || 'انتهى طلب الدفع') : current.gatewayMode === 'payment_link'
                   ? 'طلب الدفع جاهز للانتقال إلى بوابة الدفع'
                   : 'طلب الدفع قيد المراجعة والاعتماد'}
               </span>
@@ -566,7 +575,16 @@ export function CheckoutPage() {
             <p className="mt-2 text-xs font-bold text-slate-600">
               يتم تفعيل صلاحيات وصول الدورة فور اعتماد التحويل أو إتمام الدفع بنجاح.
             </p>
-            {current.gatewayMode === 'payment_link' && current.providerRedirectUrl ? (
+            {current.paymentMethod === 'transfer' && (current.transferSenderName || current.transferSenderBank || current.transferReference || current.transferReceiptUrl) ? (
+              <div className="mt-3 rounded-xl bg-white p-3 text-xs font-bold text-slate-700">
+                {current.transferSenderName ? <p>المحوّل: {current.transferSenderName}</p> : null}
+                {current.transferSenderBank ? <p>البنك: {current.transferSenderBank}</p> : null}
+                {current.transferReference ? <p>مرجع التحويل: {current.transferReference}</p> : null}
+                {current.transferReceiptUrl ? <p>تم حفظ رابط الإيصال مع الطلب.</p> : null}
+              </div>
+            ) : null}
+            {current.status !== 'pending' && current.status !== 'paid' && <button type="button" onClick={() => { clearCheckoutRecovery(user.id, product.id); setCurrent(null); setNotice('يمكنك الآن إنشاء طلب جديد.'); }} className="mt-4 rounded-xl border bg-white px-4 py-2 text-sm font-bold">بدء طلب جديد</button>}
+            {current.status === 'pending' && current.gatewayMode === 'payment_link' && current.providerRedirectUrl ? (
               <a
                 data-testid="payment-provider-redirect"
                 href={current.providerRedirectUrl}

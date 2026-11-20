@@ -263,6 +263,9 @@ func TestHomepageSettingsHTTPPostgres(t *testing.T) {
 			t.Fatalf("unknown HOMEPAGE_BROWSER_SUITE: %q", suite)
 		}
 		args := append([]string{"node_modules/@playwright/test/cli.js", "test", "--workers=1"}, browserFiles...)
+		if filter := os.Getenv("HOMEPAGE_BROWSER_FILTER"); filter != "" {
+			args = append(args, "--grep", filter)
+		}
 		cmd := exec.CommandContext(ctx, "node", args...)
 		cmd.WaitDelay = 5 * time.Second
 		cmd.Dir = web

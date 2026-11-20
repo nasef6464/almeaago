@@ -145,7 +145,7 @@ func (r *Repository) UpdateLevel(ctx context.Context, actor, levelID string, pat
 	if patch.Status != nil {
 		add("status=$%d", string(*patch.Status))
 	}
-	if patch.Icon != nil || patch.IconURL != nil {
+	if patch.Icon != nil || patch.IconURL != nil || patch.IsVisible != nil {
 		pb := buildLevelPatchPresMap(patch)
 		add("presentation=COALESCE(presentation, '{}'::jsonb) || $%d::jsonb", pb)
 	}
@@ -221,7 +221,7 @@ func (r *Repository) UpdateSubject(ctx context.Context, actor, subjectID string,
 	if patch.Status != nil {
 		add("status=$%d", string(*patch.Status))
 	}
-	if patch.Color != nil || patch.Icon != nil || patch.IconURL != nil || patch.IconStyle != nil || patch.Settings != nil {
+	if patch.Color != nil || patch.Icon != nil || patch.IconURL != nil || patch.IconStyle != nil || patch.Settings != nil || patch.IsVisible != nil {
 		pb := buildSubjectPatchPresMap(patch)
 		add("presentation=COALESCE(presentation, '{}'::jsonb) || $%d::jsonb", pb)
 	}
@@ -373,13 +373,16 @@ func buildPathPresMap(write taxonomy.PathWrite) []byte {
 }
 
 func hasPathPresPatch(patch taxonomy.PathPatch) bool {
-	return patch.Color != nil || patch.Icon != nil || patch.IconURL != nil || patch.IconStyle != nil ||
+	return patch.IsVisible != nil || patch.Color != nil || patch.Icon != nil || patch.IconURL != nil || patch.IconStyle != nil ||
 		patch.ShowInHome != nil || patch.ShowInNavbar != nil || patch.ShowSubjectCards != nil || patch.ShowMockExamCard != nil ||
 		patch.ShowPackageCard != nil || patch.Settings != nil
 }
 
 func buildPathPatchPresMap(patch taxonomy.PathPatch) []byte {
 	m := map[string]any{}
+	if patch.IsVisible != nil {
+		m["isVisible"] = *patch.IsVisible
+	}
 	if patch.Color != nil {
 		m["color"] = *patch.Color
 	}
@@ -428,6 +431,9 @@ func buildLevelPresMap(write taxonomy.LevelWrite) []byte {
 
 func buildLevelPatchPresMap(patch taxonomy.LevelPatch) []byte {
 	m := map[string]any{}
+	if patch.IsVisible != nil {
+		m["isVisible"] = *patch.IsVisible
+	}
 	if patch.Icon != nil {
 		m["icon"] = *patch.Icon
 	}
@@ -461,6 +467,9 @@ func buildSubjectPresMap(write taxonomy.SubjectWrite) []byte {
 
 func buildSubjectPatchPresMap(patch taxonomy.SubjectPatch) []byte {
 	m := map[string]any{}
+	if patch.IsVisible != nil {
+		m["isVisible"] = *patch.IsVisible
+	}
 	if patch.Color != nil {
 		m["color"] = *patch.Color
 	}

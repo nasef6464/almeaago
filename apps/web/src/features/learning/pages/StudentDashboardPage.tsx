@@ -50,6 +50,7 @@ import { ReportsPage } from '../../reporting/pages/ReportsPage';
 import { StudyPlanPage } from './StudyPlanPage';
 import { ReviewLibraryPage } from './ReviewLibraryPage';
 import { AssessmentAssignmentsPage } from '../../assessment/pages/AssessmentAssignmentsPage';
+import { AssessmentAvailabilityPage } from '../../assessment/pages/AssessmentAvailabilityPage';
 import { AssessmentResultsPage } from '../../assessment/pages/AssessmentResultsPage';
 
 type NavItem = {
@@ -107,13 +108,13 @@ export function StudentDashboardPage() {
 
     Promise.allSettled([
       contentClient.taxonomyCore(controller.signal),
-      assessmentAssignmentClient.mine(1, 4, controller.signal),
+      tab === 'overview' ? assessmentAssignmentClient.mine(1, 4, controller.signal) : Promise.resolve(null),
     ]).then(([taxResult, assignResult]) => {
       if (!active) return;
       if (taxResult.status === 'fulfilled') {
         setPaths(taxResult.value.paths || []);
       }
-      if (assignResult.status === 'fulfilled') {
+      if (assignResult.status === 'fulfilled' && assignResult.value) {
         setAssignments(assignResult.value.items || []);
       }
       setLoadingData(false);
@@ -123,7 +124,7 @@ export function StudentDashboardPage() {
       active = false;
       controller.abort();
     };
-  }, [loading, user]);
+  }, [loading, tab, user]);
 
   const studentUser = user && user.roles.includes('student') ? user : null;
 
@@ -180,6 +181,7 @@ export function StudentDashboardPage() {
     { to: '/dashboard?tab=paths', label: 'مساراتي', icon: RouteIcon, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
     { to: '/dashboard?tab=my-courses', label: 'دوراتي', icon: BookOpen, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
     { to: '/dashboard?tab=sessions', label: 'جلساتي', icon: CalendarDays, tone: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' },
+    { to: '/quiz', label: 'اختبار ساهر', icon: Sparkles, tone: 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300' },
   ];
 
   const groups: Array<{ id: string; title: string; icon: typeof GraduationCap; tone: string; items: NavItem[] }> = [
@@ -419,6 +421,8 @@ export function StudentDashboardPage() {
           <div className="max-w-7xl mx-auto w-full min-w-0">
             <AssessmentAssignmentsPage embedded={true} />
           </div>
+        ) : tab === 'platform-assessments' ? (
+          <AssessmentAvailabilityPage embedded />
         ) : tab === 'mock-exams' || tab === 'assessments' ? (
           <div className="max-w-7xl mx-auto w-full min-w-0">
             <MockExamsTab />

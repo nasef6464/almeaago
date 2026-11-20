@@ -39,15 +39,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp internal/taxonomy/repository/postgres/repository.go /tmp/taxonomy-visibility-fixed.go
-          git show 98b0f6d9ad0bba031936d950d087c0bd3d19b7bb:internal/taxonomy/repository/postgres/repository.go > internal/taxonomy/repository/postgres/repository.go
-          if go test ./internal/taxonomy/repository/postgres -run '^TestAdminVisibilityReachesLearnerPostgres$' -count=1 -v > /tmp/taxonomy-visibility-red.log 2>&1; then
-            cat /tmp/taxonomy-visibility-red.log
+          red_dir=$(mktemp -d)
+          trap 'rm -rf -- "$red_dir"' EXIT
+          git show 98b0f6d9ad0bba031936d950d087c0bd3d19b7bb:internal/taxonomy/repository/postgres/repository.go > "$red_dir/repository.go"
+          # Pair the historical implementation with the regression test that
+          # existed at that point, so the RED proof fails for the visibility
+          # regression rather than for newer section assertions.
+          git show bfc79e16020f71b4149f4a997d1e237d65bdc2a8:internal/taxonomy/repository/postgres/admin_visibility_integration_test.go > "$red_dir/admin_visibility_integration_test.go"
+          python3 - "$PWD" "$red_dir" <<'PY'
+          import json, pathlib, sys
+          root, temporary = map(pathlib.Path, sys.argv[1:])
+          overlay = {
+              str(root / 'internal/taxonomy/repository/postgres/repository.go'): str(temporary / 'repository.go'),
+              str(root / 'internal/taxonomy/repository/postgres/admin_visibility_integration_test.go'): str(temporary / 'admin_visibility_integration_test.go'),
+          }
+          (temporary / 'overlay.json').write_text(json.dumps({'Replace': overlay}))
+          PY
+          if go test -overlay "$red_dir/overlay.json" ./internal/taxonomy/repository/postgres -run '^TestAdminVisibilityReachesLearnerPostgres$' -count=1 -v > "$red_dir/taxonomy-visibility-red.log" 2>&1; then
+            cat "$red_dir/taxonomy-visibility-red.log"
             echo "::error::Original implementation unexpectedly passed"
             exit 1
           fi
-          cat /tmp/taxonomy-visibility-red.log
-          grep -Eq 'active sub-skill must be hidden|inactive level must be rejected' /tmp/taxonomy-visibility-red.log
-          cp /tmp/taxonomy-visibility-fixed.go internal/taxonomy/repository/postgres/repository.go
+          cat "$red_dir/taxonomy-visibility-red.log"
+          grep -Eq 'active sub-skill must be hidden|inactive level must be rejected' "$red_dir/taxonomy-visibility-red.log"
       - name: GREEN — saved admin visibility flows to public taxonomy and learner scope
         run: go test ./internal/taxonomy/repository/postgres -run '^TestAdminVisibilityReachesLearnerPostgres$' -count=1 -v

@@ -43,6 +43,7 @@ import { contentClient } from '../../content/api/content-client';
 import type { TaxonomyFull } from '../../content/api/content-types';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
 import { QuestionPresentationEditor } from '../components/QuestionPresentationEditor';
+import { QuestionSectionEditor } from '../components/QuestionSectionEditor';
 import { QuestionDrawingPad } from '../components/QuestionDrawingPad';
 import { QuestionImageZoomModal } from '../../assessment/components/QuestionImageZoomModal';
 import {
@@ -149,6 +150,7 @@ export function QuestionBankAdminPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [create, setCreate] = useState({
     questionCode: '',
+    sectionId: '',
     pathId: '',
     subjectId: '',
     type: 'mcq' as QuestionType,
@@ -675,6 +677,7 @@ export function QuestionBankAdminPage() {
       const result = await questionBankClient.create(
         {
           questionCode: create.questionCode.trim(),
+          sectionId: isAdmin ? create.sectionId : '',
           ownerType: isAdmin ? 'platform' : 'teacher',
           ownerId: isAdmin ? '' : user?.id || '',
           assignedTeacherId: isAdmin ? '' : user?.id || '',
@@ -712,6 +715,7 @@ export function QuestionBankAdminPage() {
       setImagePreviewUrl('');
       setCreate({
         questionCode: '',
+        sectionId: '',
         pathId: '',
         subjectId: '',
         type: 'mcq',
@@ -1310,7 +1314,7 @@ export function QuestionBankAdminPage() {
                   aria-label="مسار السؤال الجديد"
                   value={create.pathId}
                   onChange={(e) =>
-                    setCreate({ ...create, pathId: e.target.value, subjectId: '', mainSkillId: '', subSkillId: '' })
+                    setCreate({ ...create, pathId: e.target.value, subjectId: '', sectionId: '', mainSkillId: '', subSkillId: '' })
                   }
                   className="rounded-xl border p-2.5"
                 >
@@ -1325,7 +1329,7 @@ export function QuestionBankAdminPage() {
                   aria-label="مادة السؤال الجديد"
                   value={create.subjectId}
                   onChange={(e) =>
-                    setCreate({ ...create, subjectId: e.target.value, mainSkillId: '', subSkillId: '' })
+                    setCreate({ ...create, subjectId: e.target.value, sectionId: '', mainSkillId: '', subSkillId: '' })
                   }
                   className="rounded-xl border p-2.5"
                 >
@@ -1337,6 +1341,7 @@ export function QuestionBankAdminPage() {
                   ))}
                 </select>
               </div>
+              {isAdmin && <label className="block text-xs font-bold text-slate-700">قسم السؤال (اختياري)<select aria-label="قسم السؤال الجديد" value={create.sectionId} onChange={event=>setCreate({...create,sectionId:event.target.value})} disabled={!create.subjectId} className="mt-1 w-full rounded-xl border p-2.5"><option value="">بدون قسم</option>{(taxonomy.sections||[]).filter(section=>section.subjectId===create.subjectId).map(section=><option key={section.id} value={section.id}>{section.name}</option>)}</select></label>}
               <div className="grid gap-2 sm:grid-cols-2">
                 <select
                   aria-label="المهارة الرئيسية للسؤال"
@@ -2044,6 +2049,7 @@ export function QuestionBankAdminPage() {
               </button>
             </div>
 
+            {isAdmin && <QuestionSectionEditor key={`${user?.id}:${detail.id}:${detail.subjectId}`} questionId={detail.id} subjectId={detail.subjectId} sections={taxonomy.sections||[]} getCsrfToken={getCsrfToken} />}
             <QuestionPresentationEditor
               key={`${detail.id}:${detail.currentVersion}`}
               question={detail}

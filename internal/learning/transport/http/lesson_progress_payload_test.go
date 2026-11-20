@@ -28,6 +28,26 @@ func (strictProgressAuth) VerifyCSRF(_ identityapp.Authenticated, token string) 
 
 type strictProgressRepo struct{ writes int }
 
+type courseCompletionHTTPRepo struct {
+	strictProgressRepo
+	student, course string
+}
+
+func (r *courseCompletionHTTPRepo) CompletedCourseLessons(_ context.Context, student, course string) ([]string, error) {
+	r.student, r.course = student, course
+	return []string{"lesson-1"}, nil
+}
+func TestCourseCompletionHTTPUsesSessionAndDisablesCaching(t *testing.T) {
+	repo := &courseCompletionHTTPRepo{}
+	handler := NewLessonProgress(learningapp.NewLessonProgressService(repo, strictProgressContent{}), strictProgressAuth{})
+	request := httptest.NewRequest(http.MethodGet, "/courses/course-1/completed?studentId=another-student", nil)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK || repo.student != "student-1" || repo.course != "course-1" || recorder.Header().Get("Cache-Control") != "private, no-store" || !strings.Contains(recorder.Body.String(), "lesson-1") {
+		t.Fatalf("status=%d student=%s course=%s headers=%v body=%s", recorder.Code, repo.student, repo.course, recorder.Header(), recorder.Body.String())
+	}
+}
+
 func (r *strictProgressRepo) GetLessonProgress(_ context.Context, _, lessonID string, ct learning.LessonProgressContext, courseID, topicID string) (learning.LessonProgress, error) {
 	return learning.LessonProgress{LessonID: lessonID, ContextType: ct, CourseID: courseID, TopicID: topicID, Status: learning.LessonInProgress}, nil
 }
@@ -43,6 +63,9 @@ func (r *strictProgressRepo) CompleteLesson(_ context.Context, _, lessonID strin
 type strictProgressContent struct{}
 
 func (strictProgressContent) ResolveLessonProgressTarget(context.Context, string, string, string) (bool, string, int, error) {
+	return true, "video", 120, nil
+}
+func (strictProgressContent) ResolveCourseLessonProgressTarget(context.Context, identity.User, string, string) (bool, string, int, error) {
 	return true, "video", 120, nil
 }
 

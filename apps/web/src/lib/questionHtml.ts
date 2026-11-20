@@ -1,4 +1,5 @@
 import katex from 'katex';
+import DOMPurify from 'dompurify';
 
 /**
  * Basic HTML entity decoder
@@ -107,9 +108,12 @@ export function normalizeQuestionHtml(value?: string | null): string {
   const withMath = renderMathInText(sanitized);
 
   // Format verbal blanks nicely
-  return withMath.replace(
+  const formatted = withMath.replace(
     QUESTION_BLANK_PATTERN,
     '<span class="question-blank font-mono tracking-widest text-indigo-600 font-bold" dir="ltr">......</span>',
   );
+  // Math and legacy entity decoding can generate markup after the initial
+  // cleanup; sanitize the final output before any caller injects it into DOM.
+  return DOMPurify.sanitize(formatted);
 }
 

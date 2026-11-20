@@ -116,3 +116,67 @@ func TestTaxonomyLearnerScopeFollowsLevelVisibilityPostgres(t *testing.T) {
 		assertScope(status, status == "active")
 	}
 }
+
+// An archived ancestor must invalidate learner scopes without mutating descendants.
+func TestLearnerScopesRejectArchivedAncestorPostgres(t *testing.T) {
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		t.Skip("DATABASE_URL required for PostgreSQL integration")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	config, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.MaxConns = 1
+	db, err := pgxpool.NewWithConfig(ctx, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for _, table := range []string{"paths", "levels", "subjects"} {
+		if _, err := db.Exec(ctx, "CREATE TEMP TABLE "+table+" (LIKE public."+table+" INCLUDING DEFAULTS INCLUDING CONSTRAINTS)"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	const parent = "00000000-0000-0000-0000-000000000851"
+	const child = "00000000-0000-0000-0000-000000000852"
+	const subject = "00000000-0000-0000-0000-000000000853"
+	for _, query := range []string{
+		`INSERT INTO paths(id,code,name,status) VALUES ('` + parent + `','ROOT','root','active'), ('` + child + `','CHILD','child','active')`,
+		`UPDATE paths SET parent_path_id='` + parent + `' WHERE id='` + child + `'`,
+		`INSERT INTO subjects(id,path_id,code,name,status) VALUES ('` + subject + `','` + child + `','S','subject','active')`,
+	} {
+		if _, err := db.Exec(ctx, query); err != nil {
+			t.Fatal(err)
+		}
+	}
+	repo := New(db)
+	for _, tc := range []struct {
+		status string
+		want   bool
+	}{{"active", true}, {"archived", false}, {"active", true}} {
+		if _, err := db.Exec(ctx, `UPDATE paths SET status=$1 WHERE id=$2`, tc.status, parent); err != nil {
+			t.Fatal(err)
+		}
+		for _, check := range []struct {
+			name string
+			run  func() (bool, error)
+		}{
+			{"goal path", func() (bool, error) { return repo.ValidateMasteryGoalScope(ctx, child, "") }},
+			{"goal subject", func() (bool, error) { return repo.ValidateMasteryGoalScope(ctx, child, subject) }},
+			{"plan all", func() (bool, error) { return repo.ValidateStudyPlanScope(ctx, child, nil) }},
+			{"plan subject", func() (bool, error) { return repo.ValidateStudyPlanScope(ctx, child, []string{subject}) }},
+		} {
+			got, err := check.run()
+			if err != nil || got != tc.want {
+				t.Errorf("parent %s %s: got %v error %v, want %v", tc.status, check.name, got, err, tc.want)
+			}
+		}
+	}
+	var status string
+	if err := db.QueryRow(ctx, `SELECT status FROM paths WHERE id=$1`, child).Scan(&status); err != nil || status != "active" {
+		t.Fatalf("child changed: %s, %v", status, err)
+	}
+}

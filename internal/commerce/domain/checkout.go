@@ -122,10 +122,14 @@ type DiscountPreview struct {
 }
 
 type CheckoutCreate struct {
-	ProductID      string        `json:"productId"`
-	DiscountCode   string        `json:"discountCode"`
-	PaymentMethod  PaymentMethod `json:"paymentMethod"`
-	IdempotencyKey string        `json:"idempotencyKey"`
+	ProductID          string        `json:"productId"`
+	DiscountCode       string        `json:"discountCode"`
+	PaymentMethod      PaymentMethod `json:"paymentMethod"`
+	IdempotencyKey     string        `json:"idempotencyKey"`
+	TransferSenderName string        `json:"transferSenderName"`
+	TransferSenderBank string        `json:"transferSenderBank"`
+	TransferReference  string        `json:"transferReference"`
+	TransferReceiptURL string        `json:"transferReceiptUrl"`
 }
 
 type PaymentRequest struct {
@@ -145,6 +149,10 @@ type PaymentRequest struct {
 	ProviderCode           string        `json:"providerCode"`
 	Status                 PaymentStatus `json:"status"`
 	IdempotencyKey         string        `json:"idempotencyKey"`
+	TransferSenderName     string        `json:"transferSenderName"`
+	TransferSenderBank     string        `json:"transferSenderBank"`
+	TransferReference      string        `json:"transferReference"`
+	TransferReceiptURL     string        `json:"transferReceiptUrl"`
 	ProviderTransactionID  string        `json:"providerTransactionId"`
 	ProviderSessionID      string        `json:"providerSessionId"`
 	ProviderRedirectURL    string        `json:"providerRedirectUrl"`

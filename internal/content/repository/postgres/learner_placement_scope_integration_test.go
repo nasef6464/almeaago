@@ -48,14 +48,16 @@ func TestLearnerPlacementScopePostgres(t *testing.T) {
 	defer db.Close()
 
 	ddl := []string{
-		`CREATE TABLE paths (id uuid PRIMARY KEY,status text)`,
-		`CREATE TABLE subjects (id uuid PRIMARY KEY,path_id uuid,status text)`,
+		`CREATE TABLE paths (id uuid PRIMARY KEY,status text,parent_path_id uuid,presentation jsonb NOT NULL DEFAULT '{}')`,
+		`CREATE TABLE levels (id uuid PRIMARY KEY,path_id uuid,status text,presentation jsonb NOT NULL DEFAULT '{}')`,
+		`CREATE TABLE subjects (id uuid PRIMARY KEY,path_id uuid,status text,level_id uuid,presentation jsonb NOT NULL DEFAULT '{}')`,
 		`CREATE TABLE assets (id uuid PRIMARY KEY, status text)`,
 		`CREATE TABLE courses (
 			id uuid PRIMARY KEY, path_id uuid, subject_id uuid,
 			title text, description text, instructor_name text, duration_minutes int,
 			level text, thumbnail_asset_id uuid, drip_content_enabled bool,
-			certificate_enabled bool, workflow_status text, is_published bool, is_visible bool)`,
+			certificate_enabled bool, workflow_status text, is_published bool, is_visible bool,
+			presentation jsonb NOT NULL DEFAULT '{}')`,
 		`CREATE TABLE course_modules (
 			id uuid PRIMARY KEY, course_id uuid, status text,
 			sort_order int, title text, description text)`,
@@ -99,9 +101,9 @@ func TestLearnerPlacementScopePostgres(t *testing.T) {
 		sql  string
 		args []any
 	}{
-		{`INSERT INTO paths VALUES($1,'active')`, []any{pathID}},
-		{`INSERT INTO subjects VALUES($1,$3,'active'),($2,$3,'active')`, []any{subjectID, otherSubjectID, pathID}},
-		{`INSERT INTO courses VALUES($1,$2,$3,'course','','teacher',30,'beginner',NULL,false,false,'approved',true,true)`, []any{courseID, pathID, subjectID}},
+		{`INSERT INTO paths(id,status) VALUES($1,'active')`, []any{pathID}},
+		{`INSERT INTO subjects(id,path_id,status) VALUES($1,$3,'active'),($2,$3,'active')`, []any{subjectID, otherSubjectID, pathID}},
+		{`INSERT INTO courses VALUES($1,$2,$3,'course','','teacher',30,'beginner',NULL,false,false,'approved',true,true,'{}')`, []any{courseID, pathID, subjectID}},
 		{`INSERT INTO course_modules VALUES($1,$2,'active',0,'module','')`, []any{moduleID, courseID}},
 		{`INSERT INTO lessons VALUES($1,$2,$3,$4,'','video',60,false,'approved',true,'body','','')`, []any{allowedLessonID, pathID, subjectID, "allowed"}},
 		{`INSERT INTO lessons VALUES($1,$2,$3,$4,'','video',60,false,'approved',true,'body','','')`, []any{foreignLessonID, pathID, otherSubjectID, "foreign"}},
@@ -122,6 +124,9 @@ func TestLearnerPlacementScopePostgres(t *testing.T) {
 	course, err := repo.GetLearnerCourse(ctx, courseID)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if course.PathID != pathID || course.SubjectID != subjectID {
+		t.Fatalf("course scope mismatch: path=%s subject=%s", course.PathID, course.SubjectID)
 	}
 	if len(course.Modules) != 1 || len(course.Modules[0].Lessons) != 1 ||
 		course.Modules[0].Lessons[0].ID != allowedLessonID {
@@ -157,10 +162,50 @@ func TestLearnerPlacementScopePostgres(t *testing.T) {
 	if _, err := repo.GetLearnerFoundationLesson(ctx, topicID, foreignLessonID); !errors.Is(err, content.ErrNotFound) {
 		t.Fatalf("foreign foundation placement leaked: %v", err)
 	}
+	childID := "01900000-0000-7000-8000-000000007001"
+	if _, err := db.Exec(ctx, `INSERT INTO foundation_topics VALUES($1,$2,$3,$4,'child','',1,false,'active',true)`, childID, pathID, subjectID, topicID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(ctx, `INSERT INTO topic_lessons VALUES($1,$2,0)`, childID, allowedLessonID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.GetLearnerFoundationLesson(ctx, childID, allowedLessonID); err != nil {
+		t.Fatalf("visible parent must allow child lesson: %v", err)
+	}
 	if _, err := db.Exec(ctx, `UPDATE foundation_topics SET is_visible=false WHERE id=$1`, topicID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := repo.GetLearnerFoundationLesson(ctx, topicID, allowedLessonID); !errors.Is(err, content.ErrNotFound) {
 		t.Fatalf("hidden topic leaked lesson: %v", err)
+	}
+	if _, err := repo.GetLearnerTopic(ctx, childID); !errors.Is(err, content.ErrNotFound) {
+		t.Fatalf("child of hidden parent leaked: %v", err)
+	}
+	if _, err := repo.GetLearnerFoundationLesson(ctx, childID, allowedLessonID); !errors.Is(err, content.ErrNotFound) {
+		t.Fatalf("child lesson of hidden parent leaked: %v", err)
+	}
+	if ok, err := repo.ValidateAssessmentPlacementTarget(ctx, "foundation", pathID, subjectID, "", "", childID); err != nil || ok {
+		t.Fatalf("hidden parent's child assessment allowed: %v %v", ok, err)
+	}
+	if ok, _, _, err := repo.ResolveLessonProgressTarget(ctx, "foundation", childID, allowedLessonID); err != nil || ok {
+		t.Fatalf("hidden parent's child progress allowed: %v %v", ok, err)
+	}
+	if _, err := db.Exec(ctx, `UPDATE foundation_topics SET is_visible=true,status='archived' WHERE id=$1`, topicID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.GetLearnerTopic(ctx, childID); !errors.Is(err, content.ErrNotFound) {
+		t.Fatalf("child of archived parent leaked: %v", err)
+	}
+	if _, err := db.Exec(ctx, `UPDATE foundation_topics SET status='active',subject_id=$2 WHERE id=$1`, topicID, otherSubjectID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.GetLearnerFoundationLesson(ctx, childID, allowedLessonID); !errors.Is(err, content.ErrNotFound) {
+		t.Fatalf("child of cross-subject parent leaked: %v", err)
+	}
+	if _, err := db.Exec(ctx, `UPDATE foundation_topics SET subject_id=$2 WHERE id=$1`, topicID, subjectID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.GetLearnerFoundationLesson(ctx, childID, allowedLessonID); err != nil {
+		t.Fatalf("restoring parent must restore child: %v", err)
 	}
 }

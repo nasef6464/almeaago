@@ -128,7 +128,7 @@ export function ContentAdminPage() {
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [creatingCourse, setCreatingCourse] = useState(false);
-  const [editingCourseId, setEditingCourseId] = useState('');
+  const [editingCourseId, setEditingCourseId] = useState(() => searchParams.get('editCourse') || '');
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
   const [editingLibraryId, setEditingLibraryId] = useState<string | null>(null);
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
@@ -479,12 +479,14 @@ export function ContentAdminPage() {
   if (editingCourseId) {
     return (
       <CourseEditorPanel
+        key={`${user.id}:${editingCourseId}`}
+        actorId={user.id}
         courseId={editingCourseId}
         coreTaxonomy={taxonomy}
         isAdmin={isAdmin}
         lockScope={teacherRequiresExactScope}
         getCsrfToken={getCsrfToken}
-        onCancel={() => setEditingCourseId('')}
+        onCancel={() => { setEditingCourseId(''); setSearchParams(previous => { const next = new URLSearchParams(previous); next.delete('editCourse'); return next; }); }}
         onChanged={() => setReloadKey((value) => value + 1)}
       />
     );

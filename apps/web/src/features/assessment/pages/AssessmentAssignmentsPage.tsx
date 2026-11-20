@@ -32,33 +32,43 @@ export function AssessmentAssignmentsPage({ embedded }: { embedded?: boolean } =
   const [busy, setBusy] = useState(true);
   const [starting, setStarting] = useState('');
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [hasMore, setHasMore] = useState(false);
+  const [pagination, setPagination] = useState({ studentId: '', page: 1 });
+  const [retry, setRetry] = useState(0);
+  const [loadedScope, setLoadedScope] = useState('');
   const startingRef = useRef(false);
+  const studentId = user?.roles.includes('student') ? user.id : '';
+  const page = pagination.studentId === studentId ? pagination.page : 1;
+  const requestScope = JSON.stringify([studentId, page, retry]);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || !embedded) return;
     setRows([]);
     setError('');
-    if (!user?.roles.includes('student')) {
+    setLoadError('');
+    setHasMore(false);
+    if (!studentId) {
       setBusy(false);
       return;
     }
 
     const controller = new AbortController();
     setBusy(true);
-    assessmentAssignmentClient.mine(1, 30, controller.signal)
+    assessmentAssignmentClient.mine(page, 30, controller.signal)
       .then((result) => {
-        if (!controller.signal.aborted) setRows(result.items);
+        if (!controller.signal.aborted) { setRows(result.items); setHasMore(result.hasMore); }
       })
       .catch((reason) => {
         if (!controller.signal.aborted) {
-          setError(reason instanceof Error ? reason.message : 'تعذر تحميل التكليفات');
+          setLoadError(reason instanceof Error ? reason.message : 'تعذر تحميل التكليفات');
         }
       })
       .finally(() => {
-        if (!controller.signal.aborted) setBusy(false);
+        if (!controller.signal.aborted) { setLoadedScope(requestScope); setBusy(false); }
       });
     return () => controller.abort();
-  }, [authLoading, user]);
+  }, [authLoading, embedded, studentId, page, retry, requestScope]);
 
   async function start(row: LearnerAssessmentAssignment) {
     if (startingRef.current || !user?.id || !row.canStart) return;
@@ -86,7 +96,7 @@ export function AssessmentAssignmentsPage({ embedded }: { embedded?: boolean } =
     }
   }
 
-  if (authLoading || busy) {
+  if (authLoading || (embedded && studentId && (busy || loadedScope !== requestScope))) {
     return <div className="p-10 text-center font-black">جاري تحميل التكليفات...</div>;
   }
   if (!embedded && (!user || user?.roles.includes('student'))) {
@@ -115,7 +125,14 @@ export function AssessmentAssignmentsPage({ embedded }: { embedded?: boolean } =
           <div role="alert" className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700">{error}</div>
         ) : null}
 
-        {!error && rows.length === 0 ? (
+        {loadError ? (
+          <div role="alert" className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700">
+            <p>{loadError}</p>
+            <button type="button" aria-label="إعادة محاولة تحميل التكليفات" onClick={() => setRetry((value) => value + 1)} className="mt-2 rounded-lg border border-rose-300 px-3 py-2">إعادة المحاولة</button>
+          </div>
+        ) : null}
+
+        {!loadError && rows.length === 0 ? (
           <section className="rounded-2xl border border-dashed bg-white p-10 text-center font-bold text-gray-500">
             لا توجد تكليفات اختبار فعالة الآن.
           </section>
@@ -128,6 +145,9 @@ export function AssessmentAssignmentsPage({ embedded }: { embedded?: boolean } =
                   <p className="mt-1 text-xs font-bold text-gray-500">
                     المحاولات {row.attemptCount} من {row.maxAttempts}
                   </p>
+                  {row.closesAt && Number.isFinite(Date.parse(row.closesAt)) ? (
+                    <p className="mt-1 text-xs font-bold text-rose-700">آخر موعد: {new Date(row.closesAt).toLocaleString('ar-SA')}</p>
+                  ) : null}
                 </div>
                 {row.supervisorMessage ? (
                   <p className="mt-3 rounded-xl bg-gray-50 p-3 text-sm font-bold leading-6 text-gray-600">
@@ -146,6 +166,13 @@ export function AssessmentAssignmentsPage({ embedded }: { embedded?: boolean } =
               </article>
             ))}
           </section>
+        ) : null}
+        {(page > 1 || hasMore || loadError) ? (
+          <nav aria-label="صفحات التكليفات" className="flex items-center justify-center gap-3 text-sm font-bold">
+            <button type="button" aria-label="الصفحة السابقة للتكليفات" disabled={page <= 1} onClick={() => setPagination({ studentId, page: page - 1 })} className="rounded-lg border bg-white px-3 py-2 disabled:opacity-40">السابق</button>
+            <span>الصفحة {page}</span>
+            <button type="button" aria-label="الصفحة التالية للتكليفات" disabled={!hasMore || Boolean(loadError)} onClick={() => setPagination({ studentId, page: page + 1 })} className="rounded-lg border bg-white px-3 py-2 disabled:opacity-40">التالي</button>
+          </nav>
         ) : null}
       </div>
     </ContainerTag>

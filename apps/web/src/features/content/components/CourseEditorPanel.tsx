@@ -1,3 +1,6 @@
+import { CourseAssessmentPlacementEditor } from './CourseAssessmentPlacementEditor';
+import { courseFileURL } from '../../learning/courseFileURL';
+import { CourseDiscussionEditor } from './CourseDiscussionEditor';
 import {
   AlertTriangle,
   Award,
@@ -9,6 +12,7 @@ import {
   FileText,
   HelpCircle,
   Layers3,
+  MessageSquare,
   Link2,
   Loader2,
   Play,
@@ -40,6 +44,7 @@ import type {
 
 interface CourseEditorPanelProps {
   courseId: string;
+  actorId: string;
   coreTaxonomy: TaxonomyCore;
   isAdmin: boolean;
   lockScope: boolean;
@@ -60,6 +65,7 @@ function sortModules(modules: CourseModule[]) {
 
 export function CourseEditorPanel({
   courseId,
+  actorId,
   coreTaxonomy,
   isAdmin,
   lockScope,
@@ -76,7 +82,7 @@ export function CourseEditorPanel({
   const [debouncedLessonSearch, setDebouncedLessonSearch] = useState('');
   const [selectedLessonByModule, setSelectedLessonByModule] = useState<Record<string, string>>({});
   const [previewByModule, setPreviewByModule] = useState<Record<string, boolean>>({});
-  const [activeTab, setActiveTab] = useState<'curriculum' | 'settings' | 'pricing' | 'files' | 'assessments'>('curriculum');
+  const [activeTab, setActiveTab] = useState<'curriculum' | 'settings' | 'pricing' | 'files' | 'assessments' | 'discussions'>('curriculum');
   const [loading, setLoading] = useState(true);
   const [mutating, setMutating] = useState(false);
   const [error, setError] = useState('');
@@ -107,21 +113,19 @@ export function CourseEditorPanel({
 
   // Central Assessments Integration
   const [approvedAssessments, setApprovedAssessments] = useState<AssessmentSummary[]>([]);
-  const [selectedCentralAssessmentId, setSelectedCentralAssessmentId] = useState('');
+  const [assessmentLoadError, setAssessmentLoadError] = useState('');
+  const [moreAssessments, setMoreAssessments] = useState(false);
   const [selectedQuizByModule, setSelectedQuizByModule] = useState<Record<string, string>>({});
 
   // Files & Attachments
   const [courseFiles, setCourseFiles] = useState<Array<{ id: string; title: string; size: string; url?: string; access: 'free_preview' | 'enrolled_paid' }>>([]);
   const [newFileTitle, setNewFileTitle] = useState('');
   const [newFileSize, setNewFileSize] = useState('');
+  const [newFileURL, setNewFileURL] = useState('');
   const [newFileAccess, setNewFileAccess] = useState<'free_preview' | 'enrolled_paid'>('free_preview');
 
   // Assessments
   const [courseAssessments, setCourseAssessments] = useState<Array<{ id: string; title: string; phase: 'pre_course' | 'during_course' | 'final_course'; durationMinutes: number; questionsCount: number; access: 'free_preview' | 'enrolled_paid'; quizId?: string }>>([]);
-  const [newAssessmentTitle, setNewAssessmentTitle] = useState('');
-  const [newAssessmentPhase, setNewAssessmentPhase] = useState<'pre_course' | 'during_course' | 'final_course'>('during_course');
-  const [newAssessmentMinutes, setNewAssessmentMinutes] = useState(30);
-  const [newAssessmentQuestions, setNewAssessmentQuestions] = useState(20);
 
   function applyCourse(row: CourseDetail) {
     setCourse(row);
@@ -182,7 +186,11 @@ export function CourseEditorPanel({
           limit: 100,
         }, controller.signal).then((res) => {
           setApprovedAssessments(res.items || []);
-        }).catch(() => undefined);
+          setMoreAssessments(res.hasMore);
+          setAssessmentLoadError('');
+        }).catch((cause: unknown) => {
+          if (!controller.signal.aborted) setAssessmentLoadError(cause instanceof Error ? cause.message : 'تعذر تحميل الاختبارات.');
+        });
       })
       .catch((cause: unknown) => {
         if (controller.signal.aborted) return;
@@ -441,11 +449,12 @@ export function CourseEditorPanel({
     if (!course || !canMutate) return;
     const quizId = selectedQuizByModule[module.id];
     if (!quizId) return;
-    const assessment = approvedAssessments.find((a) => a.id === quizId);
+    const assessment = approvedAssessments.find((a) => a.id === quizId && a.isPublished);
     if (!assessment) return;
 
     setMutating(true);
     setError('');
+    let createdLessonId = '';
     try {
       const csrf = await getCsrfToken();
       const lessonRes = await contentClient.createLesson({
@@ -455,7 +464,7 @@ export function CourseEditorPanel({
         description: `اختبار تقييمي معتمد مستورد من مركز الاختبارات`,
         type: 'quiz',
         contentText: JSON.stringify({ quizId: assessment.id, kind: assessment.kind }),
-        durationSeconds: (assessment.currentVersion || 20) * 60,
+        durationSeconds: 0,
         videoUrl: '',
         videoSource: '',
         meetingUrl: '',
@@ -469,6 +478,7 @@ export function CourseEditorPanel({
         assetIds: [],
       }, csrf);
 
+      createdLessonId = lessonRes.lesson.id;
       const isPreview = Boolean(previewByModule[module.id]);
       const result = await contentClient.placeCourseLesson(
         courseId,
@@ -484,10 +494,11 @@ export function CourseEditorPanel({
       setCourse({ ...course, revision: result.courseRevision });
       await refreshModules();
       setSelectedQuizByModule((prev) => ({ ...prev, [module.id]: '' }));
-      setNotice(`تم ربط الاختبار "${assessment.title}" بالقسم بنجاح.`);
+      setNotice(`أُنشئ درس للاختبار "${assessment.title}". اعتمد الدرس، ثم انشر الدورة وفعّل موضع الاختبار لهذا الدرس من تبويب الاختبارات.`);
       onChanged();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'تعذر ربط الاختبار بالقسم.');
+      const reason = cause instanceof Error ? cause.message : 'تعذر ربط الاختبار بالقسم.';
+      setError(createdLessonId ? `أُنشئ درس الاختبار لكن تعذر ربطه بالقسم: ${reason} الدرس محفوظ برقم ${createdLessonId}؛ أضفه من قائمة الدروس الموجودة بدل إنشائه مجددًا.` : reason);
     } finally {
       setMutating(false);
     }
@@ -618,7 +629,7 @@ export function CourseEditorPanel({
         ) : null}
         {!canMutate ? (
           <div className="m-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
-            الدورة {course.workflowStatus === 'approved' ? 'معتمدة' : 'مؤرشفة'}؛ الـBackend يمنع التعديل المباشر عليها. استخدم دورة العمل المناسبة أولًا.
+            الدورة {course.workflowStatus === 'approved' ? 'معتمدة' : 'مؤرشفة'}؛ لا يمكن تعديلها مباشرة. استخدم إجراءات إدارة الدورة أولًا.
           </div>
         ) : null}
         {notice ? <div className="mx-4 mb-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">{notice}</div> : null}
@@ -675,9 +686,12 @@ export function CourseEditorPanel({
             <Award size={17} />
             الاختبارات المرتبطة ({courseAssessments.length})
           </button>
+          <button type="button" onClick={() => setActiveTab('discussions')} className={`flex items-center justify-center gap-2 border-b-2 px-4 py-4 text-xs sm:text-sm font-black transition shrink-0 ${activeTab === 'discussions' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            <MessageSquare size={17} /> مناقشات الدروس
+          </button>
         </section>
 
-        {activeTab === 'settings' ? (
+        {activeTab === 'discussions' ? <div className="p-4 sm:p-6"><CourseDiscussionEditor key={`${actorId}:${course.id}`} course={course} modules={modules} getCsrfToken={getCsrfToken} /></div> : activeTab === 'settings' ? (
           <form id="course-settings-form" onSubmit={saveSettings} className="space-y-5 bg-gray-50 p-4 sm:p-6">
             <section className="grid gap-5 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 md:grid-cols-2">
               <label className="space-y-2 md:col-span-2">
@@ -921,6 +935,10 @@ export function CourseEditorPanel({
                   />
                 </label>
                 <label className="space-y-1">
+                  <span className="text-xs font-black text-gray-700">رابط الملف *</span>
+                  <input type="url" value={newFileURL} onChange={(e) => setNewFileURL(e.target.value)} placeholder="https://..." className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold" />
+                </label>
+                <label className="space-y-1">
                   <span className="text-xs font-black text-gray-700">الحجم</span>
                   <input
                     value={newFileSize}
@@ -944,18 +962,21 @@ export function CourseEditorPanel({
                   type="button"
                   onClick={() => {
                     const t = newFileTitle.trim();
-                    if (!t) return;
+                    if (!t || !courseFileURL(newFileURL)) { setError('اكتب اسم الملف ورابطًا صالحًا يبدأ بـ http أو https.'); return; }
+                    setError('');
                     setCourseFiles((prev) => [
                       ...prev,
                       {
                         id: `file-${Date.now()}`,
                         title: t,
-                        size: newFileSize.trim() || '3.5 ميجابايت',
+                        size: newFileSize.trim(),
+                        url: courseFileURL(newFileURL),
                         access: newFileAccess,
                       },
                     ]);
                     setNewFileTitle('');
                     setNewFileSize('');
+                    setNewFileURL('');
                   }}
                   className="rounded-xl bg-slate-800 text-white px-4 py-2 text-xs font-black hover:bg-slate-900 cursor-pointer h-9 flex items-center justify-center gap-1"
                 >
@@ -1014,187 +1035,16 @@ export function CourseEditorPanel({
             </div>
           </form>
         ) : activeTab === 'assessments' ? (
-          <form id="course-settings-form" onSubmit={saveSettings} className="space-y-5 bg-gray-50 p-4 sm:p-6">
-            <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 space-y-4">
-              <div>
-                <h2 className="text-lg font-black text-gray-900">الاختبارات المرتبطة (Course Assessments)</h2>
-                <p className="mt-1 text-xs text-gray-500 font-medium">
-                  حدد اختبارات تحديد المستوى القبلية، الاختبارات الدورية، والاختبار الشامل النهائي للدورة.
-                </p>
-              </div>
-
-              {/* Pick from central assessment center */}
-              {approvedAssessments.length > 0 ? (
-                <div className="p-4 rounded-2xl border border-indigo-200 bg-indigo-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 flex-1">
-                    <Award size={18} className="text-indigo-600 shrink-0" />
-                    <select
-                      value={selectedCentralAssessmentId}
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        setSelectedCentralAssessmentId(id);
-                        const found = approvedAssessments.find((a) => a.id === id);
-                        if (found) {
-                          setNewAssessmentTitle(found.title);
-                          setNewAssessmentQuestions(20);
-                        }
-                      }}
-                      className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-gray-800"
-                    >
-                      <option value="">استيراد اختبار جاهز من مركز الاختبارات المعتمد...</option>
-                      {approvedAssessments.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.title} ({a.kind === 'mock' ? 'محاكي قياس' : 'اختبار تقييمي'} • {a.code})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={!selectedCentralAssessmentId}
-                    onClick={() => {
-                      if (!selectedCentralAssessmentId) return;
-                      const found = approvedAssessments.find((a) => a.id === selectedCentralAssessmentId);
-                      if (!found) return;
-                      setCourseAssessments((prev) => [
-                        ...prev,
-                        {
-                          id: `test-center-${found.id}-${Date.now()}`,
-                          quizId: found.id,
-                          title: found.title,
-                          phase: newAssessmentPhase,
-                          durationMinutes: newAssessmentMinutes,
-                          questionsCount: newAssessmentQuestions,
-                          access: newAssessmentPhase === 'pre_course' ? 'free_preview' : 'enrolled_paid',
-                        },
-                      ]);
-                      setSelectedCentralAssessmentId('');
-                      setNewAssessmentTitle('');
-                    }}
-                    className="rounded-xl bg-indigo-600 text-white px-4 py-2 text-xs font-black hover:bg-indigo-700 disabled:opacity-40 cursor-pointer shrink-0"
-                  >
-                    إرفاق كاختبار مرحلي بالدورة
-                  </button>
-                </div>
-              ) : null}
-
-              {/* Add assessment form */}
-              <div className="p-4 rounded-2xl border border-dashed border-gray-200 bg-slate-50/70 grid gap-3 sm:grid-cols-[1fr_140px_100px_100px_auto] sm:items-end">
-                <label className="space-y-1">
-                  <span className="text-xs font-black text-gray-700">عنوان الاختبار *</span>
-                  <input
-                    value={newAssessmentTitle}
-                    onChange={(e) => setNewAssessmentTitle(e.target.value)}
-                    placeholder="مثال: الاختبار القبلي لقياس المستوى"
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold"
-                  />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-xs font-black text-gray-700">المرحلة</span>
-                  <select
-                    value={newAssessmentPhase}
-                    onChange={(e) => setNewAssessmentPhase(e.target.value as any)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold"
-                  >
-                    <option value="pre_course">قبل الدورة (قبلي)</option>
-                    <option value="during_course">أثناء الدورة (دوري)</option>
-                    <option value="final_course">نهاية الدورة (نهائي)</option>
-                  </select>
-                </label>
-                <label className="space-y-1">
-                  <span className="text-xs font-black text-gray-700">المدة (د)</span>
-                  <input
-                    type="number"
-                    min={5}
-                    value={newAssessmentMinutes}
-                    onChange={(e) => setNewAssessmentMinutes(Number(e.target.value) || 25)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold"
-                  />
-                </label>
-                <label className="space-y-1">
-                  <span className="text-xs font-black text-gray-700">الأسئلة</span>
-                  <input
-                    type="number"
-                    min={1}
-                    value={newAssessmentQuestions}
-                    onChange={(e) => setNewAssessmentQuestions(Number(e.target.value) || 20)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold"
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const t = newAssessmentTitle.trim();
-                    if (!t) return;
-                    setCourseAssessments((prev) => [
-                      ...prev,
-                      {
-                        id: `test-${Date.now()}`,
-                        title: t,
-                        phase: newAssessmentPhase,
-                        durationMinutes: newAssessmentMinutes,
-                        questionsCount: newAssessmentQuestions,
-                        access: newAssessmentPhase === 'pre_course' ? 'free_preview' : 'enrolled_paid',
-                      },
-                    ]);
-                    setNewAssessmentTitle('');
-                  }}
-                  className="rounded-xl bg-slate-800 text-white px-4 py-2 text-xs font-black hover:bg-slate-900 cursor-pointer h-9 flex items-center justify-center gap-1"
-                >
-                  <Plus size={15} />
-                  ربط اختبار
-                </button>
-              </div>
-
-              {/* Assessments List */}
-              <div className="space-y-2 pt-2">
-                {courseAssessments.length === 0 ? (
-                  <div className="p-8 text-center text-xs font-bold text-gray-400 border border-gray-100 rounded-2xl bg-white">
-                    لم يتم ربط اختبارات بعد. أضف الاختبارات المرتبطة بهذه الدورة أعلاه.
-                  </div>
-                ) : (
-                  courseAssessments.map((test, idx) => (
-                    <div
-                      key={test.id}
-                      className="flex items-center justify-between p-3.5 rounded-xl border border-gray-200 bg-white shadow-xs"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-gray-400 w-5 text-center">{idx + 1}</span>
-                        <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
-                          <Award size={18} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-black text-gray-900">{test.title}</p>
-                          <p className="text-xs text-gray-500">
-                            {test.phase === 'pre_course' ? 'قبلي' : test.phase === 'final_course' ? 'نهائي شامل' : 'دوري'} • {test.durationMinutes} دقيقة • {test.questionsCount} سؤال
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setCourseAssessments((prev) => prev.filter((a) => a.id !== test.id))}
-                        className="p-2 rounded-lg text-rose-600 hover:bg-rose-50 cursor-pointer"
-                        title="حذف الاختبار"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </section>
-
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={!canMutate || mutating}
-                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-black text-white disabled:opacity-50 cursor-pointer"
-              >
-                {mutating ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                حفظ الاختبارات
-              </button>
-            </div>
-          </form>
+          <div className="space-y-5 bg-gray-50 p-4 sm:p-6">
+            {assessmentLoadError && <p role="alert" className="text-sm font-bold text-red-700">تعذر تحميل قائمة الاختبارات: {assessmentLoadError}. أعد تحميل الصفحة.</p>}
+            {moreAssessments && <p className="text-sm text-amber-700">تُعرض أول 100 نتيجة؛ استخدم مركز الاختبارات للوصول لبقية الاختبارات.</p>}
+            {course && <CourseAssessmentPlacementEditor courseId={course.id} pathId={course.pathId} subjectId={course.subjectId} courseReady={course.workflowStatus === 'approved' && course.isPublished && course.isVisible} assessments={approvedAssessments} lessons={Array.from(new Map(modules.filter(module => module.status === 'active').flatMap(module => module.lessons.map(lesson => [lesson.lessonId, { id: lesson.lessonId, title: lessonName(lesson.lessonId) }] as const))).values())} getCsrfToken={getCsrfToken} />}
+            {courseAssessments.length > 0 && <section className="space-y-2 rounded-3xl border bg-white p-5">
+              <h3 className="font-black">بطاقات قديمة محفوظة</h3>
+              <p className="text-sm text-gray-600">هذه بيانات وصفية سابقة؛ استخدم التفعيل أعلاه للتحكم في ظهور الاختبار وصلاحيته.</p>
+              {courseAssessments.map((item, index) => <div key={item.id || index} className="rounded-xl border p-3 text-sm"><span className="font-bold">{item.title || 'اختبار'}</span> {!item.quizId && <span className="text-amber-700">— بطاقة بلا اختبار مرتبط</span>}</div>)}
+            </section>}
+          </div>
         ) : (
           <section className="space-y-4 bg-gray-50 p-4 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1295,7 +1145,7 @@ export function CourseEditorPanel({
                       </div>
 
                       {/* Attach central assessment quiz */}
-                      {approvedAssessments.length > 0 ? (
+                      {approvedAssessments.some(quiz => quiz.isPublished) ? (
                         <div className="grid gap-2 md:grid-cols-[1fr_auto_auto] md:items-center bg-amber-50/50 p-2.5 rounded-xl border border-dashed border-amber-200">
                           <select
                             disabled={!canMutate || mutating}
@@ -1304,7 +1154,7 @@ export function CourseEditorPanel({
                             className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-bold disabled:bg-gray-50 text-gray-800"
                           >
                             <option value="">إرفاق اختبار معتمد من مركز الاختبارات (Quiz / Assessment)...</option>
-                            {approvedAssessments.map((quiz) => (
+                            {approvedAssessments.filter(quiz => quiz.isPublished).map((quiz) => (
                               <option key={quiz.id} value={quiz.id}>
                                 📝 {quiz.title} ({quiz.kind === 'mock' ? 'محاكي قياس' : 'تقييمي'} • {quiz.code})
                               </option>

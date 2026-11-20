@@ -97,3 +97,9 @@ type LearnerPlacementPage struct {
 	Limit   int                `json:"limit"`
 	HasMore bool               `json:"hasMore"`
 }
+
+// PlacementProgress counts visible published cards, not distinct assessments.
+type PlacementProgress struct {
+	Total     int `json:"total"`
+	Completed int `json:"completed"`
+}

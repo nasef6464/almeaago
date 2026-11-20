@@ -1,21 +1,29 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Phone } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
-export interface FloatingContactWidgetProps {
-  whatsappNumber?: string;
-  whatsappMessage?: string;
-  showOnPublicPages?: boolean;
-  showOnDashboardPages?: boolean;
+interface ContactSettings {
+  enabled: boolean;
+  channel: string;
+  whatsappNumber: string;
+  whatsappMessage: string;
+  openInNewTab: boolean;
+  showOnPublicPages: boolean;
+  showOnDashboardPages: boolean;
 }
 
-export const FloatingContactWidget: React.FC<FloatingContactWidgetProps> = ({
-  whatsappNumber = '966500000000',
-  whatsappMessage = 'مرحبًا بكم في منصة المئة، لدي استفسار بخصوص...',
-  showOnPublicPages = true,
-  showOnDashboardPages = true,
-}) => {
+export const FloatingContactWidget: React.FC = () => {
   const location = useLocation();
+  const [settings, setSettings] = useState<ContactSettings | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    const base = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+    fetch(`${base}/api/v1/content/public-contact-widget`, { signal: controller.signal })
+      .then(response => { if (!response.ok) throw new Error('Contact settings unavailable'); return response.json() as Promise<ContactSettings>; })
+      .then(value => { if (!controller.signal.aborted) setSettings(value); })
+      .catch(() => { if (!controller.signal.aborted) setSettings(null); });
+    return () => controller.abort();
+  }, []);
 
   const isDashboard = useMemo(() => {
     const path = location.pathname || '/';
@@ -34,14 +42,14 @@ export const FloatingContactWidget: React.FC<FloatingContactWidgetProps> = ({
     );
   }, [location.pathname]);
 
-  const isVisible = isDashboard ? showOnDashboardPages : showOnPublicPages;
+  const isVisible = settings?.enabled && settings.channel === 'whatsapp' && (isDashboard ? settings.showOnDashboardPages : settings.showOnPublicPages);
 
   const whatsappHref = useMemo(() => {
-    const cleanNumber = String(whatsappNumber).replace(/[^\d]/g, '');
+    const cleanNumber = String(settings?.whatsappNumber || '').replace(/[^\d]/g, '');
     if (!cleanNumber) return '';
-    const text = encodeURIComponent(whatsappMessage);
+    const text = encodeURIComponent(settings?.whatsappMessage || '');
     return `https://wa.me/${cleanNumber}?text=${text}`;
-  }, [whatsappNumber, whatsappMessage]);
+  }, [settings]);
 
   if (!isVisible || !whatsappHref) return null;
 
@@ -49,7 +57,7 @@ export const FloatingContactWidget: React.FC<FloatingContactWidgetProps> = ({
     <aside aria-label="تواصل معنا عبر واتساب">
       <a
         href={whatsappHref}
-        target="_blank"
+        target={settings?.openInNewTab ? '_blank' : '_self'}
         rel="noreferrer"
         className={`fixed ${
           isDashboard

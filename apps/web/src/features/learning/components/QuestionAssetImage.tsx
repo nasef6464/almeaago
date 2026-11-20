@@ -97,6 +97,13 @@ export function QuestionAssetImage({
       loading="lazy"
       decoding="async"
       onClick={onZoom ? () => onZoom(current.url) : undefined}
+      tabIndex={onZoom ? 0 : undefined}
+      onKeyDown={onZoom ? (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onZoom(current.url);
+        }
+      } : undefined}
       className={`${className || 'mx-auto max-h-[340px] max-w-full rounded-xl object-contain'} ${
         onZoom ? 'cursor-zoom-in hover:opacity-90 transition' : ''
       }`}

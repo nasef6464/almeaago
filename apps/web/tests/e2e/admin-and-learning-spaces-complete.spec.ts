@@ -1,7 +1,7 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 import path from 'path';
 
-const ARTIFACTS_DIR = 'C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66';
+const ARTIFACTS_DIR = path.join('test-results', 'admin-learning-evidence');
 
 const admin = {
   id: 'admin-1',
@@ -19,6 +19,11 @@ function json(route: Route, body: unknown, status = 200) {
 }
 
 async function setupMocks(page: Page) {
+  await page.route('**/api/v1/assessment-placements/available?**', (route) => {
+    const slot = new URL(route.request().url()).searchParams.get('slot');
+    const title = slot === 'training' ? 'تدريب التناظر اللفظي' : 'اختبار اللفظي الشامل';
+    return json(route, {items:[{placementId:`placement-${slot}`,assessmentId:`assessment-${slot}`,assessmentVersion:1,assessmentKind:'normal',title,slot,pathId:'018f0000-0000-7000-8000-000000000030',subjectId:'018f0000-0000-7000-8000-000000000031',accessType:'free',accessAllowed:true,canStart:true,attemptCount:0,maxAttempts:3}],page:1,limit:50,hasMore:false});
+  });
   await page.addInitScript(() => {
     sessionStorage.setItem('almeaa-dismissed-announcement-ads', JSON.stringify(['ad_welcome_offer', 'ad_qudrat_launch', 'ad_nafes_banner']));
   });
@@ -310,11 +315,11 @@ test.describe('Complete Admin Departments and Learning Space Parity Suite', () =
     // Check Training tab
     await page.getByRole('button', { name: 'التدريب', exact: true }).click();
     await expect(page.getByRole('heading', { name: /التدريب وبنك الأسئلة|تدريب وبنك أسئلة/ })).toBeVisible();
-    await expect(page.getByText('التدريب التكيفي الذكي')).toBeVisible();
+    await expect(page.getByText('تدريب التناظر اللفظي')).toBeVisible();
 
     // Check Exams tab
     await page.getByRole('button', { name: 'الاختبارات', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'الاختبار المحاكي الكامل' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'اختبار اللفظي الشامل' })).toBeVisible();
 
     // Check Library tab
     await page.getByRole('button', { name: 'المكتبة', exact: true }).click();

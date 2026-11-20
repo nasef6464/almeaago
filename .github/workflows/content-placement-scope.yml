@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - "internal/content/repository/postgres/learning_space.go"
+      - "internal/content/repository/postgres/foundation_lesson.go"
       - "internal/content/repository/postgres/learner_placement_scope_integration_test.go"
       - ".github/workflows/content-placement-scope.yml"
   workflow_dispatch:
@@ -50,7 +51,11 @@ jobs:
             exit 1
           fi
           cat /tmp/content-placement-red.log
-          grep -q "course leaked foreign-subject lesson" /tmp/content-placement-red.log
+          # The historical reader can fail first because it omits the course
+          # scope, before the subsequent foreign-subject assertion is reached.
+          # Either assertion demonstrates the targeted behavioral regression;
+          # compilation or infrastructure failures must not count as RED.
+          grep -Eq "course scope mismatch|course leaked foreign-subject lesson" /tmp/content-placement-red.log
           echo "RED confirmed against unmodified Go main"
           cp /tmp/content-placement-green.go "$FILE"
           go test ./internal/content/repository/postgres -run TestLearnerPlacementScopePostgres -count=1 -v

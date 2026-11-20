@@ -236,6 +236,7 @@ func (r *Repository) GetFoundationCompletion(
 			JOIN topic_tree t ON c.parent_topic_id = t.id
 			WHERE c.is_visible = true
 			  AND c.status = 'active'
+			  AND c.path_id = $1::uuid AND c.subject_id = $2::uuid
 		),
 		topic_units AS (
 			SELECT t.root_id, tl.lesson_id::text AS unit_id,
