@@ -7,7 +7,6 @@ import {
   BookOpen,
   Calendar,
   CheckCircle,
-  CheckCircle2,
   ChevronDown,
   Copy,
   Download,
@@ -15,12 +14,9 @@ import {
   FileText,
   Filter,
   Loader2,
-  RefreshCcw,
   Share2,
   Sparkles,
   Target,
-  TrendingDown,
-  TrendingUp,
   Video,
 } from 'lucide-react';
 
@@ -35,7 +31,6 @@ import {
   displayText,
   getReportMasteryTone,
   printElementAsPdf,
-  scoreTone,
   studentReportPeriodLabels,
   buildStudentWeeklyPlan,
   buildStudentRemediationFallback,
@@ -44,7 +39,6 @@ import {
 import type {
   StudentAggregatedSkill,
   StudentMasteryGoal,
-  StudentPerformanceStats,
   StudentReportPeriod,
 } from './studentReportTypes';
 
@@ -195,40 +189,24 @@ export const StudentReportsView: React.FC<{ embedded?: boolean }> = ({ embedded 
     return () => controller.abort();
   }, [loadReportsData]);
 
-  // 3. Computed stats & highlights
-  const stats = useMemo<StudentPerformanceStats>(() => {
-    if (results.length > 0) {
-      const totalScore = results.reduce((acc, r) => acc + (r.score || 0), 0);
-      const averageScore = Math.round(totalScore / results.length);
-      return {
-        averageScore,
-        bestSubject: { name: 'المسار الحالي', score: averageScore },
-        worstSubject: { name: 'يحتاج تركيز', score: Math.max(0, averageScore - 15) },
-        totalQuestions: results.reduce((acc, r) => acc + (r.correctAnswers + r.wrongAnswers), 0),
-        uniqueSkills: skills.length,
-      };
-    }
+  // 3. Computed week summary (exactly three headline numbers)
+  const weekSummary = useMemo(() => {
+    // A reporting result is "completed" once it has been finalized.
+    const completedResults = results.filter((result) => String(result.finalizedAt || '').trim().length > 0);
+    const completedCount = completedResults.length;
 
-    if (skills.length > 0) {
-      const avg = Math.round(skills.reduce((acc, s) => acc + s.mastery, 0) / skills.length);
-      const sorted = [...skills].sort((a, b) => b.mastery - a.mastery);
-      return {
-        averageScore: avg,
-        bestSubject: { name: sorted[0]?.skill || 'مهارة متقنة', score: sorted[0]?.mastery || 0 },
-        worstSubject: { name: sorted[sorted.length - 1]?.skill || 'مهارة تحتاج تركيز', score: sorted[sorted.length - 1]?.mastery || 0 },
-        totalQuestions: skills.reduce((acc, s) => acc + s.totalEvidence, 0),
-        uniqueSkills: skills.length,
-      };
-    }
+    // Average score percent over the completed results only (null = no results yet).
+    const rawAverage =
+      completedCount > 0
+        ? completedResults.reduce((sum, result) => sum + (Number(result.score) || 0), 0) / completedCount
+        : null;
+    const averageScore = rawAverage === null ? null : Math.max(0, Math.min(100, Math.round(rawAverage)));
 
-    return {
-      averageScore: 0,
-      bestSubject: { name: '-', score: 0 },
-      worstSubject: { name: '-', score: 0 },
-      totalQuestions: 0,
-      uniqueSkills: 0,
-    };
-  }, [results, skills]);
+    // Skills measured = mastery rows returned by the progress endpoint for the active scope.
+    const measuredSkills = skills.length;
+
+    return { completedCount, averageScore, measuredSkills };
+  }, [results, skills.length]);
 
   const weakestSkill = useMemo(() => {
     if (skills.length === 0) return null;
@@ -418,7 +396,53 @@ export const StudentReportsView: React.FC<{ embedded?: boolean }> = ({ embedded 
         </div>
       </header>
 
-      {/* 2. Filter Bar (مسار، مادة، فترة زمنية) */}
+      {/* 2. ملخص الأسبوع: ثلاثة أرقام فقط */}
+      <section
+        aria-label="ملخص الأسبوع"
+        data-testid="student-week-summary"
+        className="rounded-3xl border border-indigo-100 bg-white p-5 shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900 sm:p-6"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-300">
+              <Calendar size={17} />
+            </span>
+            <h2 className="text-base font-black text-gray-900 dark:text-white sm:text-lg">ملخص الأسبوع</h2>
+          </div>
+          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+            فترة العرض: {studentReportPeriodLabels[period]}
+          </span>
+        </div>
+
+        <div className={`mt-4 grid grid-cols-3 ${loading ? 'animate-pulse' : ''}`}>
+          <div className="px-1 text-center sm:px-3">
+            <div className="text-3xl font-black leading-none tabular-nums text-indigo-700 dark:text-indigo-300 sm:text-4xl">
+              {weekSummary.completedCount}
+            </div>
+            <div className="mt-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">
+              اختبارات مكتملة
+            </div>
+          </div>
+          <div className="border-s border-indigo-100 px-1 text-center dark:border-slate-800 sm:px-3">
+            <div className="text-3xl font-black leading-none tabular-nums text-indigo-700 dark:text-indigo-300 sm:text-4xl">
+              {weekSummary.averageScore === null ? '—' : `${weekSummary.averageScore}%`}
+            </div>
+            <div className="mt-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">
+              متوسط الدرجة
+            </div>
+          </div>
+          <div className="border-s border-indigo-100 px-1 text-center dark:border-slate-800 sm:px-3">
+            <div className="text-3xl font-black leading-none tabular-nums text-indigo-700 dark:text-indigo-300 sm:text-4xl">
+              {weekSummary.measuredSkills}
+            </div>
+            <div className="mt-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">
+              مهارات مقاسة
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. Filter Bar (مسار، مادة، فترة زمنية) */}
       <section className="print-hide rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm transition-colors">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -479,84 +503,41 @@ export const StudentReportsView: React.FC<{ embedded?: boolean }> = ({ embedded 
         </div>
       </section>
 
-      {/* 3. Main Decision Card (بطاقة القرار السريع وأهم المؤشرات) */}
+      {/* 4. قراءة سريعة: توصية واحدة مع نسخ/مشاركة (بدون بطاقات مؤشرات مكررة) */}
       <section
-        aria-label="تقرير مبسط للطالب"
-        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 dark:from-emerald-950 dark:via-teal-950 dark:to-slate-900 text-white p-6 shadow-xl transition-all"
+        aria-label="قراءة سريعة للتقرير"
+        className="flex flex-col gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 transition-colors dark:border-emerald-900/60 dark:bg-emerald-950/30 sm:flex-row sm:items-center sm:justify-between sm:p-5"
       >
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl -mr-20 -mt-20" />
-        <div className="absolute bottom-0 left-0 w-40 h-40 bg-teal-300 opacity-15 rounded-full blur-2xl -ml-10 -mb-10" />
+        <div className="flex items-start gap-2.5">
+          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+            <Sparkles size={15} />
+          </span>
+          <p className="text-sm font-bold leading-7 text-emerald-950 dark:text-emerald-50">
+            {studentFollowUpSummary}
+          </p>
+        </div>
 
-        <div className="relative z-10 flex flex-col gap-6">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-md px-3.5 py-1 text-xs font-black text-emerald-100 shadow-2xs mb-2.5">
-                <Sparkles size={14} className="text-amber-300" />
-                قراءة سريعة للتقرير
-              </div>
-              <h2 className="text-xl sm:text-2xl font-black leading-tight text-white">
-                ابدأ بخطوة واحدة واضحة اليوم
-              </h2>
-              <p className="mt-2 max-w-3xl text-xs sm:text-sm font-medium leading-relaxed text-emerald-50">
-                {studentFollowUpSummary}
-              </p>
-              <div className="mt-2 text-xs font-bold text-teal-200">
-                فترة التحليل: {studentReportPeriodLabels[period]} - {skills.length} مهارة مرصودة
-              </div>
-            </div>
-
-            <div className="print-hide flex flex-wrap gap-2 self-start">
-              <button
-                type="button"
-                onClick={copyStudentSummary}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/25 px-3.5 py-2 text-xs font-black text-white transition"
-              >
-                {copiedSummary ? <CheckCircle size={15} /> : <Copy size={15} />}
-                <span>{copiedSummary ? 'تم النسخ ✓' : 'نسخ الملخص'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={shareStudentSummary}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-white hover:bg-white/90 px-3.5 py-2 text-xs font-black text-emerald-950 transition shadow-xs"
-              >
-                {sharedSummary ? <CheckCircle size={15} /> : <Share2 size={15} />}
-                <span>{sharedSummary ? 'تمت المشاركة' : 'مشاركة'}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* 3 Metric Cards */}
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 p-4">
-              <div className="text-xs font-bold text-teal-100">أهم مؤشر</div>
-              <div className="mt-2 text-3xl font-black text-white">{stats.averageScore}%</div>
-              <div className="mt-1 text-xs font-bold text-teal-100">متوسط الأداء</div>
-            </div>
-
-            <div className="rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 p-4 sm:col-span-1">
-              <div className="text-xs font-bold text-teal-100">أولوية المراجعة الآن</div>
-              <div className="mt-2 text-lg sm:text-xl font-black leading-snug text-white truncate">
-                {weakestSkill?.skill || 'لا توجد مهارة ضعيفة مؤكدة'}
-              </div>
-              <div className="mt-1 text-xs font-bold text-teal-100">
-                {weakestSkill ? `نسبة الإتقان: ${weakestSkill.mastery}%` : 'نتائجك مطمئنة'}
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 p-4">
-              <div className="text-xs font-bold text-teal-100">حالة النتائج</div>
-              <div className="mt-2 text-xl font-black text-white">
-                {results.filter((r) => r.passed).length} ناجحة
-              </div>
-              <div className="mt-1 text-xs font-bold text-teal-100">
-                من {results.length || skills.length} نتيجة
-              </div>
-            </div>
-          </div>
+        <div className="print-hide flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={copyStudentSummary}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-black text-emerald-800 transition hover:bg-emerald-100 dark:border-emerald-800/70 dark:bg-slate-900 dark:text-emerald-200 dark:hover:bg-slate-800"
+          >
+            {copiedSummary ? <CheckCircle size={15} /> : <Copy size={15} />}
+            <span>{copiedSummary ? 'تم النسخ ✓' : 'نسخ الملخص'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={shareStudentSummary}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-black text-white transition hover:bg-emerald-800"
+          >
+            {sharedSummary ? <CheckCircle size={15} /> : <Share2 size={15} />}
+            <span>{sharedSummary ? 'تمت المشاركة' : 'مشاركة'}</span>
+          </button>
         </div>
       </section>
 
-      {/* 4. Readiness Decision Banner */}
+      {/* 5. Readiness Decision Banner */}
       <section
         data-testid="student-readiness-decision"
         className={`rounded-3xl border p-5 sm:p-6 shadow-sm transition-colors ${readinessDecision.cardClass}`}
@@ -581,6 +562,13 @@ export const StudentReportsView: React.FC<{ embedded?: boolean }> = ({ embedded 
 
           <Link
             to={readinessDecision.actionHref}
+            onClick={() => {
+              // The remediation plan now lives inside the closed "الأهداف والخطة" details,
+              // so reveal it before the in-page anchor scrolls to #remediation-plan.
+              if (readinessDecision.actionHref !== '#remediation-plan') return;
+              const details = document.getElementById('student-goals-and-plan');
+              if (details instanceof HTMLDetailsElement) details.open = true;
+            }}
             className="self-start sm:self-center inline-flex items-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 px-5 py-3 text-xs sm:text-sm font-black text-white transition shadow-xs shrink-0"
           >
             <span>{readinessDecision.actionLabel}</span>
@@ -589,13 +577,7 @@ export const StudentReportsView: React.FC<{ embedded?: boolean }> = ({ embedded 
         </div>
       </section>
 
-      {/* 5. Weekly Study Plan Panel */}
-      <StudentWeeklyPlanPanel visible={true} items={weeklyPlan} />
-
-      {/* 6. AI Smart Remediation Panel */}
-      <StudentSmartRemediationPanel visible={true} plan={smartRemediation} />
-
-      {/* 7. Skills Mastery Breakdown Matrix */}
+      {/* 6. Skills Mastery Breakdown Matrix */}
       <section className="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-sm transition-colors">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
           <div>
@@ -737,14 +719,43 @@ export const StudentReportsView: React.FC<{ embedded?: boolean }> = ({ embedded 
         </div>
       </section>
 
-      {/* 8. Mastery Goals Panel */}
-      <StudentMasteryGoalsPanel
-        goals={goals}
-        loading={goalsLoading}
-        onCreateShort={() => handleCreateGoal('short')}
-        onCreateLong={() => handleCreateGoal('long')}
-        onSetStatus={handleUpdateGoalStatus}
-      />
+      {/* 7. الأهداف والخطة: مطوية افتراضيًا في أسفل الصفحة بعد صفوف المهارات */}
+      <details
+        id="student-goals-and-plan"
+        data-testid="student-goals-and-plan"
+        className="group rounded-3xl border border-slate-200 bg-white shadow-sm transition-colors dark:border-slate-800 dark:bg-slate-900"
+      >
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5 [&::-webkit-details-marker]:hidden sm:p-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              <Target size={18} />
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-base font-black text-gray-900 dark:text-white sm:text-lg">الأهداف والخطة</h2>
+              <p className="mt-0.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 sm:text-xs">
+                خطة الأسبوع والخطة العلاجية وأهداف الإتقان — افتحها عند الحاجة
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-indigo-50 px-3 py-1.5 text-[11px] font-black text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 sm:text-xs">
+            <span className="group-open:hidden">عرض</span>
+            <span className="hidden group-open:inline">إخفاء</span>
+            <ChevronDown size={15} className="transition-transform group-open:rotate-180" />
+          </span>
+        </summary>
+
+        <div className="space-y-5 border-t border-slate-100 p-4 dark:border-slate-800 sm:p-5">
+          <StudentWeeklyPlanPanel visible={true} items={weeklyPlan} />
+          <StudentSmartRemediationPanel visible={true} plan={smartRemediation} />
+          <StudentMasteryGoalsPanel
+            goals={goals}
+            loading={goalsLoading}
+            onCreateShort={() => handleCreateGoal('short')}
+            onCreateLong={() => handleCreateGoal('long')}
+            onSetStatus={handleUpdateGoalStatus}
+          />
+        </div>
+      </details>
     </ContainerTag>
   );
 };
