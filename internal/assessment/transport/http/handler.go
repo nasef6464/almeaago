@@ -278,6 +278,8 @@ func writeError(w http.ResponseWriter, e error) {
 		writeJSON(w, 403, map[string]string{"message": "Forbidden"})
 	case errors.Is(e, assessment.ErrNotFound):
 		writeJSON(w, 404, map[string]string{"message": "Assessment not found"})
+	case errors.Is(e, assessment.ErrUnscorableQuestion):
+		writeJSON(w, 409, map[string]string{"message": assessment.ErrUnscorableQuestion.Error()})
 	case errors.Is(e, app.ErrWorkflow), errors.Is(e, assessment.ErrConflict), errors.Is(e, assessment.ErrVersionConflict):
 		writeJSON(w, 409, map[string]string{"message": "Assessment state conflicts with requested operation"})
 	default:

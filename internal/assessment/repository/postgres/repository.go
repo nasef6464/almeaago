@@ -198,6 +198,17 @@ func (r *Repository) SetPublication(ctx context.Context, actor, id string, rev i
 		return assessment.Assessment{}, r.mapUpdate(ctx, tx, id, rev, err)
 	}
 	if published {
+		// Attempts are scored against the pinned question version's correct
+		// option. Keep drafts intact but prevent publishing an attempt that
+		// the server would immediately refuse to start.
+		var unscorable bool
+		err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM assessment_version_questions aq JOIN assessments a ON a.id=aq.assessment_id AND a.current_version=aq.assessment_version LEFT JOIN question_versions qv ON qv.question_id=aq.question_id AND qv.version=aq.question_version WHERE a.id=$1::uuid AND qv.correct_option_index IS NULL)`, id).Scan(&unscorable)
+		if err != nil {
+			return assessment.Assessment{}, err
+		}
+		if unscorable {
+			return assessment.Assessment{}, assessment.ErrUnscorableQuestion
+		}
 		_, err = tx.Exec(ctx, `UPDATE assessment_versions SET version_status=CASE WHEN version=current_version THEN 'published' ELSE CASE WHEN version_status='published' THEN 'superseded' ELSE version_status END END,published_by=CASE WHEN version=current_version THEN $2::uuid ELSE published_by END,published_at=CASE WHEN version=current_version THEN now() ELSE published_at END FROM assessments WHERE assessment_id=$1::uuid AND assessments.id=$1::uuid`, id, actor)
 		if err != nil {
 			return assessment.Assessment{}, mapError(err)
