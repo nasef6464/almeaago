@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"sort"
 
 	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 )
@@ -10,9 +11,9 @@ func (r *Repository) ListResults(ctx context.Context, student string, page, limi
 	rows, err := r.db.Query(ctx, `
 		SELECT
 			x.id::text,
-			x.assessment_id::text,
-			x.assessment_version,
-			v.title,
+			COALESCE(x.assessment_id::text,''),
+			COALESCE(x.assessment_version,0),
+			COALESCE(v.title,'اختبار ذاتي'),
 			x.attempt_number,
 			z.score,
 			z.total_questions,
@@ -22,10 +23,10 @@ func (r *Repository) ListResults(ctx context.Context, student string, page, limi
 			z.passed,
 			z.time_spent_seconds,
 			z.finalized_at,
-			v.show_results_report
+			COALESCE(v.show_results_report,true)
 		FROM assessment_results z
 		JOIN assessment_attempts x ON x.id=z.attempt_id
-		JOIN assessment_versions v
+		LEFT JOIN assessment_versions v
 		  ON v.assessment_id=x.assessment_id
 		 AND v.version=x.assessment_version
 		WHERE z.student_id=$1::uuid
@@ -71,10 +72,17 @@ func (r *Repository) ListResults(ctx context.Context, student string, page, limi
 }
 
 func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID string) (assessment.ResultDetail, error) {
+	isSelf, err := r.isSelfQuizAttempt(ctx, attemptID)
+	if err != nil {
+		return assessment.ResultDetail{}, err
+	}
+	if isSelf {
+		return r.getSelfQuizResultDetail(ctx, student, attemptID)
+	}
 	var out assessment.ResultDetail
 	var randomizeQuestions bool
 	var randomizeOptions bool
-	err := r.db.QueryRow(ctx, `
+	err = r.db.QueryRow(ctx, `
 		SELECT
 			z.attempt_id::text,
 			z.score,
@@ -162,6 +170,10 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 			qv.hint,
 			qv.solving_strategy
 		FROM assessment_version_questions aq
+		JOIN assessment_versions v
+		  ON v.assessment_id=aq.assessment_id AND v.version=aq.assessment_version
+		LEFT JOIN assessment_sections sec
+		  ON sec.id=aq.section_id AND sec.assessment_id=aq.assessment_id AND sec.assessment_version=aq.assessment_version
 		JOIN question_versions qv
 		  ON qv.question_id=aq.question_id
 		 AND qv.version=aq.question_version
@@ -174,6 +186,8 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 		WHERE aq.assessment_id=$1::uuid
 		  AND aq.assessment_version=$2
 		ORDER BY
+			CASE WHEN v.assessment_kind='mock' THEN sec.sort_order ELSE 0 END NULLS LAST,
+			CASE WHEN v.assessment_kind='mock' THEN sec.id ELSE NULL END,
 			CASE WHEN $4
 				THEN md5($3||aq.question_id::text)
 				ELSE lpad(aq.sort_order::text,12,'0')
@@ -250,7 +264,7 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 		WHERE aq.assessment_id=$1::uuid
 		  AND aq.assessment_version=$2
 		ORDER BY
-			CASE WHEN $3 AND NOT (qv.options_embedded_in_image AND qv.image_asset_id IS NOT NULL)
+			CASE WHEN $3 AND NOT qv.options_embedded_in_image
 				THEN md5($4||qo.option_index::text)
 				ELSE lpad(qo.option_index::text,12,'0')
 			END,
@@ -276,6 +290,12 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 	}
 	if err = optionRows.Err(); err != nil {
 		return out, err
+	}
+	for i := range out.Questions {
+		q := &out.Questions[i]
+		if learnerQuestionHasImage(q.ImageAssetID, q.ImageURL, q.Text) {
+			sort.Slice(q.Options, func(i, j int) bool { return q.Options[i].Index < q.Options[j].Index })
+		}
 	}
 	return out, nil
 }

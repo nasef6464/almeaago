@@ -113,6 +113,7 @@ type VersionInput struct {
 
 type CreateInput struct {
 	QuestionCode      string             `json:"questionCode"`
+	SectionID         string             `json:"sectionId,omitempty"`
 	OwnerType         question.OwnerType `json:"ownerType"`
 	OwnerID           string             `json:"ownerId"`
 	AssignedTeacherID string             `json:"assignedTeacherId"`
@@ -128,6 +129,13 @@ type WorkflowInput struct {
 func (s *Service) Create(ctx context.Context, actor identity.User, input CreateInput) (question.Question, error) {
 	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) {
 		return question.Question{}, ErrForbidden
+	}
+	sectionID := strings.TrimSpace(input.SectionID)
+	if sectionID != "" && !actor.HasRole(identity.RoleAdmin) {
+		return question.Question{}, ErrForbidden
+	}
+	if sectionID != "" && !sectionUUID.MatchString(sectionID) {
+		return question.Question{}, ErrInvalidInput
 	}
 	code := strings.TrimSpace(input.QuestionCode)
 	if code == "" || len(code) > 120 {
@@ -175,6 +183,7 @@ func (s *Service) Create(ctx context.Context, actor identity.User, input CreateI
 		QuestionCode:      code,
 		PathID:            version.PathID,
 		SubjectID:         version.SubjectID,
+		SectionID:         sectionID,
 		OwnerType:         ownerType,
 		OwnerID:           ownerID,
 		AssignedTeacherID: assignedTeacherID,

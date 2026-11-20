@@ -36,13 +36,30 @@ func New(service *taxonomyapp.Service, authenticators ...Authenticator) http.Han
 	r.Get("/admin/bootstrap", h.adminBootstrap)
 	r.Post("/admin/paths", h.createPath)
 	r.Patch("/admin/paths/{id}", h.updatePath)
+	r.Delete("/admin/paths/{id}", h.deleteTaxonomy("path"))
 	r.Post("/admin/levels", h.createLevel)
 	r.Patch("/admin/levels/{id}", h.updateLevel)
+	r.Delete("/admin/levels/{id}", h.deleteTaxonomy("level"))
 	r.Post("/admin/subjects", h.createSubject)
 	r.Patch("/admin/subjects/{id}", h.updateSubject)
+	r.Delete("/admin/subjects/{id}", h.deleteTaxonomy("subject"))
 	r.Post("/admin/skills", h.createSkill)
 	r.Patch("/admin/skills/{id}", h.updateSkill)
+	r.Post("/admin/skill-sections", h.createSkillSection)
+	r.Patch("/admin/skill-sections/{id}", h.updateSkillSection)
+	r.Put("/admin/skills/{id}/section", h.setSkillSection)
 	return r
+}
+
+func (h *Handler) deleteTaxonomy(kind string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		auth, ok := h.authenticateMutation(w, r)
+		if !ok {
+			return
+		}
+		err := h.service.DeleteTaxonomy(r.Context(), auth.User, kind, chi.URLParam(r, "id"))
+		writeMutation(w, http.StatusOK, map[string]any{"deleted": true}, err)
+	}
 }
 
 func (h *Handler) authenticateRead(w http.ResponseWriter, r *http.Request) (identityapp.Authenticated, bool) {
@@ -184,6 +201,8 @@ func writeMutation(w http.ResponseWriter, status int, body any, err error) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Forbidden"})
 	case errors.Is(err, taxonomy.ErrNotFound):
 		writeJSON(w, http.StatusNotFound, map[string]string{"message": "Taxonomy record not found"})
+	case errors.Is(err, taxonomy.ErrHasDependencies):
+		writeJSON(w, http.StatusConflict, map[string]string{"message": "لا يمكن الحذف لوجود بيانات مرتبطة. انقل المحتوى والارتباطات أو استخدم الأرشفة."})
 	case errors.Is(err, taxonomy.ErrConflict):
 		writeJSON(w, http.StatusConflict, map[string]string{"message": "Taxonomy hierarchy conflict"})
 	default:
@@ -249,6 +268,7 @@ func (h *Handler) bootstrap(w http.ResponseWriter, r *http.Request) {
 }
 
 type adminPathResponse struct {
+	IsVisible        *bool  `json:"isVisible,omitempty"`
 	ID               string `json:"id"`
 	Code             string `json:"code"`
 	Name             string `json:"name"`
@@ -268,6 +288,7 @@ type adminPathResponse struct {
 	Settings         any    `json:"settings,omitempty"`
 }
 type adminLevelResponse struct {
+	IsVisible *bool  `json:"isVisible,omitempty"`
 	ID        string `json:"id"`
 	PathID    string `json:"pathId"`
 	Code      string `json:"code"`
@@ -278,6 +299,7 @@ type adminLevelResponse struct {
 	IconURL   string `json:"iconUrl,omitempty"`
 }
 type adminSubjectResponse struct {
+	IsVisible *bool          `json:"isVisible,omitempty"`
 	ID        string         `json:"id"`
 	PathID    string         `json:"pathId"`
 	LevelID   string         `json:"levelId,omitempty"`
@@ -294,6 +316,7 @@ type adminSubjectResponse struct {
 type adminSkillResponse struct {
 	ID            string `json:"id"`
 	SubjectID     string `json:"subjectId"`
+	SectionID     string `json:"sectionId,omitempty"`
 	ParentSkillID string `json:"parentSkillId,omitempty"`
 	Code          string `json:"code"`
 	Name          string `json:"name"`
@@ -346,6 +369,7 @@ type subjectResponse struct {
 type skillResponse struct {
 	ID            string `json:"id"`
 	SubjectID     string `json:"subjectId"`
+	SectionID     string `json:"sectionId,omitempty"`
 	ParentSkillID string `json:"parentSkillId,omitempty"`
 	Code          string `json:"code"`
 	Name          string `json:"name"`
@@ -354,10 +378,31 @@ type skillResponse struct {
 	SortOrder     int    `json:"sortOrder"`
 }
 
+type skillSectionResponse struct {
+	ID        string `json:"id"`
+	SubjectID string `json:"subjectId"`
+	Name      string `json:"name"`
+	SortOrder int    `json:"sortOrder"`
+	Status    string `json:"status,omitempty"`
+}
+
+func presentSkillSections(rows []taxonomy.SkillSection, admin bool) []skillSectionResponse {
+	sections := make([]skillSectionResponse, 0, len(rows))
+	for _, row := range rows {
+		section := skillSectionResponse{ID: row.ID, SubjectID: row.SubjectID, Name: row.Name, SortOrder: row.SortOrder}
+		if admin {
+			section.Status = string(row.Status)
+		}
+		sections = append(sections, section)
+	}
+	return sections
+}
+
 func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
 	paths := make([]adminPathResponse, 0, len(value.Paths))
 	for _, row := range value.Paths {
 		paths = append(paths, adminPathResponse{
+			IsVisible:        row.IsVisible,
 			ID:               row.ID,
 			Code:             row.Code,
 			Name:             row.Name,
@@ -380,6 +425,7 @@ func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
 	levels := make([]adminLevelResponse, 0, len(value.Levels))
 	for _, row := range value.Levels {
 		levels = append(levels, adminLevelResponse{
+			IsVisible: row.IsVisible,
 			ID:        row.ID,
 			PathID:    row.PathID,
 			Code:      row.Code,
@@ -393,6 +439,7 @@ func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
 	subjects := make([]adminSubjectResponse, 0, len(value.Subjects))
 	for _, row := range value.Subjects {
 		subjects = append(subjects, adminSubjectResponse{
+			IsVisible: row.IsVisible,
 			ID:        row.ID,
 			PathID:    row.PathID,
 			LevelID:   row.LevelID,
@@ -412,6 +459,7 @@ func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
 		skills = append(skills, adminSkillResponse{
 			ID:            row.ID,
 			SubjectID:     row.SubjectID,
+			SectionID:     row.SectionID,
 			ParentSkillID: row.ParentSkillID,
 			Code:          row.Code,
 			Name:          row.Name,
@@ -421,7 +469,7 @@ func presentAdminBootstrap(value taxonomy.Bootstrap) map[string]any {
 			Status:        string(row.Status),
 		})
 	}
-	return map[string]any{"paths": paths, "levels": levels, "subjects": subjects, "skills": skills}
+	return map[string]any{"paths": paths, "levels": levels, "subjects": subjects, "sections": presentSkillSections(value.Sections, true), "skills": skills}
 }
 
 func presentBootstrap(value taxonomy.Bootstrap) map[string]any {
@@ -479,6 +527,7 @@ func presentBootstrap(value taxonomy.Bootstrap) map[string]any {
 		skills = append(skills, skillResponse{
 			ID:            row.ID,
 			SubjectID:     row.SubjectID,
+			SectionID:     row.SectionID,
 			ParentSkillID: row.ParentSkillID,
 			Code:          row.Code,
 			Name:          row.Name,
@@ -487,7 +536,7 @@ func presentBootstrap(value taxonomy.Bootstrap) map[string]any {
 			SortOrder:     row.SortOrder,
 		})
 	}
-	return map[string]any{"paths": paths, "levels": levels, "subjects": subjects, "skills": skills}
+	return map[string]any{"paths": paths, "levels": levels, "subjects": subjects, "sections": presentSkillSections(value.Sections, false), "skills": skills}
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

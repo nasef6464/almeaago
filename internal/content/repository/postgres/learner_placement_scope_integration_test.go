@@ -48,14 +48,16 @@ func TestLearnerPlacementScopePostgres(t *testing.T) {
 	defer db.Close()
 
 	ddl := []string{
-		`CREATE TABLE paths (id uuid PRIMARY KEY,status text)`,
-		`CREATE TABLE subjects (id uuid PRIMARY KEY,path_id uuid,status text)`,
+		`CREATE TABLE paths (id uuid PRIMARY KEY,status text,parent_path_id uuid,presentation jsonb NOT NULL DEFAULT '{}')`,
+		`CREATE TABLE levels (id uuid PRIMARY KEY,path_id uuid,status text,presentation jsonb NOT NULL DEFAULT '{}')`,
+		`CREATE TABLE subjects (id uuid PRIMARY KEY,path_id uuid,status text,level_id uuid,presentation jsonb NOT NULL DEFAULT '{}')`,
 		`CREATE TABLE assets (id uuid PRIMARY KEY, status text)`,
 		`CREATE TABLE courses (
 			id uuid PRIMARY KEY, path_id uuid, subject_id uuid,
 			title text, description text, instructor_name text, duration_minutes int,
 			level text, thumbnail_asset_id uuid, drip_content_enabled bool,
-			certificate_enabled bool, workflow_status text, is_published bool, is_visible bool)`,
+			certificate_enabled bool, workflow_status text, is_published bool, is_visible bool,
+			presentation jsonb NOT NULL DEFAULT '{}')`,
 		`CREATE TABLE course_modules (
 			id uuid PRIMARY KEY, course_id uuid, status text,
 			sort_order int, title text, description text)`,
@@ -99,9 +101,9 @@ func TestLearnerPlacementScopePostgres(t *testing.T) {
 		sql  string
 		args []any
 	}{
-		{`INSERT INTO paths VALUES($1,'active')`, []any{pathID}},
-		{`INSERT INTO subjects VALUES($1,$3,'active'),($2,$3,'active')`, []any{subjectID, otherSubjectID, pathID}},
-		{`INSERT INTO courses VALUES($1,$2,$3,'course','','teacher',30,'beginner',NULL,false,false,'approved',true,true)`, []any{courseID, pathID, subjectID}},
+		{`INSERT INTO paths(id,status) VALUES($1,'active')`, []any{pathID}},
+		{`INSERT INTO subjects(id,path_id,status) VALUES($1,$3,'active'),($2,$3,'active')`, []any{subjectID, otherSubjectID, pathID}},
+		{`INSERT INTO courses VALUES($1,$2,$3,'course','','teacher',30,'beginner',NULL,false,false,'approved',true,true,'{}')`, []any{courseID, pathID, subjectID}},
 		{`INSERT INTO course_modules VALUES($1,$2,'active',0,'module','')`, []any{moduleID, courseID}},
 		{`INSERT INTO lessons VALUES($1,$2,$3,$4,'','video',60,false,'approved',true,'body','','')`, []any{allowedLessonID, pathID, subjectID, "allowed"}},
 		{`INSERT INTO lessons VALUES($1,$2,$3,$4,'','video',60,false,'approved',true,'body','','')`, []any{foreignLessonID, pathID, otherSubjectID, "foreign"}},

@@ -22,6 +22,7 @@ type PlacementRepository interface {
 
 type PlacementContentResolver interface {
 	ValidateAssessmentPlacementTarget(context.Context, string, string, string, string, string, string) (bool, error)
+	LearnerAssessmentScopeVisible(context.Context, string, string) (bool, error)
 }
 
 type PlacementService struct {
@@ -91,6 +92,20 @@ func (s *PlacementService) validateContent(ctx context.Context, w assessment.Pla
 	}
 	if !ok {
 		return assessment.ErrConflict
+	}
+	return nil
+}
+
+func (s *PlacementService) validateLearnerScope(ctx context.Context, pathID, subjectID string) error {
+	if s.content == nil {
+		return ErrForbidden
+	}
+	visible, err := s.content.LearnerAssessmentScopeVisible(ctx, pathID, subjectID)
+	if err != nil {
+		return err
+	}
+	if !visible {
+		return assessment.ErrNotFound
 	}
 	return nil
 }
@@ -228,6 +243,9 @@ func (s *PlacementService) Learner(ctx context.Context, actor identity.User, q a
 	if err := normalizePlacementTarget(&target); err != nil {
 		return assessment.LearnerPlacementPage{}, err
 	}
+	if err := s.validateLearnerScope(ctx, target.PathID, target.SubjectID); err != nil {
+		return assessment.LearnerPlacementPage{}, err
+	}
 	if err := s.validateContent(ctx, target); err != nil {
 		return assessment.LearnerPlacementPage{}, err
 	}
@@ -283,6 +301,9 @@ func (s *PlacementService) Start(ctx context.Context, actor identity.User, place
 	}
 	if !placement.IsVisible {
 		return assessment.Attempt{}, ErrForbidden
+	}
+	if err = s.validateLearnerScope(ctx, placement.PathID, placement.SubjectID); err != nil {
+		return assessment.Attempt{}, err
 	}
 	target := assessment.PlacementWrite{
 		Slot: placement.Slot, PathID: placement.PathID, SubjectID: placement.SubjectID,

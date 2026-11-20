@@ -48,6 +48,10 @@ type publicationInput struct {
 	ExpectedRevision int  `json:"expectedRevision"`
 	Published        bool `json:"published"`
 }
+type visibilityInput struct {
+	ExpectedRevision int   `json:"expectedRevision"`
+	IsVisible        *bool `json:"isVisible"`
+}
 
 func New(service *app.Service, auth Authenticator, attemptServices ...*app.AttemptService) http.Handler {
 	return NewWithDistribution(service, auth, nil, nil, attemptServices...)
@@ -63,17 +67,50 @@ func NewWithDistribution(service *app.Service, auth Authenticator, assignmentSer
 	r := chi.NewRouter()
 	r.Get("/", h.list)
 	r.Post("/", h.create)
+	r.Get("/prepared-available", h.listPreparedQuizzes)
+	r.Get("/prepared-groups", h.listPreparedGroups)
+	r.Post("/prepared-groups", h.createPreparedGroup)
+	r.Get("/prepared-groups/{groupID}/members", h.listPreparedGroupMembers)
+	r.Put("/prepared-groups/{groupID}/members/{userID}", h.changePreparedGroupMember)
+	r.Delete("/prepared-groups/{groupID}/members/{userID}", h.changePreparedGroupMember)
 	r.Get("/{id}", h.get)
 	r.Patch("/{id}", h.update)
 	r.Post("/{id}/workflow", h.workflow)
 	r.Post("/{id}/publication", h.publication)
+	r.Post("/{id}/visibility", h.visibility)
+	r.Put("/{id}/prepared-staging", h.stagePreparedQuiz)
+	r.Get("/{id}/prepared-staging", h.getPreparedQuizStage)
+	r.Put("/{id}/prepared-staging/status", h.setPreparedQuizStatus)
 	r.Post("/{id}/attempts", h.startAttempt)
+	r.Get("/{id}/access", h.previewAccess)
 	r.Post("/{id}/submit", h.singleShotSubmit)
 	r.Get("/{id}/assignments", h.listAssignments)
 	r.Post("/{id}/assignments", h.createAssignment)
 	r.Get("/{id}/placements", h.listPlacements)
 	r.Post("/{id}/placements", h.createPlacement)
 	return r
+}
+
+func (h *Handler) previewAccess(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	if h.attempts == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"message": "Attempt service unavailable"})
+		return
+	}
+	studentID := ""
+	if h.auth != nil {
+		if token := identitysession.Token(r); token != "" {
+			if current, err := h.auth.Authenticate(r.Context(), token); err == nil && current.User.HasRole("student") {
+				studentID = current.User.ID
+			}
+		}
+	}
+	allowed, reason, err := h.attempts.PreviewDirectAccess(r.Context(), studentID, chi.URLParam(r, "id"))
+	if err != nil {
+		writeAttemptError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"allowed": allowed, "reason": reason})
 }
 func (h *Handler) authenticate(w http.ResponseWriter, r *http.Request, csrf bool) (identityapp.Authenticated, bool) {
 	if h.auth == nil {
@@ -212,11 +249,32 @@ func (h *Handler) publication(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, map[string]any{"assessment": x})
 }
+func (h *Handler) visibility(w http.ResponseWriter, r *http.Request) {
+	a, ok := h.authenticate(w, r, true)
+	if !ok {
+		return
+	}
+	var in visibilityInput
+	if !decode(w, r, &in) {
+		return
+	}
+	if in.IsVisible == nil {
+		writeError(w, app.ErrInvalidInput)
+		return
+	}
+	result, err := h.service.SetVisibility(r.Context(), a.User, chi.URLParam(r, "id"), in.ExpectedRevision, *in.IsVisible)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"assessment": result})
+}
+
 func writeError(w http.ResponseWriter, e error) {
 	switch {
 	case errors.Is(e, app.ErrInvalidInput):
 		writeJSON(w, 400, map[string]string{"message": "Invalid assessment request"})
-	case errors.Is(e, app.ErrForbidden):
+	case errors.Is(e, app.ErrForbidden), errors.Is(e, assessment.ErrPreparedQuizAccessDenied):
 		writeJSON(w, 403, map[string]string{"message": "Forbidden"})
 	case errors.Is(e, assessment.ErrNotFound):
 		writeJSON(w, 404, map[string]string{"message": "Assessment not found"})
@@ -261,7 +319,7 @@ func (h *Handler) singleShotSubmit(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"message": "Assessment attempt service unavailable"})
 		return
 	}
-	auth, ok := h.authenticate(w, r, false)
+	auth, ok := h.authenticate(w, r, true)
 	if !ok {
 		return
 	}

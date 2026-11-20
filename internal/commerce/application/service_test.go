@@ -108,6 +108,39 @@ func TestPackageScopeIsValidatedWithoutCopyingContent(t *testing.T) {
 	}
 }
 
+func TestPackageScopeTargetsRemainSpecific(t *testing.T) {
+	for _, item := range []commerce.PackageItem{
+		{ScopeType: commerce.ScopePath, PathID: "path-1"},
+		{ScopeType: commerce.ScopeSubject, SubjectID: "subject-1"},
+	} {
+		items, err := normalizePackageItems([]commerce.PackageItem{item})
+		if err != nil || len(items) != 1 || items[0] != item {
+			t.Fatalf("specific package target changed: got %#v, %v", items, err)
+		}
+	}
+	_, err := normalizePackageItems([]commerce.PackageItem{{ScopeType: commerce.ScopeAll, PathID: "path-1"}})
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("global scope must not silently ignore a path restriction: %v", err)
+	}
+}
+
+func TestPackageContentTypeCanBeRestrictedToPathOrSubject(t *testing.T) {
+	for _, item := range []commerce.PackageItem{
+		{ScopeType: commerce.ScopePath, PathID: "path-1", ContentType: commerce.ContentTests},
+		{ScopeType: commerce.ScopeSubject, SubjectID: "subject-1", ContentType: commerce.ContentFoundation},
+	} {
+		items, err := normalizePackageItems([]commerce.PackageItem{item})
+		if err != nil || len(items) != 1 || items[0] != item {
+			t.Fatalf("scoped content restriction lost: got %#v, %v", items, err)
+		}
+		p := commerce.Product{ProductType: commerce.ProductPackage, Package: &commerce.Package{Items: items}}
+		content := publicContentTypes(p)
+		if len(content) != 1 || content[0] != item.ContentType {
+			t.Fatalf("scoped content incorrectly presented as all: %#v", content)
+		}
+	}
+}
+
 func TestCourseAccessComposesActiveSchoolMemberships(t *testing.T) {
 	r := &repoStub{decision: commerce.AccessDecision{Allowed: true, Configured: true, Reason: "school_entitlement"}}
 	s := NewService(r, catalogStub{eligible: true, pathID: "path-1", subjectID: "subject-1"}, taxonomyStub{ok: true}, schoolsStub{ids: []string{"school-1", "school-2"}})

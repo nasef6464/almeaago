@@ -371,6 +371,27 @@ func (r *Repository) StartPlacement(ctx context.Context, student, placementID, s
 
 func actorOrStudent(student string) string { return student }
 
+// Completion history is student-scoped and independent of catalog visibility.
+func (r *Repository) CompletedStudyPlanAssessments(ctx context.Context, student string, placementIDs []string) (map[string]bool, error) {
+	out := make(map[string]bool)
+	if len(placementIDs) == 0 {
+		return out, nil
+	}
+	rows, err := r.db.Query(ctx, `SELECT DISTINCT x.placement_id::text FROM assessment_attempts x JOIN assessment_results result ON result.attempt_id=x.id WHERE x.student_id=$1::uuid AND x.placement_id::text=ANY($2::text[])`, student, placementIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out[id] = true
+	}
+	return out, rows.Err()
+}
+
 // ListStudyPlanResources is Learning's bounded Assessment catalog boundary.
 // Only visible placements pinned to published Assessment versions are exposed.
 func (r *Repository) ListStudyPlanResources(
@@ -383,6 +404,11 @@ func (r *Repository) ListStudyPlanResources(
 		return nil, assessment.ErrConflict
 	}
 	rows, err := r.db.Query(ctx, `
+		WITH RECURSIVE visible_paths AS (
+			SELECT id FROM paths WHERE parent_path_id IS NULL AND status='active' AND COALESCE(presentation->>'isVisible','true') <> 'false'
+			UNION ALL SELECT path.id FROM paths path JOIN visible_paths parent ON path.parent_path_id=parent.id
+			WHERE path.status='active' AND COALESCE(path.presentation->>'isVisible','true') <> 'false'
+		)
 		SELECT
 			p.id::text,
 			p.assessment_id::text,
@@ -410,20 +436,24 @@ func (r *Repository) ListStudyPlanResources(
 				  AND x.student_id=$1::uuid
 			) < v.max_attempts
 		FROM assessment_learning_placements p
+		JOIN visible_paths path ON path.id=p.path_id
+		JOIN subjects subject ON subject.id=p.subject_id AND subject.path_id=path.id AND subject.status='active' AND COALESCE(subject.presentation->>'isVisible','true') <> 'false'
+		LEFT JOIN levels level ON level.id=subject.level_id AND level.path_id=path.id
 		JOIN assessments d ON d.id=p.assessment_id
 		JOIN assessment_versions v
 		  ON v.assessment_id=p.assessment_id
 		 AND v.version=p.assessment_version
 		WHERE p.is_visible=true
+		  AND (subject.level_id IS NULL OR (level.status='active' AND COALESCE(level.presentation->>'isVisible','true') <> 'false'))
 		  AND d.workflow_status='approved'
 		  AND d.is_published=true
 		  AND d.is_visible=true
 		  AND p.path_id=$2::uuid
-		  AND (cardinality($3::text[])=0 OR p.subject_id::text=ANY($3::text[]))
+		  AND (COALESCE(cardinality($3::text[]),0)=0 OR p.subject_id::text=ANY($3::text[]))
 		  AND p.slot IN ('training','tests','foundation','course')
 		  AND (
 			p.slot<>'course'
-			OR cardinality($4::text[])=0
+			OR COALESCE(cardinality($4::text[]),0)=0
 			OR p.course_id::text=ANY($4::text[])
 		  )
 		ORDER BY p.subject_id,p.sort_order,p.id

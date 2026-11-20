@@ -19,3 +19,23 @@ func TestLearnerPresentationProjectionWhitelistsAndPreservesIndices(t *testing.T
 		t.Fatal("invalid legacy presentation must not be projected")
 	}
 }
+
+func TestLearnerQuestionImageDetection(t *testing.T) {
+	for _, tc := range []struct {
+		asset, url, text string
+		want             bool
+	}{
+		{asset: "asset-id", text: "نص داخلي", want: true},
+		{url: "https://example.invalid/q", want: true},
+		{text: "image: https://example.invalid/q", want: true},
+		{text: "https://example.invalid/q.png?x=1", want: true},
+		{text: `<img src="https://example.invalid/q">`, want: true},
+		{text: `![q](https://example.invalid/q)`, want: true},
+		{text: "سؤال لفظي نصي", want: false},
+		{text: "image: ", want: false},
+	} {
+		if got := learnerQuestionHasImage(tc.asset, tc.url, tc.text); got != tc.want {
+			t.Errorf("image detection for %+v = %v", tc, got)
+		}
+	}
+}

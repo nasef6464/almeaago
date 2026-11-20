@@ -40,6 +40,8 @@ func New(service *questionapp.Service, auth Authenticator, options ...Options) h
 	r.Get("/coverage", h.coverage)
 	r.Get("/{id}", h.learnerGet)
 	r.Get("/{id}/staff", h.staffGet)
+	r.Get("/{id}/section", h.getQuestionSection)
+	r.Put("/{id}/section", h.setQuestionSection)
 	r.Post("/{id}/versions", h.appendVersion)
 	r.Patch("/{id}/workflow", h.setWorkflow)
 	if h.importService != nil {

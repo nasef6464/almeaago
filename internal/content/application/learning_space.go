@@ -17,6 +17,51 @@ type foundationAccessResolver interface {
 	CheckFoundationAccess(context.Context, string, string, string) (commerce.AccessDecision, error)
 }
 
+type libraryAccessResolver interface {
+	CheckLibraryAccess(context.Context, string, string, string) (commerce.AccessDecision, error)
+}
+
+func (s *Service) applyLibraryAccess(ctx context.Context, actor identity.User, pathID, subjectID string, rows []content.LearnerLibrarySummary) error {
+	if actor.HasRole(identity.RoleAdmin) {
+		return nil
+	}
+	if strings.TrimSpace(actor.ID) == "" {
+		for i := range rows {
+			rows[i].ExternalURL = ""
+		}
+		return nil
+	}
+	urls := make([]string, len(rows))
+	locked := false
+	for i := range rows {
+		if rows[i].IsLocked {
+			urls[i] = rows[i].ExternalURL
+			rows[i].ExternalURL = ""
+			locked = true
+		}
+	}
+	if !locked || strings.TrimSpace(actor.ID) == "" || !actor.HasRole(identity.RoleStudent) {
+		return nil
+	}
+	access, ok := s.courseAccess.(libraryAccessResolver)
+	if !ok {
+		return nil
+	}
+	decision, err := access.CheckLibraryAccess(ctx, actor.ID, pathID, subjectID)
+	if err != nil {
+		return err
+	}
+	if decision.Allowed {
+		for i := range rows {
+			if rows[i].IsLocked {
+				rows[i].ExternalURL = urls[i]
+				rows[i].IsLocked = false
+			}
+		}
+	}
+	return nil
+}
+
 // LearnerFoundationLesson resolves an exact topic-to-lesson placement before
 // exposing lesson content. A locked topic or lesson requires an entitlement.
 func (s *Service) LearnerFoundationLesson(ctx context.Context, actor identity.User, topicID, lessonID string) (content.LearnerLessonDetail, error) {
@@ -89,6 +134,27 @@ func (s *Service) LearningSpace(ctx context.Context, actor identity.User, pathID
 	if row.PathID != pathID || row.SubjectID != subjectID {
 		return content.LearningSpace{}, content.ErrConflict
 	}
+	if strings.TrimSpace(actor.ID) != "" && actor.HasRole(identity.RoleStudent) {
+		for _, topic := range row.Foundation {
+			if topic.IsLocked {
+				if access, ok := s.courseAccess.(foundationAccessResolver); ok {
+					decision, err := access.CheckFoundationAccess(ctx, actor.ID, pathID, subjectID)
+					if err != nil {
+						return content.LearningSpace{}, err
+					}
+					if decision.Allowed {
+						for i := range row.Foundation {
+							row.Foundation[i].IsLocked = false
+						}
+					}
+				}
+				break
+			}
+		}
+	}
+	if err := s.applyLibraryAccess(ctx, actor, pathID, subjectID, row.LibraryItems); err != nil {
+		return content.LearningSpace{}, err
+	}
 	return row, nil
 }
 
@@ -114,7 +180,25 @@ func (s *Service) LearnerTopic(ctx context.Context, actor identity.User, topicID
 	if topicID == "" {
 		return content.LearnerTopic{}, ErrInvalidInput
 	}
-	return s.repo.GetLearnerTopic(ctx, topicID)
+	row, err := s.repo.GetLearnerTopic(ctx, topicID)
+	if err != nil {
+		return content.LearnerTopic{}, err
+	}
+	if row.Topic.IsLocked && strings.TrimSpace(actor.ID) != "" && actor.HasRole(identity.RoleStudent) {
+		if access, ok := s.courseAccess.(foundationAccessResolver); ok {
+			decision, err := access.CheckFoundationAccess(ctx, actor.ID, row.PathID, row.SubjectID)
+			if err != nil {
+				return content.LearnerTopic{}, err
+			}
+			if decision.Allowed {
+				row.Topic.IsLocked = false
+			}
+		}
+	}
+	if err := s.applyLibraryAccess(ctx, actor, row.PathID, row.SubjectID, row.LibraryItems); err != nil {
+		return content.LearnerTopic{}, err
+	}
+	return row, nil
 }
 
 func (s *Service) LearnerCourseLesson(ctx context.Context, actor identity.User, courseID, lessonID string) (content.LearnerLessonDetail, error) {

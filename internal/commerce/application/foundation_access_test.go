@@ -32,3 +32,34 @@ func TestFoundationAccessUsesFoundationScopedPackage(t *testing.T) {
 		t.Fatalf("missing subject: %v", err)
 	}
 }
+
+func TestTrainingPackageCanResolveAssessmentAccess(t *testing.T) {
+	r := &foundationScopedRepo{}
+	s := NewService(r, nil, nil, nil)
+	decision, err := s.CheckAssessmentAccess(context.Background(), "user", "path", "subject", "", commerce.ContentBanks, true)
+	if err != nil || !decision.Allowed || r.kind != commerce.ContentBanks || !r.packageOnly {
+		t.Fatalf("training access: decision=%+v scope=%+v err=%v", decision, r, err)
+	}
+}
+
+func TestFoundationAndCourseAssessmentPackageScopes(t *testing.T) {
+	for _, kind := range []commerce.ContentType{commerce.ContentFoundation, commerce.ContentCourses} {
+		r := &foundationScopedRepo{}
+		s := NewService(r, nil, nil, nil)
+		if _, err := s.CheckAssessmentAccess(context.Background(), "user", "path", "subject", "course", kind, true); err != nil || r.kind != kind {
+			t.Fatalf("kind=%s got=%s err=%v", kind, r.kind, err)
+		}
+	}
+}
+
+func TestLibraryAccessUsesExactSubjectAndLibraryType(t *testing.T) {
+	r := &foundationScopedRepo{}
+	s := NewService(r, nil, nil, nil)
+	_, err := s.CheckLibraryAccess(context.Background(), "user", "path", "subject")
+	if err != nil || r.path != "path" || r.subject != "subject" || r.kind != commerce.ContentLibrary || !r.packageOnly {
+		t.Fatalf("library scope: %+v err=%v", r, err)
+	}
+	if _, err = s.CheckLibraryAccess(context.Background(), "user", "path", ""); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("missing subject: %v", err)
+	}
+}

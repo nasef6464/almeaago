@@ -28,7 +28,7 @@ WHERE e.status='active'
   AND e.starts_at<=now()
   AND (e.expires_at IS NULL OR e.expires_at>now())
   AND p.status='active'
-  AND p.is_visible=true
+  AND (p.product_type IN ('package','membership') OR p.is_visible=true)
   AND (
     (e.subject_type='user' AND e.user_id=$1::uuid)
     OR
@@ -39,7 +39,7 @@ WHERE e.status='active'
       NOT $7
       AND $5<>''
       AND p.product_type='course'
-      AND p.course_id=$5::uuid
+      AND p.course_id=NULLIF($5,'')::uuid
     )
     OR
     (
@@ -51,9 +51,9 @@ WHERE e.status='active'
         WHERE pi.package_id=pkg.id
           AND (
             pi.scope_type='all'
-            OR (pi.scope_type='course' AND $5<>'' AND pi.course_id=$5::uuid)
-            OR (pi.scope_type='path' AND pi.path_id=$3::uuid)
-            OR (pi.scope_type='subject' AND $4<>'' AND pi.subject_id=$4::uuid)
+            OR (pi.scope_type='course' AND $5<>'' AND pi.course_id=NULLIF($5,'')::uuid)
+            OR (pi.scope_type='path' AND pi.path_id=$3::uuid AND (pi.content_type IS NULL OR pi.content_type IN ($6,'all')))
+            OR (pi.scope_type='subject' AND $4<>'' AND pi.subject_id=NULLIF($4,'')::uuid AND (pi.content_type IS NULL OR pi.content_type IN ($6,'all')))
             OR (pi.scope_type='content_type' AND pi.content_type IN ($6,'all'))
           )
       )

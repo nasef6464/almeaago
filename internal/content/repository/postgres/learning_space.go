@@ -150,10 +150,11 @@ func (r *Repository) GetLearnerCourse(ctx context.Context, courseID string) (con
 	var result content.LearnerCourse
 	var thumbnailAssetID string
 	var presentationBytes []byte
+	var pathID, subjectID string
 	err := r.db.QueryRow(ctx, `
 		SELECT c.id::text,c.title,c.description,c.instructor_name,c.duration_minutes,c.level,
 		       COALESCE(a.id::text,''),c.drip_content_enabled,c.certificate_enabled,
-		       COALESCE(c.presentation, '{}'::jsonb)
+		       COALESCE(c.presentation, '{}'::jsonb),c.path_id::text,c.subject_id::text
 		FROM courses c
 		LEFT JOIN assets a ON a.id=c.thumbnail_asset_id AND a.status='active'
 		WHERE c.id=$1::uuid
@@ -169,9 +170,15 @@ func (r *Repository) GetLearnerCourse(ctx context.Context, courseID string) (con
 		&result.Course.DripContentEnabled,
 		&result.Course.CertificateEnabled,
 		&presentationBytes,
+		&pathID, &subjectID,
 	)
 	if err != nil {
 		return content.LearnerCourse{}, mapError(err)
+	}
+	if ok, err := r.learningTaxonomyExists(ctx, pathID, subjectID); err != nil {
+		return content.LearnerCourse{}, err
+	} else if !ok {
+		return content.LearnerCourse{}, content.ErrNotFound
 	}
 	result.Course.ThumbnailAssetID = thumbnailAssetID
 	result.Course.Presentation = json.RawMessage(presentationBytes)
@@ -280,6 +287,11 @@ func (r *Repository) GetLearnerTopic(ctx context.Context, topicID string) (conte
 	if err != nil {
 		return content.LearnerTopic{}, mapError(err)
 	}
+	if ok, err := r.learningTaxonomyExists(ctx, result.PathID, result.SubjectID); err != nil {
+		return content.LearnerTopic{}, err
+	} else if !ok {
+		return content.LearnerTopic{}, content.ErrNotFound
+	}
 
 	result.Lessons = []content.LearnerLessonSummary{}
 	lessonRows, err := r.db.Query(ctx, `
@@ -357,12 +369,19 @@ func (r *Repository) GetLearnerTopic(ctx context.Context, topicID string) (conte
 func (r *Repository) learningTaxonomyExists(ctx context.Context, pathID, subjectID string) (bool, error) {
 	var ok bool
 	err := r.db.QueryRow(ctx, `
+		WITH RECURSIVE public_paths AS (
+			SELECT id FROM paths WHERE parent_path_id IS NULL AND status='active' AND COALESCE(presentation->>'isVisible','true') <> 'false'
+			UNION ALL SELECT p.id FROM paths p JOIN public_paths parent ON p.parent_path_id=parent.id
+			WHERE p.status='active' AND COALESCE(p.presentation->>'isVisible','true') <> 'false'
+		)
 		SELECT EXISTS(
 			SELECT 1
-			FROM paths p
+			FROM public_paths p
 			JOIN subjects s ON s.path_id=p.id
+			LEFT JOIN levels l ON l.id=s.level_id AND l.path_id=p.id
 			WHERE p.id=$1::uuid AND s.id=$2::uuid
-			  AND p.status='active' AND s.status='active'
+			  AND s.status='active' AND COALESCE(s.presentation->>'isVisible','true') <> 'false'
+			  AND (s.level_id IS NULL OR (l.status='active' AND COALESCE(l.presentation->>'isVisible','true') <> 'false'))
 		)
 	`, pathID, subjectID).Scan(&ok)
 	if err != nil {
@@ -373,9 +392,10 @@ func (r *Repository) learningTaxonomyExists(ctx context.Context, pathID, subject
 
 func (r *Repository) GetLearnerCourseLesson(ctx context.Context, courseID, lessonID string) (content.LearnerLessonDetail, error) {
 	var row content.LearnerLessonDetail
+	var pathID, subjectID string
 	err := r.db.QueryRow(ctx, `
 		SELECT l.id::text,l.title,l.description,l.lesson_type,l.duration_seconds,l.is_locked,
-		       cl.is_preview,cl.sort_order,l.content_text,COALESCE(l.video_url,''),COALESCE(l.video_source,'')
+		       cl.is_preview,cl.sort_order,l.content_text,COALESCE(l.video_url,''),COALESCE(l.video_source,''),c.path_id::text,c.subject_id::text
 		FROM course_lessons cl
 		JOIN course_modules cm ON cm.id=cl.module_id AND cm.status='active'
 		JOIN courses c ON c.id=cm.course_id
@@ -391,39 +411,21 @@ func (r *Repository) GetLearnerCourseLesson(ctx context.Context, courseID, lesso
 	`, courseID, lessonID).Scan(
 		&row.ID, &row.Title, &row.Description, &row.LessonType, &row.DurationSeconds, &row.IsLocked,
 		&row.IsPreview, &row.SortOrder, &row.ContentText, &row.VideoURL, &row.VideoSource,
+		&pathID, &subjectID,
 	)
 	if err != nil {
 		return row, mapError(err)
+	}
+	if ok, err := r.learningTaxonomyExists(ctx, pathID, subjectID); err != nil {
+		return content.LearnerLessonDetail{}, err
+	} else if !ok {
+		return content.LearnerLessonDetail{}, content.ErrNotFound
 	}
 	return row, nil
 }
 
 // A lesson may belong to several topics. Verify this exact placement and its
 // scope; return lock flags for the application to enforce entitlement.
-func (r *Repository) GetLearnerFoundationLesson(ctx context.Context, topicID, lessonID string) (content.FoundationLessonDetail, error) {
-	var out content.FoundationLessonDetail
-	err := r.db.QueryRow(ctx, `
-		SELECT l.id::text,l.title,l.description,l.lesson_type,l.duration_seconds,l.is_locked,
-		       tl.sort_order,l.content_text,COALESCE(l.video_url,''),COALESCE(l.video_source,''),
-		       t.id::text,t.path_id::text,t.subject_id::text,t.is_locked
-		FROM topic_lessons tl
-		JOIN foundation_topics t ON t.id=tl.topic_id
-		JOIN lessons l ON l.id=tl.lesson_id
-		JOIN paths p ON p.id=t.path_id AND p.status='active'
-		JOIN subjects s ON s.id=t.subject_id AND s.path_id=t.path_id AND s.status='active'
-		WHERE t.id=$1::uuid AND l.id=$2::uuid AND t.status='active' AND t.is_visible=true
-		  AND l.path_id=t.path_id AND l.subject_id=t.subject_id
-		  AND l.workflow_status='approved' AND l.is_visible=true
-	`, topicID, lessonID).Scan(&out.Lesson.ID, &out.Lesson.Title, &out.Lesson.Description,
-		&out.Lesson.LessonType, &out.Lesson.DurationSeconds, &out.Lesson.IsLocked, &out.Lesson.SortOrder,
-		&out.Lesson.ContentText, &out.Lesson.VideoURL, &out.Lesson.VideoSource,
-		&out.TopicID, &out.PathID, &out.SubjectID, &out.TopicLocked)
-	if err != nil {
-		return out, mapError(err)
-	}
-	return out, nil
-}
-
 // ResolveLessonProgressTarget is Learning's bounded Content read boundary.
 // It returns false for hidden/locked content so Learning never grants access itself.
 func (r *Repository) ResolveLessonProgressTarget(ctx context.Context, contextType, contextID, lessonID string) (bool, string, int, error) {
@@ -521,15 +523,25 @@ func (r *Repository) ListStudyPlanResources(
 		return nil, content.ErrConflict
 	}
 	rows, err := r.db.Query(ctx, `
-		WITH eligible_courses AS (
+		WITH RECURSIVE visible_paths AS (
+			SELECT id FROM paths WHERE parent_path_id IS NULL AND status='active' AND COALESCE(presentation->>'isVisible','true') <> 'false'
+			UNION ALL SELECT p.id FROM paths p JOIN visible_paths parent ON p.parent_path_id=parent.id
+			WHERE p.status='active' AND COALESCE(p.presentation->>'isVisible','true') <> 'false'
+		), visible_subjects AS (
+			SELECT s.id,s.path_id FROM subjects s JOIN visible_paths p ON p.id=s.path_id
+			LEFT JOIN levels l ON l.id=s.level_id AND l.path_id=p.id
+			WHERE s.status='active' AND COALESCE(s.presentation->>'isVisible','true') <> 'false'
+			AND (s.level_id IS NULL OR (l.status='active' AND COALESCE(l.presentation->>'isVisible','true') <> 'false'))
+		), eligible_courses AS (
 			SELECT c.id,c.subject_id
 			FROM courses c
+			JOIN visible_subjects vs ON vs.id=c.subject_id AND vs.path_id=c.path_id
 			WHERE c.path_id=$1::uuid
 			  AND c.workflow_status='approved'
 			  AND c.is_published=true
 			  AND c.is_visible=true
-			  AND (cardinality($2::text[])=0 OR c.subject_id::text=ANY($2::text[]))
-			  AND (cardinality($3::text[])=0 OR c.id::text=ANY($3::text[]))
+			  AND (COALESCE(cardinality($2::text[]),0)=0 OR c.subject_id::text=ANY($2::text[]))
+			  AND (COALESCE(cardinality($3::text[]),0)=0 OR c.id::text=ANY($3::text[]))
 		),
 		lesson_rows AS (
 			SELECT DISTINCT ON (l.id,c.id)
@@ -560,11 +572,12 @@ func (r *Repository) ListStudyPlanResources(
 			       15,
 			       1000000+ROW_NUMBER() OVER(ORDER BY li.updated_at DESC,li.id)::int
 			FROM library_items li
+			JOIN visible_subjects vs ON vs.id=li.subject_id AND vs.path_id=li.path_id
 			WHERE li.path_id=$1::uuid
 			  AND li.workflow_status='approved'
 			  AND li.is_visible=true
 			  AND li.is_locked=false
-			  AND (cardinality($2::text[])=0 OR li.subject_id::text=ANY($2::text[]))
+			  AND (COALESCE(cardinality($2::text[]),0)=0 OR li.subject_id::text=ANY($2::text[]))
 		)
 		SELECT kind,id,course_id,subject_id,title,external_url,duration_minutes,sort_order
 		FROM (

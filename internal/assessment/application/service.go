@@ -22,6 +22,7 @@ type Repository interface {
 	List(ctx context.Context, query assessment.ListQuery) (assessment.Page, error)
 	SetWorkflow(ctx context.Context, actorUserID, id string, expectedRevision int, status assessment.WorkflowStatus, notes string) (assessment.Assessment, error)
 	SetPublication(ctx context.Context, actorUserID, id string, expectedRevision int, published bool) (assessment.Assessment, error)
+	SetVisibility(ctx context.Context, actorUserID, id string, expectedRevision int, visible bool) (assessment.Assessment, error)
 	CanAuthor(ctx context.Context, userID, pathID, subjectID string) (bool, error)
 }
 
@@ -125,6 +126,9 @@ func (s *Service) normalizeWrite(ctx context.Context, actor identity.User, w *as
 			return ErrInvalidInput
 		}
 		if sec.ID != "" {
+			if sections[sec.ID] {
+				return ErrInvalidInput
+			}
 			sections[sec.ID] = true
 		}
 	}
@@ -206,5 +210,45 @@ func (s *Service) SetPublication(ctx context.Context, actor identity.User, id st
 	if published && (a.WorkflowStatus != assessment.WorkflowApproved || len(a.Questions) == 0) {
 		return assessment.Assessment{}, ErrWorkflow
 	}
+	if published && a.Version.Kind == assessment.KindMock && a.Version.MockPresentationMode != "flexible" && a.Version.MockStrictSectionLock != nil && *a.Version.MockStrictSectionLock {
+		if len(a.Sections) == 0 {
+			return assessment.Assessment{}, ErrWorkflow
+		}
+		counts := make(map[string]int, len(a.Sections))
+		for _, section := range a.Sections {
+			if section.ID == "" {
+				return assessment.Assessment{}, ErrWorkflow
+			}
+			counts[section.ID] = 0
+		}
+		for _, question := range a.Questions {
+			if _, ok := counts[question.SectionID]; !ok {
+				return assessment.Assessment{}, ErrWorkflow
+			}
+			counts[question.SectionID]++
+		}
+		for _, count := range counts {
+			if count == 0 {
+				return assessment.Assessment{}, ErrWorkflow
+			}
+		}
+	}
 	return s.repo.SetPublication(ctx, actor.ID, id, rev, published)
+}
+
+func (s *Service) SetVisibility(ctx context.Context, actor identity.User, id string, rev int, visible bool) (assessment.Assessment, error) {
+	if rev < 1 {
+		return assessment.Assessment{}, ErrInvalidInput
+	}
+	if !actor.HasRole(identity.RoleAdmin) {
+		return assessment.Assessment{}, ErrForbidden
+	}
+	a, err := s.Get(ctx, actor, id)
+	if err != nil {
+		return assessment.Assessment{}, err
+	}
+	if a.WorkflowStatus == assessment.WorkflowArchived {
+		return assessment.Assessment{}, ErrWorkflow
+	}
+	return s.repo.SetVisibility(ctx, actor.ID, a.ID, rev, visible)
 }

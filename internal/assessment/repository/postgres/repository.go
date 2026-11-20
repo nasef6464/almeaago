@@ -28,14 +28,14 @@ func (r *Repository) CanAuthor(ctx context.Context, userID, pathID, subjectID st
 	var ok bool
 	err := r.db.QueryRow(ctx, `
 		SELECT EXISTS(SELECT 1 FROM content_trainer_path_scopes ps JOIN paths p ON p.id=ps.path_id WHERE ps.user_id=$1::uuid AND ps.path_id=$2::uuid AND p.status='active')
-		OR EXISTS(SELECT 1 FROM content_trainer_subject_scopes ss JOIN subjects s ON s.id=ss.subject_id WHERE ss.user_id=$1::uuid AND ss.subject_id=$3::uuid AND s.path_id=$2::uuid AND s.status='active')
+		OR EXISTS(SELECT 1 FROM content_trainer_subject_scopes ss JOIN subjects s ON s.id=ss.subject_id WHERE ss.user_id=$1::uuid AND ss.subject_id=NULLIF($3,'')::uuid AND s.path_id=$2::uuid AND s.status='active')
 	`, userID, pathID, subjectID).Scan(&ok)
 	return ok, err
 }
 
 func (r *Repository) validateRefs(ctx context.Context, tx pgx.Tx, w assessment.Write) error {
 	var ok bool
-	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM subjects s JOIN paths p ON p.id=s.path_id WHERE p.id=$1::uuid AND s.id=$2::uuid AND p.status='active' AND s.status='active')`, w.Version.PathID, w.Version.SubjectID).Scan(&ok); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM paths p WHERE p.id=$1::uuid AND p.status='active' AND (($2 = '' AND $3 = 'mock') OR EXISTS (SELECT 1 FROM subjects s WHERE s.path_id=p.id AND s.id=NULLIF($2,'')::uuid AND s.status='active')))`, w.Version.PathID, w.Version.SubjectID, string(w.Version.Kind)).Scan(&ok); err != nil {
 		return err
 	}
 	if !ok {
@@ -49,8 +49,23 @@ func (r *Repository) validateRefs(ctx context.Context, tx pgx.Tx, w assessment.W
 			return assessment.ErrConflict
 		}
 	}
+	sectionSubjects := make(map[string]string, len(w.Sections))
+	for _, section := range w.Sections {
+		if section.ID != "" {
+			sectionSubjects[section.ID] = section.SubjectID
+		}
+		if section.SubjectID == "" {
+			continue
+		}
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM subjects WHERE id=$1::uuid AND path_id=$2::uuid AND status='active')`, section.SubjectID, w.Version.PathID).Scan(&ok); err != nil {
+			return err
+		}
+		if !ok {
+			return assessment.ErrConflict
+		}
+	}
 	for _, q := range w.Questions {
-		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM questions q JOIN question_versions v ON v.question_id=q.id AND v.version=$2 WHERE q.id=$1::uuid AND q.workflow_status<>'archived')`, q.QuestionID, q.QuestionVersion).Scan(&ok); err != nil {
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM questions q JOIN question_versions v ON v.question_id=q.id AND v.version=$2 WHERE q.id=$1::uuid AND q.workflow_status<>'archived' AND (q.subject_id IS NULL OR NULLIF($3,'')::uuid IS NULL OR q.subject_id=NULLIF($3,'')::uuid))`, q.QuestionID, q.QuestionVersion, sectionSubjects[q.SectionID]).Scan(&ok); err != nil {
 			return err
 		}
 		if !ok {
@@ -93,18 +108,34 @@ func (r *Repository) Create(ctx context.Context, actor string, w assessment.Writ
 }
 func insertVersion(ctx context.Context, tx pgx.Tx, id string, version int, actor string, w assessment.Write) error {
 	v := w.Version
-	_, err := tx.Exec(ctx, `INSERT INTO assessment_versions(assessment_id,version,title,description,path_id,subject_id,assessment_kind,access_type,normal_mode,show_explanations,show_answers,show_results_report,return_to_source_on_finish,max_attempts,passing_score,time_limit_seconds,randomize_questions,randomize_options,show_progress_bar,require_answer_before_next,allow_question_review,option_layout,mock_category,mock_target_score,mock_strict_section_lock,mock_presentation_mode,presentation,created_by,revision_note) VALUES($1::uuid,$2,$3,$4,$5::uuid,$6::uuid,$7,$8,NULLIF($9,''),$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NULLIF($23,''),$24,$25,NULLIF($26,''),$27::jsonb,$28::uuid,$29)`, id, version, v.Title, v.Description, v.PathID, v.SubjectID, string(v.Kind), string(v.AccessType), string(v.NormalMode), v.ShowExplanations, v.ShowAnswers, v.ShowResultsReport, v.ReturnToSourceOnFinish, v.MaxAttempts, v.PassingScore, v.TimeLimitSeconds, v.RandomizeQuestions, v.RandomizeOptions, v.ShowProgressBar, v.RequireAnswerBeforeNext, v.AllowQuestionReview, v.OptionLayout, v.MockCategory, v.MockTargetScore, v.MockStrictSectionLock, v.MockPresentationMode, string(v.Presentation), actor, v.RevisionNote)
+	_, err := tx.Exec(ctx, `INSERT INTO assessment_versions(assessment_id,version,title,description,path_id,subject_id,assessment_kind,access_type,normal_mode,show_explanations,show_answers,show_results_report,return_to_source_on_finish,max_attempts,passing_score,time_limit_seconds,randomize_questions,randomize_options,show_progress_bar,require_answer_before_next,allow_question_review,option_layout,mock_category,mock_target_score,mock_strict_section_lock,mock_presentation_mode,presentation,created_by,revision_note) VALUES($1::uuid,$2,$3,$4,$5::uuid,NULLIF($6,'')::uuid,$7,$8,NULLIF($9,''),$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NULLIF($23,''),$24,$25,NULLIF($26,''),$27::jsonb,$28::uuid,$29)`, id, version, v.Title, v.Description, v.PathID, v.SubjectID, string(v.Kind), string(v.AccessType), string(v.NormalMode), v.ShowExplanations, v.ShowAnswers, v.ShowResultsReport, v.ReturnToSourceOnFinish, v.MaxAttempts, v.PassingScore, v.TimeLimitSeconds, v.RandomizeQuestions, v.RandomizeOptions, v.ShowProgressBar, v.RequireAnswerBeforeNext, v.AllowQuestionReview, v.OptionLayout, v.MockCategory, v.MockTargetScore, v.MockStrictSectionLock, v.MockPresentationMode, string(v.Presentation), actor, v.RevisionNote)
 	if err != nil {
 		return mapError(err)
 	}
+	sectionIDs := make(map[string]string, len(w.Sections))
 	for _, s := range w.Sections {
-		_, err = tx.Exec(ctx, `INSERT INTO assessment_sections(id,assessment_id,assessment_version,title,subject_id,sort_order,time_limit_seconds,domain,strict_lock) VALUES(COALESCE(NULLIF($1,'')::uuid,uuidv7()),$2::uuid,$3,$4,NULLIF($5,'')::uuid,$6,$7,$8,$9)`, s.ID, id, version, s.Title, s.SubjectID, s.SortOrder, s.TimeLimitSeconds, s.Domain, s.StrictLock)
+		sectionID := s.ID
+		if version > 1 {
+			// Section IDs are global keys: every assessment version must own
+			// fresh IDs while retaining the question-to-section relationship.
+			if err = tx.QueryRow(ctx, `SELECT uuidv7()::text`).Scan(&sectionID); err != nil {
+				return err
+			}
+			if s.ID != "" {
+				sectionIDs[s.ID] = sectionID
+			}
+		}
+		_, err = tx.Exec(ctx, `INSERT INTO assessment_sections(id,assessment_id,assessment_version,title,subject_id,sort_order,time_limit_seconds,domain,strict_lock) VALUES(COALESCE(NULLIF($1,'')::uuid,uuidv7()),$2::uuid,$3,$4,NULLIF($5,'')::uuid,$6,$7,$8,$9)`, sectionID, id, version, s.Title, s.SubjectID, s.SortOrder, s.TimeLimitSeconds, s.Domain, s.StrictLock)
 		if err != nil {
 			return mapError(err)
 		}
 	}
 	for _, q := range w.Questions {
-		_, err = tx.Exec(ctx, `INSERT INTO assessment_version_questions(assessment_id,assessment_version,question_id,question_version,section_id,sort_order,points) VALUES($1::uuid,$2,$3::uuid,$4,NULLIF($5,'')::uuid,$6,$7)`, id, version, q.QuestionID, q.QuestionVersion, q.SectionID, q.SortOrder, q.Points)
+		sectionID := q.SectionID
+		if mapped, ok := sectionIDs[sectionID]; ok {
+			sectionID = mapped
+		}
+		_, err = tx.Exec(ctx, `INSERT INTO assessment_version_questions(assessment_id,assessment_version,question_id,question_version,section_id,sort_order,points) VALUES($1::uuid,$2,$3::uuid,$4,NULLIF($5,'')::uuid,$6,$7)`, id, version, q.QuestionID, q.QuestionVersion, sectionID, q.SortOrder, q.Points)
 		if err != nil {
 			return mapError(err)
 		}
@@ -181,11 +212,31 @@ func (r *Repository) SetPublication(ctx context.Context, actor, id string, rev i
 	return r.Get(ctx, id)
 }
 
+func (r *Repository) SetVisibility(ctx context.Context, actor, id string, rev int, visible bool) (assessment.Assessment, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return assessment.Assessment{}, err
+	}
+	defer tx.Rollback(ctx)
+	var out string
+	err = tx.QueryRow(ctx, `UPDATE assessments SET is_visible=$3,revision=revision+1,updated_at=now() WHERE id=$1::uuid AND revision=$2 AND workflow_status <> 'archived' RETURNING id::text`, id, rev, visible).Scan(&out)
+	if err != nil {
+		return assessment.Assessment{}, r.mapUpdate(ctx, tx, id, rev, err)
+	}
+	if err = r.auditTx(ctx, tx, operations.AuditEvent{ActorUserID: actor, Action: "assessment.visibility", ResourceType: "assessment", ResourceID: id, Metadata: map[string]any{"isVisible": visible}}); err != nil {
+		return assessment.Assessment{}, err
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return assessment.Assessment{}, err
+	}
+	return r.Get(ctx, id)
+}
+
 func (r *Repository) Get(ctx context.Context, id string) (assessment.Assessment, error) {
 	var a assessment.Assessment
 	var ownerUser, ownerSchool, assigned string
 	var published *int
-	err := r.db.QueryRow(ctx, `SELECT a.id::text,a.assessment_code,a.owner_type,COALESCE(a.owner_user_id::text,''),COALESCE(a.owner_school_id::text,''),COALESCE(a.assigned_teacher_id::text,''),a.workflow_status,a.reviewer_notes,a.current_version,a.published_version,a.is_published,a.is_visible,a.revision,a.created_at,a.updated_at,v.title,v.description,v.path_id::text,COALESCE(v.subject_id::text,''),v.assessment_kind,v.access_type,COALESCE(v.normal_mode,''),v.max_attempts,v.passing_score,v.presentation FROM assessments a JOIN assessment_versions v ON v.assessment_id=a.id AND v.version=a.current_version WHERE a.id=$1::uuid`, id).Scan(&a.ID, &a.Code, &a.OwnerType, &ownerUser, &ownerSchool, &assigned, &a.WorkflowStatus, &a.ReviewerNotes, &a.CurrentVersion, &published, &a.IsPublished, &a.IsVisible, &a.Revision, &a.CreatedAt, &a.UpdatedAt, &a.Version.Title, &a.Version.Description, &a.Version.PathID, &a.Version.SubjectID, &a.Version.Kind, &a.Version.AccessType, &a.Version.NormalMode, &a.Version.MaxAttempts, &a.Version.PassingScore, &a.Version.Presentation)
+	err := r.db.QueryRow(ctx, `SELECT a.id::text,a.assessment_code,a.owner_type,COALESCE(a.owner_user_id::text,''),COALESCE(a.owner_school_id::text,''),COALESCE(a.assigned_teacher_id::text,''),a.workflow_status,a.reviewer_notes,a.current_version,a.published_version,a.is_published,a.is_visible,a.revision,a.created_at,a.updated_at,v.title,v.description,v.path_id::text,COALESCE(v.subject_id::text,''),v.assessment_kind,v.access_type,COALESCE(v.normal_mode,''),v.max_attempts,v.passing_score,v.show_explanations,v.show_answers,v.show_results_report,v.return_to_source_on_finish,v.time_limit_seconds,v.randomize_questions,v.randomize_options,v.show_progress_bar,v.require_answer_before_next,v.allow_question_review,v.option_layout,COALESCE(v.mock_category,''),v.mock_target_score,v.mock_strict_section_lock,COALESCE(v.mock_presentation_mode,''),v.presentation,v.revision_note FROM assessments a JOIN assessment_versions v ON v.assessment_id=a.id AND v.version=a.current_version WHERE a.id=$1::uuid`, id).Scan(&a.ID, &a.Code, &a.OwnerType, &ownerUser, &ownerSchool, &assigned, &a.WorkflowStatus, &a.ReviewerNotes, &a.CurrentVersion, &published, &a.IsPublished, &a.IsVisible, &a.Revision, &a.CreatedAt, &a.UpdatedAt, &a.Version.Title, &a.Version.Description, &a.Version.PathID, &a.Version.SubjectID, &a.Version.Kind, &a.Version.AccessType, &a.Version.NormalMode, &a.Version.MaxAttempts, &a.Version.PassingScore, &a.Version.ShowExplanations, &a.Version.ShowAnswers, &a.Version.ShowResultsReport, &a.Version.ReturnToSourceOnFinish, &a.Version.TimeLimitSeconds, &a.Version.RandomizeQuestions, &a.Version.RandomizeOptions, &a.Version.ShowProgressBar, &a.Version.RequireAnswerBeforeNext, &a.Version.AllowQuestionReview, &a.Version.OptionLayout, &a.Version.MockCategory, &a.Version.MockTargetScore, &a.Version.MockStrictSectionLock, &a.Version.MockPresentationMode, &a.Version.Presentation, &a.Version.RevisionNote)
 	if err != nil {
 		return assessment.Assessment{}, mapError(err)
 	}
@@ -291,6 +342,8 @@ func mapError(err error) error {
 	var p *pgconn.PgError
 	if errors.As(err, &p) {
 		switch p.Code {
+		case "PZ001":
+			return assessment.ErrPreparedQuizAccessDenied
 		case "23505", "23503", "23514", "22P02":
 			return assessment.ErrConflict
 		}

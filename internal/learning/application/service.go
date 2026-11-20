@@ -56,9 +56,20 @@ func requireStudent(actor identity.User) error {
 
 func (s *Service) ApplyAssessmentSubmission(ctx context.Context, event learning.SubmissionEvidence) error {
 	if strings.TrimSpace(event.StudentID) == "" || strings.TrimSpace(event.AttemptID) == "" ||
-		strings.TrimSpace(event.AssessmentID) == "" || event.AssessmentVersion < 1 ||
-		strings.TrimSpace(event.PathID) == "" ||
 		event.OccurredAt.IsZero() || len(event.Questions) == 0 || len(event.Questions) > 500 {
+		return ErrInvalidInput
+	}
+	self := event.SourceKind == "self"
+	if self {
+		switch event.EvidenceType {
+		case "assessment", "remediation", "recheck", "mastery_review":
+		default:
+			return ErrInvalidInput
+		}
+		if event.AssessmentID != "" || event.AssessmentVersion != 0 {
+			return ErrInvalidInput
+		}
+	} else if event.SourceKind != "" || (event.EvidenceType != "" && event.EvidenceType != "assessment") || strings.TrimSpace(event.AssessmentID) == "" || event.AssessmentVersion < 1 || strings.TrimSpace(event.PathID) == "" {
 		return ErrInvalidInput
 	}
 	for _, item := range event.Questions {
@@ -69,7 +80,7 @@ func (s *Service) ApplyAssessmentSubmission(ctx context.Context, event learning.
 		if pathID == "" && subjectID == "" {
 			pathID, subjectID = event.PathID, event.SubjectID
 		}
-		if strings.TrimSpace(subjectID) == "" || pathID != event.PathID ||
+		if strings.TrimSpace(pathID) == "" || strings.TrimSpace(subjectID) == "" || (event.PathID != "" && pathID != event.PathID) ||
 			(event.SubjectID != "" && subjectID != event.SubjectID) {
 			return ErrInvalidInput
 		}

@@ -58,7 +58,14 @@ func (r *Repository) ApplyAssessmentEvidence(ctx context.Context, event learning
 			pathID, subjectID = event.PathID, event.SubjectID
 		}
 		var evidenceID string
-		err = tx.QueryRow(ctx, `
+		if event.SourceKind == "self" {
+			err = tx.QueryRow(ctx, `
+				INSERT INTO mastery_evidence(student_id,evidence_type,source_attempt_id,self_attempt_id,self_attempt_kind,question_id,question_version,path_id,subject_id,answered,is_correct,occurred_at)
+				VALUES($1::uuid,$2,$3::uuid,$3::uuid,'self',$4::uuid,$5,$6::uuid,$7::uuid,$8,$9,$10)
+				ON CONFLICT(evidence_type,source_attempt_id,question_id) DO NOTHING RETURNING id::text
+			`, event.StudentID, event.EvidenceType, event.AttemptID, outcome.QuestionID, outcome.QuestionVersion, pathID, subjectID, outcome.Answered, outcome.Correct, event.OccurredAt).Scan(&evidenceID)
+		} else {
+			err = tx.QueryRow(ctx, `
 			INSERT INTO mastery_evidence(
 				student_id,evidence_type,source_attempt_id,assessment_id,assessment_version,
 				question_id,question_version,path_id,subject_id,answered,is_correct,occurred_at
@@ -68,8 +75,9 @@ func (r *Repository) ApplyAssessmentEvidence(ctx context.Context, event learning
 			ON CONFLICT(evidence_type,source_attempt_id,question_id) DO NOTHING
 			RETURNING id::text
 		`, event.StudentID, event.AttemptID, event.AssessmentID, event.AssessmentVersion,
-			outcome.QuestionID, outcome.QuestionVersion, pathID, subjectID,
-			outcome.Answered, outcome.Correct, event.OccurredAt).Scan(&evidenceID)
+				outcome.QuestionID, outcome.QuestionVersion, pathID, subjectID,
+				outcome.Answered, outcome.Correct, event.OccurredAt).Scan(&evidenceID)
+		}
 		if errors.Is(err, pgx.ErrNoRows) {
 			continue
 		}
