@@ -198,6 +198,8 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
           payload.managedPathIds = createForm.managedPathIds;
           payload.managedSubjectIds = createForm.managedSubjectIds;
         }
+      } else if (createForm.role === 'school_admin') {
+        payload.schoolId = createForm.schoolId || null;
       }
 
       await authClient.adminCreateUser(payload, csrf);
@@ -676,6 +678,27 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
                 </div>
               </div>
 
+              {/* Extra scope if school_admin */}
+              {createForm.role === 'school_admin' && (
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-3.5 space-y-2">
+                  <div className="text-xs font-black text-indigo-900">المدرسة التابع لها مدير المدرسة</div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">اختر المدرسة المسندة</label>
+                    <select
+                      value={createForm.schoolId}
+                      onChange={(e) => setCreateForm({ ...createForm, schoolId: e.target.value })}
+                      className="w-full rounded-xl border border-gray-200 bg-white p-2 text-xs font-bold"
+                      data-testid="school-admin-school-select"
+                    >
+                      <option value="">اختر المدرسة</option>
+                      {schools.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
               {/* Extra scope if teacher */}
               {createForm.role === 'teacher' && (
                 <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-3.5 space-y-3">
@@ -803,6 +826,24 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
                   </select>
                 </div>
               </div>
+
+              {editForm.role === 'school_admin' && (
+                <div className="space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
+                  <div>
+                    <label className="block text-xs font-black text-indigo-900 mb-1">المدرسة التابع لها مدير المدرسة</label>
+                    <select
+                      value={editForm.schoolId}
+                      onChange={(e) => setEditForm({ ...editForm, schoolId: e.target.value })}
+                      className="w-full rounded-xl border border-gray-200 bg-white p-2 text-xs font-bold"
+                    >
+                      <option value="">اختر المدرسة</option>
+                      {schools.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
 
               {editForm.role === 'teacher' && (
                 <div className="space-y-3 rounded-2xl border bg-slate-50 p-4">

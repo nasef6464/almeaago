@@ -31,6 +31,8 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '../../auth/state/AuthProvider';
+import { authClient } from '../../auth/api/auth-client';
+import type { AdminUser } from '../../auth/api/auth-types';
 import { SchoolImportPanel, type ImportSummary, type ImportCredentialItem } from '../components/SchoolImportPanel';
 import {
   parseImportRows,
@@ -46,6 +48,7 @@ import {
   type DirectorTeacher,
   type DirectorAssignment,
   type SchoolContractData,
+  type SchoolDirectorRecord,
 } from '../api/organizations-client';
 import { Skeleton, SkeletonTable, SkeletonMetricCard } from '../../../components/ui/Skeleton';
 
@@ -190,6 +193,15 @@ export function SchoolsAdminPage() {
   const [contractSaving, setContractSaving] = useState(false);
   const [contractNotice, setContractNotice] = useState<string | null>(null);
   const [contractError, setContractError] = useState<string | null>(null);
+
+  // Director Management State
+  const [directorsList, setDirectorsList] = useState<SchoolDirectorRecord[]>([]);
+  const [isAssignDirectorOpen, setIsAssignDirectorOpen] = useState(false);
+  const [candidateDirectors, setCandidateDirectors] = useState<AdminUser[]>([]);
+  const [selectedDirectorUserId, setSelectedDirectorUserId] = useState<string>('');
+  const [directorAssigning, setDirectorAssigning] = useState<boolean>(false);
+  const [directorAssignNotice, setDirectorAssignNotice] = useState<string | null>(null);
+  const [directorAssignError, setDirectorAssignError] = useState<string | null>(null);
 
   // Modals & Panels
   const [isWizardOpen, setIsWizardOpen] = useState(false);
@@ -382,11 +394,12 @@ export function SchoolsAdminPage() {
       setSelectedSchool(school);
       setRenameValue(school.name);
 
-      const [classesRes, studentsRes, teachersRes, contractRes] = await Promise.allSettled([
+      const [classesRes, studentsRes, teachersRes, contractRes, directorsRes] = await Promise.allSettled([
         organizationsClient.classes(school.id),
         organizationsClient.directorStudents(school.id),
         organizationsClient.directorTeachers(school.id),
         organizationsClient.contract(school.id),
+        organizationsClient.directors(school.id),
       ]);
 
       if (classesRes.status === 'fulfilled' && classesRes.value.classes) {
@@ -410,6 +423,12 @@ export function SchoolsAdminPage() {
       } else {
         setTeachers([]);
         setAssignments([]);
+      }
+
+      if (directorsRes.status === 'fulfilled' && directorsRes.value && Array.isArray(directorsRes.value.directors)) {
+        setDirectorsList(directorsRes.value.directors);
+      } else {
+        setDirectorsList([]);
       }
 
       if (contractRes.status === 'fulfilled' && contractRes.value.contract) {
@@ -626,6 +645,54 @@ export function SchoolsAdminPage() {
       setError(msg);
     } finally {
       setWizardBusy(false);
+    }
+  };
+
+  const openAssignDirectorModal = async () => {
+    setDirectorAssignNotice(null);
+    setDirectorAssignError(null);
+    setSelectedDirectorUserId(directorsList[0]?.membership?.userId || '');
+    setIsAssignDirectorOpen(true);
+    try {
+      const res = await authClient.adminListUsers({ role: 'school_admin', limit: 100 });
+      if (res && res.users) {
+        setCandidateDirectors(res.users);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleAssignDirector = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!selectedSchool) return;
+    const userId = selectedDirectorUserId.trim();
+    if (!userId) {
+      setDirectorAssignError('يرجى اختيار أو إدخال المعرف الخاص بمدير المدرسة.');
+      return;
+    }
+
+    try {
+      setDirectorAssigning(true);
+      setDirectorAssignError(null);
+      setDirectorAssignNotice(null);
+      const csrf = await getCsrfToken();
+      await organizationsClient.upsertDirector(selectedSchool.id, userId, { status: 'active' }, csrf);
+      setDirectorAssignNotice('✅ تم تعيين مدير المدرسة بنجاح وتفعيل صلاحياته الإدارية.');
+      setNotice(`تم تعيين مدير المدرسة بنجاح لمدرسة «${selectedSchool.name}».`);
+
+      const updated = await organizationsClient.directors(selectedSchool.id);
+      if (updated && updated.directors) {
+        setDirectorsList(updated.directors);
+      }
+      setTimeout(() => {
+        setIsAssignDirectorOpen(false);
+      }, 1200);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'تعذر تعيين مدير المدرسة';
+      setDirectorAssignError(msg);
+    } finally {
+      setDirectorAssigning(false);
     }
   };
 
@@ -1072,6 +1139,15 @@ export function SchoolsAdminPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
+                  onClick={openAssignDirectorModal}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition cursor-pointer"
+                  data-testid="assign-director-btn"
+                >
+                  <UserCheck size={14} />
+                  <span>{directorsList.length > 0 ? 'تغيير مدير المدرسة' : 'تعيين مدير المدرسة'}</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setIsRenameOpen(true)}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
                 >
@@ -1170,7 +1246,43 @@ export function SchoolsAdminPage() {
             <div className="space-y-6">
               <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
                 <h2 className="text-lg font-black text-gray-900">الملخص التنفيذي للمدرسة</h2>
-                <div className="grid gap-4 sm:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-indigo-900 font-black text-xs">
+                        <UserCheck size={16} />
+                        <span>مدير المدرسة المفوض</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={openAssignDirectorModal}
+                        className="text-[10px] font-black text-indigo-600 hover:underline cursor-pointer"
+                        data-testid="overview-assign-director-link"
+                      >
+                        {directorsList.length > 0 ? 'تعديل' : 'تعيين'}
+                      </button>
+                    </div>
+                    {directorsList.length > 0 ? (
+                      <div className="mt-2 text-xs">
+                        <div className="font-black text-gray-900">{directorsList[0].user?.name || 'مدير المدرسة'}</div>
+                        <div className="text-[11px] font-mono text-gray-500 truncate">{directorsList[0].user?.email}</div>
+                        <span className="inline-block mt-1.5 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">
+                          صلاحيات نشطة
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-xs">
+                        <p className="font-bold text-gray-500">لم يتم تعيين مدير بعد.</p>
+                        <button
+                          type="button"
+                          onClick={openAssignDirectorModal}
+                          className="mt-1.5 text-[11px] font-black text-indigo-700 hover:underline"
+                        >
+                          + تعيين مدير المدرسة
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
                     <div className="flex items-center gap-2 text-emerald-800 font-black text-xs">
                       <CheckCircle2 size={16} />
@@ -1409,6 +1521,48 @@ export function SchoolsAdminPage() {
                 <p className="text-xs font-bold text-gray-500">
                   ربط المعلمين بالفصول الدراسية ومتابعة إسناد الحصص والمهام.
                 </p>
+
+                {/* School Director Leadership */}
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-indigo-900 font-black text-sm">
+                      <UserCheck size={18} />
+                      <span>القيادة الإدارية ومدير المدرسة</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={openAssignDirectorModal}
+                      className="rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-black text-white hover:bg-indigo-700 transition cursor-pointer"
+                      data-testid="relations-assign-director-btn"
+                    >
+                      {directorsList.length > 0 ? 'تعديل / تغيير المدير' : 'إسناد مدير المدرسة'}
+                    </button>
+                  </div>
+                  {directorsList.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50/50 p-4 text-xs font-bold text-amber-800">
+                      لم يتم تعيين مدير معتمد لهذه المدرسة بعد. اضغط على الزر أعلاه لاختيار وتفويض مدير المدرسة عبر <code>upsertDirector</code>.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-100 bg-white rounded-xl border border-gray-100 p-3">
+                      {directorsList.map((dir, idx) => (
+                        <div key={dir.membership?.id || idx} className="flex flex-col sm:flex-row sm:items-center justify-between py-2 gap-2">
+                          <div>
+                            <div className="font-black text-xs text-gray-900">{dir.user?.name || 'مدير المدرسة'}</div>
+                            <div className="text-[11px] font-mono text-gray-500">{dir.user?.email}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700 border border-emerald-100">
+                              {dir.membership?.status === 'active' ? 'مدير معتمد نشط' : dir.membership?.status}
+                            </span>
+                            <span className="text-[10px] text-gray-400 font-mono">
+                              {dir.membership?.permissions?.length || 0} صلاحيات مفوضة
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
@@ -1935,7 +2089,8 @@ export function SchoolsAdminPage() {
                 <button
                   type="submit"
                   disabled={wizardBusy}
-                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
+                  data-testid="submit-create-school-btn"
                 >
                   {wizardBusy ? 'جاري الإنشاء...' : 'إنشاء المدرسة وتجهيز مساحة العمل'}
                 </button>
@@ -2100,6 +2255,103 @@ export function SchoolsAdminPage() {
                   className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700"
                 >
                   تسجيل الطالب
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Assign Director ── */}
+      {isAssignDirectorOpen && selectedSchool && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setIsAssignDirectorOpen(false)} />
+          <div className="relative w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl sm:p-8 space-y-5">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <UserCheck className="text-indigo-600" size={20} />
+                <h2 className="text-lg font-black text-slate-900">تعيين مدير لمدرسة «{selectedSchool.name}»</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAssignDirectorOpen(false)}
+                className="rounded-full p-1 text-slate-400 hover:bg-slate-100"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {directorAssignNotice && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-800" data-testid="director-assign-success">
+                {directorAssignNotice}
+              </div>
+            )}
+
+            {directorAssignError && (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-800" data-testid="director-assign-error">
+                {directorAssignError}
+              </div>
+            )}
+
+            <form onSubmit={handleAssignDirector} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1">
+                  اختر مدير المدرسة من قائمة المدراء المسجلين
+                </label>
+                <select
+                  value={selectedDirectorUserId}
+                  onChange={(e) => setSelectedDirectorUserId(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 bg-white p-2.5 text-xs font-bold"
+                  data-testid="assign-director-select"
+                >
+                  <option value="">-- اختر مدير المدرسة --</option>
+                  {candidateDirectors.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} ({d.email})
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] font-bold text-slate-400">
+                  أو يمكنك كتابة المعرف (UUID) يدوياً في الحقل أدناه إذا كان الحساب غير مدرج في القائمة المختصرة:
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-700 mb-1">
+                  المعرف التعريفي لمدير المدرسة (User ID)
+                </label>
+                <input
+                  type="text"
+                  value={selectedDirectorUserId}
+                  onChange={(e) => setSelectedDirectorUserId(e.target.value)}
+                  placeholder="مثال: e1f49618-b219-4b68-b74e-0a06840742ea"
+                  className="w-full rounded-xl border border-gray-200 p-2.5 text-xs font-mono font-bold"
+                  data-testid="assign-director-input"
+                />
+              </div>
+
+              <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-3 text-xs text-blue-900 space-y-1">
+                <div className="font-black">معلومات الصلاحيات المفوضة:</div>
+                <p className="text-[11px] font-bold text-slate-600 leading-5">
+                  سيتم تفعيل عضوية المدير بحالة <code>active</code> ومنحه الصلاحيات الكاملة لإدارة المدرسة والفصول والطلاب وتكليف المعلمين وإنشاء الاختبارات المدرسية.
+                </p>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => setIsAssignDirectorOpen(false)}
+                  className="rounded-xl border border-gray-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  disabled={directorAssigning || !selectedDirectorUserId.trim()}
+                  className="rounded-xl bg-indigo-600 px-5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
+                  data-testid="submit-assign-director-btn"
+                >
+                  {directorAssigning ? 'جاري تعيين المدير...' : 'تأكيد التعيين والتفعيل'}
                 </button>
               </div>
             </form>

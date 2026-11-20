@@ -9,7 +9,7 @@ import {
   inspectImportData,
   STUDENT_IMPORT_HEADER_ALIASES,
   canonicalizeHeader,
-} from './importRowParsing';
+} from './importRowParsing.ts';
 
 test('normalizeImportHeader strips BOM, diacritics, and spaces', () => {
   const raw = '\uFEFF  الْبَرِيدُ الْإلِكْتُرُونِيّ  ';
