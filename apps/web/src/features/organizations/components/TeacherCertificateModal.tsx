@@ -178,10 +178,11 @@ export const TeacherCertificateModal: React.FC<TeacherCertificateModalProps> = (
             {/* School & Platform Logos Header */}
             <div className="flex items-center justify-between border-b border-amber-200/60 pb-4 mb-5">
               <div className="flex items-center gap-3">
-                {schoolLogo ? (
+                {schoolLogo && schoolLogo.trim() !== '' ? (
                   <img
                     src={schoolLogo}
                     alt={schoolName}
+                    loading="lazy"
                     className="h-11 w-11 object-contain rounded-xl border border-amber-200 bg-white p-1 shadow-xs"
                   />
                 ) : null}

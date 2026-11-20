@@ -714,10 +714,11 @@ export function SchoolDirectorDashboardPage(){
     <header className="rounded-3xl bg-gradient-to-l from-indigo-700 via-indigo-800 to-slate-900 p-6 text-white shadow-xl sm:p-8">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          {selectedSchool.logoUrl ? (
+          {selectedSchool.logoUrl && selectedSchool.logoUrl.trim() !== '' ? (
             <img
               src={selectedSchool.logoUrl}
               alt={selectedSchool.schoolName}
+              loading="lazy"
               className="h-16 w-16 rounded-2xl bg-white/10 p-1.5 object-contain backdrop-blur-xs border border-white/20 shadow-md"
             />
           ) : null}

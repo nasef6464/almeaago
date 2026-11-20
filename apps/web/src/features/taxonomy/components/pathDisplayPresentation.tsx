@@ -42,17 +42,17 @@ export const resolvePathDisplaySettings = (path?: { settings?: PathDisplaySettin
 });
 
 export const getPathIcon = (path: any, className = 'w-8 h-8 object-contain') => {
-  if (path?.iconUrl) return <img src={path.iconUrl} alt={path.name || 'مسار'} className={className} />;
+  if (path?.iconUrl && String(path.iconUrl).trim() !== '') return <img src={path.iconUrl} alt={path.name || 'مسار'} loading="lazy" className={className} />;
   return resolveIconComponent(path?.icon, className, '📚');
 };
 
 export const getSubjectIcon = (subject: any, className = 'w-8 h-8 object-contain') => {
-  if (subject?.iconUrl) return <img src={subject.iconUrl} alt={subject.name || 'مادة'} className={className} />;
+  if (subject?.iconUrl && String(subject.iconUrl).trim() !== '') return <img src={subject.iconUrl} alt={subject.name || 'مادة'} loading="lazy" className={className} />;
   return resolveIconComponent(subject?.icon, className, '📖');
 };
 
 export const getLevelIcon = (level: any, className = 'w-6 h-6 object-contain') => {
-  if (level?.iconUrl) return <img src={level.iconUrl} alt={level.name || 'مرحلة'} className={className} />;
+  if (level?.iconUrl && String(level.iconUrl).trim() !== '') return <img src={level.iconUrl} alt={level.name || 'مرحلة'} loading="lazy" className={className} />;
   if (level?.icon) return resolveIconComponent(level.icon, className, '🎓');
   
   // Intelligent stage name fallback
@@ -69,6 +69,6 @@ export const renderPlatformIcon = (
   fallback = '📚',
   className = 'w-6 h-6 object-contain'
 ) => {
-  if (iconUrl) return <img src={iconUrl} alt="" className={className} />;
+  if (iconUrl && String(iconUrl).trim() !== '') return <img src={iconUrl} alt="" loading="lazy" className={className} />;
   return resolveIconComponent(icon, className, fallback);
 };

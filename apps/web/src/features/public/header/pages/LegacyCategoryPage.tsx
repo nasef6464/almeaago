@@ -451,7 +451,13 @@ export function LegacyCategoryPage() {
                   key={course.id}
                   className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"
                 >
-                  <img src={course.thumbnailUrl} alt={course.title} className="h-36 w-full object-cover" />
+                  {course.thumbnailUrl && course.thumbnailUrl.trim() !== '' ? (
+                    <img src={course.thumbnailUrl} alt={course.title} loading="lazy" className="h-36 w-full object-cover" />
+                  ) : (
+                    <div className="flex h-36 w-full items-center justify-center bg-slate-100 text-slate-400 font-bold text-xs">
+                      منصة المئة
+                    </div>
+                  )}
                   <div className="p-4">
                     <h3 className="font-black text-sm text-slate-900">{course.title}</h3>
                     <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500 font-bold">

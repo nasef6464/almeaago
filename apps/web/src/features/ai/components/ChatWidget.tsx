@@ -240,6 +240,7 @@ export const ChatWidget: React.FC = () => {
                   <img
                     src={m.imagePreview}
                     alt="صورة المسألة"
+                    loading="lazy"
                     className="mb-1 max-h-36 max-w-[200px] rounded-2xl border object-contain"
                   />
                 )}

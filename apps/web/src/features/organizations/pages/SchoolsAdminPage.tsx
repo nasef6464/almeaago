@@ -1729,6 +1729,7 @@ export function SchoolsAdminPage() {
                         <img
                           src={contractLogoUrl.trim()}
                           alt="School Logo Preview"
+                          loading="lazy"
                           className="h-20 w-20 rounded-2xl border border-gray-200 bg-white p-2 object-contain shadow-sm"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';

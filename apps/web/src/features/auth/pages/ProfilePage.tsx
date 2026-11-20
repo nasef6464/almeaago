@@ -285,7 +285,7 @@ export const ProfilePage: React.FC = () => {
         <section className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6">
           <div className="relative group cursor-pointer shrink-0" onClick={handleImageClick}>
             <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl border-4 border-indigo-50 shadow-md overflow-hidden relative bg-slate-100">
-              <img src={avatar} alt="صورة الطالب" className="w-full h-full object-cover" />
+              <img src={avatar} alt="صورة الطالب" loading="lazy" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-slate-950/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-xs">
                 <Camera className="text-white mb-1" size={24} />
                 <span className="text-white text-xs font-black">تغيير الصورة</span>

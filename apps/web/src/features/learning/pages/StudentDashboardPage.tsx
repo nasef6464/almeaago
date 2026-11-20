@@ -317,8 +317,8 @@ export function StudentDashboardPage() {
       >
           <div className="p-4 sm:p-5">
             <div className="mb-6 flex items-center gap-3">
-              {studentUser.avatarUrl ? (
-                <img src={studentUser.avatarUrl} alt={studentUser.name} className="h-12 w-12 shrink-0 rounded-full border-2 border-amber-100 object-cover" />
+              {studentUser.avatarUrl && studentUser.avatarUrl.trim() !== '' ? (
+                <img src={studentUser.avatarUrl} alt={studentUser.name} loading="lazy" className="h-12 w-12 shrink-0 rounded-full border-2 border-amber-100 object-cover" />
               ) : (
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-amber-100 bg-indigo-50 text-sm font-black text-indigo-700">
                   {initials || 'ط'}
@@ -444,8 +444,8 @@ export function StudentDashboardPage() {
             {/* 1. Header & Streak Banner */}
             <header className="flex flex-col justify-between gap-3 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:p-5">
               <div className="flex items-center gap-3.5">
-                {studentUser.avatarUrl ? (
-                  <img src={studentUser.avatarUrl} alt="" className="h-12 w-12 shrink-0 rounded-full border-2 border-amber-100 object-cover" />
+                {studentUser.avatarUrl && studentUser.avatarUrl.trim() !== '' ? (
+                  <img src={studentUser.avatarUrl} alt="" loading="lazy" className="h-12 w-12 shrink-0 rounded-full border-2 border-amber-100 object-cover" />
                 ) : (
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-amber-100 bg-indigo-50 text-base font-black text-indigo-700">
                     {initials || 'ط'}

@@ -246,7 +246,13 @@ function TestimonialCard({name,degree,text,image}:{name:string;degree:string;tex
         <div className="mb-5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3.5">
             <div className="relative">
-              <img src={image} alt={name} className="h-12 w-12 rounded-full border-2 border-amber-400/80 object-cover shadow-sm"/>
+              {image && image.trim() !== '' ? (
+                <img src={image} alt={name} loading="lazy" className="h-12 w-12 rounded-full border-2 border-amber-400/80 object-cover shadow-sm"/>
+              ) : (
+                <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-amber-400/80 bg-indigo-900/60 text-base font-black text-amber-300 shadow-sm">
+                  {name.trim() ? name.trim().charAt(0) : '🎓'}
+                </div>
+              )}
               <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-black text-white shadow-sm">✓</span>
             </div>
             <div className="text-right">

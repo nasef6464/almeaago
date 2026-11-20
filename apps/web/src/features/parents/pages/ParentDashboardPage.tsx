@@ -812,7 +812,7 @@ function ChildCard({ child, onResults, onSkills }: { child: ParentChildSummary; 
       <div>
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-emerald-100 font-black text-emerald-800">
-            {child.avatarUrl ? <img src={child.avatarUrl} alt="" className="h-full w-full object-cover" /> : child.name.slice(0, 1)}
+            {child.avatarUrl && child.avatarUrl.trim() !== '' ? <img src={child.avatarUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : child.name.slice(0, 1)}
           </div>
           <div>
             <h2 className="font-black text-slate-900 text-sm">{child.name}</h2>
