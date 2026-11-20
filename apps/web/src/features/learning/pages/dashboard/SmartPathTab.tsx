@@ -46,7 +46,9 @@ export const SmartPathTab: React.FC = () => {
         if (controller.signal.aborted) return;
         const mapped: StudentAggregatedSkill[] = (prog.items || []).map((s) => ({
           skillId: s.skillId,
-          skill: s.skillId,
+          skill: s.skillTitle || s.topicTitle || 'مهارة دراسية',
+          topicId: s.topicId,
+          topicTitle: s.topicTitle,
           pathId: s.pathId,
           subjectId: s.subjectId,
           sectionName: 'تأسيس وتدريب',
@@ -60,6 +62,10 @@ export const SmartPathTab: React.FC = () => {
         }));
 
         if (mapped.length === 0) {
+          setSkills(mapped);
+          return;
+        }
+        if (false) {
           // Curated standard curriculum skills if progress is fresh
           setSkills([
             {
@@ -201,8 +207,11 @@ export const SmartPathTab: React.FC = () => {
               <div className="grid gap-3.5 sm:grid-cols-2">
                 {weakSkills.map((sk) => {
                   const sId = sk.skillId || 'general';
-                  const foundationUrl = `/dashboard?tab=paths&skill=${encodeURIComponent(sId)}`;
-                  const quizUrl = `/dashboard?tab=assessments&slot=tests&skill=${encodeURIComponent(sId)}`;
+                  const linkPath = sk.pathId || selectedPathId;
+                  const linkSubject = sk.subjectId || selectedSubjectId;
+                  const baseLink = `/learning?path=${encodeURIComponent(linkPath)}&subject=${encodeURIComponent(linkSubject)}`;
+                  const foundationUrl = sk.topicId ? `${baseLink}&tab=skills&topic=${encodeURIComponent(sk.topicId)}&content=lessons` : '';
+                  const quizUrl = sk.topicId ? `${baseLink}&tab=questions&topic=${encodeURIComponent(sk.topicId)}` : '';
 
                   return (
                     <article
@@ -229,6 +238,7 @@ export const SmartPathTab: React.FC = () => {
 
                       {/* Direct Links: Foundation Video & Practice Test */}
                       <div className="mt-4 pt-3 border-t border-rose-100 dark:border-slate-800 grid grid-cols-2 gap-2">
+                        {foundationUrl ? (
                         <Link
                           to={foundationUrl}
                           className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 py-2 px-2.5 text-xs font-black transition text-center"
@@ -236,7 +246,14 @@ export const SmartPathTab: React.FC = () => {
                           <Video size={14} className="shrink-0" />
                           <span>شرح التأسيس</span>
                         </Link>
+                        ) : (
+                          <span className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 py-2 px-2.5 text-xs font-black text-center" title="لم يُرتبط موضوع تأسيس بهذه المهارة بعد">
+                            <Video size={14} className="shrink-0" />
+                            <span>شرح التأسيس</span>
+                          </span>
+                        )}
 
+                        {quizUrl ? (
                         <Link
                           to={quizUrl}
                           className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 text-amber-700 dark:text-amber-300 py-2 px-2.5 text-xs font-black transition text-center"
@@ -244,6 +261,12 @@ export const SmartPathTab: React.FC = () => {
                           <FileText size={14} className="shrink-0" />
                           <span>تدريب المهارة</span>
                         </Link>
+                        ) : (
+                          <span className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 py-2 px-2.5 text-xs font-black text-center" title="لم يُرتبط تدريب بهذه المهارة بعد">
+                            <FileText size={14} className="shrink-0" />
+                            <span>تدريب المهارة</span>
+                          </span>
+                        )}
                       </div>
                     </article>
                   );
@@ -288,7 +311,7 @@ export const SmartPathTab: React.FC = () => {
                   <div className="mt-4 pt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-gray-500 dark:text-slate-400">
                     <span>عدد الأدلة: {sk.totalEvidence || sk.recentEvidence || 0} محاولة</span>
                     <Link
-                      to={`/dashboard?tab=assessments&slot=tests&skill=${encodeURIComponent(sId)}`}
+                      to={sk.topicId ? `/learning?path=${encodeURIComponent(sk.pathId || selectedPathId)}&subject=${encodeURIComponent(sk.subjectId || selectedSubjectId)}&tab=questions&topic=${encodeURIComponent(sk.topicId)}` : '/dashboard?tab=assessments'}
                       className="text-indigo-600 dark:text-indigo-400 hover:underline font-black"
                     >
                       تثبيت باختبار ←

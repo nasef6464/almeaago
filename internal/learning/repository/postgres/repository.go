@@ -248,11 +248,19 @@ func (r *Repository) ListSkillProgress(ctx context.Context, student, pathID, sub
 		subjectFilter = fmt.Sprintf(" AND subject_id=$%d::uuid", len(args))
 	}
 	rows, err := r.db.Query(ctx, `
-		SELECT path_id::text,subject_id::text,skill_id::text,mastery::float8,status,
-		       attempts,evidence_count,COALESCE(last_evidence_at,created_at),recommended_action
-		FROM skill_progress
-		WHERE student_id=$1::uuid AND path_id=$2::uuid`+subjectFilter+`
-		ORDER BY mastery ASC,last_evidence_at DESC NULLS LAST,skill_id
+		SELECT sp.path_id::text,sp.subject_id::text,sp.skill_id::text,sp.mastery::float8,sp.status,
+		       sp.attempts,sp.evidence_count,COALESCE(sp.last_evidence_at,sp.created_at),sp.recommended_action,
+		       COALESCE(s.name,''),COALESCE(t.id::text,''),COALESCE(t.title,'')
+		FROM skill_progress sp
+		LEFT JOIN skills s ON s.id=sp.skill_id
+		LEFT JOIN LATERAL (
+			SELECT ft.id,ft.title FROM foundation_topics ft
+			WHERE ft.subject_id=sp.subject_id
+			  AND ft.code='top_'||regexp_replace(s.code,'^(sub|main)_([a-z]+)_','\2_\1_')
+			ORDER BY ft.sort_order,ft.id LIMIT 1
+		) t ON true
+		WHERE sp.student_id=$1::uuid AND sp.path_id=$2::uuid`+strings.ReplaceAll(subjectFilter, "subject_id=", "sp.subject_id=")+`
+		ORDER BY sp.mastery ASC,sp.last_evidence_at DESC NULLS LAST,sp.skill_id
 		LIMIT $3 OFFSET $4
 	`, args...)
 	if err != nil {
@@ -265,6 +273,7 @@ func (r *Repository) ListSkillProgress(ctx context.Context, student, pathID, sub
 		if err = rows.Scan(
 			&item.PathID, &item.SubjectID, &item.SkillID, &item.Mastery, &item.Status,
 			&item.Attempts, &item.EvidenceCount, &item.LastEvidenceAt, &item.RecommendedAction,
+			&item.SkillTitle, &item.TopicID, &item.TopicTitle,
 		); err != nil {
 			return out, err
 		}

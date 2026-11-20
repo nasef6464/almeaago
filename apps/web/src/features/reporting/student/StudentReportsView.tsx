@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
@@ -129,7 +129,7 @@ export const StudentReportsView: React.FC<{ embedded?: boolean }> = ({ embedded 
           const mastery = Math.round(Number(item.mastery || 0));
           const status = mastery < 50 ? 'weak' : mastery < 75 ? 'average' : 'strong';
           return {
-            skill: item.skillId || 'مهارة دراسية',
+            skill: item.skillTitle || item.topicTitle || item.skillId || 'مهارة دراسية',
             skillId: item.skillId,
             pathId: item.pathId,
             subjectId: item.subjectId,

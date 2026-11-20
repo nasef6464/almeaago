@@ -57,6 +57,9 @@ type SkillProgress struct {
 	RecommendedAction string    `json:"recommendedAction"`
 	Action            string    `json:"action,omitempty"`
 	Trend             string    `json:"trend,omitempty"`
+	SkillTitle        string    `json:"skillTitle,omitempty"`
+	TopicID           string    `json:"topicId,omitempty"`
+	TopicTitle        string    `json:"topicTitle,omitempty"`
 }
 
 type SkillProgressPage struct {

@@ -40,6 +40,9 @@ export interface SkillProgress {
   recommendedAction: string;
   action?: 'measure' | 'mastery_review' | 'alternate_support_then_recheck' | 'remediation_then_recheck';
   trend?: 'improving' | 'stable' | 'declining';
+  skillTitle?: string;
+  topicId?: string;
+  topicTitle?: string;
 }
 
 export interface MasteryReadiness{score:number;status:'needs_measurement'|'building'|'ready_for_recheck'|'ready_to_advance';mastery:number;coverage:number;evidenceConfidence:number;recency:number;totalSkills:number;reliableSkills:number;totalEvidence:number;explanation:string}
