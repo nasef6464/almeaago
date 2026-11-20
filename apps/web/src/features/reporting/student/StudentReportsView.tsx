@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
@@ -61,6 +61,7 @@ export const StudentReportsView: React.FC<{ embedded?: boolean }> = ({ embedded 
   const [period, setPeriod] = useState<StudentReportPeriod>('month');
   const [depth, setDepth] = useState<'simple' | 'full'>('simple');
   const [skillFilter, setSkillFilter] = useState<'all' | 'weak' | 'average' | 'strong'>('all');
+  const [showAllSkills, setShowAllSkills] = useState(false);
 
   const [skills, setSkills] = useState<StudentAggregatedSkill[]>([]);
   const [readiness, setReadiness] = useState<MasteryReadiness | null>(null);
@@ -101,6 +102,7 @@ export const StudentReportsView: React.FC<{ embedded?: boolean }> = ({ embedded 
 
   // 2. Fetch student progress, readiness, goals & results
   const loadReportsData = useCallback(async (signal?: AbortSignal) => {
+    if (!selectedPathId) return;
     setLoading(true);
     try {
       const pathParam = selectedPathId || '';
@@ -666,69 +668,70 @@ export const StudentReportsView: React.FC<{ embedded?: boolean }> = ({ embedded 
           />
         )}
 
-        {/* Skills Cards Grid */}
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Skills Rows */}
+        <div className="mt-5 space-y-2">
           {loading ? (
-            <div className="col-span-full py-12 text-center text-sm font-bold text-gray-400">
+            <div className="py-12 text-center text-sm font-bold text-gray-400">
               <Loader2 size={24} className="mx-auto animate-spin text-indigo-600 mb-2" />
               جارٍ تحليل مؤشرات المهارات...
             </div>
           ) : filteredSkills.length > 0 ? (
-            filteredSkills.map((skill) => {
+            filteredSkills.slice(0, showAllSkills ? filteredSkills.length : 8).map((skill) => {
               const tone = getReportMasteryTone(skill.mastery);
               const isSelected = selectedSkillKey === skill.skillId || selectedSkillKey === skill.skill;
+              const base = skill.topicId && skill.pathId && skill.subjectId
+                ? `/learning?path=${encodeURIComponent(skill.pathId)}&subject=${encodeURIComponent(skill.subjectId)}`
+                : '';
+              const videoLink = base ? `${base}&tab=skills&topic=${encodeURIComponent(skill.topicId!)}&content=lessons` : '';
+              const drillLink = base ? `${base}&tab=questions&topic=${encodeURIComponent(skill.topicId!)}` : '';
+              const supportLink = base ? `${base}&tab=skills&topic=${encodeURIComponent(skill.topicId!)}&content=support` : '';
               return (
-                <button
-                  key={`${skill.skillId || skill.skill}`}
-                  type="button"
-                  onClick={() => setSelectedSkillKey((prev) => (prev === (skill.skillId || skill.skill) ? null : skill.skillId || skill.skill))}
-                  className={`text-right flex flex-col justify-between rounded-2xl border p-4 transition cursor-pointer ${
-                    isSelected
-                      ? 'border-indigo-500 ring-2 ring-indigo-200 dark:ring-indigo-900 bg-indigo-50/40 dark:bg-slate-800 shadow-sm'
-                      : 'border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 hover:border-indigo-200 hover:bg-white dark:hover:bg-slate-800 hover:shadow-xs'
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-black ${tone.bg} ${tone.text}`}>
-                        {tone.label}
-                      </span>
-                      <span className="text-xs font-black text-gray-900 dark:text-white">
-                        {skill.mastery}%
-                      </span>
+                <div key={`${skill.skillId || skill.skill}`} className={`rounded-2xl border p-3 ${isSelected ? 'border-indigo-300 bg-indigo-50/40' : 'border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900'}`}>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-black text-gray-900 dark:text-white">{displayText(skill.skill)}</div>
+                      {skill.subjectName && <div className="mt-0.5 truncate text-[11px] font-bold text-gray-500 dark:text-slate-400">{displayText(skill.subjectName)}</div>}
                     </div>
-
-                    <h3 className="font-black text-sm text-gray-900 dark:text-white leading-snug line-clamp-2">
-                      {displayText(skill.skill)}
-                    </h3>
-
-                    {skill.subjectName && (
-                      <p className="mt-1 text-[11px] font-bold text-gray-500 dark:text-slate-400 truncate">
-                        {displayText(skill.subjectName)}
-                      </p>
-                    )}
-
-                    {/* Mastery Bar */}
-                    <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${tone.bar}`}
-                        style={{ width: `${Math.max(5, Math.min(100, skill.mastery))}%` }}
-                      />
+                    <div className="flex items-center gap-2">
+                      <span className={`text-lg font-black ${tone.text}`}>{skill.mastery}%</span>
+                      <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                        <div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${Math.max(4, Math.min(100, skill.mastery))}%` }} />
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {videoLink ? (
+                        <Link to={videoLink} className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 px-2.5 py-1.5 text-[11px] font-black text-indigo-700 hover:bg-indigo-100"><Video size={12} />فيديو</Link>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-2.5 py-1.5 text-[11px] font-black text-slate-400" title="لا يوجد تأسيس مرتبط"><Video size={12} />فيديو</span>
+                      )}
+                      {drillLink ? (
+                        <Link to={drillLink} className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1.5 text-[11px] font-black text-amber-700 hover:bg-amber-100"><FileText size={12} />تدريب</Link>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-2.5 py-1.5 text-[11px] font-black text-slate-400" title="لا يوجد تدريب مرتبط"><FileText size={12} />تدريب</span>
+                      )}
+                      {supportLink ? (
+                        <Link to={supportLink} className="inline-flex items-center gap-1 rounded-xl bg-slate-50 px-2.5 py-1.5 text-[11px] font-black text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"><BookOpen size={12} />ملف الدعم</Link>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-2.5 py-1.5 text-[11px] font-black text-slate-400" title="لا يوجد ملف دعم مرتبط"><BookOpen size={12} />ملف الدعم</span>
+                      )}
+                      <button type="button" onClick={() => setSelectedSkillKey((prev) => (prev === (skill.skillId || skill.skill) ? null : (skill.skillId || skill.skill)!))} className="rounded-xl px-2 py-1.5 text-[11px] font-black text-indigo-600 hover:underline">
+                        {isSelected ? 'إخفاء' : 'تفاصيل'}
+                      </button>
                     </div>
                   </div>
-
-                  <div className="mt-4 flex items-center justify-between text-[11px] font-bold text-gray-500 dark:text-slate-400 pt-2 border-t border-slate-200/50 dark:border-slate-700">
-                    <span>{skill.totalEvidence} أدلة مرصودة</span>
-                    <span className="text-indigo-600 dark:text-indigo-400 font-black">
-                      {isSelected ? 'إخفاء التفاصيل' : 'فتح التأسيس والتدريب ←'}
-                    </span>
-                  </div>
-                </button>
+                </div>
               );
             })
           ) : (
-            <div className="col-span-full py-12 text-center text-sm font-bold text-gray-400">
+            <div className="py-12 text-center text-sm font-bold text-gray-400">
               لا توجد مهارات مسجلة تحت هذا الفلتر حالياً.
+            </div>
+          )}
+          {!loading && filteredSkills.length > 8 && (
+            <div className="pt-1 text-center">
+              <button type="button" onClick={() => setShowAllSkills((v) => !v)} className="rounded-xl bg-slate-100 px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200">
+                {showAllSkills ? 'عرض أقل' : `عرض المزيد (${filteredSkills.length - 8})`}
+              </button>
             </div>
           )}
         </div>
