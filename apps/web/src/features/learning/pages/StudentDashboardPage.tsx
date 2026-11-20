@@ -504,14 +504,24 @@ export function StudentDashboardPage() {
               </div>
             </section>
 
-            {/* Student Next Action Strip (Smart Tutor Kicker) */}
+            {/* Student Next Action Strip (data-driven) */}
             <StudentNextActionStrip
-              title="مواصلة تأسيس مسار القدرات العامة (الكمي واللفظي)"
-              description="لديك 4 دروس تدريبية جاهزة للمراجعة مع تقنيات الحل السريع، وبنك أسئلة قياس التفاعلي."
-              primaryLabel="واصل التعلم الآن"
-              primaryHref="/learning"
-              secondaryLabel="عرض خطتي الأسبوعية"
-              secondaryHref="/plan"
+              title={
+                assignments.length > 0
+                  ? `لديك ${assignments.length} اختبار${assignments.length > 1 ? 'ات' : ''} مدرسية جديدة`
+                  : paths.length > 0
+                    ? `تابع مسارك: ${paths[0].name}`
+                    : 'ابدأ باختيار مسارك الدراسي'
+              }
+              description={
+                assignments.length > 0
+                  ? 'اختبارات أرسلتها مدرستك — ابدأ بالأقرب موعدًا، ثم راجع نتيجتك بعد التسليم.'
+                  : 'المسار الذكي يرتّب لك المهارات الأضعف أولًا، ثم يوجّهك لدرس التأسيس والتدريب المناسب.'
+              }
+              primaryLabel={assignments.length > 0 ? 'افتح اختباراتي المدرسية' : 'افتح المسار الذكي'}
+              primaryHref={assignments.length > 0 ? '/dashboard?tab=school-tests' : '/dashboard?tab=smart-path'}
+              secondaryLabel="اختباراتي السابقة"
+              secondaryHref="/dashboard?tab=quizzes"
               tone="indigo"
             />
 
