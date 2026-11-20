@@ -58,6 +58,7 @@ export interface InteractiveSmartTeacherProps {
   isOpen: boolean;
   onClose: () => void;
   questionId: string;
+  reviewCardId?: string;
   questionText?: string;
   explanation?: string;
   solvingStrategy?: string;
@@ -149,6 +150,7 @@ export const InteractiveSmartTeacher: React.FC<InteractiveSmartTeacherProps> = (
   isOpen,
   onClose,
   questionId,
+  reviewCardId,
   questionText = '',
   explanation = '',
   solvingStrategy = '',
@@ -245,7 +247,7 @@ export const InteractiveSmartTeacher: React.FC<InteractiveSmartTeacherProps> = (
         },
         body: JSON.stringify({
           questionId,
-          reviewCardId: questionId,
+          reviewCardId: resultId ? undefined : (reviewCardId || questionId),
           attemptId: resultId || '',
           resultId: resultId || '',
           context,
@@ -367,7 +369,7 @@ export const InteractiveSmartTeacher: React.FC<InteractiveSmartTeacherProps> = (
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [isOpen, questionId, resultId, context, tutorSessionId]);
+  }, [isOpen, questionId, reviewCardId, resultId, context, tutorSessionId]);
 
   useEffect(() => {
     if (!autoVoice) legacyNarrator.cancel();

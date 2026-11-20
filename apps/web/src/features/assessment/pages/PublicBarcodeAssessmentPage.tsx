@@ -25,12 +25,14 @@ function PublicQuestion({question,number,layout,selected,onSelect}:{question:Att
  const text=question.text?.trim()||'';
  const imageURL=question.imageUrl || (/^image:/i.test(text) ? text.replace(/^image:/i,'').trim() : /^https?:\/\/.+\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(text) ? text : text.match(/<img\s+[^>]*src=["']([^"']+)["']/i)?.[1] || text.match(/!\[.*?\]\((https?:\/\/[^\s)]+)\)/i)?.[1] || '');
  const image=Boolean(imageURL||question.imageAssetId);
+ const showNumber=question.learnerPresentation?.showQuestionNumber!==false;
+ const legacyLatin=image && question.options.some(option=>/^[a-d]$/i.test(option.text.trim()));
  return <article className="rounded-3xl border bg-white p-5 shadow-sm">
-  <h2 className="font-black leading-8">{number}. {!image ? (question.text||'سؤال نصي') : ''}</h2>
+  {showNumber || !image ? <h2 className="font-black leading-8">{showNumber ? `${question.learnerPresentation?.questionNumber || number}. ` : ''}{!image ? (question.text||'سؤال نصي') : ''}</h2> : null}
   {image ? <div className="mt-3"><QuestionAssetImage assetId={imageURL||question.imageAssetId} alt={question.imageAlt||'صورة السؤال'} onZoom={setZoomImage}/></div> : question.passage ? <p className="mt-3 whitespace-pre-wrap">{question.passage}</p> : null}
   <div className={`mt-4 grid gap-2 ${image?'grid-cols-4':layout==='two_columns'?'sm:grid-cols-2':layout==='horizontal'?'lg:grid-cols-4':''}`}>
    {question.options.map((option,index)=><button key={option.index} type="button" aria-pressed={selected===option.index} onClick={()=>onSelect(option.index)} className={`rounded-xl border p-3 text-right font-bold ${selected===option.index?'border-indigo-500 bg-indigo-50':''}`}>
-    {image||question.learnerPresentation?.showOptionLabels!==false ? <span>{optionLabel(image?option.index:index,question.learnerPresentation,image?option.text:undefined)}</span> : null}
+    {image||question.learnerPresentation?.showOptionLabels!==false ? <span>{optionLabel(image?option.index:index,question.learnerPresentation,image?option.text:undefined,legacyLatin)}</span> : null}
     {!image&&showOptionText(question.learnerPresentation,false)&&option.text ? <span> {option.text}</span> : null}
     {!image&&option.assetId ? <QuestionAssetImage assetId={option.assetId} alt="صورة الخيار"/> : null}
    </button>)}

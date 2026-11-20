@@ -1,4 +1,5 @@
 import type { LearnerQuestionPresentation } from './api/attempt-client';
+import DOMPurify from 'dompurify';
 
 export function optionLabel(index: number, presentation?: LearnerQuestionPresentation, legacyText?: string, legacyLatin = false): string {
   const custom = presentation?.optionLabels?.[index]?.trim();
@@ -16,17 +17,34 @@ const QUESTION_BLANK_PATTERN = /(?:\.{3,}|…{2,}|_{3,}|ـ{3,})/g;
 
 export const formatQuestionHtmlForDisplay = (value?: string | null): string => {
   if (!value) return '';
-  return value
-    .split(/(<[^>]+>)/g)
-    .map((part) =>
-      part.startsWith('<')
-        ? part
-        : part.replace(
-            QUESTION_BLANK_PATTERN,
-            (blank) => `<span class="question-blank font-mono px-1 rounded bg-amber-50 border border-amber-200" dir="ltr">${blank}</span>`,
-          ),
-    )
-    .join('');
+  // Sanitize before using HTML; build the blank markers from text nodes only,
+  // so user-supplied attributes or markup cannot be created by interpolation.
+  const fragment = DOMPurify.sanitize(value, { RETURN_DOM_FRAGMENT: true });
+  const walker = document.createTreeWalker(fragment, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode as Text);
+  for (const node of nodes) {
+    const text = node.data;
+    const matches = [...text.matchAll(QUESTION_BLANK_PATTERN)];
+    if (!matches.length) continue;
+    const replacement = document.createDocumentFragment();
+    let offset = 0;
+    for (const match of matches) {
+      const index = match.index ?? 0;
+      replacement.append(document.createTextNode(text.slice(offset, index)));
+      const marker = document.createElement('span');
+      marker.className = 'question-blank font-mono px-1 rounded bg-amber-50 border border-amber-200';
+      marker.dir = 'ltr';
+      marker.textContent = match[0];
+      replacement.append(marker);
+      offset = index + match[0].length;
+    }
+    replacement.append(document.createTextNode(text.slice(offset)));
+    node.replaceWith(replacement);
+  }
+  const container = document.createElement('div');
+  container.append(fragment);
+  return container.innerHTML;
 };
 
 export type QuizQuestionMapState = 'current' | 'answered' | 'review' | 'unanswered' | 'correct' | 'wrong';

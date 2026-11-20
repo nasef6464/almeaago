@@ -40,6 +40,24 @@ test('public barcode displays image and labels only',async({page})=>{
   await expect(page.getByRole('button',{name:'B',exact:true})).toBeVisible();
 });
 
+test('public barcode respects question numbering and legacy image labels',async({page})=>{
+  const hidden={...imageQuestion,id:'hidden',learnerPresentation:{...imageQuestion.learnerPresentation,showQuestionNumber:false,questionNumber:'999'}};
+  const numbered={...imageQuestion,id:'numbered',learnerPresentation:{...imageQuestion.learnerPresentation,showQuestionNumber:true,questionNumber:'42'}};
+  const legacy={...imageQuestion,id:'legacy',learnerPresentation:undefined,options:[{index:0,text:'A',assetId:''},{index:1,text:'',assetId:''}]};
+  await page.route('**/api/v1/public-assessments/numbered/start',r=>r.fulfill({json:{attempt:{id:'public-1',title:'اختبار',attemptNumber:1,status:'in_progress',questions:[hidden,numbered,legacy],optionLayout:'auto'}},status:201}));
+  await page.goto('/barcode-test/numbered',{waitUntil:'domcontentloaded'});
+  const cards=page.locator('article');
+  await expect(cards).toHaveCount(3);
+  await expect(cards.nth(0).locator('h2')).toHaveCount(0);
+  await expect(cards.nth(0).getByText('999',{exact:true})).toHaveCount(0);
+  await expect(cards.nth(1).locator('h2')).toHaveText('42.');
+  await expect(cards.nth(2).getByRole('button',{name:'A',exact:true})).toBeVisible();
+  await expect(cards.nth(2).getByRole('button',{name:'B',exact:true})).toBeVisible();
+  await expect(page.getByText('نص مخصص للذكاء الاصطناعي')).toHaveCount(0);
+  await expect(page.getByText('نص اختيار سري')).toHaveCount(0);
+  await expect(page.getByRole('img',{name:'صورة السؤال'})).toHaveCount(3);
+});
+
 test('review labels follow shuffled display order while answer identity stays unchanged',async({page})=>{
   await auth(page);
   const question={...imageQuestion,imageUrl:'',imageAssetId:'',text:'سؤال نصي',passage:'',learnerPresentation:{optionLabelStyle:'latin',showOptionText:true,showOptionLabels:true},options:[{index:1,text:'الخيار الثاني',assetId:''},{index:0,text:'الخيار الأول',assetId:''}],questionId:'q1',questionVersion:1,selectedOptionIndex:1,correctOptionIndex:0,answered:true,correct:false,markedForReview:false,timeSpentSeconds:1};
