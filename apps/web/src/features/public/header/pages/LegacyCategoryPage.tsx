@@ -27,6 +27,7 @@ import {
   resolveCanonicalSubject,
   normalizeArabic,
 } from '../../../taxonomy/utils/canonicalPathResolver';
+import { CategoryPageSkeleton } from '../../../../components/ui/Skeleton';
 
 const pathAliases: Record<string, string[]> = {
   p_qudrat: ['القدرات', 'قدرات', 'qudrat'],
@@ -149,11 +150,7 @@ export function LegacyCategoryPage() {
   const path = resolveCanonicalPath(raw, experience.paths);
 
   if (experience.loading) {
-    return (
-      <main dir="rtl" role="status" className="p-16 text-center text-slate-500 font-bold">
-        جاري تحميل المسار...
-      </main>
-    );
+    return <CategoryPageSkeleton />;
   }
 
   if (experience.error) {

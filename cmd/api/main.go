@@ -127,10 +127,10 @@ func main() {
 	adminDirectory := reportingrepo.NewAdminUserDirectory(db)
 	directorDirectory := reportingrepo.NewSchoolDirectorDirectory(db)
 
-	contentRepository := contentrepo.New(db, auditWriter)
+	contentRepository := contentrepo.New(db, auditWriter, redisClient)
 	organizationsRepository := orgrepo.New(db, auditWriter, identityRepository)
 	authorScope := contentapp.NewCombinedAuthorScope(contentRepository, organizationsRepository)
-	taxonomyRepository := taxonomyrepo.New(db)
+	taxonomyRepository := taxonomyrepo.New(db, redisClient)
 	commerceRepository := commercerepo.New(db, auditWriter)
 	commerceService := commerceapp.NewService(commerceRepository, contentRepository, taxonomyRepository, organizationsRepository)
 	communicationRepository := communicationrepo.New(db, auditWriter)

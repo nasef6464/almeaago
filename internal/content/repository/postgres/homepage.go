@@ -12,6 +12,11 @@ import (
 	operations "github.com/nasef6464/almeaago/internal/operations/domain"
 )
 
+const (
+	homepageSettingsCacheKey = "almeaa:cache:content:homepage-settings:v1"
+	homepageCacheTTL         = 15 * time.Minute
+)
+
 // Read scalars and all ordered references in one statement/snapshot. The public
 // document is presentation, never an entitlement or publication grant.
 const selectHomepageSettings = `SELECT settings || jsonb_build_object(
@@ -38,7 +43,29 @@ func decodeHomepageSettings(row pgx.Row) (content.HomepageSettings, error) {
 	return settings, nil
 }
 func (r *Repository) GetHomepageSettings(ctx context.Context) (content.HomepageSettings, error) {
-	return decodeHomepageSettings(r.db.QueryRow(ctx, selectHomepageSettings))
+	if r.cache != nil {
+		var cached content.HomepageSettings
+		hit, err := r.cache.GetJSON(ctx, homepageSettingsCacheKey, &cached)
+		if err == nil && hit {
+			return cached, nil
+		}
+	}
+
+	if r.db == nil {
+		return nil, errors.New("postgres pool is not initialized")
+	}
+
+	settings, err := decodeHomepageSettings(r.db.QueryRow(ctx, selectHomepageSettings))
+	if err != nil {
+		return nil, err
+	}
+	if settings == nil {
+		settings = content.DefaultHomepageSettings()
+	}
+	if r.cache != nil {
+		_ = r.cache.SetJSON(ctx, homepageSettingsCacheKey, settings, homepageCacheTTL)
+	}
+	return settings, nil
 }
 
 type homepageReference struct{ key, table, column string }
@@ -119,6 +146,9 @@ func (r *Repository) PatchHomepageSettings(ctx context.Context, actorID string, 
 	}
 	if err = tx.Commit(ctx); err != nil {
 		return nil, err
+	}
+	if r.cache != nil {
+		_ = r.cache.Delete(ctx, homepageSettingsCacheKey)
 	}
 	return saved, nil
 }

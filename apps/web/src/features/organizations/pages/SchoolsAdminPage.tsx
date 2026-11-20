@@ -47,6 +47,7 @@ import {
   type DirectorAssignment,
   type SchoolContractData,
 } from '../api/organizations-client';
+import { Skeleton, SkeletonTable, SkeletonMetricCard } from '../../../components/ui/Skeleton';
 
 export const PACKAGE_TIERS = [
   {
@@ -867,8 +868,39 @@ export function SchoolsAdminPage() {
 
           {/* Schools Cards Grid */}
           {loading ? (
-            <div className="rounded-2xl border border-gray-100 bg-white p-12 text-center text-sm font-bold text-gray-400">
-              جاري تحميل محفظة المدارس...
+            <div
+              className="grid gap-5 md:grid-cols-2 xl:grid-cols-3"
+              role="status"
+              aria-busy="true"
+              aria-label="جاري تحميل محفظة المدارس..."
+            >
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex flex-col justify-between rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-4 animate-pulse"
+                >
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-20 rounded-md" />
+                    <Skeleton className="h-5 w-24 rounded-full" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-6 w-48 rounded-lg" />
+                    <Skeleton className="h-3 w-32 rounded-md" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between">
+                      <Skeleton className="h-3 w-28 rounded-md" />
+                      <Skeleton className="h-3 w-10 rounded-md" />
+                    </div>
+                    <Skeleton className="h-2 w-full rounded-full" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-50 dark:border-slate-800">
+                    <Skeleton className="h-8 rounded-xl" />
+                    <Skeleton className="h-8 rounded-xl" />
+                  </div>
+                  <Skeleton className="h-10 w-full rounded-xl" />
+                </div>
+              ))}
             </div>
           ) : filteredSchools.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-12 text-center">
@@ -1116,7 +1148,24 @@ export function SchoolsAdminPage() {
             ))}
           </div>
 
-          {/* ── Workspace Tab 1: Overview ── */}
+          {/* Workspace Tabs Content */}
+          {workspaceLoading ? (
+            <div
+              className="space-y-6 mt-6"
+              role="status"
+              aria-busy="true"
+              aria-label="جاري تحميل بيانات مساحة عمل المدرسة..."
+            >
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <SkeletonMetricCard key={i} />
+                ))}
+              </div>
+              <SkeletonTable columns={6} rows={6} />
+            </div>
+          ) : (
+            <>
+              {/* ── Workspace Tab 1: Overview ── */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
               <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm space-y-4">
@@ -1793,6 +1842,8 @@ export function SchoolsAdminPage() {
                 </div>
               </div>
             </div>
+          )}
+            </>
           )}
         </div>
       )}

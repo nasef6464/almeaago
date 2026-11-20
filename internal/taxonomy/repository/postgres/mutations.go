@@ -36,6 +36,7 @@ func (r *Repository) CreatePath(ctx context.Context, actor string, write taxonom
 	if err := tx.Commit(ctx); err != nil {
 		return taxonomy.Path{}, err
 	}
+	r.invalidateBootstrapCache(ctx)
 	return row, nil
 }
 
@@ -100,6 +101,7 @@ func (r *Repository) UpdatePath(ctx context.Context, actor, pathID string, patch
 	if err := tx.Commit(ctx); err != nil {
 		return taxonomy.Path{}, err
 	}
+	r.invalidateBootstrapCache(ctx)
 	return row, nil
 }
 
@@ -125,6 +127,7 @@ func (r *Repository) CreateLevel(ctx context.Context, actor string, write taxono
 	if err := tx.Commit(ctx); err != nil {
 		return taxonomy.Level{}, err
 	}
+	r.invalidateBootstrapCache(ctx)
 	return row, nil
 }
 
@@ -162,6 +165,7 @@ func (r *Repository) UpdateLevel(ctx context.Context, actor, levelID string, pat
 	if err := tx.Commit(ctx); err != nil {
 		return taxonomy.Level{}, err
 	}
+	r.invalidateBootstrapCache(ctx)
 	return row, nil
 }
 
@@ -188,6 +192,7 @@ func (r *Repository) CreateSubject(ctx context.Context, actor string, write taxo
 	if err := tx.Commit(ctx); err != nil {
 		return taxonomy.Subject{}, err
 	}
+	r.invalidateBootstrapCache(ctx)
 	return row, nil
 }
 
@@ -238,6 +243,7 @@ func (r *Repository) UpdateSubject(ctx context.Context, actor, subjectID string,
 	if err := tx.Commit(ctx); err != nil {
 		return taxonomy.Subject{}, err
 	}
+	r.invalidateBootstrapCache(ctx)
 	return row, nil
 }
 
@@ -265,6 +271,7 @@ func (r *Repository) CreateSkill(ctx context.Context, actor string, write taxono
 	if err := tx.Commit(ctx); err != nil {
 		return taxonomy.Skill{}, err
 	}
+	r.invalidateBootstrapCache(ctx)
 	return row, nil
 }
 
@@ -316,7 +323,15 @@ func (r *Repository) UpdateSkill(ctx context.Context, actor, skillID string, pat
 	if err := tx.Commit(ctx); err != nil {
 		return taxonomy.Skill{}, err
 	}
+	r.invalidateBootstrapCache(ctx)
 	return row, nil
+}
+
+func (r *Repository) invalidateBootstrapCache(ctx context.Context) {
+	if r == nil || r.cache == nil {
+		return
+	}
+	_ = r.cache.Delete(ctx, taxonomyBootstrapFullKey, taxonomyBootstrapCoreKey)
 }
 
 func writeTaxonomyAudit(ctx context.Context, tx pgx.Tx, actor, action, resourceType, resourceID string) error {

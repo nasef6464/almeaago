@@ -31,6 +31,7 @@ import type { AdminUser, AdminUsersSummary, UserRole } from '../api/auth-types';
 import { organizationsClient, type SchoolSummary } from '../../organizations/api/organizations-client';
 import { contentClient } from '../../content/api/content-client';
 import type { TaxonomyCore } from '../../content/api/content-types';
+import { AdminTablePageSkeleton, SkeletonTable } from '../../../components/ui/Skeleton';
 
 interface UsersAdminPageProps {
   defaultRoleFilter?: string;
@@ -328,6 +329,20 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
 
   const title = pageTitle || (defaultRoleFilter === 'platform_trainer' || defaultRoleFilter === 'school_teacher' ? 'إدارة المدربين والمعلمين' : 'إدارة المستخدمين');
 
+  if (loading && !summary && users.length === 0) {
+    return (
+      <main dir="rtl" className="mx-auto max-w-7xl space-y-6 pb-16 font-sans">
+        <AdminTablePageSkeleton
+          title={title}
+          subtitle="إدارة حسابات الطلاب، المعلمين والمدربين، مدراء المدارس، والمشرفين والتحكم بصلاحيات الوصول."
+          columns={6}
+          rows={8}
+          columnWidths={['w-36', 'w-24', 'w-28', 'w-24', 'w-16', 'w-20']}
+        />
+      </main>
+    );
+  }
+
   return (
     <main dir="rtl" className="mx-auto max-w-7xl space-y-6 pb-16 font-sans">
       {/* Header */}
@@ -450,10 +465,11 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
       {/* Users Table */}
       <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-xs">
         {loading ? (
-          <div className="flex items-center justify-center gap-3 p-16 font-bold text-slate-400">
-            <Loader2 size={24} className="animate-spin text-indigo-600" />
-            <span>جاري تحميل بيانات المستخدمين...</span>
-          </div>
+          <SkeletonTable
+            rows={8}
+            columns={6}
+            columnWidths={['w-36', 'w-24', 'w-28', 'w-24', 'w-16', 'w-20']}
+          />
         ) : users.length === 0 ? (
           <div className="p-16 text-center text-slate-400 font-bold space-y-2">
             <Users size={40} className="mx-auto text-slate-300" />
