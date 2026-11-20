@@ -112,11 +112,13 @@ func TestAuthoringAnswerPersistenceHTTPPostgres(t *testing.T) {
 		answerIndex int
 		embedded    bool
 		labelOnly   bool
+		contextOnly bool
 	}{
 		{name: "correct_index_0", answerIndex: 0},
 		{name: "correct_index_1", answerIndex: 1},
 		{name: "embedded_correct_index_3", answerIndex: 3, embedded: true},
 		{name: "embedded_label_only", answerIndex: 2, embedded: true, labelOnly: true},
+		{name: "embedded_ai_context_only", answerIndex: 2, embedded: true, labelOnly: true, contextOnly: true},
 		{name: "text_question_label_only", answerIndex: 2, labelOnly: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -137,9 +139,18 @@ func TestAuthoringAnswerPersistenceHTTPPostgres(t *testing.T) {
 				input.Version.AIContext = json.RawMessage(`{"optionTexts":["أ","قيمة ب","ج","قيمة د"]}`)
 			}
 			if tc.labelOnly {
-				input.Version.Options = []questionapp.OptionInput{{}, {}, {}, {}}
-				input.Version.AIContext = nil
+				if tc.contextOnly {
+					input.Version.Options = nil
+					input.Version.AIContext = json.RawMessage(`{"optionTexts":["AI-PRIVATE-A","AI-PRIVATE-B","AI-PRIVATE-C","AI-PRIVATE-D"]}`)
+				} else {
+					input.Version.Options = []questionapp.OptionInput{{}, {}, {}, {}}
+					input.Version.AIContext = nil
+				}
 				input.Version.SourceMeta = json.RawMessage(`{"learnerPresentation":{"showQuestionNumber":false,"showOptionLabels":true,"showOptionText":false,"optionLabelStyle":"latin","optionLabels":["A","B","C","D"]}}`)
+			}
+			expectedOptions := input.Version.Options
+			if tc.contextOnly {
+				expectedOptions = []questionapp.OptionInput{{}, {}, {}, {}}
 			}
 			raw, err := json.Marshal(input)
 			if err != nil {
@@ -165,12 +176,12 @@ func TestAuthoringAnswerPersistenceHTTPPostgres(t *testing.T) {
 			if err := db.QueryRow(ctx, `SELECT qv.correct_option_index,qo.option_text FROM question_versions qv JOIN question_options qo ON qo.question_id=qv.question_id AND qo.version=qv.version AND qo.option_index=qv.correct_option_index WHERE qv.question_id=$1::uuid AND qv.version=1`, created.Question.ID).Scan(&storedIndex, &storedText); err != nil {
 				t.Fatal(err)
 			}
-			if storedIndex != answerIndex || storedText != input.Version.Options[answerIndex].Text {
+			if storedIndex != answerIndex || storedText != expectedOptions[answerIndex].Text {
 				t.Fatalf("wrong persisted answer: index=%d text=%q", storedIndex, storedText)
 			}
 			var storedOptionCount int
-			if err := db.QueryRow(ctx, `SELECT count(*) FROM question_options WHERE question_id=$1::uuid AND version=1`, created.Question.ID).Scan(&storedOptionCount); err != nil || storedOptionCount != len(input.Version.Options) {
-				t.Fatalf("persisted option count=%d want=%d err=%v", storedOptionCount, len(input.Version.Options), err)
+			if err := db.QueryRow(ctx, `SELECT count(*) FROM question_options WHERE question_id=$1::uuid AND version=1`, created.Question.ID).Scan(&storedOptionCount); err != nil || storedOptionCount != len(expectedOptions) {
+				t.Fatalf("persisted option count=%d want=%d err=%v", storedOptionCount, len(expectedOptions), err)
 			}
 			reloaded := httptest.NewRecorder()
 			handler.ServeHTTP(reloaded, httptest.NewRequest(http.MethodGet, "/"+created.Question.ID+"/staff", nil).WithContext(ctx))
@@ -195,7 +206,7 @@ func TestAuthoringAnswerPersistenceHTTPPostgres(t *testing.T) {
 			if err := json.Unmarshal(reloaded.Body.Bytes(), &detail); err != nil {
 				t.Fatal(err)
 			}
-			if detail.Question.Version.CorrectOptionIndex == nil || *detail.Question.Version.CorrectOptionIndex != answerIndex || len(detail.Question.Options) != len(input.Version.Options) {
+			if detail.Question.Version.CorrectOptionIndex == nil || *detail.Question.Version.CorrectOptionIndex != answerIndex || len(detail.Question.Options) != len(expectedOptions) {
 				t.Fatalf("reload lost answer/options: %s", reloaded.Body.String())
 			}
 			if tc.labelOnly {
@@ -206,6 +217,9 @@ func TestAuthoringAnswerPersistenceHTTPPostgres(t *testing.T) {
 				assessmentID, attemptID := "10000000-0000-4000-8000-000000000090", "10000000-0000-4000-8000-000000000091"
 				if !tc.embedded {
 					assessmentID, attemptID = "10000000-0000-4000-8000-000000000092", "10000000-0000-4000-8000-000000000093"
+				}
+				if tc.contextOnly {
+					assessmentID, attemptID = "10000000-0000-4000-8000-000000000094", "10000000-0000-4000-8000-000000000095"
 				}
 				tx, err := db.Begin(ctx)
 				if err != nil {
@@ -232,6 +246,12 @@ func TestAuthoringAnswerPersistenceHTTPPostgres(t *testing.T) {
 				if err != nil || len(attempt.Questions) != 1 || attempt.Questions[0].LearnerPresentation == nil || len(attempt.Questions[0].LearnerPresentation.OptionLabels) != 4 || attempt.Questions[0].LearnerPresentation.OptionLabels[2] != "C" || len(attempt.Questions[0].Options) != 4 || attempt.Questions[0].Options[2].Text != "" {
 					t.Fatalf("learner attempt lost indexed labels or blank option texts: %+v (%v)", attempt, err)
 				}
+				if tc.contextOnly {
+					learnerJSON, err := json.Marshal(attempt)
+					if err != nil || bytes.Contains(learnerJSON, []byte("AI-PRIVATE")) {
+						t.Fatalf("AI context leaked to learner: %s (%v)", learnerJSON, err)
+					}
+				}
 				if tc.embedded {
 					for i, option := range attempt.Questions[0].Options {
 						if option.Index != i {
@@ -254,7 +274,7 @@ func TestAuthoringAnswerPersistenceHTTPPostgres(t *testing.T) {
 				}
 			}
 			for i, option := range detail.Question.Options {
-				if option.Index != i || option.Text != input.Version.Options[i].Text {
+				if option.Index != i || option.Text != expectedOptions[i].Text {
 					t.Fatalf("reload changed option order: %s", reloaded.Body.String())
 				}
 				if tc.embedded && !tc.labelOnly && (len(detail.Question.Version.AIContext.OptionTexts) != len(detail.Question.Options) || detail.Question.Version.AIContext.OptionTexts[i] != option.Text) {

@@ -202,7 +202,7 @@ func (r *Repository) SetPublication(ctx context.Context, actor, id string, rev i
 		// option. Keep drafts intact but prevent publishing an attempt that
 		// the server would immediately refuse to start.
 		var unscorable bool
-		err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM assessment_version_questions aq JOIN assessments a ON a.id=aq.assessment_id AND a.current_version=aq.assessment_version LEFT JOIN question_versions qv ON qv.question_id=aq.question_id AND qv.version=aq.question_version WHERE a.id=$1::uuid AND qv.correct_option_index IS NULL)`, id).Scan(&unscorable)
+		err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM assessment_version_questions aq JOIN assessments a ON a.id=aq.assessment_id AND a.current_version=aq.assessment_version LEFT JOIN question_versions qv ON qv.question_id=aq.question_id AND qv.version=aq.question_version WHERE a.id=$1::uuid AND (qv.correct_option_index IS NULL OR NOT EXISTS (SELECT 1 FROM question_options qo WHERE qo.question_id=qv.question_id AND qo.version=qv.version AND qo.option_index=qv.correct_option_index)))`, id).Scan(&unscorable)
 		if err != nil {
 			return assessment.Assessment{}, err
 		}

@@ -482,6 +482,18 @@ func normalizeVersion(input VersionInput) (question.VersionCommand, error) {
 		return question.VersionCommand{}, ErrInvalidInput
 	}
 	if input.OptionsEmbeddedInImage {
+		// Older import clients supply only AI context for the text already in
+		// the image. Materialize choice positions without exposing that text;
+		// answer validation and attempts both require question_options rows.
+		if len(options) == 0 {
+			count := embeddedOptionTextCount(input.AIContext)
+			if count < 2 || count > 12 {
+				return question.VersionCommand{}, ErrInvalidInput
+			}
+			for i := 0; i < count; i++ {
+				options = append(options, question.Option{Index: i})
+			}
+		}
 		if input.ImageAssetID == "" || (len(options) < 2 && !hasEmbeddedOptionTexts(input.AIContext)) {
 			return question.VersionCommand{}, ErrInvalidInput
 		}
