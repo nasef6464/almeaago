@@ -35,6 +35,7 @@ export const SmartPathTab: React.FC = () => {
   );
 
   useEffect(() => {
+    if (!selectedPathId) { setLoading(false); return; }
     const controller = new AbortController();
     setLoading(true);
 
@@ -209,9 +210,9 @@ export const SmartPathTab: React.FC = () => {
                   const sId = sk.skillId || 'general';
                   const linkPath = sk.pathId || selectedPathId;
                   const linkSubject = sk.subjectId || selectedSubjectId;
-                  const baseLink = `/learning?path=${encodeURIComponent(linkPath)}&subject=${encodeURIComponent(linkSubject)}`;
-                  const foundationUrl = sk.topicId ? `${baseLink}&tab=skills&topic=${encodeURIComponent(sk.topicId)}&content=lessons` : '';
-                  const quizUrl = sk.topicId ? `${baseLink}&tab=questions&topic=${encodeURIComponent(sk.topicId)}` : '';
+                  const baseLink = `/category/${encodeURIComponent(linkPath)}?subject=${encodeURIComponent(linkSubject)}&tab=skills&topic=${encodeURIComponent(sk.topicId || '')}`;
+                  const foundationUrl = sk.topicId ? `${baseLink}&content=lessons` : '';
+                  const quizUrl = sk.topicId ? `${baseLink}&content=quizzes` : '';
 
                   return (
                     <article
