@@ -287,8 +287,8 @@ export function ParentDashboardPage() {
         <nav aria-label="أقسام لوحة ولي الأمر" className="grid grid-cols-2 gap-2 rounded-3xl border border-slate-100 bg-white p-2 shadow-xs sm:grid-cols-6">
           {[
             ['overview', 'متابعة الأبناء', Users],
-            ['results', 'نتائج الاختبارات', FileText],
-            ['skills', 'المهارات والفجوات', Target],
+            ['results', 'نتائج الأبناء', FileText],
+            ['skills', 'المهارات الضعيفة', Target],
             ['report', 'تقرير الأسبوع', CalendarDays],
             ['link', 'ربط ابن جديد', UserPlus],
             ['approvals', `الموافقات (${approvals.filter((a) => a.status === 'pending').length})`, ShieldCheck],
