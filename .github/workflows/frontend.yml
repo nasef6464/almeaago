@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "22" }
       - run: npm install --no-audit --no-fund
+      - name: Inspect dependency vulnerabilities
+        run: npm audit || true
       - run: npm run typecheck
       - run: npm run build
       - name: Platform parity inventory contracts
