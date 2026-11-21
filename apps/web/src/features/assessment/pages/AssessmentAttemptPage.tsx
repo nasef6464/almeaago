@@ -528,7 +528,7 @@ export function AssessmentAttemptPage() {
           </div>
         </section>
         {attempt?.showResultsReport !== false ? (
-          <AssessmentResultsPage embedded resultAttemptId={result.attemptId} />
+          <AssessmentResultsPage embedded resultAttemptId={result.attemptId} hideReturnLink />
         ) : null}
       </main>
     );
