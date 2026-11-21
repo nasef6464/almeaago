@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Award, Check, ChevronLeft, ChevronRight, Frown, Loader2, RefreshCw, RotateCcw, Sparkles } from 'lucide-react';
 import { learningClient } from '../../api/learning-client';
+import { contentClient } from '../../../content/api/content-client';
 import type { ReviewItem } from '../../api/learning-client';
 
 export const FlashcardsTab: React.FC = () => {
@@ -14,8 +15,13 @@ export const FlashcardsTab: React.FC = () => {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
-    learningClient
-      .reviewLibrary('all', '', '', 1, 30, controller.signal)
+    contentClient
+      .taxonomyCore(controller.signal)
+      .then((tax) => {
+        const pathId = tax.paths?.[0]?.id || '';
+        if (!pathId) return { items: [] as ReviewItem[] };
+        return learningClient.reviewLibrary('all', pathId, '', 1, 30, controller.signal);
+      })
       .then((res) => {
         if (!controller.signal.aborted) {
           setItems(res.items || []);

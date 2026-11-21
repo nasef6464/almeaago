@@ -373,7 +373,7 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
         })
       : attemptClient.results(page, 20).then((response) => {
           if (!active) return;
-          setHistory(response.items);
+          setHistory(response.items || []);
           setHasMore(response.hasMore);
         });
 
