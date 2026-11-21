@@ -3,8 +3,12 @@ import {test,expect} from '@playwright/test';
 // captures. Use Chromium's software compositing/raster path for this pixel
 // comparison; keep byte equality, source images, CSS and interactions intact.
 // https://www.chromium.org/developers/testing/memorysanitizer/
+// Sub-pixel LCD text and hinting were the remaining source of intermittent
+// 1-2 pixel anti-aliasing differences at the 820px capture. Pin the colour
+// profile and disable those two renderer heuristics so both variants rasterize
+// identically without adding any pixel tolerance.
 const localChromium=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?.trim();
-test.use({launchOptions:{args:['--disable-gpu'],...(localChromium?{executablePath:localChromium}:{})}});
+test.use({launchOptions:{args:['--disable-gpu','--force-color-profile=srgb','--disable-lcd-text','--font-render-hinting=none'],...(localChromium?{executablePath:localChromium}:{})}});
 for(const width of [390,820,1440]){
 test(`original homepage editor persists brand and hero through Go sessions/PostgreSQL to a guest at ${width}`,async({page,context,browser},testInfo)=>{
  test.skip(process.env.HOMEPAGE_LIVE!=='1','isolated PostgreSQL integration only');test.setTimeout(180000);

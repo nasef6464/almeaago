@@ -1,7 +1,7 @@
 import {test,expect,type BrowserContext} from '@playwright/test';
 // Match the existing full-header comparison's deterministic text rasterizer.
 const localChromium=process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?.trim();
-test.use({launchOptions:{args:['--disable-gpu'],...(localChromium?{executablePath:localChromium}:{})}});
+test.use({launchOptions:{args:['--disable-gpu','--force-color-profile=srgb','--disable-lcd-text','--font-render-hinting=none'],...(localChromium?{executablePath:localChromium}:{})}});
 
 const logo='data:image/svg+xml;base64,'+Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#2563eb"/></svg>').toString('base64');
 async function prepare(context:BrowserContext){
