@@ -31,6 +31,7 @@ import type { AdminUser, AdminUsersSummary, UserRole } from '../api/auth-types';
 import { organizationsClient, type SchoolSummary } from '../../organizations/api/organizations-client';
 import { contentClient } from '../../content/api/content-client';
 import type { TaxonomyCore } from '../../content/api/content-types';
+import { AdminTablePageSkeleton, SkeletonTable } from '../../../components/ui/Skeleton';
 
 interface UsersAdminPageProps {
   defaultRoleFilter?: string;
@@ -197,6 +198,8 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
           payload.managedPathIds = createForm.managedPathIds;
           payload.managedSubjectIds = createForm.managedSubjectIds;
         }
+      } else if (createForm.role === 'school_admin') {
+        payload.schoolId = createForm.schoolId || null;
       }
 
       await authClient.adminCreateUser(payload, csrf);
@@ -328,6 +331,20 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
 
   const title = pageTitle || (defaultRoleFilter === 'platform_trainer' || defaultRoleFilter === 'school_teacher' ? 'إدارة المدربين والمعلمين' : 'إدارة المستخدمين');
 
+  if (loading && !summary && users.length === 0) {
+    return (
+      <main dir="rtl" className="mx-auto max-w-7xl space-y-6 pb-16 font-sans">
+        <AdminTablePageSkeleton
+          title={title}
+          subtitle="إدارة حسابات الطلاب، المعلمين والمدربين، مدراء المدارس، والمشرفين والتحكم بصلاحيات الوصول."
+          columns={6}
+          rows={8}
+          columnWidths={['w-36', 'w-24', 'w-28', 'w-24', 'w-16', 'w-20']}
+        />
+      </main>
+    );
+  }
+
   return (
     <main dir="rtl" className="mx-auto max-w-7xl space-y-6 pb-16 font-sans">
       {/* Header */}
@@ -450,10 +467,11 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
       {/* Users Table */}
       <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-xs">
         {loading ? (
-          <div className="flex items-center justify-center gap-3 p-16 font-bold text-slate-400">
-            <Loader2 size={24} className="animate-spin text-indigo-600" />
-            <span>جاري تحميل بيانات المستخدمين...</span>
-          </div>
+          <SkeletonTable
+            rows={8}
+            columns={6}
+            columnWidths={['w-36', 'w-24', 'w-28', 'w-24', 'w-16', 'w-20']}
+          />
         ) : users.length === 0 ? (
           <div className="p-16 text-center text-slate-400 font-bold space-y-2">
             <Users size={40} className="mx-auto text-slate-300" />
@@ -660,6 +678,27 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
                 </div>
               </div>
 
+              {/* Extra scope if school_admin */}
+              {createForm.role === 'school_admin' && (
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-3.5 space-y-2">
+                  <div className="text-xs font-black text-indigo-900">المدرسة التابع لها مدير المدرسة</div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">اختر المدرسة المسندة</label>
+                    <select
+                      value={createForm.schoolId}
+                      onChange={(e) => setCreateForm({ ...createForm, schoolId: e.target.value })}
+                      className="w-full rounded-xl border border-gray-200 bg-white p-2 text-xs font-bold"
+                      data-testid="school-admin-school-select"
+                    >
+                      <option value="">اختر المدرسة</option>
+                      {schools.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
               {/* Extra scope if teacher */}
               {createForm.role === 'teacher' && (
                 <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-3.5 space-y-3">
@@ -787,6 +826,24 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
                   </select>
                 </div>
               </div>
+
+              {editForm.role === 'school_admin' && (
+                <div className="space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
+                  <div>
+                    <label className="block text-xs font-black text-indigo-900 mb-1">المدرسة التابع لها مدير المدرسة</label>
+                    <select
+                      value={editForm.schoolId}
+                      onChange={(e) => setEditForm({ ...editForm, schoolId: e.target.value })}
+                      className="w-full rounded-xl border border-gray-200 bg-white p-2 text-xs font-bold"
+                    >
+                      <option value="">اختر المدرسة</option>
+                      {schools.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
 
               {editForm.role === 'teacher' && (
                 <div className="space-y-3 rounded-2xl border bg-slate-50 p-4">

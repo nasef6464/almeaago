@@ -246,6 +246,7 @@ export function App() {
         <Route path="/classroom/:sessionId/projector" element={<ClassroomProjectorPage />} />
         <Route path="/supervisor-dashboard" element={<SupervisorDashboardPage />} />
         <Route path="/supervisor-dashboard/interventions" element={<SchoolInterventionsPage />} />
+        <Route path="/school-director" element={<SchoolDirectorDashboardPage />} />
         <Route path="/school-director-dashboard" element={<SchoolDirectorDashboardPage />} />
         <Route path="/school-director-dashboard/interventions" element={<SchoolInterventionsPage />} />
         <Route path="/certificate/:code" element={<CertificatePage />} />

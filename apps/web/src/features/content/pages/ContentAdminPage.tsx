@@ -33,6 +33,7 @@ import type {
   LessonSummary,
   TaxonomyCore,
 } from '../api/content-types';
+import { AdminTablePageSkeleton, SkeletonTable } from '../../../components/ui/Skeleton';
 
 type ContentTab = 'courses' | 'lessons' | 'foundation' | 'library';
 type ContentRow = CourseSummary | LessonSummary | FoundationTopicSummary | LibrarySummary;
@@ -411,7 +412,19 @@ export function ContentAdminPage() {
   }
 
   if (authLoading) {
-    return <main className="min-h-[calc(100vh-5rem)] bg-gray-50 p-10 text-center font-black text-gray-600">جاري التحقق من الجلسة...</main>;
+    return (
+      <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-gray-50 dark:bg-slate-950 p-4 sm:p-8">
+        <div className="mx-auto max-w-7xl">
+          <AdminTablePageSkeleton
+            title="إدارة المحتوى التعليمي"
+            subtitle="إدارة ونشر الدورات، الدروس، مواضيع التأسيس، والمكتبة الرقمية"
+            columns={7}
+            rows={8}
+            columnWidths={['w-40', 'w-28', 'w-20', 'w-16', 'w-24', 'w-24', 'w-16']}
+          />
+        </div>
+      </main>
+    );
   }
   if (!user || (!isAdmin && !isTeacher)) {
     return <main className="min-h-[calc(100vh-5rem)] bg-gray-50 p-10 text-center font-black text-rose-700">هذه الشاشة متاحة للإدارة والمعلمين المخولين فقط.</main>;
@@ -668,7 +681,11 @@ export function ContentAdminPage() {
               </div>
 
               {scopedLoading ? (
-                <div className="p-10 text-center text-sm font-black text-gray-500">جاري تحميل المحتوى...</div>
+                <SkeletonTable
+                  rows={8}
+                  columns={7}
+                  columnWidths={['w-40', 'w-28', 'w-20', 'w-16', 'w-24', 'w-24', 'w-16']}
+                />
               ) : scopedRows.length === 0 ? (
                 <div className="p-10 text-center text-sm font-black text-gray-500">لا توجد عناصر مطابقة للفلاتر الحالية.</div>
               ) : (

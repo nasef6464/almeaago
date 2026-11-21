@@ -3,10 +3,20 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 
+	"github.com/nasef6464/almeaago/internal/platform/cache"
 	taxonomy "github.com/nasef6464/almeaago/internal/taxonomy/domain"
+)
+
+const (
+	taxonomyBootstrapFullKey = "almeaa:cache:taxonomy:bootstrap:v1:full"
+	taxonomyBootstrapCoreKey = "almeaa:cache:taxonomy:bootstrap:v1:core"
+	taxonomyCacheTTL         = 15 * time.Minute
 )
 
 type pathPresRaw struct {
@@ -39,14 +49,38 @@ type subjectPresRaw struct {
 }
 
 type Repository struct {
-	db *pgxpool.Pool
+	db    *pgxpool.Pool
+	redis *redis.Client
+	cache *cache.Store
 }
 
-func New(db *pgxpool.Pool) *Repository {
-	return &Repository{db: db}
+func New(db *pgxpool.Pool, redisClient ...*redis.Client) *Repository {
+	r := &Repository{db: db}
+	if len(redisClient) > 0 && redisClient[0] != nil {
+		r.redis = redisClient[0]
+		r.cache = cache.NewStore(redisClient[0])
+	}
+	return r
 }
 
 func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (taxonomy.Bootstrap, error) {
+	cacheKey := taxonomyBootstrapFullKey
+	if !includeSkills {
+		cacheKey = taxonomyBootstrapCoreKey
+	}
+
+	if r.cache != nil {
+		var cached taxonomy.Bootstrap
+		hit, err := r.cache.GetJSON(ctx, cacheKey, &cached)
+		if err == nil && hit {
+			return cached, nil
+		}
+	}
+
+	if r.db == nil {
+		return taxonomy.Bootstrap{}, errors.New("postgres pool is not initialized")
+	}
+
 	result := taxonomy.Bootstrap{
 		Paths: []taxonomy.Path{}, Levels: []taxonomy.Level{},
 		Subjects: []taxonomy.Subject{}, Skills: []taxonomy.Skill{},
@@ -164,7 +198,11 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	subjectRows.Close()
 
 	if !includeSkills {
-		return filterPublicVisibility(result), nil
+		result = filterPublicVisibility(result)
+		if r.cache != nil {
+			_ = r.cache.SetJSON(ctx, cacheKey, result, taxonomyCacheTTL)
+		}
+		return result, nil
 	}
 	result.Sections, err = r.skillSections(ctx, false)
 	if err != nil {
@@ -200,7 +238,11 @@ func (r *Repository) PublicBootstrap(ctx context.Context, includeSkills bool) (t
 	if err := skillRows.Err(); err != nil {
 		return result, err
 	}
-	return filterPublicVisibility(result), nil
+	result = filterPublicVisibility(result)
+	if r.cache != nil {
+		_ = r.cache.SetJSON(ctx, cacheKey, result, taxonomyCacheTTL)
+	}
+	return result, nil
 }
 
 func (r *Repository) AdminBootstrap(ctx context.Context) (taxonomy.Bootstrap, error) {

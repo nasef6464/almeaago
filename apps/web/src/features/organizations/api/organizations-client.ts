@@ -41,6 +41,21 @@ export interface SchoolSummary { id: string; code: string; name: string; status:
 export interface DirectorStudent { studentId: string; name: string; email: string; phone: string; isActive: boolean; classId: string | null; className: string | null }
 export interface DirectorTeacher { teacherId: string; name: string; email: string; isActive: boolean }
 export interface DirectorAssignment { assignmentId: string; teacherId: string; classId: string; subjectId: string; status: string }
+export interface SchoolDirectorRecord {
+  membership: {
+    id: string;
+    schoolId: string;
+    userId: string;
+    role: string;
+    status: string;
+    permissions: string[];
+  };
+  user: {
+    name: string;
+    email: string;
+    status: string;
+  };
+}
 export interface DirectorOverview {
   school: { schoolId: string; schoolName: string };
   metrics: { students: number; classes: number; teachers: number; supervisors: number; schoolAssessments: number; completedSmartClasses: number };
@@ -237,10 +252,20 @@ export const organizationsClient = {
     return request<{ assignment: unknown }>(`/api/v1/schools/${encodeURIComponent(schoolId)}/assignments`, { method: 'PUT', headers: csrfHeaders(csrf), body: JSON.stringify(payload) });
   },
   directors(schoolId: string, signal?: AbortSignal) {
-    return request<{ directors: unknown[] }>(`/api/v1/schools/${encodeURIComponent(schoolId)}/directors`, { signal });
+    return request<{ directors: SchoolDirectorRecord[]; permissions?: string[]; defaults?: string[]; pagination?: unknown }>(`/api/v1/schools/${encodeURIComponent(schoolId)}/directors`, { signal });
   },
-  upsertDirector(schoolId: string, userId: string, payload: unknown, csrf: string) {
-    return request<{ director: unknown }>(`/api/v1/schools/${encodeURIComponent(schoolId)}/directors/${encodeURIComponent(userId)}`, { method: 'PUT', headers: csrfHeaders(csrf), body: JSON.stringify(payload) });
+  upsertDirector(
+    schoolId: string,
+    userId: string,
+    payload?: { status?: 'active' | 'revoked'; permissions?: string[] } | unknown,
+    csrf?: string,
+  ) {
+    const body = JSON.stringify(payload ?? { status: 'active' });
+    const headers = csrf ? csrfHeaders(csrf) : {};
+    return request<{ director: SchoolDirectorRecord }>(
+      `/api/v1/schools/${encodeURIComponent(schoolId)}/directors/${encodeURIComponent(userId)}`,
+      { method: 'PUT', headers, body },
+    );
   },
   directorTeachers(schoolId: string, signal?: AbortSignal) {
     return request<{ teachers: DirectorTeacher[]; assignments: DirectorAssignment[] }>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/teachers`, { signal });

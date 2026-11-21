@@ -45,6 +45,7 @@ import {
   inspectImportData,
   type ImportRow,
 } from '../utils/importRowParsing';
+import { SchoolDirectorDashboardSkeleton, SkeletonMetricCard, SkeletonTable, Skeleton } from '../../../components/ui/Skeleton';
 import {
   organizationsClient,
   type DirectorAssignment,
@@ -706,7 +707,7 @@ export function SchoolDirectorDashboardPage(){
     setTimeout(() => setRemedialFeedback(''), 4500);
   };
 
-  if(authLoading||busy&&schools.length===0)return <main dir="rtl" className="flex min-h-[calc(100vh-5rem)] items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-indigo-600" size={38}/></main>;
+  if(authLoading||busy&&schools.length===0)return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 px-4 py-6 text-slate-900 sm:px-8"><div className="mx-auto max-w-7xl"><SchoolDirectorDashboardSkeleton/></div></main>;
   if(!user?.roles.includes('school_admin'))return <main dir="rtl" className="p-10 text-center font-black text-rose-700">هذه المساحة مخصصة لمدير المدرسة.</main>;
   if(!selectedSchool)return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 p-6"><div className="mx-auto mt-20 max-w-xl rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center"><ShieldCheck className="mx-auto text-slate-400" size={40}/><h1 className="mt-4 text-xl font-black">{error?'تعذر تحميل مساحة مدير المدرسة':'لا توجد مدرسة مفوضة'}</h1><p className="mt-2 text-sm text-slate-500">{error?'تعذر قراءة نطاق المدارس المصرح به. أعد فتح الصفحة للمحاولة مجددًا.':'اطلب من مدير المنصة ربط حسابك بمدرسة وتفعيل الصلاحيات المطلوبة.'}</p></div></main>;
 
@@ -744,7 +745,22 @@ export function SchoolDirectorDashboardPage(){
     {/* SECTION: OVERVIEW */}
     {section==='overview'&&has('SCHOOL_OVERVIEW_VIEW')?<section aria-label="مؤشرات المدرسة" className="mt-6 space-y-6">
       {overviewError?<div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm font-bold text-rose-700">{overviewError}</div>:null}
-      {overviewLoading?<p role="status" className="rounded-2xl border bg-white p-5 text-sm font-bold text-slate-500">جار تحميل مؤشرات المدرسة…</p>:null}
+      {overviewLoading ? (
+        <div className="space-y-6" role="status" aria-busy="true" aria-label="جار تحميل مؤشرات المدرسة...">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonMetricCard key={i} />
+            ))}
+          </div>
+          <div className="rounded-3xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm sm:p-6 space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <Skeleton className="h-6 w-44 rounded-md" />
+              <Skeleton className="h-7 w-24 rounded-xl" />
+            </div>
+            <SkeletonTable columns={6} rows={4} />
+          </div>
+        </div>
+      ) : null}
       {overview?.school.schoolId===selectedSchool.schoolId&&!overviewError?<div className="grid grid-cols-2 gap-3 lg:grid-cols-3">{[
         {label:'الطلاب',value:overview.metrics.students,icon:Users,tone:'text-indigo-700 bg-indigo-50'},
         {label:'الفصول',value:overview.metrics.classes,icon:Building2,tone:'text-sky-700 bg-sky-50'},
