@@ -39,35 +39,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          red_dir=$(mktemp -d)
-          trap 'rm -rf -- "$red_dir"' EXIT
-          git show 98b0f6d9ad0bba031936d950d087c0bd3d19b7bb:internal/taxonomy/repository/postgres/repository.go > "$red_dir/repository.go"
-          # The historical package predates the Redis cache layer; pair it with
-          # its own mutations file and neutralise the cache tests so the RED
-          # proof fails on the visibility assertion, not on missing cache symbols.
-          git show 98b0f6d9ad0bba031936d950d087c0bd3d19b7bb:internal/taxonomy/repository/postgres/mutations.go > "$red_dir/mutations.go"
-          printf 'package postgres\n' > "$red_dir/cache_test.go"
-          # Pair the historical implementation with the regression test that
-          # existed at that point, so the RED proof fails for the visibility
-          # regression rather than for newer section assertions.
-          git show bfc79e16020f71b4149f4a997d1e237d65bdc2a8:internal/taxonomy/repository/postgres/admin_visibility_integration_test.go > "$red_dir/admin_visibility_integration_test.go"
-          python3 - "$PWD" "$red_dir" <<'PY'
-          import json, pathlib, sys
-          root, temporary = map(pathlib.Path, sys.argv[1:])
-          overlay = {
-              str(root / 'internal/taxonomy/repository/postgres/repository.go'): str(temporary / 'repository.go'),
-              str(root / 'internal/taxonomy/repository/postgres/mutations.go'): str(temporary / 'mutations.go'),
-              str(root / 'internal/taxonomy/repository/postgres/cache_test.go'): str(temporary / 'cache_test.go'),
-              str(root / 'internal/taxonomy/repository/postgres/admin_visibility_integration_test.go'): str(temporary / 'admin_visibility_integration_test.go'),
-          }
-          (temporary / 'overlay.json').write_text(json.dumps({'Replace': overlay}))
-          PY
-          if go test -overlay "$red_dir/overlay.json" ./internal/taxonomy/repository/postgres -run '^TestAdminVisibilityReachesLearnerPostgres$' -count=1 -v > "$red_dir/taxonomy-visibility-red.log" 2>&1; then
-            cat "$red_dir/taxonomy-visibility-red.log"
+          red_root=$(mktemp -d)
+          trap 'rm -rf -- "$red_root"' EXIT
+          # Reproduce the historical tree in full instead of overlaying single
+          # files: the package now has cache helpers and newer tests, so a
+          # partial overlay fails to build for unrelated reasons.
+          git archive 98b0f6d9ad0bba031936d950d087c0bd3d19b7bb | tar -x -C "$red_root"
+          # Add the regression test that existed at that point so the RED proof
+          # fails on the visibility assertion itself.
+          git show bfc79e16020f71b4149f4a997d1e237d65bdc2a8:internal/taxonomy/repository/postgres/admin_visibility_integration_test.go > "$red_root/internal/taxonomy/repository/postgres/admin_visibility_integration_test.go"
+          if (cd "$red_root" && go test ./internal/taxonomy/repository/postgres -run '^TestAdminVisibilityReachesLearnerPostgres$' -count=1 -v > "$red_root/taxonomy-visibility-red.log" 2>&1); then
+            cat "$red_root/taxonomy-visibility-red.log"
             echo "::error::Original implementation unexpectedly passed"
             exit 1
           fi
-          cat "$red_dir/taxonomy-visibility-red.log"
-          grep -Eq 'active sub-skill must be hidden|inactive level must be rejected' "$red_dir/taxonomy-visibility-red.log"
+          cat "$red_root/taxonomy-visibility-red.log"
+          grep -Eq 'active sub-skill must be hidden|inactive level must be rejected' "$red_root/taxonomy-visibility-red.log"
       - name: GREEN — saved admin visibility flows to public taxonomy and learner scope
         run: go test ./internal/taxonomy/repository/postgres -run '^TestAdminVisibilityReachesLearnerPostgres$' -count=1 -v
