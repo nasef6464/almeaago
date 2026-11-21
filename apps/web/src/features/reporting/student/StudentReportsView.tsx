@@ -547,16 +547,16 @@ export const StudentReportsView: React.FC<{ embedded?: boolean }> = ({ embedded 
 
   const ContainerTag = embedded ? 'div' : 'main';
 
-  // Deep links stay byte-for-byte identical to the previous compact rows.
+  // Deep links use the canonical foundation-topic route shared with the smart path and Codex's exam results.
   const buildSkillLinks = (skill: StudentAggregatedSkill) => {
     const base =
       skill.topicId && skill.pathId && skill.subjectId
-        ? `/learning?path=${encodeURIComponent(skill.pathId)}&subject=${encodeURIComponent(skill.subjectId)}`
+        ? `/category/${encodeURIComponent(skill.pathId)}?subject=${encodeURIComponent(skill.subjectId)}&tab=skills&topic=${encodeURIComponent(skill.topicId)}`
         : '';
     return {
-      video: base ? `${base}&tab=skills&topic=${encodeURIComponent(skill.topicId!)}&content=lessons` : '',
-      drill: base ? `${base}&tab=questions&topic=${encodeURIComponent(skill.topicId!)}` : '',
-      support: base ? `${base}&tab=skills&topic=${encodeURIComponent(skill.topicId!)}&content=support` : '',
+      video: base ? `${base}&content=lessons` : '',
+      drill: base ? `${base}&content=quizzes` : '',
+      support: base ? `${base}&content=support` : '',
     };
   };
 
