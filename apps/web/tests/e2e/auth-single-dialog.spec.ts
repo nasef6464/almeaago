@@ -2,11 +2,12 @@ import { expect, test, type Page } from '@playwright/test';
 
 // This suite exercises modal ownership only. All API traffic is synthetic and
 // every external request is blocked; no identity provider or real data is used.
-async function guest(page: Page) {
+async function guest(page: Page, baseURL?: string) {
   const externalRequests: string[] = [];
+  const allowedOrigin = baseURL ? new URL(baseURL).origin : 'http://127.0.0.1:5173';
   await page.route('**/*', async route => {
     const url = new URL(route.request().url());
-    if (url.origin !== 'http://127.0.0.1:4173') {
+    if (url.origin !== allowedOrigin) {
       externalRequests.push(url.href);
       return route.abort('blockedbyclient');
     }
@@ -45,7 +46,8 @@ async function singleDialog(page: Page, title: 'تسجيل الدخول' | 'إن
 async function closeAndConsumeRoute(page: Page, destination = '/') {
   await page.getByRole('dialog').getByRole('button', { name: 'إغلاق النافذة', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page).toHaveURL('http://127.0.0.1:4173' + destination);
+  const currentUrl = new URL(page.url());
+  expect(currentUrl.pathname + currentUrl.search + currentUrl.hash).toBe(destination);
   // Dispatching a browser navigation notification exercises a subsequent router
   // render without adding a new auth intent or using arbitrary sleep delays.
   await page.evaluate(() => window.dispatchEvent(new PopStateEvent('popstate', { state: history.state })));
@@ -53,8 +55,8 @@ async function closeAndConsumeRoute(page: Page, destination = '/') {
 }
 
 for (const width of [390, 820, 1440]) {
-  test(`login route opens exactly one dialog and stays closed after dismissal at ${width}px`, async ({ page }) => {
-    await guest(page);
+  test(`login route opens exactly one dialog and stays closed after dismissal at ${width}px`, async ({ page, baseURL }) => {
+    await guest(page, baseURL);
     await page.setViewportSize({ width, height: 1000 });
     await page.goto('/login');
     await singleDialog(page, 'تسجيل الدخول');
@@ -62,8 +64,8 @@ for (const width of [390, 820, 1440]) {
   });
 }
 
-test('signup route owns one dialog and switches to the original login form', async ({ page }) => {
-  await guest(page);
+test('signup route owns one dialog and switches to the original login form', async ({ page, baseURL }) => {
+  await guest(page, baseURL);
   await page.setViewportSize({ width: 820, height: 1000 });
   await page.goto('/signup');
   const dialog = await singleDialog(page, 'إنشاء حساب جديد');
@@ -73,16 +75,16 @@ test('signup route owns one dialog and switches to the original login form', asy
   await closeAndConsumeRoute(page);
 });
 
-test('hidden admin header keeps one auth dialog and consumes only the auth query on close', async ({ page }) => {
-  await guest(page);
+test('hidden admin header keeps one auth dialog and consumes only the auth query on close', async ({ page, baseURL }) => {
+  await guest(page, baseURL);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/admin-dashboard/questions?scope=keep&auth=login#return');
   await singleDialog(page, 'تسجيل الدخول');
   await closeAndConsumeRoute(page, '/admin-dashboard/questions?scope=keep#return');
 });
 
-test('public header and both explicit homepage auth actions reopen one dialog after close', async ({ page }) => {
-  const externalRequests = await guest(page);
+test('public header and both explicit homepage auth actions reopen one dialog after close', async ({ page, baseURL }) => {
+  const externalRequests = await guest(page, baseURL);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/');
   await expect(page.getByRole('dialog')).toHaveCount(0);

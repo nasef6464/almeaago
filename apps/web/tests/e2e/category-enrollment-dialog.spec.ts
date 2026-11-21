@@ -12,9 +12,10 @@ const catalog = {
 };
 
 for (const width of [390, 820, 1440]) {
-  test(`restricted category opens one enrollment dialog and retains failed draft before persistent retry at ${width}px`, async ({ page }) => {
+  test(`restricted category opens one enrollment dialog and retains failed draft before persistent retry at ${width}px`, async ({ page, baseURL }) => {
     await page.setViewportSize({ width, height: 1000 });
-    await page.route(url => url.origin !== 'http://127.0.0.1:4173', route => route.abort('blockedbyclient'));
+    const allowedOrigin = baseURL ? new URL(baseURL).origin : 'http://127.0.0.1:5173';
+    await page.route(url => url.origin !== allowedOrigin, route => route.abort('blockedbyclient'));
     await page.route(url => url.pathname.startsWith('/api/'), route => {
       const path = new URL(route.request().url()).pathname;
       if (path === '/api/v1/auth/me') return route.fulfill({ json: { user: student } });

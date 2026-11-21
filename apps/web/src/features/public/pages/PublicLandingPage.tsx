@@ -518,7 +518,7 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
               <span>المسارات التعليمية المعتمدة</span>
             </div>
             <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-              اختر مسارك التعليمي وتفوق بثقة
+              كل ما تحتاجه للتفوق
             </h2>
             <p className="mt-2 text-xs sm:text-base font-medium text-slate-500 max-w-2xl mx-auto leading-relaxed">
               مسارات قياس والاختبارات الوطنية مصممة وفق أحدث معايير هيئة تقويم التعليم والتدريب، مع بنوك أسئلة تفاعلية وتأسيس شامل.
