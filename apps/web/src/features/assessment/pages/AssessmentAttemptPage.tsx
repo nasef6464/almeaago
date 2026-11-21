@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clock3,
   Flag,
+  LayoutGrid,
   Moon,
   Send,
   Star,
@@ -527,7 +528,7 @@ export function AssessmentAttemptPage() {
         isNightMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'
       } p-3 sm:p-5`}
     >
-      <div className="mx-auto max-w-4xl space-y-4">
+      <div className="mx-auto max-w-7xl space-y-4">
         {/* Sticky Header with Navigation and Mode Toggle */}
         <header
           className={`sticky top-3 z-30 rounded-2xl border p-4 shadow-sm backdrop-blur-md transition-colors ${
@@ -633,6 +634,7 @@ export function AssessmentAttemptPage() {
         {error ? <div role="alert" className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700 text-xs">{displayAttemptError(error)}{draftChoice?.attemptId === attempt.id && draftChoice.questionId === question.id ? <><span className="block mt-1">الإجابة لم تُحفظ بعد. أعد المحاولة عند توفر الاتصال.</span><button type="button" disabled={savingAnswer || busy} onClick={() => void choose(draftChoice.option)} className="mt-2 rounded-lg border border-rose-300 bg-white px-3 py-1.5 font-bold disabled:opacity-50">إعادة حفظ الإجابة</button></> : null}</div> : null}
 
         {currentSection ? <div className="mb-4 rounded-xl bg-indigo-50 p-3 text-center font-bold text-indigo-900"><span>{currentSection.title}</span>{sectionSecondsLeft != null ? <span className="ms-3 text-xs">وقت القسم: {formatTimerCountdown(sectionSecondsLeft)}</span> : null}</div> : null}
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_17rem] xl:grid-cols-[minmax(0,1fr)_19rem]">
         {/* Question Area Card */}
         <section
           className={`rounded-3xl border p-5 sm:p-7 shadow-xs transition-colors ${
@@ -800,9 +802,9 @@ export function AssessmentAttemptPage() {
           </div>
         </section>
 
-        {/* Question Navigation Ribbon & Prev/Next Bar (1:1 with Legacy) */}
+        {/* Previous and next controls stay with the question. */}
         <footer
-          className={`rounded-2xl border p-4 shadow-sm flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between transition-colors ${
+          className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 shadow-sm transition-colors lg:col-start-1 ${
             isNightMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'
           }`}
         >
@@ -820,39 +822,6 @@ export function AssessmentAttemptPage() {
             <ArrowRight size={16} />
             <span>السابق</span>
           </button>
-
-          {/* Question Number Ribbon (1:1 with Legacy) */}
-          <div className="flex max-w-full gap-1 overflow-x-auto px-2 py-1 lg:max-w-[60%] scrollbar-thin">
-            {attempt.questions.map((q, idx) => {
-              const isCurrent = index === idx;
-              const savedAnswer = answers.get(q.id);
-              const isAnswered = savedAnswer?.selectedOptionIndex != null || Boolean(savedAnswer?.textAnswer?.trim());
-              const isReview = answers.get(q.id)?.markedForReview;
-
-              return (
-                <button
-                  key={q.id}
-                  type="button"
-                  disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id || (requireAnswerBeforeNext && idx > index && attempt.questions.slice(index, idx).some(item => { const answer = answers.get(item.id); return answer?.selectedOptionIndex == null && !answer?.textAnswer?.trim(); }))}
-                  onClick={() => void changeQuestion(idx)}
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black transition-all ${
-                    isCurrent
-                      ? 'bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-400'
-                      : isReview
-                      ? 'border border-amber-300 bg-amber-100 text-amber-800 shadow-2xs'
-                      : isAnswered
-                      ? 'border border-emerald-300 bg-emerald-100 text-emerald-700 shadow-2xs'
-                      : isNightMode
-                      ? 'border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
-                      : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
-                  }`}
-                  title={`السؤال ${idx + 1}`}
-                >
-                  {idx + 1}
-                </button>
-              );
-            })}
-          </div>
 
           <button
             type="button"
@@ -879,6 +848,59 @@ export function AssessmentAttemptPage() {
             <span>تسليم الاختبار</span>
           </button>
         </footer>
+
+        <nav
+          aria-labelledby="attempt-question-board-title"
+          className={`min-w-0 rounded-2xl border p-4 shadow-sm lg:col-start-2 lg:row-start-1 lg:row-span-2 ${
+            isNightMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'
+          }`}
+        >
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 id="attempt-question-board-title" className="flex items-center gap-2 text-sm font-black">
+              <LayoutGrid size={17} aria-hidden="true" />
+              لوحة الأسئلة
+            </h2>
+            <span className="text-xs font-bold">{attempt.questions.length} سؤال</span>
+          </div>
+          <ul className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-xs font-bold">
+            <li className={isNightMode ? 'text-emerald-300' : 'text-emerald-700'}>تمت الإجابة</li>
+            <li className={isNightMode ? 'text-amber-300' : 'text-amber-800'}>للمراجعة</li>
+            <li className={isNightMode ? 'text-slate-300' : 'text-slate-600'}>لم يجب</li>
+          </ul>
+          <div className="grid max-h-64 grid-cols-5 gap-2 overflow-y-auto p-1 sm:max-lg:grid-cols-8">
+            {attempt.questions.map((q, idx) => {
+              const isCurrent = index === idx;
+              const savedAnswer = answers.get(q.id);
+              const isAnswered = savedAnswer?.selectedOptionIndex != null || Boolean(savedAnswer?.textAnswer?.trim());
+              const isReview = savedAnswer?.markedForReview;
+
+              return (
+                <button
+                  key={q.id}
+                  type="button"
+                  disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id || (requireAnswerBeforeNext && idx > index && attempt.questions.slice(index, idx).some(item => { const answer = answers.get(item.id); return answer?.selectedOptionIndex == null && !answer?.textAnswer?.trim(); }))}
+                  onClick={() => void changeQuestion(idx)}
+                  aria-current={isCurrent ? 'step' : undefined}
+                  className={`flex h-10 w-full min-w-0 items-center justify-center rounded-xl text-xs font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 ${
+                    isCurrent
+                      ? 'bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-400'
+                      : isReview
+                      ? 'border border-amber-300 bg-amber-100 text-amber-800 shadow-2xs'
+                      : isAnswered
+                      ? 'border border-emerald-300 bg-emerald-100 text-emerald-700 shadow-2xs'
+                      : isNightMode
+                      ? 'border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                  }`}
+                  title={`السؤال ${idx + 1} · ${isCurrent ? 'الحالي' : isReview ? 'للمراجعة' : isAnswered ? 'تمت الإجابة' : 'لم يجب'}`}
+                >
+                  {idx + 1}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+        </div>
       </div>
 
       {showConfirmSection && currentSection ? (

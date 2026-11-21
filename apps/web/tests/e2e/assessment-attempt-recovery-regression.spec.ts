@@ -57,6 +57,43 @@ test('text question shows question and written choices',async({page})=>{
   await expect(page.getByRole('button',{name:/٣/})).toBeVisible();
   await expect(page.getByRole('button',{name:/٤/})).toBeVisible();
 });
+
+test('question board sits on the left on desktop and remains usable on narrow screens', async ({ page }, testInfo) => {
+  await mock(page);
+  const questions = Array.from({ length: 26 }, (_, idx) => ({
+    ...attempt.questions[0],
+    id: `q-${idx + 1}`,
+    sortOrder: idx + 1,
+    text: idx === 0 ? '٢ + ٢ = ؟' : `نص السؤال ${idx + 1}`,
+  }));
+  await page.route('**/api/v1/assessments/assessment-1/attempts', r => json(r, { attempt: { ...attempt, questions } }));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/assessments/assessment-1/start');
+  const question = page.getByRole('heading', { name: '٢ + ٢ = ؟', exact: true });
+  const first = page.getByRole('button', { name: '1', exact: true });
+  await expect(first).toBeVisible();
+  const questionBox = (await question.boundingBox())!;
+  const buttonBox = (await first.boundingBox())!;
+  expect(buttonBox.x + buttonBox.width).toBeLessThan(questionBox.x);
+  expect(buttonBox.y - questionBox.y).toBeLessThan(200);
+  const board = page.getByRole('navigation', { name: 'لوحة الأسئلة' });
+  await expect(board).toBeVisible();
+  await expect(first).toHaveAttribute('aria-current', 'step');
+  await page.screenshot({ path: testInfo.outputPath('question-board-1440.png') });
+  for (const width of [820, 390]) {
+    await page.setViewportSize({ width, height: 850 });
+    const layout = await board.boundingBox();
+    expect(layout!.x).toBeGreaterThanOrEqual(0);
+    expect(layout!.x + layout!.width).toBeLessThanOrEqual(width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await board.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`question-board-${width}.png`) });
+  }
+  const last = board.getByRole('button', { name: '26', exact: true });
+  await last.click();
+  await expect(page.getByRole('heading', { name: 'نص السؤال 26' })).toBeVisible();
+  await expect(last).toHaveAttribute('aria-current', 'step');
+});
 test('question ribbon cannot skip an unanswered required question',async({page})=>{
   test.setTimeout(120_000);
   await mock(page);
