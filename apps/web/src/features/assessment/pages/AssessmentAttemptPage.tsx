@@ -128,7 +128,7 @@ export function AssessmentAttemptPage() {
             const bookmark = readSavedAttempts(user.id).find(item => item.id === attemptId);
             const savedIndex = response.attempt.questions.findIndex(item => item.id === bookmark?.questionId);
             if (savedIndex >= 0) setIndex(savedIndex);
-          } else {
+          } else if (response.attempt.status === 'abandoned') {
             removeAttemptBookmark(user.id, attemptId);
           }
           if (response.attempt.status === 'submitted') {
@@ -141,7 +141,10 @@ export function AssessmentAttemptPage() {
             } catch {
               submitted = await attemptClient.result(attemptId);
             }
-            if (active) setResult(submitted.result);
+            if (active) {
+              removeAttemptBookmark(user.id, attemptId);
+              setResult(submitted.result);
+            }
           }
         } else if (assessmentId) {
           const csrf = await getCsrfRef.current();

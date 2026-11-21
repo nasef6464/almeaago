@@ -124,6 +124,17 @@ test('question board sits on the left on desktop and remains usable on narrow sc
   await expect(page.getByRole('heading', { name: 'نص السؤال 26' })).toBeVisible({ timeout: 15_000 });
   await expect(last).toHaveAttribute('aria-current', 'step');
 });
+test('an expired saved attempt remains available if its submission fails', async ({ page }) => {
+  test.setTimeout(90_000);
+  await mock(page);
+  await page.addInitScript(() => localStorage.setItem('almeaa:saved-assessment-attempts:student-1', JSON.stringify([{ id: 'attempt-1', title: 'محاكي كمي', questionId: 'q-1', returnTo: '' }])));
+  await page.route('**/api/v1/assessment-attempts/attempt-1', r => json(r, { attempt: { ...attempt, status: 'expired', expiresAt: new Date(Date.now() - 1000).toISOString() } }));
+  await page.route('**/api/v1/assessment-attempts/attempt-1/submit', r => json(r, { message: 'connection unavailable' }, 503));
+  await page.goto('/assessment-attempts/attempt-1', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'محاكي كمي' })).toBeVisible();
+  await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem('almeaa:saved-assessment-attempts:student-1') || '[]').length)).toBe(1);
+});
+
 test('saving an attempt lets the student leave and resume the same question', async ({ page }, testInfo) => {
   test.setTimeout(90_000);
   await mock(page);
