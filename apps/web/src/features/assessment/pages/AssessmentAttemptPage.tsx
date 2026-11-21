@@ -23,6 +23,7 @@ import { useAuth } from '../../auth/state/AuthProvider';
 import { attemptClient, type Attempt, type Result } from '../api/attempt-client';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
 import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
+import { AssessmentResultsPage } from './AssessmentResultsPage';
 import { useQuestionActiveTime } from '../useQuestionActiveTime';
 import {
   formatQuestionHtmlForDisplay,
@@ -523,6 +524,9 @@ export function AssessmentAttemptPage() {
             </Link>
           </div>
         </section>
+        {attempt?.showResultsReport !== false ? (
+          <AssessmentResultsPage embedded resultAttemptId={result.attemptId} />
+        ) : null}
       </main>
     );
   }
@@ -770,7 +774,7 @@ export function AssessmentAttemptPage() {
             className={`mt-6 grid gap-3 ${
               imageEmbeddedOptions
                 ? 'grid-cols-4'
-                : getQuizOptionGridClass(question.options)
+                : getQuizOptionGridClass(question.options, attempt.optionLayout)
             }`}
           >
             {question.options.map((option, displayIndex) => {

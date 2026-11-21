@@ -320,8 +320,9 @@ function ReviewQuestionCard({
 
 const learnerSavedReviewQuestions = new Map<string, Set<string>>();
 
-export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {}) {
-  const { attemptId = '' } = useParams();
+export function AssessmentResultsPage({ embedded, resultAttemptId }: { embedded?: boolean; resultAttemptId?: string } = {}) {
+  const { attemptId: routeAttemptId = '' } = useParams();
+  const attemptId = resultAttemptId || routeAttemptId;
   const [searchParams] = useSearchParams();
   const returnTo = safeReturnPath(searchParams.get('returnTo'));
   const { user, loading: authLoading, getCsrfToken } = useAuth();

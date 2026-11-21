@@ -72,6 +72,7 @@ type Attempt struct {
 	AllowQuestionReview     bool              `json:"allowQuestionReview"`
 	ShowResultsReport       bool              `json:"showResultsReport"`
 	RandomizeOptions        bool              `json:"randomizeOptions"`
+	OptionLayout            string            `json:"optionLayout"`
 	Kind                    Kind              `json:"kind"`
 	MockPresentationMode    string            `json:"mockPresentationMode,omitempty"`
 	MockStrictSectionLock   *bool             `json:"mockStrictSectionLock,omitempty"`

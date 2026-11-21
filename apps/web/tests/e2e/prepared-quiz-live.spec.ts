@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test('رحلة الاختبار الجاهز بين الإدارة والطالب بقاعدة محلية', async ({ page }) => {
   test.skip(process.env.PREPARED_QUIZ_LIVE !== '1', 'requires isolated Go and PostgreSQL');
+  if (process.env.PREPARED_MOBILE === '1') await page.setViewportSize({ width: 390, height: 844 });
   test.setTimeout(600_000);
   page.setDefaultTimeout(60_000);
   page.setDefaultNavigationTimeout(120_000);
@@ -60,7 +61,9 @@ test('رحلة الاختبار الجاهز بين الإدارة والطال�
   await page.getByRole('button', { name: 'إنهاء وتسليم الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible();
-  await expect(page.getByText('100.0%')).toBeVisible();
+  await expect(page.getByText('100.0%').first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'اختبار تجريبي جاهز' })).toBeVisible();
+  await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'عرض النتيجة والمراجعة' })).toBeVisible();
   await page.getByRole('link', { name: 'عرض النتيجة والمراجعة' }).click();
   await expect(page.getByRole('heading', { name: 'اختبار تجريبي جاهز' })).toBeVisible();

@@ -80,9 +80,13 @@ export const getQuizQuestionMapButtonClass = (
 
 export const getQuizOptionGridClass = (
   options: Array<{ text: string }> = [],
+  optionLayout = 'auto',
 ): string => {
-  const longestLength = options.reduce((max, opt) => Math.max(max, (opt?.text || '').length), 0);
-  return longestLength > 60 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-4';
+  const longestLength = options.reduce((max, opt) => Math.max(max, DOMPurify.sanitize(opt?.text || '', { ALLOWED_TAGS: [] }).length), 0);
+  if (optionLayout === 'horizontal') {
+    return longestLength > 72 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 sm:grid-cols-4';
+  }
+  return longestLength > 72 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-4';
 };
 
 export const formatTimerCountdown = (totalSeconds: number): string => {

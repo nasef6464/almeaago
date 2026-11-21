@@ -51,6 +51,7 @@ export interface Attempt {
   allowQuestionReview: boolean;
   showResultsReport?: boolean;
   randomizeOptions: boolean;
+  optionLayout?: string;
   totalQuestions?: number;
   kind?: 'normal' | 'mock';
   mockPresentationMode?: string;

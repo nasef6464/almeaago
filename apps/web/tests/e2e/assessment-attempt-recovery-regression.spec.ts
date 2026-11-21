@@ -58,6 +58,35 @@ test('text question shows question and written choices',async({page})=>{
   await expect(page.getByRole('button',{name:/٤/})).toBeVisible();
 });
 
+test('teacher horizontal layout is honored for long choices', async ({ page }) => {
+  test.setTimeout(120_000);
+  await mock(page);
+  const longChoice = 'اختيار طويل '.repeat(8);
+  const question = { ...attempt.questions[0], options: [{ index: 0, text: longChoice, assetId: '' }, { index: 1, text: 'آخر', assetId: '' }, { index: 2, text: 'ثالث', assetId: '' }, { index: 3, text: 'رابع', assetId: '' }] };
+  await page.route('**/api/v1/assessments/assessment-1/attempts', r => json(r, { attempt: { ...attempt, optionLayout: 'horizontal', questions: [question] } }));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/assessments/assessment-1/start', { waitUntil: 'domcontentloaded' });
+  const first = page.getByRole('button', { name: new RegExp(longChoice.trim()) });
+  const second = page.getByRole('button', { name: /رابع/ });
+  await expect(first).toBeVisible();
+  const a = (await first.boundingBox())!;
+  const b = (await second.boundingBox())!;
+  expect(Math.abs(a.y - b.y)).toBeLessThan(5);
+});
+
+test('hidden result does not request the answer review after submission', async ({ page }) => {
+  test.setTimeout(90_000);
+  await mock(page);
+  await page.route('**/api/v1/assessments/assessment-1/attempts', r => json(r, { attempt: { ...attempt, showResultsReport: false } }));
+  let reviews = 0;
+  await page.route('**/api/v1/assessment-attempts/attempt-1/review', r => { reviews++; return json(r, {}); });
+  await page.goto('/assessments/assessment-1/start', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'إنهاء وتسليم الاختبار' }).click();
+  await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
+  await expect(page.getByText('تم تسجيل إكمال الاختبار.')).toBeVisible();
+  expect(reviews).toBe(0);
+});
+
 test('question board sits on the left on desktop and remains usable on narrow screens', async ({ page }, testInfo) => {
   test.setTimeout(90_000);
   await mock(page);
