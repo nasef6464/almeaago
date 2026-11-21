@@ -42,6 +42,11 @@ jobs:
           red_dir=$(mktemp -d)
           trap 'rm -rf -- "$red_dir"' EXIT
           git show 98b0f6d9ad0bba031936d950d087c0bd3d19b7bb:internal/taxonomy/repository/postgres/repository.go > "$red_dir/repository.go"
+          # The historical package predates the Redis cache layer; pair it with
+          # its own mutations file and neutralise the cache tests so the RED
+          # proof fails on the visibility assertion, not on missing cache symbols.
+          git show 98b0f6d9ad0bba031936d950d087c0bd3d19b7bb:internal/taxonomy/repository/postgres/mutations.go > "$red_dir/mutations.go"
+          printf 'package postgres\n' > "$red_dir/cache_test.go"
           # Pair the historical implementation with the regression test that
           # existed at that point, so the RED proof fails for the visibility
           # regression rather than for newer section assertions.
@@ -51,6 +56,8 @@ jobs:
           root, temporary = map(pathlib.Path, sys.argv[1:])
           overlay = {
               str(root / 'internal/taxonomy/repository/postgres/repository.go'): str(temporary / 'repository.go'),
+              str(root / 'internal/taxonomy/repository/postgres/mutations.go'): str(temporary / 'mutations.go'),
+              str(root / 'internal/taxonomy/repository/postgres/cache_test.go'): str(temporary / 'cache_test.go'),
               str(root / 'internal/taxonomy/repository/postgres/admin_visibility_integration_test.go'): str(temporary / 'admin_visibility_integration_test.go'),
           }
           (temporary / 'overlay.json').write_text(json.dumps({'Replace': overlay}))
