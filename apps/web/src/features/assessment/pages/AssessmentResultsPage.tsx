@@ -30,6 +30,7 @@ import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage
 import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
 import { ResultDonutChart } from '../components/ResultDonutChart';
 import { optionLabel, showOptionText } from '../questionPresentation';
+import { relativeArabicDate } from '../relativeDate';
 import {
   attemptClient,
   type ResultDetail,
@@ -60,31 +61,38 @@ function scoreTone(passed: boolean) {
 
 function ResultSummary({ item }: { item: ResultListItem }) {
   return (
-    <article className="rounded-2xl border-2 border-slate-200/90 bg-white p-4 shadow-sm transition-colors hover:border-indigo-300">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-black text-indigo-700">محاولة {item.attemptNumber}</span>
-            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-black text-slate-600">v{item.assessmentVersion}</span>
-          </div>
-          <h2 className="mt-2 text-base font-black leading-tight text-gray-900">{item.title}</h2>
-          <p className="mt-1 text-[11px] font-bold text-gray-500">{new Date(item.finalizedAt).toLocaleString('ar-SA')}</p>
+    <article className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-colors hover:border-indigo-200 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-black text-indigo-700">
+            محاولة {item.attemptNumber}
+          </span>
+          <span className="text-[11px] font-bold text-gray-500">{relativeArabicDate(item.finalizedAt)}</span>
         </div>
+        <h2 className="mt-1.5 text-base font-black leading-snug text-gray-900">{item.title}</h2>
         {item.showResultsReport ? (
-          <div className="flex items-center gap-3">
-            <div className="text-center"><div className="text-[10px] font-bold text-gray-500">الدرجة</div><div className={`text-xl font-black ${item.passed?'text-emerald-600':'text-rose-600'}`}>{item.score.toFixed(1)}%</div></div>
-            <div className="border-r border-gray-100 pr-3 text-center"><div className="text-[10px] font-bold text-gray-500">صحيح</div><div className="text-lg font-black text-indigo-700">{item.correctAnswers}/{item.totalQuestions}</div></div>
-          </div>
-        ) : <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-black text-gray-600">تم الإكمال</span>}
+          <p className="mt-1 text-[11px] font-bold text-gray-500">
+            {item.correctAnswers} صحيحة من {item.totalQuestions} · {item.wrongAnswers} خاطئة · {item.unanswered} بدون إجابة
+          </p>
+        ) : (
+          <p className="mt-1 text-[11px] font-bold text-gray-500">تم الإكمال</p>
+        )}
       </div>
-      {item.showResultsReport ? <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px] font-bold">
-        <div className="rounded-xl bg-emerald-50 p-2 text-emerald-800">{item.correctAnswers} صحيحة</div>
-        <div className="rounded-xl bg-rose-50 p-2 text-rose-800">{item.wrongAnswers} خاطئة</div>
-        <div className="rounded-xl bg-amber-50 p-2 text-amber-800">{item.unanswered} بدون إجابة</div>
-      </div> : null}
-      <div className="mt-3 flex justify-end border-t border-slate-100 pt-3">
-        <Link to={`/assessment-results/${item.attemptId}`} className="inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-3.5 py-2 text-xs font-black text-white hover:bg-gray-800">
-          <Eye size={15} className="text-amber-400"/>عرض النتيجة
+      <div className="flex items-center justify-between gap-3 sm:shrink-0 sm:justify-end">
+        {item.showResultsReport ? (
+          <div className="text-center">
+            <div className={`text-2xl font-black ${item.passed ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {item.score.toFixed(1)}%
+            </div>
+            <div className="text-[10px] font-bold text-gray-500">{item.passed ? 'ناجح' : 'يحتاج تدريب'}</div>
+          </div>
+        ) : null}
+        <Link
+          to={`/assessment-results/${item.attemptId}`}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2.5 text-xs font-black text-white transition hover:bg-indigo-700"
+        >
+          <Eye size={15} />
+          عرض النتيجة
         </Link>
       </div>
     </article>
