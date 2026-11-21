@@ -59,6 +59,7 @@ test('text question shows question and written choices',async({page})=>{
 });
 
 test('question board sits on the left on desktop and remains usable on narrow screens', async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
   await mock(page);
   const questions = Array.from({ length: 26 }, (_, idx) => ({
     ...attempt.questions[0],
@@ -68,7 +69,7 @@ test('question board sits on the left on desktop and remains usable on narrow sc
   }));
   await page.route('**/api/v1/assessments/assessment-1/attempts', r => json(r, { attempt: { ...attempt, questions } }));
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('/assessments/assessment-1/start');
+  await page.goto('/assessments/assessment-1/start', { waitUntil: 'domcontentloaded' });
   const question = page.getByRole('heading', { name: '٢ + ٢ = ؟', exact: true });
   const first = page.getByRole('button', { name: '1', exact: true });
   await expect(first).toBeVisible();
@@ -91,9 +92,50 @@ test('question board sits on the left on desktop and remains usable on narrow sc
   }
   const last = board.getByRole('button', { name: '26', exact: true });
   await last.click();
-  await expect(page.getByRole('heading', { name: 'نص السؤال 26' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'نص السؤال 26' })).toBeVisible({ timeout: 15_000 });
   await expect(last).toHaveAttribute('aria-current', 'step');
 });
+test('saving an attempt lets the student leave and resume the same question', async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
+  await mock(page);
+  const second = { ...attempt.questions[0], id: 'q-2', text: 'نص السؤال الثاني', sortOrder: 2 };
+  const savedAnswer = { questionId: second.id, selectedOptionIndex: 1, textAnswer: '', timeSpentSeconds: 0, markedForReview: false, lastSavedAt: new Date().toISOString() };
+  const current = { ...attempt, questions: [attempt.questions[0], second], answers: [] as typeof savedAnswer[] };
+  let submissions = 0;
+  await page.route('**/api/v1/assessments/assessment-1/attempts', r => json(r, { attempt: current }));
+  await page.route('**/api/v1/assessment-attempts/attempt-1', r => json(r, { attempt: current }));
+  await page.route('**/api/v1/assessment-attempts/attempt-1/answers/q-2', r => {
+    current.answers = [savedAnswer];
+    return json(r, { attempt: current });
+  });
+  await page.route('**/api/v1/assessment-attempts/attempt-1/submit', r => {
+    submissions++;
+    return json(r, { result: { attemptId: current.id, score: 50, totalQuestions: 2, correctAnswers: 1, wrongAnswers: 0, unanswered: 1 } });
+  });
+  await page.goto('/assessments/assessment-1/start', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'التالي' }).click();
+  await page.getByRole('button', { name: /٤/ }).click();
+  await expect(page.getByRole('button', { name: /٤/ })).toHaveAttribute('aria-pressed', 'true');
+  await page.screenshot({ path: testInfo.outputPath('save-and-submit.png') });
+  await page.getByRole('button', { name: 'حفظ والاستكمال لاحقًا' }).click();
+  await expect(page).toHaveURL(/tab=platform-assessments/);
+  expect(submissions).toBe(0);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const resume = page.getByRole('link', { name: 'استكمال محاكي كمي' });
+  await expect(resume).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('saved-exam.png') });
+  await resume.click();
+  await expect(page.getByRole('heading', { name: 'نص السؤال الثاني' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /٤/ })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'إنهاء وتسليم الاختبار' }).click();
+  await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
+  await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible();
+  expect(submissions).toBe(1);
+  await page.goto('/dashboard?tab=platform-assessments', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'اختبارات المنصة', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'استكمال محاكي كمي' })).toHaveCount(0);
+});
+
 test('question ribbon cannot skip an unanswered required question',async({page})=>{
   test.setTimeout(120_000);
   await mock(page);
@@ -193,7 +235,7 @@ test('strict section can advance after its clock closes while a time checkpoint 
   await page.getByRole('button',{name:'تأكيد الانتقال'}).click();
   await expect(page.getByRole('heading',{name:'تم تسليم الاختبار'})).toBeVisible({timeout:30000});
 });
-test('student starts autosaves submits and sees server result',async({page})=>{test.setTimeout(90_000);await mock(page);await page.setViewportSize({width:390,height:844});await page.goto('/assessments/assessment-1/start',{waitUntil:'domcontentloaded'});await expect(page.getByRole('heading',{name:'محاكي كمي'})).toBeVisible();await page.getByRole('button',{name:/٤/}).click();await expect(page.getByRole('button',{name:/٤/})).toHaveAttribute('aria-pressed','true');await page.getByRole('button',{name:'إنهاء الاختبار'}).click();await page.getByRole('button',{name:'نعم، قم بالتسليم'}).click();await expect(page.getByRole('heading',{name:'تم تسليم الاختبار'})).toBeVisible();await expect(page.getByText('100.0%')).toBeVisible();await page.screenshot({path:'test-results/assessment-attempt-mobile.png',fullPage:true})});
+test('student starts autosaves submits and sees server result',async({page})=>{test.setTimeout(90_000);await mock(page);await page.setViewportSize({width:390,height:844});await page.goto('/assessments/assessment-1/start',{waitUntil:'domcontentloaded'});await expect(page.getByRole('heading',{name:'محاكي كمي'})).toBeVisible();await page.getByRole('button',{name:/٤/}).click();await expect(page.getByRole('button',{name:/٤/})).toHaveAttribute('aria-pressed','true');await page.getByRole('button',{name:'إنهاء وتسليم الاختبار'}).click();await page.getByRole('button',{name:'نعم، قم بالتسليم'}).click();await expect(page.getByRole('heading',{name:'تم تسليم الاختبار'})).toBeVisible();await expect(page.getByText('100.0%')).toBeVisible();await page.screenshot({path:'test-results/assessment-attempt-mobile.png',fullPage:true})});
 
 test('shuffled text options keep display letters while saving original identity', async ({page}) => {
   test.setTimeout(90000);

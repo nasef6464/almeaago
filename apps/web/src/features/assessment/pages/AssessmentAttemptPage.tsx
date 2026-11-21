@@ -1,4 +1,5 @@
 import { safeReturnPath, returnPathLabel } from '../navigation/returnPath';
+import { readSavedAttempts, removeAttemptBookmark, saveAttemptBookmark } from '../navigation/savedAttempts';
 import {
   AlertTriangle,
   Lock,
@@ -10,6 +11,7 @@ import {
   Flag,
   LayoutGrid,
   Moon,
+  Save,
   Send,
   Star,
   Sun,
@@ -119,7 +121,15 @@ export function AssessmentAttemptPage() {
       try {
         if (attemptId) {
           const response = await attemptClient.get(attemptId);
-          if (active) setAttempt(response.attempt);
+          if (!active) return;
+          setAttempt(response.attempt);
+          if (response.attempt.status === 'in_progress') {
+            const bookmark = readSavedAttempts(user.id).find(item => item.id === attemptId);
+            const savedIndex = response.attempt.questions.findIndex(item => item.id === bookmark?.questionId);
+            if (savedIndex >= 0) setIndex(savedIndex);
+          } else {
+            removeAttemptBookmark(user.id, attemptId);
+          }
           if (response.attempt.status === 'submitted') {
             // Retry the same submission key to finish any interrupted evidence
             // handoff; another browser can still read the already saved result.
@@ -342,6 +352,28 @@ export function AssessmentAttemptPage() {
     }
   }
 
+  async function saveForLater() {
+    if (!user || !attempt || !question || attempt.status !== 'in_progress'
+      || busy || savingAnswer || actionRef.current || draftChoice?.attemptId === attempt.id) return;
+    const actionScope = scopeKey;
+    actionRef.current = actionScope;
+    setBusy(true);
+    setError('');
+    try {
+      const csrf = await getCsrfToken();
+      if (scopeRef.current !== actionScope) return;
+      await persistCurrentTime(csrf);
+      if (scopeRef.current !== actionScope) return;
+      saveAttemptBookmark(user.id, { id: attempt.id, title: attempt.title, questionId: question.id, returnTo });
+      navigate('/dashboard?tab=platform-assessments');
+    } catch {
+      if (scopeRef.current === actionScope) setError('تعذر الحفظ والاستكمال لاحقًا. ابقَ في المحاولة وأعد المحاولة.');
+    } finally {
+      if (actionRef.current === actionScope) actionRef.current = '';
+      if (scopeRef.current === actionScope) setBusy(false);
+    }
+  }
+
   async function advanceSection() {
     const expected = attempt?.sectionProgress?.currentSectionId;
     if (!attempt || !expected || busy || savingAnswer || actionRef.current || draftChoice?.attemptId === attempt.id) return;
@@ -415,6 +447,7 @@ export function AssessmentAttemptPage() {
         csrf,
       );
       if (scopeRef.current === actionScope) {
+        if (user) removeAttemptBookmark(user.id, attempt.id);
         if (attempt.showResultsReport === false && returnTo) navigate(returnTo, { replace: true });
         else setResult(response.result);
       }
@@ -607,6 +640,19 @@ export function AssessmentAttemptPage() {
                 </button>
               ) : null}
 
+              {attempt.status === 'in_progress' ? (
+                <button
+                  type="button"
+                  onClick={() => void saveForLater()}
+                  disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id}
+                  aria-describedby={attempt.expiresAt || attempt.sectionProgress?.deadline ? 'attempt-save-timing' : undefined}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-800 hover:bg-indigo-100 disabled:opacity-50 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-200"
+                >
+                  <Save size={14} aria-hidden="true" />
+                  حفظ والاستكمال لاحقًا
+                </button>
+              ) : null}
+
               {/* End/Submit Button */}
               <button
                 type="button"
@@ -615,10 +661,15 @@ export function AssessmentAttemptPage() {
                 className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-black text-white hover:bg-amber-600 shadow-xs disabled:opacity-50"
               >
                 <Send size={14} />
-                <span>إنهاء الاختبار</span>
+                <span>إنهاء وتسليم الاختبار</span>
               </button>
             </div>
           </div>
+          {attempt.expiresAt || attempt.sectionProgress?.deadline ? (
+            <p id="attempt-save-timing" className="mt-2 text-xs font-bold text-amber-700 dark:text-amber-300">
+              وقت الاختبار يستمر بعد الحفظ والخروج.
+            </p>
+          ) : null}
 
           {/* Progress Bar */}
           {attempt.showProgressBar ? (

@@ -6,6 +6,8 @@ import {contentClient} from '../../content/api/content-client';
 import type {LearningSpace,TaxonomyCore} from '../../content/api/content-types';
 import {assessmentPlacementClient} from '../api/assessment-placement-client';
 import type {AssessmentPlacementSlot,LearnerAssessmentPlacement} from '../api/assessment-types';
+import {safeReturnPath} from '../navigation/returnPath';
+import {readSavedAttempts} from '../navigation/savedAttempts';
 const slotLabels:Record<AssessmentPlacementSlot,string>={training:'تدريبات',tests:'اختبارات',foundation:'التأسيس',course:'الدورات'};
 const placementKey=(id:string)=>{const k=`assessment-placement-start:${id}`;let v=sessionStorage.getItem(k);if(!v){v=crypto.randomUUID();sessionStorage.setItem(k,v)}return v};
 const accessLabel=(row:LearnerAssessmentPlacement)=>{
@@ -26,6 +28,7 @@ if(authLoading)return <div className="p-10 text-center font-black">جاري ال
 if(!user||!user.roles.includes('student'))return <div className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</div>;
 
 const ContainerTag = embedded ? 'div' : 'main';
+const savedAttempts = readSavedAttempts(user.id);
 
 return <ContainerTag dir="rtl" className={`mx-auto max-w-5xl space-y-6 ${embedded ? 'p-0 w-full' : 'px-3 pb-20 pt-5 sm:px-6'}`}>
   <header className="flex items-center gap-4">
@@ -42,6 +45,28 @@ return <ContainerTag dir="rtl" className={`mx-auto max-w-5xl space-y-6 ${embedde
       <p className="mt-1 text-sm font-bold text-gray-500 dark:text-slate-400">اختر مكان التعلم نفسه، ثم ابدأ فقط الاختبارات التي يصرح بها الخادم لهذا السياق.</p>
     </div>
   </header>
+
+  {savedAttempts.length > 0 && (
+    <section aria-labelledby="saved-assessment-heading" className="rounded-2xl border border-indigo-100 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+      <h2 id="saved-assessment-heading" className="font-black">اختبارات للاستكمال</h2>
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">المحاولات التي حفظتها على هذا المتصفح. إذا كان للاختبار وقت محدد، فالوقت يستمر بعد الخروج.</p>
+      <ul className="mt-3 space-y-2">
+        {savedAttempts.map(item => {
+          const returnTo = safeReturnPath(item.returnTo);
+          return (
+            <li key={item.id}>
+              <Link
+                to={`/assessment-attempts/${encodeURIComponent(item.id)}${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ''}`}
+                className="inline-flex max-w-full rounded-xl bg-indigo-50 px-4 py-2 text-sm font-bold text-indigo-900 hover:bg-indigo-100 dark:bg-indigo-950 dark:text-indigo-200"
+              >
+                استكمال {item.title}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  )}
 
   <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
     <Link to={embedded ? "/dashboard?tab=assignments" : "/assessment-assignments"} className="flex items-center justify-between rounded-xl border border-indigo-100 dark:border-indigo-900/60 bg-indigo-50 dark:bg-indigo-950/40 p-4 text-indigo-700 dark:text-indigo-300 shadow-sm transition hover:bg-indigo-100 dark:hover:bg-indigo-900/50">

@@ -14,7 +14,7 @@ test('returns to the topic while taking an attempt and after submission',async({
  const link=page.getByRole('link',{name:'العودة لموضوع التأسيس',exact:true});
  await expect(link).toHaveAttribute('href',returnTo);
  await page.waitForTimeout(1200); // Exercise the elapsed-time save before submission.
- await page.getByRole('button',{name:'إنهاء الاختبار',exact:true}).click();
+ await page.getByRole('button',{name:'إنهاء وتسليم الاختبار',exact:true}).click();
  await page.getByRole('button',{name:'نعم، قم بالتسليم'}).click();
  await expect(page.getByRole('heading',{name:'تم تسليم الاختبار'})).toBeVisible();
  await expect(page.getByRole('link',{name:'العودة لموضوع التأسيس',exact:true})).toHaveAttribute('href',returnTo);
@@ -26,7 +26,7 @@ for (const [destination,label] of [
  test(`return label follows destination: ${label}`,async({page})=>{
   await page.goto(`/assessment-attempts/a1?${new URLSearchParams({returnTo:destination})}`);
   await expect(page.getByRole('link',{name:label,exact:true})).toHaveAttribute('href',destination);
-  await page.getByRole('button',{name:'إنهاء الاختبار',exact:true}).click();
+  await page.getByRole('button',{name:'إنهاء وتسليم الاختبار',exact:true}).click();
   await page.getByRole('button',{name:'نعم، قم بالتسليم'}).click();
   await expect(page.getByRole('heading',{name:'تم تسليم الاختبار'})).toBeVisible();
   await expect(page.getByRole('link',{name:label,exact:true})).toHaveAttribute('href',destination);
@@ -35,7 +35,7 @@ for (const [destination,label] of [
 test('review preserves the course lesson return path after submission',async({page})=>{
  const destination='/learning/courses/course-1?lesson=lesson-1';
  await page.goto(`/assessment-attempts/a1?${new URLSearchParams({returnTo:destination})}`);
- await page.getByRole('button',{name:'إنهاء الاختبار',exact:true}).click();
+ await page.getByRole('button',{name:'إنهاء وتسليم الاختبار',exact:true}).click();
  await page.getByRole('button',{name:'نعم، قم بالتسليم'}).click();
  await page.getByRole('link',{name:'عرض النتيجة والمراجعة'}).click();
  await expect(page.getByRole('heading',{name:'تدريب النسب'})).toBeVisible();

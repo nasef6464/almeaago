@@ -44,11 +44,20 @@ test('رحلة الاختبار الجاهز بين الإدارة والطال�
   await login(process.env.PREPARED_OWNER_EMAIL!);
   await page.goto('/quiz?mode=prepared', { waitUntil: 'domcontentloaded' });
   await expect(page.getByText('اختبار تجريبي جاهز', { exact: true })).toBeVisible();
+  const started = page.waitForResponse(response => response.request().method() === 'POST'
+    && response.url().endsWith(`/assessments/${id}/attempts`) && response.ok());
   await page.getByRole('button', { name: 'ابدأ الاختبار', exact: true }).click();
+  const { attempt: studentAttempt } = await (await started).json();
   await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: /نعم/ }).click();
   await expect(page.getByRole('button', { name: /نعم/ })).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
+  await page.getByRole('button', { name: 'حفظ والاستكمال لاحقًا' }).click();
+  await expect(page).toHaveURL(/tab=platform-assessments/);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('link', { name: 'استكمال اختبار تجريبي جاهز' }).click();
+  await expect(page).toHaveURL(url => url.pathname === `/assessment-attempts/${studentAttempt.id}`);
+  await expect(page.getByRole('button', { name: /نعم/ })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'إنهاء وتسليم الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible();
   await expect(page.getByText('100.0%')).toBeVisible();
@@ -161,7 +170,7 @@ test('محاكي مرن يستعيد الإجابة بعد انقطاع حفظ �
   await page.getByRole('button', { name: /صحيح/ }).click();
   await page.getByRole('button', { name: 'السابق' }).click();
   await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
+  await page.getByRole('button', { name: 'إنهاء وتسليم الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible();
   await expect(page.getByText('100.0%')).toBeVisible();
@@ -187,7 +196,7 @@ test('انقطاع الشبكة الفعلي ثم استعادتها أثناء 
   await page.getByRole('button', { name: 'التالي' }).click();
   await expect(page.getByText('سؤال القسم الثاني', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: /صحيح/ }).click();
-  await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
+  await page.getByRole('button', { name: 'إنهاء وتسليم الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('100.0%')).toBeVisible();
@@ -210,10 +219,10 @@ test('فقد رد التسليم لا ينشئ نتيجة ثانية عند إع
       await route.abort('failed');
     } else await route.continue();
   });
-  await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
+  await page.getByRole('button', { name: 'إنهاء وتسليم الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByRole('alert')).toBeVisible();
-  await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
+  await page.getByRole('button', { name: 'إنهاء وتسليم الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible();
   await expect(page.getByText('50.0%')).toBeVisible();
@@ -236,7 +245,7 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   const attemptId = (await (await started).json()).attempt.id as string;
   await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: /لا$/ }).click();
-  await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
+  await page.getByRole('button', { name: 'إنهاء وتسليم الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByText('0.0%')).toBeVisible({ timeout: 30_000 });
   await page.getByRole('link', { name: 'عرض النتيجة والمراجعة' }).click();
@@ -289,7 +298,7 @@ test('السؤال المصور يعرض الصورة والحروف فقط من
   await expect(page.getByRole('button', { name: 'C', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'D', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'A', exact: true }).click();
-  await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
+  await page.getByRole('button', { name: 'إنهاء وتسليم الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByText('100.0%')).toBeVisible();
   await page.getByRole('link', { name: 'عرض النتيجة والمراجعة' }).click();
@@ -379,7 +388,7 @@ test('اختبار الدرس والنتيجة والمراجعة والعودة
   await expect(page.getByRole('heading',{name:'سؤال تجريبي'})).toBeVisible();
   await expect(page.getByRole('link',{name:'العودة إلى الدرس'})).toHaveAttribute('href',destination);
   await page.getByRole('button',{name:'أ نعم',exact:true}).click();
-  await page.getByRole('button',{name:'إنهاء الاختبار',exact:true}).click();
+  await page.getByRole('button',{name:'إنهاء وتسليم الاختبار',exact:true}).click();
   await page.getByRole('button',{name:'نعم، قم بالتسليم'}).click();
   await expect(page.getByRole('heading',{name:'تم تسليم الاختبار'})).toBeVisible();
   await page.getByRole('link',{name:'عرض النتيجة والمراجعة'}).click();
