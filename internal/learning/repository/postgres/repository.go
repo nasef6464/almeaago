@@ -58,7 +58,14 @@ func (r *Repository) ApplyAssessmentEvidence(ctx context.Context, event learning
 			pathID, subjectID = event.PathID, event.SubjectID
 		}
 		var evidenceID string
-		err = tx.QueryRow(ctx, `
+		if event.SourceKind == "self" {
+			err = tx.QueryRow(ctx, `
+				INSERT INTO mastery_evidence(student_id,evidence_type,source_attempt_id,self_attempt_id,self_attempt_kind,question_id,question_version,path_id,subject_id,answered,is_correct,occurred_at)
+				VALUES($1::uuid,$2,$3::uuid,$3::uuid,'self',$4::uuid,$5,$6::uuid,$7::uuid,$8,$9,$10)
+				ON CONFLICT(evidence_type,source_attempt_id,question_id) DO NOTHING RETURNING id::text
+			`, event.StudentID, event.EvidenceType, event.AttemptID, outcome.QuestionID, outcome.QuestionVersion, pathID, subjectID, outcome.Answered, outcome.Correct, event.OccurredAt).Scan(&evidenceID)
+		} else {
+			err = tx.QueryRow(ctx, `
 			INSERT INTO mastery_evidence(
 				student_id,evidence_type,source_attempt_id,assessment_id,assessment_version,
 				question_id,question_version,path_id,subject_id,answered,is_correct,occurred_at
@@ -68,8 +75,9 @@ func (r *Repository) ApplyAssessmentEvidence(ctx context.Context, event learning
 			ON CONFLICT(evidence_type,source_attempt_id,question_id) DO NOTHING
 			RETURNING id::text
 		`, event.StudentID, event.AttemptID, event.AssessmentID, event.AssessmentVersion,
-			outcome.QuestionID, outcome.QuestionVersion, pathID, subjectID,
-			outcome.Answered, outcome.Correct, event.OccurredAt).Scan(&evidenceID)
+				outcome.QuestionID, outcome.QuestionVersion, pathID, subjectID,
+				outcome.Answered, outcome.Correct, event.OccurredAt).Scan(&evidenceID)
+		}
 		if errors.Is(err, pgx.ErrNoRows) {
 			continue
 		}
@@ -240,11 +248,19 @@ func (r *Repository) ListSkillProgress(ctx context.Context, student, pathID, sub
 		subjectFilter = fmt.Sprintf(" AND subject_id=$%d::uuid", len(args))
 	}
 	rows, err := r.db.Query(ctx, `
-		SELECT path_id::text,subject_id::text,skill_id::text,mastery::float8,status,
-		       attempts,evidence_count,COALESCE(last_evidence_at,created_at),recommended_action
-		FROM skill_progress
-		WHERE student_id=$1::uuid AND path_id=$2::uuid`+subjectFilter+`
-		ORDER BY mastery ASC,last_evidence_at DESC NULLS LAST,skill_id
+		SELECT sp.path_id::text,sp.subject_id::text,sp.skill_id::text,sp.mastery::float8,sp.status,
+		       sp.attempts,sp.evidence_count,COALESCE(sp.last_evidence_at,sp.created_at),sp.recommended_action,
+		       COALESCE(s.name,''),COALESCE(t.id::text,''),COALESCE(t.title,'')
+		FROM skill_progress sp
+		LEFT JOIN skills s ON s.id=sp.skill_id
+		LEFT JOIN LATERAL (
+			SELECT ft.id,ft.title FROM foundation_topics ft
+			WHERE ft.subject_id=sp.subject_id
+			  AND ft.code='top_'||regexp_replace(s.code,'^(sub|main)_([a-z]+)_','\2_\1_')
+			ORDER BY ft.sort_order,ft.id LIMIT 1
+		) t ON true
+		WHERE sp.student_id=$1::uuid AND sp.path_id=$2::uuid`+strings.ReplaceAll(subjectFilter, "subject_id=", "sp.subject_id=")+`
+		ORDER BY sp.mastery ASC,sp.last_evidence_at DESC NULLS LAST,sp.skill_id
 		LIMIT $3 OFFSET $4
 	`, args...)
 	if err != nil {
@@ -257,6 +273,7 @@ func (r *Repository) ListSkillProgress(ctx context.Context, student, pathID, sub
 		if err = rows.Scan(
 			&item.PathID, &item.SubjectID, &item.SkillID, &item.Mastery, &item.Status,
 			&item.Attempts, &item.EvidenceCount, &item.LastEvidenceAt, &item.RecommendedAction,
+			&item.SkillTitle, &item.TopicID, &item.TopicTitle,
 		); err != nil {
 			return out, err
 		}

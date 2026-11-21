@@ -25,15 +25,24 @@ import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
 import type { LearnerTopicSummary, LearningSpace, TaxonomyCore } from '../../content/api/content-types';
 import { FoundationTopicDialog, type TopicContentTab } from '../components/FoundationTopicDialog';
+import { SubjectAccessGuide } from '../components/SubjectAccessGuide';
 import { parseLearningRoute, subjectsForSelection, type LearningTab } from './learningRouteSelection';
 import {
   resolveCanonicalPath,
   resolveCanonicalSubject,
 } from '../../taxonomy/utils/canonicalPathResolver';
 import { assessmentPlacementClient } from '../../assessment/api/assessment-placement-client';
+import { subjectPackagesURL } from '../../commerce/navigation/subjectPackages';
 import type { LearnerAssessmentPlacement } from '../../assessment/api/assessment-types';
+import { useLearnerResourcePages } from './useLearnerResourcePages';
 
 type Tab = LearningTab;
+
+const subjectHeaderColors: Record<string, string> = { purple: '#7c3aed', violet: '#7c3aed', blue: '#2563eb', sky: '#0284c7', cyan: '#0891b2', teal: '#0d9488', emerald: '#10b981', green: '#16a34a', lime: '#65a30d', yellow: '#ca8a04', amber: '#f59e0b', orange: '#ea580c', red: '#dc2626', rose: '#f43f5e', pink: '#db2777', fuchsia: '#c026d3', indigo: '#4f46e5', slate: '#475569', gray: '#6b7280' };
+function subjectHeaderColor(value?: string): string {
+  if (value && /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(value)) return value;
+  return value ? subjectHeaderColors[value.toLowerCase()] || '#4f46e5' : '#4f46e5';
+}
 
 export function LearningSpacePage() {
   const { user, loading: authLoading, getCsrfToken } = useAuth();
@@ -55,6 +64,8 @@ export function LearningSpacePage() {
   const [deepTopic, setDeepTopic] = useState<{ key: string; topic: LearnerTopicSummary | null; error: string } | null>(null);
   const [deepTopicRetry, setDeepTopicRetry] = useState(0);
   const learningRequestRef = useRef<{ key: string; promise: Promise<LearningSpace> } | null>(null);
+  const [foundationExtra, setFoundationExtra] = useState<{ scope: string; page: number; items: LearnerTopicSummary[]; hasMore: boolean; loading: boolean; error: string } | null>(null);
+  const foundationRequest = useRef<AbortController | null>(null);
 
   const [trainingPlacements, setTrainingPlacements] = useState<LearnerAssessmentPlacement[]>([]);
   const [testPlacements, setTestPlacements] = useState<LearnerAssessmentPlacement[]>([]);
@@ -63,6 +74,8 @@ export function LearningSpacePage() {
   const [placementsError, setPlacementsError] = useState('');
   const [placementsRetry, setPlacementsRetry] = useState(0);
   const [loadedPlacementScope, setLoadedPlacementScope] = useState('');
+  const [subjectProgress, setSubjectProgress] = useState<{ scope: string; total: number; completed: number; error?: string } | null>(null);
+  const [progressRetry, setProgressRetry] = useState(0);
   const startPlacementRef = useRef('');
   const placementMounted = useRef(true);
   useEffect(() => {
@@ -91,12 +104,19 @@ export function LearningSpacePage() {
   const currentPath = resolvedPath || taxonomy.paths.find((item) => item.id === effectivePathId);
   const currentSubject = resolvedSubject || subjects.find((item) => item.id === effectiveSubjectId);
   const subjectIsInScope = subjects.some((item) => item.id === effectiveSubjectId);
+  const legacySubjectScreen = Boolean(legacyPathId && currentSubject && subjectIsInScope);
+  const currentLevel = taxonomy.levels?.find(level => level.id === selectedLevelId);
 
-  const scopeKey = `${effectivePathId}:${effectiveSubjectId}`;
+  const scopeKey = JSON.stringify([user?.id || '', effectivePathId, effectiveSubjectId]);
+  const foundationScope = useRef(scopeKey);
+  foundationScope.current = scopeKey;
+  useEffect(() => () => { foundationRequest.current?.abort(); foundationRequest.current = null; }, [scopeKey]);
   const placementScope = `${user?.id || ''}:${effectivePathId}:${effectiveSubjectId}:${tab}`;
   const currentPlacementScope = useRef(placementScope);
   currentPlacementScope.current = placementScope;
-  const visibleSpace = space?.pathId === effectivePathId && space?.subjectId === effectiveSubjectId ? space : null;
+  const visibleSpace = !authLoading && requestState.key === scopeKey && space?.pathId === effectivePathId && space?.subjectId === effectiveSubjectId ? space : null;
+  const coursePages = useLearnerResourcePages(scopeKey, effectivePathId, effectiveSubjectId, 'courses', visibleSpace?.courses);
+  const libraryPages = useLearnerResourcePages(scopeKey, effectivePathId, effectiveSubjectId, 'library', visibleSpace?.library);
   const busy = requestState.key === scopeKey && requestState.busy;
   const error = requestState.key === scopeKey ? requestState.error : '';
 
@@ -141,6 +161,7 @@ export function LearningSpacePage() {
   // Do not silently switch subjects on a stale taxonomy response: keep the
   // requested URL, and let the learner correct an invalid selection.
   useEffect(() => {
+    if (authLoading) return;
     if (!effectivePathId || !effectiveSubjectId || !subjectIsInScope) {
       setSpace(null);
       setRequestState({ key: '', busy: false, error: '' });
@@ -148,11 +169,14 @@ export function LearningSpacePage() {
     }
 
     let active = true;
-    const requestKey = `${effectivePathId}:${effectiveSubjectId}`;
+    const requestKey = scopeKey;
     const request = learningRequestRef.current?.key === requestKey
       ? learningRequestRef.current.promise
       : contentClient.learningSpace(effectivePathId, effectiveSubjectId, 50);
     learningRequestRef.current = { key: requestKey, promise: request };
+    foundationRequest.current?.abort();
+    foundationRequest.current = null;
+    setFoundationExtra(null);
     setSpace(null);
     setRequestState({ key: requestKey, busy: true, error: '' });
 
@@ -177,7 +201,7 @@ export function LearningSpacePage() {
       });
 
     return () => { active = false; };
-  }, [effectivePathId, effectiveSubjectId, subjectIsInScope, retryNonce]);
+  }, [effectivePathId, effectiveSubjectId, subjectIsInScope, retryNonce, authLoading, scopeKey]);
 
   useEffect(() => {
     if (authLoading || !effectivePathId || !effectiveSubjectId || !subjectIsInScope || (tab !== 'questions' && tab !== 'exams')) {
@@ -217,9 +241,28 @@ export function LearningSpacePage() {
     return () => controller.abort();
   }, [effectivePathId, effectiveSubjectId, tab, placementsRetry, authLoading, user?.id, subjectIsInScope]);
 
+  useEffect(() => {
+    if (authLoading || !user || !effectivePathId || !effectiveSubjectId || !subjectIsInScope || tab !== 'questions') return;
+    const controller = new AbortController();
+    const scope = placementScope;
+    setSubjectProgress(null);
+    assessmentPlacementClient.subjectProgress(effectivePathId, effectiveSubjectId, 'training', controller.signal)
+      .then(result => {
+        if (controller.signal.aborted) return;
+        if (!Number.isInteger(result.total) || !Number.isInteger(result.completed) || result.total < 0 || result.completed < 0 || result.completed > result.total) throw new Error('invalid progress');
+        setSubjectProgress({ scope, ...result });
+      }).catch(() => { if (!controller.signal.aborted) setSubjectProgress({ scope, total: 0, completed: 0, error: 'تعذر تحميل تقدم تدريبات المادة.' }); });
+    return () => controller.abort();
+  }, [authLoading, user?.id, effectivePathId, effectiveSubjectId, subjectIsInScope, tab, placementScope, progressRetry]);
+
   const handleStartPlacement = async (placement: LearnerAssessmentPlacement) => {
+    if (authLoading || loadedPlacementScope !== placementScope) return;
+    if (!placement.accessAllowed && (placement.accessReason === 'package_required' || placement.accessReason === 'paid_required')) {
+      navigate(subjectPackagesURL(effectivePathId, effectiveSubjectId, tab === 'questions' ? 'banks' : 'tests', window.location.pathname + window.location.search + window.location.hash));
+      return;
+    }
     if (!user) {
-      navigate(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      navigate(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`);
       return;
     }
     if (startPlacementRef.current || !placement.accessAllowed || !placement.canStart || loadedPlacementScope !== placementScope) return;
@@ -274,8 +317,10 @@ export function LearningSpacePage() {
     }
   }, [currentSubject, tab, tabs, isTabAllowed]);
 
+  const extra = foundationExtra?.scope === scopeKey ? foundationExtra : null;
+  const foundationItems = visibleSpace ? [...visibleSpace.foundation.items, ...(extra?.items || [])] : [];
   const deepTopicKey = JSON.stringify([user?.id || '', effectivePathId, effectiveSubjectId, topicId]);
-  const listedTopic = visibleSpace?.foundation.items.find((item) => item.id === topicId);
+  const listedTopic = foundationItems.find((item) => item.id === topicId);
   useEffect(() => {
     if (!user || !visibleSpace || !subjectIsInScope || !topicId || listedTopic) return;
     const controller = new AbortController();
@@ -293,13 +338,36 @@ export function LearningSpacePage() {
     return () => controller.abort();
   }, [user?.id, visibleSpace, subjectIsInScope, topicId, listedTopic, deepTopicKey, effectivePathId, effectiveSubjectId, deepTopicRetry]);
   const selectedTopic = listedTopic || (deepTopic?.key === deepTopicKey ? deepTopic.topic : null);
-  const mainTopics = visibleSpace?.foundation.items.filter((item) => !item.parentTopicId) || [];
+  const mainTopics = foundationItems.filter((item) => !item.parentTopicId);
   const [foundationFilter, setFoundationFilter] = useState<'all' | 'free' | 'locked'>('all');
   const [trainingFilter, setTrainingFilter] = useState<'all' | 'free' | 'locked'>('all');
 
-  const isTopicFree = (topic: LearnerTopicSummary, index: number) => {
-    return index === 0 || topic.sortOrder === 1 || Boolean((topic as any).isFree);
+  const isTopicFree = (topic: LearnerTopicSummary) => topic.isFree === true;
+
+  const loadMoreFoundation = async () => {
+    if (!visibleSpace || foundationRequest.current || !(extra ? extra.hasMore : visibleSpace.foundation.hasMore)) return;
+    const scope = scopeKey;
+    const nextPage = (extra?.page || 1) + 1;
+    const controller = new AbortController();
+    foundationRequest.current = controller;
+    setFoundationExtra({ scope, page: extra?.page || 1, items: extra?.items || [], hasMore: true, loading: true, error: '' });
+    try {
+      const result = await contentClient.learnerFoundationPage(effectivePathId, effectiveSubjectId, nextPage, controller.signal);
+      if (controller.signal.aborted || foundationScope.current !== scope) return;
+      if (result.pathId !== effectivePathId || result.subjectId !== effectiveSubjectId || result.page !== nextPage || !Array.isArray(result.items) || typeof result.hasMore !== 'boolean') throw new Error('تعذر التحقق من صفحة الموضوعات.');
+      const previous = extra?.items || [];
+      const known = new Set([...visibleSpace.foundation.items, ...previous].map(item => item.id));
+      const added = result.items.filter(item => { if (!item || typeof item.id !== 'string' || !item.id || known.has(item.id)) return false; known.add(item.id); return true; });
+      setFoundationExtra({ scope, page: nextPage, items: [...previous, ...added], hasMore: result.hasMore, loading: false, error: '' });
+    } catch (reason) {
+      if (!controller.signal.aborted && foundationScope.current === scope) setFoundationExtra({ scope, page: extra?.page || 1, items: extra?.items || [], hasMore: true, loading: false, error: reason instanceof Error ? reason.message : 'تعذر تحميل مزيد من الموضوعات.' });
+    } finally {
+      if (foundationRequest.current === controller) foundationRequest.current = null;
+    }
   };
+
+  const foundationHasMore = Boolean(visibleSpace && (extra ? extra.hasMore : visibleSpace.foundation.hasMore));
+  const foundationMore = foundationHasMore ? <div className="mt-4 text-center">{extra?.error && <p role="alert" className="mb-2 text-sm font-bold text-rose-700">{extra.error}</p>}<button type="button" disabled={extra?.loading} onClick={() => void loadMoreFoundation()} className="rounded-xl border border-indigo-200 bg-white px-4 py-2 text-sm font-bold text-indigo-700 disabled:opacity-50">{extra?.loading ? 'جاري تحميل الموضوعات...' : extra?.error ? 'إعادة تحميل الموضوعات' : 'عرض المزيد من موضوعات التأسيس'}</button></div> : null;
 
   if (authLoading) {
     return <main className="p-10 text-center font-black">جاري تحميل مساحة التعلم...</main>;
@@ -317,7 +385,7 @@ export function LearningSpacePage() {
 
   return (
     <main dir="rtl" data-testid="legacy-learning-space" className="min-h-screen bg-gray-50 pb-20 font-sans overflow-x-clip">
-      {!user && (
+      {!user && !legacySubjectScreen && (
         <div className="mx-auto max-w-7xl px-4 pt-4">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/90 p-3 sm:px-5 shadow-xs">
             <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-indigo-950">
@@ -325,7 +393,7 @@ export function LearningSpacePage() {
               <span>مرحباً بك! تصفح دروس التأسيس والتدريبات، وسجّل الدخول لحفظ تقدّمك ونتائجك.</span>
             </div>
             <Link
-              to={`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`}
+              to={`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`}
               className="rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-black text-white hover:bg-indigo-700 transition shadow-xs"
             >
               تسجيل الدخول
@@ -333,7 +401,19 @@ export function LearningSpacePage() {
           </div>
         </div>
       )}
-      <section className="relative overflow-hidden bg-[#2e2b70] py-7 sm:py-9">
+      {legacySubjectScreen ? (
+        <header className="relative overflow-hidden py-4 text-white shadow-xs sm:py-5" style={{ backgroundColor: subjectHeaderColor(currentSubject?.color || currentPath?.color) }}>
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_55%)]" />
+          <div className="relative z-10 mx-auto flex max-w-7xl flex-col justify-between gap-3 px-4 sm:flex-row sm:items-center">
+            <div>
+              <div className="mb-1 flex items-center gap-2"><span className="inline-flex rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-white/95">{currentLevel ? `${currentLevel.name} • ` : ''}مسار {currentPath?.name}</span></div>
+              <h1 className="break-words text-xl font-black leading-tight sm:text-2xl lg:text-3xl">{currentSubject?.name}</h1>
+              <p className="mt-0.5 text-xs text-white/80 sm:text-sm">مساحة التعلم الذكية: تأسيس، تدريب، واختبارات</p>
+            </div>
+            <button type="button" onClick={() => { const query = new URLSearchParams(); if (selectedLevelId) query.set('level', selectedLevelId); navigate(`/category/${encodeURIComponent(effectivePathId)}${query.size ? `?${query}` : ''}`); }} className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-xs font-bold text-white/95 hover:bg-white/20 sm:self-center"><ChevronRight size={16} /> عودة لصفحة المسار</button>
+          </div>
+        </header>
+      ) : <section className="relative overflow-hidden bg-[#2e2b70] py-7 sm:py-9">
         <div className="relative z-10 mx-auto max-w-7xl px-4 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-black text-indigo-100 backdrop-blur-sm">
             <Award size={14} className="text-amber-300" />
@@ -366,10 +446,10 @@ export function LearningSpacePage() {
         </div>
         <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-indigo-400/10" />
         <div className="pointer-events-none absolute -bottom-12 left-8 h-32 w-32 rounded-full bg-amber-400/10" />
-      </section>
+      </section>}
 
       <div className="mx-auto mt-7 max-w-7xl px-4 sm:px-6 lg:px-8">
-        <section className="grid gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:grid-cols-2">
+        {!legacySubjectScreen && <section className="grid gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:grid-cols-2">
           <label className="relative">
             <Search className="pointer-events-none absolute right-3 top-3 text-gray-400" size={17} />
             <select
@@ -397,14 +477,16 @@ export function LearningSpacePage() {
               <option key={item.id} value={item.id}>{item.name}</option>
             ))}
           </select>
-        </section>
+        </section>}
 
-        <section className="mb-10 mt-7 flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white/95 p-1.5 shadow-sm">
+        {legacySubjectScreen && <SubjectAccessGuide pathId={effectivePathId} subjectId={effectiveSubjectId} />}
+        <section className={`mb-10 mt-7 flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white/95 p-1.5 shadow-sm ${legacySubjectScreen ? 'mx-auto w-fit' : ''}`}>
           {tabs.map(([id, label, Icon]) => (
             <button
               key={id}
               type="button"
               onClick={() => changeTab(id)}
+              style={legacySubjectScreen && tab === id ? { backgroundColor: subjectHeaderColor(currentSubject?.color || currentPath?.color) } : undefined}
               className={`flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black transition-all sm:px-5 ${
                 tab === id
                   ? 'bg-indigo-600 text-white shadow-sm'
@@ -516,7 +598,7 @@ export function LearningSpacePage() {
         ) : visibleSpace ? (
           <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {tab === 'courses' ? (
-              visibleSpace.courses.items.map((course) => (
+              coursePages.items.map((course) => (
                 <article
                   key={course.id}
                   className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
@@ -578,7 +660,7 @@ export function LearningSpacePage() {
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       }`}
                     >
-                      الكل ({mainTopics.length})
+                      الكل ({mainTopics.length}{foundationHasMore ? ' معروض' : ''})
                     </button>
                     <button
                       type="button"
@@ -589,7 +671,7 @@ export function LearningSpacePage() {
                           : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                       }`}
                     >
-                      المجاني ({mainTopics.filter((t, i) => !t.isLocked && isTopicFree(t, i)).length})
+                      المجاني ({mainTopics.filter(isTopicFree).length}{foundationHasMore ? ' معروض' : ''})
                     </button>
                     <button
                       type="button"
@@ -600,20 +682,20 @@ export function LearningSpacePage() {
                           : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
                       }`}
                     >
-                      ضمن باقة ({mainTopics.filter((t) => t.isLocked).length})
+                      ضمن باقة ({mainTopics.filter((t) => t.isFree === false).length}{foundationHasMore ? ' معروض' : ''})
                     </button>
                   </div>
                 </div>
 
                 <div className="grid gap-3.5 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {mainTopics
-                    .filter((topic, index) => {
-                      if (foundationFilter === 'free') return !topic.isLocked && isTopicFree(topic, index);
-                      if (foundationFilter === 'locked') return topic.isLocked;
+                    .filter((topic) => {
+                      if (foundationFilter === 'free') return isTopicFree(topic);
+                      if (foundationFilter === 'locked') return topic.isFree === false;
                       return true;
                     })
-                    .map((topic, index) => {
-                      const isFree = isTopicFree(topic, index);
+                    .map((topic) => {
+                      const isFree = isTopicFree(topic);
                       return (
                         <article
                           key={topic.id}
@@ -639,7 +721,7 @@ export function LearningSpacePage() {
                                 onClick={() => updateQuery({ tab: 'skills', topic: topic.id, content: 'lessons' })}
                                 className="block w-full text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
                               >
-                                <h2 className="text-sm sm:text-base font-bold leading-snug line-clamp-2">
+                                <h2 className="text-sm sm:text-base font-bold leading-snug break-words">
                                   <span className="inline-block px-3 py-1 rounded-xl bg-blue-50/90 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 text-blue-950 dark:text-blue-100 font-extrabold group-hover:bg-blue-100/90 group-hover:border-blue-300 group-hover:text-blue-900 transition-all shadow-2xs">
                                     {topic.title}
                                   </span>
@@ -685,10 +767,17 @@ export function LearningSpacePage() {
                       );
                     })}
                 </div>
+                {foundationMore}
               </div>
             ) : tab === 'questions' ? (
               <div className="col-span-full space-y-6">
-                <article className="flex flex-col gap-4 rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-900 to-[#2e2b70] p-6 text-white shadow-md sm:flex-row sm:items-center sm:justify-between sm:p-8">
+                {subjectProgress?.scope === placementScope && subjectProgress.error && <div role="alert" className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-xs font-bold text-rose-700">{subjectProgress.error} <button type="button" onClick={() => setProgressRetry(value => value + 1)} className="underline">إعادة المحاولة</button></div>}
+                {subjectProgress?.scope === placementScope && !subjectProgress.error && subjectProgress.total > 0 && <section aria-label="تقدم تدريبات المادة" className="rounded-xl border border-sky-100 bg-sky-50 p-3 text-xs font-bold text-slate-700">
+                  <div className="flex justify-between gap-3"><span>أكملت {subjectProgress.completed} من {subjectProgress.total} تدريبات منشورة</span><span>{Math.round(subjectProgress.completed * 100 / subjectProgress.total)}%</span></div>
+                  <div role="progressbar" aria-label="نسبة إكمال تدريبات المادة" aria-valuemin={0} aria-valuemax={subjectProgress.total} aria-valuenow={subjectProgress.completed} className="mt-2 h-1.5 overflow-hidden rounded-full bg-sky-100"><div className="h-full rounded-full bg-sky-500" style={{width: `${subjectProgress.completed * 100 / subjectProgress.total}%`}} /></div>
+                  <p className="mt-1 text-[10px] text-slate-500">يشمل العدد التدريبات المنشورة المجانية والمشمولة بالباقات.</p>
+                </section>}
+                {!legacySubjectScreen && <article className="flex flex-col gap-4 rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-900 to-[#2e2b70] p-6 text-white shadow-md sm:flex-row sm:items-center sm:justify-between sm:p-8">
                   <div className="space-y-2">
                     <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-black text-indigo-200">
                       <Sparkles size={14} className="text-amber-300" />
@@ -699,7 +788,7 @@ export function LearningSpacePage() {
                       تدرب على بنوك الأسئلة المصنفة حسب المهارات مع حلول مفصلة وتصحيح فوري وتدرج تلقائي.
                     </p>
                   </div>
-                </article>
+                </article>}
 
                 {startError && loadedPlacementScope === placementScope ? (
                   <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-bold text-rose-700">
@@ -718,7 +807,7 @@ export function LearningSpacePage() {
                     <p className="text-xs font-bold text-gray-500">جاري تحميل تدريبات وبنوك الأسئلة...</p>
                   </div>
                 ) : trainingPlacements.length > 0 ? (
-                  <div className="space-y-3">
+                  <div className={legacySubjectScreen ? 'mx-auto max-w-4xl space-y-3' : 'space-y-3'}>
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-1 pb-1">
                       <div className="text-xs font-black text-slate-700">
                         قائمة تدريبات المادة ({trainingPlacements.length})
@@ -760,7 +849,7 @@ export function LearningSpacePage() {
                       </div>
                     </div>
 
-                    <div className="grid gap-3.5 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className={legacySubjectScreen ? 'space-y-3' : 'grid gap-3.5 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3'}>
                       {trainingPlacements
                         .filter((row) => {
                           if (trainingFilter === 'free') return row.accessType === 'free';
@@ -776,9 +865,9 @@ export function LearningSpacePage() {
                           return (
                             <article
                               key={row.placementId}
-                              className="group flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-3 sm:p-3.5 shadow-xs transition hover:border-indigo-400 hover:shadow-md text-right min-h-[96px] sm:min-h-[104px]"
+                              className={`group flex flex-col rounded-2xl border border-slate-200/90 bg-white p-3 sm:p-3.5 shadow-xs transition hover:border-indigo-400 hover:shadow-md text-right ${legacySubjectScreen ? 'gap-3 sm:flex-row sm:items-center sm:justify-between' : 'justify-between min-h-[96px] sm:min-h-[104px]'}`}
                             >
-                              <div className="flex items-start gap-3 w-full">
+                              <div className={legacySubjectScreen ? 'flex min-w-0 flex-1 items-start gap-3' : 'flex items-start gap-3 w-full'}>
                                 <div
                                   className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-xs ${
                                     !row.accessAllowed
@@ -798,8 +887,8 @@ export function LearningSpacePage() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                    <h3 className="text-sm sm:text-base font-bold truncate">
-                                      <span className="inline-block px-3 py-0.5 rounded-xl bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 text-indigo-950 dark:text-indigo-100 font-extrabold group-hover:bg-indigo-100/90 group-hover:border-indigo-300 group-hover:text-indigo-900 transition-all shadow-2xs truncate">
+                                    <h3 className="min-w-0 text-sm sm:text-base font-bold break-words">
+                                      <span className="inline-block max-w-full whitespace-normal break-words px-3 py-0.5 rounded-xl bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 text-indigo-950 dark:text-indigo-100 font-extrabold group-hover:bg-indigo-100/90 group-hover:border-indigo-300 group-hover:text-indigo-900 transition-all shadow-2xs">
                                         {row.title}
                                       </span>
                                     </h3>
@@ -838,11 +927,11 @@ export function LearningSpacePage() {
                                 </div>
                               </div>
 
-                              <div className="mt-3 pt-2.5 border-t border-slate-100/80 flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-bold text-slate-400">v{row.assessmentVersion}</span>
+                              <div className={legacySubjectScreen ? 'flex items-center justify-end gap-2 sm:shrink-0' : 'mt-3 pt-2.5 border-t border-slate-100/80 flex items-center justify-between gap-2'}>
+                                {!legacySubjectScreen && <span className="text-[11px] font-bold text-slate-400">v{row.assessmentVersion}</span>}
                                 <button
                                   type="button"
-                                  disabled={!row.accessAllowed || !row.canStart || startingPlacementId === row.placementId}
+                                  disabled={(!row.accessAllowed && row.accessReason !== 'package_required' && row.accessReason !== 'paid_required') || (row.accessAllowed && !row.canStart) || startingPlacementId === row.placementId}
                                   onClick={() => void handleStartPlacement(row)}
                                   className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shrink-0 shadow-xs cursor-pointer ${
                                     startingPlacementId === row.placementId
@@ -865,7 +954,7 @@ export function LearningSpacePage() {
                                     {startingPlacementId === row.placementId
                                       ? 'جاري البدء...'
                                       : !row.accessAllowed
-                                      ? 'فتح الباقة'
+                                      ? (row.accessReason === 'package_required' || row.accessReason === 'paid_required' ? 'فتح الباقة' : 'غير متاح')
                                       : !row.canStart
                                       ? 'استُنفدت المحاولات'
                                       : hasAttempted
@@ -905,8 +994,8 @@ export function LearningSpacePage() {
                       </div>
                     </div>
                     <div className="grid gap-3.5 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      {mainTopics.map((topic, index) => {
-                        const isFree = isTopicFree(topic, index);
+                      {mainTopics.map((topic) => {
+                        const isFree = isTopicFree(topic);
                         return (
                           <article
                             key={topic.id}
@@ -926,8 +1015,8 @@ export function LearningSpacePage() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                  <h4 className="text-sm sm:text-base font-bold truncate">
-                                    <span className="inline-block px-3 py-0.5 rounded-xl bg-indigo-50/90 border border-indigo-200/80 text-indigo-950 font-extrabold group-hover:bg-indigo-100/90 transition-all shadow-2xs truncate">
+                                  <h4 className="min-w-0 text-sm sm:text-base font-bold break-words">
+                                    <span className="inline-block max-w-full whitespace-normal break-words px-3 py-0.5 rounded-xl bg-indigo-50/90 border border-indigo-200/80 text-indigo-950 font-extrabold group-hover:bg-indigo-100/90 transition-all shadow-2xs">
                                       {topic.title}
                                     </span>
                                   </h4>
@@ -974,6 +1063,7 @@ export function LearningSpacePage() {
                     </div>
                   </div>
                 ) : null}
+                {foundationMore}
               </div>
             ) : tab === 'exams' ? (
               <div className="col-span-full space-y-6">
@@ -1061,8 +1151,8 @@ export function LearningSpacePage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                <h3 className="text-sm sm:text-base font-bold truncate">
-                                  <span className="inline-block px-3 py-0.5 rounded-xl bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 text-indigo-950 dark:text-indigo-100 font-extrabold group-hover:bg-indigo-100/90 group-hover:border-indigo-300 group-hover:text-indigo-900 transition-all shadow-2xs truncate">
+                                <h3 className="min-w-0 text-sm sm:text-base font-bold break-words">
+                                  <span className="inline-block max-w-full whitespace-normal break-words px-3 py-0.5 rounded-xl bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 text-indigo-950 dark:text-indigo-100 font-extrabold group-hover:bg-indigo-100/90 group-hover:border-indigo-300 group-hover:text-indigo-900 transition-all shadow-2xs">
                                     {row.title}
                                   </span>
                                 </h3>
@@ -1105,7 +1195,7 @@ export function LearningSpacePage() {
                             <span className="text-[11px] font-bold text-slate-400">v{row.assessmentVersion}</span>
                             <button
                               type="button"
-                              disabled={!row.accessAllowed || !row.canStart || startingPlacementId === row.placementId}
+                              disabled={(!row.accessAllowed && row.accessReason !== 'package_required' && row.accessReason !== 'paid_required') || (row.accessAllowed && !row.canStart) || startingPlacementId === row.placementId}
                               onClick={() => void handleStartPlacement(row)}
                               className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shrink-0 shadow-xs cursor-pointer ${
                                 startingPlacementId === row.placementId
@@ -1128,7 +1218,7 @@ export function LearningSpacePage() {
                                 {startingPlacementId === row.placementId
                                   ? 'جاري البدء...'
                                   : !row.accessAllowed
-                                  ? 'فتح الباقة'
+                                  ? (row.accessReason === 'package_required' || row.accessReason === 'paid_required' ? 'فتح الباقة' : 'غير متاح')
                                   : !row.canStart
                                   ? 'استُنفدت المحاولات'
                                   : hasAttempted
@@ -1158,7 +1248,7 @@ export function LearningSpacePage() {
                 ) : null}
               </div>
             ) : (
-              visibleSpace.library.items.map((item) => (
+              libraryPages.items.map((item) => (
                 <article key={item.id} className="flex h-full flex-col justify-between rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
                   <div>
                     <div className="mb-4 flex items-start justify-between">
@@ -1179,12 +1269,14 @@ export function LearningSpacePage() {
                     <span className="text-xs font-black uppercase text-gray-400">{item.type || 'ملف'}</span>
                     {item.isLocked ? (
                       <Link
-                        to="/packages"
+                        to={subjectPackagesURL(effectivePathId, effectiveSubjectId, 'library', window.location.pathname + window.location.search + window.location.hash)}
                         className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-1.5 text-xs font-black text-amber-800 hover:bg-amber-100 transition"
                       >
                         <Lock size={13} />
                         <span>فتح عبر الباقة</span>
                       </Link>
+                    ) : !user ? (
+                      <Link to={`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`} className="rounded-xl bg-indigo-50 px-3.5 py-1.5 text-xs font-black text-indigo-700">سجل الدخول لفتح الملف</Link>
                     ) : item.externalUrl ? (
                       <a
                         href={item.externalUrl}
@@ -1205,10 +1297,15 @@ export function LearningSpacePage() {
               ))
             )}
 
+            {(tab === 'courses' || tab === 'library') && (tab === 'courses' ? coursePages : libraryPages).hasMore ? (() => {
+              const pages = tab === 'courses' ? coursePages : libraryPages;
+              return <div className="col-span-full text-center">{pages.error && <p role="alert" className="mb-2 text-sm font-bold text-rose-700">{pages.error}</p>}<button type="button" disabled={pages.loading} onClick={() => void pages.loadMore()} className="rounded-xl border border-indigo-200 bg-white px-4 py-2 text-sm font-bold text-indigo-700 disabled:opacity-50">{pages.loading ? 'جاري تحميل المزيد...' : pages.error ? 'إعادة المحاولة' : 'عرض المزيد'}</button></div>;
+            })() : null}
+
             {(
-              (tab === 'courses' && !visibleSpace.courses.items.length) ||
-              (tab === 'foundation' && !mainTopics.length) ||
-              (tab === 'library' && !visibleSpace.library.items.length)
+              (tab === 'courses' && !coursePages.items.length && !coursePages.hasMore) ||
+              (tab === 'foundation' && !mainTopics.length && !foundationHasMore) ||
+              (tab === 'library' && !libraryPages.items.length && !libraryPages.hasMore)
             ) ? (
               <div className="col-span-full rounded-2xl border bg-white p-10 text-center font-bold text-gray-500">
                 لا يوجد محتوى متاح حاليًا.
@@ -1228,7 +1325,7 @@ export function LearningSpacePage() {
           pathId={effectivePathId}
           subjectId={effectiveSubjectId}
           topic={selectedTopic}
-          topics={listedTopic ? visibleSpace.foundation.items : [...visibleSpace.foundation.items, selectedTopic]}
+          topics={listedTopic ? foundationItems : [...foundationItems, selectedTopic]}
           contentTab={contentTab}
           onSelectTopic={(id) => updateQuery({ topic: id, content: contentTab })}
           onSelectContent={(id) => updateQuery({ topic: selectedTopic.id, content: id })}

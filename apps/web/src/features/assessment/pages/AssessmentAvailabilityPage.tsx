@@ -16,7 +16,7 @@ const accessLabel=(row:LearnerAssessmentPlacement)=>{
 };
 export function AssessmentAvailabilityPage({ embedded }: { embedded?: boolean } = {}){const{user,loading:authLoading,getCsrfToken}=useAuth();const navigate=useNavigate();const[params]=useSearchParams();const[taxonomy,setTaxonomy]=useState<TaxonomyCore>({paths:[],subjects:[]});const[pathId,setPathId]=useState(params.get('pathId')||'');const[subjectId,setSubjectId]=useState(params.get('subjectId')||'');const[slot,setSlot]=useState<AssessmentPlacementSlot>(()=>{const requested=params.get('slot');return requested&&Object.prototype.hasOwnProperty.call(slotLabels,requested)?requested as AssessmentPlacementSlot:'tests'});const[courseId,setCourseId]=useState(params.get('courseId')||'');const[topicId,setTopicId]=useState(params.get('topicId')||'');const[space,setSpace]=useState<LearningSpace|null>(null);const[rows,setRows]=useState<LearnerAssessmentPlacement[]>([]);const[page,setPage]=useState(1);const[hasMore,setHasMore]=useState(false);const[busy,setBusy]=useState(false);const[starting,setStarting]=useState('');const[error,setError]=useState('');const[listFailed,setListFailed]=useState(false);const startingRef=useRef('');
 useEffect(()=>{const c=new AbortController();contentClient.taxonomyCore(c.signal).then(setTaxonomy).catch(()=>{});return()=>c.abort()},[]);
-const subjects=useMemo(()=>taxonomy.subjects.filter(x=>!pathId||x.pathId===pathId),[pathId,taxonomy.subjects]);useEffect(()=>{if(subjectId&&!subjects.some(x=>x.id===subjectId)){setSubjectId('');setCourseId('');setTopicId('')}},[subjectId,subjects]);
+const subjects=useMemo(()=>taxonomy.subjects.filter(x=>!pathId||x.pathId===pathId),[pathId,taxonomy.subjects]);useEffect(()=>{if(subjectId&&taxonomy.subjects.length>0&&!subjects.some(x=>x.id===subjectId)){setSubjectId('');setCourseId('');setTopicId('')}},[subjectId,subjects,taxonomy.subjects.length]);
 useEffect(()=>{if(!pathId||!subjectId||(slot!=='course'&&slot!=='foundation')){setSpace(null);return}const c=new AbortController();setSpace(null);contentClient.learningSpace(pathId,subjectId,50,c.signal).then(r=>{if(!c.signal.aborted)setSpace(r)}).catch(()=>{if(!c.signal.aborted)setSpace(null)});return()=>c.abort()},[pathId,slot,subjectId]);
 useEffect(()=>{setPage(1);if(slot!=='course')setCourseId('');if(slot!=='foundation')setTopicId('')},[slot]);
 const contextReady=Boolean(pathId&&subjectId&&((slot==='course'&&courseId)||(slot==='foundation'&&topicId)||slot==='training'||slot==='tests'));
@@ -24,7 +24,8 @@ useEffect(()=>{if(authLoading||!user||!user.roles.includes('student')||!contextR
 async function start(row:LearnerAssessmentPlacement){if(startingRef.current||!row.accessAllowed||!row.canStart)return;startingRef.current=row.placementId;setStarting(row.placementId);setError('');try{const csrf=await getCsrfToken();const r=await assessmentPlacementClient.start(row.placementId,placementKey(row.placementId),csrf);sessionStorage.removeItem(`assessment-placement-start:${row.placementId}`);navigate(`/assessment-attempts/${r.attempt.id}`)}catch(e){setError(e instanceof Error?e.message:'تعذر بدء الاختبار')}finally{startingRef.current='';setStarting('')}}
 if(authLoading)return <div className="p-10 text-center font-black">جاري التحقق من الجلسة...</div>;
 if(!embedded && (!user || user.roles.includes('student'))){
-  return <Navigate to="/dashboard?tab=assessments" replace />;
+  const dashboardParams=new URLSearchParams(params);dashboardParams.set('tab','platform-assessments');
+  return <Navigate to={`/dashboard?${dashboardParams.toString()}`} replace />;
 }
 if(!user||!user.roles.includes('student'))return <div className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</div>;
 
@@ -95,7 +96,7 @@ return <ContainerTag dir="rtl" className={`mx-auto max-w-5xl space-y-6 ${embedde
       <span className="rounded-lg bg-gray-50 dark:bg-slate-800 px-2.5 py-1">المحاولات {row.attemptCount} من {row.maxAttempts}</span>
       <span className="rounded-lg bg-gray-50 dark:bg-slate-800 px-2.5 py-1">الإصدار v{row.assessmentVersion}</span>
     </div>
-    {!row.accessAllowed?<p className="mt-4 rounded-xl border border-amber-100 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 p-3 text-xs font-bold leading-6 text-amber-800 dark:text-amber-300">الوصول لهذا الاختبار يتحقق من Commerce على الخادم عند العرض وعند بدء المحاولة.</p>:null}
+    {!row.accessAllowed?<p className="mt-4 rounded-xl border border-amber-100 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 p-3 text-xs font-bold leading-6 text-amber-800 dark:text-amber-300">يحتاج هذا الاختبار إلى باقة أو صلاحية مناسبة لبدء المحاولة.</p>:null}
     <div className="mt-auto pt-4">
       <button type="button" disabled={!row.accessAllowed||!row.canStart||Boolean(starting)} onClick={()=>void start(row)} className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-white transition disabled:opacity-40 ${row.accessAllowed?'bg-indigo-600 hover:bg-indigo-700':'bg-slate-500'}`}>{starting===row.placementId?<Loader2 size={18} className="animate-spin"/>:<Play size={18}/>} {accessLabel(row)}</button>
     </div>

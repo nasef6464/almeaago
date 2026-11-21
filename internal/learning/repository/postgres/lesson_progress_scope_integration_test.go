@@ -68,4 +68,16 @@ func TestLessonProgressContextIsolationPostgres(t *testing.T) {
 	if _, err = repo.GetLessonProgress(ctx, student, lessonID, learning.LessonProgressFoundation, "", courseA); !errors.Is(err, learning.ErrNotFound) {
 		t.Fatalf("foundation context must not see course A progress: %v", err)
 	}
+	completed, err := repo.CompletedCourseLessons(ctx, student, courseA)
+	if err != nil || len(completed) != 1 || completed[0] != lessonID {
+		t.Fatalf("course A completed=%v err=%v", completed, err)
+	}
+	completed, err = repo.CompletedCourseLessons(ctx, student, courseB)
+	if err != nil || len(completed) != 0 {
+		t.Fatalf("course B must not inherit completion: %v %v", completed, err)
+	}
+	completed, err = repo.CompletedCourseLessons(ctx, otherStudent, courseA)
+	if err != nil || len(completed) != 0 {
+		t.Fatalf("other student must not inherit completion: %v %v", completed, err)
+	}
 }

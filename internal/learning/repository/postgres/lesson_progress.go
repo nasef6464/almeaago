@@ -10,6 +10,31 @@ import (
 	learning "github.com/nasef6464/almeaago/internal/learning/domain"
 )
 
+func (r *Repository) CompletedCourseLessons(ctx context.Context, student, courseID string) ([]string, error) {
+	rows, err := r.db.Query(ctx, `SELECT DISTINCT lesson_id::text FROM lesson_progress
+		WHERE student_id=$1::uuid AND context_type='course' AND lower(course_id::text)=lower($2)
+		AND status='completed' ORDER BY lesson_id::text LIMIT 5001`, student, courseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := make([]string, 0)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+		if len(ids) > 5000 {
+			return nil, learning.ErrConflict
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
 func (r *Repository) GetLessonProgress(
 	ctx context.Context,
 	student, lessonID string,

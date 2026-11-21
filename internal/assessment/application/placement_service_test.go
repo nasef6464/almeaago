@@ -11,12 +11,14 @@ import (
 )
 
 type placementRepoStub struct {
-	placement   assessment.Placement
-	page        assessment.PlacementPage
-	learner     assessment.LearnerPlacementPage
-	attempt     assessment.Attempt
-	lastLearner assessment.LearnerPlacementQuery
-	access      assessment.AccessContext
+	placement     assessment.Placement
+	page          assessment.PlacementPage
+	learner       assessment.LearnerPlacementPage
+	attempt       assessment.Attempt
+	lastLearner   assessment.LearnerPlacementQuery
+	access        assessment.AccessContext
+	startCalls    int
+	foundExisting bool
 }
 
 func (r *placementRepoStub) CreatePlacement(context.Context, string, string, assessment.PlacementWrite) (assessment.Placement, error) {
@@ -50,16 +52,86 @@ func (r *placementRepoStub) GetPlacementAccessContext(context.Context, string) (
 	}, nil
 }
 func (r *placementRepoStub) FindPlacementStart(context.Context, string, string, string) (assessment.Attempt, bool, error) {
-	return assessment.Attempt{}, false, nil
+	return r.attempt, r.foundExisting, nil
 }
 func (r *placementRepoStub) StartPlacement(context.Context, string, string, string) (assessment.Attempt, error) {
+	r.startCalls++
 	return r.attempt, nil
 }
 
-type placementContentStub struct{ ok bool }
+type placementContentStub struct {
+	ok     bool
+	hidden bool
+}
+
+type progressRepoStub struct {
+	*placementRepoStub
+	student string
+	query   assessment.LearnerPlacementQuery
+}
+
+func (r *progressRepoStub) CountLearnerPlacementProgress(_ context.Context, student string, q assessment.LearnerPlacementQuery) (assessment.PlacementProgress, error) {
+	r.student, r.query = student, q
+	return assessment.PlacementProgress{Total: 75, Completed: 2}, nil
+}
+
+func TestSubjectProgressRequiresExactVisibleStudentScope(t *testing.T) {
+	repo := &progressRepoStub{placementRepoStub: &placementRepoStub{}}
+	service := NewPlacementService(repo, nil, placementContentStub{ok: true})
+	student := identity.User{ID: "student-1", Roles: []identity.Role{identity.RoleStudent}}
+	result, err := service.SubjectProgress(context.Background(), student, " path-1 ", " subject-1 ", assessment.PlacementTraining)
+	if err != nil || result.Total != 75 || result.Completed != 2 || repo.student != student.ID || repo.query.PathID != "path-1" || repo.query.SubjectID != "subject-1" {
+		t.Fatalf("invalid progress scope/result: %+v %+v %v", result, repo.query, err)
+	}
+	if _, err := service.SubjectProgress(context.Background(), identity.User{}, "path-1", "subject-1", assessment.PlacementTraining); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("guest access: %v", err)
+	}
+	if _, err := service.SubjectProgress(context.Background(), student, "path-1", "", assessment.PlacementTraining); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("missing subject: %v", err)
+	}
+	if _, err := service.SubjectProgress(context.Background(), student, "path-1", "subject-1", assessment.PlacementCourse); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("invalid slot: %v", err)
+	}
+	hidden := NewPlacementService(repo, nil, placementContentStub{ok: true, hidden: true})
+	if _, err := hidden.SubjectProgress(context.Background(), student, "path-1", "subject-1", assessment.PlacementTraining); err == nil {
+		t.Fatal("hidden subject must not reveal progress")
+	}
+}
 
 func (c placementContentStub) ValidateAssessmentPlacementTarget(context.Context, string, string, string, string, string, string) (bool, error) {
 	return c.ok, nil
+}
+func (c placementContentStub) LearnerAssessmentScopeVisible(context.Context, string, string) (bool, error) {
+	return !c.hidden, nil
+}
+
+func TestHiddenScopeBlocksNewPlacementsButPreservesExistingAttempt(t *testing.T) {
+	for _, slot := range []assessment.PlacementSlot{assessment.PlacementTraining, assessment.PlacementTests, assessment.PlacementFoundation, assessment.PlacementCourse} {
+		repo := &placementRepoStub{placement: assessment.Placement{ID: "placement", Slot: slot, PathID: "path", SubjectID: "subject", IsVisible: true}}
+		query := assessment.LearnerPlacementQuery{Slot: slot, PathID: "path", SubjectID: "subject"}
+		if slot == assessment.PlacementFoundation {
+			repo.placement.TopicID = "topic"
+			query.TopicID = "topic"
+		}
+		if slot == assessment.PlacementCourse {
+			repo.placement.CourseID = "course"
+			query.CourseID = "course"
+		}
+		s := NewPlacementService(repo, nil, placementContentStub{ok: true, hidden: true})
+		student := identity.User{ID: "student", Roles: []identity.Role{identity.RoleStudent}}
+		if _, err := s.Learner(context.Background(), student, query); err == nil {
+			t.Fatalf("%s hidden listing allowed", slot)
+		}
+		if _, err := s.Start(context.Background(), student, "placement", "start-key"); err == nil || repo.startCalls != 0 {
+			t.Fatalf("%s hidden start: %v", slot, err)
+		}
+		repo.foundExisting = true
+		repo.attempt = assessment.Attempt{ID: "existing"}
+		attempt, err := s.Start(context.Background(), student, "placement", "start-key")
+		if err != nil || attempt.ID != "existing" || repo.startCalls != 0 {
+			t.Fatalf("%s existing attempt: %+v %v", slot, attempt, err)
+		}
+	}
 }
 
 type definitionRepoStub struct{ a assessment.Assessment }
@@ -82,6 +154,9 @@ func (r *definitionRepoStub) SetWorkflow(context.Context, string, string, int, a
 func (r *definitionRepoStub) SetPublication(context.Context, string, string, int, bool) (assessment.Assessment, error) {
 	return assessment.Assessment{}, nil
 }
+func (r *definitionRepoStub) SetVisibility(context.Context, string, string, int, bool) (assessment.Assessment, error) {
+	return assessment.Assessment{}, nil
+}
 func (r *definitionRepoStub) CanAuthor(context.Context, string, string, string) (bool, error) {
 	return true, nil
 }
@@ -96,6 +171,16 @@ func placementDefinition(owner string) assessment.Assessment {
 }
 func placementTeacher(id string) identity.User {
 	return identity.User{ID: id, Roles: []identity.Role{identity.RoleTeacher}}
+}
+
+func TestStaffPlacementListReturnsEmptyArray(t *testing.T) {
+	repo := &placementRepoStub{}
+	defs := NewService(&definitionRepoStub{a: placementDefinition("teacher-1")})
+	service := NewPlacementService(repo, defs, placementContentStub{ok: true})
+	page, err := service.List(context.Background(), placementTeacher("teacher-1"), "assessment-1", 1, 100)
+	if err != nil || page.Items == nil || len(page.Items) != 0 {
+		t.Fatalf("expected empty list, got %#v: %v", page.Items, err)
+	}
 }
 
 func TestPlacementCreateRequiresOwnedPublishedDefinitionAndValidContentTarget(t *testing.T) {
@@ -146,6 +231,9 @@ func TestLearnerPlacementRequiresExactBoundedContext(t *testing.T) {
 	}
 	if out.Limit != 0 && out.Limit > 100 {
 		t.Fatalf("unexpected result limit: %d", out.Limit)
+	}
+	if out.Items == nil {
+		t.Fatal("empty learner placements must serialize as an empty list")
 	}
 }
 

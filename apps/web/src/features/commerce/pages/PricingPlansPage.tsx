@@ -215,7 +215,7 @@ export const PricingPlansPage: React.FC = () => {
     },
     {
       q: 'ما هي طرق الدفع المتاحة في المنصة؟',
-      a: 'ندعم جميع وسائل الدفع المعتمدة بالمملكة: مدى (Mada)، البطاقات الائتمانية (Visa / Mastercard)، أبل باي (Apple Pay)، بالإضافة إلى التحويل البنكي المباشر لحساب مؤسسة المئة التعليمية لدى مصرف الراجحي مع رفع صورة الإيصال.',
+      a: 'تظهر وسائل الدفع المتاحة عند إنشاء الطلب. يمكن إرسال مرجع التحويل ورابط الإيصال، ويُفعّل الوصول بعد اعتماد الدفع.',
     },
     {
       q: 'هل يتم تجديد الاشتراك تلقائياً وسحب مبالغ من بطاقتي؟',
@@ -550,7 +550,7 @@ export const PricingPlansPage: React.FC = () => {
               <CreditCard size={16} className="text-blue-400" /> مدى، فيزا، ماستركارد، وأبل باي
             </span>
             <span className="flex items-center gap-1.5">
-              <Building2 size={16} className="text-amber-400" /> تحويل بنكي مباشر لمصرف الراجحي
+              <Building2 size={16} className="text-amber-400" /> تحويل بنكي وفق الإعدادات المتاحة
             </span>
           </div>
           <p className="text-xs text-slate-500">

@@ -64,6 +64,9 @@ func (r *sessionDefinitionRepo) SetWorkflow(context.Context, string, string, int
 func (r *sessionDefinitionRepo) SetPublication(context.Context, string, string, int, bool) (assessment.Assessment, error) {
 	return assessment.Assessment{}, nil
 }
+func (r *sessionDefinitionRepo) SetVisibility(context.Context, string, string, int, bool) (assessment.Assessment, error) {
+	return assessment.Assessment{}, nil
+}
 func (r *sessionDefinitionRepo) CanAuthor(context.Context, string, string, string) (bool, error) {
 	return true, nil
 }

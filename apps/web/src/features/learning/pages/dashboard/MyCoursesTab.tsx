@@ -17,10 +17,16 @@ export const MyCoursesTab: React.FC = () => {
       .then(async (tax) => {
         if (controller.signal.aborted) return;
         const allCourses: LearnerCourseSummary[] = [];
-        for (const p of tax.paths.slice(0, 3)) {
+        const seen = new Set<string>();
+        for (const subject of (tax.subjects || []).slice(0, 4)) {
           try {
-            const space = await contentClient.learningSpace(p.id, '', 10, controller.signal);
-            allCourses.push(...space.courses.items);
+            const space = await contentClient.learningSpace(subject.pathId, subject.id, 10, controller.signal);
+            for (const course of space.courses?.items || []) {
+              const key = String(course.id || '');
+              if (!key || seen.has(key)) continue;
+              seen.add(key);
+              allCourses.push(course);
+            }
           } catch {}
         }
         setCourses(allCourses);

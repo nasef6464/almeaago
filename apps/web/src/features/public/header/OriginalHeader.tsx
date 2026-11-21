@@ -568,8 +568,8 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
               </span>
             </Link>
 
-            {user ? (
-              <div className="hidden sm:inline-flex items-center">
+            {user?.role === 'student' ? (
+              <div className="hidden lg:inline-flex items-center">
                 <StudentMembershipBadge />
               </div>
             ) : null}
@@ -607,6 +607,7 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
                       <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-800 mb-2">
                         <p className="font-bold text-gray-800 dark:text-gray-100">{user.displayName || text.guest}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                        {user.role === 'student' ? <div className="mt-2 lg:hidden"><StudentMembershipBadge /></div> : null}
                       </div>
 
                       {user.role === 'teacher' ? (

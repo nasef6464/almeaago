@@ -12,3 +12,11 @@ func TestPresentLearnerTopicCarriesActualScope(t *testing.T) {
 		t.Fatalf("learner topic scope missing from response: %+v", got)
 	}
 }
+
+func TestPresentLearnerTopicKeepsPriceClassSeparateFromAccess(t *testing.T) {
+	paidUnlocked := presentLearnerTopicSummary(content.LearnerTopicSummary{ID: "paid", IsFree: false, IsLocked: false})
+	free := presentLearnerTopicSummary(content.LearnerTopicSummary{ID: "free", IsFree: true, IsLocked: false})
+	if paidUnlocked["isFree"] != false || paidUnlocked["isLocked"] != false || free["isFree"] != true {
+		t.Fatalf("incorrect topic price/access projection: paid=%+v free=%+v", paidUnlocked, free)
+	}
+}

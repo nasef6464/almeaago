@@ -2,9 +2,11 @@ package application
 
 import (
 	"context"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 
 	commerce "github.com/nasef6464/almeaago/internal/commerce/domain"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
@@ -31,6 +33,26 @@ type CheckoutRepository interface {
 	MarkPayoutPaid(context.Context, string, string, commerce.PayoutMarkPaid) (commerce.RevenueEntry, error)
 	AttachProviderSession(context.Context, string, string, int, commerce.ProviderSession) (commerce.PaymentRequest, error)
 	FailProviderSession(context.Context, string, string, int, string) (commerce.PaymentRequest, error)
+}
+
+type userPaymentRequestLookup interface {
+	FindUserPaymentRequest(context.Context, string, string) (commerce.PaymentRequest, error)
+}
+
+// MyRequestByKey recovers an uncertain checkout only for its owner.
+func (s *CheckoutService) MyRequestByKey(ctx context.Context, actor identity.User, key string) (commerce.PaymentRequest, error) {
+	key = strings.TrimSpace(key)
+	if strings.TrimSpace(actor.ID) == "" {
+		return commerce.PaymentRequest{}, ErrForbidden
+	}
+	if key == "" || len(key) > 160 || strings.IndexFunc(key, unicode.IsControl) >= 0 {
+		return commerce.PaymentRequest{}, ErrInvalidInput
+	}
+	lookup, ok := s.repo.(userPaymentRequestLookup)
+	if !ok {
+		return commerce.PaymentRequest{}, commerce.ErrConflict
+	}
+	return lookup.FindUserPaymentRequest(ctx, actor.ID, key)
 }
 
 type RevenuePolicyResolver interface {
@@ -155,6 +177,28 @@ func (s *CheckoutService) CreateCheckout(ctx context.Context, actor identity.Use
 	in.ProductID = strings.TrimSpace(in.ProductID)
 	in.DiscountCode = strings.ToUpper(strings.TrimSpace(in.DiscountCode))
 	in.IdempotencyKey = strings.TrimSpace(in.IdempotencyKey)
+	in.TransferSenderName = strings.TrimSpace(in.TransferSenderName)
+	in.TransferSenderBank = strings.TrimSpace(in.TransferSenderBank)
+	in.TransferReference = strings.TrimSpace(in.TransferReference)
+	in.TransferReceiptURL = strings.TrimSpace(in.TransferReceiptURL)
+	fields := []string{in.TransferSenderName, in.TransferSenderBank, in.TransferReference, in.TransferReceiptURL}
+	for _, value := range fields {
+		if strings.IndexFunc(value, unicode.IsControl) >= 0 {
+			return commerce.PaymentRequest{}, ErrInvalidInput
+		}
+	}
+	if len(in.TransferSenderName) > 160 || len(in.TransferSenderBank) > 120 || len(in.TransferReference) > 160 || len(in.TransferReceiptURL) > 2048 {
+		return commerce.PaymentRequest{}, ErrInvalidInput
+	}
+	if in.PaymentMethod != commerce.PaymentTransfer && (in.TransferSenderName != "" || in.TransferSenderBank != "" || in.TransferReference != "" || in.TransferReceiptURL != "") {
+		return commerce.PaymentRequest{}, ErrInvalidInput
+	}
+	if in.TransferReceiptURL != "" {
+		parsed, err := url.Parse(in.TransferReceiptURL)
+		if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil {
+			return commerce.PaymentRequest{}, ErrInvalidInput
+		}
+	}
 	if in.ProductID == "" || !commerce.ValidPaymentMethod(in.PaymentMethod) || in.IdempotencyKey == "" || len(in.IdempotencyKey) > 160 {
 		return commerce.PaymentRequest{}, ErrInvalidInput
 	}

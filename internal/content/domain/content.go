@@ -419,6 +419,7 @@ type LearnerTopicSummary struct {
 	Description   string
 	SortOrder     int
 	IsLocked      bool
+	IsFree        bool
 }
 
 type LearnerLibrarySummary struct {
@@ -459,6 +460,8 @@ type LearnerCourseModule struct {
 
 type LearnerCourse struct {
 	Course           LearnerCourseSummary
+	PathID           string
+	SubjectID        string
 	Modules          []LearnerCourseModule
 	AccessAllowed    bool
 	AccessConfigured bool

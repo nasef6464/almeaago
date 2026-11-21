@@ -44,13 +44,15 @@ test(`original homepage editor persists brand and hero through Go sessions/Postg
    for(const frame of frames)await frame.close();
   }
   await page.goto('/');await expect(page.locator('header').getByText('هوية محفوظة',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{level:1})).toContainText('تعلم بثقة');await page.screenshot({path:`test-results/homepage-public-authenticated-${width}.png`,animations:'disabled'});
-  const guestContext=await browser.newContext({viewport:{width,height:1000}});
-  await guestContext.route('**/api/v1/taxonomy/bootstrap?*',r=>r.fulfill({json:{paths:[],subjects:[]}}));
-  const guest=await guestContext.newPage();await guest.goto('http://127.0.0.1:4173/');
-  await expect(guest.locator('header').getByText('هوية محفوظة',{exact:true})).toBeVisible();await expect(guest.getByRole('heading',{level:1})).toContainText('تعلم بثقة');await expect(guest.locator('header').getByRole('link',{name:'لوحتي',exact:true})).toHaveCount(0);
-  await guest.screenshot({path:`test-results/homepage-guest-actual-${width}.png`,animations:'disabled'});await guestContext.close();
   await page.goBack();await expect(page.getByRole('heading',{name:'إدارة الصفحة الرئيسية',exact:true})).toBeVisible();await page.goForward();await expect(page.getByRole('heading',{level:1})).toContainText('تعلم بثقة');
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
- await context.clearCookies();await page.reload();await expect(page.locator('header').getByText('هوية محفوظة',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{level:1})).toContainText('تعلم بثقة');
+  await context.clearCookies();await page.reload();await expect(page.locator('header').getByText('هوية محفوظة',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{level:1})).toContainText('تعلم بثقة');
+  // Guest proof reuses this page after clearing the session cookie. A separate
+  // browser context previously navigated to a hard-coded http://127.0.0.1:4173
+  // URL, which failed with ERR_CONNECTION_REFUSED whenever the dev server had
+  // not finished restarting; clearing cookies exercises the same guest surface
+  // against the server the test is already talking to.
+  await expect(page.locator('header').getByRole('link',{name:'لوحتي',exact:true})).toHaveCount(0);
+  await page.screenshot({path:`test-results/homepage-guest-actual-${width}.png`,animations:'disabled'});
 });
 }

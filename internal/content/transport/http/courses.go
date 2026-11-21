@@ -52,6 +52,7 @@ func (h *Handler) publicCourses(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) listCourses(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	auth, ok := h.authenticate(w, r, false)
 	if !ok {
 		return

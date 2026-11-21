@@ -34,12 +34,13 @@ test('the reviewed legacy snapshot can be compared to the current Go App route t
   const diff = compareRoutes(legacy.paths, goRoutes);
   assert.equal(legacy.sourceFile, 'app/AppRouteTree.tsx');
   assert.equal(diff.legacyCount, 55);
-  // Refreshed 2026-11-13 against the current App route tree (83 explicit routes).
-  // The legacy baseline stays frozen; only the target-side drift is re-baselined.
-  assert.equal(diff.targetCount, 83);
-  assert.equal(diff.sharedCount, 40);
-  assert.equal(diff.legacyOnly.length, 15);
-  assert.equal(diff.targetOnly.length, 43);
+  // Refreshed 2026-11-21 against the combined App route tree (86 explicit routes):
+  // the merged Antigravity branch adds the canonical /school-director alias
+  // beside /school-director-dashboard. The legacy baseline stays frozen.
+  assert.equal(diff.targetCount, 86);
+  assert.equal(diff.sharedCount, 41);
+  assert.equal(diff.legacyOnly.length, 14);
+  assert.equal(diff.targetOnly.length, 45);
   assert.ok(diff.legacyOnly.includes('/admin/quiz-gen'));
   assert.ok(diff.targetOnly.includes('/admin-dashboard/assessments'));
   assert.ok(diff.targetOnly.includes('/admin-dashboard/platform-fonts'));

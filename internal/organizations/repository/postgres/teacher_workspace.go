@@ -19,31 +19,53 @@ func (r *Repository) TeacherWorkspace(
 			c.name,
 			COALESCE(ta.subject_id::text, ''),
 			(
-				SELECT count(*)::int
+				SELECT count(DISTINCT cm.user_id)::int
 				FROM class_memberships cm
-				JOIN school_memberships sm
-				  ON sm.user_id = cm.user_id
-				 AND sm.school_id = s.id
-				 AND sm.role = 'student'
-				 AND sm.status = 'active'
 				WHERE cm.class_id = c.id
 				  AND cm.status = 'active'
+				  AND EXISTS (
+					SELECT 1 FROM users student_user
+					WHERE student_user.id = cm.user_id
+					  AND student_user.status = 'active'
+				  )
+				  AND EXISTS (
+					SELECT 1
+					FROM school_memberships sm
+					WHERE sm.user_id = cm.user_id
+					  AND sm.school_id = s.id
+					  AND sm.role = 'student'
+					  AND sm.status = 'active'
+				  )
 			) AS student_count
 		FROM teaching_assignments ta
-		JOIN school_memberships teacher_membership
-		  ON teacher_membership.school_id = ta.school_id
-		 AND teacher_membership.user_id = ta.teacher_id
-		 AND teacher_membership.role = 'teacher'
-		 AND teacher_membership.status = 'active'
 		JOIN schools s
 		  ON s.id = ta.school_id
-		 AND s.status <> 'archived'
+		 AND s.status = 'active'
 		JOIN classes c
 		  ON c.id = ta.class_id
 		 AND c.school_id = ta.school_id
 		 AND c.status = 'active'
+		JOIN subjects subj ON subj.id = ta.subject_id AND subj.status = 'active'
+		JOIN paths learning_path ON learning_path.id = subj.path_id AND learning_path.status = 'active'
 		WHERE ta.teacher_id = $1::uuid
 		  AND ta.status = 'active'
+		  AND EXISTS (
+			SELECT 1 FROM users teacher_user
+			WHERE teacher_user.id = ta.teacher_id
+			  AND teacher_user.status = 'active'
+		  )
+		  AND EXISTS (
+			SELECT 1 FROM user_roles teacher_role
+			WHERE teacher_role.user_id = ta.teacher_id
+			  AND teacher_role.role = 'teacher'
+		  )
+		  AND EXISTS (
+			SELECT 1 FROM school_memberships teacher_membership
+			WHERE teacher_membership.school_id = ta.school_id
+			  AND teacher_membership.user_id = ta.teacher_id
+			  AND teacher_membership.role = 'teacher'
+			  AND teacher_membership.status = 'active'
+		  )
 		ORDER BY s.name, s.id, c.name, c.id, ta.id
 	`, userID)
 	if err != nil {

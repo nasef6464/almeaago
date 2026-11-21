@@ -22,7 +22,6 @@ import {
   PlayCircle,
   Radio,
   RotateCcw,
-  Send,
   Share2,
   ShoppingCart,
   Sparkles,
@@ -44,6 +43,11 @@ import type {
 } from '../../content/api/content-types';
 import { lessonProgressClient, type LessonProgress } from '../api/learning-client';
 import { SharedVideoPlayer, type SharedVideoPlayerHandle } from '../components/SharedVideoPlayer';
+import { CourseLessonNotes } from '../components/CourseLessonNotes';
+import { CourseLessonDiscussion } from '../components/CourseLessonDiscussion';
+import { CourseAssessmentList } from '../components/CourseAssessmentList';
+import { courseFileURL } from '../courseFileURL';
+import { useCourseCompletion } from '../useCourseCompletion';
 
 function flattenLessons(course: LearnerCourse | null) {
   if (!course) return [] as LearnerLessonSummary[];
@@ -76,6 +80,7 @@ export function CourseLearningPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, loading: authLoading, getCsrfToken } = useAuth();
+  const { completedLessonIds, markCompleted } = useCourseCompletion(courseId, user?.roles?.includes('student') ? user.id : '');
 
   const [course, setCourse] = useState<LearnerCourse | null>(null);
   // Keep the loaded course tied to its route, including during failed transitions.
@@ -106,23 +111,19 @@ export function CourseLearningPage() {
   const videoRef = useRef<SharedVideoPlayerHandle | null>(null);
   const lastSaved = useRef(0);
 
-  // Interactive Video state
-  const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<string>>(() => {
-    try {
-      const stored = localStorage.getItem(`almeaa_answered:${courseId}:${lessonId}`);
-      if (stored) return new Set(JSON.parse(stored));
-    } catch {}
-    return new Set();
-  });
-
+  // Interactive answers belong to one learner and one exact course lesson.
+  const answerScope = JSON.stringify([user?.id || '', courseId, lessonId]);
+  const answerStorageKey = `almeaa_answered_v2:${answerScope}`;
+  const [answerState, setAnswerState] = useState<{ scope: string; ids: Set<string> }>({ scope: '', ids: new Set() });
+  const answeredQuestionIds = answerState.scope === answerScope ? answerState.ids : new Set<string>();
   useEffect(() => {
+    let ids: string[] = [];
     try {
-      const stored = localStorage.getItem(`almeaa_answered:${courseId}:${lessonId}`);
-      setAnsweredQuestionIds(stored ? new Set(JSON.parse(stored)) : new Set());
-    } catch {
-      setAnsweredQuestionIds(new Set());
-    }
-  }, [courseId, lessonId]);
+      const parsed: unknown = JSON.parse(localStorage.getItem(answerStorageKey) || '[]');
+      if (Array.isArray(parsed)) ids = parsed.filter((id): id is string => typeof id === 'string');
+    } catch {}
+    setAnswerState({ scope: answerScope, ids: new Set(ids) });
+  }, [answerScope, answerStorageKey]);
 
   const lessons = useMemo(() => flattenLessons(course), [course]);
   const selectedSummary = lessons.find((item) => item.id === lessonId) || null;
@@ -132,35 +133,6 @@ export function CourseLearningPage() {
 
   // Bottom Workspace State
   const [bottomTab, setBottomTab] = useState<'notes' | 'files' | 'qa' | 'assessments' | 'certificate'>('notes');
-  const [newCommentText, setNewCommentText] = useState('');
-  const [lessonComments, setLessonComments] = useState<Array<{ id: string; authorName: string; createdAt: string; text: string; isInstructor?: boolean }>>(() => {
-    try {
-      const stored = localStorage.getItem(`lesson_comments_${courseId}_${lessonId}`);
-      if (stored) return JSON.parse(stored);
-    } catch {}
-    return [
-      {
-        id: 'lc-1',
-        authorName: 'سارة العتيبي',
-        createdAt: 'منذ يومين',
-        text: 'شرح ممتاز ومفهوم لجميع استراتيجيات هذا الدرس، جزاكم الله خيراً.',
-      },
-      {
-        id: 'lc-2',
-        authorName: 'فريق المنصة',
-        createdAt: 'منذ يوم',
-        text: 'أهلاً بك يا سارة، بالتوفيق لكِ دائماً، وفي حال واجهتِ أي صعوبة في المسائل يمكنكِ طرح سؤالكِ هنا.',
-        isInstructor: true,
-      },
-    ];
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`lesson_comments_${courseId}_${lessonId}`, JSON.stringify(lessonComments));
-    } catch {}
-  }, [lessonComments, courseId, lessonId]);
-
   const context = useMemo(
     () => ({ contextType: 'course' as const, courseId, topicId: '' }),
     [courseId],
@@ -171,19 +143,6 @@ export function CourseLearningPage() {
   // A canonical lesson can be reused in several courses. Match both context and lesson.
   const activeDetail = loadedScope === selectedScope ? detail : null;
   const activeProgress = loadedScope === selectedScope ? progress : null;
-
-  const parsedQuizInfo = useMemo(() => {
-    if (!activeDetail) return null;
-    if (activeDetail.type === 'quiz') {
-      try {
-        const obj = JSON.parse(activeDetail.contentText);
-        return obj && typeof obj === 'object' && obj.quizId ? obj : { quizId: activeDetail.id };
-      } catch {
-        return { quizId: activeDetail.id };
-      }
-    }
-    return null;
-  }, [activeDetail]);
 
   const parsedMeetingInfo = useMemo(() => {
     if (!activeDetail) return null;
@@ -207,22 +166,16 @@ export function CourseLearningPage() {
     return {} as any;
   }, [course]);
 
-  const courseAssessmentsList = useMemo(() => {
-    return Array.isArray(coursePresentation.assessments) ? coursePresentation.assessments : [];
-  }, [coursePresentation]);
-
   const courseFilesList = useMemo(() => {
     return Array.isArray(coursePresentation.files) ? coursePresentation.files : [];
   }, [coursePresentation]);
 
   const completedLessonsCount = useMemo(() => {
-    return lessons.filter((l: any) => l.completed || (l.id === lessonId && activeProgress?.status === 'completed')).length;
-  }, [lessons, lessonId, activeProgress]);
-
-  const completionPercent = useMemo(() => {
-    if (!lessons.length) return 0;
-    return Math.min(100, Math.round((completedLessonsCount / lessons.length) * 100));
-  }, [completedLessonsCount, lessons.length]);
+    if (completedLessonIds === null) return null;
+    const completed = new Set(completedLessonIds);
+    return lessons.filter((lesson) => completed.has(lesson.id)).length;
+  }, [lessons, completedLessonIds]);
+  const completionPercent = completedLessonsCount === null ? null : lessons.length ? Math.round(completedLessonsCount / lessons.length * 100) : 0;
 
   const interactiveQuestions = useMemo<InteractiveVideoQuestion[]>(() => {
     if (!activeDetail || activeDetail.type !== 'video' || !activeDetail.contentText) {
@@ -275,9 +228,9 @@ export function CourseLearningPage() {
 
   function handleQuestionAnswered(questionId: string, isCorrect: boolean, allAnsweredIds: string[]) {
     const nextSet = new Set(allAnsweredIds);
-    setAnsweredQuestionIds(nextSet);
+    setAnswerState({ scope: answerScope, ids: nextSet });
     try {
-      localStorage.setItem(`almeaa_answered:${courseId}:${lessonId}`, JSON.stringify(allAnsweredIds));
+      localStorage.setItem(answerStorageKey, JSON.stringify(allAnsweredIds));
     } catch {}
   }
 
@@ -464,7 +417,13 @@ export function CourseLearningPage() {
       if (selectedScopeRef.current !== writeScope) return;
       const result = await lessonProgressClient.complete(activeDetail.id, context, csrf);
       if (selectedScopeRef.current === writeScope) {
+        if (result.progress?.status !== 'completed' || result.progress.contextType !== 'course' ||
+            result.progress.lessonId?.toLowerCase() !== activeDetail.id.toLowerCase() ||
+            result.progress.courseId?.toLowerCase() !== courseId.toLowerCase()) {
+          throw new Error('تعذر تأكيد اكتمال هذا الدرس؛ لم تُستخدم بيانات درس آخر.');
+        }
         setProgress(result.progress);
+        markCompleted(activeDetail.id);
         setNotice('تم تسجيل الدرس كمكتمل.');
       }
     } catch (reason) {
@@ -832,7 +791,7 @@ export function CourseLearningPage() {
                   }`}>
                     {activeDetail.type === 'video' && activeDetail.videoUrl ? (
                       <SharedVideoPlayer
-                        key={`${selectedScope}:${activeDetail.videoUrl}`}
+                        key={`${user.id}:${selectedScope}:${activeDetail.videoUrl}`}
                         ref={videoRef}
                         url={activeDetail.videoUrl}
                         title={activeDetail.title}
@@ -852,7 +811,7 @@ export function CourseLearningPage() {
                           يرجى التواصل مع إدارة المسار أو المدرب لإضافة محتوى الفيديو المعتمد لهذا الدرس.
                         </p>
                       </div>
-                    ) : (activeDetail.type === 'quiz' || parsedQuizInfo) ? (
+                    ) : activeDetail.type === 'quiz' ? (
                       <div className="p-8 text-center max-w-lg mx-auto">
                         <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto mb-4 border border-amber-500/20">
                           <Award size={36} />
@@ -866,13 +825,7 @@ export function CourseLearningPage() {
                         <p className={`text-xs font-bold leading-6 mb-6 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
                           {activeDetail.description || 'اختبار لقياس فهم واستيعاب المهارات المستهدفة في هذه الوحدة من الدورة.'}
                         </p>
-                        <Link
-                          to={`/assessments/${parsedQuizInfo?.quizId || activeDetail.id}/start`}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-500 hover:bg-amber-600 px-6 py-3 text-sm font-black text-slate-950 shadow-md transition"
-                        >
-                          بدء الاختبار الآن
-                          <ArrowRight size={17} />
-                        </Link>
+                        <CourseAssessmentList courseId={courseId} pathId={course.pathId || ''} subjectId={course.subjectId || ''} lessonId={lessonId} returnTo={`/learning/courses/${encodeURIComponent(courseId)}?lesson=${encodeURIComponent(lessonId)}`} />
                       </div>
                     ) : ['live_youtube', 'zoom', 'google_meet', 'teams'].includes(activeDetail.type) ? (
                       <div className="p-8 text-center max-w-lg mx-auto">
@@ -1007,6 +960,8 @@ export function CourseLearningPage() {
                   </div>
                 </article>
 
+                {activeDetail.type !== 'quiz' && <CourseAssessmentList courseId={courseId} pathId={course.pathId || ''} subjectId={course.subjectId || ''} lessonId={lessonId} hideIfEmpty returnTo={`/learning/courses/${encodeURIComponent(courseId)}?lesson=${encodeURIComponent(lessonId)}`} />}
+
                 <div className="grid gap-3 sm:grid-cols-2">
                   <button
                     type="button"
@@ -1074,7 +1029,7 @@ export function CourseLearningPage() {
                       }`}
                     >
                       <MessageSquare size={15} />
-                      الأسئلة والنقاش ({lessonComments.length})
+                      الملاحظات والنقاش
                     </button>
                     <button
                       type="button"
@@ -1086,7 +1041,7 @@ export function CourseLearningPage() {
                       }`}
                     >
                       <HelpCircle size={15} />
-                      اختبارات الدورة ({courseAssessmentsList.length})
+                      اختبارات الدورة
                     </button>
                     <button
                       type="button"
@@ -1113,13 +1068,6 @@ export function CourseLearningPage() {
                         <p className={`text-sm leading-8 ${isDarkMode ? 'text-slate-300' : 'text-gray-600'}`}>
                           {activeDetail.description || 'لا يوجد وصف إضافي لهذا الدرس.'}
                         </p>
-                        {lessonTextDescription ? (
-                          <div className={`whitespace-pre-wrap rounded-2xl p-4 text-sm leading-8 border ${
-                            isDarkMode ? 'bg-slate-900/60 border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200/80 text-gray-800'
-                          }`}>
-                            {lessonTextDescription}
-                          </div>
-                        ) : null}
                       </div>
                     )}
 
@@ -1147,20 +1095,19 @@ export function CourseLearningPage() {
                                     {file.title || `ملف تدريبي ${idx + 1}`}
                                   </div>
                                   <div className="text-xs text-gray-400 mt-0.5">
-                                    {file.size || 'ملف PDF'}
+                                    {file.size || 'الحجم غير محدد'}
                                   </div>
                                 </div>
                               </div>
-                              <a
-                                href={file.url || '#'}
-                                target="_blank"
-                                rel="noreferrer"
-                                download
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition"
-                              >
-                                <Download size={14} />
-                                تحميل
-                              </a>
+                              {file.access !== 'free_preview' && !course.access?.allowed ? (
+                                <span className="text-xs font-bold text-amber-700">ضمن شراء الدورة</span>
+                              ) : courseFileURL(file.url) ? (
+                                <a href={courseFileURL(file.url)} target="_blank" rel="noopener noreferrer" download className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-bold">
+                                  <Download size={14} /> تحميل
+                                </a>
+                              ) : (
+                                <span className="text-xs font-bold text-gray-500">الرابط غير متاح</span>
+                              )}
                             </div>
                           ))
                         )}
@@ -1169,133 +1116,15 @@ export function CourseLearningPage() {
 
                     {/* 3. QA TAB */}
                     {bottomTab === 'qa' && (
-                      <div className="space-y-4">
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            if (!newCommentText.trim()) return;
-                            const comment = {
-                              id: `c-${Date.now()}`,
-                              authorName: user?.name || 'طالب المنصة',
-                              createdAt: 'الآن',
-                              text: newCommentText.trim(),
-                            };
-                            setLessonComments((prev) => [comment, ...prev]);
-                            setNewCommentText('');
-                          }}
-                          className="space-y-2.5"
-                        >
-                          <textarea
-                            rows={3}
-                            value={newCommentText}
-                            onChange={(e) => setNewCommentText(e.target.value)}
-                            placeholder="اطرح استفسارك أو سؤالك حول هذا الدرس وسيقوم المدرب بالرد عليك..."
-                            className={`w-full rounded-2xl border p-3.5 text-sm font-medium outline-none transition focus:ring-2 focus:ring-indigo-500/20 ${
-                              isDarkMode
-                                ? 'border-slate-700 bg-slate-900 text-white placeholder-slate-500 focus:border-indigo-500'
-                                : 'border-gray-200 bg-gray-50 text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:bg-white'
-                            }`}
-                          />
-                          <div className="flex justify-end">
-                            <button
-                              type="submit"
-                              disabled={!newCommentText.trim()}
-                              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700 transition disabled:opacity-50 cursor-pointer"
-                            >
-                              <Send size={14} />
-                              نشر التعليق / السؤال
-                            </button>
-                          </div>
-                        </form>
-
-                        <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-slate-800">
-                          {lessonComments.map((comm) => (
-                            <div
-                              key={comm.id}
-                              className={`p-3.5 rounded-2xl border ${
-                                comm.isInstructor
-                                  ? isDarkMode
-                                    ? 'border-indigo-900/50 bg-indigo-950/20'
-                                    : 'border-indigo-100 bg-indigo-50/50'
-                                  : isDarkMode
-                                  ? 'border-slate-800 bg-slate-900/40'
-                                  : 'border-gray-200 bg-white'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between mb-1.5">
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-xs font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                    {comm.authorName}
-                                  </span>
-                                  {comm.isInstructor ? (
-                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-600 text-white">
-                                      مدرب الدورة
-                                    </span>
-                                  ) : null}
-                                </div>
-                                <span className="text-[11px] text-gray-400">{comm.createdAt}</span>
-                              </div>
-                              <p className={`text-xs sm:text-sm leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-gray-700'}`}>
-                                {comm.text}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
+                      <div className="space-y-6" key={`${user.id}:${courseId}:${lessonId}`}>
+                        <CourseLessonNotes userId={user.id} courseId={courseId} lessonId={lessonId} isDarkMode={isDarkMode} />
+                        {user.roles?.some(role => ['student', 'teacher', 'admin'].includes(role)) && <CourseLessonDiscussion courseId={courseId} lessonId={lessonId} isDarkMode={isDarkMode} getCsrfToken={getCsrfToken} />}
                       </div>
                     )}
 
                     {/* 4. ASSESSMENTS TAB */}
                     {bottomTab === 'assessments' && (
-                      <div className="space-y-3">
-                        {courseAssessmentsList.length === 0 ? (
-                          <div className={`text-center py-8 text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-                            لا توجد اختبارات مرحلية معينة لهذه الدورة في الوقت الحالي.
-                          </div>
-                        ) : (
-                          courseAssessmentsList.map((test: any, idx: number) => {
-                            const phaseLabels: Record<string, string> = {
-                              pre_course: 'اختبار قبلي تشخيصي',
-                              milestone: 'اختبار مرحلي',
-                              final_course: 'اختبار شامل نهائي',
-                            };
-                            return (
-                              <div
-                                key={test.id || idx}
-                                className={`flex items-center justify-between p-4 rounded-2xl border transition ${
-                                  isDarkMode ? 'border-slate-800 bg-slate-900/40' : 'border-gray-200 bg-gray-50/50'
-                                }`}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
-                                    <HelpCircle size={20} />
-                                  </div>
-                                  <div>
-                                    <div className="flex items-center gap-2">
-                                      <span className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                        {test.title}
-                                      </span>
-                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                                        {phaseLabels[test.phase] || 'اختبار تقييمي'}
-                                      </span>
-                                    </div>
-                                    <div className="text-xs text-gray-400 mt-1">
-                                      {test.durationMinutes || 30} دقيقة • {test.questionsCount || 20} سؤال
-                                    </div>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => navigate(`/assessments?courseId=${courseId}&assessmentId=${test.id}`)}
-                                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 transition cursor-pointer"
-                                >
-                                  بدء الاختبار
-                                  <ChevronLeft size={14} />
-                                </button>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
+                      <CourseAssessmentList courseId={courseId} pathId={course.pathId || ''} subjectId={course.subjectId || ''} returnTo={`/learning/courses/${encodeURIComponent(courseId)}?lesson=${encodeURIComponent(lessonId)}`} />
                     )}
 
                     {/* 5. CERTIFICATE TAB */}
@@ -1309,43 +1138,27 @@ export function CourseLearningPage() {
                             شهادة إتمام الدورة التدريبية
                           </h4>
                           <p className={`text-xs mt-1 max-w-md mx-auto ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
-                            احصل على شهادتك المعتمدة بمجرد إكمال جميع دروس الدورة واجتياز الاختبارات المقررة.
+إصدار الشهادات غير متاح حاليًا. يُعرض تقدم الدروس المسجل أدناه ولا يُعد شهادة إتمام.
                           </p>
                         </div>
 
                         <div className="max-w-md mx-auto space-y-2">
                           <div className="flex items-center justify-between text-xs font-bold text-gray-500">
                             <span>نسبة الإنجاز الحالية</span>
-                            <span className="font-black text-indigo-600">{completionPercent}%</span>
+                            <span className="font-black text-indigo-600">{completionPercent === null ? 'غير متاح' : `${completionPercent}%`}</span>
                           </div>
                           <div className="h-3 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
                             <div
                               className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-all duration-500"
-                              style={{ width: `${completionPercent}%` }}
+                              style={{ width: `${completionPercent === null ? 'غير متاح' : `${completionPercent}%`}` }}
                             />
                           </div>
                           <div className="text-[11px] text-gray-400">
-                            {completedLessonsCount} من أصل {lessons.length} درس مكتمل
+                            {completedLessonsCount === null ? 'تعذر تحميل التقدم' : `${completedLessonsCount} من أصل ${lessons.length} درس مكتمل`}
                           </div>
                         </div>
 
-                        {completionPercent >= 100 ? (
-                          <div className="pt-3">
-                            <button
-                              type="button"
-                              onClick={() => alert('مبارك لك! جاري إعداد وتوليد وثيقة شهادتك المعتمدة...')}
-                              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 font-black text-white hover:bg-emerald-700 transition shadow-lg cursor-pointer text-sm"
-                            >
-                              <Download size={18} />
-                              تحميل وثيقة الشهادة (PDF)
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="inline-flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 px-4 py-2 text-xs font-bold text-amber-700 dark:text-amber-300">
-                            <Lock size={14} />
-                            أكمل بقية الدروس لتفعيل زر إصدار الشهادة
-                          </div>
-                        )}
+
                       </div>
                     )}
                   </div>

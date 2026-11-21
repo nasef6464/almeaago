@@ -92,6 +92,7 @@ export interface FoundationTopicSummary {
 }
 
 export interface TaxonomyPath {
+  color?: string;
   showInHome?: boolean;
   id: string;
   code: string;
@@ -102,6 +103,7 @@ export interface TaxonomyPath {
 }
 
 export interface TaxonomySubject {
+  color?: string;
   id: string;
   pathId: string;
   levelId?: string;
@@ -121,6 +123,7 @@ export interface TaxonomyLevel {
 export interface TaxonomySkill {
   id: string;
   subjectId: string;
+  sectionId?: string;
   parentSkillId?: string;
   code: string;
   name: string;
@@ -135,7 +138,15 @@ export interface TaxonomyCore {
   subjects: TaxonomySubject[];
 }
 
+export interface TaxonomySkillSection {
+  id: string;
+  subjectId: string;
+  name: string;
+  sortOrder: number;
+}
+
 export interface TaxonomyFull extends TaxonomyCore {
+  sections?: TaxonomySkillSection[];
   skills: TaxonomySkill[];
 }
 
@@ -344,11 +355,11 @@ export interface FoundationPlacements {
 }
 
 export interface LearnerCourseSummary{id:string;title:string;description:string;instructorName:string;durationMinutes:number;level:string;thumbnailAssetId:string;dripContentEnabled:boolean;certificateEnabled:boolean}
-export interface LearnerTopicSummary{id:string;parentTopicId:string;title:string;description:string;sortOrder:number;isLocked:boolean}
+export interface LearnerTopicSummary{id:string;parentTopicId:string;title:string;description:string;sortOrder:number;isLocked:boolean;isFree?:boolean}
 export interface LearnerLibrarySummary{id:string;title:string;description:string;type:string;isLocked:boolean;externalUrl?:string}
 export interface LearnerLessonSummary{id:string;title:string;description:string;type:string;durationSeconds:number;isLocked:boolean;isPreview:boolean;commerceLocked:boolean;sortOrder:number}
 export interface LearnerCourseModule{id:string;title:string;description:string;sortOrder:number;lessons:LearnerLessonSummary[]}
-export interface LearnerCourse extends LearnerCourseSummary{modules:LearnerCourseModule[];access:{allowed:boolean;configured:boolean;reason:string;productId:string;entitlementId:string;entitlementSource:string}}
+export interface LearnerCourse extends LearnerCourseSummary{pathId:string;subjectId:string;modules:LearnerCourseModule[];access:{allowed:boolean;configured:boolean;reason:string;productId:string;entitlementId:string;entitlementSource:string}}
 export interface LearnerTopic extends LearnerTopicSummary{pathId:string;subjectId:string;lessons:LearnerLessonSummary[];libraryItems:LearnerLibrarySummary[]}
 export interface LearningSpace{pathId:string;subjectId:string;courses:{items:LearnerCourseSummary[];hasMore:boolean};foundation:{items:LearnerTopicSummary[];hasMore:boolean};library:{items:LearnerLibrarySummary[];hasMore:boolean}}
 

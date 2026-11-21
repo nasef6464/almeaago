@@ -12,13 +12,13 @@ import (
 // access checks or the authenticated learner readers. School/trainer owned rows
 // are intentionally excluded from this unauthenticated projection.
 const publicSearchPaths = `WITH RECURSIVE public_paths AS (
- SELECT id FROM paths WHERE parent_path_id IS NULL AND status='active'
- UNION ALL SELECT p.id FROM paths p JOIN public_paths parent ON parent.id=p.parent_path_id WHERE p.status='active'
+ SELECT id FROM paths WHERE parent_path_id IS NULL AND status='active' AND COALESCE(presentation->>'isVisible','true') <> 'false'
+ UNION ALL SELECT p.id FROM paths p JOIN public_paths parent ON parent.id=p.parent_path_id WHERE p.status='active' AND COALESCE(p.presentation->>'isVisible','true') <> 'false'
 )`
 const publicSearchScope = ` JOIN public_paths p ON p.id=%s.path_id
- JOIN subjects s ON s.id=%s.subject_id AND s.path_id=p.id AND s.status='active'
+ JOIN subjects s ON s.id=%s.subject_id AND s.path_id=p.id AND s.status='active' AND COALESCE(s.presentation->>'isVisible','true') <> 'false'
  LEFT JOIN levels level ON level.id=s.level_id AND level.path_id=p.id `
-const publicSearchLevel = ` AND (s.level_id IS NULL OR level.status='active') `
+const publicSearchLevel = ` AND (s.level_id IS NULL OR (level.status='active' AND COALESCE(level.presentation->>'isVisible','true') <> 'false')) `
 
 func publicSearchPattern(query string, limit int) (string, error) {
 	query = strings.TrimSpace(query)
@@ -89,7 +89,7 @@ const publicLessonPrefix = publicSearchPaths + `, public_topics AS (
  SELECT `
 const publicLessonFrom = ` FROM lessons l
  JOIN public_paths p ON p.id=l.path_id
- JOIN subjects s ON s.id=l.subject_id AND s.path_id=p.id AND s.status='active'
+ JOIN subjects s ON s.id=l.subject_id AND s.path_id=p.id AND s.status='active' AND COALESCE(s.presentation->>'isVisible','true') <> 'false'
  LEFT JOIN levels level ON level.id=s.level_id AND level.path_id=p.id
  WHERE l.owner_type='platform' AND l.owner_user_id IS NULL AND l.owner_school_id IS NULL
  AND l.workflow_status='approved' AND l.is_visible=true AND l.is_locked=false ` + publicSearchLevel + `

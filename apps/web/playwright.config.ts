@@ -18,6 +18,7 @@ function resolveChromiumPath(): string | undefined {
 }
 
 const localChromiumExecutable = resolveChromiumPath();
+const defaultBaseUrl = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:5173';
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -27,7 +28,7 @@ export default defineConfig({
   retries: 0,
   reporter: [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: defaultBaseUrl,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
@@ -43,9 +44,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 4173',
-    url: 'http://127.0.0.1:4173',
-    reuseExistingServer: !process.env.CI,
+    command: 'npm run dev -- --host 127.0.0.1 --port 5173',
+    url: defaultBaseUrl,
+    reuseExistingServer: true,
     timeout: 60_000,
   },
 });

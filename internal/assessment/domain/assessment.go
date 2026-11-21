@@ -7,13 +7,14 @@ import (
 )
 
 var (
-	ErrNotFound          = errors.New("assessment not found")
-	ErrConflict          = errors.New("assessment conflict")
-	ErrVersionConflict   = errors.New("assessment revision conflict")
-	ErrAttemptExpired    = errors.New("assessment attempt expired")
-	ErrAttemptSubmitted  = errors.New("assessment attempt submitted")
-	ErrResultUnavailable = errors.New("assessment result unavailable")
-	ErrInvalidAnswer     = errors.New("invalid assessment answer")
+	ErrNotFound           = errors.New("assessment not found")
+	ErrConflict           = errors.New("assessment conflict")
+	ErrUnscorableQuestion = errors.New("يحتوي الاختبار على سؤال غير قابل للتصحيح الآلي؛ أزل السؤال أو أضف إجابة صحيحة قبل النشر")
+	ErrVersionConflict    = errors.New("assessment revision conflict")
+	ErrAttemptExpired     = errors.New("assessment attempt expired")
+	ErrAttemptSubmitted   = errors.New("assessment attempt submitted")
+	ErrResultUnavailable  = errors.New("assessment result unavailable")
+	ErrInvalidAnswer      = errors.New("invalid assessment answer")
 )
 
 type WorkflowStatus string

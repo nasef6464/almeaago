@@ -54,7 +54,33 @@ interface DynamicPathTheme {
   icon: React.ReactNode;
 }
 
+const pathThemeColorMap: Record<string, string> = {
+  purple: '#6d28d9',
+  violet: '#7c3aed',
+  blue: '#1d4ed8',
+  sky: '#0284c7',
+  cyan: '#0891b2',
+  teal: '#0d9488',
+  emerald: '#047857',
+  green: '#16a34a',
+  amber: '#d97706',
+  orange: '#ea580c',
+  red: '#dc2626',
+  rose: '#be123c',
+  indigo: '#4f46e5',
+  gray: '#475569',
+};
+
+function resolvePathColorHex(color?: string, fallback = '#4f46e5'): string {
+  if (!color) return fallback;
+  if (color.startsWith('#')) return color;
+  return pathThemeColorMap[color.toLowerCase()] || fallback;
+}
+
 function resolvePathTarget(path: TaxonomyPath): string {
+  if (path.id) {
+    return `/category/${encodeURIComponent(path.id)}`;
+  }
   const code = (path.code || '').toUpperCase();
   const name = path.name || '';
   if (code.includes('QUDRAT') || name.includes('قدرات')) {
@@ -66,7 +92,7 @@ function resolvePathTarget(path: TaxonomyPath): string {
   if (code === 'TAHSILI' || name.includes('تحصيلي')) {
     return '/category/p_tahsili';
   }
-  return `/category/${encodeURIComponent(path.id)}`;
+  return `/category/${encodeURIComponent(path.code || path.name)}`;
 }
 
 function resolveDynamicPathTheme(path: TaxonomyPath, index: number): DynamicPathTheme {
@@ -76,18 +102,18 @@ function resolveDynamicPathTheme(path: TaxonomyPath, index: number): DynamicPath
   const customIcon = (path as any).icon;
   const customIconUrl = (path as any).iconUrl;
 
-  // 1. National Nafes Benchmark Exam (Saudi Royal Emerald & Gold)
+  // 1. National Nafes Benchmark Exam (Saudi Royal Emerald)
   if (customColor === 'emerald' || code === 'NAFES' || name.includes('نافس')) {
     return {
-      primaryGradient: 'from-emerald-600 to-teal-700',
-      glowColor: 'rgba(5, 150, 105, 0.20)',
+      primaryGradient: 'from-emerald-600 via-emerald-700 to-teal-800',
+      glowColor: 'rgba(5, 150, 105, 0.35)',
       borderColor: '#a7f3d0',
-      softBg: 'bg-emerald-50/50',
-      iconBg: 'from-emerald-500 to-teal-700 text-white',
-      textColor: '#047857',
-      shortDesc: 'معايير واختبارات نافس الوطنية',
+      softBg: '#047857',
+      iconBg: '#047857',
+      textColor: '#ffffff',
+      shortDesc: 'معايير • نماذج • تدريب',
       icon: (
-        <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8" stroke="currentColor" strokeWidth="1.8">
+        <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7 sm:w-8 sm:h-8" stroke="currentColor" strokeWidth="1.8">
           <path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z" fill="currentColor" fillOpacity="0.18" strokeLinecap="round" strokeLinejoin="round"/>
           <path d="M12 7l1.8 3.6 4 .6-2.9 2.8.7 4-3.6-1.9-3.6 1.9.7-4-2.9-2.8 4-.6L12 7z" fill="#facc15" stroke="#eab308" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
@@ -98,15 +124,15 @@ function resolveDynamicPathTheme(path: TaxonomyPath, index: number): DynamicPath
   // 2. Tahsili Scientific Achievement (Deep Royal Blue)
   if (customColor === 'blue' || code === 'TAHSILI' || name.includes('تحصيلي')) {
     return {
-      primaryGradient: 'from-blue-600 to-indigo-600',
-      glowColor: 'rgba(37, 99, 235, 0.20)',
+      primaryGradient: 'from-blue-600 via-indigo-700 to-blue-800',
+      glowColor: 'rgba(29, 78, 216, 0.35)',
       borderColor: '#bfdbfe',
-      softBg: 'bg-blue-50/50',
-      iconBg: 'from-blue-600 to-indigo-700 text-white',
-      textColor: '#1d4ed8',
-      shortDesc: 'تأسيس واختبارات القسم العلمي',
+      softBg: '#1d4ed8',
+      iconBg: '#1d4ed8',
+      textColor: '#ffffff',
+      shortDesc: 'تأسيس • تجميعات • اختبارات',
       icon: (
-        <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8" stroke="currentColor" strokeWidth="1.8">
+        <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7 sm:w-8 sm:h-8" stroke="currentColor" strokeWidth="1.8">
           <circle cx="12" cy="12" r="2.8" fill="#38bdf8"/>
           <ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(30 12 12)" strokeLinecap="round"/>
           <ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(-30 12 12)" strokeLinecap="round"/>
@@ -118,15 +144,15 @@ function resolveDynamicPathTheme(path: TaxonomyPath, index: number): DynamicPath
   // 3. Qudrat General Aptitude (Royal Purple / Violet)
   if (customColor === 'purple' || code.includes('QUDRAT') || name.includes('قدرات')) {
     return {
-      primaryGradient: 'from-purple-600 to-indigo-700',
-      glowColor: 'rgba(124, 58, 237, 0.20)',
+      primaryGradient: 'from-purple-600 via-indigo-700 to-violet-800',
+      glowColor: 'rgba(109, 40, 217, 0.35)',
       borderColor: '#ddd6fe',
-      softBg: 'bg-purple-50/50',
-      iconBg: 'from-purple-600 to-indigo-700 text-white',
-      textColor: '#6d28d9',
-      shortDesc: 'تأسيس وتدريب كمي ولفظي شامل',
+      softBg: '#6d28d9',
+      iconBg: '#6d28d9',
+      textColor: '#ffffff',
+      shortDesc: 'تأسيس • تدريب • محاكاة',
       icon: (
-        <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8" stroke="currentColor" strokeWidth="1.8">
+        <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7 sm:w-8 sm:h-8" stroke="currentColor" strokeWidth="1.8">
           <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="#facc15" fillOpacity="0.25" stroke="#facc15" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       ),
@@ -135,17 +161,17 @@ function resolveDynamicPathTheme(path: TaxonomyPath, index: number): DynamicPath
 
   // 4. Custom Path with color defined in Admin Panel
   if (customColor) {
-    const c = resolveColor(customColor);
+    const hex = resolvePathColorHex(customColor);
     return {
-      primaryGradient: `from-[${c.text}] to-slate-900`,
-      glowColor: `${c.text}25`,
-      borderColor: c.border,
-      softBg: 'bg-white',
-      iconBg: 'from-slate-700 to-slate-900 text-white',
-      textColor: c.text,
-      shortDesc: path.description ? path.description.slice(0, 45) : 'مسار تدريبي معتمد',
+      primaryGradient: `from-slate-800 to-slate-950`,
+      glowColor: `${hex}40`,
+      borderColor: `${hex}55`,
+      softBg: hex,
+      iconBg: hex,
+      textColor: '#ffffff',
+      shortDesc: path.description ? path.description.slice(0, 32) : 'تأسيس • نماذج • تدريب',
       icon: customIconUrl ? (
-        <img src={customIconUrl} alt="" className="w-8 h-8 object-contain" />
+        <img src={customIconUrl} alt="" className="w-7 h-7 sm:w-8 sm:h-8 object-contain" />
       ) : customIcon ? (
         <span className="text-2xl">{customIcon}</span>
       ) : (
@@ -156,19 +182,19 @@ function resolveDynamicPathTheme(path: TaxonomyPath, index: number): DynamicPath
 
   // 5. Fallback Vibrant Palettes for dynamically added paths
   const fallback = [
-    { gradient: 'from-amber-500 to-orange-600', border: '#fde68a', text: '#b45309', glow: 'rgba(217, 119, 6, 0.18)' },
-    { gradient: 'from-rose-500 to-pink-600', border: '#fecdd3', text: '#be123c', glow: 'rgba(225, 29, 72, 0.18)' },
-    { gradient: 'from-teal-500 to-emerald-600', border: '#99f6e4', text: '#0f766e', glow: 'rgba(13, 148, 136, 0.18)' },
+    { color: '#d97706', glow: 'rgba(217, 119, 6, 0.35)' },
+    { color: '#be123c', glow: 'rgba(190, 18, 60, 0.35)' },
+    { color: '#0d9488', glow: 'rgba(13, 148, 136, 0.35)' },
   ][index % 3];
 
   return {
-    primaryGradient: fallback.gradient,
+    primaryGradient: '',
     glowColor: fallback.glow,
-    borderColor: fallback.border,
-    softBg: 'bg-slate-50/50',
-    iconBg: fallback.gradient + ' text-white',
-    textColor: fallback.text,
-    shortDesc: path.description ? path.description.slice(0, 45) : 'تدريب واختبارات محاكية',
+    borderColor: '#ffffff30',
+    softBg: fallback.color,
+    iconBg: fallback.color,
+    textColor: '#ffffff',
+    shortDesc: path.description ? path.description.slice(0, 32) : 'تأسيس • نماذج • تدريب',
     icon: <Sparkles size={26} />,
   };
 }
@@ -181,40 +207,31 @@ function OrganicPathCard({ path, index }: { path: TaxonomyPath; index: number })
     <Link
       to={targetUrl}
       data-testid={`path-card-${path.code || index}`}
-      className="group relative flex flex-col items-center text-center overflow-hidden rounded-3xl bg-white p-5 sm:p-6 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl border border-slate-200/80 hover:border-transparent active:scale-[0.99]"
+      className="group relative block min-h-[140px] sm:min-h-[155px] rounded-3xl p-5 text-center text-white shadow-md transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] overflow-hidden border border-white/15"
       style={{
-        boxShadow: `0 8px 24px -6px ${theme.glowColor}`,
+        backgroundColor: theme.softBg,
+        boxShadow: `0 10px 24px -4px ${theme.glowColor}`,
       }}
     >
-      {/* Subtle top color strip */}
-      <div className={`absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r ${theme.primaryGradient}`} />
+      {/* Radial soft highlight matching category page cards */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_55%)] pointer-events-none" />
 
-      {/* Hero Icon with soft colored glow */}
-      <div
-        className={`mb-3.5 w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr ${theme.iconBg} flex items-center justify-center shadow-md transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3`}
-        style={{ boxShadow: `0 8px 20px -4px ${theme.glowColor}` }}
-      >
-        {theme.icon}
+      <div className="relative z-10 flex flex-col items-center justify-center">
+        {/* Frosted translucent icon container */}
+        <div className="mb-3 inline-flex h-12 w-12 sm:h-13 sm:w-13 items-center justify-center rounded-2xl bg-white/20 shadow-xs backdrop-blur-md group-hover:scale-110 group-hover:-rotate-3 group-hover:bg-white/30 transition-all duration-300 border border-white/15 text-white">
+          {theme.icon}
+        </div>
+
+        {/* Big Bold White Title */}
+        <h3 className="mb-1 text-xl sm:text-2xl font-black leading-tight text-white tracking-tight break-words">
+          {path.name}
+        </h3>
+
+        {/* Clean, short, minimal subtitle */}
+        <div className="text-white/85 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 mt-0.5">
+          {theme.shortDesc}
+        </div>
       </div>
-
-      {/* Title */}
-      <h3 className="text-lg sm:text-xl font-black text-slate-900 mb-1 group-hover:text-indigo-600 transition-colors">
-        {path.name}
-      </h3>
-
-      {/* Short, Minimal 1-line description */}
-      <p className="text-xs sm:text-sm font-medium text-slate-500 mb-4 line-clamp-1">
-        {theme.shortDesc}
-      </p>
-
-      {/* Clean, minimalist call-to-action */}
-      <span
-        className="mt-auto inline-flex items-center gap-1.5 text-xs font-black transition-transform duration-200 group-hover:-translate-x-1"
-        style={{ color: theme.textColor }}
-      >
-        <span>ابدأ الآن</span>
-        <ArrowLeft size={14} />
-      </span>
     </Link>
   );
 }
@@ -508,9 +525,14 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
+          <div className="flex flex-wrap justify-center gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-6 lg:gap-8 max-w-5xl mx-auto">
             {visiblePaths.map((path, index) => (
-              <OrganicPathCard key={path.id} path={path} index={index} />
+              <div
+                key={path.id}
+                className="w-[calc(50%-6px)] sm:w-auto"
+              >
+                <OrganicPathCard path={path} index={index} />
+              </div>
             ))}
           </div>
         </div>

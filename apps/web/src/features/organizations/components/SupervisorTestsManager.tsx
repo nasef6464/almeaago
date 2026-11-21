@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { AiExamGeneratorModal } from '../../assessment/components/AiExamGeneratorModal';
 import {
   Activity, AlertTriangle, ArrowRight, Award, BarChart, BarChart3, Bell,
@@ -80,7 +80,6 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
   const [assignQuiz, setAssignQuiz] = useState<AssessmentItem | null>(null);
   const [detailQuiz, setDetailQuiz] = useState<AssessmentItem | null>(null);
   const [previewQuiz, setPreviewQuiz] = useState<AssessmentItem | null>(null);
-  const [notifiedQuizId, setNotifiedQuizId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState('');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [composeModalOpen, setComposeModalOpen] = useState(false);
@@ -104,10 +103,10 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState('');
-  const [durationOverride, setDurationOverride] = useState<number>(45);
   const [maxAttempts, setMaxAttempts] = useState<number>(2);
   const [message, setMessage] = useState('');
   const [savingAssign, setSavingAssign] = useState(false);
+  const assigningRef = useRef(false);
 
   useEffect(() => {
     const fetchAssessments = async () => {
@@ -120,139 +119,22 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
         });
         if (!res.ok) throw new Error('تعذر تحميل قائمة الاختبارات');
         const data = await res.json();
-        let items: AssessmentItem[] = (data.items || []).map((it: any, idx: number) => {
-          const totalTarget = Math.max(students.length, 25);
-          const partRate = Math.floor(Math.random() * 35) + 65;
-          const partCount = Math.round((totalTarget * partRate) / 100);
-          const avgSc = Math.floor(Math.random() * 25) + 65;
-          const isMock = it.kind === 'mock' || it.code?.toLowerCase().includes('mock') || it.title?.includes('محاكي');
-          const isDrill = it.kind === 'drill' || it.title?.includes('تدريب');
-
-          const determinedGrade = idx % 2 === 0 ? 'الصف الثالث الثانوي' : 'الصف الثاني الثانوي';
-          const defaultClassName = classes.length > 0 ? classes[idx % classes.length].name : (idx % 2 === 0 ? 'الصف الثالث الثانوي (أ)' : 'الصف الثاني الثانوي (أ)');
-          const defaultClassId = classes.length > 0 ? classes[idx % classes.length].id : '018f0000-0000-7000-9100-000000000001';
-
-          return {
-            ...it,
-            pathName: it.title?.includes('تحصيلي') || it.code?.includes('TAH') ? 'التحصيلي العلمي' : it.title?.includes('نافس') || it.code?.includes('NAF') ? 'نافس الوطني' : 'القدرات العامة',
-            subjectName: it.title?.includes('رياضيات') ? 'رياضيات التحصيلي' : it.title?.includes('فيزياء') ? 'فيزياء التحصيلي' : it.title?.includes('كيمياء') ? 'كيمياء التحصيلي' : it.title?.includes('أحياء') ? 'أحياء التحصيلي' : it.title?.includes('لفظي') ? 'القدرات اللفظي' : 'القدرات الكمي',
-            gradeName: determinedGrade,
-            className: defaultClassName,
-            targetGroupIds: it.targetGroupIds?.length ? it.targetGroupIds : [defaultClassId],
-            durationMinutes: isMock ? 120 : isDrill ? 25 : 45,
-            totalQuestions: isMock ? 80 : isDrill ? 10 : 25,
-            stats: {
-              participantsCount: partCount,
-              totalTargetStudents: totalTarget,
-              participationRate: partRate,
-              avgScore: avgSc,
-              highestScore: Math.min(100, avgSc + Math.floor(Math.random() * 15) + 5),
-              lowestScore: Math.max(35, avgSc - Math.floor(Math.random() * 25) - 5),
-            },
-            sampleQuestions: [
-              {
-                id: `sq-${idx}-1`,
-                number: 1,
-                skill: 'العمليات الحسابية والكسور',
-                text: 'ما قيمة المقدار التالي بأبسط صورة: (1/2 + 1/4) ÷ (3/8) ؟',
-                options: ['1', '2', '3/2', '4/3'],
-                correctIndex: 1,
-                successRate: 88,
-              },
-              {
-                id: `sq-${idx}-2`,
-                number: 2,
-                skill: 'النسبة المئوية وتطبيقاتها',
-                text: 'إذا اشترى تاجر سلعة بـ 80 ريالاً وباعها بربح 25%، فبكم باعها؟',
-                options: ['95 ريالاً', '100 ريال', '105 ريالات', '110 ريالات'],
-                correctIndex: 1,
-                successRate: 52,
-              },
-              {
-                id: `sq-${idx}-3`,
-                number: 3,
-                skill: 'الهندسة والزوايا',
-                text: 'مثلث قائم الزاوية طولا ضلعي القائمة فيه 6 سم و 8 سم، فما طول الوتر؟',
-                options: ['9 سم', '10 سم', '12 سم', '14 سم'],
-                correctIndex: 1,
-                successRate: 76,
-              },
-              {
-                id: `sq-${idx}-4`,
-                number: 4,
-                skill: 'المعادلات والأسس',
-                text: 'إذا كان 2^(س+1) = 16، فما قيمة س؟',
-                options: ['2', '3', '4', '5'],
-                correctIndex: 1,
-                successRate: 44,
-              },
-            ],
-          };
-        });
-
-        if (items.length === 0) {
-          items = [
-            {
-              id: 'quiz-mock-1',
-              code: 'GAT_MOCK_09',
-              title: 'اختبار القدرات العامة التجريبي - النموذج 9 (محاكي قياس الكامل)',
-              kind: 'mock',
-              pathName: 'القدرات العامة',
-              subjectName: 'القدرات الكمي',
-              gradeName: 'الصف الثالث الثانوي',
-              className: 'الصف الثالث الثانوي (أ)',
-              durationMinutes: 120,
-              totalQuestions: 100,
-              workflowStatus: 'approved',
-              isPublished: true,
-              stats: { participantsCount: 22, totalTargetStudents: 25, participationRate: 88, avgScore: 82, highestScore: 98, lowestScore: 54 },
-              sampleQuestions: [
-                { id: 'm1', number: 1, skill: 'التناظر اللفظي', text: 'رئة : تنفس', options: ['عين : بصر', 'قلب : دم', 'يد : كتابة', 'أذن : صوت'], correctIndex: 0, successRate: 91 },
-                { id: 'm2', number: 2, skill: 'النسبة والربح', text: 'ما هو متوسط الزيادة السنوية عند ثبات معدل التغير؟', options: ['12%', '15%', '18%', '20%'], correctIndex: 1, successRate: 48 },
-              ],
-            },
-            {
-              id: 'quiz-tahsili-1',
-              code: 'TAH_MATH_55',
-              title: 'اختبار شامل رياضيات التحصيلي | النموذج 55 (معتمد)',
-              kind: 'normal',
-              pathName: 'التحصيلي العلمي',
-              subjectName: 'رياضيات التحصيلي',
-              gradeName: 'الصف الثالث الثانوي',
-              className: 'الصف الثالث الثانوي (ب)',
-              durationMinutes: 50,
-              totalQuestions: 30,
-              workflowStatus: 'approved',
-              isPublished: true,
-              stats: { participantsCount: 24, totalTargetStudents: 25, participationRate: 96, avgScore: 71, highestScore: 96, lowestScore: 42 },
-              sampleQuestions: [
-                { id: 't1', number: 1, skill: 'حساب المثلثات', text: 'ما قيمة sin(30°) + cos(60°) ؟', options: ['0.5', '1', '1.5', '2'], correctIndex: 1, successRate: 84 },
-                { id: 't2', number: 2, skill: 'الاشتقاق والتكامل', text: 'تكامل الدالة f(x) = 2x بالنسبة لـ x هو:', options: ['x^2 + C', '2x^2 + C', '2 + C', 'x + C'], correctIndex: 0, successRate: 58 },
-              ],
-            },
-            {
-              id: 'quiz-remedial-1',
-              code: 'DRILL_SEQ_01',
-              title: 'تدريب علاجي مكثف | المتتابعات الحسابية والهندسية',
-              kind: 'drill',
-              pathName: 'القدرات العامة',
-              subjectName: 'القدرات الكمي',
-              gradeName: 'الصف الثاني الثانوي',
-              className: 'الصف الثاني الثانوي (أ)',
-              durationMinutes: 20,
-              totalQuestions: 10,
-              workflowStatus: 'approved',
-              isPublished: true,
-              stats: { participantsCount: 14, totalTargetStudents: 20, participationRate: 70, avgScore: 56, highestScore: 80, lowestScore: 35 },
-              sampleQuestions: [
-                { id: 'r1', number: 1, skill: 'المتتابعات', text: 'أوجد الحد التالي في المتتابعة: 2، 5، 10، 17، ...', options: ['24', '26', '28', '30'], correctIndex: 1, successRate: 64 },
-              ],
-            },
-          ];
-        }
+        const items: AssessmentItem[] = (data.items || []).map((it: any) => ({
+          id: it.id,
+          code: it.code || '',
+          title: it.title ?? it.version?.title ?? '',
+          kind: it.kind ?? it.version?.kind ?? 'normal',
+          workflowStatus: it.workflowStatus || '',
+          isPublished: Boolean(it.isPublished),
+          pathId: it.pathId ?? it.version?.pathId,
+          subjectId: it.subjectId ?? it.version?.subjectId,
+          durationMinutes: it.durationMinutes ?? (it.version?.timeLimitSeconds != null ? Math.ceil(it.version.timeLimitSeconds / 60) : undefined),
+          totalQuestions: it.totalQuestions,
+        }));
         setAssessments(items);
       } catch (err: any) {
         setAssessments([]);
+        setError(err instanceof Error ? err.message : 'تعذر تحميل قائمة الاختبارات');
       } finally {
         setLoading(false);
       }
@@ -299,10 +181,12 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
       }
 
       // 6. Performance Score filter
-      const avg = q.stats?.avgScore || 0;
-      if (scoreFilter === 'weak' && avg >= 60) return false;
-      if (scoreFilter === 'average' && (avg < 60 || avg >= 75)) return false;
-      if (scoreFilter === 'strong' && avg < 75) return false;
+      const avg = q.stats?.avgScore;
+      if (scoreFilter !== 'all' && avg == null) return false;
+      const score = avg ?? 0;
+      if (scoreFilter === 'weak' && score >= 60) return false;
+      if (scoreFilter === 'average' && (score < 60 || score >= 75)) return false;
+      if (scoreFilter === 'strong' && score < 75) return false;
 
       // 7. Workflow Status filter
       if (statusFilter !== 'all' && q.workflowStatus !== statusFilter) return false;
@@ -324,13 +208,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
   }, [assessments, tabFilter, pathFilter, subjectFilter, gradeFilter, classFilter, scoreFilter, statusFilter, searchQuery, classes]);
 
   // Overall Stats
-  const stats = useMemo(() => {
-    const total = assessments.length;
-    const avgPart = total ? Math.round(assessments.reduce((acc, q) => acc + (q.stats?.participationRate || 0), 0) / total) : 0;
-    const avgScore = total ? Math.round(assessments.reduce((acc, q) => acc + (q.stats?.avgScore || 0), 0) / total) : 0;
-    const needing = assessments.filter((q) => (q.stats?.avgScore || 0) < 65).length;
-    return { total, avgPart, avgScore, needing };
-  }, [assessments]);
+  const stats = useMemo(() => ({ total: assessments.length }), [assessments]);
 
   // Reset Filters
   const resetFilters = () => {
@@ -365,151 +243,66 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
     return '';
   };
 
-  const toggleWorkflowStatus = (quizId: string) => {
-    setAssessments((prev) =>
-      prev.map((q) => {
-        if (q.id === quizId) {
-          const nextStatus = q.workflowStatus === 'approved' ? 'rejected' : 'approved';
-          setFeedback(nextStatus === 'approved' ? `✅ تم اعتماد الاختبار "${q.title}" بنجاح!` : `⚠️ تم رفض/إعادة مراجعة الاختبار "${q.title}"`);
-          setTimeout(() => setFeedback(''), 3000);
-          return { ...q, workflowStatus: nextStatus };
-        }
-        return q;
-      })
-    );
+  const toggleWorkflowStatus = (_quizId: string) => {
+    setFeedback('تغيير حالة الاعتماد غير متاح من هذه الشاشة حاليًا.');
   };
 
-  const handleRemindAbsent = async (quiz: AssessmentItem) => {
-    setNotifiedQuizId(quiz.id);
-    try {
-      const csrf = await getCsrf();
-      await fetch('/api/v1/notifications/admin/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrf,
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          channels: ['in_app'],
-          title: `تذكير استحقاق اختبار: ${quiz.title}`,
-          subject: 'تذكير موعد اختبار',
-          body: `عزيزي الطالب، يرجى المسارعة بحل وتأدية "${quiz.title}" قبل إغلاق موعد التسليم لرفع جاهزيتك الأكاديمية.`,
-          userIds: ['018f0000-0000-7000-8000-000000000005'],
-        }),
-      });
-      setFeedback(`✅ تم إرسال تذكير إشعاري فعلي للطلاب المتأخرين في: ${quiz.title}`);
-    } catch {
-      setFeedback(`✅ تم تسجيل التذكير للطلاب المتأخرين في: ${quiz.title}`);
-    } finally {
-      setTimeout(() => {
-        setNotifiedQuizId(null);
-        setFeedback('');
-      }, 4000);
-    }
+  const handleRemindAbsent = async (_quiz: AssessmentItem) => {
+    setFeedback('تعذر إرسال التذكير: قائمة الطلاب المتأخرين غير متاحة حاليًا.');
   };
 
   const handleOpenAssign = (quiz: AssessmentItem) => {
     setAssignQuiz(quiz);
-    setSelectedClassIds(quiz.targetGroupIds || (classes.length ? [classes[0].id] : []));
-    setSelectedStudentIds(quiz.targetUserIds || []);
+    setFeedback('');
+    setSelectedClassIds([]);
+    setSelectedStudentIds([]);
     setDueDate(quiz.dueDate || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]);
-    setDurationOverride(quiz.durationMinutes || 45);
     setMaxAttempts(2);
     setMessage('');
   };
 
   const handleSaveAssign = async () => {
-    if (!assignQuiz) return;
+    if (!assignQuiz || assigningRef.current) return;
+    if (!schoolId || (selectedClassIds.length === 0 && selectedStudentIds.length === 0)) {
+      setFeedback('اختر مدرسة وفصلًا أو طالبًا قبل حفظ التكليف.');
+      return;
+    }
+    assigningRef.current = true;
     setSavingAssign(true);
+    setFeedback('');
     try {
       const csrf = await getCsrf();
-      try {
-        await fetch(`/api/v1/assessments/${encodeURIComponent(assignQuiz.id)}/assignments`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': csrf,
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            schoolId: schoolId || '018f0000-0000-7000-9000-000000000001',
-            classIds: selectedClassIds.length ? selectedClassIds : ['018f0000-0000-7000-9100-000000000001'],
-            userIds: selectedStudentIds.length ? selectedStudentIds : ['018f0000-0000-7000-8000-000000000005'],
-            supervisorMessage: message || `تكليف مدرسي باختبار ${assignQuiz.title}`,
-            opensAt: new Date().toISOString(),
-            closesAt: dueDate ? new Date(dueDate).toISOString() : new Date(Date.now() + 7 * 86400000).toISOString(),
-            maxAttemptsOverride: maxAttempts,
-          }),
-        });
-      } catch {}
-
-      await fetch('/api/v1/notifications/admin/send', {
+      if (!csrf) throw new Error('تعذر التحقق من الجلسة؛ حاول تسجيل الدخول مجددًا.');
+      const response = await fetch(`/api/v1/assessments/${encodeURIComponent(assignQuiz.id)}/assignments`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrf,
-        },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         credentials: 'include',
         body: JSON.stringify({
-          channels: ['in_app'],
-          title: `تكليف باختبار موجه: ${assignQuiz.title}`,
-          subject: 'اختبار موجه جديد',
-          body: message || `تم توجيه اختبار جديد لفصلك الدراسي (${assignQuiz.title})، بمدة ${durationOverride} دقيقة. نأمل البدء بحله قبل تاريخ ${dueDate}.`,
-          userIds: ['018f0000-0000-7000-8000-000000000005'],
+          schoolId,
+          classIds: selectedClassIds,
+          userIds: selectedStudentIds,
+          supervisorMessage: message,
+          opensAt: new Date().toISOString(),
+          closesAt: dueDate ? new Date(dueDate).toISOString() : null,
+          maxAttemptsOverride: maxAttempts,
         }),
       });
-
-      setAssessments((prev) =>
-        prev.map((q) =>
-          q.id === assignQuiz.id
-            ? { ...q, targetGroupIds: selectedClassIds, dueDate, durationMinutes: durationOverride }
-            : q
-        )
-      );
-
-      setFeedback(`✅ تم توجيه وتأكيد اختبار "${assignQuiz.title}" وإرسال إشعار فوري لجميع طلاب الفصل!`);
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body?.message || body?.error?.message || 'تعذر حفظ التكليف.');
+      }
+      setFeedback(`✅ تم حفظ تكليف اختبار "${assignQuiz.title}" للطلاب المحددين.`);
       setAssignQuiz(null);
-      setTimeout(() => setFeedback(''), 4500);
-    } catch {
-      setFeedback('❌ حدث خطأ أثناء توجيه الاختبار');
+    } catch (cause) {
+      setFeedback(cause instanceof Error ? cause.message : 'تعذر حفظ التكليف.');
     } finally {
+      assigningRef.current = false;
       setSavingAssign(false);
     }
   };
 
-  const exportQuizResultsCSV = (quiz: AssessmentItem) => {
-    const headers = ['رقم الطالب', 'اسم الطالب', 'الفصل', 'حالة الأداء', 'الدرجة %', 'التقدير', 'وقت التسليم'];
-    const mockScores = [96, 92, 88, 85, 78, 74, 68, 62, 55, 48];
-    const rows = (students.length ? students : [
-      { id: '1', name: 'فيصل بن سعد', className: 'الصف الثالث الثانوي (أ)' },
-      { id: '2', name: 'عمر الزهراني', className: 'الصف الثالث الثانوي (أ)' },
-      { id: '3', name: 'سارة الغامدي', className: 'الصف الثالث الثانوي (أ)' },
-      { id: '4', name: 'ريان الحربي', className: 'الصف الثالث الثانوي (ب)' },
-      { id: '5', name: 'محمد الشهري', className: 'الصف الثالث الثانوي (ب)' },
-    ]).map((s, idx) => {
-      const score = mockScores[idx % mockScores.length];
-      const grade = score >= 90 ? 'ممتاز' : score >= 75 ? 'جيد جداً' : score >= 60 ? 'جيد' : 'يحتاج دعم';
-      return [s.id, s.name, s.className, 'مكتمل', `${score}%`, grade, 'اليوم 10:30 ص'];
-    });
-
-    const csvContent = '\uFEFF' + [
-      `تقرير تحليل نتائج اختبار: ${quiz.title}`,
-      `رمز الاختبار: ${quiz.code} | المادة: ${quiz.subjectName || 'عام'} | الفصل: ${quiz.className || 'الكل'} | متوسط الدرجات: ${quiz.stats?.avgScore || 0}%`,
-      '',
-      headers.join(','),
-      ...rows.map((row) => row.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(',')),
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `تقرير_نتائج_${quiz.code}_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    setFeedback(`✅ تم تصدير نتائج "${quiz.title}" إلى ملف Excel (CSV) بنجاح!`);
-    setTimeout(() => setFeedback(''), 3500);
+  const exportQuizResultsCSV = (_quiz: AssessmentItem) => {
+    setFeedback('تصدير النتائج غير متاح حتى تُربط نتائج الطلاب الحقيقية.');
   };
 
   const handlePrintReport = (quiz: AssessmentItem) => {
@@ -558,14 +351,14 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
           </div>
 
           <button
-            onClick={() => setAiModalOpen(true)}
+            onClick={() => setFeedback('إنشاء اختبار بالذكاء الاصطناعي من هذه الشاشة غير متاح حتى يكتمل ربط الحفظ الفعلي.')}
             className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-2.5 text-xs sm:text-sm font-black text-white hover:from-violet-700 hover:to-indigo-700 shadow-md shadow-indigo-500/20 transition-all hover:scale-102 cursor-pointer"
           >
             <Sparkles size={18} /> توليد من PDF / صورة (AI)
           </button>
 
           <button
-            onClick={() => setCreateModalOpen(true)}
+            onClick={() => setFeedback('إنشاء الاختبارات من هذه الشاشة غير متاح حتى يكتمل ربط الحفظ الفعلي.')}
             className="flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-2.5 text-xs sm:text-sm font-black text-white hover:bg-indigo-700 shadow-md transition-all hover:scale-102 cursor-pointer"
           >
             <Plus size={18} /> إنشاء اختبار جديد
@@ -573,7 +366,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
         </div>
       </div>
 
-      {feedback && (
+      {feedback && !assignQuiz && (
         <div className={`rounded-2xl px-5 py-3 text-xs sm:text-sm font-bold border transition-all ${
           feedback.startsWith('✅') ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'
         }`}>
@@ -597,7 +390,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
             <span className="text-xs font-bold text-gray-500">نسبة المشاركة المدرسية</span>
             <div className="rounded-xl bg-blue-50 p-2 text-blue-600"><Users size={18} /></div>
           </div>
-          <p className="mt-2 text-2xl font-black text-gray-900">{stats.avgPart}%</p>
+          <p className="mt-2 text-2xl font-black text-gray-900">غير متاح</p>
           <span className="text-[11px] font-bold text-blue-600">متوسط تفاعل الطلاب</span>
         </div>
 
@@ -606,7 +399,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
             <span className="text-xs font-bold text-gray-500">متوسط نتائج الاختبارات</span>
             <div className="rounded-xl bg-emerald-50 p-2 text-emerald-600"><Target size={18} /></div>
           </div>
-          <p className="mt-2 text-2xl font-black text-gray-900">{stats.avgScore}%</p>
+          <p className="mt-2 text-2xl font-black text-gray-900">غير متاح</p>
           <span className="text-[11px] font-bold text-emerald-600">مستوى التحصيل العام</span>
         </div>
 
@@ -615,7 +408,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
             <span className="text-xs font-bold text-gray-500">اختبارات تحتاج تدخلاً</span>
             <div className="rounded-xl bg-rose-50 p-2 text-rose-600"><AlertTriangle size={18} /></div>
           </div>
-          <p className="mt-2 text-2xl font-black text-gray-900">{stats.needing}</p>
+          <p className="mt-2 text-2xl font-black text-gray-900">غير متاح</p>
           <span className="text-[11px] font-bold text-rose-600">متوسطها أقل من 65%</span>
         </div>
       </div>
@@ -881,7 +674,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
                   const isDrill = quiz.kind === 'drill' || quiz.title.includes('تدريب');
                   const partRate = quiz.stats?.participationRate || 0;
                   const avgScore = quiz.stats?.avgScore || 0;
-                  const scoreColor = avgScore >= 75 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : avgScore >= 60 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-rose-700 bg-rose-50 border-rose-200';
+                  const scoreColor = !quiz.stats ? 'text-gray-600 bg-gray-50 border-gray-200' : avgScore >= 75 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : avgScore >= 60 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-rose-700 bg-rose-50 border-rose-200';
 
                   return (
                     <tr key={quiz.id} className="hover:bg-indigo-50/30 transition-colors">
@@ -905,15 +698,15 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
                         <span className="text-[10px] text-gray-400 block">{quiz.gradeName || 'الثانوي'}</span>
                       </td>
                       <td className="p-4 whitespace-nowrap text-gray-600">
-                        <span>{quiz.durationMinutes || 45} دقيقة</span> • <span>{quiz.totalQuestions || 25} سؤالاً</span>
+                        <span>{quiz.durationMinutes ?? 'غير محددة'} دقيقة</span> • <span>{quiz.totalQuestions ?? 'غير متاح'} سؤالاً</span>
                       </td>
                       <td className="p-4 text-center whitespace-nowrap font-bold">
-                        <span className="text-gray-900">{partRate}%</span>
-                        <span className="text-[10px] text-gray-400 block">({quiz.stats?.participantsCount}/{quiz.stats?.totalTargetStudents})</span>
+                        <span className="text-gray-900">{quiz.stats ? `${partRate}%` : 'غير متاح'}</span>
+                        <span className="text-[10px] text-gray-400 block">{quiz.stats ? `(${quiz.stats.participantsCount}/${quiz.stats.totalTargetStudents})` : ''}</span>
                       </td>
                       <td className="p-4 text-center whitespace-nowrap">
                         <span className={`rounded-lg px-2 py-0.5 text-xs font-black border ${scoreColor}`}>
-                          {avgScore}%
+                          {quiz.stats ? `${avgScore}%` : 'غير متاح'}
                         </span>
                       </td>
                       <td className="p-4 text-center whitespace-nowrap">
@@ -931,14 +724,14 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
                       <td className="p-4 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
-                            onClick={() => setPreviewQuiz(quiz)}
+                            onClick={() => setFeedback('معاينة الأسئلة غير متاحة من هذه الشاشة حاليًا.')}
                             className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 text-gray-600 cursor-pointer"
                             title="معاينة"
                           >
                             <Eye size={13} />
                           </button>
                           <button
-                            onClick={() => setDetailQuiz(quiz)}
+                            onClick={() => setFeedback('تحليل النتائج غير متاح حتى يُربط بالبيانات الحقيقية.')}
                             className="p-1.5 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 cursor-pointer"
                             title="تحليل النتائج"
                           >
@@ -975,7 +768,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
             const isDrill = quiz.kind === 'drill' || quiz.title.includes('تدريب');
             const partRate = quiz.stats?.participationRate || 0;
             const avgScore = quiz.stats?.avgScore || 0;
-            const scoreColor = avgScore >= 75 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : avgScore >= 60 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-rose-700 bg-rose-50 border-rose-200';
+            const scoreColor = !quiz.stats ? 'text-gray-600 bg-gray-50 border-gray-200' : avgScore >= 75 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : avgScore >= 60 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-rose-700 bg-rose-50 border-rose-200';
 
             return (
               <div
@@ -1029,11 +822,11 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
                   <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-gray-500">
                     <span className="inline-flex items-center gap-1 rounded-lg bg-gray-50 border border-gray-100 px-2 py-1">
                       <Clock size={12} className="text-gray-400" />
-                      {quiz.durationMinutes || 45} دقيقة
+                      {quiz.durationMinutes ?? 'غير محددة'} دقيقة
                     </span>
                     <span className="inline-flex items-center gap-1 rounded-lg bg-gray-50 border border-gray-100 px-2 py-1">
                       <Layers size={12} className="text-gray-400" />
-                      {quiz.totalQuestions || 25} سؤالاً
+                      {quiz.totalQuestions ?? 'غير متاح'} سؤالاً
                     </span>
                     <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-50/80 border border-indigo-100 px-2 py-1 text-indigo-700">
                       <Users size={12} />
@@ -1051,7 +844,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
                   <div className="mt-4 rounded-2xl bg-gray-50/80 border border-gray-100 p-3 space-y-2.5">
                     <div className="flex items-center justify-between text-xs font-bold">
                       <span className="text-gray-500">نسبة الإنجاز والمشاركة</span>
-                      <span className="font-black text-gray-900">{partRate}% ({quiz.stats?.participantsCount}/{quiz.stats?.totalTargetStudents} طالب)</span>
+                      <span className="font-black text-gray-900">{quiz.stats ? `${partRate}% (${quiz.stats.participantsCount}/${quiz.stats.totalTargetStudents} طالب)` : 'غير متاح'}</span>
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
                       <div
@@ -1065,7 +858,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
                     <div className="flex items-center justify-between pt-1 border-t border-gray-200/60 text-xs">
                       <span className="font-bold text-gray-500">المتوسط العام للدرجات:</span>
                       <span className={`rounded-lg px-2.5 py-0.5 text-xs font-black border ${scoreColor}`}>
-                        {avgScore}%
+                        {quiz.stats ? `${avgScore}%` : 'غير متاح'}
                       </span>
                     </div>
                   </div>
@@ -1075,13 +868,13 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
                 <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
                   <div className="grid grid-cols-2 gap-2">
                     <button
-                      onClick={() => setPreviewQuiz(quiz)}
+                      onClick={() => setFeedback('معاينة الأسئلة غير متاحة من هذه الشاشة حاليًا.')}
                       className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 transition-all cursor-pointer shadow-2xs"
                     >
                       <Eye size={14} className="text-slate-500" /> معاينة
                     </button>
                     <button
-                      onClick={() => setDetailQuiz(quiz)}
+                      onClick={() => setFeedback('تحليل النتائج غير متاح حتى يُربط بالبيانات الحقيقية.')}
                       className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-100 transition-all cursor-pointer shadow-2xs"
                     >
                       <BarChart3 size={14} className="text-indigo-600" /> تحليل النتائج
@@ -1103,20 +896,9 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
                     </button>
                   </div>
 
-                  {partRate < 100 && (
-                    <button
-                      onClick={() => handleRemindAbsent(quiz)}
-                      className={`w-full flex items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-black transition-all cursor-pointer ${
-                        notifiedQuizId === quiz.id
-                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                          : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
-                      }`}
-                    >
-                      {notifiedQuizId === quiz.id ? (
-                        <><CheckCircle size={14} /> تم إرسال التذكير بنجاح</>
-                      ) : (
-                        <><Bell size={14} /> تذكير المتأخرين عن الاختبار ({quiz.stats ? quiz.stats.totalTargetStudents - quiz.stats.participantsCount : 0} طالب)</>
-                      )}
+                  {quiz.stats && partRate < 100 && (
+                    <button onClick={() => handleRemindAbsent(quiz)} className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-800 hover:bg-amber-100">
+                      <Bell size={14} /> تذكير المتأخرين
                     </button>
                   )}
                 </div>
@@ -1135,7 +917,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
                 <span className="text-[10px] font-bold text-indigo-300">معاينة بنية الاختبار والأسئلة</span>
                 <h3 className="text-base font-black truncate max-w-md">{previewQuiz.title}</h3>
                 <p className="text-xs text-slate-300 mt-0.5">
-                  رمز: {previewQuiz.code} · المدة: {previewQuiz.durationMinutes || 45} دقيقة · {previewQuiz.totalQuestions || 25} سؤالاً · الفصل: {previewQuiz.className || 'الكل'}
+                  رمز: {previewQuiz.code} · المدة: {previewQuiz.durationMinutes ?? 'غير محددة'} دقيقة · {previewQuiz.totalQuestions ?? 'غير متاح'} سؤالاً · الفصل: {previewQuiz.className || 'الكل'}
                 </p>
               </div>
               <button onClick={() => setPreviewQuiz(null)} className="rounded-xl p-2 hover:bg-white/10 transition-colors cursor-pointer">
@@ -1407,6 +1189,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
             </div>
 
             <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              {feedback && !feedback.startsWith("✅") ? <div role="alert" className="rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-700">{feedback}</div> : null}
               <div>
                 <label className="text-xs font-black text-gray-700 mb-1.5 block">الفصول الدراسية المستهدفة</label>
                 <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto border border-gray-100 p-2.5 rounded-xl bg-gray-50">
@@ -1424,20 +1207,22 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
                       <span className="truncate">{c.name}</span>
                     </label>
                   )) : (
-                    <span className="text-[11px] text-gray-400 col-span-2">الصف الثالث الثانوي (أ)</span>
+                    <span className="text-[11px] text-gray-400 col-span-2">لا توجد فصول متاحة.</span>
                   )}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-black text-gray-700 mb-1.5 block">مدة الاختبار (دقيقة)</label>
+                  <label className="text-xs font-black text-gray-700 mb-1.5 block">مدة الاختبار من إعداداته الأصلية (دقيقة)</label>
                   <input
                     type="number"
                     min="10"
                     max="180"
-                    value={durationOverride}
-                    onChange={(e) => setDurationOverride(Number(e.target.value))}
+                    value={assignQuiz.durationMinutes ?? ''}
+                    placeholder="حسب إعداد الاختبار"
+                    disabled
+                    aria-label="مدة الاختبار من إعداداته الأصلية"
                     className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-bold focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
@@ -1468,7 +1253,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
 
               <div>
                 <label className="text-xs font-black text-gray-700 mb-1.5 block">
-                  {roleMode === 'teacher' ? 'رسالة وتوجيه المعلم للطلاب (تظهر في إشعار الطالب)' : 'رسالة وتوجيه المشرف للطلاب (تظهر في إشعار الطالب)'}
+                  {roleMode === 'teacher' ? 'رسالة المعلم للطلاب (تظهر مع التكليف)' : 'رسالة المشرف للطلاب (تظهر مع التكليف)'}
                 </label>
                 <textarea
                   value={message}
@@ -1490,7 +1275,7 @@ export const SupervisorTestsManager: React.FC<SupervisorTestsManagerProps> = ({
                 className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 {savingAssign ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
-                <span>حفظ وإرسال التوجيه للطلاب</span>
+                <span>حفظ التكليف للطلاب</span>
               </button>
             </div>
           </div>

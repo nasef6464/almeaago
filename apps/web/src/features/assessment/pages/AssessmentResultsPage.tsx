@@ -1,3 +1,4 @@
+import { safeReturnPath, returnPathLabel } from '../navigation/returnPath';
 import {
   AlertCircle,
   ArrowRight,
@@ -18,7 +19,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { QuestionAssistantPanel } from '../../ai/components/QuestionAssistantPanel';
@@ -29,6 +30,7 @@ import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage
 import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
 import { ResultDonutChart } from '../components/ResultDonutChart';
 import { optionLabel, showOptionText } from '../questionPresentation';
+import { relativeArabicDate } from '../relativeDate';
 import {
   attemptClient,
   type ResultDetail,
@@ -38,6 +40,19 @@ import {
 
 type ReviewFilter = 'all' | 'wrong' | 'unanswered' | 'marked';
 
+function resolveReviewImage(question: ReviewQuestion): string | null {
+  if (question.imageUrl) return question.imageUrl;
+  const txt = question.text?.trim() || '';
+  if (/^image:/i.test(txt)) return txt.replace(/^image:/i, '').trim();
+  if (/^https?:\/\/.+\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(txt)) return txt;
+  return txt.match(/<img\s+[^>]*src=["']([^"']+)["']/i)?.[1]
+    || txt.match(/!\[.*?\]\((https?:\/\/[^\s)]+)\)/i)?.[1] || null;
+}
+
+function hasReviewImage(question: ReviewQuestion): boolean {
+  return Boolean(resolveReviewImage(question) || question.imageAssetId);
+}
+
 function scoreTone(passed: boolean) {
   return passed
     ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
@@ -46,31 +61,38 @@ function scoreTone(passed: boolean) {
 
 function ResultSummary({ item }: { item: ResultListItem }) {
   return (
-    <article className="rounded-2xl border-2 border-slate-200/90 bg-white p-4 shadow-sm transition-colors hover:border-indigo-300">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-black text-indigo-700">محاولة {item.attemptNumber}</span>
-            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-black text-slate-600">v{item.assessmentVersion}</span>
-          </div>
-          <h2 className="mt-2 text-base font-black leading-tight text-gray-900">{item.title}</h2>
-          <p className="mt-1 text-[11px] font-bold text-gray-500">{new Date(item.finalizedAt).toLocaleString('ar-SA')}</p>
+    <article className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-colors hover:border-indigo-200 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-black text-indigo-700">
+            محاولة {item.attemptNumber}
+          </span>
+          <span className="text-[11px] font-bold text-gray-500">{relativeArabicDate(item.finalizedAt)}</span>
         </div>
+        <h2 className="mt-1.5 text-base font-black leading-snug text-gray-900">{item.title}</h2>
         {item.showResultsReport ? (
-          <div className="flex items-center gap-3">
-            <div className="text-center"><div className="text-[10px] font-bold text-gray-500">الدرجة</div><div className={`text-xl font-black ${item.passed?'text-emerald-600':'text-rose-600'}`}>{item.score.toFixed(1)}%</div></div>
-            <div className="border-r border-gray-100 pr-3 text-center"><div className="text-[10px] font-bold text-gray-500">صحيح</div><div className="text-lg font-black text-indigo-700">{item.correctAnswers}/{item.totalQuestions}</div></div>
-          </div>
-        ) : <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-black text-gray-600">تم الإكمال</span>}
+          <p className="mt-1 text-[11px] font-bold text-gray-500">
+            {item.correctAnswers} صحيحة من {item.totalQuestions} · {item.wrongAnswers} خاطئة · {item.unanswered} بدون إجابة
+          </p>
+        ) : (
+          <p className="mt-1 text-[11px] font-bold text-gray-500">تم الإكمال</p>
+        )}
       </div>
-      {item.showResultsReport ? <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[11px] font-bold">
-        <div className="rounded-xl bg-emerald-50 p-2 text-emerald-800">{item.correctAnswers} صحيحة</div>
-        <div className="rounded-xl bg-rose-50 p-2 text-rose-800">{item.wrongAnswers} خاطئة</div>
-        <div className="rounded-xl bg-amber-50 p-2 text-amber-800">{item.unanswered} بدون إجابة</div>
-      </div> : null}
-      <div className="mt-3 flex justify-end border-t border-slate-100 pt-3">
-        <Link to={`/assessment-results/${item.attemptId}`} className="inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-3.5 py-2 text-xs font-black text-white hover:bg-gray-800">
-          <Eye size={15} className="text-amber-400"/>عرض النتيجة
+      <div className="flex items-center justify-between gap-3 sm:shrink-0 sm:justify-end">
+        {item.showResultsReport ? (
+          <div className="text-center">
+            <div className={`text-2xl font-black ${item.passed ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {item.score.toFixed(1)}%
+            </div>
+            <div className="text-[10px] font-bold text-gray-500">{item.passed ? 'ناجح' : 'يحتاج تدريب'}</div>
+          </div>
+        ) : null}
+        <Link
+          to={`/assessment-results/${item.attemptId}`}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2.5 text-xs font-black text-white transition hover:bg-indigo-700"
+        >
+          <Eye size={15} />
+          عرض النتيجة
         </Link>
       </div>
     </article>
@@ -79,6 +101,7 @@ function ResultSummary({ item }: { item: ResultListItem }) {
 
 function ReviewQuestionCard({
   question,
+  displayNumber,
   detail,
   saved,
   saving,
@@ -88,6 +111,7 @@ function ReviewQuestionCard({
   onOpenStepSolution,
 }: {
   question: ReviewQuestion;
+  displayNumber: number;
   detail: ResultDetail;
   saved: boolean;
   saving: boolean;
@@ -97,23 +121,14 @@ function ReviewQuestionCard({
   onOpenStepSolution?: (question: ReviewQuestion) => void;
 }) {
   const [showAiAssistant, setShowAiAssistant] = useState(false);
-  const resolvedImageUrl = useMemo(() => {
-    if (question.imageUrl) return question.imageUrl;
-    const txt = question.text?.trim() || '';
-    if (/^image:/i.test(txt)) return txt.replace(/^image:/i, '').trim();
-    if (/^https?:\/\/.+\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(txt)) return txt;
-    const imgMatch = txt.match(/<img\s+[^>]*src=["']([^"']+)["']/i);
-    if (imgMatch) return imgMatch[1];
-    const mdMatch = txt.match(/!\[.*?\]\((https?:\/\/[^\s)]+)\)/i);
-    if (mdMatch) return mdMatch[1];
-    return null;
-  }, [question.imageUrl, question.text]);
+  const resolvedImageUrl = useMemo(() => resolveReviewImage(question), [question.imageUrl, question.text]);
+  const imageEmbeddedOptions = Boolean(resolvedImageUrl || question.imageAssetId);
 
   return (
     <article className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-xs font-black text-gray-500">
-          {question.learnerPresentation?.showQuestionNumber !== false ? `سؤال ${question.learnerPresentation?.questionNumber || question.sortOrder + 1} · ` : ''}{question.points} درجة
+          {question.learnerPresentation?.showQuestionNumber !== false ? `سؤال ${question.learnerPresentation?.questionNumber || displayNumber} · ` : ''}{question.points} درجة
         </div>
         <div className="flex gap-2">
           {!question.answered ? (
@@ -148,7 +163,7 @@ function ReviewQuestionCard({
         {saved ? 'تم الحفظ' : saving ? 'جاري الحفظ...' : 'حفظ للمراجعة'}
       </button>
 
-      {question.passage ? (
+      {!imageEmbeddedOptions && question.passage ? (
         <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs leading-relaxed text-amber-950">
           <div className="mb-1.5 flex items-center gap-1.5 font-black text-amber-900">
             <BookOpen size={14} className="text-amber-700" />
@@ -186,21 +201,22 @@ function ReviewQuestionCard({
         </div>
       ) : null}
 
-      {!question.optionsEmbeddedInImage && !question.imageUrl && question.text ? (
+      {!imageEmbeddedOptions && question.text ? (
         <h3 className="mt-3 whitespace-pre-wrap text-base font-black text-gray-900">{question.text}</h3>
-      ) : !question.imageUrl && !question.imageAssetId ? (
+      ) : !resolvedImageUrl && !question.imageAssetId ? (
         <h3 className="mt-3 text-base font-black text-gray-900">{question.text || 'سؤال بصري'}</h3>
       ) : null}
 
-      <div className={`mt-4 grid gap-2 ${question.imageAssetId && question.optionsEmbeddedInImage ? 'grid-cols-4' : ''}`}>
-        {question.options.map((option) => {
+      <div className={`mt-4 grid gap-2 ${imageEmbeddedOptions ? 'grid-cols-4' : ''}`}>
+        {question.options.map((option, displayIndex) => {
+          const labelIndex = imageEmbeddedOptions ? option.index : displayIndex;
           const selected = question.selectedOptionIndex === option.index;
           const correct =
             detail.showAnswers && question.correctOptionIndex === option.index;
           return (
             <div
               key={option.index}
-              className={`rounded-xl border p-3 text-sm font-bold ${question.imageAssetId && question.optionsEmbeddedInImage ? 'text-center' : ''} ${
+              className={`rounded-xl border p-3 text-sm font-bold ${imageEmbeddedOptions ? 'text-center' : ''} ${
                 correct
                   ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
                   : selected && !question.correct
@@ -210,15 +226,15 @@ function ReviewQuestionCard({
                       : 'border-gray-100 bg-gray-50 text-gray-700'
               }`}
             >
-              {question.learnerPresentation?.showOptionLabels !== false ? <span className="ml-2 inline-block min-w-7 rounded-lg bg-white p-1 text-center">
-                {optionLabel(option.index, question.learnerPresentation, question.optionsEmbeddedInImage ? option.text : undefined, question.optionsEmbeddedInImage && question.options.some(item => /^[a-d]$/i.test(item.text.trim())))}
+              {imageEmbeddedOptions || question.learnerPresentation?.showOptionLabels !== false ? <span className="ml-2 inline-block min-w-7 rounded-lg bg-white p-1 text-center">
+                {optionLabel(labelIndex, question.learnerPresentation, imageEmbeddedOptions ? option.text : undefined, imageEmbeddedOptions && question.options.some(item => /^[a-d]$/i.test(item.text.trim())))}
               </span> : null}
-              {showOptionText(question.learnerPresentation, Boolean(question.imageAssetId && question.optionsEmbeddedInImage)) ? option.text : ''}
-              {!(question.imageAssetId && question.optionsEmbeddedInImage) && option.assetId ? (
+              {!imageEmbeddedOptions && showOptionText(question.learnerPresentation, false) ? option.text : ''}
+              {!imageEmbeddedOptions && option.assetId ? (
                 <div className="mt-2 rounded-xl bg-white p-3">
                   <QuestionAssetImage
                     assetId={option.assetId}
-                    alt={`صورة الخيار ${optionLabel(option.index, question.learnerPresentation)}`}
+                    alt={`صورة الخيار ${optionLabel(labelIndex, question.learnerPresentation)}`}
                     onZoom={onZoomImage}
                   />
                 </div>
@@ -239,7 +255,7 @@ function ReviewQuestionCard({
         </div>
       ) : null}
 
-      {question.videoUrl ? (
+      {detail.showExplanations && question.videoUrl ? (
         <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs font-bold text-blue-900">
           <div className="flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white shadow-xs">
@@ -258,7 +274,7 @@ function ReviewQuestionCard({
         </div>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+      {detail.showAnswers && detail.showExplanations ? <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -291,11 +307,11 @@ function ReviewQuestionCard({
             {showAiAssistant ? 'إخفاء المساعد' : 'اسأل المساعد النصي 💡'}
           </button>
         </div>
-      </div>
+      </div> : null}
 
-      {showAiAssistant ? (
+      {showAiAssistant && detail.showAnswers && detail.showExplanations ? (
         <div className="mt-3">
-          <QuestionAssistantPanel reviewCardId={question.questionId} />
+          <QuestionAssistantPanel questionId={question.questionId} attemptId={detail.result.attemptId} />
         </div>
       ) : null}
     </article>
@@ -304,6 +320,8 @@ function ReviewQuestionCard({
 
 export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {}) {
   const { attemptId = '' } = useParams();
+  const [searchParams] = useSearchParams();
+  const returnTo = safeReturnPath(searchParams.get('returnTo'));
   const { user, loading: authLoading, getCsrfToken } = useAuth();
   const [history, setHistory] = useState<ResultListItem[]>([]);
   const [detail, setDetail] = useState<ResultDetail | null>(null);
@@ -355,7 +373,7 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
         })
       : attemptClient.results(page, 20).then((response) => {
           if (!active) return;
-          setHistory(response.items);
+          setHistory(response.items || []);
           setHasMore(response.hasMore);
         });
 
@@ -402,6 +420,7 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
     if (filter === 'marked') return questions.filter((question) => question.markedForReview);
     return questions;
   }, [detail, filter]);
+  const displayNumbers = useMemo(() => new Map((detail?.questions || []).map((question, index) => [question.questionId, index + 1])), [detail]);
 
   if (authLoading || busy || (attemptId && detailContext !== activeContext && !error)) {
     return <div className="p-10 text-center font-black">جاري تحميل النتائج...</div>;
@@ -471,7 +490,7 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
             <Link to="/assessment-results" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="العودة لسجل النتائج"><ArrowRight size={20}/></Link>
             <div><div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-black text-gray-900 sm:text-2xl">{detail.title}</h1><span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-black text-indigo-700">المحاولة {detail.attemptNumber}</span></div><p className="mt-1 text-xs font-bold text-gray-500">{new Date(result.finalizedAt).toLocaleString('ar-SA')}</p></div>
           </div>
-          <div className="flex flex-wrap gap-2"><Link to="/review" className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-black text-purple-700">أسئلتي للمراجعة</Link><Link to="/assessments" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">اختبار جديد</Link></div>
+          <div className="flex flex-wrap gap-2">{returnTo && <Link to={returnTo} className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700">{returnPathLabel(returnTo)}</Link>}<Link to="/review" className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-black text-purple-700">أسئلتي للمراجعة</Link><Link to="/assessments" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">اختبار جديد</Link></div>
         </div>
 
         {detail.showResultsReport ? (
@@ -587,6 +606,7 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
                   <ReviewQuestionCard
                     key={`${question.questionId}:${question.questionVersion}`}
                     question={question}
+                    displayNumber={displayNumbers.get(question.questionId) || 1}
                     detail={detail}
                     saved={savedQuestions.has(question.questionId)}
                     saving={savingQuestion === question.questionId}
@@ -606,7 +626,7 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
         <StepSolutionModal
           isOpen={Boolean(activeStepSolverQuestion)}
           onClose={() => setActiveStepSolverQuestion(null)}
-          questionText={activeStepSolverQuestion.text}
+          questionText={hasReviewImage(activeStepSolverQuestion) ? '' : activeStepSolverQuestion.text}
           explanation={activeStepSolverQuestion.explanation}
           solvingStrategy={activeStepSolverQuestion.solvingStrategy}
         />
@@ -619,6 +639,7 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
           onClose={() => setActiveSmartTeacherQuestion(null)}
           questionId={activeSmartTeacherQuestion.questionId}
           questionText={activeSmartTeacherQuestion.text}
+          hideQuestionTextFromDisplay={hasReviewImage(activeSmartTeacherQuestion)}
           explanation={activeSmartTeacherQuestion.explanation}
           solvingStrategy={activeSmartTeacherQuestion.solvingStrategy}
           options={activeSmartTeacherQuestion.options?.map((opt, idx) => ({

@@ -7,6 +7,8 @@ import {
   Star, StickyNote, Target, Trash2, Trophy, Users, Video, X, Zap
 } from 'lucide-react';
 import { useAuth } from '../../auth/state/AuthProvider';
+import { Link } from 'react-router-dom';
+import { TrainerCourses } from '../components/TrainerCourses';
 
 export interface TrainerCourse {
   id: string;
@@ -302,7 +304,7 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
               <h1 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
                 لوحة مدرب المنصة
                 <span className="text-sm font-bold text-emerald-400 bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 rounded-full">
-                  أ. طارق المحمدي
+                  {user?.name || 'المدرب'}
                 </span>
               </h1>
               <p className="mt-2 text-xs sm:text-sm text-indigo-200/80 max-w-2xl leading-relaxed">
@@ -311,6 +313,7 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              {user?.roles?.some(role => role === 'teacher' || role === 'admin') && <Link to="/admin-dashboard/content?tab=courses" className="flex items-center gap-2 rounded-2xl border border-indigo-300/50 px-5 py-3 text-xs font-black text-white hover:bg-indigo-800"><MessageSquare size={16} /> إدارة الدورات ومناقشات الدروس</Link>}
               <button
                 type="button"
                 onClick={() => setShowScheduleLiveModal(true)}
@@ -318,13 +321,7 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
               >
                 <Video size={16} /> جدولة لقاء تدريبي حي
               </button>
-              <button
-                type="button"
-                onClick={() => setShowCreateCourseModal(true)}
-                className="flex items-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 px-5 py-3 text-xs sm:text-sm font-black text-white shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
-              >
-                <FilePlus2 size={16} /> إنشاء دورة جديدة
-              </button>
+              <Link to="/admin-dashboard/content?tab=courses" className="flex items-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 px-5 py-3 text-xs sm:text-sm font-black text-white shadow-lg shadow-indigo-600/20"><FilePlus2 size={16} /> إدارة الدورات الفعلية</Link>
             </div>
           </div>
         </div>
@@ -332,6 +329,7 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
 
       {/* Main Content Container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4">
+        <p role="status" className="relative z-10 mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-900">قسم «دوراتي ومساراتي» يعرض الدورات الفعلية. الإحصاءات وبقية الأقسام في هذه اللوحة تجريبية حاليًا.</p>
         {/* Navigation Tabs */}
         <div className="bg-white rounded-3xl p-2 shadow-sm border border-slate-100 flex items-center gap-1.5 overflow-x-auto">
           {[
@@ -487,115 +485,7 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
         )}
 
         {/* TAB 2: COURSES */}
-        {activeTab === 'courses' && (
-          <div className="mt-6 space-y-6 animate-fade-in">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-black text-slate-900">دوراتي التدريبية المعتمدة</h2>
-                <p className="text-xs text-slate-500 mt-0.5">أنشئ دورة جديدة، أرسلها للمراجعة والاعتماد، وتابع ملاحظات الإدارة ومبيعات الدورة.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCreateCourseModal(true)}
-                className="flex items-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 text-xs font-black text-white shadow-sm"
-              >
-                <Plus size={16} /> إضافة دورة تدريبية
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {courses.map((c) => (
-                <div key={c.id} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-xs flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                      <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-black text-indigo-700">
-                        {c.category}
-                      </span>
-                      <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-black ${
-                        c.approvalStatus === 'approved'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                          : c.approvalStatus === 'pending_review'
-                          ? 'bg-amber-50 text-amber-700 border border-amber-100'
-                          : 'bg-rose-50 text-rose-700 border border-rose-100'
-                      }`}>
-                        {c.approvalStatus === 'approved' ? 'معتمدة ✓' : c.approvalStatus === 'pending_review' ? 'بانتظار المراجعة ⏳' : 'تحتاج تعديل ⚠️'}
-                      </span>
-                    </div>
-
-                    <h3 className="mt-3 text-base font-black text-slate-900 leading-snug">{c.title}</h3>
-                    <p className="text-xs text-slate-400 mt-1 font-bold">{c.pathName}</p>
-
-                    {c.reviewerNotes && (
-                      <div className="mt-3 rounded-2xl bg-amber-50/70 border border-amber-100 p-3 text-xs text-amber-900 flex items-start gap-2">
-                        <StickyNote size={15} className="shrink-0 text-amber-600 mt-0.5" />
-                        <div>
-                          <b className="block font-black">ملاحظة المراجع:</b>
-                          {c.reviewerNotes}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
-                      <div className="rounded-xl bg-slate-50 p-2">
-                        <span className="text-[10px] text-slate-400 block font-bold">الطلاب</span>
-                        <b className="text-slate-900 font-black">{c.enrolledStudents}</b>
-                      </div>
-                      <div className="rounded-xl bg-slate-50 p-2">
-                        <span className="text-[10px] text-slate-400 block font-bold">الإكمال</span>
-                        <b className="text-emerald-700 font-black">{c.completionRate}%</b>
-                      </div>
-                      <div className="rounded-xl bg-slate-50 p-2">
-                        <span className="text-[10px] text-slate-400 block font-bold">التقييم</span>
-                        <b className="text-amber-700 font-black">★ {c.rating}</b>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <span className="text-sm font-black text-slate-900">{c.price} ر.س</span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFeedback(`معاينة دورة: ${c.title}`);
-                          setTimeout(() => setFeedback(''), 3000);
-                        }}
-                        className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg text-xs font-bold"
-                        title="معاينة كطالب"
-                      >
-                        <Eye size={15} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFeedback(`تعديل دورة: ${c.title}`);
-                          setTimeout(() => setFeedback(''), 3000);
-                        }}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg text-xs font-bold"
-                        title="تعديل"
-                      >
-                        <Edit2 size={15} />
-                      </button>
-                      {c.approvalStatus !== 'approved' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCourses((prev) => prev.map((item) => item.id === c.id ? { ...item, approvalStatus: 'pending_review' } : item));
-                            setFeedback(`✅ تم إرسال "${c.title}" للمراجعة والاعتماد`);
-                            setTimeout(() => setFeedback(''), 3000);
-                          }}
-                          className="flex items-center gap-1 rounded-xl bg-amber-500 hover:bg-amber-600 px-3 py-1.5 text-[11px] font-black text-white"
-                        >
-                          <Send size={12} /> إرسال للمراجعة
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {activeTab === 'courses' && user && (user.roles?.some(role => role === 'teacher' || role === 'admin') ? <TrainerCourses key={`${user.id}:${[...user.roles].sort().join(',')}`} actorId={user.id} /> : <p role="alert" className="mt-6 rounded-xl bg-rose-50 p-4 text-sm font-bold text-rose-800">الدورات الإدارية متاحة للمدربين المخولين فقط.</p>)}
 
         {/* TAB 3: LIVE SESSIONS */}
         {activeTab === 'live-sessions' && (

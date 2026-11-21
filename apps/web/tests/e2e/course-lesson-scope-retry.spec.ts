@@ -6,7 +6,7 @@ const student = {
   status: 'active', avatarUrl: '', emailVerified: true, role: 'student', roles: ['student'],
 };
 const course = {
-  id: 'course-1', title: 'دورة اختبار التنقل', description: '', instructorName: '',
+  id: 'course-1', pathId:'path-1', subjectId:'sub-1', title: 'دورة اختبار التنقل', description: '', instructorName: '',
   durationMinutes: 20, level: 'beginner', thumbnailAssetId: '', dripContentEnabled: false,
   certificateEnabled: false, access: { allowed: true, configured: true, reason: 'free_product' },
   modules: [{
@@ -35,8 +35,11 @@ function json(route: Route, body: unknown, status = 200) {
 async function setup(page: Page) {
   await page.route('**/api/v1/auth/me', route => json(route, { user: student }));
   await page.route('**/api/v1/auth/csrf', route => json(route, { csrfToken: 'csrf' }));
+  await page.route('**/api/v1/assessment-placements/available?*', route => json(route,{items:[],page:1,limit:30,hasMore:false}));
+  await page.route('**/api/v1/learning-progress/courses/course-1/completed', route => json(route, {courseId:'course-1',completedLessonIds:[]}));
   await page.route('**/api/v1/learning-spaces/courses/course-1', route => json(route, { course }));
   await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a', route => json(route, { lesson: detail('lesson-a') }));
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/*/discussion?*', route => json(route, {items:[],page:1,hasMore:false}));
   await page.route('**/api/v1/learning-progress/lessons/*?**', route => {
     const id = new URL(route.request().url()).pathname.split('/').pop() || '';
     return json(route, { progress: progress(id) });
@@ -137,4 +140,330 @@ test('a mismatched progress response is discarded without hiding an authorized l
   await expect(page.getByText('تعذر التحقق من تقدم هذا الدرس؛ لم تُعرض بيانات درس آخر.')).toBeVisible();
   await expect(page.getByText('مكتمل', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'تحديد كمكتمل' })).toBeEnabled();
+});
+
+test('course notes remain private to the selected lesson and do not claim instructor delivery', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-b', route => json(route, { lesson: detail('lesson-b') }));
+  await page.goto('/learning/courses/course-1');
+  await page.getByRole('button', { name: 'الملاحظات والنقاش' }).click();
+  await expect(page.getByText('ملاحظاتك الخاصة تُحفظ على هذا الجهاز ولا تُرسل إلى أحد.')).toBeVisible();
+  await expect(page.getByText('سارة العتيبي')).toHaveCount(0);
+  await page.getByLabel('ملاحظة خاصة لهذا الدرس').fill('ملاحظتي على الدرس الأول');
+  await page.getByRole('button', { name: 'حفظ ملاحظة خاصة' }).click();
+  await expect(page.getByText('ملاحظتي على الدرس الأول')).toBeVisible();
+  await page.getByRole('button', { name: /الدرس الثاني/ }).click();
+  await expect(page.getByText('نص الدرس الثاني الحصري')).toBeVisible();
+  await expect(page.getByText('ملاحظتي على الدرس الأول')).toHaveCount(0);
+  await page.getByLabel('ملاحظة خاصة لهذا الدرس').fill('ملاحظتي على الدرس الثاني');
+  await page.getByRole('button', { name: 'حفظ ملاحظة خاصة' }).click();
+  await page.reload();
+  await page.getByRole('button', { name: 'الملاحظات والنقاش' }).click();
+  await expect(page.getByText('ملاحظتي على الدرس الثاني')).toBeVisible();
+  await expect(page.getByText('ملاحظتي على الدرس الأول')).toHaveCount(0);
+});
+
+test('lesson discussion retries a lost response without duplicating the message', async ({ page }) => {
+  await setup(page);
+  const rows: Array<{ id:string; parentId:string; authorId:string; authorName:string; body:string; createdAt:string }> = [];
+  const requests: string[] = [];
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a/discussion?*', route => json(route, {items:rows,page:1,hasMore:false}));
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a/discussion', async route => {
+    const body = route.request().postDataJSON();
+    expect(route.request().headers()['x-csrf-token']).toBe('csrf');
+    requests.push(body.requestId);
+    if (!rows.length) {
+      rows.push({id:'message-1',parentId:'',authorId:student.id,authorName:student.name,body:body.body,createdAt:'2026-11-19T00:00:00Z'});
+      await route.abort('failed');
+      return;
+    }
+    return json(route,{item:rows[0]});
+  });
+  await page.goto('/learning/courses/course-1');
+  await page.getByRole('button',{name:'الملاحظات والنقاش'}).click();
+  await expect(page.getByText('لا توجد مناقشات لهذا الدرس بعد.')).toBeVisible();
+  await page.getByLabel('اكتب سؤالك أو مناقشتك').fill('كيف أحل هذا السؤال؟');
+  await page.getByRole('button',{name:'إرسال',exact:true}).click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByLabel('اكتب سؤالك أو مناقشتك')).toHaveValue('كيف أحل هذا السؤال؟');
+  await page.getByRole('button',{name:'إرسال',exact:true}).click();
+  await expect(page.getByText('كيف أحل هذا السؤال؟',{exact:true})).toBeVisible();
+  expect(requests).toHaveLength(2); expect(requests[0]).toBe(requests[1]); expect(rows).toHaveLength(1);
+});
+
+test('late discussion from another lesson is never shown', async ({ page }) => {
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-b', route => json(route, {lesson:detail('lesson-b')}));
+  let release: () => void = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a/discussion?*', async route => {
+    await gate;
+    await json(route,{items:[{id:'a',parentId:'',authorId:'a',authorName:'طالب',body:'مناقشة الدرس الأول',createdAt:'2026-11-19T00:00:00Z'}],page:1,hasMore:false}).catch(() => {});
+  });
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-b/discussion?*', route => json(route,{items:[{id:'b',parentId:'',authorId:'b',authorName:'طالب',body:'مناقشة الدرس الثاني',createdAt:'2026-11-19T00:00:00Z'}],page:1,hasMore:false}));
+  await page.goto('/learning/courses/course-1');
+  const oldRequest = page.waitForRequest('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a/discussion?*');
+  await page.getByRole('button',{name:'الملاحظات والنقاش'}).click();
+  await oldRequest;
+  await page.getByRole('button',{name:/الدرس الثاني/}).click();
+  await expect(page.getByText('نص الدرس الثاني الحصري')).toBeVisible();
+  await page.getByRole('button',{name:'الملاحظات والنقاش'}).click();
+  await expect(page.getByText('مناقشة الدرس الثاني')).toBeVisible();
+  release();
+  await expect(page.getByText('مناقشة الدرس الأول')).toHaveCount(0);
+});
+
+test('discussion loading and sending cannot overwrite the draft or a new message', async ({ page }) => {
+  await setup(page);
+  let releaseLoad: () => void = () => {};
+  let releasePost: () => void = () => {};
+  const loadGate = new Promise<void>(resolve => { releaseLoad = resolve; });
+  const postGate = new Promise<void>(resolve => { releasePost = resolve; });
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a/discussion?*', async route => { await loadGate; return json(route,{items:[],page:1,hasMore:false}); });
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a/discussion', async route => {
+    await postGate;
+    return json(route,{item:{id:'m1',parentId:'',authorId:student.id,authorName:student.name,body:'سؤال محفوظ',createdAt:'2026-11-19T00:00:00Z'}});
+  });
+  await page.goto('/learning/courses/course-1');
+  await page.getByRole('button',{name:'الملاحظات والنقاش'}).click();
+  const input = page.getByLabel('اكتب سؤالك أو مناقشتك');
+  await input.fill('سؤال محفوظ');
+  await expect(page.getByRole('button',{name:'إرسال',exact:true})).toBeDisabled();
+  releaseLoad();
+  await expect(page.getByRole('button',{name:'إرسال',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'إرسال',exact:true}).click();
+  await expect(input).toBeDisabled();
+  releasePost();
+  await expect(page.getByText('سؤال محفوظ',{exact:true})).toBeVisible();
+  await expect(input).toBeEnabled();
+});
+
+test('lesson replies identify their parent even when another question intervenes', async ({ page }) => {
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a/discussion?*', route => json(route,{page:1,hasMore:false,items:[
+    {id:'a',parentId:'',authorId:'a',authorName:'طالب',body:'السؤال الأول',createdAt:'2026-11-19T00:00:00Z'},
+    {id:'b',parentId:'',authorId:'b',authorName:'طالب',body:'السؤال الثاني',createdAt:'2026-11-19T00:00:01Z'},
+    {id:'r',parentId:'a',authorId:'b',authorName:'طالب',body:'إجابة الأول',createdAt:'2026-11-19T00:00:02Z'},
+  ]}));
+  await page.goto('/learning/courses/course-1');
+  await page.getByRole('button',{name:'الملاحظات والنقاش'}).click();
+  await expect(page.getByText('رد على: السؤال الأول')).toBeVisible();
+});
+
+test('interactive video answers are scoped to the signed-in student', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  const video = { ...detail('lesson-a'), type: 'video', durationSeconds: 120, videoUrl: '/media/test.mp4', videoSource: 'upload', contentText: JSON.stringify({interactiveQuestions: [{id:'question-one',timestamp:1,mustPass:true,actionOnFail:'continue',rewatchTimestamp:0,inlineQuestion:{text:'سؤال',options:['أ','ب'],correctOptionIndex:0}}]}) };
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a', route => json(route, { lesson: video }));
+  await page.route('**/media/test.mp4', route => route.fulfill({ status: 200, headers: { 'Content-Type': 'video/mp4' }, body: '' }));
+  await page.addInitScript(() => {
+    localStorage.setItem('almeaa_answered:course-1:lesson-a', JSON.stringify(['question-one']));
+    localStorage.setItem(`almeaa_answered_v2:${JSON.stringify(['other-student','course-1','lesson-a'])}`, JSON.stringify(['question-one']));
+  });
+  await page.goto('/learning/courses/course-1');
+  await expect(page.getByText('تم إجابة 0 من 1')).toBeVisible();
+  await page.evaluate(() => localStorage.setItem(`almeaa_answered_v2:${JSON.stringify(['student-1','course-1','lesson-a'])}`, JSON.stringify(['question-one'])));
+  await page.reload();
+  await expect(page.getByText('تم إجابة 1 من 1')).toBeVisible();
+});
+
+test('course exam starts only through its authorized course placement', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/courses/course-1', route => json(route, { course: { ...course, presentation: { assessments: [
+    { id: 'display-card-1', quizId: 'real-quiz', title: 'اختبار مرتبط' },
+    { id: 'manual-only', title: 'اختبار دون ربط' },
+  ] } } }));
+  let starts = 0, directStarts = 0;
+  await page.route('**/api/v1/assessment-placements/available?*', route => {
+    const q = new URL(route.request().url()).searchParams;
+    if (q.get('lessonId')) return json(route,{items:[],page:1,hasMore:false});
+    expect([q.get('slot'),q.get('courseId'),q.get('pathId'),q.get('subjectId')]).toEqual(['course','course-1','path-1','sub-1']);
+    return json(route,{items:[{placementId:'placement-1',assessmentId:'real-quiz',title:'اختبار مرتبط',slot:'course',courseId:'course-1',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true}],page:1,hasMore:false});
+  });
+  await page.route('**/api/v1/assessment-placements/placement-1/start', route => { starts++; return json(route,{attempt:{id:'attempt-1',assessmentId:'real-quiz'}}); });
+  await page.route('**/api/v1/assessments/real-quiz/attempts', route => {directStarts++; return json(route,{},500);});
+  await page.goto('/learning/courses/course-1');
+  await page.getByRole('button', {name: 'اختبارات الدورة'}).click();
+  await expect(page.getByText('اختبار دون ربط')).toHaveCount(0);
+  await page.getByRole('button', {name:'بدء الاختبار', exact:true}).click();
+  await expect(page).toHaveURL(/\/assessment-attempts\/attempt-1\?/);
+  expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/learning/courses/course-1?lesson=lesson-a');
+  await page.goto('/course/course-1?tab=tests');
+  await page.getByRole('button', {name:'بدء الاختبار',exact:true}).click();
+  await expect(page).toHaveURL(/\/assessment-attempts\/attempt-1\?/);
+  expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/course/course-1?tab=tests');
+  expect(starts).toBe(2);
+  expect(directStarts).toBe(0);
+});
+
+test('course assessment rejects another course scope and never starts it', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  let starts = 0;
+  await page.route('**/api/v1/assessment-placements/available?*', route => new URL(route.request().url()).searchParams.has('lessonId') ? json(route,{items:[],page:1,hasMore:false}) : json(route,{items:[{placementId:'wrong',assessmentId:'quiz',title:'غير صحيح',slot:'course',courseId:'another-course',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true}],page:1,hasMore:false}));
+  await page.route('**/api/v1/assessment-placements/*/start', route => {starts++; return json(route,{},500);});
+  await page.goto('/learning/courses/course-1');
+  await page.getByRole('button',{name:'اختبارات الدورة'}).click();
+  await expect(page.getByRole('alert')).toContainText('تعذر التحقق من نطاق اختبارات الدورة');
+  await expect(page.getByRole('button',{name:'بدء الاختبار'})).toHaveCount(0);
+  expect(starts).toBe(0);
+});
+
+test('course files show only real safe links and lock paid files for guests', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/courses/course-1', route => json(route, { course: { ...course, access: {allowed:false,configured:true,reason:'purchase_required'}, presentation: { files: [
+    {id:'free',title:'ملف مجاني',url:'https://example.test/free.pdf',access:'free_preview'},
+    {id:'paid',title:'ملف مدفوع',url:'https://example.test/paid.pdf',access:'enrolled_paid'},
+    {id:'bad',title:'ملف بلا رابط صالح',url:'javascript:alert(1)',access:'free_preview'},
+  ] } } }));
+  await page.goto('/course/course-1?tab=files');
+  await expect(page.getByRole('link', {name:'تحميل ملف مجاني'})).toHaveAttribute('href','https://example.test/free.pdf');
+  await expect(page.getByRole('link', {name:'تحميل ملف مدفوع'})).toHaveCount(0);
+  await expect(page.getByText('ضمن شراء الدورة').first()).toBeVisible();
+  await expect(page.getByText('الرابط غير متاح')).toBeVisible();
+  await expect(page.getByText('الحقيبة التدريبية الشاملة', {exact:false})).toHaveCount(0);
+});
+
+test('course completion uses server progress and does not issue a fake certificate', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  let completed = ['lesson-a'];
+  await page.route('**/api/v1/learning-progress/courses/course-1/completed', route => json(route, {courseId:'course-1',completedLessonIds:completed}));
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-b', route => json(route, {lesson:detail('lesson-b')}));
+  await page.route('**/api/v1/learning-progress/lessons/lesson-b/complete', route => {completed = ['lesson-a','lesson-b']; return json(route, {progress:progress('lesson-b','completed')});});
+  await page.addInitScript(() => localStorage.setItem('completed_lessons_store', JSON.stringify(['lesson-a','lesson-b'])));
+  await page.goto('/course/course-1');
+  await expect(page.getByText('50%', {exact:true})).toBeVisible();
+  await page.goto('/learning/courses/course-1?lesson=lesson-b');
+  await expect(page.getByText('نص الدرس الثاني الحصري')).toBeVisible();
+  await page.getByRole('button',{name:'الشهادة والإنجاز'}).click();
+  await expect(page.getByText('50%',{exact:true})).toBeVisible();
+  await expect(page.getByText('إصدار الشهادات غير متاح حاليًا.',{exact:false})).toBeVisible();
+  await page.getByRole('button',{name:'تحديد كمكتمل'}).click();
+  await expect(page.getByText('100%',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'تحميل وثيقة الشهادة (PDF)'})).toHaveCount(0);
+  await page.reload();
+  await page.getByRole('button',{name:'الشهادة والإنجاز'}).click();
+  await expect(page.getByText('100%',{exact:true})).toBeVisible();
+});
+
+test('course progress is unavailable when server progress fails', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.route('**/api/v1/learning-progress/courses/course-1/completed', route => json(route,{message:'offline'},503));
+  await page.goto('/course/course-1');
+  await expect(page.getByText('غير متاح',{exact:true})).toBeVisible();
+  await page.goto('/learning/courses/course-1');
+  await page.getByRole('button',{name:'الشهادة والإنجاز'}).click();
+  await expect(page.getByText('تعذر تحميل التقدم')).toBeVisible();
+});
+
+test('a completion response for another lesson cannot update progress or report success', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.route('**/api/v1/learning-progress/lessons/lesson-a/complete', route => json(route,{progress:progress('lesson-b','completed')}));
+  await page.goto('/learning/courses/course-1');
+  await expect(page.getByText('نص الدرس الأول الحصري')).toBeVisible();
+  await page.getByRole('button',{name:'تحديد كمكتمل'}).click();
+  await expect(page.getByText('تعذر تأكيد اكتمال هذا الدرس؛ لم تُستخدم بيانات درس آخر.')).toBeVisible();
+  await expect(page.getByText('تم تسجيل الدرس كمكتمل.')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'تحديد كمكتمل'})).toBeEnabled();
+});
+
+test('course overview does not invent shared discussions or delete old local data', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.addInitScript(() => localStorage.setItem('course_qa_course-1', JSON.stringify([{id:'old',question:'سؤال قديم خاص بالجهاز',replies:[]}])));
+  await page.goto('/course/course-1?tab=qa');
+  await expect(page.getByText('النقاش مع المدرب غير متاح حاليًا.',{exact:false})).toBeVisible();
+  await expect(page.getByText('سارة العتيبي')).toHaveCount(0);
+  await expect(page.getByText('سؤال قديم خاص بالجهاز')).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem('course_qa_course-1'))).toContain('سؤال قديم خاص بالجهاز');
+});
+
+test('late course progress cannot erase a newly confirmed completion', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  let releaseProgress: (() => void) | undefined;
+  await page.route('**/api/v1/learning-progress/courses/course-1/completed', async route => {
+    await new Promise<void>(resolve => { releaseProgress = resolve; });
+    return json(route,{courseId:'course-1',completedLessonIds:[]});
+  });
+  await page.route('**/api/v1/learning-progress/lessons/lesson-a/complete', route => json(route,{progress:progress('lesson-a','completed')}));
+  await page.goto('/learning/courses/course-1');
+  await expect.poll(() => Boolean(releaseProgress)).toBe(true);
+  await expect(page.getByText('نص الدرس الأول الحصري')).toBeVisible();
+  await page.getByRole('button',{name:'تحديد كمكتمل'}).click();
+  await expect(page.getByText('تم تسجيل الدرس كمكتمل.')).toBeVisible();
+  releaseProgress?.();
+  await page.getByRole('button',{name:'الشهادة والإنجاز'}).click();
+  await expect(page.getByText('50%',{exact:true})).toBeVisible();
+});
+
+test('guest sees free and locked course assessments and signs in to start', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.route('**/api/v1/auth/me', route => json(route,{message:'unauthenticated'},401));
+  await page.route('**/api/v1/assessment-placements/available?*', route => json(route,{items:[
+    {placementId:'free',assessmentId:'q1',title:'اختبار مجاني',slot:'course',courseId:'course-1',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true},
+    {placementId:'paid',assessmentId:'q2',title:'اختبار مغلق',slot:'course',courseId:'course-1',pathId:'path-1',subjectId:'sub-1',accessAllowed:false,canStart:false},
+  ],page:1,hasMore:false}));
+  await page.goto('/course/course-1?tab=tests');
+  await expect(page.getByText('اختبار مجاني')).toBeVisible();
+  await expect(page.getByText('اختبار مغلق')).toBeVisible();
+  await expect(page.getByRole('link',{name:'تسجيل الدخول للبدء'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'مغلق'})).toBeDisabled();
+});
+
+test('course placement retry reuses the same start key after a failed response', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  const keys: string[] = [];
+  await page.route('**/api/v1/assessment-placements/available?*', route => new URL(route.request().url()).searchParams.has('lessonId') ? json(route,{items:[],page:1,hasMore:false}) : json(route,{items:[{placementId:'p1',assessmentId:'q1',title:'اختبار الدورة',slot:'course',courseId:'course-1',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true}],page:1,hasMore:false}));
+  await page.route('**/api/v1/assessment-placements/p1/start', route => {
+    keys.push(route.request().postDataJSON().startKey);
+    return keys.length === 1 ? json(route,{message:'تعذر البدء'},503) : json(route,{attempt:{id:'attempt-1',assessmentId:'q1'}});
+  });
+  await page.goto('/learning/courses/course-1');
+  await page.getByRole('button',{name:'اختبارات الدورة'}).click();
+  await page.getByRole('button',{name:'بدء الاختبار'}).click();
+  await expect(page.getByRole('alert')).toContainText('تعذر البدء');
+  await page.getByRole('button',{name:'بدء الاختبار'}).click();
+  await expect(page).toHaveURL(/\/assessment-attempts\/attempt-1\?/);
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toBe(keys[1]);
+});
+
+
+test('lesson quiz starts from the exact lesson placement, not the direct assessment route', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a', route => json(route, {lesson:{...detail('lesson-a'),type:'quiz',contentText:JSON.stringify({quizId:'quiz-lesson'})}}));
+  let direct = 0, starts = 0;
+  await page.route('**/api/v1/assessment-placements/available?*', route => {
+    const q = new URL(route.request().url()).searchParams;
+    expect(q.get('lessonId')).toBe('lesson-a');
+    return json(route,{items:[{placementId:'lesson-placement',assessmentId:'quiz-lesson',title:'اختبار الدرس',slot:'course',courseId:'course-1',lessonId:'lesson-a',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true}],page:1,hasMore:false});
+  });
+  await page.route('**/api/v1/assessment-placements/lesson-placement/start', route => {starts++; return json(route,{attempt:{id:'lesson-attempt',assessmentId:'quiz-lesson'}})});
+  await page.route('**/api/v1/assessments/quiz-lesson/attempts', route => {direct++; return json(route,{},500)});
+  await page.goto('/learning/courses/course-1?lesson=lesson-a');
+  await page.getByRole('button',{name:'بدء الاختبار',exact:true}).click();
+  await expect(page).toHaveURL(/assessment-attempts\/lesson-attempt/);
+  expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/learning/courses/course-1?lesson=lesson-a');
+  expect(starts).toBe(1); expect(direct).toBe(0);
+});
+
+
+test('lesson assessment rejects a placement for a different lesson', async ({ page }) => {
+  test.setTimeout(120_000);
+  await setup(page);
+  await page.route('**/api/v1/learning-spaces/courses/course-1/lessons/lesson-a', route => json(route, {lesson:{...detail('lesson-a'),type:'quiz',contentText:JSON.stringify({quizId:'quiz-lesson'})}}));
+  await page.route('**/api/v1/assessment-placements/available?*', route => json(route,{items:[{placementId:'wrong-lesson',assessmentId:'quiz-lesson',title:'غير صحيح',slot:'course',courseId:'course-1',lessonId:'lesson-b',pathId:'path-1',subjectId:'sub-1',accessAllowed:true,canStart:true}],page:1,hasMore:false}));
+  await page.goto('/learning/courses/course-1?lesson=lesson-a');
+  await expect(page.getByRole('alert')).toContainText('تعذر التحقق من نطاق اختبارات الدورة');
+  await expect(page.getByRole('button',{name:'بدء الاختبار',exact:true})).toHaveCount(0);
 });

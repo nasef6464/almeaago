@@ -50,6 +50,19 @@ func (r *Repository) Create(ctx context.Context, actorUserID string, command que
 	if err != nil {
 		return question.Question{}, mapError(err)
 	}
+	if command.SectionID != "" {
+		var section string
+		err = tx.QueryRow(ctx, `SELECT id::text FROM taxonomy_skill_sections WHERE id=$1::uuid AND subject_id=$2::uuid AND status='active' FOR SHARE`, command.SectionID, command.SubjectID).Scan(&section)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return question.Question{}, question.ErrInvalidTaxonomy
+		}
+		if err != nil {
+			return question.Question{}, err
+		}
+		if _, err = tx.Exec(ctx, `UPDATE questions SET section_id=$2::uuid WHERE id=$1::uuid`, questionID, section); err != nil {
+			return question.Question{}, mapError(err)
+		}
+	}
 
 	if err := insertVersionTx(ctx, tx, questionID, 1, actorUserID, command.Version); err != nil {
 		return question.Question{}, err

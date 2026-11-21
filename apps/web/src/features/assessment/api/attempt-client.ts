@@ -44,12 +44,19 @@ export interface Attempt {
   title: string;
   startedAt: string;
   expiresAt: string | null;
+  serverTime?: string;
   submittedAt: string | null;
   showProgressBar: boolean;
   requireAnswerBeforeNext: boolean;
   allowQuestionReview: boolean;
   showResultsReport?: boolean;
   randomizeOptions: boolean;
+  totalQuestions?: number;
+  kind?: 'normal' | 'mock';
+  mockPresentationMode?: string;
+  mockStrictSectionLock?: boolean | null;
+  sections?: Array<{ id: string; title: string; subjectId: string; sortOrder: number; timeLimitSeconds: number | null; domain: string; strictLock: boolean }>;
+  sectionProgress?: { currentSectionId: string; startedAt: string; deadline: string | null; finished: boolean; serverTime: string };
   questions: AttemptQuestion[];
   answers: SavedAnswer[];
 }
@@ -153,6 +160,14 @@ async function req<T>(path: string, init: RequestInit = {}) {
 }
 
 export const attemptClient = {
+  availablePrepared: (signal?: AbortSignal) => req<{ quizzes: Array<{ id: string; title: string; mode: 'saher' | 'central'; subjectName: string; questionCount: number; dueExclusive?: string }> }>('/api/v1/assessments/prepared-available', { signal }),
+  currentSelf: () => req<{ attempt: Attempt }>('/api/v1/assessment-attempts/self/current'),
+  startSelf: (input: { pathId: string; subjectId: string; sectionId: string; skillIds: string[]; difficulty: string; questionType: string; evidenceType: string; questionCount: number; timeLimitMinutes: number; startKey: string }, csrf: string) =>
+    req<{ attempt: Attempt }>('/api/v1/assessment-attempts/self', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify(input),
+    }),
+  previewAccess: (assessmentId: string, signal?: AbortSignal) =>
+    req<{ allowed: boolean; reason: string }>(`/api/v1/assessments/${encodeURIComponent(assessmentId)}/access`, { signal }),
   start: (assessmentId: string, startKey: string, csrf: string) =>
     req<{ attempt: Attempt }>(`/api/v1/assessments/${assessmentId}/attempts`, {
       method: 'POST',
@@ -163,12 +178,25 @@ export const attemptClient = {
   get: (id: string) =>
     req<{ attempt: Attempt }>(`/api/v1/assessment-attempts/${id}`),
 
+  advanceSection: (id: string, expectedSectionId: string, csrf: string) =>
+    req<{ attempt: Attempt }>(`/api/v1/assessment-attempts/${id}/sections/advance`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+      body: JSON.stringify({ expectedSectionId }),
+    }),
+
+  recordTime: (id: string, questionId: string, timeSpentSeconds: number, csrf: string) =>
+    req<{ timeSpentSeconds: number }>(`/api/v1/assessment-attempts/${encodeURIComponent(id)}/questions/${encodeURIComponent(questionId)}/time`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify({ timeSpentSeconds }),
+    }),
+
   save: (
     id: string,
     questionId: string,
     selectedOptionIndex: number | null,
     markedForReview: boolean,
     csrf: string,
+    timeSpentSeconds = 0,
   ) =>
     req<{ attempt: Attempt }>(
       `/api/v1/assessment-attempts/${id}/answers/${questionId}`,
@@ -178,7 +206,7 @@ export const attemptClient = {
         body: JSON.stringify({
           selectedOptionIndex,
           textAnswer: '',
-          timeSpentSeconds: 0,
+          timeSpentSeconds,
           markedForReview,
         }),
       },

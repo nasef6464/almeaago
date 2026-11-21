@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -238,13 +240,15 @@ func (r *Repository) StartPublic(ctx context.Context, code, participantKey, star
 
 	var existingID string
 	var existingHash []byte
+	var existingCode string
 	err = tx.QueryRow(ctx, `
-		SELECT id::text,participant_key_hash
-		  FROM assessment_public_attempts
-		 WHERE start_key=$1
-	`, startKey).Scan(&existingID, &existingHash)
+		SELECT pa.id::text,pa.participant_key_hash,s.session_code
+		  FROM assessment_public_attempts pa
+		  JOIN assessment_sessions s ON s.id=pa.session_id
+		 WHERE pa.start_key=$1
+	`, startKey).Scan(&existingID, &existingHash, &existingCode)
 	if err == nil {
-		if string(existingHash) != string(hash) {
+		if string(existingHash) != string(hash) || !strings.EqualFold(existingCode, code) {
 			return assessment.PublicAttempt{}, assessment.ErrConflict
 		}
 		if err = tx.Commit(ctx); err != nil {
@@ -279,6 +283,27 @@ func (r *Repository) StartPublic(ctx context.Context, code, participantKey, star
 	}
 
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, sessionID+":"+hex.EncodeToString(hash)); err != nil {
+		return assessment.PublicAttempt{}, err
+	}
+
+	// Another request for the same participant may have committed while this
+	// transaction waited for the lock. Reuse its attempt before checking limits.
+	err = tx.QueryRow(ctx, `
+		SELECT pa.id::text,pa.participant_key_hash,s.session_code
+		  FROM assessment_public_attempts pa
+		  JOIN assessment_sessions s ON s.id=pa.session_id
+		 WHERE pa.start_key=$1
+	`, startKey).Scan(&existingID, &existingHash, &existingCode)
+	if err == nil {
+		if string(existingHash) != string(hash) || !strings.EqualFold(existingCode, code) {
+			return assessment.PublicAttempt{}, assessment.ErrConflict
+		}
+		if err = tx.Commit(ctx); err != nil {
+			return assessment.PublicAttempt{}, err
+		}
+		return r.getPublicAttempt(ctx, existingID, hash)
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
 		return assessment.PublicAttempt{}, err
 	}
 
@@ -390,6 +415,8 @@ func (r *Repository) getPublicAttempt(ctx context.Context, id string, hash []byt
 			return out, err
 		}
 		q.LearnerPresentation = learnerPresentation(presentation)
+		// Public/barcode attempts must not expose solution videos before submission.
+		q.VideoURL = ""
 		byID[q.ID] = len(out.Questions)
 		out.Questions = append(out.Questions, q)
 	}
@@ -421,7 +448,16 @@ func (r *Repository) getPublicAttempt(ctx context.Context, id string, hash []byt
 			out.Questions[idx].Options = append(out.Questions[idx].Options, option)
 		}
 	}
-	return out, optionRows.Err()
+	if err := optionRows.Err(); err != nil {
+		return out, err
+	}
+	for i := range out.Questions {
+		q := &out.Questions[i]
+		if learnerQuestionHasImage(q.ImageAssetID, q.ImageURL, q.Text) {
+			sort.Slice(q.Options, func(i, j int) bool { return q.Options[i].Index < q.Options[j].Index })
+		}
+	}
+	return out, nil
 }
 
 func (r *Repository) SubmitPublic(ctx context.Context, code string, in assessment.PublicSubmitInput) (assessment.PublicSubmission, error) {
@@ -653,15 +689,18 @@ func (r *Repository) LiveByCode(ctx context.Context, student, code string) (asse
 		   AND (
 			 s.school_id IS NULL
 			 OR EXISTS(
-				SELECT 1 FROM school_memberships sm
-				 WHERE sm.school_id=s.school_id AND sm.user_id=$1::uuid AND sm.status='active'
+				SELECT 1 FROM school_memberships sm JOIN schools school ON school.id=sm.school_id AND school.status='active'
+				 WHERE sm.school_id=s.school_id AND sm.user_id=$1::uuid AND sm.role='student' AND sm.status='active'
 			 )
 		   )
 		   AND (
 			 s.class_id IS NULL
 			 OR EXISTS(
-				SELECT 1 FROM class_memberships cm
+				SELECT 1 FROM class_memberships cm JOIN classes class ON class.id=cm.class_id AND class.status='active'
+				 JOIN schools school ON school.id=class.school_id AND school.status='active'
 				 WHERE cm.class_id=s.class_id AND cm.user_id=$1::uuid AND cm.status='active'
+				 AND (s.school_id IS NULL OR class.school_id=s.school_id)
+				 AND EXISTS (SELECT 1 FROM school_memberships pupil WHERE pupil.school_id=class.school_id AND pupil.user_id=$1::uuid AND pupil.role='student' AND pupil.status='active')
 			 )
 		   )
 	`, student, code).Scan(
@@ -720,11 +759,11 @@ func (r *Repository) StartLive(ctx context.Context, student, sessionID, startKey
 		   AND a.is_visible=true
 		   AND (
 			 s.school_id IS NULL
-			 OR EXISTS(SELECT 1 FROM school_memberships sm WHERE sm.school_id=s.school_id AND sm.user_id=$2::uuid AND sm.status='active')
+			 OR EXISTS(SELECT 1 FROM school_memberships sm JOIN schools school ON school.id=sm.school_id AND school.status='active' WHERE sm.school_id=s.school_id AND sm.user_id=$2::uuid AND sm.role='student' AND sm.status='active')
 		   )
 		   AND (
 			 s.class_id IS NULL
-			 OR EXISTS(SELECT 1 FROM class_memberships cm WHERE cm.class_id=s.class_id AND cm.user_id=$2::uuid AND cm.status='active')
+			 OR EXISTS(SELECT 1 FROM class_memberships cm JOIN classes class ON class.id=cm.class_id AND class.status='active' JOIN schools school ON school.id=class.school_id AND school.status='active' WHERE cm.class_id=s.class_id AND cm.user_id=$2::uuid AND cm.status='active' AND (s.school_id IS NULL OR class.school_id=s.school_id) AND EXISTS (SELECT 1 FROM school_memberships pupil WHERE pupil.school_id=class.school_id AND pupil.user_id=$2::uuid AND pupil.role='student' AND pupil.status='active'))
 		   )
 		 FOR UPDATE OF s
 	`, sessionID, student).Scan(&assessmentID, &version, &maxAttempts, &timeLimit, &closesAt)

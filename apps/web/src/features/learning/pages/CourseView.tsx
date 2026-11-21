@@ -7,6 +7,7 @@ import { contentClient } from '../../content/api/content-client';
 import type { LearnerCourse, CourseDetail, CourseModule } from '../../content/api/content-types';
 import { CourseOverview, type CourseOverviewData, type TabType } from '../components/CourseOverview';
 import { CourseLearningPage } from './CourseLearningPage';
+import { useCourseCompletion } from '../useCourseCompletion';
 
 export function CourseView() {
   const { courseId = '' } = useParams();
@@ -21,6 +22,8 @@ export function CourseView() {
   const [courseData, setCourseData] = useState<CourseOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const { completedLessonIds } = useCourseCompletion(courseId, !isPlaying && user?.roles?.includes('student') ? user.id : '');
 
   const isStaffViewer = Boolean(
     user && (user.roles?.includes('admin' as any) || user.roles?.includes('platform_trainer' as any) || user.roles?.includes('school_teacher' as any)),
@@ -63,6 +66,8 @@ export function CourseView() {
 
         const overview: CourseOverviewData = {
           id: lc.id,
+          pathId: lc.pathId,
+          subjectId: lc.subjectId,
           title: lc.title,
           description: lc.description,
           instructorName: lc.instructorName || 'فريق المنصة',
@@ -100,7 +105,7 @@ export function CourseView() {
             })),
           })),
           files: presentation.files || [],
-          assessments: presentation.assessments || [],
+          assessments: Array.isArray(presentation.assessments) ? presentation.assessments : [],
           features: presentation.features || [],
           objectives: presentation.objectives || [],
           access: lc.access,
@@ -165,7 +170,7 @@ export function CourseView() {
               })),
             })),
             files: presentation.files || [],
-            assessments: presentation.assessments || [],
+            assessments: Array.isArray(presentation.assessments) ? presentation.assessments : [],
             features: presentation.features || [],
             objectives: presentation.objectives || [],
             access: {
@@ -248,6 +253,7 @@ export function CourseView() {
       onTabChange={handleTabChange}
       onContinue={handleContinue}
       isStaffViewer={isStaffViewer}
+      completedLessonIds={completedLessonIds}
     />
   );
 }

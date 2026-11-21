@@ -8,6 +8,7 @@ import (
 
 type StudyPlanResourceRepository interface {
 	ListStudyPlanResources(context.Context, string, string, []string, []string, int) ([]assessment.StudyPlanResource, error)
+	CompletedStudyPlanAssessments(context.Context, string, []string) (map[string]bool, error)
 }
 
 type StudyPlanCatalog struct {
@@ -17,6 +18,10 @@ type StudyPlanCatalog struct {
 
 func NewStudyPlanCatalog(repo StudyPlanResourceRepository, access CommerceAccessResolver) *StudyPlanCatalog {
 	return &StudyPlanCatalog{repo: repo, access: access}
+}
+
+func (c *StudyPlanCatalog) CompletedStudyPlanAssessments(ctx context.Context, studentID string, placementIDs []string) (map[string]bool, error) {
+	return c.repo.CompletedStudyPlanAssessments(ctx, studentID, placementIDs)
 }
 
 func (c *StudyPlanCatalog) ListStudyPlanResources(

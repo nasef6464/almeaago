@@ -8,6 +8,7 @@ import { SharedVideoPlayer } from './SharedVideoPlayer';
 import { lessonProgressClient } from '../api/learning-client';
 import { useAuth } from '../../auth/state/AuthProvider';
 import { assessmentPlacementClient } from '../../assessment/api/assessment-placement-client';
+import { subjectPackagesURL, type SubjectPackageContent } from '../../commerce/navigation/subjectPackages';
 import type { LearnerAssessmentPlacement } from '../../assessment/api/assessment-types';
 
 export type TopicContentTab = 'lessons' | 'quizzes' | 'support';
@@ -117,8 +118,13 @@ function FoundationTopicTraining({ pathId, subjectId, topicId }: { pathId: strin
   }, [ready, pathId, subjectId, topicId, page, requestKey]);
 
   const start = async (placement: LearnerAssessmentPlacement) => {
+    if (!ready || !current) return;
+    if (!placement.accessAllowed && (placement.accessReason === 'package_required' || placement.accessReason === 'paid_required')) {
+      navigate(subjectPackagesURL(pathId, subjectId, 'foundation', location.pathname + location.search + location.hash));
+      return;
+    }
     if (!user) {
-      navigate(`/login?returnTo=${encodeURIComponent(location.pathname + location.search)}`);
+      navigate(`/login?returnTo=${encodeURIComponent(location.pathname + location.search + location.hash)}`);
       return;
     }
     const token = active.current.token;
@@ -154,8 +160,8 @@ function FoundationTopicTraining({ pathId, subjectId, topicId }: { pathId: strin
     {!current?.items.length ? <p className="py-10 text-center text-gray-500">لا توجد تدريبات قصيرة لهذا الجزء بعد.</p> : current.items.map(row => (
       <article key={row.placementId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-4">
         <div><h3 className="font-bold text-gray-900">{row.title}</h3><p className="mt-1 text-xs text-gray-500">المحاولات {row.attemptCount} من {row.maxAttempts}</p></div>
-        <button type="button" aria-label={`بدء التدريب: ${row.title}`} disabled={!row.accessAllowed || !row.canStart || Boolean(starting)} onClick={() => void start(row)} className="rounded-lg bg-indigo-50 px-4 py-2 text-sm font-bold text-indigo-600 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60">
-          {starting === row.placementId ? 'جارٍ بدء التدريب...' : !row.accessAllowed ? 'التدريب غير متاح لحسابك' : !row.canStart ? 'استُنفدت المحاولات' : 'ابدأ التدريب'}
+        <button type="button" aria-label={`${!row.accessAllowed && (row.accessReason === 'package_required' || row.accessReason === 'paid_required') ? 'فتح باقة التدريب' : 'بدء التدريب'}: ${row.title}`} disabled={(!row.accessAllowed && row.accessReason !== 'package_required' && row.accessReason !== 'paid_required') || (row.accessAllowed && !row.canStart) || Boolean(starting)} onClick={() => void start(row)} className="rounded-lg bg-indigo-50 px-4 py-2 text-sm font-bold text-indigo-600 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60">
+          {starting === row.placementId ? 'جارٍ بدء التدريب...' : !row.accessAllowed ? (row.accessReason === 'package_required' || row.accessReason === 'paid_required' ? 'فتح الباقة' : 'التدريب غير متاح لحسابك') : !row.canStart ? 'استُنفدت المحاولات' : 'ابدأ التدريب'}
         </button>
       </article>
     ))}
@@ -168,8 +174,12 @@ function FoundationTopicTraining({ pathId, subjectId, topicId }: { pathId: strin
 }
 
 export function FoundationTopicDialog({ pathId, subjectId, topic, topics, contentTab, onSelectTopic, onSelectContent, onClose }: Props) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const login = () => navigate(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`);
+  const openPackages = (contentType: SubjectPackageContent) => navigate(subjectPackagesURL(pathId, subjectId, contentType, window.location.pathname + window.location.search + window.location.hash));
   const [detail, setDetail] = useState<LearnerTopic | null>(null);
+  const [detailKey, setDetailKey] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
@@ -181,7 +191,8 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
 
   const root = topics.find((item) => item.id === topic.parentTopicId) || topic;
   const children = topics.filter((item) => item.parentTopicId === root.id).sort((a, b) => a.sortOrder - b.sortOrder);
-  const detailForTopic = detail?.id === topic.id ? detail : null;
+  const topicScope = JSON.stringify([user?.id || '', pathId, subjectId, topic.id]);
+  const detailForTopic = !authLoading && detailKey === topicScope && detail?.id === topic.id ? detail : null;
 
   useEffect(() => { setSelectedLesson(''); }, [user?.id, pathId, subjectId, topic.id, contentTab]);
   useEffect(() => {
@@ -199,7 +210,9 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
 
   useEffect(() => {
     setDetail(null);
+    setDetailKey('');
     setError('');
+    if (authLoading) { setLoading(true); return; }
     if (topic.isLocked) {
       setLoading(false);
       return;
@@ -208,7 +221,10 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
     setLoading(true);
     contentClient.learnerTopic(topic.id, controller.signal)
       .then(({ topic: next }) => {
-        if (!controller.signal.aborted) setDetail(next);
+        if (controller.signal.aborted) return;
+        if (!next || next.id !== topic.id || next.pathId !== pathId || next.subjectId !== subjectId) throw new Error('الموضوع غير متاح في المادة المحددة.');
+        setDetail(next);
+        setDetailKey(topicScope);
       })
       .catch((reason) => {
         if (!controller.signal.aborted) {
@@ -219,7 +235,7 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [topic.id, topic.isLocked, retry]);
+  }, [topicScope, topic.id, topic.isLocked, pathId, subjectId, authLoading, retry]);
 
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
@@ -280,6 +296,7 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center font-bold text-amber-800">
                   <Lock className="mx-auto mb-3" size={26} />
                   هذا الموضوع ضمن باقة التأسيس
+                  <button type="button" onClick={() => openPackages('foundation')} className="mx-auto mt-4 block rounded-lg bg-amber-700 px-4 py-2 text-white">عرض الباقات</button>
                 </div>
               ) : loading ? (
                 <p className="py-10 text-center font-bold text-gray-500">جاري تحميل المحتوى...</p>
@@ -298,7 +315,7 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
                           <h3 className="font-bold text-gray-900">{lesson.title}</h3>
                           {lesson.description ? <p className="mt-1 text-sm text-gray-500">{lesson.description}</p> : null}
                         </div>
-                        <button type="button" aria-label={`فتح الدرس: ${lesson.title}`} onClick={() => { setSelectedLesson(lesson.id); setLessonRetry(0); }} className="inline-flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700">
+                        <button type="button" aria-label={`فتح الدرس: ${lesson.title}`} onClick={() => { if (!user) { login(); return; } setSelectedLesson(lesson.id); setLessonRetry(0); }} className="inline-flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700">
                           {lesson.isLocked || lesson.commerceLocked ? <Lock size={16} /> : <Video size={16} />} فتح الدرس
                         </button>
                       </article>
@@ -322,10 +339,12 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
                           {item.description ? <p className="mt-1 text-sm text-gray-500">{item.description}</p> : null}
                         </div>
                         {item.isLocked ? (
-                          <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
+                          <button type="button" onClick={() => openPackages('library')} className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
                             <Lock size={14} />
                             <span>ضمن الباقة</span>
-                          </span>
+                          </button>
+                        ) : !user ? (
+                          <button type="button" onClick={login} className="rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700">سجل الدخول لفتح الملف</button>
                         ) : item.externalUrl ? (
                           <a
                             href={item.externalUrl}

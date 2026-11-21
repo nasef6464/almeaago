@@ -59,7 +59,7 @@ test('student enters exact learning scope and starts placement attempt on mobile
  await page.getByLabel('المادة').selectOption('subject-1');
  await expect(page.getByText('اختبار مدفوع')).toBeVisible();
  await expect(page.getByRole('button',{name:'يتطلب تفعيل باقة أو صلاحية'})).toBeDisabled();
- await expect(page.getByText('الوصول لهذا الاختبار يتحقق من Commerce على الخادم عند العرض وعند بدء المحاولة.')).toBeVisible();
+ await expect(page.getByText('يحتاج هذا الاختبار إلى باقة أو صلاحية مناسبة لبدء المحاولة.')).toBeVisible();
  await expect(page.getByText('اختبار الكمي')).toBeVisible();
  await page.screenshot({path:'test-results/assessment-catalog-mobile.png',fullPage:true});
  await page.setViewportSize({width:820,height:1180});
@@ -70,4 +70,15 @@ test('student enters exact learning scope and starts placement attempt on mobile
  await expect(page).toHaveURL(/assessment-attempts\/attempt-placement-1/);
  await expect(page.getByRole('heading',{name:'اختبار الكمي'})).toBeVisible();
  await page.screenshot({path:'test-results/assessment-placement-mobile.png',fullPage:true});
+});
+
+test('direct assessment link keeps path and subject after dashboard redirect',async({page})=>{
+ await auth(page,student);
+ await page.route('**/api/v1/taxonomy/bootstrap?phase=core',async r=>{await new Promise(resolve=>setTimeout(resolve,300));return json(r,taxonomy)});
+ let matching=0;
+ await page.route('**/api/v1/assessment-placements/available?**',r=>{const u=new URL(r.request().url());if(u.searchParams.get('pathId')==='path-1'&&u.searchParams.get('subjectId')==='subject-1') matching++;return json(r,{items:[],page:1,limit:30,hasMore:false})});
+ await page.goto('/assessments?pathId=path-1&subjectId=subject-1&slot=tests');
+ await expect(page.getByLabel('المسار')).toHaveValue('path-1');
+ await expect(page.getByLabel('المادة')).toHaveValue('subject-1');
+ await expect.poll(()=>matching).toBeGreaterThan(0);
 });

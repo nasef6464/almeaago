@@ -74,6 +74,14 @@ INSERT INTO topic_skill_links SELECT id,'00000000-0000-0000-0000-000000000020' F
 	if err != nil {
 		t.Fatal(err)
 	}
+	_, err = db.Exec(ctx, `ALTER TABLE foundation_topics ADD COLUMN parent_topic_id uuid;
+INSERT INTO foundation_topics(id,path_id,subject_id,title,is_locked,status,is_visible,sort_order,parent_topic_id) VALUES
+('00000000-0000-0000-0000-000000000046','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','Child hidden by parent',false,'active',true,5,'00000000-0000-0000-0000-000000000043'),
+('00000000-0000-0000-0000-000000000047','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','Child active parent',false,'active',true,6,'00000000-0000-0000-0000-000000000041');
+INSERT INTO topic_skill_links VALUES ('00000000-0000-0000-0000-000000000046','00000000-0000-0000-0000-000000000020'),('00000000-0000-0000-0000-000000000047','00000000-0000-0000-0000-000000000020');`)
+	if err != nil {
+		t.Fatal(err)
+	}
 	repo := New(db, nil)
 	const student = "00000000-0000-0000-0000-000000000002"
 	const attempt = "00000000-0000-0000-0000-000000000001"
@@ -88,7 +96,7 @@ INSERT INTO topic_skill_links SELECT id,'00000000-0000-0000-0000-000000000020' F
 	if a.SkillName != "Skill A" || a.Status != "strong" || a.Mastery != 100 || b.SkillName != "Skill B" || b.Status != "weak" || b.QuestionCount != 1 || b.CorrectCount != 0 {
 		t.Fatalf("unexpected scoped results: %+v", detail.SkillAnalysis.Items)
 	}
-	if len(a.FoundationTopics) != 2 || a.FoundationTopics[0].Title != "Topic A" || a.FoundationTopics[0].IsLocked || a.FoundationTopics[1].Title != "Locked topic" || !a.FoundationTopics[1].IsLocked || len(b.FoundationTopics) != 0 {
+	if len(a.FoundationTopics) != 3 || a.FoundationTopics[0].Title != "Topic A" || a.FoundationTopics[0].IsLocked || a.FoundationTopics[1].Title != "Locked topic" || !a.FoundationTopics[1].IsLocked || a.FoundationTopics[2].Title != "Child active parent" || len(b.FoundationTopics) != 0 {
 		t.Fatalf("unexpected foundation mapping scope or visibility: %+v %+v", a.FoundationTopics, b.FoundationTopics)
 	}
 	// The second unanswered question remains in the denominator. Skill links

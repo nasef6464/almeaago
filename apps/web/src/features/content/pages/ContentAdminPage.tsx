@@ -33,6 +33,7 @@ import type {
   LessonSummary,
   TaxonomyCore,
 } from '../api/content-types';
+import { AdminTablePageSkeleton, SkeletonTable } from '../../../components/ui/Skeleton';
 
 type ContentTab = 'courses' | 'lessons' | 'foundation' | 'library';
 type ContentRow = CourseSummary | LessonSummary | FoundationTopicSummary | LibrarySummary;
@@ -128,7 +129,7 @@ export function ContentAdminPage() {
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [creatingCourse, setCreatingCourse] = useState(false);
-  const [editingCourseId, setEditingCourseId] = useState('');
+  const [editingCourseId, setEditingCourseId] = useState(() => searchParams.get('editCourse') || '');
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
   const [editingLibraryId, setEditingLibraryId] = useState<string | null>(null);
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
@@ -411,7 +412,19 @@ export function ContentAdminPage() {
   }
 
   if (authLoading) {
-    return <main className="min-h-[calc(100vh-5rem)] bg-gray-50 p-10 text-center font-black text-gray-600">جاري التحقق من الجلسة...</main>;
+    return (
+      <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-gray-50 dark:bg-slate-950 p-4 sm:p-8">
+        <div className="mx-auto max-w-7xl">
+          <AdminTablePageSkeleton
+            title="إدارة المحتوى التعليمي"
+            subtitle="إدارة ونشر الدورات، الدروس، مواضيع التأسيس، والمكتبة الرقمية"
+            columns={7}
+            rows={8}
+            columnWidths={['w-40', 'w-28', 'w-20', 'w-16', 'w-24', 'w-24', 'w-16']}
+          />
+        </div>
+      </main>
+    );
   }
   if (!user || (!isAdmin && !isTeacher)) {
     return <main className="min-h-[calc(100vh-5rem)] bg-gray-50 p-10 text-center font-black text-rose-700">هذه الشاشة متاحة للإدارة والمعلمين المخولين فقط.</main>;
@@ -479,12 +492,14 @@ export function ContentAdminPage() {
   if (editingCourseId) {
     return (
       <CourseEditorPanel
+        key={`${user.id}:${editingCourseId}`}
+        actorId={user.id}
         courseId={editingCourseId}
         coreTaxonomy={taxonomy}
         isAdmin={isAdmin}
         lockScope={teacherRequiresExactScope}
         getCsrfToken={getCsrfToken}
-        onCancel={() => setEditingCourseId('')}
+        onCancel={() => { setEditingCourseId(''); setSearchParams(previous => { const next = new URLSearchParams(previous); next.delete('editCourse'); return next; }); }}
         onChanged={() => setReloadKey((value) => value + 1)}
       />
     );
@@ -666,7 +681,11 @@ export function ContentAdminPage() {
               </div>
 
               {scopedLoading ? (
-                <div className="p-10 text-center text-sm font-black text-gray-500">جاري تحميل المحتوى...</div>
+                <SkeletonTable
+                  rows={8}
+                  columns={7}
+                  columnWidths={['w-40', 'w-28', 'w-20', 'w-16', 'w-24', 'w-24', 'w-16']}
+                />
               ) : scopedRows.length === 0 ? (
                 <div className="p-10 text-center text-sm font-black text-gray-500">لا توجد عناصر مطابقة للفلاتر الحالية.</div>
               ) : (

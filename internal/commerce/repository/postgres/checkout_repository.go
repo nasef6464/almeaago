@@ -342,7 +342,7 @@ func (r *Repository) PreviewDiscount(ctx context.Context, productID, code string
 const paymentSelect = `
 SELECT id::text,user_id::text,product_id::text,product_revision,product_name,original_amount_minor,
        discount_amount_minor,final_amount_minor,currency,COALESCE(discount_id::text,''),discount_code,
-       payment_method,gateway_mode,provider_code,status,idempotency_key,provider_transaction_id,
+       payment_method,gateway_mode,provider_code,status,idempotency_key,transfer_sender_name,transfer_sender_bank,transfer_reference,transfer_receipt_url,provider_transaction_id,
        provider_session_id,provider_redirect_url,provider_session_status,
        COALESCE(revenue_course_id::text,''),COALESCE(revenue_trainer_user_id::text,''),revenue_share_percentage,
        paid_at,COALESCE(reviewed_by::text,''),reviewed_at,reviewer_notes,approval_evidence,revision,created_at,updated_at
@@ -355,6 +355,7 @@ func scanPayment(row scanner) (commerce.PaymentRequest, error) {
 		&p.ID, &p.UserID, &p.ProductID, &p.ProductRevision, &p.ProductName, &p.OriginalAmountMinor,
 		&p.DiscountAmountMinor, &p.FinalAmountMinor, &p.Currency, &p.DiscountID, &p.DiscountCode,
 		&p.PaymentMethod, &p.GatewayMode, &p.ProviderCode, &p.Status, &p.IdempotencyKey,
+		&p.TransferSenderName, &p.TransferSenderBank, &p.TransferReference, &p.TransferReceiptURL,
 		&p.ProviderTransactionID, &p.ProviderSessionID, &p.ProviderRedirectURL, &p.ProviderSessionStatus,
 		&p.RevenueCourseID, &p.RevenueTrainerUserID, &p.RevenueSharePercentage,
 		&p.PaidAt, &p.ReviewedBy, &p.ReviewedAt, &p.ReviewerNotes,
@@ -370,6 +371,10 @@ func (r *Repository) getPayment(ctx context.Context, id string) (commerce.Paymen
 	return scanPayment(r.db.QueryRow(ctx, paymentSelect+` WHERE id=$1::uuid`, id))
 }
 
+func (r *Repository) FindUserPaymentRequest(ctx context.Context, userID, key string) (commerce.PaymentRequest, error) {
+	return scanPayment(r.db.QueryRow(ctx, paymentSelect+` WHERE user_id=$1::uuid AND idempotency_key=$2`, userID, key))
+}
+
 func (r *Repository) CreatePaymentRequest(ctx context.Context, userID string, in commerce.CheckoutCreate, policy commerce.CheckoutPolicy, revenue commerce.RevenuePolicySnapshot) (commerce.PaymentRequest, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -379,7 +384,7 @@ func (r *Repository) CreatePaymentRequest(ctx context.Context, userID string, in
 
 	existing, err := scanPayment(tx.QueryRow(ctx, paymentSelect+` WHERE user_id=$1::uuid AND idempotency_key=$2`, userID, in.IdempotencyKey))
 	if err == nil {
-		if existing.ProductID != in.ProductID || existing.PaymentMethod != in.PaymentMethod || existing.DiscountCode != in.DiscountCode {
+		if existing.ProductID != in.ProductID || existing.PaymentMethod != in.PaymentMethod || existing.DiscountCode != in.DiscountCode || existing.TransferSenderName != in.TransferSenderName || existing.TransferSenderBank != in.TransferSenderBank || existing.TransferReference != in.TransferReference || existing.TransferReceiptURL != in.TransferReceiptURL {
 			return commerce.PaymentRequest{}, commerce.ErrConflict
 		}
 		return existing, nil
@@ -417,22 +422,24 @@ func (r *Repository) CreatePaymentRequest(ctx context.Context, userID string, in
 INSERT INTO commerce_payment_requests(
   user_id,product_id,product_revision,product_name,original_amount_minor,discount_amount_minor,
   final_amount_minor,currency,discount_id,discount_code,payment_method,gateway_mode,provider_code,idempotency_key,
-  revenue_course_id,revenue_trainer_user_id,revenue_share_percentage
+  revenue_course_id,revenue_trainer_user_id,revenue_share_percentage,
+  transfer_sender_name,transfer_sender_bank,transfer_reference,transfer_receipt_url
 ) VALUES(
   $1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,NULLIF($9,'')::uuid,$10,$11,$12,$13,$14,
-  NULLIF($15,'')::uuid,NULLIF($16,'')::uuid,$17
+  NULLIF($15,'')::uuid,NULLIF($16,'')::uuid,$17,$18,$19,$20,$21
 )
 ON CONFLICT(user_id,idempotency_key) DO NOTHING
 RETURNING id::text
 `, userID, p.ID, p.Revision, p.Name, p.PriceMinor, discountAmount, finalAmount, p.Currency,
 		discountID, discountCode, string(in.PaymentMethod), string(policy.GatewayMode), policy.ProviderCode, in.IdempotencyKey,
-		revenue.CourseID, revenue.TrainerUserID, revenue.RevenueSharePercentage).Scan(&id)
+		revenue.CourseID, revenue.TrainerUserID, revenue.RevenueSharePercentage,
+		in.TransferSenderName, in.TransferSenderBank, in.TransferReference, in.TransferReceiptURL).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		existing, getErr := scanPayment(tx.QueryRow(ctx, paymentSelect+` WHERE user_id=$1::uuid AND idempotency_key=$2`, userID, in.IdempotencyKey))
 		if getErr != nil {
 			return commerce.PaymentRequest{}, getErr
 		}
-		if existing.ProductID != in.ProductID || existing.PaymentMethod != in.PaymentMethod || existing.DiscountCode != discountCode {
+		if existing.ProductID != in.ProductID || existing.PaymentMethod != in.PaymentMethod || existing.DiscountCode != discountCode || existing.TransferSenderName != in.TransferSenderName || existing.TransferSenderBank != in.TransferSenderBank || existing.TransferReference != in.TransferReference || existing.TransferReceiptURL != in.TransferReceiptURL {
 			return commerce.PaymentRequest{}, commerce.ErrConflict
 		}
 		return existing, nil

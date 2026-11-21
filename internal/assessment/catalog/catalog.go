@@ -46,7 +46,7 @@ func NewHandler(service *Service) http.Handler {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=120")
+		w.Header().Set("Cache-Control", "no-store")
 		json.NewEncoder(w).Encode(map[string]any{"mocks": rows})
 	})
 }
@@ -75,8 +75,8 @@ func (r *Postgres) ListPublicMocks(ctx context.Context) ([]MockSummary, error) {
 // of inactive/archived paths; counts never join question bodies or answer tables.
 const publicMocksSQL = `
  WITH RECURSIVE active_paths AS (
- SELECT id FROM paths WHERE parent_path_id IS NULL AND status='active'
- UNION ALL SELECT p.id FROM paths p JOIN active_paths a ON p.parent_path_id=a.id WHERE p.status='active'
+ SELECT id FROM paths WHERE parent_path_id IS NULL AND status='active' AND COALESCE(presentation->>'isVisible','true') <> 'false'
+ UNION ALL SELECT p.id FROM paths p JOIN active_paths a ON p.parent_path_id=a.id WHERE p.status='active' AND COALESCE(p.presentation->>'isVisible','true') <> 'false'
  )
  SELECT a.id::text,v.path_id::text,COALESCE(v.subject_id::text,''),v.title,
  (SELECT count(*) FROM assessment_version_questions q WHERE q.assessment_id=a.id AND q.assessment_version=a.published_version),
@@ -88,5 +88,5 @@ const publicMocksSQL = `
  LEFT JOIN levels l ON l.id=sub.level_id
  WHERE a.owner_type='platform' AND a.workflow_status='approved' AND a.is_published AND a.is_visible
  AND v.version_status='published' AND v.assessment_kind='mock'
- AND (v.subject_id IS NULL OR (sub.path_id=v.path_id AND sub.status='active' AND (sub.level_id IS NULL OR l.status='active')))
+ AND (v.subject_id IS NULL OR (sub.path_id=v.path_id AND sub.status='active' AND COALESCE(sub.presentation->>'isVisible','true') <> 'false' AND (sub.level_id IS NULL OR (l.status='active' AND COALESCE(l.presentation->>'isVisible','true') <> 'false'))))
  ORDER BY a.created_at,a.id`

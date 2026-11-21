@@ -11,6 +11,8 @@ export interface StudentAggregatedSkill {
   sectionId?: string;
   subjectName?: string;
   sectionName?: string;
+  topicId?: string;
+  topicTitle?: string;
   mastery: number;
   recentMastery?: number;
   trend?: 'improving' | 'stable' | 'declining';

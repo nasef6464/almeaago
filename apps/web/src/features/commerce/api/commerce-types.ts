@@ -51,7 +51,7 @@ export interface CommercePaymentRequest{
  id:string;userId:string;productId:string;productRevision:number;productName:string;originalAmountMinor:number;
  discountAmountMinor:number;finalAmountMinor:number;currency:string;discountId:string;discountCode:string;
  paymentMethod:CommercePaymentMethod;gatewayMode:CommerceGatewayMode;providerCode:string;status:CommercePaymentStatus;
- idempotencyKey:string;providerTransactionId:string;providerSessionId:string;providerRedirectUrl:string;providerSessionStatus:string;paidAt:string|null;reviewedBy:string;reviewedAt:string|null;
+ idempotencyKey:string;transferSenderName:string;transferSenderBank:string;transferReference:string;transferReceiptUrl:string;providerTransactionId:string;providerSessionId:string;providerRedirectUrl:string;providerSessionStatus:string;paidAt:string|null;reviewedBy:string;reviewedAt:string|null;
  reviewerNotes:string;approvalEvidence:string;revision:number;createdAt:string;updatedAt:string;
 }
 
