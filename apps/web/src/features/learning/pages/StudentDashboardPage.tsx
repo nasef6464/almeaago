@@ -388,7 +388,7 @@ export function StudentDashboardPage() {
           </div>
         </aside>
 
-      <main id="overview" className="flex-1 min-w-0 p-4 lg:p-8 pb-24 lg:pb-8 w-full max-w-full lg:max-w-[calc(100vw-20rem)] overflow-x-hidden">
+      <main id="overview" dir="rtl" className="flex-1 min-w-0 p-4 lg:p-8 pb-24 lg:pb-8 w-full max-w-full lg:max-w-[calc(100vw-20rem)] overflow-x-hidden">
         {tab === 'paths' ? (
           <div className="max-w-7xl mx-auto w-full min-w-0">
             <PathsTab paths={paths} />
