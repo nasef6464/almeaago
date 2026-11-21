@@ -1,0 +1,9 @@
+﻿gate,title,status,head_sha,test_evidence,screenshots,reviewer,blockers,next_action
+G0,G0 reality and reconciliation,NOT_PROVEN,,,,,,G0-01 initial preflight and failure classification
+G1,G1 core E2E recovery,NOT_PROVEN,,,,,,Pending dependency/evidence
+G2,G2 security/privacy/reliability,NOT_PROVEN,,,,,,Pending dependency/evidence
+G3,G3 full legacy parity,NOT_PROVEN,,,,,,Pending dependency/evidence
+G4,G4 performance/accessibility/operations,NOT_PROVEN,,,,,,Pending dependency/evidence
+G5,G5 pedagogical correctness,NOT_PROVEN,,,,,,Pending dependency/evidence
+G6,G6 OR optimization optional guarded,NOT_PROVEN,,,,,,Pending dependency/evidence
+G7,G7 independent release certification,NOT_PROVEN,,,,,,Pending dependency/evidence

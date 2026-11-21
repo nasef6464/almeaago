@@ -1,0 +1,13 @@
+﻿pr_number,observed_git_status,head_branch,base_branch,main_delta_classification,still_needed_files,conflict_files,source_sha,target_sha,ci_exact_head,next_action
+274,OPEN,feat/self-quiz-ui-20261113,feat/exam-engine-20261113,UNKNOWN,,,,,,Compare against latest main before any merge
+273,OPEN,feat/exam-engine-20261113,main,UNKNOWN,,,,,,Compare against latest main before any merge
+271,OPEN,fix/taxonomy-packages-integrated-20261108,main,UNKNOWN,,,,,,Compare against latest main before any merge
+269,OPEN,codex/student-image-regressions-main-20261105,main,UNKNOWN,,,,,,Compare against latest main before any merge
+268,OPEN,fix/schools-teacher-unique-class-student-count-20261105,main,UNKNOWN,,,,,,Compare against latest main before any merge
+266,OPEN,docs/owner-takeover-checkpoint-20261104,main,UNKNOWN,,,,,,Compare against latest main before any merge
+265,OPEN,fix/api-mount-inventory-35-20261104,main,UNKNOWN,,,,,,Compare against latest main before any merge
+264,OPEN,fix/admin-taxonomy-archive-truth-20261104,main,UNKNOWN,,,,,,Compare against latest main before any merge
+262,OPEN,codex/student-option-image-20261101,main,UNKNOWN,,,,,,Compare against latest main before any merge
+276,MERGED,integrate/20261120,main,UNKNOWN,,,,,,Record merged changes when reconciling overlaps
+277,MERGED,fix/e2e-aa-determinism,main,UNKNOWN,,,,,,Record merged changes when reconciling overlaps
+278,MERGED,fix/hero-820-structural-parity,main,UNKNOWN,,,,,,Record merged changes when reconciling overlaps

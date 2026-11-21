@@ -1,0 +1,41 @@
+{
+  "as_of": "2026-11-21",
+  "verified_repo_main_go": "df538daa98e6615ed5c5d3265c9ab53ddd1cc35b",
+  "verified_repo_main_legacy": "ed28102d7084899856de0371dc2c93a3d602d518",
+  "github_workflow_run": 44890325571,
+  "run_branch_head_sha": "3bad5fcaef4a5ce030984eb48e0d07b74d7d18d9",
+  "run_results": {
+    "passed": 606,
+    "failed": 385,
+    "skipped": 29,
+    "failed_error_categories": {
+      "locator_assertion": 312,
+      "timeout": 48,
+      "blocked_navigation": 22,
+      "other": 3
+    }
+  },
+  "verification_limits": [
+    "No live comprehensive legacy vs Go browser comparison",
+    "No live production performance metrics",
+    "No direct Antigravity local changes inspected",
+    "Do not reuse snapshot as latest main or test evidence"
+  ],
+  "open_pr_numbers_at_review": [
+    274,
+    273,
+    271,
+    269,
+    268,
+    266,
+    265,
+    264,
+    262
+  ],
+  "safety": [
+    "Legacy read only",
+    "No production writes",
+    "No unauthorised deployment",
+    "No bypass CI"
+  ]
+}
