@@ -26,7 +26,11 @@ permissions:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     defaults:
       run:
         working-directory: apps/web
@@ -38,6 +42,7 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
       - name: Verify local preinstalled Chromium fallback with a real E2E test
+        if: matrix.shard == 1
         shell: bash
         run: |
           set -euo pipefail
@@ -45,12 +50,13 @@ jobs:
           test -x "$BROWSER_PATH"
           # Browser-fallback smoke: use a self-contained spec so the check proves Chromium works without a live API.
           PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="$BROWSER_PATH" npm run e2e:local -- tests/e2e/auth-parity.spec.ts
-      - run: npm run e2e
-      - name: Upload browser evidence
+      - name: Run Playwright shard ${{ matrix.shard }}/3
+        run: npm run e2e -- --shard=${{ matrix.shard }}/3
+      - name: Upload browser evidence (shard ${{ matrix.shard }})
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: content-browser-evidence
+          name: content-browser-evidence-shard-${{ matrix.shard }}
           path: |
             apps/web/test-results
             apps/web/playwright-report
