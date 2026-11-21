@@ -52,8 +52,12 @@ for(const width of [390,820,1440]){
       return json(route,{learners:[],pagination:{page:1,limit:12,total:0,totalPages:0}});
     });
     await page.goto('/school-director-dashboard');
-    await page.getByRole('navigation',{name:'أقسام لوحة مدير المدرسة'})
-      .getByRole('button',{name:'اختبارات المدرسة'}).click();
+    const nav = page.getByRole('navigation', { name: 'أقسام لوحة مدير المدرسة' });
+    const assessmentsBtn = nav.getByRole('button', { name: 'اختبارات المدرسة' });
+    if (!(await assessmentsBtn.isVisible())) {
+      await nav.locator('summary').filter({ hasText: 'التعلم والمتابعة' }).click();
+    }
+    await assessmentsBtn.click();
     await page.getByRole('button',{name:'النتائج والإدارة'}).click();
     const dialog=page.getByRole('dialog',{name:'النتائج والإدارة — اختبار النسبة'});
     await expect(dialog.getByRole('alert')).toContainText('تعذر تحميل');
