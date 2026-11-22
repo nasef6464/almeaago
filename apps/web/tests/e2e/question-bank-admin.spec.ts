@@ -150,7 +150,7 @@ test('authoring answer parity rejects a blank selected answer and preserves draf
   await page.getByLabel('نص الخيار 2').fill('الصحيح');
   await page.getByLabel('الإجابة الصحيحة 3').check();
   await page.getByRole('button',{name:'حفظ السؤال كمسودة'}).click();
-  await expect(page.getByText('يرجى اختيار إجابة صحيحة من الاختيارات الموجودة.')).toBeVisible();
+  await expect(page.getByText('يرجى اختيار إجابة صحيحة من الخيارات الموجودة.')).toBeVisible();
   expect(payloads).toHaveLength(0);
   await expect(page.getByLabel('كود السؤال الجديد')).toHaveValue('Q-ANSWER-PARITY');
   await expect(page.getByLabel('نص الخيار 2')).toHaveValue('الصحيح');
@@ -177,9 +177,8 @@ test(`authoring answer parity preserves embedded image answer positions for ${ty
   await openAnswerDraft(page);
   await page.getByLabel('نوع السؤال الجديد').selectOption(type);
   await page.getByLabel('ملف صورة السؤال').setInputFiles({name:'embedded.webp',mimeType:'image/webp',buffer:Buffer.from([1,2,3,4])});
-  await page.getByRole('button',{name:'رفع وتحقق'}).click();
-  await expect(page.getByText(`Asset: ${asset.id} · active`)).toBeVisible();
-  await page.getByLabel('الاختيارات وقيمها داخل صورة السؤال').check();
+  await expect(page.getByText('تم رفع صورة السؤال بنجاح ومزامنتها.')).toBeVisible();
+  await page.getByLabel('الخيارات مضمنة داخل صورة السؤال').check();
   await page.getByLabel('نص الخيار 2').fill('قيمة ب');
   if(type==='mcq')await page.getByLabel('نص الخيار 4').fill('قيمة د');
   await page.getByLabel(`الإجابة الصحيحة ${type==='mcq'?4:2}`).check();
