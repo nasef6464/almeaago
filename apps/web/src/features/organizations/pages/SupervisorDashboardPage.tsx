@@ -30,8 +30,12 @@ export function SupervisorDashboardPage(){
  const requested=params.get('tab');
  const tab:SupervisorTab=tabs.some(item=>item.id===requested&&enabledTabs.has(item.id))?requested as SupervisorTab:'students';
  const activeGroup=groups.find(group=>group.ids.includes(tab))?.label||'';
- const [userToggledGroup,setUserToggledGroup]=useState<{activeTab:string;group:string}|null>(null);
- const expandedGroup=userToggledGroup?.activeTab===tab?userToggledGroup.group:activeGroup;
+ const [prevParams,setPrevParams]=useState(params.toString());
+ const [expandedGroup,setExpandedGroup]=useState(activeGroup);
+ if(prevParams!==params.toString()){
+  setPrevParams(params.toString());
+  setExpandedGroup(activeGroup);
+ }
  const authorized=Boolean(user?.roles.includes('supervisor'));
  const [contexts,setContexts]=useState<SchoolContext[]>([]);
  const [scopeOwner,setScopeOwner]=useState('');
@@ -119,7 +123,7 @@ export function SupervisorDashboardPage(){
    </header>
    <nav aria-label="أقسام لوحة المشرف" dir="rtl" className="space-y-3 rounded-2xl border bg-white p-3">
     {groups.map(group=><details key={group.label} open={expandedGroup===group.label} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-2">
-     <summary onClick={event=>{event.preventDefault();setUserToggledGroup({activeTab:tab,group:expandedGroup===group.label?'':group.label})}}
+     <summary onClick={event=>{event.preventDefault();setExpandedGroup(current=>current===group.label?'':group.label)}}
       className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm font-black text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 [&::-webkit-details-marker]:hidden">
       {group.label}<ChevronDown aria-hidden="true" size={16} className={`shrink-0 transition-transform ${expandedGroup===group.label?'rotate-180':''}`}/>
      </summary>
