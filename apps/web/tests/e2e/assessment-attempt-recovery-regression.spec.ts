@@ -81,7 +81,7 @@ test('hidden result does not request the answer review after submission', async 
   let reviews = 0;
   await page.route('**/api/v1/assessment-attempts/attempt-1/review', r => { reviews++; return json(r, {}); });
   await page.goto('/assessments/assessment-1/start', { waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: 'إنهاء وتسليم الاختبار' }).click();
+  await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByText('تم تسجيل إكمال الاختبار.')).toBeVisible();
   expect(reviews).toBe(0);
@@ -167,7 +167,7 @@ test('saving an attempt lets the student leave and resume the same question', as
   await resume.click();
   await expect(page.getByRole('heading', { name: 'نص السؤال الثاني' })).toBeVisible();
   await expect(page.getByRole('button', { name: /٤/ })).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'إنهاء وتسليم الاختبار' }).click();
+  await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible();
   expect(submissions).toBe(1);
@@ -275,7 +275,7 @@ test('strict section can advance after its clock closes while a time checkpoint 
   await page.getByRole('button',{name:'تأكيد الانتقال'}).click();
   await expect(page.getByRole('heading',{name:'تم تسليم الاختبار'})).toBeVisible({timeout:30000});
 });
-test('student starts autosaves submits and sees server result',async({page})=>{test.setTimeout(90_000);await mock(page);await page.setViewportSize({width:390,height:844});await page.goto('/assessments/assessment-1/start',{waitUntil:'domcontentloaded'});await expect(page.getByRole('heading',{name:'محاكي كمي'})).toBeVisible();await page.getByRole('button',{name:/٤/}).click();await expect(page.getByRole('button',{name:/٤/})).toHaveAttribute('aria-pressed','true');await page.getByRole('button',{name:'إنهاء وتسليم الاختبار'}).click();await page.getByRole('button',{name:'نعم، قم بالتسليم'}).click();await expect(page.getByRole('heading',{name:'تم تسليم الاختبار'})).toBeVisible();await expect(page.getByText('100.0%')).toBeVisible();await page.screenshot({path:'test-results/assessment-attempt-mobile.png',fullPage:true})});
+test('student starts autosaves submits and sees server result',async({page})=>{test.setTimeout(90_000);await mock(page);await page.setViewportSize({width:390,height:844});await page.goto('/assessments/assessment-1/start',{waitUntil:'domcontentloaded'});await expect(page.getByRole('heading',{name:'محاكي كمي'})).toBeVisible();await page.getByRole('button',{name:/٤/}).click();await expect(page.getByRole('button',{name:/٤/})).toHaveAttribute('aria-pressed','true');await page.getByRole('button',{name:'إنهاء الاختبار'}).click();await page.getByRole('button',{name:'نعم، قم بالتسليم'}).click();await expect(page.getByRole('heading',{name:'تم تسليم الاختبار'})).toBeVisible();await expect(page.getByText('100.0%')).toBeVisible();await page.screenshot({path:'test-results/assessment-attempt-mobile.png',fullPage:true})});
 
 test('shuffled text options keep display letters while saving original identity', async ({page}) => {
   test.setTimeout(90000);

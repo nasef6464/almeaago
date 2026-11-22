@@ -665,7 +665,7 @@ export function AssessmentAttemptPage() {
                 className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-black text-white hover:bg-amber-600 shadow-xs disabled:opacity-50"
               >
                 <Send size={14} />
-                <span>إنهاء المحاولة</span>
+                <span>إنهاء الاختبار</span>
               </button>
             </div>
           </div>
