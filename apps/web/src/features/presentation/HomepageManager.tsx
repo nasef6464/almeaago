@@ -7,7 +7,7 @@ import { HOMEPAGE_SETTINGS_UPDATED } from './useHomepageSettings';
 import { HomepageSettings, HomepageStat, HomepageTestimonial } from './homepage-types';
 import { StudentSiteExperienceFields } from './StudentExperienceSettings';
 
-import { PLATFORM_PRESET_IMAGES, defaultHomepageSettings, mergeHomepageSettings } from './homepageManagerDefaults';
+import { DEFAULT_HERO_BOY_IMAGE, PLATFORM_PRESET_IMAGES, defaultHomepageSettings, mergeHomepageSettings } from './homepageManagerDefaults';
 import { normalizeColorPickerValue, TextField, ColorField, TextAreaField, SelectField, SummaryCard } from './HomepageManagerControls';
 
 // Preserve the existing exports for any current or future consumers.
