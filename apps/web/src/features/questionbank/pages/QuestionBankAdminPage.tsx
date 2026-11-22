@@ -564,7 +564,7 @@ export function QuestionBankAdminPage() {
       setCreate((prev) => ({
         ...prev,
         imageAssetId: asset.id,
-        imageAlt: prev.imageAlt || file.name.replace(/\.[^/.]+$/, ''),
+        imageAlt: prev.imageAlt || code || 'صورة السؤال',
       }));
       setNotice('تم رفع صورة السؤال بنجاح ومزامنتها.');
     } catch (err) {

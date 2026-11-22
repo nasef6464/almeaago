@@ -240,7 +240,7 @@ test('admin desktop creates a canonical question with direct media upload and no
   await expect(page.getByRole('heading',{name:'مركز بنك الأسئلة'})).toBeVisible();
   await expect(page.getByText('Q-001')).toBeVisible();
   await expect(page.getByText('إجمالي مطابق')).toBeVisible();
-  await expect(page.getByRole('button',{name:/حذف/})).toHaveCount(0);
+  await expect(page.getByTitle('حذف السؤال').first()).toBeVisible();
 
   await page.getByRole('button',{name:'سؤال جديد'}).click();
   await page.getByLabel('كود السؤال الجديد').fill('Q-NEW');
@@ -252,11 +252,9 @@ test('admin desktop creates a canonical question with direct media upload and no
   await page.getByLabel('نص الخيار 1').fill('٩');
   await page.getByLabel('نص الخيار 2').fill('١٠');
   await page.getByLabel('الإجابة الصحيحة 2').check();
-  await page.getByLabel('شرح السؤال الجديد').fill('الإجابة الصحيحة عشرة');
-  await page.getByLabel('وصف صورة السؤال').fill('رسم توضيحي للسؤال');
+  await page.getByLabel('الشرح وتفسير الحل للسؤال').fill('الإجابة الصحيحة عشرة');
   await page.getByLabel('ملف صورة السؤال').setInputFiles({name:'q.webp',mimeType:'image/webp',buffer:Buffer.from([1,2,3,4])});
-  await page.getByRole('button',{name:'رفع وتحقق'}).click();
-  await expect(page.getByText(/Asset: asset-new · active/)).toBeVisible();
+  await expect(page.getByText('تم رفع صورة السؤال بنجاح ومزامنتها.')).toBeVisible();
 
   await page.getByRole('button',{name:'حفظ السؤال كمسودة'}).click();
   await expect(page.getByText('تم حفظ السؤال الجديد كمسودة.')).toBeVisible();
@@ -266,6 +264,7 @@ test('admin desktop creates a canonical question with direct media upload and no
   expect(createCsrf).toBe('csrf-question-bank');
   expect(uploadPut).toBe(true);
   expect(createBody.version.imageAssetId).toBe('asset-new');
+  expect(createBody.version.imageAlt).toBe('Q-NEW');
   expect(createBody.version.skillLinks).toEqual([
     {skillId:'skill-main',relationType:'main'},
     {skillId:'skill-sub',relationType:'sub'},
