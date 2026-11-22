@@ -91,11 +91,11 @@ test('student keeps submitted answers and the same submission key after HTTP 503
   await expect(page.getByRole('button', { name: 'التالي' })).toBeEnabled();
   await page.getByRole('button', { name: 'التالي' }).click();
   await expect(page.getByRole('heading', { name: 'السؤال الثاني' })).toBeVisible();
-  await page.getByRole('button', { name: 'إنهاء وتسليم الاختبار' }).click();
+  await page.getByRole('button', { name: 'إنهاء المحاولة' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByText('تعذر تسليم الاختبار')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'السؤال الثاني' })).toBeVisible();
-  await page.getByRole('button', { name: 'إنهاء وتسليم الاختبار' }).click();
+  await page.getByRole('button', { name: 'إنهاء المحاولة' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible();
   expect(submissions).toBe(2);

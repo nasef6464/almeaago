@@ -132,8 +132,6 @@ export function QuestionBankAdminPage() {
   const [busy, setBusy] = useState(true);
   const [pending, setPending] = useState('');
   const [error, setError] = useState('');
-  const [taxonomyError, setTaxonomyError] = useState('');
-  const [taxonomyReady, setTaxonomyReady] = useState(false);
   const [notice, setNotice] = useState('');
   const [reload, setReload] = useState(0);
   const [detail, setDetail] = useState<QuestionDetail | null>(null);
@@ -202,14 +200,9 @@ export function QuestionBankAdminPage() {
     const c = new AbortController();
     contentClient
       .taxonomyFull(c.signal)
-      .then((response) => {
-        if (!response || !Array.isArray(response.paths) || !Array.isArray(response.subjects) || !Array.isArray(response.skills)) {
-          throw new Error('تعذر تحميل بيانات التصنيف: استجابة غير مكتملة');
-        }
-        if (!c.signal.aborted) { setTaxonomy(response); setTaxonomyReady(true); }
-      })
+      .then(setTaxonomy)
       .catch((e) => {
-        if (!c.signal.aborted) setTaxonomyError(e instanceof Error ? e.message : 'تعذر تحميل بيانات التصنيف');
+        if (!c.signal.aborted) setError(e instanceof Error ? e.message : 'تعذر تحميل بيانات التصنيف');
       });
     return () => c.abort();
   }, []);
@@ -372,7 +365,6 @@ export function QuestionBankAdminPage() {
   }
 
   async function duplicateQuestion(row: QuestionSummary) {
-    if (!taxonomyReady) return;
     await run('duplicate-' + row.id, async (csrf) => {
       const full = await questionBankClient.get(row.id);
       const q = full.question;
@@ -564,7 +556,7 @@ export function QuestionBankAdminPage() {
       setCreate((prev) => ({
         ...prev,
         imageAssetId: asset.id,
-        imageAlt: prev.imageAlt || code || 'صورة السؤال',
+        imageAlt: prev.imageAlt || file.name.replace(/\.[^/.]+$/, ''),
       }));
       setNotice('تم رفع صورة السؤال بنجاح ومزامنتها.');
     } catch (err) {
@@ -750,7 +742,7 @@ export function QuestionBankAdminPage() {
         options: ['', '', '', ''],
       });
       setReload((x) => x + 1);
-    }, 'تم حفظ السؤال الجديد كمسودة.');
+    }, 'تم إنشاء السؤال كمسودة بإصدار أول. تم حفظ السؤال الجديد كمسودة معتمدة.');
   }
 
   async function importBatch(dryRun: boolean) {
@@ -885,7 +877,6 @@ export function QuestionBankAdminPage() {
         </section>
       ) : null}
 
-      {taxonomyError ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-3 font-bold text-rose-700">{taxonomyError}</div> : null}
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 font-bold text-rose-700">{error}</div> : null}
       {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 font-bold text-emerald-700">{notice}</div> : null}
 
@@ -2003,7 +1994,6 @@ export function QuestionBankAdminPage() {
                             </button>
                             <button
                               type="button"
-                              disabled={!taxonomyReady}
                               onClick={() => void duplicateQuestion(row)}
                               className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
                               title="نسخ السؤال"
@@ -2099,7 +2089,7 @@ export function QuestionBankAdminPage() {
               </button>
             </div>
 
-            {isAdmin && taxonomyReady && <QuestionSectionEditor key={`${user?.id}:${detail.id}:${detail.subjectId}`} questionId={detail.id} subjectId={detail.subjectId} sections={taxonomy.sections||[]} getCsrfToken={getCsrfToken} />}
+            {isAdmin && <QuestionSectionEditor key={`${user?.id}:${detail.id}:${detail.subjectId}`} questionId={detail.id} subjectId={detail.subjectId} sections={taxonomy.sections||[]} getCsrfToken={getCsrfToken} />}
             <QuestionPresentationEditor
               key={`${detail.id}:${detail.currentVersion}`}
               question={detail}

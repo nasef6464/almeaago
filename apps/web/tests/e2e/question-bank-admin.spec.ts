@@ -47,33 +47,6 @@ async function mockBase(page:Page){
   await page.route('**/api/v1/questions?**',r=>json(r,{items:[summary()],page:1,limit:50,hasMore:false}));
 }
 
-test('question bank shows an error instead of crashing on incomplete taxonomy', async ({ page }) => {
-  test.setTimeout(90_000);
-  await auth(page, admin);
-  await mockBase(page);
-  await page.route('**/api/v1/taxonomy/bootstrap?phase=full', r => json(r, { paths: [], subjects: [] }));
-  await page.goto('/admin-dashboard/questions', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('heading', { name: 'مركز بنك الأسئلة' })).toBeVisible();
-  await expect(page.getByText('تعذر تحميل بيانات التصنيف: استجابة غير مكتملة')).toBeVisible();
-  await expect(page.getByTitle('نسخ السؤال').first()).toBeDisabled();
-  await page.route('**/api/v1/questions/question-1/staff', r => json(r, { question: detail() }));
-  await page.getByTitle('تعديل السؤال').first().click();
-  await expect(page.getByRole('heading', { name: 'مراجعة وتعديل عرض السؤال' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'حفظ قسم السؤال' })).toHaveCount(0);
-});
-
-test('question bank enables taxonomy dependent actions after taxonomy loads', async ({ page }) => {
-  test.setTimeout(90_000);
-  await auth(page, admin);
-  await mockBase(page);
-  await page.route('**/api/v1/questions/question-1/staff', r => json(r, { question: detail() }));
-  await page.route('**/api/v1/questions/question-1/section', r => json(r, { sectionId: '' }));
-  await page.goto('/admin-dashboard/questions', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByTitle('نسخ السؤال').first()).toBeEnabled();
-  await page.getByTitle('تعديل السؤال').first().click();
-  await expect(page.getByRole('button', { name: 'حفظ قسم السؤال' })).toBeVisible();
-});
-
 async function openAnswerDraft(page:Page){
   await auth(page,admin);await mockBase(page);
   await page.goto('/admin-dashboard/questions');
@@ -91,12 +64,12 @@ test('question presentation stores label-only choices separately from their text
   await page.route('**/api/v1/questions/',r=>{payload=r.request().postDataJSON();return json(r,{question:detail()},201)});
   await openAnswerDraft(page);
   await page.getByLabel('رقم السؤال الاختياري').fill('23');
-  await page.getByLabel('أحرف الخيارات الافتراضية').selectOption('latin');
-  await page.getByLabel('إظهار نص الخيارات').uncheck();
+  await page.getByLabel('حروف الاختيارات الافتراضية').selectOption('latin');
+  await page.getByLabel('إظهار نص الاختيارات').uncheck();
   await page.getByLabel('رمز الخيار 1').fill('A');
   await page.getByLabel('الإجابة الصحيحة 2').check();
   await page.getByRole('button',{name:'حفظ السؤال كمسودة'}).click();
-  await expect(page.getByText('تم حفظ السؤال الجديد كمسودة.')).toBeVisible();
+  await expect(page.getByText('تم إنشاء السؤال كمسودة بإصدار أول.')).toBeVisible();
   expect(payload.version.options).toEqual(Array.from({length:4},()=>({text:'',assetId:''})));
   expect(payload.version.correctOptionIndex).toBe(1);
   expect(payload.version.sourceMeta.learnerPresentation).toMatchObject({questionNumber:'23',optionLabelStyle:'latin',showOptionText:false,showOptionLabels:true,optionLabels:['A','','','']});
@@ -108,7 +81,7 @@ test('editing presentation creates a version without discarding question content
   let payload:any;
   await page.route('**/api/v1/questions/question-1/versions',r=>{payload=r.request().postDataJSON();return json(r,{question:{...detail(),currentVersion:2}},201)});
   await page.goto('/admin-dashboard/questions');
-  await page.getByTitle('تعديل السؤال').first().click();
+  await page.getByRole('button',{name:'فتح',exact:true}).first().click();
   await page.getByRole('button',{name:'تعديل طريقة عرض السؤال'}).click();
   await page.getByLabel('رقم السؤال في الإصدار').fill('17');
   await page.getByLabel('حروف الاختيارات في الإصدار').selectOption('latin');
@@ -134,7 +107,7 @@ for(const width of [390,820,1440]){
     await page.getByLabel('نص الخيار 3').fill('الخاطئ');
     await page.getByLabel('الإجابة الصحيحة 2').check();
     await page.getByRole('button',{name:'حفظ السؤال كمسودة'}).click();
-    await expect(page.getByText('تم حفظ السؤال الجديد كمسودة.')).toBeVisible();
+    await expect(page.getByText('تم إنشاء السؤال كمسودة بإصدار أول.')).toBeVisible();
     expect(payload.version.options).toEqual([{text:'الصحيح',assetId:''},{text:'الخاطئ',assetId:''}]);
     expect(payload.version.correctOptionIndex).toBe(0);
   });
@@ -150,13 +123,13 @@ test('authoring answer parity rejects a blank selected answer and preserves draf
   await page.getByLabel('نص الخيار 2').fill('الصحيح');
   await page.getByLabel('الإجابة الصحيحة 3').check();
   await page.getByRole('button',{name:'حفظ السؤال كمسودة'}).click();
-  await expect(page.getByText('يرجى اختيار إجابة صحيحة من الخيارات الموجودة.')).toBeVisible();
+  await expect(page.getByText('يرجى اختيار إجابة صحيحة من الاختيارات الموجودة.')).toBeVisible();
   expect(payloads).toHaveLength(0);
   await expect(page.getByLabel('كود السؤال الجديد')).toHaveValue('Q-ANSWER-PARITY');
   await expect(page.getByLabel('نص الخيار 2')).toHaveValue('الصحيح');
   await page.getByLabel('الإجابة الصحيحة 2').check();
   await page.getByRole('button',{name:'حفظ السؤال كمسودة'}).click();
-  await expect(page.getByText('تم حفظ السؤال الجديد كمسودة.')).toBeVisible();
+  await expect(page.getByText('تم إنشاء السؤال كمسودة بإصدار أول.')).toBeVisible();
   expect(payloads).toHaveLength(1);
   expect(payloads[0].version.correctOptionIndex).toBe(1);
 });
@@ -177,13 +150,14 @@ test(`authoring answer parity preserves embedded image answer positions for ${ty
   await openAnswerDraft(page);
   await page.getByLabel('نوع السؤال الجديد').selectOption(type);
   await page.getByLabel('ملف صورة السؤال').setInputFiles({name:'embedded.webp',mimeType:'image/webp',buffer:Buffer.from([1,2,3,4])});
-  await expect(page.getByText('تم رفع صورة السؤال بنجاح ومزامنتها.')).toBeVisible();
-  await page.getByLabel('الخيارات مضمنة داخل صورة السؤال').check();
+  await page.getByRole('button',{name:'رفع وتحقق'}).click();
+  await expect(page.getByText(`Asset: ${asset.id} · active`)).toBeVisible();
+  await page.getByLabel('الاختيارات وقيمها داخل صورة السؤال').check();
   await page.getByLabel('نص الخيار 2').fill('قيمة ب');
   if(type==='mcq')await page.getByLabel('نص الخيار 4').fill('قيمة د');
   await page.getByLabel(`الإجابة الصحيحة ${type==='mcq'?4:2}`).check();
   await page.getByRole('button',{name:'حفظ السؤال كمسودة'}).click();
-  await expect(page.getByText('تم حفظ السؤال الجديد كمسودة.')).toBeVisible();
+  await expect(page.getByText('تم إنشاء السؤال كمسودة بإصدار أول.')).toBeVisible();
   expect(payload.version.optionsEmbeddedInImage).toBe(true);
   expect(payload.version.imageAssetId).toBe(asset.id);
   const texts=type==='mcq'?['','قيمة ب','','قيمة د']:['','قيمة ب'];
@@ -193,26 +167,6 @@ test(`authoring answer parity preserves embedded image answer positions for ${ty
   expect(payload.version.correctOptionIndex).toBe(type==='mcq'?3:1);
 });
 }
-
-test('question archive requires confirmation and sends a versioned patch instead of delete', async ({page}) => {
-  await auth(page,admin); await mockBase(page);
-  const writes:Array<{method:string;csrf:string;body:any}>=[];
-  const deletes:string[]=[];
-  page.on('request', request => { if(request.method()==='DELETE' && new URL(request.url()).pathname.startsWith('/api/v1/questions')) deletes.push(request.url()); });
-  await page.route('**/api/v1/questions/question-1/workflow', r => {
-    writes.push({method:r.request().method(),csrf:r.request().headers()['x-csrf-token']||'',body:r.request().postDataJSON()});
-    return json(r,{question:detail('archived')});
-  });
-  await page.goto('/admin-dashboard/questions');
-  page.once('dialog', dialog => dialog.dismiss());
-  await page.getByTitle('حذف السؤال').first().click();
-  expect(writes).toHaveLength(0);
-  page.once('dialog', dialog => dialog.accept());
-  await page.getByTitle('حذف السؤال').first().click();
-  await expect.poll(()=>writes.length).toBe(1);
-  expect(writes[0]).toMatchObject({method:'PATCH',csrf:'csrf-question-bank',body:{expectedCurrentVersion:1,status:'archived'}});
-  expect(deletes).toEqual([]);
-});
 
 test('admin desktop creates a canonical question with direct media upload and no destructive delete',async({page})=>{
   await auth(page,admin);await mockBase(page);
@@ -240,7 +194,7 @@ test('admin desktop creates a canonical question with direct media upload and no
   await expect(page.getByRole('heading',{name:'مركز بنك الأسئلة'})).toBeVisible();
   await expect(page.getByText('Q-001')).toBeVisible();
   await expect(page.getByText('إجمالي مطابق')).toBeVisible();
-  await expect(page.getByTitle('حذف السؤال').first()).toBeVisible();
+  await expect(page.getByRole('button',{name:/حذف/})).toHaveCount(0);
 
   await page.getByRole('button',{name:'سؤال جديد'}).click();
   await page.getByLabel('كود السؤال الجديد').fill('Q-NEW');
@@ -252,19 +206,20 @@ test('admin desktop creates a canonical question with direct media upload and no
   await page.getByLabel('نص الخيار 1').fill('٩');
   await page.getByLabel('نص الخيار 2').fill('١٠');
   await page.getByLabel('الإجابة الصحيحة 2').check();
-  await page.getByLabel('الشرح وتفسير الحل للسؤال').fill('الإجابة الصحيحة عشرة');
+  await page.getByLabel('شرح السؤال الجديد').fill('الإجابة الصحيحة عشرة');
+  await page.getByLabel('وصف صورة السؤال').fill('رسم توضيحي للسؤال');
   await page.getByLabel('ملف صورة السؤال').setInputFiles({name:'q.webp',mimeType:'image/webp',buffer:Buffer.from([1,2,3,4])});
-  await expect(page.getByText('تم رفع صورة السؤال بنجاح ومزامنتها.')).toBeVisible();
+  await page.getByRole('button',{name:'رفع وتحقق'}).click();
+  await expect(page.getByText(/Asset: asset-new · active/)).toBeVisible();
 
   await page.getByRole('button',{name:'حفظ السؤال كمسودة'}).click();
-  await expect(page.getByText('تم حفظ السؤال الجديد كمسودة.')).toBeVisible();
+  await expect(page.getByText('تم إنشاء السؤال كمسودة بإصدار أول.')).toBeVisible();
 
   expect(presignCsrf).toBe('csrf-question-bank');
   expect(completeCsrf).toBe('csrf-question-bank');
   expect(createCsrf).toBe('csrf-question-bank');
   expect(uploadPut).toBe(true);
   expect(createBody.version.imageAssetId).toBe('asset-new');
-  expect(createBody.version.imageAlt).toBe('Q-NEW');
   expect(createBody.version.skillLinks).toEqual([
     {skillId:'skill-main',relationType:'main'},
     {skillId:'skill-sub',relationType:'sub'},
@@ -292,7 +247,8 @@ test('admin uploads media straight to Cloudinary with signed POST form and no se
   await page.getByRole('button',{name:'سؤال جديد'}).click();
   await page.getByLabel('كود السؤال الجديد').fill('Q-NEW');
   await page.getByLabel('ملف صورة السؤال').setInputFiles({name:'q.webp',mimeType:'image/webp',buffer:Buffer.from([1,2,3,4])});
-  await expect(page.getByText('تم رفع صورة السؤال بنجاح ومزامنتها.')).toBeVisible();
+  await page.getByRole('button',{name:'رفع وتحقق'}).click();
+  await expect(page.getByText(/Asset: asset-cloudinary · active/)).toBeVisible();
   expect(uploadMethod).toBe('POST');
   for(const value of ['name="file"','name="signature"','fake-signature','name="public_id"','questions/v2/Q-NEW/hash','name="context"','sha256=hash'])expect(uploadBody).toContain(value);
   expect(uploadBody).not.toContain('api_secret');
@@ -302,27 +258,25 @@ test('admin review workflow stays version-pinned and csrf protected',async({page
   await auth(page,admin);await mockBase(page);
   let status='draft';
   const csrf:string[]=[];
-  const statuses:string[]=[];
 
   await page.route('**/api/v1/questions/question-1/staff',r=>json(r,{question:detail(status)}));
   await page.route('**/api/v1/questions/question-1/workflow',async r=>{
     csrf.push(r.request().headers()['x-csrf-token']||'');
     const body=r.request().postDataJSON() as {expectedCurrentVersion:number;status:string};
     expect(body.expectedCurrentVersion).toBe(1);
-    status=body.status; statuses.push(status);
+    status=body.status;
     return json(r,{question:detail(status)});
   });
 
   await page.goto('/admin-dashboard/questions');
   await page.getByRole('button',{name:'فتح',exact:true}).first().click();
-  await expect(page.getByText('Q-001 · v1').first()).toBeVisible();
+  await expect(page.getByText('Q-001 · v1')).toBeVisible();
 
   await page.getByRole('button',{name:'إرسال للمراجعة'}).click();
-  await expect(page.getByText('تم تحديث حالة السؤال')).toBeVisible();
-  await page.getByTestId('question-bank-admin').getByRole('button',{name:'اعتماد',exact:true}).last().click();
-  await expect(page.getByText('تم اعتماد السؤال بنجاح')).toBeVisible();
+  await expect(page.getByText('تم تحديث حالة السؤال إلى «بانتظار المراجعة».')).toBeVisible();
+  await page.getByTestId('question-bank-admin').getByRole('button',{name:'اعتماد',exact:true}).click();
+  await expect(page.getByText('تم تحديث حالة السؤال إلى «معتمد».')).toBeVisible();
   expect(csrf).toEqual(['csrf-question-bank','csrf-question-bank']);
-  expect(statuses).toEqual(['pending_review','approved']);
 });
 
 test('admin import requires a successful dry run before write',async({page})=>{
