@@ -1612,7 +1612,7 @@ export function TaxonomyAdminPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Boxes size={18} className="text-indigo-600" />
-                <h2 className="text-base font-black text-slate-900">شجرة المسارات</h2>
+                <h2 className="text-base font-black text-slate-900">المسارات</h2>
               </div>
               <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-black text-indigo-700">
                 {busy && data.paths.length === 0 ? '...' : `${filteredPaths.length} من ${data.paths.length}`}
@@ -1707,7 +1707,7 @@ export function TaxonomyAdminPage() {
                         <button type="button" disabled={!!pending} onClick={(e) => { e.stopPropagation(); void toggleVisibility('path', path.id, path.isVisible); }} aria-label={`${path.isVisible === false ? 'إظهار' : 'إخفاء'} المسار ${path.name}`} title={path.isVisible === false ? 'إظهار المسار على الموقع' : 'إخفاء المسار من الموقع'} className="rounded-lg p-1.5 text-slate-500 hover:bg-indigo-100 disabled:opacity-50">
                           {path.isVisible === false ? <EyeOff size={15}/> : <Eye size={15}/>}
                         </button>
-                        <button type="button" onClick={(e) => { e.stopPropagation(); openEditPath(path); }} aria-label={`تعديل المسار ${path.name}`} title="تعديل المسار" className="rounded-lg p-1.5 text-slate-500 hover:bg-indigo-100"><Pencil size={15}/></button>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); openEditPath(path); }} aria-label={`تعديل بيانات ${path.name}`} className="rounded-lg p-1.5 text-slate-500 hover:bg-indigo-100"><Pencil size={15}/></button>
                         <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteConfirm({open:true,type:'path',id:path.id,name:path.name,action:'delete'}); }} aria-label={`حذف المسار ${path.name}`} title="حذف المسار" className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50"><Trash2 size={15}/></button>
                         <Link
                           to={`/category/${path.id}`}

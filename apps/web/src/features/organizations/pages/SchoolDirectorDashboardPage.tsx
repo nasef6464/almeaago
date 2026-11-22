@@ -726,7 +726,7 @@ export function SchoolDirectorDashboardPage(){
           <div>
             <p className="flex items-center gap-2 text-sm font-bold text-indigo-200"><ShieldCheck size={17}/> نطاق مفوض من مدير المنصة</p>
             <h1 className="mt-2 text-3xl font-black">لوحة مدير المدرسة</h1>
-            <div className="mt-1 text-base text-indigo-200 font-bold">{selectedSchool.schoolName}</div>
+            <h2 className="mt-1 text-base text-indigo-200 font-bold">{selectedSchool.schoolName}</h2>
             <p className="text-xs text-indigo-300">لوحة إدارة المدرسة والعمليات التشغيلية والأكاديمية المتقدمة</p>
           </div>
         </div>

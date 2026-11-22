@@ -25,6 +25,7 @@ export type TeacherTab =
   | 'prepared-questions'
   | 'reports'
   | 'skills-radar'
+  | 'learning-evidence'
   | 'assessments'
   | 'certificates';
 
@@ -34,6 +35,7 @@ const TEACHER_NAV_ITEMS: Array<{ id: TeacherTab; label: string; icon: React.Reac
   { id: 'prepared-questions', label: 'بنك التحضير المسبق', icon: <Target size={19} /> },
   { id: 'reports', label: 'تقارير الحصص والمهارات', icon: <BarChart3 size={19} /> },
   { id: 'skills-radar', label: 'رادار فجوات الفصول', icon: <Award size={19} /> },
+  { id: 'learning-evidence', label: 'التعلم والجاهزية', icon: <Target size={19} /> },
   { id: 'assessments', label: 'اختباراتي وتكليفاتي', icon: <BookOpenCheck size={19} /> },
   { id: 'certificates', label: 'شهادات التقدير والتحفيز', icon: <Trophy size={19} /> },
 ];
@@ -735,13 +737,12 @@ export function TeacherWorkspacePage() {
                       </div>
 
                       <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center justify-between gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openScheduler(assignment.classId)}
+                        <Link
+                          to={`/school-teacher-dashboard/classroom?schoolId=${encodeURIComponent(selectedSchool?.schoolId || '')}&assignmentId=${encodeURIComponent(assignment.assignmentId || '')}`}
                           className="flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-xs font-black text-white active:scale-95 transition-all"
                         >
                           <Presentation size={14} /> بدء حصة ذكية لهذا الفصل
-                        </button>
+                        </Link>
                         <button
                           type="button"
                           onClick={() => handleTabChange('reports')}
@@ -1271,6 +1272,27 @@ export function TeacherWorkspacePage() {
                     </table>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: LEARNING EVIDENCE (التعلم والجاهزية) */}
+          {activeTab === 'learning-evidence' && (
+            <div className="space-y-6 animate-fade-in" data-testid="teacher-learning-evidence">
+              <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs space-y-4">
+                <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                    <Target size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-slate-900">التعلم والجاهزية</h2>
+                    <p className="text-xs text-slate-500">متابعة مؤشرات إتقان الطلاب والجاهزية للاختبارات المعيارية والتحصيلية.</p>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                  <BookOpenCheck className="mx-auto text-slate-400 mb-2" size={32} />
+                  <p className="text-sm font-bold text-slate-600">يتم احتساب مؤشرات الجاهزية تلقائياً بناءً على نتائج الحصص الذكية والاختبارات الدورية.</p>
+                </div>
               </div>
             </div>
           )}

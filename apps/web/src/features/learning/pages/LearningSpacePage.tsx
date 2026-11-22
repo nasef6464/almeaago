@@ -407,7 +407,9 @@ export function LearningSpacePage() {
           <div className="relative z-10 mx-auto flex max-w-7xl flex-col justify-between gap-3 px-4 sm:flex-row sm:items-center">
             <div>
               <div className="mb-1 flex items-center gap-2"><span className="inline-flex rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-white/95">{currentLevel ? `${currentLevel.name} • ` : ''}مسار {currentPath?.name}</span></div>
-              <h1 className="break-words text-xl font-black leading-tight sm:text-2xl lg:text-3xl">{currentSubject?.name}</h1>
+              <h1 className="break-words text-xl font-black leading-tight sm:text-2xl lg:text-3xl">
+                {currentPath && currentSubject ? `${currentPath.name} (${currentSubject.name})` : currentSubject?.name}
+              </h1>
               <p className="mt-0.5 text-xs text-white/80 sm:text-sm">مساحة التعلم الذكية: تأسيس، تدريب، واختبارات</p>
             </div>
             <button type="button" onClick={() => { const query = new URLSearchParams(); if (selectedLevelId) query.set('level', selectedLevelId); navigate(`/category/${encodeURIComponent(effectivePathId)}${query.size ? `?${query}` : ''}`); }} className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-xl border border-white/15 bg-white/10 px-3.5 py-2 text-xs font-bold text-white/95 hover:bg-white/20 sm:self-center"><ChevronRight size={16} /> عودة لصفحة المسار</button>

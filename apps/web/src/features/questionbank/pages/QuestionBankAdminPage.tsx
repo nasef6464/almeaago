@@ -742,7 +742,7 @@ export function QuestionBankAdminPage() {
         options: ['', '', '', ''],
       });
       setReload((x) => x + 1);
-    }, 'تم إنشاء السؤال كمسودة بإصدار أول.');
+    }, 'تم إنشاء السؤال كمسودة بإصدار أول. تم حفظ السؤال الجديد كمسودة معتمدة.');
   }
 
   async function importBatch(dryRun: boolean) {
@@ -2012,6 +2012,15 @@ export function QuestionBankAdminPage() {
                               title="فتح"
                             >
                               <Edit2 size={17} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void openQuestion(row.id)}
+                              aria-label="فتح وتفاصيل"
+                              className="px-2 py-1 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                              title="فتح وتفاصيل"
+                            >
+                              فتح وتفاصيل
                             </button>
                             <button
                               type="button"

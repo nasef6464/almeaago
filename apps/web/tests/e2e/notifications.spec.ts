@@ -10,16 +10,17 @@ async function auth(page:Page,user:typeof admin|typeof student|typeof parent){
 }
 async function fakeNotificationStream(page:Page){
  await page.addInitScript(()=>{
+  const streams = new Set<any>();
   class FakeEventSource{
    listeners:Record<string,Array<()=>void>>={};
-   constructor(){(window as any).__notificationStream=this;setTimeout(()=>this.emit('connected'),0)}
+   constructor(){streams.add(this);setTimeout(()=>this.emit('connected'),0)}
    addEventListener(type:string,listener:()=>void){(this.listeners[type]??=[]).push(listener)}
    removeEventListener(type:string,listener:()=>void){this.listeners[type]=(this.listeners[type]||[]).filter(row=>row!==listener)}
    emit(type:string){for(const listener of this.listeners[type]||[])listener()}
-   close(){}
+   close(){streams.delete(this)}
   }
   Object.defineProperty(window,'EventSource',{configurable:true,value:FakeEventSource});
-  (window as any).__emitNotification=()=>((window as any).__notificationStream as FakeEventSource|undefined)?.emit('notification');
+  (window as any).__emitNotification=()=>{for(const s of streams)s.emit('notification')};
  });
 }
 
@@ -65,7 +66,7 @@ test('user inbox is self-scoped, realtime-refreshed and read mutations require c
  await auth(page,student);
  let readOneHeader='';let readAllHeader='';let unread=2;
  let rows=[{id:'delivery-1',campaignId:'campaign-1',templateKey:'',channel:'in_app',status:'sent',title:'نتيجتك جاهزة',subject:'',body:'راجع المهارة الأضعف اليوم',recipientUserId:'student-1',provider:'internal',providerMessageId:'',failureReason:'',retryCount:0,nextAttemptAt:null,sentAt:'2026-09-27T00:00:00Z',readAt:null,createdAt:'2026-09-27T00:00:00Z',updatedAt:'2026-09-27T00:00:00Z'}];
- await page.route('**/api/v1/notifications/me?page=1&limit=50',route=>json(route,{items:rows,page:1,limit:50,hasMore:false}));
+ await page.route((url)=>url.pathname==='/api/v1/notifications/me',route=>json(route,{items:rows,page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/notifications/me/unread-count',route=>json(route,{unreadCount:unread}));
  await page.route('**/api/v1/notifications/delivery-1/read',route=>{readOneHeader=route.request().headers()['x-csrf-token']||'';return json(route,{notification:{...rows[0],readAt:'2026-09-27T01:00:00Z'}})});
  await page.route('**/api/v1/notifications/me/read-all',route=>{readAllHeader=route.request().headers()['x-csrf-token']||'';return json(route,{modifiedCount:0})});
@@ -94,7 +95,7 @@ test('parent explicitly opts into weekly WhatsApp digest without generic consent
  await auth(page,parent);
  await page.setViewportSize({width:390,height:844});
  let preferenceBody:any=null;let preferenceCSRF='';
- await page.route('**/api/v1/notifications/me?page=1&limit=50',route=>json(route,{items:[],page:1,limit:50,hasMore:false}));
+ await page.route((url)=>url.pathname==='/api/v1/notifications/me',route=>json(route,{items:[],page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/notifications/me/unread-count',route=>json(route,{unreadCount:0}));
  await page.route('**/api/v1/notifications/me/preferences',async route=>{
   if(route.request().method()==='PATCH'){

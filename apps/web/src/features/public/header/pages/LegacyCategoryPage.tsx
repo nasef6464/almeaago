@@ -151,16 +151,23 @@ export function LegacyCategoryPage() {
 
   const path = resolveCanonicalPath(raw, experience.paths);
 
-  if (!authLoading && !user) {
+  if (experience.loading) {
+    return <CategoryPageSkeleton />;
+  }
+
+  const rawSubjectId = params.get('subject') || params.get('subjectId');
+  const selectedSubject = resolveCanonicalSubject(rawSubjectId, experience.subjects, path?.id || raw);
+  const selectedSubjectId = selectedSubject?.id || rawSubjectId;
+  if (selectedSubjectId || params.get('topic')) {
+    return <LearningSpacePage />;
+  }
+
+  if (!path && !authLoading && !user) {
     return (
       <main dir="rtl" className="mx-auto max-w-4xl p-10 text-center font-black text-rose-700">
         سجّل الدخول لفتح مساحة التعلم.
       </main>
     );
-  }
-
-  if (experience.loading) {
-    return <CategoryPageSkeleton />;
   }
 
   if (experience.error) {
@@ -194,13 +201,6 @@ export function LegacyCategoryPage() {
 
   if (params.get('tab') === 'mock-exams') {
     return <PathMockExamsPage pathId={path.id} />;
-  }
-
-  const rawSubjectId = params.get('subject') || params.get('subjectId');
-  const selectedSubject = resolveCanonicalSubject(rawSubjectId, experience.subjects, path.id);
-  const selectedSubjectId = selectedSubject?.id || rawSubjectId;
-  if (selectedSubjectId) {
-    return <LearningSpacePage />;
   }
 
   const pathColor = resolvePathThemeColor(path);

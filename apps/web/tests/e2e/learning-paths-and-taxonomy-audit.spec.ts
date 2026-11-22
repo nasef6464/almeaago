@@ -77,8 +77,26 @@ function mockTaxonomyData() {
         id: 'lvl_elem_3',
         pathId: 'p_nafes',
         code: 'ELEM_3',
-        name: 'الصف الثالث الابتدائي',
+        name: 'المرحلة الابتدائية - الصف الثالث',
         sortOrder: 1,
+        status: 'active',
+        icon: '🎒',
+      },
+      {
+        id: 'lvl_elem_6',
+        pathId: 'p_nafes',
+        code: 'ELEM_6',
+        name: 'المرحلة الابتدائية - الصف السادس',
+        sortOrder: 2,
+        status: 'active',
+        icon: '🎒',
+      },
+      {
+        id: 'lvl_mid_3',
+        pathId: 'p_nafes',
+        code: 'MID_3',
+        name: 'المرحلة المتوسطة - الصف الثالث متوسط',
+        sortOrder: 3,
         status: 'active',
         icon: '🎒',
       },
@@ -89,7 +107,7 @@ function mockTaxonomyData() {
         pathId: 'p_qudrat',
         levelId: '',
         code: 'QUANT',
-        name: 'القدرات العامة - كمي',
+        name: 'الكمي',
         sortOrder: 1,
         status: 'active',
         color: 'indigo',
@@ -100,11 +118,44 @@ function mockTaxonomyData() {
         pathId: 'p_qudrat',
         levelId: '',
         code: 'VERBAL',
-        name: 'القدرات العامة - لفظي',
+        name: 'اللفظي',
         sortOrder: 2,
         status: 'active',
         color: 'teal',
         icon: '🪶',
+      },
+      {
+        id: 'sub_nafes_math',
+        pathId: 'p_nafes',
+        levelId: 'lvl_elem_3',
+        code: 'MATH',
+        name: 'رياضيات',
+        sortOrder: 1,
+        status: 'active',
+        color: 'emerald',
+        icon: '📐',
+      },
+      {
+        id: 'sub_nafes_sci',
+        pathId: 'p_nafes',
+        levelId: 'lvl_elem_3',
+        code: 'SCI',
+        name: 'علوم',
+        sortOrder: 2,
+        status: 'active',
+        color: 'blue',
+        icon: '🔬',
+      },
+      {
+        id: 'sub_nafes_ar',
+        pathId: 'p_nafes',
+        levelId: 'lvl_elem_3',
+        code: 'AR',
+        name: 'عربي',
+        sortOrder: 3,
+        status: 'active',
+        color: 'amber',
+        icon: '📖',
       },
     ],
     skills: [
@@ -189,6 +240,18 @@ async function setupPathsManagerMocks(page: Page) {
 }
 
 test.describe('Learning Paths, Navigation & Taxonomy Full Visual Audit', () => {
+  test.beforeEach(async ({ page }) => {
+    const data = mockTaxonomyData();
+    await page.route('**/api/v1/taxonomy/bootstrap*', (route) => json(route, data));
+    await page.route('**/api/v1/content/homepage-settings*', (route) =>
+      json(route, { hero: {}, sections: {}, featuredPathIds: [] }),
+    );
+    await page.route('**/api/v1/courses/public*', (route) => json(route, []));
+    await page.route('**/api/v1/auth/me*', (route) => json(route, { user: null }));
+    await page.route('**/api/v1/notifications*', (route) => json(route, { items: [], unreadCount: 0 }));
+    await page.route('**/api/v1/learning/navigation-preferences*', (route) => json(route, { preferences: null }));
+  });
+
   test('Audit 1: Qudrat Learning Path across viewports', async ({ page }) => {
     // 1. Desktop 1440px
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -202,7 +265,7 @@ test.describe('Learning Paths, Navigation & Taxonomy Full Visual Audit', () => {
     await expect(page.getByRole('link', { name: 'سلة المشتريات' }).or(page.locator('a[href="/cart"]'))).toBeVisible();
 
     // Verify Qudrat Hero & Path Cards
-    await expect(page.getByRole('heading', { name: /القدرات/ })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /القدرات/ })).toBeVisible();
     await expect(page.getByText('تأسيس شامل، تدريب مكثف، واختبارات محاكية')).toBeVisible();
 
     // Subject cards: الكمي, اللفظي
