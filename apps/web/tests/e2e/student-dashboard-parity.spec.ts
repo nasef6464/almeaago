@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 import path from 'path';
+import { installBaselineMocks } from './fixtures/mockBaseline';
 
 const ARTIFACTS_DIR = 'C:/Users/nasef/.gemini/antigravity/brain/0ccfb08a-58bb-4c4b-b298-4bd5e2ebea66';
 
@@ -21,6 +22,7 @@ function json(route: Route, data: unknown) {
 }
 
 async function setupStudentMocks(page: Page) {
+  await installBaselineMocks(page);
   await page.addInitScript(() => {
     sessionStorage.setItem('almeaa-dismissed-announcement-ads', JSON.stringify(['ad_welcome_offer', 'ad_qudrat_launch', 'ad_nafes_banner']));
   });
@@ -74,7 +76,7 @@ test.describe('Student Dashboard (P0.3) Authentic Parity Suite', () => {
 
     // 1. Header greeting & streak
     await expect(page.getByRole('heading', { name: /مرحباً يا بطل/ })).toBeVisible();
-    await expect(page.getByText('شريط الاستمرارية')).toBeVisible();
+    await expect(page.getByText('شريط الاستمرارية', { exact: true })).toBeVisible();
     await expect(page.getByText('5 أيام متتالية')).toBeVisible();
 
     // 2. Student Today Focus

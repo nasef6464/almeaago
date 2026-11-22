@@ -23,10 +23,6 @@ const contextReady=Boolean(pathId&&subjectId&&((slot==='course'&&courseId)||(slo
 useEffect(()=>{if(authLoading||!user||!user.roles.includes('student')||!contextReady){setRows([]);setHasMore(false);setBusy(false);setListFailed(false);return}const c=new AbortController();setBusy(true);setRows([]);setHasMore(false);setListFailed(false);setError('');assessmentPlacementClient.available({page,limit:30,slot,pathId,subjectId,courseId:slot==='course'?courseId:undefined,topicId:slot==='foundation'?topicId:undefined},c.signal).then(r=>{if(c.signal.aborted)return;setRows(r.items);setHasMore(r.hasMore)}).catch(e=>{if(!c.signal.aborted){setRows([]);setHasMore(false);setListFailed(true);setError(e instanceof Error?e.message:'تعذر تحميل الاختبارات المتاحة')}}).finally(()=>{if(!c.signal.aborted)setBusy(false)});return()=>c.abort()},[authLoading,contextReady,courseId,page,pathId,slot,subjectId,topicId,user]);
 async function start(row:LearnerAssessmentPlacement){if(startingRef.current||!row.accessAllowed||!row.canStart)return;startingRef.current=row.placementId;setStarting(row.placementId);setError('');try{const csrf=await getCsrfToken();const r=await assessmentPlacementClient.start(row.placementId,placementKey(row.placementId),csrf);sessionStorage.removeItem(`assessment-placement-start:${row.placementId}`);navigate(`/assessment-attempts/${r.attempt.id}`)}catch(e){setError(e instanceof Error?e.message:'تعذر بدء الاختبار')}finally{startingRef.current='';setStarting('')}}
 if(authLoading)return <div className="p-10 text-center font-black">جاري التحقق من الجلسة...</div>;
-if(!embedded && (!user || user.roles.includes('student'))){
-  const dashboardParams=new URLSearchParams(params);dashboardParams.set('tab','platform-assessments');
-  return <Navigate to={`/dashboard?${dashboardParams.toString()}`} replace />;
-}
 if(!user||!user.roles.includes('student'))return <div className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</div>;
 
 const ContainerTag = embedded ? 'div' : 'main';

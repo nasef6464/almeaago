@@ -297,7 +297,7 @@ const brandLogoUrl = String(homepageSettings?.brand?.logoUrl || '').trim();
         setAuthError('توقف الدخول مؤقتًا لحماية حسابك. انتظر 15 دقيقة، أو اضغط «نسيت كلمة المرور» لاستعادة الدخول.');
       } else if (/Too many authentication attempts/i.test(message)) {
         setAuthError('محاولات دخول كثيرة من هذه الشبكة. انتظر قليلًا، أو استخدم «نسيت كلمة المرور» إذا نسيتها.');
-      } else if (/Invalid email or password|رقم الهوية أو كلمة المرور غير صحيحة|الجوال أو كلمة المرور/i.test(message)) {
+      } else if (/Invalid email or password|Invalid credentials|رقم الهوية أو كلمة المرور غير صحيحة|الجوال أو كلمة المرور/i.test(message)) {
         setAuthError('بيانات الدخول غير صحيحة. راجعها، وإذا نسيت كلمة المرور اضغط «نسيت كلمة المرور» بدل تكرار المحاولات.');
       } else {
         setAuthError(message);

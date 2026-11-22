@@ -9,6 +9,14 @@ export default defineConfig({
       '/api': {
         target: process.env.E2E_API_TARGET || 'http://127.0.0.1:8080',
         changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (err, _req, res) => {
+            if ('writeHead' in res && !res.headersSent) {
+              res.writeHead(503, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Backend unreachable in mocked CI mode', message: err.message }));
+            }
+          });
+        },
       },
       '/health': {
         target: process.env.E2E_API_TARGET || 'http://127.0.0.1:8080',

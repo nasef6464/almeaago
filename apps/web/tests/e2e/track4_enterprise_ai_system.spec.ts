@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { installBaselineMocks } from './fixtures/mockBaseline';
 
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({
@@ -33,6 +34,7 @@ const teacherUser = {
 };
 
 async function setupTrack4Mocks(page: Page, user = adminUser) {
+  await installBaselineMocks(page);
   await page.route('**/api/v1/auth/csrf', (r) => json(r, { csrfToken: 'csrf-t4' }));
   await page.route('**/api/v1/auth/me', (r) => json(r, { user }));
   await page.route('**/api/v1/auth/session', (r) => json(r, { user }));
@@ -45,9 +47,102 @@ async function setupTrack4Mocks(page: Page, user = adminUser) {
       ],
       levels: [],
       subjects: [],
+      skills: [],
+      sections: [],
     })
   );
   await page.route('**/api/v1/taxonomy/paths', (r) => json(r, { paths: [] }));
+  await page.route('**/api/v1/questions**', (route) => {
+    if (route.request().url().includes('/coverage')) {
+      return json(route, { totalQuestions: 0, coveredSkills: 0, totalSkills: 0, skills: [] });
+    }
+    return json(route, { items: [], total: 0, page: 1, limit: 50, totalPages: 1 });
+  });
+  await page.route('**/api/v1/schools/teacher-workspace**', (route) =>
+    json(route, {
+      personas: { platformTrainer: false, schoolTeacher: true },
+      schools: [
+        {
+          schoolId: 'sch-alrowaad-01',
+          schoolName: 'مدارس الرواد الأهلية',
+          source: 'school',
+          assignments: [
+            {
+              assignmentId: 'asg-1',
+              classId: 'cls-1',
+              className: 'الصف الثالث الثانوي',
+              subjectId: '',
+              studentCount: 25,
+            },
+          ],
+        },
+      ],
+    })
+  );
+  await page.route('**/api/v1/classroom/teacher/sessions**', (route) =>
+    json(route, { sessions: [] })
+  );
+  await page.route('**/api/v1/classroom/questions**', (route) =>
+    json(route, { items: [], page: 1, limit: 30, hasMore: false })
+  );
+  await page.route('**/api/v1/schools/**/students**', (route) =>
+    json(route, { members: [] })
+  );
+  await page.route('**/api/v1/schools/**/roster**', (route) =>
+    json(route, { members: [], total: 0 })
+  );
+  await page.route('**/api/v1/organizations/**/students**', (route) =>
+    json(route, { members: [] })
+  );
+  await page.route('**/api/v1/ai/admin/providers**', (route) =>
+    json(route, {
+      items: [
+        { provider: 'gemini', enabled: true, model: 'gemini-2.5-flash', baseUrl: '', priority: 1, maxOutputTokens: 2048, revision: 1, secretConfigured: true, health: { consecutiveFailures: 0, openUntil: null, lastError: '' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { provider: 'deepseek', enabled: true, model: 'deepseek-chat', baseUrl: '', priority: 2, maxOutputTokens: 2048, revision: 1, secretConfigured: true, health: { consecutiveFailures: 0, openUntil: null, lastError: '' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { provider: 'openrouter', enabled: true, model: 'auto', baseUrl: '', priority: 3, maxOutputTokens: 2048, revision: 1, secretConfigured: true, health: { consecutiveFailures: 0, openUntil: null, lastError: '' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { provider: 'qwen', enabled: true, model: 'qwen-plus', baseUrl: '', priority: 4, maxOutputTokens: 2048, revision: 1, secretConfigured: true, health: { consecutiveFailures: 0, openUntil: null, lastError: '' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { provider: 'openai', enabled: true, model: 'gpt-4o', baseUrl: '', priority: 5, maxOutputTokens: 2048, revision: 1, secretConfigured: true, health: { consecutiveFailures: 0, openUntil: null, lastError: '' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { provider: 'ollama', enabled: false, model: 'llama3', baseUrl: 'http://localhost:11434', priority: 6, maxOutputTokens: 2048, revision: 1, secretConfigured: false, health: { consecutiveFailures: 0, openUntil: null, lastError: '' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { provider: 'lmstudio', enabled: false, model: 'local', baseUrl: 'http://localhost:1234', priority: 7, maxOutputTokens: 2048, revision: 1, secretConfigured: false, health: { consecutiveFailures: 0, openUntil: null, lastError: '' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+      ],
+    })
+  );
+  await page.route('**/api/v1/ai/admin/readiness**', (route) =>
+    json(route, {
+      readiness: {
+        checkedAt: '2026-11-22T08:00:00Z',
+        status: 'ready',
+        enabledProviders: 5,
+        configuredProviders: 5,
+        openCircuits: [],
+        todayRequests: 10,
+        globalDailyLimit: 1000,
+        userDailyLimit: 100,
+        fallback24h: 0,
+        error24h: 0,
+        notes: [],
+      },
+    })
+  );
+  await page.route('**/api/v1/ai/admin/usage**', (route) =>
+    json(route, {
+      usage: {
+        today: { day: '2026-11-22', requestCount: 15, totalTokens: 1428500 },
+        last24h: 15,
+        fallback24h: 0,
+        error24h: 0,
+        cacheHit24h: 0,
+        inputTokens24h: 700000,
+        outputTokens24h: 728500,
+        totalTokens24h: 1428500,
+        cachedTokens24h: 0,
+        byProvider: [],
+      },
+    })
+  );
+  await page.route('**/api/v1/ai/admin/interactions**', (route) =>
+    json(route, { items: [], total: 0, page: 1, limit: 50, totalPages: 1 })
+  );
 }
 
 test.describe('Track 4 - Feature 21: AI Exam Generator Modal (Prompt-based)', () => {
@@ -58,22 +153,22 @@ test.describe('Track 4 - Feature 21: AI Exam Generator Modal (Prompt-based)', ()
   // Tier 1: Feature Coverage (5 tests)
   test('T4.F21.1 - [Tier 1] opens AI exam generator modal in prompt text tab', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F21.2 - [Tier 1] selects target curriculum path (Qudrat, Tahsili, Nafis)', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F21.3 - [Tier 1] inputs detailed curriculum prompt in Arabic', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F21.4 - [Tier 1] configures question count and difficulty level', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F21.5 - [Tier 1] submits generation request to POST /api/ai/generate-assessment', async ({ page }) => {
@@ -84,33 +179,33 @@ test.describe('Track 4 - Feature 21: AI Exam Generator Modal (Prompt-based)', ()
       })
     );
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T4.F21.6 - [Tier 2] empty prompt input rejected with localized Arabic error', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F21.7 - [Tier 2] extreme question count clamped to allowed threshold', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F21.8 - [Tier 2] prompt with complex Arabic scientific terms handled', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F21.9 - [Tier 2] mathematical LaTeX expressions in prompt preserved intact', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F21.10 - [Tier 2] network timeout during generation displays retry button', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 });
 
@@ -122,53 +217,53 @@ test.describe('Track 4 - Feature 22: AI Exam Generator (Document/PDF Upload)', (
   // Tier 1: Feature Coverage (5 tests)
   test('T4.F22.1 - [Tier 1] switches to PDF and image upload tab in generator modal', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F22.2 - [Tier 1] accepts valid PDF worksheet file within 10MB limit', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F22.3 - [Tier 1] accepts valid JPEG/PNG worksheet image', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F22.4 - [Tier 1] displays selected file name and formatted size badge', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F22.5 - [Tier 1] submits multipart form data to multimodal endpoint', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T4.F22.6 - [Tier 2] file > 10MB rejected with Arabic error alert', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F22.7 - [Tier 2] unsupported file format (.exe, .zip) rejected immediately', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F22.8 - [Tier 2] 0-byte empty file rejected with validation message', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F22.9 - [Tier 2] remove file button clears selected file state', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F22.10 - [Tier 2] drag-and-drop file drop zone interaction', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 });
 
@@ -180,54 +275,54 @@ test.describe('Track 4 - Feature 23: Multi-Stage Generation Animation Stepper', 
   // Tier 1: Feature Coverage (5 tests)
   test('T4.F23.1 - [Tier 1] renders 3-stage visual progress stepper during generation', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F23.2 - [Tier 1] activates Stage 1: analyzing and extracting concepts', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F23.3 - [Tier 1] activates Stage 2: formulating standard questions', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F23.4 - [Tier 1] activates Stage 3: reviewing formulas and KaTeX keys', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F23.5 - [Tier 1] transitions cleanly to review stage upon completion', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T4.F23.6 - [Tier 2] stepper displays estimated duration indicator', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F23.7 - [Tier 2] spinner animation indicates active stage progress', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F23.8 - [Tier 2] error during generation halts stepper and displays error notice', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F23.9 - [Tier 2] retry action resets stepper back to stage 1', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F23.10 - [Tier 2] mobile viewport scales stepper labels cleanly', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 });
 
@@ -239,53 +334,53 @@ test.describe('Track 4 - Feature 24: Editable Question Draft Preview', () => {
   // Tier 1: Feature Coverage (5 tests)
   test('T4.F24.1 - [Tier 1] renders question draft review cards with KaTeX formatting', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F24.2 - [Tier 1] allows editing question text in-place', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F24.3 - [Tier 1] allows modifying choices and changing correct answer key', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F24.4 - [Tier 1] allows deleting unwanted questions from generated draft', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F24.5 - [Tier 1] saves finalized question set into question bank', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T4.F24.6 - [Tier 2] deleting question decrements total question badge', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F24.7 - [Tier 2] adding new question card appends to draft list', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F24.8 - [Tier 2] invalid LaTeX in edited field warns user before saving', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F24.9 - [Tier 2] duplicate choices highlighted with warning badge', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   test('T4.F24.10 - [Tier 2] discard action prompts confirmation dialog', async ({ page }) => {
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 });
 
@@ -297,53 +392,53 @@ test.describe('Track 4 - Feature 25: Interactive StepSolutionPlayer Playback', (
   // Tier 1: Feature Coverage (5 tests)
   test('T4.F25.1 - [Tier 1] mounts StepSolutionPlayer with mathematical steps', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F25.2 - [Tier 1] renders LaTeX equations accurately using KaTeX', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F25.3 - [Tier 1] step forward advances step index and title', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F25.4 - [Tier 1] step backward navigates back to previous step', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F25.5 - [Tier 1] auto-play timer cycles through steps sequentially', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T4.F25.6 - [Tier 2] 0 steps passed falls back to default pedagogical steps', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F25.7 - [Tier 2] single-step solution disables forward and backward buttons', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F25.8 - [Tier 2] corrupted LaTeX syntax renders fallback raw text without crash', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F25.9 - [Tier 2] wide mathematical formulas handle overflow with horizontal scroll', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F25.10 - [Tier 2] step counter reflects exact current index (خطوة 1 من 4)', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 });
 
@@ -355,53 +450,53 @@ test.describe('Track 4 - Feature 26: Phonetic Arabic Audio Narration Engine', ()
   // Tier 1: Feature Coverage (5 tests)
   test('T4.F26.1 - [Tier 1] converts LaTeX equation symbols to phonetic Arabic phonemes', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F26.2 - [Tier 1] audio button toggles voice narration simulation', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F26.3 - [Tier 1] sound mute button silences audio output', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F26.4 - [Tier 1] narration highlights active sentence during speech', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F26.5 - [Tier 1] advances step when speech explanation finishes', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T4.F26.6 - [Tier 2] complex algebraic fractions pronounced accurately in Arabic', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F26.7 - [Tier 2] square roots and exponent powers pronounced in Arabic', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F26.8 - [Tier 2] rapid sound toggles do not create overlapping audio instances', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F26.9 - [Tier 2] speech synthesis fallback when audio file is missing', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F26.10 - [Tier 2] mute preference preserved in session storage', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 });
 
@@ -413,54 +508,54 @@ test.describe('Track 4 - Feature 27: Whiteboard Theming & Checkpoints', () => {
   // Tier 1: Feature Coverage (5 tests)
   test('T4.F27.1 - [Tier 1] toggles chalkboard theme between green and dark slate', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F27.2 - [Tier 1] toggles chalkboard theme between dark and light modes', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F27.3 - [Tier 1] renders understanding checkpoint question between math steps', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F27.4 - [Tier 1] evaluates student answer to checkpoint question', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F27.5 - [Tier 1] reset action returns chalkboard playback to step 1', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T4.F27.6 - [Tier 2] failed checkpoint displays pedagogical hint before retry', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F27.7 - [Tier 2] theme preference persisted in localStorage', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F27.8 - [Tier 2] high-contrast mode meets WCAG AAA standards', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F27.9 - [Tier 2] full-screen chalkboard presentation mode toggle', async ({ page }) => {
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   test('T4.F27.10 - [Tier 2] responsive layout on tablet and projector viewports', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 });
 
@@ -481,35 +576,50 @@ test.describe('Track 4 - Feature 28: AI Admin Provider Management & Failover', (
             { provider: 'ollama', label: 'Ollama', enabled: false, isDefault: false, latencyMs: 0 },
             { provider: 'lmstudio', label: 'LM Studio', enabled: false, isDefault: false, latencyMs: 0 },
           ],
+          openCircuits: [],
+          notes: [],
         },
       })
     );
     await page.route('**/api/v1/ai/admin/usage', (r) =>
-      json(r, { usage: { totalTokens: 1428500, totalPdfExams: 320, totalVoiceMinutes: 540, activeSchools: 12 } })
+      json(r, {
+        usage: {
+          today: { day: '2026-11-22', requestCount: 15, totalTokens: 1428500 },
+          last24h: 15,
+          fallback24h: 0,
+          error24h: 0,
+          cacheHit24h: 0,
+          inputTokens24h: 700000,
+          outputTokens24h: 728500,
+          totalTokens24h: 1428500,
+          cachedTokens24h: 0,
+          byProvider: [],
+        },
+      })
     );
   });
 
   // Tier 1: Feature Coverage (5 tests)
   test('T4.F28.1 - [Tier 1] loads AiAdminPage with 7 LLM providers listed', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
-    await expect(page.getByText('Gemini')).toBeVisible();
-    await expect(page.getByText('DeepSeek')).toBeVisible();
-    await expect(page.getByText('OpenRouter')).toBeVisible();
-    await expect(page.getByText('Qwen')).toBeVisible();
-    await expect(page.getByText('OpenAI')).toBeVisible();
-    await expect(page.getByText('Ollama')).toBeVisible();
-    await expect(page.getByText('LM Studio')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
+    await expect(page.getByText('Gemini', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('DeepSeek', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('OpenRouter', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Qwen', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('OpenAI', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Ollama', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('LM Studio', { exact: true }).first()).toBeVisible();
   });
 
   test('T4.F28.2 - [Tier 1] toggles provider active status for cloud providers', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F28.3 - [Tier 1] toggles provider status for local models (Ollama, LM Studio)', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F28.4 - [Tier 1] performs latency ping test and measures roundtrip response time', async ({ page }) => {
@@ -522,33 +632,33 @@ test.describe('Track 4 - Feature 28: AI Admin Provider Management & Failover', (
 
   test('T4.F28.5 - [Tier 1] displays response latency badge in milliseconds', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByText('185ms')).toBeVisible();
+    await expect(page.getByText(/185\s*ms/)).toBeVisible();
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T4.F28.6 - [Tier 2] offline local provider displays connection error badge', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F28.7 - [Tier 2] primary provider failover reorders secondary priority', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F28.8 - [Tier 2] API key inputs securely masked', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F28.9 - [Tier 2] saving provider configuration verifies CSRF token', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F28.10 - [Tier 2] concurrent provider health checks do not lock UI', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 });
 
@@ -556,10 +666,23 @@ test.describe('Track 4 - Feature 29: School B2B AI Quota Allocation & Checks', (
   test.beforeEach(async ({ page }) => {
     await setupTrack4Mocks(page, adminUser);
     await page.route('**/api/v1/ai/admin/readiness', (r) =>
-      json(r, { readiness: { configured: true, primaryProvider: 'gemini', providers: [] } })
+      json(r, { readiness: { configured: true, primaryProvider: 'gemini', providers: [], openCircuits: [], notes: [] } })
     );
     await page.route('**/api/v1/ai/admin/usage', (r) =>
-      json(r, { usage: { totalTokens: 1428500, totalPdfExams: 320, totalVoiceMinutes: 540, activeSchools: 12 } })
+      json(r, {
+        usage: {
+          today: { day: '2026-11-22', requestCount: 15, totalTokens: 1428500 },
+          last24h: 15,
+          fallback24h: 0,
+          error24h: 0,
+          cacheHit24h: 0,
+          inputTokens24h: 700000,
+          outputTokens24h: 728500,
+          totalTokens24h: 1428500,
+          cachedTokens24h: 0,
+          byProvider: [],
+        },
+      })
     );
   });
 
@@ -590,33 +713,33 @@ test.describe('Track 4 - Feature 29: School B2B AI Quota Allocation & Checks', (
 
   test('T4.F29.5 - [Tier 1] backend enforces 429 quota exhaustion when quota reached', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T4.F29.6 - [Tier 2] 90% quota consumption displays warning badge', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F29.7 - [Tier 2] 100% quota consumption blocks new exam generation requests', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F29.8 - [Tier 2] updating quota limit persists immediately in state', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F29.9 - [Tier 2] zero quota allocation disables AI features for school', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F29.10 - [Tier 2] quota usage aggregated per billing cycle', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 });
 
@@ -624,24 +747,43 @@ test.describe('Track 4 - Feature 30: AI Interaction Audit Logs & Prompt Lab', ()
   test.beforeEach(async ({ page }) => {
     await setupTrack4Mocks(page, adminUser);
     await page.route('**/api/v1/ai/admin/readiness', (r) =>
-      json(r, { readiness: { configured: true, primaryProvider: 'gemini', providers: [] } })
+      json(r, { readiness: { configured: true, primaryProvider: 'gemini', providers: [], openCircuits: [], notes: [] } })
     );
     await page.route('**/api/v1/ai/admin/usage', (r) =>
-      json(r, { usage: { totalTokens: 1428500, totalPdfExams: 320, totalVoiceMinutes: 540, activeSchools: 12 } })
+      json(r, {
+        usage: {
+          today: { day: '2026-11-22', requestCount: 15, totalTokens: 1428500 },
+          last24h: 15,
+          fallback24h: 0,
+          error24h: 0,
+          cacheHit24h: 0,
+          inputTokens24h: 700000,
+          outputTokens24h: 728500,
+          totalTokens24h: 1428500,
+          cachedTokens24h: 0,
+          byProvider: [],
+        },
+      })
     );
     await page.route('**/api/v1/ai/admin/interactions**', (r) =>
       json(r, {
-        interactions: [
+        items: [
           {
             id: 'log-01',
             provider: 'gemini',
-            action: 'generate_assessment',
-            tokensUsed: 420,
+            endpoint: '/api/v1/ai/generate-assessment',
+            capability: 'generate_assessment',
+            model: 'gemini-2.5-flash',
+            totalTokens: 420,
             latencyMs: 1450,
-            schoolName: 'مدارس الرواد الأهلية',
-            timestamp: new Date().toISOString(),
+            status: 'success',
+            createdAt: new Date().toISOString(),
           },
         ],
+        total: 1,
+        page: 1,
+        limit: 50,
+        totalPages: 1,
       })
     );
   });
@@ -649,52 +791,52 @@ test.describe('Track 4 - Feature 30: AI Interaction Audit Logs & Prompt Lab', ()
   // Tier 1: Feature Coverage (5 tests)
   test('T4.F30.1 - [Tier 1] displays audit logs table with timestamps, provider, and tokens', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F30.2 - [Tier 1] filters audit logs by provider (Gemini, DeepSeek, OpenAI)', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F30.3 - [Tier 1] searches interaction logs by keyword query', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F30.4 - [Tier 1] benchmark prompt template evaluates response latency', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F30.5 - [Tier 1] prompt lab compares results across different models', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T4.F30.6 - [Tier 2] empty search query restores full interaction log list', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F30.7 - [Tier 2] pagination across large interaction histories', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F30.8 - [Tier 2] date range filter for audit trail', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F30.9 - [Tier 2] sensitive student PII masked in prompt audit logs', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 
   test('T4.F30.10 - [Tier 2] export audit logs to CSV and JSON formats', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
   });
 });

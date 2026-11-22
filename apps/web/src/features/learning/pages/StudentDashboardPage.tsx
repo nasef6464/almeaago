@@ -178,10 +178,10 @@ export function StudentDashboardPage() {
     .join('');
 
   const learningShortcuts: NavItem[] = [
-    { to: '/dashboard?tab=paths', label: 'مساراتي', icon: RouteIcon, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
-    { to: '/dashboard?tab=my-courses', label: 'دوراتي', icon: BookOpen, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
-    { to: '/dashboard?tab=sessions', label: 'جلساتي', icon: CalendarDays, tone: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' },
-    { to: '/quiz', label: 'اختبار ساهر', icon: Sparkles, tone: 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300' },
+    { to: '/learning', label: 'مساراتي ودوراتي', icon: RouteIcon, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
+    { to: '/assessments', label: 'اختبارات المنصة', icon: BookOpen, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
+    { to: '/classroom/join', label: 'الفصل الذكي', icon: CalendarDays, tone: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' },
+    { to: '/assessment-assignments', label: 'تكليفات واختبارات المدرسة', icon: Target, tone: 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300' },
   ];
 
   const groups: Array<{ id: string; title: string; icon: typeof GraduationCap; tone: string; items: NavItem[] }> = [
@@ -192,8 +192,7 @@ export function StudentDashboardPage() {
       tone: 'border-emerald-200/80 bg-gradient-to-b from-emerald-100/90 to-emerald-50/80 text-emerald-800 dark:border-emerald-800/60 dark:from-emerald-950/70 dark:to-emerald-900/40 dark:text-emerald-300',
       items: [
         { to: '/dashboard?tab=smart-path', label: 'المسار الذكي', icon: Brain, tone: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' },
-        { to: '/dashboard?tab=plan', label: 'خططي', icon: CalendarDays, tone: 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300' },
-        { to: '/dashboard?tab=reports', label: 'تقاريري', icon: BarChart3, tone: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' },
+        { to: '/plan', label: 'خططي', icon: CalendarDays, tone: 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300' },
       ],
     },
     {
@@ -202,9 +201,9 @@ export function StudentDashboardPage() {
       icon: FileText,
       tone: 'border-rose-200/80 bg-gradient-to-b from-rose-100/90 to-rose-50/80 text-rose-800 dark:border-rose-800/60 dark:from-rose-950/70 dark:to-rose-900/40 dark:text-rose-300',
       items: [
-        { to: '/dashboard?tab=quizzes', label: 'الاختبارات السابقة', icon: FileText, tone: 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300' },
+        { to: '/assessment-results', label: 'اختباراتي ونتائجي', icon: FileText, tone: 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300' },
         { to: '/dashboard?tab=school-tests', label: 'الاختبارات المدرسية', icon: Target, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
-        { to: '/dashboard?tab=mock-exams', label: 'الاختبارات المحاكية', icon: Star, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
+        { to: '/assessments', label: 'اختبارات المنصة', icon: Star, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
       ],
     },
     {
@@ -213,17 +212,20 @@ export function StudentDashboardPage() {
       icon: Wrench,
       tone: 'border-violet-200/80 bg-gradient-to-b from-violet-100/90 to-violet-50/80 text-violet-800 dark:border-violet-800/60 dark:from-violet-950/70 dark:to-violet-900/40 dark:text-violet-300',
       items: [
-        { to: '/dashboard?tab=favorites', label: 'أسئلتي للمراجعة', icon: Bookmark, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
+        { to: '/review', label: 'أسئلتي للمراجعة', icon: Bookmark, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
         { to: '/dashboard?tab=flashcards', label: 'بطاقات التذكر', icon: Copy, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
         { onClick: () => setShowCalculator(true), label: 'حاسبة النسبة الموزونة', icon: Calculator, tone: 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300' },
       ],
     },
     {
       id: 'support',
-      title: 'الدعم',
+      title: 'الدعم والمتابعة',
       icon: Headphones,
       tone: 'border-orange-200/80 bg-gradient-to-b from-orange-100/90 to-orange-50/80 text-orange-800 dark:border-orange-800/60 dark:from-orange-950/70 dark:to-orange-900/40 dark:text-orange-300',
       items: [
+        { to: '/review', label: 'أسئلتي للمراجعة', icon: Bookmark, tone: 'bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300' },
+        { to: '/reports', label: 'تقاريري', icon: BarChart3, tone: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' },
+        { to: '/notifications', label: 'الإشعارات', icon: Bell, tone: 'bg-orange-100 dark:bg-orange-900/60 text-orange-700 dark:text-orange-300' },
         { to: '/dashboard?tab=qa', label: 'سؤال وجواب', icon: MessageCircle, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
         { to: '/dashboard?tab=requests', label: 'طلباتي', icon: ClipboardList, tone: 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300' },
       ],
@@ -231,10 +233,10 @@ export function StudentDashboardPage() {
   ];
 
   const overviewCards: Array<{ to: string; label: string; icon: typeof Home; tone: string }> = [
-    { to: '/dashboard?tab=smart-path', label: 'المسار الذكي', icon: Brain, tone: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300' },
-    { to: '/dashboard?tab=mock-exams', label: 'الاختبارات المحاكية', icon: Star, tone: 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300' },
-    { to: '/dashboard?tab=favorites', label: 'المراجعة والإتقان', icon: Bookmark, tone: 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300' },
-    { to: '/dashboard?tab=reports', label: 'تقارير الأداء', icon: BarChart3, tone: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300' },
+    { to: '/learning', label: 'مساراتي ودوراتي', icon: Brain, tone: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300' },
+    { to: '/assessments', label: 'اختبارات المنصة', icon: Star, tone: 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300' },
+    { to: '/review', label: 'أسئلتي للمراجعة', icon: Bookmark, tone: 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300' },
+    { to: '/reports', label: 'تقاريري', icon: BarChart3, tone: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300' },
   ];
 
   const navItem = (item: NavItem) => {
@@ -357,11 +359,15 @@ export function StudentDashboardPage() {
                 </Link>
               </div>
 
-              {/* Main learning shortcuts — intentionally unlabeled to match legacy codax */}
+              {/* Main learning shortcuts */}
               <div
                 data-testid="student-menu-group-learning"
                 className="space-y-1 rounded-[20px] border border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/90 p-2 shadow-sm"
               >
+                <div className="flex items-center gap-2 px-2.5 pb-2 pt-1 text-sm font-black text-slate-800 dark:text-slate-200">
+                  <GraduationCap size={18} aria-hidden="true" />
+                  <span>التعلم</span>
+                </div>
                 {learningShortcuts.map(navItem)}
               </div>
 
@@ -487,7 +493,7 @@ export function StudentDashboardPage() {
                 <div className="min-w-0">
                   <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 px-3 py-1 text-xs font-black text-emerald-800 dark:text-emerald-300">
                     <Sparkles size={14} />
-                    <span>خطوتك المقترحة اليوم</span>
+                    <span>خطوتك اليوم</span>
                   </div>
                   <h2 className="text-lg font-black text-gray-900 dark:text-white sm:text-xl">تابع خطتك في مساحة التعلم الذكية</h2>
                   <p className="mt-1 text-xs font-medium leading-6 text-gray-600 dark:text-gray-300 sm:text-sm">

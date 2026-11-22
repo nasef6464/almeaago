@@ -585,14 +585,19 @@ export function CheckoutPage() {
             ) : null}
             {current.status !== 'pending' && current.status !== 'paid' && <button type="button" onClick={() => { clearCheckoutRecovery(user.id, product.id); setCurrent(null); setNotice('يمكنك الآن إنشاء طلب جديد.'); }} className="mt-4 rounded-xl border bg-white px-4 py-2 text-sm font-bold">بدء طلب جديد</button>}
             {current.status === 'pending' && current.gatewayMode === 'payment_link' && current.providerRedirectUrl ? (
-              <a
-                data-testid="payment-provider-redirect"
-                href={current.providerRedirectUrl}
-                className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-xs font-black text-white hover:bg-indigo-700 transition shadow-md"
-              >
-                <CreditCard size={16} />
-                <span>متابعة الدفع عبر بوابة {current.providerCode}</span>
-              </a>
+              <div className="mt-4 space-y-2">
+                <a
+                  data-testid="payment-provider-redirect"
+                  href={current.providerRedirectUrl}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-xs font-black text-white hover:bg-indigo-700 transition shadow-md"
+                >
+                  <CreditCard size={16} />
+                  <span>متابعة الدفع عبر بوابة {current.providerCode}</span>
+                </a>
+                <p className="text-[11px] font-bold text-amber-800 dark:text-amber-300">
+                  تنبيه أمان: لن يتم منح الوصول من الواجهة. الاعتماد اليدوي أو webhook الموقّع فقط يمكنه إنشاء Entitlement.
+                </p>
+              </div>
             ) : null}
           </section>
         )}

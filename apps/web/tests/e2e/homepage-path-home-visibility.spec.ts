@@ -9,11 +9,16 @@ const paths = [
 ];
 
 for (const width of [390, 820, 1440]) {
-  test(`homepage hides explicit false before featured selection and retains omitted default at ${width}px`, async ({ page }) => {
+  test(`homepage hides explicit false before featured selection and retains omitted default at ${width}px`, async ({ page, baseURL }) => {
     test.setTimeout(90_000); // Three independent homepage loads and evidence captures.
     await page.setViewportSize({ width, height: 1000 });
     let featuredPathIds: string[] = [];
-    await page.route(url => url.origin !== 'http://127.0.0.1:4173', route => route.abort('blockedbyclient'));
+    const allowedOrigins = new Set([
+      baseURL ? new URL(baseURL).origin : '',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:4173',
+    ].filter(Boolean));
+    await page.route(url => !allowedOrigins.has(url.origin), route => route.abort('blockedbyclient'));
     await page.route(url => url.pathname.startsWith('/api/'), route => {
       const path = new URL(route.request().url()).pathname;
       if (path === '/api/v1/auth/me') return route.fulfill({ status: 401, json: { message: 'Guest fixture' } });

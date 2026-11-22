@@ -79,20 +79,9 @@ function resolvePathColorHex(color?: string, fallback = '#4f46e5'): string {
 
 function resolvePathTarget(path: TaxonomyPath): string {
   if (path.id) {
-    return `/category/${encodeURIComponent(path.id)}`;
+    return `/learning?pathId=${encodeURIComponent(path.id)}`;
   }
-  const code = (path.code || '').toUpperCase();
-  const name = path.name || '';
-  if (code.includes('QUDRAT') || name.includes('قدرات')) {
-    return '/category/p_qudrat';
-  }
-  if (code === 'NAFES' || name.includes('نافس')) {
-    return '/category/p_nafes';
-  }
-  if (code === 'TAHSILI' || name.includes('تحصيلي')) {
-    return '/category/p_tahsili';
-  }
-  return `/category/${encodeURIComponent(path.code || path.name)}`;
+  return `/learning?pathId=${encodeURIComponent(path.code || path.name)}`;
 }
 
 function resolveDynamicPathTheme(path: TaxonomyPath, index: number): DynamicPathTheme {
@@ -518,7 +507,7 @@ export function PublicLandingPage({onAuth}:{onAuth(mode:'login'|'signup'):void})
               <span>المسارات التعليمية المعتمدة</span>
             </div>
             <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-              اختر مسارك التعليمي وتفوق بثقة
+              كل ما تحتاجه للتفوق
             </h2>
             <p className="mt-2 text-xs sm:text-base font-medium text-slate-500 max-w-2xl mx-auto leading-relaxed">
               مسارات قياس والاختبارات الوطنية مصممة وفق أحدث معايير هيئة تقويم التعليم والتدريب، مع بنوك أسئلة تفاعلية وتأسيس شامل.

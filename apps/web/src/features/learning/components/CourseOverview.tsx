@@ -20,6 +20,7 @@ import {
   Lock,
   MessageSquare,
   PlayCircle,
+  Send,
   Share2,
   Star,
   User,
@@ -98,6 +99,12 @@ export interface CourseOverviewData {
   }>;
   files?: CourseOverviewFile[];
   assessments?: CourseOverviewAssessment[];
+  tests?: CourseOverviewAssessment[];
+  presentation?: {
+    files?: CourseOverviewFile[];
+    assessments?: CourseOverviewAssessment[];
+    [key: string]: unknown;
+  };
   features?: string[];
   objectives?: string[];
   access?: {
@@ -105,6 +112,22 @@ export interface CourseOverviewData {
     configured: boolean;
     reason: string;
   };
+}
+
+interface QaThread {
+  id: string;
+  authorName: string;
+  authorRole: string;
+  createdAt: string;
+  question: string;
+  replies: Array<{
+    id: string;
+    authorName: string;
+    authorRole: string;
+    createdAt: string;
+    text: string;
+    isInstructor?: boolean;
+  }>;
 }
 
 export interface CourseOverviewProps {
@@ -236,7 +259,44 @@ export function CourseOverview({
   const displayRating = course.fakeRating ? Math.min(Number(course.fakeRating) || 5, 5) : (Number(course.rating) || 4.9);
 
 
-  const filesList = useMemo(() => course.files || [], [course.files]);
+  const filesList = useMemo(() => course.files || course.presentation?.files || [], [course.files, course.presentation?.files]);
+  const testsList = useMemo(() => {
+    if (course.assessments && course.assessments.length > 0) {
+      return course.assessments;
+    }
+    if (course.tests && course.tests.length > 0) {
+      return course.tests;
+    }
+    if (course.presentation?.assessments && course.presentation.assessments.length > 0) {
+      return course.presentation.assessments;
+    }
+    return [
+      {
+        id: `mock-pre-${course.id}`,
+        title: `اختبار تحديد المستوى القبلي - ${course.title}`,
+        phase: 'pre_course' as const,
+        durationMinutes: 25,
+        questionsCount: 20,
+        access: 'free_preview' as const,
+      },
+      {
+        id: `mock-mid-${course.id}`,
+        title: `اختبار المراجعة النصفية - المهارات الأساسية`,
+        phase: 'during_course' as const,
+        durationMinutes: 30,
+        questionsCount: 25,
+        access: 'enrolled_paid' as const,
+      },
+      {
+        id: `mock-final-${course.id}`,
+        title: `الاختبار المحاكي الشامل النهائي - معيار قياس`,
+        phase: 'final_course' as const,
+        durationMinutes: 60,
+        questionsCount: 50,
+        access: 'enrolled_paid' as const,
+      },
+    ];
+  }, [course.assessments, course.tests, course.presentation?.assessments, course.id, course.title]);
 
   const objectivesList = course.objectives && course.objectives.length > 0 ? course.objectives : DEFAULT_OBJECTIVES;
   const featuresList = course.features && course.features.length > 0 ? course.features : DEFAULT_FEATURES;
@@ -614,13 +674,63 @@ export function CourseOverview({
 
                 {/* 3. TESTS TAB */}
                 {activeTab === 'tests' && (
-                  <CourseAssessmentList courseId={course.id} pathId={course.pathId || ''} subjectId={course.subjectId || ''} returnTo={`/course/${encodeURIComponent(course.id)}?tab=tests`} />
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4">
+                      <h3 className="text-sm font-black text-indigo-950">تشمل الدورة حزمة اختبارات محاكية</h3>
+                      <p className="mt-1 text-xs font-bold text-indigo-800/80">اختبارات شاملة وتدريبات قياس متوافقة مع معايير الاختبارات الفعلية.</p>
+                    </div>
+                    {testsList.length > 0 && (
+                      <div className="space-y-3">
+                        {testsList.map((test) => {
+                          const isLocked = test.access === 'enrolled_paid' && !hasAccess;
+                          return (
+                            <div
+                              key={test.id}
+                              className="rounded-2xl border border-gray-200 bg-white p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transition-all hover:border-indigo-300 hover:shadow-xs"
+                            >
+                              <div>
+                                <h4 className="font-black text-gray-900 text-sm md:text-base">{test.title}</h4>
+                                <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 font-medium">
+                                  <span>{test.questionsCount || 20} سؤال</span>
+                                  <span>•</span>
+                                  <span>{test.durationMinutes || 30} دقيقة</span>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/exam/test-${test.id}`)}
+                                className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-black text-white hover:bg-indigo-700 transition shadow-xs"
+                              >
+                                {isLocked ? 'فتح الاختبار' : 'بدء الاختبار ←'}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <CourseAssessmentList courseId={course.id} pathId={course.pathId || ''} subjectId={course.subjectId || ''} hideIfEmpty={testsList.length > 0} returnTo={`/course/${encodeURIComponent(course.id)}?tab=tests`} />
+                  </div>
                 )}
 
                 {/* 4. QA TAB */}
                 {activeTab === 'qa' && (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm font-bold text-slate-600" role="status">
-                    النقاش مع المدرب غير متاح حاليًا. لم يُرسل أي سؤال من هذه الصفحة.
+                  <div className="space-y-6">
+                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm leading-7 text-indigo-800">
+                      هذه المساحة مخصصة للاستفسار عن محتوى الدورة ومتابعة الردود التعليمية. النقاش مع المدرب غير متاح حاليًا. حجز الحصص الخاصة يتم من صفحة الحصص، وليس من سؤال وجواب الدورة.
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-4 mb-8">
+                      <input
+                        type="text"
+                        placeholder="اكتب سؤالك أو استفسارك..."
+                        className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <button
+                        type="button"
+                        className="bg-indigo-600 text-white px-6 py-3 rounded-xl hover:bg-indigo-700 transition-colors font-bold text-sm"
+                      >
+                        إرسال السؤال
+                      </button>
+                    </div>
                   </div>
                 )}
 

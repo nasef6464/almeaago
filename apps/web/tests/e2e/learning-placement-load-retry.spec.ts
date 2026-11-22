@@ -18,11 +18,12 @@ for (const slot of ['questions', 'exams'] as const) {
       return route.fulfill({ json: { items: [], page: 1, limit: 50, hasMore: false } });
     });
     await page.goto(`/category/p1?subject=s1&tab=${slot}`);
-    await expect(page.getByRole('alert').filter({ hasText: 'تعذر تحميل' })).toBeVisible();
+    const alertBox = page.getByRole('alert').filter({ hasText: 'تعذر تحميل التدريبات أو الاختبارات' });
+    await expect(alertBox).toBeVisible();
     await expect(page.getByText('لا توجد اختبارات منشورة لهذه المادة حالياً')).toHaveCount(0);
-    await page.getByRole('button', { name: 'إعادة المحاولة', exact: true }).click();
+    await alertBox.getByRole('button', { name: 'إعادة المحاولة', exact: true }).click();
     await expect.poll(() => requests).toBe(2);
-    await expect(page.getByRole('alert').filter({ hasText: 'تعذر تحميل' })).toHaveCount(0);
+    await expect(alertBox).toHaveCount(0);
   });
 }
 

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import { useStudentExperience, StudentPathAccessPrompt } from '../../../learning/navigation';
+import { useAuth } from '../../../auth/state/AuthProvider';
 import { LearningSpacePage } from '../../../learning/pages/LearningSpacePage';
 import { PathPackagesPage } from '../commerce/PathPackagesPage';
 import { PathMockExamsPage } from './PathMockExamsPage';
@@ -132,6 +133,7 @@ export function LegacyCategoryPage() {
   const { pathId: raw = '' } = useParams<{ pathId: string }>();
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const experience = useStudentExperience();
   const [courses, setCourses] = useState<PublicCourse[]>([]);
 
@@ -151,6 +153,29 @@ export function LegacyCategoryPage() {
 
   if (experience.loading) {
     return <CategoryPageSkeleton />;
+  }
+
+  if (params.get('tab') === 'packages') {
+    return <PathPackagesPage pathId={path?.id || raw} />;
+  }
+
+  if (params.get('tab') === 'mock-exams') {
+    return <PathMockExamsPage pathId={path?.id || raw} />;
+  }
+
+  const rawSubjectId = params.get('subject') || params.get('subjectId');
+  const selectedSubject = resolveCanonicalSubject(rawSubjectId, experience.subjects, path?.id || raw);
+  const selectedSubjectId = selectedSubject?.id || rawSubjectId;
+  if (selectedSubjectId || params.get('topic')) {
+    return <LearningSpacePage />;
+  }
+
+  if (!path && !authLoading && !user) {
+    return (
+      <main dir="rtl" className="mx-auto max-w-4xl p-10 text-center font-black text-rose-700">
+        سجّل الدخول لفتح مساحة التعلم.
+      </main>
+    );
   }
 
   if (experience.error) {
@@ -177,21 +202,6 @@ export function LegacyCategoryPage() {
     return <StudentPathAccessPrompt path={path} />;
   }
 
-  // Sub-views based on URL query
-  if (params.get('tab') === 'packages') {
-    return <PathPackagesPage pathId={path.id} />;
-  }
-
-  if (params.get('tab') === 'mock-exams') {
-    return <PathMockExamsPage pathId={path.id} />;
-  }
-
-  const rawSubjectId = params.get('subject') || params.get('subjectId');
-  const selectedSubject = resolveCanonicalSubject(rawSubjectId, experience.subjects, path.id);
-  const selectedSubjectId = selectedSubject?.id || rawSubjectId;
-  if (selectedSubjectId) {
-    return <LearningSpacePage />;
-  }
 
   const pathColor = resolvePathThemeColor(path);
   const pathLevels = experience.levels.filter((l) => l.pathId === path.id);

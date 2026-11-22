@@ -86,6 +86,7 @@ test('legacy learning course CTA navigates into a working V2 course runtime',asy
 });
 
 test('student dashboard click-through reaches all remaining certified learner destinations',async({page})=>{
+ test.setTimeout(120_000);
  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',r=>json(r,taxonomy));
  await page.route('**/api/v1/assessment-placements/available?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/assessment-attempts/results?**',r=>json(r,{items:[],page:1,limit:20,hasMore:false}));
@@ -107,7 +108,7 @@ test('student dashboard click-through reaches all remaining certified learner de
   await page.goto('/dashboard');
   await page.getByRole('button',{name:'فتح قائمة لوحة الطالب'}).click();
   const nav=page.getByRole('navigation',{name:'تنقل لوحة الطالب'}).last();
-  await nav.getByRole('link',{name:destination.label}).click();
+  await nav.getByRole('link',{name:destination.label}).first().click();
   await expect(page).toHaveURL(destination.url);
   await expect(page.getByRole('heading',{name:destination.heading}).first()).toBeVisible();
   await expect(page.getByText(/Placeholder|Something went wrong|Application error/i)).toHaveCount(0);

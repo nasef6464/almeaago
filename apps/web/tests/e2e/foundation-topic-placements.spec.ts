@@ -7,8 +7,13 @@ const topics = [
   { id: 'topic-locked', parentTopicId: '', title: 'التناسب المقفل', description: '', sortOrder: 3, isLocked: true },
 ].map(topic => ({ ...topic, pathId: 'path-1', subjectId: 'subject-1' }));
 const placement = (id = 'placement-1', topicId = 'topic-main', extra = {}) => ({ placementId: id, assessmentId: `assessment-${id}`, assessmentVersion: 1, assessmentKind: 'normal', title: `تدريب ${id}`, slot: 'foundation', pathId: 'path-1', subjectId: 'subject-1', courseId: '', lessonId: '', topicId, sortOrder: 1, attemptCount: 0, maxAttempts: 3, accessType: 'free', baseAccessType: 'free', accessAllowed: true, accessReason: 'free', canStart: true, ...extra });
-async function setup(page: Page) {
-  await page.route(url => url.origin !== 'http://127.0.0.1:4173', route => route.abort('blockedbyclient'));
+async function setup(page: Page, baseURL?: string) {
+  const allowedOrigins = new Set([
+    baseURL ? new URL(baseURL).origin : '',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:4173',
+  ].filter(Boolean));
+  await page.route(url => !allowedOrigins.has(url.origin), route => route.abort('blockedbyclient'));
   await page.route(url => url.pathname.startsWith('/api/'), route => {
     const pathname = new URL(route.request().url()).pathname;
     if (pathname === '/api/v1/auth/me') return route.fulfill({ json: { user: student } });

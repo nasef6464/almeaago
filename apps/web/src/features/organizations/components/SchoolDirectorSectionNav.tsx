@@ -21,7 +21,7 @@ type DirectorNavigationItem = { id: DirectorSectionID; label: string };
 export const directorSectionGroups: { label: string; ids: DirectorSectionID[] }[] = [
   { label: 'البداية', ids: ['overview'] },
   { label: 'إدارة المدرسة', ids: ['students', 'classes', 'teachers'] },
-  { label: 'التعلم والاختبارات المركزية', ids: ['assessments', 'smart-classrooms'] },
+  { label: 'التعلم والمتابعة', ids: ['assessments', 'smart-classrooms'] },
   { label: 'الذكاء الأكاديمي والتدخلات', ids: ['school-skills', 'interventions', 'reports-export'] },
 ];
 
@@ -33,11 +33,11 @@ export function directorNavItems(school: SchoolContext): DirectorNavigationItem[
     { id: 'students', label: 'الطلاب', visible: has('SCHOOL_STUDENTS_VIEW') },
     { id: 'classes', label: 'الفصول', visible: has('SCHOOL_CLASSES_MANAGE', 'SCHOOL_CORE') },
     { id: 'teachers', label: 'المعلمون والتكليفات', visible: has('SCHOOL_TEACHERS_ASSIGN', 'SCHOOL_CORE') },
-    { id: 'assessments', label: 'اختبارات المدرسة المركزية', visible: has('SCHOOL_ASSESSMENTS_MANAGE', 'SCHOOL_ASSESSMENTS') || has('SCHOOL_OVERVIEW_VIEW') },
-    { id: 'smart-classrooms', label: 'الحصص الذكية المدرسية', visible: has('SCHOOL_SMART_CLASSROOM_VIEW', 'SMART_CLASSROOM') || has('SCHOOL_OVERVIEW_VIEW') },
-    { id: 'school-skills', label: 'رادار مهارات المدرسة', visible: has('SCHOOL_REPORTS_DETAILED_VIEW', 'SCHOOL_INTELLIGENCE') || has('SCHOOL_OVERVIEW_VIEW') },
-    { id: 'interventions', label: 'مركز التدخلات العلاجية', visible: has('SCHOOL_INTERVENTIONS_VIEW', 'INTERVENTION_CENTER') || has('SCHOOL_OVERVIEW_VIEW') },
-    { id: 'reports-export', label: 'التقارير والتصدير التنفيذي', visible: has('SCHOOL_REPORTS_EXPORT', 'EXECUTIVE_ANALYTICS') || has('SCHOOL_OVERVIEW_VIEW') },
+    { id: 'assessments', label: 'اختبارات المدرسة', visible: has('SCHOOL_ASSESSMENTS_MANAGE', 'SCHOOL_ASSESSMENTS') },
+    { id: 'smart-classrooms', label: 'الحصص الذكية المدرسية', visible: has('SCHOOL_SMART_CLASSROOM_VIEW', 'SMART_CLASSROOM') },
+    { id: 'school-skills', label: 'رادار مهارات المدرسة', visible: has('SCHOOL_REPORTS_DETAILED_VIEW', 'SCHOOL_INTELLIGENCE') },
+    { id: 'interventions', label: 'مركز التدخلات العلاجية', visible: has('SCHOOL_INTERVENTIONS_VIEW', 'INTERVENTION_CENTER') },
+    { id: 'reports-export', label: 'التقارير والتصدير التنفيذي', visible: has('SCHOOL_REPORTS_EXPORT', 'EXECUTIVE_ANALYTICS') },
   ].filter(item => item.visible).map(({ id, label }) => ({ id: id as DirectorSectionID, label }));
 }
 

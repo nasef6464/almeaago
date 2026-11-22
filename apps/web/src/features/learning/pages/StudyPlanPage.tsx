@@ -183,9 +183,6 @@ export function StudyPlanPage({ embedded }: { embedded?: boolean } = {}){
   const selectedPath=taxonomy.paths.find(x=>x.id===pathId)||null;
 
   if(authLoading||busy)return <div className="p-10 text-center font-black">جاري تحميل الخطة...</div>;
-  if (!embedded && (!user || user?.roles.includes('student'))) {
-    return <Navigate to="/dashboard?tab=plan" replace />;
-  }
   if(!user||!user.roles.includes('student'))return <div className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</div>;
 
   const ContainerTag = embedded ? 'div' : 'main';

@@ -1,12 +1,15 @@
 import type {Page} from '@playwright/test';
+import {installBaselineMocks} from './mockBaseline';
 
 type Actor={id:string;role?:string};
 type Preferences={enrolledPaths:string[];pathStageSelections:{pathId:string;levelId:string}[]};
 /** Opt-in transport fixture for ordinary mocked browser tests. Never install in
  * HEADER_LIVE tests: native tests must exercise actual sessions/CSRF/PostgreSQL. */
 export async function mockHeaderNavigation(page:Page,input:{actor:()=>Actor|null|Promise<Actor|null>;catalog:{paths:unknown[];levels:unknown[];subjects:unknown[]};saved?:Record<string,Preferences>}){
+ await installBaselineMocks(page);
  const records=new Map(Object.entries(input.saved||{}));
  let nextSaveFailure='';
+ await page.route('**/api/v1/auth/me*',async route=>route.fulfill({json:{user:await input.actor()}}));
  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>route.fulfill({json:input.catalog}));
  await page.route('**/api/v1/learning/navigation-preferences',async route=>{
   const actor=await input.actor();if(!actor)return route.fulfill({status:401,json:{message:'Authentication required'}});

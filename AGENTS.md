@@ -1,5 +1,9 @@
 # ALMEAA Go — Agent execution rules
 
+> [!IMPORTANT]
+> **المرجع الإلزامي للمحاور الهندسية والمعايير**:
+> يجب على كل وكيل قراءة وتطبيق وثيقة: `docs/ALMEAA_ENGINEERING_PILLARS_MASTER.md` التي تحدد المحاور الـ 28 الشاملة للمنصة (الأداء، الأمان، المراقبة، تجربة المستخدم، البيداغوجيا، والامتثال). لا يُعتبر أي عمل منجزاً ما لم يحقق المعايير المحددة في تلك الوثيقة.
+
 Read and apply `docs/migration/OWNER_BATCH_DELIVERY_CONTRACT_AR.md` on every direct or scheduled run. A scheduler status/trigger is not a delivered batch or proof of worker liveness. Complete the declared functional slice with evidence, or preserve a precise blocked checkpoint without claiming completion. Full header parity remains PARTIAL/NOT PROVEN until original navigation, role/scope, routes, interactions and paired screenshots pass; identity/hero evidence alone cannot close it.
 
 Read `docs/migration/03_EXECUTION_AND_HANDOFF_PLAN_AR.md`, `docs/superpowers/specs/2026-10-28-platform-pedagogical-policy-design.md`, and `docs/migration/17_PLATFORM_POLICY_EXECUTION_CHECKPOINT_AR.md` before work. Read the latest source `nasef6464/almeaacodax` main and its `AGENTS.md` and Master Control as the legacy behavior authority; do not assume old snapshots are current.

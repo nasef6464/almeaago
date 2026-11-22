@@ -117,7 +117,7 @@ export const ALL_CONTRACT_MODULES = [
   { id: 'SCHOOL_ASSESSMENTS', title: 'التقييمات والاختبارات (School Assessments)', desc: 'إنشاء اختبارات دورية ومحاكاة قدرات وتحصيلي بمستويات قياس.' },
   { id: 'PATHS_AND_COURSES', title: 'المسارات والمقررات (Paths & Courses)', desc: 'المحتوى التعليمي التأسيسي والمتقدم والتسلسل المهاري.' },
   { id: 'INTERACTIVE_VIDEO', title: 'الفيديو التفاعلي (Interactive Video)', desc: 'شروحات مرئية تفاعلية تتوقف لطرح أسئلة قياس فهم فورية.' },
-  { id: 'SMART_CLASSROOM', title: 'الحصة الذكية (Smart Classroom)', desc: 'جلسات تفاعلية حية وتحديات تنافسية مباشرة داخل الفصل.' },
+  { id: 'SMART_CLASSROOM', title: 'وحدة الفصول الذكية (Smart Classroom)', desc: 'جلسات تفاعلية حية وتحديات تنافسية مباشرة داخل الفصل.' },
   { id: 'SCHOOL_INTELLIGENCE', title: 'ذكاء المدرسة ورادار نافس (School Intelligence)', desc: 'تحليل الفجوات المهارية ورادار الجاهزية للاختبارات الوطنية.' },
   { id: 'INTERVENTION_CENTER', title: 'مركز التدخلات العلاجية (Intervention Center)', desc: 'خطط علاجية وتوجيه مهاري آلي للطلاب المتعثرين.' },
   { id: 'LIVE_TUTORING', title: 'الدروس المساندة المباشرة (Live Tutoring)', desc: 'فصول تقوية وبث مباشر للمراجعات المكثفة ليلة الاختبار.' },
@@ -872,8 +872,9 @@ export function SchoolsAdminPage() {
           {/* KPI Summary Cards */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
             <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm text-center">
-              <div className="text-xs font-black text-gray-400">المدارس النشطة</div>
+              <div className="text-xs font-black text-gray-400">إجمالي المدارس</div>
               <div className="mt-1 text-2xl font-black text-gray-900">{portfolioSummary.total}</div>
+              <div className="text-[10px] text-gray-400 font-bold">المدارس النشطة</div>
             </div>
             <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm text-center">
               <div className="text-xs font-black text-emerald-700">جاهزة تشغيلياً</div>
@@ -1208,7 +1209,7 @@ export function SchoolsAdminPage() {
                 { id: 'relations', label: '👥 المجتمع المدرسي والعلاقات' },
                 { id: 'import', label: '📥 الاستيراد الجماعي' },
                 { id: 'reports', label: '📊 تقارير التسليم والجاهزية' },
-                { id: 'contract', label: '⚙️ العقد والباقة (الإعدادات)' },
+                { id: 'contract', label: '⚙️ العقد والإعدادات' },
               ] as const
             ).map((tab) => (
               <button
@@ -1698,7 +1699,7 @@ export function SchoolsAdminPage() {
                       </span>
                     </div>
                     <p className="text-xs font-bold text-gray-500 mt-1">
-                      تحديد قوالب الباقات المعتمدة، ترخيص المسارات التعليمية، تفعيل موديولات المنصة الـ 11، وضبط الشعار والهوية المدرسية.
+                      إعدادات العقد والوحدات المفعلة: تحديد قوالب الباقات المعتمدة، ترخيص المسارات التعليمية، تفعيل موديولات المنصة الـ 11، وضبط الشعار والهوية المدرسية.
                     </p>
                   </div>
 

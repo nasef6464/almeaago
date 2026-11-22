@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { installBaselineMocks } from './fixtures/mockBaseline';
 
 const user = { id: 'student-attempt-save', email: 'student@example.com', name: 'طالب', status: 'active', avatarUrl: '', emailVerified: true, role: 'student', roles: ['student'] };
 const attempt = {
@@ -18,6 +19,7 @@ function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 }
 async function setup(page: Page) {
+  await installBaselineMocks(page);
   await page.route('**/api/v1/auth/me', route => json(route, { user }));
   await page.route('**/api/v1/auth/csrf', route => json(route, { csrfToken: 'csrf' }));
   await page.route('**/api/v1/assessment-attempts/attempt-save-1', route => json(route, { attempt }));

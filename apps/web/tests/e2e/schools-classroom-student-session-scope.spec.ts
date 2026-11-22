@@ -68,7 +68,7 @@ for (const width of [390, 820, 1440]) {
     await expect(page.getByText('سؤال خاص بالجلسة ب')).toHaveCount(0);
     expect(readsB).toBe(0);
     allowB = true;
-    await page.getByRole('button', { name: 'تحديث' }).click();
+    await page.getByRole('button', { name: /تحديث|إعادة المحاولة/ }).click();
     await expect(page.getByText('سؤال خاص بالجلسة ب')).toBeVisible();
     expect(joinsB).toBeGreaterThanOrEqual(2);
     await expect(page.getByText('سؤال خاص بالجلسة أ')).toHaveCount(0);
@@ -114,7 +114,7 @@ for (const width of [390, 820, 1440]) {
     await expect(page.getByText('سؤال قابل للحفظ')).toHaveCount(0);
     await expect(page.getByTestId('classroom-answer-0-0')).toHaveCount(0);
     failRead = false;
-    await page.getByRole('button', { name: 'تحديث' }).click();
+    await page.getByRole('button', { name: /تحديث|إعادة المحاولة/ }).click();
     await expect(page.getByText('سؤال قابل للحفظ')).toBeVisible();
     await page.screenshot({ path: `test-results/schools-classroom-retry-${width}.png`, fullPage: true });
   });

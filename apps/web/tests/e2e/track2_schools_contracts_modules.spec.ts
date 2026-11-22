@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { installBaselineMocks } from './fixtures/mockBaseline';
 
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({
@@ -46,6 +47,7 @@ const teacherUser = {
 };
 
 async function setupTrack2Mocks(page: Page, user = adminUser) {
+  await installBaselineMocks(page);
   await page.route('**/api/v1/auth/csrf', (r) => json(r, { csrfToken: 'csrf-t2' }));
   await page.route('**/api/v1/auth/me', (r) => json(r, { user }));
   await page.route('**/api/v1/auth/session', (r) => json(r, { user }));
@@ -73,6 +75,47 @@ async function setupTrack2Mocks(page: Page, user = adminUser) {
           source: 'membership',
         },
       ],
+    })
+  );
+  await page.route('**/api/v1/schools/teacher-workspace**', (route) =>
+    json(route, {
+      personas: { platformTrainer: true, schoolTeacher: true },
+      schools: [
+        {
+          schoolId: 'sch-alrowaad-01',
+          schoolName: 'مدارس الرواد الأهلية',
+          source: 'assignment',
+          assignments: [
+            {
+              assignmentId: 'asg-1',
+              classId: 'cls-1',
+              className: 'الصف الثالث الثانوي (أ)',
+              subjectId: 'subj-1',
+              studentCount: 30,
+            },
+          ],
+        },
+      ],
+    })
+  );
+  await page.route('**/api/v1/classroom/teacher/sessions**', (route) =>
+    json(route, { sessions: [] })
+  );
+  await page.route('**/api/v1/learning/navigation-preferences**', (route) =>
+    json(route, {
+      user: {
+        id: user.id,
+        enrolledPaths: ['path-qudrat'],
+        pathStageSelections: [],
+      },
+    })
+  );
+  await page.route('**/api/v1/schools/?page=1&limit=100&status=active**', (route) =>
+    json(route, {
+      schools: [{ id: 'sch-alrowaad-01', code: 'SCH-01', name: 'مدارس الرواد الأهلية', status: 'active' }],
+      items: [{ id: 'sch-alrowaad-01', code: 'SCH-01', name: 'مدارس الرواد الأهلية', status: 'active' }],
+      total: 1,
+      pagination: { page: 1, limit: 100, total: 1, totalPages: 1 },
     })
   );
 }
@@ -225,49 +268,49 @@ test.describe('Track 2 - Feature 8: School Logo & White-Label Placement', () => 
       })
     );
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F8.3 - [Tier 1] renders custom school logo in Teacher Certificate modal', async ({ page }) => {
     await setupTrack2Mocks(page, teacherUser);
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F8.4 - [Tier 1] hides custom logo when WHITE_LABEL module is disabled', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F8.5 - [Tier 1] displays default platform insignia when logo URL is blank', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T2.F8.6 - [Tier 2] broken image URL falls back gracefully to school initials', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F8.7 - [Tier 2] data:image/png;base64 logo string supported', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F8.8 - [Tier 2] oversized image dimensions auto-constrained by object-contain', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F8.9 - [Tier 2] logo URL with CDN auth tokens and query params handled', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F8.10 - [Tier 2] accessible alt text in Arabic for school branding logo', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 });
 
@@ -298,13 +341,14 @@ test.describe('Track 2 - Feature 9: School Director Cockpit', () => {
   // Tier 1: Feature Coverage (5 tests)
   test('T2.F9.1 - [Tier 1] loads director cockpit with scoped metrics', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
     await expect(page.getByText('مدارس الرواد الأهلية').first()).toBeVisible();
   });
 
   test('T2.F9.2 - [Tier 1] switches between director sections in navigation', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByText('الطلاب')).toBeVisible();
+    await page.getByText('إدارة المدرسة', { exact: true }).click();
+    await expect(page.getByRole('navigation', { name: 'أقسام لوحة مدير المدرسة' }).getByText('الطلاب')).toBeVisible();
   });
 
   test('T2.F9.3 - [Tier 1] displays active classrooms list with student counts', async ({ page }) => {
@@ -314,38 +358,38 @@ test.describe('Track 2 - Feature 9: School Director Cockpit', () => {
 
   test('T2.F9.4 - [Tier 1] displays student roster with pagination and details', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F9.5 - [Tier 1] adds new student and links to classroom with CSRF header', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T2.F9.6 - [Tier 2] empty school (0 students, 0 classes) displays empty state gracefully', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F9.7 - [Tier 2] large student roster pagination handles page transitions', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F9.8 - [Tier 2] student search filter matches names accurately', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F9.9 - [Tier 2] moving student between classes updates class assignment', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F9.10 - [Tier 2] director scoped from accessing other schools data', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 });
 
@@ -357,53 +401,53 @@ test.describe('Track 2 - Feature 10: Noor Excel Class Roster Import', () => {
   // Tier 1: Feature Coverage (5 tests)
   test('T2.F10.1 - [Tier 1] opens Noor roster import dialog from director dashboard', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F10.2 - [Tier 1] parses tab-separated Excel roster data from Ministry of Education Noor', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F10.3 - [Tier 1] maps Noor columns to student name, civil ID, and class', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F10.4 - [Tier 1] displays import preview with valid count and duplicates', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F10.5 - [Tier 1] executes batch creation and associates with school class', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T2.F10.6 - [Tier 2] empty paste text rejected with validation warning', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F10.7 - [Tier 2] malformed rows flagged with line numbers', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F10.8 - [Tier 2] duplicate civil IDs deduplicated automatically', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F10.9 - [Tier 2] bulk import of 150+ students completes without freeze', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 
   test('T2.F10.10 - [Tier 2] Arabic name variations and hamzas normalized properly', async ({ page }) => {
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 });
 
@@ -415,53 +459,53 @@ test.describe('Track 2 - Feature 11: Royal Appreciation Certificate Modal', () =
   // Tier 1: Feature Coverage (5 tests)
   test('T2.F11.1 - [Tier 1] teacher opens TeacherCertificateModal with school defaults', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F11.2 - [Tier 1] customizes recipient student name in certificate', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F11.3 - [Tier 1] selects Academic Excellence certificate kind (وسام التفوق والتميز)', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F11.4 - [Tier 1] selects Smart Classroom Hero kind (بطل الحصة الذكية)', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F11.5 - [Tier 1] generates pre-filled WhatsApp congratulations message for parents', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T2.F11.6 - [Tier 2] long 4-part Arabic patronymic student name fits in border', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F11.7 - [Tier 2] long school name wraps without breaking crest layout', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F11.8 - [Tier 2] Persistence & Progress kind (وسام المثابرة والتقدم) selected', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F11.9 - [Tier 2] empty student name falls back to default placeholder', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F11.10 - [Tier 2] modal dismissal via close button or backdrop click', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 });
 
@@ -473,54 +517,54 @@ test.describe('Track 2 - Feature 12: Certificate Print & QR Verification', () =>
   // Tier 1: Feature Coverage (5 tests)
   test('T2.F12.1 - [Tier 1] generates unique certificate reference code CERT-XXXXX-XXXX', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F12.2 - [Tier 1] renders dynamic QRCodeSVG in certificate view', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F12.3 - [Tier 1] QR code verification link points to platform verify URL', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F12.4 - [Tier 1] print action triggers window.print()', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F12.5 - [Tier 1] printable layout includes double gold border and royal crest', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T2.F12.6 - [Tier 2] @media print hides background overlay and control buttons', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F12.7 - [Tier 2] QR code error correction level M allows reliable camera scanning', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F12.8 - [Tier 2] certCode contains high-entropy random characters', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F12.9 - [Tier 2] localized Arabic date string format', async ({ page }) => {
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   test('T2.F12.10 - [Tier 2] certificate layout scales appropriately on mobile and desktop', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 });
 

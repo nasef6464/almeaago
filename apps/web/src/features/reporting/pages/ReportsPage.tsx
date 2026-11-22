@@ -1,6 +1,6 @@
 import{ArrowRight,BarChart3,CalendarDays,CheckCircle2,Compass,Download,FileText,Loader2,RefreshCcw,Sparkles,Target,Users}from'lucide-react';
 import{useEffect,useMemo,useState}from'react';
-import{Link,Navigate}from'react-router-dom';
+import{Link}from'react-router-dom';
 
 import{useAuth}from'../../auth/state/AuthProvider';
 import{contentClient}from'../../content/api/content-client';
@@ -8,7 +8,6 @@ import type{TaxonomyCore}from'../../content/api/content-types';
 import{organizationsClient,type SchoolClass,type SchoolContext}from'../../organizations/api/organizations-client';
 import{reportingClient}from'../api/reporting-client';
 import type{ReportingOverview,ReportingQuery,ReportingResultPage}from'../api/reporting-types';
-import { StudentReportsView } from '../student/StudentReportsView';
 
 function score(value:number){return `${Math.round(value)}%`}
 function download(blob:Blob,name:string){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)}
@@ -101,16 +100,110 @@ export function ReportsPage({ embedded }: { embedded?: boolean } = {}){
  }
 
  if(authLoading)return <main dir="rtl" className="p-10 text-center font-black">جاري التحقق من الحساب...</main>;
+ if(!user)return <main dir="rtl" className="p-10 text-center font-black text-rose-700">سجّل الدخول لعرض التقارير.</main>;
+ if(!supported)return <main dir="rtl" className="p-10 text-center font-black text-rose-700">لا يوجد نطاق تقارير لهذا الدور.</main>;
 
- if(!embedded && (isStudent || !user)){
-  return <Navigate to="/dashboard?tab=reports" replace />;
- }
+ if(isStudent){
+  const now=new Date();
+  const toKey=(value:Date)=>value.toISOString().slice(0,10);
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+  const quarterStart=new Date(now.getFullYear(),now.getMonth()-2,1);
+  const activePreset=!dateFrom&&!dateTo?'all':dateFrom===toKey(monthStart)&&dateTo===toKey(now)?'month':dateFrom===toKey(quarterStart)&&dateTo===toKey(now)?'quarter':'custom';
+  const applyPreset=(preset:'month'|'quarter'|'all')=>{
+   if(preset==='all'){setDateFrom('');setDateTo('');return}
+   setDateFrom(toKey(preset==='month'?monthStart:quarterStart));
+   setDateTo(toKey(now));
+  };
+  const masteryTone=(value:number)=>value<50
+   ?{label:'ابدأ بها',wrap:'border-rose-100 bg-rose-50',text:'text-rose-700',bar:'bg-rose-500'}
+   :value<75
+    ?{label:'راجعها قريبًا',wrap:'border-amber-100 bg-amber-50',text:'text-amber-700',bar:'bg-amber-500'}
+    :{label:'مطمئنة',wrap:'border-emerald-100 bg-emerald-50',text:'text-emerald-700',bar:'bg-emerald-500'};
 
- if(!user && !embedded)return <main dir="rtl" className="p-10 text-center font-black text-rose-700">سجّل الدخول لعرض التقارير.</main>;
- if(!supported && user && !embedded)return <main dir="rtl" className="p-10 text-center font-black text-rose-700">لا يوجد نطاق تقارير لهذا الدور.</main>;
+  const ContainerTag = embedded ? 'div' : 'main';
 
- if(isStudent || embedded || !user){
-  return <StudentReportsView embedded={embedded} />;
+  return <ContainerTag id="reports-print-area" dir="rtl" className={`mx-auto max-w-6xl space-y-6 ${embedded ? 'p-0 w-full' : 'px-3 pb-20 pt-5 sm:px-6'}`}>
+   <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex items-center gap-3 sm:gap-4">
+     {!embedded ? (
+      <Link to="/dashboard" className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition" aria-label="العودة للوحة الطالب"><ArrowRight size={24}/></Link>
+     ) : null}
+     <div><h1 className="text-xl font-bold leading-tight text-gray-800 dark:text-white sm:text-2xl">تقارير الأداء</h1><p className="text-sm text-gray-500 dark:text-slate-400">تحليل مبسط لمستواك من نتائجك وأدلة الإتقان التي يسمح بها الخادم.</p></div>
+    </div>
+    <div className="flex flex-wrap gap-2">
+     <button type="button" onClick={()=>setReload(x=>x+1)} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-black text-slate-700 dark:text-slate-200 shadow-sm"><RefreshCcw size={15}/>تحديث</button>
+     {overview?.scope.canExport?<button type="button" onClick={()=>void exportCsv()} disabled={exporting} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-100 dark:border-emerald-800 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-black text-emerald-700 dark:text-emerald-300 shadow-sm disabled:opacity-50">{exporting?<Loader2 size={15} className="animate-spin"/>:<Download size={15}/>}CSV</button>:null}
+    </div>
+   </header>
+
+   <section className={`rounded-2xl border p-4 shadow-sm sm:p-5 ${pathId?'border-emerald-200/90 dark:border-emerald-900/60 bg-gradient-to-l from-emerald-50/60 via-white to-slate-50/50 dark:from-emerald-950/40 dark:via-slate-900 dark:to-slate-900':'border-amber-200/90 dark:border-amber-900/60 bg-gradient-to-l from-amber-50/60 via-white to-slate-50/50 dark:from-amber-950/40 dark:via-slate-900 dark:to-slate-900'}`}>
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+     <div className="flex min-w-0 items-start gap-3.5 sm:items-center">
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm ${pathId?'bg-emerald-500':'bg-amber-500'}`}><Compass size={22}/></div>
+      <div className="min-w-0 flex-1">
+       <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-black ${pathId?'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300':'bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300'}`}>{pathId?'تقاريرك مرتبة حسب مسارك':'اختر مسارك لتضييق التقرير'}</span>
+       <h2 className="mt-1 text-sm font-black leading-snug text-gray-900 dark:text-white sm:text-base">{pathId?`نركز الآن على ${taxonomy.paths.find(row=>row.id===pathId)?.name||'المسار المختار'}${subjectId?` — ${studentSubjects.find(row=>row.id===subjectId)?.name||''}`:''}.`:'يمكنك إبقاء التقرير شاملًا أو تحديد المسار والمادة.'}</h2>
+      </div>
+     </div>
+     <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[440px]">
+      <select aria-label="مسار التقرير" value={pathId} onChange={e=>{setPathId(e.target.value);setSubjectId('')}} className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm font-black text-gray-700 dark:text-slate-100"><option value="">كل المسارات</option>{taxonomy.paths.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select>
+      <select aria-label="مادة التقرير" value={subjectId} disabled={!pathId} onChange={e=>setSubjectId(e.target.value)} className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm font-black text-gray-700 dark:text-slate-100 disabled:bg-gray-50 dark:disabled:bg-slate-900/50"><option value="">كل مواد المسار</option>{studentSubjects.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select>
+     </div>
+    </div>
+   </section>
+
+   <section className="rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm sm:p-5">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+     <div><div className="mb-1 inline-flex items-center gap-2 rounded-full bg-slate-50 dark:bg-slate-800 px-3 py-1 text-xs font-bold text-slate-500 dark:text-slate-400"><CalendarDays size={14}/>الفترة الزمنية</div><p className="text-xs font-bold text-gray-500 dark:text-slate-400">تصفية نتائجك حسب التاريخ دون إعادة بناء إتقان أو نتائج داخل المتصفح.</p></div>
+     <div className="flex flex-wrap gap-1.5">
+      <button type="button" onClick={()=>applyPreset('month')} className={`rounded-xl px-3 py-1.5 text-xs font-black transition ${activePreset==='month'?'bg-indigo-600 text-white shadow-sm':'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>هذا الشهر</button>
+      <button type="button" onClick={()=>applyPreset('quarter')} className={`rounded-xl px-3 py-1.5 text-xs font-black transition ${activePreset==='quarter'?'bg-indigo-600 text-white shadow-sm':'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>آخر 3 أشهر</button>
+      <button type="button" onClick={()=>applyPreset('all')} className={`rounded-xl px-3 py-1.5 text-xs font-black transition ${activePreset==='all'?'bg-indigo-600 text-white shadow-sm':'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>كل الفترات</button>
+      <button type="button" onClick={()=>{}} className={`rounded-xl px-3 py-1.5 text-xs font-black transition ${activePreset==='custom'?'bg-indigo-600 text-white shadow-sm':'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>فترة مخصصة</button>
+     </div>
+    </div>
+    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+     <label className="text-xs font-black text-gray-600 dark:text-slate-400">من<input aria-label="بداية فترة التقرير" type="date" value={dateFrom} max={dateTo||undefined} onChange={e=>setDateFrom(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 font-bold text-gray-800 dark:text-slate-200"/></label>
+     <label className="text-xs font-black text-gray-600 dark:text-slate-400">إلى<input aria-label="نهاية فترة التقرير" type="date" value={dateTo} min={dateFrom||undefined} onChange={e=>setDateTo(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 font-bold text-gray-800 dark:text-slate-200"/></label>
+    </div>
+    {dateFrom||dateTo?<div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 px-3 py-2 text-xs font-bold text-indigo-800 dark:text-indigo-200"><span>الفترة المطبقة: {dateFrom||'البداية'} — {dateTo||'اليوم'}</span><button type="button" onClick={()=>{setDateFrom('');setDateTo('')}} className="rounded-lg bg-white dark:bg-slate-800 px-2.5 py-1 font-black">مسح الفترة</button></div>:null}
+   </section>
+
+   {error?<div role="alert" className="rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/50 p-4 font-bold text-rose-700 dark:text-rose-300">{error}</div>:null}
+   {busy?<div className="flex items-center justify-center gap-2 rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-12 font-bold text-gray-500 dark:text-slate-400"><Loader2 size={18} className="animate-spin"/>جاري تحميل التقرير...</div>:overview?<>
+    <div className="rounded-2xl border border-indigo-100 dark:border-indigo-900/60 bg-indigo-50/80 dark:bg-indigo-950/40 p-4">
+     <div className="text-xs font-black text-indigo-700 dark:text-indigo-300">قراءة سريعة للتقرير</div>
+     <p className="mt-1.5 text-xs font-bold leading-6 text-indigo-950 dark:text-indigo-200">
+      تحليل مباشر لمستواك ونتائجك المعتمدة وخطة التطوير الأكاديمي.
+     </p>
+    </div>
+    <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+     <div className="rounded-2xl border border-indigo-100 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/70 to-white dark:from-indigo-950/40 dark:to-slate-900 p-4 text-center"><div className="text-2xl font-black text-indigo-700 dark:text-indigo-300">{score(overview.assessment.averageScore)}</div><div className="mt-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400">الدرجة العامة</div></div>
+     <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 text-center"><div className="text-2xl font-black text-gray-900 dark:text-white">{overview.assessment.resultCount}</div><div className="mt-1 text-[11px] font-bold text-gray-500 dark:text-slate-400">الاختبارات المنجزة</div></div>
+     <div className="rounded-2xl border border-emerald-100 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 p-4 text-center"><div className="text-2xl font-black text-emerald-700 dark:text-emerald-300">{score(overview.assessment.passRate)}</div><div className="mt-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">نسبة الاجتياز</div></div>
+     <div className="rounded-2xl border border-rose-100 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 p-4 text-center"><div className="text-2xl font-black text-rose-700 dark:text-rose-300">{overview.weakestSkills.length}</div><div className="mt-1 text-[11px] font-bold text-rose-600 dark:text-rose-400">مهارات تحتاج تركيز</div></div>
+    </section>
+
+    {overview.scope.isTruncated||overview.assessment.resultsTruncated||overview.assessment.attemptsTruncated?<div className="rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900/50 p-4 text-sm font-bold leading-7 text-amber-900 dark:text-amber-200">هذا التقرير يستخدم حدود قراءة معلنة لحماية الأداء. الأرقام المعروضة تخص العينة المعلنة عند اتساع النطاق.</div>:null}
+
+    <section className="rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm sm:p-6">
+     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><div className="mb-2 inline-flex rounded-full bg-slate-50 dark:bg-slate-800 px-3 py-1 text-xs font-black text-slate-500 dark:text-slate-400">حالة إتقان المهارات الحالية</div><h2 className="text-xl font-black text-gray-900 dark:text-white">المهارات التي تبدأ بها</h2></div><Link to={embedded ? "/dashboard?tab=plan" : "/plan"} className="self-start rounded-xl bg-white dark:bg-slate-800 px-3 py-2 text-xs font-black text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-100 dark:ring-indigo-900/60 hover:bg-indigo-50 dark:hover:bg-slate-700">افتح خطتي</Link></div>
+     <div className="mt-5 space-y-2">
+      {overview.weakestSkills.length?overview.weakestSkills.map(row=>{const tone=masteryTone(row.mastery);return <article key={row.skillId} className={`rounded-2xl border p-3 ${tone.wrap} dark:bg-slate-850 dark:border-slate-800`}>
+       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+        <div><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full bg-white/70 dark:bg-slate-800 px-3 py-1 text-[11px] font-black ${tone.text}`}>{tone.label}</span><span className="text-[11px] font-bold text-gray-500 dark:text-slate-400">{row.evidenceCount} دليل</span></div><div className="mt-2 font-black leading-7 text-gray-900 dark:text-white">{row.skillName}</div><div className="mt-1 text-xs font-bold text-gray-500 dark:text-slate-400">متأثر بها {row.affectedStudents} طالب ضمن النطاق الحالي.</div></div>
+        <div className="flex items-center gap-3"><div className={`w-14 text-center text-2xl font-black ${tone.text}`}>{score(row.mastery)}</div><div className="h-2 w-24 overflow-hidden rounded-full bg-white/80 dark:bg-slate-800"><div className={`h-full rounded-full ${tone.bar}`} style={{width:`${Math.max(0,Math.min(100,row.mastery))}%`}}/></div></div>
+       </div>
+      </article>}):<div className="rounded-3xl border border-dashed border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-850 p-6 text-center text-sm font-bold leading-7 text-gray-500 dark:text-slate-400"><CheckCircle2 className="mx-auto mb-2 text-emerald-500" size={24}/>لا توجد مهارة تحقق شرط الأدلة والضعف في النطاق الحالي.</div>}
+     </div>
+    </section>
+
+    <section className="overflow-hidden rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+     <div className="flex items-center justify-between gap-3 border-b border-gray-100 dark:border-slate-800 p-5"><div><h2 className="text-lg font-black text-gray-900 dark:text-white">أحدث النتائج</h2></div><Link to={embedded ? "/dashboard?tab=results" : "/assessment-results"} className="rounded-xl bg-indigo-50 dark:bg-indigo-950/60 px-3 py-2 text-xs font-black text-indigo-700 dark:text-indigo-300">اختباراتي</Link></div>
+     {results?.items.length?<div className="divide-y divide-gray-100 dark:divide-slate-800">{results.items.map(row=><article key={row.attemptId} className="grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center"><div><div className="font-black text-gray-900 dark:text-white">{row.title}</div><div className="mt-1 text-xs font-bold text-gray-500 dark:text-slate-400">{new Date(row.finalizedAt).toLocaleString('ar-SA')} · صحيح {row.correctAnswers} · خطأ {row.wrongAnswers} · دون إجابة {row.unanswered}</div></div><Link to={`/assessment-results/${row.attemptId}`} className="rounded-xl bg-indigo-50 dark:bg-indigo-950/60 px-4 py-2 text-center text-xl font-black text-indigo-700 dark:text-indigo-300">{score(row.score)}</Link></article>)}</div>:<div className="p-8 text-center text-sm font-bold text-gray-500 dark:text-slate-400">لا توجد نتائج في النطاق الحالي.</div>}
+    </section>
+   </>:null}
+  </ContainerTag>;
  }
 
  return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-gray-50 px-3 py-5 sm:px-6"><div className="mx-auto max-w-7xl space-y-5">

@@ -12,22 +12,25 @@ const catalog = {
 };
 
 for (const width of [390, 820, 1440]) {
-  test(`restricted category opens one enrollment dialog and retains failed draft before persistent retry at ${width}px`, async ({ page }) => {
+  test(`restricted category opens one enrollment dialog and retains failed draft before persistent retry at ${width}px`, async ({ page, baseURL }) => {
     await page.setViewportSize({ width, height: 1000 });
-    await page.route(url => url.origin !== 'http://127.0.0.1:4173', route => route.abort('blockedbyclient'));
+    const allowedOrigin = baseURL ? new URL(baseURL).origin : 'http://127.0.0.1:5173';
+    await page.route(url => url.origin !== allowedOrigin, route => route.abort('blockedbyclient'));
+    const fixture = await mockHeaderNavigation(page, {
+      actor: () => student,
+      catalog,
+      saved: { [student.id]: { enrolledPaths: ['registered-path'], pathStageSelections: [] } },
+    });
     await page.route(url => url.pathname.startsWith('/api/'), route => {
       const path = new URL(route.request().url()).pathname;
       if (path === '/api/v1/auth/me') return route.fulfill({ json: { user: student } });
       if (path === '/api/v1/auth/csrf') return route.fulfill({ json: { csrfToken: 'category-enrollment-csrf' } });
       if (path === '/api/v1/content/homepage-settings') return route.fulfill({ json: { studentExperience: { visibilityMode: 'enrolled', promptEnrollment: true } } });
       if (path === '/api/v1/content/platform-font-settings') return route.fulfill({ json: {} });
+      if (path.startsWith('/api/v1/learning/navigation-preferences')) return route.fallback();
+      if (path.startsWith('/api/v1/taxonomy/bootstrap')) return route.fulfill({ json: catalog });
       if (route.request().method() !== 'GET') return route.fulfill({ status: 403, json: { message: 'Unexpected synthetic mutation' } });
       return route.fulfill({ json: { items: [], ads: [], announcements: [], unreadCount: 0, hasMore: false } });
-    });
-    const fixture = await mockHeaderNavigation(page, {
-      actor: () => student,
-      catalog,
-      saved: { [student.id]: { enrolledPaths: ['registered-path'], pathStageSelections: [] } },
     });
     const writes: Array<{ body: unknown; csrf: string }> = [];
     page.on('request', request => {

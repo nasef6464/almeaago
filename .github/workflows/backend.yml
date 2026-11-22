@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
-        with: { go-version: "1.27.1", cache: false }
+        with: { go-version: "1.27.4", cache: false }
       - name: Verify module lock
         run: |
           go mod tidy
@@ -48,4 +48,8 @@ jobs:
           done < <(find cmd internal -type f -name '*.go' -print0)
           exit "$status"
       - run: go vet ./...
+      - name: Install pinned govulncheck binary
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.10.0
+      - name: Run govulncheck security scan
+        run: govulncheck ./cmd/... ./internal/...
       - run: go test ./...

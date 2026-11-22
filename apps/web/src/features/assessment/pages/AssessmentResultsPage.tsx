@@ -318,6 +318,8 @@ function ReviewQuestionCard({
   );
 }
 
+const learnerSavedReviewQuestions = new Map<string, Set<string>>();
+
 export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {}) {
   const { attemptId = '' } = useParams();
   const [searchParams] = useSearchParams();
@@ -332,7 +334,9 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
   const [error, setError] = useState('');
   const [saveError, setSaveError] = useState('');
   const [detailContext, setDetailContext] = useState('');
-  const [savedQuestions, setSavedQuestions] = useState<Set<string>>(() => new Set());
+  const [savedQuestions, setSavedQuestions] = useState<Set<string>>(() => {
+    return new Set(learnerSavedReviewQuestions.get(user?.id || '') || []);
+  });
   const [savingQuestion, setSavingQuestion] = useState('');
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
   const [activeSmartTeacherQuestion, setActiveSmartTeacherQuestion] = useState<ReviewQuestion | null>(null);
@@ -350,7 +354,8 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
   }, [activeContext]);
 
   useEffect(() => {
-    setSavedQuestions(new Set<string>());
+    const id = user?.id || '';
+    setSavedQuestions(new Set(learnerSavedReviewQuestions.get(id) || []));
   }, [user?.id]);
 
   useEffect(() => {
@@ -399,11 +404,14 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
       const csrf = await getCsrfToken();
       await learningClient.saveReview(questionId, csrf);
       if (activeContextRef.current !== requestContext) return;
-      setSavedQuestions((current) => {
-        const next = new Set(current);
-        next.add(questionId);
-        return next;
-      });
+      const id = user?.id || '';
+      let set = learnerSavedReviewQuestions.get(id);
+      if (!set) {
+        set = new Set<string>();
+        learnerSavedReviewQuestions.set(id, set);
+      }
+      set.add(questionId);
+      setSavedQuestions(new Set(set));
     } catch (cause) {
       if (activeContextRef.current === requestContext) {
         setSaveError(cause instanceof Error ? cause.message : 'تعذر حفظ السؤال للمراجعة');
@@ -424,9 +432,6 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
 
   if (authLoading || busy || (attemptId && detailContext !== activeContext && !error)) {
     return <div className="p-10 text-center font-black">جاري تحميل النتائج...</div>;
-  }
-  if (!attemptId && !embedded && (!user || user?.roles.includes('student'))) {
-    return <Navigate to="/dashboard?tab=results" replace />;
   }
   if (!user) {
     return <div className="p-10 text-center font-black text-rose-700">يلزم تسجيل الدخول.</div>;

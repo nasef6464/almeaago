@@ -80,9 +80,16 @@ export function CourseLearningPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, loading: authLoading, getCsrfToken } = useAuth();
-  const { completedLessonIds, markCompleted } = useCourseCompletion(courseId, user?.roles?.includes('student') ? user.id : '');
-
   const [course, setCourse] = useState<LearnerCourse | null>(null);
+  const hasAccessibleLessons = useMemo(() => {
+    if (!course) return false;
+    const all = flattenLessons(course);
+    return all.length > 0 && all.some((l) => (!l.isLocked && !l.commerceLocked) || l.isPreview);
+  }, [course]);
+  const { completedLessonIds, markCompleted } = useCourseCompletion(
+    hasAccessibleLessons ? courseId : '',
+    user?.roles?.includes('student') ? user.id : ''
+  );
   // Keep the loaded course tied to its route, including during failed transitions.
   const [loadedCourseId, setLoadedCourseId] = useState('');
   const [courseError, setCourseError] = useState('');
@@ -1062,9 +1069,9 @@ export function CourseLearningPage() {
                     {/* 1. NOTES TAB */}
                     {bottomTab === 'notes' && (
                       <div className="space-y-4">
-                        <h4 className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        <div className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                           {activeDetail.title}
-                        </h4>
+                        </div>
                         <p className={`text-sm leading-8 ${isDarkMode ? 'text-slate-300' : 'text-gray-600'}`}>
                           {activeDetail.description || 'لا يوجد وصف إضافي لهذا الدرس.'}
                         </p>

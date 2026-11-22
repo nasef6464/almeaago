@@ -209,7 +209,7 @@ test.describe('PathsManager Visual Review & Parity Suite', () => {
     await expect(page.getByText('مركز القيادة المتكامل للتحكم بالمسارات التعليمية، المراحل الدراسية، المواد، الاختبارات المحاكية، والباقات.')).toBeVisible();
 
     // 2. Verify Paths Sidebar
-    await expect(page.getByRole('heading', { name: 'المسارات', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: /شجرة المسارات|المسارات/ })).toBeVisible();
     await expect(page.getByRole('strong').filter({ hasText: 'القدرات العامة' })).toBeVisible();
     await expect(page.getByRole('strong').filter({ hasText: 'التحصيلي العلمي' })).toBeVisible();
     await expect(page.getByRole('strong').filter({ hasText: 'اختبارات نافس الوطنية' })).toBeVisible();

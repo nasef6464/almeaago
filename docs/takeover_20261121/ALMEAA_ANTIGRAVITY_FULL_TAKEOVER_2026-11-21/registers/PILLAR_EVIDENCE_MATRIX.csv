@@ -1,0 +1,38 @@
+﻿pillar_id,domain,requirement,status,source_file,unit_test,integration_test,browser_or_security_evidence,ci_exact_head,owner,notes
+PILLAR-01,Architecture,Domain ownership / Modular Monolith,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-02,Architecture,ADR on major changes,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-03,Database,Indexes and EXPLAIN,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-04,Database,N+1 query budget,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-05,Database,Bounded/keyset pagination,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-06,Database,SQL migrations and rollback,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-07,Performance,Responsive images WebP and lazy loading,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-08,Performance,Redis cache and invalidation,CODE_PRESENT_NOT_CLOSED,internal/platform/cache/redis.go,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-09,Performance,Skeletons and CLS,CODE_PRESENT_NOT_CLOSED,apps/web/src/components/ui/Skeleton.tsx,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-10,Performance,Bundle/code splitting and LCP/INP,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-11,Security,Authentication brute force and rate limits,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-12,Security,CSRF and XSS and KaTeX sanitization,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-13,Security,RBAC strict tenant scoping,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-14,Security,Secrets and credential rotation,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-15,Security,govulncheck and npm security scan,GAP_IN_INSPECTED_WORKFLOWS,.github/workflows/backend.yml and frontend.yml,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-16,UX,A11y keyboard focus contrast,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-17,UX,Loading empty error retry,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-18,UX,Offline/PWA safe behavior,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-19,UX,Print and PDF reports,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-20,Pedagogy,Skill mastery source truth,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-21,Pedagogy,Adaptive recommendation,CODE_PRESENT_NOT_CLOSED,internal/learning/domain/adaptive_selection.go,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-22,Pedagogy,Diagnostic placement,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-23,Pedagogy,Spaced repetition,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-24,Pedagogy,Bloom taxonomy question validity,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-25,Pedagogy,Feedback and analytics,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-26,Operations,Structured logs,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-27,Operations,Tracing and metrics alerting,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-28,Operations,Live/ready/deep dependency diagnostics,PARTIAL_CODE_PRESENT,internal/platform/httpserver/server.go: /health/live /health/ready; /deep not verified,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-29,Operations,Graceful shutdown,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-30,Operations,Backup RPO RTO restore drill,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-31,Governance,Saudi PDPL privacy data lifecycle,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-32,Governance,RTL and Arabic canonical font,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-33,Governance,Sensitive operation audit log,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-34,Realtime,Scoped reconnect and answer-key protection,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-35,AI,Prompt data protection and budgets,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-36,Commerce,Verified webhook and idempotent grants,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD
+PILLAR-37,Release,Exact-head CI and reviewer and rollback,UNVERIFIED,,,,,,Antigravity,Do not mark VERIFIED without code+test/evidence on current HEAD

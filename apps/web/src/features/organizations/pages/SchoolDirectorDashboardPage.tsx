@@ -725,8 +725,9 @@ export function SchoolDirectorDashboardPage(){
           ) : null}
           <div>
             <p className="flex items-center gap-2 text-sm font-bold text-indigo-200"><ShieldCheck size={17}/> نطاق مفوض من مدير المنصة</p>
-            <h1 className="mt-2 text-3xl font-black">{selectedSchool.schoolName}</h1>
-            <p className="mt-1 text-xs text-indigo-200 font-bold">لوحة إدارة المدرسة والعمليات التشغيلية والأكاديمية المتقدمة</p>
+            <h1 className="mt-2 text-3xl font-black">لوحة مدير المدرسة</h1>
+            <h2 className="mt-1 text-base text-indigo-200 font-bold">{selectedSchool.schoolName}</h2>
+            <p className="text-xs text-indigo-300">لوحة إدارة المدرسة والعمليات التشغيلية والأكاديمية المتقدمة</p>
           </div>
         </div>
         <label className="text-sm font-bold">المدرسة<select aria-label="المدرسة" value={selectedSchool.schoolId} onChange={e=>changeSchool(e.target.value)} className="mt-2 block w-full min-w-56 rounded-xl border-0 bg-white px-4 py-3 text-slate-900">{schools.map(s=><option key={s.schoolId} value={s.schoolId}>{s.schoolName}</option>)}</select></label>
@@ -818,7 +819,7 @@ export function SchoolDirectorDashboardPage(){
       </div>
 
       {/* School Classes Performance Benchmark */}
-      <article className="rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
+      <div className="rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-black text-slate-900 text-lg">مقارنة أداء فصول المدرسة</h3>
@@ -862,11 +863,16 @@ export function SchoolDirectorDashboardPage(){
             </tbody>
           </table>
         </div>
-      </article>
+      </div>
+
+      <section aria-label="مركز تشغيل مدير المدرسة" className="mt-7 rounded-3xl border bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-2"><BarChart3 size={18} className="text-indigo-700"/><h2 className="font-black">مركز التشغيل الأكاديمي</h2></div>
+        <p className="mt-2 text-xs font-bold leading-6 text-slate-500">أقسام التقارير والتدخلات والحصص الذكية والاختبارات قيد النقل والتحقق من صلاحياتها في نسخة Go؛ ستظهر روابطها هنا بعد اكتمال خدماتها، دون فتح صفحة لا يملك مدير المدرسة تفويضها.</p>
+      </section>
     </section>:null}
 
     {/* SECTION: ASSESSMENTS (CLASERA PARITY WITH SUPERVISOR TESTS MANAGER) */}
-    {section==='assessments'?<section aria-label="اختبارات المدرسة المركزية" className="mt-6 space-y-6">
+    {section==='assessments'?<section aria-label="اختبارات المدرسة" className="mt-6 space-y-6">
       {/* Top action bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border shadow-2xs">
         <div>
@@ -874,6 +880,9 @@ export function SchoolDirectorDashboardPage(){
           <p className="text-xs text-slate-500">نظام كلاسيرا المتكامل: بطاقات ذكية، فلترة متعددة الأبعاد، تحليل إحصائي وتصدير فوري.</p>
         </div>
         <div className="flex items-center gap-2">
+          <span className="rounded-xl bg-indigo-50 px-4 py-2 text-sm font-black text-indigo-800">
+            {assessmentWorkspace?.assessments.length ?? '—'} اختبار
+          </span>
           {has('SCHOOL_ASSESSMENTS_MANAGE') && selectedSchool.modules.includes('SCHOOL_ASSESSMENTS') ? (
             <button
               type="button"
@@ -881,7 +890,7 @@ export function SchoolDirectorDashboardPage(){
               className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700 shadow-2xs transition-all"
             >
               <Plus size={15} />
-              {showAssessmentCreator ? 'إغلاق منشئ الاختبارات' : 'إنشاء اختبار مدرسي جديد'}
+              {showAssessmentCreator ? 'إغلاق النموذج' : 'إنشاء اختبار'}
             </button>
           ) : null}
         </div>
@@ -900,10 +909,43 @@ export function SchoolDirectorDashboardPage(){
             setShowAssessmentCreator(false);
             setAssessmentReload(x => x + 1);
             setOverviewReload(x => x + 1);
-            setNotice('تم إنشاء اختبار المدرسة ونشره للطلاب المستهدفين بنجاح.');
+            setNotice('تم إنشاء اختبار المدرسة ونشره للطلاب المستهدفين.');
           }}
           onClose={() => setShowAssessmentCreator(false)}
         />
+      ) : null}
+
+      {assessmentLoading ? <p role="status" className="mt-5 text-sm font-bold text-slate-500">جار تحميل اختبارات المدرسة…</p> : null}
+      {assessmentError ? <p role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{assessmentError}</p> : null}
+      {assessmentWorkspace && !assessmentError && assessmentWorkspace.assessments.length > 0 ? (
+        <div className="mt-5 grid min-w-0 gap-3 sm:grid-cols-2">
+          {assessmentWorkspace.assessments.map(item => {
+            const audience = item.targetGroupIds.includes(selectedSchool.schoolId)
+              ? 'المدرسة كاملة'
+              : item.targetGroupIds
+                  .map(id => assessmentWorkspace.classes.find(c => c.classId === id)?.className)
+                  .filter(Boolean)
+                  .join('، ') || (item.isPublished ? 'طلاب محددون' : 'مسودة مركزية');
+            return (
+              <article key={item.id} className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <h3 className="min-w-0 flex-1 break-words font-black text-slate-900">{item.title}</h3>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${item.isPublished ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-emerald-800'}`}>
+                    {item.isPublished ? 'منشور' : 'غير منشور'}
+                  </span>
+                </div>
+                <p className="mt-3 break-words text-xs font-bold text-slate-600">الاستهداف: {audience}</p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAssessment({ schoolId: selectedSchool.schoolId, assessment: item })}
+                  className="mt-3 rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm font-bold text-indigo-700 hover:bg-indigo-50 transition-colors"
+                >
+                  النتائج والإدارة
+                </button>
+              </article>
+            );
+          })}
+        </div>
       ) : null}
 
       {/* Clasera-Style Tests Manager for School Director */}
@@ -914,6 +956,17 @@ export function SchoolDirectorDashboardPage(){
         students={students.map(s => ({ id: s.studentId, name: s.name, className: s.className || '' }))}
       />
     </section>:null}
+
+    {selectedAssessment?.schoolId === selectedSchool?.schoolId && section === 'assessments' && has('SCHOOL_ASSESSMENTS_MANAGE') && selectedSchool?.modules.includes('SCHOOL_ASSESSMENTS') ? (
+      <DirectorAssessmentReportPanel
+        key={`${selectedAssessment.schoolId}-${selectedAssessment.assessment.id}`}
+        schoolId={selectedAssessment.schoolId}
+        assessmentId={selectedAssessment.assessment.id}
+        title={selectedAssessment.assessment.title}
+        canViewLearners={has('SCHOOL_REPORTS_DETAILED_VIEW') && selectedSchool.modules.includes('SCHOOL_INTELLIGENCE')}
+        onClose={() => setSelectedAssessment(null)}
+      />
+    ) : null}
 
     {/* SECTION: SMART CLASSROOMS */}
     {section==='smart-classrooms'?<section aria-label="الحصص الذكية المدرسية" className="mt-6 space-y-6">

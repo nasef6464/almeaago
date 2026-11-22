@@ -253,7 +253,7 @@ export function ClassroomStudentPage() {
                   الفصل الذكي التفاعلي · طالب
                 </span>
               </div>
-              <h1 className="mt-1.5 text-2xl font-black">الحصة المباشرة</h1>
+              <h1 className="mt-1.5 text-2xl font-black">الحصة التفاعلية</h1>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -351,6 +351,7 @@ export function ClassroomStudentPage() {
             <button
               type="button"
               onClick={retry}
+              aria-label="إعادة المحاولة (تحديث)"
               className="mr-2 inline-flex items-center gap-1 font-black underline"
             >
               <RefreshCcw size={14} />

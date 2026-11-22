@@ -142,7 +142,7 @@ test('weekly report reload waits for renewed child relationships and drops revok
     });
   });
   await page.goto('/parent-dashboard');
-  await page.getByRole('button', { name: 'تقرير الأسبوع' }).click();
+  await page.getByRole('button', { name: 'تقرير الأسبوع', exact: true }).click();
   await expect(page.getByText('أحمد', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'تحديث لوحة ولي الأمر' }).click();
   await expect(page.getByText('سارة', { exact: true }).first()).toBeVisible();
