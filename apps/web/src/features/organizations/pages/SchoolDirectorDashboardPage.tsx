@@ -725,8 +725,8 @@ export function SchoolDirectorDashboardPage(){
           ) : null}
           <div>
             <p className="flex items-center gap-2 text-sm font-bold text-indigo-200"><ShieldCheck size={17}/> نطاق مفوض من مدير المنصة</p>
-            <h1 className="mt-2 text-3xl font-black">{selectedSchool.schoolName}</h1>
-            <p className="mt-1 text-xs text-indigo-200 font-bold">لوحة إدارة المدرسة والعمليات التشغيلية والأكاديمية المتقدمة</p>
+            <h1 className="mt-2 text-3xl font-black">لوحة مدير المدرسة</h1>
+            <p className="mt-1 text-xs text-indigo-200 font-bold">{selectedSchool.schoolName} - لوحة إدارة المدرسة والعمليات التشغيلية والأكاديمية المتقدمة</p>
           </div>
         </div>
         <label className="text-sm font-bold">المدرسة<select aria-label="المدرسة" value={selectedSchool.schoolId} onChange={e=>changeSchool(e.target.value)} className="mt-2 block w-full min-w-56 rounded-xl border-0 bg-white px-4 py-3 text-slate-900">{schools.map(s=><option key={s.schoolId} value={s.schoolId}>{s.schoolName}</option>)}</select></label>
@@ -863,6 +863,11 @@ export function SchoolDirectorDashboardPage(){
           </table>
         </div>
       </div>
+
+      <section aria-label="مركز تشغيل مدير المدرسة" className="mt-7 rounded-3xl border bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-2"><BarChart3 size={18} className="text-indigo-700"/><h2 className="font-black">مركز التشغيل الأكاديمي</h2></div>
+        <p className="mt-2 text-xs font-bold leading-6 text-slate-500">أقسام التقارير والتدخلات والحصص الذكية والاختبارات قيد النقل والتحقق من صلاحياتها في نسخة Go؛ ستظهر روابطها هنا بعد اكتمال خدماتها، دون فتح صفحة لا يملك مدير المدرسة تفويضها.</p>
+      </section>
     </section>:null}
 
     {/* SECTION: ASSESSMENTS (CLASERA PARITY WITH SUPERVISOR TESTS MANAGER) */}
@@ -881,7 +886,7 @@ export function SchoolDirectorDashboardPage(){
               className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700 shadow-2xs transition-all"
             >
               <Plus size={15} />
-              {showAssessmentCreator ? 'إغلاق منشئ الاختبارات' : 'إنشاء اختبار مدرسي جديد'}
+              {showAssessmentCreator ? 'إغلاق النموذج' : 'إنشاء اختبار'}
             </button>
           ) : null}
         </div>
@@ -900,7 +905,7 @@ export function SchoolDirectorDashboardPage(){
             setShowAssessmentCreator(false);
             setAssessmentReload(x => x + 1);
             setOverviewReload(x => x + 1);
-            setNotice('تم إنشاء اختبار المدرسة ونشره للطلاب المستهدفين بنجاح.');
+            setNotice('تم إنشاء اختبار المدرسة ونشره للطلاب المستهدفين.');
           }}
           onClose={() => setShowAssessmentCreator(false)}
         />

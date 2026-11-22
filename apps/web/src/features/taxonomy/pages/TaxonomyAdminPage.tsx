@@ -452,7 +452,7 @@ export function TaxonomyAdminPage() {
       saved = await run(
         'create-path',
         (csrf) => taxonomyAdminClient.createPath(payload, csrf).then(() => undefined),
-        'تم إنشاء المسار بنجاح.'
+        'تم إنشاء المسار.'
       );
     }
     if (saved) setIsPathModalOpen(false);
@@ -741,7 +741,7 @@ export function TaxonomyAdminPage() {
   if (!isAdmin) {
     return (
       <main dir="rtl" className="p-10 text-center font-black text-rose-700">
-        إدارة التصنيف والمسارات متاحة لمدير المنصة فقط.
+        إدارة التصنيف متاحة لمدير المنصة فقط.
       </main>
     );
   }
@@ -1661,9 +1661,19 @@ export function TaxonomyAdminPage() {
                   return (
                     <div
                       key={path.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`${path.name} ${path.code} ${statusLabels[path.status]}`}
                       onClick={() => {
                         setSelectedPathId(path.id);
                         setSelectedSubjectId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedPathId(path.id);
+                          setSelectedSubjectId(null);
+                        }
                       }}
                       className={`group relative flex flex-col gap-2 rounded-2xl border p-3 transition-all cursor-pointer ${
                         isSelected
@@ -1794,7 +1804,7 @@ export function TaxonomyAdminPage() {
                       <Archive size={14} />
                     </button>
                     <StatusSelect
-                      label={`حالة ${selectedPath.name}`}
+                      label="حالة المسار"
                       value={selectedPath.status}
                       onChange={(v) => requestStatus('path', selectedPath.id, selectedPath.name, v)}
                     />
@@ -2409,6 +2419,7 @@ export function TaxonomyAdminPage() {
               <div>
                 <label className="block text-xs font-black text-slate-700 mb-1">اسم المسار</label>
                 <input
+                  aria-label="اسم المسار الجديد"
                   value={pathForm.name}
                   onChange={(e) => setPathForm({ ...pathForm, name: e.target.value })}
                   placeholder="مثال: القدرات العامة"
@@ -2418,6 +2429,7 @@ export function TaxonomyAdminPage() {
               <div>
                 <label className="block text-xs font-black text-slate-700 mb-1">كود المسار الثابت</label>
                 <input
+                  aria-label="كود المسار الجديد"
                   value={pathForm.code}
                   disabled={Boolean(editingPath)}
                   onChange={(e) => setPathForm({ ...pathForm, code: e.target.value.toUpperCase() })}
@@ -2535,7 +2547,7 @@ export function TaxonomyAdminPage() {
               onClick={() => void savePath()}
               className="rounded-xl bg-indigo-600 px-5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50"
             >
-              {pending.includes('path') ? 'جاري الحفظ...' : 'حفظ المسار'}
+              {pending.includes('path') ? 'جاري الحفظ...' : editingPath ? 'حفظ المسار' : 'إنشاء المسار'}
             </button>
           </div>
         </div>

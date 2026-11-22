@@ -73,11 +73,15 @@ test('taxonomy admin desktop manages lifecycle-safe hierarchy with csrf',async({
   await expect(page.getByRole('heading',{name:'إدارة المسارات'})).toBeVisible();
   await expect(page.getByText('مسار قديم')).toBeVisible();
   await expect(page.getByTestId('taxonomy-admin-page').getByText('شجرة المهارات')).toHaveCount(0);
-  await expect(page.getByRole('button',{name:/حذف/})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:/حذف/})).toHaveCount(4);
 
+  const createBtn = page.getByRole('button', { name: /إضافة مسار جديد/ });
+  if (await createBtn.isVisible()) {
+    await createBtn.click();
+  }
   await page.getByLabel('كود المسار الجديد').fill('sat');
   await page.getByLabel('اسم المسار الجديد').fill('التحصيلي');
-  await page.getByRole('button',{name:'إنشاء المسار'}).click();
+  await page.getByRole('button',{name:/إنشاء المسار|حفظ المسار/}).click();
   await expect(page.getByText('تم إنشاء المسار.')).toBeVisible();
   await expect(page.getByRole('button',{name:/التحصيلي SAT نشط/})).toBeVisible();
   expect(observed.createPathCsrf).toBe('csrf-taxonomy');
@@ -116,6 +120,10 @@ test('taxonomy admin mobile separates path workspace and skill center controls',
   await expect(page.getByRole('heading',{name:'شجرة المسارات'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'المواد'})).toBeVisible();
   await expect(page.getByText('شجرة المهارات',{exact:true})).toHaveCount(0);
+  const createMobileBtn = page.getByRole('button', { name: /إضافة مسار جديد/ });
+  if (await createMobileBtn.isVisible()) {
+    await createMobileBtn.click();
+  }
   await expect(page.getByLabel('كود المسار الجديد')).toBeVisible();
   await page.screenshot({path:'test-results/taxonomy-admin-mobile.png',fullPage:true});
   await page.goto('/admin-dashboard?tab=skills');

@@ -9,6 +9,7 @@ export async function mockHeaderNavigation(page:Page,input:{actor:()=>Actor|null
  await installBaselineMocks(page);
  const records=new Map(Object.entries(input.saved||{}));
  let nextSaveFailure='';
+ await page.route('**/api/v1/auth/me*',async route=>route.fulfill({json:{user:await input.actor()}}));
  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>route.fulfill({json:input.catalog}));
  await page.route('**/api/v1/learning/navigation-preferences',async route=>{
   const actor=await input.actor();if(!actor)return route.fulfill({status:401,json:{message:'Authentication required'}});

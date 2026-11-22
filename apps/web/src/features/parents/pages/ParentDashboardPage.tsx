@@ -238,18 +238,19 @@ export function ParentDashboardPage() {
                 <Sparkles size={12} className="text-amber-300" />
                 <span>لوحة ولي الأمر المعتمدة</span>
               </div>
-              <h1 className="text-2xl font-black md:text-3xl">متابعة الأبناء ببساطة ووضوح</h1>
+              <h1 className="text-2xl font-black md:text-3xl">متابعة الأبناء ببساطة</h1>
               <p className="mt-2 max-w-2xl text-xs sm:text-sm leading-6 text-emerald-50 font-medium">
-                متابعة الدرجات والنتائج، تشخيص الفجوات المهارية، التقرير الأسبوعي المعتمد، والتراخيص المدرسية بضغطة زر.
+                درجة، مهارة تحتاج متابعة، وخطوة واحدة واضحة.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
+                aria-label="التقرير"
                 onClick={() => setTab('report')}
                 className="rounded-2xl bg-white px-4 py-2.5 text-xs font-black text-emerald-800 hover:bg-emerald-50 shadow-sm transition-all"
               >
-                التقرير الأسبوعي
+                التقرير
               </button>
               <button
                 type="button"
@@ -315,9 +316,9 @@ export function ParentDashboardPage() {
         ) : data.children.length === 0 ? (
           <section className="rounded-3xl border bg-white p-10 text-center shadow-sm">
             <Users className="mx-auto text-gray-300" size={44} />
-            <h2 className="mt-3 text-xl font-black text-gray-900">لا يوجد أبناء مرتبطون بالحساب بعد</h2>
+            <h2 className="mt-3 text-xl font-black text-gray-900">لا يوجد أبناء مرتبطون بالحساب</h2>
             <p className="mt-2 text-sm leading-7 text-gray-500">
-              يمكنك استخدام تبويب <b>«ربط ابن جديد»</b> لإدخال رمز الربط أو الهوية الوطنية لربط ابنك فورياً.
+              لا تعرض هذه الصفحة أي طالب خارج العلاقات المعتمدة. يمكنك استخدام تبويب <b>«ربط ابن جديد»</b> لإدخال رمز الربط أو الهوية الوطنية لربط ابنك فورياً.
             </p>
           </section>
         ) : (
@@ -472,14 +473,14 @@ export function ParentDashboardPage() {
                           <div className="flex items-center justify-between gap-2">
                             <div className="text-xs font-black text-amber-900">{child.name}</div>
                             <span className="rounded-full bg-white px-2.5 py-0.5 text-[10px] font-black text-amber-800 border border-amber-200">
-                              الأولوية {index + 1}
+                              الخطوة {index + 1}
                             </span>
                           </div>
                           <div className="mt-2 font-black text-slate-900 text-sm">{skill.skillName}</div>
                           <div className="mt-2 text-2xl font-black text-amber-800">{score(skill.mastery)}</div>
                           <p className="mt-2 text-xs font-bold leading-6 text-slate-600">{skill.recommendedAction}</p>
                           <div className="mt-3 pt-2 border-t border-amber-200/50 text-[10px] font-black text-amber-800">
-                            الدليل المعتمد: {skill.evidenceCount} محاولة · آخر قياس: {date(skill.lastEvidenceAt)}
+                            الدليل الحالي: {skill.evidenceCount} محاولة · آخر قياس: {date(skill.lastEvidenceAt)}
                           </div>
                         </div>
                       ))}
@@ -498,7 +499,7 @@ export function ParentDashboardPage() {
               <section className="rounded-3xl border border-slate-100 bg-white shadow-xs animate-fade-in">
                 <div className="border-b border-slate-100 p-5 sm:p-6">
                   <h2 className="text-xl font-black text-slate-900">سجل نتائج الاختبارات المعتمدة</h2>
-                  <p className="mt-1 text-xs text-slate-500 font-bold">ملخص النتائج والدرجات ونسب الإتقان دون الكشف عن تفاصيل الأسئلة.</p>
+                  <p className="mt-1 text-xs text-slate-500 font-bold">ملخص النتيجة فقط؛ لا تعرض لوحة ولي الأمر إجابات الطالب أو مفاتيح الإجابة.</p>
                   <ChildSelector children={data.children} selectedId={selectedId} onSelect={setSelectedId} />
                 </div>
 
@@ -579,14 +580,14 @@ export function ParentDashboardPage() {
                   <div className="flex items-start gap-3">
                     <CalendarDays className="mt-1 text-emerald-600" size={22} />
                     <div>
-                      <h2 className="text-xl font-black text-slate-900">التقرير الأسبوعي الشامل</h2>
-                      <p className="mt-1 text-xs text-slate-500 font-bold">ملخص الأداء والتقييمات المنجزة خلال نافذة آخر 7 أيام.</p>
+                      <h2 className="text-xl font-black text-slate-900">التقرير الأسبوعي المبسط</h2>
+                      <p className="mt-1 text-xs text-slate-500 font-bold">نافذة آخر 7 أيام من البيانات الموثقة. هذه المرحلة تعرض التقرير فقط؛ إرسال البريد/واتساب يتبع Communication ولا يتم تنفيذه من Parents.</p>
                     </div>
                   </div>
 
                   {weekly && (
                     <div className="flex items-center gap-2">
-                      <div className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-800 border border-emerald-100">
+                      <div data-testid="weekly-report-period" className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-800 border border-emerald-100">
                         {date(weekly.periodStart)} — {date(weekly.periodEnd)}
                       </div>
                       <button
@@ -594,7 +595,7 @@ export function ParentDashboardPage() {
                         onClick={() => void copyWeeklySummary()}
                         className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-50"
                       >
-                        {copied ? 'تم النسخ ✓' : 'نسخ الملخص'}
+                        {copied ? 'تم نسخ الملخص' : 'نسخ ملخص الأسبوع'}
                       </button>
                       <button
                         type="button"

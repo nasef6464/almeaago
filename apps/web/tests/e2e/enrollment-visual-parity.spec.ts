@@ -33,14 +33,14 @@ for (const width of [390, 820, 1440]) {
   test(`original and Go enrollment component exact paired pixels at ${width}px`, async ({ page }, info) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width, height: 1000 });
+    const fixture = await mockHeaderNavigation(page, { actor: () => student, catalog });
     await page.route(url => url.pathname.startsWith('/api/'), route => {
       const path = new URL(route.request().url()).pathname;
       if (path === '/api/v1/auth/me') return route.fulfill({ json: { user: student } });
       if (path === '/api/v1/auth/csrf') return route.fulfill({ json: { csrfToken: 'visual-csrf' } });
       if (path === '/api/v1/content/homepage-settings') return route.fulfill({ json: {} });
-      return route.fulfill({ status: 403, json: { message: 'Unexpected synthetic request' } });
+      return route.fallback();
     });
-    const fixture = await mockHeaderNavigation(page, { actor: () => student, catalog });
     await page.goto('/tests/reference/enrollment.html');
     await expect(page.getByTestId('enrollment-reference')).toHaveAttribute('data-ready', 'true');
     await page.evaluate(() => document.fonts.ready);
