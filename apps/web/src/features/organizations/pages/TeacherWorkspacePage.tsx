@@ -727,6 +727,9 @@ export function TeacherWorkspacePage() {
                           المادة: القدرات العامة والتحصيلي · نظام الحصص الذكية المباشر
                         </p>
                         <p className="mt-1 text-xs font-bold text-emerald-700">
+                          {assignment.studentCount ?? 0} طالب
+                        </p>
+                        <p className="text-[11px] text-emerald-600/80 font-medium">
                           {assignment.studentCount ?? 0} طلاب مسجلين
                         </p>
                       </div>

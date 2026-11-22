@@ -159,6 +159,7 @@ export function ReportsPage({ embedded }: { embedded?: boolean } = {}){
       <button type="button" onClick={()=>applyPreset('month')} className={`rounded-xl px-3 py-1.5 text-xs font-black transition ${activePreset==='month'?'bg-indigo-600 text-white shadow-sm':'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>هذا الشهر</button>
       <button type="button" onClick={()=>applyPreset('quarter')} className={`rounded-xl px-3 py-1.5 text-xs font-black transition ${activePreset==='quarter'?'bg-indigo-600 text-white shadow-sm':'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>آخر 3 أشهر</button>
       <button type="button" onClick={()=>applyPreset('all')} className={`rounded-xl px-3 py-1.5 text-xs font-black transition ${activePreset==='all'?'bg-indigo-600 text-white shadow-sm':'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>كل الفترات</button>
+      <button type="button" onClick={()=>{}} className={`rounded-xl px-3 py-1.5 text-xs font-black transition ${activePreset==='custom'?'bg-indigo-600 text-white shadow-sm':'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>فترة مخصصة</button>
      </div>
     </div>
     <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -169,11 +170,17 @@ export function ReportsPage({ embedded }: { embedded?: boolean } = {}){
 
    {error?<div role="alert" className="rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/50 p-4 font-bold text-rose-700 dark:text-rose-300">{error}</div>:null}
    {busy?<div className="flex items-center justify-center gap-2 rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-12 font-bold text-gray-500 dark:text-slate-400"><Loader2 size={18} className="animate-spin"/>جاري تحميل التقرير...</div>:overview?<>
+    <div className="rounded-2xl border border-indigo-100 dark:border-indigo-900/60 bg-indigo-50/80 dark:bg-indigo-950/40 p-4">
+     <div className="text-xs font-black text-indigo-700 dark:text-indigo-300">قراءة سريعة للتقرير</div>
+     <p className="mt-1.5 text-xs font-bold leading-6 text-indigo-950 dark:text-indigo-200">
+      تحليل مباشر لمستواك ونتائجك المعتمدة وخطة المهارات التي تبدأ بها.
+     </p>
+    </div>
     <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
      <div className="rounded-2xl border border-indigo-100 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/70 to-white dark:from-indigo-950/40 dark:to-slate-900 p-4 text-center"><div className="text-2xl font-black text-indigo-700 dark:text-indigo-300">{score(overview.assessment.averageScore)}</div><div className="mt-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400">الدرجة العامة</div></div>
      <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 text-center"><div className="text-2xl font-black text-gray-900 dark:text-white">{overview.assessment.resultCount}</div><div className="mt-1 text-[11px] font-bold text-gray-500 dark:text-slate-400">الاختبارات المنجزة</div></div>
      <div className="rounded-2xl border border-emerald-100 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/40 p-4 text-center"><div className="text-2xl font-black text-emerald-700 dark:text-emerald-300">{score(overview.assessment.passRate)}</div><div className="mt-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">نسبة الاجتياز</div></div>
-     <div className="rounded-2xl border border-rose-100 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 p-4 text-center"><div className="text-2xl font-black text-rose-700 dark:text-rose-300">{overview.weakestSkills.length}</div><div className="mt-1 text-[11px] font-bold text-rose-600 dark:text-rose-400">مهارات تبدأ بها</div></div>
+     <div className="rounded-2xl border border-rose-100 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 p-4 text-center"><div className="text-2xl font-black text-rose-700 dark:text-rose-300">{overview.weakestSkills.length}</div><div className="mt-1 text-[11px] font-bold text-rose-600 dark:text-rose-400">المهارات التي تبدأ بها</div></div>
     </section>
 
     {overview.scope.isTruncated||overview.assessment.resultsTruncated||overview.assessment.attemptsTruncated?<div className="rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900/50 p-4 text-sm font-bold leading-7 text-amber-900 dark:text-amber-200">هذا التقرير يستخدم حدود قراءة معلنة لحماية الأداء. الأرقام المعروضة تخص العينة المعلنة عند اتساع النطاق.</div>:null}

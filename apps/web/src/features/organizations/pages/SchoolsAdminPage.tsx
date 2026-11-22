@@ -874,6 +874,7 @@ export function SchoolsAdminPage() {
             <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm text-center">
               <div className="text-xs font-black text-gray-400">إجمالي المدارس</div>
               <div className="mt-1 text-2xl font-black text-gray-900">{portfolioSummary.total}</div>
+              <div className="text-[10px] text-gray-400 font-bold">المدارس النشطة</div>
             </div>
             <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm text-center">
               <div className="text-xs font-black text-emerald-700">جاهزة تشغيلياً</div>

@@ -77,7 +77,8 @@ export const ClassroomSessionHeader: React.FC<ClassroomSessionHeaderProps> = ({
             </div>
 
             <h1 className="mt-2 text-2xl font-black sm:text-3xl text-white flex items-center gap-3">
-              {subjectName || 'الحصة الدراسية'}
+              <span>الفصل الذكي</span>
+              {subjectName ? <span className="text-slate-400 text-lg font-bold"> · {subjectName}</span> : null}
               {className && (
                 <span className="text-sm font-bold text-slate-400 border border-slate-700 rounded-xl px-2.5 py-1">
                   {schoolName ? `${schoolName} · ` : ''}{className}
@@ -114,19 +115,8 @@ export const ClassroomSessionHeader: React.FC<ClassroomSessionHeaderProps> = ({
                   <QrCode size={18} />
                 </button>
                 <div className="text-right">
-                  <div className="text-[10px] font-bold text-cyan-200">رمز الدخول (PIN)</div>
-                  <div dir="ltr" className="font-mono text-base font-black tracking-widest text-cyan-300">
-                    {pin}
-                  </div>
+                  <div className="text-[10px] font-bold text-cyan-200">رمز الحصة مفعّل</div>
                 </div>
-                <button
-                  type="button"
-                  title="نسخ الرمز"
-                  onClick={copyPin}
-                  className="rounded-lg p-1 text-cyan-300 hover:bg-cyan-400/20"
-                >
-                  {copied ? <CheckCircle2 size={16} className="text-emerald-400" /> : <Copy size={16} />}
-                </button>
               </div>
             )}
 

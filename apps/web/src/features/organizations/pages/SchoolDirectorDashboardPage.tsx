@@ -726,7 +726,7 @@ export function SchoolDirectorDashboardPage(){
           <div>
             <p className="flex items-center gap-2 text-sm font-bold text-indigo-200"><ShieldCheck size={17}/> نطاق مفوض من مدير المنصة</p>
             <h1 className="mt-2 text-3xl font-black">لوحة مدير المدرسة</h1>
-            <h2 className="mt-1 text-base text-indigo-200 font-bold">{selectedSchool.schoolName}</h2>
+            <div className="mt-1 text-base text-indigo-200 font-bold">{selectedSchool.schoolName}</div>
             <p className="text-xs text-indigo-300">لوحة إدارة المدرسة والعمليات التشغيلية والأكاديمية المتقدمة</p>
           </div>
         </div>
@@ -886,12 +886,11 @@ export function SchoolDirectorDashboardPage(){
           {has('SCHOOL_ASSESSMENTS_MANAGE') && selectedSchool.modules.includes('SCHOOL_ASSESSMENTS') ? (
             <button
               type="button"
-              aria-label="إنشاء اختبار مدرسي جديد"
               onClick={() => setShowAssessmentCreator(x => !x)}
               className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700 shadow-2xs transition-all"
             >
               <Plus size={15} />
-              {showAssessmentCreator ? 'إغلاق النموذج' : 'إنشاء اختبار مدرسي جديد'}
+              {showAssessmentCreator ? 'إغلاق النموذج' : 'إنشاء اختبار'}
             </button>
           ) : null}
         </div>

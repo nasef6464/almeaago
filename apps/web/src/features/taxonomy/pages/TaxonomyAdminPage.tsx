@@ -1804,7 +1804,7 @@ export function TaxonomyAdminPage() {
                       <Archive size={14} />
                     </button>
                     <StatusSelect
-                      label="حالة المسار"
+                      label={`حالة المسار حالة ${selectedPath.name}`}
                       value={selectedPath.status}
                       onChange={(v) => requestStatus('path', selectedPath.id, selectedPath.name, v)}
                     />

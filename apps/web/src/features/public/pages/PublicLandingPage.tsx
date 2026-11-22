@@ -79,20 +79,9 @@ function resolvePathColorHex(color?: string, fallback = '#4f46e5'): string {
 
 function resolvePathTarget(path: TaxonomyPath): string {
   if (path.id) {
-    return `/category/${encodeURIComponent(path.id)}`;
+    return `/learning?pathId=${encodeURIComponent(path.id)}`;
   }
-  const code = (path.code || '').toUpperCase();
-  const name = path.name || '';
-  if (code.includes('QUDRAT') || name.includes('قدرات')) {
-    return '/category/p_qudrat';
-  }
-  if (code === 'NAFES' || name.includes('نافس')) {
-    return '/category/p_nafes';
-  }
-  if (code === 'TAHSILI' || name.includes('تحصيلي')) {
-    return '/category/p_tahsili';
-  }
-  return `/category/${encodeURIComponent(path.code || path.name)}`;
+  return `/learning?pathId=${encodeURIComponent(path.code || path.name)}`;
 }
 
 function resolveDynamicPathTheme(path: TaxonomyPath, index: number): DynamicPathTheme {

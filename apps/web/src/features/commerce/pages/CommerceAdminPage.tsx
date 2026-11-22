@@ -237,7 +237,7 @@ export function CommerceAdminPage(){
           <input aria-label="انتهاء كود التفعيل" type="datetime-local" value={activationExpires} onChange={e=>setActivationExpires(e.target.value)} className="w-full rounded-xl border bg-white p-2 text-xs font-bold"/>
         </div>
         <button type="button" disabled={saving==='access-code'} onClick={()=>void createActivationCode()} className="w-full rounded-xl bg-amber-500 py-2 text-xs font-black text-white hover:bg-amber-600 disabled:opacity-40 cursor-pointer">
-          إنشاء كود مفرد
+          إنشاء كود تفعيل
         </button>
       </div>
 

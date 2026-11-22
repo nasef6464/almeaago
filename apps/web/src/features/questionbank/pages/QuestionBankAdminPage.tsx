@@ -359,15 +359,7 @@ export function QuestionBankAdminPage() {
             : r
         )
       );
-      setNotice(
-        nextStatus === 'approved'
-          ? 'تم اعتماد السؤال بنجاح'
-          : nextStatus === 'rejected'
-            ? 'تم رفض السؤال'
-            : nextStatus === 'archived'
-              ? 'تم أرشفة/حذف السؤال بنجاح'
-              : 'تم تحديث حالة السؤال'
-      );
+      setNotice(`تم تحديث حالة السؤال إلى «${statusLabel[nextStatus]}».`);
       setReload((x) => x + 1);
     });
   }
@@ -634,7 +626,7 @@ export function QuestionBankAdminPage() {
       correctOptionIndex === -1 ||
       (retainOptionPositions && correctOptionIndex !== null && correctOptionIndex >= imageOptionTexts.length)
     )
-      return setError('يرجى اختيار إجابة صحيحة من الخيارات الموجودة.');
+      return setError('يرجى اختيار إجابة صحيحة من الاختيارات الموجودة.');
     const skillLinks = [
       { skillId: create.mainSkillId, relationType: 'main' as const },
       ...(create.subSkillId ? [{ skillId: create.subSkillId, relationType: 'sub' as const }] : []),
@@ -750,7 +742,7 @@ export function QuestionBankAdminPage() {
         options: ['', '', '', ''],
       });
       setReload((x) => x + 1);
-    }, 'تم حفظ السؤال الجديد كمسودة معتمدة.');
+    }, 'تم إنشاء السؤال كمسودة بإصدار أول.');
   }
 
   async function importBatch(dryRun: boolean) {
@@ -1389,6 +1381,7 @@ export function QuestionBankAdminPage() {
                   <label className="flex w-full cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-700">
                     <input
                       type="checkbox"
+                      aria-label="الاختيارات وقيمها داخل صورة السؤال"
                       checked={create.optionsEmbeddedInImage}
                       onChange={(e) =>
                         setCreate({
@@ -1399,7 +1392,7 @@ export function QuestionBankAdminPage() {
                       }
                       className="h-4 w-4 rounded accent-indigo-600"
                     />
-                    <span>الخيارات مضمنة داخل صورة السؤال</span>
+                    <span>الاختيارات وقيمها داخل صورة السؤال</span>
                   </label>
                 </div>
               </div>
@@ -1427,9 +1420,9 @@ export function QuestionBankAdminPage() {
                     />
                   </label>
                   <label className="text-xs font-bold text-slate-700">
-                    أحرف الخيارات الافتراضية
+                    حروف الاختيارات الافتراضية
                     <select
-                      aria-label="أحرف الخيارات الافتراضية"
+                      aria-label="حروف الاختيارات الافتراضية"
                       value={create.optionLabelStyle}
                       onChange={(e) =>
                         setCreate({ ...create, optionLabelStyle: e.target.value as 'arabic' | 'latin' })
@@ -1445,6 +1438,7 @@ export function QuestionBankAdminPage() {
                   <label>
                     <input
                       type="checkbox"
+                      aria-label="إظهار رقم السؤال"
                       checked={create.showQuestionNumber}
                       onChange={(e) => setCreate({ ...create, showQuestionNumber: e.target.checked })}
                     />{' '}
@@ -1453,18 +1447,20 @@ export function QuestionBankAdminPage() {
                   <label>
                     <input
                       type="checkbox"
+                      aria-label="إظهار رموز الاختيارات"
                       checked={create.showOptionLabels}
                       onChange={(e) => setCreate({ ...create, showOptionLabels: e.target.checked })}
                     />{' '}
-                    إظهار رموز الخيارات
+                    إظهار رموز الاختيارات
                   </label>
                   <label>
                     <input
                       type="checkbox"
+                      aria-label="إظهار نص الاختيارات"
                       checked={create.showOptionText}
                       onChange={(e) => setCreate({ ...create, showOptionText: e.target.checked })}
                     />{' '}
-                    إظهار نص الخيارات
+                    إظهار نص الاختيارات
                   </label>
                 </div>
               </fieldset>
@@ -1521,7 +1517,7 @@ export function QuestionBankAdminPage() {
 
             <div className="space-y-3">
               <textarea
-                aria-label="الشرح وتفسير الحل للسؤال"
+                aria-label="شرح السؤال الجديد"
                 value={create.explanation}
                 onChange={(e) => setCreate({ ...create, explanation: e.target.value })}
                 placeholder="الشرح وتوضيح الإجابة الصحيحة..."
@@ -1557,7 +1553,7 @@ export function QuestionBankAdminPage() {
                         onClick={removeImage}
                         className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
                       >
-                        <Trash2 size={14} /> حذف الصورة
+                        <Trash2 size={14} /> إزالة الصورة
                       </button>
                     ) : null}
                   </div>
@@ -1573,18 +1569,49 @@ export function QuestionBankAdminPage() {
                 )}
 
                 <div className="mt-3 space-y-2" onPaste={handlePasteImage}>
-                  <input
-                    aria-label="ملف صورة السؤال"
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] || null;
-                      if (file) {
-                        void handleImageFile(file);
-                      }
-                    }}
-                    className="block w-full text-xs text-slate-700"
-                  />
+                  <div>
+                    <label className="mb-1 block text-xs font-bold text-slate-700">وصف صورة السؤال (النص البديل)</label>
+                    <input
+                      aria-label="وصف صورة السؤال"
+                      type="text"
+                      value={create.imageAlt}
+                      onChange={(e) => setCreate({ ...create, imageAlt: e.target.value })}
+                      placeholder="وصف صورة السؤال أو النص البديل..."
+                      className="w-full rounded-xl border bg-white p-2 text-xs"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      aria-label="ملف صورة السؤال"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (file) {
+                          setMediaFile(file);
+                          setImagePreviewUrl(URL.createObjectURL(file));
+                          setCreate((prev) => ({
+                            ...prev,
+                            imageAlt: prev.imageAlt || file.name.replace(/\.[^/.]+$/, ''),
+                          }));
+                        }
+                      }}
+                      className="block w-full text-xs text-slate-700"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void uploadMedia()}
+                      disabled={!mediaFile || pending === 'media'}
+                      className="shrink-0 rounded-xl bg-violet-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-violet-700 disabled:opacity-50 cursor-pointer"
+                    >
+                      {pending === 'media' ? 'جاري الرفع...' : 'رفع وتحقق'}
+                    </button>
+                  </div>
+                  {mediaAsset && (
+                    <div className="text-xs font-bold text-emerald-700">
+                      Asset: {mediaAsset.id} · {mediaAsset.status}
+                    </div>
+                  )}
                   {imagePreviewUrl ? (
                     <div className="mt-2 overflow-hidden rounded-xl border border-violet-100 bg-slate-50 p-2 text-center">
                       <img
@@ -1681,7 +1708,7 @@ export function QuestionBankAdminPage() {
       )}
 
       {/* Full-Width Questions Table (1:1 Legacy Parity with Images 2 & 3) */}
-      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <article className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-right border-collapse">
             <thead className="bg-slate-50 border-b border-gray-200">
@@ -1932,6 +1959,7 @@ export function QuestionBankAdminPage() {
                                 <button
                                   type="button"
                                   onClick={() => void workflow('rejected', row.id)}
+                                  aria-label={`رفض ${row.questionCode}`}
                                   className="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer border border-rose-200/60"
                                   title="رفض السؤال"
                                 >
@@ -1941,6 +1969,7 @@ export function QuestionBankAdminPage() {
                                 <button
                                   type="button"
                                   onClick={() => void workflow('approved', row.id)}
+                                  aria-label={`اعتماد ${row.questionCode}`}
                                   className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer border border-emerald-200/60"
                                   title="اعتماد السؤال"
                                 >
@@ -1978,16 +2007,18 @@ export function QuestionBankAdminPage() {
                             <button
                               type="button"
                               onClick={() => void openQuestion(row.id)}
+                              aria-label="فتح"
                               className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                              title="تعديل السؤال"
+                              title="فتح"
                             >
                               <Edit2 size={17} />
                             </button>
                             <button
                               type="button"
                               onClick={() => void deleteQuestion(row.id)}
+                              aria-label="أرشفة"
                               className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                              title="حذف السؤال"
+                              title="أرشفة السؤال"
                             >
                               <Trash2 size={17} />
                             </button>
@@ -2022,7 +2053,7 @@ export function QuestionBankAdminPage() {
             الصفحة التالية <ChevronLeft size={16} />
           </button>
         </div>
-      </section>
+      </article>
 
       {/* Modal 1: Image Zoom Modal */}
       {zoomImageUrl ? (
@@ -2032,7 +2063,7 @@ export function QuestionBankAdminPage() {
       {/* Modal 2: Question Presentation & Review Panel (Modal Overlay) */}
       {detail ? (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-4xl rounded-3xl bg-white shadow-2xl p-6 max-h-[92vh] overflow-y-auto space-y-4">
+          <article className="w-full max-w-4xl rounded-3xl bg-white shadow-2xl p-6 max-h-[92vh] overflow-y-auto space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div>
                 <span className="text-xs font-black text-violet-700">
@@ -2062,8 +2093,8 @@ export function QuestionBankAdminPage() {
 
             <div className="rounded-2xl bg-slate-50 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-black text-violet-700">
-                  {detail.questionCode} · v{detail.currentVersion}
+                <span className="text-xs font-bold text-violet-700">
+                  معاينة السؤال
                 </span>
                 <div className="flex items-center gap-1.5">
                   {detail.version.optionsEmbeddedInImage ? (
@@ -2227,7 +2258,7 @@ export function QuestionBankAdminPage() {
                 </button>
               ) : null}
             </div>
-          </div>
+          </article>
         </div>
       ) : null}
 

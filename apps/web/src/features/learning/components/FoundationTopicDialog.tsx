@@ -222,7 +222,7 @@ export function FoundationTopicDialog({ pathId, subjectId, topic, topics, conten
     contentClient.learnerTopic(topic.id, controller.signal)
       .then(({ topic: next }) => {
         if (controller.signal.aborted) return;
-        if (!next || next.id !== topic.id || next.pathId !== pathId || next.subjectId !== subjectId) throw new Error('الموضوع غير متاح في المادة المحددة.');
+        if (!next || next.id !== topic.id || (next.pathId && next.pathId !== pathId) || (next.subjectId && next.subjectId !== subjectId)) throw new Error('الموضوع غير متاح في المادة المحددة.');
         setDetail(next);
         setDetailKey(topicScope);
       })

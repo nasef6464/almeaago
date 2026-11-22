@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { installBaselineMocks } from './fixtures/mockBaseline';
 
 const admin = {
   id: 'admin-1',
@@ -33,6 +34,7 @@ const SAMPLE_QUESTION_IMAGE =
 test.describe('Question Presentation & Image Display Parity', () => {
   test('Question Center displays question images in the list rows and detail panel', async ({ page }) => {
     test.setTimeout(60_000);
+    await installBaselineMocks(page);
 
     await page.route('**/api/v1/auth/me', (r) => json(r, { user: admin }));
     await page.route('**/api/v1/auth/csrf', (r) => json(r, { csrfToken: 'csrf-token' }));
@@ -151,6 +153,7 @@ test.describe('Question Presentation & Image Display Parity', () => {
 
   test('Exam Player displays question image primarily, hides redundant text, and formats Latin options', async ({ page }) => {
     test.setTimeout(60_000);
+    await installBaselineMocks(page);
 
     await page.route('**/api/v1/auth/me', (r) => json(r, { user: student }));
     await page.route('**/api/v1/auth/csrf', (r) => json(r, { csrfToken: 'csrf-token' }));

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import { useStudentExperience, StudentPathAccessPrompt } from '../../../learning/navigation';
+import { useAuth } from '../../../auth/state/AuthProvider';
 import { LearningSpacePage } from '../../../learning/pages/LearningSpacePage';
 import { PathPackagesPage } from '../commerce/PathPackagesPage';
 import { PathMockExamsPage } from './PathMockExamsPage';
@@ -132,6 +133,7 @@ export function LegacyCategoryPage() {
   const { pathId: raw = '' } = useParams<{ pathId: string }>();
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const experience = useStudentExperience();
   const [courses, setCourses] = useState<PublicCourse[]>([]);
 
@@ -148,6 +150,14 @@ export function LegacyCategoryPage() {
   }, []);
 
   const path = resolveCanonicalPath(raw, experience.paths);
+
+  if (!authLoading && !user) {
+    return (
+      <main dir="rtl" className="mx-auto max-w-4xl p-10 text-center font-black text-rose-700">
+        سجّل الدخول لفتح مساحة التعلم.
+      </main>
+    );
+  }
 
   if (experience.loading) {
     return <CategoryPageSkeleton />;
