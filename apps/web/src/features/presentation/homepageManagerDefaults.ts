@@ -3,7 +3,7 @@ import { defaultStudentSiteExperience } from './StudentExperienceSettings';
 import { DEFAULT_AVATAR } from './defaultAvatar';
 import { sanitizeHomepageSettings } from './homepageSanitizer';
 
-const DEFAULT_HERO_BOY_IMAGE =
+export const DEFAULT_HERO_BOY_IMAGE =
     '/images/homepage-hero-boy-platform.webp?v=20260512';
 
 export const PLATFORM_PRESET_IMAGES = [
