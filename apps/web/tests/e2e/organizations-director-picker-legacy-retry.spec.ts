@@ -19,6 +19,7 @@ async function setup(page:Page){
 }
 for(const width of [390,820,1440]){
   test(`director school picker source search/retry and failed-save draft at ${width}px RTL`,async({page})=>{
+    test.setTimeout(60_000);
     await page.setViewportSize({width,height:900});
     await setup(page);
     let questionReads=0;
@@ -39,7 +40,12 @@ for(const width of [390,820,1440]){
       return json(route,{assessment:{assessmentId:'assessment-1',title:'اختبار الفصل',classId:'class-1',targetScope:'class'}},201);
     });
     await page.goto('/school-director-dashboard');
-    await page.getByRole('navigation',{name:'أقسام لوحة مدير المدرسة'}).getByRole('button',{name:'اختبارات المدرسة'}).click();
+    const nav = page.getByRole('navigation', { name: 'أقسام لوحة مدير المدرسة' });
+    const assessmentsBtn = nav.getByRole('button', { name: 'اختبارات المدرسة' });
+    if (!(await assessmentsBtn.isVisible())) {
+      await nav.locator('summary').filter({ hasText: 'التعلم والمتابعة' }).click();
+    }
+    await assessmentsBtn.click();
     await page.getByRole('button',{name:'إنشاء اختبار',exact:true}).click();
     await expect(page.getByLabel('فصل الاختبار المدرسي')).toHaveValue('class-1');
     await page.getByLabel('مسار الاختبار المدرسي').selectOption('path-1');

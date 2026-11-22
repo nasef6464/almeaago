@@ -726,7 +726,8 @@ export function SchoolDirectorDashboardPage(){
           <div>
             <p className="flex items-center gap-2 text-sm font-bold text-indigo-200"><ShieldCheck size={17}/> نطاق مفوض من مدير المنصة</p>
             <h1 className="mt-2 text-3xl font-black">لوحة مدير المدرسة</h1>
-            <p className="mt-1 text-xs text-indigo-200 font-bold">{selectedSchool.schoolName} - لوحة إدارة المدرسة والعمليات التشغيلية والأكاديمية المتقدمة</p>
+            <h2 className="mt-1 text-base text-indigo-200 font-bold">{selectedSchool.schoolName}</h2>
+            <p className="text-xs text-indigo-300">لوحة إدارة المدرسة والعمليات التشغيلية والأكاديمية المتقدمة</p>
           </div>
         </div>
         <label className="text-sm font-bold">المدرسة<select aria-label="المدرسة" value={selectedSchool.schoolId} onChange={e=>changeSchool(e.target.value)} className="mt-2 block w-full min-w-56 rounded-xl border-0 bg-white px-4 py-3 text-slate-900">{schools.map(s=><option key={s.schoolId} value={s.schoolId}>{s.schoolName}</option>)}</select></label>
@@ -879,14 +880,18 @@ export function SchoolDirectorDashboardPage(){
           <p className="text-xs text-slate-500">نظام كلاسيرا المتكامل: بطاقات ذكية، فلترة متعددة الأبعاد، تحليل إحصائي وتصدير فوري.</p>
         </div>
         <div className="flex items-center gap-2">
+          <span className="rounded-xl bg-indigo-50 px-4 py-2 text-sm font-black text-indigo-800">
+            {assessmentWorkspace?.assessments.length ?? '—'} اختبار
+          </span>
           {has('SCHOOL_ASSESSMENTS_MANAGE') && selectedSchool.modules.includes('SCHOOL_ASSESSMENTS') ? (
             <button
               type="button"
+              aria-label="إنشاء اختبار مدرسي جديد"
               onClick={() => setShowAssessmentCreator(x => !x)}
               className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700 shadow-2xs transition-all"
             >
               <Plus size={15} />
-              {showAssessmentCreator ? 'إغلاق النموذج' : 'إنشاء اختبار'}
+              {showAssessmentCreator ? 'إغلاق النموذج' : 'إنشاء اختبار مدرسي جديد'}
             </button>
           ) : null}
         </div>

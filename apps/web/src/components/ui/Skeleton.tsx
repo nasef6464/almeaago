@@ -50,7 +50,7 @@ export function SkeletonBanner({ className = '' }: { className?: string }) {
  */
 export function SkeletonMetricCard({ className = '' }: { className?: string }) {
   return (
-    <article
+    <div
       role="status"
       aria-label="جاري تحميل المؤشر..."
       aria-busy="true"
@@ -64,7 +64,7 @@ export function SkeletonMetricCard({ className = '' }: { className?: string }) {
       </div>
       <Skeleton className="h-3 w-20 rounded-md mb-2" />
       <Skeleton className="h-7 w-28 rounded-lg" />
-    </article>
+    </div>
   );
 }
 

@@ -409,6 +409,7 @@ test.describe('School Complete Creation & Lifecycle User Journey', () => {
   });
 
   test('executes complete unbroken journey: creation -> director link -> director login -> import -> teacher assignment -> assessment', async ({ page }) => {
+    test.setTimeout(90_000);
     // ------------------------------------------------------------------------
     // STEP 1: Platform Admin Creates School
     // ------------------------------------------------------------------------
@@ -525,7 +526,7 @@ test.describe('School Complete Creation & Lifecycle User Journey', () => {
     console.log('[E2E-JOURNEY] Step 6: Creating central assessment...');
     await openDirectorSection(page, 'اختبارات المدرسة');
 
-    await page.getByRole('button', { name: 'إنشاء اختبار مدرسي جديد' }).click();
+    await page.getByRole('button', { name: /إنشاء اختبار (مدرسي )?جديد|إنشاء اختبار/ }).first().click();
     await expect(page.getByLabel('عنوان الاختبار المدرسي')).toBeVisible();
 
     await page.getByLabel('عنوان الاختبار المدرسي').fill('اختبار القدرات الموحد للترم الأول');

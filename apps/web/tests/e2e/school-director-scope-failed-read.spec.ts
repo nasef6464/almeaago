@@ -19,7 +19,12 @@ for(const width of [390,820,1440]){
     await page.setViewportSize({width,height:900});
     await setup(page);
     await page.goto('/school-director-dashboard');
-    await page.getByRole('navigation',{name:'أقسام لوحة مدير المدرسة'}).getByRole('button',{name:'الطلاب',exact:true}).click();
+    const nav = page.getByRole('navigation',{name:'أقسام لوحة مدير المدرسة'});
+    const studentsBtn = nav.getByRole('button',{name:'الطلاب',exact:true});
+    if (!(await studentsBtn.isVisible())) {
+      await nav.locator('details').filter({ has: page.locator('summary', { hasText: 'إدارة المدرسة' }) }).locator('summary').click();
+    }
+    await studentsBtn.click();
     await expect(page.getByText('طالب موجود')).toBeVisible();
     await page.getByLabel('بحث الطلاب').fill('غير موجود');
     await page.getByLabel('بحث الطلاب').press('Enter');

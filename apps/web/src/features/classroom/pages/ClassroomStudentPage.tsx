@@ -351,6 +351,7 @@ export function ClassroomStudentPage() {
             <button
               type="button"
               onClick={retry}
+              aria-label="إعادة المحاولة (تحديث)"
               className="mr-2 inline-flex items-center gap-1 font-black underline"
             >
               <RefreshCcw size={14} />
