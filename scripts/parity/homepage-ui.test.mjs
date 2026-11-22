@@ -53,3 +53,30 @@ test('partial homepage save events preserve omitted fields and explicit clears w
   cleanup();
  } finally {globalThis.window=oldWindow;}
 });
+
+test('extracted homepage defaults preserve preset images, Arabic branding and merge semantics', () => {
+ const sanitizer=load(readFileSync(new URL('../../apps/web/src/features/presentation/homepageSanitizer.ts',import.meta.url),'utf8'));
+ const source=readFileSync(new URL('../../apps/web/src/features/presentation/homepageManagerDefaults.ts',import.meta.url),'utf8');
+ const {defaultHomepageSettings,mergeHomepageSettings,PLATFORM_PRESET_IMAGES}=load(source,id=>{
+  if(id==='./StudentExperienceSettings')return {defaultStudentSiteExperience:{visibilityMode:'all',promptEnrollment:true}};
+  if(id==='./defaultAvatar')return {DEFAULT_AVATAR:'/images/default-avatar.png'};
+  if(id==='./homepageSanitizer')return sanitizer;
+  return require(id);
+ });
+ assert.equal(defaultHomepageSettings.brand.logoAccentText,'المئة');
+ assert.equal(defaultHomepageSettings.hero.imageUrl,'/images/homepage-hero-boy-platform.webp?v=20260512');
+ assert.equal(PLATFORM_PRESET_IMAGES.length,13);
+ const incoming={
+  ...defaultHomepageSettings,
+  brand:{...defaultHomepageSettings.brand,logoText:''},
+  hero:{...defaultHomepageSettings.hero,titlePrefix:'اختبر'},
+  navigation:{...defaultHomepageSettings.navigation,showAutoPaths:false,items:[]},
+  stats:[],testimonials:[],
+ };
+ const merged=mergeHomepageSettings(incoming);
+ assert.equal(merged.brand.logoText,'','an explicitly cleared brand must remain empty');
+ assert.equal(merged.hero.titlePrefix,'اختبر');
+ assert.equal(merged.navigation.showAutoPaths,false);
+ assert.deepEqual(merged.navigation.items,defaultHomepageSettings.navigation.items,'legacy default navigation fallback must remain unchanged');
+ assert.deepEqual(merged.stats,defaultHomepageSettings.stats,'legacy stat fallback must remain unchanged');
+});
