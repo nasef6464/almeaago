@@ -150,9 +150,6 @@ export function AssessmentAssignmentsPage({ embedded }: { embedded?: boolean } =
   if (authLoading || (embedded && studentId && (busy || loadedScope !== requestScope))) {
     return <div className="p-10 text-center font-black">جاري تحميل التكليفات...</div>;
   }
-  if (!embedded && (!user || user?.roles.includes('student'))) {
-    return <Navigate to="/dashboard?tab=assignments" replace />;
-  }
   if (!user?.roles.includes('student')) {
     return <div className="p-10 text-center font-black text-rose-700">هذه الشاشة مخصصة للطالب.</div>;
   }

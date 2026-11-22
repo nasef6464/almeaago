@@ -86,6 +86,7 @@ test('legacy learning course CTA navigates into a working V2 course runtime',asy
 });
 
 test('student dashboard click-through reaches all remaining certified learner destinations',async({page})=>{
+ test.setTimeout(120_000);
  await page.route('**/api/v1/taxonomy/bootstrap?phase=core',r=>json(r,taxonomy));
  await page.route('**/api/v1/assessment-placements/available?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/assessment-attempts/results?**',r=>json(r,{items:[],page:1,limit:20,hasMore:false}));

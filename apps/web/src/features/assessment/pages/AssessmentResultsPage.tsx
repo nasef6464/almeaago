@@ -433,9 +433,6 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
   if (authLoading || busy || (attemptId && detailContext !== activeContext && !error)) {
     return <div className="p-10 text-center font-black">جاري تحميل النتائج...</div>;
   }
-  if (!attemptId && !embedded && (!user || user?.roles.includes('student'))) {
-    return <Navigate to="/dashboard?tab=results" replace />;
-  }
   if (!user) {
     return <div className="p-10 text-center font-black text-rose-700">يلزم تسجيل الدخول.</div>;
   }
