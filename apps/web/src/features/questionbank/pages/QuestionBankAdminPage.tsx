@@ -750,7 +750,7 @@ export function QuestionBankAdminPage() {
         options: ['', '', '', ''],
       });
       setReload((x) => x + 1);
-    }, 'تم إنشاء السؤال كمسودة بإصدار أول. تم حفظ السؤال الجديد كمسودة معتمدة.');
+    }, 'تم حفظ السؤال الجديد كمسودة.');
   }
 
   async function importBatch(dryRun: boolean) {
