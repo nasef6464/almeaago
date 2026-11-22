@@ -1612,7 +1612,8 @@ export function TaxonomyAdminPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Boxes size={18} className="text-indigo-600" />
-                <h2 className="text-base font-black text-slate-900">شجرة المسارات</h2>
+                <h2 className="text-base font-black text-slate-900">المسارات</h2>
+                <span className="sr-only">شجرة المسارات</span>
               </div>
               <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-black text-indigo-700">
                 {busy && data.paths.length === 0 ? '...' : `${filteredPaths.length} من ${data.paths.length}`}

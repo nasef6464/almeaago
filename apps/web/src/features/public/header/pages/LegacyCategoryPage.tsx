@@ -155,6 +155,14 @@ export function LegacyCategoryPage() {
     return <CategoryPageSkeleton />;
   }
 
+  if (params.get('tab') === 'packages') {
+    return <PathPackagesPage pathId={path?.id || raw} />;
+  }
+
+  if (params.get('tab') === 'mock-exams') {
+    return <PathMockExamsPage pathId={path?.id || raw} />;
+  }
+
   const rawSubjectId = params.get('subject') || params.get('subjectId');
   const selectedSubject = resolveCanonicalSubject(rawSubjectId, experience.subjects, path?.id || raw);
   const selectedSubjectId = selectedSubject?.id || rawSubjectId;
@@ -194,14 +202,6 @@ export function LegacyCategoryPage() {
     return <StudentPathAccessPrompt path={path} />;
   }
 
-  // Sub-views based on URL query
-  if (params.get('tab') === 'packages') {
-    return <PathPackagesPage pathId={path.id} />;
-  }
-
-  if (params.get('tab') === 'mock-exams') {
-    return <PathMockExamsPage pathId={path.id} />;
-  }
 
   const pathColor = resolvePathThemeColor(path);
   const pathLevels = experience.levels.filter((l) => l.pathId === path.id);

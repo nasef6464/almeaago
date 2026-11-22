@@ -510,7 +510,7 @@ test.describe('Track 2: Schools Contracts, 11-Module Matrix, Quotas & Certificat
     );
 
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
     await expect(page.getByText('مدارس الرواد الأهلية').first()).toBeVisible();
     await expect(page.getByText('350').first()).toBeVisible(); // Student metric
   });
@@ -895,7 +895,7 @@ test.describe('Tier 3: Cross-Feature Interactions', () => {
   test('T3.CF-4 - Noor Excel roster import grants students immediate active membership under school contract', async ({ page }) => {
     await setupBaselineMocks(page, schoolDirector);
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
   });
 });
 
@@ -946,7 +946,7 @@ test.describe('Tier 4: Real-World Institutional Scenarios', () => {
     );
 
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i }).first()).toBeVisible();
     await expect(page.getByText('مدارس الرواد الأهلية').first()).toBeVisible();
   });
 

@@ -2008,19 +2008,11 @@ export function QuestionBankAdminPage() {
                               type="button"
                               onClick={() => void openQuestion(row.id)}
                               aria-label="فتح"
-                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                               title="فتح"
                             >
-                              <Edit2 size={17} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void openQuestion(row.id)}
-                              aria-label="فتح وتفاصيل"
-                              className="px-2 py-1 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                              title="فتح وتفاصيل"
-                            >
-                              فتح وتفاصيل
+                              <Edit2 size={15} />
+                              فتح
                             </button>
                             <button
                               type="button"
