@@ -16,7 +16,12 @@ function saveEvidence(filename: string, buffer: Buffer) {
 test.describe('Live Integrated Verification Suite', () => {
   test.setTimeout(180_000);
 
+  test.beforeEach(() => {
+    test.skip(process.env.LIVE_VERIFICATION !== '1', 'requires live Go API and PostgreSQL services');
+  });
+
   test('Live login, question bank images, taxonomy paths, foundation locking, and exam parity', async ({ page }) => {
+    test.skip(process.env.LIVE_VERIFICATION !== '1', 'requires live Go API and PostgreSQL services');
     // 1. Live Login as Admin
     console.log('--- Step 1: Navigating to login page ---');
     await page.goto('http://localhost:5173/login', { waitUntil: 'domcontentloaded' });

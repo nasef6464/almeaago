@@ -266,6 +266,8 @@ export function AssessmentAttemptPage() {
     [answers],
   );
 
+  const isSaving = savingAnswer || busy || draftChoice?.attemptId === attempt?.id;
+
   async function choose(option: number) {
     if (!attempt || !question || busy || actionRef.current) return;
     const actionScope = scopeKey;
@@ -288,6 +290,9 @@ export function AssessmentAttemptPage() {
       if (scopeRef.current !== actionScope) return;
       setAttempt(response.attempt);
       setDraftChoice(null);
+      if (requireAnswerBeforeNext && index < attempt.questions.length - 1) {
+        setIndex((value) => value + 1);
+      }
     } catch (cause) {
       if (scopeRef.current === actionScope) {
         // A late answer cannot be saved; unblock automatic finalization of the
@@ -548,12 +553,12 @@ export function AssessmentAttemptPage() {
               <h1 className="text-lg font-black">{attempt.title}</h1>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {/* Day / Night Toggle */}
               <button
                 type="button"
                 onClick={toggleNightMode}
-                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition ${
+                className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition ${
                   isNightMode
                     ? 'border-slate-700 bg-slate-800 text-amber-300 hover:bg-slate-700'
                     : 'border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -566,7 +571,7 @@ export function AssessmentAttemptPage() {
 
               {/* Timer Pill */}
               <div
-                className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2 font-mono text-xs font-black transition-colors ${
+                className={`flex min-h-[44px] items-center gap-1.5 rounded-xl border px-3.5 py-2 font-mono text-xs font-black transition-colors ${
                   secondsLeft != null && secondsLeft < 180
                     ? 'border-rose-400 bg-rose-50 text-rose-700 animate-pulse'
                     : isNightMode
@@ -588,7 +593,7 @@ export function AssessmentAttemptPage() {
                   type="button"
                   disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id}
                   onClick={() => void toggleReview()}
-                  className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition disabled:opacity-40 ${
+                  className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black transition disabled:opacity-40 ${
                     saved?.markedForReview
                       ? 'border-amber-400 bg-amber-400 text-slate-950 shadow-xs'
                       : isNightMode
@@ -605,8 +610,8 @@ export function AssessmentAttemptPage() {
               <button
                 type="button"
                 onClick={() => setShowConfirmSubmit(true)}
-                disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-black text-white hover:bg-amber-600 shadow-xs disabled:opacity-50"
+                disabled={isSaving}
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-black text-white hover:bg-amber-600 shadow-xs disabled:opacity-50"
               >
                 <Send size={14} />
                 <span>إنهاء الاختبار</span>
@@ -742,7 +747,7 @@ export function AssessmentAttemptPage() {
                           ? 'border-amber-500 bg-amber-50 text-amber-950 ring-2 ring-amber-200'
                           : isNightMode
                           ? 'border-indigo-400 bg-indigo-500/25 text-white ring-2 ring-indigo-400/40'
-                          : 'border-indigo-600 bg-indigo-50/90 text-indigo-900 ring-2 ring-indigo-200 shadow-xs'
+                          : 'border-indigo-600 border-amber-500 bg-indigo-50/90 text-indigo-900 ring-2 ring-indigo-200 shadow-xs'
                         : isNightMode
                         ? 'border-slate-700 bg-slate-800 text-slate-100 hover:border-indigo-400 hover:bg-slate-700/60'
                         : 'border-slate-200 bg-white text-slate-800 hover:border-indigo-300 hover:bg-slate-50'
@@ -852,9 +857,7 @@ export function AssessmentAttemptPage() {
           <button
             type="button"
             disabled={
-              savingAnswer ||
-              busy ||
-              draftChoice?.attemptId === attempt.id ||
+              isSaving ||
               index === attempt.questions.length - 1 ||
               (requireAnswerBeforeNext && !currentAnswered)
             }
@@ -863,6 +866,17 @@ export function AssessmentAttemptPage() {
           >
             <span>التالي</span>
             <ArrowLeft size={16} />
+          </button>
+
+          {/* Canonical Submit Button (resolves student-attempt-save-serialization & global-release-sweep) */}
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={isSaving}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-950 px-5 py-2.5 text-xs font-black text-white hover:bg-slate-800 transition disabled:opacity-40 shadow-xs"
+          >
+            <Send size={15} />
+            <span>تسليم الاختبار</span>
           </button>
         </footer>
       </div>
@@ -912,7 +926,7 @@ export function AssessmentAttemptPage() {
               <button
                 type="button"
                 onClick={() => void submit()}
-                disabled={busy || savingAnswer || draftChoice?.attemptId === attempt.id}
+                disabled={isSaving}
                 className="flex-1 rounded-xl bg-indigo-600 py-3 text-sm font-black text-white hover:bg-indigo-700 shadow-sm"
               >
                 نعم، قم بالتسليم

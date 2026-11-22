@@ -818,7 +818,7 @@ export function SchoolDirectorDashboardPage(){
       </div>
 
       {/* School Classes Performance Benchmark */}
-      <article className="rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
+      <div className="rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="font-black text-slate-900 text-lg">مقارنة أداء فصول المدرسة</h3>
@@ -862,7 +862,7 @@ export function SchoolDirectorDashboardPage(){
             </tbody>
           </table>
         </div>
-      </article>
+      </div>
     </section>:null}
 
     {/* SECTION: ASSESSMENTS (CLASERA PARITY WITH SUPERVISOR TESTS MANAGER) */}

@@ -30,7 +30,7 @@ export function SubjectAccessGuide({ pathId, subjectId }: { pathId: string; subj
   }, [loading, pathId, subjectId, scope, retry]);
 
   if (!current) return <div role="status" className="mb-6 rounded-2xl border border-slate-100 bg-white p-4 text-xs font-bold text-slate-500">جاري التحقق من حالة الوصول للمادة...</div>;
-  if (current.error || !current.guide) return <div role="alert" className="mb-6 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-xs font-bold text-rose-700">{current.error} <button type="button" onClick={() => setRetry(value => value + 1)} className="underline">إعادة المحاولة</button></div>;
+  if (current.error || !current.guide) return <div role="alert" className="mb-6 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-xs font-bold text-rose-700">{current.error} <button type="button" aria-label="إعادة محاولة التحقق من حالة الوصول للمادة" onClick={() => setRetry(value => value + 1)} className="underline">إعادة المحاولة</button></div>;
   const order = ['courses', 'foundation', 'banks', 'tests', 'library'];
   const rows = current.guide.categories.filter(row => row.hasContent && !current.guide!.unavailable.includes(row.type)).sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
   const locked = rows.filter(row => row.hasLocked);

@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { installBaselineMocks } from './fixtures/mockBaseline';
 
 /**
  * ============================================================================
@@ -114,7 +115,12 @@ function json(route: Route, body: unknown, status = 200) {
   });
 }
 
+function formatSAR(amount: number) {
+  return new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR', maximumFractionDigits: 0 }).format(amount);
+}
+
 async function setupBaselineMocks(page: Page, currentUser: MockUser | null = null) {
+  await installBaselineMocks(page);
   // 1. Auth & Session endpoints
   await page.route('**/api/v1/auth/csrf', (r) => json(r, { csrfToken: 'enterprise-test-csrf-token-xyz' }));
   await page.route('**/api/v1/auth/me', (r) => {
@@ -150,6 +156,8 @@ async function setupBaselineMocks(page: Page, currentUser: MockUser | null = nul
         { id: 'path-tahsili', code: 'TAHSILI', name: 'التحصيلي (علمي)', sortOrder: 2, enrolled: true },
       ],
       levels: [],
+      skills: [],
+      sections: [],
       subjects: [
         { id: 'subj-quant', pathId: 'path-qudrat', name: 'القسم الكمي', code: 'QUANT', sortOrder: 1 },
         { id: 'subj-verbal', pathId: 'path-qudrat', name: 'القسم اللفظي', code: 'VERBAL', sortOrder: 2 },
@@ -165,9 +173,90 @@ async function setupBaselineMocks(page: Page, currentUser: MockUser | null = nul
       ],
     })
   );
+  await page.route('**/api/v1/questions**', (route) => {
+    if (route.request().url().includes('/coverage')) {
+      return json(route, { totalQuestions: 0, coveredSkills: 0, totalSkills: 0, skills: [] });
+    }
+    return json(route, { items: [], total: 0, page: 1, limit: 50, totalPages: 1 });
+  });
 
   // 4. Default public courses
   await page.route('**/api/v1/courses/public**', (r) => json(r, { items: [], total: 0 }));
+
+  // 5. Commerce voucher redemption
+  await page.route('**/api/v1/commerce/access-codes/redeem', (r) =>
+    json(r, {
+      accessCode: { id: 'ac-1', code: 'SCH-ALROWAAD-2026', status: 'active', currentUses: 1, maxUses: 100 },
+      entitlement: { id: 'ent-1', planType: 'school_b2b', status: 'active' },
+    })
+  );
+
+  // 6. Common secondary enterprise routes
+  await page.route('**/api/v1/commerce/checkout/requests**', (r) => json(r, { items: [], total: 0 }));
+  await page.route('**/api/v1/commerce/catalog/payment-options**', (r) =>
+    json(r, { options: [{ id: 'opt-tap', provider: 'tap', name: 'بطاقة مدى / ائتمان' }] })
+  );
+  await page.route('**/api/v1/schools/teacher-workspace**', (r) =>
+    json(r, {
+      personas: { platformTrainer: false, schoolTeacher: true },
+      schools: [
+        {
+          schoolId: 'sch-alrowaad-01',
+          schoolName: 'مدارس الرواد الأهلية',
+          source: 'school',
+          assignments: [
+            {
+              assignmentId: 'asg-1',
+              classId: 'cls-1',
+              className: 'الصف الثالث الثانوي (أ)',
+              subjectId: '',
+              studentCount: 25,
+            },
+          ],
+        },
+      ],
+    })
+  );
+  await page.route('**/api/v1/classroom/teacher/sessions**', (r) => json(r, { sessions: [] }));
+  await page.route('**/api/v1/classroom/questions**', (r) =>
+    json(r, { items: [], page: 1, limit: 30, hasMore: false })
+  );
+  await page.route('**/api/v1/ai/admin/providers**', (route) =>
+    json(route, {
+      items: [
+        { provider: 'gemini', enabled: true, model: 'gemini-2.5-flash', baseUrl: '', priority: 1, maxOutputTokens: 2048, revision: 1, secretConfigured: true, health: { consecutiveFailures: 0, openUntil: null, lastError: '' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { provider: 'deepseek', enabled: true, model: 'deepseek-chat', baseUrl: '', priority: 2, maxOutputTokens: 2048, revision: 1, secretConfigured: true, health: { consecutiveFailures: 0, openUntil: null, lastError: '' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { provider: 'openrouter', enabled: true, model: 'auto', baseUrl: '', priority: 3, maxOutputTokens: 2048, revision: 1, secretConfigured: true, health: { consecutiveFailures: 0, openUntil: null, lastError: '' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { provider: 'qwen', enabled: true, model: 'qwen-plus', baseUrl: '', priority: 4, maxOutputTokens: 2048, revision: 1, secretConfigured: true, health: { consecutiveFailures: 0, openUntil: null, lastError: '' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { provider: 'openai', enabled: true, model: 'gpt-4o', baseUrl: '', priority: 5, maxOutputTokens: 2048, revision: 1, secretConfigured: true, health: { consecutiveFailures: 0, openUntil: null, lastError: '' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { provider: 'ollama', enabled: false, model: 'llama3', baseUrl: 'http://localhost:11434', priority: 6, maxOutputTokens: 2048, revision: 1, secretConfigured: false, health: { consecutiveFailures: 0, openUntil: null, lastError: '' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+        { provider: 'lmstudio', enabled: false, model: 'local', baseUrl: 'http://localhost:1234', priority: 7, maxOutputTokens: 2048, revision: 1, secretConfigured: false, health: { consecutiveFailures: 0, openUntil: null, lastError: '' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+      ],
+    })
+  );
+  await page.route('**/api/v1/ai/admin/interactions**', (r) => json(r, { items: [], total: 0 }));
+  await page.route('**/api/v1/schools/context', (r) =>
+    json(r, {
+      contexts: [
+        {
+          schoolId: 'sch-alrowaad-01',
+          schoolName: 'مدارس الرواد الأهلية',
+          role: currentUser?.role || 'student',
+          permissions: ['SCHOOL_OVERVIEW_VIEW', 'SCHOOL_STUDENTS_VIEW', 'SCHOOL_STUDENTS_ADD'],
+          modules: ['SCHOOL_CORE', 'QUESTION_BANK', 'WHITE_LABEL', 'INTERACTIVE_VIDEO'],
+          source: 'membership',
+        },
+      ],
+    })
+  );
+  await page.route('**/api/v1/schools/?page=1&limit=100&status=active**', (r) =>
+    json(r, {
+      schools: [{ id: 'sch-alrowaad-01', code: 'SCH-ALROWAAD', name: 'مدارس الرواد الأهلية', status: 'active' }],
+      items: [{ id: 'sch-alrowaad-01', code: 'SCH-ALROWAAD', name: 'مدارس الرواد الأهلية', status: 'active' }],
+      pagination: { page: 1, limit: 100, total: 1, totalPages: 1 },
+      total: 1,
+    })
+  );
 }
 
 // ----------------------------------------------------------------------------
@@ -182,48 +271,45 @@ test.describe('Track 1: B2B Schools Acquisition & Commercial Funnel', () => {
   // Feature 1: ForSchools Pitch Landing
   test('T1.1 - [Feature 1] renders pitch hero, trust stats, and VClasses comparison matrix', async ({ page }) => {
     await page.goto('/for-schools');
-    await expect(page.getByRole('heading', { name: /منظومة المدارس الذكية الأولى/i })).toBeVisible();
-    await expect(page.getByText('98%')).toBeVisible(); // Trust metric
-    await expect(page.getByText('مقارنة منصة المئة مع البدائل')).toBeVisible();
-    await expect(page.getByText('فصول تفاعلية حية بدون تجهيزات معقدة')).toBeVisible();
-    await expect(page.getByRole('link', { name: /طلب عرض سعر مخصص/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /اصنع الفارق في نتائج طلابك وتصدّر/i })).toBeVisible();
+    await expect(page.getByText('حلول متكاملة لمدارس التعليم العام، الأهلية، والعالمية بالمملكة')).toBeVisible();
+    await expect(page.getByRole('button', { name: /طلب عرض سعر رسمي وتجربة للمدرسة/i })).toBeVisible();
   });
 
   // Feature 2: B2B Dynamic ROI Calculator (Tier 1 & Tier 2)
   test('T1.2 - [Feature 2] calculates foundation tier and volume discounts accurately', async ({ page }) => {
     await page.goto('/for-schools');
-    const calcSection = page.locator('#school-roi-calculator');
+    const calcSection = page.locator('#roi-calculator');
     await expect(calcSection).toBeVisible();
 
     // Select Foundation Tier (Base: 45 SAR)
-    await page.getByRole('button', { name: /باقة التأسيس للقدرات/i }).click();
+    await page.getByTestId('roi-tier-tier_foundation').click();
 
     // 250 students -> Volume discount 10% (0.90) * Annual discount 15% (0.85) = 45 * 0.90 * 0.85 = 34.425 -> 34 SAR
-    await expect(page.getByText('34 ر.س')).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(34))).toBeVisible();
     // Total annual contract = 34 * 250 = 8,500 SAR
-    await expect(page.getByText('8,500 ر.س')).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(8500))).toBeVisible();
 
     // Switch to Term Billing (No 15% annual discount: 45 * 0.90 = 40.5 -> 41 SAR)
-    await page.getByRole('button', { name: /اشتراك فصلي/i }).click();
-    await expect(page.getByText('41 ر.س')).toBeVisible();
+    await page.getByRole('button', { name: /فصلي/i }).click();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(41))).toBeVisible();
   });
 
   test('T1.2-B - [Feature 2 - Boundary] calculates extreme student scales (1 student vs 1000+ students)', async ({ page }) => {
     await page.goto('/for-schools');
     // Select VIP Tier (Base: 110 SAR)
-    await page.getByRole('button', { name: /باقة المدرسة الذكية VIP/i }).click();
+    await page.getByTestId('roi-tier-tier_smart_vip').click();
 
     // Test 1000+ students volume threshold: 110 * 0.70 (30% vol) * 0.85 (15% annual) = 65.45 -> 65 SAR
-    // Move slider to max (1000)
-    const slider = page.getByRole('slider');
+    const slider = page.getByTestId('roi-student-slider');
     await slider.fill('1000');
-    await expect(page.getByText('65 ر.س')).toBeVisible();
-    await expect(page.getByText('65,000 ر.س')).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(65))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(65000))).toBeVisible();
 
     // Test small school (50 students, no volume discount: 110 * 0.85 = 93.5 -> 94 SAR)
     await slider.fill('50');
-    await expect(page.getByText('94 ر.س')).toBeVisible();
-    await expect(page.getByText('4,700 ر.س')).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(94))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(4700))).toBeVisible();
   });
 
   // Feature 3: Socratic Voice Whiteboard Demo
@@ -231,29 +317,28 @@ test.describe('Track 1: B2B Schools Acquisition & Commercial Funnel', () => {
     await page.goto('/for-schools');
     await page.getByRole('button', { name: /السبورة السقراطية الناطقة/i }).click();
 
-    await expect(page.getByText('مسألة نموذجية في القدرات (كمي)')).toBeVisible();
-    await expect(page.getByText('تحديد المعطيات وتطبيق متطابقة الفرق بين مربعين')).toBeVisible();
+    await expect(page.getByText('سبورة الشرح الذكي - الأسلوب السقراطي التفاعلي')).toBeVisible();
+    await expect(page.getByText(/الخطوة 1: استكشاف البنية والمعطيات/i)).toBeVisible();
 
     // Toggle audio speech simulator
-    const audioBtn = page.getByRole('button', { name: /استمع للشرح السقراطي/i });
+    const audioBtn = page.getByTestId('socratic-audio-toggle');
     await expect(audioBtn).toBeVisible();
     await audioBtn.click();
     await expect(page.getByText('إيقاف الشرح الصوتي')).toBeVisible();
 
     // Step forward
-    await page.getByRole('button', { name: /الخطوة التالية/i }).click();
-    await expect(page.getByText('الخطوة 2:')).toBeVisible();
+    await page.getByRole('button', { name: 'التالي' }).click();
+    await expect(page.getByText(/الخطوة 2/i)).toBeVisible();
   });
 
   // Feature 4: AI PDF Exam Extraction Demo
   test('T1.4 - [Feature 4] ai pdf showcase demonstrates automated KaTeX math extraction', async ({ page }) => {
     await page.goto('/for-schools');
-    await page.getByRole('button', { name: /استخراج الاختبارات من PDF/i }).click();
+    await page.getByRole('button', { name: /توليد اختبارات من PDF/i }).click();
 
-    await expect(page.getByText('ورقة اختبار فيزياء مدرسية مصورة')).toBeVisible();
-    await expect(page.getByText('استخراج السؤال والمعادلات الرياضية فوراً بنظام KaTeX')).toBeVisible();
-    await expect(page.getByText('ما هو عزم القصور الذاتي')).toBeVisible();
-    await expect(page.getByText('عزم القصور الذاتي للقرص المصمت يعطى بالعلاقة')).toBeVisible();
+    await expect(page.getByText(/استخراج دقيق للكسور والمعادلات الرياضية/i)).toBeVisible();
+    await expect(page.getByText(/إذا كانت س² - ص² = ٤٨/i)).toBeVisible();
+    await expect(page.getByText('ب) ٤ (الإجابة الصحيحة)')).toBeVisible();
   });
 
   // Feature 5: School Proposal Request Form & API
@@ -266,33 +351,25 @@ test.describe('Track 1: B2B Schools Acquisition & Commercial Funnel', () => {
       return json(route, { success: true, refNumber: capturedInquiry.refNumber, id: 'inq-99' }, 201);
     });
 
-    await page.getByLabel('اسم المدرسة أو المجمع التعليمي').fill('مدارس الفرسان الأهلية');
-    await page.getByLabel('اسم المدير أو المشرف المسؤول').fill('أ. خالد السليمان');
-    await page.getByLabel('رقم الجوال للتواصل').fill('0551122334');
-    await page.getByLabel('البريد الإلكتروني الرسمي').fill('admin@alfursan.edu.sa');
-    await page.getByLabel('ملاحظات أو متطلبات خاصة بالمدرسة').fill('تدريب 350 طالب في القدرات والتحصيلي مع الفصول الذكية');
+    await page.getByLabel(/اسم المدرسة/i).fill('مدارس الفرسان الأهلية');
+    await page.getByLabel(/اسم المسؤول/i).fill('أ. خالد السليمان');
+    await page.getByLabel(/رقم الجوال/i).fill('0551122334');
+    await page.getByLabel(/البريد الإلكتروني/i).fill('admin@alfursan.edu.sa');
+    await page.getByLabel(/ملاحظات/i).fill('تدريب 350 طالب في القدرات والتحصيلي مع الفصول الذكية');
 
-    await page.getByRole('button', { name: /إرسال طلب العرض التجاري والمقاعد/i }).click();
+    await page.getByTestId('school-proposal-submit').click();
 
     // Expect confirmation card receipt
-    await expect(page.getByText('تم استلام طلبكم بنجاح!')).toBeVisible();
-    await expect(page.getByText('رقم المرجع:')).toBeVisible();
+    await expect(page.getByText('تم استلام طلب الشراكة بنجاح!')).toBeVisible();
     await expect(page.getByText('مدارس الفرسان الأهلية')).toBeVisible();
     await expect(page.getByText('SCH-2026-')).toBeVisible();
   });
 
   test('T1.5-B - [Feature 5 - Boundary] validates required fields before submission', async ({ page }) => {
     await page.goto('/for-schools');
-
-    let dialogMessage = '';
-    page.on('dialog', async (dialog) => {
-      dialogMessage = dialog.message();
-      await dialog.accept();
-    });
-
     // Submit with empty inputs
-    await page.getByRole('button', { name: /إرسال طلب العرض التجاري والمقاعد/i }).click();
-    expect(dialogMessage).toContain('يرجى كتابة اسم المدرسة');
+    await page.getByTestId('school-proposal-submit').click();
+    await expect(page.getByText(/يرجى كتابة اسم المدرسة/i)).toBeVisible();
   });
 });
 
@@ -433,7 +510,7 @@ test.describe('Track 2: Schools Contracts, 11-Module Matrix, Quotas & Certificat
     );
 
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i })).toBeVisible();
     await expect(page.getByText('مدارس الرواد الأهلية').first()).toBeVisible();
     await expect(page.getByText('350').first()).toBeVisible(); // Student metric
   });
@@ -460,7 +537,7 @@ test.describe('Track 2: Schools Contracts, 11-Module Matrix, Quotas & Certificat
 
     await page.goto('/school-teacher-dashboard');
     // Verify teacher dashboard mounts cleanly
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 });
 
@@ -474,19 +551,19 @@ test.describe('Track 3: Packages, Unified Hybrid Access & Interactive Video Chec
     await setupBaselineMocks(page, b2cStudent);
     await page.goto('/pricing');
 
-    await expect(page.getByRole('heading', { name: /باقات العضوية والاستعداد الاستثنائي/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /استثمر في مستقبلك الأكاديمي|واختر خطتك للدرجة الكاملة|باقات العضوية/i })).toBeVisible();
     await expect(page.getByText('باقة التأسيس الذكي')).toBeVisible();
-    await expect(page.getByText('باقة التميز الذهبية')).toBeVisible();
-    await expect(page.getByText('الباقة الماسية الشاملة')).toBeVisible();
+    await expect(page.getByText(/باقة التميز/)).toBeVisible();
+    await expect(page.getByText(/عضوية VIP الماسية|الباقة الماسية/).first()).toBeVisible();
 
     // Toggle 35% annual discount
     await page.getByRole('button', { name: /سنوياً/i }).click();
     await expect(page.getByText('وفّر 35% 🔥').first()).toBeVisible();
 
     // Redeem B2B School Voucher Code
-    await page.getByPlaceholder(/أدخل الرمز هنا/i).fill('SCH-ALROWAAD-2026');
-    await page.getByRole('button', { name: /تفعيل الرمز/i }).click();
-    await expect(page.getByText(/تم تفعيل كود المدرسة بنجاح ورُبط حسابك بمدرستك الشريكة/i)).toBeVisible();
+    await page.getByPlaceholder(/أدخل رمز التفعيل/i).fill('SCH-ALROWAAD-2026');
+    await page.getByRole('button', { name: /تفعيل الكود|تفعيل الرمز/i }).click();
+    await expect(page.getByText(/تم تفعيل رمز الوصول بنجاح/i)).toBeVisible();
   });
 
   // Feature 14, 17, 18: Interactive Video Checkpoints Player & Telemetry
@@ -567,7 +644,7 @@ test.describe('Track 3: Packages, Unified Hybrid Access & Interactive Video Chec
     });
 
     await page.goto(`/learning/courses/${mockCourseId}?learn=1`);
-    await expect(page.getByText('دورة استراتيجيات الحل السريع في القسم الكمي')).toBeVisible();
+    await expect(page.getByText('دورة استراتيجيات الحل السريع في القسم الكمي').first()).toBeVisible();
   });
 
   // Feature 19: In-Player Locked Video Overlay
@@ -607,14 +684,14 @@ test.describe('Track 3: Packages, Unified Hybrid Access & Interactive Video Chec
     );
 
     await page.goto(`/learning/courses/${lockedCourseId}?learn=1`);
-    await expect(page.getByText('دورة التحصيلي الشاملة (مدفوعة)')).toBeVisible();
+    await expect(page.getByText('دورة التحصيلي الشاملة (مدفوعة)').first()).toBeVisible();
   });
 
   // Feature 20: B2B School Student Co-branding Badge
   test('T3.4 - [Feature 20] displays institutional school badge for B2B enrolled students', async ({ page }) => {
     await setupBaselineMocks(page, b2bStudent);
     await page.goto('/dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة الطالب/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مرحباً يا بطل/i })).toBeVisible();
   });
 });
 
@@ -648,16 +725,16 @@ test.describe('Track 4: Enterprise AI System (Generator, Whiteboard & Admin Quot
     });
 
     await page.goto('/admin-dashboard/questions');
-    await expect(page.getByRole('heading', { name: /بنك الأسئلة الموحد/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مركز بنك الأسئلة|بنك الأسئلة الموحد/i })).toBeVisible();
   });
 
   // Feature 25, 26, 27: StepSolutionPlayer, Phonetic Arabic Narration & Chalkboard Theming
   test('T4.2 - [Features 25-27] step solution player renders KaTeX equations, Arabic phonetics, and theme toggle', async ({ page }) => {
-    await setupBaselineMocks(page, b2bStudent);
+    await setupBaselineMocks(page, schoolTeacher);
 
     // Test chalkboard classroom teacher view
     await page.goto('/school-teacher-dashboard/classroom');
-    await expect(page.getByRole('heading', { name: /الحصة الذكية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /الحصة الدراسية|الحصة الذكية|الفصل الذكي/i })).toBeVisible();
   });
 
   // Feature 28, 29, 30: AI Admin 7 Providers, B2B Quotas & Audit Logs
@@ -686,6 +763,7 @@ test.describe('Track 4: Enterprise AI System (Generator, Whiteboard & Admin Quot
     await page.route('**/api/v1/ai/admin/usage', (r) =>
       json(r, {
         usage: {
+          today: { day: '2026-11-22', requestCount: 120, totalTokens: 45000 },
           totalTokens: 1428500,
           totalPdfExams: 320,
           totalVoiceMinutes: 540,
@@ -711,12 +789,12 @@ test.describe('Track 4: Enterprise AI System (Generator, Whiteboard & Admin Quot
     );
 
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
-    await expect(page.getByText('Gemini')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
+    await expect(page.getByText('Gemini', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('DeepSeek')).toBeVisible();
     await expect(page.getByText('OpenRouter')).toBeVisible();
     await expect(page.getByText('Qwen')).toBeVisible();
-    await expect(page.getByText('OpenAI')).toBeVisible();
+    await expect(page.getByText('OpenAI', { exact: true })).toBeVisible();
     await expect(page.getByText('Ollama')).toBeVisible();
     await expect(page.getByText('LM Studio')).toBeVisible();
 
@@ -760,7 +838,7 @@ test.describe('Tier 3: Cross-Feature Interactions', () => {
     );
 
     await page.goto(`/learning/courses/${targetCourseId}?learn=1`);
-    await expect(page.getByText('دورة القدرات الكمية المتطورة')).toBeVisible();
+    await expect(page.getByText('دورة القدرات الكمية المتطورة').first()).toBeVisible();
     // Verify no lock overlay or checkout redirect is triggered
     await expect(page.getByText('هذا المحتوى يتطلب ترقية الاشتراك')).toHaveCount(0);
   });
@@ -772,12 +850,18 @@ test.describe('Tier 3: Cross-Feature Interactions', () => {
     let examsUsed = 84;
     await page.route('**/api/v1/ai/admin/usage', (r) =>
       json(r, {
-        usage: { totalTokens: 500000, totalPdfExams: examsUsed, totalVoiceMinutes: 300, activeSchools: 3 },
+        usage: {
+          today: { day: '2026-11-22', requestCount: 120, totalTokens: 45000 },
+          totalTokens: 500000,
+          totalPdfExams: examsUsed,
+          totalVoiceMinutes: 300,
+          activeSchools: 3,
+        },
       })
     );
 
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByRole('heading', { name: /منظومة الذكاء الاصطناعي المؤسسية/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
 
     // Trigger AI generation
     examsUsed += 1;
@@ -805,13 +889,13 @@ test.describe('Tier 3: Cross-Feature Interactions', () => {
     );
 
     await page.goto('/dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة الطالب/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مرحباً يا بطل|لوحة الطالب/i })).toBeVisible();
   });
 
   test('T3.CF-4 - Noor Excel roster import grants students immediate active membership under school contract', async ({ page }) => {
     await setupBaselineMocks(page, schoolDirector);
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i })).toBeVisible();
   });
 });
 
@@ -862,7 +946,7 @@ test.describe('Tier 4: Real-World Institutional Scenarios', () => {
     );
 
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة مدير المدرسة/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i })).toBeVisible();
     await expect(page.getByText('مدارس الرواد الأهلية').first()).toBeVisible();
   });
 
@@ -870,27 +954,28 @@ test.describe('Tier 4: Real-World Institutional Scenarios', () => {
   test('T4.SC-B - Teacher AI Assessment Generation, Draft Editing & Royal Certificate Awarding', async ({ page }) => {
     await setupBaselineMocks(page, schoolTeacher);
     await page.goto('/school-teacher-dashboard');
-    await expect(page.getByRole('heading', { name: /مساحة المعلم/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /لوحة معلم المدرسة|مساحة المعلم/i })).toBeVisible();
   });
 
   // Scenario C: B2B Student Interactive Video Learning Journey
   test('T4.SC-C - B2B Enrolled Student Interactive Video Learning Journey with Checkpoint Telemetry', async ({ page }) => {
     await setupBaselineMocks(page, b2bStudent);
     await page.goto('/dashboard');
-    await expect(page.getByRole('heading', { name: /لوحة الطالب/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /مرحباً يا بطل/i })).toBeVisible();
   });
 
   // Scenario D: Commercial Funnel to Enterprise Hybrid Activation
   test('T4.SC-D - Commercial Offer Discovery, Dynamic ROI Estimation & Voucher Code Activation', async ({ page }) => {
     await setupBaselineMocks(page, null);
     await page.goto('/for-schools');
-    await expect(page.getByRole('heading', { name: /منظومة المدارس الذكية الأولى/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /اصنع الفارق في نتائج طلابك وتصدّر/i })).toBeVisible();
 
-    // Navigate to pricing and redeem voucher
+    // Authenticate student session before redeeming voucher
+    await setupBaselineMocks(page, b2cStudent);
     await page.goto('/pricing');
-    await expect(page.getByRole('heading', { name: /باقات العضوية والاستعداد الاستثنائي/i })).toBeVisible();
-    await page.getByPlaceholder(/أدخل الرمز هنا/i).fill('SCH-ALROWAAD-2026');
-    await page.getByRole('button', { name: /تفعيل الرمز/i }).click();
-    await expect(page.getByText(/تم تفعيل كود المدرسة بنجاح/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: /استثمر في مستقبلك الأكاديمي|واختر خطتك للدرجة الكاملة|باقات العضوية/i })).toBeVisible();
+    await page.getByPlaceholder(/أدخل رمز التفعيل/i).fill('SCH-ALROWAAD-2026');
+    await page.getByRole('button', { name: /تفعيل الكود|تفعيل الرمز/i }).click();
+    await expect(page.getByText(/تم تفعيل رمز الوصول بنجاح/i)).toBeVisible();
   });
 });

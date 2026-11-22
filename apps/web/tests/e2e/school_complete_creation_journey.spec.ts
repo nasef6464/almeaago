@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { installBaselineMocks } from './fixtures/mockBaseline';
 
 /**
  * ============================================================================
@@ -162,6 +163,7 @@ test.describe('School Complete Creation & Lifecycle User Journey', () => {
   let assessmentCreated = false;
 
   test.beforeEach(async ({ page }) => {
+    await installBaselineMocks(page);
     schoolCreationIntercepted = false;
     upsertDirectorCalled = false;
     studentAdded = false;
@@ -545,7 +547,7 @@ test.describe('School Complete Creation & Lifecycle User Journey', () => {
     // Verify student availability: switch to student session
     console.log('[E2E-JOURNEY] Step 6: Verifying student assessment availability...');
     currentUser = studentUser;
-    await page.goto('/assessments');
+    await page.goto('/assessments?pathId=path-qudrat&subjectId=subject-math');
     await expect(page.getByText('اختبار القدرات الموحد للترم الأول')).toBeVisible();
     console.log('[E2E-JOURNEY] All 6 steps passed successfully!');
   });

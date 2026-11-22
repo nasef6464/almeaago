@@ -50,7 +50,7 @@ test('parent dashboard shows only canonical linked-child summary and determinist
  await expect(page.getByText('النسبة والتناسب')).toBeVisible();
  await expect(page.getByText('42%')).toBeVisible();
 
- await page.getByRole('button',{name:'تقرير الأسبوع'}).click();
+ await page.getByRole('button',{name:'تقرير الأسبوع',exact:true}).click();
  await expect(page.getByText('التقرير الأسبوعي المبسط')).toBeVisible();
  await expect(page.getByText(/هذه المرحلة تعرض التقرير فقط/)).toBeVisible();
  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
@@ -82,7 +82,7 @@ test('desktop parent follow-up stays observer-only and preserves canonical Learn
  await expect(page.getByTestId('parent-follow-up-plan')).toContainText('الخطوة 1');
  await expect(page.getByTestId('parent-follow-up-plan')).toContainText(weak.recommendedAction);
  await expect(page.getByTestId('parent-follow-up-plan')).toContainText('الدليل الحالي: 5');
- await page.getByRole('button',{name:'تقرير الأسبوع'}).click();
+ await page.getByRole('button',{name:'تقرير الأسبوع',exact:true}).click();
  await expect(page.getByTestId('weekly-report-period')).toContainText('سبتمبر');
  await page.getByRole('button',{name:'نسخ ملخص الأسبوع'}).click();
  await expect(page.getByRole('button',{name:'تم نسخ الملخص'})).toBeVisible();

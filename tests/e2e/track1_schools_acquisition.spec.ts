@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { installBaselineMocks } from './fixtures/mockBaseline';
 
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({
@@ -13,6 +14,7 @@ function formatSAR(amount: number) {
 }
 
 async function setupTrack1Mocks(page: Page) {
+  await installBaselineMocks(page);
   await page.route('**/api/v1/auth/csrf', (r) => json(r, { csrfToken: 'csrf-t1' }));
   await page.route('**/api/v1/auth/me', (r) => json(r, { user: null }, 401));
   await page.route('**/api/v1/auth/session', (r) => json(r, { user: null }, 401));
@@ -40,7 +42,7 @@ test.describe('Track 1 - Feature 1: ForSchools Pitch Landing', () => {
     await expect(page.getByText('+9.4 درجات')).toBeVisible();
     await expect(page.getByText('+45 مدرسة')).toBeVisible();
     await expect(page.getByText('100% متوافق')).toBeVisible();
-    await expect(page.getByText('3 دقائق')).toBeVisible();
+    await expect(page.getByText('3 دقائق', { exact: true })).toBeVisible();
     await expect(page.getByText('متوسط ارتفاع درجات الطلاب')).toBeVisible();
     await expect(page.getByText('شريكة في مدن المملكة')).toBeVisible();
     await expect(page.getByText('مع نظام نور ومؤشرات قياس')).toBeVisible();
@@ -50,9 +52,9 @@ test.describe('Track 1 - Feature 1: ForSchools Pitch Landing', () => {
   test('T1.F1.3 - [Tier 1] renders traditional vs Almeaa smart platform comparison matrix', async ({ page }) => {
     await page.goto('/for-schools');
     await expect(page.getByText('باقات المدارس المعتمدة وفق احتياج كل صرح تعليمي')).toBeVisible();
-    await expect(page.getByText('باقة التأسيس للقدرات')).toBeVisible();
-    await expect(page.getByText('باقة التميز الأكاديمي')).toBeVisible();
-    await expect(page.getByText('باقة المدرسة الذكية VIP')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'باقة التأسيس للقدرات' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'باقة التميز الأكاديمي' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'باقة المدرسة الذكية VIP' })).toBeVisible();
   });
 
   test('T1.F1.4 - [Tier 1] toggles interactive showcase demo tabs smoothly', async ({ page }) => {
@@ -134,37 +136,37 @@ test.describe('Track 1 - Feature 2: B2B Dynamic ROI Calculator', () => {
   test('T1.F2.1 - [Tier 1] calculates Foundation Tier price accurately for default 250 students', async ({ page }) => {
     await page.getByTestId('roi-tier-tier_foundation').click();
     // 45 base * 0.90 (vol) * 0.85 (annual) = 34.425 -> 34 SAR
-    await expect(page.getByText(formatSAR(34))).toBeVisible();
-    await expect(page.getByText(formatSAR(8500))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(34))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(8500))).toBeVisible();
   });
 
   test('T1.F2.2 - [Tier 1] calculates Academic Excellence Tier price accurately', async ({ page }) => {
     await page.getByTestId('roi-tier-tier_excellence').click();
     // 75 base * 0.90 (vol) * 0.85 (annual) = 57.375 -> 57 SAR
-    await expect(page.getByText(formatSAR(57))).toBeVisible();
-    await expect(page.getByText(formatSAR(14250))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(57))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(14250))).toBeVisible();
   });
 
   test('T1.F2.3 - [Tier 1] calculates Smart VIP Tier price accurately', async ({ page }) => {
     await page.getByTestId('roi-tier-tier_smart_vip').click();
     // 110 base * 0.90 (vol) * 0.85 (annual) = 84.15 -> 84 SAR
-    await expect(page.getByText(formatSAR(84))).toBeVisible();
-    await expect(page.getByText(formatSAR(21000))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(84))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(21000))).toBeVisible();
   });
 
   test('T1.F2.4 - [Tier 1] calculates Custom Complex Tier price accurately', async ({ page }) => {
     await page.getByTestId('roi-tier-tier_custom').click();
     // 90 base * 0.90 (vol) * 0.85 (annual) = 68.85 -> 69 SAR
-    await expect(page.getByText(formatSAR(69))).toBeVisible();
-    await expect(page.getByText(formatSAR(17250))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(69))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(17250))).toBeVisible();
   });
 
   test('T1.F2.5 - [Tier 1] switching to term billing recalculates without 15% upfront discount', async ({ page }) => {
     await page.getByTestId('roi-tier-tier_foundation').click();
     await page.getByRole('button', { name: /فصلي/i }).click();
     // 45 base * 0.90 (vol) = 40.5 -> 41 SAR
-    await expect(page.getByText(formatSAR(41))).toBeVisible();
-    await expect(page.getByText(formatSAR(10250))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(41))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(10250))).toBeVisible();
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
@@ -173,8 +175,8 @@ test.describe('Track 1 - Feature 2: B2B Dynamic ROI Calculator', () => {
     const slider = page.getByTestId('roi-student-slider');
     await slider.fill('50');
     // 75 base * 0.85 (annual) = 63.75 -> 64 SAR
-    await expect(page.getByText(formatSAR(64))).toBeVisible();
-    await expect(page.getByText(formatSAR(3200))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(64))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(3200))).toBeVisible();
   });
 
   test('T1.F2.7 - [Tier 2] volume threshold edge 1: 200 students activates 10% volume discount', async ({ page }) => {
@@ -182,8 +184,8 @@ test.describe('Track 1 - Feature 2: B2B Dynamic ROI Calculator', () => {
     const slider = page.getByTestId('roi-student-slider');
     await slider.fill('200');
     // 75 * 0.90 * 0.85 = 57.375 -> 57 SAR
-    await expect(page.getByText(formatSAR(57))).toBeVisible();
-    await expect(page.getByText(formatSAR(11400))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(57))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(11400))).toBeVisible();
   });
 
   test('T1.F2.8 - [Tier 2] volume threshold edge 2: 500 students activates 20% volume discount', async ({ page }) => {
@@ -191,8 +193,8 @@ test.describe('Track 1 - Feature 2: B2B Dynamic ROI Calculator', () => {
     const slider = page.getByTestId('roi-student-slider');
     await slider.fill('500');
     // 75 * 0.80 * 0.85 = 51 SAR
-    await expect(page.getByText(formatSAR(51))).toBeVisible();
-    await expect(page.getByText(formatSAR(25500))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(51))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(25500))).toBeVisible();
   });
 
   test('T1.F2.9 - [Tier 2] volume threshold edge 3: 1000+ students activates 30% volume discount', async ({ page }) => {
@@ -200,8 +202,8 @@ test.describe('Track 1 - Feature 2: B2B Dynamic ROI Calculator', () => {
     const slider = page.getByTestId('roi-student-slider');
     await slider.fill('1000');
     // 75 * 0.70 * 0.85 = 44.625 -> 45 SAR
-    await expect(page.getByText(formatSAR(45))).toBeVisible();
-    await expect(page.getByText(formatSAR(45000))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(45))).toBeVisible();
+    await expect(page.locator('#roi-calculator').getByText(formatSAR(45000))).toBeVisible();
   });
 
   test('T1.F2.10 - [Tier 2] calculates retail savings percentage vs individual student retail price', async ({ page }) => {
@@ -253,14 +255,14 @@ test.describe('Track 1 - Feature 3: Socratic Voice Whiteboard Demo', () => {
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T1.F3.6 - [Tier 2] step backward at Step 1 remains at Step 1', async ({ page }) => {
-    await page.getByRole('button', { name: 'السابق' }).click();
+    await expect(page.getByRole('button', { name: 'السابق' })).toBeDisabled();
     await expect(page.getByText(/الخطوة 1/i)).toBeVisible();
   });
 
   test('T1.F3.7 - [Tier 2] step forward past final step remains clamped at final step', async ({ page }) => {
-    for (let i = 0; i < 5; i++) {
-      await page.getByRole('button', { name: 'التالي' }).click();
-    }
+    await page.getByRole('button', { name: 'التالي' }).click();
+    await page.getByRole('button', { name: 'التالي' }).click();
+    await expect(page.getByRole('button', { name: 'التالي' })).toBeDisabled();
     await expect(page.getByText(/الخطوة 3/i)).toBeVisible();
   });
 
@@ -276,6 +278,7 @@ test.describe('Track 1 - Feature 3: Socratic Voice Whiteboard Demo', () => {
     await expect(page.getByText('إيقاف الشرح الصوتي')).toBeVisible();
     await page.getByRole('button', { name: /توليد اختبارات من PDF/i }).click();
     await page.getByRole('button', { name: /السبورة السقراطية الناطقة/i }).click();
+    await page.getByTestId('socratic-audio-toggle').click();
     await expect(page.getByTestId('socratic-audio-toggle')).toContainText('استمع لتفاعل المعلم السقراطي');
   });
 
@@ -319,7 +322,7 @@ test.describe('Track 1 - Feature 4: AI PDF Exam Extraction Demo', () => {
 
   // Tier 2: Boundary & Corner Cases (5 tests)
   test('T1.F4.6 - [Tier 2] renders mathematical equations correctly', async ({ page }) => {
-    await expect(page.getByText(/س² - ص²/i)).toBeVisible();
+    await expect(page.getByText(/إذا كانت س² - ص² = ٤٨/i)).toBeVisible();
   });
 
   test('T1.F4.7 - [Tier 2] displays extraction accuracy metric', async ({ page }) => {
@@ -426,7 +429,7 @@ test.describe('Track 1 - Feature 5: School Proposal Request Form & API', () => {
     await page.getByLabel(/اسم المدرسة/i).fill('مدارس الرواد');
     await page.getByLabel(/اسم المسؤول/i).fill('أ. أحمد');
     await page.getByTestId('school-proposal-submit').click();
-    await expect(page.getByText(/رقم الجوال/i)).toBeVisible();
+    await expect(page.getByText(/يرجى كتابة اسم المدرسة، واسم المسؤول، ورقم الجوال/i)).toBeVisible();
   });
 
   test('T1.F5.8 - [Tier 2] inputs with Arabic diacritics and special characters are preserved', async ({ page }) => {
