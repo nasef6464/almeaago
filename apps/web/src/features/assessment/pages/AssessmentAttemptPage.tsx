@@ -305,9 +305,6 @@ export function AssessmentAttemptPage() {
       if (scopeRef.current !== actionScope) return;
       setAttempt(response.attempt);
       setDraftChoice(null);
-      if (requireAnswerBeforeNext && !attempt.kind && index < attempt.questions.length - 1) {
-        setIndex((value) => value + 1);
-      }
     } catch (cause) {
       if (scopeRef.current === actionScope) {
         // A late answer cannot be saved; unblock automatic finalization of the

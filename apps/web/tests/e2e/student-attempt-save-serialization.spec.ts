@@ -41,12 +41,12 @@ for (const width of [390, 820, 1440]) {
     await choice.click();
     await expect(page.getByText('تعذر حفظ الإجابة')).toBeVisible();
     await expect(choice).toHaveClass(/border-amber-500/);
-    await expect(page.getByRole('button', { name: 'تسليم الاختبار' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'تسليم الاختبار', exact: true })).toBeDisabled();
     await page.getByRole('button', { name: 'إعادة حفظ الإجابة' }).click();
     await expect(page.getByRole('button', { name: 'التالي' })).toBeEnabled();
     await page.getByRole('button', { name: 'التالي' }).click();
     await expect(page.getByRole('heading', { name: 'السؤال الثاني' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'تسليم الاختبار' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'تسليم الاختبار', exact: true })).toBeEnabled();
     expect(saves).toBe(2);
     await page.screenshot({ path: `test-results/student-attempt-save-${width}.png`, fullPage: true });
   });
@@ -64,12 +64,12 @@ test('student cannot submit while answer persistence is in flight', async ({ pag
   await page.goto('/assessment-attempts/attempt-save-1');
   await page.getByRole('button', { name: /ثان/ }).click();
   await started;
-  await expect(page.getByRole('button', { name: 'تسليم الاختبار' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'تسليم الاختبار', exact: true })).toBeDisabled();
   releaseSave?.();
   await expect(page.getByRole('button', { name: 'التالي' })).toBeEnabled();
   await page.getByRole('button', { name: 'التالي' }).click();
   await expect(page.getByRole('heading', { name: 'السؤال الثاني' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'تسليم الاختبار' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'تسليم الاختبار', exact: true })).toBeEnabled();
 });
 
 test('student keeps submitted answers and the same submission key after HTTP 503', async ({ page }) => {
@@ -91,11 +91,11 @@ test('student keeps submitted answers and the same submission key after HTTP 503
   await expect(page.getByRole('button', { name: 'التالي' })).toBeEnabled();
   await page.getByRole('button', { name: 'التالي' }).click();
   await expect(page.getByRole('heading', { name: 'السؤال الثاني' })).toBeVisible();
-  await page.getByRole('button', { name: 'تسليم الاختبار' }).click();
+  await page.getByRole('button', { name: 'إنهاء وتسليم الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByText('تعذر تسليم الاختبار')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'السؤال الثاني' })).toBeVisible();
-  await page.getByRole('button', { name: 'تسليم الاختبار' }).click();
+  await page.getByRole('button', { name: 'إنهاء وتسليم الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible();
   expect(submissions).toBe(2);
