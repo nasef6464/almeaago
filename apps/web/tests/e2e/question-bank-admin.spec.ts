@@ -269,7 +269,7 @@ test('admin review workflow stays version-pinned and csrf protected',async({page
   });
 
   await page.goto('/admin-dashboard/questions');
-  await page.getByRole('button',{name:'فتح'}).click();
+  await page.getByRole('button',{name:'فتح',exact:true}).first().click();
   await expect(page.getByText('Q-001 · v1')).toBeVisible();
 
   await page.getByRole('button',{name:'إرسال للمراجعة'}).click();

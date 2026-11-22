@@ -267,12 +267,13 @@ export function LearningSpacePage() {
     }
     if (startPlacementRef.current || !placement.accessAllowed || !placement.canStart || loadedPlacementScope !== placementScope) return;
     const actionScope = placementScope;
+    const actionPath = window.location.pathname + window.location.search;
     startPlacementRef.current = placement.placementId;
     setStartingPlacementId(placement.placementId);
     setStartError('');
     try {
       const csrf = await getCsrfToken();
-      if (!placementMounted.current || currentPlacementScope.current !== actionScope) return;
+      if (!placementMounted.current || currentPlacementScope.current !== actionScope || (window.location.pathname + window.location.search) !== actionPath) return;
       const k = `assessment-placement-start:${user.id}:${placement.placementId}`;
       let startKey = sessionStorage.getItem(k);
       if (!startKey) {
@@ -280,7 +281,7 @@ export function LearningSpacePage() {
         sessionStorage.setItem(k, startKey);
       }
       const res = await assessmentPlacementClient.start(placement.placementId, startKey, csrf);
-      if (!placementMounted.current || currentPlacementScope.current !== actionScope) return;
+      if (!placementMounted.current || currentPlacementScope.current !== actionScope || (window.location.pathname + window.location.search) !== actionPath) return;
       if (!res.attempt?.id) throw new Error('تعذر تأكيد بدء التدريب أو الاختبار؛ حاول مرة أخرى.');
       sessionStorage.removeItem(k);
       navigate(`/assessment-attempts/${encodeURIComponent(res.attempt.id)}`);
@@ -408,7 +409,7 @@ export function LearningSpacePage() {
             <div>
               <div className="mb-1 flex items-center gap-2"><span className="inline-flex rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-white/95">{currentLevel ? `${currentLevel.name} • ` : ''}مسار {currentPath?.name}</span></div>
               <h1 className="break-words text-xl font-black leading-tight sm:text-2xl lg:text-3xl">
-                {currentPath && currentSubject ? `${currentPath.name} (${currentSubject.name})` : currentSubject?.name}
+                {currentSubject ? currentSubject.name : currentPath?.name}
               </h1>
               <p className="mt-0.5 text-xs text-white/80 sm:text-sm">مساحة التعلم الذكية: تأسيس، تدريب، واختبارات</p>
             </div>

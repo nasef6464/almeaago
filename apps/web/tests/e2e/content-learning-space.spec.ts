@@ -107,7 +107,7 @@ test('student dashboard click-through reaches all remaining certified learner de
   await page.goto('/dashboard');
   await page.getByRole('button',{name:'فتح قائمة لوحة الطالب'}).click();
   const nav=page.getByRole('navigation',{name:'تنقل لوحة الطالب'}).last();
-  await nav.getByRole('link',{name:destination.label}).click();
+  await nav.getByRole('link',{name:destination.label}).first().click();
   await expect(page).toHaveURL(destination.url);
   await expect(page.getByRole('heading',{name:destination.heading}).first()).toBeVisible();
   await expect(page.getByText(/Placeholder|Something went wrong|Application error/i)).toHaveCount(0);

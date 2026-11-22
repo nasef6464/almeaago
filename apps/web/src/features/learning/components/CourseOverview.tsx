@@ -715,8 +715,21 @@ export function CourseOverview({
                 {/* 4. QA TAB */}
                 {activeTab === 'qa' && (
                   <div className="space-y-6">
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center text-sm font-bold text-amber-800">
-                      النقاش مع المدرب غير متاح حاليًا.
+                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm leading-7 text-indigo-800">
+                      هذه المساحة مخصصة للاستفسار عن محتوى الدورة ومتابعة الردود التعليمية. حجز الحصص الخاصة يتم من صفحة الحصص، وليس من سؤال وجواب الدورة.
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-4 mb-8">
+                      <input
+                        type="text"
+                        placeholder="اكتب سؤالك أو استفسارك..."
+                        className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <button
+                        type="button"
+                        className="bg-indigo-600 text-white px-6 py-3 rounded-xl hover:bg-indigo-700 transition-colors font-bold text-sm"
+                      >
+                        إرسال السؤال
+                      </button>
                     </div>
                   </div>
                 )}
