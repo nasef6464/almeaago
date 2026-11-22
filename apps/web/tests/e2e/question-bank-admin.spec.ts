@@ -194,6 +194,26 @@ test(`authoring answer parity preserves embedded image answer positions for ${ty
 });
 }
 
+test('question archive requires confirmation and sends a versioned patch instead of delete', async ({page}) => {
+  await auth(page,admin); await mockBase(page);
+  const writes:Array<{method:string;csrf:string;body:any}>=[];
+  const deletes:string[]=[];
+  page.on('request', request => { if(request.method()==='DELETE' && new URL(request.url()).pathname.startsWith('/api/v1/questions')) deletes.push(request.url()); });
+  await page.route('**/api/v1/questions/question-1/workflow', r => {
+    writes.push({method:r.request().method(),csrf:r.request().headers()['x-csrf-token']||'',body:r.request().postDataJSON()});
+    return json(r,{question:detail('archived')});
+  });
+  await page.goto('/admin-dashboard/questions');
+  page.once('dialog', dialog => dialog.dismiss());
+  await page.getByTitle('حذف السؤال').first().click();
+  expect(writes).toHaveLength(0);
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByTitle('حذف السؤال').first().click();
+  await expect.poll(()=>writes.length).toBe(1);
+  expect(writes[0]).toMatchObject({method:'PATCH',csrf:'csrf-question-bank',body:{expectedCurrentVersion:1,status:'archived'}});
+  expect(deletes).toEqual([]);
+});
+
 test('admin desktop creates a canonical question with direct media upload and no destructive delete',async({page})=>{
   await auth(page,admin);await mockBase(page);
   let presignCsrf='',completeCsrf='',createCsrf='',uploadPut=false;
@@ -273,8 +293,7 @@ test('admin uploads media straight to Cloudinary with signed POST form and no se
   await page.getByRole('button',{name:'سؤال جديد'}).click();
   await page.getByLabel('كود السؤال الجديد').fill('Q-NEW');
   await page.getByLabel('ملف صورة السؤال').setInputFiles({name:'q.webp',mimeType:'image/webp',buffer:Buffer.from([1,2,3,4])});
-  await page.getByRole('button',{name:'رفع وتحقق'}).click();
-  await expect(page.getByText(/Asset: asset-cloudinary · active/)).toBeVisible();
+  await expect(page.getByText('تم رفع صورة السؤال بنجاح ومزامنتها.')).toBeVisible();
   expect(uploadMethod).toBe('POST');
   for(const value of ['name="file"','name="signature"','fake-signature','name="public_id"','questions/v2/Q-NEW/hash','name="context"','sha256=hash'])expect(uploadBody).toContain(value);
   expect(uploadBody).not.toContain('api_secret');
@@ -284,25 +303,27 @@ test('admin review workflow stays version-pinned and csrf protected',async({page
   await auth(page,admin);await mockBase(page);
   let status='draft';
   const csrf:string[]=[];
+  const statuses:string[]=[];
 
   await page.route('**/api/v1/questions/question-1/staff',r=>json(r,{question:detail(status)}));
   await page.route('**/api/v1/questions/question-1/workflow',async r=>{
     csrf.push(r.request().headers()['x-csrf-token']||'');
     const body=r.request().postDataJSON() as {expectedCurrentVersion:number;status:string};
     expect(body.expectedCurrentVersion).toBe(1);
-    status=body.status;
+    status=body.status; statuses.push(status);
     return json(r,{question:detail(status)});
   });
 
   await page.goto('/admin-dashboard/questions');
   await page.getByRole('button',{name:'فتح',exact:true}).first().click();
-  await expect(page.getByText('Q-001 · v1')).toBeVisible();
+  await expect(page.getByText('Q-001 · v1').first()).toBeVisible();
 
   await page.getByRole('button',{name:'إرسال للمراجعة'}).click();
-  await expect(page.getByText('تم تحديث حالة السؤال إلى «بانتظار المراجعة».')).toBeVisible();
-  await page.getByTestId('question-bank-admin').getByRole('button',{name:'اعتماد',exact:true}).click();
-  await expect(page.getByText('تم تحديث حالة السؤال إلى «معتمد».')).toBeVisible();
+  await expect(page.getByText('تم تحديث حالة السؤال')).toBeVisible();
+  await page.getByTestId('question-bank-admin').getByRole('button',{name:'اعتماد',exact:true}).last().click();
+  await expect(page.getByText('تم اعتماد السؤال بنجاح')).toBeVisible();
   expect(csrf).toEqual(['csrf-question-bank','csrf-question-bank']);
+  expect(statuses).toEqual(['pending_review','approved']);
 });
 
 test('admin import requires a successful dry run before write',async({page})=>{
