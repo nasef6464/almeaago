@@ -22,6 +22,7 @@ async function setup(page: Page) {
   await installBaselineMocks(page);
   await page.route('**/api/v1/auth/me', route => json(route, { user }));
   await page.route('**/api/v1/auth/csrf', route => json(route, { csrfToken: 'csrf' }));
+  await page.route('**/api/v1/assessment-attempts/attempt-save-1/questions/*/time', route => json(route, { timeSpentSeconds: route.request().postDataJSON().timeSpentSeconds }));
   await page.route('**/api/v1/assessment-attempts/attempt-save-1', route => json(route, { attempt }));
   await page.route('**/api/v1/assessment-attempts/attempt-save-1/submit', route => json(route, { result: { attemptId: 'attempt-save-1', score: 50, totalQuestions: 2, correctAnswers: 1, wrongAnswers: 0, unanswered: 1, passed: true, timeSpentSeconds: 12, finalizedAt: '2026-10-29T10:02:00Z' } }));
 }
@@ -41,7 +42,9 @@ for (const width of [390, 820, 1440]) {
     await expect(page.getByText('تعذر حفظ الإجابة')).toBeVisible();
     await expect(choice).toHaveClass(/border-amber-500/);
     await expect(page.getByRole('button', { name: 'تسليم الاختبار' })).toBeDisabled();
-    await choice.click();
+    await page.getByRole('button', { name: 'إعادة حفظ الإجابة' }).click();
+    await expect(page.getByRole('button', { name: 'التالي' })).toBeEnabled();
+    await page.getByRole('button', { name: 'التالي' }).click();
     await expect(page.getByRole('heading', { name: 'السؤال الثاني' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'تسليم الاختبار' })).toBeEnabled();
     expect(saves).toBe(2);
@@ -63,6 +66,8 @@ test('student cannot submit while answer persistence is in flight', async ({ pag
   await started;
   await expect(page.getByRole('button', { name: 'تسليم الاختبار' })).toBeDisabled();
   releaseSave?.();
+  await expect(page.getByRole('button', { name: 'التالي' })).toBeEnabled();
+  await page.getByRole('button', { name: 'التالي' }).click();
   await expect(page.getByRole('heading', { name: 'السؤال الثاني' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'تسليم الاختبار' })).toBeEnabled();
 });
@@ -83,11 +88,15 @@ test('student keeps submitted answers and the same submission key after HTTP 503
   });
   await page.goto('/assessment-attempts/attempt-save-1');
   await page.getByRole('button', { name: /ثان/ }).click();
+  await expect(page.getByRole('button', { name: 'التالي' })).toBeEnabled();
+  await page.getByRole('button', { name: 'التالي' }).click();
   await expect(page.getByRole('heading', { name: 'السؤال الثاني' })).toBeVisible();
   await page.getByRole('button', { name: 'تسليم الاختبار' }).click();
+  await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByText('تعذر تسليم الاختبار')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'السؤال الثاني' })).toBeVisible();
   await page.getByRole('button', { name: 'تسليم الاختبار' }).click();
+  await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible();
   expect(submissions).toBe(2);
   expect(keys[0]).toBeTruthy();
@@ -105,8 +114,10 @@ test('reloading the attempt restores only server-confirmed answers', async ({ pa
   });
   await page.goto('/assessment-attempts/attempt-save-1');
   await page.getByRole('button', { name: /ثان/ }).click();
+  await expect(page.getByRole('button', { name: 'التالي' })).toBeEnabled();
+  await page.getByRole('button', { name: 'التالي' }).click();
   await expect(page.getByRole('heading', { name: 'السؤال الثاني' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading', { name: 'السؤال الأول' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /ثان/ })).toHaveClass(/border-amber-500/);
+  await expect(page.getByRole('button', { name: /ثان/ })).toHaveAttribute('aria-pressed', 'true');
 });
