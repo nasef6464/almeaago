@@ -133,6 +133,7 @@ export function QuestionBankAdminPage() {
   const [pending, setPending] = useState('');
   const [error, setError] = useState('');
   const [taxonomyError, setTaxonomyError] = useState('');
+  const [taxonomyReady, setTaxonomyReady] = useState(false);
   const [notice, setNotice] = useState('');
   const [reload, setReload] = useState(0);
   const [detail, setDetail] = useState<QuestionDetail | null>(null);
@@ -205,7 +206,7 @@ export function QuestionBankAdminPage() {
         if (!response || !Array.isArray(response.paths) || !Array.isArray(response.subjects) || !Array.isArray(response.skills)) {
           throw new Error('تعذر تحميل بيانات التصنيف: استجابة غير مكتملة');
         }
-        if (!c.signal.aborted) setTaxonomy(response);
+        if (!c.signal.aborted) { setTaxonomy(response); setTaxonomyReady(true); }
       })
       .catch((e) => {
         if (!c.signal.aborted) setTaxonomyError(e instanceof Error ? e.message : 'تعذر تحميل بيانات التصنيف');
@@ -371,6 +372,7 @@ export function QuestionBankAdminPage() {
   }
 
   async function duplicateQuestion(row: QuestionSummary) {
+    if (!taxonomyReady) return;
     await run('duplicate-' + row.id, async (csrf) => {
       const full = await questionBankClient.get(row.id);
       const q = full.question;
@@ -2001,6 +2003,7 @@ export function QuestionBankAdminPage() {
                             </button>
                             <button
                               type="button"
+                              disabled={!taxonomyReady}
                               onClick={() => void duplicateQuestion(row)}
                               className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
                               title="نسخ السؤال"
@@ -2096,7 +2099,7 @@ export function QuestionBankAdminPage() {
               </button>
             </div>
 
-            {isAdmin && <QuestionSectionEditor key={`${user?.id}:${detail.id}:${detail.subjectId}`} questionId={detail.id} subjectId={detail.subjectId} sections={taxonomy.sections||[]} getCsrfToken={getCsrfToken} />}
+            {isAdmin && taxonomyReady && <QuestionSectionEditor key={`${user?.id}:${detail.id}:${detail.subjectId}`} questionId={detail.id} subjectId={detail.subjectId} sections={taxonomy.sections||[]} getCsrfToken={getCsrfToken} />}
             <QuestionPresentationEditor
               key={`${detail.id}:${detail.currentVersion}`}
               question={detail}

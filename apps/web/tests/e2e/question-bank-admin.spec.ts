@@ -55,6 +55,23 @@ test('question bank shows an error instead of crashing on incomplete taxonomy', 
   await page.goto('/admin-dashboard/questions', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'مركز بنك الأسئلة' })).toBeVisible();
   await expect(page.getByText('تعذر تحميل بيانات التصنيف: استجابة غير مكتملة')).toBeVisible();
+  await expect(page.getByTitle('نسخ السؤال').first()).toBeDisabled();
+  await page.route('**/api/v1/questions/question-1/staff', r => json(r, { question: detail() }));
+  await page.getByTitle('تعديل السؤال').first().click();
+  await expect(page.getByRole('heading', { name: 'مراجعة وتعديل عرض السؤال' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'حفظ قسم السؤال' })).toHaveCount(0);
+});
+
+test('question bank enables taxonomy dependent actions after taxonomy loads', async ({ page }) => {
+  test.setTimeout(90_000);
+  await auth(page, admin);
+  await mockBase(page);
+  await page.route('**/api/v1/questions/question-1/staff', r => json(r, { question: detail() }));
+  await page.route('**/api/v1/questions/question-1/section', r => json(r, { sectionId: '' }));
+  await page.goto('/admin-dashboard/questions', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByTitle('نسخ السؤال').first()).toBeEnabled();
+  await page.getByTitle('تعديل السؤال').first().click();
+  await expect(page.getByRole('button', { name: 'حفظ قسم السؤال' })).toBeVisible();
 });
 
 async function openAnswerDraft(page:Page){
