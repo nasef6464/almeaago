@@ -47,7 +47,7 @@ export function AssessmentAssignmentsPage({ embedded }: { embedded?: boolean } =
   const requestScope = JSON.stringify([studentId, page, retry]);
 
   useEffect(() => {
-    if (authLoading || !embedded) return;
+    if (authLoading) return;
     setRows([]);
     setError('');
     setLoadError('');
@@ -147,7 +147,7 @@ export function AssessmentAssignmentsPage({ embedded }: { embedded?: boolean } =
     }
   }
 
-  if (authLoading || (embedded && studentId && (busy || loadedScope !== requestScope))) {
+  if (authLoading || (studentId && (busy || loadedScope !== requestScope))) {
     return <div className="p-10 text-center font-black">جاري تحميل التكليفات...</div>;
   }
   if (!user?.roles.includes('student')) {
