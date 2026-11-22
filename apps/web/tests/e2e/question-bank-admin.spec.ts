@@ -47,6 +47,16 @@ async function mockBase(page:Page){
   await page.route('**/api/v1/questions?**',r=>json(r,{items:[summary()],page:1,limit:50,hasMore:false}));
 }
 
+test('question bank shows an error instead of crashing on incomplete taxonomy', async ({ page }) => {
+  test.setTimeout(90_000);
+  await auth(page, admin);
+  await mockBase(page);
+  await page.route('**/api/v1/taxonomy/bootstrap?phase=full', r => json(r, { paths: [], subjects: [] }));
+  await page.goto('/admin-dashboard/questions', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'مركز بنك الأسئلة' })).toBeVisible();
+  await expect(page.getByText('تعذر تحميل بيانات التصنيف: استجابة غير مكتملة')).toBeVisible();
+});
+
 async function openAnswerDraft(page:Page){
   await auth(page,admin);await mockBase(page);
   await page.goto('/admin-dashboard/questions');

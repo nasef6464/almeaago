@@ -132,6 +132,7 @@ export function QuestionBankAdminPage() {
   const [busy, setBusy] = useState(true);
   const [pending, setPending] = useState('');
   const [error, setError] = useState('');
+  const [taxonomyError, setTaxonomyError] = useState('');
   const [notice, setNotice] = useState('');
   const [reload, setReload] = useState(0);
   const [detail, setDetail] = useState<QuestionDetail | null>(null);
@@ -200,9 +201,14 @@ export function QuestionBankAdminPage() {
     const c = new AbortController();
     contentClient
       .taxonomyFull(c.signal)
-      .then(setTaxonomy)
+      .then((response) => {
+        if (!response || !Array.isArray(response.paths) || !Array.isArray(response.subjects) || !Array.isArray(response.skills)) {
+          throw new Error('تعذر تحميل بيانات التصنيف: استجابة غير مكتملة');
+        }
+        if (!c.signal.aborted) setTaxonomy(response);
+      })
       .catch((e) => {
-        if (!c.signal.aborted) setError(e instanceof Error ? e.message : 'تعذر تحميل بيانات التصنيف');
+        if (!c.signal.aborted) setTaxonomyError(e instanceof Error ? e.message : 'تعذر تحميل بيانات التصنيف');
       });
     return () => c.abort();
   }, []);
@@ -877,6 +883,7 @@ export function QuestionBankAdminPage() {
         </section>
       ) : null}
 
+      {taxonomyError ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-3 font-bold text-rose-700">{taxonomyError}</div> : null}
       {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 font-bold text-rose-700">{error}</div> : null}
       {notice ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 font-bold text-emerald-700">{notice}</div> : null}
 
