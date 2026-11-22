@@ -1,4 +1,5 @@
 import { safeReturnPath, returnPathLabel } from '../navigation/returnPath';
+import { readSavedAttempts, removeAttemptBookmark, saveAttemptBookmark } from '../navigation/savedAttempts';
 import {
   AlertTriangle,
   Lock,
@@ -8,7 +9,9 @@ import {
   CheckCircle2,
   Clock3,
   Flag,
+  LayoutGrid,
   Moon,
+  Save,
   Send,
   Star,
   Sun,
@@ -20,6 +23,7 @@ import { useAuth } from '../../auth/state/AuthProvider';
 import { attemptClient, type Attempt, type Result } from '../api/attempt-client';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
 import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
+import { AssessmentResultsPage } from './AssessmentResultsPage';
 import { useQuestionActiveTime } from '../useQuestionActiveTime';
 import {
   formatQuestionHtmlForDisplay,
@@ -118,7 +122,15 @@ export function AssessmentAttemptPage() {
       try {
         if (attemptId) {
           const response = await attemptClient.get(attemptId);
-          if (active) setAttempt(response.attempt);
+          if (!active) return;
+          setAttempt(response.attempt);
+          if (response.attempt.status === 'in_progress') {
+            const bookmark = readSavedAttempts(user.id).find(item => item.id === attemptId);
+            const savedIndex = response.attempt.questions.findIndex(item => item.id === bookmark?.questionId);
+            if (savedIndex >= 0) setIndex(savedIndex);
+          } else if (response.attempt.status === 'abandoned') {
+            removeAttemptBookmark(user.id, attemptId);
+          }
           if (response.attempt.status === 'submitted') {
             // Retry the same submission key to finish any interrupted evidence
             // handoff; another browser can still read the already saved result.
@@ -129,7 +141,10 @@ export function AssessmentAttemptPage() {
             } catch {
               submitted = await attemptClient.result(attemptId);
             }
-            if (active) setResult(submitted.result);
+            if (active) {
+              removeAttemptBookmark(user.id, attemptId);
+              setResult(submitted.result);
+            }
           }
         } else if (assessmentId) {
           const csrf = await getCsrfRef.current();
@@ -290,9 +305,6 @@ export function AssessmentAttemptPage() {
       if (scopeRef.current !== actionScope) return;
       setAttempt(response.attempt);
       setDraftChoice(null);
-      if (requireAnswerBeforeNext && !attempt.kind && index < attempt.questions.length - 1) {
-        setIndex((value) => value + 1);
-      }
     } catch (cause) {
       if (scopeRef.current === actionScope) {
         // A late answer cannot be saved; unblock automatic finalization of the
@@ -338,6 +350,28 @@ export function AssessmentAttemptPage() {
     } finally {
       if (actionRef.current === actionScope) actionRef.current = '';
       if (scopeRef.current === actionScope) setSavingAnswer(false);
+    }
+  }
+
+  async function saveForLater() {
+    if (!user || !attempt || !question || attempt.status !== 'in_progress'
+      || busy || savingAnswer || actionRef.current || draftChoice?.attemptId === attempt.id) return;
+    const actionScope = scopeKey;
+    actionRef.current = actionScope;
+    setBusy(true);
+    setError('');
+    try {
+      const csrf = await getCsrfToken();
+      if (scopeRef.current !== actionScope) return;
+      await persistCurrentTime(csrf);
+      if (scopeRef.current !== actionScope) return;
+      saveAttemptBookmark(user.id, { id: attempt.id, title: attempt.title, questionId: question.id, returnTo });
+      navigate('/dashboard?tab=platform-assessments');
+    } catch {
+      if (scopeRef.current === actionScope) setError('تعذر الحفظ والاستكمال لاحقًا. ابقَ في المحاولة وأعد المحاولة.');
+    } finally {
+      if (actionRef.current === actionScope) actionRef.current = '';
+      if (scopeRef.current === actionScope) setBusy(false);
     }
   }
 
@@ -414,6 +448,7 @@ export function AssessmentAttemptPage() {
         csrf,
       );
       if (scopeRef.current === actionScope) {
+        if (user) removeAttemptBookmark(user.id, attempt.id);
         if (attempt.showResultsReport === false && returnTo) navigate(returnTo, { replace: true });
         else setResult(response.result);
       }
@@ -489,6 +524,9 @@ export function AssessmentAttemptPage() {
             </Link>
           </div>
         </section>
+        {attempt?.showResultsReport !== false ? (
+          <AssessmentResultsPage embedded resultAttemptId={result.attemptId} hideReturnLink />
+        ) : null}
       </main>
     );
   }
@@ -527,7 +565,7 @@ export function AssessmentAttemptPage() {
         isNightMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'
       } p-3 sm:p-5`}
     >
-      <div className="mx-auto max-w-4xl space-y-4">
+      <div className="mx-auto max-w-7xl space-y-4">
         {/* Sticky Header with Navigation and Mode Toggle */}
         <header
           className={`sticky top-3 z-30 rounded-2xl border p-4 shadow-sm backdrop-blur-md transition-colors ${
@@ -606,6 +644,19 @@ export function AssessmentAttemptPage() {
                 </button>
               ) : null}
 
+              {attempt.status === 'in_progress' ? (
+                <button
+                  type="button"
+                  onClick={() => void saveForLater()}
+                  disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id}
+                  aria-describedby={attempt.expiresAt || attempt.sectionProgress?.deadline ? 'attempt-save-timing' : undefined}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-800 hover:bg-indigo-100 disabled:opacity-50 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-200"
+                >
+                  <Save size={14} aria-hidden="true" />
+                  حفظ والاستكمال لاحقًا
+                </button>
+              ) : null}
+
               {/* End/Submit Button */}
               <button
                 type="button"
@@ -618,6 +669,11 @@ export function AssessmentAttemptPage() {
               </button>
             </div>
           </div>
+          {attempt.expiresAt || attempt.sectionProgress?.deadline ? (
+            <p id="attempt-save-timing" className="mt-2 text-xs font-bold text-amber-700 dark:text-amber-300">
+              وقت الاختبار يستمر بعد الحفظ والخروج.
+            </p>
+          ) : null}
 
           {/* Progress Bar */}
           {attempt.showProgressBar ? (
@@ -633,6 +689,7 @@ export function AssessmentAttemptPage() {
         {error ? <div role="alert" className="rounded-xl bg-rose-50 p-3 font-bold text-rose-700 text-xs">{displayAttemptError(error)}{draftChoice?.attemptId === attempt.id && draftChoice.questionId === question.id ? <><span className="block mt-1">الإجابة لم تُحفظ بعد. أعد المحاولة عند توفر الاتصال.</span><button type="button" disabled={savingAnswer || busy} onClick={() => void choose(draftChoice.option)} className="mt-2 rounded-lg border border-rose-300 bg-white px-3 py-1.5 font-bold disabled:opacity-50">إعادة حفظ الإجابة</button></> : null}</div> : null}
 
         {currentSection ? <div className="mb-4 rounded-xl bg-indigo-50 p-3 text-center font-bold text-indigo-900"><span>{currentSection.title}</span>{sectionSecondsLeft != null ? <span className="ms-3 text-xs">وقت القسم: {formatTimerCountdown(sectionSecondsLeft)}</span> : null}</div> : null}
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_17rem] xl:grid-cols-[minmax(0,1fr)_19rem]">
         {/* Question Area Card */}
         <section
           className={`rounded-3xl border p-5 sm:p-7 shadow-xs transition-colors ${
@@ -717,7 +774,7 @@ export function AssessmentAttemptPage() {
             className={`mt-6 grid gap-3 ${
               imageEmbeddedOptions
                 ? 'grid-cols-4'
-                : getQuizOptionGridClass(question.options)
+                : getQuizOptionGridClass(question.options, attempt.optionLayout)
             }`}
           >
             {question.options.map((option, displayIndex) => {
@@ -800,9 +857,9 @@ export function AssessmentAttemptPage() {
           </div>
         </section>
 
-        {/* Question Navigation Ribbon & Prev/Next Bar (1:1 with Legacy) */}
+        {/* Previous and next controls stay with the question. */}
         <footer
-          className={`rounded-2xl border p-4 shadow-sm flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between transition-colors ${
+          className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 shadow-sm transition-colors lg:col-start-1 ${
             isNightMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'
           }`}
         >
@@ -820,39 +877,6 @@ export function AssessmentAttemptPage() {
             <ArrowRight size={16} />
             <span>السابق</span>
           </button>
-
-          {/* Question Number Ribbon (1:1 with Legacy) */}
-          <div className="flex max-w-full gap-1 overflow-x-auto px-2 py-1 lg:max-w-[60%] scrollbar-thin">
-            {attempt.questions.map((q, idx) => {
-              const isCurrent = index === idx;
-              const savedAnswer = answers.get(q.id);
-              const isAnswered = savedAnswer?.selectedOptionIndex != null || Boolean(savedAnswer?.textAnswer?.trim());
-              const isReview = answers.get(q.id)?.markedForReview;
-
-              return (
-                <button
-                  key={q.id}
-                  type="button"
-                  disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id || (requireAnswerBeforeNext && idx > index && attempt.questions.slice(index, idx).some(item => { const answer = answers.get(item.id); return answer?.selectedOptionIndex == null && !answer?.textAnswer?.trim(); }))}
-                  onClick={() => void changeQuestion(idx)}
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black transition-all ${
-                    isCurrent
-                      ? 'bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-400'
-                      : isReview
-                      ? 'border border-amber-300 bg-amber-100 text-amber-800 shadow-2xs'
-                      : isAnswered
-                      ? 'border border-emerald-300 bg-emerald-100 text-emerald-700 shadow-2xs'
-                      : isNightMode
-                      ? 'border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
-                      : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
-                  }`}
-                  title={`السؤال ${idx + 1}`}
-                >
-                  {idx + 1}
-                </button>
-              );
-            })}
-          </div>
 
           <button
             type="button"
@@ -879,6 +903,59 @@ export function AssessmentAttemptPage() {
             <span>تسليم الاختبار</span>
           </button>
         </footer>
+
+        <nav
+          aria-labelledby="attempt-question-board-title"
+          className={`min-w-0 rounded-2xl border p-4 shadow-sm lg:col-start-2 lg:row-start-1 lg:row-span-2 ${
+            isNightMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'
+          }`}
+        >
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 id="attempt-question-board-title" className="flex items-center gap-2 text-sm font-black">
+              <LayoutGrid size={17} aria-hidden="true" />
+              لوحة الأسئلة
+            </h2>
+            <span className="text-xs font-bold">{attempt.questions.length} سؤال</span>
+          </div>
+          <ul className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-xs font-bold">
+            <li className={isNightMode ? 'text-emerald-300' : 'text-emerald-700'}>تمت الإجابة</li>
+            <li className={isNightMode ? 'text-amber-300' : 'text-amber-800'}>للمراجعة</li>
+            <li className={isNightMode ? 'text-slate-300' : 'text-slate-600'}>لم يجب</li>
+          </ul>
+          <div className="grid max-h-64 grid-cols-5 gap-2 overflow-y-auto p-1 sm:max-lg:grid-cols-8">
+            {attempt.questions.map((q, idx) => {
+              const isCurrent = index === idx;
+              const savedAnswer = answers.get(q.id);
+              const isAnswered = savedAnswer?.selectedOptionIndex != null || Boolean(savedAnswer?.textAnswer?.trim());
+              const isReview = savedAnswer?.markedForReview;
+
+              return (
+                <button
+                  key={q.id}
+                  type="button"
+                  disabled={savingAnswer || busy || draftChoice?.attemptId === attempt.id || (requireAnswerBeforeNext && idx > index && attempt.questions.slice(index, idx).some(item => { const answer = answers.get(item.id); return answer?.selectedOptionIndex == null && !answer?.textAnswer?.trim(); }))}
+                  onClick={() => void changeQuestion(idx)}
+                  aria-current={isCurrent ? 'step' : undefined}
+                  className={`flex h-10 w-full min-w-0 items-center justify-center rounded-xl text-xs font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 ${
+                    isCurrent
+                      ? 'bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-400'
+                      : isReview
+                      ? 'border border-amber-300 bg-amber-100 text-amber-800 shadow-2xs'
+                      : isAnswered
+                      ? 'border border-emerald-300 bg-emerald-100 text-emerald-700 shadow-2xs'
+                      : isNightMode
+                      ? 'border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                  }`}
+                  title={`السؤال ${idx + 1} · ${isCurrent ? 'الحالي' : isReview ? 'للمراجعة' : isAnswered ? 'تمت الإجابة' : 'لم يجب'}`}
+                >
+                  {idx + 1}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+        </div>
       </div>
 
       {showConfirmSection && currentSection ? (

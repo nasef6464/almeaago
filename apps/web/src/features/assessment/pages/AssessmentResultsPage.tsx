@@ -320,8 +320,9 @@ function ReviewQuestionCard({
 
 const learnerSavedReviewQuestions = new Map<string, Set<string>>();
 
-export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {}) {
-  const { attemptId = '' } = useParams();
+export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLink }: { embedded?: boolean; resultAttemptId?: string; hideReturnLink?: boolean } = {}) {
+  const { attemptId: routeAttemptId = '' } = useParams();
+  const attemptId = resultAttemptId || routeAttemptId;
   const [searchParams] = useSearchParams();
   const returnTo = safeReturnPath(searchParams.get('returnTo'));
   const { user, loading: authLoading, getCsrfToken } = useAuth();
@@ -495,7 +496,7 @@ export function AssessmentResultsPage({ embedded }: { embedded?: boolean } = {})
             <Link to="/assessment-results" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="العودة لسجل النتائج"><ArrowRight size={20}/></Link>
             <div><div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-black text-gray-900 sm:text-2xl">{detail.title}</h1><span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-black text-indigo-700">المحاولة {detail.attemptNumber}</span></div><p className="mt-1 text-xs font-bold text-gray-500">{new Date(result.finalizedAt).toLocaleString('ar-SA')}</p></div>
           </div>
-          <div className="flex flex-wrap gap-2">{returnTo && <Link to={returnTo} className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700">{returnPathLabel(returnTo)}</Link>}<Link to="/review" className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-black text-purple-700">أسئلتي للمراجعة</Link><Link to="/assessments" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">اختبار جديد</Link></div>
+          <div className="flex flex-wrap gap-2">{returnTo && !hideReturnLink && <Link to={returnTo} className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700">{returnPathLabel(returnTo)}</Link>}<Link to="/review" className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-black text-purple-700">أسئلتي للمراجعة</Link><Link to="/assessments" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">اختبار جديد</Link></div>
         </div>
 
         {detail.showResultsReport ? (

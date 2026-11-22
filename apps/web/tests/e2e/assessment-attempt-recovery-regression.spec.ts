@@ -57,6 +57,125 @@ test('text question shows question and written choices',async({page})=>{
   await expect(page.getByRole('button',{name:/٣/})).toBeVisible();
   await expect(page.getByRole('button',{name:/٤/})).toBeVisible();
 });
+
+test('teacher horizontal layout is honored for long choices', async ({ page }) => {
+  test.setTimeout(120_000);
+  await mock(page);
+  const longChoice = 'اختيار طويل '.repeat(8);
+  const question = { ...attempt.questions[0], options: [{ index: 0, text: longChoice, assetId: '' }, { index: 1, text: 'آخر', assetId: '' }, { index: 2, text: 'ثالث', assetId: '' }, { index: 3, text: 'رابع', assetId: '' }] };
+  await page.route('**/api/v1/assessments/assessment-1/attempts', r => json(r, { attempt: { ...attempt, optionLayout: 'horizontal', questions: [question] } }));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/assessments/assessment-1/start', { waitUntil: 'domcontentloaded' });
+  const first = page.getByRole('button', { name: new RegExp(longChoice.trim()) });
+  const second = page.getByRole('button', { name: /رابع/ });
+  await expect(first).toBeVisible();
+  const a = (await first.boundingBox())!;
+  const b = (await second.boundingBox())!;
+  expect(Math.abs(a.y - b.y)).toBeLessThan(5);
+});
+
+test('hidden result does not request the answer review after submission', async ({ page }) => {
+  test.setTimeout(90_000);
+  await mock(page);
+  await page.route('**/api/v1/assessments/assessment-1/attempts', r => json(r, { attempt: { ...attempt, showResultsReport: false } }));
+  let reviews = 0;
+  await page.route('**/api/v1/assessment-attempts/attempt-1/review', r => { reviews++; return json(r, {}); });
+  await page.goto('/assessments/assessment-1/start', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
+  await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
+  await expect(page.getByText('تم تسجيل إكمال الاختبار.')).toBeVisible();
+  expect(reviews).toBe(0);
+});
+
+test('question board sits on the left on desktop and remains usable on narrow screens', async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
+  await mock(page);
+  const questions = Array.from({ length: 26 }, (_, idx) => ({
+    ...attempt.questions[0],
+    id: `q-${idx + 1}`,
+    sortOrder: idx + 1,
+    text: idx === 0 ? '٢ + ٢ = ؟' : `نص السؤال ${idx + 1}`,
+  }));
+  await page.route('**/api/v1/assessments/assessment-1/attempts', r => json(r, { attempt: { ...attempt, questions } }));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/assessments/assessment-1/start', { waitUntil: 'domcontentloaded' });
+  const question = page.getByRole('heading', { name: '٢ + ٢ = ؟', exact: true });
+  const first = page.getByRole('button', { name: '1', exact: true });
+  await expect(first).toBeVisible();
+  const questionBox = (await question.boundingBox())!;
+  const buttonBox = (await first.boundingBox())!;
+  expect(buttonBox.x + buttonBox.width).toBeLessThan(questionBox.x);
+  expect(buttonBox.y - questionBox.y).toBeLessThan(200);
+  const board = page.getByRole('navigation', { name: 'لوحة الأسئلة' });
+  await expect(board).toBeVisible();
+  await expect(first).toHaveAttribute('aria-current', 'step');
+  await page.screenshot({ path: testInfo.outputPath('question-board-1440.png') });
+  for (const width of [820, 390]) {
+    await page.setViewportSize({ width, height: 850 });
+    const layout = await board.boundingBox();
+    expect(layout!.x).toBeGreaterThanOrEqual(0);
+    expect(layout!.x + layout!.width).toBeLessThanOrEqual(width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await board.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`question-board-${width}.png`) });
+  }
+  const last = board.getByRole('button', { name: '26', exact: true });
+  await last.click();
+  await expect(page.getByRole('heading', { name: 'نص السؤال 26' })).toBeVisible({ timeout: 15_000 });
+  await expect(last).toHaveAttribute('aria-current', 'step');
+});
+test('an expired saved attempt remains available if its submission fails', async ({ page }) => {
+  test.setTimeout(90_000);
+  await mock(page);
+  await page.addInitScript(() => localStorage.setItem('almeaa:saved-assessment-attempts:student-1', JSON.stringify([{ id: 'attempt-1', title: 'محاكي كمي', questionId: 'q-1', returnTo: '' }])));
+  await page.route('**/api/v1/assessment-attempts/attempt-1', r => json(r, { attempt: { ...attempt, status: 'expired', expiresAt: new Date(Date.now() - 1000).toISOString() } }));
+  await page.route('**/api/v1/assessment-attempts/attempt-1/submit', r => json(r, { message: 'connection unavailable' }, 503));
+  await page.goto('/assessment-attempts/attempt-1', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'محاكي كمي' })).toBeVisible();
+  await expect.poll(async () => page.evaluate(() => JSON.parse(localStorage.getItem('almeaa:saved-assessment-attempts:student-1') || '[]').length)).toBe(1);
+});
+
+test('saving an attempt lets the student leave and resume the same question', async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
+  await mock(page);
+  const second = { ...attempt.questions[0], id: 'q-2', text: 'نص السؤال الثاني', sortOrder: 2 };
+  const savedAnswer = { questionId: second.id, selectedOptionIndex: 1, textAnswer: '', timeSpentSeconds: 0, markedForReview: false, lastSavedAt: new Date().toISOString() };
+  const current = { ...attempt, questions: [attempt.questions[0], second], answers: [] as typeof savedAnswer[] };
+  let submissions = 0;
+  await page.route('**/api/v1/assessments/assessment-1/attempts', r => json(r, { attempt: current }));
+  await page.route('**/api/v1/assessment-attempts/attempt-1', r => json(r, { attempt: current }));
+  await page.route('**/api/v1/assessment-attempts/attempt-1/answers/q-2', r => {
+    current.answers = [savedAnswer];
+    return json(r, { attempt: current });
+  });
+  await page.route('**/api/v1/assessment-attempts/attempt-1/submit', r => {
+    submissions++;
+    return json(r, { result: { attemptId: current.id, score: 50, totalQuestions: 2, correctAnswers: 1, wrongAnswers: 0, unanswered: 1 } });
+  });
+  await page.goto('/assessments/assessment-1/start', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'التالي' }).click();
+  await page.getByRole('button', { name: /٤/ }).click();
+  await expect(page.getByRole('button', { name: /٤/ })).toHaveAttribute('aria-pressed', 'true');
+  await page.screenshot({ path: testInfo.outputPath('save-and-submit.png') });
+  await page.getByRole('button', { name: 'حفظ والاستكمال لاحقًا' }).click();
+  await expect(page).toHaveURL(/tab=platform-assessments/);
+  expect(submissions).toBe(0);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const resume = page.getByRole('link', { name: 'استكمال محاكي كمي' });
+  await expect(resume).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('saved-exam.png') });
+  await resume.click();
+  await expect(page.getByRole('heading', { name: 'نص السؤال الثاني' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /٤/ })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
+  await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
+  await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible();
+  expect(submissions).toBe(1);
+  await page.goto('/dashboard?tab=platform-assessments', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'اختبارات المنصة', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'استكمال محاكي كمي' })).toHaveCount(0);
+});
+
 test('question ribbon cannot skip an unanswered required question',async({page})=>{
   test.setTimeout(120_000);
   await mock(page);
