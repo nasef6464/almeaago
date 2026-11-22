@@ -119,6 +119,7 @@ for (const width of [390, 820, 1440]) {
         expect(route.request().headers()['x-csrf-token']).toBe('csrf-draft-retry');
         const body = route.request().postDataJSON() as Record<string, unknown>;
         expect(body.name).toBe(updatedName);
+        expect(body).not.toHaveProperty('code');
         payloads.push(body);
         if (payloads.length === 1) return route.fulfill({ status: 503, json: null });
         const row = data[scenario.collection].find(item => item.id === scenario.id)!;

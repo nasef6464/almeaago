@@ -489,9 +489,10 @@ export function TaxonomyAdminPage() {
     }
     let saved: boolean;
     if (editingLevel) {
+      const { code: _code, ...patch } = levelForm;
       saved = await run(
         'update-level',
-        (csrf) => taxonomyAdminClient.updateLevel(editingLevel.id, levelForm, csrf).then(() => undefined),
+        (csrf) => taxonomyAdminClient.updateLevel(editingLevel.id, patch, csrf).then(() => undefined),
         'تم حفظ تعديلات المرحلة بنجاح.'
       );
     } else {
@@ -542,9 +543,10 @@ export function TaxonomyAdminPage() {
     }
     let saved: boolean;
     if (editingSubject) {
+      const { code: _code, ...patch } = subjectForm;
       saved = await run(
         'update-subject',
-        (csrf) => taxonomyAdminClient.updateSubject(editingSubject.id, subjectForm, csrf).then(() => undefined),
+        (csrf) => taxonomyAdminClient.updateSubject(editingSubject.id, patch, csrf).then(() => undefined),
         'تم حفظ تعديلات المادة بنجاح.'
       );
     } else {
@@ -589,26 +591,31 @@ export function TaxonomyAdminPage() {
     if (!selectedSubject || !skillForm.code.trim() || !skillForm.name.trim()) {
       return setError('أدخل كود واسم المهارة.');
     }
+    let saved: boolean;
     if (editingSkill) {
-      await run(
+      const patch: {
+        name: string;
+        description: string;
+        sortOrder: number;
+        parentSkillId?: string;
+      } = {
+        name: skillForm.name.trim(),
+        description: skillForm.description.trim(),
+        sortOrder: skillForm.sortOrder,
+      };
+      if (skillForm.parentSkillId && skillForm.parentSkillId.trim()) {
+        patch.parentSkillId = skillForm.parentSkillId.trim();
+      }
+      saved = await run(
         'update-skill',
         (csrf) =>
           taxonomyAdminClient
-            .updateSkill(
-              editingSkill.id,
-              {
-                name: skillForm.name.trim(),
-                parentSkillId: skillForm.parentSkillId || '',
-                description: skillForm.description.trim(),
-                sortOrder: skillForm.sortOrder,
-              },
-              csrf,
-            )
+            .updateSkill(editingSkill.id, patch, csrf)
             .then(() => undefined),
         'تم حفظ تعديلات المهارة بنجاح.'
       );
     } else {
-      await run(
+      saved = await run(
         'create-skill',
         (csrf) =>
           taxonomyAdminClient
@@ -617,7 +624,7 @@ export function TaxonomyAdminPage() {
                 subjectId: selectedSubject.id,
                 code: skillForm.code.trim().toUpperCase(),
                 name: skillForm.name.trim(),
-                parentSkillId: skillForm.parentSkillId || undefined,
+                parentSkillId: skillForm.parentSkillId ? skillForm.parentSkillId.trim() : undefined,
                 description: skillForm.description.trim(),
                 kind: skillForm.kind,
                 sortOrder: skillForm.sortOrder,
@@ -628,7 +635,7 @@ export function TaxonomyAdminPage() {
         'تم إنشاء المهارة بنجاح.'
       );
     }
-    setIsSkillModalOpen(false);
+    if (saved) setIsSkillModalOpen(false);
   };
 
   // --- Package Actions ---
@@ -3202,7 +3209,7 @@ export function TaxonomyAdminPage() {
             {deleteConfirm.action === 'delete' ? `سيُحذف ${typeLabel} نهائيًا إذا لم تكن له بيانات مرتبطة. إذا وُجدت ارتباطات فلن يتم الحذف، ويمكنك استخدام الأرشفة.` : `سيتم نقل ${typeLabel} إلى الأرشيف وإخفاؤه عن الطلاب والزوار، مع الحفاظ على البيانات.`}
           </p>
           {error ? <div role="alert" className="rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-700">{error}</div> : null}
-          <div className="flex justify-end gap-2 pt-2 border-t">
+          <div className="flex flex-wrap justify-end gap-2 pt-2 border-t">
             <button
               type="button"
               disabled={!!pending}
@@ -3211,6 +3218,29 @@ export function TaxonomyAdminPage() {
             >
               إلغاء
             </button>
+            {deleteConfirm.action === 'delete' ? (
+              <button
+                type="button"
+                disabled={!!pending}
+                onClick={async () => {
+                  if (taxonomyConfirmInFlight.current) return;
+                  taxonomyConfirmInFlight.current = true;
+                  try {
+                    const target = deleteConfirm;
+                    const saved = await patchStatus(target.type, target.id, 'archived');
+                    if (saved) {
+                      setDeleteConfirm(null);
+                      setNotice(`تمت أرشفة ${typeLabel} بنجاح`);
+                    }
+                  } finally {
+                    taxonomyConfirmInFlight.current = false;
+                  }
+                }}
+                className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-black text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+              >
+                أرشفة {typeLabel} بدلاً من الحذف
+              </button>
+            ) : null}
             <button
               type="button"
               disabled={!!pending}
