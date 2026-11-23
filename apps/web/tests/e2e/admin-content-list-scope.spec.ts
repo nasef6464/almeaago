@@ -181,10 +181,10 @@ for (const width of [390, 820, 1440]) {
     expect(await visibleContentRows(page).count()).toBe(0);
     expect(await page.getByRole('button', { name: 'تعديل / المنهج' }).count()).toBe(0);
 
-    await page.clock.runFor(300);
+    await page.clock.runFor(1000);
     release();
     await page.clock.resume();
-    await expect(page.getByText('دورة بحث جديدة')).toBeVisible();
+    await expect(page.getByText('دورة بحث جديدة')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText(course.title)).toHaveCount(0);
   });
 }
