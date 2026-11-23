@@ -74,6 +74,7 @@ test('student golden journey crosses content assessment result review remediatio
  await expect.poll(()=>submitCalls).toBe(1);
 
  await page.goto('/assessment-results/attempt-1');
+ await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
  await expect(page.getByText('الإجابة الصحيحة')).toBeVisible();
  await page.getByRole('button',{name:'حفظ للمراجعة'}).click();
  await expect(page.getByRole('button',{name:'تم الحفظ'})).toBeVisible();

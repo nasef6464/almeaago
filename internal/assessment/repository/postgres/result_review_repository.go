@@ -139,6 +139,10 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 		if err != nil {
 			return out, err
 		}
+		out.SubjectResults, err = r.resultSubjectBreakdown(ctx, student, attemptID, publishedResultSubjectEvidence)
+		if err != nil {
+			return out, err
+		}
 	}
 	if !out.AllowQuestionReview {
 		return out, nil

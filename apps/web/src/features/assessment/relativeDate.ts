@@ -27,3 +27,10 @@ export function relativeArabicDate(value: string | null | undefined): string {
     ...(sameYear ? {} : { year: 'numeric' }),
   });
 }
+
+export function formatResultDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '—';
+  const minutes = Math.floor(seconds / 60);
+  const remainder = Math.floor(seconds % 60);
+  return minutes > 0 ? `${minutes} د ${remainder} ث` : `${remainder} ث`;
+}

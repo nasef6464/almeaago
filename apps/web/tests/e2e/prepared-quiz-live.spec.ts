@@ -50,11 +50,17 @@ test('رحلة الاختبار الجاهز بين الإدارة والطال�
   await expect(page.getByRole('button', { name: /نعم/ })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
-  await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible();
-  await expect(page.getByText('100.0%')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'عرض النتيجة والمراجعة' })).toBeVisible();
-  await page.getByRole('link', { name: 'عرض النتيجة والمراجعة' }).click();
+  await expect(page.getByRole('heading', { name: 'نتيجة الاختبار', exact: true })).toBeVisible();
+  await expect(page.getByText('درجتك', { exact: true }).locator('..').getByText('100%', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'اختبار تجريبي جاهز' })).toBeVisible();
+  await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
+  await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'العودة للملخص', exact: true }).click();
+  await page.getByRole('button', { name: 'المحاولات السابقة' }).click();
+  await expect(page.getByRole('heading', { name: 'محاولاتك السابقة' })).toBeVisible();
+  await page.getByRole('button', { name: /اختبار تجريبي جاهز/ }).click();
+  await expect(page.getByRole('link', { name: 'تحليل', exact: true }).first()).toBeVisible();
+  await page.getByRole('link', { name: 'مراجعة', exact: true }).first().click();
   await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible();
 
   await login(process.env.PREPARED_OTHER_EMAIL!);
@@ -119,8 +125,19 @@ test('محاكي صارم بمادتين من الدخول إلى النتيجة
   await page.getByRole('button', { name: /صحيح/ }).click();
   await page.getByRole('button', { name: 'إنهاء القسم والانتقال' }).click();
   await page.getByRole('button', { name: 'تأكيد الانتقال' }).click();
-  await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible();
-  await expect(page.getByText('100.0%')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'نتيجة الاختبار', exact: true })).toBeVisible();
+  await expect(page.getByText('درجتك', { exact: true }).locator('..').getByText('100%', { exact: true })).toBeVisible();
+  const subjects = page.getByRole('region', { name: 'أداؤك لكل مادة' });
+  for (const subject of ['مادة تجريبية', 'المادة الثانية']) {
+    await expect(subjects.getByRole('progressbar', { name: `درجة ${subject}` })).toHaveAttribute('aria-valuenow', '100');
+  }
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect(subjects.getByRole('progressbar')).toHaveCount(2);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await subjects.screenshot({ path: `test-results/assessment-live-subject-results-${width}.png` });
+  }
 });
 
 test('انتهاء وقت قسم المحاكي يحفظ غير المجاب وينتقل للقسم التالي', async ({ page }) => {
@@ -134,8 +151,8 @@ test('انتهاء وقت قسم المحاكي يحفظ غير المجاب و�
   await page.getByRole('button', { name: /صحيح/ }).click();
   await page.getByRole('button', { name: 'إنهاء القسم والانتقال' }).click();
   await page.getByRole('button', { name: 'تأكيد الانتقال' }).click();
-  await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText('50.0%')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'نتيجة الاختبار', exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('درجتك', { exact: true }).locator('..').getByText('50%', { exact: true })).toBeVisible();
 });
 
 test('محاكي مرن يستعيد الإجابة بعد انقطاع حفظ مؤقت', async ({ page }) => {
@@ -163,8 +180,8 @@ test('محاكي مرن يستعيد الإجابة بعد انقطاع حفظ �
   await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
-  await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible();
-  await expect(page.getByText('100.0%')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'نتيجة الاختبار', exact: true })).toBeVisible();
+  await expect(page.getByText('درجتك', { exact: true }).locator('..').getByText('100%', { exact: true })).toBeVisible();
 });
 
 test('انقطاع الشبكة الفعلي ثم استعادتها أثناء المحاكي المرن', async ({ page, context }) => {
@@ -189,8 +206,8 @@ test('انقطاع الشبكة الفعلي ثم استعادتها أثناء 
   await page.getByRole('button', { name: /صحيح/ }).click();
   await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
-  await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText('100.0%')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'نتيجة الاختبار', exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('درجتك', { exact: true }).locator('..').getByText('100%', { exact: true })).toBeVisible();
 });
 
 test('فقد رد التسليم لا ينشئ نتيجة ثانية عند إعادة المحاولة', async ({ page }) => {
@@ -215,8 +232,8 @@ test('فقد رد التسليم لا ينشئ نتيجة ثانية عند إع
   await expect(page.getByRole('alert')).toBeVisible();
   await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
-  await expect(page.getByRole('heading', { name: 'تم تسليم الاختبار' })).toBeVisible();
-  await expect(page.getByText('50.0%')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'نتيجة الاختبار', exact: true })).toBeVisible();
+  await expect(page.getByText('درجتك', { exact: true }).locator('..').getByText('50%', { exact: true })).toBeVisible();
   expect(keys).toHaveLength(2);
   expect(keys[0]).toBeTruthy();
   expect(keys[1]).toBe(keys[0]);
@@ -238,9 +255,8 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   await page.getByRole('button', { name: /لا$/ }).click();
   await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
-  await expect(page.getByText('0.0%')).toBeVisible({ timeout: 30_000 });
-  await page.getByRole('link', { name: 'عرض النتيجة والمراجعة' }).click();
-  await expect(page.getByText('يحتاج تدريب', { exact: true })).toBeVisible();
+  await expect(page.getByText('درجتك', { exact: true }).locator('..').getByText('0%', { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('يحتاج مراجعة', { exact: true })).toBeVisible();
   await expect(page.getByText('مهارة فرعية تجريبية')).toBeVisible();
   await expect(page.getByText('موضوع تأسيس تجريبي')).toBeVisible();
   const explanation = await page.getByRole('link', { name: 'شرح التأسيس' }).getAttribute('href');
@@ -291,8 +307,7 @@ test('السؤال المصور يعرض الصورة والحروف فقط من
   await page.getByRole('button', { name: 'A', exact: true }).click();
   await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
-  await expect(page.getByText('100.0%')).toBeVisible();
-  await page.getByRole('link', { name: 'عرض النتيجة والمراجعة' }).click();
+  await expect(page.getByText('درجتك', { exact: true }).locator('..').getByText('100%', { exact: true })).toBeVisible();
   const review = await page.request.get(`/api/v1/assessment-attempts/${initial.attempt.id}/review`);
   expect(review.status()).toBe(200);
   expect((await review.json()).detail.questions[0].options.map((option: {index:number}) => option.index)).toEqual([0, 1, 2, 3]);
@@ -381,8 +396,7 @@ test('اختبار الدرس والنتيجة والمراجعة والعودة
   await page.getByRole('button',{name:'أ نعم',exact:true}).click();
   await page.getByRole('button',{name:'إنهاء الاختبار',exact:true}).click();
   await page.getByRole('button',{name:'نعم، قم بالتسليم'}).click();
-  await expect(page.getByRole('heading',{name:'تم تسليم الاختبار'})).toBeVisible();
-  await page.getByRole('link',{name:'عرض النتيجة والمراجعة'}).click();
+  await expect(page.getByRole('heading',{name: 'نتيجة الاختبار', exact: true})).toBeVisible();
   await expect(page).toHaveURL(/assessment-results\//);
   await expect(page.getByRole('heading',{name:'اختبار تجريبي جاهز'})).toBeVisible();
   await expect(page.getByRole('link',{name:'العودة إلى الدرس'})).toHaveAttribute('href',destination);

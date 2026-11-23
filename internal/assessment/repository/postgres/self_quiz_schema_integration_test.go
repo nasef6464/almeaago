@@ -543,6 +543,9 @@ COMMIT;`)
 	if err != nil || len(detail.Questions) != 1 || detail.Questions[0].QuestionVersion != 1 || !detail.Questions[0].Correct || detail.Questions[0].CorrectOptionIndex == nil || len(detail.Questions[0].Options) != 2 {
 		t.Fatalf("self result review: %+v %v", detail, err)
 	}
+	if subjects := detail.SubjectResults; len(subjects) != 1 || subjects[0].Total != 1 || subjects[0].Correct != 1 || subjects[0].Score != 100 {
+		t.Fatalf("self subject breakdown must count a multi-skill question once: %+v", subjects)
+	}
 	if _, err = snapshotRepo.GetResultDetail(ctx, "00000000-0000-0000-0000-000000000002", snapshotID); err == nil {
 		t.Fatal("other student read self result")
 	}

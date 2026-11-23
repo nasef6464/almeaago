@@ -43,6 +43,7 @@ test('failed save preserves the review and supports retry and reload', async ({ 
     return json(route, writes === 1 ? { message: 'تعذر الحفظ مؤقتًا' } : { success: true }, writes === 1 ? 503 : 200);
   });
   await page.goto('/assessment-results/attempt-1');
+  await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
   await expect(page.getByText(question.text)).toBeVisible();
   await page.getByRole('button', { name: 'حفظ للمراجعة' }).click();
   await expect(page.getByText('تعذر الحفظ مؤقتًا')).toBeVisible();
@@ -61,15 +62,27 @@ test('saved question remains globally saved across two attempts for the same lea
   await page.goto('/assessment-results');
   await page.getByRole('link', { name: 'عرض النتيجة' }).first().click();
   await expect(page.getByRole('heading', { name: 'attempt-1' })).toBeVisible();
-  await page.getByRole('button', { name: 'للمراجعة', exact: true }).click();
+  await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
+  await page.getByRole('button', { name: /^بدون إجابة/ }).click();
   await expect(page.getByText(question.text)).not.toBeVisible();
   await expect(page.getByRole('button', { name: 'حفظ للمراجعة' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'الكل', exact: true }).click();
+  await page.getByRole('button', { name: /^الكل/ }).click();
   await page.getByRole('button', { name: 'حفظ للمراجعة' }).click();
   await expect(page.getByRole('button', { name: 'تم الحفظ' })).toBeDisabled();
-  await page.getByRole('link', { name: 'العودة لسجل النتائج' }).click();
-  await page.getByRole('link', { name: 'عرض النتيجة' }).nth(1).click();
+  await page.getByRole('button', { name: 'العودة للملخص', exact: true }).click();
+  await page.getByRole('button', { name: 'المحاولات السابقة' }).click();
+  await expect(page.getByRole('heading', { name: 'محاولاتك السابقة' })).toBeVisible();
+  const secondGroup = page.getByRole('button', { name: /attempt-2/ });
+  await expect(secondGroup).toHaveAttribute('aria-expanded', 'false');
+  await secondGroup.click();
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: `test-results/assessment-previous-attempts-${width}.png`, fullPage: true });
+  }
+  await page.getByRole('link', { name: 'تحليل', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'attempt-2' })).toBeVisible();
+  await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
   await expect(page.getByText(question.text)).toBeVisible();
   await expect(page.getByRole('button', { name: 'تم الحفظ' })).toBeDisabled();
 });
@@ -80,6 +93,7 @@ for (const width of [390, 820, 1440]) {
     await setup(page);
     await page.route('**/api/v1/review/questions/shared-question/saved', route => json(route, { message: 'تعذر الحفظ مؤقتًا' }, 503));
     await page.goto('/assessment-results/attempt-1');
+    await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
     await page.getByRole('button', { name: 'حفظ للمراجعة' }).click();
     await expect(page.getByText(question.text)).toBeVisible();
     await expect(page.getByText('تعذر الحفظ مؤقتًا')).toBeVisible();
@@ -99,12 +113,16 @@ test('late failed save from a previous result cannot replace the next result', a
   await page.goto('/assessment-results');
   await page.getByRole('link', { name: 'عرض النتيجة' }).first().click();
   await expect(page.getByRole('heading', { name: 'attempt-1' })).toBeVisible();
+  await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
   const requested = page.waitForRequest('**/api/v1/review/questions/shared-question/saved');
   await page.getByRole('button', { name: 'حفظ للمراجعة' }).click();
   await requested;
-  await page.getByRole('link', { name: 'العودة لسجل النتائج' }).click();
-  await page.getByRole('link', { name: 'عرض النتيجة' }).nth(1).click();
+  await page.getByRole('button', { name: 'العودة للملخص', exact: true }).click();
+  await page.getByRole('button', { name: 'المحاولات السابقة' }).click();
+  await page.getByRole('button', { name: /attempt-2/ }).click();
+  await page.getByRole('link', { name: 'تحليل', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'attempt-2' })).toBeVisible();
+  await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
   release();
   await expect(page.getByText('خطأ الحفظ للمحاولة السابقة')).toHaveCount(0);
   await expect(page.getByText(question.text)).toBeVisible();

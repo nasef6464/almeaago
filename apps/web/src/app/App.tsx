@@ -166,7 +166,8 @@ export function App() {
 
 
   const inAdminWorkspace = location.pathname.startsWith('/admin-dashboard');
-  const hideSiteHeader = inAdminWorkspace || location.pathname.endsWith('/projector') || location.pathname === '/quiz';
+  const inAssessmentResult = /^\/assessment-results\/[^/]+\/?$/.test(location.pathname);
+  const hideSiteHeader = inAssessmentResult || inAdminWorkspace || location.pathname.endsWith('/projector') || location.pathname === '/quiz';
 
   return (
     <StudentNavigationProvider>
@@ -280,7 +281,7 @@ export function App() {
       <AnnouncementAdsOverlay />
       <PwaInstallBanner />
 
-      {location.pathname !== '/quiz' ? (
+      {!inAssessmentResult && location.pathname !== '/quiz' ? (
         <>
           <ChatWidget />
           <FloatingContactWidget />

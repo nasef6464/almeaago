@@ -135,6 +135,7 @@ test.describe('Smart Teacher & Interactive Chalkboard Verification', () => {
     );
 
     await page.goto('/assessment-results/att-smart-teacher-99', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
 
     // 1. Check results review screen
     await expect(page.getByRole('heading', { name: 'مراجعة نموذج القدرات - قسم الرياضيات والكمي' })).toBeVisible();

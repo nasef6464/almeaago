@@ -1,6 +1,5 @@
 import { safeReturnPath, returnPathLabel } from '../navigation/returnPath';
 import {
-  AlertCircle,
   ArrowRight,
   Bookmark,
   BookOpen,
@@ -28,7 +27,9 @@ import { StepSolutionModal } from '../../classroom/components/whiteboard/StepSol
 import { learningClient } from '../../learning/api/learning-client';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
 import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
-import { ResultDonutChart } from '../components/ResultDonutChart';
+import { AssessmentResultSummary } from '../components/AssessmentResultSummary';
+import { AssessmentPreviousAttempts } from '../components/AssessmentPreviousAttempts';
+import { AssessmentShareScorecard } from '../components/AssessmentShareScorecard';
 import { optionLabel, showOptionText } from '../questionPresentation';
 import { relativeArabicDate } from '../relativeDate';
 import {
@@ -38,7 +39,19 @@ import {
   type ReviewQuestion,
 } from '../api/attempt-client';
 
-type ReviewFilter = 'all' | 'wrong' | 'unanswered' | 'marked';
+const reviewFilters = [
+  ['all', 'الكل'],
+  ['wrong', 'الأخطاء فقط'],
+  ['correct', 'الصحيحة'],
+  ['unanswered', 'بدون إجابة'],
+] as const;
+type ReviewFilter = (typeof reviewFilters)[number][0];
+
+function matchesReviewFilter(question: ReviewQuestion, filter: ReviewFilter) {
+  if (filter === 'all') return true;
+  if (filter === 'unanswered') return !question.answered;
+  return question.answered && question.correct === (filter === 'correct');
+}
 
 function resolveReviewImage(question: ReviewQuestion): string | null {
   if (question.imageUrl) return question.imageUrl;
@@ -53,11 +66,6 @@ function hasReviewImage(question: ReviewQuestion): boolean {
   return Boolean(resolveReviewImage(question) || question.imageAssetId);
 }
 
-function scoreTone(passed: boolean) {
-  return passed
-    ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
-    : 'border-rose-100 bg-rose-50 text-rose-800';
-}
 
 function ResultSummary({ item }: { item: ResultListItem }) {
   return (
@@ -323,7 +331,7 @@ const learnerSavedReviewQuestions = new Map<string, Set<string>>();
 export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLink }: { embedded?: boolean; resultAttemptId?: string; hideReturnLink?: boolean } = {}) {
   const { attemptId: routeAttemptId = '' } = useParams();
   const attemptId = resultAttemptId || routeAttemptId;
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const returnTo = safeReturnPath(searchParams.get('returnTo'));
   const { user, loading: authLoading, getCsrfToken } = useAuth();
   const [history, setHistory] = useState<ResultListItem[]>([]);
@@ -331,6 +339,12 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [filter, setFilter] = useState<ReviewFilter>('all');
+  const [selectedQuestionId, setSelectedQuestionId] = useState('');
+  const [reviewBoardOpen, setReviewBoardOpen] = useState(false);
+  const [fullResult, setFullResult] = useState(false);
+  const [summaryStatus, setSummaryStatus] = useState('');
+  const reviewOpen = searchParams.get('view') === 'review';
+  const historyOpen = searchParams.get('view') === 'history';
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -350,6 +364,10 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
     setSaveError('');
     setSavingQuestion('');
     setFilter('all');
+    setSelectedQuestionId('');
+    setReviewBoardOpen(false);
+    setFullResult(false);
+    setSummaryStatus('');
     setActiveSmartTeacherQuestion(null);
     setActiveStepSolverQuestion(null);
   }, [activeContext]);
@@ -396,6 +414,22 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
     };
   }, [activeContext, attemptId, authLoading, page, user]);
 
+
+  function changeResultView(view: 'review' | 'history' | 'summary') {
+    const params = new URLSearchParams(searchParams);
+    if (view !== 'summary') params.set('view', view);
+    else params.delete('view');
+    setFilter('all');
+    setSelectedQuestionId('');
+    setReviewBoardOpen(false);
+    setSearchParams(params, { replace: true });
+    window.scrollTo(0, 0);
+  }
+
+  function changeReviewView(open: boolean) {
+    changeResultView(open ? 'review' : 'summary');
+  }
+
   async function saveForReview(questionId: string) {
     if (savedQuestions.has(questionId) || savingQuestion) return;
     const requestContext = activeContextRef.current;
@@ -422,13 +456,15 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
     }
   }
 
-  const filteredQuestions = useMemo(() => {
-    const questions = detail?.questions || [];
-    if (filter === 'wrong') return questions.filter((question) => question.answered && !question.correct);
-    if (filter === 'unanswered') return questions.filter((question) => !question.answered);
-    if (filter === 'marked') return questions.filter((question) => question.markedForReview);
-    return questions;
-  }, [detail, filter]);
+  const filteredQuestions = useMemo(() => (detail?.questions || []).filter((question) => matchesReviewFilter(question, filter)), [detail, filter]);
+  const reviewCounts = useMemo(() => ({
+    all: detail?.questions?.length ?? 0,
+    wrong: detail?.questions?.filter(question => matchesReviewFilter(question, 'wrong')).length ?? 0,
+    correct: detail?.questions?.filter(question => matchesReviewFilter(question, 'correct')).length ?? 0,
+    unanswered: detail?.questions?.filter(question => matchesReviewFilter(question, 'unanswered')).length ?? 0,
+  }), [detail]);
+  const selectedIndex = Math.max(0, filteredQuestions.findIndex(question => question.questionId === selectedQuestionId));
+  const selectedQuestion = filteredQuestions[selectedIndex];
   const displayNumbers = useMemo(() => new Map((detail?.questions || []).map((question, index) => [question.questionId, index + 1])), [detail]);
 
   if (authLoading || busy || (attemptId && detailContext !== activeContext && !error)) {
@@ -487,42 +523,69 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
     return <main className="p-10 text-center font-black">النتيجة غير متاحة.</main>;
   }
 
-  const result = detail.result;
-  return (
-    <main dir="rtl" className="mx-auto max-w-5xl space-y-5 px-3 pb-20 pt-5 sm:px-6">
-      <header className="rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 via-white to-sky-50/40 p-5 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-3">
-            <Link to="/assessment-results" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="العودة لسجل النتائج"><ArrowRight size={20}/></Link>
-            <div><div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-black text-gray-900 sm:text-2xl">{detail.title}</h1><span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-black text-indigo-700">المحاولة {detail.attemptNumber}</span></div><p className="mt-1 text-xs font-bold text-gray-500">{new Date(result.finalizedAt).toLocaleString('ar-SA')}</p></div>
-          </div>
-          <div className="flex flex-wrap gap-2">{returnTo && !hideReturnLink && <Link to={returnTo} className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700">{returnPathLabel(returnTo)}</Link>}<Link to="/review" className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-black text-purple-700">أسئلتي للمراجعة</Link><Link to="/assessments" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">اختبار جديد</Link></div>
-        </div>
+  if (historyOpen && detail.showResultsReport) {
+    return <AssessmentPreviousAttempts key={activeContext} onBack={() => changeResultView('summary')} />;
+  }
 
-        {detail.showResultsReport ? (
-          <div className="mt-5 grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-            <div className="flex justify-center p-2 md:border-l md:border-indigo-100">
-              <ResultDonutChart
-                data={[
-                  { name: 'صحيحة', value: result.correctAnswers, color: '#10b981' },
-                  { name: 'خاطئة', value: result.wrongAnswers, color: '#ef4444' },
-                  { name: 'بدون إجابة', value: result.unanswered, color: '#f59e0b' },
-                ]}
-                centerLabel={`${result.score.toFixed(0)}%`}
-                centerSubLabel={result.passed ? 'ناجح' : 'يحتاج تدريب'}
-                primaryColor="#10b981"
-              />
-            </div>
-            <div className="md:col-span-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <div className={`rounded-2xl border p-3 text-center ${scoreTone(result.passed)}`}><div className="text-3xl font-black">{result.score.toFixed(1)}%</div><div className="text-xs font-bold">الدرجة</div></div>
-              <div className="rounded-2xl bg-emerald-50 p-3 text-center text-emerald-800"><CheckCircle2 className="mx-auto" size={20}/><div className="mt-1 font-black">{result.correctAnswers}</div><div className="text-xs font-bold">صحيحة</div></div>
-              <div className="rounded-2xl bg-rose-50 p-3 text-center text-rose-800"><XCircle className="mx-auto" size={20}/><div className="mt-1 font-black">{result.wrongAnswers}</div><div className="text-xs font-bold">خاطئة</div></div>
-              <div className="rounded-2xl bg-amber-50 p-3 text-center text-amber-800"><AlertCircle className="mx-auto" size={20}/><div className="mt-1 font-black">{result.unanswered}</div><div className="text-xs font-bold">بدون إجابة</div></div>
-            </div>
-          </div>
-        ) : <div className="mt-4 rounded-xl bg-gray-50 p-4 text-sm font-bold text-gray-600">تم تسجيل إكمال الاختبار. تقرير الدرجات التفصيلي غير معروض وفق إعدادات هذا الاختبار.</div>}
-      </header>
-        {detail.showResultsReport && detail.skillAnalysis ? (
+  const shouldShowReview = !detail.showResultsReport || reviewOpen;
+  const weakestSkill = detail.skillAnalysis?.complete
+    ? detail.skillAnalysis.items.reduce<(typeof detail.skillAnalysis.items)[number] | undefined>((lowest, skill) => (
+      skill.status !== 'strong' && (!lowest || skill.mastery < lowest.mastery) ? skill : lowest
+    ), undefined)
+    : undefined;
+  const practiceURL = weakestSkill ? `/quiz?${new URLSearchParams({
+    mode: 'self', pathId: weakestSkill.pathId, subjectId: weakestSkill.subjectId, skillIds: weakestSkill.skillId,
+  })}` : '';
+  const followUpSkills = detail.skillAnalysis?.complete
+    ? detail.skillAnalysis.items.filter(skill => skill.status !== 'strong').sort((a, b) => a.mastery - b.mastery).slice(0, 3)
+    : [];
+  const guardianSummary = weakestSkill
+    ? `نتيجة الاختبار ${detail.result.score}%. أضعف مهارة ظهرت هي «${weakestSkill.skillName}» بنسبة ${weakestSkill.mastery}%.`
+    : `نتيجة الاختبار ${detail.result.score}%.`;
+
+  async function shareGuardianSummary(share: boolean) {
+    try {
+      if (share && navigator.share) {
+        await navigator.share({ title: 'ملخص نتيجة الاختبار', text: guardianSummary });
+        setSummaryStatus('تمت المشاركة');
+      } else {
+        await navigator.clipboard.writeText(guardianSummary);
+        setSummaryStatus('تم النسخ');
+      }
+    } catch (cause) {
+      if (!(cause instanceof DOMException && cause.name === 'AbortError')) setSummaryStatus('تعذر مشاركة الملخص');
+    }
+  }
+  const retryURL = !returnTo && detail.assessmentId ? `/assessments/${encodeURIComponent(detail.assessmentId)}/start` : '';
+  const resultNavigation = (
+    <div className="flex flex-wrap items-center gap-3 print:hidden">
+      {reviewOpen && detail.showResultsReport ? (
+        <button type="button" onClick={() => changeReviewView(false)} aria-label="العودة للملخص" className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white text-slate-600"><ArrowRight size={20} /></button>
+      ) : (
+        <Link to={embedded ? '/assessment-results' : '/dashboard'} aria-label={embedded ? 'العودة لسجل النتائج' : 'العودة للوحة الطالب'} className="text-gray-500"><ArrowRight size={22} /></Link>
+      )}
+      <div>
+        <h1 className="text-xl font-bold">{reviewOpen && detail.showResultsReport ? 'مراجعة الحلول والأسئلة' : 'نتيجة الاختبار'}</h1>
+        {reviewOpen && detail.showResultsReport && (
+          <h2 className="text-xs font-bold text-slate-500">{detail.title} • تفاصيل الإجابات والشرح النموذجي</h2>
+        )}
+      </div>
+      {returnTo && !hideReturnLink && <Link to={returnTo} className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">{returnPathLabel(returnTo)}</Link>}
+    </div>
+  );
+
+  return (
+    <main dir="rtl" className="mx-auto max-w-5xl space-y-6 px-3 pb-20 pt-5 sm:px-6">
+      {shouldShowReview && <header className="border-b border-slate-200/80 pb-2">{resultNavigation}</header>}
+      {!detail.showResultsReport ? (
+        <section className="rounded-2xl border border-slate-100 bg-white p-5">
+          <h2 className="font-black text-gray-900">{detail.title}</h2>
+          <p className="mt-2 text-sm font-bold text-gray-600">تم تسجيل إكمال الاختبار. تقرير الدرجات التفصيلي غير معروض وفق إعدادات هذا الاختبار.</p>
+        </section>
+      ) : !reviewOpen ? (
+        <AssessmentResultSummary detail={detail} navigation={resultNavigation} full={fullResult} onToggleFull={() => setFullResult((current) => !current)} onReview={() => changeReviewView(true)} onHistory={() => changeResultView('history')} practiceURL={practiceURL} retryURL={retryURL} />
+      ) : null}
+        {!shouldShowReview && detail.showResultsReport && detail.skillAnalysis ? (
           <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="attempt-skills-heading">
             <div className="mb-5">
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">تحليل الأداء المهاري</span>
@@ -575,57 +638,108 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
             )}
           </section>
         ) : null}
+      {!shouldShowReview && detail.showResultsReport && weakestSkill ? (
+        <section className="rounded-3xl border border-indigo-100 bg-indigo-50/40 p-5 sm:p-6">
+          <h2 className="text-lg font-black text-gray-900">خطة تحسين لمهارة: {weakestSkill.skillName}</h2>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <button type="button" disabled={!detail.allowQuestionReview || !detail.questions?.length} onClick={() => changeReviewView(true)} className="rounded-2xl border border-emerald-100 bg-white p-3 text-start text-sm font-black text-emerald-800 disabled:opacity-50">مراجعة الحلول</button>
+            {weakestSkill.foundationTopics?.[0] && <Link to={`/category/${encodeURIComponent(weakestSkill.pathId)}?${new URLSearchParams({ subject: weakestSkill.subjectId, tab: 'skills', topic: weakestSkill.foundationTopics[0].id, content: 'lessons' })}`} className="rounded-2xl border border-indigo-100 bg-white p-3 text-sm font-black text-indigo-800">فتح الشرح</Link>}
+            <Link to={practiceURL} className="rounded-2xl border border-amber-100 bg-white p-3 text-sm font-black text-amber-800">بدء التدريب</Link>
+          </div>
+        </section>
+      ) : null}
+      {!shouldShowReview && detail.showResultsReport && <AssessmentShareScorecard key={activeContext} result={detail.result} title={detail.title} studentName={user.name} />}
+      {!shouldShowReview && detail.showResultsReport && fullResult && (
+        <>
+          <section aria-labelledby="guardian-summary" className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
+            <h2 id="guardian-summary" className="text-sm font-black text-indigo-900">ملخص سريع لولي الأمر أو المعلم</h2>
+            <p className="mt-2 text-sm leading-7 text-indigo-800">{guardianSummary}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2 print:hidden">
+              <button type="button" onClick={() => void shareGuardianSummary(false)} className="rounded-full bg-white px-3 py-1 text-xs font-black text-indigo-700">نسخ الملخص</button>
+              <button type="button" onClick={() => void shareGuardianSummary(true)} className="rounded-full bg-white px-3 py-1 text-xs font-black text-emerald-700">مشاركة</button>
+              <span role="status" className="text-xs font-bold text-indigo-900">{summaryStatus}</span>
+            </div>
+          </section>
+          {detail.skillAnalysis?.complete && followUpSkills.length > 0 && <section aria-labelledby="follow-up-skills" className="rounded-3xl border border-gray-100 bg-white p-4 sm:p-5">
+            <h2 id="follow-up-skills" className="text-lg font-black text-gray-800">مهارات تحتاج متابعة</h2>
+            <div className="mt-4 space-y-3">
+              {followUpSkills.map(skill => (
+                <div key={`${skill.pathId}:${skill.subjectId}:${skill.skillId}`} className="rounded-2xl border border-gray-100 p-3 sm:p-4">
+                  <div className="flex items-center justify-between gap-2 font-black text-gray-900">
+                    <h3>{skill.skillName}</h3><span className="rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-800">{skill.mastery}%</span>
+                  </div>
+                  <p className="mt-1 text-xs font-bold text-gray-500">{skill.subjectName} · {skill.questionCount} سؤال</p>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-amber-500" style={{ width: `${skill.mastery}%` }} /></div>
+                </div>
+              ))}
+            </div>
+          </section>}
+        </>
+      )}
         {saveError ? <p role="alert" className="text-sm font-bold text-rose-700">{saveError}</p> : null}
         {!detail.allowQuestionReview ? (
           <section className="rounded-2xl border border-amber-100 bg-amber-50 p-5 text-sm font-bold leading-7 text-amber-900">
             مراجعة الأسئلة غير متاحة لهذا الاختبار وفق إعدادات النسخة التي أجريت عليها المحاولة.
           </section>
-        ) : (
-          <>
-            <section className="grid grid-cols-2 gap-2 rounded-2xl border border-gray-100 bg-white p-2 shadow-sm sm:grid-cols-4">
-              {([
-                ['all', 'الكل'],
-                ['wrong', 'أخطأت فيها'],
-                ['unanswered', 'بدون إجابة'],
-                ['marked', 'للمراجعة'],
-              ] as Array<[ReviewFilter, string]>).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setFilter(value)}
-                  className={`rounded-xl px-3 py-2.5 text-sm font-black ${
-                    filter === value ? 'bg-slate-950 text-white' : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </section>
-
-            {filteredQuestions.length === 0 ? (
+        ) : shouldShowReview ? (
+          <div className="grid items-start gap-6 lg:grid-cols-12">
+            <section className="space-y-4 lg:col-span-8" aria-label="السؤال الحالي">
+            {!selectedQuestion ? (
               <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm font-bold text-gray-500">
                 لا توجد أسئلة في هذا التصنيف.
               </div>
             ) : (
-              <div className="space-y-3">
-                {filteredQuestions.map((question) => (
+              <>
                   <ReviewQuestionCard
-                    key={`${question.questionId}:${question.questionVersion}`}
-                    question={question}
-                    displayNumber={displayNumbers.get(question.questionId) || 1}
+                    key={`${selectedQuestion.questionId}:${selectedQuestion.questionVersion}`}
+                    question={selectedQuestion}
+                    displayNumber={displayNumbers.get(selectedQuestion.questionId) || 1}
                     detail={detail}
-                    saved={savedQuestions.has(question.questionId)}
-                    saving={savingQuestion === question.questionId}
+                    saved={savedQuestions.has(selectedQuestion.questionId)}
+                    saving={savingQuestion === selectedQuestion.questionId}
                     onSave={(questionId) => void saveForReview(questionId)}
                     onZoomImage={setZoomImageUrl}
                     onOpenSmartTeacher={setActiveSmartTeacherQuestion}
                     onOpenStepSolution={setActiveStepSolverQuestion}
                   />
+                  <nav aria-label="التنقل بين الأسئلة" className="flex justify-between gap-2">
+                    <button type="button" disabled={selectedIndex === 0} onClick={() => setSelectedQuestionId(filteredQuestions[selectedIndex - 1].questionId)} className="inline-flex items-center gap-1 rounded-xl border bg-white px-3 py-2 text-sm font-black disabled:opacity-40"><ChevronRight size={16}/> السؤال السابق</button>
+                    <button type="button" disabled={selectedIndex === filteredQuestions.length - 1} onClick={() => setSelectedQuestionId(filteredQuestions[selectedIndex + 1].questionId)} className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-black text-white disabled:opacity-40">السؤال التالي <ChevronLeft size={16}/></button>
+                  </nav>
+              </>
+            )}
+            </section>
+            <aside aria-label="لوحة مراجعة الأسئلة" className="rounded-2xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-6 lg:col-span-4 lg:rounded-3xl">
+              <button type="button" aria-expanded={reviewBoardOpen} onClick={() => setReviewBoardOpen(open => !open)} className="w-full rounded-2xl p-3 text-xs font-black text-slate-900 lg:hidden">
+                لوحة الأسئلة · {reviewCounts.all}
+              </button>
+              <div className={`${reviewBoardOpen ? 'block' : 'hidden'} space-y-4 p-4 lg:block`}>
+              <h2 className="hidden text-sm font-black text-slate-900 lg:block">لوحة مراجعة الأسئلة</h2>
+              <div className="grid grid-cols-2 gap-2">
+                {reviewFilters.map(([value, label]) => (
+                  <button key={value} type="button" aria-pressed={filter === value} onClick={() => {
+                    setFilter(value);
+                    setSelectedQuestionId(selectedQuestion?.questionId || '');
+                  }} className={`rounded-xl border px-2 py-2 text-xs font-black ${filter === value ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-100 bg-slate-50 text-slate-700'}`}>
+                    {label} ({reviewCounts[value]})
+                  </button>
                 ))}
               </div>
-            )}
-          </>
-        )}
+              <div className="grid max-h-56 grid-cols-6 gap-2 overflow-y-auto p-1">
+                {filteredQuestions.map(question => {
+                  const number = displayNumbers.get(question.questionId);
+                  const current = question.questionId === selectedQuestion?.questionId;
+                  const tone = !question.answered ? 'bg-amber-50 text-amber-800' : question.correct ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white';
+                  return <button key={question.questionId} type="button" aria-label={`سؤال ${number}`} aria-current={current ? 'step' : undefined}
+                    onClick={() => setSelectedQuestionId(question.questionId)} className={`h-9 rounded-xl text-xs font-black ${tone} ${current ? 'ring-2 ring-indigo-500 ring-offset-1' : ''}`}>{number}</button>;
+                })}
+              </div>
+              {reviewCounts.wrong > 0 && <Link to="/favorites?tab=mistakes" className="block rounded-2xl border border-rose-200 bg-rose-50 p-2.5 text-center text-xs font-black text-rose-700">تدرب على أخطائك في بنك المراجعة ({reviewCounts.wrong})</Link>}
+              <button type="button" onClick={() => changeReviewView(false)} className="w-full rounded-2xl bg-slate-900 py-3 text-xs font-black text-white">إنهاء المراجعة والعودة للملخص</button>
+              </div>
+            </aside>
+          </div>
+        ) : null}
 
       {/* Step Solution Player (Audio + KaTeX + Whiteboard Steps) */}
       {activeStepSolverQuestion ? (

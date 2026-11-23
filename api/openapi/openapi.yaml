@@ -245,6 +245,11 @@ paths:
         If allowQuestionReview=false no question rows are returned. correctOptionIndex is
         omitted when showAnswers=false; explanation/hint/solvingStrategy are omitted when
         showExplanations=false.
+        When showResultsReport=true, detail may include subjectResults. Each entry contains
+        subjectId, subjectName, total, correct, wrong, unanswered, and score (rounded percent
+        of questions answered correctly). Missing submission-time classifications are not
+        inferred from skills or current question mappings. Compare summed totals with
+        result.totalQuestions to detect partial coverage.
       parameters:
         - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
       responses:

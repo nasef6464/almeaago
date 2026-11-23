@@ -41,7 +41,7 @@ func TestResultSkillAnalysisSnapshotPostgres(t *testing.T) {
 CREATE TABLE assessment_attempts(id uuid,student_id uuid,assessment_id uuid,assessment_version int,status text,attempt_number int);
 CREATE TABLE assessment_versions(assessment_id uuid,version int,path_id uuid,title text,allow_question_review bool,show_answers bool,show_explanations bool,show_results_report bool,randomize_questions bool,randomize_options bool);
 CREATE TABLE assessment_results(attempt_id uuid,student_id uuid,score float8,total_questions int,correct_answers int,wrong_answers int,unanswered int,passed bool,time_spent_seconds int,finalized_at timestamptz);
-CREATE TABLE assessment_version_questions(assessment_id uuid,assessment_version int,question_id uuid,question_version int);
+CREATE TABLE assessment_version_questions(assessment_id uuid,assessment_version int,question_id uuid,question_version int,sort_order int DEFAULT 0);
 CREATE TABLE mastery_evidence(id uuid,student_id uuid,source_attempt_id uuid,evidence_type text,assessment_id uuid,assessment_version int,question_id uuid,question_version int,path_id uuid,subject_id uuid,answered bool,is_correct bool);
 CREATE TABLE mastery_evidence_skills(evidence_id uuid,skill_id uuid);
 CREATE TABLE paths(id uuid,status text);
@@ -52,7 +52,7 @@ CREATE TABLE topic_skill_links(topic_id uuid,skill_id uuid);
 INSERT INTO assessment_attempts VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000003',1,'submitted',1);
 INSERT INTO assessment_versions VALUES ('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000004','Test',false,true,true,true,false,false);
 INSERT INTO assessment_results VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002',50,2,1,0,1,true,0,now());
-INSERT INTO assessment_version_questions VALUES ('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000011',1),('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000012',1);
+INSERT INTO assessment_version_questions(assessment_id,assessment_version,question_id,question_version) VALUES ('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000011',1),('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000012',1);
 INSERT INTO paths VALUES ('00000000-0000-0000-0000-000000000004','active');
 INSERT INTO subjects(id,path_id,name) VALUES ('00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000004','Subject A'),('00000000-0000-0000-0000-000000000006','00000000-0000-0000-0000-000000000004','Subject B');
 INSERT INTO skills VALUES ('00000000-0000-0000-0000-000000000020','00000000-0000-0000-0000-000000000005','Skill A'),('00000000-0000-0000-0000-000000000021','00000000-0000-0000-0000-000000000006','Skill B');
@@ -89,6 +89,9 @@ INSERT INTO topic_skill_links VALUES ('00000000-0000-0000-0000-000000000046','00
 	if err != nil {
 		t.Fatal(err)
 	}
+	if subjects := detail.SubjectResults; len(subjects) != 2 || subjects[0].SubjectName != "Subject A" || subjects[0].Total != 1 || subjects[0].Correct != 1 || subjects[0].Score != 100 || subjects[1].SubjectName != "Subject B" || subjects[1].Unanswered != 1 || subjects[1].Wrong != 0 || subjects[1].Score != 0 {
+		t.Fatalf("unexpected subject breakdown: %+v", subjects)
+	}
 	if detail.SkillAnalysis == nil || !detail.SkillAnalysis.Complete || len(detail.SkillAnalysis.Items) != 2 {
 		t.Fatalf("expected two scoped skills: %+v", detail.SkillAnalysis)
 	}
@@ -112,6 +115,9 @@ UPDATE mastery_evidence_skills SET skill_id='00000000-0000-0000-0000-00000000002
 	if err != nil || detail.SkillAnalysis == nil || len(detail.SkillAnalysis.Items) != 1 || detail.SkillAnalysis.Items[0].Mastery != 50 || detail.SkillAnalysis.Items[0].QuestionCount != 2 || detail.SkillAnalysis.Items[0].CorrectCount != 1 {
 		t.Fatalf("unanswered denominator or snapshot changed: %+v %v", detail.SkillAnalysis, err)
 	}
+	if subjects := detail.SubjectResults; len(subjects) != 1 || subjects[0].Total != 2 || subjects[0].Score != 50 {
+		t.Fatalf("unrelated live skill links changed subject totals: %+v", subjects)
+	}
 	if _, err = db.Exec(ctx, `INSERT INTO mastery_evidence SELECT '00000000-0000-0000-0000-000000000039',student_id,source_attempt_id,evidence_type,assessment_id,assessment_version,question_id,question_version,path_id,subject_id,answered,is_correct FROM mastery_evidence WHERE id='00000000-0000-0000-0000-000000000031'`); err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +135,7 @@ UPDATE mastery_evidence_skills SET skill_id='00000000-0000-0000-0000-00000000002
 		t.Fatal(err)
 	}
 	detail, err = repo.GetResultDetail(ctx, student, attempt)
-	if err != nil || detail.SkillAnalysis != nil {
+	if err != nil || detail.SkillAnalysis != nil || len(detail.SubjectResults) != 0 {
 		t.Fatalf("hidden report exposed analysis: %+v %v", detail.SkillAnalysis, err)
 	}
 	if _, err = db.Exec(ctx, `UPDATE assessment_versions SET show_results_report=true; DELETE FROM mastery_evidence WHERE question_id='00000000-0000-0000-0000-000000000012'`); err != nil {
@@ -138,6 +144,9 @@ UPDATE mastery_evidence_skills SET skill_id='00000000-0000-0000-0000-00000000002
 	detail, err = repo.GetResultDetail(ctx, student, attempt)
 	if err != nil || detail.SkillAnalysis == nil || detail.SkillAnalysis.Complete || len(detail.SkillAnalysis.Items) != 0 {
 		t.Fatalf("incomplete evidence presented as complete: %+v %v", detail.SkillAnalysis, err)
+	}
+	if subjects := detail.SubjectResults; len(subjects) != 1 || subjects[0].Total != 1 {
+		t.Fatalf("missing subject evidence must not invent a question: %+v", subjects)
 	}
 	if _, err = db.Exec(ctx, `UPDATE skills SET subject_id='00000000-0000-0000-0000-000000000006' WHERE id='00000000-0000-0000-0000-000000000020'`); err != nil {
 		t.Fatal(err)
