@@ -4,7 +4,7 @@
 > **بروتوكول التنفيذ الدائم متعدد الوكلاء (إلزامي لجميع الوكلاء)**:
 > يجب على كل وكيل (Antigravity، Codex، DeepSeek، أو أي وكيل آخر) قراءة وتطبيق وثيقة: `docs/engineering/ANTIGRAVITY_EXECUTION_STANDARD_AR.md` قبل البدء في أي مهمة برمجية أو حوكمية.
 > لا يُعتبر أي عمل منجزاً إلا بسلسلة أدلة متصلة: العقد الأصلي → الشاشة والـ UI → حمولة الـ HTTP الدقيقة → محلل Go وتطبيقه والصلاحيات → PostgreSQL/قاعدة البيانات → الأثر الدائم بعد التحديث → السيناريوهات السلبية → لقطات الشاشة عبر 390/820/1440 RTL → فحص CI على الـ SHA الدقيق.
-> كما يجب الالتزام بـ `docs/ALMEAA_ENGINEERING_PILLARS_MASTER.md` لكافة متطلبات الأداء والأمان والمحاور الهندسية الشاملة (الأداء، الأمان، المراقبة، تجربة المستخدم، البيداغوجيا، والامتثال).
+> كما يجب الالتزام بـ `docs/ALMEAA_ENGINEERING_PILLARS_MASTER.md` لكافة متطلبات الأداء والأمان والمحاور الهندسية الشاملة (الأداء، الأمان، المراقبة، تجربة المستخدم، البيداغوجيا، الامتثال، قابلية الصيانة، وجودة الإثبات والتسليم).
 
 Read and apply `docs/migration/OWNER_BATCH_DELIVERY_CONTRACT_AR.md` on every direct or scheduled run. A scheduler status/trigger is not a delivered batch or proof of worker liveness. Complete the declared functional slice with evidence, or preserve a precise blocked checkpoint without claiming completion. Full header parity remains PARTIAL/NOT PROVEN until original navigation, role/scope, routes, interactions and paired screenshots pass; identity/hero evidence alone cannot close it.
 
@@ -55,6 +55,10 @@ current-action register and acceptance checklist in26. MERGED/TESTED is scoped
 evidence, never a whole-platform parity certificate. Keep report findings from
 code distinct from browser reproductions; preserve source failure/false/empty
 semantics and explicit Topic scope. No production writes, deployment or cutover.
+
+## Evidence and handoff
+
+Start with the latest dated resume entry in the active plan and checkpoint. Establish actual branch ownership from the checkout and GitHub before editing. For changed journeys, compare the UI request, OpenAPI, Go routing and DTOs, and storage; distinguish mocked, local real-stack, and exact-head CI evidence. Use the affected ALMEAA skills under `.agents/skills`. Preserve the last reproducible checkpoint across sessions.
 
 ## ALMEAA_CODEX_CONTINUATION
 
