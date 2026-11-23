@@ -1,5 +1,78 @@
 {
   "schemaVersion": 1,
+  "current20261123": {
+    "dateRiyadh": "2026-11-23",
+    "sourceSha": "ed28102d7084899856de0371dc2c93a3d602d518",
+    "targetBaselineSha": "f0bbb96bec2f77b409bc6752e713401440f90af3",
+    "activeItem": "STUDENT-ATTEMPT-DEMO-20261123",
+    "programStatus": "PARTIAL",
+    "checks": [
+      {
+        "scope": "GitHub main Frontend CI",
+        "result": "PASS",
+        "sha": "f0bbb96bec2f77b409bc6752e713401440f90af3",
+        "url": "https://github.com/nasef6464/almeaago/actions/runs/45187235674"
+      },
+      {
+        "scope": "GitHub three Frontend E2E shards on PR 287 head before squash merge; suite includes mocked scenarios",
+        "result": "PASS",
+        "sha": "f50950b5684da1677382365338b2134b7edcb087",
+        "url": "https://github.com/nasef6464/almeaago/actions/runs/45151718708"
+      },
+      {
+        "command": "node --test scripts/parity/screen-inventory.test.mjs scripts/parity/route-inventory.test.mjs scripts/parity/pr-overlap-audit.test.mjs",
+        "result": "PASS",
+        "passed": 14,
+        "scope": "Read-only inventory and work overlap tooling"
+      },
+      {
+        "command": "go test ./internal/assessment/domain ./internal/parents/application ./internal/platform/httpserver",
+        "result": "PASS",
+        "scope": "Selected package tests with runtime database variables unset; no browser or persistence acceptance"
+      },
+      {
+        "scope": "PostgreSQL schema rehearsal on a new empty local loopback database",
+        "result": "PASS",
+        "apply": 63,
+        "rollback": 63,
+        "reapply": 63,
+        "evidence": ".tmp/almeaa-audit-db-20261123/migrations.log",
+        "limits": "Cluster stopped after the run; no Mongo data import or production rollback proof"
+      },
+      {
+        "command": "npm ci --no-audit --no-fund",
+        "result": "PASS",
+        "scope": "Clean isolated apps/web checkout from tracked package lock"
+      },
+      {
+        "command": "npm run typecheck",
+        "result": "PASS",
+        "scope": "TypeScript build mode after locked dependency install in isolated checkout"
+      },
+      {
+        "command": "node ./node_modules/vite/bin/vite.js build",
+        "result": "PASS",
+        "scope": "Local production bundle build on reviewed code; no deployment",
+        "entryChunkKB": 1610.43,
+        "entryChunkGzipKB": 417.90,
+        "warnings": ["Vite reported chunks above 500 kB"]
+      },
+      {
+        "scope": "Real student browser journey on the current stack and paired Legacy RTL captures",
+        "result": "SKIPPED",
+        "reason": "Scheduled as the first owner demo; selected code/DB baseline was reviewed in this audit"
+      },
+      {
+        "scope": "Payment providers, MongoDB reconciliation, data restore and production release",
+        "result": "SKIPPED",
+        "reason": "Separate release gates"
+      }
+    ],
+    "skillReview": {
+      "result": "PASS",
+      "scope": "Independent baseline and post-change review of four updated skill files using false-success, missing CI trigger, PATCH mismatch, unproven data migration, and overlapping ownership scenarios; focused sample"
+    }
+  },
   "dateRiyadh": "2026-11-01",
   "sourceSha": "bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7",
   "targetBaselineSha": "4c1a5a740b22a2e9c3de5e93b25832a587203b42",

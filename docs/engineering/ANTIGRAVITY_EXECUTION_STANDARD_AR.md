@@ -1,6 +1,6 @@
 # ALMEAA Go — بروتوكول التنفيذ الدائم متعدد الوكلاء
 
-**الحالة:** سياسة تنفيذ مقترحة للإضافة عبر PR ومراجعة، لا تصبح نافذة في المستودع إلا بعد دمجها.  
+**الحالة:** سياسة تنفيذ مدمجة في #281. تُقرأ أولويات الدفعات من خطة التنفيذ ونقطة الاستئناف الحالية.
 **النطاق:** `nasef6464/almeaago`، كل وكلاء التنفيذ والمراجعة في Antigravity / Codex / DeepSeek Harness.  
 **مصدر السلوك/الشكل:** أحدث `nasef6464/almeaacodax/main` للقراءة فقط.  
 **الخطة الوحيدة:** `docs/migration/03_EXECUTION_AND_HANDOFF_PLAN_AR.md`.  
@@ -57,11 +57,15 @@
 ## 6. سجل التغطية وحالاتها
 
 كل صف في Action Ledger يمثل إجراء وظيفيًا بحد أدنى:
-`action_id | source_sha | go_sha | role | route/page/tab | control | expected behavior | API method/path | DTO schema | Go handler/service | DB effect | affected consumer | auth/scope | error/rollback | visual evidence | test type | evidence links | state`.
+`action_id | owner | source_sha | go_sha | role | route/page/tab | control | expected behavior | API method/path | DTO/OpenAPI | Go handler/service | DB effect | affected consumer | auth/scope | error/rollback | visual evidence | test type | evidence links | state | next action`.
 
 الحالات: `VERIFIED` (دليل كامل بحسب المهمة)، `PARTIAL` (جزء مثبت)، `FAILED` (إخفاق مُعاد)، `UNKNOWN` (لم يُختبر)، `BLOCKED` (عائق محدد)، `NOT_APPLICABLE` (سبب موثق). لا قيمة لـ100% بلا مقام: عدد الإجراءات المعروفة × حالة اختبارها ومستوى دليلها.
 
-## 7. ترتيب العمل الحاكم الآن
+## 7. ترتيب العمل والاستئناف
+
+ابدأ من [حالة التنفيذ في الخطة](../migration/03_EXECUTION_AND_HANDOFF_PLAN_AR.md) و[نقطة الاستئناف](../migration/owner-handoff/2026-11-01/CHECKPOINT_AR.md). عند تداخل الفروع ثبّت المسؤول والملفات والـSHA، وابدأ عملًا مستقلاً داخل نفس الأولوية. حدّد مسبقًا ما يحتاج بيئة حقيقية وأي فحص ستشغله مرشحات CI على الرأس الحالي. لكل إجراء كتابة أو إرسال، أثبت نجاحه من الخادم وتحقق من أثره بعد القراءة والتحديث. سجّل فشل الخدمة بصيغة مفهومة مع بقاء المسودة أو إمكان إعادة المحاولة.
+
+### سجل أولويات استلام #280
 
 1. **PR #280 / G1:** أصلح/صنّف Frontend E2E على الثلاثة Shards (آخر نتيجة مفحوصة 645 PASS / 346 FAIL / 29 SKIP على `438b00721c`) بمقارنة نفس SHA والـbaseline الرئيسي وبفصل بيئة `8080` عن عيوب المنتج، وأعد exact-head؛ عالج security checks غير الحاجزة (`|| true`) بناءً على سياسة مخاطر قابلة للاختبار، ونسق مراجعة مستقلة. لا تدمج ولا تقل G1 closed مع بوابة مانعة.
 2. **PR #279 / تجربة الطالب:** قَيِّم ببيئة Go/PG معزولة رحلة دخول الاختبار والصور/ترتيب الأسئلة/المؤقت/الحفظ/الاستئناف/التسليم/النتيجة/المراجعة/الرجوع/حالات الفشل؛ وازن بين client local resume وserver-side persistence ولا تدّعِ استكمالًا عبر الأجهزة ما لم ينفذ.

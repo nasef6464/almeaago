@@ -212,7 +212,8 @@ test('supervisor root restores legacy section hierarchy without inventing unsupp
   const nav=page.getByRole('navigation',{name:'أقسام لوحة المشرف'});
   const original=['الملخص العام','تعلم الطلاب وجاهزيتهم','الحصص المباشرة','الاختبارات والتحليل','المراقبة الحية','خريطة المهارات','تقارير الأداء'];
   expect((await nav.locator('button').allTextContents()).map(text=>text.trim())).toEqual(original);
-  await expect(nav.locator('button:disabled')).toHaveCount(5);
+  await expect(nav.locator('button:disabled')).toHaveCount(0);
+  await expect(nav.getByRole('button',{name:'تعلم الطلاب وجاهزيتهم'})).toBeEnabled();
   await expect(nav.getByRole('button',{name:'تعلم الطلاب وجاهزيتهم'})).toHaveAttribute('aria-current','page');
   await expect(page.getByText('SUPERVISOR WORKSPACE')).toHaveCount(0);
   await expect(page.getByText('الصلاحيات الفعلية')).toHaveCount(0);
