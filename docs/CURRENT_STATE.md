@@ -1,5 +1,11 @@
 # Current State
 
+## الحالة المفحوصة — 23 نوفمبر 2026
+
+**المنصة PARTIAL.** رأس Go المحلي وGitHub `f0bbb96bec2f77b409bc6752e713401440f90af3`، ورأس Legacy المرجعي `ed28102d7084899856de0371dc2c93a3d602d518`. آخر دمج مفحوص هو [#287](https://github.com/nasef6464/almeaago/pull/287). ثلاث مجموعات E2E ناجحة على رأس ذلك الطلب، وفحص [Frontend CI](https://github.com/nasef6464/almeaago/actions/runs/45187235674) ناجح على رأس الدمج. حالة الهيدر الكامل وتكافؤ الأدوار والترحيل والإطلاق تظل غير معتمدة.
+
+الأولوية العملية للعرض على المالك هي التحقق من رحلة اختبار الطالب على React وGo وPostgreSQL معزول. فجوات المشرف والفصل الذكي وعمليات ولي الأمر موثقة في [نقطة الاستئناف](migration/owner-handoff/2026-11-01/CHECKPOINT_AR.md). ترتيب استعادة المنتج وشروط الاعتماد في [خطة التنفيذ](migration/03_EXECUTION_AND_HANDOFF_PLAN_AR.md). الأقسام التالية سجل تاريخي، بما فيها عناوين المراحل والدفعات وقت تسجيلها.
+
 ## استلام تنفيذي حديث — PR #155 / 28 أكتوبر 2026
 
 #154 مدمج عند `3c439699`؛ لم يعد حفظ homepage مفقودًا. شريحة#155 تستعيد محرر الهوية والهيرو وأثرهما للزائر؛ نجحت بوابات الكود والصور المحدودة على2623572e، مع تعطيل صريح للضوابط التابعة غير المنقولة. الدليل وحدود الصور في [30_HOMEPAGE_IDENTITY_EDITOR_AR.md](migration/30_HOMEPAGE_IDENTITY_EDITOR_AR.md). بوابة1 وP0–P7 غير مغلقة. التالي الهيدر الكامل والتنقل الأصلي وفق عقد المالك، ثم بقية مستهلكات الرئيسية قبل المسارات؛ لا تعد #152–#154 ولا تمس #123/#144. البوابات النهائية وقرار الدمج في PR #155. اللقطات الأقدم أدناه تاريخية حيث تتعارض مع هذا الاستلام.
@@ -21,7 +27,7 @@ Evidence:
 ## Legacy reference
 `nasef6464/almeaacodax` is read-only behavioral and visual reference. No implementation work is merged there as part of ALMEAA Go.
 
-## Current phase
+## Historical structural checkpoints
 Organizations / Schools / Classes compatibility — **STRUCTURAL CHECKPOINT GREEN**.
 
 Taxonomy — **STRUCTURAL CHECKPOINT GREEN**.
@@ -36,7 +42,7 @@ Content React cutover — **TESTED / VISUAL CHECKPOINT GREEN / MERGED**.
 
 Assessment foundation schema — **TESTED / MERGED**.
 
-## Active batch — Assessment Definition / Version API
+## Historical batch — Assessment Definition / Version API
 PR #42 — Assessment Definition / Version API — **TESTED / MERGED**.
 
 Implemented:

@@ -1,5 +1,75 @@
 {
   "schemaVersion": 1,
+  "current20261123": {
+    "dateRiyadh": "2026-11-23",
+    "sourceSha": "ed28102d7084899856de0371dc2c93a3d602d518",
+    "targetBaselineSha": "f0bbb96bec2f77b409bc6752e713401440f90af3",
+    "programStatus": "PARTIAL",
+    "activeItem": "STUDENT-ATTEMPT-DEMO-20261123",
+    "items": [
+      {
+        "id": "STUDENT-ATTEMPT-DEMO-20261123",
+        "scope": "Student attempt, completion and owner acceptance",
+        "status": "MERGED_PENDING_CURRENT_REAL_STACK_VERIFICATION",
+        "priority": "P0",
+        "next": "Prepare isolated dependencies, PostgreSQL and Go, then run the learner browser journey",
+        "issues": [
+          141,
+          261
+        ],
+        "pr": 279,
+        "acceptance": [
+          "Student signs in with isolated synthetic identity and opens a permitted published test",
+          "Server persists answers before reload; own attempt resumes within the supported scope",
+          "Submission returns the canonical grade and review when allowed",
+          "Forbidden student cannot access attempt or result; failed save/submit does not falsely report success",
+          "Compare original and Go at 390/820/1440 RTL and deliver local demo instructions"
+        ]
+      },
+      {
+        "id": "PARENT-ACTION-TRUTH",
+        "scope": "Parent report transmission, link, consent and notification preference",
+        "status": "GAP_PROVEN_CODE",
+        "priority": "P0",
+        "next": "Trace the original action and verify actual mutation, failure and reload"
+      },
+      {
+        "id": "SUPERVISOR-TABS-260",
+        "scope": "Five disabled Legacy supervisor tabs",
+        "status": "GAP_PROVEN_CODE",
+        "priority": "P1",
+        "next": "Review local in-flight supervisor branch without changing its files; start functional acceptance with scoped assessment/results"
+      },
+      {
+        "id": "CLASSROOM-TEACHER-TOOLS",
+        "scope": "Teacher whiteboard, polling, remote and advanced report wiring",
+        "status": "GAP_PROVEN_CODE",
+        "priority": "P1",
+        "next": "Restore by capability while preserving scoped attendance and session operations"
+      },
+      {
+        "id": "CLASSROOM-OPENAPI-COVERAGE",
+        "scope": "Attendance and competition contracts present in Go and React without matching OpenAPI paths",
+        "status": "GAP_PROVEN_CODE",
+        "priority": "P1",
+        "next": "Reconcile mounted routes, documented schema and client payloads in the affected slice"
+      },
+      {
+        "id": "ROLE-E2E-TRIGGERS",
+        "scope": "Frontend E2E can be absent on role-specific paths",
+        "status": "GAP_PROVEN_CODE",
+        "priority": "P1",
+        "next": "Add targeted trigger coverage and document mocked vs real-stack checks"
+      },
+      {
+        "id": "DATA-RECONCILIATION",
+        "scope": "MongoDB to PostgreSQL data reconciliation and restore",
+        "status": "UNVERIFIED_IN_AUDIT",
+        "priority": "RELEASE_GATE",
+        "next": "Rehearse and reconcile approved data in isolation; collect restore and rollback evidence"
+      }
+    ]
+  },
   "dateRiyadh": "2026-11-01",
   "sourceSha": "bf7281fc9fe34165a070e3d2d58f65f91b4a3ef7",
   "targetBaselineSha": "4c1a5a740b22a2e9c3de5e93b25832a587203b42",
