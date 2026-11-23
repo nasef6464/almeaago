@@ -194,33 +194,43 @@ export function ParentDashboardPage() {
     } catch {}
   }
 
-  const handleRequestWeeklyReport = () => {
+  const handleRequestWeeklyReport = async () => {
     setRequestReportLoading(true);
-    setTimeout(() => {
+    try {
+      const rep = await parentsClient.weeklyReport(1, 20);
+      setWeekly(rep);
+      setFeedback('✅ تم تحديث التقرير الأسبوعي بنجاح وإعداد ملخص أداء الأبناء المعتمد.');
+    } catch {
+      setFeedback('⚠️ تعذر استرداد التقرير الأسبوعي من الخادم حالياً. يرجى إعادة المحاولة.');
+    } finally {
       setRequestReportLoading(false);
-      setFeedback('✅ تم إنشاء التقرير الأسبوعي وإرسال إشعار فوري لملخص أداء الأبناء!');
       setTimeout(() => setFeedback(''), 4500);
-    }, 900);
+    }
   };
 
   const handleApprovalAction = (id: string, action: 'approved' | 'rejected') => {
     setApprovals((prev) =>
       prev.map((appr) => (appr.id === id ? { ...appr, status: action } : appr))
     );
-    setFeedback(action === 'approved' ? '✅ تم اعتماد الموافقة الأبوية بنجاح' : '⚠️ تم تسجيل رفض المشاركة');
-    setTimeout(() => setFeedback(''), 3000);
+    setFeedback(
+      action === 'approved'
+        ? '✅ تم تسجيل موافقتك المبدئية، وسيتم إرسالها لإدارة المدرسة للاعتماد الرسمي.'
+        : '⚠️ تم تسجيل عدم الموافقة وإبلاغ إدارة المدرسة.'
+    );
+    setTimeout(() => setFeedback(''), 4000);
   };
 
   const handleLinkStudent = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!linkValue.trim()) return;
+    const cleanId = linkValue.trim();
+    if (!cleanId) return;
     setLinking(true);
     setTimeout(() => {
       setLinking(false);
-      setFeedback(`✅ تم التحقق وربط الطالب برقم (${linkValue.trim()}) بنجاح!`);
+      setFeedback(`ℹ️ تم تسجيل طلب ربط الطالب برقم (${cleanId}). يتطلب تفعيل الربط اعتماد إدارة المدرسة ومطابقة السجل المدني في نظام نور.`);
       setLinkValue('');
-      setTimeout(() => setFeedback(''), 4500);
-    }, 1000);
+      setTimeout(() => setFeedback(''), 5500);
+    }, 800);
   };
 
   if (authLoading) return <main dir="rtl" className="p-10 text-center font-black"><Loader2 className="mx-auto mb-2 animate-spin" />جاري تحميل لوحة ولي الأمر...</main>;
@@ -711,7 +721,7 @@ export function ParentDashboardPage() {
                     className="w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700 py-3 text-sm font-black text-white shadow-md active:scale-95 disabled:opacity-50 transition-all"
                   >
                     {linking ? <Loader2 size={16} className="animate-spin inline ml-1" /> : <UserPlus size={16} className="inline ml-1" />}
-                    <span>التحقق وربط الابن فورياً</span>
+                    <span>إرسال طلب ربط الابن</span>
                   </button>
                 </form>
               </section>
