@@ -6,6 +6,15 @@
 > لا يُعتبر أي عمل منجزاً إلا بسلسلة أدلة متصلة: العقد الأصلي → الشاشة والـ UI → حمولة الـ HTTP الدقيقة → محلل Go وتطبيقه والصلاحيات → PostgreSQL/قاعدة البيانات → الأثر الدائم بعد التحديث → السيناريوهات السلبية → لقطات الشاشة عبر 390/820/1440 RTL → فحص CI على الـ SHA الدقيق.
 > كما يجب الالتزام بـ `docs/ALMEAA_ENGINEERING_PILLARS_MASTER.md` لكافة متطلبات الأداء والأمان والمحاور الهندسية الشاملة (الأداء، الأمان، المراقبة، تجربة المستخدم، البيداغوجيا، الامتثال، قابلية الصيانة، وجودة الإثبات والتسليم).
 
+## عندما يطلب المالك مراعاة الخطة والمحاور والمهارات
+
+عبارة «نفّذ المطلوب مع مراعاة الخطة والمحاور الهندسية واستخدم المهارات» تعني تطبيق الخطوات التالية على المهمة الحالية. يظل المطلوب من المالك هو الذي يحدد نطاق العمل. تعليمات المستودع نفسها تسري على كل مهمة تدخل في نطاقها حتى لو اختصر المالك عبارته.
+
+1. **الخطة والحالة.** اقرأ آخر مدخل مؤرخ في [خطة التنفيذ الوحيدة](docs/migration/03_EXECUTION_AND_HANDOFF_PLAN_AR.md)، ثم [نقطة الاستئناف](docs/migration/owner-handoff/2026-11-01/CHECKPOINT_AR.md) وسجل الفجوات والأدلة المرتبطين بها. طابق الحالة مع الفرع المحلي وGitHub وحدد الإجراء المطلوب ومعيار قبوله وملكية الملفات.
+2. **المحاور.** راجع [المحاور A–H](docs/ALMEAA_ENGINEERING_PILLARS_MASTER.md) وحدد ما يمسه التغيير من أداء، أمان، تشغيل ومراقبة، تجربة مستخدم، تعلم، امتثال، صيانة وعقود API، وجودة إثبات وتسليم. حوّل كل محور مؤثر إلى تحقق محدد داخل الدفعة.
+3. **المهارات.** استخدم [خريطة المهارات في بروتوكول التنفيذ](docs/engineering/ANTIGRAVITY_EXECUTION_STANDARD_AR.md#3-تقسيم-الوكلاء-المختصين--منسق-واحد-وكاتب-واحد-لكل-نطاق). افتح `.agents/skills/<skill>/SKILL.md` لكل مهارة تنطبق، وطبّق خطواتها. مثال تعديل زر حفظ بالعربية: طابق الأصل وRTL في الواجهة، راجع عقد API والصلاحيات، ثم أثبت الحفظ بعد إعادة القراءة. أضف مهارة قواعد البيانات عند تغيير التخزين أو اختبار سلامته.
+4. **دليل التسليم.** عند الإنهاء اذكر المحاور المؤثرة، المهارات التي طُبّقت وأثرها، نتيجة الفحوص ورابط الدليل أو SHA، وما بقي والخطوة التالية. راجع [عقد تسليم الدفعات](docs/migration/OWNER_BATCH_DELIVERY_CONTRACT_AR.md) لمعيار الإغلاق.
+
 Read and apply `docs/migration/OWNER_BATCH_DELIVERY_CONTRACT_AR.md` on every direct or scheduled run. A scheduler status/trigger is not a delivered batch or proof of worker liveness. Complete the declared functional slice with evidence, or preserve a precise blocked checkpoint without claiming completion. Full header parity remains PARTIAL/NOT PROVEN until original navigation, role/scope, routes, interactions and paired screenshots pass; identity/hero evidence alone cannot close it.
 
 Read `docs/migration/03_EXECUTION_AND_HANDOFF_PLAN_AR.md`, `docs/superpowers/specs/2026-10-28-platform-pedagogical-policy-design.md`, and `docs/migration/17_PLATFORM_POLICY_EXECUTION_CHECKPOINT_AR.md` before work. Read the latest source `nasef6464/almeaacodax` main and its `AGENTS.md` and Master Control as the legacy behavior authority; do not assume old snapshots are current.
