@@ -127,6 +127,17 @@ test('محاكي صارم بمادتين من الدخول إلى النتيجة
   await page.getByRole('button', { name: 'تأكيد الانتقال' }).click();
   await expect(page.getByRole('heading', { name: 'نتيجة الاختبار', exact: true })).toBeVisible();
   await expect(page.getByText('درجتك', { exact: true }).locator('..').getByText('100%', { exact: true })).toBeVisible();
+  const subjects = page.getByRole('region', { name: 'أداؤك لكل مادة' });
+  for (const subject of ['مادة تجريبية', 'المادة الثانية']) {
+    await expect(subjects.getByRole('progressbar', { name: `درجة ${subject}` })).toHaveAttribute('aria-valuenow', '100');
+  }
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect(subjects.getByRole('progressbar')).toHaveCount(2);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await subjects.screenshot({ path: `test-results/assessment-live-subject-results-${width}.png` });
+  }
 });
 
 test('انتهاء وقت قسم المحاكي يحفظ غير المجاب وينتقل للقسم التالي', async ({ page }) => {

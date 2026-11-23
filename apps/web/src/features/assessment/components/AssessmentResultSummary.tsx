@@ -3,7 +3,9 @@ import { useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
 import type { ResultDetail } from '../api/attempt-client';
+import { formatResultDuration } from '../relativeDate';
 import { ResultDonutChart } from './ResultDonutChart';
+import { AssessmentSubjectResults } from './AssessmentSubjectResults';
 
 type Props = {
   detail: ResultDetail;
@@ -15,13 +17,6 @@ type Props = {
   practiceURL: string;
   retryURL: string;
 };
-
-function formatTime(seconds: number) {
-  if (!Number.isFinite(seconds) || seconds < 0) return '—';
-  const minutes = Math.floor(seconds / 60);
-  const remainder = Math.floor(seconds % 60);
-  return minutes > 0 ? `${minutes} د ${remainder} ث` : `${remainder} ث`;
-}
 
 const actionClass = 'inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-center text-xs font-black shadow-sm sm:px-4 sm:text-sm';
 
@@ -41,7 +36,7 @@ export function AssessmentResultSummary({ detail, navigation, full, onToggleFull
     { label: 'عدد الأسئلة', value: result.totalQuestions, color: 'text-slate-800', panel: 'bg-slate-50/80' },
     { label: 'الصحيح', value: result.correctAnswers, color: 'text-emerald-700', panel: 'bg-emerald-50/90' },
     { label: 'الخطأ', value: result.wrongAnswers, color: 'text-rose-700', panel: 'bg-rose-50/90' },
-    { label: 'وقت الحل', value: formatTime(result.timeSpentSeconds), color: 'text-slate-800', panel: 'bg-slate-50/80' },
+    { label: 'وقت الحل', value: formatResultDuration(result.timeSpentSeconds), color: 'text-slate-800', panel: 'bg-slate-50/80' },
     { label: 'متوسط السرعة', value: timePerQuestion, color: 'text-slate-800', panel: 'bg-slate-50/80' },
   ];
   const compactActionLayout = 'inline-flex items-center justify-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-black shadow-sm';
@@ -108,6 +103,7 @@ export function AssessmentResultSummary({ detail, navigation, full, onToggleFull
             </div>
           </div>
 
+          <AssessmentSubjectResults detail={detail} />
           <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-200/80 pt-3 sm:flex sm:flex-wrap print:hidden">
             <button type="button" onClick={onReview} disabled={reviewCount === 0} className={`${actionClass} border-emerald-600 bg-emerald-600 text-white disabled:border-gray-200 disabled:bg-gray-200 disabled:text-gray-500`}>
               <Eye size={17} /> {reviewCount ? `مراجعة الأسئلة (${reviewCount})` : 'المراجعة غير متاحة'}

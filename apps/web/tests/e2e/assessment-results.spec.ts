@@ -44,6 +44,7 @@ const historyItem = {
 test('learner history is bounded and disabled review exposes no question content', async ({ page }) => {
   await auth(page);
   await page.setViewportSize({ width: 820, height: 1180 });
+  await page.addInitScript(() => Object.defineProperty(navigator, 'share', { configurable: true, value: undefined }));
   await page.route('**/api/v1/assessment-attempts/results?**', (route) =>
     json(route, { items: [historyItem], page: 1, limit: 20, hasMore: false }),
   );
@@ -72,11 +73,21 @@ test('learner history is bounded and disabled review exposes no question content
     page.getByText('مراجعة الأسئلة غير متاحة لهذا الاختبار وفق إعدادات النسخة التي أجريت عليها المحاولة.'),
   ).toBeVisible();
   await expect(page.getByText('الإجابة الصحيحة')).toHaveCount(0);
+  const fallback = page.getByRole('link', { name: 'شارك نتيجتك وتحدّ أصدقاءك' });
+  const shareURL = new URL((await fallback.getAttribute('href'))!);
+  expect(shareURL.origin).toBe('https://wa.me');
+  expect(shareURL.searchParams.get('text')).toContain('حققت 50% في اختبار محاكي كمي');
+  expect(shareURL.searchParams.get('text')).not.toContain(user.email);
 });
 
 test('mobile review filters wrong unanswered and correct questions without leaking hidden key', async ({ page }) => {
   await auth(page);
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: async (data: ShareData) => {
+      document.body.dataset.sharedScorecard = data.text;
+    } });
+  });
   await page.route('**/api/v1/assessment-attempts/attempt-1/review', (route) =>
     json(route, {
       detail: {
@@ -137,6 +148,9 @@ test('mobile review filters wrong unanswered and correct questions without leaki
             timeSpentSeconds: 0,
           },
         ],
+        subjectResults: [
+          { subjectId: 'math', subjectName: 'الرياضيات', total: 1, correct: 0, wrong: 1, unanswered: 0, score: 0 },
+        ],
       },
     }),
   );
@@ -145,6 +159,12 @@ test('mobile review filters wrong unanswered and correct questions without leaki
   await expect(page.getByRole('heading', { name: 'محاكي كمي' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'نتيجة الاختبار' })).toBeVisible();
   await expect(page.getByText('ملخص النتيجة')).toBeVisible();
+  const subjects = page.getByRole('region', { name: 'أداؤك لكل مادة' });
+  await expect(subjects.getByText('تفصيل المواد غير مكتمل؛ الأسئلة المصنفة 1 من 2.')).toBeVisible();
+  await expect(subjects.getByRole('progressbar', { name: 'درجة الرياضيات' })).toHaveAttribute('aria-valuenow', '0');
+  const share = page.getByRole('button', { name: 'شارك نتيجتك وتحدّ أصدقاءك' });
+  await share.click();
+  await expect(page.locator('body')).toHaveAttribute('data-shared-scorecard', /حققت 50% في اختبار محاكي كمي/);
   for (const width of [390, 820, 1440]) {
     await page.setViewportSize({ width, height: 915 });
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
@@ -165,6 +185,7 @@ test('mobile review filters wrong unanswered and correct questions without leaki
   await page.getByRole('button', { name: 'العودة للملخص البسيط' }).click();
   await expect(page.getByRole('heading', { name: 'ملخص سريع لولي الأمر أو المعلم' })).toHaveCount(0);
   await page.getByRole('button', { name: 'مراجعة الأسئلة (2)' }).click();
+  await expect(share).toHaveCount(0);
   await page.getByRole('button', { name: /لوحة الأسئلة/ }).click();
   await page.getByRole('button', { name: /الأخطاء فقط/ }).click();
   await expect(page.getByText('٢ + ٢ = ؟')).toBeVisible();

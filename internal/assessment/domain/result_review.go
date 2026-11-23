@@ -69,7 +69,19 @@ type ResultDetail struct {
 	ShowExplanations    bool                 `json:"showExplanations"`
 	ShowResultsReport   bool                 `json:"showResultsReport"`
 	SkillAnalysis       *ResultSkillAnalysis `json:"skillAnalysis,omitempty"`
+	SubjectResults      []ResultSubjectItem  `json:"subjectResults,omitempty"`
 	Questions           []ReviewQuestion     `json:"questions,omitempty"`
+}
+
+// ResultSubjectItem counts submitted questions once, independent of skill links.
+type ResultSubjectItem struct {
+	SubjectID   string `json:"subjectId"`
+	SubjectName string `json:"subjectName"`
+	Total       int    `json:"total"`
+	Correct     int    `json:"correct"`
+	Wrong       int    `json:"wrong"`
+	Unanswered  int    `json:"unanswered"`
+	Score       int    `json:"score"`
 }
 
 // ResultSkillAnalysis describes only this submitted attempt, not cumulative mastery.

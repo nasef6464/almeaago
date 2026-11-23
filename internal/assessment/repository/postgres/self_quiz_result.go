@@ -18,6 +18,10 @@ func (r *Repository) getSelfQuizResultDetail(ctx context.Context, student, id st
 	if err != nil {
 		return out, err
 	}
+	out.SubjectResults, err = r.resultSubjectBreakdown(ctx, student, id, selfResultSubjectEvidence)
+	if err != nil {
+		return out, err
+	}
 	rows, err := r.db.Query(ctx, `SELECT sq.question_id::text,sq.question_version,sq.sort_order,sq.points,qv.question_type,qv.text_content,COALESCE(qv.image_asset_id::text,''),COALESCE(a.public_url,''),qv.image_alt,qv.options_embedded_in_image,COALESCE(qv.video_url,''),COALESCE(qv.source_meta->>'passage',''),COALESCE(qv.difficulty,''),jsonb_build_object('learnerPresentation',qv.source_meta->'learnerPresentation'),aa.selected_option_index,COALESCE(aa.is_correct,false),COALESCE(aa.marked_for_review,false),COALESCE(aa.time_spent_seconds,0),qv.correct_option_index,qv.explanation,qv.hint,qv.solving_strategy FROM self_quiz_questions sq JOIN question_versions qv ON qv.question_id=sq.question_id AND qv.version=sq.question_version LEFT JOIN assets a ON a.id=qv.image_asset_id LEFT JOIN assessment_answers aa ON aa.self_attempt_id=sq.attempt_id AND aa.question_id=sq.question_id AND aa.question_version=sq.question_version WHERE sq.attempt_id=$1::uuid ORDER BY sq.sort_order,sq.question_id`, id)
 	if err != nil {
 		return out, err

@@ -29,6 +29,7 @@ import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage
 import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
 import { AssessmentResultSummary } from '../components/AssessmentResultSummary';
 import { AssessmentPreviousAttempts } from '../components/AssessmentPreviousAttempts';
+import { AssessmentShareScorecard } from '../components/AssessmentShareScorecard';
 import { optionLabel, showOptionText } from '../questionPresentation';
 import { relativeArabicDate } from '../relativeDate';
 import {
@@ -645,6 +646,7 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
           </div>
         </section>
       ) : null}
+      {!shouldShowReview && detail.showResultsReport && <AssessmentShareScorecard key={activeContext} result={detail.result} title={detail.title} studentName={user.name} />}
       {!shouldShowReview && detail.showResultsReport && fullResult && (
         <>
           <section aria-labelledby="guardian-summary" className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">

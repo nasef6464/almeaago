@@ -47,6 +47,8 @@ test('review preserves the course lesson return path after submission',async({pa
 test('review rejects an unsafe return path',async({page})=>{
  await page.goto(`/assessment-results/a1?${new URLSearchParams({returnTo:'//evil.example'})}`);
  await expect(page.getByRole('heading',{name:'تدريب النسب'})).toBeVisible();
+ await expect(page.getByRole('region',{name:'بطاقة مشاركة النتيجة'})).toHaveCount(0);
+ await expect(page.getByRole('region',{name:'أداؤك لكل مادة'})).toHaveCount(0);
  await expect(page.getByRole('link',{name:/العودة إلى الدرس|العودة إلى الدورة|العودة لموضوع التأسيس/})).toHaveCount(0);
 });
 for (const unsafe of ['//evil.example','/\\evil.example','/%2f%2fevil.example','/path%0aevil']) {
