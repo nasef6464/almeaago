@@ -17,6 +17,8 @@ async function auth(page:Page){
 async function mockRoster(page:Page){
  await auth(page);
  await page.route('**/api/v1/schools/context',route=>json(route,{contexts}));
+ await page.route('**/api/v1/schools/*/classes?*',route=>json(route,{classes:[],pagination:{page:1,limit:100,total:0,totalPages:1}}));
+ await page.route('**/api/v1/reports/overview?*',route=>json(route,{scope:{studentCount:1},assessment:{averageScore:85,attemptCount:2,passRate:90},weakestSkills:[]}));
  await page.route('**/api/v1/schools/*/roster?*',route=>{
   const school=route.request().url().split('/schools/')[1].split('/')[0];
   const items=students[school]||[];
@@ -64,22 +66,21 @@ for(const width of [390,820,1440]){
   await test.info().attach('supervisor-'+width,{body:await page.screenshot({fullPage:true}),contentType:'image/png'});
  });
 }
-test('disabled original sections in a direct URL fail closed to the working student view, with Back and reload',async({page})=>{
+test('all supervisor sections are enabled and navigable, invalid tab fails closed to student view',async({page})=>{
  await mockRoster(page);
+ await page.route('**/api/v1/assessments?*',route=>json(route,{items:[]}));
  await page.goto('/supervisor-dashboard?tab=tests');
  const nav=page.getByRole('navigation',{name:'أقسام لوحة المشرف'});
- await expect(nav.getByRole('button',{name:'تعلم الطلاب وجاهزيتهم'})).toHaveAttribute('aria-current','page');
- await nav.locator('summary',{hasText:'الاختبارات والمراقبة'}).click();
- await expect(nav.getByRole('button',{name:'الاختبارات والتحليل'})).toBeDisabled();
- await expect(page.getByText('طالب الأولى')).toBeVisible();
+ await expect(nav.getByRole('button',{name:'الاختبارات والتحليل'})).toBeEnabled();
+ await expect(nav.getByRole('button',{name:'الاختبارات والتحليل'})).toHaveAttribute('aria-current','page');
  await nav.locator('summary',{hasText:'الرئيسية'}).click();
  await nav.getByRole('button',{name:'الملخص العام'}).click();
  await expect(page).toHaveURL(/tab=overview/);
  await expect(nav.getByRole('button',{name:'الملخص العام'})).toHaveAttribute('aria-current','page');
  await page.goBack();
  await expect(page).toHaveURL(/tab=tests/);
- await expect(nav.getByRole('button',{name:'تعلم الطلاب وجاهزيتهم'})).toHaveAttribute('aria-current','page');
- await page.reload();
+ await expect(nav.getByRole('button',{name:'الاختبارات والتحليل'})).toHaveAttribute('aria-current','page');
+ await page.goto('/supervisor-dashboard?tab=unknown-section');
  await expect(nav.getByRole('button',{name:'تعلم الطلاب وجاهزيتهم'})).toHaveAttribute('aria-current','page');
  await expect(page.getByText('طالب الأولى')).toBeVisible();
 });
