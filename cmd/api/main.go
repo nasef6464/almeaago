@@ -153,7 +153,8 @@ func main() {
 	}
 	tapRedirectBase := strings.TrimSpace(os.Getenv("TAP_REDIRECT_URL"))
 	if tapRedirectBase == "" {
-		tapRedirectBase = strings.TrimRight(cfg.WebOrigin, "/") + "/checkout"
+		primaryOrigin := strings.TrimSpace(strings.Split(cfg.WebOrigin, ",")[0])
+		tapRedirectBase = strings.TrimRight(primaryOrigin, "/") + "/checkout"
 	}
 	tapClient := tapprovider.New(tapprovider.Config{
 		SecretKey:       tapSecretKey,
