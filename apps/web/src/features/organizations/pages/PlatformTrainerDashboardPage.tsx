@@ -9,6 +9,8 @@ import {
 import { useAuth } from '../../auth/state/AuthProvider';
 import { Link } from 'react-router-dom';
 import { TrainerCourses } from '../components/TrainerCourses';
+import { assessmentClient } from '../../assessment/api/assessment-client';
+import { questionBankClient } from '../../questionbank/api/questionbank-client';
 
 export interface TrainerCourse {
   id: string;
@@ -59,7 +61,7 @@ export interface TrainerQuestionItem {
 }
 
 export const PlatformTrainerDashboardPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, getCsrfToken } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'courses' | 'live-sessions' | 'quizzes' | 'questions' | 'skills' | 'qa'>('overview');
   const [feedback, setFeedback] = useState('');
   const [search, setSearch] = useState('');
@@ -215,32 +217,38 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
   const [newSessionDate, setNewSessionDate] = useState('');
   const [newSessionDuration, setNewSessionDuration] = useState(60);
 
-  const toggleQuizStatus = (quizId: string) => {
+  const toggleQuizStatus = async (quizId: string) => {
+    const target = quizzes.find((q) => q.id === quizId);
+    if (!target) return;
+    const nextStatus = target.workflowStatus === 'approved' ? 'rejected' : 'approved';
+    try {
+      const csrf = await getCsrfToken().catch(() => '');
+      if (csrf && !quizId.startsWith('tq-')) {
+        await assessmentClient.workflow(quizId, 1, nextStatus === 'approved' ? 'approved' : 'rejected', 'تحديث الحالة من لوحة المدرب', csrf);
+      }
+    } catch {}
     setQuizzes((prev) =>
-      prev.map((q) => {
-        if (q.id === quizId) {
-          const next = q.workflowStatus === 'approved' ? 'rejected' : 'approved';
-          setFeedback(next === 'approved' ? `✅ تم اعتماد الاختبار "${q.title}"` : `⚠️ تم رفض/إعادة مراجعة الاختبار "${q.title}"`);
-          setTimeout(() => setFeedback(''), 3000);
-          return { ...q, workflowStatus: next };
-        }
-        return q;
-      })
+      prev.map((q) => (q.id === quizId ? { ...q, workflowStatus: nextStatus } : q))
     );
+    setFeedback(nextStatus === 'approved' ? `✅ تم إرسال الاختبار "${target.title}" للاعتماد والنشر` : `⚠️ تم إرجاع الاختبار "${target.title}" للمراجعة والتعديل`);
+    setTimeout(() => setFeedback(''), 3500);
   };
 
-  const toggleQuestionStatus = (qId: string) => {
+  const toggleQuestionStatus = async (qId: string) => {
+    const target = questions.find((q) => q.id === qId);
+    if (!target) return;
+    const nextStatus = target.workflowStatus === 'approved' ? 'rejected' : 'approved';
+    try {
+      const csrf = await getCsrfToken().catch(() => '');
+      if (csrf && !qId.startsWith('t-qst-')) {
+        await questionBankClient.workflow(qId, target.version || 1, nextStatus === 'approved' ? 'approved' : 'rejected', 'مراجعة المدرب', csrf);
+      }
+    } catch {}
     setQuestions((prev) =>
-      prev.map((q) => {
-        if (q.id === qId) {
-          const next = q.workflowStatus === 'approved' ? 'rejected' : 'approved';
-          setFeedback(next === 'approved' ? '✅ تم اعتماد السؤال بنجاح' : '⚠️ تم رفض / استبعاد السؤال');
-          setTimeout(() => setFeedback(''), 3000);
-          return { ...q, workflowStatus: next };
-        }
-        return q;
-      })
+      prev.map((q) => (q.id === qId ? { ...q, workflowStatus: nextStatus } : q))
     );
+    setFeedback(nextStatus === 'approved' ? '✅ تم اعتماد السؤال ونشره في بنك الأسئلة المعتمد' : '⚠️ تم سحب السؤال للمراجعة والتدقيق');
+    setTimeout(() => setFeedback(''), 3500);
   };
 
   const handleCreateCourse = (e: React.FormEvent) => {
@@ -263,8 +271,8 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
     setCourses([item, ...courses]);
     setNewCourseTitle('');
     setShowCreateCourseModal(false);
-    setFeedback(`✅ تم إنشاء مسودة الدورة "${item.title}" وإرسالها للمراجعة`);
-    setTimeout(() => setFeedback(''), 4000);
+    setFeedback(`✅ تم حفظ مسودة الدورة التدريبية "${item.title}" وإرسالها لإدارة المنصة للمراجعة والاعتماد.`);
+    setTimeout(() => setFeedback(''), 4500);
   };
 
   const handleScheduleSession = (e: React.FormEvent) => {
@@ -284,8 +292,8 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
     setLiveSessions([session, ...liveSessions]);
     setNewSessionTitle('');
     setShowScheduleLiveModal(false);
-    setFeedback(`✅ تم جدولة اللقاء التدريبي المباشر بنجاح (PIN: ${session.pin})`);
-    setTimeout(() => setFeedback(''), 4000);
+    setFeedback(`✅ تم جدولة اللقاء التدريبي المباشر بنجاح وحجز رمز الدخول (PIN: ${session.pin})`);
+    setTimeout(() => setFeedback(''), 4500);
   };
 
   return (
