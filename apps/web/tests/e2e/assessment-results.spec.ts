@@ -191,6 +191,9 @@ test('mobile review filters wrong unanswered and correct questions without leaki
   await expect(page.getByText('٢ + ٢ = ؟')).toBeVisible();
   await expect(page.getByText('٥ + ٥ = ؟')).toHaveCount(0);
   await expect(page.getByText('الإجابة الصحيحة')).toHaveCount(0);
+  await page.getByRole('button', { name: 'إظهار الملاحظات' }).click();
+  await expect(page.getByRole('region', { name: 'ملاحظات السؤال' })).toContainText('الشرح التحريري غير متاح');
+  await expect(page.getByText('الإجابة الصحيحة')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'بدون إجابة' }).click();
   await expect(page.getByText('٥ + ٥ = ؟')).toBeVisible();

@@ -117,6 +117,9 @@ function ReviewQuestionCard({
   onZoomImage,
   onOpenSmartTeacher,
   onOpenStepSolution,
+  onPrevious,
+  onNext,
+  isLast,
 }: {
   question: ReviewQuestion;
   displayNumber: number;
@@ -127,8 +130,12 @@ function ReviewQuestionCard({
   onZoomImage?: (url: string) => void;
   onOpenSmartTeacher?: (question: ReviewQuestion) => void;
   onOpenStepSolution?: (question: ReviewQuestion) => void;
+  onPrevious?: () => void;
+  onNext: () => void;
+  isLast: boolean;
 }) {
   const [showAiAssistant, setShowAiAssistant] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const resolvedImageUrl = useMemo(() => resolveReviewImage(question), [question.imageUrl, question.text]);
   const imageEmbeddedOptions = Boolean(resolvedImageUrl || question.imageAssetId);
 
@@ -254,15 +261,24 @@ function ReviewQuestionCard({
         })}
       </div>
 
-      {detail.showExplanations &&
-      (question.explanation || question.hint || question.solvingStrategy) ? (
-        <div className="mt-4 space-y-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm leading-7 text-amber-950">
-          {question.explanation ? <p><strong>الشرح:</strong> {question.explanation}</p> : null}
-          {question.hint ? <p><strong>تلميح:</strong> {question.hint}</p> : null}
-          {question.solvingStrategy ? <p><strong>طريقة الحل:</strong> {question.solvingStrategy}</p> : null}
-        </div>
-      ) : null}
-
+      {showNotes && (
+        <section aria-label="ملاحظات السؤال" className="mt-4 space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 text-sm leading-7">
+          <h4 className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-black text-indigo-700">مراجعة وتقييم السؤال</h4>
+          {detail.showExplanations && (question.explanation || question.hint || question.solvingStrategy) ? (
+            <div className="space-y-2 text-slate-700">
+              {question.explanation && <p><strong>الشرح:</strong> {question.explanation}</p>}
+              {question.hint && <p><strong>تلميح:</strong> {question.hint}</p>}
+              {question.solvingStrategy && <p><strong>طريقة الحل:</strong> {question.solvingStrategy}</p>}
+            </div>
+          ) : (
+            <p className="text-xs font-bold text-slate-500">
+              {detail.showExplanations
+                ? 'يمكنك مراجعة اختيارك وحالة إجابتك أعلاه.'
+                : 'الشرح التحريري غير متاح لهذا السؤال. يمكنك مراجعة اختيارك وحالة إجابتك أعلاه.'}
+            </p>
+          )}
+        </section>
+      )}
       {detail.showExplanations && question.videoUrl ? (
         <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs font-bold text-blue-900">
           <div className="flex items-center gap-2">
@@ -322,6 +338,11 @@ function ReviewQuestionCard({
           <QuestionAssistantPanel questionId={question.questionId} attemptId={detail.result.attemptId} />
         </div>
       ) : null}
+      <nav aria-label="التنقل بين الأسئلة" className="mt-4 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 sm:pt-5">
+        <button type="button" disabled={!onPrevious} onClick={onPrevious} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-black text-slate-700 disabled:bg-slate-50 disabled:text-slate-400 sm:px-4"><ArrowRight size={15} /> السابق</button>
+        <button type="button" aria-expanded={showNotes} onClick={() => setShowNotes(open => !open)} className={`inline-flex items-center gap-1 rounded-xl px-2.5 py-2 text-xs font-black sm:px-4 ${showNotes ? 'bg-amber-100 text-amber-800' : 'bg-indigo-50 text-indigo-700'}`}><Eye size={14} /> {showNotes ? 'إخفاء الملاحظات' : 'إظهار الملاحظات'}</button>
+        <button type="button" onClick={onNext} className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-2.5 py-2 text-xs font-black text-white sm:px-4">{isLast ? 'إنهاء المراجعة' : 'التالي'} <ChevronLeft size={15} /></button>
+      </nav>
     </article>
   );
 }
@@ -689,24 +710,25 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
                 لا توجد أسئلة في هذا التصنيف.
               </div>
             ) : (
-              <>
-                  <ReviewQuestionCard
-                    key={`${selectedQuestion.questionId}:${selectedQuestion.questionVersion}`}
-                    question={selectedQuestion}
-                    displayNumber={displayNumbers.get(selectedQuestion.questionId) || 1}
-                    detail={detail}
-                    saved={savedQuestions.has(selectedQuestion.questionId)}
-                    saving={savingQuestion === selectedQuestion.questionId}
-                    onSave={(questionId) => void saveForReview(questionId)}
-                    onZoomImage={setZoomImageUrl}
-                    onOpenSmartTeacher={setActiveSmartTeacherQuestion}
-                    onOpenStepSolution={setActiveStepSolverQuestion}
-                  />
-                  <nav aria-label="التنقل بين الأسئلة" className="flex justify-between gap-2">
-                    <button type="button" disabled={selectedIndex === 0} onClick={() => setSelectedQuestionId(filteredQuestions[selectedIndex - 1].questionId)} className="inline-flex items-center gap-1 rounded-xl border bg-white px-3 py-2 text-sm font-black disabled:opacity-40"><ChevronRight size={16}/> السؤال السابق</button>
-                    <button type="button" disabled={selectedIndex === filteredQuestions.length - 1} onClick={() => setSelectedQuestionId(filteredQuestions[selectedIndex + 1].questionId)} className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-black text-white disabled:opacity-40">السؤال التالي <ChevronLeft size={16}/></button>
-                  </nav>
-              </>
+              <ReviewQuestionCard
+                key={`${filter}:${selectedQuestion.questionId}:${selectedQuestion.questionVersion}`}
+                question={selectedQuestion}
+                displayNumber={displayNumbers.get(selectedQuestion.questionId) || 1}
+                detail={detail}
+                saved={savedQuestions.has(selectedQuestion.questionId)}
+                saving={savingQuestion === selectedQuestion.questionId}
+                onSave={(questionId) => void saveForReview(questionId)}
+                onZoomImage={setZoomImageUrl}
+                onOpenSmartTeacher={setActiveSmartTeacherQuestion}
+                onOpenStepSolution={setActiveStepSolverQuestion}
+                onPrevious={selectedIndex > 0 ? () => setSelectedQuestionId(filteredQuestions[selectedIndex - 1].questionId) : undefined}
+                onNext={() => {
+                  const nextQuestion = filteredQuestions[selectedIndex + 1];
+                  if (nextQuestion) setSelectedQuestionId(nextQuestion.questionId);
+                  else changeReviewView(false);
+                }}
+                isLast={selectedIndex === filteredQuestions.length - 1}
+              />
             )}
             </section>
             <aside aria-label="لوحة مراجعة الأسئلة" className="rounded-2xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-6 lg:col-span-4 lg:rounded-3xl">

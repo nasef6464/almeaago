@@ -55,7 +55,10 @@ test('رحلة الاختبار الجاهز بين الإدارة والطال�
   await expect(page.getByRole('heading', { name: 'اختبار تجريبي جاهز' })).toBeVisible();
   await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
   await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'العودة للملخص', exact: true }).click();
+  await page.getByRole('button', { name: 'إظهار الملاحظات' }).click();
+  await expect(page.getByRole('region', { name: 'ملاحظات السؤال' })).toBeVisible();
+  await page.getByRole('button', { name: 'إنهاء المراجعة', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'نتيجة الاختبار', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'المحاولات السابقة' }).click();
   await expect(page.getByRole('heading', { name: 'محاولاتك السابقة' })).toBeVisible();
   await page.getByRole('button', { name: /اختبار تجريبي جاهز/ }).click();

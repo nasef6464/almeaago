@@ -79,7 +79,7 @@ test('attempt uses custom question number',async({page})=>{
 
 test('filtered review preserves displayed order after question shuffling',async({page})=>{
   await auth(page);
-  const q=(id:string,sortOrder:number,correct:boolean,presentation?:object)=>({...imageQuestion,id,questionId:id,questionVersion:1,imageUrl:'',text:`نص ${id}`,passage:'',sortOrder,learnerPresentation:presentation,selectedOptionIndex:0,correctOptionIndex:0,answered:true,correct,markedForReview:false,timeSpentSeconds:1});
+  const q=(id:string,sortOrder:number,correct:boolean,presentation?:object)=>({...imageQuestion,id,questionId:id,questionVersion:1,imageUrl:'',text:`نص ${id}`,passage:'',sortOrder,learnerPresentation:presentation,selectedOptionIndex:0,correctOptionIndex:0,explanation:'ملاحظات '+id,answered:true,correct,markedForReview:false,timeSpentSeconds:1});
   const questions=[q('first',8,true),q('second',1,false),q('third',0,false,{showQuestionNumber:false})];
   await page.route('**/api/v1/assessment-attempts/attempt-1/review',r=>r.fulfill({json:{detail:{result,assessmentId:'a1',assessmentVersion:1,title:'اختبار',attemptNumber:1,allowQuestionReview:true,showAnswers:true,showExplanations:true,showResultsReport:true,questions}}}));
   await page.goto('/assessment-results/attempt-1',{waitUntil:'domcontentloaded'});
@@ -90,11 +90,24 @@ test('filtered review preserves displayed order after question shuffling',async(
   const second=page.getByText('نص second').locator('xpath=ancestor::article');
   await expect(second).toContainText('سؤال 2');
   await expect(page.getByText('نص third')).toHaveCount(0);
-  await page.getByRole('button', { name: 'السؤال التالي' }).click();
+  await expect(page.getByText('ملاحظات second')).toHaveCount(0);
+  await page.getByRole('button', { name: 'إظهار الملاحظات' }).click();
+  await expect(page.getByText('ملاحظات second')).toBeVisible();
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.getByRole('region', { name: 'السؤال الحالي' }).screenshot({ path: `test-results/assessment-review-notes-${width}.png` });
+  }
+  await page.getByRole('button', { name: 'التالي', exact: true }).click();
+  await expect(page.getByText('ملاحظات third')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'إظهار الملاحظات' })).toBeVisible();
   await expect(second).toHaveCount(0);
   const third=page.getByText('نص third').locator('xpath=ancestor::article');
   await expect(third).toBeVisible();
   await expect(third).not.toContainText('سؤال 3');
   await page.getByRole('button', { name: 'سؤال 2' }).click();
   await expect(second).toBeVisible();
+  await page.getByRole('button', { name: 'التالي', exact: true }).click();
+  await page.getByRole('button', { name: 'إنهاء المراجعة', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'نتيجة الاختبار', exact: true })).toBeVisible();
 });
