@@ -24,12 +24,12 @@ var productionHostPatterns = []string{
 var safeHostAllowList = []string{
 	"localhost",
 	"127.0.0.1",
-	"@postgres",   // docker-compose service name
-	"@db:",        // common compose alias
-	"test",        // e.g. almeaa_test, test_db
-	"-preview",    // Neon preview branch
-	"-staging",    // staging branch
-	"-dev",        // dev branch
+	"@postgres", // docker-compose service name
+	"@db:",      // common compose alias
+	"test",      // e.g. almeaa_test, test_db
+	"-preview",  // Neon preview branch
+	"-staging",  // staging branch
+	"-dev",      // dev branch
 }
 
 type SeedUser struct {
