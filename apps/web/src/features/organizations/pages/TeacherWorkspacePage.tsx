@@ -432,8 +432,8 @@ export function TeacherWorkspacePage() {
       title: newQuizTitle.trim(),
       kind: newQuizKind,
       className: newQuizClass || selectedSchool?.assignments[0]?.className || 'الصف الثالث الثانوي (أ)',
-      workflowStatus: 'approved',
-      isPublished: true,
+      workflowStatus: 'pending',
+      isPublished: false,
       dueDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
       totalQuestions: 15,
       participantsCount: 0,
@@ -443,8 +443,8 @@ export function TeacherWorkspacePage() {
     setTeacherAssessments([item, ...teacherAssessments]);
     setNewQuizTitle('');
     setShowCreateAssessmentModal(false);
-    setFeedback(`✅ تم إنشاء واعتماد الاختبار "${item.title}" وإضافته لفصولك المسندة!`);
-    setTimeout(() => setFeedback(''), 4000);
+    setFeedback(`✅ تم حفظ مسودة التكليف "${item.title}" وإرسالها للمشرف التربوي للاعتماد.`);
+    setTimeout(() => setFeedback(''), 4500);
   };
 
   if (authLoading || (isTeacher && busy)) {
@@ -1448,7 +1448,7 @@ export function TeacherWorkspacePage() {
                 disabled={!newQuizTitle.trim()}
                 className="rounded-xl bg-indigo-600 hover:bg-indigo-700 px-5 py-2 text-xs font-black text-white disabled:opacity-40"
               >
-                إنشاء واعتماد الاختبار
+                حفظ وإرسال للاعتماد
               </button>
             </div>
           </div>
@@ -1503,8 +1503,11 @@ export function TeacherWorkspacePage() {
                       <button
                         type="button"
                         onClick={() => {
-                          setFeedback(`✅ تم توجيه تدريب علاجي فوري للطالب "${st.name}" في مهارة "${activeSkillForDrawer.skill}"!`);
-                          setTimeout(() => setFeedback(''), 4000);
+                          setNewQuizTitle(`تدريب علاجي مخصص: ${activeSkillForDrawer.skill} - ${st.name}`);
+                          setNewQuizKind('drill');
+                          setNewQuizClass(activeSkillForDrawer.className);
+                          setActiveSkillForDrawer(null);
+                          setShowCreateAssessmentModal(true);
                         }}
                         className="rounded-xl bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 text-[11px] font-black text-white shadow-2xs active:scale-95 transition-all cursor-pointer"
                       >
