@@ -156,12 +156,9 @@ for (const width of [390, 820, 1440]) {
     await setup(page);
     await page.unroute('**/api/v1/courses?**');
 
-    let release!: () => void;
-    const gate = new Promise<void>(resolve => { release = resolve; });
     await page.route('**/api/v1/courses?**', async route => {
       const search = new URL(route.request().url()).searchParams.get('search');
       if (search === 'ثاني') {
-        await gate;
         await json(route, {
           items: [{ ...course, id: 'course-new', title: 'دورة بحث جديدة' }],
           page: 1, limit: 50, hasMore: false,
@@ -181,8 +178,6 @@ for (const width of [390, 820, 1440]) {
     expect(await visibleContentRows(page).count()).toBe(0);
     expect(await page.getByRole('button', { name: 'تعديل / المنهج' }).count()).toBe(0);
 
-    await page.clock.runFor(1000);
-    release();
     await page.clock.resume();
     await expect(page.getByText('دورة بحث جديدة')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText(course.title)).toHaveCount(0);
