@@ -9,8 +9,169 @@ import (
 	"testing"
 )
 
+// TestValidateDatabaseURLSafety verifies in-memory security validation rules without network access.
+func TestValidateDatabaseURLSafety(t *testing.T) {
+	tests := []struct {
+		name        string
+		url         string
+		appEnv      string
+		allowSeed   string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:        "Blocked when ALLOW_SEED is empty",
+			url:         "postgres://user:pass@localhost:5432/almeaa_test",
+			allowSeed:   "",
+			wantErr:     true,
+			errContains: "ALLOW_SEED=true is not set",
+		},
+		{
+			name:        "Blocked when ALLOW_SEED is false",
+			url:         "postgres://user:pass@localhost:5432/almeaa_test",
+			allowSeed:   "false",
+			wantErr:     true,
+			errContains: "ALLOW_SEED=true is not set",
+		},
+		{
+			name:        "Blocked when APP_ENV is production",
+			url:         "postgres://user:pass@localhost:5432/almeaa_test",
+			appEnv:      "production",
+			allowSeed:   "true",
+			wantErr:     true,
+			errContains: "strictly prohibited in environment",
+		},
+		{
+			name:        "Blocked when APP_ENV is prod",
+			url:         "postgres://user:pass@localhost:5432/almeaa_test",
+			appEnv:      "prod",
+			allowSeed:   "true",
+			wantErr:     true,
+			errContains: "strictly prohibited in environment",
+		},
+		{
+			name:        "Blocked when APP_ENV is staging",
+			url:         "postgres://user:pass@localhost:5432/almeaa_test",
+			appEnv:      "staging",
+			allowSeed:   "true",
+			wantErr:     true,
+			errContains: "strictly prohibited in environment",
+		},
+		{
+			name:        "Blocked with empty DATABASE_URL",
+			url:         "",
+			allowSeed:   "true",
+			wantErr:     true,
+			errContains: "DATABASE_URL is required",
+		},
+		{
+			name:        "Blocked against Neon production branch pattern in host",
+			url:         "postgres://user:secret@br-damp-feather-b9lqdru1.neon.tech/almeaadb",
+			allowSeed:   "true",
+			wantErr:     true,
+			errContains: "br-damp-feather-b9lqdru1",
+		},
+		{
+			name:        "Blocked against Neon production branch pattern in query",
+			url:         "postgres://user:secret@localhost:5432/almeaa?branch=br-damp-feather-b9lqdru1",
+			allowSeed:   "true",
+			wantErr:     true,
+			errContains: "br-damp-feather-b9lqdru1",
+		},
+		{
+			name:        "Blocked against Neon host even when test is in db name (Bypass test)",
+			url:         "postgres://user:secret@ep-shiny-123.us-east-2.aws.neon.tech/test_db",
+			allowSeed:   "true",
+			wantErr:     true,
+			errContains: "prohibited for seeding",
+		},
+		{
+			name:        "Blocked against Neon host even when test is in query string (Bypass test)",
+			url:         "postgres://user:secret@ep-shiny-123.neon.tech/almeaa?test=1&allow=test",
+			allowSeed:   "true",
+			wantErr:     true,
+			errContains: "prohibited for seeding",
+		},
+		{
+			name:        "Blocked against Neon preview branch (Preview blocked)",
+			url:         "postgres://user:secret@ep-shiny-preview.neon.tech/almeaa",
+			allowSeed:   "true",
+			wantErr:     true,
+			errContains: "prohibited for seeding",
+		},
+		{
+			name:        "Blocked against Render postgres host",
+			url:         "postgres://user:secret@dpg-xxx.oregon-postgres.render.com/almeaa",
+			allowSeed:   "true",
+			wantErr:     true,
+			errContains: "prohibited for seeding",
+		},
+		{
+			name:        "Blocked against AWS RDS host",
+			url:         "postgres://user:secret@my-db.123456789.us-east-1.rds.amazonaws.com/almeaa",
+			allowSeed:   "true",
+			wantErr:     true,
+			errContains: "prohibited for seeding",
+		},
+		{
+			name:        "Blocked against untrusted external IP",
+			url:         "postgres://user:secret@192.168.1.50:5432/almeaa",
+			allowSeed:   "true",
+			wantErr:     true,
+			errContains: "not an authorized local development host",
+		},
+		{
+			name:        "Allowed for localhost with standard port and test db",
+			url:         "postgres://user:secret@localhost:5432/almeaa_test",
+			allowSeed:   "true",
+			wantErr:     false,
+		},
+		{
+			name:        "Allowed for 127.0.0.1",
+			url:         "postgres://user:secret@127.0.0.1:5432/almeaa_dev",
+			allowSeed:   "true",
+			wantErr:     false,
+		},
+		{
+			name:        "Allowed for Docker service 'postgres'",
+			url:         "postgres://almeaa:almeaa@postgres:5432/almeaa",
+			allowSeed:   "true",
+			wantErr:     false,
+		},
+		{
+			name:        "Allowed for Docker service 'db'",
+			url:         "postgres://almeaa:almeaa@db:5432/almeaa",
+			allowSeed:   "true",
+			wantErr:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			safety, err := ValidateDatabaseURL(tt.url, tt.appEnv, tt.allowSeed)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error for URL %q, got nil (safety=%+v)", tt.url, safety)
+				}
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("error %q does not contain expected substring %q", err.Error(), tt.errContains)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error for URL %q: %v", tt.url, err)
+				}
+				if safety == nil {
+					t.Fatal("expected non-nil SafetyVerification")
+				}
+				if strings.Contains(safety.SanitizedURL, "secret") {
+					t.Errorf("sanitized URL leaked credentials: %s", safety.SanitizedURL)
+				}
+			}
+		})
+	}
+}
+
 // buildSeedBinary compiles the seed binary and returns its path.
-// It uses the actual source directory of this test file.
 func buildSeedBinary(t *testing.T) string {
 	t.Helper()
 	bin := filepath.Join(t.TempDir(), "seed_test_binary")
@@ -18,7 +179,6 @@ func buildSeedBinary(t *testing.T) string {
 		bin += ".exe"
 	}
 
-	// Get the directory containing this test file — that is cmd/seed/
 	_, thisFile, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("cannot determine test file path via runtime.Caller")
@@ -37,15 +197,12 @@ func buildSeedBinary(t *testing.T) string {
 func runSeed(t *testing.T, bin string, extraEnv ...string) (string, error) {
 	t.Helper()
 	cmd := exec.Command(bin)
-	// Start from clean env — remove ALLOW_SEED and DATABASE_URL to avoid interference
-	cmd.Env = filterEnv(os.Environ(), "ALLOW_SEED", "DATABASE_URL")
+	cmd.Env = filterEnv(os.Environ(), "ALLOW_SEED", "DATABASE_URL", "APP_ENV")
 	cmd.Env = append(cmd.Env, extraEnv...)
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }
 
-// TestSeedBlockedWithoutAllowSeed verifies the seed tool exits non-zero and prints
-// the BLOCKED message when ALLOW_SEED is not set.
 func TestSeedBlockedWithoutAllowSeed(t *testing.T) {
 	bin := buildSeedBinary(t)
 	output, err := runSeed(t, bin, "DATABASE_URL=postgres://localhost/almeaa_test")
@@ -61,7 +218,6 @@ func TestSeedBlockedWithoutAllowSeed(t *testing.T) {
 	}
 }
 
-// TestSeedBlockedWhenAllowSeedIsFalse verifies ALLOW_SEED=false is treated as not set.
 func TestSeedBlockedWhenAllowSeedIsFalse(t *testing.T) {
 	bin := buildSeedBinary(t)
 	output, err := runSeed(t, bin,
@@ -77,7 +233,6 @@ func TestSeedBlockedWhenAllowSeedIsFalse(t *testing.T) {
 	}
 }
 
-// TestSeedBlockedAgainstProductionNeonURL verifies the seed tool refuses production URLs.
 func TestSeedBlockedAgainstProductionNeonURL(t *testing.T) {
 	bin := buildSeedBinary(t)
 
@@ -85,10 +240,11 @@ func TestSeedBlockedAgainstProductionNeonURL(t *testing.T) {
 		"postgres://user:pass@ep-xxx-yyy.us-east-2.aws.neon.tech/almeaadb",
 		"postgres://user:pass@ep-abc.br-damp-feather-b9lqdru1.neon.tech/almeaadb",
 		"postgresql://user:secret@somehost.neon.tech:5432/almeaadb?sslmode=require",
+		"postgres://user:pass@ep-bypass.neon.tech/test_db?application_name=test", // Bypass attempt
 	}
 
 	for _, url := range productionURLs {
-		url := url // capture
+		url := url
 		name := url
 		if len(name) > 50 {
 			name = name[:50] + "..."
@@ -108,7 +264,6 @@ func TestSeedBlockedAgainstProductionNeonURL(t *testing.T) {
 	}
 }
 
-// TestSeedBlockedWithNoDatabaseURL verifies missing DATABASE_URL causes a clean exit.
 func TestSeedBlockedWithNoDatabaseURL(t *testing.T) {
 	bin := buildSeedBinary(t)
 	_, err := runSeed(t, bin, "ALLOW_SEED=true")
@@ -117,21 +272,18 @@ func TestSeedBlockedWithNoDatabaseURL(t *testing.T) {
 	}
 }
 
-// TestSeedDoesNotLogPassword verifies the plaintext password never appears in output.
-// We use a localhost URL that will fail to connect, allowing us to check early output.
 func TestSeedDoesNotLogPassword(t *testing.T) {
 	bin := buildSeedBinary(t)
 	output, _ := runSeed(t, bin,
 		"ALLOW_SEED=true",
-		"DATABASE_URL=postgres://user:pass@localhost:5433/almeaa_no_such_db",
+		"DATABASE_URL=postgres://user:secret123@localhost:5433/almeaa_no_such_db",
 	)
 
-	if strings.Contains(output, "Almeaa@2026") {
+	if strings.Contains(output, "secret123") {
 		t.Errorf("SECURITY: plaintext password appeared in seed output:\n%s", output)
 	}
 }
 
-// TestSanitizeURL tests the URL sanitizer in isolation.
 func TestSanitizeURL(t *testing.T) {
 	cases := []struct {
 		input    string
@@ -162,7 +314,6 @@ func TestSanitizeURL(t *testing.T) {
 	}
 }
 
-// filterEnv returns env without entries whose key matches any of keys.
 func filterEnv(env []string, keys ...string) []string {
 	result := make([]string, 0, len(env))
 	for _, e := range env {
