@@ -566,7 +566,9 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
       )}
       <div>
         <h1 className="text-xl font-bold">{reviewOpen && detail.showResultsReport ? 'مراجعة الحلول والأسئلة' : 'نتيجة الاختبار'}</h1>
-        {reviewOpen && detail.showResultsReport && <p className="text-xs font-bold text-slate-500">{detail.title} • تفاصيل الإجابات والشرح النموذجي</p>}
+        {reviewOpen && detail.showResultsReport && (
+          <h2 className="text-xs font-bold text-slate-500">{detail.title} • تفاصيل الإجابات والشرح النموذجي</h2>
+        )}
       </div>
       {returnTo && !hideReturnLink && <Link to={returnTo} className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">{returnPathLabel(returnTo)}</Link>}
     </div>
