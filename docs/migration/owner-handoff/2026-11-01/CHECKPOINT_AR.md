@@ -1,5 +1,17 @@
 # نقطة استئناف — 1 نوفمبر 2026
 
+## 23 نوفمبر — رحلة الطالب بعد التسليم / PARTIAL
+
+الأصل المعتمد `ed28102d7084899856de0371dc2c93a3d602d518` (`pages/QuizPage.tsx` و`pages/Results.tsx`). كود Go المحلي `88f1bd5578a60c9e5391aa07bcface365ea453cc` على `fix/student-result-legacy-parity` فوق `f0bbb96b`. أحدث `origin/main` في نهاية الدفعة `c57e75cd`. الفرع محلي ولم يُرفع أو يُدمج، وفحص CI على SHA التعديل SKIPPED.
+
+- الطالب ← تسليم المحاولة ← `POST /api/v1/assessment-attempts/{attemptID}/submit` ← منطق الحفظ والتصحيح وصلاحياته الحالية ← PostgreSQL ← ملخص النتيجة المباشر عند إتاحة التقرير، أو العودة إلى سياق الدرس المحدد إذا كان التقرير مخفيًا. يحتفظ مسار الملخص برابط سياق الدرس بعد إعادة التحميل.
+- النتيجة ← مراجعة سؤال واحد مع لوحة الأرقام والتصفية ← `GET /api/v1/assessment-attempts/{attemptID}/review` ← بيانات المحاولة وسياسة كشف الحلول الحالية. النتيجة ← المحاولات السابقة ← `GET /api/v1/assessment-attempts/results?page=…&limit=20` ← محاولات صاحب الجلسة مجمعة حسب عنوان الاختبار. سجل Go يحمل صفحات إضافية عند الطلب. أضيف جزء «مهارات تحتاج متابعة» وملخص قابل للنسخ والمشاركة للتقرير الموسع، باستخدام بيانات المهارات المتاحة من الخادم.
+- الملفات `AssessmentAttemptPage.tsx` و`AssessmentResultsPage.tsx` و`AssessmentResultSummary.tsx` و`AssessmentPreviousAttempts.tsx`، واختبارات المتصفح الخمسة المعدلة في `apps/web/tests/e2e`. لم تتغير حمولة التصحيح أو قاعدة البيانات.
+- PASS فحص TypeScript و`git diff --check` وثماني حالات متصفح مستهدفة في `.tmp/platform-audit-runtime-20261123/student-parity-recheck.log`، وحالتان مع Go وPostgreSQL معزولين في `student-parity-live-final.log`، للجاهز ومراجعة المحاولات ولاختبار الدرس والعودة إليه. الفحص المجمع الأول 40/44، وأعيدت الحالات الأربع المتعثرة ونجحت ضمن الفحص المستهدف. لم يُعد الفحص المجمع بالكامل بعد التصحيح.
+- أدلة RTL بعروض 390 و820 و1440 تحت `test-results/legacy-runtime-{summary,review,history,full}-*.png` من تشغيل مكوّن الأصل ببيانات اختبار، ومقابلها `assessment-result-{summary,review,full}-*.png` و`assessment-previous-attempts-*.png` من Go ببيانات HTTP اختبارية. البيانات والأغلفة بين اللقطات تختلف، ولذلك المطابقة البصرية PARTIAL. تحليل المحاولة حسب المادة، وبطاقة مشاركة النتيجة وتفاصيل الملاحظات والتوصيات في المراجعة باقية.
+
+الاستئناف: افحص سجل أدلة المحاولة المجمدة للمادتين في نوعَي الاختبار المنشور والذاتي، ثم اربط تقرير المادة بعقد HTTP يحترم سياسات العرض، مع حالة محاولة قديمة بلا أدلة كافية. أول أمر محلي: `rg -n "mastery_evidence|subject_id" internal/assessment/repository/postgres/result_skill_analysis.go internal/assessment/repository/postgres/self_quiz_result.go`.
+
 ## 22 نوفمبر — أسباب فشل CI / PARTIAL
 
 PR #279 عند `3bb07063`: نجح Backend/Frontend/Database، وفشلت مجموعات المتصفح 82 و64 و234. معظمها موروث من فحوص main، ولا يثبت التشابه عدديًا تطابق كل عطل. يعمل Frontend E2E مع Vite فقط دون API عام، واختبارات كثيرة تستخدم ردودًا صناعية جزئية. مثال مُعاد الإنتاج: `track4_enterprise_ai_system.spec.ts` يعترض bootstrap للطور الكامل برد لا يتضمن skills، ما أدى إلى TypeError في بنك الأسئلة؛ بعد إكمال الرد ظهر فرق مستقل في العنوان المتوقع، كما أن أسماء عدد من الاختبارات تصف وظائف لا تفحصها. لا يجوز حذف الفحوص أو اعتبار العنوان وحده شهادة على الوظيفة.
