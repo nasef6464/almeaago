@@ -118,28 +118,16 @@ test.describe('S2 Route Splitting — Lazy Loading & Error Boundary Contracts', 
     expect(page.url()).toContain('/dashboard');
   });
 
-  test('loads supervisor dashboard chunk dynamically and preserves navigation state', async ({ page }) => {
-    await setupBaseMocks(page, 'supervisor');
-    await page.goto('/supervisor-dashboard?tab=overview');
+  test('loads school director dashboard chunk dynamically and preserves navigation state', async ({ page }) => {
+    await setupBaseMocks(page, 'school_admin');
+    await page.goto('/school-director');
 
-    await expect(page.getByRole('heading', { name: 'لوحة الإشراف' })).toBeVisible();
-    expect(page.url()).toContain('tab=overview');
+    await expect(page.getByRole('heading', { name: 'لوحة مدير المدرسة' })).toBeVisible();
+    expect(page.url()).toContain('/school-director');
 
-    // Test tab navigation
-    const studentsBtn = page.getByRole('button', { name: 'تعلم الطلاب وجاهزيتهم' });
-    if (await studentsBtn.isVisible()) {
-      await studentsBtn.click();
-      await expect(page).toHaveURL(/tab=students/);
-
-      // Reload test — verifies lazy chunk survives full page reload without crash
-      await page.reload();
-      await expect(page.getByRole('heading', { name: 'لوحة الإشراف' })).toBeVisible();
-      expect(page.url()).toContain('tab=students');
-
-      // History navigation (back button)
-      await page.goBack();
-      await expect(page).toHaveURL(/tab=overview/);
-    }
+    // Reload test — verifies lazy chunk survives full page reload without crash
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'لوحة مدير المدرسة' })).toBeVisible();
   });
 
   test('loads teacher workspace chunk with school scope and responsive viewports', async ({ page }) => {

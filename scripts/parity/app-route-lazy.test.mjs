@@ -9,7 +9,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const appFilePath = resolve(__dirname, '../../apps/web/src/app/App.tsx');
 const errorBoundaryPath = resolve(__dirname, '../../apps/web/src/app/AppErrorBoundary.tsx');
 
-const EXPECTED_30_LAZY_MODULES = [
+const EXPECTED_28_LAZY_MODULES = [
   { name: 'ContentAdminPage', path: '../features/content/pages/ContentAdminPage' },
   { name: 'AdminOverviewPage', path: '../features/content/pages/AdminOverviewPage' },
   { name: 'AssessmentAdminPage', path: '../features/assessment/pages/AssessmentAdminPage' },
@@ -31,14 +31,12 @@ const EXPECTED_30_LAZY_MODULES = [
   { name: 'PlatformFontsPage', path: '../features/presentation/PlatformFontsPage' },
   { name: 'HomepagePage', path: '../features/presentation/HomepagePage' },
   { name: 'SchoolDirectorDashboardPage', path: '../features/organizations/pages/SchoolDirectorDashboardPage' },
-  { name: 'SupervisorDashboardPage', path: '../features/organizations/pages/SupervisorDashboardPage' },
   { name: 'TeacherWorkspacePage', path: '../features/organizations/pages/TeacherWorkspacePage' },
   { name: 'PlatformTrainerDashboardPage', path: '../features/organizations/pages/PlatformTrainerDashboardPage' },
   { name: 'ClassroomTeacherPage', path: '../features/classroom/pages/ClassroomTeacherPage' },
   { name: 'ClassroomProjectorPage', path: '../features/classroom/pages/ClassroomProjectorPage' },
   { name: 'ClassroomJoinPage', path: '../features/classroom/pages/ClassroomJoinPage' },
   { name: 'ClassroomStudentPage', path: '../features/classroom/pages/ClassroomStudentPage' },
-  { name: 'ParentDashboardPage', path: '../features/parents/pages/ParentDashboardPage' },
   { name: 'SchoolInterventionsPage', path: '../features/learning/pages/SchoolInterventionsPage' },
 ];
 
@@ -56,13 +54,13 @@ test('App.tsx defines all 86 explicit route declarations preserving route invent
   assert.ok(routePaths.includes('*'), 'Must include 404 catch-all route');
 });
 
-test('App.tsx utilizes lazy-loading for the 30 role and admin modules with valid targets', () => {
+test('App.tsx utilizes lazy-loading for the 28 role and admin modules with valid targets', () => {
   const appSource = readFileSync(appFilePath, 'utf8');
   const appDir = dirname(appFilePath);
 
-  assert.equal(EXPECTED_30_LAZY_MODULES.length, 30, 'Should test exactly 30 lazy modules');
+  assert.equal(EXPECTED_28_LAZY_MODULES.length, 28, 'Should test exactly 28 lazy modules');
 
-  for (const mod of EXPECTED_30_LAZY_MODULES) {
+  for (const mod of EXPECTED_28_LAZY_MODULES) {
     const importPattern = new RegExp(`React\\.lazy\\s*\\(\\s*\\(\\)\\s*=>\\s*import\\(['"]${mod.path.replace(/\./g, '\\.')}['"]\\)`);
     assert.match(
       appSource,

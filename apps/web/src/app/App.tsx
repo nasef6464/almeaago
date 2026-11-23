@@ -30,6 +30,8 @@ import { LiveAssessmentJoinPage } from '../features/assessment/pages/LiveAssessm
 import { AdminDashboardShell } from '../features/content/components/AdminDashboardShell';
 import { NotificationInboxPage } from '../features/notifications/pages/NotificationInboxPage';
 import { CertificatePage } from '../features/organizations/pages/CertificatePage';
+import { SupervisorDashboardPage } from '../features/organizations/pages/SupervisorDashboardPage';
+import { ParentDashboardPage } from '../features/parents/pages/ParentDashboardPage';
 import { ProfilePage } from '../features/auth/pages/ProfilePage';
 import { AchievementsPage } from '../features/learning/pages/AchievementsPage';
 import { PwaInstallBanner } from '../features/presentation/PwaInstallBanner';
@@ -54,7 +56,7 @@ import { isHomepageLocation, isPlatformFontsLocation } from '../features/present
 import { ChatWidget } from '../features/ai/components/ChatWidget';
 import { FloatingContactWidget } from '../features/support/FloatingContactWidget';
 
-// 30 Lazy-Loaded Role & Admin Modules (Safe Route Splitting per Issue #284)
+// 28 Lazy-Loaded Role & Admin Modules (Safe Route Splitting per Issue #284)
 const ContentAdminPage = React.lazy(() => import('../features/content/pages/ContentAdminPage').then(m => ({ default: m.ContentAdminPage })));
 const AdminOverviewPage = React.lazy(() => import('../features/content/pages/AdminOverviewPage').then(m => ({ default: m.AdminOverviewPage })));
 const AssessmentAdminPage = React.lazy(() => import('../features/assessment/pages/AssessmentAdminPage').then(m => ({ default: m.AssessmentAdminPage })));
@@ -77,14 +79,12 @@ const PlatformFontsPage = React.lazy(() => import('../features/presentation/Plat
 const HomepagePage = React.lazy(() => import('../features/presentation/HomepagePage').then(m => ({ default: m.HomepagePage })));
 
 const SchoolDirectorDashboardPage = React.lazy(() => import('../features/organizations/pages/SchoolDirectorDashboardPage').then(m => ({ default: m.SchoolDirectorDashboardPage })));
-const SupervisorDashboardPage = React.lazy(() => import('../features/organizations/pages/SupervisorDashboardPage').then(m => ({ default: m.SupervisorDashboardPage })));
 const TeacherWorkspacePage = React.lazy(() => import('../features/organizations/pages/TeacherWorkspacePage').then(m => ({ default: m.TeacherWorkspacePage })));
 const PlatformTrainerDashboardPage = React.lazy(() => import('../features/organizations/pages/PlatformTrainerDashboardPage').then(m => ({ default: m.PlatformTrainerDashboardPage })));
 const ClassroomTeacherPage = React.lazy(() => import('../features/classroom/pages/ClassroomTeacherPage').then(m => ({ default: m.ClassroomTeacherPage })));
 const ClassroomProjectorPage = React.lazy(() => import('../features/classroom/pages/ClassroomProjectorPage').then(m => ({ default: m.ClassroomProjectorPage })));
 const ClassroomJoinPage = React.lazy(() => import('../features/classroom/pages/ClassroomJoinPage').then(m => ({ default: m.ClassroomJoinPage })));
 const ClassroomStudentPage = React.lazy(() => import('../features/classroom/pages/ClassroomStudentPage').then(m => ({ default: m.ClassroomStudentPage })));
-const ParentDashboardPage = React.lazy(() => import('../features/parents/pages/ParentDashboardPage').then(m => ({ default: m.ParentDashboardPage })));
 const SchoolInterventionsPage = React.lazy(() => import('../features/learning/pages/SchoolInterventionsPage').then(m => ({ default: m.SchoolInterventionsPage })));
 
 type ModalMode = 'login' | 'signup' | null;
