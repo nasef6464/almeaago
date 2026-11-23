@@ -28,6 +28,7 @@ import { learningClient } from '../../learning/api/learning-client';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
 import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
 import { AssessmentResultSummary } from '../components/AssessmentResultSummary';
+import { AssessmentPreviousAttempts } from '../components/AssessmentPreviousAttempts';
 import { optionLabel, showOptionText } from '../questionPresentation';
 import { relativeArabicDate } from '../relativeDate';
 import {
@@ -37,7 +38,19 @@ import {
   type ReviewQuestion,
 } from '../api/attempt-client';
 
-type ReviewFilter = 'all' | 'wrong' | 'unanswered' | 'marked';
+const reviewFilters = [
+  ['all', 'الكل'],
+  ['wrong', 'الأخطاء فقط'],
+  ['correct', 'الصحيحة'],
+  ['unanswered', 'بدون إجابة'],
+] as const;
+type ReviewFilter = (typeof reviewFilters)[number][0];
+
+function matchesReviewFilter(question: ReviewQuestion, filter: ReviewFilter) {
+  if (filter === 'all') return true;
+  if (filter === 'unanswered') return !question.answered;
+  return question.answered && question.correct === (filter === 'correct');
+}
 
 function resolveReviewImage(question: ReviewQuestion): string | null {
   if (question.imageUrl) return question.imageUrl;
@@ -325,8 +338,12 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [filter, setFilter] = useState<ReviewFilter>('all');
+  const [selectedQuestionId, setSelectedQuestionId] = useState('');
+  const [reviewBoardOpen, setReviewBoardOpen] = useState(false);
   const [fullResult, setFullResult] = useState(false);
+  const [summaryStatus, setSummaryStatus] = useState('');
   const reviewOpen = searchParams.get('view') === 'review';
+  const historyOpen = searchParams.get('view') === 'history';
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -346,7 +363,10 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
     setSaveError('');
     setSavingQuestion('');
     setFilter('all');
+    setSelectedQuestionId('');
+    setReviewBoardOpen(false);
     setFullResult(false);
+    setSummaryStatus('');
     setActiveSmartTeacherQuestion(null);
     setActiveStepSolverQuestion(null);
   }, [activeContext]);
@@ -394,13 +414,19 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
   }, [activeContext, attemptId, authLoading, page, user]);
 
 
-  function changeReviewView(open: boolean) {
+  function changeResultView(view: 'review' | 'history' | 'summary') {
     const params = new URLSearchParams(searchParams);
-    if (open) params.set('view', 'review');
+    if (view !== 'summary') params.set('view', view);
     else params.delete('view');
     setFilter('all');
+    setSelectedQuestionId('');
+    setReviewBoardOpen(false);
     setSearchParams(params, { replace: true });
     window.scrollTo(0, 0);
+  }
+
+  function changeReviewView(open: boolean) {
+    changeResultView(open ? 'review' : 'summary');
   }
 
   async function saveForReview(questionId: string) {
@@ -429,13 +455,15 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
     }
   }
 
-  const filteredQuestions = useMemo(() => {
-    const questions = detail?.questions || [];
-    if (filter === 'wrong') return questions.filter((question) => question.answered && !question.correct);
-    if (filter === 'unanswered') return questions.filter((question) => !question.answered);
-    if (filter === 'marked') return questions.filter((question) => question.markedForReview);
-    return questions;
-  }, [detail, filter]);
+  const filteredQuestions = useMemo(() => (detail?.questions || []).filter((question) => matchesReviewFilter(question, filter)), [detail, filter]);
+  const reviewCounts = useMemo(() => ({
+    all: detail?.questions?.length ?? 0,
+    wrong: detail?.questions?.filter(question => matchesReviewFilter(question, 'wrong')).length ?? 0,
+    correct: detail?.questions?.filter(question => matchesReviewFilter(question, 'correct')).length ?? 0,
+    unanswered: detail?.questions?.filter(question => matchesReviewFilter(question, 'unanswered')).length ?? 0,
+  }), [detail]);
+  const selectedIndex = Math.max(0, filteredQuestions.findIndex(question => question.questionId === selectedQuestionId));
+  const selectedQuestion = filteredQuestions[selectedIndex];
   const displayNumbers = useMemo(() => new Map((detail?.questions || []).map((question, index) => [question.questionId, index + 1])), [detail]);
 
   if (authLoading || busy || (attemptId && detailContext !== activeContext && !error)) {
@@ -494,6 +522,10 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
     return <main className="p-10 text-center font-black">النتيجة غير متاحة.</main>;
   }
 
+  if (historyOpen && detail.showResultsReport) {
+    return <AssessmentPreviousAttempts key={activeContext} onBack={() => changeResultView('summary')} />;
+  }
+
   const shouldShowReview = !detail.showResultsReport || reviewOpen;
   const weakestSkill = detail.skillAnalysis?.complete
     ? detail.skillAnalysis.items.reduce<(typeof detail.skillAnalysis.items)[number] | undefined>((lowest, skill) => (
@@ -503,27 +535,53 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
   const practiceURL = weakestSkill ? `/quiz?${new URLSearchParams({
     mode: 'self', pathId: weakestSkill.pathId, subjectId: weakestSkill.subjectId, skillIds: weakestSkill.skillId,
   })}` : '';
+  const followUpSkills = detail.skillAnalysis?.complete
+    ? detail.skillAnalysis.items.filter(skill => skill.status !== 'strong').sort((a, b) => a.mastery - b.mastery).slice(0, 3)
+    : [];
+  const guardianSummary = weakestSkill
+    ? `نتيجة الاختبار ${detail.result.score}%. أضعف مهارة ظهرت هي «${weakestSkill.skillName}» بنسبة ${weakestSkill.mastery}%.`
+    : `نتيجة الاختبار ${detail.result.score}%.`;
+
+  async function shareGuardianSummary(share: boolean) {
+    try {
+      if (share && navigator.share) {
+        await navigator.share({ title: 'ملخص نتيجة الاختبار', text: guardianSummary });
+        setSummaryStatus('تمت المشاركة');
+      } else {
+        await navigator.clipboard.writeText(guardianSummary);
+        setSummaryStatus('تم النسخ');
+      }
+    } catch (cause) {
+      if (!(cause instanceof DOMException && cause.name === 'AbortError')) setSummaryStatus('تعذر مشاركة الملخص');
+    }
+  }
   const retryURL = !returnTo && detail.assessmentId ? `/assessments/${encodeURIComponent(detail.assessmentId)}/start` : '';
   const resultNavigation = (
     <div className="flex flex-wrap items-center gap-3 print:hidden">
-      <Link to={embedded ? '/assessment-results' : '/dashboard'} aria-label={embedded ? 'العودة لسجل النتائج' : 'العودة للوحة الطالب'} className="text-gray-500"><ArrowRight size={22} /></Link>
-      <h1 className="text-xl font-bold">{shouldShowReview && detail.showResultsReport ? 'مراجعة الحلول والأسئلة' : 'نتيجة الاختبار'}</h1>
+      {reviewOpen && detail.showResultsReport ? (
+        <button type="button" onClick={() => changeReviewView(false)} aria-label="العودة للملخص" className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white text-slate-600"><ArrowRight size={20} /></button>
+      ) : (
+        <Link to={embedded ? '/assessment-results' : '/dashboard'} aria-label={embedded ? 'العودة لسجل النتائج' : 'العودة للوحة الطالب'} className="text-gray-500"><ArrowRight size={22} /></Link>
+      )}
+      <div>
+        <h1 className="text-xl font-bold">{reviewOpen && detail.showResultsReport ? 'مراجعة الحلول والأسئلة' : 'نتيجة الاختبار'}</h1>
+        {reviewOpen && detail.showResultsReport && <p className="text-xs font-bold text-slate-500">{detail.title} • تفاصيل الإجابات والشرح النموذجي</p>}
+      </div>
       {returnTo && !hideReturnLink && <Link to={returnTo} className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">{returnPathLabel(returnTo)}</Link>}
-      {detail.showResultsReport && reviewOpen && <button type="button" onClick={() => changeReviewView(false)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700">العودة للملخص</button>}
     </div>
   );
 
   return (
     <main dir="rtl" className="mx-auto max-w-5xl space-y-6 px-3 pb-20 pt-5 sm:px-6">
-      {shouldShowReview && <header>{resultNavigation}</header>}
+      {shouldShowReview && <header className="border-b border-slate-200/80 pb-2">{resultNavigation}</header>}
       {!detail.showResultsReport ? (
         <section className="rounded-2xl border border-slate-100 bg-white p-5">
           <h2 className="font-black text-gray-900">{detail.title}</h2>
           <p className="mt-2 text-sm font-bold text-gray-600">تم تسجيل إكمال الاختبار. تقرير الدرجات التفصيلي غير معروض وفق إعدادات هذا الاختبار.</p>
         </section>
       ) : !reviewOpen ? (
-        <AssessmentResultSummary detail={detail} navigation={resultNavigation} full={fullResult} onToggleFull={() => setFullResult((current) => !current)} onReview={() => changeReviewView(true)} practiceURL={practiceURL} retryURL={retryURL} />
-      ) : <h2 className="text-lg font-black text-gray-900">{detail.title}</h2>}
+        <AssessmentResultSummary detail={detail} navigation={resultNavigation} full={fullResult} onToggleFull={() => setFullResult((current) => !current)} onReview={() => changeReviewView(true)} onHistory={() => changeResultView('history')} practiceURL={practiceURL} retryURL={retryURL} />
+      ) : null}
         {!shouldShowReview && detail.showResultsReport && detail.skillAnalysis ? (
           <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="attempt-skills-heading">
             <div className="mb-5">
@@ -587,56 +645,96 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
           </div>
         </section>
       ) : null}
+      {!shouldShowReview && detail.showResultsReport && fullResult && (
+        <>
+          <section aria-labelledby="guardian-summary" className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
+            <h2 id="guardian-summary" className="text-sm font-black text-indigo-900">ملخص سريع لولي الأمر أو المعلم</h2>
+            <p className="mt-2 text-sm leading-7 text-indigo-800">{guardianSummary}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2 print:hidden">
+              <button type="button" onClick={() => void shareGuardianSummary(false)} className="rounded-full bg-white px-3 py-1 text-xs font-black text-indigo-700">نسخ الملخص</button>
+              <button type="button" onClick={() => void shareGuardianSummary(true)} className="rounded-full bg-white px-3 py-1 text-xs font-black text-emerald-700">مشاركة</button>
+              <span role="status" className="text-xs font-bold text-indigo-900">{summaryStatus}</span>
+            </div>
+          </section>
+          {detail.skillAnalysis?.complete && followUpSkills.length > 0 && <section aria-labelledby="follow-up-skills" className="rounded-3xl border border-gray-100 bg-white p-4 sm:p-5">
+            <h2 id="follow-up-skills" className="text-lg font-black text-gray-800">مهارات تحتاج متابعة</h2>
+            <div className="mt-4 space-y-3">
+              {followUpSkills.map(skill => (
+                <div key={`${skill.pathId}:${skill.subjectId}:${skill.skillId}`} className="rounded-2xl border border-gray-100 p-3 sm:p-4">
+                  <div className="flex items-center justify-between gap-2 font-black text-gray-900">
+                    <h3>{skill.skillName}</h3><span className="rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-800">{skill.mastery}%</span>
+                  </div>
+                  <p className="mt-1 text-xs font-bold text-gray-500">{skill.subjectName} · {skill.questionCount} سؤال</p>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-amber-500" style={{ width: `${skill.mastery}%` }} /></div>
+                </div>
+              ))}
+            </div>
+          </section>}
+        </>
+      )}
         {saveError ? <p role="alert" className="text-sm font-bold text-rose-700">{saveError}</p> : null}
         {!detail.allowQuestionReview ? (
           <section className="rounded-2xl border border-amber-100 bg-amber-50 p-5 text-sm font-bold leading-7 text-amber-900">
             مراجعة الأسئلة غير متاحة لهذا الاختبار وفق إعدادات النسخة التي أجريت عليها المحاولة.
           </section>
         ) : shouldShowReview ? (
-          <>
-            <section aria-label="مراجعة الحلول" className="grid grid-cols-2 gap-2 rounded-2xl border border-gray-100 bg-white p-2 shadow-sm sm:grid-cols-4">
-              {([
-                ['all', 'الكل'],
-                ['wrong', 'أخطأت فيها'],
-                ['unanswered', 'بدون إجابة'],
-                ['marked', 'للمراجعة'],
-              ] as Array<[ReviewFilter, string]>).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setFilter(value)}
-                  className={`rounded-xl px-3 py-2.5 text-sm font-black ${
-                    filter === value ? 'bg-slate-950 text-white' : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </section>
-
-            {filteredQuestions.length === 0 ? (
+          <div className="grid items-start gap-6 lg:grid-cols-12">
+            <section className="space-y-4 lg:col-span-8" aria-label="السؤال الحالي">
+            {!selectedQuestion ? (
               <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm font-bold text-gray-500">
                 لا توجد أسئلة في هذا التصنيف.
               </div>
             ) : (
-              <div className="space-y-3">
-                {filteredQuestions.map((question) => (
+              <>
                   <ReviewQuestionCard
-                    key={`${question.questionId}:${question.questionVersion}`}
-                    question={question}
-                    displayNumber={displayNumbers.get(question.questionId) || 1}
+                    key={`${selectedQuestion.questionId}:${selectedQuestion.questionVersion}`}
+                    question={selectedQuestion}
+                    displayNumber={displayNumbers.get(selectedQuestion.questionId) || 1}
                     detail={detail}
-                    saved={savedQuestions.has(question.questionId)}
-                    saving={savingQuestion === question.questionId}
+                    saved={savedQuestions.has(selectedQuestion.questionId)}
+                    saving={savingQuestion === selectedQuestion.questionId}
                     onSave={(questionId) => void saveForReview(questionId)}
                     onZoomImage={setZoomImageUrl}
                     onOpenSmartTeacher={setActiveSmartTeacherQuestion}
                     onOpenStepSolution={setActiveStepSolverQuestion}
                   />
+                  <nav aria-label="التنقل بين الأسئلة" className="flex justify-between gap-2">
+                    <button type="button" disabled={selectedIndex === 0} onClick={() => setSelectedQuestionId(filteredQuestions[selectedIndex - 1].questionId)} className="inline-flex items-center gap-1 rounded-xl border bg-white px-3 py-2 text-sm font-black disabled:opacity-40"><ChevronRight size={16}/> السؤال السابق</button>
+                    <button type="button" disabled={selectedIndex === filteredQuestions.length - 1} onClick={() => setSelectedQuestionId(filteredQuestions[selectedIndex + 1].questionId)} className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-black text-white disabled:opacity-40">السؤال التالي <ChevronLeft size={16}/></button>
+                  </nav>
+              </>
+            )}
+            </section>
+            <aside aria-label="لوحة مراجعة الأسئلة" className="rounded-2xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-6 lg:col-span-4 lg:rounded-3xl">
+              <button type="button" aria-expanded={reviewBoardOpen} onClick={() => setReviewBoardOpen(open => !open)} className="w-full rounded-2xl p-3 text-xs font-black text-slate-900 lg:hidden">
+                لوحة الأسئلة · {reviewCounts.all}
+              </button>
+              <div className={`${reviewBoardOpen ? 'block' : 'hidden'} space-y-4 p-4 lg:block`}>
+              <h2 className="hidden text-sm font-black text-slate-900 lg:block">لوحة مراجعة الأسئلة</h2>
+              <div className="grid grid-cols-2 gap-2">
+                {reviewFilters.map(([value, label]) => (
+                  <button key={value} type="button" aria-pressed={filter === value} onClick={() => {
+                    setFilter(value);
+                    setSelectedQuestionId(selectedQuestion?.questionId || '');
+                  }} className={`rounded-xl border px-2 py-2 text-xs font-black ${filter === value ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-100 bg-slate-50 text-slate-700'}`}>
+                    {label} ({reviewCounts[value]})
+                  </button>
                 ))}
               </div>
-            )}
-          </>
+              <div className="grid max-h-56 grid-cols-6 gap-2 overflow-y-auto p-1">
+                {filteredQuestions.map(question => {
+                  const number = displayNumbers.get(question.questionId);
+                  const current = question.questionId === selectedQuestion?.questionId;
+                  const tone = !question.answered ? 'bg-amber-50 text-amber-800' : question.correct ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white';
+                  return <button key={question.questionId} type="button" aria-label={`سؤال ${number}`} aria-current={current ? 'step' : undefined}
+                    onClick={() => setSelectedQuestionId(question.questionId)} className={`h-9 rounded-xl text-xs font-black ${tone} ${current ? 'ring-2 ring-indigo-500 ring-offset-1' : ''}`}>{number}</button>;
+                })}
+              </div>
+              {reviewCounts.wrong > 0 && <Link to="/favorites?tab=mistakes" className="block rounded-2xl border border-rose-200 bg-rose-50 p-2.5 text-center text-xs font-black text-rose-700">تدرب على أخطائك في بنك المراجعة ({reviewCounts.wrong})</Link>}
+              <button type="button" onClick={() => changeReviewView(false)} className="w-full rounded-2xl bg-slate-900 py-3 text-xs font-black text-white">إنهاء المراجعة والعودة للملخص</button>
+              </div>
+            </aside>
+          </div>
         ) : null}
 
       {/* Step Solution Player (Audio + KaTeX + Whiteboard Steps) */}

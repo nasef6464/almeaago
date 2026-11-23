@@ -84,9 +84,17 @@ test('filtered review preserves displayed order after question shuffling',async(
   await page.route('**/api/v1/assessment-attempts/attempt-1/review',r=>r.fulfill({json:{detail:{result,assessmentId:'a1',assessmentVersion:1,title:'اختبار',attemptNumber:1,allowQuestionReview:true,showAnswers:true,showExplanations:true,showResultsReport:true,questions}}}));
   await page.goto('/assessment-results/attempt-1',{waitUntil:'domcontentloaded'});
   await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
-  await page.getByRole('button',{name:'أخطأت فيها'}).click();
+  const boardToggle = page.getByRole('button', { name: /لوحة الأسئلة/ });
+  if (await boardToggle.isVisible()) await boardToggle.click();
+  await page.getByRole('button',{name:/الأخطاء فقط/}).click();
   const second=page.getByText('نص second').locator('xpath=ancestor::article');
   await expect(second).toContainText('سؤال 2');
+  await expect(page.getByText('نص third')).toHaveCount(0);
+  await page.getByRole('button', { name: 'السؤال التالي' }).click();
+  await expect(second).toHaveCount(0);
   const third=page.getByText('نص third').locator('xpath=ancestor::article');
+  await expect(third).toBeVisible();
   await expect(third).not.toContainText('سؤال 3');
+  await page.getByRole('button', { name: 'سؤال 2' }).click();
+  await expect(second).toBeVisible();
 });

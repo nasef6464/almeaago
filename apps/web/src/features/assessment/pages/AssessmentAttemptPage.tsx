@@ -143,7 +143,7 @@ export function AssessmentAttemptPage() {
             }
             if (active) {
               removeAttemptBookmark(user.id, attemptId);
-              setResult(submitted.result);
+              finishAttempt(response.attempt, submitted.result);
             }
           }
         } else if (assessmentId) {
@@ -164,7 +164,7 @@ export function AssessmentAttemptPage() {
     };
     void run();
     return () => { active = false; };
-  }, [assessmentId, attemptId, loading, user?.id]);
+  }, [assessmentId, attemptId, loading, returnTo, user?.id]);
 
   useEffect(() => {
     if (!attempt || result) return;
@@ -428,6 +428,17 @@ export function AssessmentAttemptPage() {
     }
   }
 
+  function finishAttempt(completedAttempt: Attempt, completedResult: Result) {
+    if (completedAttempt.showResultsReport === true) {
+      const resultPath = `/assessment-results/${encodeURIComponent(completedResult.attemptId)}`;
+      navigate(returnTo ? `${resultPath}?${new URLSearchParams({ returnTo })}` : resultPath, { replace: true });
+    } else if (completedAttempt.showResultsReport === false && returnTo) {
+      navigate(returnTo, { replace: true });
+    } else {
+      setResult(completedResult);
+    }
+  }
+
   async function submit() {
     if (!attempt || busy || actionRef.current || draftChoice?.attemptId === attempt.id) return;
     const actionScope = scopeKey;
@@ -449,8 +460,7 @@ export function AssessmentAttemptPage() {
       );
       if (scopeRef.current === actionScope) {
         if (user) removeAttemptBookmark(user.id, attempt.id);
-        if (attempt.showResultsReport === false && returnTo) navigate(returnTo, { replace: true });
-        else setResult(response.result);
+        finishAttempt(attempt, response.result);
       }
     } catch (cause) {
       if (scopeRef.current === actionScope) {

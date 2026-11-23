@@ -34,11 +34,14 @@ for (const [destination,label] of [
 }
 test('review preserves the course lesson return path after submission',async({page})=>{
  const destination='/learning/courses/course-1?lesson=lesson-1';
+ await page.route('**/api/v1/assessment-attempts/a1',r=>r.fulfill({json:{attempt:{...attempt,showResultsReport:true}}}));
+ await page.route('**/api/v1/assessment-attempts/a1/review',r=>r.fulfill({json:{detail:{result:{attemptId:'a1',score:0,totalQuestions:1,correctAnswers:0,wrongAnswers:0,unanswered:1,timeSpentSeconds:3,finalizedAt:'2026-01-01T00:00:00Z'},assessmentId:'assessment-1',assessmentVersion:1,title:'تدريب النسب',attemptNumber:1,allowQuestionReview:false,showAnswers:false,showExplanations:false,showResultsReport:true}}}));
  await page.goto(`/assessment-attempts/a1?${new URLSearchParams({returnTo:destination})}`);
  await page.getByRole('button',{name:'إنهاء الاختبار',exact:true}).click();
  await page.getByRole('button',{name:'نعم، قم بالتسليم'}).click();
- await page.getByRole('link',{name:'عرض النتيجة والمراجعة'}).click();
+ await expect(page).toHaveURL(/\/assessment-results\/a1\?/);
  await expect(page.getByRole('heading',{name:'تدريب النسب'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'تم تسليم الاختبار'})).toHaveCount(0);
  await expect(page.getByRole('link',{name:'العودة إلى الدرس',exact:true})).toHaveAttribute('href',destination);
 });
 test('review rejects an unsafe return path',async({page})=>{

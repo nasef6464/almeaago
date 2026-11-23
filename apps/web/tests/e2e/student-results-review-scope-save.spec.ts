@@ -63,15 +63,24 @@ test('saved question remains globally saved across two attempts for the same lea
   await page.getByRole('link', { name: 'عرض النتيجة' }).first().click();
   await expect(page.getByRole('heading', { name: 'attempt-1' })).toBeVisible();
   await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
-  await page.getByRole('button', { name: 'للمراجعة', exact: true }).click();
+  await page.getByRole('button', { name: /^بدون إجابة/ }).click();
   await expect(page.getByText(question.text)).not.toBeVisible();
   await expect(page.getByRole('button', { name: 'حفظ للمراجعة' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'الكل', exact: true }).click();
+  await page.getByRole('button', { name: /^الكل/ }).click();
   await page.getByRole('button', { name: 'حفظ للمراجعة' }).click();
   await expect(page.getByRole('button', { name: 'تم الحفظ' })).toBeDisabled();
-  await page.getByRole('button', { name: 'العودة للملخص' }).click();
-  await page.getByRole('link', { name: 'المحاولات السابقة' }).click();
-  await page.getByRole('link', { name: 'عرض النتيجة' }).nth(1).click();
+  await page.getByRole('button', { name: 'العودة للملخص', exact: true }).click();
+  await page.getByRole('button', { name: 'المحاولات السابقة' }).click();
+  await expect(page.getByRole('heading', { name: 'محاولاتك السابقة' })).toBeVisible();
+  const secondGroup = page.getByRole('button', { name: /attempt-2/ });
+  await expect(secondGroup).toHaveAttribute('aria-expanded', 'false');
+  await secondGroup.click();
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: `test-results/assessment-previous-attempts-${width}.png`, fullPage: true });
+  }
+  await page.getByRole('link', { name: 'تحليل', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'attempt-2' })).toBeVisible();
   await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
   await expect(page.getByText(question.text)).toBeVisible();
@@ -108,9 +117,10 @@ test('late failed save from a previous result cannot replace the next result', a
   const requested = page.waitForRequest('**/api/v1/review/questions/shared-question/saved');
   await page.getByRole('button', { name: 'حفظ للمراجعة' }).click();
   await requested;
-  await page.getByRole('button', { name: 'العودة للملخص' }).click();
-  await page.getByRole('link', { name: 'المحاولات السابقة' }).click();
-  await page.getByRole('link', { name: 'عرض النتيجة' }).nth(1).click();
+  await page.getByRole('button', { name: 'العودة للملخص', exact: true }).click();
+  await page.getByRole('button', { name: 'المحاولات السابقة' }).click();
+  await page.getByRole('button', { name: /attempt-2/ }).click();
+  await page.getByRole('link', { name: 'تحليل', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'attempt-2' })).toBeVisible();
   await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
   release();

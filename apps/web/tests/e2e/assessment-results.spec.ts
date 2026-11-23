@@ -74,7 +74,7 @@ test('learner history is bounded and disabled review exposes no question content
   await expect(page.getByText('الإجابة الصحيحة')).toHaveCount(0);
 });
 
-test('mobile review filters wrong unanswered and marked questions without leaking hidden key', async ({ page }) => {
+test('mobile review filters wrong unanswered and correct questions without leaking hidden key', async ({ page }) => {
   await auth(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/api/v1/assessment-attempts/attempt-1/review', (route) =>
@@ -155,9 +155,18 @@ test('mobile review filters wrong unanswered and marked questions without leakin
   await expect(page.getByText('٢ + ٢ = ؟')).toHaveCount(0);
   await page.getByRole('button', { name: 'عرض التقرير الكامل' }).click();
   await expect(page.getByRole('button', { name: 'العودة للملخص البسيط' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'ملخص سريع لولي الأمر أو المعلم' })).toBeVisible();
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: `test-results/assessment-result-full-${width}.png`, fullPage: true });
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: 'العودة للملخص البسيط' }).click();
+  await expect(page.getByRole('heading', { name: 'ملخص سريع لولي الأمر أو المعلم' })).toHaveCount(0);
   await page.getByRole('button', { name: 'مراجعة الأسئلة (2)' }).click();
-  await page.getByRole('button', { name: 'أخطأت فيها' }).click();
+  await page.getByRole('button', { name: /لوحة الأسئلة/ }).click();
+  await page.getByRole('button', { name: /الأخطاء فقط/ }).click();
   await expect(page.getByText('٢ + ٢ = ؟')).toBeVisible();
   await expect(page.getByText('٥ + ٥ = ؟')).toHaveCount(0);
   await expect(page.getByText('الإجابة الصحيحة')).toHaveCount(0);
@@ -165,7 +174,13 @@ test('mobile review filters wrong unanswered and marked questions without leakin
   await page.getByRole('button', { name: 'بدون إجابة' }).click();
   await expect(page.getByText('٥ + ٥ = ؟')).toBeVisible();
 
-  await page.getByRole('button', { name: 'للمراجعة', exact: true }).click();
+  await page.getByRole('button', { name: /^الصحيحة/ }).click();
+  await expect(page.getByText('لا توجد أسئلة في هذا التصنيف.')).toBeVisible();
+  await page.getByRole('button', { name: /^الكل/ }).click();
   await expect(page.getByText('٢ + ٢ = ؟')).toBeVisible();
-  await page.screenshot({ path: 'test-results/assessment-result-review-mobile.png', fullPage: true });
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: 'test-results/assessment-result-review-' + width + '.png', fullPage: true });
+  }
 });

@@ -11,6 +11,7 @@ type Props = {
   full: boolean;
   onToggleFull: () => void;
   onReview: () => void;
+  onHistory: () => void;
   practiceURL: string;
   retryURL: string;
 };
@@ -24,7 +25,7 @@ function formatTime(seconds: number) {
 
 const actionClass = 'inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-center text-xs font-black shadow-sm sm:px-4 sm:text-sm';
 
-export function AssessmentResultSummary({ detail, navigation, full, onToggleFull, onReview, practiceURL, retryURL }: Props) {
+export function AssessmentResultSummary({ detail, navigation, full, onToggleFull, onReview, onHistory, practiceURL, retryURL }: Props) {
   const detailsDialog = useRef<HTMLDialogElement>(null);
   const { result } = detail;
   const reviewCount = detail.allowQuestionReview ? (detail.questions?.length ?? 0) : 0;
@@ -114,15 +115,10 @@ export function AssessmentResultSummary({ detail, navigation, full, onToggleFull
             {practiceURL && <Link to={practiceURL} className={`${actionClass} border-indigo-600 bg-indigo-600 text-white`}><PlusCircle size={17} /> اختبار تدريبي إضافي</Link>}
             {retryURL && <Link to={retryURL} className={`${actionClass} border-slate-200 bg-white text-slate-700`}><RefreshCw size={16} /> إعادة الاختبار</Link>}
             <button type="button" onClick={() => detailsDialog.current?.showModal()} className={`${actionClass} border-indigo-200 bg-indigo-50 text-indigo-700`}><BarChart3 size={16} /> تفاصيل أكثر</button>
-            <Link to="/assessment-results" className={`${actionClass} border-slate-200 bg-white text-slate-700`}><History size={16} /> المحاولات السابقة</Link>
+            <button type="button" onClick={onHistory} className={`${actionClass} border-slate-200 bg-white text-slate-700`}><History size={16} /> المحاولات السابقة</button>
           </div>
         </div>
       </section>
-
-      {full && <section aria-label="التقرير الكامل" className="rounded-2xl border border-slate-100 bg-white p-4">
-        <h3 className="font-black text-slate-900">التقرير الكامل</h3>
-        <p className="mt-2 text-sm font-bold text-slate-600">المحاولة {detail.attemptNumber} · {new Date(result.finalizedAt).toLocaleString('ar-SA')}</p>
-      </section>}
 
       <dialog ref={detailsDialog} dir="rtl" aria-labelledby="assessment-result-details-heading" className="m-auto w-[min(92vw,28rem)] rounded-3xl border border-slate-100 p-5 shadow-xl backdrop:bg-slate-950/30 print:hidden">
         <h3 id="assessment-result-details-heading" className="text-lg font-black text-slate-900">تفاصيل النتيجة</h3>
