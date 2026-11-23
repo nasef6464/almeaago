@@ -11,6 +11,7 @@ test('image-question review keeps AI context out of both visible teacher tools',
   let sentText = '';
   await page.route('**/api/v1/ai/question-assistant', async r => {sentText = r.request().postDataJSON().questionText; await r.fulfill({status:503,contentType:'application/json',body:'{}'});});
   await page.goto('/assessment-results/a');
+  await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
   await expect(page.getByRole('button', {name:'شرح صوتي خطوة بخطوة بالسبورة 🎙️'})).toBeVisible();
   await expect(page.getByText(secret)).toHaveCount(0);
   await page.getByRole('button', {name:'شرح صوتي خطوة بخطوة بالسبورة 🎙️'}).click();

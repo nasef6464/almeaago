@@ -92,6 +92,7 @@ test('student saves a result question into the canonical review card', async ({ 
   });
 
   await page.goto('/assessment-results/attempt-1');
+  await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
   await expect(page.getByRole('heading', { name: 'اختبار كمي' })).toBeVisible();
   await page.getByRole('button', { name: 'حفظ للمراجعة' }).click();
   await expect(page.getByRole('button', { name: 'تم الحفظ' })).toBeVisible();

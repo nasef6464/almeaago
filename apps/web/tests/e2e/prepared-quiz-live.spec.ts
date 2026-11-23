@@ -55,6 +55,7 @@ test('رحلة الاختبار الجاهز بين الإدارة والطال�
   await expect(page.getByRole('link', { name: 'عرض النتيجة والمراجعة' })).toBeVisible();
   await page.getByRole('link', { name: 'عرض النتيجة والمراجعة' }).click();
   await expect(page.getByRole('heading', { name: 'اختبار تجريبي جاهز' })).toBeVisible();
+  await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
   await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible();
 
   await login(process.env.PREPARED_OTHER_EMAIL!);

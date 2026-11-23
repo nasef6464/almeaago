@@ -27,6 +27,7 @@ test('image review displays image and labels only',async({page})=>{
   await auth(page);
   await page.route('**/api/v1/assessment-attempts/attempt-1/review',r=>r.fulfill({json:{detail:{result,assessmentId:'a1',assessmentVersion:1,title:'اختبار',attemptNumber:1,allowQuestionReview:true,showAnswers:true,showExplanations:true,showResultsReport:true,questions:[{...imageQuestion,questionId:'q1',questionVersion:1,selectedOptionIndex:0,correctOptionIndex:0,answered:true,correct:true,markedForReview:false,timeSpentSeconds:1}]}}}));
   await page.goto('/assessment-results/attempt-1',{waitUntil:'domcontentloaded'});
+  await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
   await noHiddenText(page);
   await expect(page.getByText('A',{exact:true})).toBeVisible();
   await expect(page.getByText('B',{exact:true})).toBeVisible();
@@ -63,6 +64,7 @@ test('review labels follow shuffled display order while answer identity stays un
   const question={...imageQuestion,imageUrl:'',imageAssetId:'',text:'سؤال نصي',passage:'',learnerPresentation:{optionLabelStyle:'latin',showOptionText:true,showOptionLabels:true},options:[{index:1,text:'الخيار الثاني',assetId:''},{index:0,text:'الخيار الأول',assetId:''}],questionId:'q1',questionVersion:1,selectedOptionIndex:1,correctOptionIndex:0,answered:true,correct:false,markedForReview:false,timeSpentSeconds:1};
   await page.route('**/api/v1/assessment-attempts/attempt-1/review',r=>r.fulfill({json:{detail:{result,assessmentId:'a1',assessmentVersion:1,title:'اختبار',attemptNumber:1,allowQuestionReview:true,showAnswers:true,showExplanations:true,showResultsReport:true,questions:[question]}}}));
   await page.goto('/assessment-results/attempt-1',{waitUntil:'domcontentloaded'});
+  await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
   await expect(page.locator('div').filter({hasText:/^A\s*الخيار الثاني\s*اختيارك$/}).last()).toBeVisible();
   await expect(page.locator('div').filter({hasText:/^B\s*الخيار الأول\s*الإجابة الصحيحة$/}).last()).toBeVisible();
 });
@@ -81,6 +83,7 @@ test('filtered review preserves displayed order after question shuffling',async(
   const questions=[q('first',8,true),q('second',1,false),q('third',0,false,{showQuestionNumber:false})];
   await page.route('**/api/v1/assessment-attempts/attempt-1/review',r=>r.fulfill({json:{detail:{result,assessmentId:'a1',assessmentVersion:1,title:'اختبار',attemptNumber:1,allowQuestionReview:true,showAnswers:true,showExplanations:true,showResultsReport:true,questions}}}));
   await page.goto('/assessment-results/attempt-1',{waitUntil:'domcontentloaded'});
+  await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
   await page.getByRole('button',{name:'أخطأت فيها'}).click();
   const second=page.getByText('نص second').locator('xpath=ancestor::article');
   await expect(second).toContainText('سؤال 2');

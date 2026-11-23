@@ -143,6 +143,20 @@ test('mobile review filters wrong unanswered and marked questions without leakin
 
   await page.goto('/assessment-results/attempt-1');
   await expect(page.getByRole('heading', { name: 'محاكي كمي' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'نتيجة الاختبار' })).toBeVisible();
+  await expect(page.getByText('ملخص النتيجة')).toBeVisible();
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: 'test-results/assessment-result-summary-' + width + '.png', fullPage: true });
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('button', { name: 'تحميل PDF' })).toBeVisible();
+  await expect(page.getByText('٢ + ٢ = ؟')).toHaveCount(0);
+  await page.getByRole('button', { name: 'عرض التقرير الكامل' }).click();
+  await expect(page.getByRole('button', { name: 'العودة للملخص البسيط' })).toBeVisible();
+  await page.getByRole('button', { name: 'العودة للملخص البسيط' }).click();
+  await page.getByRole('button', { name: 'مراجعة الأسئلة (2)' }).click();
   await page.getByRole('button', { name: 'أخطأت فيها' }).click();
   await expect(page.getByText('٢ + ٢ = ؟')).toBeVisible();
   await expect(page.getByText('٥ + ٥ = ؟')).toHaveCount(0);

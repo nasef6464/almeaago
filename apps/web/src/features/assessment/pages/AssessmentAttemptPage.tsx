@@ -493,8 +493,8 @@ export function AssessmentAttemptPage() {
   }
   if (result) {
     return (
-      <main dir="rtl" className="mx-auto max-w-xl p-5">
-        <section className="rounded-3xl border bg-white p-8 text-center shadow-sm">
+      <main dir="rtl" className="mx-auto max-w-5xl p-5">
+        <section className="mx-auto max-w-xl rounded-3xl border bg-white p-8 text-center shadow-sm print:hidden">
           <CheckCircle2 className="mx-auto text-emerald-600" size={48} />
           <h1 className="mt-3 text-2xl font-black">تم تسليم الاختبار</h1>
           {attempt?.showResultsReport !== false ? (

@@ -1,6 +1,5 @@
 import { safeReturnPath, returnPathLabel } from '../navigation/returnPath';
 import {
-  AlertCircle,
   ArrowRight,
   Bookmark,
   BookOpen,
@@ -28,7 +27,7 @@ import { StepSolutionModal } from '../../classroom/components/whiteboard/StepSol
 import { learningClient } from '../../learning/api/learning-client';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
 import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
-import { ResultDonutChart } from '../components/ResultDonutChart';
+import { AssessmentResultSummary } from '../components/AssessmentResultSummary';
 import { optionLabel, showOptionText } from '../questionPresentation';
 import { relativeArabicDate } from '../relativeDate';
 import {
@@ -53,11 +52,6 @@ function hasReviewImage(question: ReviewQuestion): boolean {
   return Boolean(resolveReviewImage(question) || question.imageAssetId);
 }
 
-function scoreTone(passed: boolean) {
-  return passed
-    ? 'border-emerald-100 bg-emerald-50 text-emerald-800'
-    : 'border-rose-100 bg-rose-50 text-rose-800';
-}
 
 function ResultSummary({ item }: { item: ResultListItem }) {
   return (
@@ -323,7 +317,7 @@ const learnerSavedReviewQuestions = new Map<string, Set<string>>();
 export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLink }: { embedded?: boolean; resultAttemptId?: string; hideReturnLink?: boolean } = {}) {
   const { attemptId: routeAttemptId = '' } = useParams();
   const attemptId = resultAttemptId || routeAttemptId;
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const returnTo = safeReturnPath(searchParams.get('returnTo'));
   const { user, loading: authLoading, getCsrfToken } = useAuth();
   const [history, setHistory] = useState<ResultListItem[]>([]);
@@ -331,6 +325,8 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [filter, setFilter] = useState<ReviewFilter>('all');
+  const [fullResult, setFullResult] = useState(false);
+  const reviewOpen = searchParams.get('view') === 'review';
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -350,6 +346,7 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
     setSaveError('');
     setSavingQuestion('');
     setFilter('all');
+    setFullResult(false);
     setActiveSmartTeacherQuestion(null);
     setActiveStepSolverQuestion(null);
   }, [activeContext]);
@@ -395,6 +392,16 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
       active = false;
     };
   }, [activeContext, attemptId, authLoading, page, user]);
+
+
+  function changeReviewView(open: boolean) {
+    const params = new URLSearchParams(searchParams);
+    if (open) params.set('view', 'review');
+    else params.delete('view');
+    setFilter('all');
+    setSearchParams(params, { replace: true });
+    window.scrollTo(0, 0);
+  }
 
   async function saveForReview(questionId: string) {
     if (savedQuestions.has(questionId) || savingQuestion) return;
@@ -487,42 +494,37 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
     return <main className="p-10 text-center font-black">النتيجة غير متاحة.</main>;
   }
 
-  const result = detail.result;
-  return (
-    <main dir="rtl" className="mx-auto max-w-5xl space-y-5 px-3 pb-20 pt-5 sm:px-6">
-      <header className="rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50/70 via-white to-sky-50/40 p-5 shadow-sm">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-3">
-            <Link to="/assessment-results" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="العودة لسجل النتائج"><ArrowRight size={20}/></Link>
-            <div><div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-black text-gray-900 sm:text-2xl">{detail.title}</h1><span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-black text-indigo-700">المحاولة {detail.attemptNumber}</span></div><p className="mt-1 text-xs font-bold text-gray-500">{new Date(result.finalizedAt).toLocaleString('ar-SA')}</p></div>
-          </div>
-          <div className="flex flex-wrap gap-2">{returnTo && !hideReturnLink && <Link to={returnTo} className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700">{returnPathLabel(returnTo)}</Link>}<Link to="/review" className="rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-xs font-black text-purple-700">أسئلتي للمراجعة</Link><Link to="/assessments" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">اختبار جديد</Link></div>
-        </div>
+  const shouldShowReview = !detail.showResultsReport || reviewOpen;
+  const weakestSkill = detail.skillAnalysis?.complete
+    ? detail.skillAnalysis.items.reduce<(typeof detail.skillAnalysis.items)[number] | undefined>((lowest, skill) => (
+      skill.status !== 'strong' && (!lowest || skill.mastery < lowest.mastery) ? skill : lowest
+    ), undefined)
+    : undefined;
+  const practiceURL = weakestSkill ? `/quiz?${new URLSearchParams({
+    mode: 'self', pathId: weakestSkill.pathId, subjectId: weakestSkill.subjectId, skillIds: weakestSkill.skillId,
+  })}` : '';
+  const retryURL = !returnTo && detail.assessmentId ? `/assessments/${encodeURIComponent(detail.assessmentId)}/start` : '';
+  const resultNavigation = (
+    <div className="flex flex-wrap items-center gap-3 print:hidden">
+      <Link to={embedded ? '/assessment-results' : '/dashboard'} aria-label={embedded ? 'العودة لسجل النتائج' : 'العودة للوحة الطالب'} className="text-gray-500"><ArrowRight size={22} /></Link>
+      <h1 className="text-xl font-bold">{shouldShowReview && detail.showResultsReport ? 'مراجعة الحلول والأسئلة' : 'نتيجة الاختبار'}</h1>
+      {returnTo && !hideReturnLink && <Link to={returnTo} className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">{returnPathLabel(returnTo)}</Link>}
+      {detail.showResultsReport && reviewOpen && <button type="button" onClick={() => changeReviewView(false)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700">العودة للملخص</button>}
+    </div>
+  );
 
-        {detail.showResultsReport ? (
-          <div className="mt-5 grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-            <div className="flex justify-center p-2 md:border-l md:border-indigo-100">
-              <ResultDonutChart
-                data={[
-                  { name: 'صحيحة', value: result.correctAnswers, color: '#10b981' },
-                  { name: 'خاطئة', value: result.wrongAnswers, color: '#ef4444' },
-                  { name: 'بدون إجابة', value: result.unanswered, color: '#f59e0b' },
-                ]}
-                centerLabel={`${result.score.toFixed(0)}%`}
-                centerSubLabel={result.passed ? 'ناجح' : 'يحتاج تدريب'}
-                primaryColor="#10b981"
-              />
-            </div>
-            <div className="md:col-span-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <div className={`rounded-2xl border p-3 text-center ${scoreTone(result.passed)}`}><div className="text-3xl font-black">{result.score.toFixed(1)}%</div><div className="text-xs font-bold">الدرجة</div></div>
-              <div className="rounded-2xl bg-emerald-50 p-3 text-center text-emerald-800"><CheckCircle2 className="mx-auto" size={20}/><div className="mt-1 font-black">{result.correctAnswers}</div><div className="text-xs font-bold">صحيحة</div></div>
-              <div className="rounded-2xl bg-rose-50 p-3 text-center text-rose-800"><XCircle className="mx-auto" size={20}/><div className="mt-1 font-black">{result.wrongAnswers}</div><div className="text-xs font-bold">خاطئة</div></div>
-              <div className="rounded-2xl bg-amber-50 p-3 text-center text-amber-800"><AlertCircle className="mx-auto" size={20}/><div className="mt-1 font-black">{result.unanswered}</div><div className="text-xs font-bold">بدون إجابة</div></div>
-            </div>
-          </div>
-        ) : <div className="mt-4 rounded-xl bg-gray-50 p-4 text-sm font-bold text-gray-600">تم تسجيل إكمال الاختبار. تقرير الدرجات التفصيلي غير معروض وفق إعدادات هذا الاختبار.</div>}
-      </header>
-        {detail.showResultsReport && detail.skillAnalysis ? (
+  return (
+    <main dir="rtl" className="mx-auto max-w-5xl space-y-6 px-3 pb-20 pt-5 sm:px-6">
+      {shouldShowReview && <header>{resultNavigation}</header>}
+      {!detail.showResultsReport ? (
+        <section className="rounded-2xl border border-slate-100 bg-white p-5">
+          <h2 className="font-black text-gray-900">{detail.title}</h2>
+          <p className="mt-2 text-sm font-bold text-gray-600">تم تسجيل إكمال الاختبار. تقرير الدرجات التفصيلي غير معروض وفق إعدادات هذا الاختبار.</p>
+        </section>
+      ) : !reviewOpen ? (
+        <AssessmentResultSummary detail={detail} navigation={resultNavigation} full={fullResult} onToggleFull={() => setFullResult((current) => !current)} onReview={() => changeReviewView(true)} practiceURL={practiceURL} retryURL={retryURL} />
+      ) : <h2 className="text-lg font-black text-gray-900">{detail.title}</h2>}
+        {!shouldShowReview && detail.showResultsReport && detail.skillAnalysis ? (
           <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="attempt-skills-heading">
             <div className="mb-5">
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">تحليل الأداء المهاري</span>
@@ -575,14 +577,24 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
             )}
           </section>
         ) : null}
+      {!shouldShowReview && detail.showResultsReport && weakestSkill ? (
+        <section className="rounded-3xl border border-indigo-100 bg-indigo-50/40 p-5 sm:p-6">
+          <h2 className="text-lg font-black text-gray-900">خطة تحسين لمهارة: {weakestSkill.skillName}</h2>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <button type="button" disabled={!detail.allowQuestionReview || !detail.questions?.length} onClick={() => changeReviewView(true)} className="rounded-2xl border border-emerald-100 bg-white p-3 text-start text-sm font-black text-emerald-800 disabled:opacity-50">مراجعة الحلول</button>
+            {weakestSkill.foundationTopics?.[0] && <Link to={`/category/${encodeURIComponent(weakestSkill.pathId)}?${new URLSearchParams({ subject: weakestSkill.subjectId, tab: 'skills', topic: weakestSkill.foundationTopics[0].id, content: 'lessons' })}`} className="rounded-2xl border border-indigo-100 bg-white p-3 text-sm font-black text-indigo-800">فتح الشرح</Link>}
+            <Link to={practiceURL} className="rounded-2xl border border-amber-100 bg-white p-3 text-sm font-black text-amber-800">بدء التدريب</Link>
+          </div>
+        </section>
+      ) : null}
         {saveError ? <p role="alert" className="text-sm font-bold text-rose-700">{saveError}</p> : null}
         {!detail.allowQuestionReview ? (
           <section className="rounded-2xl border border-amber-100 bg-amber-50 p-5 text-sm font-bold leading-7 text-amber-900">
             مراجعة الأسئلة غير متاحة لهذا الاختبار وفق إعدادات النسخة التي أجريت عليها المحاولة.
           </section>
-        ) : (
+        ) : shouldShowReview ? (
           <>
-            <section className="grid grid-cols-2 gap-2 rounded-2xl border border-gray-100 bg-white p-2 shadow-sm sm:grid-cols-4">
+            <section aria-label="مراجعة الحلول" className="grid grid-cols-2 gap-2 rounded-2xl border border-gray-100 bg-white p-2 shadow-sm sm:grid-cols-4">
               {([
                 ['all', 'الكل'],
                 ['wrong', 'أخطأت فيها'],
@@ -625,7 +637,7 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
               </div>
             )}
           </>
-        )}
+        ) : null}
 
       {/* Step Solution Player (Audio + KaTeX + Whiteboard Steps) */}
       {activeStepSolverQuestion ? (
