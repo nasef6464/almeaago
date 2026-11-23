@@ -32,6 +32,11 @@ export function SupervisorDashboardPage(){
  const activeGroup=groups.find(group=>group.ids.includes(tab))?.label||'';
  const [userExpandedGroup,setUserExpandedGroup]=useState<string|null>(null);
  const [prevTab,setPrevTab]=useState(tab);
+ const [prevParams,setPrevParams]=useState(params.toString());
+ if(prevParams!==params.toString()){
+  setPrevParams(params.toString());
+  setUserExpandedGroup(null);
+ }
  if(prevTab!==tab){
   setPrevTab(tab);
   setUserExpandedGroup(null);
@@ -107,6 +112,7 @@ export function SupervisorDashboardPage(){
  function selectTab(next:SupervisorTab){
   if(!enabledTabs.has(next))return;
   if(next==='students')setPage(1);
+  setUserExpandedGroup(null);
   setParams(previous=>{
    const updated=new URLSearchParams(previous);
    if(next==='students')updated.delete('tab');else updated.set('tab',next);

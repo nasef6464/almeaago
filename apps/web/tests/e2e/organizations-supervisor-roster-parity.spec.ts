@@ -75,6 +75,7 @@ test('disabled original sections in a direct URL fail closed to the working stud
  await nav.locator('summary',{hasText:'الرئيسية'}).click();
  await nav.getByRole('button',{name:'الملخص العام'}).click();
  await expect(page).toHaveURL(/tab=overview/);
+ await expect(nav.getByRole('button',{name:'الملخص العام'})).toHaveAttribute('aria-current','page');
  await page.goBack();
  await expect(page).toHaveURL(/tab=tests/);
  await expect(nav.getByRole('button',{name:'تعلم الطلاب وجاهزيتهم'})).toHaveAttribute('aria-current','page');
