@@ -37,6 +37,7 @@ jobs:
           node --test scripts/parity/learning-route-selection.test.mjs
           node scripts/parity/screen-inventory.test.mjs
           node scripts/parity/route-inventory.test.mjs
+          node --test scripts/parity/app-route-lazy.test.mjs
           node scripts/parity/api-mount-inventory.test.mjs
           node --experimental-strip-types scripts/parity/identity-login-digits.test.mjs
           node --experimental-strip-types scripts/parity/learning-golden.test.mjs

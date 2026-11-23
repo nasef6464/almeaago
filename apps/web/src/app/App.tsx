@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Link,
   Route,
@@ -7,19 +7,16 @@ import {
   useNavigate,
 } from 'react-router-dom';
 
+import { AppErrorBoundary } from './AppErrorBoundary';
 import { AuthModal } from '../features/auth/components/AuthModal';
 import { ForgotPasswordPage } from '../features/auth/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '../features/auth/pages/ResetPasswordPage';
 import { VerifyEmailPage } from '../features/auth/pages/VerifyEmailPage';
 import { useAuth } from '../features/auth/state/AuthProvider';
-import { ContentAdminPage } from '../features/content/pages/ContentAdminPage';
-import { AdminOverviewPage } from '../features/content/pages/AdminOverviewPage';
-import { AssessmentAdminPage } from '../features/assessment/pages/AssessmentAdminPage';
 import { AssessmentAttemptPage } from '../features/assessment/pages/AssessmentAttemptPage';
 import { AssessmentResultsPage } from '../features/assessment/pages/AssessmentResultsPage';
 import { AssessmentAvailabilityPage } from '../features/assessment/pages/AssessmentAvailabilityPage';
 import { SelfQuizPage } from '../features/assessment/pages/SelfQuizPage';
-import { PreparedQuizAdminPage } from '../features/assessment/pages/PreparedQuizAdminPage';
 import { AssessmentAssignmentsPage } from '../features/assessment/pages/AssessmentAssignmentsPage';
 import { ReviewLibraryPage } from '../features/learning/pages/ReviewLibraryPage';
 import { ReviewPracticePage } from '../features/learning/pages/ReviewPracticePage';
@@ -27,36 +24,17 @@ import { CourseLearningPage } from '../features/learning/pages/CourseLearningPag
 import { CourseView } from '../features/learning/pages/CourseView';
 import { LearningSpacePage } from '../features/learning/pages/LearningSpacePage';
 import { StudyPlanPage } from '../features/learning/pages/StudyPlanPage';
-import { SchoolInterventionsPage } from '../features/learning/pages/SchoolInterventionsPage';
 import { PublicBarcodeAssessmentPage } from '../features/assessment/pages/PublicBarcodeAssessmentPage';
-import { CommerceAdminPage } from '../features/commerce/pages/CommerceAdminPage';
 import { CheckoutPage } from '../features/commerce/pages/CheckoutPage';
-import { ParentDashboardPage } from '../features/parents/pages/ParentDashboardPage';
 import { LiveAssessmentJoinPage } from '../features/assessment/pages/LiveAssessmentJoinPage';
 import { AdminDashboardShell } from '../features/content/components/AdminDashboardShell';
 import { NotificationInboxPage } from '../features/notifications/pages/NotificationInboxPage';
-import { NotificationsAdminPage } from '../features/notifications/pages/NotificationsAdminPage';
-import { ClassroomTeacherPage } from '../features/classroom/pages/ClassroomTeacherPage';
-import { ClassroomJoinPage } from '../features/classroom/pages/ClassroomJoinPage';
-import { ClassroomStudentPage } from '../features/classroom/pages/ClassroomStudentPage';
-import { ClassroomProjectorPage } from '../features/classroom/pages/ClassroomProjectorPage';
-import { ClassroomContractsAdminPage } from '../features/classroom/pages/ClassroomContractsAdminPage';
-import { AiAdminPage } from '../features/ai/pages/AiAdminPage';
-import { ReportsPage } from '../features/reporting/pages/ReportsPage';
-import { OperationsAdminPage } from '../features/operations/pages/OperationsAdminPage';
-import { TaxonomyAdminPage } from '../features/taxonomy/pages/TaxonomyAdminPage';
-import { SkillsAdminPage } from '../features/taxonomy/pages/SkillsAdminPage';
-import { QuestionBankAdminPage } from '../features/questionbank/pages/QuestionBankAdminPage';
-import { SchoolsAdminPage } from '../features/organizations/pages/SchoolsAdminPage';
 import { CertificatePage } from '../features/organizations/pages/CertificatePage';
-import { UsersAdminPage } from '../features/auth/pages/UsersAdminPage';
+import { SupervisorDashboardPage } from '../features/organizations/pages/SupervisorDashboardPage';
+import { ParentDashboardPage } from '../features/parents/pages/ParentDashboardPage';
 import { ProfilePage } from '../features/auth/pages/ProfilePage';
 import { AchievementsPage } from '../features/learning/pages/AchievementsPage';
 import { PwaInstallBanner } from '../features/presentation/PwaInstallBanner';
-import { SchoolDirectorDashboardPage } from '../features/organizations/pages/SchoolDirectorDashboardPage';
-import { SupervisorDashboardPage } from '../features/organizations/pages/SupervisorDashboardPage';
-import { TeacherWorkspacePage } from '../features/organizations/pages/TeacherWorkspacePage';
-import { PlatformTrainerDashboardPage } from '../features/organizations/pages/PlatformTrainerDashboardPage';
 import { StudentDashboardPage } from '../features/learning/pages/StudentDashboardPage';
 import { PublicLandingPage } from '../features/public/pages/PublicLandingPage';
 import { CoursesPage } from '../features/public/pages/CoursesPage';
@@ -73,17 +51,52 @@ import { SchoolsPitchPage } from '../features/public/pages/SchoolsPitchPage';
 import { StudentNavigationProvider, StudentPathBar } from '../features/learning/navigation';
 
 import { PlatformFontBootstrap } from '../features/presentation/PlatformFontBootstrap';
-import { AnnouncementAdsAdminPage } from '../features/presentation/AnnouncementAdsAdminPage';
 import { AnnouncementAdsOverlay } from '../features/presentation/AnnouncementAdsOverlay';
-import { PlatformIntegrationsAdminPage } from '../features/operations/pages/PlatformIntegrationsAdminPage';
-import { BackupAdminPage } from '../features/operations/pages/BackupAdminPage';
-import { PlatformFontsPage } from '../features/presentation/PlatformFontsPage';
-import {HomepagePage} from '../features/presentation/HomepagePage';
-import {isHomepageLocation, isPlatformFontsLocation } from '../features/presentation/navigation';
+import { isHomepageLocation, isPlatformFontsLocation } from '../features/presentation/navigation';
 import { ChatWidget } from '../features/ai/components/ChatWidget';
 import { FloatingContactWidget } from '../features/support/FloatingContactWidget';
 
+// 28 Lazy-Loaded Role & Admin Modules (Safe Route Splitting per Issue #284)
+const ContentAdminPage = React.lazy(() => import('../features/content/pages/ContentAdminPage').then(m => ({ default: m.ContentAdminPage })));
+const AdminOverviewPage = React.lazy(() => import('../features/content/pages/AdminOverviewPage').then(m => ({ default: m.AdminOverviewPage })));
+const AssessmentAdminPage = React.lazy(() => import('../features/assessment/pages/AssessmentAdminPage').then(m => ({ default: m.AssessmentAdminPage })));
+const PreparedQuizAdminPage = React.lazy(() => import('../features/assessment/pages/PreparedQuizAdminPage').then(m => ({ default: m.PreparedQuizAdminPage })));
+const CommerceAdminPage = React.lazy(() => import('../features/commerce/pages/CommerceAdminPage').then(m => ({ default: m.CommerceAdminPage })));
+const UsersAdminPage = React.lazy(() => import('../features/auth/pages/UsersAdminPage').then(m => ({ default: m.UsersAdminPage })));
+const SchoolsAdminPage = React.lazy(() => import('../features/organizations/pages/SchoolsAdminPage').then(m => ({ default: m.SchoolsAdminPage })));
+const NotificationsAdminPage = React.lazy(() => import('../features/notifications/pages/NotificationsAdminPage').then(m => ({ default: m.NotificationsAdminPage })));
+const ClassroomContractsAdminPage = React.lazy(() => import('../features/classroom/pages/ClassroomContractsAdminPage').then(m => ({ default: m.ClassroomContractsAdminPage })));
+const AiAdminPage = React.lazy(() => import('../features/ai/pages/AiAdminPage').then(m => ({ default: m.AiAdminPage })));
+const ReportsPage = React.lazy(() => import('../features/reporting/pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
+const OperationsAdminPage = React.lazy(() => import('../features/operations/pages/OperationsAdminPage').then(m => ({ default: m.OperationsAdminPage })));
+const TaxonomyAdminPage = React.lazy(() => import('../features/taxonomy/pages/TaxonomyAdminPage').then(m => ({ default: m.TaxonomyAdminPage })));
+const SkillsAdminPage = React.lazy(() => import('../features/taxonomy/pages/SkillsAdminPage').then(m => ({ default: m.SkillsAdminPage })));
+const QuestionBankAdminPage = React.lazy(() => import('../features/questionbank/pages/QuestionBankAdminPage').then(m => ({ default: m.QuestionBankAdminPage })));
+const AnnouncementAdsAdminPage = React.lazy(() => import('../features/presentation/AnnouncementAdsAdminPage').then(m => ({ default: m.AnnouncementAdsAdminPage })));
+const PlatformIntegrationsAdminPage = React.lazy(() => import('../features/operations/pages/PlatformIntegrationsAdminPage').then(m => ({ default: m.PlatformIntegrationsAdminPage })));
+const BackupAdminPage = React.lazy(() => import('../features/operations/pages/BackupAdminPage').then(m => ({ default: m.BackupAdminPage })));
+const PlatformFontsPage = React.lazy(() => import('../features/presentation/PlatformFontsPage').then(m => ({ default: m.PlatformFontsPage })));
+const HomepagePage = React.lazy(() => import('../features/presentation/HomepagePage').then(m => ({ default: m.HomepagePage })));
+
+const SchoolDirectorDashboardPage = React.lazy(() => import('../features/organizations/pages/SchoolDirectorDashboardPage').then(m => ({ default: m.SchoolDirectorDashboardPage })));
+const TeacherWorkspacePage = React.lazy(() => import('../features/organizations/pages/TeacherWorkspacePage').then(m => ({ default: m.TeacherWorkspacePage })));
+const PlatformTrainerDashboardPage = React.lazy(() => import('../features/organizations/pages/PlatformTrainerDashboardPage').then(m => ({ default: m.PlatformTrainerDashboardPage })));
+const ClassroomTeacherPage = React.lazy(() => import('../features/classroom/pages/ClassroomTeacherPage').then(m => ({ default: m.ClassroomTeacherPage })));
+const ClassroomProjectorPage = React.lazy(() => import('../features/classroom/pages/ClassroomProjectorPage').then(m => ({ default: m.ClassroomProjectorPage })));
+const ClassroomJoinPage = React.lazy(() => import('../features/classroom/pages/ClassroomJoinPage').then(m => ({ default: m.ClassroomJoinPage })));
+const ClassroomStudentPage = React.lazy(() => import('../features/classroom/pages/ClassroomStudentPage').then(m => ({ default: m.ClassroomStudentPage })));
+const SchoolInterventionsPage = React.lazy(() => import('../features/learning/pages/SchoolInterventionsPage').then(m => ({ default: m.SchoolInterventionsPage })));
+
 type ModalMode = 'login' | 'signup' | null;
+
+function RouteLoadingFallback() {
+  return (
+    <div dir="rtl" className="min-h-[40vh] flex flex-col items-center justify-center py-12 px-4 text-center">
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+      <p className="mt-4 text-sm font-bold text-slate-500">جاري تحميل الصفحة...</p>
+    </div>
+  );
+}
 
 function NotFoundPage() {
   return (
@@ -169,7 +182,9 @@ export function App() {
         </>
       ) : null}
 
-      <Routes>
+      <AppErrorBoundary>
+        <Suspense fallback={<RouteLoadingFallback />}>
+          <Routes>
         <Route path="/" element={<PublicLandingPage onAuth={setManualMode} />} />
         <Route path="/login" element={<PublicLandingPage onAuth={setManualMode} />} />
         <Route path="/signup" element={<PublicLandingPage onAuth={setManualMode} />} />
@@ -257,6 +272,8 @@ export function App() {
         <Route path="/achievements" element={<AchievementsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+        </Suspense>
+      </AppErrorBoundary>
 
       {showPublicFooter(location.pathname) ? <LegacySiteFooter /> : null}
 

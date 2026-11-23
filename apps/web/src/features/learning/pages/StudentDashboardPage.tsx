@@ -23,7 +23,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
@@ -46,7 +46,7 @@ import { FlashcardsTab } from './dashboard/FlashcardsTab';
 import { QATab } from './dashboard/QATab';
 import { MyRequestsTab } from './dashboard/MyRequestsTab';
 import { resolvePathProgress, type DashboardPath } from './dashboard/pathProgressProjection';
-import { ReportsPage } from '../../reporting/pages/ReportsPage';
+const ReportsPage = lazy(() => import('../../reporting/pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
 import { StudyPlanPage } from './StudyPlanPage';
 import { ReviewLibraryPage } from './ReviewLibraryPage';
 import { AssessmentAssignmentsPage } from '../../assessment/pages/AssessmentAssignmentsPage';
@@ -417,7 +417,9 @@ export function StudentDashboardPage() {
           </div>
         ) : tab === 'reports' ? (
           <div className="max-w-7xl mx-auto w-full min-w-0">
-            <ReportsPage embedded={true} />
+            <Suspense fallback={<div className="p-8 text-center text-slate-500">جاري تحميل التقارير...</div>}>
+              <ReportsPage embedded={true} />
+            </Suspense>
           </div>
         ) : tab === 'quizzes' || tab === 'results' ? (
           <div className="max-w-7xl mx-auto w-full min-w-0">
