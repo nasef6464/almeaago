@@ -183,6 +183,7 @@ for (const width of [390, 820, 1440]) {
 
     await page.clock.runFor(300);
     release();
+    await page.clock.resume();
     await expect(page.getByText('دورة بحث جديدة')).toBeVisible();
     await expect(page.getByText(course.title)).toHaveCount(0);
   });
