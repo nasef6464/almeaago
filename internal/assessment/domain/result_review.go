@@ -91,11 +91,14 @@ type ResultSkillAnalysis struct {
 }
 
 type ResultSkillAnalysisItem struct {
-	PathID           string                  `json:"pathId"`
-	SubjectID        string                  `json:"subjectId"`
-	SubjectName      string                  `json:"subjectName"`
-	SkillID          string                  `json:"skillId"`
-	SkillName        string                  `json:"skillName"`
+	PathID      string `json:"pathId"`
+	SubjectID   string `json:"subjectId"`
+	SubjectName string `json:"subjectName"`
+	SkillID     string `json:"skillId"`
+	SkillName   string `json:"skillName"`
+	// Hierarchy is read from the current subject taxonomy. Counts come from the submitted attempt.
+	Level            string                  `json:"level,omitempty"`
+	ParentSkillID    string                  `json:"parentSkillId,omitempty"`
 	QuestionCount    int                     `json:"questionCount"`
 	CorrectCount     int                     `json:"correctCount"`
 	Mastery          int                     `json:"mastery"`

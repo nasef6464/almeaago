@@ -146,6 +146,8 @@ export interface ResultDetail {
       subjectName: string;
       skillId: string;
       skillName: string;
+      level?: 'main' | 'sub';
+      parentSkillId?: string;
       questionCount: number;
       correctCount: number;
       mastery: number;

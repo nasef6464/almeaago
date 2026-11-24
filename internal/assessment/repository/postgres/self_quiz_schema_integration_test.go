@@ -584,6 +584,17 @@ COMMIT;`)
 	if err != nil || detail.SkillAnalysis == nil || !detail.SkillAnalysis.Complete || len(detail.SkillAnalysis.Items) != 2 {
 		t.Fatalf("self skill analysis: %+v %v", detail.SkillAnalysis, err)
 	}
+	if _, err = db.Exec(ctx, `UPDATE skills SET kind='sub',parent_skill_id='00000000-0000-0000-0000-000000000010' WHERE id='00000000-0000-0000-0000-000000000011'`); err != nil {
+		t.Fatal(err)
+	}
+	detail, err = snapshotRepo.GetResultDetail(ctx, "00000000-0000-0000-0000-000000000001", snapshotID)
+	if err != nil || detail.SkillAnalysis == nil || len(detail.SkillAnalysis.Items) != 2 {
+		t.Fatalf("expected two self skill rows: %+v %v", detail.SkillAnalysis, err)
+	}
+	mainSkill, subSkill := detail.SkillAnalysis.Items[0], detail.SkillAnalysis.Items[1]
+	if mainSkill.Level != "main" || subSkill.Level != "sub" || subSkill.ParentSkillID != mainSkill.SkillID || subSkill.Mastery != 100 || subSkill.QuestionCount != 1 {
+		t.Fatalf("self subskill relation should preserve submitted evidence: %+v %+v", mainSkill, subSkill)
+	}
 	if _, err = db.Exec(ctx, `DELETE FROM mastery_evidence_skills WHERE evidence_id IN (SELECT id FROM mastery_evidence WHERE self_attempt_id=$1::uuid) AND skill_id='00000000-0000-0000-0000-000000000010'`, snapshotID); err != nil {
 		t.Fatal(err)
 	}

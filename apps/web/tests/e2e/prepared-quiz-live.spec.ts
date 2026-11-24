@@ -142,6 +142,20 @@ test('محاكي صارم بمادتين من الدخول إلى النتيجة
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await subjects.screenshot({ path: `test-results/assessment-live-subject-results-${width}.png` });
   }
+  const firstSubject = page.getByRole('region', { name: 'أداؤك في مادة مادة تجريبية' });
+  const secondSubject = page.getByRole('region', { name: 'أداؤك في مادة المادة الثانية' });
+  await firstSubject.getByText('تفاصيل المهارات (1)').click();
+  await expect(firstSubject.getByRole('progressbar', { name: 'مهارة فرعية تجريبية' })).toHaveAttribute('aria-valuenow', '100');
+  await expect(firstSubject.getByRole('group', { name: /^المهارات الفرعية ضمن/ })).toHaveCount(0);
+  await secondSubject.getByText('تفاصيل المهارات (2)').click();
+  const subskills = secondSubject.getByRole('group', { name: 'المهارات الفرعية ضمن الهندسة' });
+  await expect(subskills.getByRole('progressbar', { name: 'المساحة' })).toHaveAttribute('aria-valuenow', '100');
+  await expect(secondSubject.getByRole('progressbar', { name: 'الهندسة' })).toHaveAttribute('aria-valuenow', '100');
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await subjects.screenshot({ path: `test-results/assessment-live-subject-skills-${width}.png` });
+  }
   const clip = await reviewVideoFixture(page);
   await page.route('**/review-fixture.webm', route => route.fulfill({ body: clip, contentType: 'video/webm' }));
   await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();

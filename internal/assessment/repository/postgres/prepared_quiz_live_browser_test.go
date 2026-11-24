@@ -226,6 +226,12 @@ INSERT INTO assessment_learning_placements(assessment_id,assessment_version,slot
 INSERT INTO subjects(id,path_id,code,name) VALUES ('00000000-0000-0000-0000-000000000007','00000000-0000-0000-0000-000000000003','LIVE-S2','المادة الثانية');
 INSERT INTO questions(id,question_code,path_id,subject_id,workflow_status) VALUES ('00000000-0000-0000-0000-000000000008','LIVE-Q2','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000007','approved');
 INSERT INTO question_versions(question_id,version,question_type,text_content,correct_option_index) VALUES ('00000000-0000-0000-0000-000000000008',1,'mcq','سؤال القسم الثاني',0);
+INSERT INTO skills(id,subject_id,parent_skill_id,code,name,kind) VALUES
+ ('00000000-0000-0000-0000-000000000027','00000000-0000-0000-0000-000000000007',NULL,'LIVE-S2-MAIN','الهندسة','main'),
+ ('00000000-0000-0000-0000-000000000028','00000000-0000-0000-0000-000000000007','00000000-0000-0000-0000-000000000027','LIVE-S2-SUB','المساحة','sub');
+INSERT INTO question_skill_links(question_id,skill_id,relation_type) VALUES
+ ('00000000-0000-0000-0000-000000000008','00000000-0000-0000-0000-000000000027','main'),
+ ('00000000-0000-0000-0000-000000000008','00000000-0000-0000-0000-000000000028','sub');
 INSERT INTO question_options(question_id,version,option_index,option_text) VALUES ('00000000-0000-0000-0000-000000000008',1,0,'صحيح'),('00000000-0000-0000-0000-000000000008',1,1,'خطأ');`)
 	if err != nil {
 		t.Fatal(err)

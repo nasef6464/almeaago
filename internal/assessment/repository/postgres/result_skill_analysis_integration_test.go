@@ -46,7 +46,7 @@ CREATE TABLE mastery_evidence(id uuid,student_id uuid,source_attempt_id uuid,evi
 CREATE TABLE mastery_evidence_skills(evidence_id uuid,skill_id uuid);
 CREATE TABLE paths(id uuid,status text);
 CREATE TABLE subjects(id uuid,path_id uuid,name text,status text DEFAULT 'active');
-CREATE TABLE skills(id uuid,subject_id uuid,name text);
+CREATE TABLE skills(id uuid,subject_id uuid,name text,kind text DEFAULT 'main',parent_skill_id uuid);
 CREATE TABLE foundation_topics(id uuid,path_id uuid,subject_id uuid,title text,is_locked bool,status text,is_visible bool,sort_order int);
 CREATE TABLE topic_skill_links(topic_id uuid,skill_id uuid);
 INSERT INTO assessment_attempts VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000003',1,'submitted',1);
@@ -55,7 +55,8 @@ INSERT INTO assessment_results VALUES ('00000000-0000-0000-0000-000000000001','0
 INSERT INTO assessment_version_questions(assessment_id,assessment_version,question_id,question_version) VALUES ('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000011',1),('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000012',1);
 INSERT INTO paths VALUES ('00000000-0000-0000-0000-000000000004','active');
 INSERT INTO subjects(id,path_id,name) VALUES ('00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000004','Subject A'),('00000000-0000-0000-0000-000000000006','00000000-0000-0000-0000-000000000004','Subject B');
-INSERT INTO skills VALUES ('00000000-0000-0000-0000-000000000020','00000000-0000-0000-0000-000000000005','Skill A'),('00000000-0000-0000-0000-000000000021','00000000-0000-0000-0000-000000000006','Skill B');
+INSERT INTO skills(id,subject_id,name) VALUES ('00000000-0000-0000-0000-000000000020','00000000-0000-0000-0000-000000000005','Skill A'),('00000000-0000-0000-0000-000000000021','00000000-0000-0000-0000-000000000006','Skill B');
+UPDATE skills SET kind='sub',parent_skill_id='00000000-0000-0000-0000-000000000020' WHERE id='00000000-0000-0000-0000-000000000021';
 INSERT INTO mastery_evidence VALUES
 ('00000000-0000-0000-0000-000000000031','00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000001','assessment','00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000011',1,'00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005',true,true),
 ('00000000-0000-0000-0000-000000000032','00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000001','assessment','00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000012',1,'00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000006',false,false);
@@ -99,6 +100,9 @@ INSERT INTO topic_skill_links VALUES ('00000000-0000-0000-0000-000000000046','00
 	if a.SkillName != "Skill A" || a.Status != "strong" || a.Mastery != 100 || b.SkillName != "Skill B" || b.Status != "weak" || b.QuestionCount != 1 || b.CorrectCount != 0 {
 		t.Fatalf("unexpected scoped results: %+v", detail.SkillAnalysis.Items)
 	}
+	if a.Level != "main" || b.Level != "sub" || b.ParentSkillID != "" {
+		t.Fatalf("foreign-subject parent must not be returned: %+v %+v", a, b)
+	}
 	if len(a.FoundationTopics) != 3 || a.FoundationTopics[0].Title != "Topic A" || a.FoundationTopics[0].IsLocked || a.FoundationTopics[1].Title != "Locked topic" || !a.FoundationTopics[1].IsLocked || a.FoundationTopics[2].Title != "Child active parent" || len(b.FoundationTopics) != 0 {
 		t.Fatalf("unexpected foundation mapping scope or visibility: %+v %+v", a.FoundationTopics, b.FoundationTopics)
 	}
@@ -117,6 +121,22 @@ UPDATE mastery_evidence_skills SET skill_id='00000000-0000-0000-0000-00000000002
 	}
 	if subjects := detail.SubjectResults; len(subjects) != 1 || subjects[0].Total != 2 || subjects[0].Score != 50 {
 		t.Fatalf("unrelated live skill links changed subject totals: %+v", subjects)
+	}
+	if _, err = db.Exec(ctx, `
+UPDATE skills SET subject_id='00000000-0000-0000-0000-000000000005' WHERE id='00000000-0000-0000-0000-000000000021';
+INSERT INTO mastery_evidence_skills VALUES ('00000000-0000-0000-0000-000000000031','00000000-0000-0000-0000-000000000021');`); err != nil {
+		t.Fatal(err)
+	}
+	detail, err = repo.GetResultDetail(ctx, student, attempt)
+	if err != nil || detail.SkillAnalysis == nil || len(detail.SkillAnalysis.Items) != 2 {
+		t.Fatalf("expected main and subskill from frozen evidence: %+v %v", detail.SkillAnalysis, err)
+	}
+	mainSkill, subSkill := detail.SkillAnalysis.Items[0], detail.SkillAnalysis.Items[1]
+	if subSkill.ParentSkillID != mainSkill.SkillID || subSkill.Level != "sub" || subSkill.QuestionCount != 1 || subSkill.Mastery != 100 || mainSkill.Mastery != 50 {
+		t.Fatalf("subskill relation or independent scores are incorrect: %+v %+v", mainSkill, subSkill)
+	}
+	if _, err = db.Exec(ctx, `DELETE FROM mastery_evidence_skills WHERE skill_id='00000000-0000-0000-0000-000000000021'`); err != nil {
+		t.Fatal(err)
 	}
 	if _, err = db.Exec(ctx, `INSERT INTO mastery_evidence SELECT '00000000-0000-0000-0000-000000000039',student_id,source_attempt_id,evidence_type,assessment_id,assessment_version,question_id,question_version,path_id,subject_id,answered,is_correct FROM mastery_evidence WHERE id='00000000-0000-0000-0000-000000000031'`); err != nil {
 		t.Fatal(err)

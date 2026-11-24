@@ -250,6 +250,9 @@ paths:
         of questions answered correctly). Missing submission-time classifications are not
         inferred from skills or current question mappings. Compare summed totals with
         result.totalQuestions to detect partial coverage.
+        Skill analysis items may include level (main or sub) and parentSkillId from the
+        current subject taxonomy. A parent id denotes a main skill in the same subject.
+        Group only when that parent is also present in the attempt's skill analysis.
       parameters:
         - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
       responses:

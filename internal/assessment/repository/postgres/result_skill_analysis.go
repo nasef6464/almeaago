@@ -46,8 +46,11 @@ func (r *Repository) resultSkillAnalysis(ctx context.Context, student, attemptID
 		)
 		SELECT c.expected_count,c.distinct_expected,c.found_count,c.evidence_count,c.invalid_skill,
 		       COALESCE(g.path_id::text,''),COALESCE(g.subject_id::text,''),COALESCE(g.subject_name,''),COALESCE(g.skill_id::text,''),
-		       COALESCE(g.skill_name,''),COALESCE(g.question_count,0),COALESCE(g.correct_count,0)
+		       COALESCE(g.skill_name,''),COALESCE(skill.kind,''),COALESCE(parent.id::text,''),COALESCE(g.question_count,0),COALESCE(g.correct_count,0)
 		FROM coverage c LEFT JOIN grouped g ON true
+		LEFT JOIN skills skill ON skill.id=g.skill_id AND skill.subject_id=g.subject_id
+		LEFT JOIN skills parent ON skill.kind='sub' AND parent.id=skill.parent_skill_id
+		  AND parent.subject_id=g.subject_id AND parent.kind='main'
 		ORDER BY g.subject_id,g.skill_name,g.skill_id LIMIT 10001
 	`, attemptID, student)
 	if err != nil {
@@ -58,7 +61,7 @@ func (r *Repository) resultSkillAnalysis(ctx context.Context, student, attemptID
 		var expected, distinctExpected, found, evidenceCount int
 		var invalid bool
 		var item assessment.ResultSkillAnalysisItem
-		if err = rows.Scan(&expected, &distinctExpected, &found, &evidenceCount, &invalid, &item.PathID, &item.SubjectID, &item.SubjectName, &item.SkillID, &item.SkillName, &item.QuestionCount, &item.CorrectCount); err != nil {
+		if err = rows.Scan(&expected, &distinctExpected, &found, &evidenceCount, &invalid, &item.PathID, &item.SubjectID, &item.SubjectName, &item.SkillID, &item.SkillName, &item.Level, &item.ParentSkillID, &item.QuestionCount, &item.CorrectCount); err != nil {
 			return nil, err
 		}
 		analysis.Complete = expected > 0 && expected == resultTotal && distinctExpected == expected && found == expected && evidenceCount == expected && !invalid

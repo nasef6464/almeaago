@@ -208,3 +208,36 @@ test('mobile review filters wrong unanswered and correct questions without leaki
     await page.screenshot({ path: 'test-results/assessment-result-review-' + width + '.png', fullPage: true });
   }
 });
+
+test('subject skills nest only under a measured main skill in the same subject', async ({ page }) => {
+  await auth(page);
+  const baseSkill = { pathId: 'path-1', subjectId: 'math', subjectName: 'الرياضيات', questionCount: 1, correctCount: 0, mastery: 0, status: 'weak' };
+  await page.route('**/api/v1/assessment-attempts/attempt-1/review', route => json(route, {
+    detail: {
+      result: historyItem, assessmentId: 'assessment-1', assessmentVersion: 2, title: 'محاكي كمي', attemptNumber: 1,
+      allowQuestionReview: false, showAnswers: false, showExplanations: false, showResultsReport: true,
+      subjectResults: [
+        { subjectId: 'math', subjectName: 'الرياضيات', total: 1, correct: 0, wrong: 1, unanswered: 0, score: 0 },
+        { subjectId: 'science', subjectName: 'العلوم', total: 1, correct: 0, wrong: 0, unanswered: 1, score: 0 },
+      ],
+      skillAnalysis: { complete: true, items: [
+        { ...baseSkill, skillId: 'child', skillName: 'قسمة الكسور', level: 'sub', parentSkillId: 'parent' },
+        { ...baseSkill, skillId: 'parent', skillName: 'الكسور', level: 'main' },
+        { ...baseSkill, skillId: 'orphan', skillName: 'تحويل الوحدات', level: 'sub', parentSkillId: 'unmeasured' },
+        { ...baseSkill, skillId: 'foreign-child', skillName: 'التقريب', level: 'sub', parentSkillId: 'foreign-parent' },
+        { ...baseSkill, skillId: 'historic', skillName: 'الجبر', foundationTopics: [] },
+        { ...baseSkill, subjectId: 'science', subjectName: 'العلوم', skillId: 'foreign-parent', skillName: 'الحركة', level: 'main' },
+      ] },
+    },
+  }));
+  await page.goto('/assessment-results/attempt-1', { waitUntil: 'domcontentloaded' });
+  const math = page.getByRole('region', { name: 'أداؤك في مادة الرياضيات' });
+  await math.getByText('تفاصيل المهارات (5)').click();
+  const children = math.getByRole('group', { name: 'المهارات الفرعية ضمن الكسور' });
+  await expect(children.getByRole('progressbar', { name: 'قسمة الكسور' })).toBeVisible();
+  await expect(math.getByRole('progressbar', { name: 'تحويل الوحدات' })).toBeVisible();
+  await expect(math.getByRole('progressbar', { name: 'التقريب' })).toBeVisible();
+  await expect(math.getByRole('progressbar', { name: 'الجبر' })).toBeVisible();
+  await expect(math.getByRole('group', { name: /^المهارات الفرعية ضمن/ })).toHaveCount(1);
+  await expect(math.getByRole('progressbar', { name: 'الحركة' })).toHaveCount(0);
+});
