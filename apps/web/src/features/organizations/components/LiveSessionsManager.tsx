@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   CalendarDays, Copy, Download, ExternalLink, Lock, LockOpen, Plus,
-  RefreshCw, Search, Video, Clock, Users, CheckCircle, Radio
+  RefreshCw, Search, Video, Clock, Users, CheckCircle, Radio, Loader2
 } from 'lucide-react';
+import { classroomClient } from '../../classroom/api/classroom-client';
 
 export interface LiveSessionItem {
   id: string;
@@ -19,51 +20,6 @@ export interface LiveSessionItem {
   attendeesCount: number;
 }
 
-const INITIAL_SESSIONS: LiveSessionItem[] = [
-  {
-    id: 'live-1',
-    title: 'ورشة حل استراتيجيات القدرات الكمية المتقدمة',
-    subjectName: 'القدرات العامة - كمي',
-    provider: 'zoom',
-    meetingUrl: 'https://zoom.us/j/almeaa-session-1',
-    meetingDate: '2026-11-10',
-    time: '06:00 م',
-    durationMinutes: 60,
-    instructorName: 'أ. فهد القحطاني',
-    className: 'الصف الثالث الثانوي (أ)',
-    status: 'upcoming',
-    attendeesCount: 28,
-  },
-  {
-    id: 'live-2',
-    title: 'مراجعة المهارات المركبة والتناظر اللفظي',
-    subjectName: 'القدرات العامة - لفظي',
-    provider: 'teams',
-    meetingUrl: 'https://teams.microsoft.com/l/meetup-join/almeaa-2',
-    meetingDate: '2026-11-11',
-    time: '07:30 م',
-    durationMinutes: 45,
-    instructorName: 'د. خالد العتيبي',
-    className: 'الصف الثاني الثانوي (ب)',
-    status: 'upcoming',
-    attendeesCount: 32,
-  },
-  {
-    id: 'live-3',
-    title: 'حل تجميعات التحصيلي لمادة الرياضيات التأسيسية',
-    subjectName: 'التحصيلي - رياضيات',
-    provider: 'live_youtube',
-    meetingUrl: 'https://youtube.com/live/almeaa-math-live',
-    meetingDate: '2026-11-09',
-    time: '05:00 م',
-    durationMinutes: 90,
-    instructorName: 'أ. عبدالله الشمري',
-    className: 'جميع الفصول المسندة',
-    status: 'live',
-    attendeesCount: 45,
-  },
-];
-
 const providerLabels: Record<string, { name: string; color: string }> = {
   zoom: { name: 'Zoom', color: 'bg-blue-50 text-blue-700 border-blue-200' },
   teams: { name: 'Microsoft Teams', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
@@ -71,11 +27,58 @@ const providerLabels: Record<string, { name: string; color: string }> = {
   live_youtube: { name: 'YouTube Live', color: 'bg-rose-50 text-rose-700 border-rose-200' },
 };
 
-export const LiveSessionsManager: React.FC = () => {
-  const [sessions, setSessions] = useState<LiveSessionItem[]>(INITIAL_SESSIONS);
+export interface LiveSessionsManagerProps {
+  schoolId?: string;
+  initialSessions?: LiveSessionItem[];
+}
+
+export const LiveSessionsManager: React.FC<LiveSessionsManagerProps> = ({ schoolId, initialSessions }) => {
+  const [sessions, setSessions] = useState<LiveSessionItem[]>(initialSessions || []);
+  const [loading, setLoading] = useState(!initialSessions);
   const [searchQuery, setSearchQuery] = useState('');
   const [providerFilter, setProviderFilter] = useState('all');
   const [copyFeedback, setCopyFeedback] = useState('');
+
+  useEffect(() => {
+    if (initialSessions) {
+      setSessions(initialSessions);
+      setLoading(false);
+      return;
+    }
+    const ctrl = new AbortController();
+    setLoading(true);
+    classroomClient
+      .teacherSessions(ctrl.signal)
+      .then((res) => {
+        if (ctrl.signal.aborted) return;
+        const matching = schoolId
+          ? (res.sessions || []).filter((s) => s.schoolId === schoolId)
+          : (res.sessions || []);
+        const mapped: LiveSessionItem[] = matching.map((s) => ({
+          id: s.id,
+          title: `حصة تفاعلية - ${s.day || 'اليوم'}`,
+          subjectName: 'فصل تفاعلي مباشر',
+          provider: 'teams',
+          meetingUrl: `/classroom/${s.id}`,
+          meetingDate: s.day || new Date().toISOString().split('T')[0],
+          time: s.period ? `الحصة ${s.period}` : 'حصة مباشرة',
+          durationMinutes: 45,
+          instructorName: 'معلم الفصل',
+          className: 'فصل مدرسي',
+          status: s.status === 'live' ? 'live' : s.status === 'ended' ? 'ended' : 'upcoming',
+          attendeesCount: 0,
+        }));
+        setSessions(mapped);
+      })
+      .catch(() => {
+        if (ctrl.signal.aborted) return;
+        setSessions([]);
+      })
+      .finally(() => {
+        if (!ctrl.signal.aborted) setLoading(false);
+      });
+    return () => ctrl.abort();
+  }, [schoolId, initialSessions]);
 
   const filtered = useMemo(() => {
     return sessions.filter((s) => {
@@ -146,71 +149,84 @@ export const LiveSessionsManager: React.FC = () => {
       </div>
 
       {/* Sessions Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filtered.map((s) => {
-          const providerInfo = providerLabels[s.provider] || { name: s.provider, color: 'bg-gray-50 text-gray-700' };
-          const isLiveNow = s.status === 'live';
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 rounded-2xl border border-gray-100 bg-gray-50 p-12 text-sm text-gray-500">
+          <Loader2 size={18} className="animate-spin text-indigo-600" />
+          <span>جاري تحميل الحصص المباشرة...</span>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 text-center">
+          <Video size={36} className="mx-auto text-gray-300 mb-3" />
+          <p className="text-gray-500 font-bold">لا توجد حصص تفاعلية مباشرة مجدولة حالياً لهذه المدرسة.</p>
+          <p className="text-xs text-gray-400 mt-1">ستظهر الحصص الافتراضية هنا بمجرد جدولتها من قبل معلمي المدرسة.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filtered.map((s) => {
+            const providerInfo = providerLabels[s.provider] || { name: s.provider, color: 'bg-gray-50 text-gray-700' };
+            const isLiveNow = s.status === 'live';
 
-          return (
-            <div key={s.id} className="flex flex-col justify-between rounded-3xl border border-gray-100 bg-white p-5 shadow-sm hover:shadow-md transition-all">
-              <div>
-                <div className="flex justify-between items-start gap-2 mb-3">
-                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black border ${providerInfo.color}`}>
-                    {providerInfo.name}
-                  </span>
-                  {isLiveNow ? (
-                    <span className="flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 px-2.5 py-0.5 text-[10px] font-black">
-                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
-                      بث مباشر الآن
+            return (
+              <div key={s.id} className="flex flex-col justify-between rounded-3xl border border-gray-100 bg-white p-5 shadow-sm hover:shadow-md transition-all">
+                <div>
+                  <div className="flex justify-between items-start gap-2 mb-3">
+                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black border ${providerInfo.color}`}>
+                      {providerInfo.name}
                     </span>
-                  ) : (
-                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 rounded-full px-2.5 py-0.5">
-                      قادم
-                    </span>
-                  )}
+                    {isLiveNow ? (
+                      <span className="flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 px-2.5 py-0.5 text-[10px] font-black">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                        بث مباشر الآن
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-gray-400 bg-gray-100 rounded-full px-2.5 py-0.5">
+                        قادم
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="font-black text-gray-900 text-sm leading-snug">{s.title}</h3>
+                  <p className="text-xs text-indigo-600 font-bold mt-1">{s.subjectName}</p>
+
+                  <div className="mt-4 space-y-2 border-t border-gray-50 pt-3 text-xs text-gray-600">
+                    <div className="flex items-center gap-2">
+                      <CalendarDays size={13} className="text-gray-400" />
+                      <span>{s.meetingDate} • {s.time} ({s.durationMinutes} دقيقة)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users size={13} className="text-gray-400" />
+                      <span>المعلم: {s.instructorName} • {s.className}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-indigo-700 font-bold">
+                      <CheckCircle size={13} className="text-emerald-500" />
+                      <span>المسجلون: {s.attendeesCount} طالب</span>
+                    </div>
+                  </div>
                 </div>
 
-                <h3 className="font-black text-gray-900 text-sm leading-snug">{s.title}</h3>
-                <p className="text-xs text-indigo-600 font-bold mt-1">{s.subjectName}</p>
-
-                <div className="mt-4 space-y-2 border-t border-gray-50 pt-3 text-xs text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <CalendarDays size={13} className="text-gray-400" />
-                    <span>{s.meetingDate} • {s.time} ({s.durationMinutes} دقيقة)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Users size={13} className="text-gray-400" />
-                    <span>المعلم: {s.instructorName} • {s.className}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-indigo-700 font-bold">
-                    <CheckCircle size={13} className="text-emerald-500" />
-                    <span>المسجلون: {s.attendeesCount} طالب</span>
-                  </div>
+                <div className="mt-5 pt-3 border-t border-gray-100 flex gap-2">
+                  <a
+                    href={s.meetingUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 text-white py-2 text-xs font-black hover:bg-indigo-700 transition-colors shadow-xs"
+                  >
+                    <ExternalLink size={13} />
+                    <span>دخول الحصة</span>
+                  </a>
+                  <button
+                    onClick={() => copyMeetingLink(s.meetingUrl)}
+                    className="rounded-xl border border-gray-200 p-2 text-gray-600 hover:bg-gray-100 transition-colors"
+                    title="نسخ الرابط"
+                  >
+                    <Copy size={14} />
+                  </button>
                 </div>
               </div>
-
-              <div className="mt-5 pt-3 border-t border-gray-100 flex gap-2">
-                <a
-                  href={s.meetingUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 text-white py-2 text-xs font-black hover:bg-indigo-700 transition-colors shadow-xs"
-                >
-                  <ExternalLink size={13} />
-                  <span>دخول الحصة</span>
-                </a>
-                <button
-                  onClick={() => copyMeetingLink(s.meetingUrl)}
-                  className="rounded-xl border border-gray-200 p-2 text-gray-600 hover:bg-gray-100 transition-colors"
-                  title="نسخ الرابط"
-                >
-                  <Copy size={14} />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
