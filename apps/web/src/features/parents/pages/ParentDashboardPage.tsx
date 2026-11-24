@@ -69,11 +69,6 @@ export function ParentDashboardPage() {
     },
   ]);
 
-  // Link Child State
-  const [linkMode, setLinkMode] = useState<'code' | 'nationalId'>('code');
-  const [linkValue, setLinkValue] = useState('');
-  const [linking, setLinking] = useState(false);
-
   useEffect(() => {
     if (authLoading || !user || !user.roles.includes('parent')) return;
     const controller = new AbortController();
@@ -208,30 +203,6 @@ export function ParentDashboardPage() {
     }
   };
 
-  const handleApprovalAction = (id: string, action: 'approved' | 'rejected') => {
-    setApprovals((prev) =>
-      prev.map((appr) => (appr.id === id ? { ...appr, status: action } : appr))
-    );
-    setFeedback(
-      action === 'approved'
-        ? '✅ تم تسجيل موافقتك المبدئية، وسيتم إرسالها لإدارة المدرسة للاعتماد الرسمي.'
-        : '⚠️ تم تسجيل عدم الموافقة وإبلاغ إدارة المدرسة.'
-    );
-    setTimeout(() => setFeedback(''), 4000);
-  };
-
-  const handleLinkStudent = (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanId = linkValue.trim();
-    if (!cleanId) return;
-    setLinking(true);
-    setTimeout(() => {
-      setLinking(false);
-      setFeedback(`ℹ️ تم تسجيل طلب ربط الطالب برقم (${cleanId}). يتطلب تفعيل الربط اعتماد إدارة المدرسة ومطابقة السجل المدني في نظام نور.`);
-      setLinkValue('');
-      setTimeout(() => setFeedback(''), 5500);
-    }, 800);
-  };
 
   if (authLoading) return <main dir="rtl" className="p-10 text-center font-black"><Loader2 className="mx-auto mb-2 animate-spin" />جاري تحميل لوحة ولي الأمر...</main>;
   if (!user || !user.roles.includes('parent')) return <main dir="rtl" className="p-10 text-center font-black text-rose-700">هذه الصفحة مخصصة لولي الأمر.</main>;
@@ -328,7 +299,7 @@ export function ParentDashboardPage() {
             <Users className="mx-auto text-gray-300" size={44} />
             <h2 className="mt-3 text-xl font-black text-gray-900">لا يوجد أبناء مرتبطون بالحساب</h2>
             <p className="mt-2 text-sm leading-7 text-gray-500">
-              لا تعرض هذه الصفحة أي طالب خارج العلاقات المعتمدة. يمكنك استخدام تبويب <b>«ربط ابن جديد»</b> لإدخال رمز الربط أو الهوية الوطنية لربط ابنك فورياً.
+              لا تعرض هذه الصفحة أي طالب خارج العلاقات المعتمدة. يتم توثيق وربط الأبناء مركزياً عبر إدارة المدرسة ونظام نور لضمان سرية وحماية السجلات الأكاديمية. يمكنك مراجعة تبويب <b>«ربط ابن جديد»</b> للاطلاع على إجراءات التوثيق النظامية.
             </p>
           </section>
         ) : (
@@ -669,61 +640,26 @@ export function ParentDashboardPage() {
                   <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 mx-auto font-black mb-3">
                     <UserPlus size={24} />
                   </span>
-                  <h2 className="text-xl font-black text-slate-900">ربط وتوثيق ابن جديد</h2>
+                  <h2 className="text-xl font-black text-slate-900">إجراءات توثيق وربط الأبناء</h2>
                   <p className="mt-1 text-xs text-slate-500 font-bold max-w-md mx-auto leading-relaxed">
-                    أدخل رمز الربط الخاص بالطالب أو رقم الهوية الوطنية لربط حسابه بحسابك والبدء في متابعة درجاته.
+                    يتم ربط حساب ولي الأمر بالطلاب مركزياً عبر إدارة المدرسة وسجلات نظام نور لحماية خصوصية بيانات الطلاب وضمان صحة السجلات الأكاديمية.
                   </p>
                 </div>
 
-                <div className="flex justify-center gap-2 mb-6">
-                  <button
-                    type="button"
-                    onClick={() => setLinkMode('code')}
-                    className={`rounded-xl px-4 py-2 text-xs font-black transition-all ${
-                      linkMode === 'code' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    رمز الربط الأبوي
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLinkMode('nationalId')}
-                    className={`rounded-xl px-4 py-2 text-xs font-black transition-all ${
-                      linkMode === 'nationalId' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    رقم الهوية الوطنية
-                  </button>
+                <div className="space-y-4">
+                  <div className="rounded-2xl bg-slate-50 p-5 border border-slate-200/80 space-y-3">
+                    <h3 className="text-xs font-black text-slate-900">خطوات إضافة ابن غير ظاهر في حسابك:</h3>
+                    <ol className="list-decimal list-inside space-y-2 text-xs font-medium text-slate-700 leading-relaxed">
+                      <li>تواصل مع إدارة المدرسة أو المشرف الأكاديمي التابع لها الابن.</li>
+                      <li>تزويد المدرسة برقم السجل المدني لولي الأمر ورقم الهوية الوطنية للطالب لمطابقة بيانات نظام نور.</li>
+                      <li>بمجرد اعتماد المشرف للعلاقة في نظام إدارة المدرسة، ستظهر بيانات الابن ونتائجه وتقاريره الأسبوعية تلقائياً في هذه اللوحة دون الحاجة لأي إدخال يدوي.</li>
+                    </ol>
+                  </div>
+
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4 text-xs font-bold text-blue-900 leading-relaxed">
+                    ℹ️ <strong>حماية الخصوصية:</strong> منصة المئة لا تتيح الربط الذاتي المفتوح عبر المتصفح لمنع الوصول غير المصرح به إلى سجلات درجات وتقارير الطلاب.
+                  </div>
                 </div>
-
-                <form onSubmit={handleLinkStudent} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                      {linkMode === 'code' ? 'رمز الربط الخاص بالابن' : 'رقم الهوية الوطنية للابن'}
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={linkValue}
-                      onChange={(e) => setLinkValue(e.target.value)}
-                      placeholder={linkMode === 'code' ? 'مثال: PRNT-9482-SA' : 'مثال: 1082948291'}
-                      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-600"
-                    />
-                  </div>
-
-                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 text-xs text-slate-500 font-medium leading-relaxed">
-                    ℹ️ يمكن للطالب استخراج رمز الربط من شاشة إعدادات حسابه أو عبر تزويدك به من قِبل المشرف المدرسي.
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={linking || !linkValue.trim()}
-                    className="w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700 py-3 text-sm font-black text-white shadow-md active:scale-95 disabled:opacity-50 transition-all"
-                  >
-                    {linking ? <Loader2 size={16} className="animate-spin inline ml-1" /> : <UserPlus size={16} className="inline ml-1" />}
-                    <span>إرسال طلب ربط الابن</span>
-                  </button>
-                </form>
               </section>
             )}
 
@@ -732,10 +668,10 @@ export function ParentDashboardPage() {
               <section className="rounded-3xl border border-slate-100 bg-white p-5 sm:p-6 shadow-xs animate-fade-in">
                 <div className="border-b border-slate-100 pb-4 mb-5">
                   <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                    <ShieldCheck className="text-emerald-600" size={22} /> الموافقات والتراخيص الأبوية
+                    <ShieldCheck className="text-emerald-600" size={22} /> الإشعارات والتراخيص الأبوية
                   </h2>
                   <p className="mt-1 text-xs text-slate-500 font-bold">
-                    تصاريح المشاركة في المسابقات الوطنية والمعسكرات التدريبية المتقدمة.
+                    إشعارات الفعاليات والمعسكرات التدريبية المعتمدة من المدرسة (للاطلاع والمتابعة).
                   </p>
                 </div>
 
@@ -758,35 +694,15 @@ export function ParentDashboardPage() {
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        {appr.status === 'pending' ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleApprovalAction(appr.id, 'approved')}
-                              className="flex items-center gap-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-black text-white shadow-sm transition-all"
-                            >
-                              <CheckCircle2 size={14} /> موافقة واعتماد
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleApprovalAction(appr.id, 'rejected')}
-                              className="flex items-center gap-1 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-4 py-2 text-xs font-black transition-all"
-                            >
-                              <XCircle size={14} /> عدم الموافقة
-                            </button>
-                          </>
-                        ) : appr.status === 'approved' ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-3 py-1 text-xs font-black border border-emerald-200">
-                            <CheckCircle2 size={13} /> تم الاعتماد والموافقة
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 text-rose-800 px-3 py-1 text-xs font-black border border-rose-200">
-                            <XCircle size={13} /> تم الرفض
-                          </span>
-                        )}
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 px-3 py-1 text-xs font-bold border border-slate-200">
+                          {appr.status === 'approved' ? 'معتمد من المدرسة' : 'إشعار إداري'}
+                        </span>
                       </div>
                     </div>
                   ))}
+                </div>
+                <div className="mt-4 rounded-xl bg-slate-50 p-3 text-xs font-bold text-slate-500 text-center border border-slate-100">
+                  ملاحظة: نماذج التراخيص الموقعة يتم تسليمها مباشرة لإدارة المدرسة المعنية وفق الإجراءات النظامية.
                 </div>
               </section>
             )}
