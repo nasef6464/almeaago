@@ -198,38 +198,41 @@ export function SupervisorDashboardPage() {
   }, [schoolId, authorized, tab]);
 
   const mappedStudentsForSkills = useMemo(() => {
+    const avg = overviewReport?.assessment?.averageScore != null ? Math.round(overviewReport.assessment.averageScore) : 0;
+    const hasSkills = Boolean(overviewReport?.weakestSkills && overviewReport.weakestSkills.length > 0);
     return visibleRoster.map((m) => {
       const cls = classes.find((c) => m.classIds?.includes(c.id));
-      const avg = overviewReport?.assessment.averageScore ?? 75;
       return {
         id: m.userId,
         name: m.name,
         className: cls?.name || 'الفصل العام',
         average: avg,
         status: avg >= 60 ? 'active' : 'needs_support',
-        resultsList: [
-          {
-            skillsAnalysis: (overviewReport?.weakestSkills || []).map((sk) => ({
-              skill: sk.skillName,
-              mastery: sk.mastery,
-            })),
-          },
-        ],
+        resultsList: hasSkills
+          ? [
+              {
+                skillsAnalysis: (overviewReport?.weakestSkills || []).map((sk) => ({
+                  skill: sk.skillName,
+                  mastery: sk.mastery,
+                })),
+              },
+            ]
+          : [],
       };
     });
   }, [visibleRoster, classes, overviewReport]);
 
   const mappedStudentsForReports = useMemo(() => {
+    const avg = overviewReport?.assessment?.averageScore != null ? Math.round(overviewReport.assessment.averageScore) : 0;
     return visibleRoster.map((m) => {
       const cls = classes.find((c) => m.classIds?.includes(c.id));
-      const avg = overviewReport?.assessment.averageScore ?? 75;
       return {
         id: m.userId,
         name: m.name,
         className: cls?.name || 'الفصل العام',
         average: avg,
         attempts: overviewReport?.assessment.attemptCount ?? 0,
-        status: avg >= 60 ? 'مستقر' : 'يحتاج دعم',
+        status: avg >= 60 ? 'مستقر' : avg > 0 ? 'يحتاج دعم' : 'غير متوفر',
         weakSkills: (overviewReport?.weakestSkills || []).map((sk) => sk.skillName),
         resultsList: [],
       };
@@ -237,6 +240,8 @@ export function SupervisorDashboardPage() {
   }, [visibleRoster, classes, overviewReport]);
 
   const groupSnapshots = useMemo(() => {
+    const avg = overviewReport?.assessment?.averageScore != null ? Math.round(overviewReport.assessment.averageScore) : 0;
+    const failed = overviewReport?.assessment.failed ?? 0;
     if (classes.length > 0) {
       return classes.map((c) => {
         const classStudents = visibleRoster.filter((m) => m.classIds?.includes(c.id));
@@ -244,8 +249,8 @@ export function SupervisorDashboardPage() {
           id: c.id,
           name: c.name,
           studentCount: classStudents.length,
-          average: overviewReport?.assessment.averageScore ?? 75,
-          weakStudents: overviewReport?.assessment.failed ?? 0,
+          average: avg,
+          weakStudents: failed,
         };
       });
     }
@@ -254,8 +259,8 @@ export function SupervisorDashboardPage() {
         id: currentSchool?.schoolId || 'default',
         name: currentSchool?.schoolName || 'الفصل العام',
         studentCount: visibleRoster.length,
-        average: overviewReport?.assessment.averageScore ?? 75,
-        weakStudents: overviewReport?.assessment.failed ?? 0,
+        average: avg,
+        weakStudents: failed,
       },
     ];
   }, [classes, visibleRoster, currentSchool, overviewReport]);
@@ -265,7 +270,8 @@ export function SupervisorDashboardPage() {
     const member = visibleRoster.find((m) => m.userId === selectedStudentId);
     if (!member) return null;
     const cls = classes.find((c) => member.classIds?.includes(c.id));
-    const avg = overviewReport?.assessment.averageScore ?? 75;
+    const avg = overviewReport?.assessment?.averageScore != null ? Math.round(overviewReport.assessment.averageScore) : 0;
+    const hasSkills = Boolean(overviewReport?.weakestSkills && overviewReport.weakestSkills.length > 0);
     return {
       id: member.userId,
       name: member.name,
@@ -274,24 +280,26 @@ export function SupervisorDashboardPage() {
       schoolName: currentSchool?.schoolName || '',
       gradeName: 'المرحلة الثانوية',
       average: avg,
-      attempts: overviewReport?.assessment.attemptCount ?? 1,
+      attempts: overviewReport?.assessment.attemptCount ?? 0,
       latestScore: avg,
       previousScore: avg,
-      latestQuiz: 'اختبار تشخيصي',
+      latestQuiz: overviewReport?.assessment.attemptCount ? 'اختبار تشخيصي' : 'لا يوجد اختبارات بعد',
       weakSkills: (overviewReport?.weakestSkills || []).map((sk) => sk.skillName),
-      followUpReason: avg < 60 ? 'يحتاج دعم في المهارات الأساسية' : 'مستوى متقدم ومستقر',
-      status: avg < 50 ? 'danger' : avg < 70 ? 'watch' : 'good',
-      resultsList: [
-        {
-          score: avg,
-          quizTitle: 'اختبار تشخيصي',
-          date: new Date().toLocaleDateString('ar-SA'),
-          skillsAnalysis: (overviewReport?.weakestSkills || []).map((sk) => ({
-            skill: sk.skillName,
-            mastery: sk.mastery,
-          })),
-        },
-      ],
+      followUpReason: avg > 0 && avg < 60 ? 'يحتاج دعم في المهارات الأساسية' : avg >= 60 ? 'مستوى متقدم ومستقر' : 'متابعة دورية',
+      status: avg === 0 ? 'good' : avg < 50 ? 'danger' : avg < 70 ? 'watch' : 'good',
+      resultsList: hasSkills
+        ? [
+            {
+              score: avg,
+              quizTitle: 'اختبار تشخيصي',
+              date: new Date().toLocaleDateString('ar-SA'),
+              skillsAnalysis: (overviewReport?.weakestSkills || []).map((sk) => ({
+                skill: sk.skillName,
+                mastery: sk.mastery,
+              })),
+            },
+          ]
+        : [],
     };
   }, [selectedStudentId, visibleRoster, classes, currentSchool, overviewReport]);
 
@@ -636,7 +644,7 @@ export function SupervisorDashboardPage() {
                     متابعة وجدولة الحصص المباشرة عبر منصات Zoom وTeams وMeet
                   </p>
                 </div>
-                <LiveSessionsManager />
+                <LiveSessionsManager schoolId={schoolId} />
               </div>
             ) : null}
 

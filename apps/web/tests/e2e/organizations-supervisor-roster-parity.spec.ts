@@ -24,6 +24,7 @@ async function mockRoster(page:Page){
   const items=students[school]||[];
   return json(route,{members:items,pagination:{page:1,limit:20,total:items.length,totalPages:1}});
  });
+ await page.route('**/api/v1/classroom/teacher/sessions**',route=>json(route,{sessions:[]}));
 }
 const original=['الملخص العام','تعلم الطلاب وجاهزيتهم','الحصص المباشرة','الاختبارات والتحليل','المراقبة الحية','خريطة المهارات','تقارير الأداء'];
 for(const width of [390,820,1440]){
@@ -153,4 +154,71 @@ test('supervisor student profile alert action shows honest intervention status f
  await expect(status).toContainText('تم تسجيل تنبيه المتابعة الأكاديمية للطالب "طالب الأولى" وإدراجه في خطة التدخل المدرسي.');
  await status.getByRole('button',{name:'إغلاق'}).click();
  await expect(page.getByRole('status')).toHaveCount(0);
+});
+test('supervisor overview and reports tabs render authentic scoped data', async ({ page }) => {
+ await mockRoster(page);
+ // Overview
+ await page.goto('/supervisor-dashboard?tab=overview');
+ await expect(page.getByText('إجمالي طلاب المدرسة')).toBeVisible();
+ await expect(page.getByText('متوسط درجات الطلاب')).toBeVisible();
+ await expect(page.getByText('محاولات الاختبارات')).toBeVisible();
+ await expect(page.getByText('فصول تحت الإشراف')).toBeVisible();
+
+ // Reports Panel
+ await page.goto('/supervisor-dashboard?tab=reports');
+ await expect(page.getByRole('heading', { name: 'تقارير الأداء المعتمدة وتوزيع المستويات' })).toBeVisible();
+ await expect(page.getByRole('button', { name: 'تصدير CSV' })).toBeVisible();
+ await expect(page.getByRole('button', { name: 'طباعة' })).toBeVisible();
+});
+
+test('supervisor live sessions and monitoring tabs render honest states', async ({ page }) => {
+ await mockRoster(page);
+ // Live Sessions (Honest empty state)
+ await page.goto('/supervisor-dashboard?tab=live-sessions');
+ await expect(page.getByText('الحصص التفاعلية المباشرة')).toBeVisible();
+ await expect(page.getByText('لا توجد حصص تفاعلية مباشرة مجدولة حالياً لهذه المدرسة.')).toBeVisible();
+
+ // Live Sessions (With real scheduled session)
+ await page.route('**/api/v1/classroom/teacher/sessions**', (route) =>
+  json(route, {
+   sessions: [
+    {
+     id: 'sess-live-01',
+     schoolId: 'school-1',
+     classId: 'class-a',
+     subjectId: 'subj-1',
+     teacherId: 'teacher-1',
+     status: 'live',
+     day: '2026-11-24',
+     period: 1,
+     publishedMode: 'batch',
+     activeBatchId: '',
+     activeQuestionOrdinal: null,
+     pinExpiresAt: '',
+     revision: 1,
+     startedAt: null,
+     endedAt: null,
+     createdAt: '',
+     updatedAt: '',
+    },
+   ],
+  }),
+ );
+ await page.goto('/supervisor-dashboard?tab=live-sessions');
+ await expect(page.getByText('حصة تفاعلية - 2026-11-24')).toBeVisible();
+ await expect(page.getByText('بث مباشر الآن')).toBeVisible();
+ await expect(page.getByRole('link', { name: 'دخول الحصة' })).toBeVisible();
+
+ // Live Monitoring
+ await page.goto('/supervisor-dashboard?tab=live-monitoring');
+ await expect(page.getByRole('heading', { name: 'شاشة المراقبة الحية للاختبارات' })).toBeVisible();
+ await expect(page.getByText('متصل (0 نشط)')).toBeVisible();
+ await expect(page.getByText('لا يوجد اختبارات نشطة حالياً.')).toBeVisible();
+});
+
+test('supervisor skills map renders honest empty state when no skills data', async ({ page }) => {
+ await mockRoster(page);
+ await page.goto('/supervisor-dashboard?tab=skills');
+ await expect(page.getByRole('heading', { name: 'خريطة المهارات وتحليل الفجوات' })).toBeVisible();
+ await expect(page.getByText('لا توجد بيانات مهارات كافية بعد.')).toBeVisible();
 });
