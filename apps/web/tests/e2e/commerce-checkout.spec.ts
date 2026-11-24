@@ -360,3 +360,16 @@ test('checkout fails closed when payment options cannot be loaded',async({page})
  await expect(page.getByText('تعذر تحميل وسائل الدفع المتاحة. أعد تحميل الصفحة.')).toBeVisible();
  await expect(page.getByRole('button',{name:'إنشاء طلب للمراجعة'})).toBeDisabled();
 });
+
+test('checkout restores paid request status from requestId on Tap paymentReturn without local key',async({page})=>{
+ await auth(page,student);
+ const paidRequest={...pending,id:'payment-tap-paid',status:'paid',gatewayMode:'payment_link',providerCode:'tap',paidAt:'2026-09-26T11:05:00Z'};
+ await page.route('**/api/v1/commerce/catalog/products/product-course-1',r=>json(r,{product}));
+ await page.route('**/api/v1/commerce/checkout/requests?**',r=>json(r,{items:[paidRequest],page:1,limit:20,hasMore:false}));
+ await page.goto('/checkout?productId=product-course-1&requestId=payment-tap-paid&paymentReturn=1');
+ await expect(page.getByText('تم إتمام عملية الدفع وتفعيل اشتراكك بنجاح!')).toBeVisible();
+ const statusCard=page.getByTestId('payment-request-status');
+ await expect(statusCard).toBeVisible();
+ await expect(statusCard).toContainText('تم اعتماد طلب الدفع');
+ await expect(statusCard).toContainText('payment-tap-paid');
+});

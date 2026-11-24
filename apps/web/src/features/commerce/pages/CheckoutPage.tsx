@@ -41,10 +41,12 @@ export function CheckoutPage() {
   const [params] = useSearchParams();
   const rawProductId = params.get('productId') || '';
   const rawCourseId = params.get('courseId') || '';
+  const rawRequestId = params.get('requestId') || '';
+  const isPaymentReturn = params.get('paymentReturn') === '1';
   const rawTier = (params.get('tier') || '') as MembershipTierId;
   const rawCycle = (params.get('cycle') || 'annual') as BillingCycle;
   const returnTo = safeReturnPath(params.get('returnTo'));
-  const scope = JSON.stringify([user?.id || '', rawProductId, rawCourseId, rawTier, rawCycle]);
+  const scope = JSON.stringify([user?.id || '', rawProductId, rawCourseId, rawRequestId, isPaymentReturn, rawTier, rawCycle]);
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
   const [loadedScope, setLoadedScope] = useState('');
@@ -165,7 +167,16 @@ export function CheckoutPage() {
         if (restored && (restored.userId !== user!.id || restored.productId !== pId)) throw new Error('تعذر التحقق من صاحب طلب الدفع.');
         setProduct(p.product);
         setRequests(r.items);
-        setCurrent(restored || r.items.find((x) => x.productId === pId && x.status === 'pending') || null);
+        const matchedByRequestId = rawRequestId ? r.items.find((x) => x.id === rawRequestId && x.productId === pId) : null;
+        const activeRequest = restored || matchedByRequestId || r.items.find((x) => x.productId === pId && x.status === 'pending') || null;
+        setCurrent(activeRequest);
+        if (isPaymentReturn && activeRequest) {
+          if (activeRequest.status === 'paid') {
+            setNotice('تم إتمام عملية الدفع وتفعيل اشتراكك بنجاح!');
+          } else if (activeRequest.status === 'pending') {
+            setNotice('تمت العودة من بوابة الدفع. جاري تأكيد حالة السداد مع المزود.');
+          }
+        }
       } catch (e) {
         if (!c.signal.aborted) setError(e instanceof Error ? e.message : 'تعذر تحميل بيانات الشراء');
       } finally {
