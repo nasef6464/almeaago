@@ -21,6 +21,7 @@ import (
 const (
 	googleStateCookieName  = "almeaa_google_oauth_state"
 	googleReturnCookieName = "almeaa_google_oauth_return"
+	googleOriginCookieName = "almeaa_google_oauth_origin"
 	googleStateTTL         = 10 * time.Minute
 )
 
@@ -44,6 +45,7 @@ type Handler struct {
 	admin      *application.AdminService
 	account    *application.AccountService
 	webOrigin  string
+	webOrigins []string
 }
 
 type userResponse struct {
@@ -64,13 +66,15 @@ func New(service *application.Service, production bool, options ...Options) http
 		service:    service,
 		production: production,
 		webOrigin:  "http://localhost:5173",
+		webOrigins: []string{"http://localhost:5173"},
 	}
 	if len(options) > 0 {
 		handler.google = options[0].Google
 		handler.admin = options[0].Admin
 		handler.account = options[0].Account
-		if strings.TrimSpace(options[0].WebOrigin) != "" {
-			handler.webOrigin = strings.TrimRight(options[0].WebOrigin, "/")
+		if origins := parseAllowedWebOrigins(options[0].WebOrigin); len(origins) > 0 {
+			handler.webOrigins = origins
+			handler.webOrigin = origins[0]
 		}
 	}
 
@@ -227,6 +231,9 @@ func (h *Handler) googleStart(w http.ResponseWriter, r *http.Request) {
 
 	h.setOAuthCookie(w, googleStateCookieName, state)
 	h.setOAuthCookie(w, googleReturnCookieName, returnTo)
+	if origin := h.requestWebOrigin(r); origin != "" {
+		h.setOAuthCookie(w, googleOriginCookieName, origin)
+	}
 	http.Redirect(w, r, h.google.AuthorizationURL(state), http.StatusFound)
 }
 
@@ -255,6 +262,7 @@ func (h *Handler) googleCallback(w http.ResponseWriter, r *http.Request) {
 	if returnCookie, err := r.Cookie(googleReturnCookieName); err == nil {
 		returnTo = normalizeReturnTo(returnCookie.Value)
 	}
+	targetOrigin := h.resolveWebOrigin(r)
 	h.clearOAuthCookies(w)
 
 	profile, err := h.google.Exchange(r.Context(), code)
@@ -269,7 +277,7 @@ func (h *Handler) googleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.setSessionCookie(w, result)
-	target := h.webOrigin + "/login?oauth_provider=google&oauth_return=" + url.QueryEscape(returnTo)
+	target := targetOrigin + "/login?oauth_provider=google&oauth_return=" + url.QueryEscape(returnTo)
 	http.Redirect(w, r, target, http.StatusFound)
 }
 
@@ -457,7 +465,7 @@ func (h *Handler) setOAuthCookie(w http.ResponseWriter, name, value string) {
 }
 
 func (h *Handler) clearOAuthCookies(w http.ResponseWriter) {
-	for _, name := range []string{googleStateCookieName, googleReturnCookieName} {
+	for _, name := range []string{googleStateCookieName, googleReturnCookieName, googleOriginCookieName} {
 		http.SetCookie(w, &http.Cookie{
 			Name:     name,
 			Value:    "",
@@ -472,8 +480,81 @@ func (h *Handler) clearOAuthCookies(w http.ResponseWriter) {
 }
 
 func (h *Handler) redirectOAuthError(w http.ResponseWriter, r *http.Request, step string) {
-	target := h.webOrigin + "/login?oauth_error=google&step=" + url.QueryEscape(step)
+	target := h.resolveWebOrigin(r) + "/login?oauth_error=google&step=" + url.QueryEscape(step)
 	http.Redirect(w, r, target, http.StatusFound)
+}
+
+func parseAllowedWebOrigins(raw string) []string {
+	parts := strings.Split(raw, ",")
+	seen := make(map[string]struct{}, len(parts))
+	origins := make([]string, 0, len(parts))
+	for _, part := range parts {
+		origin, ok := normalizeWebOrigin(part)
+		if !ok {
+			continue
+		}
+		if _, exists := seen[origin]; exists {
+			continue
+		}
+		seen[origin] = struct{}{}
+		origins = append(origins, origin)
+	}
+	return origins
+}
+
+func normalizeWebOrigin(raw string) (string, bool) {
+	trimmed := strings.TrimRight(strings.TrimSpace(raw), "/")
+	if trimmed == "" || strings.Contains(trimmed, "*") {
+		return "", false
+	}
+	parsed, err := url.Parse(trimmed)
+	if err != nil || parsed.Host == "" || parsed.User != nil {
+		return "", false
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return "", false
+	}
+	return scheme + "://" + strings.ToLower(parsed.Host), true
+}
+
+func (h *Handler) matchAllowedWebOrigin(raw string) (string, bool) {
+	candidate, ok := normalizeWebOrigin(raw)
+	if !ok {
+		return "", false
+	}
+	for _, allowed := range h.webOrigins {
+		if candidate == allowed {
+			return allowed, true
+		}
+	}
+	return "", false
+}
+
+func (h *Handler) requestWebOrigin(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	for _, raw := range []string{r.Header.Get("Origin"), r.Header.Get("Referer")} {
+		if origin, ok := h.matchAllowedWebOrigin(raw); ok {
+			return origin
+		}
+	}
+	return ""
+}
+
+func (h *Handler) resolveWebOrigin(r *http.Request) string {
+	if r != nil {
+		if cookie, err := r.Cookie(googleOriginCookieName); err == nil {
+			if origin, ok := h.matchAllowedWebOrigin(cookie.Value); ok {
+				return origin
+			}
+		}
+		if origin := h.requestWebOrigin(r); origin != "" {
+			return origin
+		}
+	}
+	return h.webOrigin
 }
 
 func presentUser(user domain.User) userResponse {
