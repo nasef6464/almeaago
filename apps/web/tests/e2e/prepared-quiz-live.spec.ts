@@ -316,24 +316,45 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByText('درجتك', { exact: true }).locator('..').getByText('0%', { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('يحتاج مراجعة', { exact: true })).toBeVisible();
+  await page.evaluate(() => { window.print = () => { document.documentElement.dataset.printCalled = 'yes'; }; });
+  await page.getByRole('button', { name: 'تحميل PDF' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-print-called', 'yes');
   const historyResponse = await page.request.get('/api/v1/assessment-attempts/results?page=1&limit=20');
   expect(historyResponse.status()).toBe(200);
   expect((await historyResponse.json()).items).toEqual(expect.arrayContaining([expect.objectContaining({ attemptId })]));
-  const reportResponse = await page.request.get('/api/v1/reports/results?page=1&limit=50');
+  const reportResponse = await page.request.get('/api/v1/reports/results?pathId=00000000-0000-4000-8000-000000000003&subjectId=00000000-0000-4000-8000-000000000004&page=1&limit=50');
   expect(reportResponse.status()).toBe(200);
   expect((await reportResponse.json()).items).toEqual(expect.arrayContaining([expect.objectContaining({ attemptId })]));
-  const progressResponse = await page.request.get('/api/v1/mastery/progress?pathId=00000000-0000-0000-0000-000000000003&subjectId=00000000-0000-0000-0000-000000000004&page=1&limit=100');
+  const progressResponse = await page.request.get('/api/v1/mastery/progress?pathId=00000000-0000-4000-8000-000000000003&subjectId=00000000-0000-4000-8000-000000000004&page=1&limit=100');
   expect(progressResponse.status()).toBe(200);
   expect((await progressResponse.json()).items).toEqual(expect.arrayContaining([
     expect.objectContaining({ skillId: '00000000-0000-0000-0000-000000000021' }),
   ]));
+  await page.goto('/reports', { waitUntil: 'domcontentloaded' });
+  await page.getByLabel('مسار التقرير').selectOption('00000000-0000-4000-8000-000000000003');
+  await page.getByLabel('مادة التقرير').selectOption('00000000-0000-4000-8000-000000000004');
+  const reportEntry = page.getByRole('article').filter({ hasText: 'اختبار تجريبي جاهز' });
+  await expect(reportEntry).toBeVisible();
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: `test-results/student-report-live-${width}.png`, fullPage: true });
+  }
+  await reportEntry.getByRole('link').click();
+  await expect(page).toHaveURL(new RegExp(`/assessment-results/${attemptId}`));
   await page.getByRole('button', { name: /مراجعة الأسئلة/ }).click();
   await expect(page.getByText('الإجابة الصحيحة', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'اسأل المساعد النصي 💡' }).click();
+  const assistant = page.getByTestId('question-assistant');
+  const assistResponse = page.waitForResponse(response => response.url().endsWith('/api/v1/ai/question-assistant') && response.request().method() === 'POST');
+  await assistant.getByRole('button', { name: 'تلميح', exact: true }).click();
+  expect((await assistResponse).status()).toBe(200);
+  await expect(assistant.getByText('شرح موثوق احتياطي')).toBeVisible();
   const saved = page.waitForResponse(response => response.url().endsWith('/review/questions/00000000-0000-0000-0000-000000000005/saved') && response.request().method() === 'PUT');
   await page.getByRole('button', { name: 'حفظ للمراجعة' }).click();
   expect((await saved).status()).toBe(200);
   await expect(page.getByRole('button', { name: 'تم الحفظ' })).toBeVisible();
-  const savedLibrary = await page.request.get('/api/v1/review/library?tab=saved&pathId=00000000-0000-0000-0000-000000000003&page=1&limit=20');
+  const savedLibrary = await page.request.get('/api/v1/review/library?tab=saved&pathId=00000000-0000-4000-8000-000000000003&page=1&limit=20');
   expect(savedLibrary.status()).toBe(200);
   expect((await savedLibrary.json()).items).toEqual(expect.arrayContaining([
     expect.objectContaining({ card: expect.objectContaining({ questionId: '00000000-0000-0000-0000-000000000005', savedForReview: true }) }),
@@ -414,6 +435,15 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   await login(process.env.PREPARED_OTHER_EMAIL!);
   const otherReview = await page.request.get(`/api/v1/assessment-attempts/${attemptId}/review`);
   expect([403, 404]).toContain(otherReview.status());
+  const otherCsrf = await page.request.get('/api/v1/auth/csrf');
+  const otherAssist = await page.request.post('/api/v1/ai/question-assistant', {
+    headers: { 'X-CSRF-Token': (await otherCsrf.json()).csrfToken },
+    data: { attemptId, questionId: '00000000-0000-0000-0000-000000000005', helpLevel: 'hint', message: '' },
+  });
+  expect([403, 404]).toContain(otherAssist.status());
+  const otherReport = await page.request.get('/api/v1/reports/results?pathId=00000000-0000-4000-8000-000000000003&subjectId=00000000-0000-4000-8000-000000000004&page=1&limit=50');
+  expect(otherReport.status()).toBe(200);
+  expect((await otherReport.json()).items).not.toEqual(expect.arrayContaining([expect.objectContaining({ attemptId })]));
 });
 
 test('السؤال المصور يعرض الصورة والحروف فقط من قاعدة حقيقية', async ({ page }) => {
@@ -543,7 +573,7 @@ test('شراء باقة الدورات يفتح اختبار الدرس بعد �
   page.setDefaultTimeout(45_000);
   const courseId='00000000-0000-0000-0000-000000000031';
   const lessonId='00000000-0000-0000-0000-000000000033';
-  const pathId='00000000-0000-0000-0000-000000000003';
+  const pathId='00000000-0000-4000-8000-000000000003';
   const destination=`/learning/courses/${courseId}?lesson=${lessonId}`;
   async function login(email:string) {
     const response=await page.request.post('/api/v1/auth/login',{data:{email,password:process.env.PREPARED_PASSWORD}});
