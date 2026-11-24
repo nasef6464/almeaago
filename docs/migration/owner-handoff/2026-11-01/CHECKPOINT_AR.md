@@ -1,4 +1,14 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 24 نوفمبر — فيديو الشرح داخل مراجعة الطالب / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `pages/Results.tsx` و`components/VideoModal.tsx`. Go main `d57a96db005168a38e2cf90972bfadf1546b3dc4` بعد [#293](https://github.com/nasef6464/almeaago/pull/293). كود الدفعة `e2272e598d856155db19a40cb51e8736483df3c8` على الفرع المحلي `fix/student-review-notes` ويشمل دفعة الملاحظات تحته. لا PR لهذا الرأس ولا دمج أو نشر. exact-head CI SKIPPED.
+- الطالب ← مراجعة السؤال ← `GET /api/v1/assessment-attempts/{id}/review` ← التحقق من ملكية المحاولة وسياسة نسختها ← رابط فيديو نسخة السؤال من PostgreSQL إن كان الشرح متاحًا ← «تشغيل شرح الفيديو» ← نافذة داخلية تستخدم المشغل المشترك ← الإغلاق والعودة لنفس السؤال. تحميل الفيديو يبدأ عند فتح النافذة والتشغيل يبدأ بطلب الطالب. لا تغيير في API أو التخزين أو سياسة إتاحة الشرح.
+- الملفات `AssessmentResultsPage.tsx` و`AssessmentReviewVideo.tsx`، واختبارات المتصفح `assessment-solution-visibility.spec.ts` و`prepared-quiz-live.spec.ts` و`fixtures/review-video.ts` وبيانات اختبار Go في `prepared_quiz_live_browser_test.go`.
+- PASS فحص الأنواع و`git diff --check`. PASS حالتا متصفح مع مقطع WebM فعلي محلي للتحقق من التشغيل والإغلاق واستعادة التركيز ومنع طلب المقطع إذا كان الشرح مخفيًا في `.tmp/student-review-notes/video-browser-final.log). PASS رحلة المحاكي بمادتين من التسليم والتحديث إلى المراجعة والفيديو على Go/PostgreSQL معزولين وحالتا سياسة مراجعة في `video-verified-sha.log`. تعثرت تجربة سابقة عندما اختلف امتداد ملف الاختبار بين مسار Go والاعتراض المحلي، ثم نجح الرأس الحالي.
+- صور RTL عند 390 و820 و1440 في `.tmp/student-review-notes/legacy-review-video-*.png` و`apps/web/test-results/assessment-review-video-*.png`. حجم النافذة وموضع زر الإغلاق متقاربان. أزرار المشغل واختبار الخلفية مختلفة، لذلك المطابقة البصرية للشاشة الكاملة جزئية. الأدلة لمقطع محلي وليست شهادة تشغيل لكل مزود خارجي.
+
+الاستئناف: طابق ترتيب المهارات الرئيسية والفرعية داخل «أداؤك لكل مادة» من أدلة المحاولة. أثبت وجود معرّف الأب داخل نفس المادة قبل التعشيش، واحتفظ بعرض المهارة التي لا أب مثبت لها. أول أمر محلي: `rg -n "parent_skill_id|ResultSkillAnalysisItem" internal/assessment/domain/result_review.go internal/assessment/repository/postgres/result_skill_analysis.go internal/assessment/repository/postgres/self_quiz_skill_analysis.go migrations/000001_platform_foundation.up.sql`.
+
 ## 24 نوفمبر — ملاحظات مراجعة الطالب والعودة من السؤال الأخير / PARTIAL
 
 - القديم `ed28102d7084899856de0371dc2c93a3d602d518` من `pages/Results.tsx`. Go main `d57a96db005168a38e2cf90972bfadf1546b3dc4` يضم [#293](https://github.com/nasef6464/almeaago/pull/293) مع فحوص GitHub ناجحة على رأسه `01c9d0a76c5599a0373abb886c033ac2925d902c`. هذا الدمج استعاد تفصيل المواد وبطاقة المشاركة والرحلة السابقة.
