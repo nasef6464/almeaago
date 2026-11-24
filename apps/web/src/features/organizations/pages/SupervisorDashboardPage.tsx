@@ -85,6 +85,7 @@ export function SupervisorDashboardPage() {
   const [classes, setClasses] = useState<Array<{ id: string; name: string }>>([]);
   const [overviewReport, setOverviewReport] = useState<ReportingOverview | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<string | null>(null);
 
   const visibleContexts = scopeOwner === user?.id ? contexts : [];
   const currentSchool = visibleContexts.find((item) => item.schoolId === schoolId);
@@ -406,6 +407,22 @@ export function SupervisorDashboardPage() {
 
         {!scopeBusy && !scopeError && visibleContexts.length > 0 ? (
           <section className="space-y-4 rounded-2xl border bg-white p-4 sm:p-6">
+            {actionFeedback ? (
+              <div role="status" className="flex items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-indigo-50/80 p-4 text-xs font-bold text-indigo-900 shadow-xs">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-white font-black text-xs">✓</span>
+                  <span>{actionFeedback}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActionFeedback(null)}
+                  className="text-indigo-600 hover:text-indigo-800 text-xs font-black cursor-pointer"
+                >
+                  إغلاق
+                </button>
+              </div>
+            ) : null}
+
             <label className="block text-sm font-bold text-gray-800">
               المدرسة
               <select
@@ -745,7 +762,9 @@ export function SupervisorDashboardPage() {
             classTotalStudents={visibleRoster.length}
             onClose={() => setSelectedStudentId(null)}
             onSendAlert={() => {
+              const name = selectedStudent?.name || 'الطالب';
               setSelectedStudentId(null);
+              setActionFeedback(`تم تسجيل تنبيه المتابعة الأكاديمية للطالب "${name}" وإدراجه في خطة التدخل المدرسي.`);
             }}
             onAssignTest={() => {
               setSelectedStudentId(null);
