@@ -1,4 +1,12 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 24 نوفمبر — نتيجة الاختبار الذاتي في تقارير الطالب / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518` وGo main `d0afc757a41e42e7f7e9159a1fe273262e5784cd`. الكود المحلي `31594bc57eeff9b02f2ab0bd7e810f5a156eea59` في `fix/student-review-notes`؛ لا PR أو دمج أو نشر وCI SKIPPED.
+- الاختبار الذاتي كان موجودًا في `assessment_results` و«اختباراتي»، لكنه يغيب من استعلام التقارير بسبب اشتراط نسخة اختبار منشور. يصلح `reportAttemptVersionJoin` مصدر نطاق واسم المحاولة الذاتية من `self_quiz_settings` في نطاق الطالب، بما يشمل قائمة النتائج وأعداد المحاولات وملخص أدلة المهارات. بقيت نطاقات بقية الأدوار كما هي. العنوان المعروض «اختبار ذاتي».
+- RED في `self-report-red.log` على غياب النتيجة. PASS `self-report-http.log` على PostgreSQL معزول لتسليم نتيجة ذاتية وإرجاعها عبر HTTP للتقارير وترشيح مسار ومادة في المستودع ومنع ظهورها لطالب آخر ودخولها الإجماليات. PASS `prepared-after-self.log` لرحلة اختبار منشور وإظهار نتيجته في صفحة التقارير وتصفية المسار والمادة والمساعد والمراجعة وحفظ السؤال. PASS حزم التقارير و`git diff --check`.
+- لم تُثبت بعد واجهة الاختبار الذاتي إلى صفحة التقارير في متصفح حقيقي. مشغل اختبارها المحلي `self_quiz_live_browser_test.go` يشير إلى ملف `apps/web/tests/e2e/self-quiz-live.spec.ts` المفقود. لا صور Legacy/Go مقترنة لهذه الحالة، والمحاكي والمدرسي والـCI ما زالوا مطلوبين.
+- الاستئناف: إعادة إنشاء اختبار المتصفح المفقود باستخدام واجهة الإنشاء الفعلية وخادم معزول، وإثبات التسليم وظهور النتيجة في «اختباراتي» و«تقاريري»، ثم اختبار المحاكي والمدرسي. أول أمر: `rg -n "createSelf|currentSelf|self-quiz-live|اختبار ذاتي" apps/web/src/features/assessment apps/web/src/features/learning internal/assessment/repository/postgres/self_quiz_live_browser_test.go`.
+
 ## 24 نوفمبر — اختبار ترابط تقارير الطالب ومساعد السؤال / PARTIAL
 
 - Legacy `ed28102d7084899856de0371dc2c93a3d602d518` وGo main `d0afc757a41e42e7f7e9159a1fe273262e5784cd`، رأس الاختبارات المحلي `d4f7331937370db45674ab623fbf1865ca6ff158` على `fix/student-review-notes`. لا رفع أو PR أو دمج وCI SKIPPED.
