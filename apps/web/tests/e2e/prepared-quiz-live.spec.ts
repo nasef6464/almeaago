@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { reviewVideoFixture } from './fixtures/review-video';
 
 test('رحلة الاختبار الجاهز بين الإدارة والطالب بقاعدة محلية', async ({ page }) => {
   test.skip(process.env.PREPARED_QUIZ_LIVE !== '1', 'requires isolated Go and PostgreSQL');
@@ -141,6 +142,22 @@ test('محاكي صارم بمادتين من الدخول إلى النتيجة
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await subjects.screenshot({ path: `test-results/assessment-live-subject-results-${width}.png` });
   }
+  const clip = await reviewVideoFixture(page);
+  await page.route('**/review-fixture.webm', route => route.fulfill({ body: clip, contentType: 'video/webm' }));
+  await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
+  const play = page.getByRole('button', { name: 'تشغيل شرح الفيديو' });
+  await play.click();
+  const video = page.getByRole('dialog', { name: 'شرح السؤال 1' });
+  const media = video.locator('video');
+  await expect.poll(() => media.evaluate(element => (element as HTMLVideoElement).readyState)).toBeGreaterThanOrEqual(2);
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => video.evaluate(dialog => dialog.getBoundingClientRect().width)).toBeLessThan(width);
+    await page.screenshot({ path: `test-results/assessment-review-video-${width}.png` });
+  }
+  await video.getByRole('button', { name: 'إغلاق مشغل الفيديو' }).click();
+  await expect(video).toHaveCount(0);
+  await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible();
 });
 
 test('انتهاء وقت قسم المحاكي يحفظ غير المجاب وينتقل للقسم التالي', async ({ page }) => {

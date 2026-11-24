@@ -128,7 +128,7 @@ func TestPreparedQuizLiveBrowser(t *testing.T) {
 INSERT INTO paths(id,code,name) VALUES ('00000000-0000-0000-0000-000000000003','LIVE-P','مسار تجريبي');
 INSERT INTO subjects(id,path_id,code,name) VALUES ('00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000003','LIVE-S','مادة تجريبية');
 INSERT INTO questions(id,question_code,path_id,subject_id,workflow_status) VALUES ('00000000-0000-0000-0000-000000000005','LIVE-Q','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','approved');
-INSERT INTO question_versions(question_id,version,question_type,text_content,correct_option_index) VALUES ('00000000-0000-0000-0000-000000000005',1,'mcq','سؤال تجريبي',0);
+INSERT INTO question_versions(question_id,version,question_type,text_content,correct_option_index,video_url) VALUES ('00000000-0000-0000-0000-000000000005',1,'mcq','سؤال تجريبي',0,'/review-fixture.webm');
 INSERT INTO question_options(question_id,version,option_index,option_text) VALUES ('00000000-0000-0000-0000-000000000005',1,0,'نعم'),('00000000-0000-0000-0000-000000000005',1,1,'لا');`)
 	if err != nil {
 		t.Fatal(err)
@@ -244,7 +244,7 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 	}
 	mock, err := defs.Create(ctx, adminUser, assessment.Write{
 		Code: "LIVE-MOCK", OwnerType: assessment.OwnerPlatform, IsVisible: true,
-		Version:   assessment.Version{Title: "محاكي قسمين", PathID: "00000000-0000-0000-0000-000000000003", Kind: assessment.KindMock, OptionLayout: "auto", MockCategory: "qudrat", MockTargetScore: &target, MockPresentationMode: mode, MockStrictSectionLock: &strict, ShowResultsReport: true, ShowAnswers: true, AllowQuestionReview: true, MaxAttempts: 5, Presentation: []byte(`{}`)},
+		Version:   assessment.Version{Title: "محاكي قسمين", PathID: "00000000-0000-0000-0000-000000000003", Kind: assessment.KindMock, OptionLayout: "auto", MockCategory: "qudrat", MockTargetScore: &target, MockPresentationMode: mode, MockStrictSectionLock: &strict, ShowResultsReport: true, ShowAnswers: true, ShowExplanations: true, AllowQuestionReview: true, MaxAttempts: 5, Presentation: []byte(`{}`)},
 		Sections:  []assessment.Section{{ID: "00000000-0000-0000-0000-000000000010", Title: "القسم الأول", SubjectID: "00000000-0000-0000-0000-000000000004", SortOrder: 1, TimeLimitSeconds: firstSectionLimit, Domain: "quantitative", StrictLock: strict}, {ID: "00000000-0000-0000-0000-000000000011", Title: "القسم الثاني", SubjectID: "00000000-0000-0000-0000-000000000007", SortOrder: 2, Domain: "verbal", StrictLock: strict}},
 		Questions: []assessment.QuestionPlacement{{QuestionID: "00000000-0000-0000-0000-000000000005", QuestionVersion: 1, SectionID: "00000000-0000-0000-0000-000000000010", SortOrder: 1, Points: 1}, {QuestionID: "00000000-0000-0000-0000-000000000008", QuestionVersion: 1, SectionID: "00000000-0000-0000-0000-000000000011", SortOrder: 2, Points: 1}},
 	})

@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
   Eye,
   Flag,
   History,
@@ -30,6 +29,7 @@ import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
 import { AssessmentResultSummary } from '../components/AssessmentResultSummary';
 import { AssessmentPreviousAttempts } from '../components/AssessmentPreviousAttempts';
 import { AssessmentShareScorecard } from '../components/AssessmentShareScorecard';
+import { AssessmentReviewVideo } from '../components/AssessmentReviewVideo';
 import { optionLabel, showOptionText } from '../questionPresentation';
 import { relativeArabicDate } from '../relativeDate';
 import {
@@ -136,6 +136,8 @@ function ReviewQuestionCard({
 }) {
   const [showAiAssistant, setShowAiAssistant] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
+  const videoURL = detail.showExplanations ? question.videoUrl : '';
   const resolvedImageUrl = useMemo(() => resolveReviewImage(question), [question.imageUrl, question.text]);
   const imageEmbeddedOptions = Boolean(resolvedImageUrl || question.imageAssetId);
 
@@ -261,10 +263,17 @@ function ReviewQuestionCard({
         })}
       </div>
 
-      {showNotes && (
+      {(showNotes || videoURL) && (
         <section aria-label="ملاحظات السؤال" className="mt-4 space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 text-sm leading-7">
-          <h4 className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-black text-indigo-700">مراجعة وتقييم السؤال</h4>
-          {detail.showExplanations && (question.explanation || question.hint || question.solvingStrategy) ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h4 className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-black text-indigo-700">مراجعة وتقييم السؤال</h4>
+            {videoURL && (
+              <button type="button" onClick={() => setVideoOpen(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-black text-white hover:bg-emerald-700">
+                <Play size={15} /> تشغيل شرح الفيديو
+              </button>
+            )}
+          </div>
+          {showNotes && detail.showExplanations && (question.explanation || question.hint || question.solvingStrategy) ? (
             <div className="space-y-2 text-slate-700">
               {question.explanation && <p><strong>الشرح:</strong> {question.explanation}</p>}
               {question.hint && <p><strong>تلميح:</strong> {question.hint}</p>}
@@ -279,25 +288,9 @@ function ReviewQuestionCard({
           )}
         </section>
       )}
-      {detail.showExplanations && question.videoUrl ? (
-        <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs font-bold text-blue-900">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white shadow-xs">
-              <Play size={13} className="fill-current" />
-            </div>
-            <span>فيديو شرح حل المسألة متوفر</span>
-          </div>
-          <a
-            href={question.videoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-black text-white hover:bg-blue-700 transition"
-          >
-            شاهد فيديو الشرح <ExternalLink size={12} />
-          </a>
-        </div>
-      ) : null}
-
+      {videoURL && videoOpen && (
+        <AssessmentReviewVideo url={videoURL} title={`شرح السؤال ${displayNumber}`} onClose={() => setVideoOpen(false)} />
+      )}
       {detail.showAnswers && detail.showExplanations ? <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
         <div className="flex flex-wrap items-center gap-2">
           <button
