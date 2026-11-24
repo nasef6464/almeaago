@@ -1,4 +1,14 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 24 نوفمبر — نافذة تحليل المهارات بعد «تفاصيل أكثر» / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `components/DetailedAnalysisModal.tsx` و`pages/Results.tsx`. أعيد تركيب `fix/student-review-notes` فوق أحدث Go main `2c10ff186b726c2e9f37aad96b55afc0ab9144d6`. كود الدفعة `ddece662ba75a9d8a6d89c96b74c29c92779fd5b`. لا رفع أو PR أو نشر لهذا الرأس وGitHub CI SKIPPED.
+- الطالب ← «تفاصيل أكثر» أو «عرض الكل» ← `GET /api/v1/assessment-attempts/{id}/review` ← ملكية المحاولة وإتاحة تقريرها ← مهارات المحاولة وأدلتها في PostgreSQL ← نافذة مرتبة من الأضعف للأقوى مع تصفية بالمادة والمسار. يضاف اسم قسم التصنيف إن كان مرتبطًا بالمهارة أو رئيسيتها في المادة نفسها، وتظهر صفة التدريب على نسخ التقييم العادي ذات وضع practice. تعرض أزرار الفيديو والتدريب موضوع التأسيس المرتبط بالمحتوى المطلوب حسب الخادم، وتظهر غير متاحة إذا غاب الربط. تبقى الأذونات في وجهة التأسيس. لا تغيير لتصحيح المحاولة أو حفظها.
+- الملفات `AssessmentSkillAnalysisDialog.tsx` و`AssessmentResultSummary.tsx` و`AssessmentResultsPage.tsx` و`resultFoundationPath.ts` و`attempt-client.ts` وملفات Go لعقد النتيجة وتحليل المهارات المنشور والذاتي وOpenAPI والاختبارات.
+- RED في `details-red.log` على النافذة السابقة. PASS فحص TypeScript و`git diff --check` وحزم Go للتقييم وخمس حالات متصفح في `details-web-final.log` بعد تحديد بطاقة النسبة في الاختبار. الحالة الجديدة أثبتت ترتيب الدرجات، والتصفية، وفتح التقرير من الزرين، وعودة التركيز بعد الإغلاق، وإغلاق النافذة والتنقل إلى رابط التأسيس. PASS رحلة محاكي بمادتين من التسليم حتى تحليل المهارات وفيديو المراجعة بعد التحديث واختبارا PostgreSQL للمنشور والذاتي في `details-live.log`.
+- صور RTL عند 390 و820 و1440 في `.tmp/student-review-notes/legacy-skill-analysis-*.png` و`apps/web/test-results/assessment-live-skill-analysis-*.png`. النافذة والسلوك يضاهيان المرجع في العينة. تبقى فروق الخط وترتيب المهارات ذات النسب المتساوية وفق ترتيب بيانات التقييم، ولذلك لا شهادة بتطابق شاشة النتيجة كلها.
+
+الاستئناف: فحص إجراءات الشرح والتدريب والدعم لكل مهارة داخل قسم «مهارات تحتاج متابعة» في التقرير الكامل مقابل مسار Legacy قبل تنفيذ أي روابط إضافية. أول أمر محلي: `rg -n "topThreeFocusSkills|مهارات تحتاج متابعة|followUpSkills" C:/almeaago/almeaacodax/pages/Results.tsx apps/web/src/features/assessment/pages/AssessmentResultsPage.tsx`.
+
 ## 24 نوفمبر — تفاصيل أقسام المحاكي في نتيجة الطالب / PARTIAL
 
 - Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `components/quiz/QuizSectionResults.tsx` و`quizSubmissionSectionResults.ts`. أعيد تركيب الفرع المحلي `fix/student-review-notes` فوق أحدث Go main `9ea6dd74cab1afb76cf84e688604e5c808e70511` قبل التنفيذ. كود الدفعة `93a2232fb160cfa1c400ce5108598801bf65d38b`. لا رفع أو PR أو نشر لهذا الرأس، وفحص GitHub CI SKIPPED.
