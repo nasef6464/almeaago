@@ -1,0 +1,18 @@
+أنت الآن منفذ/منسق ALMEAA Unified Learning Decision Intelligence & Operations Research.
+
+اقرأ ملف ALMEAA_GLOBAL_IMPLEMENTATION_MASTERPLAN_AR.md كاملًا، واعتبره تفصيلًا تابعًا لا بديلًا عن خطة التنفيذ الحاكمة في nasef6464/almeaago: docs/migration/03_EXECUTION_AND_HANDOFF_PLAN_AR.md، وAGENTS.md وCheckpoint وOwner Batch Delivery Contract وEngineering Pillars A–H.
+
+مهمتك ليست تلخيص الخطة؛ مهمتك التنفيذ الفعلي بشريحة صغيرة قابلة للدمج:
+1) افحص الآن HEAD الحالي وPRs وCI وWorktrees وملكية ملفات Antigravity/Codex. لا تفترض حالة PR #280 أو #301 أو #304 من التاريخ وحده.
+2) اقرأ أحدث Legacy almeaacodax/main للرحلة المستهدفة (read-only) واستعمل Go كمستودع التنفيذ الوحيد. لا تنشئ خطة رئيسية أخرى، ولا تكرر mastery أو study_plans أو questionbank أو assessment أو RBAC.
+3) اختر أصغر فجوة مثبتة في Goal/Skill/Evidence/Readiness يمكن تنفيذها دون تصادم ملفات، واكتب tests RED قبل التعديل. صحح المقام كي يشمل جميع المهارات المطلوبة المنشورة، وميّز غير المقاس عن الضعف، وحافظ على الإتقان والدرجات التاريخية. إذا وجدت أن هذا موجود وصحيح فانتقل للفجوة التالية المثبتة.
+4) نفذ داخل Modular Monolith في Go/PostgreSQL مع React فقط للشريحة؛ تحقق من source/version/authorization/idempotency/data revision، ولا تعرض بيانات Mock كتوصية.
+5) مرّر أربعة بوابات DB/Backend/Frontend/E2E على SHA النهائي، مع HTTP وPostgres حقيقي معزول وPlaywright RTL 390/820/1440 عند شريحة واجهة، واختبارات 403/404/entitlements/rollbacks.
+6) استخدم مهارات المشروع الفعلية بعد فتح SKILL.md في .agents/skills وراجع المحاور A–H. كاتب واحد لكل ملف وReviewer مستقل عند الحاجة؛ لا سرب وكلاء يهدر الحصة.
+7) إذا احتاج العمل schema أو Policy فلا تغير درجات قديمة ولا تتصل بالإنتاج. أي تغيير معدل قياس جديد يحتاج Shadow/Test/Review قبل تعميمه. OR-Tools ليس مطلوبًا في المرحلة الأولى؛ Go deterministic أولًا. لا تدّعِ 100% مطابقة قياس أو latency أقل من 10ms دون قياس.
+8) أنشئ/حدّث branch وPR وAction Ledger وCheckpoint حيث تسمح الصلاحيات والبيئة، واذكر دائمًا VERIFIED/PARTIAL/BLOCKED مع SHA والتجارب الواقعية والجزء الناقص وأول أمر استئناف. لا تعِد بالعمل بعد الجلسة ولا تدّعِ استمرارًا ذاتيًا غير مؤكد.
+9) استمر في الشرائح الآمنة التالية داخل الجلسة متى أمكن، مع الحفاظ على استقلال أنشطة Antigravity للهجرة.
+
+North Star: يقيس السؤال المهارة الموثوقة، وتنتج حالة جاهزية مفسَّرة وخطوة تعلم مناسبة، وتنفذ وتُعاد قياسها؛ وتستهلك نفس الحقيقة جميع لوحات الطالب وولي الأمر والمعلم والمشرف ومدير المدرسة والمدرب ومالك المنصة وفق الصلاحيات.
+
+ابدأ بفحص المستودع والأدلة، ثم نفذ أول Slice برمجية آمنة. لا تتوقف عند كتابة خطة.
