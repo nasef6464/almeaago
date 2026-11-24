@@ -45,6 +45,36 @@ func TestLegacyDirectorStudentsPreservesResponseShape(t *testing.T) {
 		`"classId":"class-1"`,
 		`"className":"Class A"`,
 		`"total":1`,
+		`"page":1`,
+		`"limit":50`,
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("missing %s in %s", fragment, body)
+		}
+	}
+}
+
+func TestLegacyDirectorStudentsPaginationParameters(t *testing.T) {
+	repo := &repoStub{}
+	service := orgapp.NewService(repo, repo)
+	handler := NewLegacy(service, authStub{auth: schoolAdminAuth()})
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/director/schools/school-1/students?page=2&limit=25",
+		nil,
+	)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", response.Code, response.Body.String())
+	}
+	body := response.Body.String()
+	for _, fragment := range []string{
+		`"page":2`,
+		`"limit":25`,
+		`"total":1`,
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("missing %s in %s", fragment, body)

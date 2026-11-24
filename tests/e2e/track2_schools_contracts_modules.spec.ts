@@ -373,8 +373,46 @@ test.describe('Track 2 - Feature 9: School Director Cockpit', () => {
   });
 
   test('T2.F9.7 - [Tier 2] large student roster pagination handles page transitions', async ({ page }) => {
+    let requestedPage = 1;
+    await page.route('**/api/school-access/director/schools/sch-alrowaad-01/students*', (r) => {
+      const url = new URL(r.request().url());
+      const p = parseInt(url.searchParams.get('page') || '1', 10);
+      requestedPage = p;
+      const students = p === 1
+        ? Array.from({ length: 50 }, (_, i) => ({
+            studentId: `std-p1-${i + 1}`,
+            name: `طالب صفحة 1 رقم ${i + 1}`,
+            email: `s1_${i + 1}@alrowaad.edu.sa`,
+            classId: 'cls-1',
+            className: 'الثالث الثانوي (أ)',
+            isActive: true,
+          }))
+        : Array.from({ length: 50 }, (_, i) => ({
+            studentId: `std-p2-${i + 1}`,
+            name: `طالب صفحة 2 رقم ${i + 1}`,
+            email: `s2_${i + 1}@alrowaad.edu.sa`,
+            classId: 'cls-1',
+            className: 'الثالث الثانوي (أ)',
+            isActive: true,
+          }));
+      return json(r, { students, total: 120, page: p, limit: 50 });
+    });
+
     await page.goto('/school-director-dashboard');
-    await expect(page.getByRole('heading', { name: /مدارس الرواد الأهلية|لوحة مدير المدرسة/i })).toBeVisible();
+    await page.getByRole('navigation', { name: 'أقسام لوحة مدير المدرسة' }).getByText('الطلاب').click();
+
+    // Verify pagination bar is displayed
+    const paginationBar = page.getByLabel('شريط تصفح صفحات الطلاب');
+    await expect(paginationBar).toBeVisible();
+    await expect(paginationBar).toContainText('صفحة 1 من 3');
+
+    // Click next page
+    await page.getByRole('button', { name: 'الصفحة التالية' }).click();
+
+    // Verify page transition to page 2
+    await expect(paginationBar).toContainText('صفحة 2 من 3');
+    await expect(page.getByText('طالب صفحة 2 رقم 1')).toBeVisible();
+    expect(requestedPage).toBe(2);
   });
 
   test('T2.F9.8 - [Tier 2] student search filter matches names accurately', async ({ page }) => {
