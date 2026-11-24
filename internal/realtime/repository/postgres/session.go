@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -102,13 +103,114 @@ func (r *Repository) FindLiveByPINHash(ctx context.Context, hash string) (realti
 func (r *Repository) ListTeacherSessions(
 	ctx context.Context,
 	teacherID string,
+	schoolID string,
 	limit int,
 ) ([]realtime.Session, error) {
 	rows, err := r.db.Query(ctx, sessionSelect+`
 		WHERE teacher_id=$1::uuid
+		  AND ($2 = '' OR school_id=$2::uuid)
+		ORDER BY created_at DESC,id DESC
+		LIMIT $3
+	`, teacherID, strings.TrimSpace(schoolID), limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]realtime.Session, 0, limit)
+	for rows.Next() {
+		item, scanErr := scanSession(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (r *Repository) ListSupervisorSessions(
+	ctx context.Context,
+	supervisorID string,
+	schoolID string,
+	limit int,
+) ([]realtime.Session, error) {
+	rows, err := r.db.Query(ctx, sessionSelect+`
+		WHERE EXISTS (
+			SELECT 1
+			FROM school_supervisor_scopes ss
+			WHERE ss.supervisor_user_id=$1::uuid
+			  AND ss.school_id=classroom_sessions.school_id
+			  AND ss.status='active'
+			  AND (
+				ss.scope_type='school'
+				OR (ss.scope_type='class' AND ss.class_id=classroom_sessions.class_id)
+			  )
+		)
+		AND ($2 = '' OR school_id=$2::uuid)
+		ORDER BY created_at DESC,id DESC
+		LIMIT $3
+	`, supervisorID, strings.TrimSpace(schoolID), limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]realtime.Session, 0, limit)
+	for rows.Next() {
+		item, scanErr := scanSession(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (r *Repository) ListSchoolAdminSessions(
+	ctx context.Context,
+	adminID string,
+	schoolID string,
+	limit int,
+) ([]realtime.Session, error) {
+	rows, err := r.db.Query(ctx, sessionSelect+`
+		WHERE EXISTS (
+			SELECT 1
+			FROM school_memberships sm
+			WHERE sm.user_id=$1::uuid
+			  AND sm.school_id=classroom_sessions.school_id
+			  AND sm.role='school_admin'
+			  AND sm.status='active'
+		)
+		AND ($2 = '' OR school_id=$2::uuid)
+		ORDER BY created_at DESC,id DESC
+		LIMIT $3
+	`, adminID, strings.TrimSpace(schoolID), limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]realtime.Session, 0, limit)
+	for rows.Next() {
+		item, scanErr := scanSession(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (r *Repository) ListAllSessions(
+	ctx context.Context,
+	schoolID string,
+	limit int,
+) ([]realtime.Session, error) {
+	rows, err := r.db.Query(ctx, sessionSelect+`
+		WHERE ($1 = '' OR school_id=$1::uuid)
 		ORDER BY created_at DESC,id DESC
 		LIMIT $2
-	`, teacherID, limit)
+	`, strings.TrimSpace(schoolID), limit)
 	if err != nil {
 		return nil, err
 	}

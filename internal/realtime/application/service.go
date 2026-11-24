@@ -23,13 +23,18 @@ var (
 	ErrUnavailable  = errors.New("classroom service unavailable")
 	ErrNotFound     = realtime.ErrNotFound
 	ErrConflict     = realtime.ErrConflict
+
+	sessionSchoolUUIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 )
 
 type Repository interface {
 	CreateSession(context.Context, realtime.CreateRecord) (realtime.Session, error)
 	GetSession(context.Context, string) (realtime.Session, error)
 	FindLiveByPINHash(context.Context, string) (realtime.Session, error)
-	ListTeacherSessions(context.Context, string, int) ([]realtime.Session, error)
+	ListTeacherSessions(context.Context, string, string, int) ([]realtime.Session, error)
+	ListSupervisorSessions(context.Context, string, string, int) ([]realtime.Session, error)
+	ListSchoolAdminSessions(context.Context, string, string, int) ([]realtime.Session, error)
+	ListAllSessions(context.Context, string, int) ([]realtime.Session, error)
 	SessionQuestions(context.Context, string) ([]realtime.PinnedQuestion, error)
 	QuestionByOrdinal(context.Context, string, int) (realtime.PinnedQuestion, error)
 	AppendBatch(context.Context, realtime.AppendBatchRecord) (realtime.Batch, error)
@@ -362,11 +367,51 @@ func (s *Service) StaffState(
 func (s *Service) TeacherSessions(
 	ctx context.Context,
 	actor identity.User,
+	schoolID string,
 ) ([]realtime.Session, error) {
-	if !actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleAdmin) {
+	if !actor.HasRole(identity.RoleTeacher) &&
+		!actor.HasRole(identity.RoleAdmin) &&
+		!actor.HasRole(identity.RoleSupervisor) &&
+		!actor.HasRole(identity.RoleSchoolAdmin) {
 		return nil, ErrForbidden
 	}
-	return s.repo.ListTeacherSessions(ctx, actor.ID, 50)
+
+	schoolID = strings.TrimSpace(schoolID)
+	if schoolID != "" && !sessionSchoolUUIDPattern.MatchString(schoolID) {
+		return nil, ErrInvalidInput
+	}
+
+	const limit = 50
+	switch {
+	case actor.HasRole(identity.RoleAdmin):
+		return s.repo.ListAllSessions(ctx, schoolID, limit)
+	case actor.HasRole(identity.RoleSupervisor):
+		if schoolID != "" {
+			ok, err := s.org.CanStaffViewSmartClassroom(ctx, actor.ID, schoolID, "")
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				return nil, ErrForbidden
+			}
+		}
+		return s.repo.ListSupervisorSessions(ctx, actor.ID, schoolID, limit)
+	case actor.HasRole(identity.RoleSchoolAdmin):
+		if schoolID != "" {
+			ok, err := s.org.CanStaffViewSmartClassroom(ctx, actor.ID, schoolID, "")
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				return nil, ErrForbidden
+			}
+		}
+		return s.repo.ListSchoolAdminSessions(ctx, actor.ID, schoolID, limit)
+	case actor.HasRole(identity.RoleTeacher):
+		return s.repo.ListTeacherSessions(ctx, actor.ID, schoolID, limit)
+	default:
+		return nil, ErrForbidden
+	}
 }
 
 func (s *Service) Start(

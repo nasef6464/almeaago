@@ -271,11 +271,12 @@ func (r *Repository) CanStaffViewSmartClassroom(
 			  AND (
 				(
 					sm.role='teacher'
+					AND $3 <> ''
 					AND EXISTS(
 						SELECT 1 FROM teaching_assignments ta
 						WHERE ta.school_id=sm.school_id
 						  AND ta.teacher_id=sm.user_id
-						  AND ta.class_id=$3::uuid
+						  AND ta.class_id=NULLIF($3, '')::uuid
 						  AND ta.status='active'
 					)
 				)
@@ -298,7 +299,8 @@ func (r *Repository) CanStaffViewSmartClassroom(
 			  AND ss.status='active'
 			  AND (
 				ss.scope_type='school'
-				OR (ss.scope_type='class' AND ss.class_id=$3::uuid)
+				OR $3 = ''
+				OR (ss.scope_type='class' AND ss.class_id=NULLIF($3, '')::uuid)
 			  )
 		)
 	`, actorID, schoolID, classID).Scan(&allowed)

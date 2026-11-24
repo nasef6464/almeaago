@@ -153,7 +153,8 @@ func (h *Handler) teacherSessions(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	items, err := h.service.TeacherSessions(r.Context(), authenticated.User)
+	schoolID := strings.TrimSpace(r.URL.Query().Get("schoolId"))
+	items, err := h.service.TeacherSessions(r.Context(), authenticated.User, schoolID)
 	if err != nil {
 		writeError(w, err)
 		return
