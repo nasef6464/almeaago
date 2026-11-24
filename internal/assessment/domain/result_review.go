@@ -124,6 +124,8 @@ type ResultFoundationTopic struct {
 	ID            string `json:"id"`
 	Title         string `json:"title"`
 	VideoLessonID string `json:"videoLessonId,omitempty"`
+	HasLesson     bool   `json:"hasLesson,omitempty"`
+	HasPractice   bool   `json:"hasPractice,omitempty"`
 	HasSupport    bool   `json:"hasSupport,omitempty"`
 	IsLocked      bool   `json:"isLocked"`
 }

@@ -113,6 +113,21 @@ func (r *Repository) attachResultFoundationTopics(ctx context.Context, items []a
 		           AND lesson.lesson_type='video' AND NULLIF(btrim(lesson.video_url),'') IS NOT NULL
 		         ORDER BY placement.sort_order,lesson.id LIMIT 1
 		       ),''),
+	       EXISTS (
+	         SELECT 1 FROM topic_lessons placement
+	         JOIN lessons lesson ON lesson.id=placement.lesson_id
+	         WHERE placement.topic_id=t.id AND lesson.path_id=t.path_id AND lesson.subject_id=t.subject_id
+	           AND lesson.workflow_status='approved' AND lesson.is_visible=true
+	       ),
+	       EXISTS (
+	         SELECT 1 FROM assessment_learning_placements placement
+	         JOIN assessments a ON a.id=placement.assessment_id
+	         JOIN assessment_versions v ON v.assessment_id=a.id AND v.version=placement.assessment_version
+	         WHERE placement.topic_id=t.id AND placement.path_id=t.path_id AND placement.subject_id=t.subject_id
+	           AND placement.slot='foundation' AND placement.is_visible=true
+	           AND a.workflow_status='approved' AND a.is_published=true AND a.is_visible=true
+	           AND v.assessment_kind='normal' AND v.normal_mode='practice'
+	       ),
 		       EXISTS (
 		         SELECT 1 FROM topic_library_items placement
 		         JOIN library_items item ON item.id=placement.library_item_id
@@ -140,7 +155,8 @@ func (r *Repository) attachResultFoundationTopics(ctx context.Context, items []a
 		}
 		var path, subject, skill string
 		var topic assessment.ResultFoundationTopic
-		if err := rows.Scan(&path, &subject, &skill, &topic.ID, &topic.Title, &topic.IsLocked, &topic.VideoLessonID, &topic.HasSupport); err != nil {
+		if err := rows.Scan(&path, &subject, &skill, &topic.ID, &topic.Title, &topic.IsLocked,
+			&topic.VideoLessonID, &topic.HasLesson, &topic.HasPractice, &topic.HasSupport); err != nil {
 			return err
 		}
 		if i, ok := index[path+":"+subject+":"+skill]; ok {

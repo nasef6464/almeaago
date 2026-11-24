@@ -56,6 +56,8 @@ CREATE TABLE library_items(id uuid,path_id uuid,subject_id uuid,workflow_status 
 CREATE TABLE topic_library_items(topic_id uuid,library_item_id uuid);
 CREATE TABLE lessons(id uuid,path_id uuid,subject_id uuid,workflow_status text,is_visible bool,lesson_type text,video_url text);
 CREATE TABLE topic_lessons(topic_id uuid,lesson_id uuid,sort_order int);
+CREATE TABLE assessments(id uuid,workflow_status text,is_published bool,is_visible bool);
+CREATE TABLE assessment_learning_placements(assessment_id uuid,assessment_version int,slot text,path_id uuid,subject_id uuid,topic_id uuid,is_visible bool);
 INSERT INTO assessment_attempts VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000003',1,'submitted',1);
 INSERT INTO assessment_versions(assessment_id,version,path_id,title,allow_question_review,show_answers,show_explanations,show_results_report,randomize_questions,randomize_options,assessment_kind) VALUES ('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000004','Test',false,true,true,true,false,false,'mock');
 INSERT INTO assessment_results VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002',50,2,1,0,1,true,0,now());
@@ -97,6 +99,18 @@ INSERT INTO topic_lessons VALUES
 ('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000083',0),
 ('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000082',1),
 ('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000081',2);
+INSERT INTO topic_lessons VALUES
+('00000000-0000-0000-0000-000000000042','00000000-0000-0000-0000-000000000082',0),
+('00000000-0000-0000-0000-000000000047','00000000-0000-0000-0000-000000000083',0);
+INSERT INTO assessments VALUES ('00000000-0000-0000-0000-000000000085','approved',true,true);
+INSERT INTO assessment_versions(assessment_id,version,assessment_kind,normal_mode) VALUES
+('00000000-0000-0000-0000-000000000085',1,'normal','practice'),
+('00000000-0000-0000-0000-000000000085',2,'normal','exam');
+INSERT INTO assessment_learning_placements VALUES
+('00000000-0000-0000-0000-000000000085',1,'foundation','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000041',true),
+('00000000-0000-0000-0000-000000000085',1,'foundation','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000042',false),
+('00000000-0000-0000-0000-000000000085',2,'foundation','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000042',true),
+('00000000-0000-0000-0000-000000000085',1,'foundation','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000006','00000000-0000-0000-0000-000000000047',true);
 INSERT INTO library_items VALUES
 ('00000000-0000-0000-0000-000000000071','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','approved',true),
 ('00000000-0000-0000-0000-000000000072','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','draft',true),
@@ -173,6 +187,10 @@ INSERT INTO topic_skill_links VALUES ('00000000-0000-0000-0000-000000000046','00
 	if a.FoundationTopics[0].VideoLessonID != "00000000-0000-0000-0000-000000000081" ||
 		a.FoundationTopics[1].VideoLessonID != "" || a.FoundationTopics[2].VideoLessonID != "" {
 		t.Fatalf("expected the first approved, visible video scoped to its topic: %+v", a.FoundationTopics)
+	}
+	if !a.FoundationTopics[0].HasLesson || a.FoundationTopics[1].HasLesson || a.FoundationTopics[2].HasLesson ||
+		!a.FoundationTopics[0].HasPractice || a.FoundationTopics[1].HasPractice || a.FoundationTopics[2].HasPractice {
+		t.Fatalf("expected only approved lessons and visible practice placements in the same topic scope: %+v", a.FoundationTopics)
 	}
 	// The second unanswered question remains in the denominator. Skill links
 	// added after the attempt are deliberately irrelevant to this projection.

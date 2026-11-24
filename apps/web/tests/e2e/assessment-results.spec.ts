@@ -333,7 +333,7 @@ test('full report links follow-up actions to the verified foundation topic', asy
       result: historyItem, assessmentId: 'assessment-1', assessmentVersion: 2, title: 'محاكي كمي', attemptNumber: 1,
       allowQuestionReview: false, showAnswers: false, showExplanations: false, showResultsReport: true,
       skillAnalysis: { complete: true, items: [
-        { ...skill, skillId: 'fractions', skillName: 'الكسور', sectionName: 'الأعداد', foundationTopics: [{ id: 'mapped-topic', title: 'تأسيس الكسور', isLocked: false, hasSupport: true, videoLessonId: 'approved-video' }] },
+        { ...skill, skillId: 'fractions', skillName: 'الكسور', sectionName: 'الأعداد', foundationTopics: [{ id: 'mapped-topic', title: 'تأسيس الكسور', isLocked: false, hasLesson: true, hasPractice: true, hasSupport: true, videoLessonId: 'approved-video' }] },
         { ...skill, skillId: 'unmapped', skillName: 'النسب' },
         { ...skill, skillId: 'no-resource', skillName: 'الجبر', foundationTopics: [{ id: 'empty-support', title: 'تأسيس الجبر', isLocked: false }] },
       ] },
@@ -347,11 +347,15 @@ test('full report links follow-up actions to the verified foundation topic', asy
     await expect(fraction.getByRole('link', { name: label, exact: true })).toHaveAttribute('href', new RegExp(`topic=mapped-topic&content=${tab}$`));
   }
   await expect(fraction.getByText('الأعداد', { exact: true })).toBeVisible();
+  await expect(fraction.getByText('شرح مرتبط', { exact: true })).toBeVisible();
+  await expect(fraction.getByText('تدريب قصير', { exact: true })).toBeVisible();
   const unlinked = followUp.getByRole('article').filter({ has: page.getByRole('heading', { name: 'النسب', exact: true }) });
   await expect(unlinked.getByRole('link')).toHaveCount(0);
   const noResource = followUp.getByRole('article').filter({ has: page.getByRole('heading', { name: 'الجبر', exact: true }) });
   await expect(noResource.getByRole('link', { name: 'ملف داعم' })).toHaveCount(0);
   await expect(noResource.getByRole('button', { name: 'شاهد الفيديو' })).toHaveCount(0);
+  await expect(noResource.getByText('شرح مرتبط', { exact: true })).toHaveCount(0);
+  await expect(noResource.getByText('تدريب قصير', { exact: true })).toHaveCount(0);
   const videoButton = fraction.getByRole('button', { name: 'شاهد الفيديو' });
   expect(lessonRequests).toBe(0);
   await videoButton.click();

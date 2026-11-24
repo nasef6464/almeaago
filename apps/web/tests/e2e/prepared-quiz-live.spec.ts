@@ -327,8 +327,19 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   await page.screenshot({ path: 'test-results/weak-skill-live-result.png', fullPage: true });
   const fullReport = page.getByRole('button', { name: 'عرض التقرير الكامل' });
   const followUp = page.getByRole('region', { name: 'مهارات تحتاج متابعة' });
+  const review = page.waitForResponse(response => response.url().endsWith(`/assessment-attempts/${attemptId}/review`));
   await page.reload({ waitUntil: 'domcontentloaded' });
+  const reviewResponse = await review;
+  expect(reviewResponse.status()).toBe(200);
+  const { detail } = await reviewResponse.json();
+  expect(detail.skillAnalysis.items).toEqual(expect.arrayContaining([
+    expect.objectContaining({ foundationTopics: expect.arrayContaining([
+      expect.objectContaining({ id: '00000000-0000-0000-0000-000000000022', hasLesson: true, hasPractice: true }),
+    ]) }),
+  ]));
   await fullReport.click();
+  await expect(followUp.getByText('شرح مرتبط', { exact: true })).toBeVisible();
+  await expect(followUp.getByText('تدريب قصير', { exact: true })).toBeVisible();
   for (const width of [390, 820, 1440]) {
     await page.setViewportSize({ width, height: 915 });
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

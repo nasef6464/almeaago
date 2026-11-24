@@ -43,9 +43,11 @@ export function AssessmentFollowUpSkills({ detail, openAnalysis }: { detail: Res
                 <div className="text-[11px] font-black text-slate-500">الخطوة التالية</div>
                 <p className="mt-1 text-xs font-bold leading-6 text-gray-600">{topic ? 'ابدأ بالشرح أولًا ثم جرّب تدريبًا قصيرًا لقياس التحسن.' : 'ركّز على هذه المهارة في تدريبك القادم.'}</p>
               </div>
-              {(topic?.videoLessonId || topic?.hasSupport) && (
+              {(topic?.hasLesson || topic?.videoLessonId || topic?.hasPractice || topic?.hasSupport) && (
                 <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-bold">
+                  {topic.hasLesson && <span className="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700">شرح مرتبط</span>}
                   {topic.videoLessonId && <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">فيديو شرح</span>}
+                  {topic.hasPractice && <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">تدريب قصير</span>}
                   {topic.hasSupport && <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">ملف داعم</span>}
                 </div>
               )}
