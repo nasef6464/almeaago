@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 
 import type { ResultDetail } from '../api/attempt-client';
 import { resultFoundationPath } from '../navigation/resultFoundationPath';
+import { AssessmentFoundationVideoAction } from './AssessmentFoundationVideoAction';
 
 const actionClass = 'inline-flex rounded-xl border px-3 py-1.5 text-xs font-black sm:text-sm';
 
@@ -42,12 +43,19 @@ export function AssessmentFollowUpSkills({ detail, openAnalysis }: { detail: Res
                 <div className="text-[11px] font-black text-slate-500">الخطوة التالية</div>
                 <p className="mt-1 text-xs font-bold leading-6 text-gray-600">{topic ? 'ابدأ بالشرح أولًا ثم جرّب تدريبًا قصيرًا لقياس التحسن.' : 'ركّز على هذه المهارة في تدريبك القادم.'}</p>
               </div>
+              {(topic?.videoLessonId || topic?.hasSupport) && (
+                <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-bold">
+                  {topic.videoLessonId && <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">فيديو شرح</span>}
+                  {topic.hasSupport && <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">ملف داعم</span>}
+                </div>
+              )}
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100" aria-hidden="true">
                 <div className={`h-full rounded-full ${priority.bar}`} style={{ width: `${skill.mastery}%` }} />
               </div>
               {topic && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link to={resultFoundationPath(skill, topic.id, 'lessons')} className={`${actionClass} border-indigo-100 bg-indigo-50 text-indigo-700 hover:bg-indigo-100`}>راجع الشرح</Link>
+                  {topic.videoLessonId && <AssessmentFoundationVideoAction key={`${topic.id}:${topic.videoLessonId}`} topicId={topic.id} lessonId={topic.videoLessonId} skillName={skill.skillName} />}
                   <Link to={resultFoundationPath(skill, topic.id, 'quizzes')} className={`${actionClass} border-amber-100 bg-amber-50 text-amber-700 hover:bg-amber-100`}>تدريب مناسب</Link>
                   {topic.hasSupport && <Link to={resultFoundationPath(skill, topic.id, 'support')} className={`${actionClass} border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100`}>ملف داعم</Link>}
                 </div>

@@ -334,6 +334,26 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await followUp.screenshot({ path: `test-results/assessment-live-follow-up-${width}.png` });
   }
+  const videoFixture = await reviewVideoFixture(page);
+  await page.route('**/review-fixture.webm', route => route.fulfill({ body: videoFixture, contentType: 'video/webm' }));
+  const videoTrigger = followUp.getByRole('button', { name: 'شاهد الفيديو' });
+  const selectedLesson = page.waitForResponse(response => response.url().includes('/learning-spaces/foundation/') && response.url().endsWith('/lessons/00000000-0000-0000-0000-000000000024'));
+  await videoTrigger.click();
+  expect((await selectedLesson).status()).toBe(200);
+  const skillVideo = page.getByRole('dialog', { name: 'شرح مهارة مهارة فرعية تجريبية' });
+  const clipMedia = skillVideo.locator('video');
+  await expect.poll(() => clipMedia.evaluate(video => (video as HTMLVideoElement).readyState)).toBeGreaterThanOrEqual(2);
+  expect(await clipMedia.evaluate(video => (video as HTMLVideoElement).paused)).toBe(true);
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => skillVideo.evaluate(dialog => dialog.getBoundingClientRect().width)).toBeLessThan(width);
+    await page.screenshot({ path: `test-results/assessment-live-follow-up-video-${width}.png` });
+  }
+  await skillVideo.getByRole('button', { name: 'Play', exact: true }).first().click();
+  await expect.poll(() => clipMedia.evaluate(video => (video as HTMLVideoElement).currentTime)).toBeGreaterThan(0);
+  await page.keyboard.press('Escape');
+  await expect(skillVideo).not.toBeVisible();
+  await expect(videoTrigger).toBeFocused();
   const topicDialog = page.getByTestId('foundation-topic-dialog');
   await followUp.getByRole('link', { name: 'ملف داعم' }).click();
   await expect(topicDialog.getByRole('heading', { name: 'ملف دعم المهارة التجريبي' })).toBeVisible();

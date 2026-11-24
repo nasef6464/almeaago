@@ -141,7 +141,7 @@ INSERT INTO foundation_topics(id,subject_id,path_id,code,title) VALUES ('0000000
 INSERT INTO foundation_topics(id,subject_id,path_id,parent_topic_id,code,title) VALUES ('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000023','LIVE-TOPIC','موضوع تأسيس تجريبي');
 INSERT INTO topic_skill_links(topic_id,skill_id,relation_type) VALUES ('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000021','primary');
 INSERT INTO lessons(id,path_id,subject_id,title,lesson_type,video_url,video_source,workflow_status) VALUES
- ('00000000-0000-0000-0000-000000000024','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','مقطع شرح تجريبي أول','video','https://www.youtube.com/watch?v=dQw4w9WgXcQ','youtube','approved'),
+ ('00000000-0000-0000-0000-000000000024','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','مقطع شرح تجريبي أول','video','/review-fixture.webm','upload','approved'),
  ('00000000-0000-0000-0000-000000000025','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','مقطع شرح تجريبي ثان','video','https://www.youtube.com/watch?v=dQw4w9WgXcQ','youtube','approved');
 INSERT INTO library_items(id,path_id,subject_id,title,item_type,external_url,workflow_status,is_visible) VALUES
  ('00000000-0000-0000-0000-000000000081','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','ملف دعم المهارة التجريبي','pdf','https://example.invalid/foundation.pdf','approved',true);

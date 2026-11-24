@@ -54,6 +54,8 @@ CREATE TABLE foundation_topics(id uuid,path_id uuid,subject_id uuid,title text,i
 CREATE TABLE topic_skill_links(topic_id uuid,skill_id uuid);
 CREATE TABLE library_items(id uuid,path_id uuid,subject_id uuid,workflow_status text,is_visible bool);
 CREATE TABLE topic_library_items(topic_id uuid,library_item_id uuid);
+CREATE TABLE lessons(id uuid,path_id uuid,subject_id uuid,workflow_status text,is_visible bool,lesson_type text,video_url text);
+CREATE TABLE topic_lessons(topic_id uuid,lesson_id uuid,sort_order int);
 INSERT INTO assessment_attempts VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000003',1,'submitted',1);
 INSERT INTO assessment_versions(assessment_id,version,path_id,title,allow_question_review,show_answers,show_explanations,show_results_report,randomize_questions,randomize_options,assessment_kind) VALUES ('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000004','Test',false,true,true,true,false,false,'mock');
 INSERT INTO assessment_results VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002',50,2,1,0,1,true,0,now());
@@ -85,6 +87,16 @@ INSERT INTO foundation_topics VALUES
 ('00000000-0000-0000-0000-000000000043','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','Hidden topic',false,'active',false,2),
 ('00000000-0000-0000-0000-000000000044','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000006','Foreign subject',false,'active',true,3),
 ('00000000-0000-0000-0000-000000000045','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','Archived',false,'archived',true,4);
+INSERT INTO lessons VALUES
+('00000000-0000-0000-0000-000000000081','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','approved',true,'video','https://example.invalid/first.webm'),
+('00000000-0000-0000-0000-000000000082','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','draft',true,'video','https://example.invalid/draft.webm'),
+('00000000-0000-0000-0000-000000000083','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000006','approved',true,'video','https://example.invalid/foreign.webm'),
+('00000000-0000-0000-0000-000000000084','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','approved',true,'video','https://example.invalid/later.webm');
+INSERT INTO topic_lessons VALUES
+('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000084',3),
+('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000083',0),
+('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000082',1),
+('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000081',2);
 INSERT INTO library_items VALUES
 ('00000000-0000-0000-0000-000000000071','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','approved',true),
 ('00000000-0000-0000-0000-000000000072','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','draft',true),
@@ -157,6 +169,10 @@ INSERT INTO topic_skill_links VALUES ('00000000-0000-0000-0000-000000000046','00
 	}
 	if !a.FoundationTopics[0].HasSupport || a.FoundationTopics[1].HasSupport || a.FoundationTopics[2].HasSupport {
 		t.Fatalf("only approved, visible and same-scope topic files qualify: %+v", a.FoundationTopics)
+	}
+	if a.FoundationTopics[0].VideoLessonID != "00000000-0000-0000-0000-000000000081" ||
+		a.FoundationTopics[1].VideoLessonID != "" || a.FoundationTopics[2].VideoLessonID != "" {
+		t.Fatalf("expected the first approved, visible video scoped to its topic: %+v", a.FoundationTopics)
 	}
 	// The second unanswered question remains in the denominator. Skill links
 	// added after the attempt are deliberately irrelevant to this projection.

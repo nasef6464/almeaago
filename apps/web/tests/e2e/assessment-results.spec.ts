@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { reviewVideoFixture } from './fixtures/review-video';
 
 const user = {
   id: 'student-1',
@@ -316,13 +317,23 @@ test('more details opens the skill analysis with subject filters and scoped acti
 
 test('full report links follow-up actions to the verified foundation topic', async ({ page }) => {
   await auth(page);
+  const clip = await reviewVideoFixture(page);
+  await page.route('**/review-fixture.webm', route => route.fulfill({ body: clip, contentType: 'video/webm' }));
+  let lessonRequests = 0;
+  let allowed = true;
+  await page.route('**/api/v1/learning-spaces/foundation/mapped-topic/lessons/approved-video', route => {
+    lessonRequests++;
+    return allowed
+      ? json(route, { lesson: { id: 'approved-video', type: 'video', videoUrl: '/review-fixture.webm' } })
+      : json(route, { message: 'الدرس غير متاح لهذا الحساب.' }, 403);
+  });
   const skill = { pathId: 'path-1', subjectId: 'math', subjectName: 'الرياضيات', questionCount: 2, correctCount: 0, mastery: 0, status: 'weak' };
   await page.route('**/api/v1/assessment-attempts/attempt-1/review', route => json(route, {
     detail: {
       result: historyItem, assessmentId: 'assessment-1', assessmentVersion: 2, title: 'محاكي كمي', attemptNumber: 1,
       allowQuestionReview: false, showAnswers: false, showExplanations: false, showResultsReport: true,
       skillAnalysis: { complete: true, items: [
-        { ...skill, skillId: 'fractions', skillName: 'الكسور', sectionName: 'الأعداد', foundationTopics: [{ id: 'mapped-topic', title: 'تأسيس الكسور', isLocked: false, hasSupport: true }] },
+        { ...skill, skillId: 'fractions', skillName: 'الكسور', sectionName: 'الأعداد', foundationTopics: [{ id: 'mapped-topic', title: 'تأسيس الكسور', isLocked: false, hasSupport: true, videoLessonId: 'approved-video' }] },
         { ...skill, skillId: 'unmapped', skillName: 'النسب' },
         { ...skill, skillId: 'no-resource', skillName: 'الجبر', foundationTopics: [{ id: 'empty-support', title: 'تأسيس الجبر', isLocked: false }] },
       ] },
@@ -340,4 +351,20 @@ test('full report links follow-up actions to the verified foundation topic', asy
   await expect(unlinked.getByRole('link')).toHaveCount(0);
   const noResource = followUp.getByRole('article').filter({ has: page.getByRole('heading', { name: 'الجبر', exact: true }) });
   await expect(noResource.getByRole('link', { name: 'ملف داعم' })).toHaveCount(0);
+  await expect(noResource.getByRole('button', { name: 'شاهد الفيديو' })).toHaveCount(0);
+  const videoButton = fraction.getByRole('button', { name: 'شاهد الفيديو' });
+  expect(lessonRequests).toBe(0);
+  await videoButton.click();
+  const video = page.getByRole('dialog', { name: 'شرح مهارة الكسور' });
+  await expect(video).toBeVisible();
+  await expect(video.locator('video')).toHaveAttribute('src', /review-fixture.webm$/);
+  expect(await video.locator('video').evaluate(node => (node as HTMLVideoElement).paused)).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(video).not.toBeVisible();
+  await expect(videoButton).toBeFocused();
+  allowed = false;
+  await videoButton.click();
+  await expect(fraction.getByRole('alert')).toBeVisible();
+  await expect(video).not.toBeVisible();
+  expect(lessonRequests).toBe(2);
 });
