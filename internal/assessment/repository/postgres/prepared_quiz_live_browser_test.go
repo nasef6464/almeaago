@@ -40,7 +40,9 @@ import (
 	questionapp "github.com/nasef6464/almeaago/internal/questionbank/application"
 	questionpg "github.com/nasef6464/almeaago/internal/questionbank/repository/postgres"
 	questionhttp "github.com/nasef6464/almeaago/internal/questionbank/transport/http"
+	reportingapp "github.com/nasef6464/almeaago/internal/reporting/application"
 	reportingpg "github.com/nasef6464/almeaago/internal/reporting/repository/postgres"
+	reportinghttp "github.com/nasef6464/almeaago/internal/reporting/transport/http"
 	taxonomyapp "github.com/nasef6464/almeaago/internal/taxonomy/application"
 	taxonomypg "github.com/nasef6464/almeaago/internal/taxonomy/repository/postgres"
 	taxonomyhttp "github.com/nasef6464/almeaago/internal/taxonomy/transport/http"
@@ -334,6 +336,10 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 	router.Mount("/api/v1/auth", identityhttp.New(auth, false, identityhttp.Options{Admin: adminService}))
 	router.Mount("/api/v1/assessments", assessmenthttp.New(defs, auth, attempts))
 	router.Mount("/api/v1/assessment-attempts", assessmenthttp.NewAttempts(attempts, auth, assessmentapp.NewSelfQuizService(repo)))
+	learningService := learningapp.NewService(learningpg.New(db), questionapp.NewService(questionpg.New(db, operationspg.NewAuditWriter())))
+	router.Mount("/api/v1/review", learninghttp.NewReview(learningService, auth))
+	router.Mount("/api/v1/mastery", learninghttp.NewMastery(learningService, auth))
+	router.Mount("/api/v1/reports", reportinghttp.New(reportingapp.NewService(reportingpg.NewReportRepository(db)), auth))
 	router.Mount("/api/v1/questions", questionhttp.New(questionapp.NewService(questionpg.New(db, operationspg.NewAuditWriter())), auth))
 	router.Mount("/api/v1/public-assessments", assessmenthttp.NewPublicSessions(sessions))
 	router.Mount("/api/v1/taxonomy", taxonomyhttp.New(taxonomyapp.NewService(taxonomypg.New(db)), auth))

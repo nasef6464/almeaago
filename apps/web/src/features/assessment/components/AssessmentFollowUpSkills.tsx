@@ -24,6 +24,17 @@ export function AssessmentFollowUpSkills({ detail, openAnalysis }: { detail: Res
       <div className="mt-4 grid gap-3">
         {focus.length > 0 ? focus.slice(0, 3).map(skill => {
           const topic = skill.pathId && skill.subjectId ? skill.foundationTopics?.[0] : undefined;
+          const actionText = topic && skill.level === 'sub'
+            ? topic.hasLesson && topic.hasPractice
+              ? 'ابدأ بالشرح أولًا ثم نفّذ اختبارًا قصيرًا لقياس التحسن.'
+              : topic.hasLesson
+                ? 'هذه المهارة تحتاج مراجعة شرحها قبل أي تدريب إضافي.'
+                : 'افتح موضوع التأسيس المرتبط بالمهارة ثم انتقل إلى تدريب المهارة الفرعية الجاهز.'
+            : topic?.hasPractice
+              ? 'ابدأ بالتدريب الجاهز المرتبط بهذه المهارة ثم أعد القياس.'
+              : topic?.hasSupport
+                ? 'راجع الملف الداعم ثم ارجع للتدريب المرتبط بنفس المهارة.'
+                : 'أعد المحاولة عبر اختبار ساهر مخصص لهذه المهارة.';
           const priority = skill.mastery >= 60
             ? { label: 'راجعها اليوم', level: 'يحتاج بعض المراجعة', badge: 'bg-amber-50 text-amber-700', bar: 'bg-amber-500' }
             : { label: 'ابدأ هنا', level: 'يحتاج تركيزًا أكبر', badge: 'bg-rose-50 text-rose-700', bar: 'bg-rose-500' };
@@ -41,7 +52,7 @@ export function AssessmentFollowUpSkills({ detail, openAnalysis }: { detail: Res
               </div>
               <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2">
                 <div className="text-[11px] font-black text-slate-500">الخطوة التالية</div>
-                <p className="mt-1 text-xs font-bold leading-6 text-gray-600">{topic ? 'ابدأ بالشرح أولًا ثم جرّب تدريبًا قصيرًا لقياس التحسن.' : 'ركّز على هذه المهارة في تدريبك القادم.'}</p>
+                <p className="mt-1 text-xs font-bold leading-6 text-gray-600">{actionText}</p>
               </div>
               {(topic?.hasLesson || topic?.videoLessonId || topic?.hasPractice || topic?.hasSupport) && (
                 <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-bold">

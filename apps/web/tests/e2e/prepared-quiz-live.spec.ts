@@ -316,6 +316,29 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByText('درجتك', { exact: true }).locator('..').getByText('0%', { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('يحتاج مراجعة', { exact: true })).toBeVisible();
+  const historyResponse = await page.request.get('/api/v1/assessment-attempts/results?page=1&limit=20');
+  expect(historyResponse.status()).toBe(200);
+  expect((await historyResponse.json()).items).toEqual(expect.arrayContaining([expect.objectContaining({ attemptId })]));
+  const reportResponse = await page.request.get('/api/v1/reports/results?page=1&limit=50');
+  expect(reportResponse.status()).toBe(200);
+  expect((await reportResponse.json()).items).toEqual(expect.arrayContaining([expect.objectContaining({ attemptId })]));
+  const progressResponse = await page.request.get('/api/v1/mastery/progress?pathId=00000000-0000-0000-0000-000000000003&subjectId=00000000-0000-0000-0000-000000000004&page=1&limit=100');
+  expect(progressResponse.status()).toBe(200);
+  expect((await progressResponse.json()).items).toEqual(expect.arrayContaining([
+    expect.objectContaining({ skillId: '00000000-0000-0000-0000-000000000021' }),
+  ]));
+  await page.getByRole('button', { name: /مراجعة الأسئلة/ }).click();
+  await expect(page.getByText('الإجابة الصحيحة', { exact: true })).toBeVisible();
+  const saved = page.waitForResponse(response => response.url().endsWith('/review/questions/00000000-0000-0000-0000-000000000005/saved') && response.request().method() === 'PUT');
+  await page.getByRole('button', { name: 'حفظ للمراجعة' }).click();
+  expect((await saved).status()).toBe(200);
+  await expect(page.getByRole('button', { name: 'تم الحفظ' })).toBeVisible();
+  const savedLibrary = await page.request.get('/api/v1/review/library?tab=saved&pathId=00000000-0000-0000-0000-000000000003&page=1&limit=20');
+  expect(savedLibrary.status()).toBe(200);
+  expect((await savedLibrary.json()).items).toEqual(expect.arrayContaining([
+    expect.objectContaining({ card: expect.objectContaining({ questionId: '00000000-0000-0000-0000-000000000005', savedForReview: true }) }),
+  ]));
+  await page.getByRole('button', { name: 'إنهاء المراجعة والعودة للملخص' }).click();
   await expect(page.getByRole('region', { name: 'أين كنت قويًا؟ وأين تحتاج دعم؟' }).getByText('مهارة فرعية تجريبية', { exact: true })).toBeVisible();
   await expect(page.getByText('موضوع تأسيس تجريبي')).toBeVisible();
   const explanation = await page.getByRole('link', { name: 'شرح التأسيس' }).getAttribute('href');
