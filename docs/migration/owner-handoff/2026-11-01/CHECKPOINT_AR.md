@@ -1,4 +1,14 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 24 نوفمبر — ملاحظات مراجعة الطالب والعودة من السؤال الأخير / PARTIAL
+
+- القديم `ed28102d7084899856de0371dc2c93a3d602d518` من `pages/Results.tsx`. Go main `d57a96db005168a38e2cf90972bfadf1546b3dc4` يضم [#293](https://github.com/nasef6464/almeaago/pull/293) مع فحوص GitHub ناجحة على رأسه `01c9d0a76c5599a0373abb886c033ac2925d902c`. هذا الدمج استعاد تفصيل المواد وبطاقة المشاركة والرحلة السابقة.
+- كود الدفعة المحلية `1e4f2b63fccda54a7629bc2f13126d856823e570` على `fix/student-review-notes` في `C:/almeaago/worktrees/student-review-notes-20261123`. لم يرفع ولم يدمج. CI لهذا الرأس SKIPPED.
+- الطالب ← ملخص النتيجة ← مراجعة ← `GET /api/v1/assessment-attempts/{id}/review` ← صلاحيات الطالب ومحاولته في Go وPostgreSQL ← تفاصيل السؤال المتاحة ← إظهار/إخفاء الملاحظات ← الإغلاق عند الانتقال أو تغيير الفلتر ← «إنهاء المراجعة» من آخر سؤال مصفى والعودة للملخص. الزر يغير حالة العرض في React ولا يرسل طلب كتابة. تحت سياسة إخفاء الشرح يظهر نص الحالة فقط. بقيت عقود API والتصحيح كما هي.
+- الملفات `AssessmentResultsPage.tsx` و`assessment-image-contract.spec.ts` و`assessment-results.spec.ts` و`prepared-quiz-live.spec.ts`. RED على كود `d57a96db` لأن الشرح ظهر قبل الضغط. PASS فحص TypeScript وGREEN محليًا في `.tmp/student-review-notes/notes-final.log`. المجموعة 16/17 مع تعثر بدء اختبار الصورة مرة، ثم نجاح الحالة منفردة في `recheck.log`. نجحت رحلتا الاختبار الجاهز والمحاكي بمادتين على Go وPostgreSQL معزولين في `live.log`.
+- صور RTL 390 و820 و1440 من تشغيل المكوّن الأصلي ببيانات اختبار في `.tmp/student-review-notes/legacy-review-notes-*.png` ومن مكوّن Go في `test-results/assessment-review-notes-*.png`. المقارنة البصرية جزئية لأن سياسات التأليف وبيانات العرض تختلف ولأن لقطة Go للبطاقة. لا تزال مراجعة السؤال تختلف في خيارات الإجابة وموضع الحفظ، ومشغل فيديو الشرح في القديم نافذة داخلية. كما يبقى ترتيب المهارات الرئيسية والفرعية في تقرير المادة.
+
+الاستئناف: افحص عقد تشغيل فيديو الشرح داخل المراجعة مع سياسة العرض، ثم أعد استخدام المشغل المناسب دون تغيير صلاحيات الفيديو. أول أمر محلي: `rg -n "onShowVideo|videoUrl|SharedVideoPlayer" apps/web/src/features/assessment/pages/AssessmentResultsPage.tsx apps/web/src/features/learning/components/SharedVideoPlayer.tsx`.
+
 
 ## 23 نوفمبر — رحلة الطالب بعد التسليم وتكافؤ النتائج والمراجعة / PARTIAL
 
