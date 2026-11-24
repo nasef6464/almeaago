@@ -1,5 +1,9 @@
 # ALMEAA Go — Agent execution rules
 
+## Learning Intelligence — permanent reference for agents
+
+When working on mastery, evidence, goal readiness, adaptive learning, study planning, learning analytics, interventions, test assembly or Operations Research, **read [the Learning Intelligence reference index](docs/learning-intelligence/README_AR.md)** and its relevant full specification before writing code. The index contains the owner's cross-role product/UX map, mathematical models, agent start prompt and G0/G1 work order. These documents are **subordinate to the single migration execution plan** and the latest checkpoint; they neither create a parallel roadmap nor prove implementation. Check live GitHub state and other agents' file ownership first.
+
 > [!IMPORTANT]
 > **بروتوكول التنفيذ الدائم متعدد الوكلاء (إلزامي لجميع الوكلاء)**:
 > يجب على كل وكيل (Antigravity، Codex، DeepSeek، أو أي وكيل آخر) قراءة وتطبيق وثيقة: `docs/engineering/ANTIGRAVITY_EXECUTION_STANDARD_AR.md` قبل البدء في أي مهمة برمجية أو حوكمية.
