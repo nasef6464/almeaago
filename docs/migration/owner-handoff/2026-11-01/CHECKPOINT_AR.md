@@ -1,4 +1,11 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 24 نوفمبر — متابعة المحاكي والمدرسة ورفع المسودة / PARTIAL
+
+- [PR #301](https://github.com/nasef6464/almeaago/pull/301) مسودة مرفوعة. الرأس `298398554e7b0f80ce109c4c4600898d92e1c1c5` نجحت عليه فحوص backend وdatabase وfrontend وoverlap وأقسام e2e الثلاثة. حالة Vercel كانت PENDING عند الفحص. الوثائق التالية تغير الرأس وتستلزم إعادة التحقق.
+- PASS `.tmp/student-review-notes/mock-browser-final.log` رحلة محاكي صارم بمادتين على Go/PostgreSQL معزولين. PASS `school-audience.log` لاختبار جمهور المدرسة عبر قاعدة محلية ومهاجرات فعلية. PASS خمس حالات واجهة باستجابات معزولة في `school-assessment-browser-final.log` للتكليفات والجلسات. تجاوز اختبار التكليف في التشغيل الأول مهلة 30 ثانية ثم نجح عند زيادة المهلة في إعادة التشغيل.
+- لا تثبت هذه الأدلة رحلة اختبار مدرسي كاملة من إنشاء المدرسة حتى استلام الطالب نتيجته على Go/PostgreSQL، أو تطابق جميع حالات شاشة الطالب مع Legacy. لا دمج أو نشر حتى استكمالها وفحص الرأس النهائي. الاختبار الذاتي الحقيقي ونتيجته في التقرير موثقان في الإدخال التالي.
+- الاستئناف: إعداد رحلة تكليف مدرسي حقيقية من مستخدم مخول إلى الطالب والنتيجة وتقاريره، وفحص بقية حالات واجهة الطالب مقارنة بالأصل. أول أمر: `rg -n "TestSchoolWideAssignmentLearnerAudiencePostgres|NewAssignments|StartAssigned" internal/assessment`.
+
 ## 24 نوفمبر — استعادة اختبار متصفح الاختبار الذاتي / PARTIAL
 
 - Legacy `ed28102d7084899856de0371dc2c93a3d602d518`، Go main `d0afc757a41e42e7f7e9159a1fe273262e5784cd`، كود الاختبار `afd12c0a5e8f7a980efac7a7bde711cd523eeb71` على `fix/student-review-notes`. الفرع مرفوع وPR مسودة [#301](https://github.com/nasef6464/almeaago/pull/301)، وفحوص الرأس السابق جارية.
