@@ -63,12 +63,12 @@ type SafetyVerification struct {
 
 // ValidateDatabaseURL performs strict in-memory validation of database connection settings.
 // It enforces fail-closed security guards without opening network sockets:
-// 1. ALLOW_SEED=true is required.
-// 2. APP_ENV must not be production/staging.
-// 3. DATABASE_URL must not contain production branch identifiers (e.g. br-damp-feather-b9lqdru1).
-// 4. Host must be strictly parsed (URL / pgx DSN) and must belong to the authorized local whitelist (localhost, 127.0.0.1, postgres, db).
-// 5. Cloud/remote database hosts (neon.tech, render.com, etc.) are unconditionally rejected,
-//    regardless of any substrings (like "test") in the path, database name, user, or query string.
+//  1. ALLOW_SEED=true is required.
+//  2. APP_ENV must not be production/staging.
+//  3. DATABASE_URL must not contain production branch identifiers (e.g. br-damp-feather-b9lqdru1).
+//  4. Host must be strictly parsed (URL / pgx DSN) and must belong to the authorized local whitelist (localhost, 127.0.0.1, postgres, db).
+//  5. Cloud/remote database hosts (neon.tech, render.com, etc.) are unconditionally rejected,
+//     regardless of any substrings (like "test") in the path, database name, user, or query string.
 func ValidateDatabaseURL(databaseURL, appEnv, allowSeed string) (*SafetyVerification, error) {
 	if strings.TrimSpace(allowSeed) != "true" {
 		return nil, errors.New("ALLOW_SEED=true is not set. Seeding is only permitted on a disposable local test database")
