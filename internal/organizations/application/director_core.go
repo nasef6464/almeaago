@@ -26,6 +26,7 @@ type DirectorDirectory interface {
 	DirectorTeachers(
 		ctx context.Context,
 		schoolID string,
+		query ...org.DirectorTeacherQuery,
 	) (org.DirectorTeacherWorkspace, error)
 }
 
@@ -185,6 +186,7 @@ func (s *Service) DirectorTeachers(
 	ctx context.Context,
 	actor identity.User,
 	schoolID string,
+	query ...org.DirectorTeacherQuery,
 ) (org.DirectorTeacherWorkspace, error) {
 	schoolID = strings.TrimSpace(schoolID)
 	if schoolID == "" {
@@ -196,7 +198,7 @@ func (s *Service) DirectorTeachers(
 	if s.directorDirectory == nil {
 		return org.DirectorTeacherWorkspace{}, ErrForbidden
 	}
-	return s.directorDirectory.DirectorTeachers(ctx, schoolID)
+	return s.directorDirectory.DirectorTeachers(ctx, schoolID, query...)
 }
 
 func (s *Service) DirectorOverviewAccess(

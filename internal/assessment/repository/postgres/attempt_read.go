@@ -2,6 +2,11 @@ package postgres
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
+	"fmt"
+	"sort"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -39,26 +44,73 @@ func (r *Repository) readLearnerQuestions(ctx context.Context, rows pgx.Rows, at
 	if err != nil {
 		return nil, err
 	}
+	if len(questions) == 0 {
+		return questions, nil
+	}
+
+	questionIDs := make([]string, len(questions))
+	versions := make([]int, len(questions))
+	for i, q := range questions {
+		questionIDs[i] = q.ID
+		versions[i] = q.Version
+	}
+
+	// Single batch query eliminating N+1 roundtrips across connection pool
+	optionsRows, e := r.db.Query(ctx, `
+		SELECT qo.question_id::text, qo.version, qo.option_index, qo.option_text, COALESCE(qo.asset_id::text, '')
+		FROM question_options qo
+		JOIN unnest($1::uuid[], $2::int[]) AS q(id, ver)
+		  ON qo.question_id = q.id AND qo.version = q.ver
+		ORDER BY qo.question_id, qo.option_index
+	`, questionIDs, versions)
+	if e != nil {
+		return nil, e
+	}
+	defer optionsRows.Close()
+
+	optionsByQuestion := make(map[string][]assessment.LearnerOption, len(questions))
+	for optionsRows.Next() {
+		var qID, optText, assetID string
+		var ver, optIndex int
+		if err := optionsRows.Scan(&qID, &ver, &optIndex, &optText, &assetID); err != nil {
+			return nil, err
+		}
+		key := fmt.Sprintf("%s:%d", qID, ver)
+		optionsByQuestion[key] = append(optionsByQuestion[key], assessment.LearnerOption{
+			Index:   optIndex,
+			Text:    optText,
+			AssetID: assetID,
+		})
+	}
+	if err := optionsRows.Err(); err != nil {
+		return nil, err
+	}
+
 	for i := range questions {
 		q := &questions[i]
-		options, e := r.db.Query(ctx, `SELECT option_index,option_text,COALESCE(asset_id::text,'') FROM question_options WHERE question_id=$1::uuid AND version=$2 ORDER BY CASE WHEN $3 THEN md5($4||option_index::text) ELSE lpad(option_index::text,12,'0') END`, q.ID, q.Version, randomize && !q.OptionsEmbeddedInImage && !learnerQuestionHasImage(q.ImageAssetID, q.ImageURL, q.Text), attemptID)
-		if e != nil {
-			return nil, e
+		key := fmt.Sprintf("%s:%d", q.ID, q.Version)
+		opts := optionsByQuestion[key]
+		if opts == nil {
+			q.Options = []assessment.LearnerOption{}
+			continue
 		}
-		for options.Next() {
-			var option assessment.LearnerOption
-			if e = options.Scan(&option.Index, &option.Text, &option.AssetID); e != nil {
-				break
-			}
-			q.Options = append(q.Options, option)
+
+		shouldRandomize := randomize && !q.OptionsEmbeddedInImage && !learnerQuestionHasImage(q.ImageAssetID, q.ImageURL, q.Text)
+		if shouldRandomize {
+			// Deterministically shuffle options based on md5(attemptID || option_index::text),
+			// exactly matching PostgreSQL's ORDER BY md5($4||option_index::text)
+			sort.SliceStable(opts, func(a, b int) bool {
+				hashA := md5.Sum([]byte(attemptID + strconv.Itoa(opts[a].Index)))
+				hashB := md5.Sum([]byte(attemptID + strconv.Itoa(opts[b].Index)))
+				return hex.EncodeToString(hashA[:]) < hex.EncodeToString(hashB[:])
+			})
+		} else {
+			// Standard ascending order matching lpad(option_index::text, 12, '0')
+			sort.SliceStable(opts, func(a, b int) bool {
+				return opts[a].Index < opts[b].Index
+			})
 		}
-		if e == nil {
-			e = options.Err()
-		}
-		options.Close()
-		if e != nil {
-			return nil, e
-		}
+		q.Options = opts
 	}
 	return questions, nil
 }

@@ -297,6 +297,7 @@ func (r *repoStub) ListDirectorStudents(
 func (r *repoStub) DirectorTeachers(
 	context.Context,
 	string,
+	...orgdomain.DirectorTeacherQuery,
 ) (orgdomain.DirectorTeacherWorkspace, error) {
 	return orgdomain.DirectorTeacherWorkspace{
 		Teachers: []orgdomain.DirectorTeacher{{

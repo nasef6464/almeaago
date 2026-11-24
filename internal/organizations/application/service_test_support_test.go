@@ -311,6 +311,7 @@ func (m *repositoryMock) ListDirectorStudents(
 func (m *repositoryMock) DirectorTeachers(
 	context.Context,
 	string,
+	...org.DirectorTeacherQuery,
 ) (org.DirectorTeacherWorkspace, error) {
 	return org.DirectorTeacherWorkspace{}, nil
 }
