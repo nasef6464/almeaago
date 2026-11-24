@@ -1,4 +1,14 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 24 نوفمبر — المهارات الرئيسية والفرعية في نتيجة الطالب / PARTIAL
+
+- المرجع Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `components/quiz/QuizSubjectResults.tsx`، وGo main `d57a96db005168a38e2cf90972bfadf1546b3dc4`. الكود المحلي `ed9e04590005f37dab815b828c9843eaa24b8d67` على `fix/student-review-notes`. لا رفع، لا PR، لا دمج، وCI على الرأس SKIPPED.
+- الطالب ← «أداؤك لكل مادة» ← «تفاصيل المهارات» ← `GET /api/v1/assessment-attempts/{id}/review` ← تحقق دور الطالب وملكية المحاولة وسياسة إظهار التقرير ← أدلة المحاولة في PostgreSQL مع إضافة `level` و`parentSkillId` من تصنيف المادة الحالي. تعرض الواجهة الفرعية تحت الرئيسية فقط إذا ظهرت الرئيسية نفسها في أدلة نفس المادة والمسار. الفرعية ذات الأب الغائب وبيانات الاستجابة القديمة تظل ظاهرة. لا ترحيل قاعدة بيانات أو تغيير في التصحيح أو حساب الإتقان. اختلاف معروف عن بيانات Legacy المجمدة: نقل المهارة إلى أب آخر في التصنيف الحالي قد يغيّر موضعها، بينما تبقى نسب المحاولة وعدد أسئلتها ثابتين.
+- الملفات: `AssessmentSubjectResults.tsx` و`attempt-client.ts` و`result_review.go` و`result_skill_analysis.go` و`self_quiz_skill_analysis.go` وOpenAPI واختبارات النتيجة والمحاكي والذاتي. RED على الواجهة الأصلية في `hierarchy-red.log` بسبب غياب التعشيش. تعثر التشغيل الأول من التقاط الدور الضمني لعنصر تفاصيل المتصفح ثم نجح محدد مجموعة الفرع المسمّاة.
+- PASS فحص الأنواع في `hierarchy-types.log` و`git diff --check` وحزم Go للتقييم في `hierarchy-go.log`، وثلاث حالات متصفح في `hierarchy-web-final.log`، واختبارا PostgreSQL للمنشور والذاتي ورحلة محاكي بمادتين بعد إعادة التحميل في `hierarchy-live-final.log`. ثبتت المهارة الفرعية المستقلة عند غياب الرئيسية، وتعشيش «المساحة» تحت «الهندسة» وعدم إرجاع أب من مادة أخرى.
+- صور نفس الترتيب والأرقام عند 390 و820 و1440 تحت `.tmp/student-review-notes/legacy-subject-skills-*.png` و`apps/web/test-results/assessment-live-subject-skills-*.png`. بنية البطاقة ومسافة الفرع تضاهيان المرجع في العينة، وتظل فروق الخط والعرض ولقطات الشاشة الكاملة خارج إثبات تطابق هذه البطاقة.
+
+الاستئناف: استعادة «تفاصيل الأقسام» للمحاكي كما تظهر مستقلة بعد تفصيل المواد في القديم. أول أمر محلي: `rg -n "sectionResults|assessment_sections|section_id" internal/assessment/repository/postgres/result_review_repository.go internal/assessment/repository/postgres/result_subjects.go apps/web/src/features/assessment/components/AssessmentResultSummary.tsx`.
+
 ## 24 نوفمبر — فيديو الشرح داخل مراجعة الطالب / PARTIAL
 
 - Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `pages/Results.tsx` و`components/VideoModal.tsx`. Go main `d57a96db005168a38e2cf90972bfadf1546b3dc4` بعد [#293](https://github.com/nasef6464/almeaago/pull/293). كود الدفعة `e2272e598d856155db19a40cb51e8736483df3c8` على الفرع المحلي `fix/student-review-notes` ويشمل دفعة الملاحظات تحته. لا PR لهذا الرأس ولا دمج أو نشر. exact-head CI SKIPPED.
