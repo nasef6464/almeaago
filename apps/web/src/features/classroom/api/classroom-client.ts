@@ -17,7 +17,18 @@ export const classroomClient={
  questions(input:{schoolId:string;classId:string;subjectId:string;search?:string;page?:number;limit?:number},signal?:AbortSignal){
   return request<ClassroomQuestionPage>('/api/v1/classroom/questions?'+query({...input,page:input.page||1,limit:input.limit||30}),{},signal);
  },
- teacherSessions(signal?:AbortSignal){return request<{sessions:ClassroomSession[]}>('/api/v1/classroom/teacher/sessions',{},signal)},
+ teacherSessions(schoolIdOrSignal?:string|AbortSignal,signal?:AbortSignal){
+  let schoolId:string|undefined;
+  let abortSignal:AbortSignal|undefined;
+  if(typeof schoolIdOrSignal==='string'){
+   schoolId=schoolIdOrSignal;
+   abortSignal=signal;
+  }else if(schoolIdOrSignal instanceof AbortSignal){
+   abortSignal=schoolIdOrSignal;
+  }
+  const q=schoolId?`?schoolId=${encodeURIComponent(schoolId)}`:'';
+  return request<{sessions:ClassroomSession[]}>(`/api/v1/classroom/teacher/sessions${q}`,{},abortSignal);
+ },
  create(input:{schoolId:string;classId:string;subjectId:string;questionIds:string[];day:string;period:number|null;publishedMode:ClassroomPublishedMode},csrf:string){
   return request<{session:ClassroomSession;pin:string}>('/api/v1/classroom/sessions',{method:'POST',headers:{'X-CSRF-Token':csrf},body:JSON.stringify(input)});
  },

@@ -35,6 +35,8 @@ export interface LiveSessionsManagerProps {
 export const LiveSessionsManager: React.FC<LiveSessionsManagerProps> = ({ schoolId, initialSessions }) => {
   const [sessions, setSessions] = useState<LiveSessionItem[]>(initialSessions || []);
   const [loading, setLoading] = useState(!initialSessions);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [providerFilter, setProviderFilter] = useState('all');
   const [copyFeedback, setCopyFeedback] = useState('');
@@ -43,12 +45,14 @@ export const LiveSessionsManager: React.FC<LiveSessionsManagerProps> = ({ school
     if (initialSessions) {
       setSessions(initialSessions);
       setLoading(false);
+      setLoadError(null);
       return;
     }
     const ctrl = new AbortController();
     setLoading(true);
+    setLoadError(null);
     classroomClient
-      .teacherSessions(ctrl.signal)
+      .teacherSessions(schoolId, ctrl.signal)
       .then((res) => {
         if (ctrl.signal.aborted) return;
         const matching = schoolId
@@ -69,16 +73,18 @@ export const LiveSessionsManager: React.FC<LiveSessionsManagerProps> = ({ school
           attendeesCount: 0,
         }));
         setSessions(mapped);
+        setLoadError(null);
       })
-      .catch(() => {
+      .catch((err: any) => {
         if (ctrl.signal.aborted) return;
         setSessions([]);
+        setLoadError(err?.message || 'تعذر تحميل الحصص المباشرة للمدرسة');
       })
       .finally(() => {
         if (!ctrl.signal.aborted) setLoading(false);
       });
     return () => ctrl.abort();
-  }, [schoolId, initialSessions]);
+  }, [schoolId, initialSessions, reloadKey]);
 
   const filtered = useMemo(() => {
     return sessions.filter((s) => {
@@ -153,6 +159,19 @@ export const LiveSessionsManager: React.FC<LiveSessionsManagerProps> = ({ school
         <div className="flex items-center justify-center gap-2 rounded-2xl border border-gray-100 bg-gray-50 p-12 text-sm text-gray-500">
           <Loader2 size={18} className="animate-spin text-indigo-600" />
           <span>جاري تحميل الحصص المباشرة...</span>
+        </div>
+      ) : loadError ? (
+        <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-rose-800">
+          <div className="font-bold text-sm mb-1">فشل تحميل الحصص المباشرة</div>
+          <p className="text-xs text-rose-600 mb-4">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => setReloadKey((k) => k + 1)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+          >
+            <RefreshCw size={14} />
+            <span>إعادة المحاولة</span>
+          </button>
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 text-center">

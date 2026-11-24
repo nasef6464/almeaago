@@ -216,6 +216,53 @@ test('supervisor live sessions and monitoring tabs render honest states', async 
  await expect(page.getByText('لا يوجد اختبارات نشطة حالياً.')).toBeVisible();
 });
 
+test('supervisor live sessions renders honest error alert on 403 or failure with retry', async ({ page }) => {
+ await mockRoster(page);
+ await page.route('**/api/v1/classroom/teacher/sessions**', (route) =>
+  route.fulfill({
+   status: 403,
+   contentType: 'application/json',
+   body: JSON.stringify({ message: 'غير مصرح بالوصول لحصص هذه المدرسة' }),
+  }),
+ );
+ await page.goto('/supervisor-dashboard?tab=live-sessions');
+ const alert = page.getByRole('alert');
+ await expect(alert).toBeVisible();
+ await expect(alert).toContainText('فشل تحميل الحصص المباشرة');
+ await expect(alert).toContainText('غير مصرح بالوصول لحصص هذه المدرسة');
+ await expect(page.getByText('لا توجد حصص تفاعلية مباشرة مجدولة حالياً لهذه المدرسة.')).not.toBeVisible();
+
+ // Mock recovery on retry
+ await page.route('**/api/v1/classroom/teacher/sessions**', (route) =>
+  json(route, {
+   sessions: [
+    {
+     id: 'sess-live-02',
+     schoolId: 'school-1',
+     classId: 'class-a',
+     subjectId: 'subj-1',
+     teacherId: 'teacher-1',
+     status: 'upcoming',
+     day: '2026-11-25',
+     period: 2,
+     publishedMode: 'single',
+     activeBatchId: '',
+     activeQuestionOrdinal: null,
+     pinExpiresAt: '',
+     revision: 1,
+     startedAt: null,
+     endedAt: null,
+     createdAt: '',
+     updatedAt: '',
+    },
+   ],
+  }),
+ );
+ await page.getByRole('button', { name: 'إعادة المحاولة' }).click();
+ await expect(page.getByText('حصة تفاعلية - 2026-11-25')).toBeVisible();
+ await expect(page.getByRole('alert')).not.toBeVisible();
+});
+
 test('supervisor skills map renders honest empty state when no skills data', async ({ page }) => {
  await mockRoster(page);
  await page.goto('/supervisor-dashboard?tab=skills');
