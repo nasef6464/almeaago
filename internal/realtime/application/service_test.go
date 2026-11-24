@@ -52,7 +52,16 @@ func (r *repoStub) GetSession(context.Context, string) (realtime.Session, error)
 func (r *repoStub) FindLiveByPINHash(context.Context, string) (realtime.Session, error) {
 	return r.session, nil
 }
-func (r *repoStub) ListTeacherSessions(context.Context, string, int) ([]realtime.Session, error) {
+func (r *repoStub) ListTeacherSessions(context.Context, string, string, int) ([]realtime.Session, error) {
+	return []realtime.Session{r.session}, nil
+}
+func (r *repoStub) ListSupervisorSessions(context.Context, string, string, int) ([]realtime.Session, error) {
+	return []realtime.Session{r.session}, nil
+}
+func (r *repoStub) ListSchoolAdminSessions(context.Context, string, string, int) ([]realtime.Session, error) {
+	return []realtime.Session{r.session}, nil
+}
+func (r *repoStub) ListAllSessions(context.Context, string, int) ([]realtime.Session, error) {
 	return []realtime.Session{r.session}, nil
 }
 func (r *repoStub) SessionQuestions(context.Context, string) ([]realtime.PinnedQuestion, error) {
@@ -514,4 +523,109 @@ func TestTimedChallengeUsesServerOwnedStateAndSafeScoringContract(t *testing.T) 
 	if _, err = service.ConfigureCompetition(context.Background(), teacher(), "session-1", 9); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("expected bounded duration denial, got %v", err)
 	}
+}
+
+func supervisor() identity.User {
+	return identity.User{ID: "supervisor-1", Roles: []identity.Role{identity.RoleSupervisor}}
+}
+
+func admin() identity.User {
+	return identity.User{ID: "admin-1", Roles: []identity.Role{identity.RoleAdmin}}
+}
+
+func schoolAdmin() identity.User {
+	return identity.User{ID: "school-admin-1", Roles: []identity.Role{identity.RoleSchoolAdmin}}
+}
+
+func parent() identity.User {
+	return identity.User{ID: "parent-1", Roles: []identity.Role{identity.RoleParent}}
+}
+
+func TestTeacherSessionsRBACAndTenantIsolation(t *testing.T) {
+	validSchoolID := "018f3a21-9999-7000-8000-000000000001"
+	repo := &repoStub{session: liveSession()}
+
+	t.Run("admin can list all sessions without or with school filter", func(t *testing.T) {
+		service := NewService(repo, &orgStub{}, &questionStub{}, nil, "secret")
+		res, err := service.TeacherSessions(context.Background(), admin(), "")
+		if err != nil || len(res) == 0 {
+			t.Fatalf("admin list all failed: %v", err)
+		}
+		res, err = service.TeacherSessions(context.Background(), admin(), validSchoolID)
+		if err != nil || len(res) == 0 {
+			t.Fatalf("admin list school failed: %v", err)
+		}
+	})
+
+	t.Run("supervisor with school-level access can list sessions", func(t *testing.T) {
+		service := NewService(repo, &orgStub{staffOK: true}, &questionStub{}, nil, "secret")
+		res, err := service.TeacherSessions(context.Background(), supervisor(), validSchoolID)
+		if err != nil || len(res) == 0 {
+			t.Fatalf("supervisor list failed: %v", err)
+		}
+	})
+
+	t.Run("supervisor without access to requested school is denied with ErrForbidden", func(t *testing.T) {
+		service := NewService(repo, &orgStub{staffOK: false}, &questionStub{}, nil, "secret")
+		_, err := service.TeacherSessions(context.Background(), supervisor(), validSchoolID)
+		if !errors.Is(err, ErrForbidden) {
+			t.Fatalf("expected ErrForbidden for unauthorized school, got %v", err)
+		}
+	})
+
+	t.Run("supervisor without school filter queries all authorized scopes", func(t *testing.T) {
+		service := NewService(repo, &orgStub{staffOK: false}, &questionStub{}, nil, "secret")
+		res, err := service.TeacherSessions(context.Background(), supervisor(), "")
+		if err != nil || len(res) == 0 {
+			t.Fatalf("supervisor without school filter failed: %v", err)
+		}
+	})
+
+	t.Run("school admin with access can list sessions", func(t *testing.T) {
+		service := NewService(repo, &orgStub{staffOK: true}, &questionStub{}, nil, "secret")
+		res, err := service.TeacherSessions(context.Background(), schoolAdmin(), validSchoolID)
+		if err != nil || len(res) == 0 {
+			t.Fatalf("school admin list failed: %v", err)
+		}
+	})
+
+	t.Run("school admin without access is denied with ErrForbidden", func(t *testing.T) {
+		service := NewService(repo, &orgStub{staffOK: false}, &questionStub{}, nil, "secret")
+		_, err := service.TeacherSessions(context.Background(), schoolAdmin(), validSchoolID)
+		if !errors.Is(err, ErrForbidden) {
+			t.Fatalf("expected ErrForbidden for unauthorized school admin, got %v", err)
+		}
+	})
+
+	t.Run("teacher can list sessions", func(t *testing.T) {
+		service := NewService(repo, &orgStub{}, &questionStub{}, nil, "secret")
+		res, err := service.TeacherSessions(context.Background(), teacher(), "")
+		if err != nil || len(res) == 0 {
+			t.Fatalf("teacher list failed: %v", err)
+		}
+	})
+
+	t.Run("student is rejected with ErrForbidden", func(t *testing.T) {
+		service := NewService(repo, &orgStub{}, &questionStub{}, nil, "secret")
+		_, err := service.TeacherSessions(context.Background(), student(), "")
+		if !errors.Is(err, ErrForbidden) {
+			t.Fatalf("expected ErrForbidden for student, got %v", err)
+		}
+	})
+
+	t.Run("parent is rejected with ErrForbidden", func(t *testing.T) {
+		service := NewService(repo, &orgStub{}, &questionStub{}, nil, "secret")
+		_, err := service.TeacherSessions(context.Background(), parent(), "")
+		if !errors.Is(err, ErrForbidden) {
+			t.Fatalf("expected ErrForbidden for parent, got %v", err)
+		}
+	})
+
+	t.Run("malformed school UUID is rejected with ErrInvalidInput", func(t *testing.T) {
+		service := NewService(repo, &orgStub{}, &questionStub{}, nil, "secret")
+		_, err := service.TeacherSessions(context.Background(), supervisor(), "not-a-valid-uuid")
+		if !errors.Is(err, ErrInvalidInput) {
+			t.Fatalf("expected ErrInvalidInput for invalid UUID, got %v", err)
+		}
+	})
 }
