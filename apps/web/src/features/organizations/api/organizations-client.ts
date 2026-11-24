@@ -295,8 +295,24 @@ export const organizationsClient = {
       { method: 'PUT', headers, body },
     );
   },
-  directorTeachers(schoolId: string, signal?: AbortSignal) {
-    return request<{ teachers: DirectorTeacher[]; assignments: DirectorAssignment[] }>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/teachers`, { signal });
+  directorTeachers(
+    schoolId: string,
+    options?: { page?: number; limit?: number; assignmentLimit?: number } | AbortSignal,
+  ) {
+    const isSignal = options instanceof AbortSignal;
+    const signal = isSignal ? options : undefined;
+    const opts = !isSignal && options ? options : {};
+    const params = new URLSearchParams();
+    if (opts.page && opts.page > 0) params.set('page', String(opts.page));
+    if (opts.limit && opts.limit > 0) params.set('limit', String(opts.limit));
+    if (opts.assignmentLimit && opts.assignmentLimit > 0) params.set('assignmentLimit', String(opts.assignmentLimit));
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return request<{
+      teachers: DirectorTeacher[];
+      assignments: DirectorAssignment[];
+      totalTeachers?: number;
+      totalAssignments?: number;
+    }>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/teachers${query}`, { signal });
   },
   upsertDirectorAssignment(schoolId: string, payload: { teacherId: string; classId: string; subjectId?: string; status: 'active' | 'inactive' }, csrf: string) {
     return request<{ assignment: DirectorAssignment }>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/assignments`, { method: 'PUT', headers: csrfHeaders(csrf), body: JSON.stringify(payload) });

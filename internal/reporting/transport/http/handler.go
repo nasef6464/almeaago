@@ -39,11 +39,13 @@ func New(service *reportingapp.Service, auth Authenticator) http.Handler {
 
 func (h *Handler) authn(w http.ResponseWriter, r *http.Request) (identityapp.Authenticated, bool) {
 	if h.auth == nil {
+		w.Header().Set("Cache-Control", "private, no-store")
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"message": "Authentication service unavailable"})
 		return identityapp.Authenticated{}, false
 	}
 	authenticated, err := h.auth.Authenticate(r.Context(), identitysession.Token(r))
 	if err != nil {
+		w.Header().Set("Cache-Control", "private, no-store")
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"message": "Authentication required"})
 		return identityapp.Authenticated{}, false
 	}
@@ -133,6 +135,7 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
+	w.Header().Set("Cache-Control", "private, no-store")
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -161,6 +164,7 @@ func (h *Handler) results(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
+	w.Header().Set("Cache-Control", "private, no-store")
 	writeJSON(w, http.StatusOK, out)
 }
 
@@ -183,6 +187,7 @@ func (h *Handler) exportResults(w http.ResponseWriter, r *http.Request) {
 	if query.SchoolID != "" {
 		fileName = "school-assessment-results.csv"
 	}
+	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
 	w.WriteHeader(http.StatusOK)
@@ -190,6 +195,7 @@ func (h *Handler) exportResults(w http.ResponseWriter, r *http.Request) {
 }
 
 func writeError(w http.ResponseWriter, err error) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	switch {
 	case errors.Is(err, reportingapp.ErrInvalidInput):
 		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid reporting request"})

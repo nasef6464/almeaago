@@ -211,6 +211,7 @@ func (h *LegacyHandler) authenticate(
 	r *http.Request,
 	requireCSRF bool,
 ) (identityapp.Authenticated, bool) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	if h.auth == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"message": "Authentication service unavailable"})
 		return identityapp.Authenticated{}, false

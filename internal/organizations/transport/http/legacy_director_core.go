@@ -553,8 +553,10 @@ func (h *LegacyHandler) directorTeachers(w http.ResponseWriter, r *http.Request)
 		assignments = append(assignments, presentLegacyAssignment(assignment))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"teachers":    teachers,
-		"assignments": assignments,
+		"teachers":         teachers,
+		"assignments":      assignments,
+		"totalTeachers":    workspace.TotalTeachers,
+		"totalAssignments": workspace.TotalAssignments,
 	})
 }
 

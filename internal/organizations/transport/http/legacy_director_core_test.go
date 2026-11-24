@@ -426,3 +426,39 @@ func TestLegacySchoolAssessmentLearnersAndDetailRequireStrongerCapability(t *tes
 		t.Fatalf("intelligence-disabled detail: %d", denied.Code)
 	}
 }
+
+func TestLegacyDirectorCacheControlAndTeacherTotals(t *testing.T) {
+	schoolID := "00000000-0000-0000-0000-000000000001"
+	repo := &repoStub{
+		contexts: []orgdomain.SchoolContext{{
+			SchoolID:    schoolID,
+			Role:        identitydomain.RoleSchoolAdmin,
+			Permissions: []string{orgdomain.PermissionSchoolTeachersAssign, orgdomain.PermissionSchoolOverviewView},
+			Modules:     []string{string(orgdomain.ModuleSchoolAssessments)},
+		}},
+	}
+	handler := NewLegacy(orgapp.NewService(repo, repo), authStub{auth: schoolAdminAuth()})
+
+	// 1. Overview
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/director/schools/"+schoolID+"/overview", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("overview code %d: %s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Cache-Control"); got != "private, no-store" {
+		t.Fatalf("overview Cache-Control = %q, want 'private, no-store'", got)
+	}
+
+	// 2. Teachers
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/director/schools/"+schoolID+"/teachers", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("teachers code %d: %s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Cache-Control"); got != "private, no-store" {
+		t.Fatalf("teachers Cache-Control = %q, want 'private, no-store'", got)
+	}
+	if !strings.Contains(w.Body.String(), `"totalTeachers":1`) {
+		t.Fatalf("teachers response missing totalTeachers: %s", w.Body.String())
+	}
+}
