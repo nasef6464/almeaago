@@ -306,6 +306,8 @@ func (r *repoStub) DirectorTeachers(
 			Email:     "teacher@example.com",
 			Active:    true,
 		}},
+		TotalTeachers:    1,
+		TotalAssignments: 0,
 	}, nil
 }
 

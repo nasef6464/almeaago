@@ -222,8 +222,30 @@ func (d *SchoolDirectorDirectory) DirectorTeachers(
 		return org.DirectorTeacherWorkspace{}, err
 	}
 
+	var totalTeachers int
+	if err := d.db.QueryRow(ctx, `
+		SELECT count(*)::int
+		FROM school_memberships sm
+		WHERE sm.school_id = $1::uuid
+		  AND sm.role = 'teacher'
+		  AND sm.status = 'active'
+	`, schoolID).Scan(&totalTeachers); err != nil {
+		return org.DirectorTeacherWorkspace{}, err
+	}
+
+	var totalAssignments int
+	if err := d.db.QueryRow(ctx, `
+		SELECT count(*)::int
+		FROM teaching_assignments ta
+		WHERE ta.school_id = $1::uuid
+	`, schoolID).Scan(&totalAssignments); err != nil {
+		return org.DirectorTeacherWorkspace{}, err
+	}
+
 	return org.DirectorTeacherWorkspace{
-		Teachers:    teachers,
-		Assignments: assignments,
+		Teachers:         teachers,
+		Assignments:      assignments,
+		TotalTeachers:    totalTeachers,
+		TotalAssignments: totalAssignments,
 	}, nil
 }
