@@ -1,4 +1,14 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 24 نوفمبر — «شاهد الفيديو» من بطاقة متابعة المهارة / PARTIAL
+
+- مرجع Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `pages/Results.tsx`. Go main `d0afc757a41e42e7f7e9159a1fe273262e5784cd`. كود الدفعة `c54c63c5a5f60f56abba492bf96cd36adc7b4d36` على `fix/student-review-notes` محليًا بعد إعادة التركيب فوق main. الرفع وPR والدمج والنشر غير منفذة. فحص GitHub CI للرأس SKIPPED.
+- الطالب ← التقرير الكامل ← «شاهد الفيديو». يعيد `GET /api/v1/assessment-attempts/{id}/review` معرّف أول درس فيديو معتمد وظاهر مرتبط بموضوع التأسيس، ضمن مسار ومادة المهارة في PostgreSQL. عند الضغط يطلب العميل `GET /api/v1/learning-spaces/foundation/{topicId}/lessons/{lessonId}`. يتحقق Go من الارتباط والصلاحية الحالية قبل إرجاع رابط المقطع. يعرض المشغل في التقرير وينتظر ضغط «تشغيل»، ويعيد التركيز إلى الزر بعد الإغلاق. تظهر رسالة في البطاقة إذا تعذر تحميل الدرس. تظهر شارتا «فيديو شرح» و«ملف داعم» بحسب توافرهما.
+- الملفات `AssessmentFoundationVideoAction.tsx` و`AssessmentFollowUpSkills.tsx` و`attempt-client.ts` وعقد Go واستعلام موارد التأسيس في `result_skill_analysis.go` وOpenAPI واختبارات Go والمتصفح.
+- RED لغياب الزر في `followup-video-red.log`. PASS فحص TypeScript و`git diff --check` وحزم Go للتقييم وتطبيق المحتوى. PASS ثماني حالات متصفح في `followup-video-web.log`، شملت غياب طلب الدرس قبل الضغط وحالة رفضه. PASS رحلة حقيقية مع Go وPostgreSQL في `followup-video-live.log`، شملت إعادة تحميل التقرير وطلب الدرس المصرّح به وتشغيل مقطع WebM يدويًا والإغلاق وعودة التركيز، واختباري PostgreSQL للنتيجة والملكية. ظهرت تحذيرات إعدادات الخط خارج الإجراء المختبَر.
+- صور RTL عند 390 و820 و1440 في `.tmp/student-review-notes/legacy-follow-up-video-*.png` و`apps/web/test-results/assessment-live-follow-up-video-*.png`. تطابق إجراء الفتح والإغلاق في العينة. يتبقى اختلاف تحكم المشغل وخلفية النافذة.
+
+الاستئناف: تحقق من شارات «شرح مرتبط» و«تدريب قصير» مقابل محتوى التأسيس الظاهر في نفس نطاق المهارة. أول أمر محلي: `rg -n "شرح مرتبط|تدريب قصير|hasSupport|videoLessonId" C:/almeaago/almeaacodax/pages/Results.tsx apps/web/src/features/assessment/components/AssessmentFollowUpSkills.tsx internal/assessment/repository/postgres/result_skill_analysis.go`.
+
 ## 24 نوفمبر — إجراءات «مهارات تحتاج متابعة» في التقرير الكامل / PARTIAL
 
 - Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `pages/Results.tsx` و`pages/Reports/recommendationViewModel.ts`. Go main `2c10ff186b726c2e9f37aad96b55afc0ab9144d6`. كود الدفعة `d424172ffa33da467ff520eca4445132a96d60e2` على `fix/student-review-notes` محليًا. لا رفع أو PR أو نشر وGitHub CI SKIPPED.
