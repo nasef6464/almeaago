@@ -1,4 +1,13 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 24 نوفمبر — إجراءات «مهارات تحتاج متابعة» في التقرير الكامل / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `pages/Results.tsx` و`pages/Reports/recommendationViewModel.ts`. Go main `2c10ff186b726c2e9f37aad96b55afc0ab9144d6`. كود الدفعة `d424172ffa33da467ff520eca4445132a96d60e2` على `fix/student-review-notes` محليًا. لا رفع أو PR أو نشر وGitHub CI SKIPPED.
+- الطالب ← نتيجة المحاولة ← التقرير الكامل ← بطاقة المهارة ← `GET /api/v1/assessment-attempts/{id}/review` بعد تحقق الملكية وسياسة التقرير ← مهارة المحاولة وموضوع التأسيس المثبت عبر `topic_skill_links` ← الشرح والتدريب والدعم في تبويبات الموضوع نفسه. إشارة `hasSupport` تتطلب عنصر مكتبة معتمدًا وظاهرًا في نفس المادة والمسار داخل PostgreSQL، دون إرجاع عنوان الملف في تقرير النتيجة. تبقى قراءة محتواه والأذونات ومشغل الدرس والتدريب في وجهة التأسيس الحالية. لا تغيير في درجات المحاولة أو حفظها.
+- الملفات `AssessmentFollowUpSkills.tsx` و`AssessmentResultsPage.tsx` و`resultFoundationPath.ts` و`attempt-client.ts` وملفات Go لعقد النتيجة واستعلام خرائط التأسيس وOpenAPI والاختبارات. RED في `followup-red.log`. PASS فحص TypeScript و`git diff --check` وحزم Go للتقييم وست حالات متصفح في `followup-web.log`. PASS في `followup-live-final.log` لمحاولة حقيقية بعد إعادة التحميل ثم فتح تبويبات ملف الدعم والشرح وبدء التدريب صراحة، ورفض قراءة النتيجة من طالب آخر، واختباري PostgreSQL للمنشور والذاتي. التصحيح بين التشغيلين كان محدد اختبار مهارة متكرر في DOM.
+- صور RTL عند 390 و820 و1440 في `.tmp/student-review-notes/legacy-follow-up-*.png` و`apps/web/test-results/assessment-live-follow-up-*.png`. استعدنا الإجراءات الثلاثة وهيكل البطاقة وحالة غياب المهارات. تبقى شارات توافر الأنواع وزر الفيديو المباشر في البطاقة من فروق الأصل. ملف الدعم يفتح تبويبه حتى تُطبق صلاحيات العرض الحالية.
+
+الاستئناف: افحص زر «شاهد الفيديو» في بطاقة المتابعة مع مسار الدرس المصرح به في التأسيس، بما يتيح اختيار الفيديو دون تشغيل تلقائي. أول أمر محلي: `rg -n "شاهد الفيديو|lessonVideoUrl|selectedLesson|LearnerFoundationLesson" C:/almeaago/almeaacodax/pages/Results.tsx apps/web/src/features/learning/components/FoundationTopicDialog.tsx apps/web/src/features/assessment/components/AssessmentFollowUpSkills.tsx`.
+
 ## 24 نوفمبر — نافذة تحليل المهارات بعد «تفاصيل أكثر» / PARTIAL
 
 - Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `components/DetailedAnalysisModal.tsx` و`pages/Results.tsx`. أعيد تركيب `fix/student-review-notes` فوق أحدث Go main `2c10ff186b726c2e9f37aad96b55afc0ab9144d6`. كود الدفعة `ddece662ba75a9d8a6d89c96b74c29c92779fd5b`. لا رفع أو PR أو نشر لهذا الرأس وGitHub CI SKIPPED.
