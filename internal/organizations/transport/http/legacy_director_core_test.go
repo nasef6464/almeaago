@@ -45,6 +45,36 @@ func TestLegacyDirectorStudentsPreservesResponseShape(t *testing.T) {
 		`"classId":"class-1"`,
 		`"className":"Class A"`,
 		`"total":1`,
+		`"page":1`,
+		`"limit":50`,
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("missing %s in %s", fragment, body)
+		}
+	}
+}
+
+func TestLegacyDirectorStudentsPaginationParameters(t *testing.T) {
+	repo := &repoStub{}
+	service := orgapp.NewService(repo, repo)
+	handler := NewLegacy(service, authStub{auth: schoolAdminAuth()})
+	request := httptest.NewRequest(
+		http.MethodGet,
+		"/director/schools/school-1/students?page=2&limit=25",
+		nil,
+	)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", response.Code, response.Body.String())
+	}
+	body := response.Body.String()
+	for _, fragment := range []string{
+		`"page":2`,
+		`"limit":25`,
+		`"total":1`,
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Fatalf("missing %s in %s", fragment, body)
@@ -394,5 +424,41 @@ func TestLegacySchoolAssessmentLearnersAndDetailRequireStrongerCapability(t *tes
 	repo.contexts[0].Modules = []string{string(orgdomain.ModuleSchoolAssessments)}
 	if denied := get(base + "/results/" + attempt); denied.Code != http.StatusForbidden {
 		t.Fatalf("intelligence-disabled detail: %d", denied.Code)
+	}
+}
+
+func TestLegacyDirectorCacheControlAndTeacherTotals(t *testing.T) {
+	schoolID := "00000000-0000-0000-0000-000000000001"
+	repo := &repoStub{
+		contexts: []orgdomain.SchoolContext{{
+			SchoolID:    schoolID,
+			Role:        identitydomain.RoleSchoolAdmin,
+			Permissions: []string{orgdomain.PermissionSchoolTeachersAssign, orgdomain.PermissionSchoolOverviewView},
+			Modules:     []string{string(orgdomain.ModuleSchoolAssessments)},
+		}},
+	}
+	handler := NewLegacy(orgapp.NewService(repo, repo), authStub{auth: schoolAdminAuth()})
+
+	// 1. Overview
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/director/schools/"+schoolID+"/overview", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("overview code %d: %s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Cache-Control"); got != "private, no-store" {
+		t.Fatalf("overview Cache-Control = %q, want 'private, no-store'", got)
+	}
+
+	// 2. Teachers
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/director/schools/"+schoolID+"/teachers", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("teachers code %d: %s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Cache-Control"); got != "private, no-store" {
+		t.Fatalf("teachers Cache-Control = %q, want 'private, no-store'", got)
+	}
+	if !strings.Contains(w.Body.String(), `"totalTeachers":1`) {
+		t.Fatalf("teachers response missing totalTeachers: %s", w.Body.String())
 	}
 }

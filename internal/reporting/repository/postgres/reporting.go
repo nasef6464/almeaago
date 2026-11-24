@@ -497,44 +497,33 @@ func (r *ReportRepository) Overview(
 	scopeClause, scopeArgs := resultScopeClause(scope, query, 2)
 	baseArgs = append(baseArgs, scopeArgs...)
 
-	countSQL := `
-		SELECT count(*)::int
-		FROM assessment_results r
-		JOIN assessment_attempts a ON a.id=r.attempt_id
-		` + reportAttemptVersionJoin(scope) + `
-		WHERE r.student_id::text=ANY($1::text[])
-	` + scopeClause
-	var totalResults int
-	if err := r.db.QueryRow(ctx, countSQL, baseArgs...).Scan(&totalResults); err != nil {
-		return reporting.Overview{}, err
-	}
-	out.Assessment.ResultCount = totalResults
-
 	resultLimitParam := len(baseArgs) + 1
 	resultArgs := append(append([]any{}, baseArgs...), query.ResultLimit)
-	var sampledResults, passed int
+	var sampledResults, passed, fullCount int
 	var average float64
 	err := r.db.QueryRow(ctx, `
 		WITH sampled AS (
-			SELECT r.score,r.passed
+			SELECT r.score, r.passed, count(*) OVER() AS full_count
 			FROM assessment_results r
 			JOIN assessment_attempts a ON a.id=r.attempt_id
 			`+reportAttemptVersionJoin(scope)+`
 			WHERE r.student_id::text=ANY($1::text[])
 	`+scopeClause+`
-			ORDER BY r.finalized_at DESC,r.attempt_id DESC
+			ORDER BY r.finalized_at DESC, r.attempt_id DESC
 			LIMIT $`+strconv.Itoa(resultLimitParam)+`
 		)
 		SELECT count(*)::int,
 		       COALESCE(avg(score),0)::float8,
-		       count(*) FILTER(WHERE passed)::int
+		       count(*) FILTER(WHERE passed)::int,
+		       COALESCE(max(full_count),0)::int
 		FROM sampled
-	`, resultArgs...).Scan(&sampledResults, &average, &passed)
+	`, resultArgs...).Scan(&sampledResults, &average, &passed, &fullCount)
 	if err != nil {
 		return reporting.Overview{}, err
 	}
+	out.Assessment.ResultCount = fullCount
 	out.Assessment.SampledResultCount = sampledResults
-	out.Assessment.ResultsTruncated = totalResults > sampledResults
+	out.Assessment.ResultsTruncated = fullCount > sampledResults
 	out.Assessment.AverageScore = average
 	out.Assessment.Passed = passed
 	out.Assessment.Failed = sampledResults - passed

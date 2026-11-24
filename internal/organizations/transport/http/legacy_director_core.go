@@ -276,13 +276,25 @@ func (h *LegacyHandler) directorStudents(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
+	pageNumber := 1
+	limit := 50
+	if v := strings.TrimSpace(r.URL.Query().Get("page")); v != "" {
+		if p, err := strconv.Atoi(v); err == nil && p > 0 {
+			pageNumber = p
+		}
+	}
+	if v := strings.TrimSpace(r.URL.Query().Get("limit")); v != "" {
+		if l, err := strconv.Atoi(v); err == nil && l > 0 {
+			limit = l
+		}
+	}
 	page, err := h.service.DirectorStudents(
 		r.Context(),
 		auth.User,
 		chi.URLParam(r, "schoolId"),
 		orgdomain.DirectorStudentQuery{
-			Page:   1,
-			Limit:  500,
+			Page:   pageNumber,
+			Limit:  limit,
 			Search: strings.TrimSpace(r.URL.Query().Get("search")),
 		},
 	)
@@ -297,6 +309,8 @@ func (h *LegacyHandler) directorStudents(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"students": students,
 		"total":    page.Total,
+		"page":     page.Page,
+		"limit":    page.Limit,
 	})
 }
 
@@ -539,8 +553,10 @@ func (h *LegacyHandler) directorTeachers(w http.ResponseWriter, r *http.Request)
 		assignments = append(assignments, presentLegacyAssignment(assignment))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"teachers":    teachers,
-		"assignments": assignments,
+		"teachers":         teachers,
+		"assignments":      assignments,
+		"totalTeachers":    workspace.TotalTeachers,
+		"totalAssignments": workspace.TotalAssignments,
 	})
 }
 

@@ -49,8 +49,10 @@ type DirectorTeacher struct {
 }
 
 type DirectorTeacherWorkspace struct {
-	Teachers    []DirectorTeacher
-	Assignments []TeachingAssignment
+	Teachers         []DirectorTeacher
+	Assignments      []TeachingAssignment
+	TotalTeachers    int
+	TotalAssignments int
 }
 
 type DirectorTeacherQuery struct {
