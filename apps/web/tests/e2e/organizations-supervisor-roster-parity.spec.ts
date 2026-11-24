@@ -140,3 +140,17 @@ test('supervisor failed context and roster reads fail closed, preserve search an
  await expect(page.getByText('طالب الأولى')).toBeVisible();
  await expect(page.getByLabel('بحث عن طالب')).toHaveValue('طالب');
 });
+test('supervisor student profile alert action shows honest intervention status feedback',async({page})=>{
+ await mockRoster(page);
+ await page.goto('/supervisor-dashboard?tab=students');
+ await expect(page.getByText('طالب الأولى')).toBeVisible();
+ await page.getByRole('button',{name:'الملف والمهارات'}).click();
+ await expect(page.getByRole('heading',{name:'طالب الأولى'})).toBeVisible();
+ await page.getByRole('button',{name:'إرسال تنبيه'}).click();
+ await expect(page.getByRole('heading',{name:'طالب الأولى'})).toHaveCount(0);
+ const status=page.getByRole('status');
+ await expect(status).toBeVisible();
+ await expect(status).toContainText('تم تسجيل تنبيه المتابعة الأكاديمية للطالب "طالب الأولى" وإدراجه في خطة التدخل المدرسي.');
+ await status.getByRole('button',{name:'إغلاق'}).click();
+ await expect(page.getByRole('status')).toHaveCount(0);
+});

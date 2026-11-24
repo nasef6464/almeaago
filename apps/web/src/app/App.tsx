@@ -20,7 +20,6 @@ import { SelfQuizPage } from '../features/assessment/pages/SelfQuizPage';
 import { AssessmentAssignmentsPage } from '../features/assessment/pages/AssessmentAssignmentsPage';
 import { ReviewLibraryPage } from '../features/learning/pages/ReviewLibraryPage';
 import { ReviewPracticePage } from '../features/learning/pages/ReviewPracticePage';
-import { CourseLearningPage } from '../features/learning/pages/CourseLearningPage';
 import { CourseView } from '../features/learning/pages/CourseView';
 import { LearningSpacePage } from '../features/learning/pages/LearningSpacePage';
 import { StudyPlanPage } from '../features/learning/pages/StudyPlanPage';
@@ -39,7 +38,6 @@ import { StudentDashboardPage } from '../features/learning/pages/StudentDashboar
 import { PublicLandingPage } from '../features/public/pages/PublicLandingPage';
 import { CoursesPage } from '../features/public/pages/CoursesPage';
 import { CartPage } from '../features/public/header/commerce/CartPage';
-import { PricingPage } from '../features/public/header/commerce/PricingPage';
 import { PricingPlansPage } from '../features/commerce/pages/PricingPlansPage';
 import { BlogPage } from '../features/public/header/pages/BlogPage';
 import { MockExamsPage } from '../features/public/header/pages/MockExamsPage';
@@ -172,18 +170,18 @@ export function App() {
   return (
     <StudentNavigationProvider>
       <PlatformFontBootstrap />
-      {!hideSiteHeader ? (
-        <>
-          <OriginalHeader
-            requestedAuthMode={modalMode}
-            onAuthIntentConsumed={consumeAuthIntent}
-            onAuthClose={closeModal}
-          />
-          <StudentPathBar />
-        </>
-      ) : null}
-
       <AppErrorBoundary>
+        {!hideSiteHeader ? (
+          <>
+            <OriginalHeader
+              requestedAuthMode={modalMode}
+              onAuthIntentConsumed={consumeAuthIntent}
+              onAuthClose={closeModal}
+            />
+            <StudentPathBar />
+          </>
+        ) : null}
+
         <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
         <Route path="/" element={<PublicLandingPage onAuth={setManualMode} />} />
@@ -274,23 +272,23 @@ export function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
         </Suspense>
+
+        {showPublicFooter(location.pathname) ? <LegacySiteFooter /> : null}
+
+        <AnnouncementAdsOverlay />
+        <PwaInstallBanner />
+
+        {!inAssessmentResult && location.pathname !== '/quiz' ? (
+          <>
+            <ChatWidget />
+            <FloatingContactWidget />
+          </>
+        ) : null}
+
+        {hideSiteHeader ? (
+          <AuthModal open={modalMode !== null} initialSignUp={modalMode === 'signup'} onClose={closeModal} />
+        ) : null}
       </AppErrorBoundary>
-
-      {showPublicFooter(location.pathname) ? <LegacySiteFooter /> : null}
-
-      <AnnouncementAdsOverlay />
-      <PwaInstallBanner />
-
-      {!inAssessmentResult && location.pathname !== '/quiz' ? (
-        <>
-          <ChatWidget />
-          <FloatingContactWidget />
-        </>
-      ) : null}
-
-      {hideSiteHeader ? (
-        <AuthModal open={modalMode !== null} initialSignUp={modalMode === 'signup'} onClose={closeModal} />
-      ) : null}
     </StudentNavigationProvider>
   );
 }
