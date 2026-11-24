@@ -31,11 +31,12 @@ func (r *Repository) selfQuizSkillAnalysis(ctx context.Context, student, id stri
  SELECT path_id,subject_id,subject_name,skill_id,skill_name,count(*)::int question_count,count(*) FILTER(WHERE answered AND is_correct)::int correct_count
  FROM linked WHERE id IS NOT NULL AND skill_id IS NOT NULL GROUP BY path_id,subject_id,subject_name,skill_id,skill_name
 )
-SELECT c.expected_count,c.found_count,c.evidence_count,c.invalid,COALESCE(g.path_id::text,''),COALESCE(g.subject_id::text,''),COALESCE(g.subject_name,''),COALESCE(g.skill_id::text,''),COALESCE(g.skill_name,''),COALESCE(skill.kind,''),COALESCE(parent.id::text,''),COALESCE(g.question_count,0),COALESCE(g.correct_count,0)
+SELECT c.expected_count,c.found_count,c.evidence_count,c.invalid,COALESCE(g.path_id::text,''),COALESCE(g.subject_id::text,''),COALESCE(g.subject_name,''),COALESCE(g.skill_id::text,''),COALESCE(g.skill_name,''),COALESCE(skill.kind,''),COALESCE(parent.id::text,''),COALESCE(section.name,''),COALESCE(g.question_count,0),COALESCE(g.correct_count,0)
 FROM coverage c LEFT JOIN grouped g ON true
 LEFT JOIN skills skill ON skill.id=g.skill_id AND skill.subject_id=g.subject_id
 LEFT JOIN skills parent ON skill.kind='sub' AND parent.id=skill.parent_skill_id
   AND parent.subject_id=g.subject_id AND parent.kind='main'
+LEFT JOIN taxonomy_skill_sections section ON section.id=COALESCE(skill.section_id,parent.section_id) AND section.subject_id=g.subject_id
 ORDER BY g.subject_id,g.skill_name,g.skill_id LIMIT 10001`, id, student)
 	if err != nil {
 		return nil, err
@@ -45,7 +46,7 @@ ORDER BY g.subject_id,g.skill_name,g.skill_id LIMIT 10001`, id, student)
 		var expected, found, evidence int
 		var invalid bool
 		var item assessment.ResultSkillAnalysisItem
-		if err = rows.Scan(&expected, &found, &evidence, &invalid, &item.PathID, &item.SubjectID, &item.SubjectName, &item.SkillID, &item.SkillName, &item.Level, &item.ParentSkillID, &item.QuestionCount, &item.CorrectCount); err != nil {
+		if err = rows.Scan(&expected, &found, &evidence, &invalid, &item.PathID, &item.SubjectID, &item.SubjectName, &item.SkillID, &item.SkillName, &item.Level, &item.ParentSkillID, &item.SectionName, &item.QuestionCount, &item.CorrectCount); err != nil {
 			return nil, err
 		}
 		analysis.Complete = expected > 0 && expected == total && found == expected && evidence == expected && !invalid

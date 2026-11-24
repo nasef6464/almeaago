@@ -39,7 +39,7 @@ func TestResultSkillAnalysisSnapshotPostgres(t *testing.T) {
 	defer db.Close()
 	_, err = db.Exec(ctx, `
 CREATE TABLE assessment_attempts(id uuid,student_id uuid,assessment_id uuid,assessment_version int,status text,attempt_number int);
-CREATE TABLE assessment_versions(assessment_id uuid,version int,path_id uuid,title text,allow_question_review bool,show_answers bool,show_explanations bool,show_results_report bool,randomize_questions bool,randomize_options bool,assessment_kind text);
+CREATE TABLE assessment_versions(assessment_id uuid,version int,path_id uuid,title text,allow_question_review bool,show_answers bool,show_explanations bool,show_results_report bool,randomize_questions bool,randomize_options bool,assessment_kind text,normal_mode text DEFAULT 'exam');
 CREATE TABLE assessment_results(attempt_id uuid,student_id uuid,score float8,total_questions int,correct_answers int,wrong_answers int,unanswered int,passed bool,time_spent_seconds int,finalized_at timestamptz);
 CREATE TABLE assessment_version_questions(assessment_id uuid,assessment_version int,question_id uuid,question_version int,sort_order int DEFAULT 0,section_id uuid);
 CREATE TABLE assessment_sections(id uuid,assessment_id uuid,assessment_version int,title text,sort_order int);
@@ -48,11 +48,12 @@ CREATE TABLE mastery_evidence(id uuid,student_id uuid,source_attempt_id uuid,evi
 CREATE TABLE mastery_evidence_skills(evidence_id uuid,skill_id uuid);
 CREATE TABLE paths(id uuid,status text);
 CREATE TABLE subjects(id uuid,path_id uuid,name text,status text DEFAULT 'active');
-CREATE TABLE skills(id uuid,subject_id uuid,name text,kind text DEFAULT 'main',parent_skill_id uuid);
+CREATE TABLE skills(id uuid,subject_id uuid,name text,kind text DEFAULT 'main',parent_skill_id uuid,section_id uuid);
+CREATE TABLE taxonomy_skill_sections(id uuid,subject_id uuid,name text);
 CREATE TABLE foundation_topics(id uuid,path_id uuid,subject_id uuid,title text,is_locked bool,status text,is_visible bool,sort_order int);
 CREATE TABLE topic_skill_links(topic_id uuid,skill_id uuid);
 INSERT INTO assessment_attempts VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000003',1,'submitted',1);
-INSERT INTO assessment_versions VALUES ('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000004','Test',false,true,true,true,false,false,'mock');
+INSERT INTO assessment_versions(assessment_id,version,path_id,title,allow_question_review,show_answers,show_explanations,show_results_report,randomize_questions,randomize_options,assessment_kind) VALUES ('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000004','Test',false,true,true,true,false,false,'mock');
 INSERT INTO assessment_results VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002',50,2,1,0,1,true,0,now());
 INSERT INTO assessment_version_questions(assessment_id,assessment_version,question_id,question_version) VALUES ('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000011',1),('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000012',1);
 INSERT INTO assessment_sections VALUES
@@ -66,6 +67,8 @@ INSERT INTO paths VALUES ('00000000-0000-0000-0000-000000000004','active');
 INSERT INTO subjects(id,path_id,name) VALUES ('00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000004','Subject A'),('00000000-0000-0000-0000-000000000006','00000000-0000-0000-0000-000000000004','Subject B');
 INSERT INTO skills(id,subject_id,name) VALUES ('00000000-0000-0000-0000-000000000020','00000000-0000-0000-0000-000000000005','Skill A'),('00000000-0000-0000-0000-000000000021','00000000-0000-0000-0000-000000000006','Skill B');
 UPDATE skills SET kind='sub',parent_skill_id='00000000-0000-0000-0000-000000000020' WHERE id='00000000-0000-0000-0000-000000000021';
+INSERT INTO taxonomy_skill_sections VALUES ('00000000-0000-0000-0000-000000000064','00000000-0000-0000-0000-000000000005','Numbers');
+UPDATE skills SET section_id='00000000-0000-0000-0000-000000000064' WHERE id='00000000-0000-0000-0000-000000000020';
 INSERT INTO mastery_evidence VALUES
 ('00000000-0000-0000-0000-000000000031','00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000001','assessment','00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000011',1,'00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005',true,true),
 ('00000000-0000-0000-0000-000000000032','00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000001','assessment','00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000012',1,'00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000006',false,false);
@@ -116,11 +119,11 @@ INSERT INTO topic_skill_links VALUES ('00000000-0000-0000-0000-000000000046','00
 	if err != nil || len(wrong.SectionResults) != 2 || wrong.SectionResults[0].Wrong != 1 || wrong.SectionResults[0].Score != 0 {
 		t.Fatalf("wrong answer must not count as unanswered: %+v %v", wrong.SectionResults, err)
 	}
-	if _, err = db.Exec(ctx, `UPDATE assessment_answers SET is_correct=true; UPDATE assessment_results SET correct_answers=1,wrong_answers=0; UPDATE assessment_versions SET assessment_kind='normal'`); err != nil {
+	if _, err = db.Exec(ctx, `UPDATE assessment_answers SET is_correct=true; UPDATE assessment_results SET correct_answers=1,wrong_answers=0; UPDATE assessment_versions SET assessment_kind='normal',normal_mode='practice'`); err != nil {
 		t.Fatal(err)
 	}
 	normal, err := repo.GetResultDetail(ctx, student, attempt)
-	if err != nil || len(normal.SectionResults) != 0 {
+	if err != nil || len(normal.SectionResults) != 0 || normal.AnalysisMode != "bank" {
 		t.Fatalf("normal result must not show mock sections: %+v %v", normal.SectionResults, err)
 	}
 	if _, err = db.Exec(ctx, `UPDATE assessment_versions SET assessment_kind='mock'`); err != nil {
@@ -168,7 +171,7 @@ INSERT INTO mastery_evidence_skills VALUES ('00000000-0000-0000-0000-00000000003
 		t.Fatalf("expected main and subskill from frozen evidence: %+v %v", detail.SkillAnalysis, err)
 	}
 	mainSkill, subSkill := detail.SkillAnalysis.Items[0], detail.SkillAnalysis.Items[1]
-	if subSkill.ParentSkillID != mainSkill.SkillID || subSkill.Level != "sub" || subSkill.QuestionCount != 1 || subSkill.Mastery != 100 || mainSkill.Mastery != 50 {
+	if subSkill.ParentSkillID != mainSkill.SkillID || subSkill.Level != "sub" || subSkill.SectionName != "Numbers" || subSkill.QuestionCount != 1 || subSkill.Mastery != 100 || mainSkill.Mastery != 50 {
 		t.Fatalf("subskill relation or independent scores are incorrect: %+v %+v", mainSkill, subSkill)
 	}
 	if _, err = db.Exec(ctx, `DELETE FROM mastery_evidence_skills WHERE skill_id='00000000-0000-0000-0000-000000000021'`); err != nil {

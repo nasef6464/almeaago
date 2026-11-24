@@ -81,6 +81,7 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 	}
 	var out assessment.ResultDetail
 	var kind assessment.Kind
+	var mode assessment.NormalMode
 	var randomizeQuestions bool
 	var randomizeOptions bool
 	err = r.db.QueryRow(ctx, `
@@ -103,6 +104,7 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 			v.show_explanations,
 			v.show_results_report,
 			v.assessment_kind,
+			COALESCE(v.normal_mode,''),
 			v.randomize_questions,
 			v.randomize_options
 		FROM assessment_results z
@@ -131,6 +133,7 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 		&out.ShowExplanations,
 		&out.ShowResultsReport,
 		&kind,
+		&mode,
 		&randomizeQuestions,
 		&randomizeOptions,
 	)
@@ -138,6 +141,9 @@ func (r *Repository) GetResultDetail(ctx context.Context, student, attemptID str
 		return out, mapError(err)
 	}
 	if out.ShowResultsReport {
+		if kind == assessment.KindNormal && mode == assessment.ModePractice {
+			out.AnalysisMode = "bank"
+		}
 		out.SkillAnalysis, err = r.resultSkillAnalysis(ctx, student, attemptID, out.Result.TotalQuestions)
 		if err != nil {
 			return out, err

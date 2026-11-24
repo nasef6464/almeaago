@@ -149,6 +149,7 @@ export interface ResultDetail {
   showResultsReport: boolean;
   subjectResults?: ResultSubjectItem[];
   sectionResults?: ResultSectionItem[];
+  analysisMode?: 'bank';
   skillAnalysis?: {
     complete: boolean;
     items: Array<{
@@ -157,6 +158,7 @@ export interface ResultDetail {
       subjectName: string;
       skillId: string;
       skillName: string;
+      sectionName?: string;
       level?: 'main' | 'sub';
       parentSkillId?: string;
       questionCount: number;

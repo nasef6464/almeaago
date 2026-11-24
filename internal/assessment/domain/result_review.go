@@ -68,6 +68,7 @@ type ResultDetail struct {
 	ShowAnswers         bool                 `json:"showAnswers"`
 	ShowExplanations    bool                 `json:"showExplanations"`
 	ShowResultsReport   bool                 `json:"showResultsReport"`
+	AnalysisMode        string               `json:"analysisMode,omitempty"`
 	SkillAnalysis       *ResultSkillAnalysis `json:"skillAnalysis,omitempty"`
 	SubjectResults      []ResultSubjectItem  `json:"subjectResults,omitempty"`
 	SectionResults      []ResultSectionItem  `json:"sectionResults,omitempty"`
@@ -105,6 +106,7 @@ type ResultSkillAnalysisItem struct {
 	PathID      string `json:"pathId"`
 	SubjectID   string `json:"subjectId"`
 	SubjectName string `json:"subjectName"`
+	SectionName string `json:"sectionName,omitempty"`
 	SkillID     string `json:"skillId"`
 	SkillName   string `json:"skillName"`
 	// Hierarchy is read from the current subject taxonomy. Counts come from the submitted attempt.

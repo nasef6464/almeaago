@@ -1,6 +1,8 @@
+import { resultFoundationPath } from '../navigation/resultFoundationPath';
 import { safeReturnPath, returnPathLabel } from '../navigation/returnPath';
 import {
   ArrowRight,
+  BarChart3,
   Bookmark,
   BookOpen,
   BrainCircuit,
@@ -27,6 +29,7 @@ import { learningClient } from '../../learning/api/learning-client';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
 import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
 import { AssessmentResultSummary } from '../components/AssessmentResultSummary';
+import { AssessmentSkillAnalysisDialog } from '../components/AssessmentSkillAnalysisDialog';
 import { AssessmentPreviousAttempts } from '../components/AssessmentPreviousAttempts';
 import { AssessmentShareScorecard } from '../components/AssessmentShareScorecard';
 import { AssessmentReviewVideo } from '../components/AssessmentReviewVideo';
@@ -372,6 +375,7 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
   const [activeStepSolverQuestion, setActiveStepSolverQuestion] = useState<ReviewQuestion | null>(null);
   const activeContext = `${user?.id ?? ''}:${attemptId}`;
   const activeContextRef = useRef(activeContext);
+  const analysisDialog = useRef<HTMLDialogElement>(null);
   activeContextRef.current = activeContext;
 
   useEffect(() => {
@@ -551,7 +555,7 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
     mode: 'self', pathId: weakestSkill.pathId, subjectId: weakestSkill.subjectId, skillIds: weakestSkill.skillId,
   })}` : '';
   const followUpSkills = detail.skillAnalysis?.complete
-    ? detail.skillAnalysis.items.filter(skill => skill.status !== 'strong').sort((a, b) => a.mastery - b.mastery).slice(0, 3)
+    ? detail.skillAnalysis.items.filter(skill => skill.status !== 'strong').sort((a, b) => a.mastery - b.mastery)
     : [];
   const guardianSummary = weakestSkill
     ? `نتيجة الاختبار ${detail.result.score}%. أضعف مهارة ظهرت هي «${weakestSkill.skillName}» بنسبة ${weakestSkill.mastery}%.`
@@ -597,7 +601,10 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
           <p className="mt-2 text-sm font-bold text-gray-600">تم تسجيل إكمال الاختبار. تقرير الدرجات التفصيلي غير معروض وفق إعدادات هذا الاختبار.</p>
         </section>
       ) : !reviewOpen ? (
-        <AssessmentResultSummary detail={detail} navigation={resultNavigation} full={fullResult} onToggleFull={() => setFullResult((current) => !current)} onReview={() => changeReviewView(true)} onHistory={() => changeResultView('history')} practiceURL={practiceURL} retryURL={retryURL} />
+        <>
+          <AssessmentResultSummary detail={detail} navigation={resultNavigation} full={fullResult} onToggleFull={() => setFullResult((current) => !current)} onReview={() => changeReviewView(true)} onMoreDetails={() => analysisDialog.current?.showModal()} onHistory={() => changeResultView('history')} practiceURL={practiceURL} retryURL={retryURL} />
+          <AssessmentSkillAnalysisDialog key={activeContext} detail={detail} dialogRef={analysisDialog} />
+        </>
       ) : null}
         {!shouldShowReview && detail.showResultsReport && detail.skillAnalysis ? (
           <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="attempt-skills-heading">
@@ -632,13 +639,11 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
                         {status !== 'strong' && skill.foundationTopics?.length ? (
                           <div className="mt-3 space-y-3">
                             {skill.foundationTopics.map(topic => {
-                              const base = new URLSearchParams({ subject: skill.subjectId, tab: 'skills', topic: topic.id });
-                              const topicURL = (content: string) => `/category/${encodeURIComponent(skill.pathId)}?${new URLSearchParams([...base, ['content', content]])}`;
                               return <div key={topic.id} className="rounded-lg border border-slate-100 p-2">
                                 <p className="text-xs font-bold text-gray-600">{topic.title}</p>
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                  <Link to={topicURL('lessons')} className="rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1.5 text-xs font-black text-indigo-700">شرح التأسيس{topic.isLocked ? ' 🔒' : ''}</Link>
-                                  <Link to={topicURL('quizzes')} className="rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-1.5 text-xs font-black text-amber-800">تدريبات الموضوع</Link>
+                                  <Link to={resultFoundationPath(skill, topic.id, 'lessons')} className="rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1.5 text-xs font-black text-indigo-700">شرح التأسيس{topic.isLocked ? ' 🔒' : ''}</Link>
+                                  <Link to={resultFoundationPath(skill, topic.id, 'quizzes')} className="rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-1.5 text-xs font-black text-amber-800">تدريبات الموضوع</Link>
                                 </div>
                               </div>;
                             })}
@@ -657,7 +662,7 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
           <h2 className="text-lg font-black text-gray-900">خطة تحسين لمهارة: {weakestSkill.skillName}</h2>
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
             <button type="button" disabled={!detail.allowQuestionReview || !detail.questions?.length} onClick={() => changeReviewView(true)} className="rounded-2xl border border-emerald-100 bg-white p-3 text-start text-sm font-black text-emerald-800 disabled:opacity-50">مراجعة الحلول</button>
-            {weakestSkill.foundationTopics?.[0] && <Link to={`/category/${encodeURIComponent(weakestSkill.pathId)}?${new URLSearchParams({ subject: weakestSkill.subjectId, tab: 'skills', topic: weakestSkill.foundationTopics[0].id, content: 'lessons' })}`} className="rounded-2xl border border-indigo-100 bg-white p-3 text-sm font-black text-indigo-800">فتح الشرح</Link>}
+            {weakestSkill.foundationTopics?.[0] && <Link to={resultFoundationPath(weakestSkill, weakestSkill.foundationTopics[0].id, 'lessons')} className="rounded-2xl border border-indigo-100 bg-white p-3 text-sm font-black text-indigo-800">فتح الشرح</Link>}
             <Link to={practiceURL} className="rounded-2xl border border-amber-100 bg-white p-3 text-sm font-black text-amber-800">بدء التدريب</Link>
           </div>
         </section>
@@ -677,7 +682,7 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
           {detail.skillAnalysis?.complete && followUpSkills.length > 0 && <section aria-labelledby="follow-up-skills" className="rounded-3xl border border-gray-100 bg-white p-4 sm:p-5">
             <h2 id="follow-up-skills" className="text-lg font-black text-gray-800">مهارات تحتاج متابعة</h2>
             <div className="mt-4 space-y-3">
-              {followUpSkills.map(skill => (
+              {followUpSkills.slice(0, 3).map(skill => (
                 <div key={`${skill.pathId}:${skill.subjectId}:${skill.skillId}`} className="rounded-2xl border border-gray-100 p-3 sm:p-4">
                   <div className="flex items-center justify-between gap-2 font-black text-gray-900">
                     <h3>{skill.skillName}</h3><span className="rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-800">{skill.mastery}%</span>
@@ -687,6 +692,12 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
                 </div>
               ))}
             </div>
+            {followUpSkills.length > 3 && (
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-bold text-slate-600">توجد مهارات إضافية. نعرض أهم 3 فقط هنا.</p>
+                <button type="button" onClick={() => analysisDialog.current?.showModal()} className="inline-flex items-center gap-1.5 self-start rounded-xl border border-indigo-100 bg-white px-3 py-1.5 text-xs font-black text-indigo-700"><BarChart3 size={14} /> عرض الكل</button>
+              </div>
+            )}
           </section>}
         </>
       )}

@@ -72,6 +72,9 @@ test('learner history is bounded and disabled review exposes no question content
   await expect(
     page.getByText('مراجعة الأسئلة غير متاحة لهذا الاختبار وفق إعدادات النسخة التي أجريت عليها المحاولة.'),
   ).toBeVisible();
+  await page.getByRole('button', { name: 'تفاصيل أكثر' }).click();
+  await expect(page.getByRole('dialog', { name: 'تحليل المهارات' }).getByText('لا توجد مهارات موثقة لهذه المحاولة.')).toBeVisible();
+  await page.keyboard.press('Escape');
   await expect(page.getByText('الإجابة الصحيحة')).toHaveCount(0);
   const fallback = page.getByRole('link', { name: 'شارك نتيجتك وتحدّ أصدقاءك' });
   const shareURL = new URL((await fallback.getAttribute('href'))!);
@@ -265,4 +268,48 @@ test('mock sections fold independently of subjects and question review', async (
   await expect(sections.getByText('1 أسئلة · 0 صحيح · 0 خطأ · 1 دون إجابة')).toBeVisible();
   await toggle.click();
   await expect(sections.getByRole('heading', { name: 'القسم اللفظي' })).not.toBeVisible();
+});
+
+test('more details opens the skill analysis with subject filters and scoped actions', async ({ page }) => {
+  await auth(page);
+  const base = { pathId: 'path-1', subjectId: 'math', subjectName: 'الرياضيات', questionCount: 2, correctCount: 1, status: 'weak' };
+  await page.route('**/api/v1/assessment-attempts/attempt-1/review', route => json(route, {
+    detail: {
+      result: historyItem, assessmentId: 'assessment-1', assessmentVersion: 2, title: 'محاكي كمي', attemptNumber: 1,
+      allowQuestionReview: false, showAnswers: false, showExplanations: false, showResultsReport: true, analysisMode: 'bank',
+      skillAnalysis: { complete: true, items: [
+        { ...base, skillId: 'geometry', skillName: 'الهندسة', mastery: 80, status: 'strong' },
+        { ...base, skillId: 'fraction', skillName: 'الكسور', mastery: 50, sectionName: 'الأعداد', foundationTopics: [{ id: 'fractions', title: 'تأسيس الكسور', isLocked: false }] },
+        { ...base, subjectId: 'science', subjectName: 'العلوم', skillId: 'motion', skillName: 'الحركة', mastery: 40 },
+        { ...base, subjectId: 'science', subjectName: 'العلوم', skillId: 'energy', skillName: 'الطاقة', mastery: 60, status: 'average' },
+        { ...base, subjectId: 'science', subjectName: 'العلوم', skillId: 'force', skillName: 'القوة', mastery: 70, status: 'average' },
+      ] },
+    },
+  }));
+  await page.goto('/assessment-results/attempt-1', { waitUntil: 'domcontentloaded' });
+  const trigger = page.getByRole('button', { name: 'تفاصيل أكثر' });
+  await trigger.click();
+  const dialog = page.getByRole('dialog', { name: 'تحليل المهارات' });
+  await expect(dialog.getByRole('heading', { level: 3 })).toHaveText(['الحركة', 'الكسور', 'الطاقة', 'القوة', 'الهندسة']);
+  await expect(dialog.getByText('من التدريب • 5 مهارات')).toBeVisible();
+  await expect(dialog.getByText('الأعداد')).toBeVisible();
+  const fraction = dialog.getByRole('article').filter({ has: page.getByRole('heading', { name: 'الكسور', exact: true }) });
+  await expect(fraction.getByText('متوسط', { exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'الرياضيات' }).click();
+  await expect(dialog.getByRole('heading', { level: 3 })).toHaveText(['الكسور', 'الهندسة']);
+  await expect(dialog.getByRole('link', { name: 'فيديو' })).toHaveAttribute('href', /subject=math.*topic=fractions.*content=lessons/);
+  await expect(dialog.getByRole('link', { name: 'تدريب' })).toHaveAttribute('href', /subject=math.*topic=fractions.*content=quizzes/);
+  await page.keyboard.press('Escape');
+  await expect(dialog).not.toBeVisible();
+  await expect(trigger).toBeFocused();
+  await trigger.click();
+  await expect(dialog.getByRole('button', { name: 'الكل' })).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'عرض التقرير الكامل' }).click();
+  await page.getByRole('button', { name: 'عرض الكل' }).click();
+  await expect(dialog.getByRole('heading', { level: 3 })).toHaveCount(5);
+  await dialog.getByRole('button', { name: 'الرياضيات' }).click();
+  await dialog.getByRole('link', { name: 'فيديو' }).click();
+  await expect(page).toHaveURL(/\/category\/path-1\?subject=math.*topic=fractions.*content=lessons/);
+  await expect(dialog).not.toBeVisible();
 });

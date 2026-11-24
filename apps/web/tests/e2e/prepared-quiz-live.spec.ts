@@ -166,6 +166,21 @@ test('محاكي صارم بمادتين من الدخول إلى النتيجة
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await sections.screenshot({ path: `test-results/assessment-live-section-results-${width}.png` });
   }
+  await page.getByRole('button', { name: 'تفاصيل أكثر' }).click();
+  const analysis = page.getByRole('dialog', { name: 'تحليل المهارات' });
+  await expect(analysis.getByText('من الاختبار • 3 مهارات')).toBeVisible();
+  await analysis.getByRole('button', { name: 'مادة تجريبية', exact: true }).click();
+  await expect(analysis.getByRole('heading', { level: 3 })).toHaveText('مهارة فرعية تجريبية');
+  await expect(analysis.getByRole('link', { name: 'فيديو' })).toHaveAttribute('href', /topic=00000000-0000-0000-0000-000000000022.*content=lessons/);
+  await expect(analysis.getByRole('link', { name: 'تدريب' })).toHaveAttribute('href', /topic=00000000-0000-0000-0000-000000000022.*content=quizzes/);
+  await analysis.getByRole('button', { name: 'الكل' }).click();
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => analysis.evaluate(dialog => dialog.scrollWidth)).toBeLessThanOrEqual(width);
+    await analysis.screenshot({ path: `test-results/assessment-live-skill-analysis-${width}.png` });
+  }
+  await page.keyboard.press('Escape');
+  await expect(analysis).not.toBeVisible();
   const clip = await reviewVideoFixture(page);
   await page.route('**/review-fixture.webm', route => route.fulfill({ body: clip, contentType: 'video/webm' }));
   await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
