@@ -671,7 +671,7 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
               <Link to={weakestSkill.foundationTopics?.[0] ? resultFoundationPath(weakestSkill, weakestSkill.foundationTopics[0].id, 'quizzes') : practiceURL} className="min-h-[104px] rounded-2xl border border-amber-100 bg-white p-3 text-amber-800">
                 <span className="text-xs font-black">بدء التدريب</span><span className="mt-3 block text-sm font-black text-gray-900">تدرب ثم قِس</span><span className="mt-1 block text-xs font-bold">تدريب قصير على نفس المهارة.</span>
               </Link>
-              <Link to="/reports" className="min-h-[104px] rounded-2xl border border-slate-200 bg-white p-3 text-slate-800">
+              <Link to={`/reports?${new URLSearchParams({ pathId: weakestSkill.pathId, subjectId: weakestSkill.subjectId, skillId: weakestSkill.skillId })}`} className="min-h-[104px] rounded-2xl border border-slate-200 bg-white p-3 text-slate-800">
                 <span className="text-xs font-black">فتح التقرير</span><span className="mt-3 block text-sm font-black text-gray-900">تابع الخطة</span><span className="mt-1 block text-xs font-bold">ارجع للتقرير العام لترى هل تحسنت المهارة بعد المحاولة القادمة.</span>
               </Link>
             </div>

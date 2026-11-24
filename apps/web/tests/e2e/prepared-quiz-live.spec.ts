@@ -335,9 +335,9 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   expect((await progressResponse.json()).items).toEqual(expect.arrayContaining([
     expect.objectContaining({ skillId: '00000000-0000-0000-0000-000000000021' }),
   ]));
-  await page.goto('/reports', { waitUntil: 'domcontentloaded' });
-  await page.getByLabel('مسار التقرير').selectOption('00000000-0000-4000-8000-000000000003');
-  await page.getByLabel('مادة التقرير').selectOption('00000000-0000-4000-8000-000000000004');
+  await journey.getByRole('link', { name: /فتح التقرير/ }).click();
+  await expect(page.getByLabel('مسار التقرير')).toHaveValue('00000000-0000-4000-8000-000000000003');
+  await expect(page.getByLabel('مادة التقرير')).toHaveValue('00000000-0000-4000-8000-000000000004');
   const reportEntry = page.getByRole('article').filter({ hasText: 'اختبار تجريبي جاهز' });
   await expect(reportEntry).toBeVisible();
   for (const width of [390, 820, 1440]) {

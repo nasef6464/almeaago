@@ -1,6 +1,6 @@
 import{ArrowRight,BarChart3,CalendarDays,CheckCircle2,Compass,Download,FileText,Loader2,RefreshCcw,Sparkles,Target,Users}from'lucide-react';
 import{useEffect,useMemo,useState}from'react';
-import{Link}from'react-router-dom';
+import{Link,useSearchParams}from'react-router-dom';
 
 import{useAuth}from'../../auth/state/AuthProvider';
 import{contentClient}from'../../content/api/content-client';
@@ -14,6 +14,7 @@ function download(blob:Blob,name:string){const url=URL.createObjectURL(blob);con
 
 export function ReportsPage({ embedded }: { embedded?: boolean } = {}){
  const{user,loading:authLoading}=useAuth();
+ const[searchParams]=useSearchParams();
  const[contexts,setContexts]=useState<SchoolContext[]>([]);
  const[classes,setClasses]=useState<SchoolClass[]>([]);
  const[schoolId,setSchoolId]=useState('');
@@ -27,8 +28,9 @@ export function ReportsPage({ embedded }: { embedded?: boolean } = {}){
  const[error,setError]=useState('');
  const[reload,setReload]=useState(0);
  const[taxonomy,setTaxonomy]=useState<TaxonomyCore>({paths:[],subjects:[]});
- const[pathId,setPathId]=useState('');
- const[subjectId,setSubjectId]=useState('');
+ const[pathId,setPathId]=useState(()=>searchParams.get('pathId')||'');
+ const[subjectId,setSubjectId]=useState(()=>searchParams.get('subjectId')||'');
+ const[taxonomyLoaded,setTaxonomyLoaded]=useState(false);
 
  const isAdmin=Boolean(user?.roles.includes('admin'));
  const isStudent=Boolean(user?.roles.includes('student')&&!isAdmin);
@@ -40,13 +42,13 @@ export function ReportsPage({ embedded }: { embedded?: boolean } = {}){
  useEffect(()=>{
   if(authLoading||!user||!isStudent)return;
   const controller=new AbortController();
-  contentClient.taxonomyCore(controller.signal).then(setTaxonomy).catch(()=>{});
+  contentClient.taxonomyCore(controller.signal).then(data=>{setTaxonomy(data);setTaxonomyLoaded(true)}).catch(()=>{});
   return()=>controller.abort();
  },[authLoading,isStudent,user]);
 
  useEffect(()=>{
-  if(subjectId&&!studentSubjects.some(row=>row.id===subjectId))setSubjectId('');
- },[studentSubjects,subjectId]);
+  if(taxonomyLoaded&&subjectId&&!studentSubjects.some(row=>row.id===subjectId))setSubjectId('');
+ },[studentSubjects,subjectId,taxonomyLoaded]);
 
  useEffect(()=>{
   if(authLoading||!user||!needsSchool)return;
