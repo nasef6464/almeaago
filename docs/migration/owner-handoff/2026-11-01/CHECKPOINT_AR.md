@@ -1,4 +1,14 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 24 نوفمبر — تفاصيل أقسام المحاكي في نتيجة الطالب / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `components/quiz/QuizSectionResults.tsx` و`quizSubmissionSectionResults.ts`. أعيد تركيب الفرع المحلي `fix/student-review-notes` فوق أحدث Go main `9ea6dd74cab1afb76cf84e688604e5c808e70511` قبل التنفيذ. كود الدفعة `93a2232fb160cfa1c400ce5108598801bf65d38b`. لا رفع أو PR أو نشر لهذا الرأس، وفحص GitHub CI SKIPPED.
+- الطالب ← ملخص نتيجة المحاكي ← قسم قابل للفتح أسفل «أداؤك لكل مادة» ← `GET /api/v1/assessment-attempts/{id}/review` ← ملكية المحاولة وإتاحة تقريرها ← أقسام وأسئلة النسخة المسلّمة والإجابات المصححة في PostgreSQL ← `sectionResults` مرتبة بترتيب النسخة. تظهر النسبة غير الموزونة وعدد الصحيح والخطأ والمتروك لكل قسم. يحجب التقرير الجزئي إذا تعذر مطابقة الإجابات والأقسام مع الإجماليات المخزنة. لا تغيير للحساب العام أو تخزين النتائج، ولا تمتد الدفعة إلى تقرير المشرف.
+- الملفات `AssessmentSectionResults.tsx` و`AssessmentResultSummary.tsx` و`attempt-client.ts` و`result_review.go` و`result_review_repository.go` و`result_sections.go` وOpenAPI واختبارات النتائج والمحاكي وPostgreSQL.
+- RED على المكوّن السابق في `sections-baseline-final.log` بسبب غياب زر التفاصيل. PASS فحص الأنواع و`git diff --check` وحزم Go للتقييم، وأربع حالات متصفح في `sections-web-final.log`. PASS اختبار البيانات في `sections-live-final.log` لتثبيت النسخة، والتمييز بين الخطأ والمتروك، وحجب التقرير المخفي أو الأدلة الناقصة، مع رحلة محاكي بمادتين على Go/PostgreSQL من التسليم حتى فتح التفاصيل بعد إعادة التحميل. أعيد التحقق بعد اكتمال تثبيت تبعيات المتصفح.
+- صور بطاقة RTL على 390 و820 و1440 ببيانات متكافئة في `.tmp/student-review-notes/legacy-section-results-*.png` و`apps/web/test-results/assessment-live-section-results-*.png`. السلوك والترتيب مطابقان في العينة، وتظل شاشة النتائج كاملة PARTIAL مع فروق الخط وأغلفة الصفحة. الخادم المحلي وقاعدة الاختبار أُوقفا بعد التحقق.
+
+الاستئناف: راجع زر «تفاصيل أكثر» ومحتوى نافذة تحليل النتيجة مقابل الأصل، بدءًا من البيانات المتاحة في العقد الحالي. أول أمر محلي: `rg -n "DetailedAnalysisModal|تفاصيل أكثر|التقرير الكامل" C:/almeaago/almeaacodax/pages/Results.tsx apps/web/src/features/assessment/components/AssessmentResultSummary.tsx`.
+
 ## 24 نوفمبر — المهارات الرئيسية والفرعية في نتيجة الطالب / PARTIAL
 
 - المرجع Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `components/quiz/QuizSubjectResults.tsx`، وGo main `d57a96db005168a38e2cf90972bfadf1546b3dc4`. الكود المحلي `ed9e04590005f37dab815b828c9843eaa24b8d67` على `fix/student-review-notes`. لا رفع، لا PR، لا دمج، وCI على الرأس SKIPPED.
