@@ -446,6 +446,35 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   expect((await otherReport.json()).items).not.toEqual(expect.arrayContaining([expect.objectContaining({ attemptId })]));
 });
 
+test('الطالب ينفذ اختبار المدرسة ويرى نتيجته', async ({ page }) => {
+  test.skip(process.env.PREPARED_QUIZ_LIVE !== '1' || process.env.PREPARED_SCHOOL_ASSIGNMENT !== '1', 'requires isolated school assignment');
+  test.setTimeout(180_000);
+  const login = async (email: string) => {
+    const response = await page.request.post('/api/v1/auth/login', { data: { email, password: process.env.PREPARED_PASSWORD } });
+    expect(response.status()).toBe(200);
+  };
+  await login(process.env.PREPARED_OWNER_EMAIL!);
+  await page.goto('/assessment-assignments', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('اختبار تجريبي جاهز', { exact: true })).toBeVisible();
+  const started = page.waitForResponse(response => response.url().endsWith('/assessment-assignments/00000000-0000-4000-8000-000000000091/start') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'ابدأ التكليف' }).click();
+  const response = await started;
+  expect(response.status()).toBe(201);
+  const attemptId = (await response.json()).attempt.id as string;
+  await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /لا$/ }).click();
+  await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
+  await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
+  await expect(page.getByText('درجتك', { exact: true })).toBeVisible();
+  const history = await page.request.get('/api/v1/assessment-attempts/results?page=1&limit=20');
+  expect((await history.json()).items).toEqual(expect.arrayContaining([expect.objectContaining({ attemptId })]));
+  await page.getByRole('button', { name: /مراجعة الأسئلة/ }).click();
+  await expect(page.getByText('الإجابة الصحيحة', { exact: true })).toBeVisible();
+  await login(process.env.PREPARED_OTHER_EMAIL!);
+  const review = await page.request.get(`/api/v1/assessment-attempts/${attemptId}/review`);
+  expect([403, 404]).toContain(review.status());
+});
+
 test('السؤال المصور يعرض الصورة والحروف فقط من قاعدة حقيقية', async ({ page }) => {
   test.skip(process.env.PREPARED_QUIZ_LIVE !== '1' || process.env.PREPARED_IMAGE_QUIZ !== '1', 'requires isolated image question');
   test.setTimeout(180_000);

@@ -206,6 +206,20 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 	if err != nil {
 		t.Fatalf("publish assessment: %v", err)
 	}
+	if os.Getenv("PREPARED_SCHOOL_ASSIGNMENT") == "1" {
+		_, err = db.Exec(ctx, `
+INSERT INTO schools(id,code,name) VALUES ('00000000-0000-4000-8000-000000000090','LIVE-SCHOOL','مدرسة تجريبية');
+INSERT INTO school_memberships(school_id,user_id,role,status)
+ SELECT '00000000-0000-4000-8000-000000000090',id,'student','active' FROM users WHERE email='prepared-owner@example.invalid'`)
+		if err != nil {
+			t.Fatalf("create school membership fixture: %v", err)
+		}
+		_, err = db.Exec(ctx, `INSERT INTO assessment_assignments(id,assessment_id,assessment_version,school_id,created_by,targets_entire_school)
+ VALUES ('00000000-0000-4000-8000-000000000091',$1::uuid,1,'00000000-0000-4000-8000-000000000090',$2::uuid,true)`, created.ID, adminUser.ID)
+		if err != nil {
+			t.Fatalf("create school assignment fixture: %v", err)
+		}
+	}
 	if os.Getenv("PREPARED_COURSE_PROGRESS") == "1" {
 		access := assessment.PlacementAccessFree
 		if os.Getenv("PREPARED_COURSE_PURCHASE") == "1" {
@@ -339,6 +353,7 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 	router.Mount("/api/v1/auth", identityhttp.New(auth, false, identityhttp.Options{Admin: adminService}))
 	router.Mount("/api/v1/assessments", assessmenthttp.New(defs, auth, attempts))
 	router.Mount("/api/v1/assessment-attempts", assessmenthttp.NewAttempts(attempts, auth, assessmentapp.NewSelfQuizService(repo)))
+	router.Mount("/api/v1/assessment-assignments", assessmenthttp.NewAssignments(assessmentapp.NewAssignmentService(repo), auth))
 	learningService := learningapp.NewService(learningpg.New(db), questionapp.NewService(questionpg.New(db, operationspg.NewAuditWriter())))
 	router.Mount("/api/v1/review", learninghttp.NewReview(learningService, auth))
 	router.Mount("/api/v1/mastery", learninghttp.NewMastery(learningService, auth))
