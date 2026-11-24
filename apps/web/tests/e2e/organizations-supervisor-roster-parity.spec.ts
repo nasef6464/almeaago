@@ -269,3 +269,83 @@ test('supervisor skills map renders honest empty state when no skills data', asy
  await expect(page.getByRole('heading', { name: 'خريطة المهارات وتحليل الفجوات' })).toBeVisible();
  await expect(page.getByText('لا توجد بيانات مهارات كافية بعد.')).toBeVisible();
 });
+
+test('supervisor all 7 tabs display truthful data, functional panels, and respect school isolation', async ({ page }) => {
+ await mockRoster(page);
+ await page.route('**/api/v1/assessments?*', (route) =>
+  json(route, {
+   items: [
+    { id: 'assess-01', code: 'AS-01', title: 'اختبار تجريبي قياس', kind: 'normal', workflowStatus: 'approved', isPublished: true },
+    { id: 'assess-02', code: 'AS-02', title: 'محاكي الوزارة الشامل', kind: 'mock', workflowStatus: 'approved', isPublished: true },
+   ],
+  }),
+ );
+ await page.route('**/api/v1/classroom/teacher/sessions**', (route) =>
+  json(route, {
+   sessions: [
+    {
+     id: 'sess-01',
+     schoolId: 'school-1',
+     classId: 'class-a',
+     teacherId: 'teacher-1',
+     status: 'upcoming',
+     day: '2026-11-26',
+     period: 1,
+    },
+   ],
+  }),
+ );
+
+ // 1. Overview Tab
+ await page.goto('/supervisor-dashboard?tab=overview');
+ await expect(page.getByRole('heading', { name: 'لوحة الإشراف' })).toBeVisible();
+ await expect(page.getByText('85%')).toBeVisible();
+
+ // 2. Students Tab & Student Intelligence Profile
+ const nav = page.getByRole('navigation', { name: 'أقسام لوحة المشرف' });
+ await nav.locator('summary', { hasText: 'الطلاب والحصص' }).click();
+ await nav.getByRole('button', { name: 'تعلم الطلاب وجاهزيتهم' }).click();
+ await expect(page.getByText('طالب الأولى')).toBeVisible();
+ await page.getByRole('button', { name: 'الملف والمهارات' }).first().click();
+ await expect(page.getByRole('button', { name: 'إغلاق الملف الذكي' })).toBeVisible();
+ await page.getByRole('button', { name: 'إغلاق الملف الذكي' }).click();
+ await expect(page.getByRole('button', { name: 'إغلاق الملف الذكي' })).not.toBeVisible();
+
+ // 3. Live Sessions Tab
+ await nav.getByRole('button', { name: 'الحصص المباشرة' }).click();
+ await expect(page.getByRole('heading', { name: 'الحصص التفاعلية المباشرة' })).toBeVisible();
+ await expect(page.getByText('حصة تفاعلية - 2026-11-26')).toBeVisible();
+
+ // 4. Tests Tab & Filtering
+ await nav.locator('summary', { hasText: 'الاختبارات والمراقبة' }).click();
+ await nav.getByRole('button', { name: 'الاختبارات والتحليل' }).click();
+ await expect(page.getByText('اختبار تجريبي قياس')).toBeVisible();
+ await expect(page.getByText('محاكي الوزارة الشامل')).toBeVisible();
+ await page.getByRole('button', { name: 'محاكيات قياس ونافس' }).click();
+ await expect(page.getByText('محاكي الوزارة الشامل')).toBeVisible();
+ await expect(page.getByText('اختبار تجريبي قياس')).not.toBeVisible();
+ await page.getByRole('button', { name: /الكل/ }).first().click();
+ await expect(page.getByText('اختبار تجريبي قياس')).toBeVisible();
+
+ // 5. Live Monitoring Tab
+ await nav.getByRole('button', { name: 'المراقبة الحية' }).click();
+ await expect(page.getByRole('heading', { name: 'شاشة المراقبة الحية للاختبارات' })).toBeVisible();
+ await expect(page.getByText('متصل (0 نشط)')).toBeVisible();
+
+ // 6. Skills Tab
+ await nav.locator('summary', { hasText: 'المهارات والتقارير' }).click();
+ await nav.getByRole('button', { name: 'خريطة المهارات' }).click();
+ await expect(page.getByRole('heading', { name: 'خريطة المهارات وتحليل الفجوات' })).toBeVisible();
+
+ // 7. Reports Tab & CSV Action
+ await nav.getByRole('button', { name: 'تقارير الأداء' }).click();
+ await expect(page.getByRole('heading', { name: 'تقارير الأداء المعتمدة وتوزيع المستويات' })).toBeVisible();
+ await expect(page.getByRole('button', { name: 'تصدير CSV' })).toBeVisible();
+
+ // School Switch Isolation
+ await page.getByLabel('المدرسة').selectOption('school-2');
+ await nav.locator('summary', { hasText: 'الطلاب والحصص' }).click();
+ await nav.getByRole('button', { name: 'تعلم الطلاب وجاهزيتهم' }).click();
+ await expect(page.getByText('طالب الثانية')).toBeVisible();
+ await expect(page.getByText('طالب الأولى')).toHaveCount(0);
+});

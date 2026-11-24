@@ -60,82 +60,116 @@ export interface TrainerQuestionItem {
   workflowStatus: 'approved' | 'rejected';
 }
 
+const DEFAULT_COURSES: TrainerCourse[] = [
+  {
+    id: 'tc-1',
+    title: 'دورة استراتيجيات الحل السريع للقدرات الكمية 2026',
+    category: 'القدرات العامة',
+    pathName: 'مسار القدرات العامة (علمي وأدبي)',
+    enrolledStudents: 142,
+    completionRate: 78,
+    averageScore: 84,
+    rating: 4.9,
+    approvalStatus: 'approved',
+    reviewerNotes: 'محتوى متميز وشامل لجميع استراتيجيات الحساب الذهني المعتمدة.',
+    price: 299,
+    updatedAt: '2026-11-05',
+  },
+  {
+    id: 'tc-2',
+    title: 'المعسكر المكثف في التحصيلي العلمي: فيزياء وكيمياء',
+    category: 'التحصيلي العلمي',
+    pathName: 'مسار التحصيلي العلمي الشامل',
+    enrolledStudents: 98,
+    completionRate: 64,
+    averageScore: 76,
+    rating: 4.8,
+    approvalStatus: 'approved',
+    price: 349,
+    updatedAt: '2026-11-02',
+  },
+  {
+    id: 'tc-3',
+    title: 'تدريبات مهارات استيعاب المقروء والتناظر اللفظي المتقدم',
+    category: 'القدرات اللفظية',
+    pathName: 'مسار القدرات العامة',
+    enrolledStudents: 65,
+    completionRate: 42,
+    averageScore: 71,
+    rating: 4.7,
+    approvalStatus: 'pending_review',
+    reviewerNotes: 'بانتظار اعتماد المراجعة النهائية لوحدات التناظر اللفظي الجديدة.',
+    price: 199,
+    updatedAt: '2026-11-08',
+  },
+];
+
+const DEFAULT_SESSIONS: TrainerLiveSession[] = [
+  {
+    id: 'tls-1',
+    title: 'بث تدريبي تفاعلي: حل أصعب تجميعات الهندسة والحساب الذهني',
+    courseTitle: 'دورة استراتيجيات الحل السريع للقدرات الكمية 2026',
+    scheduledAt: 'اليوم · 06:30 م',
+    durationMinutes: 60,
+    enrolledCount: 84,
+    status: 'live',
+    pin: '849201',
+    meetingUrl: '/classroom/tls-1/projector',
+  },
+  {
+    id: 'tls-2',
+    title: 'ورشة مراجعة قوانين الحركة والموجات للتحصيلي',
+    courseTitle: 'المعسكر المكثف في التحصيلي العلمي: فيزياء وكيمياء',
+    scheduledAt: 'غداً · 07:00 م',
+    durationMinutes: 90,
+    enrolledCount: 62,
+    status: 'scheduled',
+    pin: '394821',
+    meetingUrl: '/classroom/tls-2/projector',
+  },
+];
+
 export const PlatformTrainerDashboardPage: React.FC = () => {
   const { user, getCsrfToken } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'courses' | 'live-sessions' | 'quizzes' | 'questions' | 'skills' | 'qa'>('overview');
   const [feedback, setFeedback] = useState('');
   const [search, setSearch] = useState('');
 
-  // Courses State
-  const [courses, setCourses] = useState<TrainerCourse[]>([
-    {
-      id: 'tc-1',
-      title: 'دورة استراتيجيات الحل السريع للقدرات الكمية 2026',
-      category: 'القدرات العامة',
-      pathName: 'مسار القدرات العامة (علمي وأدبي)',
-      enrolledStudents: 142,
-      completionRate: 78,
-      averageScore: 84,
-      rating: 4.9,
-      approvalStatus: 'approved',
-      reviewerNotes: 'محتوى متميز وشامل لجميع استراتيجيات الحساب الذهني المعتمدة.',
-      price: 299,
-      updatedAt: '2026-11-05',
-    },
-    {
-      id: 'tc-2',
-      title: 'المعسكر المكثف في التحصيلي العلمي: فيزياء وكيمياء',
-      category: 'التحصيلي العلمي',
-      pathName: 'مسار التحصيلي العلمي الشامل',
-      enrolledStudents: 98,
-      completionRate: 64,
-      averageScore: 76,
-      rating: 4.8,
-      approvalStatus: 'approved',
-      price: 349,
-      updatedAt: '2026-11-02',
-    },
-    {
-      id: 'tc-3',
-      title: 'تدريبات مهارات استيعاب المقروء والتناظر اللفظي المتقدم',
-      category: 'القدرات اللفظية',
-      pathName: 'مسار القدرات العامة',
-      enrolledStudents: 65,
-      completionRate: 42,
-      averageScore: 71,
-      rating: 4.7,
-      approvalStatus: 'pending_review',
-      reviewerNotes: 'بانتظار اعتماد المراجعة النهائية لوحدات التناظر اللفظي الجديدة.',
-      price: 199,
-      updatedAt: '2026-11-08',
-    },
-  ]);
+  const trainerKey = user?.id || 'default_trainer';
+  const courseStorageKey = `almeaa_trainer_course_drafts_${trainerKey}`;
+  const sessionStorageKey = `almeaa_trainer_live_sessions_${trainerKey}`;
+  const quizStorageKey = `almeaa_trainer_quizzes_${trainerKey}`;
+  const questionStorageKey = `almeaa_trainer_questions_${trainerKey}`;
 
-  // Live Sessions State
-  const [liveSessions, setLiveSessions] = useState<TrainerLiveSession[]>([
-    {
-      id: 'tls-1',
-      title: 'بث تدريبي تفاعلي: حل أصعب تجميعات الهندسة والحساب الذهني',
-      courseTitle: 'دورة استراتيجيات الحل السريع للقدرات الكمية 2026',
-      scheduledAt: 'اليوم · 06:30 م',
-      durationMinutes: 60,
-      enrolledCount: 84,
-      status: 'live',
-      pin: '849201',
-      meetingUrl: '/classroom/tls-1/projector',
-    },
-    {
-      id: 'tls-2',
-      title: 'ورشة مراجعة قوانين الحركة والموجات للتحصيلي',
-      courseTitle: 'المعسكر المكثف في التحصيلي العلمي: فيزياء وكيمياء',
-      scheduledAt: 'غداً · 07:00 م',
-      durationMinutes: 90,
-      enrolledCount: 62,
-      status: 'scheduled',
-      pin: '394821',
-      meetingUrl: '/classroom/tls-2/projector',
-    },
-  ]);
+  // Courses State with LocalStorage Persistence
+  const [courses, setCourses] = useState<TrainerCourse[]>(() => {
+    try {
+      const saved = localStorage.getItem(courseStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const ids = new Set(parsed.map((p: TrainerCourse) => p.id));
+          return [...parsed, ...DEFAULT_COURSES.filter((c) => !ids.has(c.id))];
+        }
+      }
+    } catch {}
+    return DEFAULT_COURSES;
+  });
+
+  // Live Sessions State with LocalStorage Persistence
+  const [liveSessions, setLiveSessions] = useState<TrainerLiveSession[]>(() => {
+    try {
+      const saved = localStorage.getItem(sessionStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const ids = new Set(parsed.map((p: TrainerLiveSession) => p.id));
+          return [...parsed, ...DEFAULT_SESSIONS.filter((s) => !ids.has(s.id))];
+        }
+      }
+    } catch {}
+    return DEFAULT_SESSIONS;
+  });
 
   // Quizzes State with 6 Exact Legacy Parity Actions
   const [quizzes, setQuizzes] = useState<TrainerQuizItem[]>([
@@ -220,15 +254,17 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
   const toggleQuizStatus = async (quizId: string) => {
     const target = quizzes.find((q) => q.id === quizId);
     if (!target) return;
-    const nextStatus = target.workflowStatus === 'approved' ? 'rejected' : 'approved';
+    const nextStatus: 'approved' | 'rejected' = target.workflowStatus === 'approved' ? 'rejected' : 'approved';
     try {
       const csrf = await getCsrfToken().catch(() => '');
       if (csrf && !quizId.startsWith('tq-')) {
         await assessmentClient.workflow(quizId, 1, nextStatus === 'approved' ? 'approved' : 'rejected', 'تحديث الحالة من لوحة المدرب', csrf);
       }
-      setQuizzes((prev) =>
-        prev.map((q) => (q.id === quizId ? { ...q, workflowStatus: nextStatus } : q))
-      );
+      setQuizzes((prev) => {
+        const next: TrainerQuizItem[] = prev.map((q) => (q.id === quizId ? { ...q, workflowStatus: nextStatus } : q));
+        try { localStorage.setItem(quizStorageKey, JSON.stringify(next)); } catch {}
+        return next;
+      });
       setFeedback(nextStatus === 'approved' ? `✅ تم إرسال الاختبار "${target.title}" للاعتماد والنشر` : `⚠️ تم إرجاع الاختبار "${target.title}" للمراجعة والتعديل`);
     } catch (err) {
       setFeedback(`❌ تعذر تحديث حالة الاختبار: ${err instanceof Error ? err.message : 'خطأ غير متوقع في الخادم'}`);
@@ -239,15 +275,17 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
   const toggleQuestionStatus = async (qId: string) => {
     const target = questions.find((q) => q.id === qId);
     if (!target) return;
-    const nextStatus = target.workflowStatus === 'approved' ? 'rejected' : 'approved';
+    const nextStatus: 'approved' | 'rejected' = target.workflowStatus === 'approved' ? 'rejected' : 'approved';
     try {
       const csrf = await getCsrfToken().catch(() => '');
       if (csrf && !qId.startsWith('t-qst-')) {
         await questionBankClient.workflow(qId, target.version || 1, nextStatus === 'approved' ? 'approved' : 'rejected', 'مراجعة المدرب', csrf);
       }
-      setQuestions((prev) =>
-        prev.map((q) => (q.id === qId ? { ...q, workflowStatus: nextStatus } : q))
-      );
+      setQuestions((prev) => {
+        const next: TrainerQuestionItem[] = prev.map((q) => (q.id === qId ? { ...q, workflowStatus: nextStatus } : q));
+        try { localStorage.setItem(questionStorageKey, JSON.stringify(next)); } catch {}
+        return next;
+      });
       setFeedback(nextStatus === 'approved' ? '✅ تم اعتماد السؤال ونشره في بنك الأسئلة المعتمد' : '⚠️ تم سحب السؤال للمراجعة والتدقيق');
     } catch (err) {
       setFeedback(`❌ تعذر تحديث حالة السؤال: ${err instanceof Error ? err.message : 'خطأ غير متوقع في الخادم'}`);
@@ -272,11 +310,27 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
       price: newCoursePrice,
       updatedAt: new Date().toISOString().split('T')[0],
     };
-    setCourses([item, ...courses]);
+    const nextCourses = [item, ...courses];
+    setCourses(nextCourses);
+    try {
+      const draftsToStore = nextCourses.filter(c => c.id !== 'tc-1' && c.id !== 'tc-2' && c.id !== 'tc-3');
+      localStorage.setItem(courseStorageKey, JSON.stringify(draftsToStore));
+    } catch {}
     setNewCourseTitle('');
     setShowCreateCourseModal(false);
     setFeedback(`ℹ️ تم حفظ مسودة الدورة التدريبية محلياً ("${item.title}"). يتطلب نشرها للطلاب مراجعة واعتماد إدارة المنصة.`);
     setTimeout(() => setFeedback(''), 5500);
+  };
+
+  const handleDeleteCourseDraft = (courseId: string) => {
+    const nextCourses = courses.filter((c) => c.id !== courseId);
+    setCourses(nextCourses);
+    try {
+      const draftsToStore = nextCourses.filter(c => c.id !== 'tc-1' && c.id !== 'tc-2' && c.id !== 'tc-3');
+      localStorage.setItem(courseStorageKey, JSON.stringify(draftsToStore));
+    } catch {}
+    setFeedback('تم حذف مسودة الدورة بنجاح.');
+    setTimeout(() => setFeedback(''), 3500);
   };
 
   const handleScheduleSession = (e: React.FormEvent) => {
@@ -293,11 +347,27 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
       pin: 'يصدر تلقائياً عند بدء البث',
       meetingUrl: `/classroom/session-${Date.now()}/projector`,
     };
-    setLiveSessions([session, ...liveSessions]);
+    const nextSessions = [session, ...liveSessions];
+    setLiveSessions(nextSessions);
+    try {
+      const customSessions = nextSessions.filter(s => s.id !== 'tls-1' && s.id !== 'tls-2');
+      localStorage.setItem(sessionStorageKey, JSON.stringify(customSessions));
+    } catch {}
     setNewSessionTitle('');
     setShowScheduleLiveModal(false);
     setFeedback(`ℹ️ تم جدولة موعد اللقاء المباشر محلياً ("${session.title}"). سيتم إصدار رمز الدخول المعتمد (PIN) تلقائياً من خادم الفصول الذكية عند بدء البث.`);
     setTimeout(() => setFeedback(''), 5500);
+  };
+
+  const handleDeleteSession = (sessionId: string) => {
+    const nextSessions = liveSessions.filter((s) => s.id !== sessionId);
+    setLiveSessions(nextSessions);
+    try {
+      const customSessions = nextSessions.filter(s => s.id !== 'tls-1' && s.id !== 'tls-2');
+      localStorage.setItem(sessionStorageKey, JSON.stringify(customSessions));
+    } catch {}
+    setFeedback('تم حذف اللقاء المباشر بنجاح.');
+    setTimeout(() => setFeedback(''), 3500);
   };
 
   return (
@@ -497,7 +567,64 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
         )}
 
         {/* TAB 2: COURSES */}
-        {activeTab === 'courses' && user && (user.roles?.some(role => role === 'teacher' || role === 'admin') ? <TrainerCourses key={`${user.id}:${[...user.roles].sort().join(',')}`} actorId={user.id} /> : <p role="alert" className="mt-6 rounded-xl bg-rose-50 p-4 text-sm font-bold text-rose-800">الدورات الإدارية متاحة للمدربين المخولين فقط.</p>)}
+        {activeTab === 'courses' && user && (
+          user.roles?.some(role => role === 'teacher' || role === 'admin') ? (
+            <div className="mt-6 space-y-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900">الدورات والمسارات التدريبية</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">إدارة ومتابعة الدورات التدريبية المعتمدة ومسودات الدورات المحلية.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateCourseModal(true)}
+                  className="flex items-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 text-xs font-black text-white shadow-sm"
+                >
+                  <Plus size={16} /> إنشاء مسودة دورة جديدة
+                </button>
+              </div>
+              {courses.filter(c => c.id !== 'tc-1' && c.id !== 'tc-2' && c.id !== 'tc-3').length > 0 && (
+                <section aria-label="مسودات الدورات المحفوظة محلياً" className="rounded-3xl border border-indigo-100 bg-white p-5 shadow-xs">
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <div>
+                      <h3 className="text-base font-black text-slate-900">مسودات الدورات التدريبية (محفوظة محلياً)</h3>
+                      <p className="text-xs text-slate-500">مسودات دورات تم إنشاؤها محلياً وتستمر بعد إعادة التحميل حتى اعتمادها.</p>
+                    </div>
+                    <span className="rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-bold text-amber-800">
+                      {courses.filter(c => c.id !== 'tc-1' && c.id !== 'tc-2' && c.id !== 'tc-3').length} مسودة
+                    </span>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {courses.filter(c => c.id !== 'tc-1' && c.id !== 'tc-2' && c.id !== 'tc-3').map(c => (
+                      <article key={c.id} className="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-900">
+                            مسودة محلية
+                          </span>
+                          <span className="text-xs text-slate-500 font-bold">{c.price} ر.س</span>
+                        </div>
+                        <h4 className="font-black text-slate-900 text-sm">{c.title}</h4>
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60">
+                          <span className="text-xs text-slate-500">{c.category}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCourseDraft(c.id)}
+                            className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100"
+                          >
+                            <Trash2 size={13} /> حذف المسودة
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              )}
+              <TrainerCourses key={`${user.id}:${[...user.roles].sort().join(',')}`} actorId={user.id} />
+            </div>
+          ) : (
+            <p role="alert" className="mt-6 rounded-xl bg-rose-50 p-4 text-sm font-bold text-rose-800">الدورات الإدارية متاحة للمدربين المخولين فقط.</p>
+          )
+        )}
 
         {/* TAB 3: LIVE SESSIONS */}
         {activeTab === 'live-sessions' && (
@@ -573,6 +700,14 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
                         <Play size={14} /> بدء البث الآن
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteSession(ls.id)}
+                      className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100"
+                      title="إلغاء اللقاء المباشر"
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
               ))}

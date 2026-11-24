@@ -247,6 +247,49 @@ test('supervisor and admin roots expose real scoped workspaces',async({page})=>{
   await expect(page.getByText('هذه الوجهة ستُنقل من الواجهة المرجعية في مرحلتها.')).toHaveCount(0);
 });
 
+test('trainer workspace persists created course drafts and scheduled sessions across reload', async ({ page }) => {
+  const trainer = {
+    id: 'trainer-ui-1', email: 'trainer@example.com', name: 'مدرب المنصة', status: 'active', avatarUrl: '', emailVerified: true,
+    role: 'teacher', roles: ['teacher'],
+  };
+  await page.route('**/api/v1/auth/me', route => json(route, { user: trainer }));
+  await page.route('**/api/v1/auth/csrf', route => json(route, { csrfToken: 'test-csrf' }));
+  await page.route('**/api/v1/courses?*', route => json(route, { items: [], page: 1, limit: 30, total: 0, hasMore: false }));
+  await page.goto('/trainer-dashboard');
+
+  await expect(page.getByRole('heading', { name: 'لوحة مدرب المنصة' })).toBeVisible();
+
+  // Create a course draft
+  await page.getByRole('button', { name: 'دوراتي ومساراتي' }).click();
+  await page.getByRole('button', { name: 'إنشاء مسودة دورة جديدة' }).click();
+  await page.locator('input[placeholder*="المعسكر التدريبي المكثف"]').fill('دورة اختبارات القدرات المكثفة 2026');
+  await page.getByRole('button', { name: 'حفظ وإرسال للمراجعة' }).click();
+  await expect(page.getByRole('heading', { name: 'دورة اختبارات القدرات المكثفة 2026' })).toBeVisible();
+
+  // Schedule a new live session
+  await page.getByRole('button', { name: 'اللقاءات المباشرة' }).click();
+  await page.getByRole('button', { name: 'جدولة لقاء تدريبي حي' }).first().click();
+  await page.locator('input[placeholder*="ورشة حل التجميعات"]').fill('ورشة قياس المتقدمة');
+  await page.getByRole('button', { name: 'تأكيد الجدولة وتوليد الـ PIN' }).click();
+  await expect(page.getByRole('heading', { name: 'ورشة قياس المتقدمة' })).toBeVisible();
+
+  // Reload page and confirm persistence
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'لوحة مدرب المنصة' })).toBeVisible();
+
+  // Verify created course draft persists in Tab 2
+  await page.getByRole('button', { name: 'دوراتي ومساراتي' }).click();
+  await expect(page.getByRole('heading', { name: 'دورة اختبارات القدرات المكثفة 2026' })).toBeVisible();
+
+  // Navigate to live sessions tab and verify scheduled session persists
+  await page.getByRole('button', { name: 'اللقاءات المباشرة' }).click();
+  await expect(page.getByRole('heading', { name: 'ورشة قياس المتقدمة' })).toBeVisible();
+
+  // Cancel/delete session
+  await page.getByTitle('إلغاء اللقاء المباشر').first().click();
+  await expect(page.getByText('تم حذف اللقاء المباشر بنجاح.')).toBeVisible();
+});
+
 // Presentation fixture only; not a Go/PostgreSQL integration certificate.
 for (const width of [390, 820, 1440]) {
   test(`homepage preserves all server-returned paths at ${width}px`, async ({page}) => {
