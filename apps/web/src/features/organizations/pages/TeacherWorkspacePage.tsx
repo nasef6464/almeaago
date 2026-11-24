@@ -54,6 +54,68 @@ export interface TeacherAssessmentItem {
   avgScore: number;
 }
 
+const DRAFTS_STORAGE_KEY = 'almeaa_teacher_assessment_drafts';
+
+function loadStoredDrafts(schoolId?: string): TeacherAssessmentItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(`${DRAFTS_STORAGE_KEY}_${schoolId || 'global'}`);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredDrafts(schoolId: string | undefined, drafts: TeacherAssessmentItem[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(`${DRAFTS_STORAGE_KEY}_${schoolId || 'global'}`, JSON.stringify(drafts));
+  } catch {}
+}
+
+const baselineAssessments: TeacherAssessmentItem[] = [
+  {
+    id: 'teach-quiz-1',
+    title: 'اختبار دوري: مسائل الحساب الذهني والتناسب',
+    kind: 'test',
+    className: 'الصف الثالث الثانوي (أ)',
+    workflowStatus: 'approved',
+    isPublished: true,
+    dueDate: '2026-11-15',
+    totalQuestions: 15,
+    participantsCount: 18,
+    totalStudents: 22,
+    avgScore: 82,
+  },
+  {
+    id: 'teach-quiz-2',
+    title: 'تدريب علاجي: مهارات الجبر والكسور العشرية',
+    kind: 'drill',
+    className: 'الصف الثالث الثانوي (ب)',
+    workflowStatus: 'approved',
+    isPublished: true,
+    dueDate: '2026-11-18',
+    totalQuestions: 10,
+    participantsCount: 12,
+    totalStudents: 20,
+    avgScore: 64,
+  },
+  {
+    id: 'teach-quiz-3',
+    title: 'اختبار مقترح: الهندسة التحليلية وحساب المثلثات (بانتظار المشرف)',
+    kind: 'test',
+    className: 'الصف الثالث الثانوي (أ)',
+    workflowStatus: 'rejected',
+    isPublished: false,
+    totalQuestions: 12,
+    participantsCount: 0,
+    totalStudents: 22,
+    avgScore: 0,
+  },
+];
+
 export function TeacherWorkspacePage() {
   const { user, loading: authLoading, getCsrfToken } = useAuth();
   const navigate = useNavigate();
@@ -80,47 +142,16 @@ export function TeacherWorkspacePage() {
   // Real active session detection
   const [activeSession, setActiveSession] = useState<ClassroomSession | null>(null);
 
-  // Mock teacher assessments with exact legacy parity
-  const [teacherAssessments, setTeacherAssessments] = useState<TeacherAssessmentItem[]>([
-    {
-      id: 'teach-quiz-1',
-      title: 'اختبار دوري: مسائل الحساب الذهني والتناسب',
-      kind: 'test',
-      className: 'الصف الثالث الثانوي (أ)',
-      workflowStatus: 'approved',
-      isPublished: true,
-      dueDate: '2026-11-15',
-      totalQuestions: 15,
-      participantsCount: 18,
-      totalStudents: 22,
-      avgScore: 82,
-    },
-    {
-      id: 'teach-quiz-2',
-      title: 'تدريب علاجي: مهارات الجبر والكسور العشرية',
-      kind: 'drill',
-      className: 'الصف الثالث الثانوي (ب)',
-      workflowStatus: 'approved',
-      isPublished: true,
-      dueDate: '2026-11-18',
-      totalQuestions: 10,
-      participantsCount: 12,
-      totalStudents: 20,
-      avgScore: 64,
-    },
-    {
-      id: 'teach-quiz-3',
-      title: 'اختبار مقترح: الهندسة التحليلية وحساب المثلثات (بانتظار المشرف)',
-      kind: 'test',
-      className: 'الصف الثالث الثانوي (أ)',
-      workflowStatus: 'rejected',
-      isPublished: false,
-      totalQuestions: 12,
-      participantsCount: 0,
-      totalStudents: 22,
-      avgScore: 0,
-    },
-  ]);
+  // Teacher assessments with persisted local drafts
+  const [teacherAssessments, setTeacherAssessments] = useState<TeacherAssessmentItem[]>(() => {
+    const stored = loadStoredDrafts(selectedSchoolId);
+    return [...stored, ...baselineAssessments];
+  });
+
+  useEffect(() => {
+    const stored = loadStoredDrafts(selectedSchoolId);
+    setTeacherAssessments([...stored, ...baselineAssessments]);
+  }, [selectedSchoolId]);
 
   const [newQuizTitle, setNewQuizTitle] = useState('');
   const [newQuizKind, setNewQuizKind] = useState<'test' | 'drill' | 'mock'>('test');
@@ -190,12 +221,49 @@ export function TeacherWorkspacePage() {
     }));
   }, [selectedSchool]);
 
-  const teacherStudents = useMemo(() => [
-    { id: '018f0000-0000-7000-8000-000000000005', name: 'فيصل بن سعد', className: 'الصف الثالث الثانوي (أ)' },
-    { id: 'st-2', name: 'سارة خالد المنصور', className: 'الصف الثالث الثانوي (أ)' },
-    { id: 'st-3', name: 'محمد الدوسري', className: 'الصف الثالث الثانوي (ب)' },
-    { id: 'st-4', name: 'ريان الغامدي', className: 'الصف الثالث الثانوي (ب)' },
-  ], []);
+  const [teacherStudents, setTeacherStudents] = useState<Array<{ id: string; name: string; className: string }>>([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!selectedSchool || !selectedSchool.assignments || selectedSchool.assignments.length === 0) {
+      setTeacherStudents([]);
+      return;
+    }
+    const ctrl = new AbortController();
+    setStudentsLoading(true);
+
+    const loadStudents = async () => {
+      try {
+        const studentPromises = selectedSchool.assignments.map(async (a) => {
+          try {
+            const res = await organizationsClient.students(selectedSchool.schoolId, a.classId, ctrl.signal);
+            return (res.members || []).map((m) => ({
+              id: m.userId,
+              name: m.name,
+              className: a.className,
+            }));
+          } catch {
+            return [];
+          }
+        });
+        const allByClass = await Promise.all(studentPromises);
+        if (ctrl.signal.aborted) return;
+        const flattened = allByClass.flat();
+        const seen = new Set<string>();
+        const unique = flattened.filter((s) => {
+          if (seen.has(s.id)) return false;
+          seen.add(s.id);
+          return true;
+        });
+        setTeacherStudents(unique);
+      } finally {
+        if (!ctrl.signal.aborted) setStudentsLoading(false);
+      }
+    };
+
+    void loadStudents();
+    return () => ctrl.abort();
+  }, [selectedSchool]);
 
   // Multi-Dimensional Skills Filter States (Tab 5)
   const [skillLevelFilter, setSkillLevelFilter] = useState<'all' | 'critical' | 'watch' | 'mastered'>('all');
@@ -414,11 +482,11 @@ export function TeacherWorkspacePage() {
   const handleCreateAssessment = () => {
     if (!newQuizTitle.trim()) return;
     const item: TeacherAssessmentItem = {
-      id: `teach-quiz-${Date.now()}`,
+      id: `draft-${Date.now()}`,
       title: newQuizTitle.trim(),
       kind: newQuizKind,
       className: newQuizClass || selectedSchool?.assignments[0]?.className || 'الصف الثالث الثانوي (أ)',
-      workflowStatus: 'pending',
+      workflowStatus: 'draft',
       isPublished: false,
       dueDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
       totalQuestions: 15,
@@ -426,10 +494,13 @@ export function TeacherWorkspacePage() {
       totalStudents: 22,
       avgScore: 0,
     };
+    const currentStored = loadStoredDrafts(selectedSchoolId);
+    const updatedDrafts = [item, ...currentStored];
+    saveStoredDrafts(selectedSchoolId, updatedDrafts);
     setTeacherAssessments([item, ...teacherAssessments]);
     setNewQuizTitle('');
     setShowCreateAssessmentModal(false);
-    setFeedback(`ℹ️ تم إنشاء مسودة التكليف محلياً ("${item.title}"). تنبيه: نشر التكليفات المعتمدة للطلاب يتطلب اعتماد مدير المدرسة عبر إدارة الاختبارات الأكاديمية.`);
+    setFeedback(`ℹ️ تم حفظ مسودة التكليف محلياً ("${item.title}"). التكليف محفوظ وسيستمر بعد تحديث الصفحة.`);
     setTimeout(() => setFeedback(''), 5500);
   };
 
@@ -1286,6 +1357,55 @@ export function TeacherWorkspacePage() {
           {/* TAB 6: ASSESSMENTS (اختباراتي وتكليفاتي) */}
           {activeTab === 'assessments' && (
             <div className="space-y-6 animate-fade-in" data-testid="teacher-assessments-manager">
+              {teacherAssessments.some((a) => a.workflowStatus === 'draft') && (
+                <div className="rounded-3xl border border-indigo-100 bg-white p-6 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between border-b border-indigo-50 pb-3">
+                    <div className="flex items-center gap-2">
+                      <BookOpenCheck className="text-indigo-600" size={20} />
+                      <h3 className="text-sm font-black text-slate-900">المسودات والتكليفات المحفوظة محلياً</h3>
+                    </div>
+                    <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
+                      {teacherAssessments.filter((a) => a.workflowStatus === 'draft').length} مسودة
+                    </span>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {teacherAssessments
+                      .filter((a) => a.workflowStatus === 'draft')
+                      .map((draft) => (
+                        <div key={draft.id} className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50/60 p-4 transition-all hover:bg-slate-50">
+                          <div>
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <span className="rounded-lg bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-black text-amber-800">
+                                مسودة محلية
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-bold">{draft.className}</span>
+                            </div>
+                            <h4 className="text-xs font-black text-slate-900 leading-snug">{draft.title}</h4>
+                            <p className="mt-1 text-[11px] text-slate-500">{draft.kind === 'test' ? 'اختبار موجه' : draft.kind === 'drill' ? 'تدريب علاجي' : 'محاكي قياس'}</p>
+                          </div>
+                          <div className="mt-3 pt-2 border-t border-slate-200/60 flex items-center justify-between">
+                            <span className="text-[10px] text-slate-400">محفوظ محلياً</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const current = loadStoredDrafts(selectedSchoolId);
+                                const updated = current.filter((d) => d.id !== draft.id);
+                                saveStoredDrafts(selectedSchoolId, updated);
+                                setTeacherAssessments((prev) => prev.filter((d) => d.id !== draft.id));
+                                setFeedback(`تم حذف المسودة "${draft.title}".`);
+                                setTimeout(() => setFeedback(''), 3000);
+                              }}
+                              className="text-rose-600 hover:text-rose-800 text-xs font-bold transition cursor-pointer"
+                            >
+                              حذف
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
               <SupervisorTestsManager
                 schoolId={selectedSchool?.schoolId}
                 classes={teacherClasses}
