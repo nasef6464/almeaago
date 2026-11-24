@@ -4,15 +4,13 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - "apps/web/src/app/App.tsx"
-      - "apps/web/src/features/learning/navigation/**"
-      - "apps/web/src/features/learning/**"
-      - "apps/web/src/features/public/components/**"
-      - "apps/web/src/features/content/**"
-      - "apps/web/src/features/presentation/**"
-      - "apps/web/tests/e2e/**"
-      - "apps/web/playwright.config.ts"
-      - "apps/web/package.json"
+      - "apps/web/**"
+      - ".github/workflows/frontend-e2e.yml"
+      - "docs/**"
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
       - ".github/workflows/frontend-e2e.yml"
       - "docs/**"
 
