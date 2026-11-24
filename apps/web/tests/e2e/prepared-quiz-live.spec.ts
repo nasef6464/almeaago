@@ -316,7 +316,7 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByText('درجتك', { exact: true }).locator('..').getByText('0%', { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('يحتاج مراجعة', { exact: true })).toBeVisible();
-  await expect(page.getByText('مهارة فرعية تجريبية')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'أين كنت قويًا؟ وأين تحتاج دعم؟' }).getByText('مهارة فرعية تجريبية', { exact: true })).toBeVisible();
   await expect(page.getByText('موضوع تأسيس تجريبي')).toBeVisible();
   const explanation = await page.getByRole('link', { name: 'شرح التأسيس' }).getAttribute('href');
   const practice = await page.getByRole('link', { name: 'تدريبات الموضوع' }).getAttribute('href');
@@ -325,8 +325,23 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   expect(practice).toContain('topic=00000000-0000-0000-0000-000000000022');
   expect(practice).toContain('content=quizzes');
   await page.screenshot({ path: 'test-results/weak-skill-live-result.png', fullPage: true });
-  await page.getByRole('link', { name: 'شرح التأسيس' }).click();
+  const fullReport = page.getByRole('button', { name: 'عرض التقرير الكامل' });
+  const followUp = page.getByRole('region', { name: 'مهارات تحتاج متابعة' });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await fullReport.click();
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await followUp.screenshot({ path: `test-results/assessment-live-follow-up-${width}.png` });
+  }
   const topicDialog = page.getByTestId('foundation-topic-dialog');
+  await followUp.getByRole('link', { name: 'ملف داعم' }).click();
+  await expect(topicDialog.getByRole('heading', { name: 'ملف دعم المهارة التجريبي' })).toBeVisible();
+  await expect(topicDialog.getByRole('link', { name: 'فتح الملف' })).toHaveAttribute('href', 'https://example.invalid/foundation.pdf');
+  await page.goBack({ waitUntil: 'domcontentloaded' });
+  await fullReport.click();
+  await followUp.getByRole('link', { name: 'راجع الشرح' }).click();
+  await expect(topicDialog.getByRole('dialog', { name: 'الدرس المحدد' })).toHaveCount(0);
   await expect(topicDialog.getByText('موضوع تأسيس تجريبي', { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(topicDialog.getByText('مقطع شرح تجريبي أول', { exact: true })).toBeVisible();
   await expect(topicDialog.getByText('مقطع شرح تجريبي ثان', { exact: true })).toBeVisible();
@@ -337,7 +352,8 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   await expect(topicDialog.getByRole('dialog', { name: 'الدرس المحدد' }).getByRole('heading', { name: 'مقطع شرح تجريبي ثان' })).toBeVisible();
   await topicDialog.getByRole('button', { name: 'إغلاق مشغل الفيديو' }).click();
   await page.goBack({ waitUntil: 'domcontentloaded' });
-  await page.getByRole('link', { name: 'تدريبات الموضوع' }).click();
+  await fullReport.click();
+  await followUp.getByRole('link', { name: 'تدريب مناسب' }).click();
   await expect(topicDialog.getByRole('heading', { name: 'تدريب الموضوع التجريبي', exact: true })).toBeVisible({ timeout: 30_000 });
   await topicDialog.getByRole('button', { name: 'بدء التدريب: تدريب الموضوع التجريبي' }).click();
   await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible({ timeout: 30_000 });

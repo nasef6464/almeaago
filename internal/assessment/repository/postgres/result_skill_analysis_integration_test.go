@@ -52,6 +52,8 @@ CREATE TABLE skills(id uuid,subject_id uuid,name text,kind text DEFAULT 'main',p
 CREATE TABLE taxonomy_skill_sections(id uuid,subject_id uuid,name text);
 CREATE TABLE foundation_topics(id uuid,path_id uuid,subject_id uuid,title text,is_locked bool,status text,is_visible bool,sort_order int);
 CREATE TABLE topic_skill_links(topic_id uuid,skill_id uuid);
+CREATE TABLE library_items(id uuid,path_id uuid,subject_id uuid,workflow_status text,is_visible bool);
+CREATE TABLE topic_library_items(topic_id uuid,library_item_id uuid);
 INSERT INTO assessment_attempts VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000003',1,'submitted',1);
 INSERT INTO assessment_versions(assessment_id,version,path_id,title,allow_question_review,show_answers,show_explanations,show_results_report,randomize_questions,randomize_options,assessment_kind) VALUES ('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000004','Test',false,true,true,true,false,false,'mock');
 INSERT INTO assessment_results VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002',50,2,1,0,1,true,0,now());
@@ -83,6 +85,14 @@ INSERT INTO foundation_topics VALUES
 ('00000000-0000-0000-0000-000000000043','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','Hidden topic',false,'active',false,2),
 ('00000000-0000-0000-0000-000000000044','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000006','Foreign subject',false,'active',true,3),
 ('00000000-0000-0000-0000-000000000045','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','Archived',false,'archived',true,4);
+INSERT INTO library_items VALUES
+('00000000-0000-0000-0000-000000000071','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','approved',true),
+('00000000-0000-0000-0000-000000000072','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','draft',true),
+('00000000-0000-0000-0000-000000000073','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000006','approved',true);
+INSERT INTO topic_library_items VALUES
+('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000071'),
+('00000000-0000-0000-0000-000000000042','00000000-0000-0000-0000-000000000072'),
+('00000000-0000-0000-0000-000000000047','00000000-0000-0000-0000-000000000073');
 INSERT INTO topic_skill_links SELECT id,'00000000-0000-0000-0000-000000000020' FROM foundation_topics;`)
 	if err != nil {
 		t.Fatal(err)
@@ -144,6 +154,9 @@ INSERT INTO topic_skill_links VALUES ('00000000-0000-0000-0000-000000000046','00
 	}
 	if len(a.FoundationTopics) != 3 || a.FoundationTopics[0].Title != "Topic A" || a.FoundationTopics[0].IsLocked || a.FoundationTopics[1].Title != "Locked topic" || !a.FoundationTopics[1].IsLocked || a.FoundationTopics[2].Title != "Child active parent" || len(b.FoundationTopics) != 0 {
 		t.Fatalf("unexpected foundation mapping scope or visibility: %+v %+v", a.FoundationTopics, b.FoundationTopics)
+	}
+	if !a.FoundationTopics[0].HasSupport || a.FoundationTopics[1].HasSupport || a.FoundationTopics[2].HasSupport {
+		t.Fatalf("only approved, visible and same-scope topic files qualify: %+v", a.FoundationTopics)
 	}
 	// The second unanswered question remains in the denominator. Skill links
 	// added after the attempt are deliberately irrelevant to this projection.

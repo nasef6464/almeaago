@@ -121,7 +121,8 @@ type ResultSkillAnalysisItem struct {
 
 // Topic metadata identifies a destination; it does not grant access to lessons or assessments.
 type ResultFoundationTopic struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	IsLocked bool   `json:"isLocked"`
+	ID         string `json:"id"`
+	Title      string `json:"title"`
+	HasSupport bool   `json:"hasSupport,omitempty"`
+	IsLocked   bool   `json:"isLocked"`
 }

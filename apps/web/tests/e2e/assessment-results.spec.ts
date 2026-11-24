@@ -313,3 +313,31 @@ test('more details opens the skill analysis with subject filters and scoped acti
   await expect(page).toHaveURL(/\/category\/path-1\?subject=math.*topic=fractions.*content=lessons/);
   await expect(dialog).not.toBeVisible();
 });
+
+test('full report links follow-up actions to the verified foundation topic', async ({ page }) => {
+  await auth(page);
+  const skill = { pathId: 'path-1', subjectId: 'math', subjectName: 'الرياضيات', questionCount: 2, correctCount: 0, mastery: 0, status: 'weak' };
+  await page.route('**/api/v1/assessment-attempts/attempt-1/review', route => json(route, {
+    detail: {
+      result: historyItem, assessmentId: 'assessment-1', assessmentVersion: 2, title: 'محاكي كمي', attemptNumber: 1,
+      allowQuestionReview: false, showAnswers: false, showExplanations: false, showResultsReport: true,
+      skillAnalysis: { complete: true, items: [
+        { ...skill, skillId: 'fractions', skillName: 'الكسور', sectionName: 'الأعداد', foundationTopics: [{ id: 'mapped-topic', title: 'تأسيس الكسور', isLocked: false, hasSupport: true }] },
+        { ...skill, skillId: 'unmapped', skillName: 'النسب' },
+        { ...skill, skillId: 'no-resource', skillName: 'الجبر', foundationTopics: [{ id: 'empty-support', title: 'تأسيس الجبر', isLocked: false }] },
+      ] },
+    },
+  }));
+  await page.goto('/assessment-results/attempt-1', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'عرض التقرير الكامل' }).click();
+  const followUp = page.getByRole('region', { name: 'مهارات تحتاج متابعة' });
+  const fraction = followUp.getByRole('article').filter({ has: page.getByRole('heading', { name: 'الكسور', exact: true }) });
+  for (const [label, tab] of [['راجع الشرح', 'lessons'], ['تدريب مناسب', 'quizzes'], ['ملف داعم', 'support']]) {
+    await expect(fraction.getByRole('link', { name: label, exact: true })).toHaveAttribute('href', new RegExp(`topic=mapped-topic&content=${tab}$`));
+  }
+  await expect(fraction.getByText('الأعداد', { exact: true })).toBeVisible();
+  const unlinked = followUp.getByRole('article').filter({ has: page.getByRole('heading', { name: 'النسب', exact: true }) });
+  await expect(unlinked.getByRole('link')).toHaveCount(0);
+  const noResource = followUp.getByRole('article').filter({ has: page.getByRole('heading', { name: 'الجبر', exact: true }) });
+  await expect(noResource.getByRole('link', { name: 'ملف داعم' })).toHaveCount(0);
+});

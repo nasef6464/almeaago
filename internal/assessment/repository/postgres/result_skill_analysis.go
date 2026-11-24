@@ -104,7 +104,13 @@ func (r *Repository) attachResultFoundationTopics(ctx context.Context, items []a
 		index[items[i].PathID+":"+items[i].SubjectID+":"+items[i].SkillID] = i
 	}
 	rows, err := r.db.Query(ctx, `
-		SELECT t.path_id::text,t.subject_id::text,l.skill_id::text,t.id::text,t.title,t.is_locked
+		SELECT t.path_id::text,t.subject_id::text,l.skill_id::text,t.id::text,t.title,t.is_locked,
+		       EXISTS (
+		         SELECT 1 FROM topic_library_items placement
+		         JOIN library_items item ON item.id=placement.library_item_id
+		         WHERE placement.topic_id=t.id AND item.path_id=t.path_id AND item.subject_id=t.subject_id
+		           AND item.workflow_status='approved' AND item.is_visible=true
+		       )
 		FROM topic_skill_links l
 		JOIN foundation_topics t ON t.id=l.topic_id
 		JOIN skills s ON s.id=l.skill_id AND s.subject_id=t.subject_id
@@ -126,7 +132,7 @@ func (r *Repository) attachResultFoundationTopics(ctx context.Context, items []a
 		}
 		var path, subject, skill string
 		var topic assessment.ResultFoundationTopic
-		if err := rows.Scan(&path, &subject, &skill, &topic.ID, &topic.Title, &topic.IsLocked); err != nil {
+		if err := rows.Scan(&path, &subject, &skill, &topic.ID, &topic.Title, &topic.IsLocked, &topic.HasSupport); err != nil {
 			return err
 		}
 		if i, ok := index[path+":"+subject+":"+skill]; ok {

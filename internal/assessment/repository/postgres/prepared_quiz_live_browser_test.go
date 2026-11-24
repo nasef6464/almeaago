@@ -143,6 +143,9 @@ INSERT INTO topic_skill_links(topic_id,skill_id,relation_type) VALUES ('00000000
 INSERT INTO lessons(id,path_id,subject_id,title,lesson_type,video_url,video_source,workflow_status) VALUES
  ('00000000-0000-0000-0000-000000000024','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','مقطع شرح تجريبي أول','video','https://www.youtube.com/watch?v=dQw4w9WgXcQ','youtube','approved'),
  ('00000000-0000-0000-0000-000000000025','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','مقطع شرح تجريبي ثان','video','https://www.youtube.com/watch?v=dQw4w9WgXcQ','youtube','approved');
+INSERT INTO library_items(id,path_id,subject_id,title,item_type,external_url,workflow_status,is_visible) VALUES
+ ('00000000-0000-0000-0000-000000000081','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','ملف دعم المهارة التجريبي','pdf','https://example.invalid/foundation.pdf','approved',true);
+INSERT INTO topic_library_items(topic_id,library_item_id,sort_order) VALUES ('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000081',1);
 INSERT INTO topic_lessons(topic_id,lesson_id,sort_order) VALUES ('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000024',1),('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000025',2);`)
 	if err != nil {
 		t.Fatal(err)

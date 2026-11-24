@@ -255,6 +255,7 @@ paths:
         Group only when that parent is also present in the attempt's skill analysis.
         Skill analysis may include sectionName from the subject taxonomy, independent of
         mock sections. Visible normal practice assessments return analysisMode bank.
+        An explicitly mapped foundation topic may include hasSupport when it has an approved, visible library placement in the same scope. Entitlement for the file is checked by the topic destination.
         A visible mock assessment report may include sectionResults in the order of
         the submitted version. Each entry contains sectionId, sectionName, total,
         correct, wrong, unanswered, and score (rounded unweighted correct percentage).

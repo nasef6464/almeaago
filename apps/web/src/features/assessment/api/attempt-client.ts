@@ -165,7 +165,7 @@ export interface ResultDetail {
       correctCount: number;
       mastery: number;
       status: 'weak' | 'average' | 'strong';
-      foundationTopics?: Array<{ id: string; title: string; isLocked: boolean }>;
+      foundationTopics?: Array<{ id: string; title: string; isLocked: boolean; hasSupport?: boolean }>;
     }>;
   };
   questions?: ReviewQuestion[];

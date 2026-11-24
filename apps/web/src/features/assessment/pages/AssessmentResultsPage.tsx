@@ -2,7 +2,6 @@ import { resultFoundationPath } from '../navigation/resultFoundationPath';
 import { safeReturnPath, returnPathLabel } from '../navigation/returnPath';
 import {
   ArrowRight,
-  BarChart3,
   Bookmark,
   BookOpen,
   BrainCircuit,
@@ -30,6 +29,7 @@ import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage
 import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
 import { AssessmentResultSummary } from '../components/AssessmentResultSummary';
 import { AssessmentSkillAnalysisDialog } from '../components/AssessmentSkillAnalysisDialog';
+import { AssessmentFollowUpSkills } from '../components/AssessmentFollowUpSkills';
 import { AssessmentPreviousAttempts } from '../components/AssessmentPreviousAttempts';
 import { AssessmentShareScorecard } from '../components/AssessmentShareScorecard';
 import { AssessmentReviewVideo } from '../components/AssessmentReviewVideo';
@@ -554,9 +554,6 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
   const practiceURL = weakestSkill ? `/quiz?${new URLSearchParams({
     mode: 'self', pathId: weakestSkill.pathId, subjectId: weakestSkill.subjectId, skillIds: weakestSkill.skillId,
   })}` : '';
-  const followUpSkills = detail.skillAnalysis?.complete
-    ? detail.skillAnalysis.items.filter(skill => skill.status !== 'strong').sort((a, b) => a.mastery - b.mastery)
-    : [];
   const guardianSummary = weakestSkill
     ? `نتيجة الاختبار ${detail.result.score}%. أضعف مهارة ظهرت هي «${weakestSkill.skillName}» بنسبة ${weakestSkill.mastery}%.`
     : `نتيجة الاختبار ${detail.result.score}%.`;
@@ -679,26 +676,7 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
               <span role="status" className="text-xs font-bold text-indigo-900">{summaryStatus}</span>
             </div>
           </section>
-          {detail.skillAnalysis?.complete && followUpSkills.length > 0 && <section aria-labelledby="follow-up-skills" className="rounded-3xl border border-gray-100 bg-white p-4 sm:p-5">
-            <h2 id="follow-up-skills" className="text-lg font-black text-gray-800">مهارات تحتاج متابعة</h2>
-            <div className="mt-4 space-y-3">
-              {followUpSkills.slice(0, 3).map(skill => (
-                <div key={`${skill.pathId}:${skill.subjectId}:${skill.skillId}`} className="rounded-2xl border border-gray-100 p-3 sm:p-4">
-                  <div className="flex items-center justify-between gap-2 font-black text-gray-900">
-                    <h3>{skill.skillName}</h3><span className="rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-800">{skill.mastery}%</span>
-                  </div>
-                  <p className="mt-1 text-xs font-bold text-gray-500">{skill.subjectName} · {skill.questionCount} سؤال</p>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-amber-500" style={{ width: `${skill.mastery}%` }} /></div>
-                </div>
-              ))}
-            </div>
-            {followUpSkills.length > 3 && (
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs font-bold text-slate-600">توجد مهارات إضافية. نعرض أهم 3 فقط هنا.</p>
-                <button type="button" onClick={() => analysisDialog.current?.showModal()} className="inline-flex items-center gap-1.5 self-start rounded-xl border border-indigo-100 bg-white px-3 py-1.5 text-xs font-black text-indigo-700"><BarChart3 size={14} /> عرض الكل</button>
-              </div>
-            )}
-          </section>}
+          <AssessmentFollowUpSkills detail={detail} openAnalysis={() => analysisDialog.current?.showModal()} />
         </>
       )}
         {saveError ? <p role="alert" className="text-sm font-bold text-rose-700">{saveError}</p> : null}
