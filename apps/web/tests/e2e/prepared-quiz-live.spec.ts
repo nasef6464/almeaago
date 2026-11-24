@@ -319,6 +319,8 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   const journey = page.getByRole('heading', { name: 'مسار ما بعد الاختبار' }).locator('..');
   await expect(journey.getByText('راجع موضع الخطأ', { exact: true })).toBeVisible();
   await expect(journey.getByRole('link', { name: /بدء التدريب/ })).toHaveAttribute('href', /topic=00000000-0000-0000-0000-000000000022&content=quizzes$/);
+  await expect(page.getByRole('link', { name: /فتح الدرس.*ابدأ بالشرح المرتبط/ })).toHaveAttribute('href', /topic=00000000-0000-0000-0000-000000000022&content=lessons$/);
+  await expect(page.getByRole('link', { name: /فتح الملف.*راجع الملف الداعم/ })).toHaveAttribute('href', /topic=00000000-0000-0000-0000-000000000022&content=support$/);
   await page.evaluate(() => { window.print = () => { document.documentElement.dataset.printCalled = 'yes'; }; });
   await page.getByRole('button', { name: 'تحميل PDF' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-print-called', 'yes');

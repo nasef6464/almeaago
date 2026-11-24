@@ -676,6 +676,27 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
               </Link>
             </div>
           </div>
+          {weakestSkill.foundationTopics?.[0] && (
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <Link to={resultFoundationPath(weakestSkill, weakestSkill.foundationTopics[0].id, 'lessons')} className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-indigo-800 hover:bg-indigo-100">
+                <span className="text-xs font-black">فتح الدرس</span>
+                <span className="mt-4 block text-sm font-black">ابدأ بالشرح المرتبط</span>
+                <span className="mt-2 block text-xs font-bold leading-5">يفتح لك موضوع {weakestSkill.foundationTopics[0].title} مباشرة.</span>
+              </Link>
+              <Link to={resultFoundationPath(weakestSkill, weakestSkill.foundationTopics[0].id, 'quizzes')} className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-amber-800 hover:bg-amber-100">
+                <span className="text-xs font-black">بدء التدريب</span>
+                <span className="mt-4 block text-sm font-black">حل تدريبًا قصيرًا</span>
+                <span className="mt-2 block text-xs font-bold leading-5">تدريب سريع على نفس المهارة.</span>
+              </Link>
+              {weakestSkill.foundationTopics[0].hasSupport && (
+                <Link to={resultFoundationPath(weakestSkill, weakestSkill.foundationTopics[0].id, 'support')} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-slate-800 hover:bg-slate-100">
+                  <span className="text-xs font-black">فتح الملف</span>
+                  <span className="mt-4 block text-sm font-black">راجع الملف الداعم</span>
+                  <span className="mt-2 block text-xs font-bold leading-5">ملف مختصر يساعدك قبل إعادة المحاولة.</span>
+                </Link>
+              )}
+            </div>
+          )}
         </section>
       ) : null}
       {!shouldShowReview && detail.showResultsReport && !weakestSkill && (
