@@ -1,4 +1,12 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 24 نوفمبر — حفظ نطاق المسار والمادة عند فتح التقرير / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518`، Go main `a63d543aa752bc574e4a2569cf51dfc2feb83d05` بعد دمج #300 محليًا، كود الشريحة `a44992109028acb0226a8039cce32f4ddd9711fd` على فرع [PR #301](https://github.com/nasef6464/almeaago/pull/301). لا تعارض مع ملفات #300. يلزم فحص CI للرأس المرفوع.
+- الطالب ← النتيجة ← «تابع الخطة» ← رابط يحمل المسار والمادة والمهارة ← صفحة `/reports` تحتفظ بالمسار والمادة عند تحميل التصنيف ← `GET /api/v1/reports/overview` و`GET /api/v1/reports/results` ضمن صلاحية الطالب ومرشحات المسار والمادة ← PostgreSQL ← عرض نتيجة الطالب. معرّف المهارة يُمرر في الرابط لكن صفحة التقارير لا تعرض تركيز مهارة محددة بعد.
+- PASS `report-link-live.log` على Go/PostgreSQL ومتصفح لفتح التقرير من النتيجة مع اختيار المسار والمادة وظهور المحاولة والعودة للمراجعة. PASS ثلاث حالات متصفح ببيانات معزولة لتغيير النطاق وفشل القراءة والتعافي عند 390/820/1440 في `report-link-web.log`. PASS TypeScript وGo للحزم المتأثرة بعد دمج main و`git diff --check`.
+- لم تُثبت مطابقة التقارير الكاملة أو اختيار المهارة نفسها أو حجز المتابعة. لقطات جديدة مقترنة مع Legacy غير متاحة لهذه الشريحة. حالة Vercel السابقة PENDING ولا تعني نشرًا.
+- الاستئناف: تتبع عرض المهارة المحددة في التقرير وعقد حجز المتابعة، وفحص CI بعد رفع الرأس. أول أمر: `rg -n "skillId|selectedSkill|buildSkillReportActionLink|book-session" C:/almeaago/almeaacodax/pages/Reports.tsx apps/web/src/features/reporting`.
+
 ## 24 نوفمبر — بطاقات إجراءات النتيجة / PARTIAL
 
 - Legacy `ed28102d7084899856de0371dc2c93a3d602d518` وGo main `d0afc757a41e42e7f7e9159a1fe273262e5784cd`. الكود `b57358254bdcd12037391c411de14c7586510581` على فرع [PR #301](https://github.com/nasef6464/almeaago/pull/301).
