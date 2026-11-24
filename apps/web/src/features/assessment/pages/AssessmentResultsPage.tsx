@@ -656,14 +656,42 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
         ) : null}
       {!shouldShowReview && detail.showResultsReport && weakestSkill ? (
         <section className="rounded-3xl border border-indigo-100 bg-indigo-50/40 p-5 sm:p-6">
+          <span className="inline-flex rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700">الخطوة التالية الموصى بها</span>
           <h2 className="text-lg font-black text-gray-900">خطة تحسين لمهارة: {weakestSkill.skillName}</h2>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
-            <button type="button" disabled={!detail.allowQuestionReview || !detail.questions?.length} onClick={() => changeReviewView(true)} className="rounded-2xl border border-emerald-100 bg-white p-3 text-start text-sm font-black text-emerald-800 disabled:opacity-50">مراجعة الحلول</button>
-            {weakestSkill.foundationTopics?.[0] && <Link to={resultFoundationPath(weakestSkill, weakestSkill.foundationTopics[0].id, 'lessons')} className="rounded-2xl border border-indigo-100 bg-white p-3 text-sm font-black text-indigo-800">فتح الشرح</Link>}
-            <Link to={practiceURL} className="rounded-2xl border border-amber-100 bg-white p-3 text-sm font-black text-amber-800">بدء التدريب</Link>
+          <p className="mt-1 text-xs font-bold leading-relaxed text-gray-500">{weakestSkill.foundationTopics?.[0]?.hasLesson ? 'ابدأ بشرح قصير لهذه المهارة ثم انتقل للتدريب.' : weakestSkill.foundationTopics?.[0]?.hasPractice ? 'ابدأ بتدريب قصير الآن ثم أعد القياس بعده.' : 'ابدأ بخطوة صغيرة على المهارة الأضعف ثم أعد الاختبار لاحقًا.'}</p>
+          <div className="mt-5 rounded-3xl border border-slate-100 bg-slate-50/80 p-4 sm:p-5">
+            <h3 className="mb-3 text-sm font-black text-gray-900">مسار ما بعد الاختبار</h3>
+            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-4">
+              <button type="button" disabled={!detail.allowQuestionReview || !detail.questions?.length} onClick={() => changeReviewView(true)} className="min-h-[104px] rounded-2xl border border-emerald-100 bg-white p-3 text-start text-emerald-800 disabled:opacity-50">
+                <span className="text-xs font-black">مراجعة الحلول</span><span className="mt-3 block text-sm font-black text-gray-900">راجع موضع الخطأ</span><span className="mt-1 block text-xs font-bold">{detail.allowQuestionReview && detail.questions?.length ? `${detail.questions.length} سؤال متاح للمراجعة.` : 'تفاصيل الحلول غير متاحة لهذه المحاولة.'}</span>
+              </button>
+              <Link to={weakestSkill.foundationTopics?.[0] ? resultFoundationPath(weakestSkill, weakestSkill.foundationTopics[0].id, 'lessons') : '/reports'} className="min-h-[104px] rounded-2xl border border-indigo-100 bg-white p-3 text-indigo-800">
+                <span className="text-xs font-black">{weakestSkill.foundationTopics?.[0] ? 'فتح الشرح' : 'فتح التقرير'}</span><span className="mt-3 block text-sm font-black text-gray-900">افهم المهارة</span><span className="mt-1 block text-xs font-bold">ابدأ بشرح {weakestSkill.foundationTopics?.[0]?.title || weakestSkill.skillName}.</span>
+              </Link>
+              <Link to={weakestSkill.foundationTopics?.[0] ? resultFoundationPath(weakestSkill, weakestSkill.foundationTopics[0].id, 'quizzes') : practiceURL} className="min-h-[104px] rounded-2xl border border-amber-100 bg-white p-3 text-amber-800">
+                <span className="text-xs font-black">بدء التدريب</span><span className="mt-3 block text-sm font-black text-gray-900">تدرب ثم قِس</span><span className="mt-1 block text-xs font-bold">تدريب قصير على نفس المهارة.</span>
+              </Link>
+              <Link to="/reports" className="min-h-[104px] rounded-2xl border border-slate-200 bg-white p-3 text-slate-800">
+                <span className="text-xs font-black">فتح التقرير</span><span className="mt-3 block text-sm font-black text-gray-900">تابع الخطة</span><span className="mt-1 block text-xs font-bold">ارجع للتقرير العام لترى هل تحسنت المهارة بعد المحاولة القادمة.</span>
+              </Link>
+            </div>
           </div>
         </section>
       ) : null}
+      {!shouldShowReview && detail.showResultsReport && !weakestSkill && (
+        <section className="rounded-3xl border border-indigo-100 bg-indigo-50/40 p-5 sm:p-6">
+          <span className="inline-flex rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700">الخطوة التالية الموصى بها</span>
+          <h2 className="mt-2 text-lg font-black text-gray-900">{detail.skillAnalysis?.complete && detail.skillAnalysis.items.length > 0 ? 'جاهز لتحدٍ جديد' : 'خطة ما بعد الاختبار'}</h2>
+          <p className="mt-1 text-xs font-bold leading-relaxed text-gray-500">{detail.skillAnalysis?.complete && detail.skillAnalysis.items.length > 0 ? 'أتقنت المهارات المقاسة في هذه المحاولة. واصل التعلم بتحدٍ جديد.' : 'راجع الحلول أولًا؛ لا توجد أدلة مهارية كافية لتحديد خطة تحسين.'}</p>
+          <div className="mt-5 rounded-3xl border border-slate-100 bg-slate-50/80 p-4 sm:p-5">
+            <h3 className="mb-3 text-sm font-black text-gray-900">مسار ما بعد الاختبار</h3>
+            <div className="grid gap-2.5 sm:grid-cols-2">
+              <button type="button" disabled={!detail.allowQuestionReview || !detail.questions?.length} onClick={() => changeReviewView(true)} className="rounded-2xl border border-emerald-100 bg-white p-3 text-start text-sm font-black text-emerald-800 disabled:opacity-50">مراجعة الحلول</button>
+              <Link to="/dashboard" className="rounded-2xl border border-indigo-100 bg-white p-3 text-sm font-black text-indigo-800">العودة لمساري</Link>
+            </div>
+          </div>
+        </section>
+      )}
       {!shouldShowReview && detail.showResultsReport && <AssessmentShareScorecard key={activeContext} result={detail.result} title={detail.title} studentName={user.name} />}
       {!shouldShowReview && detail.showResultsReport && fullResult && (
         <>

@@ -316,6 +316,9 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByText('درجتك', { exact: true }).locator('..').getByText('0%', { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('يحتاج مراجعة', { exact: true })).toBeVisible();
+  const journey = page.getByRole('heading', { name: 'مسار ما بعد الاختبار' }).locator('..');
+  await expect(journey.getByText('راجع موضع الخطأ', { exact: true })).toBeVisible();
+  await expect(journey.getByRole('link', { name: /بدء التدريب/ })).toHaveAttribute('href', /topic=00000000-0000-0000-0000-000000000022&content=quizzes$/);
   await page.evaluate(() => { window.print = () => { document.documentElement.dataset.printCalled = 'yes'; }; });
   await page.getByRole('button', { name: 'تحميل PDF' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-print-called', 'yes');
@@ -361,7 +364,7 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   ]));
   await page.getByRole('button', { name: 'إنهاء المراجعة والعودة للملخص' }).click();
   await expect(page.getByRole('region', { name: 'أين كنت قويًا؟ وأين تحتاج دعم؟' }).getByText('مهارة فرعية تجريبية', { exact: true })).toBeVisible();
-  await expect(page.getByText('موضوع تأسيس تجريبي')).toBeVisible();
+  await expect(page.getByText('موضوع تأسيس تجريبي').first()).toBeVisible();
   const explanation = await page.getByRole('link', { name: 'شرح التأسيس' }).getAttribute('href');
   const practice = await page.getByRole('link', { name: 'تدريبات الموضوع' }).getAttribute('href');
   expect(explanation).toContain('topic=00000000-0000-0000-0000-000000000022');
