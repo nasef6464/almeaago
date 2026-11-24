@@ -1,11 +1,12 @@
 import { BarChart3, Download, Eye, FileText, History, PlusCircle, RefreshCw, Sparkles, Target } from 'lucide-react';
-import { useRef, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
 import type { ResultDetail } from '../api/attempt-client';
 import { formatResultDuration } from '../relativeDate';
 import { ResultDonutChart } from './ResultDonutChart';
 import { AssessmentSubjectResults } from './AssessmentSubjectResults';
+import { AssessmentSectionResults } from './AssessmentSectionResults';
 
 type Props = {
   detail: ResultDetail;
@@ -13,6 +14,7 @@ type Props = {
   full: boolean;
   onToggleFull: () => void;
   onReview: () => void;
+  onMoreDetails: () => void;
   onHistory: () => void;
   practiceURL: string;
   retryURL: string;
@@ -20,8 +22,7 @@ type Props = {
 
 const actionClass = 'inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-center text-xs font-black shadow-sm sm:px-4 sm:text-sm';
 
-export function AssessmentResultSummary({ detail, navigation, full, onToggleFull, onReview, onHistory, practiceURL, retryURL }: Props) {
-  const detailsDialog = useRef<HTMLDialogElement>(null);
+export function AssessmentResultSummary({ detail, navigation, full, onToggleFull, onReview, onMoreDetails, onHistory, practiceURL, retryURL }: Props) {
   const { result } = detail;
   const reviewCount = detail.allowQuestionReview ? (detail.questions?.length ?? 0) : 0;
   const tone = result.score >= 85
@@ -104,27 +105,18 @@ export function AssessmentResultSummary({ detail, navigation, full, onToggleFull
           </div>
 
           <AssessmentSubjectResults detail={detail} />
+          <AssessmentSectionResults sections={detail.sectionResults} />
           <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-200/80 pt-3 sm:flex sm:flex-wrap print:hidden">
             <button type="button" onClick={onReview} disabled={reviewCount === 0} className={`${actionClass} border-emerald-600 bg-emerald-600 text-white disabled:border-gray-200 disabled:bg-gray-200 disabled:text-gray-500`}>
               <Eye size={17} /> {reviewCount ? `مراجعة الأسئلة (${reviewCount})` : 'المراجعة غير متاحة'}
             </button>
             {practiceURL && <Link to={practiceURL} className={`${actionClass} border-indigo-600 bg-indigo-600 text-white`}><PlusCircle size={17} /> اختبار تدريبي إضافي</Link>}
             {retryURL && <Link to={retryURL} className={`${actionClass} border-slate-200 bg-white text-slate-700`}><RefreshCw size={16} /> إعادة الاختبار</Link>}
-            <button type="button" onClick={() => detailsDialog.current?.showModal()} className={`${actionClass} border-indigo-200 bg-indigo-50 text-indigo-700`}><BarChart3 size={16} /> تفاصيل أكثر</button>
+            <button type="button" onClick={onMoreDetails} className={`${actionClass} border-indigo-200 bg-indigo-50 text-indigo-700`}><BarChart3 size={16} /> تفاصيل أكثر</button>
             <button type="button" onClick={onHistory} className={`${actionClass} border-slate-200 bg-white text-slate-700`}><History size={16} /> المحاولات السابقة</button>
           </div>
         </div>
       </section>
-
-      <dialog ref={detailsDialog} dir="rtl" aria-labelledby="assessment-result-details-heading" className="m-auto w-[min(92vw,28rem)] rounded-3xl border border-slate-100 p-5 shadow-xl backdrop:bg-slate-950/30 print:hidden">
-        <h3 id="assessment-result-details-heading" className="text-lg font-black text-slate-900">تفاصيل النتيجة</h3>
-        <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          {[...stats, { label: 'بدون إجابة', value: result.unanswered, color: 'text-amber-700' }].map(({ label, value, color }) => (
-            <div key={label} className="rounded-xl bg-slate-50 p-2"><dt className="font-bold text-gray-600">{label}</dt><dd className={`font-black ${color}`}>{value}</dd></div>
-          ))}
-        </dl>
-        <form method="dialog" className="mt-4"><button className={`${actionClass} border-slate-200 bg-white text-slate-700`}>إغلاق</button></form>
-      </dialog>
     </>
   );
 }

@@ -250,6 +250,20 @@ paths:
         of questions answered correctly). Missing submission-time classifications are not
         inferred from skills or current question mappings. Compare summed totals with
         result.totalQuestions to detect partial coverage.
+        Skill analysis items may include level (main or sub) and parentSkillId from the
+        current subject taxonomy. A parent id denotes a main skill in the same subject.
+        Group only when that parent is also present in the attempt's skill analysis.
+        Skill analysis may include sectionName from the subject taxonomy, independent of
+        mock sections. Visible normal practice assessments return analysisMode bank.
+        An explicitly mapped foundation topic may include hasSupport when it has an approved, visible library placement in the same scope. Entitlement for the file is checked by the topic destination.
+        It may include hasLesson for an approved, visible lesson and hasPractice for an approved, published training assessment with a visible foundation placement in the same topic scope.
+        The lesson and placement endpoints still apply the learner's entitlement.
+        It may also include videoLessonId for the first approved, visible video placement in the same scope.
+        The result does not contain the lesson video URL. The lesson endpoint applies entitlement on request.
+        A visible mock assessment report may include sectionResults in the order of
+        the submitted version. Each entry contains sectionId, sectionName, total,
+        correct, wrong, unanswered, and score (rounded unweighted correct percentage).
+        The breakdown is omitted if it cannot be reconciled with the stored result.
       parameters:
         - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
       responses:

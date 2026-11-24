@@ -24,6 +24,10 @@ import (
 	learningapp "github.com/nasef6464/almeaago/internal/learning/application"
 	learningpg "github.com/nasef6464/almeaago/internal/learning/repository/postgres"
 	operationspg "github.com/nasef6464/almeaago/internal/operations/repository/postgres"
+	reportingapp "github.com/nasef6464/almeaago/internal/reporting/application"
+	reporting "github.com/nasef6464/almeaago/internal/reporting/domain"
+	reportingpg "github.com/nasef6464/almeaago/internal/reporting/repository/postgres"
+	reportinghttp "github.com/nasef6464/almeaago/internal/reporting/transport/http"
 )
 
 type selfQuizTestAuth struct{ user identity.User }
@@ -562,6 +566,63 @@ COMMIT;`)
 	if !foundSelf {
 		t.Fatal("self attempt missing from result list")
 	}
+	reportScope := reporting.ResolvedScope{Kind: reporting.ScopeStudent, ActorUserID: "00000000-0000-0000-0000-000000000001", StudentIDs: []string{"00000000-0000-0000-0000-000000000001"}, StudentCount: 1}
+	reportRepo := reportingpg.NewReportRepository(db)
+	reportPage, err := reportRepo.Results(ctx, reportScope, reporting.Query{}, 1, 100)
+	if err != nil {
+		t.Fatalf("self result report: %v", err)
+	}
+	foundSelf = false
+	for _, item := range reportPage.Items {
+		if item.AttemptID == snapshotID {
+			foundSelf = true
+		}
+	}
+	if !foundSelf {
+		t.Fatal("self attempt missing from student reports")
+	}
+	reportHandler := reportinghttp.New(reportingapp.NewService(reportRepo), selfQuizTestAuth{user: identity.User{ID: reportScope.ActorUserID, Roles: []identity.Role{identity.RoleStudent}}})
+	reportResponse := httptest.NewRecorder()
+	reportHandler.ServeHTTP(reportResponse, httptest.NewRequest(http.MethodGet, "/results?page=1&limit=100", nil))
+	if reportResponse.Code != http.StatusOK {
+		t.Fatalf("self result report HTTP status %d: %s", reportResponse.Code, reportResponse.Body.String())
+	}
+	var httpPage reporting.ResultPage
+	if err = json.Unmarshal(reportResponse.Body.Bytes(), &httpPage); err != nil {
+		t.Fatal(err)
+	}
+	foundSelf = false
+	for _, item := range httpPage.Items {
+		if item.AttemptID == snapshotID {
+			foundSelf = true
+		}
+	}
+	if !foundSelf {
+		t.Fatal("self attempt missing from student report HTTP response")
+	}
+	filtered, err := reportRepo.Results(ctx, reportScope, reporting.Query{PathID: "00000000-0000-0000-0000-000000000003", SubjectID: "00000000-0000-0000-0000-000000000004"}, 1, 100)
+	if err != nil {
+		t.Fatalf("filtered self report: %v", err)
+	}
+	foundSelf = false
+	for _, item := range filtered.Items {
+		if item.AttemptID == snapshotID && item.Title == "اختبار ذاتي" {
+			foundSelf = true
+		}
+	}
+	if !foundSelf {
+		t.Fatal("self attempt missing from filtered report")
+	}
+	otherScope := reporting.ResolvedScope{Kind: reporting.ScopeStudent, ActorUserID: "00000000-0000-0000-0000-000000000002"}
+	otherPage, err := reportRepo.Results(ctx, otherScope, reporting.Query{}, 1, 100)
+	if err != nil {
+		t.Fatalf("other student report: %v", err)
+	}
+	for _, item := range otherPage.Items {
+		if item.AttemptID == snapshotID {
+			t.Fatal("other student can see self attempt")
+		}
+	}
 	event, err := snapshotRepo.LearningSubmissionEvidence(ctx, "00000000-0000-0000-0000-000000000001", snapshotID)
 	if err != nil || event.SourceKind != "self" || len(event.Questions) != 1 || !event.Questions[0].Answered || !event.Questions[0].Correct || len(event.Questions[0].SkillIDs) != 2 {
 		t.Fatalf("self evidence did not use frozen skills: %+v %v", event, err)
@@ -576,6 +637,10 @@ COMMIT;`)
 	if err = sink.ApplyAssessmentSubmission(ctx, event); err != nil {
 		t.Fatalf("repeat self evidence: %v", err)
 	}
+	overview, err := reportRepo.Overview(ctx, reportScope, reporting.Query{PathID: "00000000-0000-0000-0000-000000000003", SubjectID: "00000000-0000-0000-0000-000000000004", ResultLimit: 100, AttemptLimit: 100})
+	if err != nil || overview.Assessment.ResultCount < 1 || overview.Assessment.AttemptCount < 1 {
+		t.Fatalf("self result must contribute to student report totals: %+v %v", overview.Assessment, err)
+	}
 	var evidenceCount int
 	if err = db.QueryRow(ctx, `SELECT count(*) FROM mastery_evidence WHERE self_attempt_id=$1::uuid`, snapshotID).Scan(&evidenceCount); err != nil || evidenceCount != 1 {
 		t.Fatalf("duplicate evidence: %d %v", evidenceCount, err)
@@ -583,6 +648,17 @@ COMMIT;`)
 	detail, err = snapshotRepo.GetResultDetail(ctx, "00000000-0000-0000-0000-000000000001", snapshotID)
 	if err != nil || detail.SkillAnalysis == nil || !detail.SkillAnalysis.Complete || len(detail.SkillAnalysis.Items) != 2 {
 		t.Fatalf("self skill analysis: %+v %v", detail.SkillAnalysis, err)
+	}
+	if _, err = db.Exec(ctx, `UPDATE skills SET kind='sub',parent_skill_id='00000000-0000-0000-0000-000000000010' WHERE id='00000000-0000-0000-0000-000000000011'`); err != nil {
+		t.Fatal(err)
+	}
+	detail, err = snapshotRepo.GetResultDetail(ctx, "00000000-0000-0000-0000-000000000001", snapshotID)
+	if err != nil || detail.SkillAnalysis == nil || len(detail.SkillAnalysis.Items) != 2 {
+		t.Fatalf("expected two self skill rows: %+v %v", detail.SkillAnalysis, err)
+	}
+	mainSkill, subSkill := detail.SkillAnalysis.Items[0], detail.SkillAnalysis.Items[1]
+	if mainSkill.Level != "main" || subSkill.Level != "sub" || subSkill.ParentSkillID != mainSkill.SkillID || subSkill.Mastery != 100 || subSkill.QuestionCount != 1 {
+		t.Fatalf("self subskill relation should preserve submitted evidence: %+v %+v", mainSkill, subSkill)
 	}
 	if _, err = db.Exec(ctx, `DELETE FROM mastery_evidence_skills WHERE evidence_id IN (SELECT id FROM mastery_evidence WHERE self_attempt_id=$1::uuid) AND skill_id='00000000-0000-0000-0000-000000000010'`, snapshotID); err != nil {
 		t.Fatal(err)

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { reviewVideoFixture } from './fixtures/review-video';
 
 test('رحلة الاختبار الجاهز بين الإدارة والطالب بقاعدة محلية', async ({ page }) => {
   test.skip(process.env.PREPARED_QUIZ_LIVE !== '1', 'requires isolated Go and PostgreSQL');
@@ -55,7 +56,10 @@ test('رحلة الاختبار الجاهز بين الإدارة والطال�
   await expect(page.getByRole('heading', { name: 'اختبار تجريبي جاهز' })).toBeVisible();
   await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
   await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'العودة للملخص', exact: true }).click();
+  await page.getByRole('button', { name: 'إظهار الملاحظات' }).click();
+  await expect(page.getByRole('region', { name: 'ملاحظات السؤال' })).toBeVisible();
+  await page.getByRole('button', { name: 'إنهاء المراجعة', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'نتيجة الاختبار', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'المحاولات السابقة' }).click();
   await expect(page.getByRole('heading', { name: 'محاولاتك السابقة' })).toBeVisible();
   await page.getByRole('button', { name: /اختبار تجريبي جاهز/ }).click();
@@ -138,6 +142,61 @@ test('محاكي صارم بمادتين من الدخول إلى النتيجة
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await subjects.screenshot({ path: `test-results/assessment-live-subject-results-${width}.png` });
   }
+  const firstSubject = page.getByRole('region', { name: 'أداؤك في مادة مادة تجريبية' });
+  const secondSubject = page.getByRole('region', { name: 'أداؤك في مادة المادة الثانية' });
+  await firstSubject.getByText('تفاصيل المهارات (1)').click();
+  await expect(firstSubject.getByRole('progressbar', { name: 'مهارة فرعية تجريبية' })).toHaveAttribute('aria-valuenow', '100');
+  await expect(firstSubject.getByRole('group', { name: /^المهارات الفرعية ضمن/ })).toHaveCount(0);
+  await secondSubject.getByText('تفاصيل المهارات (2)').click();
+  const subskills = secondSubject.getByRole('group', { name: 'المهارات الفرعية ضمن الهندسة' });
+  await expect(subskills.getByRole('progressbar', { name: 'المساحة' })).toHaveAttribute('aria-valuenow', '100');
+  await expect(secondSubject.getByRole('progressbar', { name: 'الهندسة' })).toHaveAttribute('aria-valuenow', '100');
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await subjects.screenshot({ path: `test-results/assessment-live-subject-skills-${width}.png` });
+  }
+  const sections = page.getByRole('region', { name: 'تفاصيل أقسام الاختبار' });
+  await expect(sections.getByRole('heading', { name: 'القسم الأول' })).not.toBeVisible();
+  await sections.getByText('تفاصيل الأقسام (2)', { exact: true }).click();
+  await expect(sections.getByRole('heading')).toHaveText(['القسم الأول', 'القسم الثاني']);
+  await expect(sections.getByText('1 أسئلة · 1 صحيح · 0 خطأ · 0 دون إجابة')).toHaveCount(2);
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await sections.screenshot({ path: `test-results/assessment-live-section-results-${width}.png` });
+  }
+  await page.getByRole('button', { name: 'تفاصيل أكثر' }).click();
+  const analysis = page.getByRole('dialog', { name: 'تحليل المهارات' });
+  await expect(analysis.getByText('من الاختبار • 3 مهارات')).toBeVisible();
+  await analysis.getByRole('button', { name: 'مادة تجريبية', exact: true }).click();
+  await expect(analysis.getByRole('heading', { level: 3 })).toHaveText('مهارة فرعية تجريبية');
+  await expect(analysis.getByRole('link', { name: 'فيديو' })).toHaveAttribute('href', /topic=00000000-0000-0000-0000-000000000022.*content=lessons/);
+  await expect(analysis.getByRole('link', { name: 'تدريب' })).toHaveAttribute('href', /topic=00000000-0000-0000-0000-000000000022.*content=quizzes/);
+  await analysis.getByRole('button', { name: 'الكل' }).click();
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => analysis.evaluate(dialog => dialog.scrollWidth)).toBeLessThanOrEqual(width);
+    await analysis.screenshot({ path: `test-results/assessment-live-skill-analysis-${width}.png` });
+  }
+  await page.keyboard.press('Escape');
+  await expect(analysis).not.toBeVisible();
+  const clip = await reviewVideoFixture(page);
+  await page.route('**/review-fixture.webm', route => route.fulfill({ body: clip, contentType: 'video/webm' }));
+  await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
+  const play = page.getByRole('button', { name: 'تشغيل شرح الفيديو' });
+  await play.click();
+  const video = page.getByRole('dialog', { name: 'شرح السؤال 1' });
+  const media = video.locator('video');
+  await expect.poll(() => media.evaluate(element => (element as HTMLVideoElement).readyState)).toBeGreaterThanOrEqual(2);
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => video.evaluate(dialog => dialog.getBoundingClientRect().width)).toBeLessThan(width);
+    await page.screenshot({ path: `test-results/assessment-review-video-${width}.png` });
+  }
+  await video.getByRole('button', { name: 'إغلاق مشغل الفيديو' }).click();
+  await expect(video).toHaveCount(0);
+  await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible();
 });
 
 test('انتهاء وقت قسم المحاكي يحفظ غير المجاب وينتقل للقسم التالي', async ({ page }) => {
@@ -257,8 +316,57 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
   await expect(page.getByText('درجتك', { exact: true }).locator('..').getByText('0%', { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('يحتاج مراجعة', { exact: true })).toBeVisible();
-  await expect(page.getByText('مهارة فرعية تجريبية')).toBeVisible();
-  await expect(page.getByText('موضوع تأسيس تجريبي')).toBeVisible();
+  const journey = page.getByRole('heading', { name: 'مسار ما بعد الاختبار' }).locator('..');
+  await expect(journey.getByText('راجع موضع الخطأ', { exact: true })).toBeVisible();
+  await expect(journey.getByRole('link', { name: /بدء التدريب/ })).toHaveAttribute('href', /topic=00000000-0000-0000-0000-000000000022&content=quizzes$/);
+  await expect(page.getByRole('link', { name: /فتح الدرس.*ابدأ بالشرح المرتبط/ })).toHaveAttribute('href', /topic=00000000-0000-0000-0000-000000000022&content=lessons$/);
+  await expect(page.getByRole('link', { name: /فتح الملف.*راجع الملف الداعم/ })).toHaveAttribute('href', /topic=00000000-0000-0000-0000-000000000022&content=support$/);
+  await page.evaluate(() => { window.print = () => { document.documentElement.dataset.printCalled = 'yes'; }; });
+  await page.getByRole('button', { name: 'تحميل PDF' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-print-called', 'yes');
+  const historyResponse = await page.request.get('/api/v1/assessment-attempts/results?page=1&limit=20');
+  expect(historyResponse.status()).toBe(200);
+  expect((await historyResponse.json()).items).toEqual(expect.arrayContaining([expect.objectContaining({ attemptId })]));
+  const reportResponse = await page.request.get('/api/v1/reports/results?pathId=00000000-0000-4000-8000-000000000003&subjectId=00000000-0000-4000-8000-000000000004&page=1&limit=50');
+  expect(reportResponse.status()).toBe(200);
+  expect((await reportResponse.json()).items).toEqual(expect.arrayContaining([expect.objectContaining({ attemptId })]));
+  const progressResponse = await page.request.get('/api/v1/mastery/progress?pathId=00000000-0000-4000-8000-000000000003&subjectId=00000000-0000-4000-8000-000000000004&page=1&limit=100');
+  expect(progressResponse.status()).toBe(200);
+  expect((await progressResponse.json()).items).toEqual(expect.arrayContaining([
+    expect.objectContaining({ skillId: '00000000-0000-0000-0000-000000000021' }),
+  ]));
+  await journey.getByRole('link', { name: /فتح التقرير/ }).click();
+  await expect(page.getByLabel('مسار التقرير')).toHaveValue('00000000-0000-4000-8000-000000000003');
+  await expect(page.getByLabel('مادة التقرير')).toHaveValue('00000000-0000-4000-8000-000000000004');
+  const reportEntry = page.getByRole('article').filter({ hasText: 'اختبار تجريبي جاهز' });
+  await expect(reportEntry).toBeVisible();
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: `test-results/student-report-live-${width}.png`, fullPage: true });
+  }
+  await reportEntry.getByRole('link').click();
+  await expect(page).toHaveURL(new RegExp(`/assessment-results/${attemptId}`));
+  await page.getByRole('button', { name: /مراجعة الأسئلة/ }).click();
+  await expect(page.getByText('الإجابة الصحيحة', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'اسأل المساعد النصي 💡' }).click();
+  const assistant = page.getByTestId('question-assistant');
+  const assistResponse = page.waitForResponse(response => response.url().endsWith('/api/v1/ai/question-assistant') && response.request().method() === 'POST');
+  await assistant.getByRole('button', { name: 'تلميح', exact: true }).click();
+  expect((await assistResponse).status()).toBe(200);
+  await expect(assistant.getByText('شرح موثوق احتياطي')).toBeVisible();
+  const saved = page.waitForResponse(response => response.url().endsWith('/review/questions/00000000-0000-0000-0000-000000000005/saved') && response.request().method() === 'PUT');
+  await page.getByRole('button', { name: 'حفظ للمراجعة' }).click();
+  expect((await saved).status()).toBe(200);
+  await expect(page.getByRole('button', { name: 'تم الحفظ' })).toBeVisible();
+  const savedLibrary = await page.request.get('/api/v1/review/library?tab=saved&pathId=00000000-0000-4000-8000-000000000003&page=1&limit=20');
+  expect(savedLibrary.status()).toBe(200);
+  expect((await savedLibrary.json()).items).toEqual(expect.arrayContaining([
+    expect.objectContaining({ card: expect.objectContaining({ questionId: '00000000-0000-0000-0000-000000000005', savedForReview: true }) }),
+  ]));
+  await page.getByRole('button', { name: 'إنهاء المراجعة والعودة للملخص' }).click();
+  await expect(page.getByRole('region', { name: 'أين كنت قويًا؟ وأين تحتاج دعم؟' }).getByText('مهارة فرعية تجريبية', { exact: true })).toBeVisible();
+  await expect(page.getByText('موضوع تأسيس تجريبي').first()).toBeVisible();
   const explanation = await page.getByRole('link', { name: 'شرح التأسيس' }).getAttribute('href');
   const practice = await page.getByRole('link', { name: 'تدريبات الموضوع' }).getAttribute('href');
   expect(explanation).toContain('topic=00000000-0000-0000-0000-000000000022');
@@ -266,8 +374,54 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   expect(practice).toContain('topic=00000000-0000-0000-0000-000000000022');
   expect(practice).toContain('content=quizzes');
   await page.screenshot({ path: 'test-results/weak-skill-live-result.png', fullPage: true });
-  await page.getByRole('link', { name: 'شرح التأسيس' }).click();
+  const fullReport = page.getByRole('button', { name: 'عرض التقرير الكامل' });
+  const followUp = page.getByRole('region', { name: 'مهارات تحتاج متابعة' });
+  const review = page.waitForResponse(response => response.url().endsWith(`/assessment-attempts/${attemptId}/review`));
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const reviewResponse = await review;
+  expect(reviewResponse.status()).toBe(200);
+  const { detail } = await reviewResponse.json();
+  expect(detail.skillAnalysis.items).toEqual(expect.arrayContaining([
+    expect.objectContaining({ foundationTopics: expect.arrayContaining([
+      expect.objectContaining({ id: '00000000-0000-0000-0000-000000000022', hasLesson: true, hasPractice: true }),
+    ]) }),
+  ]));
+  await fullReport.click();
+  await expect(followUp.getByText('شرح مرتبط', { exact: true })).toBeVisible();
+  await expect(followUp.getByText('تدريب قصير', { exact: true })).toBeVisible();
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await followUp.screenshot({ path: `test-results/assessment-live-follow-up-${width}.png` });
+  }
+  const videoFixture = await reviewVideoFixture(page);
+  await page.route('**/review-fixture.webm', route => route.fulfill({ body: videoFixture, contentType: 'video/webm' }));
+  const videoTrigger = followUp.getByRole('button', { name: 'شاهد الفيديو' });
+  const selectedLesson = page.waitForResponse(response => response.url().includes('/learning-spaces/foundation/') && response.url().endsWith('/lessons/00000000-0000-0000-0000-000000000024'));
+  await videoTrigger.click();
+  expect((await selectedLesson).status()).toBe(200);
+  const skillVideo = page.getByRole('dialog', { name: 'شرح مهارة مهارة فرعية تجريبية' });
+  const clipMedia = skillVideo.locator('video');
+  await expect.poll(() => clipMedia.evaluate(video => (video as HTMLVideoElement).readyState)).toBeGreaterThanOrEqual(2);
+  expect(await clipMedia.evaluate(video => (video as HTMLVideoElement).paused)).toBe(true);
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => skillVideo.evaluate(dialog => dialog.getBoundingClientRect().width)).toBeLessThan(width);
+    await page.screenshot({ path: `test-results/assessment-live-follow-up-video-${width}.png` });
+  }
+  await skillVideo.getByRole('button', { name: 'Play', exact: true }).first().click();
+  await expect.poll(() => clipMedia.evaluate(video => (video as HTMLVideoElement).currentTime)).toBeGreaterThan(0);
+  await page.keyboard.press('Escape');
+  await expect(skillVideo).not.toBeVisible();
+  await expect(videoTrigger).toBeFocused();
   const topicDialog = page.getByTestId('foundation-topic-dialog');
+  await followUp.getByRole('link', { name: 'ملف داعم' }).click();
+  await expect(topicDialog.getByRole('heading', { name: 'ملف دعم المهارة التجريبي' })).toBeVisible();
+  await expect(topicDialog.getByRole('link', { name: 'فتح الملف' })).toHaveAttribute('href', 'https://example.invalid/foundation.pdf');
+  await page.goBack({ waitUntil: 'domcontentloaded' });
+  await fullReport.click();
+  await followUp.getByRole('link', { name: 'راجع الشرح' }).click();
+  await expect(topicDialog.getByRole('dialog', { name: 'الدرس المحدد' })).toHaveCount(0);
   await expect(topicDialog.getByText('موضوع تأسيس تجريبي', { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(topicDialog.getByText('مقطع شرح تجريبي أول', { exact: true })).toBeVisible();
   await expect(topicDialog.getByText('مقطع شرح تجريبي ثان', { exact: true })).toBeVisible();
@@ -278,13 +432,52 @@ test('المهارة الضعيفة ترتبط بموضوع تأسيسها وت�
   await expect(topicDialog.getByRole('dialog', { name: 'الدرس المحدد' }).getByRole('heading', { name: 'مقطع شرح تجريبي ثان' })).toBeVisible();
   await topicDialog.getByRole('button', { name: 'إغلاق مشغل الفيديو' }).click();
   await page.goBack({ waitUntil: 'domcontentloaded' });
-  await page.getByRole('link', { name: 'تدريبات الموضوع' }).click();
+  await fullReport.click();
+  await followUp.getByRole('link', { name: 'تدريب مناسب' }).click();
   await expect(topicDialog.getByRole('heading', { name: 'تدريب الموضوع التجريبي', exact: true })).toBeVisible({ timeout: 30_000 });
   await topicDialog.getByRole('button', { name: 'بدء التدريب: تدريب الموضوع التجريبي' }).click();
   await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible({ timeout: 30_000 });
   await login(process.env.PREPARED_OTHER_EMAIL!);
   const otherReview = await page.request.get(`/api/v1/assessment-attempts/${attemptId}/review`);
   expect([403, 404]).toContain(otherReview.status());
+  const otherCsrf = await page.request.get('/api/v1/auth/csrf');
+  const otherAssist = await page.request.post('/api/v1/ai/question-assistant', {
+    headers: { 'X-CSRF-Token': (await otherCsrf.json()).csrfToken },
+    data: { attemptId, questionId: '00000000-0000-0000-0000-000000000005', helpLevel: 'hint', message: '' },
+  });
+  expect([403, 404]).toContain(otherAssist.status());
+  const otherReport = await page.request.get('/api/v1/reports/results?pathId=00000000-0000-4000-8000-000000000003&subjectId=00000000-0000-4000-8000-000000000004&page=1&limit=50');
+  expect(otherReport.status()).toBe(200);
+  expect((await otherReport.json()).items).not.toEqual(expect.arrayContaining([expect.objectContaining({ attemptId })]));
+});
+
+test('الطالب ينفذ اختبار المدرسة ويرى نتيجته', async ({ page }) => {
+  test.skip(process.env.PREPARED_QUIZ_LIVE !== '1' || process.env.PREPARED_SCHOOL_ASSIGNMENT !== '1', 'requires isolated school assignment');
+  test.setTimeout(180_000);
+  const login = async (email: string) => {
+    const response = await page.request.post('/api/v1/auth/login', { data: { email, password: process.env.PREPARED_PASSWORD } });
+    expect(response.status()).toBe(200);
+  };
+  await login(process.env.PREPARED_OWNER_EMAIL!);
+  await page.goto('/assessment-assignments', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('اختبار تجريبي جاهز', { exact: true })).toBeVisible();
+  const started = page.waitForResponse(response => response.url().endsWith('/assessment-assignments/00000000-0000-4000-8000-000000000091/start') && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'ابدأ التكليف' }).click();
+  const response = await started;
+  expect(response.status()).toBe(201);
+  const attemptId = (await response.json()).attempt.id as string;
+  await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /لا$/ }).click();
+  await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
+  await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
+  await expect(page.getByText('درجتك', { exact: true })).toBeVisible();
+  const history = await page.request.get('/api/v1/assessment-attempts/results?page=1&limit=20');
+  expect((await history.json()).items).toEqual(expect.arrayContaining([expect.objectContaining({ attemptId })]));
+  await page.getByRole('button', { name: /مراجعة الأسئلة/ }).click();
+  await expect(page.getByText('الإجابة الصحيحة', { exact: true })).toBeVisible();
+  await login(process.env.PREPARED_OTHER_EMAIL!);
+  const review = await page.request.get(`/api/v1/assessment-attempts/${attemptId}/review`);
+  expect([403, 404]).toContain(review.status());
 });
 
 test('السؤال المصور يعرض الصورة والحروف فقط من قاعدة حقيقية', async ({ page }) => {
@@ -414,7 +607,7 @@ test('شراء باقة الدورات يفتح اختبار الدرس بعد �
   page.setDefaultTimeout(45_000);
   const courseId='00000000-0000-0000-0000-000000000031';
   const lessonId='00000000-0000-0000-0000-000000000033';
-  const pathId='00000000-0000-0000-0000-000000000003';
+  const pathId='00000000-0000-4000-8000-000000000003';
   const destination=`/learning/courses/${courseId}?lesson=${lessonId}`;
   async function login(email:string) {
     const response=await page.request.post('/api/v1/auth/login',{data:{email,password:process.env.PREPARED_PASSWORD}});

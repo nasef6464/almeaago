@@ -457,6 +457,21 @@ func resultScopeClause(scope reporting.ResolvedScope, query reporting.Query, sta
 	return " AND " + strings.Join(clauses, " AND "), args
 }
 
+func reportAttemptVersionJoin(scope reporting.ResolvedScope) string {
+	if scope.Kind != reporting.ScopeStudent {
+		return "JOIN assessment_versions v ON v.assessment_id=a.assessment_id AND v.version=a.assessment_version"
+	}
+	return `JOIN LATERAL (
+		SELECT source.path_id, source.subject_id, source.title
+		FROM assessment_versions source
+		WHERE source.assessment_id=a.assessment_id AND source.version=a.assessment_version
+		UNION ALL
+		SELECT self.path_id, self.subject_id, 'اختبار ذاتي'::text
+		FROM self_quiz_settings self
+		WHERE self.attempt_id=a.id AND a.attempt_kind='self'
+	) v ON true`
+}
+
 func (r *ReportRepository) Overview(
 	ctx context.Context,
 	scope reporting.ResolvedScope,
@@ -491,7 +506,7 @@ func (r *ReportRepository) Overview(
 			SELECT r.score, r.passed, count(*) OVER() AS full_count
 			FROM assessment_results r
 			JOIN assessment_attempts a ON a.id=r.attempt_id
-			JOIN assessment_versions v ON v.assessment_id=r.assessment_id AND v.version=r.assessment_version
+			`+reportAttemptVersionJoin(scope)+`
 			WHERE r.student_id::text=ANY($1::text[])
 	`+scopeClause+`
 			ORDER BY r.finalized_at DESC, r.attempt_id DESC
@@ -519,7 +534,7 @@ func (r *ReportRepository) Overview(
 	attemptCountSQL := `
 		SELECT count(*)::int
 		FROM assessment_attempts a
-		JOIN assessment_versions v ON v.assessment_id=a.assessment_id AND v.version=a.assessment_version
+		` + reportAttemptVersionJoin(scope) + `
 		LEFT JOIN assessment_results r ON r.attempt_id=a.id
 		WHERE a.student_id::text=ANY($1::text[])
 	` + scopeClause
@@ -542,7 +557,7 @@ func (r *ReportRepository) Overview(
 			SELECT me.id,me.student_id,me.is_correct
 			FROM mastery_evidence me
 			JOIN assessment_attempts a ON a.id=me.source_attempt_id
-			JOIN assessment_versions v ON v.assessment_id=a.assessment_id AND v.version=a.assessment_version
+			`+reportAttemptVersionJoin(scope)+`
 			LEFT JOIN assessment_results r ON r.attempt_id=a.id
 			WHERE me.student_id::text=ANY($1::text[])
 	`+scopeClause+`
@@ -603,7 +618,7 @@ func (r *ReportRepository) resultPage(
 	base := `
 		FROM assessment_results r
 		JOIN assessment_attempts a ON a.id=r.attempt_id
-		JOIN assessment_versions v ON v.assessment_id=r.assessment_id AND v.version=r.assessment_version
+		` + reportAttemptVersionJoin(scope) + `
 		JOIN users u ON u.id=r.student_id
 		WHERE 1=1
 	` + scopeClause
@@ -615,8 +630,8 @@ func (r *ReportRepository) resultPage(
 	offsetParam := len(args) + 2
 	listArgs := append(append([]any{}, args...), limit, (page-1)*limit)
 	rows, err := r.db.Query(ctx, `
-		SELECT r.attempt_id::text,r.student_id::text,u.name,r.assessment_id::text,r.assessment_version,
-		       v.title,v.path_id::text,COALESCE(v.subject_id::text,''),r.score::float8,r.passed,
+		SELECT r.attempt_id::text,r.student_id::text,u.name,COALESCE(r.assessment_id::text,''),COALESCE(r.assessment_version,0),
+		       v.title,COALESCE(v.path_id::text,''),COALESCE(v.subject_id::text,''),r.score::float8,r.passed,
 		       r.correct_answers,r.wrong_answers,r.unanswered,r.time_spent_seconds,r.finalized_at
 	`+base+`
 		ORDER BY r.finalized_at DESC,r.attempt_id DESC

@@ -1,3 +1,4 @@
+import { resultFoundationPath } from '../navigation/resultFoundationPath';
 import { safeReturnPath, returnPathLabel } from '../navigation/returnPath';
 import {
   ArrowRight,
@@ -7,7 +8,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
   Eye,
   Flag,
   History,
@@ -28,8 +28,11 @@ import { learningClient } from '../../learning/api/learning-client';
 import { QuestionAssetImage } from '../../learning/components/QuestionAssetImage';
 import { QuestionImageZoomModal } from '../components/QuestionImageZoomModal';
 import { AssessmentResultSummary } from '../components/AssessmentResultSummary';
+import { AssessmentSkillAnalysisDialog } from '../components/AssessmentSkillAnalysisDialog';
+import { AssessmentFollowUpSkills } from '../components/AssessmentFollowUpSkills';
 import { AssessmentPreviousAttempts } from '../components/AssessmentPreviousAttempts';
 import { AssessmentShareScorecard } from '../components/AssessmentShareScorecard';
+import { AssessmentReviewVideo } from '../components/AssessmentReviewVideo';
 import { optionLabel, showOptionText } from '../questionPresentation';
 import { relativeArabicDate } from '../relativeDate';
 import {
@@ -117,6 +120,9 @@ function ReviewQuestionCard({
   onZoomImage,
   onOpenSmartTeacher,
   onOpenStepSolution,
+  onPrevious,
+  onNext,
+  isLast,
 }: {
   question: ReviewQuestion;
   displayNumber: number;
@@ -127,8 +133,14 @@ function ReviewQuestionCard({
   onZoomImage?: (url: string) => void;
   onOpenSmartTeacher?: (question: ReviewQuestion) => void;
   onOpenStepSolution?: (question: ReviewQuestion) => void;
+  onPrevious?: () => void;
+  onNext: () => void;
+  isLast: boolean;
 }) {
   const [showAiAssistant, setShowAiAssistant] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
+  const videoURL = detail.showExplanations ? question.videoUrl : '';
   const resolvedImageUrl = useMemo(() => resolveReviewImage(question), [question.imageUrl, question.text]);
   const imageEmbeddedOptions = Boolean(resolvedImageUrl || question.imageAssetId);
 
@@ -254,34 +266,34 @@ function ReviewQuestionCard({
         })}
       </div>
 
-      {detail.showExplanations &&
-      (question.explanation || question.hint || question.solvingStrategy) ? (
-        <div className="mt-4 space-y-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm leading-7 text-amber-950">
-          {question.explanation ? <p><strong>الشرح:</strong> {question.explanation}</p> : null}
-          {question.hint ? <p><strong>تلميح:</strong> {question.hint}</p> : null}
-          {question.solvingStrategy ? <p><strong>طريقة الحل:</strong> {question.solvingStrategy}</p> : null}
-        </div>
-      ) : null}
-
-      {detail.showExplanations && question.videoUrl ? (
-        <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs font-bold text-blue-900">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white shadow-xs">
-              <Play size={13} className="fill-current" />
-            </div>
-            <span>فيديو شرح حل المسألة متوفر</span>
+      {(showNotes || videoURL) && (
+        <section aria-label="ملاحظات السؤال" className="mt-4 space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 text-sm leading-7">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h4 className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-black text-indigo-700">مراجعة وتقييم السؤال</h4>
+            {videoURL && (
+              <button type="button" onClick={() => setVideoOpen(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-black text-white hover:bg-emerald-700">
+                <Play size={15} /> تشغيل شرح الفيديو
+              </button>
+            )}
           </div>
-          <a
-            href={question.videoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-black text-white hover:bg-blue-700 transition"
-          >
-            شاهد فيديو الشرح <ExternalLink size={12} />
-          </a>
-        </div>
-      ) : null}
-
+          {showNotes && detail.showExplanations && (question.explanation || question.hint || question.solvingStrategy) ? (
+            <div className="space-y-2 text-slate-700">
+              {question.explanation && <p><strong>الشرح:</strong> {question.explanation}</p>}
+              {question.hint && <p><strong>تلميح:</strong> {question.hint}</p>}
+              {question.solvingStrategy && <p><strong>طريقة الحل:</strong> {question.solvingStrategy}</p>}
+            </div>
+          ) : (
+            <p className="text-xs font-bold text-slate-500">
+              {detail.showExplanations
+                ? 'يمكنك مراجعة اختيارك وحالة إجابتك أعلاه.'
+                : 'الشرح التحريري غير متاح لهذا السؤال. يمكنك مراجعة اختيارك وحالة إجابتك أعلاه.'}
+            </p>
+          )}
+        </section>
+      )}
+      {videoURL && videoOpen && (
+        <AssessmentReviewVideo url={videoURL} title={`شرح السؤال ${displayNumber}`} onClose={() => setVideoOpen(false)} />
+      )}
       {detail.showAnswers && detail.showExplanations ? <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -322,6 +334,11 @@ function ReviewQuestionCard({
           <QuestionAssistantPanel questionId={question.questionId} attemptId={detail.result.attemptId} />
         </div>
       ) : null}
+      <nav aria-label="التنقل بين الأسئلة" className="mt-4 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 sm:pt-5">
+        <button type="button" disabled={!onPrevious} onClick={onPrevious} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-black text-slate-700 disabled:bg-slate-50 disabled:text-slate-400 sm:px-4"><ArrowRight size={15} /> السابق</button>
+        <button type="button" aria-expanded={showNotes} onClick={() => setShowNotes(open => !open)} className={`inline-flex items-center gap-1 rounded-xl px-2.5 py-2 text-xs font-black sm:px-4 ${showNotes ? 'bg-amber-100 text-amber-800' : 'bg-indigo-50 text-indigo-700'}`}><Eye size={14} /> {showNotes ? 'إخفاء الملاحظات' : 'إظهار الملاحظات'}</button>
+        <button type="button" onClick={onNext} className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-2.5 py-2 text-xs font-black text-white sm:px-4">{isLast ? 'إنهاء المراجعة' : 'التالي'} <ChevronLeft size={15} /></button>
+      </nav>
     </article>
   );
 }
@@ -358,6 +375,7 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
   const [activeStepSolverQuestion, setActiveStepSolverQuestion] = useState<ReviewQuestion | null>(null);
   const activeContext = `${user?.id ?? ''}:${attemptId}`;
   const activeContextRef = useRef(activeContext);
+  const analysisDialog = useRef<HTMLDialogElement>(null);
   activeContextRef.current = activeContext;
 
   useEffect(() => {
@@ -536,9 +554,6 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
   const practiceURL = weakestSkill ? `/quiz?${new URLSearchParams({
     mode: 'self', pathId: weakestSkill.pathId, subjectId: weakestSkill.subjectId, skillIds: weakestSkill.skillId,
   })}` : '';
-  const followUpSkills = detail.skillAnalysis?.complete
-    ? detail.skillAnalysis.items.filter(skill => skill.status !== 'strong').sort((a, b) => a.mastery - b.mastery).slice(0, 3)
-    : [];
   const guardianSummary = weakestSkill
     ? `نتيجة الاختبار ${detail.result.score}%. أضعف مهارة ظهرت هي «${weakestSkill.skillName}» بنسبة ${weakestSkill.mastery}%.`
     : `نتيجة الاختبار ${detail.result.score}%.`;
@@ -583,7 +598,10 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
           <p className="mt-2 text-sm font-bold text-gray-600">تم تسجيل إكمال الاختبار. تقرير الدرجات التفصيلي غير معروض وفق إعدادات هذا الاختبار.</p>
         </section>
       ) : !reviewOpen ? (
-        <AssessmentResultSummary detail={detail} navigation={resultNavigation} full={fullResult} onToggleFull={() => setFullResult((current) => !current)} onReview={() => changeReviewView(true)} onHistory={() => changeResultView('history')} practiceURL={practiceURL} retryURL={retryURL} />
+        <>
+          <AssessmentResultSummary detail={detail} navigation={resultNavigation} full={fullResult} onToggleFull={() => setFullResult((current) => !current)} onReview={() => changeReviewView(true)} onMoreDetails={() => analysisDialog.current?.showModal()} onHistory={() => changeResultView('history')} practiceURL={practiceURL} retryURL={retryURL} />
+          <AssessmentSkillAnalysisDialog key={activeContext} detail={detail} dialogRef={analysisDialog} />
+        </>
       ) : null}
         {!shouldShowReview && detail.showResultsReport && detail.skillAnalysis ? (
           <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="attempt-skills-heading">
@@ -618,13 +636,11 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
                         {status !== 'strong' && skill.foundationTopics?.length ? (
                           <div className="mt-3 space-y-3">
                             {skill.foundationTopics.map(topic => {
-                              const base = new URLSearchParams({ subject: skill.subjectId, tab: 'skills', topic: topic.id });
-                              const topicURL = (content: string) => `/category/${encodeURIComponent(skill.pathId)}?${new URLSearchParams([...base, ['content', content]])}`;
                               return <div key={topic.id} className="rounded-lg border border-slate-100 p-2">
                                 <p className="text-xs font-bold text-gray-600">{topic.title}</p>
                                 <div className="mt-2 flex flex-wrap gap-2">
-                                  <Link to={topicURL('lessons')} className="rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1.5 text-xs font-black text-indigo-700">شرح التأسيس{topic.isLocked ? ' 🔒' : ''}</Link>
-                                  <Link to={topicURL('quizzes')} className="rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-1.5 text-xs font-black text-amber-800">تدريبات الموضوع</Link>
+                                  <Link to={resultFoundationPath(skill, topic.id, 'lessons')} className="rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1.5 text-xs font-black text-indigo-700">شرح التأسيس{topic.isLocked ? ' 🔒' : ''}</Link>
+                                  <Link to={resultFoundationPath(skill, topic.id, 'quizzes')} className="rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-1.5 text-xs font-black text-amber-800">تدريبات الموضوع</Link>
                                 </div>
                               </div>;
                             })}
@@ -640,14 +656,63 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
         ) : null}
       {!shouldShowReview && detail.showResultsReport && weakestSkill ? (
         <section className="rounded-3xl border border-indigo-100 bg-indigo-50/40 p-5 sm:p-6">
+          <span className="inline-flex rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700">الخطوة التالية الموصى بها</span>
           <h2 className="text-lg font-black text-gray-900">خطة تحسين لمهارة: {weakestSkill.skillName}</h2>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
-            <button type="button" disabled={!detail.allowQuestionReview || !detail.questions?.length} onClick={() => changeReviewView(true)} className="rounded-2xl border border-emerald-100 bg-white p-3 text-start text-sm font-black text-emerald-800 disabled:opacity-50">مراجعة الحلول</button>
-            {weakestSkill.foundationTopics?.[0] && <Link to={`/category/${encodeURIComponent(weakestSkill.pathId)}?${new URLSearchParams({ subject: weakestSkill.subjectId, tab: 'skills', topic: weakestSkill.foundationTopics[0].id, content: 'lessons' })}`} className="rounded-2xl border border-indigo-100 bg-white p-3 text-sm font-black text-indigo-800">فتح الشرح</Link>}
-            <Link to={practiceURL} className="rounded-2xl border border-amber-100 bg-white p-3 text-sm font-black text-amber-800">بدء التدريب</Link>
+          <p className="mt-1 text-xs font-bold leading-relaxed text-gray-500">{weakestSkill.foundationTopics?.[0]?.hasLesson ? 'ابدأ بشرح قصير لهذه المهارة ثم انتقل للتدريب.' : weakestSkill.foundationTopics?.[0]?.hasPractice ? 'ابدأ بتدريب قصير الآن ثم أعد القياس بعده.' : 'ابدأ بخطوة صغيرة على المهارة الأضعف ثم أعد الاختبار لاحقًا.'}</p>
+          <div className="mt-5 rounded-3xl border border-slate-100 bg-slate-50/80 p-4 sm:p-5">
+            <h3 className="mb-3 text-sm font-black text-gray-900">مسار ما بعد الاختبار</h3>
+            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-4">
+              <button type="button" disabled={!detail.allowQuestionReview || !detail.questions?.length} onClick={() => changeReviewView(true)} className="min-h-[104px] rounded-2xl border border-emerald-100 bg-white p-3 text-start text-emerald-800 disabled:opacity-50">
+                <span className="text-xs font-black">مراجعة الحلول</span><span className="mt-3 block text-sm font-black text-gray-900">راجع موضع الخطأ</span><span className="mt-1 block text-xs font-bold">{detail.allowQuestionReview && detail.questions?.length ? `${detail.questions.length} سؤال متاح للمراجعة.` : 'تفاصيل الحلول غير متاحة لهذه المحاولة.'}</span>
+              </button>
+              <Link to={weakestSkill.foundationTopics?.[0] ? resultFoundationPath(weakestSkill, weakestSkill.foundationTopics[0].id, 'lessons') : '/reports'} className="min-h-[104px] rounded-2xl border border-indigo-100 bg-white p-3 text-indigo-800">
+                <span className="text-xs font-black">{weakestSkill.foundationTopics?.[0] ? 'فتح الشرح' : 'فتح التقرير'}</span><span className="mt-3 block text-sm font-black text-gray-900">افهم المهارة</span><span className="mt-1 block text-xs font-bold">ابدأ بشرح {weakestSkill.foundationTopics?.[0]?.title || weakestSkill.skillName}.</span>
+              </Link>
+              <Link to={weakestSkill.foundationTopics?.[0] ? resultFoundationPath(weakestSkill, weakestSkill.foundationTopics[0].id, 'quizzes') : practiceURL} className="min-h-[104px] rounded-2xl border border-amber-100 bg-white p-3 text-amber-800">
+                <span className="text-xs font-black">بدء التدريب</span><span className="mt-3 block text-sm font-black text-gray-900">تدرب ثم قِس</span><span className="mt-1 block text-xs font-bold">تدريب قصير على نفس المهارة.</span>
+              </Link>
+              <Link to={`/reports?${new URLSearchParams({ pathId: weakestSkill.pathId, subjectId: weakestSkill.subjectId, skillId: weakestSkill.skillId })}`} className="min-h-[104px] rounded-2xl border border-slate-200 bg-white p-3 text-slate-800">
+                <span className="text-xs font-black">فتح التقرير</span><span className="mt-3 block text-sm font-black text-gray-900">تابع الخطة</span><span className="mt-1 block text-xs font-bold">ارجع للتقرير العام لترى هل تحسنت المهارة بعد المحاولة القادمة.</span>
+              </Link>
+            </div>
           </div>
+          {weakestSkill.foundationTopics?.[0] && (
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <Link to={resultFoundationPath(weakestSkill, weakestSkill.foundationTopics[0].id, 'lessons')} className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-indigo-800 hover:bg-indigo-100">
+                <span className="text-xs font-black">فتح الدرس</span>
+                <span className="mt-4 block text-sm font-black">ابدأ بالشرح المرتبط</span>
+                <span className="mt-2 block text-xs font-bold leading-5">يفتح لك موضوع {weakestSkill.foundationTopics[0].title} مباشرة.</span>
+              </Link>
+              <Link to={resultFoundationPath(weakestSkill, weakestSkill.foundationTopics[0].id, 'quizzes')} className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-amber-800 hover:bg-amber-100">
+                <span className="text-xs font-black">بدء التدريب</span>
+                <span className="mt-4 block text-sm font-black">حل تدريبًا قصيرًا</span>
+                <span className="mt-2 block text-xs font-bold leading-5">تدريب سريع على نفس المهارة.</span>
+              </Link>
+              {weakestSkill.foundationTopics[0].hasSupport && (
+                <Link to={resultFoundationPath(weakestSkill, weakestSkill.foundationTopics[0].id, 'support')} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-slate-800 hover:bg-slate-100">
+                  <span className="text-xs font-black">فتح الملف</span>
+                  <span className="mt-4 block text-sm font-black">راجع الملف الداعم</span>
+                  <span className="mt-2 block text-xs font-bold leading-5">ملف مختصر يساعدك قبل إعادة المحاولة.</span>
+                </Link>
+              )}
+            </div>
+          )}
         </section>
       ) : null}
+      {!shouldShowReview && detail.showResultsReport && !weakestSkill && (
+        <section className="rounded-3xl border border-indigo-100 bg-indigo-50/40 p-5 sm:p-6">
+          <span className="inline-flex rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700">الخطوة التالية الموصى بها</span>
+          <h2 className="mt-2 text-lg font-black text-gray-900">{detail.skillAnalysis?.complete && detail.skillAnalysis.items.length > 0 ? 'جاهز لتحدٍ جديد' : 'خطة ما بعد الاختبار'}</h2>
+          <p className="mt-1 text-xs font-bold leading-relaxed text-gray-500">{detail.skillAnalysis?.complete && detail.skillAnalysis.items.length > 0 ? 'أتقنت المهارات المقاسة في هذه المحاولة. واصل التعلم بتحدٍ جديد.' : 'راجع الحلول أولًا؛ لا توجد أدلة مهارية كافية لتحديد خطة تحسين.'}</p>
+          <div className="mt-5 rounded-3xl border border-slate-100 bg-slate-50/80 p-4 sm:p-5">
+            <h3 className="mb-3 text-sm font-black text-gray-900">مسار ما بعد الاختبار</h3>
+            <div className="grid gap-2.5 sm:grid-cols-2">
+              <button type="button" disabled={!detail.allowQuestionReview || !detail.questions?.length} onClick={() => changeReviewView(true)} className="rounded-2xl border border-emerald-100 bg-white p-3 text-start text-sm font-black text-emerald-800 disabled:opacity-50">مراجعة الحلول</button>
+              <Link to="/dashboard" className="rounded-2xl border border-indigo-100 bg-white p-3 text-sm font-black text-indigo-800">العودة لمساري</Link>
+            </div>
+          </div>
+        </section>
+      )}
       {!shouldShowReview && detail.showResultsReport && <AssessmentShareScorecard key={activeContext} result={detail.result} title={detail.title} studentName={user.name} />}
       {!shouldShowReview && detail.showResultsReport && fullResult && (
         <>
@@ -660,20 +725,7 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
               <span role="status" className="text-xs font-bold text-indigo-900">{summaryStatus}</span>
             </div>
           </section>
-          {detail.skillAnalysis?.complete && followUpSkills.length > 0 && <section aria-labelledby="follow-up-skills" className="rounded-3xl border border-gray-100 bg-white p-4 sm:p-5">
-            <h2 id="follow-up-skills" className="text-lg font-black text-gray-800">مهارات تحتاج متابعة</h2>
-            <div className="mt-4 space-y-3">
-              {followUpSkills.map(skill => (
-                <div key={`${skill.pathId}:${skill.subjectId}:${skill.skillId}`} className="rounded-2xl border border-gray-100 p-3 sm:p-4">
-                  <div className="flex items-center justify-between gap-2 font-black text-gray-900">
-                    <h3>{skill.skillName}</h3><span className="rounded-full bg-amber-50 px-3 py-1 text-xs text-amber-800">{skill.mastery}%</span>
-                  </div>
-                  <p className="mt-1 text-xs font-bold text-gray-500">{skill.subjectName} · {skill.questionCount} سؤال</p>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-amber-500" style={{ width: `${skill.mastery}%` }} /></div>
-                </div>
-              ))}
-            </div>
-          </section>}
+          <AssessmentFollowUpSkills detail={detail} openAnalysis={() => analysisDialog.current?.showModal()} />
         </>
       )}
         {saveError ? <p role="alert" className="text-sm font-bold text-rose-700">{saveError}</p> : null}
@@ -689,24 +741,25 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
                 لا توجد أسئلة في هذا التصنيف.
               </div>
             ) : (
-              <>
-                  <ReviewQuestionCard
-                    key={`${selectedQuestion.questionId}:${selectedQuestion.questionVersion}`}
-                    question={selectedQuestion}
-                    displayNumber={displayNumbers.get(selectedQuestion.questionId) || 1}
-                    detail={detail}
-                    saved={savedQuestions.has(selectedQuestion.questionId)}
-                    saving={savingQuestion === selectedQuestion.questionId}
-                    onSave={(questionId) => void saveForReview(questionId)}
-                    onZoomImage={setZoomImageUrl}
-                    onOpenSmartTeacher={setActiveSmartTeacherQuestion}
-                    onOpenStepSolution={setActiveStepSolverQuestion}
-                  />
-                  <nav aria-label="التنقل بين الأسئلة" className="flex justify-between gap-2">
-                    <button type="button" disabled={selectedIndex === 0} onClick={() => setSelectedQuestionId(filteredQuestions[selectedIndex - 1].questionId)} className="inline-flex items-center gap-1 rounded-xl border bg-white px-3 py-2 text-sm font-black disabled:opacity-40"><ChevronRight size={16}/> السؤال السابق</button>
-                    <button type="button" disabled={selectedIndex === filteredQuestions.length - 1} onClick={() => setSelectedQuestionId(filteredQuestions[selectedIndex + 1].questionId)} className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-black text-white disabled:opacity-40">السؤال التالي <ChevronLeft size={16}/></button>
-                  </nav>
-              </>
+              <ReviewQuestionCard
+                key={`${filter}:${selectedQuestion.questionId}:${selectedQuestion.questionVersion}`}
+                question={selectedQuestion}
+                displayNumber={displayNumbers.get(selectedQuestion.questionId) || 1}
+                detail={detail}
+                saved={savedQuestions.has(selectedQuestion.questionId)}
+                saving={savingQuestion === selectedQuestion.questionId}
+                onSave={(questionId) => void saveForReview(questionId)}
+                onZoomImage={setZoomImageUrl}
+                onOpenSmartTeacher={setActiveSmartTeacherQuestion}
+                onOpenStepSolution={setActiveStepSolverQuestion}
+                onPrevious={selectedIndex > 0 ? () => setSelectedQuestionId(filteredQuestions[selectedIndex - 1].questionId) : undefined}
+                onNext={() => {
+                  const nextQuestion = filteredQuestions[selectedIndex + 1];
+                  if (nextQuestion) setSelectedQuestionId(nextQuestion.questionId);
+                  else changeReviewView(false);
+                }}
+                isLast={selectedIndex === filteredQuestions.length - 1}
+              />
             )}
             </section>
             <aside aria-label="لوحة مراجعة الأسئلة" className="rounded-2xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-6 lg:col-span-4 lg:rounded-3xl">

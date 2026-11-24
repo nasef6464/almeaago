@@ -1,4 +1,161 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 24 نوفمبر — حفظ نطاق المسار والمادة عند فتح التقرير / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518`، Go main `a63d543aa752bc574e4a2569cf51dfc2feb83d05` بعد دمج #300 محليًا، كود الشريحة `a44992109028acb0226a8039cce32f4ddd9711fd` على فرع [PR #301](https://github.com/nasef6464/almeaago/pull/301). لا تعارض مع ملفات #300. يلزم فحص CI للرأس المرفوع.
+- الطالب ← النتيجة ← «تابع الخطة» ← رابط يحمل المسار والمادة والمهارة ← صفحة `/reports` تحتفظ بالمسار والمادة عند تحميل التصنيف ← `GET /api/v1/reports/overview` و`GET /api/v1/reports/results` ضمن صلاحية الطالب ومرشحات المسار والمادة ← PostgreSQL ← عرض نتيجة الطالب. معرّف المهارة يُمرر في الرابط لكن صفحة التقارير لا تعرض تركيز مهارة محددة بعد.
+- PASS `report-link-live.log` على Go/PostgreSQL ومتصفح لفتح التقرير من النتيجة مع اختيار المسار والمادة وظهور المحاولة والعودة للمراجعة. PASS ثلاث حالات متصفح ببيانات معزولة لتغيير النطاق وفشل القراءة والتعافي عند 390/820/1440 في `report-link-web.log`. PASS TypeScript وGo للحزم المتأثرة بعد دمج main و`git diff --check`.
+- لم تُثبت مطابقة التقارير الكاملة أو اختيار المهارة نفسها أو حجز المتابعة. لقطات جديدة مقترنة مع Legacy غير متاحة لهذه الشريحة. حالة Vercel السابقة PENDING ولا تعني نشرًا.
+- الاستئناف: تتبع عرض المهارة المحددة في التقرير وعقد حجز المتابعة، وفحص CI بعد رفع الرأس. أول أمر: `rg -n "skillId|selectedSkill|buildSkillReportActionLink|book-session" C:/almeaago/almeaacodax/pages/Reports.tsx apps/web/src/features/reporting`.
+
+## 24 نوفمبر — بطاقات إجراءات النتيجة / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518` وGo main `d0afc757a41e42e7f7e9159a1fe273262e5784cd`. الكود `b57358254bdcd12037391c411de14c7586510581` على فرع [PR #301](https://github.com/nasef6464/almeaago/pull/301).
+- أضيفت بطاقات فتح الشرح وتدريب الموضوع وملف الدعم في ملخص نتيجة المهارة. الروابط تستخدم موضوع التأسيس المثبت وتبقى الأذونات في الوجهة. PASS `action-cards-live.log` لطلب النتيجة من Go/PostgreSQL والتحقق من روابط الشرح والملف والتدريب وفتح وجهاتها في رحلة الطالب. PASS TypeScript و`git diff --check`.
+- لا توجد وجهة `/book-session` أو بديل مثبت في كود Go بحسب البحث المحلي، لذلك بطاقة حجز المتابعة من Legacy لم تُستعد. يلزم تتبع عقد الحجز وملكيته قبل تنفيذها. لا توجد صور مقترنة لهذه البطاقات، ومطابقة القسم كله غير مثبتة.
+- الاستئناف: تحقق من وجهة الحجز وإجراءات التقرير المرتبطة بنطاق المهارة وحالات عدم توفر الأدلة، ثم صور Legacy/Go ومراجعة CI النهائي. أول أمر: `rg -n "book-session|bookSessionLink|buildSkillReportActionLink" C:/almeaago/almeaacodax apps/web/src internal`.
+
+## 24 نوفمبر — مسار ما بعد الاختبار / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518`، Go main `d0afc757a41e42e7f7e9159a1fe273262e5784cd`، كود الشريحة `5c1db45bea3caf087928a68cbe4d38839159112f` على فرع [PR #301](https://github.com/nasef6464/almeaago/pull/301).
+- أضيفت خطوات المراجعة والشرح وتدريب الموضوع والتقرير في ملخص النتيجة مع حالة لا توجد فيها مهارة ضعيفة. رابط التدريب يستخدم موضوع التأسيس المرتبط صراحة عندما يتوفر. PASS ست حالات متصفح معزولة في `journey-steps-final.log` وفحص TypeScript. PASS `journey-steps-live-final.log` لرحلة Go/PostgreSQL شملت رابط تدريب الموضوع، والتقرير والمساعد والمراجعة. فشل التشغيل الأول بسبب تعدد ظهور اسم الموضوع في محدد الاختبار وصُحح المحدد.
+- التصنيف PARTIAL: تختلف بنية وأيقونات القسم عن Legacy، ولم تُستعد بطاقات الإجراءات المباشرة وحجز المتابعة أو رابط التقرير بنطاق المهارة. حالات عدم وجود الأدلة وكل المهارات المتقنة لم تُثبت بصور متقابلة. فحص CI مطلوب على الرأس بعد الرفع.
+- الاستئناف: أكمل بطاقات الإجراءات المتبقية وفق الأصل وتتبع توفر وجهة حجز المتابعة، ثم صور RTL متقابلة وفحص كافة الحالات. أول أمر: `rg -n "nextActionCards|bookSessionLink|postResultJourney" C:/almeaago/almeaacodax/pages/Results.tsx`.
+
+## 24 نوفمبر — رحلة طالب في تكليف مدرسة / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518`، Go main `d0afc757a41e42e7f7e9159a1fe273262e5784cd`، كود الاختبار `cba4a3c5bdff30e882b36edf20fc7e48dcbd6b2a` في [PR #301](https://github.com/nasef6464/almeaago/pull/301). المسودة مرفوعة وتحتاج فحص CI على الرأس النهائي.
+- PASS `school-live-2.log` في Go/PostgreSQL معزولين: تكليف اختبار منشور لمدرسة، فتح الطالب للتكليف من واجهته، الإجابة والتسليم، ظهور النتيجة في السجل ومراجعة الإجابة الصحيحة، ورفض طالب آخر قراءة المحاولة. أُنشئت بيانات المدرسة والتكليف مباشرة في قاعدة الاختبار، لذا لا يثبت ذلك إنشاء مدير المدرسة للتكليف عبر واجهته أو اختبارًا محاكيًا مدرسيًا. فشل تجهيز الاختبار الأول بسبب جمع عبارات SQL ذات المعاملات، ثم صُححت بيانات الاختبار.
+- PASS `school-audience.log` لعزل جمهور المدرسة، و`school-assessment-browser-final.log` لخمس حالات واجهة باستجابات معزولة، و`mock-browser-final.log` للمحاكي المنشور بمادتين. لقطات Legacy/Go المقترنة للحالة المدرسية والاعتماد البصري الكامل غير متاحة في هذه الدفعة.
+- الاستئناف: راجع طلب الدمج والفحوص على رأسه النهائي، واستكمل فروق النتيجة والتقارير وطرق المدرسة والمحاكي في واجهات الإنشاء والأدوار. أول أمر: `gh pr view 301 --json headRefOid,statusCheckRollup,mergeable,isDraft`.
+
+## 24 نوفمبر — متابعة المحاكي والمدرسة ورفع المسودة / PARTIAL
+
+- [PR #301](https://github.com/nasef6464/almeaago/pull/301) مسودة مرفوعة. الرأس `298398554e7b0f80ce109c4c4600898d92e1c1c5` نجحت عليه فحوص backend وdatabase وfrontend وoverlap وأقسام e2e الثلاثة. حالة Vercel كانت PENDING عند الفحص. الوثائق التالية تغير الرأس وتستلزم إعادة التحقق.
+- PASS `.tmp/student-review-notes/mock-browser-final.log` رحلة محاكي صارم بمادتين على Go/PostgreSQL معزولين. PASS `school-audience.log` لاختبار جمهور المدرسة عبر قاعدة محلية ومهاجرات فعلية. PASS خمس حالات واجهة باستجابات معزولة في `school-assessment-browser-final.log` للتكليفات والجلسات. تجاوز اختبار التكليف في التشغيل الأول مهلة 30 ثانية ثم نجح عند زيادة المهلة في إعادة التشغيل.
+- لا تثبت هذه الأدلة رحلة اختبار مدرسي كاملة من إنشاء المدرسة حتى استلام الطالب نتيجته على Go/PostgreSQL، أو تطابق جميع حالات شاشة الطالب مع Legacy. لا دمج أو نشر حتى استكمالها وفحص الرأس النهائي. الاختبار الذاتي الحقيقي ونتيجته في التقرير موثقان في الإدخال التالي.
+- الاستئناف: إعداد رحلة تكليف مدرسي حقيقية من مستخدم مخول إلى الطالب والنتيجة وتقاريره، وفحص بقية حالات واجهة الطالب مقارنة بالأصل. أول أمر: `rg -n "TestSchoolWideAssignmentLearnerAudiencePostgres|NewAssignments|StartAssigned" internal/assessment`.
+
+## 24 نوفمبر — استعادة اختبار متصفح الاختبار الذاتي / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518`، Go main `d0afc757a41e42e7f7e9159a1fe273262e5784cd`، كود الاختبار `afd12c0a5e8f7a980efac7a7bde711cd523eeb71` على `fix/student-review-notes`. الفرع مرفوع وPR مسودة [#301](https://github.com/nasef6464/almeaago/pull/301)، وفحوص الرأس السابق جارية.
+- استعيد `self-quiz-live.spec.ts` ومشغل Go يستخدم إعداد Playwright محليًا ويهيئ خدمات التقارير وبيانات اختبار معزولة. PASS في `.tmp/student-review-notes/self-browser-live-2.log` لإنشاء اختبار ذاتي من الواجهة وتسليمه ووجوده في سجل المحاولات وفتح النتيجة من «تقاريري» ثم إظهار الإجابة الصحيحة. فشل الاختبار الأول في توقع HTTP 201 بينما الاستجابة الفعلية 200 وصُحح توقع الاختبار.
+- اختبارات المحاكي والمدرسي، صور Legacy/Go المتقابلة والـCI على الرأس النهائي لم تثبت بعد. المسودة ليست جاهزة للدمج أو شهادة اكتمال الرحلة.
+- الاستئناف: تحقق من المحاكي والمدرسي ومن استمرار CI بعد رفع هذا الرأس، ثم أكمل حالات النتيجة وواجهة التقارير. أول أمر: `rg -n "^test\\(" apps/web/tests/e2e/prepared-quiz-live.spec.ts`.
+
+## 24 نوفمبر — نتيجة الاختبار الذاتي في تقارير الطالب / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518` وGo main `d0afc757a41e42e7f7e9159a1fe273262e5784cd`. الكود المحلي `31594bc57eeff9b02f2ab0bd7e810f5a156eea59` في `fix/student-review-notes`؛ لا PR أو دمج أو نشر وCI SKIPPED.
+- الاختبار الذاتي كان موجودًا في `assessment_results` و«اختباراتي»، لكنه يغيب من استعلام التقارير بسبب اشتراط نسخة اختبار منشور. يصلح `reportAttemptVersionJoin` مصدر نطاق واسم المحاولة الذاتية من `self_quiz_settings` في نطاق الطالب، بما يشمل قائمة النتائج وأعداد المحاولات وملخص أدلة المهارات. بقيت نطاقات بقية الأدوار كما هي. العنوان المعروض «اختبار ذاتي».
+- RED في `self-report-red.log` على غياب النتيجة. PASS `self-report-http.log` على PostgreSQL معزول لتسليم نتيجة ذاتية وإرجاعها عبر HTTP للتقارير وترشيح مسار ومادة في المستودع ومنع ظهورها لطالب آخر ودخولها الإجماليات. PASS `prepared-after-self.log` لرحلة اختبار منشور وإظهار نتيجته في صفحة التقارير وتصفية المسار والمادة والمساعد والمراجعة وحفظ السؤال. PASS حزم التقارير و`git diff --check`.
+- لم تُثبت بعد واجهة الاختبار الذاتي إلى صفحة التقارير في متصفح حقيقي. مشغل اختبارها المحلي `self_quiz_live_browser_test.go` يشير إلى ملف `apps/web/tests/e2e/self-quiz-live.spec.ts` المفقود. لا صور Legacy/Go مقترنة لهذه الحالة، والمحاكي والمدرسي والـCI ما زالوا مطلوبين.
+- الاستئناف: إعادة إنشاء اختبار المتصفح المفقود باستخدام واجهة الإنشاء الفعلية وخادم معزول، وإثبات التسليم وظهور النتيجة في «اختباراتي» و«تقاريري»، ثم اختبار المحاكي والمدرسي. أول أمر: `rg -n "createSelf|currentSelf|self-quiz-live|اختبار ذاتي" apps/web/src/features/assessment apps/web/src/features/learning internal/assessment/repository/postgres/self_quiz_live_browser_test.go`.
+
+## 24 نوفمبر — اختبار ترابط تقارير الطالب ومساعد السؤال / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518` وGo main `d0afc757a41e42e7f7e9159a1fe273262e5784cd`، رأس الاختبارات المحلي `d4f7331937370db45674ab623fbf1865ca6ff158` على `fix/student-review-notes`. لا رفع أو PR أو دمج وCI SKIPPED.
+- PASS `.tmp/student-review-notes/ai-result-final.log` على Go وPostgreSQL: تسليم اختبار ثم اختيار المسار والمادة في `/reports` وظهور المحاولة والعودة للنتيجة، ومراجعة الإجابة وحفظ السؤال، وطلب مساعد السؤال والحصول على شرح احتياطي، ورفض سؤال المساعد عن محاولة طالب آخر، وفتح تبويبات موضوع المهارة والتدريب، وعدم ظهور المحاولة في تقرير طالب آخر. استخدمت معرّفات عينة سليمة لتفعيل ترشيح الخادم، وحدّثت المرجع في fixture المصاحب.
+- اختبار زر PDF أثبت استدعاء أمر طباعة المتصفح عبر بديل اختباري، ولم يتحقق من ملف مطبوع فعلي. اختبار AI محلي بلا مزود خارجي وأثبت الاستجابة الاحتياطية وحدها. تحذير إعداد الخط ظاهر في بيئة الاختبار.
+- صور شاشة التقارير عند 390 و820 و1440 في `apps/web/test-results/student-report-live-*.png`؛ صورة 390 تُظهر نتيجة الاختبار والتصفية ولا تُثبت المطابقة مع شاشة Legacy الكاملة. يظهر أن قائمة المهارات الضعيفة في التقرير تشترط حد الأدلة الموجود، ولا تُعد نتيجة سؤال واحد ضعفًا مؤكدًا.
+- المكوّن `StudentReportsView.tsx` لا يوجد مستهلك له في البحث الحالي، وتستخدم الصفحة ولوحة الطالب `ReportsPage.tsx`. يلزم مقارنة المحتوى المستعاد في التقارير بالأصل وبيان وظائف المكوّن غير المدمج قبل أي دمج. تظل الأنواع الذاتية والمدرسية والمحاكية والطباعة الفعلية ومقدمو AI غير مثبتة في هذه الرحلة.
+- الاستئناف: اختبر تكامل نتيجة الاختبار الذاتي مع اختباراتي وتقاريري والمهارات، ثم المحاكي والمدرسي وفق دليل المصدر. أول أمر: `rg -n "self_quiz|assessment_results|reports/results|self/current" internal/assessment/repository/postgres internal/reporting/repository/postgres apps/web/tests/e2e`.
+
+## 24 نوفمبر — امتداد رحلة الطالب إلى التقارير والمراجعة / PARTIAL
+
+- طلب المالك تأجيل بحوث العمليات على مستوى المنصة. المهمة الجارية إكمال رحلة الاختبار والتحليل والمراجعة وسجل الطالب والتقارير وفق القديم.
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518`، Go main `d0afc757a41e42e7f7e9159a1fe273262e5784cd`، كود واختبارات محلية `1859ffac` على `fix/student-review-notes`. لا PR أو دمج أو نشر وCI SKIPPED.
+- PASS `.tmp/student-review-notes/student-whole-saved-verified.log` لرحلة على Go وPostgreSQL معزولين: تسليم اختبار، ظهور محاولته في API اختباراتي والتقارير العامة، ظهور المهارة في API تقدم الطالب، عرض الإجابة الصحيحة، حفظ السؤال واسترجاعه من مكتبة المراجعة، فتح شرح وفيديو وملف وتدريب المهارة، ومنع طالب آخر من قراءة المحاولة. أُضيفت مسارات التقارير والمراجعة والإتقان إلى خادم الاختبار فقط. تمت قراءة نتائج التقارير دون مرشحات لأن معرّفات عينة المسار والمادة لا تطابق صيغة UUID المطلوبة للتصفية، لذا التصفية واجهة التقارير لم تُثبت.
+- فشل تشغيلان أثناء تطوير الاختبار بسبب إغفال مسار مكتبة المراجعة ثم توقع شكل غير صحيح لحمولتها؛ صُحح الاختبار. PASS ثماني حالات متصفح معزولة في `whole-result-check.log`، وحزم تطبيق AI وواجهته وتطبيق التقارير في `student-ai-report-tests.log`. لا يثبت ذلك تشغيل مزود الذكاء الاصطناعي أو تكافؤ شرح السؤال الفعلي.
+- تعديل نص التوصية في `AssessmentFollowUpSkills.tsx` يتبع الحالات المستنتجة من محتوى الموضوع، ويحتاج استكمال مقارنة الحالات مع الأصل. بقيت واجهة «تقاريري» والتصفية، المحاولات الذاتية والمدرسية والمحاكية، الطباعة، شرح AI والمقارنة البصرية للشاشة الكاملة غير مثبتة. لا تعد الرحلة مكتملة.
+- أول أمر للاستئناف: `rg -n "QuestionAssistantPanel|InteractiveSmartTeacher|reportingClient.results|learningClient.progress" apps/web/src/features/assessment/pages/AssessmentResultsPage.tsx apps/web/src/features/reporting/student/StudentReportsView.tsx`.
+
+## استئناف طلب المالك — رحلة النتيجة كاملة / PARTIAL
+
+- طلب المالك مطابقة محتوى وسلوك رحلة النتيجة كاملة دفعة واحدة، بما يشمل مراجعة الأسئلة والمحاولات السابقة والتقرير الكامل ونافذة تحليل المهارات، مع السماح بتحسين التنسيق مع الحفاظ على المحتوى والنظام. لا تعد الدفعة مكتملة حتى تثبت الرحلة كاملة.
+- Legacy main `ed28102d7084899856de0371dc2c93a3d602d518` وGo main `d0afc757a41e42e7f7e9159a1fe273262e5784cd`، الفرع المحلي `fix/student-review-notes` ورأسه `a5b6ccc2`. لا PR أو CI لهذا الفرع.
+- يوجد تعديل غير ملتزم في `AssessmentFollowUpSkills.tsx` يقارب نص توصية المهارة بالأصل وفق المحتوى المتاح. فحص المتصفح للاستجابات المعزولة نجح في ثماني حالات في `.tmp/student-review-notes/whole-result-check.log`. لا يثبت ذلك الرحلة الكاملة أو تكافؤ النص لكل حالة.
+- مقارنة المصدر أظهرت أن «الخطوة التالية الموصى بها» وبطاقات الإجراءات المباشرة تحتاج فحصًا شاملًا مقابل الصفحة الحالية. يلزم اختبار الرحلة كاملة بقاعدة محلية ثم مقارنة كل الأزرار والحالات والمقاسات وتصحيح الفروق قبل اعتماد العمل.
+- أول أمر للاستئناف: `rg -n "nextActionCards|الخطوة التالية الموصى بها|تفاصيل أكثر|المحاولات السابقة" C:/almeaago/almeaacodax/pages/Results.tsx apps/web/src/features/assessment`.
+
+## 24 نوفمبر — شارتا الشرح والتدريب في بطاقة متابعة المهارة / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `pages/Results.tsx` و`pages/Reports/recommendationViewModel.ts`. Go main `d0afc757a41e42e7f7e9159a1fe273262e5784cd`. كود الدفعة `c30fc4e1a2ae35cb70689371f4d5d6fad64c879e` على `fix/student-review-notes` محليًا. الحالة بلا PR أو دمج أو نشر. GitHub CI للرأس SKIPPED.
+- الطالب ← التقرير الكامل ← بطاقة متابعة المهارة ← `GET /api/v1/assessment-attempts/{id}/review` ← سياسة إتاحة التقرير وملكية المحاولة ← موضوع التأسيس المرتبط صراحة بالمهارة. حقل `hasLesson` اختياري ويثبت وجود درس معتمد ظاهر في `topic_lessons`، وحقل `hasPractice` اختياري ويثبت وجود تدريب منشور معتمد ظاهر في `assessment_learning_placements` في نفس نطاق الموضوع والمادة والمسار. الشارتان معلومات عن وجود المحتوى. أذونات قراءته وتشغيله واستنفاد محاولاته باقية في الوجهات الحالية.
+- تحافظ الشارتان على نصهما ولونهما وترتيبهما في المرجع. في الأصل يمكن أن تظهر شارة «تدريب قصير» لأن عنوان الموضوع يُستخدم كقيمة بديلة لعنوان التدريب. الشارة في Go تشترط وجود تدريب فعلي كما هو محدد في هذه الدفعة. الروابط إلى تبويبي الشرح والتدريب تبقى وفق ربط المهارة الصريح. لا ترحيل للبيانات.
+- الملفات `AssessmentFollowUpSkills.tsx` و`attempt-client.ts` وعقد نتيجة Go واستعلام `result_skill_analysis.go` وOpenAPI واختبارات المستودع والمتصفح. RED مثبت في `followup-badges-red.log` لغياب الشارة، وPASS فحص TypeScript وحزم Go الست و`git diff --check`. PASS في `followup-badges-live.log` للرحلة الحقيقية التي تثبت حقلي HTTP وظهور الشارات بعد التحديث، ولاختباري PostgreSQL للنتيجة والملكية. تغطي حالة النتيجة درس مسودة ودرس مادة أخرى وتدريبًا مخفيًا وموضعًا خارج المادة واختبارًا عاديًا. تعذر بدء الفحص الأول بحساب قاعدة التجربة القديمة، وأعيد بنجاح على قاعدة اختبار مخصصة بهذه الدفعة.
+- PASS ثماني حالات متصفح للنتائج والمراجعة باستجابات معزولة في `followup-badges-web.log`، شملت غياب الشارتين عند خلو الموضوع ووجودهما عند توافر المحتوى. تحذيرات إعداد الخط في بيئة الاختبار خارج الإجراء المختبر.
+- صور RTL عند 390 و820 و1440 في `.tmp/student-review-notes/legacy-follow-up-*.png` و`.tmp/student-review-notes/followup-badges-go-*.png`. تحقق ترتيب الشارات والتفافها في العينة. تختلف سماكة الخط، والتفاف أزرار الإجراءات عند 390، وعرض غلاف البطاقة على الديسكتوب. تبقى الشاشة بكاملها PARTIAL.
+
+الاستئناف: طابق سطر «الخطوة التالية» وتوزيع أزرار بطاقة المتابعة على الموبايل مقابل المرجع، باستخدام حالات شرح وتدريب وكلاهما وموضوع خالٍ. أول أمر محلي: `rg -n "الخطوة التالية|شاهد الفيديو|تدريب مناسب" C:/almeaago/almeaacodax/pages/Results.tsx apps/web/src/features/assessment/components/AssessmentFollowUpSkills.tsx`.
+
+## 24 نوفمبر — «شاهد الفيديو» من بطاقة متابعة المهارة / PARTIAL
+
+- مرجع Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `pages/Results.tsx`. Go main `d0afc757a41e42e7f7e9159a1fe273262e5784cd`. كود الدفعة `c54c63c5a5f60f56abba492bf96cd36adc7b4d36` على `fix/student-review-notes` محليًا بعد إعادة التركيب فوق main. الرفع وPR والدمج والنشر غير منفذة. فحص GitHub CI للرأس SKIPPED.
+- الطالب ← التقرير الكامل ← «شاهد الفيديو». يعيد `GET /api/v1/assessment-attempts/{id}/review` معرّف أول درس فيديو معتمد وظاهر مرتبط بموضوع التأسيس، ضمن مسار ومادة المهارة في PostgreSQL. عند الضغط يطلب العميل `GET /api/v1/learning-spaces/foundation/{topicId}/lessons/{lessonId}`. يتحقق Go من الارتباط والصلاحية الحالية قبل إرجاع رابط المقطع. يعرض المشغل في التقرير وينتظر ضغط «تشغيل»، ويعيد التركيز إلى الزر بعد الإغلاق. تظهر رسالة في البطاقة إذا تعذر تحميل الدرس. تظهر شارتا «فيديو شرح» و«ملف داعم» بحسب توافرهما.
+- الملفات `AssessmentFoundationVideoAction.tsx` و`AssessmentFollowUpSkills.tsx` و`attempt-client.ts` وعقد Go واستعلام موارد التأسيس في `result_skill_analysis.go` وOpenAPI واختبارات Go والمتصفح.
+- RED لغياب الزر في `followup-video-red.log`. PASS فحص TypeScript و`git diff --check` وحزم Go للتقييم وتطبيق المحتوى. PASS ثماني حالات متصفح في `followup-video-web.log`، شملت غياب طلب الدرس قبل الضغط وحالة رفضه. PASS رحلة حقيقية مع Go وPostgreSQL في `followup-video-live.log`، شملت إعادة تحميل التقرير وطلب الدرس المصرّح به وتشغيل مقطع WebM يدويًا والإغلاق وعودة التركيز، واختباري PostgreSQL للنتيجة والملكية. ظهرت تحذيرات إعدادات الخط خارج الإجراء المختبَر.
+- صور RTL عند 390 و820 و1440 في `.tmp/student-review-notes/legacy-follow-up-video-*.png` و`apps/web/test-results/assessment-live-follow-up-video-*.png`. تطابق إجراء الفتح والإغلاق في العينة. يتبقى اختلاف تحكم المشغل وخلفية النافذة.
+
+الاستئناف: تحقق من شارات «شرح مرتبط» و«تدريب قصير» مقابل محتوى التأسيس الظاهر في نفس نطاق المهارة. أول أمر محلي: `rg -n "شرح مرتبط|تدريب قصير|hasSupport|videoLessonId" C:/almeaago/almeaacodax/pages/Results.tsx apps/web/src/features/assessment/components/AssessmentFollowUpSkills.tsx internal/assessment/repository/postgres/result_skill_analysis.go`.
+
+## 24 نوفمبر — إجراءات «مهارات تحتاج متابعة» في التقرير الكامل / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `pages/Results.tsx` و`pages/Reports/recommendationViewModel.ts`. Go main `2c10ff186b726c2e9f37aad96b55afc0ab9144d6`. كود الدفعة `d424172ffa33da467ff520eca4445132a96d60e2` على `fix/student-review-notes` محليًا. لا رفع أو PR أو نشر وGitHub CI SKIPPED.
+- الطالب ← نتيجة المحاولة ← التقرير الكامل ← بطاقة المهارة ← `GET /api/v1/assessment-attempts/{id}/review` بعد تحقق الملكية وسياسة التقرير ← مهارة المحاولة وموضوع التأسيس المثبت عبر `topic_skill_links` ← الشرح والتدريب والدعم في تبويبات الموضوع نفسه. إشارة `hasSupport` تتطلب عنصر مكتبة معتمدًا وظاهرًا في نفس المادة والمسار داخل PostgreSQL، دون إرجاع عنوان الملف في تقرير النتيجة. تبقى قراءة محتواه والأذونات ومشغل الدرس والتدريب في وجهة التأسيس الحالية. لا تغيير في درجات المحاولة أو حفظها.
+- الملفات `AssessmentFollowUpSkills.tsx` و`AssessmentResultsPage.tsx` و`resultFoundationPath.ts` و`attempt-client.ts` وملفات Go لعقد النتيجة واستعلام خرائط التأسيس وOpenAPI والاختبارات. RED في `followup-red.log`. PASS فحص TypeScript و`git diff --check` وحزم Go للتقييم وست حالات متصفح في `followup-web.log`. PASS في `followup-live-final.log` لمحاولة حقيقية بعد إعادة التحميل ثم فتح تبويبات ملف الدعم والشرح وبدء التدريب صراحة، ورفض قراءة النتيجة من طالب آخر، واختباري PostgreSQL للمنشور والذاتي. التصحيح بين التشغيلين كان محدد اختبار مهارة متكرر في DOM.
+- صور RTL عند 390 و820 و1440 في `.tmp/student-review-notes/legacy-follow-up-*.png` و`apps/web/test-results/assessment-live-follow-up-*.png`. استعدنا الإجراءات الثلاثة وهيكل البطاقة وحالة غياب المهارات. تبقى شارات توافر الأنواع وزر الفيديو المباشر في البطاقة من فروق الأصل. ملف الدعم يفتح تبويبه حتى تُطبق صلاحيات العرض الحالية.
+
+الاستئناف: افحص زر «شاهد الفيديو» في بطاقة المتابعة مع مسار الدرس المصرح به في التأسيس، بما يتيح اختيار الفيديو دون تشغيل تلقائي. أول أمر محلي: `rg -n "شاهد الفيديو|lessonVideoUrl|selectedLesson|LearnerFoundationLesson" C:/almeaago/almeaacodax/pages/Results.tsx apps/web/src/features/learning/components/FoundationTopicDialog.tsx apps/web/src/features/assessment/components/AssessmentFollowUpSkills.tsx`.
+
+## 24 نوفمبر — نافذة تحليل المهارات بعد «تفاصيل أكثر» / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `components/DetailedAnalysisModal.tsx` و`pages/Results.tsx`. أعيد تركيب `fix/student-review-notes` فوق أحدث Go main `2c10ff186b726c2e9f37aad96b55afc0ab9144d6`. كود الدفعة `ddece662ba75a9d8a6d89c96b74c29c92779fd5b`. لا رفع أو PR أو نشر لهذا الرأس وGitHub CI SKIPPED.
+- الطالب ← «تفاصيل أكثر» أو «عرض الكل» ← `GET /api/v1/assessment-attempts/{id}/review` ← ملكية المحاولة وإتاحة تقريرها ← مهارات المحاولة وأدلتها في PostgreSQL ← نافذة مرتبة من الأضعف للأقوى مع تصفية بالمادة والمسار. يضاف اسم قسم التصنيف إن كان مرتبطًا بالمهارة أو رئيسيتها في المادة نفسها، وتظهر صفة التدريب على نسخ التقييم العادي ذات وضع practice. تعرض أزرار الفيديو والتدريب موضوع التأسيس المرتبط بالمحتوى المطلوب حسب الخادم، وتظهر غير متاحة إذا غاب الربط. تبقى الأذونات في وجهة التأسيس. لا تغيير لتصحيح المحاولة أو حفظها.
+- الملفات `AssessmentSkillAnalysisDialog.tsx` و`AssessmentResultSummary.tsx` و`AssessmentResultsPage.tsx` و`resultFoundationPath.ts` و`attempt-client.ts` وملفات Go لعقد النتيجة وتحليل المهارات المنشور والذاتي وOpenAPI والاختبارات.
+- RED في `details-red.log` على النافذة السابقة. PASS فحص TypeScript و`git diff --check` وحزم Go للتقييم وخمس حالات متصفح في `details-web-final.log` بعد تحديد بطاقة النسبة في الاختبار. الحالة الجديدة أثبتت ترتيب الدرجات، والتصفية، وفتح التقرير من الزرين، وعودة التركيز بعد الإغلاق، وإغلاق النافذة والتنقل إلى رابط التأسيس. PASS رحلة محاكي بمادتين من التسليم حتى تحليل المهارات وفيديو المراجعة بعد التحديث واختبارا PostgreSQL للمنشور والذاتي في `details-live.log`.
+- صور RTL عند 390 و820 و1440 في `.tmp/student-review-notes/legacy-skill-analysis-*.png` و`apps/web/test-results/assessment-live-skill-analysis-*.png`. النافذة والسلوك يضاهيان المرجع في العينة. تبقى فروق الخط وترتيب المهارات ذات النسب المتساوية وفق ترتيب بيانات التقييم، ولذلك لا شهادة بتطابق شاشة النتيجة كلها.
+
+الاستئناف: فحص إجراءات الشرح والتدريب والدعم لكل مهارة داخل قسم «مهارات تحتاج متابعة» في التقرير الكامل مقابل مسار Legacy قبل تنفيذ أي روابط إضافية. أول أمر محلي: `rg -n "topThreeFocusSkills|مهارات تحتاج متابعة|followUpSkills" C:/almeaago/almeaacodax/pages/Results.tsx apps/web/src/features/assessment/pages/AssessmentResultsPage.tsx`.
+
+## 24 نوفمبر — تفاصيل أقسام المحاكي في نتيجة الطالب / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `components/quiz/QuizSectionResults.tsx` و`quizSubmissionSectionResults.ts`. أعيد تركيب الفرع المحلي `fix/student-review-notes` فوق أحدث Go main `9ea6dd74cab1afb76cf84e688604e5c808e70511` قبل التنفيذ. كود الدفعة `93a2232fb160cfa1c400ce5108598801bf65d38b`. لا رفع أو PR أو نشر لهذا الرأس، وفحص GitHub CI SKIPPED.
+- الطالب ← ملخص نتيجة المحاكي ← قسم قابل للفتح أسفل «أداؤك لكل مادة» ← `GET /api/v1/assessment-attempts/{id}/review` ← ملكية المحاولة وإتاحة تقريرها ← أقسام وأسئلة النسخة المسلّمة والإجابات المصححة في PostgreSQL ← `sectionResults` مرتبة بترتيب النسخة. تظهر النسبة غير الموزونة وعدد الصحيح والخطأ والمتروك لكل قسم. يحجب التقرير الجزئي إذا تعذر مطابقة الإجابات والأقسام مع الإجماليات المخزنة. لا تغيير للحساب العام أو تخزين النتائج، ولا تمتد الدفعة إلى تقرير المشرف.
+- الملفات `AssessmentSectionResults.tsx` و`AssessmentResultSummary.tsx` و`attempt-client.ts` و`result_review.go` و`result_review_repository.go` و`result_sections.go` وOpenAPI واختبارات النتائج والمحاكي وPostgreSQL.
+- RED على المكوّن السابق في `sections-baseline-final.log` بسبب غياب زر التفاصيل. PASS فحص الأنواع و`git diff --check` وحزم Go للتقييم، وأربع حالات متصفح في `sections-web-final.log`. PASS اختبار البيانات في `sections-live-final.log` لتثبيت النسخة، والتمييز بين الخطأ والمتروك، وحجب التقرير المخفي أو الأدلة الناقصة، مع رحلة محاكي بمادتين على Go/PostgreSQL من التسليم حتى فتح التفاصيل بعد إعادة التحميل. أعيد التحقق بعد اكتمال تثبيت تبعيات المتصفح.
+- صور بطاقة RTL على 390 و820 و1440 ببيانات متكافئة في `.tmp/student-review-notes/legacy-section-results-*.png` و`apps/web/test-results/assessment-live-section-results-*.png`. السلوك والترتيب مطابقان في العينة، وتظل شاشة النتائج كاملة PARTIAL مع فروق الخط وأغلفة الصفحة. الخادم المحلي وقاعدة الاختبار أُوقفا بعد التحقق.
+
+الاستئناف: راجع زر «تفاصيل أكثر» ومحتوى نافذة تحليل النتيجة مقابل الأصل، بدءًا من البيانات المتاحة في العقد الحالي. أول أمر محلي: `rg -n "DetailedAnalysisModal|تفاصيل أكثر|التقرير الكامل" C:/almeaago/almeaacodax/pages/Results.tsx apps/web/src/features/assessment/components/AssessmentResultSummary.tsx`.
+
+## 24 نوفمبر — المهارات الرئيسية والفرعية في نتيجة الطالب / PARTIAL
+
+- المرجع Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `components/quiz/QuizSubjectResults.tsx`، وGo main `d57a96db005168a38e2cf90972bfadf1546b3dc4`. الكود المحلي `ed9e04590005f37dab815b828c9843eaa24b8d67` على `fix/student-review-notes`. لا رفع، لا PR، لا دمج، وCI على الرأس SKIPPED.
+- الطالب ← «أداؤك لكل مادة» ← «تفاصيل المهارات» ← `GET /api/v1/assessment-attempts/{id}/review` ← تحقق دور الطالب وملكية المحاولة وسياسة إظهار التقرير ← أدلة المحاولة في PostgreSQL مع إضافة `level` و`parentSkillId` من تصنيف المادة الحالي. تعرض الواجهة الفرعية تحت الرئيسية فقط إذا ظهرت الرئيسية نفسها في أدلة نفس المادة والمسار. الفرعية ذات الأب الغائب وبيانات الاستجابة القديمة تظل ظاهرة. لا ترحيل قاعدة بيانات أو تغيير في التصحيح أو حساب الإتقان. اختلاف معروف عن بيانات Legacy المجمدة: نقل المهارة إلى أب آخر في التصنيف الحالي قد يغيّر موضعها، بينما تبقى نسب المحاولة وعدد أسئلتها ثابتين.
+- الملفات: `AssessmentSubjectResults.tsx` و`attempt-client.ts` و`result_review.go` و`result_skill_analysis.go` و`self_quiz_skill_analysis.go` وOpenAPI واختبارات النتيجة والمحاكي والذاتي. RED على الواجهة الأصلية في `hierarchy-red.log` بسبب غياب التعشيش. تعثر التشغيل الأول من التقاط الدور الضمني لعنصر تفاصيل المتصفح ثم نجح محدد مجموعة الفرع المسمّاة.
+- PASS فحص الأنواع في `hierarchy-types.log` و`git diff --check` وحزم Go للتقييم في `hierarchy-go.log`، وثلاث حالات متصفح في `hierarchy-web-final.log`، واختبارا PostgreSQL للمنشور والذاتي ورحلة محاكي بمادتين بعد إعادة التحميل في `hierarchy-live-final.log`. ثبتت المهارة الفرعية المستقلة عند غياب الرئيسية، وتعشيش «المساحة» تحت «الهندسة» وعدم إرجاع أب من مادة أخرى.
+- صور نفس الترتيب والأرقام عند 390 و820 و1440 تحت `.tmp/student-review-notes/legacy-subject-skills-*.png` و`apps/web/test-results/assessment-live-subject-skills-*.png`. بنية البطاقة ومسافة الفرع تضاهيان المرجع في العينة، وتظل فروق الخط والعرض ولقطات الشاشة الكاملة خارج إثبات تطابق هذه البطاقة.
+
+الاستئناف: استعادة «تفاصيل الأقسام» للمحاكي كما تظهر مستقلة بعد تفصيل المواد في القديم. أول أمر محلي: `rg -n "sectionResults|assessment_sections|section_id" internal/assessment/repository/postgres/result_review_repository.go internal/assessment/repository/postgres/result_subjects.go apps/web/src/features/assessment/components/AssessmentResultSummary.tsx`.
+
+## 24 نوفمبر — فيديو الشرح داخل مراجعة الطالب / PARTIAL
+
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518` من `pages/Results.tsx` و`components/VideoModal.tsx`. Go main `d57a96db005168a38e2cf90972bfadf1546b3dc4` بعد [#293](https://github.com/nasef6464/almeaago/pull/293). كود الدفعة `e2272e598d856155db19a40cb51e8736483df3c8` على الفرع المحلي `fix/student-review-notes` ويشمل دفعة الملاحظات تحته. لا PR لهذا الرأس ولا دمج أو نشر. exact-head CI SKIPPED.
+- الطالب ← مراجعة السؤال ← `GET /api/v1/assessment-attempts/{id}/review` ← التحقق من ملكية المحاولة وسياسة نسختها ← رابط فيديو نسخة السؤال من PostgreSQL إن كان الشرح متاحًا ← «تشغيل شرح الفيديو» ← نافذة داخلية تستخدم المشغل المشترك ← الإغلاق والعودة لنفس السؤال. تحميل الفيديو يبدأ عند فتح النافذة والتشغيل يبدأ بطلب الطالب. لا تغيير في API أو التخزين أو سياسة إتاحة الشرح.
+- الملفات `AssessmentResultsPage.tsx` و`AssessmentReviewVideo.tsx`، واختبارات المتصفح `assessment-solution-visibility.spec.ts` و`prepared-quiz-live.spec.ts` و`fixtures/review-video.ts` وبيانات اختبار Go في `prepared_quiz_live_browser_test.go`.
+- PASS فحص الأنواع و`git diff --check`. PASS حالتا متصفح مع مقطع WebM فعلي محلي للتحقق من التشغيل والإغلاق واستعادة التركيز ومنع طلب المقطع إذا كان الشرح مخفيًا في `.tmp/student-review-notes/video-browser-final.log). PASS رحلة المحاكي بمادتين من التسليم والتحديث إلى المراجعة والفيديو على Go/PostgreSQL معزولين وحالتا سياسة مراجعة في `video-verified-sha.log`. تعثرت تجربة سابقة عندما اختلف امتداد ملف الاختبار بين مسار Go والاعتراض المحلي، ثم نجح الرأس الحالي.
+- صور RTL عند 390 و820 و1440 في `.tmp/student-review-notes/legacy-review-video-*.png` و`apps/web/test-results/assessment-review-video-*.png`. حجم النافذة وموضع زر الإغلاق متقاربان. أزرار المشغل واختبار الخلفية مختلفة، لذلك المطابقة البصرية للشاشة الكاملة جزئية. الأدلة لمقطع محلي وليست شهادة تشغيل لكل مزود خارجي.
+
+الاستئناف: طابق ترتيب المهارات الرئيسية والفرعية داخل «أداؤك لكل مادة» من أدلة المحاولة. أثبت وجود معرّف الأب داخل نفس المادة قبل التعشيش، واحتفظ بعرض المهارة التي لا أب مثبت لها. أول أمر محلي: `rg -n "parent_skill_id|ResultSkillAnalysisItem" internal/assessment/domain/result_review.go internal/assessment/repository/postgres/result_skill_analysis.go internal/assessment/repository/postgres/self_quiz_skill_analysis.go migrations/000001_platform_foundation.up.sql`.
+
+## 24 نوفمبر — ملاحظات مراجعة الطالب والعودة من السؤال الأخير / PARTIAL
+
+- القديم `ed28102d7084899856de0371dc2c93a3d602d518` من `pages/Results.tsx`. Go main `d57a96db005168a38e2cf90972bfadf1546b3dc4` يضم [#293](https://github.com/nasef6464/almeaago/pull/293) مع فحوص GitHub ناجحة على رأسه `01c9d0a76c5599a0373abb886c033ac2925d902c`. هذا الدمج استعاد تفصيل المواد وبطاقة المشاركة والرحلة السابقة.
+- كود الدفعة المحلية `1e4f2b63fccda54a7629bc2f13126d856823e570` على `fix/student-review-notes` في `C:/almeaago/worktrees/student-review-notes-20261123`. لم يرفع ولم يدمج. CI لهذا الرأس SKIPPED.
+- الطالب ← ملخص النتيجة ← مراجعة ← `GET /api/v1/assessment-attempts/{id}/review` ← صلاحيات الطالب ومحاولته في Go وPostgreSQL ← تفاصيل السؤال المتاحة ← إظهار/إخفاء الملاحظات ← الإغلاق عند الانتقال أو تغيير الفلتر ← «إنهاء المراجعة» من آخر سؤال مصفى والعودة للملخص. الزر يغير حالة العرض في React ولا يرسل طلب كتابة. تحت سياسة إخفاء الشرح يظهر نص الحالة فقط. بقيت عقود API والتصحيح كما هي.
+- الملفات `AssessmentResultsPage.tsx` و`assessment-image-contract.spec.ts` و`assessment-results.spec.ts` و`prepared-quiz-live.spec.ts`. RED على كود `d57a96db` لأن الشرح ظهر قبل الضغط. PASS فحص TypeScript وGREEN محليًا في `.tmp/student-review-notes/notes-final.log`. المجموعة 16/17 مع تعثر بدء اختبار الصورة مرة، ثم نجاح الحالة منفردة في `recheck.log`. نجحت رحلتا الاختبار الجاهز والمحاكي بمادتين على Go وPostgreSQL معزولين في `live.log`.
+- صور RTL 390 و820 و1440 من تشغيل المكوّن الأصلي ببيانات اختبار في `.tmp/student-review-notes/legacy-review-notes-*.png` ومن مكوّن Go في `test-results/assessment-review-notes-*.png`. المقارنة البصرية جزئية لأن سياسات التأليف وبيانات العرض تختلف ولأن لقطة Go للبطاقة. لا تزال مراجعة السؤال تختلف في خيارات الإجابة وموضع الحفظ، ومشغل فيديو الشرح في القديم نافذة داخلية. كما يبقى ترتيب المهارات الرئيسية والفرعية في تقرير المادة.
+
+الاستئناف: افحص عقد تشغيل فيديو الشرح داخل المراجعة مع سياسة العرض، ثم أعد استخدام المشغل المناسب دون تغيير صلاحيات الفيديو. أول أمر محلي: `rg -n "onShowVideo|videoUrl|SharedVideoPlayer" apps/web/src/features/assessment/pages/AssessmentResultsPage.tsx apps/web/src/features/learning/components/SharedVideoPlayer.tsx`.
+
 
 ## 23 نوفمبر — رحلة الطالب بعد التسليم وتكافؤ النتائج والمراجعة / PARTIAL
 

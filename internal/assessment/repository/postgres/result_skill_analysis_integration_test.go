@@ -39,23 +39,42 @@ func TestResultSkillAnalysisSnapshotPostgres(t *testing.T) {
 	defer db.Close()
 	_, err = db.Exec(ctx, `
 CREATE TABLE assessment_attempts(id uuid,student_id uuid,assessment_id uuid,assessment_version int,status text,attempt_number int);
-CREATE TABLE assessment_versions(assessment_id uuid,version int,path_id uuid,title text,allow_question_review bool,show_answers bool,show_explanations bool,show_results_report bool,randomize_questions bool,randomize_options bool);
+CREATE TABLE assessment_versions(assessment_id uuid,version int,path_id uuid,title text,allow_question_review bool,show_answers bool,show_explanations bool,show_results_report bool,randomize_questions bool,randomize_options bool,assessment_kind text,normal_mode text DEFAULT 'exam');
 CREATE TABLE assessment_results(attempt_id uuid,student_id uuid,score float8,total_questions int,correct_answers int,wrong_answers int,unanswered int,passed bool,time_spent_seconds int,finalized_at timestamptz);
-CREATE TABLE assessment_version_questions(assessment_id uuid,assessment_version int,question_id uuid,question_version int,sort_order int DEFAULT 0);
+CREATE TABLE assessment_version_questions(assessment_id uuid,assessment_version int,question_id uuid,question_version int,sort_order int DEFAULT 0,section_id uuid);
+CREATE TABLE assessment_sections(id uuid,assessment_id uuid,assessment_version int,title text,sort_order int);
+CREATE TABLE assessment_answers(attempt_id uuid,question_id uuid,question_version int,selected_option_index int,is_correct bool);
 CREATE TABLE mastery_evidence(id uuid,student_id uuid,source_attempt_id uuid,evidence_type text,assessment_id uuid,assessment_version int,question_id uuid,question_version int,path_id uuid,subject_id uuid,answered bool,is_correct bool);
 CREATE TABLE mastery_evidence_skills(evidence_id uuid,skill_id uuid);
 CREATE TABLE paths(id uuid,status text);
 CREATE TABLE subjects(id uuid,path_id uuid,name text,status text DEFAULT 'active');
-CREATE TABLE skills(id uuid,subject_id uuid,name text);
+CREATE TABLE skills(id uuid,subject_id uuid,name text,kind text DEFAULT 'main',parent_skill_id uuid,section_id uuid);
+CREATE TABLE taxonomy_skill_sections(id uuid,subject_id uuid,name text);
 CREATE TABLE foundation_topics(id uuid,path_id uuid,subject_id uuid,title text,is_locked bool,status text,is_visible bool,sort_order int);
 CREATE TABLE topic_skill_links(topic_id uuid,skill_id uuid);
+CREATE TABLE library_items(id uuid,path_id uuid,subject_id uuid,workflow_status text,is_visible bool);
+CREATE TABLE topic_library_items(topic_id uuid,library_item_id uuid);
+CREATE TABLE lessons(id uuid,path_id uuid,subject_id uuid,workflow_status text,is_visible bool,lesson_type text,video_url text);
+CREATE TABLE topic_lessons(topic_id uuid,lesson_id uuid,sort_order int);
+CREATE TABLE assessments(id uuid,workflow_status text,is_published bool,is_visible bool);
+CREATE TABLE assessment_learning_placements(assessment_id uuid,assessment_version int,slot text,path_id uuid,subject_id uuid,topic_id uuid,is_visible bool);
 INSERT INTO assessment_attempts VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000003',1,'submitted',1);
-INSERT INTO assessment_versions VALUES ('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000004','Test',false,true,true,true,false,false);
+INSERT INTO assessment_versions(assessment_id,version,path_id,title,allow_question_review,show_answers,show_explanations,show_results_report,randomize_questions,randomize_options,assessment_kind) VALUES ('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000004','Test',false,true,true,true,false,false,'mock');
 INSERT INTO assessment_results VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002',50,2,1,0,1,true,0,now());
 INSERT INTO assessment_version_questions(assessment_id,assessment_version,question_id,question_version) VALUES ('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000011',1),('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000012',1);
+INSERT INTO assessment_sections VALUES
+('00000000-0000-0000-0000-000000000061','00000000-0000-0000-0000-000000000003',1,'First section',1),
+('00000000-0000-0000-0000-000000000062','00000000-0000-0000-0000-000000000003',1,'Second section',2),
+('00000000-0000-0000-0000-000000000063','00000000-0000-0000-0000-000000000003',2,'New version section',0);
+UPDATE assessment_version_questions SET section_id='00000000-0000-0000-0000-000000000061' WHERE question_id='00000000-0000-0000-0000-000000000011';
+UPDATE assessment_version_questions SET section_id='00000000-0000-0000-0000-000000000062' WHERE question_id='00000000-0000-0000-0000-000000000012';
+INSERT INTO assessment_answers VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000011',1,0,true);
 INSERT INTO paths VALUES ('00000000-0000-0000-0000-000000000004','active');
 INSERT INTO subjects(id,path_id,name) VALUES ('00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000004','Subject A'),('00000000-0000-0000-0000-000000000006','00000000-0000-0000-0000-000000000004','Subject B');
-INSERT INTO skills VALUES ('00000000-0000-0000-0000-000000000020','00000000-0000-0000-0000-000000000005','Skill A'),('00000000-0000-0000-0000-000000000021','00000000-0000-0000-0000-000000000006','Skill B');
+INSERT INTO skills(id,subject_id,name) VALUES ('00000000-0000-0000-0000-000000000020','00000000-0000-0000-0000-000000000005','Skill A'),('00000000-0000-0000-0000-000000000021','00000000-0000-0000-0000-000000000006','Skill B');
+UPDATE skills SET kind='sub',parent_skill_id='00000000-0000-0000-0000-000000000020' WHERE id='00000000-0000-0000-0000-000000000021';
+INSERT INTO taxonomy_skill_sections VALUES ('00000000-0000-0000-0000-000000000064','00000000-0000-0000-0000-000000000005','Numbers');
+UPDATE skills SET section_id='00000000-0000-0000-0000-000000000064' WHERE id='00000000-0000-0000-0000-000000000020';
 INSERT INTO mastery_evidence VALUES
 ('00000000-0000-0000-0000-000000000031','00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000001','assessment','00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000011',1,'00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005',true,true),
 ('00000000-0000-0000-0000-000000000032','00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000001','assessment','00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000012',1,'00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000006',false,false);
@@ -70,6 +89,36 @@ INSERT INTO foundation_topics VALUES
 ('00000000-0000-0000-0000-000000000043','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','Hidden topic',false,'active',false,2),
 ('00000000-0000-0000-0000-000000000044','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000006','Foreign subject',false,'active',true,3),
 ('00000000-0000-0000-0000-000000000045','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','Archived',false,'archived',true,4);
+INSERT INTO lessons VALUES
+('00000000-0000-0000-0000-000000000081','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','approved',true,'video','https://example.invalid/first.webm'),
+('00000000-0000-0000-0000-000000000082','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','draft',true,'video','https://example.invalid/draft.webm'),
+('00000000-0000-0000-0000-000000000083','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000006','approved',true,'video','https://example.invalid/foreign.webm'),
+('00000000-0000-0000-0000-000000000084','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','approved',true,'video','https://example.invalid/later.webm');
+INSERT INTO topic_lessons VALUES
+('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000084',3),
+('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000083',0),
+('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000082',1),
+('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000081',2);
+INSERT INTO topic_lessons VALUES
+('00000000-0000-0000-0000-000000000042','00000000-0000-0000-0000-000000000082',0),
+('00000000-0000-0000-0000-000000000047','00000000-0000-0000-0000-000000000083',0);
+INSERT INTO assessments VALUES ('00000000-0000-0000-0000-000000000085','approved',true,true);
+INSERT INTO assessment_versions(assessment_id,version,assessment_kind,normal_mode) VALUES
+('00000000-0000-0000-0000-000000000085',1,'normal','practice'),
+('00000000-0000-0000-0000-000000000085',2,'normal','exam');
+INSERT INTO assessment_learning_placements VALUES
+('00000000-0000-0000-0000-000000000085',1,'foundation','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000041',true),
+('00000000-0000-0000-0000-000000000085',1,'foundation','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000042',false),
+('00000000-0000-0000-0000-000000000085',2,'foundation','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000042',true),
+('00000000-0000-0000-0000-000000000085',1,'foundation','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000006','00000000-0000-0000-0000-000000000047',true);
+INSERT INTO library_items VALUES
+('00000000-0000-0000-0000-000000000071','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','approved',true),
+('00000000-0000-0000-0000-000000000072','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000005','draft',true),
+('00000000-0000-0000-0000-000000000073','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000006','approved',true);
+INSERT INTO topic_library_items VALUES
+('00000000-0000-0000-0000-000000000041','00000000-0000-0000-0000-000000000071'),
+('00000000-0000-0000-0000-000000000042','00000000-0000-0000-0000-000000000072'),
+('00000000-0000-0000-0000-000000000047','00000000-0000-0000-0000-000000000073');
 INSERT INTO topic_skill_links SELECT id,'00000000-0000-0000-0000-000000000020' FROM foundation_topics;`)
 	if err != nil {
 		t.Fatal(err)
@@ -89,6 +138,33 @@ INSERT INTO topic_skill_links VALUES ('00000000-0000-0000-0000-000000000046','00
 	if err != nil {
 		t.Fatal(err)
 	}
+	if sections := detail.SectionResults; len(sections) != 2 || sections[0].SectionName != "First section" || sections[0].Total != 1 || sections[0].Correct != 1 || sections[0].Score != 100 || sections[1].SectionName != "Second section" || sections[1].Total != 1 || sections[1].Unanswered != 1 || sections[1].Score != 0 {
+		t.Fatalf("unexpected section results from saved version: %+v", sections)
+	}
+	if _, err = db.Exec(ctx, `UPDATE assessment_answers SET is_correct=NULL`); err != nil {
+		t.Fatal(err)
+	}
+	incomplete, err := repo.GetResultDetail(ctx, student, attempt)
+	if err != nil || len(incomplete.SectionResults) != 0 || incomplete.Result.Score != 50 {
+		t.Fatalf("ungraded evidence must not invent section scores: %+v %v", incomplete.SectionResults, err)
+	}
+	if _, err = db.Exec(ctx, `UPDATE assessment_answers SET is_correct=false; UPDATE assessment_results SET correct_answers=0,wrong_answers=1`); err != nil {
+		t.Fatal(err)
+	}
+	wrong, err := repo.GetResultDetail(ctx, student, attempt)
+	if err != nil || len(wrong.SectionResults) != 2 || wrong.SectionResults[0].Wrong != 1 || wrong.SectionResults[0].Score != 0 {
+		t.Fatalf("wrong answer must not count as unanswered: %+v %v", wrong.SectionResults, err)
+	}
+	if _, err = db.Exec(ctx, `UPDATE assessment_answers SET is_correct=true; UPDATE assessment_results SET correct_answers=1,wrong_answers=0; UPDATE assessment_versions SET assessment_kind='normal',normal_mode='practice'`); err != nil {
+		t.Fatal(err)
+	}
+	normal, err := repo.GetResultDetail(ctx, student, attempt)
+	if err != nil || len(normal.SectionResults) != 0 || normal.AnalysisMode != "bank" {
+		t.Fatalf("normal result must not show mock sections: %+v %v", normal.SectionResults, err)
+	}
+	if _, err = db.Exec(ctx, `UPDATE assessment_versions SET assessment_kind='mock'`); err != nil {
+		t.Fatal(err)
+	}
 	if subjects := detail.SubjectResults; len(subjects) != 2 || subjects[0].SubjectName != "Subject A" || subjects[0].Total != 1 || subjects[0].Correct != 1 || subjects[0].Score != 100 || subjects[1].SubjectName != "Subject B" || subjects[1].Unanswered != 1 || subjects[1].Wrong != 0 || subjects[1].Score != 0 {
 		t.Fatalf("unexpected subject breakdown: %+v", subjects)
 	}
@@ -99,8 +175,22 @@ INSERT INTO topic_skill_links VALUES ('00000000-0000-0000-0000-000000000046','00
 	if a.SkillName != "Skill A" || a.Status != "strong" || a.Mastery != 100 || b.SkillName != "Skill B" || b.Status != "weak" || b.QuestionCount != 1 || b.CorrectCount != 0 {
 		t.Fatalf("unexpected scoped results: %+v", detail.SkillAnalysis.Items)
 	}
+	if a.Level != "main" || b.Level != "sub" || b.ParentSkillID != "" {
+		t.Fatalf("foreign-subject parent must not be returned: %+v %+v", a, b)
+	}
 	if len(a.FoundationTopics) != 3 || a.FoundationTopics[0].Title != "Topic A" || a.FoundationTopics[0].IsLocked || a.FoundationTopics[1].Title != "Locked topic" || !a.FoundationTopics[1].IsLocked || a.FoundationTopics[2].Title != "Child active parent" || len(b.FoundationTopics) != 0 {
 		t.Fatalf("unexpected foundation mapping scope or visibility: %+v %+v", a.FoundationTopics, b.FoundationTopics)
+	}
+	if !a.FoundationTopics[0].HasSupport || a.FoundationTopics[1].HasSupport || a.FoundationTopics[2].HasSupport {
+		t.Fatalf("only approved, visible and same-scope topic files qualify: %+v", a.FoundationTopics)
+	}
+	if a.FoundationTopics[0].VideoLessonID != "00000000-0000-0000-0000-000000000081" ||
+		a.FoundationTopics[1].VideoLessonID != "" || a.FoundationTopics[2].VideoLessonID != "" {
+		t.Fatalf("expected the first approved, visible video scoped to its topic: %+v", a.FoundationTopics)
+	}
+	if !a.FoundationTopics[0].HasLesson || a.FoundationTopics[1].HasLesson || a.FoundationTopics[2].HasLesson ||
+		!a.FoundationTopics[0].HasPractice || a.FoundationTopics[1].HasPractice || a.FoundationTopics[2].HasPractice {
+		t.Fatalf("expected only approved lessons and visible practice placements in the same topic scope: %+v", a.FoundationTopics)
 	}
 	// The second unanswered question remains in the denominator. Skill links
 	// added after the attempt are deliberately irrelevant to this projection.
@@ -117,6 +207,22 @@ UPDATE mastery_evidence_skills SET skill_id='00000000-0000-0000-0000-00000000002
 	}
 	if subjects := detail.SubjectResults; len(subjects) != 1 || subjects[0].Total != 2 || subjects[0].Score != 50 {
 		t.Fatalf("unrelated live skill links changed subject totals: %+v", subjects)
+	}
+	if _, err = db.Exec(ctx, `
+UPDATE skills SET subject_id='00000000-0000-0000-0000-000000000005' WHERE id='00000000-0000-0000-0000-000000000021';
+INSERT INTO mastery_evidence_skills VALUES ('00000000-0000-0000-0000-000000000031','00000000-0000-0000-0000-000000000021');`); err != nil {
+		t.Fatal(err)
+	}
+	detail, err = repo.GetResultDetail(ctx, student, attempt)
+	if err != nil || detail.SkillAnalysis == nil || len(detail.SkillAnalysis.Items) != 2 {
+		t.Fatalf("expected main and subskill from frozen evidence: %+v %v", detail.SkillAnalysis, err)
+	}
+	mainSkill, subSkill := detail.SkillAnalysis.Items[0], detail.SkillAnalysis.Items[1]
+	if subSkill.ParentSkillID != mainSkill.SkillID || subSkill.Level != "sub" || subSkill.SectionName != "Numbers" || subSkill.QuestionCount != 1 || subSkill.Mastery != 100 || mainSkill.Mastery != 50 {
+		t.Fatalf("subskill relation or independent scores are incorrect: %+v %+v", mainSkill, subSkill)
+	}
+	if _, err = db.Exec(ctx, `DELETE FROM mastery_evidence_skills WHERE skill_id='00000000-0000-0000-0000-000000000021'`); err != nil {
+		t.Fatal(err)
 	}
 	if _, err = db.Exec(ctx, `INSERT INTO mastery_evidence SELECT '00000000-0000-0000-0000-000000000039',student_id,source_attempt_id,evidence_type,assessment_id,assessment_version,question_id,question_version,path_id,subject_id,answered,is_correct FROM mastery_evidence WHERE id='00000000-0000-0000-0000-000000000031'`); err != nil {
 		t.Fatal(err)
@@ -135,7 +241,7 @@ UPDATE mastery_evidence_skills SET skill_id='00000000-0000-0000-0000-00000000002
 		t.Fatal(err)
 	}
 	detail, err = repo.GetResultDetail(ctx, student, attempt)
-	if err != nil || detail.SkillAnalysis != nil || len(detail.SubjectResults) != 0 {
+	if err != nil || detail.SkillAnalysis != nil || len(detail.SubjectResults) != 0 || len(detail.SectionResults) != 0 {
 		t.Fatalf("hidden report exposed analysis: %+v %v", detail.SkillAnalysis, err)
 	}
 	if _, err = db.Exec(ctx, `UPDATE assessment_versions SET show_results_report=true; DELETE FROM mastery_evidence WHERE question_id='00000000-0000-0000-0000-000000000012'`); err != nil {

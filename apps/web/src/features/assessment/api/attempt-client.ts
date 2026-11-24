@@ -127,6 +127,16 @@ export interface ResultSubjectItem {
   score: number;
 }
 
+export interface ResultSectionItem {
+  sectionId: string;
+  sectionName: string;
+  total: number;
+  correct: number;
+  wrong: number;
+  unanswered: number;
+  score: number;
+}
+
 export interface ResultDetail {
   result: Result;
   assessmentId: string;
@@ -138,6 +148,8 @@ export interface ResultDetail {
   showExplanations: boolean;
   showResultsReport: boolean;
   subjectResults?: ResultSubjectItem[];
+  sectionResults?: ResultSectionItem[];
+  analysisMode?: 'bank';
   skillAnalysis?: {
     complete: boolean;
     items: Array<{
@@ -146,11 +158,22 @@ export interface ResultDetail {
       subjectName: string;
       skillId: string;
       skillName: string;
+      sectionName?: string;
+      level?: 'main' | 'sub';
+      parentSkillId?: string;
       questionCount: number;
       correctCount: number;
       mastery: number;
       status: 'weak' | 'average' | 'strong';
-      foundationTopics?: Array<{ id: string; title: string; isLocked: boolean }>;
+      foundationTopics?: Array<{
+        id: string;
+        title: string;
+        isLocked: boolean;
+        hasLesson?: boolean;
+        hasPractice?: boolean;
+        hasSupport?: boolean;
+        videoLessonId?: string;
+      }>;
     }>;
   };
   questions?: ReviewQuestion[];

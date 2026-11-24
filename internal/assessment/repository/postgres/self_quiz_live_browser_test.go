@@ -24,6 +24,9 @@ import (
 	operationspg "github.com/nasef6464/almeaago/internal/operations/repository/postgres"
 	"github.com/nasef6464/almeaago/internal/platform/security"
 	questionpg "github.com/nasef6464/almeaago/internal/questionbank/repository/postgres"
+	reportingapp "github.com/nasef6464/almeaago/internal/reporting/application"
+	reportingpg "github.com/nasef6464/almeaago/internal/reporting/repository/postgres"
+	reportinghttp "github.com/nasef6464/almeaago/internal/reporting/transport/http"
 	taxonomyapp "github.com/nasef6464/almeaago/internal/taxonomy/application"
 	taxonomypg "github.com/nasef6464/almeaago/internal/taxonomy/repository/postgres"
 	taxonomyhttp "github.com/nasef6464/almeaago/internal/taxonomy/transport/http"
@@ -47,6 +50,10 @@ func runSelfQuizLiveBrowser(t *testing.T, ctx context.Context, db *pgxpool.Pool)
 		t.Fatal(err)
 	}
 	auth := identityapp.NewService(identityRepo)
+	if _, err = db.Exec(ctx, `UPDATE question_versions SET difficulty='medium' WHERE question_id='00000000-0000-0000-0000-000000000005' AND version=1`); err != nil {
+		t.Fatal(err)
+	}
+	defer db.Exec(context.Background(), `UPDATE question_versions SET difficulty='' WHERE question_id='00000000-0000-0000-0000-000000000005' AND version=1`)
 	repo := New(db, operationspg.NewAuditWriter())
 	sink := learningapp.NewService(learningpg.New(db), nil)
 	attempts := assessmentapp.NewAttemptServiceWithLearning(repo, sink)
@@ -57,13 +64,14 @@ func runSelfQuizLiveBrowser(t *testing.T, ctx context.Context, db *pgxpool.Pool)
 	router.Mount("/api/v1/taxonomy", taxonomyhttp.New(taxonomyapp.NewService(taxonomypg.New(db)), auth))
 	router.Mount("/api/v1/assessment-attempts", assessmenthttp.NewAttempts(attempts, auth, assessmentapp.NewSelfQuizService(repo)))
 	router.Mount("/api/v1/ai", aihttp.New(aiService, auth))
+	router.Mount("/api/v1/reports", reportinghttp.New(reportingapp.NewService(reportingpg.NewReportRepository(db)), auth))
 	server := httptest.NewServer(router)
 	defer server.Close()
 	webDir, err := filepath.Abs("../../../../apps/web")
 	if err != nil {
 		t.Fatal(err)
 	}
-	command := exec.CommandContext(ctx, "node", "node_modules/@playwright/test/cli.js", "test", "tests/e2e/self-quiz-live.spec.ts", "--project=chromium", "--workers=1")
+	command := exec.CommandContext(ctx, "node", "node_modules/@playwright/test/cli.js", "test", "--config", "tests/e2e/prepared-quiz-live.config.ts", "self-quiz-live.spec.ts", "--project=chromium", "--workers=1")
 	command.Dir = webDir
 	command.Env = append(os.Environ(), "CI=1", "SELF_QUIZ_LIVE=1", "E2E_WEB_PORT=4267", "E2E_API_TARGET="+server.URL, "SELF_QUIZ_EMAIL="+user.Email, "SELF_QUIZ_PASSWORD="+password)
 	output, err := command.CombinedOutput()

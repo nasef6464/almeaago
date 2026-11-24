@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { reviewVideoFixture } from './fixtures/review-video';
 
 const user = {
   id: 'student-1',
@@ -72,6 +73,9 @@ test('learner history is bounded and disabled review exposes no question content
   await expect(
     page.getByText('مراجعة الأسئلة غير متاحة لهذا الاختبار وفق إعدادات النسخة التي أجريت عليها المحاولة.'),
   ).toBeVisible();
+  await page.getByRole('button', { name: 'تفاصيل أكثر' }).click();
+  await expect(page.getByRole('dialog', { name: 'تحليل المهارات' }).getByText('لا توجد مهارات موثقة لهذه المحاولة.')).toBeVisible();
+  await page.keyboard.press('Escape');
   await expect(page.getByText('الإجابة الصحيحة')).toHaveCount(0);
   const fallback = page.getByRole('link', { name: 'شارك نتيجتك وتحدّ أصدقاءك' });
   const shareURL = new URL((await fallback.getAttribute('href'))!);
@@ -191,6 +195,9 @@ test('mobile review filters wrong unanswered and correct questions without leaki
   await expect(page.getByText('٢ + ٢ = ؟')).toBeVisible();
   await expect(page.getByText('٥ + ٥ = ؟')).toHaveCount(0);
   await expect(page.getByText('الإجابة الصحيحة')).toHaveCount(0);
+  await page.getByRole('button', { name: 'إظهار الملاحظات' }).click();
+  await expect(page.getByRole('region', { name: 'ملاحظات السؤال' })).toContainText('الشرح التحريري غير متاح');
+  await expect(page.getByText('الإجابة الصحيحة')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'بدون إجابة' }).click();
   await expect(page.getByText('٥ + ٥ = ؟')).toBeVisible();
@@ -204,4 +211,164 @@ test('mobile review filters wrong unanswered and correct questions without leaki
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await page.screenshot({ path: 'test-results/assessment-result-review-' + width + '.png', fullPage: true });
   }
+});
+
+test('subject skills nest only under a measured main skill in the same subject', async ({ page }) => {
+  await auth(page);
+  const baseSkill = { pathId: 'path-1', subjectId: 'math', subjectName: 'الرياضيات', questionCount: 1, correctCount: 0, mastery: 0, status: 'weak' };
+  await page.route('**/api/v1/assessment-attempts/attempt-1/review', route => json(route, {
+    detail: {
+      result: historyItem, assessmentId: 'assessment-1', assessmentVersion: 2, title: 'محاكي كمي', attemptNumber: 1,
+      allowQuestionReview: false, showAnswers: false, showExplanations: false, showResultsReport: true,
+      subjectResults: [
+        { subjectId: 'math', subjectName: 'الرياضيات', total: 1, correct: 0, wrong: 1, unanswered: 0, score: 0 },
+        { subjectId: 'science', subjectName: 'العلوم', total: 1, correct: 0, wrong: 0, unanswered: 1, score: 0 },
+      ],
+      skillAnalysis: { complete: true, items: [
+        { ...baseSkill, skillId: 'child', skillName: 'قسمة الكسور', level: 'sub', parentSkillId: 'parent' },
+        { ...baseSkill, skillId: 'parent', skillName: 'الكسور', level: 'main' },
+        { ...baseSkill, skillId: 'orphan', skillName: 'تحويل الوحدات', level: 'sub', parentSkillId: 'unmeasured' },
+        { ...baseSkill, skillId: 'foreign-child', skillName: 'التقريب', level: 'sub', parentSkillId: 'foreign-parent' },
+        { ...baseSkill, skillId: 'historic', skillName: 'الجبر', foundationTopics: [] },
+        { ...baseSkill, subjectId: 'science', subjectName: 'العلوم', skillId: 'foreign-parent', skillName: 'الحركة', level: 'main' },
+      ] },
+    },
+  }));
+  await page.goto('/assessment-results/attempt-1', { waitUntil: 'domcontentloaded' });
+  const math = page.getByRole('region', { name: 'أداؤك في مادة الرياضيات' });
+  await math.getByText('تفاصيل المهارات (5)').click();
+  const children = math.getByRole('group', { name: 'المهارات الفرعية ضمن الكسور' });
+  await expect(children.getByRole('progressbar', { name: 'قسمة الكسور' })).toBeVisible();
+  await expect(math.getByRole('progressbar', { name: 'تحويل الوحدات' })).toBeVisible();
+  await expect(math.getByRole('progressbar', { name: 'التقريب' })).toBeVisible();
+  await expect(math.getByRole('progressbar', { name: 'الجبر' })).toBeVisible();
+  await expect(math.getByRole('group', { name: /^المهارات الفرعية ضمن/ })).toHaveCount(1);
+  await expect(math.getByRole('progressbar', { name: 'الحركة' })).toHaveCount(0);
+});
+
+test('mock sections fold independently of subjects and question review', async ({ page }) => {
+  await auth(page);
+  await page.route('**/api/v1/assessment-attempts/attempt-1/review', route => json(route, {
+    detail: {
+      result: historyItem, assessmentId: 'assessment-1', assessmentVersion: 2, title: 'محاكي كمي', attemptNumber: 1,
+      allowQuestionReview: false, showAnswers: false, showExplanations: false, showResultsReport: true,
+      sectionResults: [
+        { sectionId: 'part-1', sectionName: 'القسم اللفظي', total: 1, correct: 0, wrong: 1, unanswered: 0, score: 0 },
+        { sectionId: 'part-2', sectionName: 'القسم الكمي', total: 1, correct: 0, wrong: 0, unanswered: 1, score: 0 },
+      ],
+    },
+  }));
+  await page.goto('/assessment-results/attempt-1', { waitUntil: 'domcontentloaded' });
+  const sections = page.getByRole('region', { name: 'تفاصيل أقسام الاختبار' });
+  const toggle = sections.getByText('تفاصيل الأقسام (2)', { exact: true });
+  await expect(toggle).toBeVisible();
+  await expect(sections.getByRole('heading', { name: 'القسم اللفظي' })).not.toBeVisible();
+  await toggle.click();
+  await expect(sections.getByRole('heading', { name: 'القسم اللفظي' })).toBeVisible();
+  await expect(sections.getByText('1 أسئلة · 0 صحيح · 1 خطأ · 0 دون إجابة')).toBeVisible();
+  await expect(sections.getByText('1 أسئلة · 0 صحيح · 0 خطأ · 1 دون إجابة')).toBeVisible();
+  await toggle.click();
+  await expect(sections.getByRole('heading', { name: 'القسم اللفظي' })).not.toBeVisible();
+});
+
+test('more details opens the skill analysis with subject filters and scoped actions', async ({ page }) => {
+  await auth(page);
+  const base = { pathId: 'path-1', subjectId: 'math', subjectName: 'الرياضيات', questionCount: 2, correctCount: 1, status: 'weak' };
+  await page.route('**/api/v1/assessment-attempts/attempt-1/review', route => json(route, {
+    detail: {
+      result: historyItem, assessmentId: 'assessment-1', assessmentVersion: 2, title: 'محاكي كمي', attemptNumber: 1,
+      allowQuestionReview: false, showAnswers: false, showExplanations: false, showResultsReport: true, analysisMode: 'bank',
+      skillAnalysis: { complete: true, items: [
+        { ...base, skillId: 'geometry', skillName: 'الهندسة', mastery: 80, status: 'strong' },
+        { ...base, skillId: 'fraction', skillName: 'الكسور', mastery: 50, sectionName: 'الأعداد', foundationTopics: [{ id: 'fractions', title: 'تأسيس الكسور', isLocked: false }] },
+        { ...base, subjectId: 'science', subjectName: 'العلوم', skillId: 'motion', skillName: 'الحركة', mastery: 40 },
+        { ...base, subjectId: 'science', subjectName: 'العلوم', skillId: 'energy', skillName: 'الطاقة', mastery: 60, status: 'average' },
+        { ...base, subjectId: 'science', subjectName: 'العلوم', skillId: 'force', skillName: 'القوة', mastery: 70, status: 'average' },
+      ] },
+    },
+  }));
+  await page.goto('/assessment-results/attempt-1', { waitUntil: 'domcontentloaded' });
+  const trigger = page.getByRole('button', { name: 'تفاصيل أكثر' });
+  await trigger.click();
+  const dialog = page.getByRole('dialog', { name: 'تحليل المهارات' });
+  await expect(dialog.getByRole('heading', { level: 3 })).toHaveText(['الحركة', 'الكسور', 'الطاقة', 'القوة', 'الهندسة']);
+  await expect(dialog.getByText('من التدريب • 5 مهارات')).toBeVisible();
+  await expect(dialog.getByText('الأعداد')).toBeVisible();
+  const fraction = dialog.getByRole('article').filter({ has: page.getByRole('heading', { name: 'الكسور', exact: true }) });
+  await expect(fraction.getByText('متوسط', { exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: 'الرياضيات' }).click();
+  await expect(dialog.getByRole('heading', { level: 3 })).toHaveText(['الكسور', 'الهندسة']);
+  await expect(dialog.getByRole('link', { name: 'فيديو' })).toHaveAttribute('href', /subject=math.*topic=fractions.*content=lessons/);
+  await expect(dialog.getByRole('link', { name: 'تدريب' })).toHaveAttribute('href', /subject=math.*topic=fractions.*content=quizzes/);
+  await page.keyboard.press('Escape');
+  await expect(dialog).not.toBeVisible();
+  await expect(trigger).toBeFocused();
+  await trigger.click();
+  await expect(dialog.getByRole('button', { name: 'الكل' })).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'عرض التقرير الكامل' }).click();
+  await page.getByRole('button', { name: 'عرض الكل' }).click();
+  await expect(dialog.getByRole('heading', { level: 3 })).toHaveCount(5);
+  await dialog.getByRole('button', { name: 'الرياضيات' }).click();
+  await dialog.getByRole('link', { name: 'فيديو' }).click();
+  await expect(page).toHaveURL(/\/category\/path-1\?subject=math.*topic=fractions.*content=lessons/);
+  await expect(dialog).not.toBeVisible();
+});
+
+test('full report links follow-up actions to the verified foundation topic', async ({ page }) => {
+  await auth(page);
+  const clip = await reviewVideoFixture(page);
+  await page.route('**/review-fixture.webm', route => route.fulfill({ body: clip, contentType: 'video/webm' }));
+  let lessonRequests = 0;
+  let allowed = true;
+  await page.route('**/api/v1/learning-spaces/foundation/mapped-topic/lessons/approved-video', route => {
+    lessonRequests++;
+    return allowed
+      ? json(route, { lesson: { id: 'approved-video', type: 'video', videoUrl: '/review-fixture.webm' } })
+      : json(route, { message: 'الدرس غير متاح لهذا الحساب.' }, 403);
+  });
+  const skill = { pathId: 'path-1', subjectId: 'math', subjectName: 'الرياضيات', questionCount: 2, correctCount: 0, mastery: 0, status: 'weak' };
+  await page.route('**/api/v1/assessment-attempts/attempt-1/review', route => json(route, {
+    detail: {
+      result: historyItem, assessmentId: 'assessment-1', assessmentVersion: 2, title: 'محاكي كمي', attemptNumber: 1,
+      allowQuestionReview: false, showAnswers: false, showExplanations: false, showResultsReport: true,
+      skillAnalysis: { complete: true, items: [
+        { ...skill, skillId: 'fractions', skillName: 'الكسور', sectionName: 'الأعداد', foundationTopics: [{ id: 'mapped-topic', title: 'تأسيس الكسور', isLocked: false, hasLesson: true, hasPractice: true, hasSupport: true, videoLessonId: 'approved-video' }] },
+        { ...skill, skillId: 'unmapped', skillName: 'النسب' },
+        { ...skill, skillId: 'no-resource', skillName: 'الجبر', foundationTopics: [{ id: 'empty-support', title: 'تأسيس الجبر', isLocked: false }] },
+      ] },
+    },
+  }));
+  await page.goto('/assessment-results/attempt-1', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'عرض التقرير الكامل' }).click();
+  const followUp = page.getByRole('region', { name: 'مهارات تحتاج متابعة' });
+  const fraction = followUp.getByRole('article').filter({ has: page.getByRole('heading', { name: 'الكسور', exact: true }) });
+  for (const [label, tab] of [['راجع الشرح', 'lessons'], ['تدريب مناسب', 'quizzes'], ['ملف داعم', 'support']]) {
+    await expect(fraction.getByRole('link', { name: label, exact: true })).toHaveAttribute('href', new RegExp(`topic=mapped-topic&content=${tab}$`));
+  }
+  await expect(fraction.getByText('الأعداد', { exact: true })).toBeVisible();
+  await expect(fraction.getByText('شرح مرتبط', { exact: true })).toBeVisible();
+  await expect(fraction.getByText('تدريب قصير', { exact: true })).toBeVisible();
+  const unlinked = followUp.getByRole('article').filter({ has: page.getByRole('heading', { name: 'النسب', exact: true }) });
+  await expect(unlinked.getByRole('link')).toHaveCount(0);
+  const noResource = followUp.getByRole('article').filter({ has: page.getByRole('heading', { name: 'الجبر', exact: true }) });
+  await expect(noResource.getByRole('link', { name: 'ملف داعم' })).toHaveCount(0);
+  await expect(noResource.getByRole('button', { name: 'شاهد الفيديو' })).toHaveCount(0);
+  await expect(noResource.getByText('شرح مرتبط', { exact: true })).toHaveCount(0);
+  await expect(noResource.getByText('تدريب قصير', { exact: true })).toHaveCount(0);
+  const videoButton = fraction.getByRole('button', { name: 'شاهد الفيديو' });
+  expect(lessonRequests).toBe(0);
+  await videoButton.click();
+  const video = page.getByRole('dialog', { name: 'شرح مهارة الكسور' });
+  await expect(video).toBeVisible();
+  await expect(video.locator('video')).toHaveAttribute('src', /review-fixture.webm$/);
+  expect(await video.locator('video').evaluate(node => (node as HTMLVideoElement).paused)).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(video).not.toBeVisible();
+  await expect(videoButton).toBeFocused();
+  allowed = false;
+  await videoButton.click();
+  await expect(fraction.getByRole('alert')).toBeVisible();
+  await expect(video).not.toBeVisible();
+  expect(lessonRequests).toBe(2);
 });

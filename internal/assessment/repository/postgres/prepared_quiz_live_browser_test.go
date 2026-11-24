@@ -17,6 +17,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	aiapp "github.com/nasef6464/almeaago/internal/ai/application"
+	aipg "github.com/nasef6464/almeaago/internal/ai/repository/postgres"
+	aihttp "github.com/nasef6464/almeaago/internal/ai/transport/http"
 	assessmentapp "github.com/nasef6464/almeaago/internal/assessment/application"
 	assessment "github.com/nasef6464/almeaago/internal/assessment/domain"
 	assessmenthttp "github.com/nasef6464/almeaago/internal/assessment/transport/http"
@@ -40,7 +43,9 @@ import (
 	questionapp "github.com/nasef6464/almeaago/internal/questionbank/application"
 	questionpg "github.com/nasef6464/almeaago/internal/questionbank/repository/postgres"
 	questionhttp "github.com/nasef6464/almeaago/internal/questionbank/transport/http"
+	reportingapp "github.com/nasef6464/almeaago/internal/reporting/application"
 	reportingpg "github.com/nasef6464/almeaago/internal/reporting/repository/postgres"
+	reportinghttp "github.com/nasef6464/almeaago/internal/reporting/transport/http"
 	taxonomyapp "github.com/nasef6464/almeaago/internal/taxonomy/application"
 	taxonomypg "github.com/nasef6464/almeaago/internal/taxonomy/repository/postgres"
 	taxonomyhttp "github.com/nasef6464/almeaago/internal/taxonomy/transport/http"
@@ -125,35 +130,38 @@ func TestPreparedQuizLiveBrowser(t *testing.T) {
 		}
 	}
 	_, err = db.Exec(ctx, `
-INSERT INTO paths(id,code,name) VALUES ('00000000-0000-0000-0000-000000000003','LIVE-P','مسار تجريبي');
-INSERT INTO subjects(id,path_id,code,name) VALUES ('00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000003','LIVE-S','مادة تجريبية');
-INSERT INTO questions(id,question_code,path_id,subject_id,workflow_status) VALUES ('00000000-0000-0000-0000-000000000005','LIVE-Q','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','approved');
-INSERT INTO question_versions(question_id,version,question_type,text_content,correct_option_index) VALUES ('00000000-0000-0000-0000-000000000005',1,'mcq','سؤال تجريبي',0);
+INSERT INTO paths(id,code,name) VALUES ('00000000-0000-4000-8000-000000000003','LIVE-P','مسار تجريبي');
+INSERT INTO subjects(id,path_id,code,name) VALUES ('00000000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000003','LIVE-S','مادة تجريبية');
+INSERT INTO questions(id,question_code,path_id,subject_id,workflow_status) VALUES ('00000000-0000-0000-0000-000000000005','LIVE-Q','00000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000004','approved');
+INSERT INTO question_versions(question_id,version,question_type,text_content,correct_option_index,video_url) VALUES ('00000000-0000-0000-0000-000000000005',1,'mcq','سؤال تجريبي',0,'/review-fixture.webm');
 INSERT INTO question_options(question_id,version,option_index,option_text) VALUES ('00000000-0000-0000-0000-000000000005',1,0,'نعم'),('00000000-0000-0000-0000-000000000005',1,1,'لا');`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, err = db.Exec(ctx, `
-INSERT INTO skills(id,subject_id,code,name,kind) VALUES ('00000000-0000-0000-0000-000000000020','00000000-0000-0000-0000-000000000004','LIVE-MAIN','المهارة الرئيسية','main');
-INSERT INTO skills(id,subject_id,parent_skill_id,code,name,kind) VALUES ('00000000-0000-0000-0000-000000000021','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000020','LIVE-SUB','مهارة فرعية تجريبية','sub');
+INSERT INTO skills(id,subject_id,code,name,kind) VALUES ('00000000-0000-0000-0000-000000000020','00000000-0000-4000-8000-000000000004','LIVE-MAIN','المهارة الرئيسية','main');
+INSERT INTO skills(id,subject_id,parent_skill_id,code,name,kind) VALUES ('00000000-0000-0000-0000-000000000021','00000000-0000-4000-8000-000000000004','00000000-0000-0000-0000-000000000020','LIVE-SUB','مهارة فرعية تجريبية','sub');
 INSERT INTO question_skill_links(question_id,skill_id,relation_type) VALUES ('00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000021','sub');
-INSERT INTO foundation_topics(id,subject_id,path_id,code,title) VALUES ('00000000-0000-0000-0000-000000000023','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000003','LIVE-PARENT','موضوع رئيسي تجريبي');
-INSERT INTO foundation_topics(id,subject_id,path_id,parent_topic_id,code,title) VALUES ('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000023','LIVE-TOPIC','موضوع تأسيس تجريبي');
+INSERT INTO foundation_topics(id,subject_id,path_id,code,title) VALUES ('00000000-0000-0000-0000-000000000023','00000000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000003','LIVE-PARENT','موضوع رئيسي تجريبي');
+INSERT INTO foundation_topics(id,subject_id,path_id,parent_topic_id,code,title) VALUES ('00000000-0000-0000-0000-000000000022','00000000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000003','00000000-0000-0000-0000-000000000023','LIVE-TOPIC','موضوع تأسيس تجريبي');
 INSERT INTO topic_skill_links(topic_id,skill_id,relation_type) VALUES ('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000021','primary');
 INSERT INTO lessons(id,path_id,subject_id,title,lesson_type,video_url,video_source,workflow_status) VALUES
- ('00000000-0000-0000-0000-000000000024','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','مقطع شرح تجريبي أول','video','https://www.youtube.com/watch?v=dQw4w9WgXcQ','youtube','approved'),
- ('00000000-0000-0000-0000-000000000025','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','مقطع شرح تجريبي ثان','video','https://www.youtube.com/watch?v=dQw4w9WgXcQ','youtube','approved');
+ ('00000000-0000-0000-0000-000000000024','00000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000004','مقطع شرح تجريبي أول','video','/review-fixture.webm','upload','approved'),
+ ('00000000-0000-0000-0000-000000000025','00000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000004','مقطع شرح تجريبي ثان','video','https://www.youtube.com/watch?v=dQw4w9WgXcQ','youtube','approved');
+INSERT INTO library_items(id,path_id,subject_id,title,item_type,external_url,workflow_status,is_visible) VALUES
+ ('00000000-0000-0000-0000-000000000081','00000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000004','ملف دعم المهارة التجريبي','pdf','https://example.invalid/foundation.pdf','approved',true);
+INSERT INTO topic_library_items(topic_id,library_item_id,sort_order) VALUES ('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000081',1);
 INSERT INTO topic_lessons(topic_id,lesson_id,sort_order) VALUES ('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000024',1),('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000025',2);`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if os.Getenv("PREPARED_COURSE_PROGRESS") == "1" {
 		_, err = db.Exec(ctx, `
-INSERT INTO courses(id,path_id,subject_id,title,workflow_status,is_published,is_visible,owner_type) VALUES ('00000000-0000-0000-0000-000000000031','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','دورة تقدم تجريبية','approved',true,true,'platform');
+INSERT INTO courses(id,path_id,subject_id,title,workflow_status,is_published,is_visible,owner_type) VALUES ('00000000-0000-0000-0000-000000000031','00000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000004','دورة تقدم تجريبية','approved',true,true,'platform');
 INSERT INTO course_modules(id,course_id,title) VALUES ('00000000-0000-0000-0000-000000000032','00000000-0000-0000-0000-000000000031','قسم تجريبي');
 INSERT INTO lessons(id,path_id,subject_id,title,lesson_type,content_text,workflow_status,is_visible,is_locked) VALUES
- ('00000000-0000-0000-0000-000000000033','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','الدرس التجريبي الأول','text','محتوى الدرس الأول','approved',true,false),
- ('00000000-0000-0000-0000-000000000034','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','الدرس التجريبي الثاني','text','محتوى الدرس الثاني','approved',true,false);
+ ('00000000-0000-0000-0000-000000000033','00000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000004','الدرس التجريبي الأول','text','محتوى الدرس الأول','approved',true,false),
+ ('00000000-0000-0000-0000-000000000034','00000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000004','الدرس التجريبي الثاني','text','محتوى الدرس الثاني','approved',true,false);
 INSERT INTO course_lessons(module_id,lesson_id,sort_order,is_preview) VALUES
  ('00000000-0000-0000-0000-000000000032','00000000-0000-0000-0000-000000000033',1,true),
  ('00000000-0000-0000-0000-000000000032','00000000-0000-0000-0000-000000000034',2,true);`)
@@ -182,7 +190,7 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 	defs := assessmentapp.NewService(repo)
 	created, err := defs.Create(ctx, adminUser, assessment.Write{
 		Code: "LIVE-PREPARED", OwnerType: assessment.OwnerPlatform, IsVisible: true,
-		Version:   assessment.Version{Title: "اختبار تجريبي جاهز", PathID: "00000000-0000-0000-0000-000000000003", SubjectID: "00000000-0000-0000-0000-000000000004", Kind: assessment.KindNormal, NormalMode: assessment.ModeExam, OptionLayout: "auto", ShowResultsReport: true, ShowAnswers: true, AllowQuestionReview: true, MaxAttempts: 10, PassingScore: 60, Presentation: []byte(`{}`)},
+		Version:   assessment.Version{Title: "اختبار تجريبي جاهز", PathID: "00000000-0000-4000-8000-000000000003", SubjectID: "00000000-0000-4000-8000-000000000004", Kind: assessment.KindNormal, NormalMode: assessment.ModeExam, OptionLayout: "auto", ShowResultsReport: true, ShowAnswers: true, ShowExplanations: true, AllowQuestionReview: true, MaxAttempts: 10, PassingScore: 60, Presentation: []byte(`{}`)},
 		Questions: []assessment.QuestionPlacement{{QuestionID: "00000000-0000-0000-0000-000000000005", QuestionVersion: 1, Points: 1}},
 	})
 	if err != nil {
@@ -198,12 +206,26 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 	if err != nil {
 		t.Fatalf("publish assessment: %v", err)
 	}
+	if os.Getenv("PREPARED_SCHOOL_ASSIGNMENT") == "1" {
+		_, err = db.Exec(ctx, `
+INSERT INTO schools(id,code,name) VALUES ('00000000-0000-4000-8000-000000000090','LIVE-SCHOOL','مدرسة تجريبية');
+INSERT INTO school_memberships(school_id,user_id,role,status)
+ SELECT '00000000-0000-4000-8000-000000000090',id,'student','active' FROM users WHERE email='prepared-owner@example.invalid'`)
+		if err != nil {
+			t.Fatalf("create school membership fixture: %v", err)
+		}
+		_, err = db.Exec(ctx, `INSERT INTO assessment_assignments(id,assessment_id,assessment_version,school_id,created_by,targets_entire_school)
+ VALUES ('00000000-0000-4000-8000-000000000091',$1::uuid,1,'00000000-0000-4000-8000-000000000090',$2::uuid,true)`, created.ID, adminUser.ID)
+		if err != nil {
+			t.Fatalf("create school assignment fixture: %v", err)
+		}
+	}
 	if os.Getenv("PREPARED_COURSE_PROGRESS") == "1" {
 		access := assessment.PlacementAccessFree
 		if os.Getenv("PREPARED_COURSE_PURCHASE") == "1" {
 			access = assessment.PlacementAccessPackage
 		}
-		_, err = repo.CreatePlacement(ctx, adminUser.ID, created.ID, assessment.PlacementWrite{Slot: assessment.PlacementCourse, PathID: "00000000-0000-0000-0000-000000000003", SubjectID: "00000000-0000-0000-0000-000000000004", CourseID: "00000000-0000-0000-0000-000000000031", LessonID: "00000000-0000-0000-0000-000000000033", AccessType: access, IsVisible: true})
+		_, err = repo.CreatePlacement(ctx, adminUser.ID, created.ID, assessment.PlacementWrite{Slot: assessment.PlacementCourse, PathID: "00000000-0000-4000-8000-000000000003", SubjectID: "00000000-0000-4000-8000-000000000004", CourseID: "00000000-0000-0000-0000-000000000031", LessonID: "00000000-0000-0000-0000-000000000033", AccessType: access, IsVisible: true})
 		if err != nil {
 			t.Fatalf("create browser lesson placement: %v", err)
 		}
@@ -215,17 +237,23 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 	}
 	_, err = db.Exec(ctx, `
 INSERT INTO assessments(id,assessment_code) VALUES ('00000000-0000-0000-0000-000000000026','LIVE-TOPIC-PRACTICE');
-INSERT INTO assessment_versions(assessment_id,version,title,path_id,subject_id,assessment_kind,normal_mode,version_status,published_at,max_attempts) VALUES ('00000000-0000-0000-0000-000000000026',1,'تدريب الموضوع التجريبي','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','normal','practice','published',now(),10);
+INSERT INTO assessment_versions(assessment_id,version,title,path_id,subject_id,assessment_kind,normal_mode,version_status,published_at,max_attempts) VALUES ('00000000-0000-0000-0000-000000000026',1,'تدريب الموضوع التجريبي','00000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000004','normal','practice','published',now(),10);
 UPDATE assessments SET workflow_status='approved',is_published=true,published_version=1 WHERE id='00000000-0000-0000-0000-000000000026';
 INSERT INTO assessment_version_questions(assessment_id,assessment_version,question_id,question_version) VALUES ('00000000-0000-0000-0000-000000000026',1,'00000000-0000-0000-0000-000000000005',1);
-INSERT INTO assessment_learning_placements(assessment_id,assessment_version,slot,path_id,subject_id,topic_id,is_visible) VALUES('00000000-0000-0000-0000-000000000026',1,'foundation','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000022',true)`)
+INSERT INTO assessment_learning_placements(assessment_id,assessment_version,slot,path_id,subject_id,topic_id,is_visible) VALUES('00000000-0000-0000-0000-000000000026',1,'foundation','00000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000004','00000000-0000-0000-0000-000000000022',true)`)
 	if err != nil {
 		t.Fatalf("create topic training: %v", err)
 	}
 	_, err = db.Exec(ctx, `
-INSERT INTO subjects(id,path_id,code,name) VALUES ('00000000-0000-0000-0000-000000000007','00000000-0000-0000-0000-000000000003','LIVE-S2','المادة الثانية');
-INSERT INTO questions(id,question_code,path_id,subject_id,workflow_status) VALUES ('00000000-0000-0000-0000-000000000008','LIVE-Q2','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000007','approved');
+INSERT INTO subjects(id,path_id,code,name) VALUES ('00000000-0000-0000-0000-000000000007','00000000-0000-4000-8000-000000000003','LIVE-S2','المادة الثانية');
+INSERT INTO questions(id,question_code,path_id,subject_id,workflow_status) VALUES ('00000000-0000-0000-0000-000000000008','LIVE-Q2','00000000-0000-4000-8000-000000000003','00000000-0000-0000-0000-000000000007','approved');
 INSERT INTO question_versions(question_id,version,question_type,text_content,correct_option_index) VALUES ('00000000-0000-0000-0000-000000000008',1,'mcq','سؤال القسم الثاني',0);
+INSERT INTO skills(id,subject_id,parent_skill_id,code,name,kind) VALUES
+ ('00000000-0000-0000-0000-000000000027','00000000-0000-0000-0000-000000000007',NULL,'LIVE-S2-MAIN','الهندسة','main'),
+ ('00000000-0000-0000-0000-000000000028','00000000-0000-0000-0000-000000000007','00000000-0000-0000-0000-000000000027','LIVE-S2-SUB','المساحة','sub');
+INSERT INTO question_skill_links(question_id,skill_id,relation_type) VALUES
+ ('00000000-0000-0000-0000-000000000008','00000000-0000-0000-0000-000000000027','main'),
+ ('00000000-0000-0000-0000-000000000008','00000000-0000-0000-0000-000000000028','sub');
 INSERT INTO question_options(question_id,version,option_index,option_text) VALUES ('00000000-0000-0000-0000-000000000008',1,0,'صحيح'),('00000000-0000-0000-0000-000000000008',1,1,'خطأ');`)
 	if err != nil {
 		t.Fatal(err)
@@ -244,8 +272,8 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 	}
 	mock, err := defs.Create(ctx, adminUser, assessment.Write{
 		Code: "LIVE-MOCK", OwnerType: assessment.OwnerPlatform, IsVisible: true,
-		Version:   assessment.Version{Title: "محاكي قسمين", PathID: "00000000-0000-0000-0000-000000000003", Kind: assessment.KindMock, OptionLayout: "auto", MockCategory: "qudrat", MockTargetScore: &target, MockPresentationMode: mode, MockStrictSectionLock: &strict, ShowResultsReport: true, ShowAnswers: true, AllowQuestionReview: true, MaxAttempts: 5, Presentation: []byte(`{}`)},
-		Sections:  []assessment.Section{{ID: "00000000-0000-0000-0000-000000000010", Title: "القسم الأول", SubjectID: "00000000-0000-0000-0000-000000000004", SortOrder: 1, TimeLimitSeconds: firstSectionLimit, Domain: "quantitative", StrictLock: strict}, {ID: "00000000-0000-0000-0000-000000000011", Title: "القسم الثاني", SubjectID: "00000000-0000-0000-0000-000000000007", SortOrder: 2, Domain: "verbal", StrictLock: strict}},
+		Version:   assessment.Version{Title: "محاكي قسمين", PathID: "00000000-0000-4000-8000-000000000003", Kind: assessment.KindMock, OptionLayout: "auto", MockCategory: "qudrat", MockTargetScore: &target, MockPresentationMode: mode, MockStrictSectionLock: &strict, ShowResultsReport: true, ShowAnswers: true, ShowExplanations: true, AllowQuestionReview: true, MaxAttempts: 5, Presentation: []byte(`{}`)},
+		Sections:  []assessment.Section{{ID: "00000000-0000-0000-0000-000000000010", Title: "القسم الأول", SubjectID: "00000000-0000-4000-8000-000000000004", SortOrder: 1, TimeLimitSeconds: firstSectionLimit, Domain: "quantitative", StrictLock: strict}, {ID: "00000000-0000-0000-0000-000000000011", Title: "القسم الثاني", SubjectID: "00000000-0000-0000-0000-000000000007", SortOrder: 2, Domain: "verbal", StrictLock: strict}},
 		Questions: []assessment.QuestionPlacement{{QuestionID: "00000000-0000-0000-0000-000000000005", QuestionVersion: 1, SectionID: "00000000-0000-0000-0000-000000000010", SortOrder: 1, Points: 1}, {QuestionID: "00000000-0000-0000-0000-000000000008", QuestionVersion: 1, SectionID: "00000000-0000-0000-0000-000000000011", SortOrder: 2, Points: 1}},
 	})
 	if err != nil {
@@ -325,6 +353,14 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 	router.Mount("/api/v1/auth", identityhttp.New(auth, false, identityhttp.Options{Admin: adminService}))
 	router.Mount("/api/v1/assessments", assessmenthttp.New(defs, auth, attempts))
 	router.Mount("/api/v1/assessment-attempts", assessmenthttp.NewAttempts(attempts, auth, assessmentapp.NewSelfQuizService(repo)))
+	router.Mount("/api/v1/assessment-assignments", assessmenthttp.NewAssignments(assessmentapp.NewAssignmentService(repo), auth))
+	learningService := learningapp.NewService(learningpg.New(db), questionapp.NewService(questionpg.New(db, operationspg.NewAuditWriter())))
+	router.Mount("/api/v1/review", learninghttp.NewReview(learningService, auth))
+	router.Mount("/api/v1/mastery", learninghttp.NewMastery(learningService, auth))
+	router.Mount("/api/v1/reports", reportinghttp.New(reportingapp.NewService(reportingpg.NewReportRepository(db)), auth))
+	aiService := aiapp.NewService(aipg.New(db, operationspg.NewAuditWriter()), learningpg.New(db), questionpg.New(db, operationspg.NewAuditWriter()), nil, aiapp.Config{})
+	aiService.SetResultReviewReader(repo)
+	router.Mount("/api/v1/ai", aihttp.New(aiService, auth))
 	router.Mount("/api/v1/questions", questionhttp.New(questionapp.NewService(questionpg.New(db, operationspg.NewAuditWriter())), auth))
 	router.Mount("/api/v1/public-assessments", assessmenthttp.NewPublicSessions(sessions))
 	router.Mount("/api/v1/taxonomy", taxonomyhttp.New(taxonomyapp.NewService(taxonomypg.New(db)), auth))
@@ -335,7 +371,7 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 	if os.Getenv("PREPARED_COURSE_PURCHASE") == "1" {
 		commerceRepo := commercepg.New(db, operationspg.NewAuditWriter())
 		commerceService := commerceapp.NewService(commerceRepo, contentRepo, taxonomypg.New(db), nil)
-		product, createErr := commerceService.CreateProduct(ctx, adminUser, commerce.ProductWrite{Code: "LIVE-COURSE-PACKAGE", ProductType: commerce.ProductPackage, Name: "باقة الدورات التجريبية", Status: commerce.ProductActive, AccessMode: commerce.AccessPaid, PriceMinor: 1200, Currency: "SAR", IsVisible: true, Package: &commerce.PackageWrite{PackageKind: commerce.PackageBundle, Items: []commerce.PackageItem{{ScopeType: commerce.ScopeSubject, SubjectID: "00000000-0000-0000-0000-000000000004", ContentType: commerce.ContentCourses}}}})
+		product, createErr := commerceService.CreateProduct(ctx, adminUser, commerce.ProductWrite{Code: "LIVE-COURSE-PACKAGE", ProductType: commerce.ProductPackage, Name: "باقة الدورات التجريبية", Status: commerce.ProductActive, AccessMode: commerce.AccessPaid, PriceMinor: 1200, Currency: "SAR", IsVisible: true, Package: &commerce.PackageWrite{PackageKind: commerce.PackageBundle, Items: []commerce.PackageItem{{ScopeType: commerce.ScopeSubject, SubjectID: "00000000-0000-4000-8000-000000000004", ContentType: commerce.ContentCourses}}}})
 		if createErr != nil {
 			t.Fatalf("create browser package: %v", createErr)
 		}

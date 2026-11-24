@@ -46,8 +46,12 @@ func (r *Repository) resultSkillAnalysis(ctx context.Context, student, attemptID
 		)
 		SELECT c.expected_count,c.distinct_expected,c.found_count,c.evidence_count,c.invalid_skill,
 		       COALESCE(g.path_id::text,''),COALESCE(g.subject_id::text,''),COALESCE(g.subject_name,''),COALESCE(g.skill_id::text,''),
-		       COALESCE(g.skill_name,''),COALESCE(g.question_count,0),COALESCE(g.correct_count,0)
+		       COALESCE(g.skill_name,''),COALESCE(skill.kind,''),COALESCE(parent.id::text,''),COALESCE(section.name,''),COALESCE(g.question_count,0),COALESCE(g.correct_count,0)
 		FROM coverage c LEFT JOIN grouped g ON true
+		LEFT JOIN skills skill ON skill.id=g.skill_id AND skill.subject_id=g.subject_id
+		LEFT JOIN skills parent ON skill.kind='sub' AND parent.id=skill.parent_skill_id
+		  AND parent.subject_id=g.subject_id AND parent.kind='main'
+		LEFT JOIN taxonomy_skill_sections section ON section.id=COALESCE(skill.section_id,parent.section_id) AND section.subject_id=g.subject_id
 		ORDER BY g.subject_id,g.skill_name,g.skill_id LIMIT 10001
 	`, attemptID, student)
 	if err != nil {
@@ -58,7 +62,7 @@ func (r *Repository) resultSkillAnalysis(ctx context.Context, student, attemptID
 		var expected, distinctExpected, found, evidenceCount int
 		var invalid bool
 		var item assessment.ResultSkillAnalysisItem
-		if err = rows.Scan(&expected, &distinctExpected, &found, &evidenceCount, &invalid, &item.PathID, &item.SubjectID, &item.SubjectName, &item.SkillID, &item.SkillName, &item.QuestionCount, &item.CorrectCount); err != nil {
+		if err = rows.Scan(&expected, &distinctExpected, &found, &evidenceCount, &invalid, &item.PathID, &item.SubjectID, &item.SubjectName, &item.SkillID, &item.SkillName, &item.Level, &item.ParentSkillID, &item.SectionName, &item.QuestionCount, &item.CorrectCount); err != nil {
 			return nil, err
 		}
 		analysis.Complete = expected > 0 && expected == resultTotal && distinctExpected == expected && found == expected && evidenceCount == expected && !invalid
@@ -100,7 +104,36 @@ func (r *Repository) attachResultFoundationTopics(ctx context.Context, items []a
 		index[items[i].PathID+":"+items[i].SubjectID+":"+items[i].SkillID] = i
 	}
 	rows, err := r.db.Query(ctx, `
-		SELECT t.path_id::text,t.subject_id::text,l.skill_id::text,t.id::text,t.title,t.is_locked
+		SELECT t.path_id::text,t.subject_id::text,l.skill_id::text,t.id::text,t.title,t.is_locked,
+		       COALESCE((
+		         SELECT lesson.id::text FROM topic_lessons placement
+		         JOIN lessons lesson ON lesson.id=placement.lesson_id
+		         WHERE placement.topic_id=t.id AND lesson.path_id=t.path_id AND lesson.subject_id=t.subject_id
+		           AND lesson.workflow_status='approved' AND lesson.is_visible=true
+		           AND lesson.lesson_type='video' AND NULLIF(btrim(lesson.video_url),'') IS NOT NULL
+		         ORDER BY placement.sort_order,lesson.id LIMIT 1
+		       ),''),
+	       EXISTS (
+	         SELECT 1 FROM topic_lessons placement
+	         JOIN lessons lesson ON lesson.id=placement.lesson_id
+	         WHERE placement.topic_id=t.id AND lesson.path_id=t.path_id AND lesson.subject_id=t.subject_id
+	           AND lesson.workflow_status='approved' AND lesson.is_visible=true
+	       ),
+	       EXISTS (
+	         SELECT 1 FROM assessment_learning_placements placement
+	         JOIN assessments a ON a.id=placement.assessment_id
+	         JOIN assessment_versions v ON v.assessment_id=a.id AND v.version=placement.assessment_version
+	         WHERE placement.topic_id=t.id AND placement.path_id=t.path_id AND placement.subject_id=t.subject_id
+	           AND placement.slot='foundation' AND placement.is_visible=true
+	           AND a.workflow_status='approved' AND a.is_published=true AND a.is_visible=true
+	           AND v.assessment_kind='normal' AND v.normal_mode='practice'
+	       ),
+		       EXISTS (
+		         SELECT 1 FROM topic_library_items placement
+		         JOIN library_items item ON item.id=placement.library_item_id
+		         WHERE placement.topic_id=t.id AND item.path_id=t.path_id AND item.subject_id=t.subject_id
+		           AND item.workflow_status='approved' AND item.is_visible=true
+		       )
 		FROM topic_skill_links l
 		JOIN foundation_topics t ON t.id=l.topic_id
 		JOIN skills s ON s.id=l.skill_id AND s.subject_id=t.subject_id
@@ -122,7 +155,8 @@ func (r *Repository) attachResultFoundationTopics(ctx context.Context, items []a
 		}
 		var path, subject, skill string
 		var topic assessment.ResultFoundationTopic
-		if err := rows.Scan(&path, &subject, &skill, &topic.ID, &topic.Title, &topic.IsLocked); err != nil {
+		if err := rows.Scan(&path, &subject, &skill, &topic.ID, &topic.Title, &topic.IsLocked,
+			&topic.VideoLessonID, &topic.HasLesson, &topic.HasPractice, &topic.HasSupport); err != nil {
 			return err
 		}
 		if i, ok := index[path+":"+subject+":"+skill]; ok {

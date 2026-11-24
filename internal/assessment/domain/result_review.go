@@ -68,8 +68,10 @@ type ResultDetail struct {
 	ShowAnswers         bool                 `json:"showAnswers"`
 	ShowExplanations    bool                 `json:"showExplanations"`
 	ShowResultsReport   bool                 `json:"showResultsReport"`
+	AnalysisMode        string               `json:"analysisMode,omitempty"`
 	SkillAnalysis       *ResultSkillAnalysis `json:"skillAnalysis,omitempty"`
 	SubjectResults      []ResultSubjectItem  `json:"subjectResults,omitempty"`
+	SectionResults      []ResultSectionItem  `json:"sectionResults,omitempty"`
 	Questions           []ReviewQuestion     `json:"questions,omitempty"`
 }
 
@@ -84,6 +86,16 @@ type ResultSubjectItem struct {
 	Score       int    `json:"score"`
 }
 
+type ResultSectionItem struct {
+	SectionID   string `json:"sectionId"`
+	SectionName string `json:"sectionName"`
+	Total       int    `json:"total"`
+	Correct     int    `json:"correct"`
+	Wrong       int    `json:"wrong"`
+	Unanswered  int    `json:"unanswered"`
+	Score       int    `json:"score"`
+}
+
 // ResultSkillAnalysis describes only this submitted attempt, not cumulative mastery.
 type ResultSkillAnalysis struct {
 	Complete bool                      `json:"complete"`
@@ -91,11 +103,15 @@ type ResultSkillAnalysis struct {
 }
 
 type ResultSkillAnalysisItem struct {
-	PathID           string                  `json:"pathId"`
-	SubjectID        string                  `json:"subjectId"`
-	SubjectName      string                  `json:"subjectName"`
-	SkillID          string                  `json:"skillId"`
-	SkillName        string                  `json:"skillName"`
+	PathID      string `json:"pathId"`
+	SubjectID   string `json:"subjectId"`
+	SubjectName string `json:"subjectName"`
+	SectionName string `json:"sectionName,omitempty"`
+	SkillID     string `json:"skillId"`
+	SkillName   string `json:"skillName"`
+	// Hierarchy is read from the current subject taxonomy. Counts come from the submitted attempt.
+	Level            string                  `json:"level,omitempty"`
+	ParentSkillID    string                  `json:"parentSkillId,omitempty"`
 	QuestionCount    int                     `json:"questionCount"`
 	CorrectCount     int                     `json:"correctCount"`
 	Mastery          int                     `json:"mastery"`
@@ -105,7 +121,11 @@ type ResultSkillAnalysisItem struct {
 
 // Topic metadata identifies a destination; it does not grant access to lessons or assessments.
 type ResultFoundationTopic struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	IsLocked bool   `json:"isLocked"`
+	ID            string `json:"id"`
+	Title         string `json:"title"`
+	VideoLessonID string `json:"videoLessonId,omitempty"`
+	HasLesson     bool   `json:"hasLesson,omitempty"`
+	HasPractice   bool   `json:"hasPractice,omitempty"`
+	HasSupport    bool   `json:"hasSupport,omitempty"`
+	IsLocked      bool   `json:"isLocked"`
 }
