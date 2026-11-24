@@ -191,9 +191,37 @@ export const organizationsClient = {
     return request<{ members: RosterMember[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
       `/api/v1/schools/${encodeURIComponent(schoolId)}/roster?${p.toString()}`, { signal });
   },
-  directorStudents(schoolId: string, search = '', signal?: AbortSignal) {
-    const q = search.trim() ? `?search=${encodeURIComponent(search.trim())}` : '';
-    return request<{ students: DirectorStudent[]; total: number }>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/students${q}`, { signal });
+  directorStudents(
+    schoolId: string,
+    queryOrOptions?: string | { search?: string; page?: number; limit?: number } | AbortSignal,
+    signal?: AbortSignal,
+  ) {
+    let effectiveOptions: { search?: string; page?: number; limit?: number } = {};
+    let effectiveSignal = signal;
+    if (queryOrOptions instanceof AbortSignal) {
+      effectiveSignal = queryOrOptions;
+    } else if (typeof queryOrOptions === 'string') {
+      if (queryOrOptions.trim()) {
+        effectiveOptions.search = queryOrOptions.trim();
+      }
+    } else if (queryOrOptions) {
+      effectiveOptions = queryOrOptions;
+    }
+    const params = new URLSearchParams();
+    if (effectiveOptions.search?.trim()) {
+      params.set('search', effectiveOptions.search.trim());
+    }
+    if (effectiveOptions.page && effectiveOptions.page > 0) {
+      params.set('page', String(effectiveOptions.page));
+    }
+    if (effectiveOptions.limit && effectiveOptions.limit > 0) {
+      params.set('limit', String(effectiveOptions.limit));
+    }
+    const q = params.toString() ? `?${params.toString()}` : '';
+    return request<{ students: DirectorStudent[]; total: number; page?: number; limit?: number }>(
+      `/api/school-access/director/schools/${encodeURIComponent(schoolId)}/students${q}`,
+      { signal: effectiveSignal },
+    );
   },
   addDirectorStudent(schoolId: string, payload: { name: string; email: string; password: string; classId: string }, csrf: string) {
     return request<{ student: DirectorStudent; created: boolean }>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/students`, { method: 'POST', headers: csrfHeaders(csrf), body: JSON.stringify(payload) });

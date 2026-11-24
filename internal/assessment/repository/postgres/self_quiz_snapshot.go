@@ -77,71 +77,136 @@ func (r *Repository) CreateSelfQuizSnapshot(ctx context.Context, studentID strin
 	}
 
 	scopes := make([]assessment.SelfQuizSkillScope, 0, len(in.SkillIDs))
-	for _, id := range in.SkillIDs {
-		var scope assessment.SelfQuizSkillScope
-		err = tx.QueryRow(ctx, `SELECT s.id::text,sub.path_id::text,s.subject_id::text,(s.status='active' AND sub.status='active' AND p.status='active' AND (s.parent_skill_id IS NULL OR parent.id IS NOT NULL)),COALESCE(sec.id::text,'') FROM skills s JOIN subjects sub ON sub.id=s.subject_id JOIN paths p ON p.id=sub.path_id LEFT JOIN skills parent ON parent.id=s.parent_skill_id AND parent.subject_id=s.subject_id AND parent.status='active' LEFT JOIN taxonomy_skill_sections sec ON sec.id=COALESCE(s.section_id,parent.section_id) AND sec.subject_id=s.subject_id AND sec.status='active' WHERE s.id=$1::uuid FOR SHARE OF s,sub,p`, id).Scan(&scope.ID, &scope.PathID, &scope.SubjectID, &scope.Active, &scope.SectionID)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return "", assessment.ErrSelfQuizScopeMismatch
-		}
+	if len(in.SkillIDs) > 0 {
+		rows, err := tx.Query(ctx, `SELECT s.id::text,sub.path_id::text,s.subject_id::text,(s.status='active' AND sub.status='active' AND p.status='active' AND (s.parent_skill_id IS NULL OR parent.id IS NOT NULL)),COALESCE(sec.id::text,'') FROM skills s JOIN subjects sub ON sub.id=s.subject_id JOIN paths p ON p.id=sub.path_id LEFT JOIN skills parent ON parent.id=s.parent_skill_id AND parent.subject_id=s.subject_id AND parent.status='active' LEFT JOIN taxonomy_skill_sections sec ON sec.id=COALESCE(s.section_id,parent.section_id) AND sec.subject_id=s.subject_id AND sec.status='active' WHERE s.id=ANY($1::uuid[]) FOR SHARE OF s,sub,p`, in.SkillIDs)
 		if err != nil {
 			return "", err
 		}
-		scopes = append(scopes, scope)
+		scopeMap := make(map[string]assessment.SelfQuizSkillScope, len(in.SkillIDs))
+		for rows.Next() {
+			var scope assessment.SelfQuizSkillScope
+			if err := rows.Scan(&scope.ID, &scope.PathID, &scope.SubjectID, &scope.Active, &scope.SectionID); err != nil {
+				rows.Close()
+				return "", err
+			}
+			scopeMap[strings.ToLower(strings.TrimSpace(scope.ID))] = scope
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return "", err
+		}
+		rows.Close()
+
+		for _, id := range in.SkillIDs {
+			sc, ok := scopeMap[strings.ToLower(strings.TrimSpace(id))]
+			if !ok {
+				return "", assessment.ErrSelfQuizScopeMismatch
+			}
+			scopes = append(scopes, sc)
+		}
 	}
 	if err = assessment.ValidateSelfQuizSkills(in, scopes); err != nil {
 		return "", err
 	}
 	verified := append([]assessment.EligibleSelfQuizQuestion(nil), selected...)
+	qIDs := make([]string, len(verified))
+	for i, q := range verified {
+		qIDs[i] = q.ID
+	}
+
+	type questionRow struct {
+		currentVersion      int
+		questionPath        *string
+		questionSubject     *string
+		questionType        string
+		difficulty          string
+		correctOptionIndex  *int
+		correctOptionExists bool
+		sectionID           string
+	}
+	questionMap := make(map[string]questionRow, len(verified))
+	qRows, err := tx.Query(ctx, `SELECT q.id::text,q.current_version,q.path_id::text,q.subject_id::text,v.question_type,COALESCE(v.difficulty,''),v.correct_option_index,EXISTS(SELECT 1 FROM question_options o WHERE o.question_id=v.question_id AND o.version=v.version AND o.option_index=v.correct_option_index),COALESCE(q.section_id::text,'') FROM questions q JOIN question_versions v ON v.question_id=q.id AND v.version=q.current_version WHERE q.id=ANY($1::uuid[]) AND q.workflow_status='approved' AND q.owner_type='platform' FOR SHARE OF q,v`, qIDs)
+	if err != nil {
+		return "", err
+	}
+	for qRows.Next() {
+		var qID string
+		var qr questionRow
+		if err := qRows.Scan(&qID, &qr.currentVersion, &qr.questionPath, &qr.questionSubject, &qr.questionType, &qr.difficulty, &qr.correctOptionIndex, &qr.correctOptionExists, &qr.sectionID); err != nil {
+			qRows.Close()
+			return "", err
+		}
+		questionMap[strings.ToLower(strings.TrimSpace(qID))] = qr
+	}
+	if err := qRows.Err(); err != nil {
+		qRows.Close()
+		return "", err
+	}
+	qRows.Close()
+
+	type skillLink struct {
+		skillID      string
+		skillSubject string
+	}
+	skillsByQuestion := make(map[string][]skillLink, len(verified))
+	linkRows, err := tx.Query(ctx, `SELECT l.question_id::text,s.id::text,s.subject_id::text FROM question_skill_links l JOIN skills s ON s.id=l.skill_id WHERE l.question_id=ANY($1::uuid[]) AND s.status='active' ORDER BY l.question_id, s.id`, qIDs)
+	if err != nil {
+		return "", err
+	}
+	for linkRows.Next() {
+		var qID, skillID, skillSubject string
+		if err := linkRows.Scan(&qID, &skillID, &skillSubject); err != nil {
+			linkRows.Close()
+			return "", err
+		}
+		normQ := strings.ToLower(strings.TrimSpace(qID))
+		skillsByQuestion[normQ] = append(skillsByQuestion[normQ], skillLink{skillID: skillID, skillSubject: skillSubject})
+	}
+	if err := linkRows.Err(); err != nil {
+		linkRows.Close()
+		return "", err
+	}
+	linkRows.Close()
+
+	pathVisibility := make(map[string]bool)
 	for i := range verified {
 		q := &verified[i]
-		var current int
-		var questionPath, questionSubject *string
-		var correct *int
-		var correctOptionExists bool
-		err = tx.QueryRow(ctx, `SELECT q.current_version,q.path_id::text,q.subject_id::text,v.question_type,COALESCE(v.difficulty,''),v.correct_option_index,EXISTS(SELECT 1 FROM question_options o WHERE o.question_id=v.question_id AND o.version=v.version AND o.option_index=v.correct_option_index),COALESCE(q.section_id::text,'') FROM questions q JOIN question_versions v ON v.question_id=q.id AND v.version=q.current_version WHERE q.id=$1::uuid AND q.workflow_status='approved' AND q.owner_type='platform' FOR SHARE OF q,v`, q.ID).Scan(&current, &questionPath, &questionSubject, &q.Type, &q.Difficulty, &correct, &correctOptionExists, &q.SectionID)
-		if errors.Is(err, pgx.ErrNoRows) {
+		qr, ok := questionMap[strings.ToLower(strings.TrimSpace(q.ID))]
+		if !ok {
 			return "", assessment.ErrConflict
 		}
-		if err != nil {
-			return "", err
-		}
-		if q.Version != current || correct == nil || !correctOptionExists || q.PathID == "" || q.SubjectID == "" || (questionPath != nil && !strings.EqualFold(*questionPath, q.PathID)) || (questionSubject != nil && !strings.EqualFold(*questionSubject, q.SubjectID)) {
+		q.Type = qr.questionType
+		q.Difficulty = qr.difficulty
+		q.SectionID = qr.sectionID
+
+		if q.Version != qr.currentVersion || qr.correctOptionIndex == nil || !qr.correctOptionExists || q.PathID == "" || q.SubjectID == "" || (qr.questionPath != nil && !strings.EqualFold(*qr.questionPath, q.PathID)) || (qr.questionSubject != nil && !strings.EqualFold(*qr.questionSubject, q.SubjectID)) {
 			return "", assessment.ErrConflict
 		}
-		var visible bool
-		err = tx.QueryRow(ctx, `WITH RECURSIVE visible_paths AS (SELECT id FROM paths WHERE parent_path_id IS NULL AND status='active' AND COALESCE(presentation->>'isVisible','true') <> 'false' UNION ALL SELECT p.id FROM paths p JOIN visible_paths a ON a.id=p.parent_path_id WHERE p.status='active' AND COALESCE(p.presentation->>'isVisible','true') <> 'false') SELECT EXISTS(SELECT 1 FROM subjects s JOIN visible_paths p ON p.id=s.path_id LEFT JOIN levels l ON l.id=s.level_id AND l.path_id=s.path_id WHERE s.id=$1::uuid AND s.path_id=$2::uuid AND s.status='active' AND COALESCE(s.presentation->>'isVisible','true') <> 'false' AND (s.level_id IS NULL OR (l.status='active' AND COALESCE(l.presentation->>'isVisible','true') <> 'false')))`, q.SubjectID, q.PathID).Scan(&visible)
-		if err != nil {
-			return "", err
+
+		cacheKey := strings.ToLower(strings.TrimSpace(q.SubjectID)) + ":" + strings.ToLower(strings.TrimSpace(q.PathID))
+		visible, cached := pathVisibility[cacheKey]
+		if !cached {
+			err = tx.QueryRow(ctx, `WITH RECURSIVE visible_paths AS (SELECT id FROM paths WHERE parent_path_id IS NULL AND status='active' AND COALESCE(presentation->>'isVisible','true') <> 'false' UNION ALL SELECT p.id FROM paths p JOIN visible_paths a ON a.id=p.parent_path_id WHERE p.status='active' AND COALESCE(p.presentation->>'isVisible','true') <> 'false') SELECT EXISTS(SELECT 1 FROM subjects s JOIN visible_paths p ON p.id=s.path_id LEFT JOIN levels l ON l.id=s.level_id AND l.path_id=s.path_id WHERE s.id=$1::uuid AND s.path_id=$2::uuid AND s.status='active' AND COALESCE(s.presentation->>'isVisible','true') <> 'false' AND (s.level_id IS NULL OR (l.status='active' AND COALESCE(l.presentation->>'isVisible','true') <> 'false')))`, q.SubjectID, q.PathID).Scan(&visible)
+			if err != nil {
+				return "", err
+			}
+			pathVisibility[cacheKey] = visible
 		}
 		if !visible {
 			return "", assessment.ErrConflict
 		}
-		rows, e := tx.Query(ctx, `SELECT s.id::text,s.subject_id::text FROM question_skill_links l JOIN skills s ON s.id=l.skill_id WHERE l.question_id=$1::uuid AND s.status='active' ORDER BY s.id`, q.ID)
-		if e != nil {
-			return "", e
-		}
+
+		links := skillsByQuestion[strings.ToLower(strings.TrimSpace(q.ID))]
 		q.SkillIDs = nil
-		for rows.Next() {
-			var skill, skillSubject string
-			if e = rows.Scan(&skill, &skillSubject); e != nil {
-				break
+		for _, link := range links {
+			if !strings.EqualFold(link.skillSubject, q.SubjectID) {
+				return "", assessment.ErrSelfQuizScopeMismatch
 			}
-			if !strings.EqualFold(skillSubject, q.SubjectID) {
-				e = assessment.ErrSelfQuizScopeMismatch
-				break
-			}
-			q.SkillIDs = append(q.SkillIDs, skill)
-		}
-		if e == nil {
-			e = rows.Err()
-		}
-		rows.Close()
-		if e != nil {
-			return "", e
+			q.SkillIDs = append(q.SkillIDs, link.skillID)
 		}
 		// A legacy question without an explicit subject can only inherit a
 		// subject from an actual, unambiguous set of linked skills.
-		if questionSubject == nil && len(q.SkillIDs) == 0 {
+		if qr.questionSubject == nil && len(q.SkillIDs) == 0 {
 			return "", assessment.ErrSelfQuizScopeMismatch
 		}
 	}
@@ -162,19 +227,26 @@ func (r *Repository) CreateSelfQuizSnapshot(ctx context.Context, studentID strin
 	if err != nil {
 		return "", mapError(err)
 	}
+	batch := &pgx.Batch{}
 	for i, skillID := range in.SkillIDs {
-		if _, err = tx.Exec(ctx, `INSERT INTO self_quiz_target_skills(attempt_id,skill_id,sort_order) VALUES($1::uuid,$2::uuid,$3)`, id, skillID, i); err != nil {
-			return "", mapError(err)
-		}
+		batch.Queue(`INSERT INTO self_quiz_target_skills(attempt_id,skill_id,sort_order) VALUES($1::uuid,$2::uuid,$3)`, id, skillID, i)
 	}
 	for i, q := range verified {
-		if _, err = tx.Exec(ctx, `INSERT INTO self_quiz_questions(attempt_id,question_id,question_version,path_id,subject_id,sort_order) VALUES($1::uuid,$2::uuid,$3,$4::uuid,$5::uuid,$6)`, id, q.ID, q.Version, q.PathID, q.SubjectID, i+1); err != nil {
-			return "", mapError(err)
-		}
+		batch.Queue(`INSERT INTO self_quiz_questions(attempt_id,question_id,question_version,path_id,subject_id,sort_order) VALUES($1::uuid,$2::uuid,$3,$4::uuid,$5::uuid,$6)`, id, q.ID, q.Version, q.PathID, q.SubjectID, i+1)
 		for _, skillID := range q.SkillIDs {
-			if _, err = tx.Exec(ctx, `INSERT INTO self_quiz_question_skills(attempt_id,question_id,subject_id,skill_id) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid)`, id, q.ID, q.SubjectID, skillID); err != nil {
-				return "", mapError(err)
+			batch.Queue(`INSERT INTO self_quiz_question_skills(attempt_id,question_id,subject_id,skill_id) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid)`, id, q.ID, q.SubjectID, skillID)
+		}
+	}
+	if batch.Len() > 0 {
+		results := tx.SendBatch(ctx, batch)
+		for i := 0; i < batch.Len(); i++ {
+			if _, execErr := results.Exec(); execErr != nil {
+				_ = results.Close()
+				return "", mapError(execErr)
 			}
+		}
+		if closeErr := results.Close(); closeErr != nil {
+			return "", mapError(closeErr)
 		}
 	}
 	if err = r.auditTx(ctx, tx, operations.AuditEvent{ActorUserID: studentID, Action: "assessment.self_quiz.start", ResourceType: "assessment_attempt", ResourceID: id, Metadata: map[string]any{"evidenceType": in.EvidenceType, "questionCount": len(verified)}}); err != nil {
