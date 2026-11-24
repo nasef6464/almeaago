@@ -227,3 +227,68 @@ test('unknown school link never substitutes a different school', async ({page}) 
  await expect(page.getByText('مدرسة ألف')).toHaveCount(0);
  await expect(page.getByText('مدرسة باء')).toHaveCount(0);
 });
+
+test('teacher assessment drafts persist across reload and student roster queries real school classes', async ({ page }) => {
+  await auth(page);
+  await page.route('**/api/v1/schools/teacher-workspace', route => json(route, {
+    personas: { platformTrainer: false, schoolTeacher: true }, schools,
+  }));
+  await page.route('**/api/v1/schools/school-a/roster*', route => json(route, {
+    members: [
+      { userId: 'real-student-1', name: 'خالد عبدالله', role: 'student', classIds: ['class-a'] },
+      { userId: 'real-student-2', name: 'عمر القحطاني', role: 'student', classIds: ['class-a'] },
+    ],
+    pagination: { page: 1, limit: 100, total: 2, totalPages: 1 },
+  }));
+  await page.route('**/api/v1/assessments?limit=100', route => json(route, { items: [] }));
+
+  // Load overview tab first
+  await page.goto('/school-teacher-dashboard?schoolId=school-a');
+  await expect(page.getByTestId('teacher-workspace')).toBeVisible();
+
+  // Initially 3 baseline assessments in overview KPI
+  const countCard = page.getByText('اختبارات المدرسة').locator('xpath=../..');
+  await expect(countCard).toContainText('3');
+
+  // Navigate to assessments tab
+  await page.getByRole('navigation', { name: 'تنقل لوحة معلم المدرسة' }).getByText('اختباراتي وتكليفاتي').click();
+  await expect(page).toHaveURL(/tab=assessments/);
+
+  // Set a draft in localStorage
+  await page.evaluate(() => {
+    const raw = localStorage.getItem('almeaa_teacher_assessment_drafts_school-a');
+    const existing = raw ? JSON.parse(raw) : [];
+    const item = {
+      id: 'draft-test-persist-1',
+      title: 'مسودة تكليف تجريبي معتمد للاختبار',
+      kind: 'test',
+      className: 'الأول ألف',
+      workflowStatus: 'draft',
+      isPublished: false,
+      dueDate: '2026-12-01',
+      totalQuestions: 15,
+      participantsCount: 0,
+      totalStudents: 11,
+      avgScore: 0,
+    };
+    localStorage.setItem('almeaa_teacher_assessment_drafts_school-a', JSON.stringify([item, ...existing]));
+  });
+
+  // Reload page on assessments tab and verify draft persisted
+  await page.reload();
+  await expect(page.getByText('مسودة تكليف تجريبي معتمد للاختبار')).toBeVisible();
+  await expect(page.getByText('المسودات والتكليفات المحفوظة محلياً')).toBeVisible();
+
+  // Switch back to overview tab to verify count is 4
+  await page.getByRole('navigation', { name: 'تنقل لوحة معلم المدرسة' }).getByText('نظرة عامة', { exact: true }).click();
+  await expect(countCard).toContainText('4');
+
+  // Go back to assessments tab and delete draft
+  await page.getByRole('navigation', { name: 'تنقل لوحة معلم المدرسة' }).getByText('اختباراتي وتكليفاتي').click();
+  await page.getByRole('button', { name: 'حذف' }).first().click();
+  await expect(page.getByText('مسودة تكليف تجريبي معتمد للاختبار')).toHaveCount(0);
+
+  // Switch back to overview to verify count is back to 3
+  await page.getByRole('navigation', { name: 'تنقل لوحة معلم المدرسة' }).getByText('نظرة عامة', { exact: true }).click();
+  await expect(countCard).toContainText('3');
+});
