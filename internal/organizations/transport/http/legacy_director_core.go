@@ -490,10 +490,36 @@ func (h *LegacyHandler) directorTeachers(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
+	var q orgdomain.DirectorTeacherQuery
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			q.Limit = l
+		}
+	}
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if off, err := strconv.Atoi(offsetStr); err == nil && off >= 0 {
+			q.Offset = off
+		}
+	} else if pageStr := r.URL.Query().Get("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 1 && q.Limit > 0 {
+			q.Offset = (p - 1) * q.Limit
+		}
+	}
+	if aLimitStr := r.URL.Query().Get("assignmentLimit"); aLimitStr != "" {
+		if al, err := strconv.Atoi(aLimitStr); err == nil && al > 0 {
+			q.AssignmentLimit = al
+		}
+	}
+	if aOffsetStr := r.URL.Query().Get("assignmentOffset"); aOffsetStr != "" {
+		if aOff, err := strconv.Atoi(aOffsetStr); err == nil && aOff >= 0 {
+			q.AssignmentOffset = aOff
+		}
+	}
 	workspace, err := h.service.DirectorTeachers(
 		r.Context(),
 		auth.User,
 		chi.URLParam(r, "schoolId"),
+		q,
 	)
 	if err != nil {
 		writeError(w, err)

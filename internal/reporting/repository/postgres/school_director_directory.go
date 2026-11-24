@@ -118,7 +118,33 @@ func (d *SchoolDirectorDirectory) ListDirectorStudents(
 func (d *SchoolDirectorDirectory) DirectorTeachers(
 	ctx context.Context,
 	schoolID string,
+	query ...org.DirectorTeacherQuery,
 ) (org.DirectorTeacherWorkspace, error) {
+	limit := 500
+	offset := 0
+	assignmentLimit := 1000
+	assignmentOffset := 0
+	if len(query) > 0 {
+		if query[0].Limit > 0 {
+			limit = query[0].Limit
+			if limit > 1000 {
+				limit = 1000
+			}
+		}
+		if query[0].Offset > 0 {
+			offset = query[0].Offset
+		}
+		if query[0].AssignmentLimit > 0 {
+			assignmentLimit = query[0].AssignmentLimit
+			if assignmentLimit > 2000 {
+				assignmentLimit = 2000
+			}
+		}
+		if query[0].AssignmentOffset > 0 {
+			assignmentOffset = query[0].AssignmentOffset
+		}
+	}
+
 	rows, err := d.db.Query(ctx, `
 		SELECT
 			u.id::text,
@@ -131,8 +157,8 @@ func (d *SchoolDirectorDirectory) DirectorTeachers(
 		  AND sm.role = 'teacher'
 		  AND sm.status = 'active'
 		ORDER BY lower(u.name), u.id
-		LIMIT 500
-	`, schoolID)
+		LIMIT $2 OFFSET $3
+	`, schoolID, limit, offset)
 	if err != nil {
 		return org.DirectorTeacherWorkspace{}, err
 	}
@@ -168,8 +194,8 @@ func (d *SchoolDirectorDirectory) DirectorTeachers(
 		FROM teaching_assignments ta
 		WHERE ta.school_id = $1::uuid
 		ORDER BY ta.updated_at DESC, ta.id DESC
-		LIMIT 1000
-	`, schoolID)
+		LIMIT $2 OFFSET $3
+	`, schoolID, assignmentLimit, assignmentOffset)
 	if err != nil {
 		return org.DirectorTeacherWorkspace{}, err
 	}

@@ -52,3 +52,10 @@ type DirectorTeacherWorkspace struct {
 	Teachers    []DirectorTeacher
 	Assignments []TeachingAssignment
 }
+
+type DirectorTeacherQuery struct {
+	Limit            int
+	Offset           int
+	AssignmentLimit  int
+	AssignmentOffset int
+}
