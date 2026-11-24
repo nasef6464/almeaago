@@ -411,20 +411,6 @@ export function TeacherWorkspacePage() {
     }
   };
 
-  const toggleAssessmentStatus = (id: string) => {
-    setTeacherAssessments((prev) =>
-      prev.map((a) => {
-        if (a.id === id) {
-          const next = a.workflowStatus === 'approved' ? 'rejected' : 'approved';
-          setFeedback(next === 'approved' ? `✅ تم اعتماد ونشر الاختبار "${a.title}"` : `⚠️ تم رفض/إعادة مراجعة الاختبار "${a.title}"`);
-          setTimeout(() => setFeedback(''), 3000);
-          return { ...a, workflowStatus: next };
-        }
-        return a;
-      })
-    );
-  };
-
   const handleCreateAssessment = () => {
     if (!newQuizTitle.trim()) return;
     const item: TeacherAssessmentItem = {
@@ -443,8 +429,8 @@ export function TeacherWorkspacePage() {
     setTeacherAssessments([item, ...teacherAssessments]);
     setNewQuizTitle('');
     setShowCreateAssessmentModal(false);
-    setFeedback(`✅ تم حفظ مسودة التكليف "${item.title}" وإرسالها للمشرف التربوي للاعتماد.`);
-    setTimeout(() => setFeedback(''), 4500);
+    setFeedback(`ℹ️ تم إنشاء مسودة التكليف محلياً ("${item.title}"). تنبيه: نشر التكليفات المعتمدة للطلاب يتطلب اعتماد مدير المدرسة عبر إدارة الاختبارات الأكاديمية.`);
+    setTimeout(() => setFeedback(''), 5500);
   };
 
   if (authLoading || (isTeacher && busy)) {
@@ -1434,6 +1420,10 @@ export function TeacherWorkspacePage() {
               </select>
             </div>
 
+            <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-3 text-[11px] font-bold text-slate-500 leading-relaxed">
+              ℹ️ إضافة المسودات تتيح للمعلم تحضير التكليفات محلياً قبل رفعها للاعتماد الأكاديمي الرسمي عبر إدارة المدرسة.
+            </div>
+
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
@@ -1448,7 +1438,7 @@ export function TeacherWorkspacePage() {
                 disabled={!newQuizTitle.trim()}
                 className="rounded-xl bg-indigo-600 hover:bg-indigo-700 px-5 py-2 text-xs font-black text-white disabled:opacity-40"
               >
-                حفظ وإرسال للاعتماد
+                إضافة مسودة محلية
               </button>
             </div>
           </div>

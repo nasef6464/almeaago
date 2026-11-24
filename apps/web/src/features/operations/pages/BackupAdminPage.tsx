@@ -153,13 +153,20 @@ export function BackupAdminPage() {
     reader.readAsText(file);
   };
 
-  const handleApplyRestore = () => {
+  // Direct database restore is intentionally prohibited from the web browser to safeguard production data.
+  // Inspection is strictly limited to validating JSON structure and displaying collection summaries.
+  const handleValidateSchemaOnly = () => {
     if (!importedBackup) return;
     setIsRestoring(true);
-    setTimeout(() => {
+    try {
+      const summaryKeys = Object.keys(importedBackup.summary || {});
+      const totalCount = Object.values(importedBackup.summary || {}).reduce((acc, n) => acc + (typeof n === 'number' ? n : 0), 0);
+      setFeedback(`تم فحص هيكل ملف النسخة بنجاح: تم التحقق من ${summaryKeys.length} مجموعات بيانات بإجمالي ${totalCount} عنصر. (ملاحظة: الاستعادة الفعلية إلى قاعدة البيانات تتطلب أدوات الإدارة عبر CLI).`);
+    } catch {
+      setError('تعذر قراءة محتويات ملف النسخة الاحتياطية.');
+    } finally {
       setIsRestoring(false);
-      setFeedback('تمت محاكاة الاستعادة بنجاح: تم التحقق من تطابق الجداول والمراجع.');
-    }, 1200);
+    }
   };
 
   return (
@@ -292,14 +299,17 @@ export function BackupAdminPage() {
                   </div>
                 ))}
               </div>
+              <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-[11px] font-bold text-amber-900 leading-relaxed">
+                ⚠️ <strong>حماية قاعدة البيانات:</strong> استعادة البيانات الفعلية إلى PostgreSQL محظورة من المتصفح لمنع مسح أو تكرار السجلات دون تصريح. تتطلب الاستعادة أدوات سطر الأوامر (CLI) المعتمدة مع التدقيق الأمني لبيانات الاعتماد.
+              </div>
               <button
                 type="button"
-                onClick={handleApplyRestore}
+                onClick={handleValidateSchemaOnly}
                 disabled={isRestoring}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white hover:bg-emerald-700 transition"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-xs font-black text-white hover:bg-slate-900 transition"
               >
                 {isRestoring ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
-                <span>{isRestoring ? 'جاري التحقق والاستعادة...' : 'تأكيد واستعادة البيانات'}</span>
+                <span>فحص ومطابقة الهيكل فقط (Read-Only)</span>
               </button>
             </div>
           ) : null}

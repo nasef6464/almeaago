@@ -226,12 +226,14 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
       if (csrf && !quizId.startsWith('tq-')) {
         await assessmentClient.workflow(quizId, 1, nextStatus === 'approved' ? 'approved' : 'rejected', 'تحديث الحالة من لوحة المدرب', csrf);
       }
-    } catch {}
-    setQuizzes((prev) =>
-      prev.map((q) => (q.id === quizId ? { ...q, workflowStatus: nextStatus } : q))
-    );
-    setFeedback(nextStatus === 'approved' ? `✅ تم إرسال الاختبار "${target.title}" للاعتماد والنشر` : `⚠️ تم إرجاع الاختبار "${target.title}" للمراجعة والتعديل`);
-    setTimeout(() => setFeedback(''), 3500);
+      setQuizzes((prev) =>
+        prev.map((q) => (q.id === quizId ? { ...q, workflowStatus: nextStatus } : q))
+      );
+      setFeedback(nextStatus === 'approved' ? `✅ تم إرسال الاختبار "${target.title}" للاعتماد والنشر` : `⚠️ تم إرجاع الاختبار "${target.title}" للمراجعة والتعديل`);
+    } catch (err) {
+      setFeedback(`❌ تعذر تحديث حالة الاختبار: ${err instanceof Error ? err.message : 'خطأ غير متوقع في الخادم'}`);
+    }
+    setTimeout(() => setFeedback(''), 4500);
   };
 
   const toggleQuestionStatus = async (qId: string) => {
@@ -243,12 +245,14 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
       if (csrf && !qId.startsWith('t-qst-')) {
         await questionBankClient.workflow(qId, target.version || 1, nextStatus === 'approved' ? 'approved' : 'rejected', 'مراجعة المدرب', csrf);
       }
-    } catch {}
-    setQuestions((prev) =>
-      prev.map((q) => (q.id === qId ? { ...q, workflowStatus: nextStatus } : q))
-    );
-    setFeedback(nextStatus === 'approved' ? '✅ تم اعتماد السؤال ونشره في بنك الأسئلة المعتمد' : '⚠️ تم سحب السؤال للمراجعة والتدقيق');
-    setTimeout(() => setFeedback(''), 3500);
+      setQuestions((prev) =>
+        prev.map((q) => (q.id === qId ? { ...q, workflowStatus: nextStatus } : q))
+      );
+      setFeedback(nextStatus === 'approved' ? '✅ تم اعتماد السؤال ونشره في بنك الأسئلة المعتمد' : '⚠️ تم سحب السؤال للمراجعة والتدقيق');
+    } catch (err) {
+      setFeedback(`❌ تعذر تحديث حالة السؤال: ${err instanceof Error ? err.message : 'خطأ غير متوقع في الخادم'}`);
+    }
+    setTimeout(() => setFeedback(''), 4500);
   };
 
   const handleCreateCourse = (e: React.FormEvent) => {
@@ -271,8 +275,8 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
     setCourses([item, ...courses]);
     setNewCourseTitle('');
     setShowCreateCourseModal(false);
-    setFeedback(`✅ تم حفظ مسودة الدورة التدريبية "${item.title}" وإرسالها لإدارة المنصة للمراجعة والاعتماد.`);
-    setTimeout(() => setFeedback(''), 4500);
+    setFeedback(`ℹ️ تم حفظ مسودة الدورة التدريبية محلياً ("${item.title}"). يتطلب نشرها للطلاب مراجعة واعتماد إدارة المنصة.`);
+    setTimeout(() => setFeedback(''), 5500);
   };
 
   const handleScheduleSession = (e: React.FormEvent) => {
@@ -286,14 +290,14 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
       durationMinutes: newSessionDuration,
       enrolledCount: 0,
       status: 'scheduled',
-      pin: String(Math.floor(100000 + Math.random() * 900000)),
+      pin: 'يصدر تلقائياً عند بدء البث',
       meetingUrl: `/classroom/session-${Date.now()}/projector`,
     };
     setLiveSessions([session, ...liveSessions]);
     setNewSessionTitle('');
     setShowScheduleLiveModal(false);
-    setFeedback(`✅ تم جدولة اللقاء التدريبي المباشر بنجاح وحجز رمز الدخول (PIN: ${session.pin})`);
-    setTimeout(() => setFeedback(''), 4500);
+    setFeedback(`ℹ️ تم جدولة موعد اللقاء المباشر محلياً ("${session.title}"). سيتم إصدار رمز الدخول المعتمد (PIN) تلقائياً من خادم الفصول الذكية عند بدء البث.`);
+    setTimeout(() => setFeedback(''), 5500);
   };
 
   return (
