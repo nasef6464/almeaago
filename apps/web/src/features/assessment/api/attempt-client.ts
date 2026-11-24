@@ -127,6 +127,16 @@ export interface ResultSubjectItem {
   score: number;
 }
 
+export interface ResultSectionItem {
+  sectionId: string;
+  sectionName: string;
+  total: number;
+  correct: number;
+  wrong: number;
+  unanswered: number;
+  score: number;
+}
+
 export interface ResultDetail {
   result: Result;
   assessmentId: string;
@@ -138,6 +148,7 @@ export interface ResultDetail {
   showExplanations: boolean;
   showResultsReport: boolean;
   subjectResults?: ResultSubjectItem[];
+  sectionResults?: ResultSectionItem[];
   skillAnalysis?: {
     complete: boolean;
     items: Array<{

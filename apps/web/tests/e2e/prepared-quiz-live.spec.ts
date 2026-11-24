@@ -156,6 +156,16 @@ test('محاكي صارم بمادتين من الدخول إلى النتيجة
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await subjects.screenshot({ path: `test-results/assessment-live-subject-skills-${width}.png` });
   }
+  const sections = page.getByRole('region', { name: 'تفاصيل أقسام الاختبار' });
+  await expect(sections.getByRole('heading', { name: 'القسم الأول' })).not.toBeVisible();
+  await sections.getByText('تفاصيل الأقسام (2)', { exact: true }).click();
+  await expect(sections.getByRole('heading')).toHaveText(['القسم الأول', 'القسم الثاني']);
+  await expect(sections.getByText('1 أسئلة · 1 صحيح · 0 خطأ · 0 دون إجابة')).toHaveCount(2);
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await sections.screenshot({ path: `test-results/assessment-live-section-results-${width}.png` });
+  }
   const clip = await reviewVideoFixture(page);
   await page.route('**/review-fixture.webm', route => route.fulfill({ body: clip, contentType: 'video/webm' }));
   await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();

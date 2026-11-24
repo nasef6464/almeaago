@@ -253,6 +253,10 @@ paths:
         Skill analysis items may include level (main or sub) and parentSkillId from the
         current subject taxonomy. A parent id denotes a main skill in the same subject.
         Group only when that parent is also present in the attempt's skill analysis.
+        A visible mock assessment report may include sectionResults in the order of
+        the submitted version. Each entry contains sectionId, sectionName, total,
+        correct, wrong, unanswered, and score (rounded unweighted correct percentage).
+        The breakdown is omitted if it cannot be reconciled with the stored result.
       parameters:
         - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
       responses:

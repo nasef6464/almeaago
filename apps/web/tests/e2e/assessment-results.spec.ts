@@ -241,3 +241,28 @@ test('subject skills nest only under a measured main skill in the same subject',
   await expect(math.getByRole('group', { name: /^المهارات الفرعية ضمن/ })).toHaveCount(1);
   await expect(math.getByRole('progressbar', { name: 'الحركة' })).toHaveCount(0);
 });
+
+test('mock sections fold independently of subjects and question review', async ({ page }) => {
+  await auth(page);
+  await page.route('**/api/v1/assessment-attempts/attempt-1/review', route => json(route, {
+    detail: {
+      result: historyItem, assessmentId: 'assessment-1', assessmentVersion: 2, title: 'محاكي كمي', attemptNumber: 1,
+      allowQuestionReview: false, showAnswers: false, showExplanations: false, showResultsReport: true,
+      sectionResults: [
+        { sectionId: 'part-1', sectionName: 'القسم اللفظي', total: 1, correct: 0, wrong: 1, unanswered: 0, score: 0 },
+        { sectionId: 'part-2', sectionName: 'القسم الكمي', total: 1, correct: 0, wrong: 0, unanswered: 1, score: 0 },
+      ],
+    },
+  }));
+  await page.goto('/assessment-results/attempt-1', { waitUntil: 'domcontentloaded' });
+  const sections = page.getByRole('region', { name: 'تفاصيل أقسام الاختبار' });
+  const toggle = sections.getByText('تفاصيل الأقسام (2)', { exact: true });
+  await expect(toggle).toBeVisible();
+  await expect(sections.getByRole('heading', { name: 'القسم اللفظي' })).not.toBeVisible();
+  await toggle.click();
+  await expect(sections.getByRole('heading', { name: 'القسم اللفظي' })).toBeVisible();
+  await expect(sections.getByText('1 أسئلة · 0 صحيح · 1 خطأ · 0 دون إجابة')).toBeVisible();
+  await expect(sections.getByText('1 أسئلة · 0 صحيح · 0 خطأ · 1 دون إجابة')).toBeVisible();
+  await toggle.click();
+  await expect(sections.getByRole('heading', { name: 'القسم اللفظي' })).not.toBeVisible();
+});

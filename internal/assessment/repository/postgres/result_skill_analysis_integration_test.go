@@ -39,9 +39,11 @@ func TestResultSkillAnalysisSnapshotPostgres(t *testing.T) {
 	defer db.Close()
 	_, err = db.Exec(ctx, `
 CREATE TABLE assessment_attempts(id uuid,student_id uuid,assessment_id uuid,assessment_version int,status text,attempt_number int);
-CREATE TABLE assessment_versions(assessment_id uuid,version int,path_id uuid,title text,allow_question_review bool,show_answers bool,show_explanations bool,show_results_report bool,randomize_questions bool,randomize_options bool);
+CREATE TABLE assessment_versions(assessment_id uuid,version int,path_id uuid,title text,allow_question_review bool,show_answers bool,show_explanations bool,show_results_report bool,randomize_questions bool,randomize_options bool,assessment_kind text);
 CREATE TABLE assessment_results(attempt_id uuid,student_id uuid,score float8,total_questions int,correct_answers int,wrong_answers int,unanswered int,passed bool,time_spent_seconds int,finalized_at timestamptz);
-CREATE TABLE assessment_version_questions(assessment_id uuid,assessment_version int,question_id uuid,question_version int,sort_order int DEFAULT 0);
+CREATE TABLE assessment_version_questions(assessment_id uuid,assessment_version int,question_id uuid,question_version int,sort_order int DEFAULT 0,section_id uuid);
+CREATE TABLE assessment_sections(id uuid,assessment_id uuid,assessment_version int,title text,sort_order int);
+CREATE TABLE assessment_answers(attempt_id uuid,question_id uuid,question_version int,selected_option_index int,is_correct bool);
 CREATE TABLE mastery_evidence(id uuid,student_id uuid,source_attempt_id uuid,evidence_type text,assessment_id uuid,assessment_version int,question_id uuid,question_version int,path_id uuid,subject_id uuid,answered bool,is_correct bool);
 CREATE TABLE mastery_evidence_skills(evidence_id uuid,skill_id uuid);
 CREATE TABLE paths(id uuid,status text);
@@ -50,9 +52,16 @@ CREATE TABLE skills(id uuid,subject_id uuid,name text,kind text DEFAULT 'main',p
 CREATE TABLE foundation_topics(id uuid,path_id uuid,subject_id uuid,title text,is_locked bool,status text,is_visible bool,sort_order int);
 CREATE TABLE topic_skill_links(topic_id uuid,skill_id uuid);
 INSERT INTO assessment_attempts VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000003',1,'submitted',1);
-INSERT INTO assessment_versions VALUES ('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000004','Test',false,true,true,true,false,false);
+INSERT INTO assessment_versions VALUES ('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000004','Test',false,true,true,true,false,false,'mock');
 INSERT INTO assessment_results VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002',50,2,1,0,1,true,0,now());
 INSERT INTO assessment_version_questions(assessment_id,assessment_version,question_id,question_version) VALUES ('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000011',1),('00000000-0000-0000-0000-000000000003',1,'00000000-0000-0000-0000-000000000012',1);
+INSERT INTO assessment_sections VALUES
+('00000000-0000-0000-0000-000000000061','00000000-0000-0000-0000-000000000003',1,'First section',1),
+('00000000-0000-0000-0000-000000000062','00000000-0000-0000-0000-000000000003',1,'Second section',2),
+('00000000-0000-0000-0000-000000000063','00000000-0000-0000-0000-000000000003',2,'New version section',0);
+UPDATE assessment_version_questions SET section_id='00000000-0000-0000-0000-000000000061' WHERE question_id='00000000-0000-0000-0000-000000000011';
+UPDATE assessment_version_questions SET section_id='00000000-0000-0000-0000-000000000062' WHERE question_id='00000000-0000-0000-0000-000000000012';
+INSERT INTO assessment_answers VALUES ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000011',1,0,true);
 INSERT INTO paths VALUES ('00000000-0000-0000-0000-000000000004','active');
 INSERT INTO subjects(id,path_id,name) VALUES ('00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000004','Subject A'),('00000000-0000-0000-0000-000000000006','00000000-0000-0000-0000-000000000004','Subject B');
 INSERT INTO skills(id,subject_id,name) VALUES ('00000000-0000-0000-0000-000000000020','00000000-0000-0000-0000-000000000005','Skill A'),('00000000-0000-0000-0000-000000000021','00000000-0000-0000-0000-000000000006','Skill B');
@@ -88,6 +97,33 @@ INSERT INTO topic_skill_links VALUES ('00000000-0000-0000-0000-000000000046','00
 	const attempt = "00000000-0000-0000-0000-000000000001"
 	detail, err := repo.GetResultDetail(ctx, student, attempt)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if sections := detail.SectionResults; len(sections) != 2 || sections[0].SectionName != "First section" || sections[0].Total != 1 || sections[0].Correct != 1 || sections[0].Score != 100 || sections[1].SectionName != "Second section" || sections[1].Total != 1 || sections[1].Unanswered != 1 || sections[1].Score != 0 {
+		t.Fatalf("unexpected section results from saved version: %+v", sections)
+	}
+	if _, err = db.Exec(ctx, `UPDATE assessment_answers SET is_correct=NULL`); err != nil {
+		t.Fatal(err)
+	}
+	incomplete, err := repo.GetResultDetail(ctx, student, attempt)
+	if err != nil || len(incomplete.SectionResults) != 0 || incomplete.Result.Score != 50 {
+		t.Fatalf("ungraded evidence must not invent section scores: %+v %v", incomplete.SectionResults, err)
+	}
+	if _, err = db.Exec(ctx, `UPDATE assessment_answers SET is_correct=false; UPDATE assessment_results SET correct_answers=0,wrong_answers=1`); err != nil {
+		t.Fatal(err)
+	}
+	wrong, err := repo.GetResultDetail(ctx, student, attempt)
+	if err != nil || len(wrong.SectionResults) != 2 || wrong.SectionResults[0].Wrong != 1 || wrong.SectionResults[0].Score != 0 {
+		t.Fatalf("wrong answer must not count as unanswered: %+v %v", wrong.SectionResults, err)
+	}
+	if _, err = db.Exec(ctx, `UPDATE assessment_answers SET is_correct=true; UPDATE assessment_results SET correct_answers=1,wrong_answers=0; UPDATE assessment_versions SET assessment_kind='normal'`); err != nil {
+		t.Fatal(err)
+	}
+	normal, err := repo.GetResultDetail(ctx, student, attempt)
+	if err != nil || len(normal.SectionResults) != 0 {
+		t.Fatalf("normal result must not show mock sections: %+v %v", normal.SectionResults, err)
+	}
+	if _, err = db.Exec(ctx, `UPDATE assessment_versions SET assessment_kind='mock'`); err != nil {
 		t.Fatal(err)
 	}
 	if subjects := detail.SubjectResults; len(subjects) != 2 || subjects[0].SubjectName != "Subject A" || subjects[0].Total != 1 || subjects[0].Correct != 1 || subjects[0].Score != 100 || subjects[1].SubjectName != "Subject B" || subjects[1].Unanswered != 1 || subjects[1].Wrong != 0 || subjects[1].Score != 0 {
@@ -155,7 +191,7 @@ INSERT INTO mastery_evidence_skills VALUES ('00000000-0000-0000-0000-00000000003
 		t.Fatal(err)
 	}
 	detail, err = repo.GetResultDetail(ctx, student, attempt)
-	if err != nil || detail.SkillAnalysis != nil || len(detail.SubjectResults) != 0 {
+	if err != nil || detail.SkillAnalysis != nil || len(detail.SubjectResults) != 0 || len(detail.SectionResults) != 0 {
 		t.Fatalf("hidden report exposed analysis: %+v %v", detail.SkillAnalysis, err)
 	}
 	if _, err = db.Exec(ctx, `UPDATE assessment_versions SET show_results_report=true; DELETE FROM mastery_evidence WHERE question_id='00000000-0000-0000-0000-000000000012'`); err != nil {

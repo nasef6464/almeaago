@@ -6,6 +6,7 @@ import type { ResultDetail } from '../api/attempt-client';
 import { formatResultDuration } from '../relativeDate';
 import { ResultDonutChart } from './ResultDonutChart';
 import { AssessmentSubjectResults } from './AssessmentSubjectResults';
+import { AssessmentSectionResults } from './AssessmentSectionResults';
 
 type Props = {
   detail: ResultDetail;
@@ -104,6 +105,7 @@ export function AssessmentResultSummary({ detail, navigation, full, onToggleFull
           </div>
 
           <AssessmentSubjectResults detail={detail} />
+          <AssessmentSectionResults sections={detail.sectionResults} />
           <div className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-200/80 pt-3 sm:flex sm:flex-wrap print:hidden">
             <button type="button" onClick={onReview} disabled={reviewCount === 0} className={`${actionClass} border-emerald-600 bg-emerald-600 text-white disabled:border-gray-200 disabled:bg-gray-200 disabled:text-gray-500`}>
               <Eye size={17} /> {reviewCount ? `مراجعة الأسئلة (${reviewCount})` : 'المراجعة غير متاحة'}
