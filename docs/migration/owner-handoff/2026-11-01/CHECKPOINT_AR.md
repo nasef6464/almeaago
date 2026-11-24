@@ -1,4 +1,17 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 25 نوفمبر — إصلاح تعدد نطاقات WEB_ORIGIN في OAuth واستعادة حالة الدفع عبر Tap paymentReturn / PARTIAL
+
+- Go main `d02fa27884a2838cb3600d618c97db2f357e3127` بعد دمج [PR #307](https://github.com/nasef6464/almeaago/pull/307) و[PR #308](https://github.com/nasef6464/almeaago/pull/308).
+- **إنجازات PR #307 (إصلاح `WEB_ORIGIN` متعدد النطاقات في OAuth):**
+  1. إصلاح `internal/identity/transport/http/handler.go` بحيث يتم تحليل `WEB_ORIGIN` المفصول بفواصل إلى قائمة نطاقات `http/https` معتمدة (مع رفض `*` وبيانات الدخول في الرابط)، بدلاً من دمج النطاقات مع بعضها في رابط إعادة التوجيه.
+  2. حفظ النطاق المطابق عند بدء `/google/start` في كوكي `almeaa_google_oauth_origin` (HttpOnly) وإعادة التوجيه إليه عند العودة أو الخطأ مع الرجوع الآمن للنطاق الأساسي عند التلاعب.
+  3. PASS جميع اختبارات `internal/identity/...` بما فيها `TestParseAllowedWebOriginsFiltersInvalidAndPreservesOrder` و`TestMultiOriginWebOriginOAuthRedirectsUseSingleAllowlistedOrigin` واجتياز بوابتي `backend` و`overlap` في GitHub Actions.
+- **إنجازات PR #308 (استعادة حالة الدفع عند العودة من Tap `paymentReturn=1`):**
+  1. تحديث `apps/web/src/features/commerce/pages/CheckoutPage.tsx` لاسترجاع طلب الدفع المطابق عبر `requestId` من معاملات الرابط عند العودة من بوابة Tap (`?productId=...&requestId=...&paymentReturn=1`) حتى في حال غياب مفتاح الاستعادة المحلي أو تحول الطلب بالفعل عبر Webhook إلى `paid`/`failed`/`cancelled`.
+  2. إضافة تغذية راجعة صادقة لحالة السداد دون أي منح صلاحيات وصول من الواجهة.
+  3. PASS جميع اختبارات Playwright الـ 12 في `apps/web/tests/e2e/commerce-checkout.spec.ts` وفحص `tsc -b` واجتياز بوابات `frontend` و`overlap` و`e2e (1-3)` في GitHub Actions بنسبة 100%.
+- حالة المنصة العامة تظل **`PARTIAL`** حتى استكمال بوابات P5–P7 المتبقية.
+
 ## 25 نوفمبر — دمج ثبات مسودات ودورات المدرب وإثبات تبويبات المشرف السبعة ومساحة المعلم / PARTIAL
 
 - Go main `57bec0def4d20f8ab08600a3cff4b3239cb2b70f` بعد دمج [PR #305](https://github.com/nasef6464/almeaago/pull/305) و [PR #304](https://github.com/nasef6464/almeaago/pull/304). الفحوصات الآلية في GitHub Actions (`frontend`, `overlap`, `e2e 1-3`) اجتازت 100% أخضر على رأسي الدمج.
