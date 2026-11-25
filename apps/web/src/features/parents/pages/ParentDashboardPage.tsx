@@ -9,7 +9,13 @@ import { useAuth } from '../../auth/state/AuthProvider';
 import { notificationClient } from '../../notifications/api/notification-client';
 import type { NotificationPreferences } from '../../notifications/api/notification-types';
 import { parentsClient } from '../api/parents-client';
-import type { ParentChildSummary, ParentDashboard, ParentResultPage, ParentWeeklyReport } from '../api/parents-types';
+import type {
+  ParentChildSummary,
+  ParentDashboard,
+  ParentPaymentApproval,
+  ParentResultPage,
+  ParentWeeklyReport,
+} from '../api/parents-types';
 
 type Tab = 'overview' | 'results' | 'skills' | 'report' | 'link' | 'approvals';
 
@@ -44,16 +50,13 @@ export function ParentDashboardPage() {
   const [requestReportLoading, setRequestReportLoading] = useState(false);
   const [feedback, setFeedback] = useState('');
 
-  // Parent Approvals State (populated only from verified server sources when available)
-  const [approvals] = useState<Array<{
-    id: string;
-    studentName: string;
-    title: string;
-    type: string;
-    description: string;
-    date: string;
-    status: 'pending' | 'approved' | 'rejected';
-  }>>([]);
+  // Parent Approvals State (populated from GET /api/v1/parents/approvals)
+  const [approvals, setApprovals] = useState<ParentPaymentApproval[]>([]);
+  const [approvalsLoading, setApprovalsLoading] = useState(false);
+  const [approvalsError, setApprovalsError] = useState('');
+  const [approvalBusyId, setApprovalBusyId] = useState('');
+  const [unlinkBusyId, setUnlinkBusyId] = useState('');
+  const [linkError, setLinkError] = useState('');
 
   useEffect(() => {
     if (authLoading || !user || !user.roles.includes('parent')) return;
@@ -155,6 +158,29 @@ export function ParentDashboardPage() {
     return () => controller.abort();
   }, [tab, data]);
 
+  useEffect(() => {
+    if (tab !== 'approvals' || !data) return;
+    const controller = new AbortController();
+    setApprovalsLoading(true);
+    setApprovalsError('');
+    parentsClient.approvals(controller.signal)
+      .then((res) => {
+        if (!controller.signal.aborted) {
+          setApprovals(res.items || []);
+        }
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) {
+          setApprovals([]);
+          setApprovalsError(e instanceof Error ? e.message : 'تعذر تحميل طلبات الموافقات الأبوية');
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setApprovalsLoading(false);
+      });
+    return () => controller.abort();
+  }, [tab, data, reload]);
+
   const selected = useMemo(() => data?.children.find((x) => x.studentId === selectedId) || data?.children[0] || null, [data, selectedId]);
   const priority = useMemo(() => data?.children.flatMap((child) => child.weakSkills.map((skill) => ({ child, skill }))).sort((a, b) => a.skill.mastery - b.skill.mastery).slice(0, 3) || [], [data]);
 
@@ -227,16 +253,53 @@ export function ParentDashboardPage() {
 
   const handleRequestWeeklyReport = async () => {
     setRequestReportLoading(true);
+    setError('');
     try {
+      const csrf = await getCsrfToken();
+      const sent = await parentsClient.sendWeeklyReport(csrf);
       const rep = await parentsClient.weeklyReport(1, 20);
       setWeekly(rep);
       setTab('report');
-      setFeedback('✅ تم تحديث التقرير الأسبوعي بنجاح وإعداد ملخص أداء الأبناء المعتمد.');
-    } catch {
-      setFeedback('⚠️ تعذر استرداد التقرير الأسبوعي من الخادم حالياً. يرجى إعادة المحاولة.');
+      setFeedback(sent.message || '✅ تم إرسال التقرير الأسبوعي إلى صندوق الإشعارات بنجاح.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'تعذر إرسال التقرير الأسبوعي حالياً.');
     } finally {
       setRequestReportLoading(false);
       setTimeout(() => setFeedback(''), 4500);
+    }
+  };
+
+  const handleApprovalDecision = async (item: ParentPaymentApproval, decision: 'approved' | 'rejected') => {
+    if (approvalBusyId) return;
+    setApprovalBusyId(item.id);
+    setApprovalsError('');
+    try {
+      const csrf = await getCsrfToken();
+      const res = await parentsClient.decideApproval(item.id, decision, item.revision, csrf);
+      setApprovals((prev) => prev.filter((row) => row.id !== item.id));
+      setFeedback(res.message || (decision === 'approved' ? 'تم اعتماد الطلب بنجاح.' : 'تم رفض الطلب بنجاح.'));
+      setTimeout(() => setFeedback(''), 3500);
+    } catch (e) {
+      setApprovalsError(e instanceof Error ? e.message : 'تعذر تحديث حالة طلب الموافقة');
+    } finally {
+      setApprovalBusyId('');
+    }
+  };
+
+  const handleUnlinkStudent = async (studentId: string) => {
+    if (unlinkBusyId) return;
+    setUnlinkBusyId(studentId);
+    setLinkError('');
+    try {
+      const csrf = await getCsrfToken();
+      const res = await parentsClient.unlinkStudent(studentId, csrf);
+      setFeedback(res.message || 'تم إلغاء ربط الطالب');
+      setReload((x) => x + 1);
+      setTimeout(() => setFeedback(''), 3500);
+    } catch (e) {
+      setLinkError(e instanceof Error ? e.message : 'تعذر إلغاء ربط الطالب');
+    } finally {
+      setUnlinkBusyId('');
     }
   };
 
@@ -699,6 +762,34 @@ export function ParentDashboardPage() {
                 </div>
 
                 <div className="space-y-4">
+                  {linkError ? (
+                    <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                      {linkError}
+                    </div>
+                  ) : null}
+
+                  <div className="rounded-2xl bg-slate-50 p-5 border border-slate-200/80 space-y-3">
+                    <h3 className="text-xs font-black text-slate-900">الأبناء المرتبطون حالياً ({data.children.length}):</h3>
+                    <div className="divide-y divide-slate-200/70 rounded-xl border border-slate-200 bg-white">
+                      {data.children.map((child) => (
+                        <div key={child.studentId} className="flex items-center justify-between gap-3 p-3">
+                          <div>
+                            <div className="text-xs font-black text-slate-900">{child.name}</div>
+                            <div className="text-[11px] font-bold text-slate-500">علاقة موثقة</div>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={unlinkBusyId === child.studentId}
+                            onClick={() => void handleUnlinkStudent(child.studentId)}
+                            className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-black text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                          >
+                            {unlinkBusyId === child.studentId ? 'جاري الإلغاء...' : 'إلغاء الربط'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="rounded-2xl bg-slate-50 p-5 border border-slate-200/80 space-y-3">
                     <h3 className="text-xs font-black text-slate-900">خطوات إضافة ابن غير ظاهر في حسابك:</h3>
                     <ol className="list-decimal list-inside space-y-2 text-xs font-medium text-slate-700 leading-relaxed">
@@ -720,36 +811,62 @@ export function ParentDashboardPage() {
               <section className="rounded-3xl border border-slate-100 bg-white p-5 sm:p-6 shadow-xs animate-fade-in">
                 <div className="border-b border-slate-100 pb-4 mb-5">
                   <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                    <ShieldCheck className="text-emerald-600" size={22} /> الإشعارات والتراخيص الأبوية
+                    <ShieldCheck className="text-emerald-600" size={22} /> الموافقات وطلبات السداد الأبوية
                   </h2>
                   <p className="mt-1 text-xs text-slate-500 font-bold">
-                    إشعارات الفعاليات والمعسكرات التدريبية المعتمدة من المدرسة (للاطلاع والمتابعة).
+                    مراجعة واعتماد أو رفض طلبات الشراء والاشتراكات المعلقة للأبناء المرتبطين.
                   </p>
                 </div>
 
+                {approvalsError ? (
+                  <div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                    {approvalsError}
+                  </div>
+                ) : null}
+
                 <div className="space-y-4">
-                  {approvals.length > 0 ? (
+                  {approvalsLoading ? (
+                    <Loading />
+                  ) : approvals.length > 0 ? (
                     approvals.map((appr) => (
                       <div
                         key={appr.id}
+                        data-testid="parent-approval-card"
                         className="rounded-2xl border border-slate-100 bg-slate-50/60 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4"
                       >
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-black text-emerald-800">
-                              {appr.type}
+                              {appr.productType}
                             </span>
                             <span className="text-xs font-bold text-slate-500">الطالب: {appr.studentName}</span>
-                            <span className="text-xs text-slate-400 font-bold">تاريخ الفعالية: {appr.date}</span>
+                            <span className="text-xs text-slate-400 font-bold">{date(appr.createdAt)}</span>
                           </div>
-                          <h3 className="mt-2 text-base font-black text-slate-900">{appr.title}</h3>
-                          <p className="mt-1 text-xs text-slate-600 leading-relaxed max-w-2xl">{appr.description}</p>
+                          <h3 className="mt-2 text-base font-black text-slate-900">{appr.productName}</h3>
+                          <p className="mt-1 text-xs font-bold text-slate-600">
+                            المبلغ: {(appr.finalAmountMinor / 100).toFixed(2)} {appr.currency}
+                          </p>
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 px-3 py-1 text-xs font-bold border border-slate-200">
-                            {appr.status === 'approved' ? 'معتمد من المدرسة' : 'إشعار إداري'}
-                          </span>
+                          <button
+                            type="button"
+                            disabled={approvalBusyId === appr.id}
+                            onClick={() => void handleApprovalDecision(appr, 'approved')}
+                            className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3.5 py-2 text-xs font-black text-white disabled:opacity-50"
+                          >
+                            <Check size={14} />
+                            <span>موافقة</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={approvalBusyId === appr.id}
+                            onClick={() => void handleApprovalDecision(appr, 'rejected')}
+                            className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 px-3.5 py-2 text-xs font-black text-rose-700 disabled:opacity-50"
+                          >
+                            <XCircle size={14} />
+                            <span>رفض</span>
+                          </button>
                         </div>
                       </div>
                     ))
@@ -758,7 +875,7 @@ export function ParentDashboardPage() {
                       <ShieldCheck className="mx-auto mb-2 text-slate-300" size={32} />
                       <div className="text-sm font-black text-slate-700">لا توجد طلبات موافقات أو تراخيص مسجلة حالياً</div>
                       <p className="mt-1 text-xs font-bold text-slate-500">
-                        ستظهر هنا أي إشعارات أو تراخيص رسمية تصدرها إدارة المدرسة لحسابك.
+                        ستظهر هنا أي طلبات شراء أو موافقات معلقة للأبناء المرتبطين بحسابك.
                       </p>
                     </div>
                   )}

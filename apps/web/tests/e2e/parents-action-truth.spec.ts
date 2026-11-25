@@ -52,6 +52,7 @@ for (const width of [390, 820, 1440]) {
     await page.route('**/api/v1/auth/me', (route) => json(route, { user: parent }));
     await page.route('**/api/v1/auth/csrf', (route) => json(route, { csrfToken: 'csrf-parent-1' }));
     await page.route('**/api/v1/parents/dashboard?**', (route) => json(route, dashboard));
+    await page.route('**/api/v1/parents/approvals', (route) => json(route, { items: [] }));
     await page.route('**/api/v1/notifications/me/preferences', async (route) => {
       if (route.request().method() === 'GET') {
         return json(route, {
@@ -102,6 +103,108 @@ for (const width of [390, 820, 1440]) {
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 }
+
+test('parent sends weekly report, approves pending payment request, and unlinks student via real APIs', async ({ page }) => {
+  let sendReportCalls = 0;
+  let approveCalls = 0;
+  let unlinkCalls = 0;
+  let approvalsList = [
+    {
+      id: 'req-parent-1',
+      studentId: 'student-1',
+      studentName: 'سارة',
+      productId: 'prod-1',
+      productName: 'دورة التأسيس الشاملة',
+      productType: 'course',
+      finalAmountMinor: 15000,
+      currency: 'SAR',
+      status: 'pending',
+      parentApprovalStatus: 'pending',
+      revision: 1,
+      createdAt: '2026-11-25T09:00:00Z',
+    },
+  ];
+
+  await page.route('**/api/v1/auth/me', (route) => json(route, { user: parent }));
+  await page.route('**/api/v1/auth/csrf', (route) => json(route, { csrfToken: 'csrf-parent-1' }));
+  await page.route('**/api/v1/parents/dashboard?**', (route) => json(route, dashboard));
+  await page.route('**/api/v1/notifications/me/preferences', (route) =>
+    json(route, {
+      preferences: {
+        userId: parent.id,
+        parentWhatsAppDigestEnabled: false,
+        revision: 1,
+        updatedAt: '2026-11-25T09:00:00Z',
+      },
+    }),
+  );
+  await page.route('**/api/v1/parents/weekly-report?**', (route) =>
+    json(route, {
+      periodStart: '2026-11-18T00:00:00Z',
+      periodEnd: '2026-11-25T00:00:00Z',
+      children: [
+        {
+          studentId: 'student-1',
+          name: 'سارة',
+          avatarUrl: '',
+          schoolIds: ['school-1'],
+          assessmentCount: 2,
+          averageScore: 71.5,
+          studyMinutes: 24,
+          weakSkills: [],
+          nextAction: 'استمر في المتابعة الهادئة.',
+        },
+      ],
+      page: 1,
+      limit: 20,
+      hasMore: false,
+    }),
+  );
+  await page.route('**/api/v1/parents/weekly-report/send', (route) => {
+    sendReportCalls += 1;
+    expect(route.request().headers()['x-csrf-token']).toBe('csrf-parent-1');
+    return json(route, {
+      ok: true,
+      campaignId: 'camp-1',
+      recipients: 1,
+      created: 1,
+      studentsReported: 1,
+      message: 'تم إرسال التقرير الأسبوعي إلى صندوق الإشعارات بنجاح.',
+    });
+  });
+  await page.route('**/api/v1/parents/approvals', (route) => json(route, { items: approvalsList }));
+  await page.route('**/api/v1/parents/approvals/req-parent-1/approve', (route) => {
+    approveCalls += 1;
+    expect(route.request().headers()['x-csrf-token']).toBe('csrf-parent-1');
+    expect(route.request().postDataJSON()).toEqual({ expectedRevision: 1 });
+    approvalsList = [];
+    return json(route, {
+      approval: { id: 'req-parent-1', parentApprovalStatus: 'approved', revision: 2 },
+      message: 'تم اعتماد طلب ولي الأمر بنجاح.',
+    });
+  });
+  await page.route('**/api/v1/parents/linked-students/student-1', (route) => {
+    unlinkCalls += 1;
+    expect(route.request().method()).toBe('DELETE');
+    expect(route.request().headers()['x-csrf-token']).toBe('csrf-parent-1');
+    return json(route, { studentId: 'student-1', message: 'تم إلغاء ربط الطالب' });
+  });
+
+  await page.goto('/parent-dashboard');
+  await page.getByRole('button', { name: 'طلب التقرير' }).click();
+  await expect.poll(() => sendReportCalls).toBe(1);
+  await expect(page.getByText('التقرير الأسبوعي المبسط')).toBeVisible();
+
+  await page.getByRole('button', { name: /الموافقات/ }).click();
+  await expect(page.getByText('دورة التأسيس الشاملة')).toBeVisible();
+  await page.getByRole('button', { name: 'موافقة' }).click();
+  await expect.poll(() => approveCalls).toBe(1);
+  await expect(page.getByText('لا توجد طلبات موافقات أو تراخيص مسجلة حالياً')).toBeVisible();
+
+  await page.getByRole('button', { name: 'ربط ابن جديد' }).click();
+  await page.getByRole('button', { name: 'إلغاء الربط' }).click();
+  await expect.poll(() => unlinkCalls).toBe(1);
+});
 
 test('parent WhatsApp digest toggle stays honest and shows error when PATCH fails', async ({ page }) => {
   await page.route('**/api/v1/auth/me', (route) => json(route, { user: parent }));
