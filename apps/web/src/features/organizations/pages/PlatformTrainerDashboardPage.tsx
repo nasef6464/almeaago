@@ -46,7 +46,7 @@ export interface TrainerQuizItem {
   questionCount: number;
   submissionsCount: number;
   avgScore: number;
-  workflowStatus: 'approved' | 'rejected';
+  workflowStatus: 'draft' | 'pending_review' | 'approved' | 'rejected';
   kind: 'drill' | 'mock' | 'exam';
   dueDate: string;
 }
@@ -57,7 +57,7 @@ export interface TrainerQuestionItem {
   subjectName: string;
   difficulty: 'easy' | 'medium' | 'hard';
   version: number;
-  workflowStatus: 'approved' | 'rejected';
+  workflowStatus: 'draft' | 'pending_review' | 'approved' | 'rejected';
 }
 
 const DEFAULT_COURSES: TrainerCourse[] = [
@@ -251,21 +251,70 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
   const [newSessionDate, setNewSessionDate] = useState('');
   const [newSessionDuration, setNewSessionDuration] = useState(60);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    const ctrl = new AbortController();
+    assessmentClient
+      .list({ page: 1, limit: 20 }, ctrl.signal)
+      .then((res) => {
+        if (!ctrl.signal.aborted && res?.items?.length) {
+          setQuizzes(
+            res.items.map((it) => ({
+              id: it.id,
+              title: it.title || it.code || 'اختبار تدريبي',
+              courseTitle: it.subjectId || 'المنصة',
+              questionCount: (it as { totalQuestions?: number; questionCount?: number }).totalQuestions ?? (it as { questionCount?: number }).questionCount ?? 0,
+              submissionsCount: 0,
+              avgScore: 0,
+              workflowStatus: (it.workflowStatus as TrainerQuizItem['workflowStatus']) || 'draft',
+              kind: it.kind === 'mock' ? 'mock' : (it.kind as string) === 'drill' ? 'drill' : 'exam',
+              dueDate: '',
+            })),
+          );
+        }
+      })
+      .catch(() => {});
+    questionBankClient
+      .list({ page: 1, limit: 20 }, ctrl.signal)
+      .then((res) => {
+        if (!ctrl.signal.aborted && res?.items?.length) {
+          setQuestions(
+            res.items.map((q) => ({
+              id: q.id,
+              text: q.text || '',
+              subjectName: q.subjectId || 'بنك الأسئلة',
+              difficulty: q.difficulty === 'hard' ? 'hard' : q.difficulty === 'easy' ? 'easy' : 'medium',
+              version: (q as { revision?: number; versionNumber?: number }).revision ?? (q as { versionNumber?: number }).versionNumber ?? 1,
+              workflowStatus: (q.workflowStatus as TrainerQuestionItem['workflowStatus']) || 'draft',
+            })),
+          );
+        }
+      })
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [user?.id]);
+
   const toggleQuizStatus = async (quizId: string) => {
     const target = quizzes.find((q) => q.id === quizId);
     if (!target) return;
-    const nextStatus: 'approved' | 'rejected' = target.workflowStatus === 'approved' ? 'rejected' : 'approved';
+    if (target.workflowStatus === 'approved') {
+      setFeedback('ℹ️ الاختبار معتمد من الإدارة ولا يمكن للمدرب تعديل اعتماده ذاتياً.');
+      setTimeout(() => setFeedback(''), 4500);
+      return;
+    }
+    const nextStatus: 'pending_review' | 'draft' =
+      target.workflowStatus === 'pending_review' ? 'draft' : 'pending_review';
     try {
       const csrf = await getCsrfToken().catch(() => '');
       if (csrf && !quizId.startsWith('tq-')) {
-        await assessmentClient.workflow(quizId, 1, nextStatus === 'approved' ? 'approved' : 'rejected', 'تحديث الحالة من لوحة المدرب', csrf);
+        await assessmentClient.workflow(quizId, 1, nextStatus, 'تحديث الحالة من لوحة المدرب', csrf);
       }
       setQuizzes((prev) => {
         const next: TrainerQuizItem[] = prev.map((q) => (q.id === quizId ? { ...q, workflowStatus: nextStatus } : q));
         try { localStorage.setItem(quizStorageKey, JSON.stringify(next)); } catch {}
         return next;
       });
-      setFeedback(nextStatus === 'approved' ? `✅ تم إرسال الاختبار "${target.title}" للاعتماد والنشر` : `⚠️ تم إرجاع الاختبار "${target.title}" للمراجعة والتعديل`);
+      setFeedback(nextStatus === 'pending_review' ? `✅ تم إرسال الاختبار "${target.title}" للمراجعة والاعتماد` : `⚠️ تم سحب الاختبار "${target.title}" إلى المسودة`);
     } catch (err) {
       setFeedback(`❌ تعذر تحديث حالة الاختبار: ${err instanceof Error ? err.message : 'خطأ غير متوقع في الخادم'}`);
     }
@@ -275,18 +324,24 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
   const toggleQuestionStatus = async (qId: string) => {
     const target = questions.find((q) => q.id === qId);
     if (!target) return;
-    const nextStatus: 'approved' | 'rejected' = target.workflowStatus === 'approved' ? 'rejected' : 'approved';
+    if (target.workflowStatus === 'approved') {
+      setFeedback('ℹ️ السؤال معتمد ولا يمكن للمدرب تغيير حالة الاعتماد ذاتياً.');
+      setTimeout(() => setFeedback(''), 4500);
+      return;
+    }
+    const nextStatus: 'pending_review' | 'draft' =
+      target.workflowStatus === 'pending_review' ? 'draft' : 'pending_review';
     try {
       const csrf = await getCsrfToken().catch(() => '');
       if (csrf && !qId.startsWith('t-qst-')) {
-        await questionBankClient.workflow(qId, target.version || 1, nextStatus === 'approved' ? 'approved' : 'rejected', 'مراجعة المدرب', csrf);
+        await questionBankClient.workflow(qId, target.version || 1, nextStatus, 'مراجعة المدرب', csrf);
       }
       setQuestions((prev) => {
         const next: TrainerQuestionItem[] = prev.map((q) => (q.id === qId ? { ...q, workflowStatus: nextStatus } : q));
         try { localStorage.setItem(questionStorageKey, JSON.stringify(next)); } catch {}
         return next;
       });
-      setFeedback(nextStatus === 'approved' ? '✅ تم اعتماد السؤال ونشره في بنك الأسئلة المعتمد' : '⚠️ تم سحب السؤال للمراجعة والتدقيق');
+      setFeedback(nextStatus === 'pending_review' ? '✅ تم إرسال السؤال للمراجعة والاعتماد' : '⚠️ تم سحب السؤال إلى المسودة');
     } catch (err) {
       setFeedback(`❌ تعذر تحديث حالة السؤال: ${err instanceof Error ? err.message : 'خطأ غير متوقع في الخادم'}`);
     }
@@ -421,7 +476,7 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
             { id: 'quizzes', label: 'الاختبارات والتقييمات', icon: FileText },
             { id: 'questions', label: 'بنك الأسئلة والتمارين', icon: Target },
             { id: 'skills', label: 'رادار إتقان المتدربين', icon: Award },
-            { id: 'qa', label: 'استفسارات الطلاب (12)', icon: MessageSquare },
+            { id: 'qa', label: 'استفسارات الطلاب', icon: MessageSquare },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -733,12 +788,12 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
                     questionCount: 15,
                     submissionsCount: 0,
                     avgScore: 0,
-                    workflowStatus: 'approved',
+                    workflowStatus: 'draft',
                     kind: 'drill',
                     dueDate: '2026-11-25',
                   };
                   setQuizzes([newQ, ...quizzes]);
-                  setFeedback(`✅ تم إنشاء التدريب "${newQ.title}" بنجاح!`);
+                  setFeedback(`✅ تم إنشاء التدريب "${newQ.title}" كمسودة.`);
                   setTimeout(() => setFeedback(''), 4000);
                 }}
                 className="flex items-center gap-1.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 text-xs font-black text-white shadow-sm"
@@ -757,23 +812,27 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
                         <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-black text-indigo-700">
                           {quiz.kind === 'mock' ? 'محاكي' : quiz.kind === 'drill' ? 'تدريب' : 'اختبار'}
                         </span>
-                        {quiz.workflowStatus === 'rejected' ? (
-                          <button
-                            type="button"
-                            onClick={() => toggleQuizStatus(quiz.id)}
-                            className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-black text-rose-700 border border-rose-100 hover:bg-rose-100 transition-colors"
-                            title="حالة الاعتماد: مرفوض (انقر للتبديل)"
-                          >
-                            رفض
-                          </button>
+                        {quiz.workflowStatus === 'approved' ? (
+                          <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-black text-emerald-700 border border-emerald-100">
+                            معتمد
+                          </span>
                         ) : (
                           <button
                             type="button"
                             onClick={() => toggleQuizStatus(quiz.id)}
-                            className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-black text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors"
-                            title="حالة الاعتماد: معتمد (انقر للتبديل)"
+                            className={`rounded-full px-2.5 py-0.5 text-[11px] font-black border transition-colors ${
+                              quiz.workflowStatus === 'rejected'
+                                ? 'bg-rose-50 text-rose-700 border-rose-100 hover:bg-rose-100'
+                                : quiz.workflowStatus === 'pending_review'
+                                  ? 'bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100'
+                                  : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                            }`}
                           >
-                            معتمد
+                            {quiz.workflowStatus === 'rejected'
+                              ? 'مرفوض (إعادة للمراجعة)'
+                              : quiz.workflowStatus === 'pending_review'
+                                ? 'قيد المراجعة (سحب)'
+                                : 'مسودة (إرسال للمراجعة)'}
                           </button>
                         )}
                       </div>
@@ -883,10 +942,10 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
                     subjectName: 'قدرات كمي - هندسة',
                     difficulty: 'medium',
                     version: 1,
-                    workflowStatus: 'approved',
+                    workflowStatus: 'draft',
                   };
                   setQuestions([q, ...questions]);
-                  setFeedback(`✅ تم إضافة سؤال جديد لبنك تحضيرك الخاص`);
+                  setFeedback(`✅ تم إضافة سؤال جديد لبنك تحضيرك الخاص كمسودة`);
                   setTimeout(() => setFeedback(''), 3000);
                 }}
                 className="flex items-center gap-1.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 text-xs font-black text-white shadow-sm"
@@ -909,23 +968,27 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
 
                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                     {/* Status Toggle */}
-                    {q.workflowStatus === 'rejected' ? (
-                      <button
-                        type="button"
-                        onClick={() => toggleQuestionStatus(q.id)}
-                        className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-black text-rose-700 border border-rose-100 hover:bg-rose-100 transition-colors"
-                        title="حالة الاعتماد: مرفوض (انقر للتبديل)"
-                      >
-                        رفض
-                      </button>
+                    {q.workflowStatus === 'approved' ? (
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-black text-emerald-700 border border-emerald-100">
+                        معتمد
+                      </span>
                     ) : (
                       <button
                         type="button"
                         onClick={() => toggleQuestionStatus(q.id)}
-                        className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-black text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors"
-                        title="حالة الاعتماد: معتمد (انقر للتبديل)"
+                        className={`rounded-full px-2.5 py-0.5 text-[11px] font-black border transition-colors ${
+                          q.workflowStatus === 'rejected'
+                            ? 'bg-rose-50 text-rose-700 border-rose-100 hover:bg-rose-100'
+                            : q.workflowStatus === 'pending_review'
+                              ? 'bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100'
+                              : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                        }`}
                       >
-                        معتمد
+                        {q.workflowStatus === 'rejected'
+                          ? 'مرفوض (إعادة للمراجعة)'
+                          : q.workflowStatus === 'pending_review'
+                            ? 'قيد المراجعة (سحب)'
+                            : 'مسودة (إرسال للمراجعة)'}
                       </button>
                     )}
 
