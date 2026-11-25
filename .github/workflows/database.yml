@@ -1,10 +1,10 @@
 name: Database CI
 on:
   pull_request:
-    paths: ["apps/web/src/features/presentation/**","apps/web/tests/e2e/platform-fonts*","apps/web/tests/reference/**","scripts/parity/font-reference.mjs","apps/web/vite.config.ts","migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**","internal/taxonomy/**"]
+    paths: ["apps/web/src/features/presentation/**","apps/web/tests/e2e/platform-fonts*","apps/web/tests/reference/**","scripts/parity/font-reference.mjs","apps/web/vite.config.ts","migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**","internal/taxonomy/**","internal/commerce/repository/postgres/**"]
   push:
     branches: [main]
-    paths: ["apps/web/src/features/presentation/**","apps/web/tests/e2e/platform-fonts*","apps/web/tests/reference/**","scripts/parity/font-reference.mjs","apps/web/vite.config.ts","migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**","internal/taxonomy/**"]
+    paths: ["apps/web/src/features/presentation/**","apps/web/tests/e2e/platform-fonts*","apps/web/tests/reference/**","scripts/parity/font-reference.mjs","apps/web/vite.config.ts","migrations/**",".github/workflows/database.yml","docs/**","internal/content/**","internal/learning/**","internal/organizations/repository/postgres/**","internal/reporting/repository/postgres/**","internal/assessment/repository/postgres/**","internal/taxonomy/**","internal/commerce/repository/postgres/**"]
   workflow_dispatch:
 concurrency:
   group: database-ci-${{ github.ref }}
@@ -109,6 +109,14 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
+      - name: Verify published assessment question taxonomy through submission and reports
+        env:
+          ASSESSMENT_SELF_SCHEMA_TEST_DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+          PREPARED_QUIZ_LIVE_BROWSER: "1"
+          PREPARED_SKILL_VERSION_TEST: "1"
+          PREPARED_QUIZ_TEST_FILTER: "تصنيف السؤال المنشور"
+        run: go test ./internal/assessment/repository/postgres -run '^Test(PreparedQuizLiveBrowser|LearningEvidencePathMockNullableSubjectPostgres)$' -count=1 -v
       - name: Verify homepage editor through real Go sessions and PostgreSQL
         env:
           DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
@@ -343,3 +351,23 @@ jobs:
             psql -h 127.0.0.1 -U almeaa -d almeaa -v ON_ERROR_STOP=1 -f "$file"
             echo "::endgroup::"
           done
+
+      - name: P6 backup and restore verification drill
+        shell: bash
+        run: |
+          set -euo pipefail
+          pg_dump -h 127.0.0.1 -U almeaa -d almeaa --no-owner --no-acl -f /tmp/almeaa_p6_backup.sql
+          psql -h 127.0.0.1 -U almeaa -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS almeaa_restore_verify;"
+          psql -h 127.0.0.1 -U almeaa -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE almeaa_restore_verify;"
+          psql -h 127.0.0.1 -U almeaa -d almeaa_restore_verify -v ON_ERROR_STOP=1 -f /tmp/almeaa_p6_backup.sql
+          src_tables="$(psql -h 127.0.0.1 -U almeaa -d almeaa -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'")"
+          dst_tables="$(psql -h 127.0.0.1 -U almeaa -d almeaa_restore_verify -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'")"
+          echo "source tables=$src_tables restored tables=$dst_tables"
+          test "$src_tables" -gt 0
+          test "$src_tables" = "$dst_tables"
+          test "$(psql -h 127.0.0.1 -U almeaa -d almeaa_restore_verify -Atc "SELECT count(*) FROM ai_provider_settings")" = "7"
+
+      - name: Verify commerce package checkout and access policies against restored PostgreSQL
+        env:
+          COMMERCE_JOURNEY_TEST_DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa_restore_verify?sslmode=disable
+        run: go test ./internal/commerce/repository/postgres -count=1 -v

@@ -1,12 +1,22 @@
 # نقطة استئناف — 1 نوفمبر 2026
 ## 25 نوفمبر — تثبيت مهارة نسخة السؤال في الاختبار المنشور
 
-- Legacy `ed28102d7084899856de0371dc2c93a3d602d518`، Go baseline `b4ad0d1f053b391b9636f42f61a6e829c32c4d6b`، كود الشريحة `45a97cf13e032dfb3c73b75e84d20f8cb5baba02` على فرع [fix/assessment-question-skill-version](https://github.com/nasef6464/almeaago/commits/fix/assessment-question-skill-version). السلوك VERIFIED محليًا للحالة أدناه. حالة المطابقة العامة PARTIAL.
+- Legacy `ed28102d7084899856de0371dc2c93a3d602d518`، Go baseline لتجربة RED `b4ad0d1f053b391b9636f42f61a6e829c32c4d6b`، كود الشريحة `45a97cf13e032dfb3c73b75e84d20f8cb5baba02` في [PR #310](https://github.com/nasef6464/almeaago/pull/310). السلوك VERIFIED محليًا للحالة أدناه. حالة المطابقة العامة PARTIAL.
 - RED على Go baseline. بعد نشر اختبار يشير إلى السؤال v1، عدّل مدير المنصة مهارة السؤال وإجابته من مسار اعتماد بنك الأسئلة. احتفظ الطالب بدرجة v1 الصحيحة وتسرّب تصنيف v2 إلى تحليل المحاولة ودليل الإتقان. لا يُعد ذلك فرقًا بصريًا مثبتًا عن Legacy.
 - المدير ← نشر الاختبار ← `POST /api/v1/assessments/{id}/publication` ← `assessment_version_questions`، ثم `PATCH /api/v1/questions/{id}/workflow` و`POST /api/v1/questions/{id}/versions` ← تحقق Go من الدور وحالة المراجعة و`expectedCurrentVersion` ← `question_version_taxonomy` و`question_version_taxonomy_skills` داخل معاملة تعديل السؤال. الطالب ← التسليم ← `POST /api/v1/assessment-attempts/{id}/submit` بحقل `submissionKey` ← Go يستخدم تصنيف نسخة السؤال المثبّتة ← `mastery_evidence` و`mastery_evidence_skills` ← التحليل والمراجعة و«تقاريري» بعد التحديث.
 - PASS تجربة React وGo وPostgreSQL لثبات الدرجة والمهارة ومراجعة السؤال الأصلي بعد تحديث الصفحة. أعاد طلب التسليم بنفس المفتاح النتيجة نفسها ووجد اختبار SQL صف نتيجة واحدًا ودليلًا واحدًا وربطًا واحدًا بالمهارة الأصلية. رُفضت مراجعة المحاولة بحساب طالب آخر. PASS فحص وحدات Go الأربع، وتكامل الاختبار الذاتي والمُعد والمحاكي على PostgreSQL، وتطبيق الترحيل 000064 ثم التراجع عنه وإعادة تطبيقه في قاعدة معزولة.
 - الصور `assessment-version-taxonomy-{390,820,1440}.png` من الجديد، مع تحذير عدم تحميل خط المنصة في الخادم التجريبي. لم تُلتقط صور أصل مقترنة. نسخ الأسئلة التي استُبدلت قبل وجود الأرشيف لا تُنسب إليها المهارة الحالية، ولا يُعاد كتابة الأدلة المخزنة سابقًا. لم يُنفّذ نشر.
-- إعادة التحقق: اضبط `PREPARED_QUIZ_LIVE_BROWSER=1` و`PREPARED_SKILL_VERSION_TEST=1` و`PREPARED_QUIZ_TEST_FILTER=تصنيف السؤال المنشور` وعنوان PostgreSQL تجريبي معزول في `ASSESSMENT_SELF_SCHEMA_TEST_DATABASE_URL` ثم شغّل `go test ./internal/assessment/repository/postgres -run '^TestPreparedQuizLiveBrowser$' -count=1 -v`. راجع CI على رأس PR. شاهِد نتيجة حالة اختبار مهارات متعددة قبل الانتقال إلى مقام تغطية الجاهزية.
+- إعادة التحقق: اضبط `PREPARED_QUIZ_LIVE_BROWSER=1` و`PREPARED_SKILL_VERSION_TEST=1` و`PREPARED_QUIZ_TEST_FILTER=تصنيف السؤال المنشور` وعنوان PostgreSQL تجريبي معزول في `ASSESSMENT_SELF_SCHEMA_TEST_DATABASE_URL` ثم شغّل `go test ./internal/assessment/repository/postgres -run '^TestPreparedQuizLiveBrowser$' -count=1 -v`. أُضيف الفحص إلى Database CI بعد دمج #309. راجع CI على رأس PR. الخطوة التالية تحقق نتيجة اختبار بمهارات متعددة قبل بدء قياس تغطية الجاهزية.
+
+## 25 نوفمبر — بوابة P6: تمرين النسخ الاحتياطي والاستعادة وتكاملات التجارة على PostgreSQL 18 / PARTIAL
+
+- Go main `7895368bb1c35f0a0beacf52d2a698c845ad0cef` بعد دمج [PR #309](https://github.com/nasef6464/almeaago/pull/309).
+- **إنجازات PR #309 (تمرين P6 على `postgres:18` في GitHub Actions `Database CI`):**
+  1. تطبيق جميع المهاجرات الـ 63 (`*.up.sql`) ثم التراجع الكامل عنها (`*.down.sql` بترتيب عكسي) وإعادة تطبيقها من الصفر والتحقق من كافة القيود والفهارس والمشغلات.
+  2. تنفيذ تمرين `pg_dump --no-owner --no-acl` ثم استعادته إلى قاعدة تحقق مستقلة `almeaa_restore_verify` عبر `psql -v ON_ERROR_STOP=1` مع مطابقة عدد الجداول وسلامة بذور `ai_provider_settings`.
+  3. تشغيل اختبارات تكامل التجارة (`internal/commerce/repository/postgres` عبر `COMMERCE_JOURNEY_TEST_DATABASE_URL`) مباشرة على القاعدة المستعادة `almeaa_restore_verify`.
+  4. PASS بوابة `database` (3m 53s) و`overlap` (7s) في GitHub Actions دون أي اتصال بقواعد الإنتاج.
+- **ما تبقى من P6/P7:** تمرين مطابقة البيانات الفعلي (`MongoDB -> PostgreSQL` reconciliation) ضد نسخة تصدير معزولة من Legacy (إن وُجدت بيانات إنتاجية مستهدفة للترحيل)، ثم الاعتماد البصري المتقابل P7 على المقاسات الثلاثة (`390 / 820 / 1440`). حالة المنصة العامة تبقى **`PARTIAL`**.
 
 ## 25 نوفمبر — إصلاح تعدد نطاقات WEB_ORIGIN في OAuth واستعادة حالة الدفع عبر Tap paymentReturn / PARTIAL
 
