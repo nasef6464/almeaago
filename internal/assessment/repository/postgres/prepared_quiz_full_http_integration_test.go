@@ -110,6 +110,37 @@ INSERT INTO prepared_quiz_target_users VALUES ('00000000-0000-0000-0000-00000000
 		t.Fatalf("seed: %v", err)
 	}
 	repo := New(db, operationspg.NewAuditWriter())
+	t.Run("staff subject list projects only the matching published placement", func(t *testing.T) {
+		query := assessment.ListQuery{
+			Page: 1, Limit: 10,
+			PathID:     "00000000-0000-0000-0000-000000000003",
+			SubjectID:  "00000000-0000-0000-0000-000000000004",
+			NormalMode: assessment.ModeExam,
+		}
+		page, err := repo.List(ctx, query)
+		if err != nil || len(page.Items) != 2 {
+			t.Fatalf("scoped exam list: %+v %v", page, err)
+		}
+		for _, item := range page.Items {
+			if item.Code == "ORDINARY" {
+				if item.SubjectPlacement != nil {
+					t.Fatalf("definition without a placement projects %+v", item.SubjectPlacement)
+				}
+				continue
+			}
+			p := item.SubjectPlacement
+			if p == nil || p.ID != "00000000-0000-0000-0000-000000000008" ||
+				p.AccessType != assessment.PlacementAccessInherit || p.BaseAccessType != assessment.AccessFree ||
+				!p.IsVisible || p.UpdatedAt.IsZero() {
+				t.Fatalf("exam card missing public placement metadata: %+v", p)
+			}
+		}
+		query.NormalMode = assessment.ModePractice
+		page, err = repo.List(ctx, query)
+		if err != nil || len(page.Items) != 0 {
+			t.Fatalf("practice excludes exams: %+v %v", page, err)
+		}
+	})
 	t.Run("course and lesson placements stay separate", func(t *testing.T) {
 		_, err := db.Exec(ctx, `
 INSERT INTO courses(id,path_id,subject_id,title,workflow_status,is_published,is_visible,owner_type) VALUES ('00000000-0000-0000-0000-000000000031','00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000004','Course','approved',true,true,'platform');
