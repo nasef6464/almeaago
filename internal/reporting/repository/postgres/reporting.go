@@ -552,6 +552,11 @@ func (r *ReportRepository) Overview(
 
 	skillLimitParam := len(baseArgs) + 1
 	skillArgs := append(append([]any{}, baseArgs...), query.AttemptLimit)
+	skillFilterClause := ""
+	if query.SkillID != "" {
+		skillArgs = append(skillArgs, query.SkillID)
+		skillFilterClause = " WHERE mes.skill_id=$" + strconv.Itoa(len(skillArgs)) + "::uuid"
+	}
 	skillRows, err := r.db.Query(ctx, `
 		WITH sampled_evidence AS (
 			SELECT me.id,me.student_id,me.is_correct
@@ -573,6 +578,7 @@ func (r *ReportRepository) Overview(
 		FROM sampled_evidence se
 		JOIN mastery_evidence_skills mes ON mes.evidence_id=se.id
 		JOIN skills s ON s.id=mes.skill_id
+		`+skillFilterClause+`
 		GROUP BY mes.skill_id,s.name
 		HAVING count(*) >= 3
 		   AND avg(CASE WHEN se.is_correct THEN 100.0 ELSE 0.0 END) < 50
@@ -590,6 +596,7 @@ func (r *ReportRepository) Overview(
 		); err != nil {
 			return reporting.Overview{}, err
 		}
+		item.EvidenceStatus = reporting.ClassifySkillEvidence(item.EvidenceCount, item.Mastery)
 		out.WeakestSkills = append(out.WeakestSkills, item)
 	}
 	if err = skillRows.Err(); err != nil {

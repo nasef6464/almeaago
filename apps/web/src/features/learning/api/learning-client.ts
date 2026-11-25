@@ -565,3 +565,144 @@ export const interventionClient={
     return request<InterventionPage>(`/api/v1/interventions/mine?${p.toString()}`,{signal});
   },
 };
+
+export type SessionBookingStatus = 'pending' | 'confirmed' | 'rejected' | 'cancelled';
+
+export interface SessionBooking {
+  id: string;
+  userId: string;
+  requestKey: string;
+  title: string;
+  targetLabel: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  notes: string;
+  pathId?: string;
+  stageId?: string;
+  subjectId?: string;
+  sectionId?: string;
+  skillIds: string[];
+  bookingStatus: SessionBookingStatus;
+  teacherId?: string;
+  assignedTeacherName?: string;
+  sessionId?: string;
+  adminNotes?: string;
+  studentName?: string;
+  studentEmail?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SessionBookingCreateInput {
+  title: string;
+  targetLabel: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  notes?: string;
+  requestKey: string;
+  pathId?: string;
+  stageId?: string;
+  subjectId?: string;
+  sectionId?: string;
+  skillIds?: string[];
+}
+
+export const sessionBookingsClient = {
+  create(input: SessionBookingCreateInput, csrfToken: string) {
+    return request<{ booking: SessionBooking }>('/api/v1/session-bookings/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify(input),
+    });
+  },
+  mine(limit = 50, signal?: AbortSignal) {
+    return request<{ bookings: SessionBooking[] }>(`/api/v1/session-bookings/mine?limit=${limit}`, { signal });
+  },
+  cancel(bookingId: string, csrfToken: string) {
+    return request<{ booking: SessionBooking }>(`/api/v1/session-bookings/${encodeURIComponent(bookingId)}/cancel`, {
+      method: 'PATCH',
+      headers: { 'X-CSRF-Token': csrfToken },
+    });
+  },
+};
+
+export interface LearnerTimelineItem {
+  id: string;
+  type: string;
+  title: string;
+  subtitle: string;
+  date: string;
+}
+
+export interface LearnerAchievementsSummary {
+  completedLessons: number;
+  completedQuizzes: number;
+  perfectQuizzes: number;
+  masteredSkills: number;
+  enrolledCourses: number;
+  activityCount: number;
+  streakDays: number;
+  certificatesCount: number;
+  points: number;
+  level: number;
+  timeline: LearnerTimelineItem[];
+}
+
+export interface LearnerCourseLessonPreview {
+  id: string;
+  title: string;
+  durationSeconds: number;
+  completed: boolean;
+}
+
+export interface LearnerCourseModulePreview {
+  id: string;
+  title: string;
+  lessons: LearnerCourseLessonPreview[];
+}
+
+export interface LearnerCourseProgressSummary {
+  id: string;
+  pathId: string;
+  pathName: string;
+  subjectId: string;
+  subjectName: string;
+  category: string;
+  title: string;
+  description: string;
+  instructorName: string;
+  thumbnailAssetId: string;
+  thumbnailUrl: string;
+  certificateEnabled: boolean;
+  isEnrolled: boolean;
+  lessonsCount: number;
+  completedLessonsCount: number;
+  progress: number;
+  modules: LearnerCourseModulePreview[];
+}
+
+export interface CourseCertificate {
+  id: string;
+  userId: string;
+  courseId: string;
+  verificationCode: string;
+  issuedAt: string;
+}
+
+export const lessonProgressSummaryClient = {
+  achievements(signal?: AbortSignal) {
+    return request<{ summary: LearnerAchievementsSummary }>('/api/v1/learning-progress/achievements', { signal });
+  },
+  coursesSummary(signal?: AbortSignal) {
+    return request<{ courses: LearnerCourseProgressSummary[] }>('/api/v1/learning-progress/courses/summary', { signal });
+  },
+  issueCertificate(courseId: string, csrfToken: string) {
+    return request<{ certificate: CourseCertificate }>(
+      `/api/v1/learning-progress/courses/${encodeURIComponent(courseId)}/certificate`,
+      {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': csrfToken },
+      },
+    );
+  },
+};

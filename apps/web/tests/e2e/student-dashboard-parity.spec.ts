@@ -42,6 +42,24 @@ async function setupStudentMocks(page: Page) {
     }),
   );
 
+  await page.route('**/api/v1/learning-progress/achievements', (route) =>
+    json(route, {
+      summary: {
+        completedLessons: 4,
+        completedQuizzes: 2,
+        perfectQuizzes: 1,
+        masteredSkills: 3,
+        enrolledCourses: 1,
+        activityCount: 6,
+        streakDays: 3,
+        certificatesCount: 0,
+        points: 190,
+        level: 1,
+        timeline: [],
+      },
+    }),
+  );
+
   await page.route('**/api/v1/assessment-assignments/mine*', (route) =>
     json(route, {
       items: [
@@ -77,7 +95,7 @@ test.describe('Student Dashboard (P0.3) Authentic Parity Suite', () => {
     // 1. Header greeting & streak
     await expect(page.getByRole('heading', { name: /مرحباً يا بطل/ })).toBeVisible();
     await expect(page.getByText('شريط الاستمرارية', { exact: true })).toBeVisible();
-    await expect(page.getByText('5 أيام متتالية')).toBeVisible();
+    await expect(page.getByText('3 أيام متتالية')).toBeVisible();
 
     // 2. Student Today Focus
     await expect(page.getByTestId('student-today-focus')).toBeVisible();
@@ -134,7 +152,7 @@ test.describe('Student Dashboard (P0.3) Authentic Parity Suite', () => {
 
     // Verify elements are visible and mobile friendly
     await expect(page.getByRole('heading', { name: /مرحباً يا بطل/ })).toBeVisible();
-    await expect(page.getByText('5 أيام متتالية')).toBeVisible();
+    await expect(page.getByText('3 أيام متتالية')).toBeVisible();
     await expect(page.getByTestId('student-smart-path')).toBeVisible();
 
     // Open mobile sidebar

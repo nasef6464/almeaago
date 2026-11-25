@@ -17,11 +17,46 @@ type Query struct {
 	ClassID      string
 	PathID       string
 	SubjectID    string
+	SkillID      string
 	FromAt       *time.Time
 	ToAt         *time.Time
 	StudentLimit int
 	ResultLimit  int
 	AttemptLimit int
+}
+
+const (
+	EvidenceMinimumAnswers = 5
+	EvidenceSupportBelow   = 60.0
+	EvidenceReadyFrom      = 80.0
+)
+
+type EvidenceStatus string
+
+const (
+	EvidenceUnmeasured   EvidenceStatus = "unmeasured"
+	EvidenceInsufficient EvidenceStatus = "insufficient"
+	EvidenceSupport      EvidenceStatus = "support"
+	EvidenceDeveloping   EvidenceStatus = "developing"
+	EvidenceReady        EvidenceStatus = "ready"
+)
+
+// ClassifySkillEvidence mirrors Legacy server/src/modules/quizzes/application/learningEvidencePolicy.ts
+// strictly for reporting-layer classification (minimumAnswers=5, supportBelow=60, readyFrom=80).
+func ClassifySkillEvidence(evidenceCount int, mastery float64) EvidenceStatus {
+	if evidenceCount <= 0 {
+		return EvidenceUnmeasured
+	}
+	if evidenceCount < EvidenceMinimumAnswers {
+		return EvidenceInsufficient
+	}
+	if mastery < EvidenceSupportBelow {
+		return EvidenceSupport
+	}
+	if mastery >= EvidenceReadyFrom {
+		return EvidenceReady
+	}
+	return EvidenceDeveloping
 }
 
 type ResolvedScope struct {
@@ -67,11 +102,12 @@ type AssessmentSummary struct {
 }
 
 type SkillAggregate struct {
-	SkillID          string  `json:"skillId"`
-	SkillName        string  `json:"skillName"`
-	EvidenceCount    int     `json:"evidenceCount"`
-	AffectedStudents int     `json:"affectedStudents"`
-	Mastery          float64 `json:"mastery"`
+	SkillID          string         `json:"skillId"`
+	SkillName        string         `json:"skillName"`
+	EvidenceCount    int            `json:"evidenceCount"`
+	AffectedStudents int            `json:"affectedStudents"`
+	Mastery          float64        `json:"mastery"`
+	EvidenceStatus   EvidenceStatus `json:"evidenceStatus,omitempty"`
 }
 
 type Overview struct {

@@ -38,14 +38,20 @@ const EXPECTED_28_LAZY_MODULES = [
   { name: 'ClassroomJoinPage', path: '../features/classroom/pages/ClassroomJoinPage' },
   { name: 'ClassroomStudentPage', path: '../features/classroom/pages/ClassroomStudentPage' },
   { name: 'SchoolInterventionsPage', path: '../features/learning/pages/SchoolInterventionsPage' },
+  { name: 'BookSessionPage', path: '../features/learning/pages/BookSessionPage' },
+  { name: 'QAPage', path: '../features/learning/pages/QAPage' },
+  { name: 'LiveSessionsPage', path: '../features/learning/pages/LiveSessionsPage' },
+  { name: 'LiveSessionLobbyPage', path: '../features/learning/pages/LiveSessionLobbyPage' },
+  { name: 'MyRequestsPage', path: '../features/learning/pages/MyRequestsPage' },
+  { name: 'QuizGeneratorPage', path: '../features/questionbank/pages/QuizGeneratorPage' },
 ];
 
-test('App.tsx defines all 86 explicit route declarations preserving route inventory parity', () => {
+test('App.tsx defines all 99 explicit route declarations preserving route inventory parity', () => {
   assert.ok(existsSync(appFilePath), 'App.tsx must exist');
   const appSource = readFileSync(appFilePath, 'utf8');
   const routePaths = extractRoutePaths(appSource);
 
-  assert.equal(routePaths.length, 86, `Expected exactly 86 route declarations, found ${routePaths.length}`);
+  assert.equal(routePaths.length, 99, `Expected exactly 99 route declarations, found ${routePaths.length}`);
   assert.ok(routePaths.includes('/'), 'Must include root landing page');
   assert.ok(routePaths.includes('/admin-dashboard'), 'Must include admin dashboard');
   assert.ok(routePaths.includes('/school-director'), 'Must include school director');
@@ -54,11 +60,11 @@ test('App.tsx defines all 86 explicit route declarations preserving route invent
   assert.ok(routePaths.includes('*'), 'Must include 404 catch-all route');
 });
 
-test('App.tsx utilizes lazy-loading for the 28 role and admin modules with valid targets', () => {
+test('App.tsx utilizes lazy-loading for the 34 role, admin, and student parity modules with valid targets', () => {
   const appSource = readFileSync(appFilePath, 'utf8');
   const appDir = dirname(appFilePath);
 
-  assert.equal(EXPECTED_28_LAZY_MODULES.length, 28, 'Should test exactly 28 lazy modules');
+  assert.equal(EXPECTED_28_LAZY_MODULES.length, 34, 'Should test exactly 34 lazy modules');
 
   for (const mod of EXPECTED_28_LAZY_MODULES) {
     const importPattern = new RegExp(`React\\.lazy\\s*\\(\\s*\\(\\)\\s*=>\\s*import\\(['"]${mod.path.replace(/\./g, '\\.')}['"]\\)`);

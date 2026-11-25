@@ -1,37 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { BookOpen, ChevronLeft, GraduationCap, Loader2, PlayCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { contentClient } from '../../../content/api/content-client';
-import type { LearnerCourseSummary } from '../../../content/api/content-types';
+import {
+  lessonProgressSummaryClient,
+  type LearnerCourseProgressSummary,
+} from '../../api/learning-client';
 
 export const MyCoursesTab: React.FC = () => {
-  const [courses, setCourses] = useState<LearnerCourseSummary[]>([]);
+  const [courses, setCourses] = useState<LearnerCourseProgressSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
 
-    contentClient
-      .taxonomyCore(controller.signal)
-      .then(async (tax) => {
-        if (controller.signal.aborted) return;
-        const allCourses: LearnerCourseSummary[] = [];
-        const seen = new Set<string>();
-        for (const subject of (tax.subjects || []).slice(0, 4)) {
-          try {
-            const space = await contentClient.learningSpace(subject.pathId, subject.id, 10, controller.signal);
-            for (const course of space.courses?.items || []) {
-              const key = String(course.id || '');
-              if (!key || seen.has(key)) continue;
-              seen.add(key);
-              allCourses.push(course);
-            }
-          } catch {}
+    lessonProgressSummaryClient
+      .coursesSummary(controller.signal)
+      .then((res) => {
+        if (!controller.signal.aborted) {
+          const all = res.courses || [];
+          const enrolled = all.filter((c) => c.isEnrolled);
+          setCourses(enrolled.length > 0 ? enrolled : all);
         }
-        setCourses(allCourses);
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!controller.signal.aborted) setCourses([]);
+      })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
@@ -93,9 +87,9 @@ export const MyCoursesTab: React.FC = () => {
               className="flex flex-col rounded-3xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs transition hover:shadow-md hover:border-violet-200 dark:hover:border-slate-700"
             >
               <div className="relative h-44 bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                {course.thumbnailAssetId ? (
+                {course.thumbnailUrl || course.thumbnailAssetId ? (
                   <img
-                    src={`/api/v1/assets/${course.thumbnailAssetId}`}
+                    src={course.thumbnailUrl || `/api/v1/assets/${course.thumbnailAssetId}/raw`}
                     alt={course.title}
                     className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
                   />
@@ -105,7 +99,10 @@ export const MyCoursesTab: React.FC = () => {
                   </div>
                 )}
                 <div className="absolute top-3 right-3 rounded-full bg-black/60 backdrop-blur-xs px-3 py-1 text-[11px] font-bold text-white">
-                  دورة تدريبية
+                  {course.category || 'دورة تدريبية'}
+                </div>
+                <div className="absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-0.5 text-[11px] font-black text-violet-700">
+                  {course.progress}%
                 </div>
               </div>
 
@@ -119,11 +116,20 @@ export const MyCoursesTab: React.FC = () => {
                       {course.description}
                     </p>
                   )}
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 mb-1">
+                      <span>{course.completedLessonsCount} / {course.lessonsCount} درس</span>
+                      <span>{course.progress}%</span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                      <div className="h-full rounded-full bg-violet-600" style={{ width: `${course.progress}%` }} />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-5 pt-4 border-t border-gray-100 dark:border-slate-800">
                   <Link
-                    to={`/courses/${course.id}`}
+                    to={`/course/${course.id}`}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 py-2.5 px-4 text-xs font-black text-white transition shadow-xs"
                   >
                     <PlayCircle size={16} />

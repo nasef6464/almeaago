@@ -1,45 +1,81 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, BookOpen, ChevronDown, ChevronUp, Filter, Loader2, Search, Star, User } from 'lucide-react';
+import { ArrowRight, BookOpen, ChevronDown, ChevronUp, Loader2, Search, User } from 'lucide-react';
 import { useAuth } from '../../auth/state/AuthProvider';
+import {
+  lessonProgressSummaryClient,
+  type LearnerCourseModulePreview,
+} from '../../learning/api/learning-client';
 import { getPublicCourses, type PublicCourse } from '../api/publicCourses';
 
 interface DisplayCourse {
   id: string;
   title: string;
+  description?: string;
   instructorName: string;
   thumbnailUrl: string;
   category?: string;
-  progress?: number;
-  lessonsCount?: number;
+  progress: number;
+  lessonsCount: number;
+  completedLessonsCount: number;
+  isEnrolled: boolean;
+  modules: LearnerCourseModulePreview[];
 }
 
 export function CoursesPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<'enrolled' | 'active' | 'completed'>('enrolled');
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [courses, setCourses] = useState<DisplayCourse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedCourseId, setExpandedCourseId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     let mounted = true;
     const controller = new AbortController();
 
     async function load() {
       setIsLoading(true);
       try {
+        if (user && user.roles.includes('student')) {
+          const res = await lessonProgressSummaryClient.coursesSummary(controller.signal);
+          if (mounted) {
+            setCourses(
+              (res.courses || []).map((c) => ({
+                id: c.id,
+                title: c.title,
+                description: c.description,
+                instructorName: c.instructorName,
+                thumbnailUrl: c.thumbnailUrl,
+                category: c.category || c.subjectName || c.pathName || '',
+                progress: c.progress,
+                lessonsCount: c.lessonsCount,
+                completedLessonsCount: c.completedLessonsCount,
+                isEnrolled: c.isEnrolled,
+                modules: c.modules || [],
+              })),
+            );
+            return;
+          }
+        }
         const publicList = await getPublicCourses(controller.signal);
         if (mounted) {
-          setCourses(publicList.map((c: PublicCourse) => ({
-            id: c.id,
-            title: c.title,
-            instructorName: c.instructorName,
-            thumbnailUrl: c.thumbnailUrl,
-            category: 'عام',
-            progress: 0,
-            lessonsCount: 0,
-          })));
+          setCourses(
+            publicList.map((c: PublicCourse) => ({
+              id: c.id,
+              title: c.title,
+              instructorName: c.instructorName,
+              thumbnailUrl: c.thumbnailUrl,
+              category: '',
+              progress: 0,
+              lessonsCount: 0,
+              completedLessonsCount: 0,
+              isEnrolled: false,
+              modules: [],
+            })),
+          );
         }
       } catch {
         if (mounted) setCourses([]);
@@ -53,23 +89,51 @@ export function CoursesPage() {
       mounted = false;
       controller.abort();
     };
-  }, []);
+  }, [authLoading, user]);
+
+  const categories = useMemo(
+    () => Array.from(new Set(courses.map((c) => c.category).filter(Boolean) as string[])),
+    [courses],
+  );
 
   const filteredCourses = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return courses.filter((c) => {
+      if (categoryFilter && c.category !== categoryFilter) return false;
       if (!q) return true;
-      return (c.title || '').toLowerCase().includes(q) ||
+      return (
+        (c.title || '').toLowerCase().includes(q) ||
         (c.category || '').toLowerCase().includes(q) ||
-        (c.instructorName || '').toLowerCase().includes(q);
+        (c.instructorName || '').toLowerCase().includes(q)
+      );
     });
-  }, [courses, searchQuery]);
+  }, [categoryFilter, courses, searchQuery]);
+
+  const enrolledBase = useMemo(
+    () =>
+      user && user.roles.includes('student')
+        ? filteredCourses.filter((c) => c.isEnrolled)
+        : filteredCourses,
+    [filteredCourses, user],
+  );
+  const activeCount = useMemo(
+    () => enrolledBase.filter((c) => c.progress > 0 && c.progress < 100).length,
+    [enrolledBase],
+  );
+  const completedCount = useMemo(
+    () => enrolledBase.filter((c) => c.progress === 100 && c.lessonsCount > 0).length,
+    [enrolledBase],
+  );
 
   const displayedCourses = useMemo(() => {
-    if (activeTab === 'completed') return filteredCourses.filter((c) => (c.progress || 0) === 100);
-    if (activeTab === 'active') return filteredCourses.filter((c) => (c.progress || 0) > 0 && (c.progress || 0) < 100);
-    return filteredCourses;
-  }, [activeTab, filteredCourses]);
+    if (activeTab === 'completed') {
+      return enrolledBase.filter((c) => c.progress === 100 && c.lessonsCount > 0);
+    }
+    if (activeTab === 'active') {
+      return enrolledBase.filter((c) => c.progress > 0 && c.progress < 100);
+    }
+    return enrolledBase;
+  }, [activeTab, enrolledBase]);
 
   if (isLoading) {
     return (
@@ -105,14 +169,21 @@ export function CoursesPage() {
             className="w-full pr-10 pl-4 py-3 rounded-xl border border-gray-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-all text-sm"
           />
         </div>
-        <button
-          type="button"
-          aria-label="خيارات فلترة الدورات"
-          title="فلترة الدورات"
-          className="bg-white border border-gray-200 text-gray-600 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors w-full sm:w-auto flex items-center justify-center shadow-xs cursor-pointer"
-        >
-          <Filter size={20} />
-        </button>
+        {categories.length > 0 && (
+          <select
+            aria-label="فلترة الدورات حسب التصنيف"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="bg-white border border-gray-200 text-gray-700 px-4 py-3 rounded-xl text-sm font-bold shadow-xs"
+          >
+            <option value="">كل التصنيفات</option>
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Tabs */}
@@ -126,7 +197,7 @@ export function CoursesPage() {
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          الدورات الملتحق بها
+          الدورات الملتحق بها ({enrolledBase.length})
         </button>
         <button
           type="button"
@@ -137,7 +208,7 @@ export function CoursesPage() {
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          الدورات النشطة
+          الدورات النشطة ({activeCount})
         </button>
         <button
           type="button"
@@ -148,7 +219,7 @@ export function CoursesPage() {
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          الدورات المكتملة
+          الدورات المكتملة ({completedCount})
         </button>
       </div>
 
@@ -193,22 +264,24 @@ export function CoursesPage() {
                     </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                  <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                    <span className="rounded-full bg-black/60 backdrop-blur-xs px-2.5 py-1 text-[11px] font-bold text-amber-300">
-                      {course.category || 'دورة تعليمية'}
-                    </span>
-                  </div>
+                  {course.category && (
+                    <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                      <span className="rounded-full bg-black/60 backdrop-blur-xs px-2.5 py-1 text-[11px] font-bold text-amber-300">
+                        {course.category}
+                      </span>
+                    </div>
+                  )}
                   <div className="absolute top-3 left-3 text-white/80 bg-black/40 p-1 rounded-full">
                     {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </div>
-                  <div className="absolute bottom-3 right-3 left-3 flex items-center justify-between text-xs text-amber-400">
-                    <div className="flex items-center gap-0.5">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} size={12} fill="currentColor" />
-                      ))}
+                  {course.lessonsCount > 0 && (
+                    <div className="absolute bottom-3 right-3 left-3 flex items-center justify-between text-xs text-white">
+                      <span className="font-bold text-[11px]">
+                        {course.completedLessonsCount} / {course.lessonsCount} درس
+                      </span>
+                      <span className="font-black text-amber-300 text-[11px]">{course.progress}%</span>
                     </div>
-                    <span className="font-bold text-white text-[11px]">4.9 تقييم</span>
-                  </div>
+                  )}
                 </div>
 
                 <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
@@ -222,23 +295,38 @@ export function CoursesPage() {
                         <span>{course.instructorName}</span>
                       </div>
                     )}
+                    {course.lessonsCount > 0 && (
+                      <div className="mt-3 h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                        <div className="h-full rounded-full bg-amber-500" style={{ width: `${course.progress}%` }} />
+                      </div>
+                    )}
                   </div>
 
                   {/* Accordion Expanded Preview */}
                   {isExpanded && (
                     <div className="pt-3 border-t border-gray-100 text-xs text-gray-600 space-y-2 animate-fadeIn">
-                      <p className="font-bold text-gray-800">محتوى الدورة المعتمد:</p>
-                      <ul className="space-y-1 list-disc pr-4 text-[11px] text-gray-500">
-                        <li>شروحات فيديو تفاعلية واختبارات محاكية</li>
-                        <li>مذكرات وحقائب تدريبية قابلة للتحميل</li>
-                        <li>متابعة مستمرة وتقارير تقدم</li>
-                      </ul>
+                      {course.modules.length > 0 ? (
+                        <>
+                          <p className="font-bold text-gray-800">محاور الدورة ({course.modules.length}):</p>
+                          <ul className="space-y-1 list-disc pr-4 text-[11px] text-gray-600">
+                            {course.modules.slice(0, 4).map((m) => (
+                              <li key={m.id}>
+                                {m.title} ({m.lessons.length} دروس)
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      ) : course.description ? (
+                        <p className="text-[11px] text-gray-600 leading-relaxed">{course.description}</p>
+                      ) : (
+                        <p className="text-[11px] text-gray-500">تفاصيل المنهج متاحة داخل صفحة الدورة.</p>
+                      )}
                     </div>
                   )}
 
                   <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
                     <span className="text-xs font-bold text-gray-500">
-                      {course.lessonsCount ? `${course.lessonsCount} درس` : 'محتوى متكامل'}
+                      {course.lessonsCount > 0 ? `${course.lessonsCount} درس` : 'دورة معتمدة'}
                     </span>
                     <Link
                       to={`/course/${encodeURIComponent(course.id)}`}

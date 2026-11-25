@@ -42,9 +42,10 @@ function PublicQuestion({question,number,layout,selected,onSelect}:{question:Att
 }
 
 export function PublicBarcodeAssessmentPage(){
- const {code=''}=useParams();
+ const {code='',slug=''}=useParams();
+ const resolvedCode=code||slug;
  // The original PIN navigation reloads the assessment; a SPA code change must do the same.
- return <PublicBarcodeAssessmentForCode key={code} code={code}/>;
+ return <PublicBarcodeAssessmentForCode key={resolvedCode} code={resolvedCode}/>;
 }
 
 function PublicBarcodeAssessmentForCode({code}:{code:string}){

@@ -1,10 +1,12 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Link,
+  Navigate,
   Route,
   Routes,
   useLocation,
   useNavigate,
+  useParams,
 } from 'react-router-dom';
 
 import { AppErrorBoundary } from './AppErrorBoundary';
@@ -84,6 +86,78 @@ const ClassroomProjectorPage = React.lazy(() => import('../features/classroom/pa
 const ClassroomJoinPage = React.lazy(() => import('../features/classroom/pages/ClassroomJoinPage').then(m => ({ default: m.ClassroomJoinPage })));
 const ClassroomStudentPage = React.lazy(() => import('../features/classroom/pages/ClassroomStudentPage').then(m => ({ default: m.ClassroomStudentPage })));
 const SchoolInterventionsPage = React.lazy(() => import('../features/learning/pages/SchoolInterventionsPage').then(m => ({ default: m.SchoolInterventionsPage })));
+const BookSessionPage = React.lazy(() => import('../features/learning/pages/BookSessionPage'));
+const QAPage = React.lazy(() => import('../features/learning/pages/QAPage'));
+const LiveSessionsPage = React.lazy(() => import('../features/learning/pages/LiveSessionsPage'));
+const LiveSessionLobbyPage = React.lazy(() => import('../features/learning/pages/LiveSessionLobbyPage'));
+const MyRequestsPage = React.lazy(() => import('../features/learning/pages/MyRequestsPage'));
+const QuizGeneratorPage = React.lazy(() => import('../features/questionbank/pages/QuizGeneratorPage'));
+
+function normalizeLegacyPathSlug(raw: string): string {
+  const map: Record<string, string> = {
+    p_qudrat: 'qudrat',
+    p_tahsili: 'tahsili',
+    p_nafes: 'nafes',
+    p_step: 'step',
+  };
+  return map[raw] || raw;
+}
+
+function LegacyResultsRedirect() {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const attempt = params.get('attempt') || params.get('attemptId') || '';
+  const view = params.get('view') || '';
+  if (attempt) {
+    const next = view ? `?view=${encodeURIComponent(view)}` : '';
+    return <Navigate replace to={`/assessment-results/${encodeURIComponent(attempt)}${next}`} />;
+  }
+  return <Navigate replace to="/assessment-results" />;
+}
+
+function LegacyQuizRedirect() {
+  const { quizId = '' } = useParams();
+  const location = useLocation();
+  if (!quizId) {
+    return <Navigate replace to="/assessments" />;
+  }
+  return <Navigate replace to={`/assessments/${encodeURIComponent(quizId)}/start${location.search}`} />;
+}
+
+function LegacyCategorySubrouteRedirect({ mode }: { mode: 'packages' | 'subject' }) {
+  const { pathId = '', subjectId = '' } = useParams();
+  const normalized = normalizeLegacyPathSlug(pathId);
+  if (mode === 'packages') {
+    return <Navigate replace to={`/category/${encodeURIComponent(normalized)}?tab=packages`} />;
+  }
+  return (
+    <Navigate
+      replace
+      to={`/category/${encodeURIComponent(normalized)}?subject=${encodeURIComponent(subjectId)}&tab=skills`}
+    />
+  );
+}
+
+function RequireStaffRoles({
+  roles,
+  children,
+}: {
+  roles: string[];
+  children: React.ReactNode;
+}) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  if (loading) {
+    return <RouteLoadingFallback />;
+  }
+  if (!user) {
+    return <Navigate replace to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} />;
+  }
+  if (!user.roles.some((r) => roles.includes(r))) {
+    return <Navigate replace to="/dashboard" />;
+  }
+  return <>{children}</>;
+}
 
 type ModalMode = 'login' | 'signup' | null;
 
@@ -232,14 +306,27 @@ export function App() {
         <Route path="/quiz" element={<SelfQuizPage />} />
         <Route path="/assessment-assignments" element={<AssessmentAssignmentsPage />} />
         <Route path="/barcode-test" element={<PublicBarcodeAssessmentPage />} />
-        <Route path="/barcode-test/:code" element={<PublicBarcodeAssessmentPage />} />
+        <Route path="/barcode-test/:slug" element={<PublicBarcodeAssessmentPage />} />
+        <Route path="/b/:slug" element={<PublicBarcodeAssessmentPage />} />
         <Route path="/live-assessment" element={<LiveAssessmentJoinPage />} />
+        <Route path="/quiz/:quizId" element={<LegacyQuizRedirect />} />
         <Route path="/assessments/:assessmentId/start" element={<AssessmentAttemptPage />} />
         <Route path="/assessment-attempts/:attemptId" element={<AssessmentAttemptPage />} />
         <Route path="/assessment-results" element={<AssessmentResultsPage />} />
         <Route path="/assessment-results/:attemptId" element={<AssessmentResultsPage />} />
+        <Route path="/results" element={<LegacyResultsRedirect />} />
+        <Route path="/my-quizzes" element={<AssessmentResultsPage />} />
+        <Route path="/my-requests" element={<MyRequestsPage />} />
+        <Route path="/qa" element={<QAPage />} />
+        <Route path="/book-session" element={<BookSessionPage />} />
+        <Route path="/live-sessions" element={<LiveSessionsPage />} />
+        <Route path="/live-sessions/:lessonId" element={<LiveSessionLobbyPage />} />
+        <Route path="/admin/quiz-gen" element={<RequireStaffRoles roles={['admin', 'teacher', 'platform_trainer', 'supervisor']}><QuizGeneratorPage /></RequireStaffRoles>} />
         <Route path="/learning" element={<LearningSpacePage />} />
         <Route path="/category/:pathId" element={<LegacyCategoryPage />} />
+        <Route path="/category/:pathId/packages" element={<LegacyCategorySubrouteRedirect mode="packages" />} />
+        <Route path="/category/:pathId/:subjectId" element={<LegacyCategorySubrouteRedirect mode="subject" />} />
+        <Route path="/section/:catId" element={<Navigate replace to="/dashboard" />} />
         <Route path="/path/:pathId" element={<LegacyCategoryPage />} />
         <Route path="/paths/:pathId" element={<LegacyCategoryPage />} />
         <Route path="/learning/courses/:courseId" element={<CourseView />} />

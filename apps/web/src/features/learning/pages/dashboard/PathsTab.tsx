@@ -24,30 +24,6 @@ import {
   type DashboardPath,
 } from './pathProgressProjection';
 
-const INITIAL_PATHS = [
-  {
-    id: '018f0000-0000-7000-8000-000000000030',
-    code: 'QUDRAT',
-    name: 'مسار القدرات العامة',
-    description: 'تأسيس وتدريب شامل لاختبار القدرات العامة (كمي ولفظي)',
-    isActive: true,
-  },
-  {
-    id: 'd242dd63-2c42-54e1-81da-37322e5234a7',
-    code: 'TAHSILI',
-    name: 'مسار التحصيلي العلمي',
-    description: 'تأسيس واختبارات محاكية لاختبار التحصيلي لطلاب العلمي',
-    isActive: true,
-  },
-  {
-    id: 'a5d9b9ec-625e-5eb1-87b9-0cd8f6073a44',
-    code: 'NAFES',
-    name: 'مسار اختبار نافس الوطني',
-    description: 'اختبارات محاكية ومراجعات لمعايير الاختبارات الوطنية نافس',
-    isActive: true,
-  },
-];
-
 export interface PathsTabProps {
   paths?: Array<{
     id: string;
@@ -79,9 +55,7 @@ export const PathsTab: React.FC<PathsTabProps> = ({
 
   const effectivePaths = (propPaths && propPaths.length > 0)
     ? propPaths
-    : (experiencePaths && experiencePaths.length > 0)
-    ? experiencePaths
-    : INITIAL_PATHS;
+    : (experiencePaths || []);
 
   const getPathStyle = (pathId: string, code?: string) => {
     const norm = (pathId || '').toLowerCase();
@@ -119,10 +93,7 @@ export const PathsTab: React.FC<PathsTabProps> = ({
 
   const activePaths = useMemo(() => {
     if (forceEmpty) return [];
-    const filtered = dPaths.filter((p) => enrolledPaths?.includes(p.id));
-    if (filtered.length > 0) return filtered;
-    // Default fallback so fresh student sessions retain active track view unless explicitly empty
-    return dPaths.slice(0, 1);
+    return dPaths.filter((p) => enrolledPaths?.includes(p.id));
   }, [forceEmpty, dPaths, enrolledPaths]);
 
   const availablePaths = useMemo(() => {
