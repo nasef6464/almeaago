@@ -19,7 +19,9 @@ func (s stubAuthority) ParentAuthority(context.Context, identity.User) (org.Pare
 	return s.out, nil
 }
 
-type stubStudents struct{ items []identity.ParentStudentProfile }
+type stubStudents struct {
+	items []identity.ParentStudentProfile
+}
 
 func (s stubStudents) ParentStudentProfiles(context.Context, []string) ([]identity.ParentStudentProfile, error) {
 	return s.items, nil
