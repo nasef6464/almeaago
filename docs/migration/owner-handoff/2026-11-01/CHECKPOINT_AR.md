@@ -1,4 +1,15 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 25 نوفمبر — تركيز المهارة عبر URL في التقارير وصدق إجراءات ولي الأمر (PR #311 و PR #312) / PARTIAL
+
+- Go main `035d67ef` بعد دمج [PR #311](https://github.com/nasef6464/almeaago/pull/311) و[PR #312](https://github.com/nasef6464/almeaago/pull/312) (`f2a0bcf9`) فوق [PR #310](https://github.com/nasef6464/almeaago/pull/310) (`3469085d`).
+- **إنجازات PR #311 (تركيز `skillId` في `/reports` للطالب):**
+  1. تحديث `apps/web/src/features/reporting/pages/ReportsPage.tsx` لقراءة معامل `skillId` من الرابط، وإبراز بطاقة المهارة المستهدفة (`data-testid="focused-skill-card"`) وتقديمها أعلى القائمة مع زر «عرض كل المهارات» لإلغاء التركيز، وإظهار إشعار واضح عند عدم وجود المهارة ضمن المهارات الضعيفة.
+  2. PASS 7 اختبارات Playwright في `apps/web/tests/e2e/student-report-skill-focus.spec.ts` و`student-report-scope-failure.spec.ts` عند مقاسات `390 / 820 / 1440` RTL و`tsc -b` واجتياز بوابات CI (`frontend`, `overlap`, `e2e 1-3`).
+- **إنجازات PR #312 (صدق تفضيلات وإشعارات ولي الأمر `PARENT-ACTION-TRUTH`):**
+  1. تحديث `apps/web/src/features/parents/pages/ParentDashboardPage.tsx` لاستبدال حالة تبديل واتساب المحلية الوهمية بقراءة وحفظ فعليين عبر `GET/PATCH /api/v1/notifications/me/preferences` مع CSRF و`expectedRevision`، وتحويل زر التبديل إلى عنصر `role="switch"` يقبل النقرات ويدعم إظهار أخطاء الخادم (`role="alert"`) دون تغيير كاذب للحالة، وإزالة بيانات الموافقات الوهمية لصالح حالة فارغة صادقة.
+  2. PASS 7 اختبارات Playwright في `apps/web/tests/e2e/parents-action-truth.spec.ts` و`parents-dashboard.spec.ts` عند `390 / 820 / 1440` RTL و`tsc -b` واجتياز بوابات CI (`frontend`, `overlap`, `e2e 1-3`).
+- **ما تبقى (حالة المنصة العامة `PARTIAL`):** استكمال حزم M1–M5 في الـworktrees المعزولة، وبقية فجوات `gap-register.json`، ومطابقة MongoDB في P6 (محجوبة دون نسخة معزولة)، والاعتماد البصري والرحلات الشاملة P7.
+
 ## 25 نوفمبر — تثبيت مهارة نسخة السؤال في الاختبار المنشور
 
 - Legacy `ed28102d7084899856de0371dc2c93a3d602d518`، Go baseline لتجربة RED `b4ad0d1f053b391b9636f42f61a6e829c32c4d6b`، كود الشريحة `45a97cf13e032dfb3c73b75e84d20f8cb5baba02` في [PR #310](https://github.com/nasef6464/almeaago/pull/310). السلوك VERIFIED محليًا للحالة أدناه. حالة المطابقة العامة PARTIAL.
