@@ -207,9 +207,9 @@ async function setupCourseMocks(page: Page, asAdmin = false) {
           instructorName: 'أ. فهد التميمي',
           thumbnailUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800',
           category: 'القدرات العامة',
-          progress: 35,
+          progress: 0,
           lessonsCount: 3,
-          completedLessonsCount: 1,
+          completedLessonsCount: 0,
           isEnrolled: true,
           modules: [
             {
