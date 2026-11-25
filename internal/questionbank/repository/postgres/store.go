@@ -107,6 +107,21 @@ func (r *Repository) AppendVersion(ctx context.Context, actorUserID, questionID 
 	if err := insertVersionTx(ctx, tx, questionID, next, actorUserID, command); err != nil {
 		return question.Question{}, err
 	}
+	// The question row is locked. Save its old scope and links before either
+	// changes, in the same transaction as the new version.
+	if _, err := tx.Exec(ctx, `
+		WITH archived AS (
+		  INSERT INTO question_version_taxonomy(question_id,question_version,path_id,subject_id)
+		  SELECT id,current_version,path_id,subject_id FROM questions
+		  WHERE id=$1::uuid AND path_id IS NOT NULL AND subject_id IS NOT NULL
+		  RETURNING question_id,question_version
+		)
+		INSERT INTO question_version_taxonomy_skills(question_id,question_version,skill_id)
+		SELECT a.question_id,a.question_version,l.skill_id
+		FROM archived a JOIN question_skill_links l ON l.question_id=a.question_id
+	`, questionID); err != nil {
+		return question.Question{}, mapError(err)
+	}
 	if err := replaceSkillLinksTx(ctx, tx, questionID, command.SkillLinks); err != nil {
 		return question.Question{}, err
 	}

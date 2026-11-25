@@ -30,18 +30,27 @@ func (r *Repository) LearningSubmissionEvidence(ctx context.Context, student, at
 	}
 
 	event.Questions = []learning.QuestionEvidence{}
+	// Archived versions keep their own links, including an empty set. Older
+	// versions superseded before archival was available have no safe skill links.
 	rows, err := r.db.Query(ctx, `
 		SELECT aq.question_id::text,aq.question_version,
 		       (aa.selected_option_index IS NOT NULL OR NULLIF(btrim(aa.text_answer),'') IS NOT NULL) AS answered,
 		       COALESCE(aa.is_correct,false) AS correct,
-		       COALESCE(qsl.skill_id::text,''),COALESCE(q.path_id::text,''),COALESCE(q.subject_id::text,''),
+		       COALESCE(qsl.skill_id::text,''),COALESCE(saved.path_id::text,q.path_id::text,''),COALESCE(saved.subject_id::text,q.subject_id::text,''),
 		       COALESCE(subject.path_id::text,''),COALESCE(skill.subject_id::text,'')
 		FROM assessment_version_questions aq
 		LEFT JOIN questions q ON q.id=aq.question_id
-		LEFT JOIN subjects subject ON subject.id=q.subject_id
+		LEFT JOIN question_version_taxonomy saved ON saved.question_id=aq.question_id AND saved.question_version=aq.question_version
+		LEFT JOIN subjects subject ON subject.id=COALESCE(saved.subject_id,q.subject_id)
 		LEFT JOIN assessment_answers aa
 		  ON aa.attempt_id=$1::uuid AND aa.question_id=aq.question_id
-		LEFT JOIN question_skill_links qsl ON qsl.question_id=aq.question_id
+		LEFT JOIN LATERAL (
+		  SELECT skill_id FROM question_version_taxonomy_skills
+		  WHERE question_id=saved.question_id AND question_version=saved.question_version
+		  UNION ALL
+		  SELECT skill_id FROM question_skill_links
+		  WHERE question_id=q.id AND saved.question_id IS NULL AND aq.question_version=q.current_version
+		) qsl ON true
 		LEFT JOIN skills skill ON skill.id=qsl.skill_id
 		WHERE aq.assessment_id=$2::uuid AND aq.assessment_version=$3
 		ORDER BY aq.sort_order,aq.question_id,qsl.skill_id

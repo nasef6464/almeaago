@@ -1,6 +1,115 @@
 import { expect, test } from '@playwright/test';
 import { reviewVideoFixture } from './fixtures/review-video';
 
+test('تصنيف السؤال المنشور يبقى ثابتًا بعد تعديل بنك الأسئلة وإعادة التسليم', async ({ page }) => {
+  test.skip(process.env.PREPARED_QUIZ_LIVE !== '1' || process.env.PREPARED_SKILL_VERSION_TEST !== '1', 'requires a dedicated isolated database run');
+  test.setTimeout(180_000);
+  const questionId = '00000000-0000-0000-0000-000000000005';
+  const originalSkillId = '00000000-0000-0000-0000-000000000021';
+  const updatedSkillId = '00000000-0000-0000-0000-000000000097';
+  const pathId = '00000000-0000-4000-8000-000000000003';
+  const subjectId = '00000000-0000-4000-8000-000000000004';
+  const assessmentId = process.env.PREPARED_ASSESSMENT_ID!;
+  const login = async (email: string) => {
+    const response = await page.request.post('/api/v1/auth/login', {
+      data: { email, password: process.env.PREPARED_PASSWORD },
+    });
+    expect(response.status()).toBe(200);
+  };
+  const csrfHeaders = async () => {
+    const response = await page.request.get('/api/v1/auth/csrf');
+    expect(response.status()).toBe(200);
+    return { 'X-CSRF-Token': (await response.json()).csrfToken as string };
+  };
+
+  // The Go fixture publishes the test with question version 1 before the
+  // author changes the current question's skill and correct answer in v2.
+  await login(process.env.PREPARED_ADMIN_EMAIL!);
+  const reopenedQuestion = await page.request.patch(`/api/v1/questions/${questionId}/workflow`, {
+    headers: await csrfHeaders(),
+    data: { expectedCurrentVersion: 1, status: 'rejected' },
+  });
+  expect(reopenedQuestion.status(), await reopenedQuestion.text()).toBe(200);
+  const updatedQuestion = await page.request.post(`/api/v1/questions/${questionId}/versions`, {
+    headers: await csrfHeaders(),
+    data: {
+      expectedCurrentVersion: 1,
+      version: {
+        pathId,
+        subjectId,
+        type: 'mcq',
+        text: 'السؤال المحدّث في بنك الأسئلة',
+        correctOptionIndex: 1,
+        options: [{ text: 'نعم' }, { text: 'لا' }],
+        skillLinks: [{ skillId: updatedSkillId, relationType: 'main' }],
+      },
+    },
+  });
+  expect(updatedQuestion.status(), await updatedQuestion.text()).toBe(200);
+  expect((await updatedQuestion.json()).question).toMatchObject({
+    currentVersion: 2,
+    skillLinks: [{ skillId: updatedSkillId, relationType: 'main' }],
+  });
+
+  await login(process.env.PREPARED_OWNER_EMAIL!);
+  const started = page.waitForResponse(response =>
+    response.url().endsWith(`/assessments/${assessmentId}/attempts`) && response.request().method() === 'POST');
+  await page.goto(`/assessments/${assessmentId}/start`);
+  const { attempt } = await (await started).json();
+  const attemptPath = `/api/v1/assessment-attempts/${attempt.id}`;
+  await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /نعم$/ }).click();
+  await page.getByRole('button', { name: 'إنهاء الاختبار' }).click();
+  const submitted = page.waitForResponse(response =>
+    response.url().endsWith(`${attemptPath}/submit`) && response.request().method() === 'POST');
+  await page.getByRole('button', { name: 'نعم، قم بالتسليم' }).click();
+  const first = await submitted;
+  expect(first.status(), await first.text()).toBe(200);
+  expect((await first.json()).result.score).toBe(100);
+  await expect(page.getByText('درجتك', { exact: true }).locator('..').getByText('100%', { exact: true })).toBeVisible();
+
+  const replay = await page.request.post(`${attemptPath}/submit`, {
+    headers: await csrfHeaders(),
+    data: first.request().postDataJSON(),
+  });
+  expect(replay.status(), await replay.text()).toBe(200);
+  expect(await replay.json()).toEqual(await first.json());
+  const review = await page.request.get(`${attemptPath}/review`);
+  expect(review.status(), await review.text()).toBe(200);
+  expect((await review.json()).detail.skillAnalysis).toEqual({
+    complete: true,
+    items: [expect.objectContaining({ skillId: originalSkillId, questionCount: 1, correctCount: 1 })],
+  });
+  const progress = await page.request.get(`/api/v1/mastery/progress?pathId=${pathId}&subjectId=${subjectId}`);
+  expect(progress.status(), await progress.text()).toBe(200);
+  expect((await progress.json()).items).toEqual([
+    expect.objectContaining({ skillId: originalSkillId, evidenceCount: 1 }),
+  ]);
+
+  await page.goto('/reports');
+  const attemptLink = page.locator(`article a[href="/assessment-results/${attempt.id}"]`);
+  await expect(attemptLink).toHaveCount(1);
+  await attemptLink.click();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'نتيجة الاختبار', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'تفاصيل أكثر' }).click();
+  const analysis = page.getByRole('dialog', { name: 'تحليل المهارات' });
+  await expect(analysis.getByText('مهارة فرعية تجريبية', { exact: true })).toBeVisible();
+  await expect(analysis.getByText('مهارة التصنيف الجديد', { exact: true })).toHaveCount(0);
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 915 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: `test-results/assessment-version-taxonomy-${width}.png`, fullPage: true });
+  }
+  await page.keyboard.press('Escape');
+  await expect(analysis).toBeHidden();
+  await page.getByRole('button', { name: /^مراجعة الأسئلة/ }).click();
+  await expect(page.getByText('سؤال تجريبي', { exact: true })).toBeVisible();
+
+  await login(process.env.PREPARED_OTHER_EMAIL!);
+  expect([403, 404]).toContain((await page.request.get(`${attemptPath}/review`)).status());
+});
+
 test('رحلة الاختبار الجاهز بين الإدارة والطالب بقاعدة محلية', async ({ page }) => {
   test.skip(process.env.PREPARED_QUIZ_LIVE !== '1', 'requires isolated Go and PostgreSQL');
   test.setTimeout(600_000);
