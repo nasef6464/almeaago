@@ -689,6 +689,84 @@ export interface CourseCertificate {
   issuedAt: string;
 }
 
+export type LearningEvidenceStatus =
+  | 'unmeasured'
+  | 'insufficient'
+  | 'support'
+  | 'developing'
+  | 'ready';
+
+export interface LearningEvidenceSkill {
+  id: string;
+  name: string;
+  accuracy: number | null;
+  questions: number;
+  correct: number;
+  tests: number;
+  latestAt?: string;
+  status: LearningEvidenceStatus;
+}
+
+export interface LearningEvidenceStudent {
+  id: string;
+  name: string;
+  status: LearningEvidenceStatus;
+  skillCount: number;
+  skills: LearningEvidenceSkill[];
+}
+
+export interface LearningEvidenceReport {
+  source: 'school_assessment' | 'platform_self_study';
+  subjectId: string;
+  days: number;
+  policy: {
+    minimumAnswers: number;
+    supportBelow: number;
+    readyFrom: number;
+  };
+  coverage: string;
+  total: number;
+  filteredTotal: number;
+  page: number;
+  limit: number;
+  summary: Record<LearningEvidenceStatus, number>;
+  students: LearningEvidenceStudent[];
+}
+
+export interface LearningEvidenceQuery {
+  source?: 'school_assessment' | 'platform_self_study';
+  schoolId?: string;
+  classId?: string;
+  subjectId?: string;
+  pathId?: string;
+  status?: LearningEvidenceStatus | '';
+  search?: string;
+  days?: number;
+  page?: number;
+  limit?: number;
+}
+
+export const learningEvidenceClient = {
+  get(query: LearningEvidenceQuery, signal?: AbortSignal) {
+    const params = new URLSearchParams();
+    if (query.source) params.set('source', query.source);
+    if (query.schoolId) params.set('schoolId', query.schoolId);
+    if (query.classId) params.set('classId', query.classId);
+    if (query.subjectId) params.set('subjectId', query.subjectId);
+    if (query.pathId) params.set('pathId', query.pathId);
+    if (query.status) params.set('status', query.status);
+    if (query.search?.trim()) params.set('search', query.search.trim());
+    if (query.days) params.set('days', String(query.days));
+    if (query.page) params.set('page', String(query.page));
+    if (query.limit) params.set('limit', String(query.limit));
+    const qs = params.toString();
+    return request<LearningEvidenceReport>(
+      `/api/v1/learning/evidence${qs ? `?${qs}` : ''}`,
+      { signal },
+    );
+  },
+};
+
 export const lessonProgressSummaryClient = {
   achievements(signal?: AbortSignal) {
     return request<{ summary: LearnerAchievementsSummary }>('/api/v1/learning-progress/achievements', { signal });

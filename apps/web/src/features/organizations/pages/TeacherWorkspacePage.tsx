@@ -18,6 +18,11 @@ import { TeacherSmartClassroomSchedulerModal } from '../components/TeacherSmartC
 import { TeacherClassroomReportsSection } from '../components/TeacherClassroomReportsSection';
 import { TeacherPreparedQuestionsManager } from '../components/TeacherPreparedQuestionsManager';
 import { SupervisorTestsManager } from '../components/SupervisorTestsManager';
+import {
+  learningEvidenceClient,
+  type LearningEvidenceReport,
+  type LearningEvidenceStatus,
+} from '../../learning/api/learning-client';
 
 export type TeacherTab =
   | 'overview'
@@ -43,9 +48,9 @@ const TEACHER_NAV_ITEMS: Array<{ id: TeacherTab; label: string; icon: React.Reac
 export interface TeacherAssessmentItem {
   id: string;
   title: string;
-  kind: 'test' | 'drill' | 'mock';
+  kind: 'normal' | 'drill' | string;
   className: string;
-  workflowStatus: 'approved' | 'rejected' | 'pending' | 'draft';
+  workflowStatus: 'approved' | 'rejected' | 'pending_review' | 'draft' | string;
   isPublished: boolean;
   dueDate?: string;
   totalQuestions: number;
@@ -54,67 +59,13 @@ export interface TeacherAssessmentItem {
   avgScore: number;
 }
 
-const DRAFTS_STORAGE_KEY = 'almeaa_teacher_assessment_drafts';
-
-function loadStoredDrafts(schoolId?: string): TeacherAssessmentItem[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(`${DRAFTS_STORAGE_KEY}_${schoolId || 'global'}`);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveStoredDrafts(schoolId: string | undefined, drafts: TeacherAssessmentItem[]) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(`${DRAFTS_STORAGE_KEY}_${schoolId || 'global'}`, JSON.stringify(drafts));
-  } catch {}
-}
-
-const baselineAssessments: TeacherAssessmentItem[] = [
-  {
-    id: 'teach-quiz-1',
-    title: 'اختبار دوري: مسائل الحساب الذهني والتناسب',
-    kind: 'test',
-    className: 'الصف الثالث الثانوي (أ)',
-    workflowStatus: 'approved',
-    isPublished: true,
-    dueDate: '2026-11-15',
-    totalQuestions: 15,
-    participantsCount: 18,
-    totalStudents: 22,
-    avgScore: 82,
-  },
-  {
-    id: 'teach-quiz-2',
-    title: 'تدريب علاجي: مهارات الجبر والكسور العشرية',
-    kind: 'drill',
-    className: 'الصف الثالث الثانوي (ب)',
-    workflowStatus: 'approved',
-    isPublished: true,
-    dueDate: '2026-11-18',
-    totalQuestions: 10,
-    participantsCount: 12,
-    totalStudents: 20,
-    avgScore: 64,
-  },
-  {
-    id: 'teach-quiz-3',
-    title: 'اختبار مقترح: الهندسة التحليلية وحساب المثلثات (بانتظار المشرف)',
-    kind: 'test',
-    className: 'الصف الثالث الثانوي (أ)',
-    workflowStatus: 'rejected',
-    isPublished: false,
-    totalQuestions: 12,
-    participantsCount: 0,
-    totalStudents: 22,
-    avgScore: 0,
-  },
-];
+const EVIDENCE_STATUS_LABELS: Record<LearningEvidenceStatus, { label: string; badgeClass: string }> = {
+  ready: { label: 'جاهز', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  developing: { label: 'قيد التطور', badgeClass: 'bg-sky-50 text-sky-700 border-sky-200' },
+  support: { label: 'يحتاج دعم', badgeClass: 'bg-rose-50 text-rose-700 border-rose-200' },
+  insufficient: { label: 'شواهد غير كافية', badgeClass: 'bg-amber-50 text-amber-800 border-amber-200' },
+  unmeasured: { label: 'غير مقاس', badgeClass: 'bg-slate-100 text-slate-600 border-slate-200' },
+};
 
 export function TeacherWorkspacePage() {
   const { user, loading: authLoading, getCsrfToken } = useAuth();
@@ -142,19 +93,12 @@ export function TeacherWorkspacePage() {
   // Real active session detection
   const [activeSession, setActiveSession] = useState<ClassroomSession | null>(null);
 
-  // Teacher assessments with persisted local drafts
-  const [teacherAssessments, setTeacherAssessments] = useState<TeacherAssessmentItem[]>(() => {
-    const stored = loadStoredDrafts(selectedSchoolId);
-    return [...stored, ...baselineAssessments];
-  });
-
-  useEffect(() => {
-    const stored = loadStoredDrafts(selectedSchoolId);
-    setTeacherAssessments([...stored, ...baselineAssessments]);
-  }, [selectedSchoolId]);
+  // Server-backed teacher assessments
+  const [teacherAssessments, setTeacherAssessments] = useState<TeacherAssessmentItem[]>([]);
+  const [creatingAssessment, setCreatingAssessment] = useState(false);
 
   const [newQuizTitle, setNewQuizTitle] = useState('');
-  const [newQuizKind, setNewQuizKind] = useState<'test' | 'drill' | 'mock'>('test');
+  const [newQuizKind, setNewQuizKind] = useState<'test' | 'drill'>('test');
   const [newQuizClass, setNewQuizClass] = useState('');
 
   const isTeacher = Boolean(
@@ -276,131 +220,162 @@ export function TeacherWorkspacePage() {
   const [skillsViewMode, setSkillsViewMode] = useState<'cards' | 'matrix'>('cards');
   const [activeSkillForDrawer, setActiveSkillForDrawer] = useState<any | null>(null);
 
-  const [teacherSkills] = useState([
-    {
-      id: 'sk-1',
-      skill: 'المتتابعات الحسابية والهندسية',
-      pathId: 'qudrat',
-      pathName: 'القدرات العامة',
-      subjectName: 'القدرات الكمي',
-      gradeName: 'الصف الثالث الثانوي',
-      classId: '018f0000-0000-7000-9100-000000000001',
-      className: 'الصف الثالث الثانوي (أ)',
-      mastery: 54,
-      attempts: 24,
-      atRiskStudents: [
-        { id: '018f0000-0000-7000-8000-000000000005', name: 'فيصل بن سعد', score: 52, status: 'حرجة', class: 'الصف الثالث الثانوي (أ)' },
-        { id: 'st-5', name: 'عمر القحطاني', score: 48, status: 'حرجة', class: 'الصف الثالث الثانوي (أ)' },
-        { id: 'st-6', name: 'عبدالله الشهري', score: 55, status: 'حرجة', class: 'الصف الثالث الثانوي (أ)' },
-      ],
-    },
-    {
-      id: 'sk-2',
-      skill: 'الكسور والعمليات الحسابية السريعة',
-      pathId: 'qudrat',
-      pathName: 'القدرات العامة',
-      subjectName: 'القدرات الكمي',
-      gradeName: 'الصف الثالث الثانوي',
-      classId: '018f0000-0000-7000-9100-000000000002',
-      className: 'الصف الثالث الثانوي (ب)',
-      mastery: 62,
-      attempts: 30,
-      atRiskStudents: [
-        { id: 'st-3', name: 'محمد الدوسري', score: 50, status: 'حرجة', class: 'الصف الثالث الثانوي (ب)' },
-        { id: 'st-7', name: 'ياسر الحربي', score: 64, status: 'قيد التعزيز', class: 'الصف الثالث الثانوي (ب)' },
-      ],
-    },
-    {
-      id: 'sk-3',
-      skill: 'التناسب الطردي والعكسي',
-      pathId: 'qudrat',
-      pathName: 'القدرات العامة',
-      subjectName: 'القدرات الكمي',
-      gradeName: 'الصف الثالث الثانوي',
-      classId: '018f0000-0000-7000-9100-000000000001',
-      className: 'الصف الثالث الثانوي (أ)',
-      mastery: 78,
-      attempts: 28,
-      atRiskStudents: [
-        { id: 'st-8', name: 'سلطان العتيبي', score: 68, status: 'قيد التعزيز', class: 'الصف الثالث الثانوي (أ)' },
-      ],
-    },
-    {
-      id: 'sk-4',
-      skill: 'الهندسة الإحداثية والمساحات',
-      pathId: 'qudrat',
-      pathName: 'القدرات العامة',
-      subjectName: 'القدرات الكمي',
-      gradeName: 'الصف الثالث الثانوي',
-      classId: '018f0000-0000-7000-9100-000000000002',
-      className: 'الصف الثالث الثانوي (ب)',
-      mastery: 71,
-      attempts: 22,
-      atRiskStudents: [
-        { id: 'st-3', name: 'محمد الدوسري', score: 58, status: 'حرجة', class: 'الصف الثالث الثانوي (ب)' },
-        { id: 'st-4', name: 'ريان الغامدي', score: 70, status: 'قيد التعزيز', class: 'الصف الثالث الثانوي (ب)' },
-      ],
-    },
-    {
-      id: 'sk-5',
-      skill: 'التناظر اللفظي والعلاقات المنطقية',
-      pathId: 'qudrat',
-      pathName: 'القدرات العامة',
-      subjectName: 'القدرات اللفظي',
-      gradeName: 'الصف الثالث الثانوي',
-      classId: '018f0000-0000-7000-9100-000000000001',
-      className: 'الصف الثالث الثانوي (أ)',
-      mastery: 89,
-      attempts: 35,
-      atRiskStudents: [],
-    },
-    {
-      id: 'sk-6',
-      skill: 'استيعاب المقروء وتحليل النصوص',
-      pathId: 'qudrat',
-      pathName: 'القدرات العامة',
-      subjectName: 'القدرات اللفظي',
-      gradeName: 'الصف الثالث الثانوي',
-      classId: '018f0000-0000-7000-9100-000000000002',
-      className: 'الصف الثالث الثانوي (ب)',
-      mastery: 84,
-      attempts: 26,
-      atRiskStudents: [
-        { id: 'st-4', name: 'ريان الغامدي', score: 72, status: 'قيد التعزيز', class: 'الصف الثالث الثانوي (ب)' },
-      ],
-    },
-    {
-      id: 'sk-7',
-      skill: 'حساب المثلثات والمتطابقات التحصيلية',
-      pathId: 'tahsili',
-      pathName: 'التحصيلي العلمي',
-      subjectName: 'رياضيات',
-      gradeName: 'الصف الثالث الثانوي',
-      classId: '018f0000-0000-7000-9100-000000000001',
-      className: 'الصف الثالث الثانوي (أ)',
-      mastery: 58,
-      attempts: 20,
-      atRiskStudents: [
-        { id: '018f0000-0000-7000-8000-000000000005', name: 'فيصل بن سعد', score: 55, status: 'حرجة', class: 'الصف الثالث الثانوي (أ)' },
-        { id: 'st-2', name: 'سارة خالد المنصور', score: 62, status: 'قيد التعزيز', class: 'الصف الثالث الثانوي (أ)' },
-      ],
-    },
-    {
-      id: 'sk-8',
-      skill: 'قوانين نيوتن وحفظ الطاقة الحركية',
-      pathId: 'tahsili',
-      pathName: 'التحصيلي العلمي',
-      subjectName: 'فيزياء',
-      gradeName: 'الصف الثالث الثانوي',
-      classId: '018f0000-0000-7000-9100-000000000002',
-      className: 'الصف الثالث الثانوي (ب)',
-      mastery: 66,
-      attempts: 18,
-      atRiskStudents: [
-        { id: 'st-3', name: 'محمد الدوسري', score: 54, status: 'حرجة', class: 'الصف الثالث الثانوي (ب)' },
-      ],
-    },
+  // Real Learning Evidence state (school_assessment vs platform_self_study)
+  const [evidenceSource, setEvidenceSource] = useState<'school_assessment' | 'platform_self_study'>('school_assessment');
+  const [evidenceStatusFilter, setEvidenceStatusFilter] = useState<LearningEvidenceStatus | ''>('');
+  const [evidenceClassFilter, setEvidenceClassFilter] = useState<string>('');
+  const [evidenceSearch, setEvidenceSearch] = useState<string>('');
+  const [evidenceDays, setEvidenceDays] = useState<number>(30);
+  const [evidenceReport, setEvidenceReport] = useState<LearningEvidenceReport | null>(null);
+  const [evidenceLoading, setEvidenceLoading] = useState<boolean>(false);
+  const [evidenceError, setEvidenceError] = useState<string>('');
+
+  const loadAssessments = useCallback(async (signal?: AbortSignal) => {
+    if (!selectedSchool?.schoolId) {
+      setTeacherAssessments([]);
+      return;
+    }
+    try {
+      const res = await fetch('/api/v1/assessments?limit=100', {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        signal,
+      });
+      if (!res.ok) throw new Error('تعذر تحميل الاختبارات');
+      const data = await res.json();
+      const items: TeacherAssessmentItem[] = (data.items || []).map((it: any) => ({
+        id: it.id,
+        title: it.title ?? it.version?.title ?? '',
+        kind: it.kind ?? it.version?.kind ?? 'normal',
+        className: selectedSchool.assignments[0]?.className || '',
+        workflowStatus: it.workflowStatus || 'draft',
+        isPublished: Boolean(it.isPublished),
+        totalQuestions: it.totalQuestions ?? 0,
+        participantsCount: 0,
+        totalStudents: teacherStudents.length,
+        avgScore: 0,
+      }));
+      setTeacherAssessments(items);
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      setTeacherAssessments([]);
+    }
+  }, [selectedSchool, teacherStudents.length]);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    void loadAssessments(ctrl.signal);
+    return () => ctrl.abort();
+  }, [loadAssessments]);
+
+  useEffect(() => {
+    if (!selectedSchool?.schoolId) {
+      setEvidenceReport(null);
+      setEvidenceError('');
+      return;
+    }
+    const ctrl = new AbortController();
+    setEvidenceLoading(true);
+    setEvidenceError('');
+    setEvidenceReport(null);
+
+    learningEvidenceClient
+      .get(
+        {
+          source: evidenceSource,
+          schoolId: selectedSchool.schoolId,
+          classId: evidenceClassFilter || undefined,
+          status: evidenceStatusFilter || undefined,
+          search: evidenceSearch || undefined,
+          days: evidenceDays,
+          page: 1,
+          limit: 50,
+        },
+        ctrl.signal,
+      )
+      .then((res) => {
+        if (!ctrl.signal.aborted) {
+          setEvidenceReport(res);
+          setEvidenceLoading(false);
+        }
+      })
+      .catch((err: any) => {
+        if (err?.name === 'AbortError') return;
+        if (!ctrl.signal.aborted) {
+          setEvidenceReport(null);
+          setEvidenceError(err?.message || 'تعذر تحميل مؤشرات التعلم والجاهزية');
+          setEvidenceLoading(false);
+        }
+      });
+
+    return () => ctrl.abort();
+  }, [
+    selectedSchool?.schoolId,
+    evidenceSource,
+    evidenceClassFilter,
+    evidenceStatusFilter,
+    evidenceSearch,
+    evidenceDays,
   ]);
+
+  const teacherSkills = useMemo(() => {
+    if (!evidenceReport?.students?.length) return [];
+    const bySkill = new Map<
+      string,
+      {
+        id: string;
+        skill: string;
+        pathId: string;
+        pathName: string;
+        subjectName: string;
+        gradeName: string;
+        classId: string;
+        className: string;
+        masterySum: number;
+        masteryCount: number;
+        attempts: number;
+        atRiskStudents: Array<{ id: string; name: string; score: number; status: string; class: string }>;
+      }
+    >();
+    const defaultAssignment = selectedSchool?.assignments[0];
+    for (const student of evidenceReport.students) {
+      for (const sk of student.skills || []) {
+        const existing = bySkill.get(sk.id) ?? {
+          id: sk.id,
+          skill: sk.name,
+          pathId: 'qudrat',
+          pathName: 'المسار الأكاديمي',
+          subjectName: defaultAssignment?.subjectId || 'المادة',
+          gradeName: defaultAssignment?.className || 'الصف',
+          classId: defaultAssignment?.classId || '',
+          className: defaultAssignment?.className || '',
+          masterySum: 0,
+          masteryCount: 0,
+          attempts: 0,
+          atRiskStudents: [] as Array<{ id: string; name: string; score: number; status: string; class: string }>,
+        };
+        existing.attempts += sk.questions || 0;
+        if (typeof sk.accuracy === 'number') {
+          existing.masterySum += sk.accuracy;
+          existing.masteryCount += 1;
+        }
+        if (sk.status === 'support' || sk.status === 'insufficient') {
+          existing.atRiskStudents.push({
+            id: student.id,
+            name: student.name,
+            score: sk.accuracy ?? 0,
+            status: EVIDENCE_STATUS_LABELS[sk.status].label,
+            class: defaultAssignment?.className || '',
+          });
+        }
+        bySkill.set(sk.id, existing);
+      }
+    }
+    return Array.from(bySkill.values()).map((item) => ({
+      ...item,
+      mastery: item.masteryCount > 0 ? Math.round(item.masterySum / item.masteryCount) : 0,
+    }));
+  }, [evidenceReport, selectedSchool]);
 
   const filteredSkillsList = useMemo(() => {
     return teacherSkills.filter((sk) => {
@@ -479,29 +454,56 @@ export function TeacherWorkspacePage() {
     }
   };
 
-  const handleCreateAssessment = () => {
-    if (!newQuizTitle.trim()) return;
-    const item: TeacherAssessmentItem = {
-      id: `draft-${Date.now()}`,
-      title: newQuizTitle.trim(),
-      kind: newQuizKind,
-      className: newQuizClass || selectedSchool?.assignments[0]?.className || 'الصف الثالث الثانوي (أ)',
-      workflowStatus: 'draft',
-      isPublished: false,
-      dueDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
-      totalQuestions: 15,
-      participantsCount: 0,
-      totalStudents: 22,
-      avgScore: 0,
-    };
-    const currentStored = loadStoredDrafts(selectedSchoolId);
-    const updatedDrafts = [item, ...currentStored];
-    saveStoredDrafts(selectedSchoolId, updatedDrafts);
-    setTeacherAssessments([item, ...teacherAssessments]);
-    setNewQuizTitle('');
-    setShowCreateAssessmentModal(false);
-    setFeedback(`ℹ️ تم حفظ مسودة التكليف محلياً ("${item.title}"). التكليف محفوظ وسيستمر بعد تحديث الصفحة.`);
-    setTimeout(() => setFeedback(''), 5500);
+  const handleCreateAssessment = async () => {
+    if (!newQuizTitle.trim() || !selectedSchool?.schoolId) return;
+    setCreatingAssessment(true);
+    try {
+      const csrf = await getCsrfToken().catch(() => '');
+      const assignment =
+        selectedSchool.assignments.find((a) => a.className === newQuizClass) ||
+        selectedSchool.assignments[0];
+      const payload = {
+        code: `TCH-${Date.now().toString(36).toUpperCase()}`,
+        ownerType: 'school',
+        ownerUserId: user?.id || '',
+        ownerSchoolId: selectedSchool.schoolId,
+        assignedTeacherId: user?.id || '',
+        isVisible: false,
+        version: {
+          title: newQuizTitle.trim(),
+          kind: newQuizKind === 'drill' ? 'drill' : 'normal',
+          pathId: 'qudrat',
+          subjectId: assignment?.subjectId || '',
+          workflowStatus: 'draft',
+        },
+        sections: [],
+        questions: [],
+      };
+      const res = await fetch('/api/v1/assessments', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'X-CSRF-Token': csrf,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.message || 'تعذر إنشاء مسودة الاختبار');
+      }
+      await loadAssessments();
+      setNewQuizTitle('');
+      setShowCreateAssessmentModal(false);
+      setFeedback(`✅ تم حفظ مسودة التكليف في الخادم ("${payload.version.title}") ويمكن رفعها للاعتماد.`);
+      setTimeout(() => setFeedback(''), 5500);
+    } catch (err: any) {
+      setFeedback(`❌ ${err?.message || 'تعذر إنشاء مسودة الاختبار'}`);
+      setTimeout(() => setFeedback(''), 5500);
+    } finally {
+      setCreatingAssessment(false);
+    }
   };
 
   if (authLoading || (isTeacher && busy)) {
@@ -1336,20 +1338,163 @@ export function TeacherWorkspacePage() {
           {/* TAB: LEARNING EVIDENCE (التعلم والجاهزية) */}
           {activeTab === 'learning-evidence' && (
             <div className="space-y-6 animate-fade-in" data-testid="teacher-learning-evidence">
-              <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs space-y-4">
-                <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                    <Target size={20} />
+              <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                      <Target size={20} />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-black text-slate-900">التعلم والجاهزية</h2>
+                      <p className="text-xs text-slate-500">متابعة مؤشرات إتقان الطلاب والشواهد الحقيقية للاختبارات المدرسية والدراسة الذاتية.</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-lg font-black text-slate-900">التعلم والجاهزية</h2>
-                    <p className="text-xs text-slate-500">متابعة مؤشرات إتقان الطلاب والجاهزية للاختبارات المعيارية والتحصيلية.</p>
+                  <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setEvidenceSource('school_assessment')}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-black transition cursor-pointer ${
+                        evidenceSource === 'school_assessment'
+                          ? 'bg-white text-indigo-700 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      اختبارات المدرسة
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEvidenceSource('platform_self_study')}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-black transition cursor-pointer ${
+                        evidenceSource === 'platform_self_study'
+                          ? 'bg-white text-indigo-700 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      الدراسة الذاتية
+                    </button>
                   </div>
                 </div>
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-                  <BookOpenCheck className="mx-auto text-slate-400 mb-2" size={32} />
-                  <p className="text-sm font-bold text-slate-600">يتم احتساب مؤشرات الجاهزية تلقائياً بناءً على نتائج الحصص الذكية والاختبارات الدورية.</p>
+
+                {/* Filters */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <select
+                    aria-label="فلتر الفصل للتعلم والجاهزية"
+                    value={evidenceClassFilter}
+                    onChange={(e) => setEvidenceClassFilter(e.target.value)}
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800"
+                  >
+                    <option value="">كل الفصول المسندة</option>
+                    {teacherClasses.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label="فلتر حالة الجاهزية"
+                    value={evidenceStatusFilter}
+                    onChange={(e) => setEvidenceStatusFilter(e.target.value as LearningEvidenceStatus | '')}
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800"
+                  >
+                    <option value="">كل الحالات (5 حالات)</option>
+                    <option value="ready">جاهز</option>
+                    <option value="developing">قيد التطور</option>
+                    <option value="support">يحتاج دعم</option>
+                    <option value="insufficient">شواهد غير كافية</option>
+                    <option value="unmeasured">غير مقاس</option>
+                  </select>
+                  <select
+                    aria-label="الفترة الزمنية"
+                    value={evidenceDays}
+                    onChange={(e) => setEvidenceDays(Number(e.target.value))}
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800"
+                  >
+                    <option value={7}>آخر 7 أيام</option>
+                    <option value={30}>آخر 30 يوماً</option>
+                    <option value={90}>آخر 90 يوماً</option>
+                  </select>
+                  <input
+                    type="search"
+                    aria-label="بحث عن طالب"
+                    value={evidenceSearch}
+                    onChange={(e) => setEvidenceSearch(e.target.value)}
+                    placeholder="بحث باسم الطالب..."
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800"
+                  />
                 </div>
+
+                {/* Policy + Summary */}
+                {evidenceReport && (
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-slate-50 px-4 py-2.5 text-[11px] font-bold text-slate-600">
+                      <span>
+                        سياسة القياس: الحد الأدنى {evidenceReport.policy.minimumAnswers} إجابات · دعم &lt; {evidenceReport.policy.supportBelow}% · جاهز ≥ {evidenceReport.policy.readyFrom}%
+                      </span>
+                      <span>
+                        النتائج: {evidenceReport.filteredTotal} من {evidenceReport.total} طالب
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                      {(['ready', 'developing', 'support', 'insufficient', 'unmeasured'] as LearningEvidenceStatus[]).map((st) => (
+                        <div key={st} className={`rounded-2xl border p-3 ${EVIDENCE_STATUS_LABELS[st].badgeClass}`}>
+                          <div className="text-[11px] font-bold">{EVIDENCE_STATUS_LABELS[st].label}</div>
+                          <div className="mt-1 text-xl font-black">{evidenceReport.summary?.[st] ?? 0}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {evidenceLoading && (
+                  <div className="flex items-center justify-center gap-2 py-8 text-xs font-bold text-slate-500">
+                    <Loader2 size={16} className="animate-spin text-indigo-600" />
+                    <span>جاري تحميل شواهد التعلم...</span>
+                  </div>
+                )}
+
+                {!evidenceLoading && evidenceError && (
+                  <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-bold text-rose-700">
+                    {evidenceError}
+                  </div>
+                )}
+
+                {!evidenceLoading && !evidenceError && evidenceReport && evidenceReport.students.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                    <BookOpenCheck className="mx-auto text-slate-400 mb-2" size={32} />
+                    <p className="text-sm font-bold text-slate-600">لا توجد شواهد تعلم مطابقة للمرشحات الحالية.</p>
+                  </div>
+                )}
+
+                {!evidenceLoading && !evidenceError && evidenceReport && evidenceReport.students.length > 0 && (
+                  <div className="space-y-3">
+                    {evidenceReport.students.map((student) => (
+                      <div key={student.id} className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 space-y-2.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <h3 className="text-sm font-black text-slate-900">{student.name}</h3>
+                            <p className="text-[11px] text-slate-500">{student.skillCount} مهارة مرصودة</p>
+                          </div>
+                          <span className={`rounded-lg border px-2.5 py-0.5 text-xs font-black ${EVIDENCE_STATUS_LABELS[student.status].badgeClass}`}>
+                            {EVIDENCE_STATUS_LABELS[student.status].label}
+                          </span>
+                        </div>
+                        {student.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {student.skills.map((sk) => (
+                              <span
+                                key={sk.id}
+                                className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1 text-[11px] font-bold ${EVIDENCE_STATUS_LABELS[sk.status].badgeClass}`}
+                              >
+                                <span>{sk.name}</span>
+                                <span>·</span>
+                                <span>{sk.accuracy !== null ? `${sk.accuracy}%` : '—'}</span>
+                                <span>({sk.questions}س)</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1357,55 +1502,6 @@ export function TeacherWorkspacePage() {
           {/* TAB 6: ASSESSMENTS (اختباراتي وتكليفاتي) */}
           {activeTab === 'assessments' && (
             <div className="space-y-6 animate-fade-in" data-testid="teacher-assessments-manager">
-              {teacherAssessments.some((a) => a.workflowStatus === 'draft') && (
-                <div className="rounded-3xl border border-indigo-100 bg-white p-6 shadow-xs space-y-4">
-                  <div className="flex items-center justify-between border-b border-indigo-50 pb-3">
-                    <div className="flex items-center gap-2">
-                      <BookOpenCheck className="text-indigo-600" size={20} />
-                      <h3 className="text-sm font-black text-slate-900">المسودات والتكليفات المحفوظة محلياً</h3>
-                    </div>
-                    <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
-                      {teacherAssessments.filter((a) => a.workflowStatus === 'draft').length} مسودة
-                    </span>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {teacherAssessments
-                      .filter((a) => a.workflowStatus === 'draft')
-                      .map((draft) => (
-                        <div key={draft.id} className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50/60 p-4 transition-all hover:bg-slate-50">
-                          <div>
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <span className="rounded-lg bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-black text-amber-800">
-                                مسودة محلية
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-bold">{draft.className}</span>
-                            </div>
-                            <h4 className="text-xs font-black text-slate-900 leading-snug">{draft.title}</h4>
-                            <p className="mt-1 text-[11px] text-slate-500">{draft.kind === 'test' ? 'اختبار موجه' : draft.kind === 'drill' ? 'تدريب علاجي' : 'محاكي قياس'}</p>
-                          </div>
-                          <div className="mt-3 pt-2 border-t border-slate-200/60 flex items-center justify-between">
-                            <span className="text-[10px] text-slate-400">محفوظ محلياً</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const current = loadStoredDrafts(selectedSchoolId);
-                                const updated = current.filter((d) => d.id !== draft.id);
-                                saveStoredDrafts(selectedSchoolId, updated);
-                                setTeacherAssessments((prev) => prev.filter((d) => d.id !== draft.id));
-                                setFeedback(`تم حذف المسودة "${draft.title}".`);
-                                setTimeout(() => setFeedback(''), 3000);
-                              }}
-                              className="text-rose-600 hover:text-rose-800 text-xs font-bold transition cursor-pointer"
-                            >
-                              حذف
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-
               <SupervisorTestsManager
                 schoolId={selectedSchool?.schoolId}
                 classes={teacherClasses}
@@ -1523,7 +1619,6 @@ export function TeacherWorkspacePage() {
               >
                 <option value="test">اختبار مدرسي موجه</option>
                 <option value="drill">تدريب علاجي مكثف</option>
-                <option value="mock">محاكي قياس تجريبي</option>
               </select>
             </div>
 
@@ -1541,7 +1636,7 @@ export function TeacherWorkspacePage() {
             </div>
 
             <div className="rounded-xl bg-slate-50 border border-slate-200/80 p-3 text-[11px] font-bold text-slate-500 leading-relaxed">
-              ℹ️ إضافة المسودات تتيح للمعلم تحضير التكليفات محلياً قبل رفعها للاعتماد الأكاديمي الرسمي عبر إدارة المدرسة.
+              ℹ️ يتم حفظ المسودة في الخادم بحالة مسودة قبل رفعها للاعتماد الأكاديمي الرسمي عبر إدارة المدرسة.
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2">
@@ -1554,11 +1649,11 @@ export function TeacherWorkspacePage() {
               </button>
               <button
                 type="button"
-                onClick={handleCreateAssessment}
-                disabled={!newQuizTitle.trim()}
+                onClick={() => void handleCreateAssessment()}
+                disabled={!newQuizTitle.trim() || creatingAssessment}
                 className="rounded-xl bg-indigo-600 hover:bg-indigo-700 px-5 py-2 text-xs font-black text-white disabled:opacity-40"
               >
-                إضافة مسودة محلية
+                {creatingAssessment ? 'جاري الحفظ...' : 'حفظ كمسودة'}
               </button>
             </div>
           </div>

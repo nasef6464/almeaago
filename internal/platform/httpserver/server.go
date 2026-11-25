@@ -55,6 +55,7 @@ type Dependencies struct {
 	PublicArticles           http.Handler
 	PublicMockExams          http.Handler
 	NavigationPreferences    http.Handler
+	LearningEvidence         http.Handler
 	Quizzes                  http.Handler
 }
 
@@ -130,6 +131,9 @@ func New(addr string, deps Dependencies) *http.Server {
 	}
 	if deps.NavigationPreferences != nil {
 		router.Handle("/api/v1/learning/navigation-preferences", deps.NavigationPreferences)
+	}
+	if deps.LearningEvidence != nil {
+		router.Handle("/api/v1/learning/evidence", deps.LearningEvidence)
 	}
 	if deps.QuestionBank != nil {
 		router.Mount("/api/v1/questions", deps.QuestionBank)

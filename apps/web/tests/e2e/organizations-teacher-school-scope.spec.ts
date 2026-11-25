@@ -228,7 +228,7 @@ test('unknown school link never substitutes a different school', async ({page}) 
  await expect(page.getByText('مدرسة باء')).toHaveCount(0);
 });
 
-test('teacher assessment drafts persist across reload and student roster queries real school classes', async ({ page }) => {
+test('teacher assessments load from server and learning evidence supports 5-status and source switching', async ({ page }) => {
   await auth(page);
   await page.route('**/api/v1/schools/teacher-workspace', route => json(route, {
     personas: { platformTrainer: false, schoolTeacher: true }, schools,
@@ -240,55 +240,70 @@ test('teacher assessment drafts persist across reload and student roster queries
     ],
     pagination: { page: 1, limit: 100, total: 2, totalPages: 1 },
   }));
-  await page.route('**/api/v1/assessments?limit=100', route => json(route, { items: [] }));
+  await page.route('**/api/v1/assessments?limit=100', route => json(route, {
+    items: [
+      { id: 'srv-1', code: 'TCH-1', title: 'اختبار خادمي موجه', kind: 'normal', workflowStatus: 'draft', isPublished: false, totalQuestions: 10 },
+    ],
+  }));
 
-  // Load overview tab first
+  const evidenceRequests: string[] = [];
+  await page.route('**/api/v1/learning/evidence*', route => {
+    const url = route.request().url();
+    evidenceRequests.push(url);
+    const source = new URL(url).searchParams.get('source') || 'school_assessment';
+    return json(route, {
+      source,
+      subjectId: '',
+      days: 30,
+      policy: { minimumAnswers: 5, supportBelow: 60, readyFrom: 80 },
+      coverage: 'school_scoped_students',
+      total: 2,
+      filteredTotal: 2,
+      page: 1,
+      limit: 50,
+      summary: { unmeasured: 0, insufficient: 1, support: 0, developing: 0, ready: 1 },
+      students: [
+        {
+          id: 'real-student-1',
+          name: source === 'platform_self_study' ? 'خالد عبدالله (ذاتي)' : 'خالد عبدالله',
+          status: 'ready',
+          skillCount: 1,
+          skills: [{ id: 'sk-1', name: 'التناسب', accuracy: 88, questions: 8, correct: 7, tests: 1, status: 'ready' }],
+        },
+        {
+          id: 'real-student-2',
+          name: 'عمر القحطاني',
+          status: 'insufficient',
+          skillCount: 1,
+          skills: [{ id: 'sk-2', name: 'الكسور', accuracy: 50, questions: 2, correct: 1, tests: 1, status: 'insufficient' }],
+        },
+      ],
+    });
+  });
+
   await page.goto('/school-teacher-dashboard?schoolId=school-a');
   await expect(page.getByTestId('teacher-workspace')).toBeVisible();
 
-  // Initially 3 baseline assessments in overview KPI
+  // Overview KPI reflects server assessments count (1)
   const countCard = page.getByText('اختبارات المدرسة').locator('xpath=../..');
-  await expect(countCard).toContainText('3');
+  await expect(countCard).toContainText('1');
 
-  // Navigate to assessments tab
+  // Navigate to learning-evidence tab and verify real evidence + source toggle
+  await page.getByRole('navigation', { name: 'تنقل لوحة معلم المدرسة' }).getByText('التعلم والجاهزية').click();
+  await expect(page).toHaveURL(/tab=learning-evidence/);
+  await expect(page.getByTestId('teacher-learning-evidence')).toBeVisible();
+  await expect(page.getByText('سياسة القياس: الحد الأدنى 5 إجابات')).toBeVisible();
+  await expect(page.getByText('خالد عبدالله')).toBeVisible();
+  await expect(page.getByTestId('teacher-learning-evidence').locator('span', { hasText: 'شواهد غير كافية' }).first()).toBeVisible();
+
+  // Switch source to platform_self_study
+  await page.getByRole('button', { name: 'الدراسة الذاتية' }).click();
+  await expect(page.getByText('خالد عبدالله (ذاتي)')).toBeVisible();
+  expect(evidenceRequests.some(u => u.includes('source=platform_self_study'))).toBe(true);
+
+  // Navigate to assessments tab and verify server item renders without localStorage draft box
   await page.getByRole('navigation', { name: 'تنقل لوحة معلم المدرسة' }).getByText('اختباراتي وتكليفاتي').click();
   await expect(page).toHaveURL(/tab=assessments/);
-
-  // Set a draft in localStorage
-  await page.evaluate(() => {
-    const raw = localStorage.getItem('almeaa_teacher_assessment_drafts_school-a');
-    const existing = raw ? JSON.parse(raw) : [];
-    const item = {
-      id: 'draft-test-persist-1',
-      title: 'مسودة تكليف تجريبي معتمد للاختبار',
-      kind: 'test',
-      className: 'الأول ألف',
-      workflowStatus: 'draft',
-      isPublished: false,
-      dueDate: '2026-12-01',
-      totalQuestions: 15,
-      participantsCount: 0,
-      totalStudents: 11,
-      avgScore: 0,
-    };
-    localStorage.setItem('almeaa_teacher_assessment_drafts_school-a', JSON.stringify([item, ...existing]));
-  });
-
-  // Reload page on assessments tab and verify draft persisted
-  await page.reload();
-  await expect(page.getByText('مسودة تكليف تجريبي معتمد للاختبار')).toBeVisible();
-  await expect(page.getByText('المسودات والتكليفات المحفوظة محلياً')).toBeVisible();
-
-  // Switch back to overview tab to verify count is 4
-  await page.getByRole('navigation', { name: 'تنقل لوحة معلم المدرسة' }).getByText('نظرة عامة', { exact: true }).click();
-  await expect(countCard).toContainText('4');
-
-  // Go back to assessments tab and delete draft
-  await page.getByRole('navigation', { name: 'تنقل لوحة معلم المدرسة' }).getByText('اختباراتي وتكليفاتي').click();
-  await page.getByRole('button', { name: 'حذف' }).first().click();
-  await expect(page.getByText('مسودة تكليف تجريبي معتمد للاختبار')).toHaveCount(0);
-
-  // Switch back to overview to verify count is back to 3
-  await page.getByRole('navigation', { name: 'تنقل لوحة معلم المدرسة' }).getByText('نظرة عامة', { exact: true }).click();
-  await expect(countCard).toContainText('3');
+  await expect(page.getByText('اختبار خادمي موجه')).toBeVisible();
+  await expect(page.getByText('المسودات والتكليفات المحفوظة محلياً')).toHaveCount(0);
 });
