@@ -216,6 +216,10 @@ test('admin changes access from foundation, training and exam cards', async ({ p
     { id: 'drill-1', title: 'تدريب التجربة', normalMode: 'practice', slot: 'training' },
     { id: 'exam-1', title: 'اختبار التجربة', normalMode: 'exam', slot: 'tests' },
   ].map(row => ({ ...row, ...subject, kind: 'normal', ownerType: 'platform', currentVersion: 2, isPublished: true }));
+  const placements = Object.fromEntries(exams.map(exam => [exam.id, {
+    id: 'place-' + exam.id, accessType: 'free', baseAccessType: 'free', isVisible: false, sortOrder: 7,
+    updatedAt: '2026-11-25T12:00:00Z',
+  }]));
   await page.route('**/api/v1/assessments?*', route => {
     const filters = new URL(route.request().url()).searchParams;
     const mode = filters.get('normalMode');
@@ -223,27 +227,19 @@ test('admin changes access from foundation, training and exam cards', async ({ p
       expect(filters.get('pathId')).toBe(subject.pathId);
       expect(filters.get('subjectId')).toBe(subject.subjectId);
     }
-    return json(route, { items: exams.filter(exam => !mode || exam.normalMode === mode), hasMore: false });
+    const items = exams.filter(exam => !mode || exam.normalMode === mode)
+      .map(exam => ({ ...exam, subjectPlacement: mode ? placements[exam.id] : undefined }));
+    return json(route, { items, hasMore: false });
   });
   for (const exam of exams) {
-    let placement = { ...subject, id: 'place-' + exam.id, assessmentVersion: 2, slot: exam.slot, accessType: 'free', isVisible: false, sortOrder: 7, updatedAt: '2026-11-25T12:00:00Z' };
-    await page.route('**/api/v1/assessments/' + exam.id, route => json(route, {
-      assessment: { ...exam, publishedVersion: 2, version: { accessType: 'free' } },
-    }));
-    await page.route('**/api/v1/assessments/' + exam.id + '/placements?*', route => json(route, {
-      items: [{ ...placement, id: 'other-topic', topicId: 'other-topic' }, placement],
-      hasMore: false,
-    }));
-    await page.route('**/api/v1/assessment-placements/other-topic', () => {
-      throw new Error('The card must not update a topic-specific placement');
-    });
-    await page.route('**/api/v1/assessment-placements/' + placement.id, route => {
+    await page.route('**/api/v1/assessment-placements/' + placements[exam.id].id, route => {
+      const placement = placements[exam.id];
       const accessType = placement.accessType === 'free' ? 'package' : 'free';
       expect(route.request().postDataJSON()).toEqual({
         expectedUpdatedAt: placement.updatedAt, accessType, isVisible: false, sortOrder: 7,
       });
-      placement = { ...placement, accessType };
-      return json(route, { placement });
+      placements[exam.id] = { ...placement, accessType };
+      return json(route, { placement: placements[exam.id] });
     });
   }
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -264,21 +260,20 @@ test('admin changes access from foundation, training and exam cards', async ({ p
   await expect(page.getByRole('button', { name: 'جعل الجبر والحساب ضمن باقة التأسيس' })).toBeVisible();
   for (const [tab, exam] of [['questions', exams[0]], ['exams', exams[1]]] as const) {
     await page.goto(prefix + tab, { waitUntil: 'domcontentloaded' });
-    await page.getByRole('button', { name: 'إتاحة ' + exam.title }).click();
-    await page.getByRole('button', { name: 'جعله ضمن باقة', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'جعله مجانيًا', exact: true })).toBeVisible();
-    await page.reload({ waitUntil: 'domcontentloaded' });
     const card = page.getByRole('article').filter({ hasText: exam.title });
-    await card.getByRole('button', { name: 'إتاحة ' + exam.title }).click();
+    const makeFree = card.getByRole('button', { name: `جعله مجانيًا (${exam.title})` });
+    await card.getByRole('button', { name: `جعله ضمن باقة (${exam.title})` }).click();
+    await expect(makeFree).toBeVisible();
+    await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(card.getByText('ضمن باقة', { exact: true })).toBeVisible();
     for (const width of [390, 820, 1440]) {
       await page.setViewportSize({ width, height: 900 });
-      await expect(card.getByRole('button', { name: 'جعله مجانيًا', exact: true })).toBeVisible();
+      await expect(makeFree).toBeVisible();
       if (process.env.ALMEAA_CARD_SCREENSHOTS) {
         await card.screenshot({ path: testInfo.outputPath(`${exam.slot}-${width}.png`) });
       }
     }
-    await card.getByRole('button', { name: 'جعله مجانيًا', exact: true }).click();
+    await makeFree.click();
     await expect(card.getByText('مجاني', { exact: true })).toBeVisible();
   }
 });

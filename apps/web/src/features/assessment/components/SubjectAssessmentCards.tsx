@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Eye } from 'lucide-react';
+import { Eye, Lock, Unlock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { assessmentClient } from '../api/assessment-client';
 import { assessmentPlacementClient } from '../api/assessment-placement-client';
-import type { AssessmentPage, AssessmentPlacement, AssessmentSummary } from '../api/assessment-types';
+import type { AssessmentPage, SubjectPlacementAccess } from '../api/assessment-types';
 
 interface Props {
   pathId: string;
@@ -12,65 +12,27 @@ interface Props {
   getCsrfToken: () => Promise<string>;
 }
 
-type CardAccess = { placement: AssessmentPlacement; baseFree: boolean };
-
-function AssessmentCardAccess({ assessment, pathId, subjectId, slot, getCsrfToken }: Props & { assessment: AssessmentSummary }) {
-  const [open, setOpen] = useState(false);
+function AssessmentCardAccess({ initial, title, getCsrfToken }: {
+  initial: SubjectPlacementAccess;
+  title: string;
+  getCsrfToken: Props['getCsrfToken'];
+}) {
+  const [placement, setPlacement] = useState(initial);
   const [busy, setBusy] = useState(false);
-  const [access, setAccess] = useState<CardAccess>();
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const isFree = access?.placement.accessType === 'free'
-    || (access?.placement.accessType === 'inherit' && access.baseFree);
-
-  useEffect(() => {
-    if (!open) return;
-    const controller = new AbortController();
-    const { signal } = controller;
-    async function load() {
-      try {
-        const { assessment: current } = await assessmentClient.get(assessment.id, signal);
-        const baseAccess = current.version.accessType;
-        if (current.ownerType !== 'platform' || !current.isPublished || current.publishedVersion !== current.currentVersion
-          || current.pathId !== pathId || current.subjectId !== subjectId
-          || (baseAccess !== 'free' && baseAccess !== 'paid')) {
-          setMessage('تُدار الإتاحة لهذا المحتوى من مركز الاختبارات.');
-          return;
-        }
-
-        let page = 1;
-        while (!signal.aborted) {
-          const result = await assessmentPlacementClient.staffList(assessment.id, page, 100, signal);
-          const placement = result.items.find(row => row.assessmentVersion === current.publishedVersion
-            && row.slot === slot && row.pathId === pathId && row.subjectId === subjectId
-            && !row.topicId && !row.courseId && !row.lessonId);
-          if (placement) {
-            setAccess({ placement, baseFree: baseAccess === 'free' });
-            return;
-          }
-          if (!result.hasMore) break;
-          page += 1;
-        }
-        if (!signal.aborted) setMessage('أضف مكان ظهور في هذه المادة من مركز الاختبارات لضبط الإتاحة.');
-      } catch (cause) {
-        if (!signal.aborted) setError(cause instanceof Error ? cause.message : 'تعذر تحميل الإتاحة.');
-      }
-    }
-    void load();
-    return () => controller.abort();
-  }, [assessment.id, open, pathId, slot, subjectId]);
+  const isFree = placement.accessType === 'free'
+    || (placement.accessType === 'inherit' && placement.baseAccessType === 'free');
+  const action = isFree ? 'جعله ضمن باقة' : 'جعله مجانيًا';
 
   async function toggleAccess() {
-    if (!access) return;
-    const { placement } = access;
     setBusy(true);
     setError('');
     try {
-      const result = await assessmentPlacementClient.patch(
+      const { placement: updated } = await assessmentPlacementClient.patch(
         placement, isFree ? 'package' : 'free',
         placement.isVisible, placement.sortOrder, await getCsrfToken(),
       );
-      setAccess({ ...access, placement: result.placement });
+      setPlacement({ ...updated, baseAccessType: placement.baseAccessType });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'تعذر تغيير الإتاحة.');
     } finally {
@@ -79,44 +41,25 @@ function AssessmentCardAccess({ assessment, pathId, subjectId, slot, getCsrfToke
   }
 
   return (
-    <div>
-      <button
-        type="button"
-        aria-label={`إتاحة ${assessment.title}`}
-        aria-expanded={open}
-        disabled={busy}
-        onClick={() => {
-          setAccess(undefined);
-          setMessage('');
-          setError('');
-          setOpen(!open);
-        }}
-        className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-200"
-      >
-        الإتاحة
-      </button>
-      {open && (
-        <div className="mt-2 space-y-2 text-xs">
-          {access && (
-            <>
-              <p role="status">
-                {isFree ? 'مجاني' : access.placement.accessType === 'package' ? 'ضمن باقة' : 'مدفوع'}
-              </p>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void toggleAccess()}
-                className="rounded-xl bg-indigo-50 px-3 py-1.5 font-black text-indigo-700 hover:bg-indigo-100 disabled:opacity-50"
-              >
-                {busy ? 'جارٍ الحفظ…' : isFree ? 'جعله ضمن باقة' : 'جعله مجانيًا'}
-              </button>
-            </>
-          )}
-          {message && <p role="status">{message}</p>}
-          {error && <p role="alert" className="text-red-700">{error}</p>}
-          {!access && !message && !error && <p role="status">جارٍ تحميل الإتاحة…</p>}
-        </div>
-      )}
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
+        <span role="status" className={`rounded-full px-2 py-1 ${isFree ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+          {isFree ? 'مجاني' : placement.accessType === 'package' ? 'ضمن باقة' : 'مدفوع'}
+        </span>
+        <span className="text-slate-500">{placement.isVisible ? 'ظاهر' : 'مخفي'}</span>
+        <button
+          type="button"
+          aria-label={`${action} (${title})`}
+          title={action}
+          disabled={busy}
+          onClick={() => void toggleAccess()}
+          className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 px-3 py-1.5 font-black text-indigo-700 hover:bg-indigo-100 disabled:opacity-50"
+        >
+          {isFree ? <Unlock size={14} /> : <Lock size={14} />}
+          {busy ? 'جارٍ الحفظ…' : action}
+        </button>
+      </div>
+      {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
     </div>
   );
 }
@@ -186,9 +129,16 @@ export function SubjectAssessmentCards(props: Props) {
               <Link to={`/assessments/${assessment.id}/start`} target="_blank" className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-200">
                 <Eye size={13} /> معاينة
               </Link>
-              {assessment.ownerType === 'platform' && assessment.isPublished && (
-                <AssessmentCardAccess {...props} assessment={assessment} />
-              )}
+              {assessment.subjectPlacement ? (
+                <AssessmentCardAccess
+                  key={assessment.subjectPlacement.updatedAt}
+                  initial={assessment.subjectPlacement}
+                  title={assessment.title}
+                  getCsrfToken={props.getCsrfToken}
+                />
+              ) : assessment.ownerType === 'platform' && assessment.isPublished ? (
+                <Link to={center} className="text-xs font-bold text-indigo-700">ضبط الإتاحة من مركز الاختبارات</Link>
+              ) : null}
             </div>
           </article>
         ))}

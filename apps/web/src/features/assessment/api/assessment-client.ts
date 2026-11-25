@@ -16,6 +16,7 @@ export const assessmentClient={
      subjectId:x.subjectId??x.SubjectID??'',
      kind:(x.kind??x.Kind??'normal') as 'normal'|'mock',
      normalMode:x.normalMode??x.NormalMode??'',
+     subjectPlacement:x.subjectPlacement,
      workflowStatus:x.workflowStatus??x.WorkflowStatus??'draft',
      ownerType:x.ownerType??x.OwnerType??'platform',
      revision:Number(x.revision??x.Revision??0),
@@ -51,7 +52,6 @@ export const assessmentClient={
      isPublished:Boolean(a?.isPublished??a?.IsPublished??false),
      revision:Number(a?.revision??a?.Revision??0),
      currentVersion:Number(a?.currentVersion??a?.CurrentVersion??1),
-     publishedVersion:a?.publishedVersion??a?.PublishedVersion??null,
      updatedAt:a?.updatedAt??a?.UpdatedAt??'',
      version:v,
      sections:(a?.sections||a?.Sections||[]).map((sec:any)=>({
