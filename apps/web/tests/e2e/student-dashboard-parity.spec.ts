@@ -28,6 +28,15 @@ for (const [width, height] of [[390, 844], [820, 1180], [1440, 900]]) {
     const openMenu = async () => {
       if (width < 1024) await page.getByRole('button', { name: 'فتح قائمة لوحة الطالب' }).click();
     };
+    if (width === 390) {
+      const menuButton = page.getByRole('button', { name: 'فتح قائمة لوحة الطالب' });
+      const assistant = page.getByRole('button', { name: 'المساعد الذكي الصوتي' });
+      await expect(menuButton).toBeVisible();
+      await expect(assistant).toBeVisible();
+      const menuBox = (await menuButton.boundingBox())!;
+      const assistantBox = (await assistant.boundingBox())!;
+      expect(menuBox.y + menuBox.height).toBeLessThanOrEqual(assistantBox.y);
+    }
     await openMenu();
     await expect(page.getByTestId('student-menu-group-exams').getByRole('link')).toHaveText([
       /الاختبارات السابقة/, /الاختبارات المدرسية/, /الاختبارات المحاكية/,

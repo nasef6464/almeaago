@@ -245,7 +245,9 @@ export function StudentDashboardPage() {
         className={`group flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-sm transition ${
           isItemActive
             ? 'border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-800 shadow-xs ring-1 ring-indigo-200 dark:ring-indigo-900/60 font-black text-indigo-900 dark:text-white'
-            : 'border-transparent font-bold text-gray-800 dark:text-gray-100 hover:border-white/80 dark:hover:border-slate-700 hover:bg-white/90 dark:hover:bg-slate-800/90'
+            : item.description
+              ? 'border-slate-200 bg-white font-bold text-gray-800 hover:border-indigo-200 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100'
+              : 'border-transparent font-bold text-gray-800 dark:text-gray-100 hover:bg-white/80 dark:hover:bg-slate-800/90'
         }`}
       >
         <span className="flex min-w-0 flex-1 items-center gap-3">
@@ -254,10 +256,9 @@ export function StudentDashboardPage() {
           </span>
           <span className="min-w-0">
             <span className="block text-sm font-black leading-tight">{item.label}</span>
-            {item.description && <span className="mt-0.5 block text-xs font-medium text-slate-600 dark:text-slate-400">{item.description}</span>}
+            {item.description && <span className="mt-1 block text-[10px] font-medium leading-relaxed text-slate-500 dark:text-slate-400">{item.description}</span>}
           </span>
         </span>
-        <ChevronLeft size={16} className="shrink-0 text-gray-400 group-hover:text-indigo-600 group-hover:-translate-x-0.5 transition-all" />
       </Link>
     );
   };
@@ -280,7 +281,7 @@ export function StudentDashboardPage() {
       <button
         type="button"
         aria-label={sidebarOpen ? 'إغلاق قائمة لوحة الطالب' : 'فتح قائمة لوحة الطالب'}
-        className="fixed bottom-6 left-6 md:bottom-28 md:left-8 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-amber-500 text-white shadow-lg lg:hidden"
+        className="fixed bottom-24 left-6 md:bottom-28 md:left-8 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-amber-500 text-white shadow-lg lg:hidden"
         onClick={() => setSidebarOpen((value) => !value)}
       >
         {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
