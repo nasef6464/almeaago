@@ -1,4 +1,14 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 25 نوفمبر — بوابة P6: تمرين النسخ الاحتياطي والاستعادة وتكاملات التجارة على PostgreSQL 18 / PARTIAL
+
+- Go main `7895368bb1c35f0a0beacf52d2a698c845ad0cef` بعد دمج [PR #309](https://github.com/nasef6464/almeaago/pull/309).
+- **إنجازات PR #309 (تمرين P6 على `postgres:18` في GitHub Actions `Database CI`):**
+  1. تطبيق جميع المهاجرات الـ 63 (`*.up.sql`) ثم التراجع الكامل عنها (`*.down.sql` بترتيب عكسي) وإعادة تطبيقها من الصفر والتحقق من كافة القيود والفهارس والمشغلات.
+  2. تنفيذ تمرين `pg_dump --no-owner --no-acl` ثم استعادته إلى قاعدة تحقق مستقلة `almeaa_restore_verify` عبر `psql -v ON_ERROR_STOP=1` مع مطابقة عدد الجداول وسلامة بذور `ai_provider_settings`.
+  3. تشغيل اختبارات تكامل التجارة (`internal/commerce/repository/postgres` عبر `COMMERCE_JOURNEY_TEST_DATABASE_URL`) مباشرة على القاعدة المستعادة `almeaa_restore_verify`.
+  4. PASS بوابة `database` (3m 53s) و`overlap` (7s) في GitHub Actions دون أي اتصال بقواعد الإنتاج.
+- **ما تبقى من P6/P7:** تمرين مطابقة البيانات الفعلي (`MongoDB -> PostgreSQL` reconciliation) ضد نسخة تصدير معزولة من Legacy (إن وُجدت بيانات إنتاجية مستهدفة للترحيل)، ثم الاعتماد البصري المتقابل P7 على المقاسات الثلاثة (`390 / 820 / 1440`). حالة المنصة العامة تبقى **`PARTIAL`**.
+
 ## 25 نوفمبر — إصلاح تعدد نطاقات WEB_ORIGIN في OAuth واستعادة حالة الدفع عبر Tap paymentReturn / PARTIAL
 
 - Go main `d02fa27884a2838cb3600d618c97db2f357e3127` بعد دمج [PR #307](https://github.com/nasef6464/almeaago/pull/307) و[PR #308](https://github.com/nasef6464/almeaago/pull/308).
