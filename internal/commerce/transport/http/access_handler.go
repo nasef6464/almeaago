@@ -2,6 +2,7 @@ package commercehttp
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -23,7 +24,8 @@ func (h *Handler) listAccessCodes(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 400, map[string]string{"message": "Invalid pagination"})
 		return
 	}
-	out, err := h.access.ListAccessCodes(r.Context(), a.User, page, limit)
+	schoolID := strings.TrimSpace(r.URL.Query().Get("schoolId"))
+	out, err := h.access.ListAccessCodes(r.Context(), a.User, page, limit, schoolID)
 	if err != nil {
 		writeError(w, err)
 		return

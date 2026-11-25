@@ -16,10 +16,18 @@ import (
 type ReadRepository struct {
 	db    *pgxpool.Pool
 	redis *redis.Client
+	audit *AuditWriter
 }
 
 func NewReadRepository(db *pgxpool.Pool, redisClient *redis.Client) *ReadRepository {
-	return &ReadRepository{db: db, redis: redisClient}
+	return &ReadRepository{db: db, redis: redisClient, audit: NewAuditWriter()}
+}
+
+func NewRepository(db *pgxpool.Pool, redisClient *redis.Client, audit *AuditWriter) *ReadRepository {
+	if audit == nil {
+		audit = NewAuditWriter()
+	}
+	return &ReadRepository{db: db, redis: redisClient, audit: audit}
 }
 
 func (r *ReadRepository) DependencyHealth(ctx context.Context) operations.DependencyHealth {

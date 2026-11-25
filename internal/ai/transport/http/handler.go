@@ -36,6 +36,10 @@ func New(service *aiapp.Service, auth Authenticator) http.Handler {
 	r.Get("/admin/providers", h.adminProviders)
 	r.Patch("/admin/providers/{provider}", h.adminUpdateProvider)
 	r.Post("/admin/providers/{provider}/test", h.adminTestProvider)
+	r.Post("/admin/circuit-breakers/reset", h.adminResetCircuitBreakers)
+	r.Get("/admin/school-quotas", h.adminSchoolQuotas)
+	r.Put("/admin/school-quotas/{schoolId}", h.adminUpdateSchoolQuota)
+	r.Post("/admin/school-quotas/{schoolId}/reset", h.adminResetSchoolQuota)
 	r.Get("/admin/interactions", h.adminInteractions)
 	r.Get("/admin/usage", h.adminUsage)
 	r.Get("/admin/readiness", h.adminReadiness)
@@ -253,6 +257,74 @@ func (h *Handler) adminReadiness(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"readiness": out})
+}
+
+func (h *Handler) adminResetCircuitBreakers(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, true)
+	if !ok {
+		return
+	}
+	rows, err := h.service.ResetCircuitBreakers(r.Context(), authenticated.User)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	items := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, presentProvider(row))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (h *Handler) adminSchoolQuotas(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, false)
+	if !ok {
+		return
+	}
+	items, err := h.service.AdminSchoolQuotas(r.Context(), authenticated.User)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (h *Handler) adminResetSchoolQuota(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, true)
+	if !ok {
+		return
+	}
+	item, err := h.service.ResetSchoolQuota(r.Context(), authenticated.User, chi.URLParam(r, "schoolId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"quota": item})
+}
+
+func (h *Handler) adminUpdateSchoolQuota(w http.ResponseWriter, r *http.Request) {
+	authenticated, ok := h.authn(w, r, true)
+	if !ok {
+		return
+	}
+	var payload ai.SchoolQuotaWrite
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+		return
+	}
+	var trailing json.RawMessage
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid request body"})
+		return
+	}
+	item, err := h.service.UpdateSchoolQuota(r.Context(), authenticated.User, chi.URLParam(r, "schoolId"), payload)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"quota": item})
 }
 
 func (h *Handler) adminCopilot(w http.ResponseWriter, r *http.Request) {

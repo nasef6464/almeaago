@@ -37,7 +37,16 @@ export interface RosterMember { userId: string; name: string; email: string; sta
 export interface TeacherWorkspaceAssignment { assignmentId: string; classId: string; className: string; subjectId: string; studentCount: number }
 export interface TeacherWorkspaceSchool { schoolId: string; schoolName: string; source: string; assignments: TeacherWorkspaceAssignment[] }
 export interface TeacherWorkspace { personas: { platformTrainer: boolean; schoolTeacher: boolean }; schools: TeacherWorkspaceSchool[] }
-export interface SchoolSummary { id: string; code: string; name: string; status: string }
+export interface SchoolPortfolioStats {
+  classesCount: number;
+  studentsCount: number;
+  teachersCount: number;
+  supervisorsCount: number;
+  activePackagesCount: number;
+  activeAccessCodesCount: number;
+  contractStatus: string;
+}
+export interface SchoolSummary { id: string; code: string; name: string; status: string; stats?: SchoolPortfolioStats }
 export interface DirectorStudent { studentId: string; name: string; email: string; phone: string; isActive: boolean; classId: string | null; className: string | null }
 export interface DirectorTeacher { teacherId: string; name: string; email: string; isActive: boolean }
 export interface DirectorAssignment { assignmentId: string; teacherId: string; classId: string; subjectId: string; status: string }
@@ -131,9 +140,16 @@ export interface SchoolInquiryResponse {
   message?: string;
 }
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+export class OrganizationsApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const r = await fetch(BASE + path, { ...init, credentials: 'include', headers: { Accept: 'application/json', ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers } });
-  if (!r.ok) { const b = await r.json().catch(() => ({ message: 'تعذر تنفيذ الطلب' })); throw new Error(b.message || 'تعذر تنفيذ الطلب') }
+  if (!r.ok) { const b = await r.json().catch(() => ({ message: 'تعذر تنفيذ الطلب' })); throw new OrganizationsApiError(b.message || 'تعذر تنفيذ الطلب', r.status) }
   return r.json() as Promise<T>;
 }
 function csrfHeaders(csrf: string) { return { 'X-CSRF-Token': csrf } }
@@ -188,6 +204,18 @@ export const organizationsClient = {
   },
   students(schoolId: string, classId: string, signal?: AbortSignal) {
     const p = new URLSearchParams({ page: '1', limit: '100', role: 'student', isActive: 'true', classId });
+    return request<{ members: RosterMember[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
+      `/api/v1/schools/${encodeURIComponent(schoolId)}/roster?${p.toString()}`, { signal });
+  },
+  addSchoolStudent(schoolId: string, payload: { name: string; email: string; password: string; classId: string }, csrf: string) {
+    return request<{ student: DirectorStudent; created: boolean }>(`/api/v1/schools/${encodeURIComponent(schoolId)}/students`, { method: 'POST', headers: csrfHeaders(csrf), body: JSON.stringify(payload) });
+  },
+  roster(schoolId: string, options: { role?: 'student' | 'teacher' | 'supervisor' | 'school_admin'; isActive?: boolean; search?: string; classId?: string; page?: number; limit?: number } = {}, signal?: AbortSignal) {
+    const p = new URLSearchParams({ page: String(options.page || 1), limit: String(options.limit || 100) });
+    if (options.role) p.set('role', options.role);
+    if (options.isActive !== undefined) p.set('isActive', String(options.isActive));
+    if (options.search?.trim()) p.set('search', options.search.trim());
+    if (options.classId?.trim()) p.set('classId', options.classId.trim());
     return request<{ members: RosterMember[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
       `/api/v1/schools/${encodeURIComponent(schoolId)}/roster?${p.toString()}`, { signal });
   },
@@ -261,11 +289,21 @@ export const organizationsClient = {
   },
   contract(schoolId: string, signal?: AbortSignal) {
     return request<{ contract: SchoolContractData }>(`/api/v1/schools/${encodeURIComponent(schoolId)}/contract`, { signal })
-      .catch(() => request<{ contract: SchoolContractData }>(`/api/v1/school-contracts/${encodeURIComponent(schoolId)}`, { signal }));
+      .catch((err: unknown) => {
+        if (err instanceof OrganizationsApiError && err.status === 404) {
+          return request<{ contract: SchoolContractData }>(`/api/v1/school-contracts/${encodeURIComponent(schoolId)}`, { signal });
+        }
+        throw err;
+      });
   },
   updateContract(schoolId: string, payload: unknown, csrf: string) {
     return request<{ contract: SchoolContractData }>(`/api/v1/schools/${encodeURIComponent(schoolId)}/contract`, { method: 'PUT', headers: csrfHeaders(csrf), body: JSON.stringify(payload) })
-      .catch(() => request<{ contract: SchoolContractData }>(`/api/v1/school-contracts/${encodeURIComponent(schoolId)}`, { method: 'PUT', headers: csrfHeaders(csrf), body: JSON.stringify(payload) }));
+      .catch((err: unknown) => {
+        if (err instanceof OrganizationsApiError && err.status === 404) {
+          return request<{ contract: SchoolContractData }>(`/api/v1/school-contracts/${encodeURIComponent(schoolId)}`, { method: 'PUT', headers: csrfHeaders(csrf), body: JSON.stringify(payload) });
+        }
+        throw err;
+      });
   },
   schoolContract(schoolId: string, signal?: AbortSignal) {
     return this.contract(schoolId, signal);

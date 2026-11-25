@@ -15,7 +15,6 @@ import {
   LayoutDashboard,
   Megaphone,
   Menu,
-  Moon,
   Search,
   Settings,
   ShieldCheck,
@@ -28,11 +27,15 @@ import {
   Type,
   X,
 } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { HOMEPAGE_ADMIN_HREF,isHomepageLocation,buildHomepageHref, PLATFORM_FONTS_ADMIN_HREF, isPlatformFontsLocation, buildPlatformFontsHref } from '../../presentation/navigation';
+import { ThemeToggle } from '../../public/header/dependencies/ThemeToggle';
+import { SearchModal } from '../../public/header/dependencies/SearchModal';
+import { NotificationBell } from '../../public/header/dependencies/NotificationBell';
+import { useHeaderCart } from '../../public/header/commerce/useHeaderCart';
 
 interface AdminDashboardShellProps {
   children: ReactNode;
@@ -86,7 +89,20 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [plannedOpen, setPlannedOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const { count: cartCount } = useHeaderCart();
   const isAdmin = Boolean(user?.roles.includes('admin'));
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const visibleItems = useMemo(() => {
     return navItems
@@ -237,13 +253,31 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <button type="button" className="hidden h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-500 sm:inline-flex" aria-label="الوضع الليلي"><Moon size={17} /></button>
-            <button type="button" className="hidden h-9 w-9 items-center justify-center rounded-xl text-gray-500 sm:inline-flex" aria-label="بحث"><Search size={18} /></button>
-            <button type="button" className="relative hidden h-9 w-9 items-center justify-center rounded-xl text-gray-500 sm:inline-flex" aria-label="السلة">
-              <ShoppingCart size={18} />
-              <span className="absolute right-0 top-0 h-2 w-2 rounded-full bg-rose-500" />
+            <div className="hidden sm:inline-flex">
+              <ThemeToggle />
+            </div>
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className="hidden h-9 w-9 items-center justify-center rounded-xl text-gray-500 transition hover:bg-gray-100 sm:inline-flex cursor-pointer"
+              aria-label="بحث"
+              title="بحث (Ctrl+K)"
+            >
+              <Search size={18} />
             </button>
-            <button type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-gray-500" aria-label="الإشعارات"><Bell size={18} /></button>
+            <Link
+              to="/cart"
+              className="relative hidden h-9 w-9 items-center justify-center rounded-xl text-gray-500 transition hover:bg-gray-100 sm:inline-flex"
+              aria-label="السلة"
+            >
+              <ShoppingCart size={18} />
+              {cartCount > 0 ? (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white">
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              ) : null}
+            </Link>
+            <NotificationBell />
             <div className="hidden items-center gap-2 rounded-xl border border-gray-100 px-2 py-1.5 sm:flex">
               <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-100 to-blue-200" />
               <div className="max-w-28 truncate text-xs font-black text-gray-700">{user?.name || 'مدير المنصة'}</div>
@@ -265,12 +299,8 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
 
         <div className="min-w-0 flex-1">
           <div className="px-3 py-4 sm:px-5 lg:px-6 xl:px-8">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              <div className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white shadow-sm">
-                <span className="inline-block h-2 w-2 rounded-full border border-white/70" />
-                تغيير الدور
-              </div>
-              <div className="max-w-full truncate rounded-xl border border-gray-100 bg-white px-3 py-2 text-xs font-black text-gray-600 shadow-sm lg:hidden">
+            <div className="mb-4 flex flex-wrap items-center justify-end gap-2 lg:hidden">
+              <div className="max-w-full truncate rounded-xl border border-gray-100 bg-white px-3 py-2 text-xs font-black text-gray-600 shadow-sm">
                 {activeItem?.label || 'نظرة عامة'}
               </div>
             </div>
@@ -278,6 +308,7 @@ export function AdminDashboardShell({ children }: AdminDashboardShellProps) {
           </div>
         </div>
       </div>
+      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );
 }

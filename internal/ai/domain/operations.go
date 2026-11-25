@@ -64,3 +64,26 @@ type AdminCopilotResult struct {
 	PromptVersion string         `json:"promptVersion"`
 	Readiness     AdminReadiness `json:"readiness"`
 }
+
+type SchoolQuota struct {
+	ID                string     `json:"id"`
+	Name              string     `json:"name"`
+	Tier              string     `json:"tier"`
+	TokenLimit        int64      `json:"tokenLimit"`
+	TokensUsed        int64      `json:"tokensUsed"`
+	PDFExamLimit      int        `json:"pdfExamLimit"`
+	PDFExamsUsed      int        `json:"pdfExamsUsed"`
+	VoiceMinutesLimit int        `json:"voiceMinutesLimit"`
+	VoiceMinutesUsed  int        `json:"voiceMinutesUsed"`
+	WhiteboardEnabled bool       `json:"whiteboardEnabled"`
+	LastResetAt       *time.Time `json:"lastResetAt"`
+	UpdatedAt         time.Time  `json:"updatedAt"`
+}
+
+type SchoolQuotaWrite struct {
+	Tier              string `json:"tier"`
+	TokenLimit        int64  `json:"tokenLimit"`
+	PDFExamLimit      int    `json:"pdfExamLimit"`
+	VoiceMinutesLimit int    `json:"voiceMinutesLimit"`
+	WhiteboardEnabled bool   `json:"whiteboardEnabled"`
+}

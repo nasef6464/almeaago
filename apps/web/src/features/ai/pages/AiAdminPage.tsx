@@ -1,60 +1,8 @@
-import { Activity, AlertTriangle, BrainCircuit, Building2, CheckCircle2, ChevronRight, FileSpreadsheet, FlaskConical, Gauge, Loader2, MessageCircleQuestion, RefreshCcw, Save, ShieldAlert, ShieldCheck, Sliders, Sparkles, Timer, Volume2, Zap } from 'lucide-react';
+import { Activity, Building2, BrainCircuit, CheckCircle2, FileSpreadsheet, FlaskConical, Gauge, Loader2, MessageCircleQuestion, RefreshCcw, Save, ShieldAlert, ShieldCheck, Sparkles, Timer, Volume2, Zap } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../auth/state/AuthProvider';
 import { aiClient } from '../api/ai-client';
-import type { AiAdminCopilotResult, AiAdminReadiness, AiInteraction, AiProvider, AiProviderSetting, AiUsageSummary } from '../api/ai-types';
-
-interface SchoolAiQuotaRow {
-    id: string;
-    name: string;
-    tier: 'enterprise' | 'pro' | 'basic';
-    tokenLimit: number;
-    tokensUsed: number;
-    pdfExamLimit: number;
-    pdfExamsUsed: number;
-    voiceMinutesLimit: number;
-    voiceMinutesUsed: number;
-    whiteboardEnabled: boolean;
-}
-
-const INITIAL_SCHOOL_QUOTAS: SchoolAiQuotaRow[] = [
-    {
-        id: 'sch-01',
-        name: 'مدارس الرياض النموذجية الأهلية',
-        tier: 'enterprise',
-        tokenLimit: 500000,
-        tokensUsed: 142350,
-        pdfExamLimit: 250,
-        pdfExamsUsed: 84,
-        voiceMinutesLimit: 300,
-        voiceMinutesUsed: 92,
-        whiteboardEnabled: true,
-    },
-    {
-        id: 'sch-02',
-        name: 'مدارس نجد المتطورة',
-        tier: 'pro',
-        tokenLimit: 200000,
-        tokensUsed: 89400,
-        pdfExamLimit: 100,
-        pdfExamsUsed: 47,
-        voiceMinutesLimit: 120,
-        voiceMinutesUsed: 58,
-        whiteboardEnabled: true,
-    },
-    {
-        id: 'sch-03',
-        name: 'مجمع الرواد التعليمي الدولي',
-        tier: 'basic',
-        tokenLimit: 75000,
-        tokensUsed: 61200,
-        pdfExamLimit: 30,
-        pdfExamsUsed: 28,
-        voiceMinutesLimit: 40,
-        voiceMinutesUsed: 39,
-        whiteboardEnabled: false,
-    },
-];
+import type { AiAdminCopilotResult, AiAdminReadiness, AiInteraction, AiProvider, AiProviderSetting, AiUsageSummary, SchoolAiQuotaRow } from '../api/ai-types';
 
 const labels: Record<AiProvider, string> = {
     gemini: 'Gemini', openrouter: 'OpenRouter', qwen: 'Qwen', deepseek: 'DeepSeek', openai: 'OpenAI', ollama: 'Ollama', lmstudio: 'LM Studio',
@@ -73,58 +21,80 @@ export function AiAdminPage() {
     const [notice, setNotice] = useState('');
     const [error, setError] = useState('');
     const [reload, setReload] = useState(0);
-    const [schoolQuotas, setSchoolQuotas] = useState<SchoolAiQuotaRow[]>(INITIAL_SCHOOL_QUOTAS);
-    const [geminiLatency, setGeminiLatency] = useState<number>(185);
+    const [schoolQuotas, setSchoolQuotas] = useState<SchoolAiQuotaRow[]>([]);
+    const [geminiLatency, setGeminiLatency] = useState<number | null>(null);
     const [isPinging, setIsPinging] = useState(false);
 
-    function resetSchoolUsage(schoolId: string) {
-        setSchoolQuotas(prev => prev.map(s => s.id === schoolId ? {
-            ...s,
-            tokensUsed: 0,
-            pdfExamsUsed: 0,
-            voiceMinutesUsed: 0,
-        } : s));
-        const school = schoolQuotas.find(s => s.id === schoolId);
-        setNotice(`تم تصفير استهلاك الذكاء الاصطناعي الشهري لمدرسة: ${school?.name || schoolId}`);
+    async function resetSchoolUsage(schoolId: string) {
+        setSaving('quota:' + schoolId);
+        setError('');
+        setNotice('');
+        try {
+            const csrf = await getCsrfToken();
+            const res = await aiClient.resetSchoolQuota(schoolId, csrf);
+            setSchoolQuotas(prev => prev.map(s => s.id === schoolId ? res.quota : s));
+            setNotice(`تم تصفير استهلاك الذكاء الاصطناعي لمدرسة: ${res.quota.name || schoolId}`);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'تعذر تصفير استهلاك المدرسة');
+        } finally {
+            setSaving('');
+        }
     }
 
     async function pingGemini() {
         setIsPinging(true);
         setError('');
+        setNotice('');
         const start = performance.now();
         try {
             const csrf = await getCsrfToken();
             await aiClient.testProvider('gemini', csrf);
             const elapsed = Math.round(performance.now() - start);
             setGeminiLatency(elapsed);
-            setNotice(`تم قياس استجابة Gemini 2.5 Flash بنجاح: ${elapsed}ms (زمن استجابة فائق السرعة)`);
-        } catch {
-            const elapsed = Math.round(performance.now() - start);
-            setGeminiLatency(Math.max(120, elapsed));
-            setNotice(`تم فحص مؤشرات الاتصال بمزود Gemini: استجابة الخادم ${Math.max(120, elapsed)}ms`);
+            setNotice(`تم قياس استجابة Gemini بنجاح: ${elapsed} ms`);
+            setReload(x => x + 1);
+        } catch (e) {
+            setGeminiLatency(null);
+            setError(e instanceof Error ? e.message : 'تعذر الاتصال بمزود Gemini');
         } finally {
             setIsPinging(false);
         }
     }
 
-    function resetCircuitBreaker() {
-        setProviders(prev => prev.map(p => ({
-            ...p,
-            health: {
-                ...p.health,
-                consecutiveFailures: 0,
-                openUntil: null,
-                lastError: '',
-            }
-        })));
-        setNotice('تمت إعادة ضبط دوائر حماية الأعطال (Circuit Breakers) لكافة مزودي الذكاء الاصطناعي بنجاح.');
+    async function resetCircuitBreaker() {
+        setSaving('reset-circuit');
+        setError('');
+        setNotice('');
+        try {
+            const csrf = await getCsrfToken();
+            const res = await aiClient.resetCircuitBreakers(csrf);
+            setProviders(res.items || []);
+            setNotice('تمت إعادة ضبط دوائر حماية الأعطال (Circuit Breakers) في الخادم بنجاح.');
+            setReload(x => x + 1);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'تعذر إعادة ضبط دوائر الأعطال');
+        } finally {
+            setSaving('');
+        }
     }
 
     useEffect(() => {
         if (authLoading || !user || !user.roles.includes('admin')) return;
         const c = new AbortController(); setBusy(true); setError('');
-        Promise.all([aiClient.providers(c.signal), aiClient.interactions(1, 50, c.signal), aiClient.usage(c.signal), aiClient.readiness(c.signal)])
-            .then(([p, i, u, r]) => { setProviders(p.items || []); setInteractions(i.items || []); setUsage(u.usage); setReadiness(r.readiness) })
+        Promise.all([
+            aiClient.providers(c.signal),
+            aiClient.interactions(1, 50, c.signal),
+            aiClient.usage(c.signal),
+            aiClient.readiness(c.signal),
+            aiClient.schoolQuotas(c.signal),
+        ])
+            .then(([p, i, u, r, q]) => {
+                setProviders(p.items || []);
+                setInteractions(i.items || []);
+                setUsage(u.usage);
+                setReadiness(r.readiness);
+                setSchoolQuotas(q.items || []);
+            })
             .catch(e => { if (!c.signal.aborted) setError(e instanceof Error ? e.message : 'تعذر تحميل إدارة الذكاء الاصطناعي') })
             .finally(() => { if (!c.signal.aborted) setBusy(false) });
         return () => c.abort();
@@ -133,11 +103,26 @@ export function AiAdminPage() {
     const summary = useMemo(() => ({
         enabled: (providers || []).filter(x => x.enabled).length,
         configured: (providers || []).filter(x => x.secretConfigured).length,
-        today: usage?.today.requestCount || 0,
-        tokens: usage?.today.totalTokens || 0,
+        today: usage?.today?.requestCount || 0,
+        tokens: usage?.today?.totalTokens || 0,
         fallback: usage?.fallback24h || 0,
         errors: usage?.error24h || 0,
     }), [providers, usage]);
+
+    const telemetry = useMemo(() => {
+        const openCount = readiness?.openCircuits?.length || 0;
+        const total24h = usage?.last24h || 0;
+        const errors24h = usage?.error24h || 0;
+        const availability = total24h > 0
+            ? `${(((total24h - errors24h) / total24h) * 100).toFixed(2)}%`
+            : '—';
+        const chain = (providers || [])
+            .filter(p => p.enabled)
+            .sort((a, b) => a.priority - b.priority)
+            .map(p => labels[p.provider] || p.provider)
+            .join(' → ') || 'غير مفعّل';
+        return { openCount, availability, total24h, errors24h, chain };
+    }, [providers, readiness, usage]);
 
     function patch(provider: AiProvider, field: keyof AiProviderSetting, value: unknown) {
         setProviders(rows => rows.map(row => row.provider === provider ? { ...row, [field]: value } : row));
@@ -159,9 +144,13 @@ export function AiAdminPage() {
 
     async function test(row: AiProviderSetting) {
         setSaving('test:' + row.provider); setError(''); setNotice('');
+        const started = performance.now();
         try {
             const csrf = await getCsrfToken();
             const res = await aiClient.testProvider(row.provider, csrf);
+            if (row.provider === 'gemini') {
+                setGeminiLatency(Math.round(performance.now() - started));
+            }
             setNotice(`اختبار ${labels[row.provider]} نجح عبر ${res.result.model}.`);
             setReload(x => x + 1);
         } catch (e) { setError(e instanceof Error ? e.message : 'تعذر اختبار المزود') }
@@ -229,93 +218,101 @@ export function AiAdminPage() {
                 </div>
             </div>
 
-            <div className="overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                    <thead>
-                        <tr className="border-b bg-slate-50/75 text-gray-500 font-black">
-                            <th className="p-3">المدرسة والباقة</th>
-                            <th className="p-3">استهلاك التوكنز الشهري</th>
-                            <th className="p-3">توليد الاختبارات (AI PDF)</th>
-                            <th className="p-3">دقائق الصوت التفاعلي</th>
-                            <th className="p-3">السبورة الذكية</th>
-                            <th className="p-3 text-center">الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y font-bold">
-                        {schoolQuotas.map((school) => {
-                            const tokenPercent = Math.min(100, Math.round((school.tokensUsed / school.tokenLimit) * 100));
-                            return (
-                                <tr key={school.id} className="hover:bg-slate-50/50">
-                                    <td className="p-3">
-                                        <div className="font-black text-slate-800">{school.name}</div>
-                                        <div className="mt-1 flex items-center gap-1.5">
-                                            <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-black ${
-                                                school.tier === 'enterprise'
-                                                    ? 'bg-purple-100 text-purple-800'
-                                                    : school.tier === 'pro'
-                                                    ? 'bg-blue-100 text-blue-800'
-                                                    : 'bg-slate-100 text-slate-700'
-                                            }`}>
-                                                {school.tier === 'enterprise' ? 'مؤسسي Enterprise' : school.tier === 'pro' ? 'متقدم Pro' : 'أساسي Basic'}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="p-3 min-w-[140px]">
-                                        <div className="flex justify-between text-[11px] mb-1">
-                                            <span>{school.tokensUsed.toLocaleString('en-US')}</span>
-                                            <span className="text-gray-400">/ {school.tokenLimit.toLocaleString('en-US')}</span>
-                                        </div>
-                                        <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                                            <div
-                                                className={`h-full rounded-full ${
-                                                    tokenPercent > 85 ? 'bg-rose-500' : tokenPercent > 60 ? 'bg-amber-500' : 'bg-indigo-600'
-                                                }`}
-                                                style={{ width: `${tokenPercent}%` }}
-                                            />
-                                        </div>
-                                    </td>
-                                    <td className="p-3">
-                                        <div className="flex items-center gap-1.5">
-                                            <FileSpreadsheet size={14} className="text-indigo-500" />
-                                            <span>{school.pdfExamsUsed}</span>
-                                            <span className="text-gray-400">/ {school.pdfExamLimit} اختبار</span>
-                                        </div>
-                                    </td>
-                                    <td className="p-3">
-                                        <div className="flex items-center gap-1.5">
-                                            <Volume2 size={14} className="text-emerald-600" />
-                                            <span>{school.voiceMinutesUsed}</span>
-                                            <span className="text-gray-400">/ {school.voiceMinutesLimit} دقيقة</span>
-                                        </div>
-                                    </td>
-                                    <td className="p-3">
-                                        {school.whiteboardEnabled ? (
-                                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700">
-                                                <Sparkles size={12} />
-                                                مفعلة
-                                            </span>
-                                        ) : (
-                                            <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-500">
-                                                غير مشمولة
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="p-3 text-center">
-                                        <button
-                                            type="button"
-                                            onClick={() => resetSchoolUsage(school.id)}
-                                            className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-2.5 py-1.5 text-[11px] font-black text-slate-700 hover:bg-slate-100 transition"
-                                        >
-                                            <RefreshCcw size={12} />
-                                            تصفير الشهري
-                                        </button>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
+            {schoolQuotas.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-xs font-bold text-slate-500">
+                    لا توجد مدارس نشطة مسجلة لعرض حصص الذكاء الاصطناعي حاليًا.
+                </div>
+            ) : (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-right text-xs">
+                        <thead>
+                            <tr className="border-b bg-slate-50/75 text-gray-500 font-black">
+                                <th className="p-3">المدرسة والباقة</th>
+                                <th className="p-3">استهلاك التوكنز الشهري</th>
+                                <th className="p-3">توليد الاختبارات (AI PDF)</th>
+                                <th className="p-3">دقائق الصوت التفاعلي</th>
+                                <th className="p-3">السبورة الذكية</th>
+                                <th className="p-3 text-center">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y font-bold">
+                            {schoolQuotas.map((school) => {
+                                const limit = school.tokenLimit > 0 ? school.tokenLimit : 1;
+                                const tokenPercent = Math.min(100, Math.round((school.tokensUsed / limit) * 100));
+                                return (
+                                    <tr key={school.id} className="hover:bg-slate-50/50">
+                                        <td className="p-3">
+                                            <div className="font-black text-slate-800">{school.name}</div>
+                                            <div className="mt-1 flex items-center gap-1.5">
+                                                <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-black ${
+                                                    school.tier === 'enterprise'
+                                                        ? 'bg-purple-100 text-purple-800'
+                                                        : school.tier === 'pro'
+                                                        ? 'bg-blue-100 text-blue-800'
+                                                        : 'bg-slate-100 text-slate-700'
+                                                }`}>
+                                                    {school.tier === 'enterprise' ? 'مؤسسي Enterprise' : school.tier === 'pro' ? 'متقدم Pro' : 'أساسي Basic'}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="p-3 min-w-[140px]">
+                                            <div className="flex justify-between text-[11px] mb-1">
+                                                <span>{school.tokensUsed.toLocaleString('en-US')}</span>
+                                                <span className="text-gray-400">/ {school.tokenLimit.toLocaleString('en-US')}</span>
+                                            </div>
+                                            <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded-full ${
+                                                        tokenPercent > 85 ? 'bg-rose-500' : tokenPercent > 60 ? 'bg-amber-500' : 'bg-indigo-600'
+                                                    }`}
+                                                    style={{ width: `${tokenPercent}%` }}
+                                                />
+                                            </div>
+                                        </td>
+                                        <td className="p-3">
+                                            <div className="flex items-center gap-1.5">
+                                                <FileSpreadsheet size={14} className="text-indigo-500" />
+                                                <span>{school.pdfExamsUsed}</span>
+                                                <span className="text-gray-400">/ {school.pdfExamLimit} اختبار</span>
+                                            </div>
+                                        </td>
+                                        <td className="p-3">
+                                            <div className="flex items-center gap-1.5">
+                                                <Volume2 size={14} className="text-emerald-600" />
+                                                <span>{school.voiceMinutesUsed}</span>
+                                                <span className="text-gray-400">/ {school.voiceMinutesLimit} دقيقة</span>
+                                            </div>
+                                        </td>
+                                        <td className="p-3">
+                                            {school.whiteboardEnabled ? (
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700">
+                                                    <Sparkles size={12} />
+                                                    مفعلة
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-500">
+                                                    غير مشمولة
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="p-3 text-center">
+                                            <button
+                                                type="button"
+                                                disabled={saving === 'quota:' + school.id}
+                                                onClick={() => void resetSchoolUsage(school.id)}
+                                                className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-2.5 py-1.5 text-[11px] font-black text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition cursor-pointer"
+                                            >
+                                                <RefreshCcw size={12} />
+                                                تصفير الاستهلاك
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </section>
 
         {/* Live Provider Telemetry & Circuit Breaker Pulse */}
@@ -327,7 +324,7 @@ export function AiAdminPage() {
                         <h2 className="text-lg font-black text-white">مؤشرات الاستجابة اللحظية ومراقبة دوائر الأعطال</h2>
                     </div>
                     <p className="mt-1 text-xs font-bold text-slate-300">
-                        مراقبة كمون Gemini 2.5 Flash اللحظي، حالة مفتاح API، وضبط قواطع الدوائر التلقائية (Circuit Breaker).
+                        مراقبة كمون Gemini الفعلي، حالة الدوائر، وضبط قواطع الدوائر التلقائية (Circuit Breaker).
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -336,7 +333,7 @@ export function AiAdminPage() {
                         data-testid="btn-ping-gemini"
                         disabled={isPinging}
                         onClick={() => void pingGemini()}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-40"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-40 cursor-pointer"
                     >
                         {isPinging ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
                         فحص استجابة Gemini
@@ -344,8 +341,9 @@ export function AiAdminPage() {
                     <button
                         type="button"
                         data-testid="btn-reset-circuit"
-                        onClick={resetCircuitBreaker}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3.5 py-2 text-xs font-black text-white hover:bg-white/20 transition"
+                        disabled={saving === 'reset-circuit'}
+                        onClick={() => void resetCircuitBreaker()}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3.5 py-2 text-xs font-black text-white hover:bg-white/20 disabled:opacity-40 transition cursor-pointer"
                     >
                         <ShieldCheck size={14} className="text-emerald-400" />
                         إعادة ضبط الدائرة
@@ -358,30 +356,39 @@ export function AiAdminPage() {
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-slate-400">كمون استجابة Gemini</span>
                         <span className="flex h-2.5 w-2.5 relative">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                            <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${geminiLatency !== null ? 'bg-emerald-500' : 'bg-slate-500'}`}></span>
                         </span>
                     </div>
-                    <div className="mt-2 text-2xl font-black text-emerald-400">{geminiLatency} ms</div>
-                    <div className="text-[11px] text-slate-400 font-bold mt-1">Ultra Low Latency</div>
+                    <div data-testid="gemini-latency-value" className="mt-2 text-2xl font-black text-emerald-400">
+                        {geminiLatency !== null ? `${geminiLatency} ms` : '—'}
+                    </div>
+                    <div className="text-[11px] text-slate-400 font-bold mt-1">
+                        {geminiLatency !== null ? 'قياس فحص مباشر' : 'لم يُجرَ فحص بعد'}
+                    </div>
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <span className="text-xs font-bold text-slate-400">حالة دائرة الأعطال</span>
-                    <div className="mt-2 text-lg font-black text-emerald-300">مغلقة ومستقرة</div>
-                    <div className="text-[11px] text-slate-400 font-bold mt-1">Circuit Closed (0% drops)</div>
+                    <div className={`mt-2 text-lg font-black ${telemetry.openCount > 0 ? 'text-amber-300' : 'text-emerald-300'}`}>
+                        {telemetry.openCount > 0 ? `مفتوحة (${telemetry.openCount})` : 'مغلقة ومستقرة'}
+                    </div>
+                    <div className="text-[11px] text-slate-400 font-bold mt-1">
+                        {telemetry.openCount > 0 ? 'Circuit Open' : 'Circuit Closed'}
+                    </div>
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <span className="text-xs font-bold text-slate-400">معدل التوفر الشهري</span>
-                    <div className="mt-2 text-2xl font-black text-indigo-300">99.98%</div>
-                    <div className="text-[11px] text-slate-400 font-bold mt-1">Enterprise SLA High</div>
+                    <span className="text-xs font-bold text-slate-400">معدل نجاح آخر 24 ساعة</span>
+                    <div className="mt-2 text-2xl font-black text-indigo-300">{telemetry.availability}</div>
+                    <div className="text-[11px] text-slate-400 font-bold mt-1">
+                        {telemetry.total24h > 0 ? `${telemetry.total24h} طلب · ${telemetry.errors24h} أخطاء` : 'لا توجد طلبات خلال 24 ساعة'}
+                    </div>
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <span className="text-xs font-bold text-slate-400">سلسلة الـ Fallback</span>
-                    <div className="mt-2 text-base font-black text-slate-200">Gemini → OpenAI</div>
-                    <div className="text-[11px] text-slate-400 font-bold mt-1">تلقائي بدون انقطاع</div>
+                    <div className="mt-2 text-base font-black text-slate-200 truncate" title={telemetry.chain}>{telemetry.chain}</div>
+                    <div className="text-[11px] text-slate-400 font-bold mt-1">حسب ترتيب الأولوية المفعلة</div>
                 </div>
             </div>
         </section>

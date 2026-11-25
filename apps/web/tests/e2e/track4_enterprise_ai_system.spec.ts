@@ -143,6 +143,91 @@ async function setupTrack4Mocks(page: Page, user = adminUser) {
   await page.route('**/api/v1/ai/admin/interactions**', (route) =>
     json(route, { items: [], total: 0, page: 1, limit: 50, totalPages: 1 })
   );
+  await page.route('**/api/v1/ai/admin/school-quotas', (route) =>
+    json(route, {
+      items: [
+        {
+          id: 'sch-01',
+          name: 'مدارس الرياض النموذجية الأهلية',
+          tier: 'enterprise',
+          tokenLimit: 500000,
+          tokensUsed: 142300,
+          pdfExamLimit: 250,
+          pdfExamsUsed: 42,
+          voiceMinutesLimit: 300,
+          voiceMinutesUsed: 68,
+          whiteboardEnabled: true,
+          lastResetAt: null,
+          updatedAt: '2026-11-22T08:00:00Z',
+        },
+        {
+          id: 'sch-02',
+          name: 'مدارس نجد المتطورة',
+          tier: 'pro',
+          tokenLimit: 200000,
+          tokensUsed: 175000,
+          pdfExamLimit: 100,
+          pdfExamsUsed: 88,
+          voiceMinutesLimit: 120,
+          voiceMinutesUsed: 105,
+          whiteboardEnabled: true,
+          lastResetAt: null,
+          updatedAt: '2026-11-22T08:00:00Z',
+        },
+        {
+          id: 'sch-03',
+          name: 'مجمع الرواد التعليمي الدولي',
+          tier: 'basic',
+          tokenLimit: 75000,
+          tokensUsed: 12000,
+          pdfExamLimit: 30,
+          pdfExamsUsed: 4,
+          voiceMinutesLimit: 40,
+          voiceMinutesUsed: 9,
+          whiteboardEnabled: false,
+          lastResetAt: null,
+          updatedAt: '2026-11-22T08:00:00Z',
+        },
+      ],
+    })
+  );
+  await page.route('**/api/v1/ai/admin/school-quotas/*/reset', (route) => {
+    const parts = route.request().url().split('/');
+    const id = parts[parts.length - 2] || 'sch-01';
+    return json(route, {
+      quota: {
+        id,
+        name: 'مدارس الرياض النموذجية الأهلية',
+        tier: 'enterprise',
+        tokenLimit: 500000,
+        tokensUsed: 0,
+        pdfExamLimit: 250,
+        pdfExamsUsed: 0,
+        voiceMinutesLimit: 300,
+        voiceMinutesUsed: 0,
+        whiteboardEnabled: true,
+        lastResetAt: '2026-11-25T10:00:00Z',
+        updatedAt: '2026-11-25T10:00:00Z',
+      },
+    });
+  });
+  await page.route('**/api/v1/ai/admin/circuit-breakers/reset', (route) =>
+    json(route, {
+      items: [
+        { provider: 'gemini', enabled: true, model: 'gemini-2.5-flash', baseUrl: '', priority: 1, maxOutputTokens: 2048, revision: 1, secretConfigured: true, health: { consecutiveFailures: 0, openUntil: null, lastError: '' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+      ],
+    })
+  );
+  await page.route('**/api/v1/ai/admin/providers/gemini/test', (route) =>
+    json(route, {
+      result: {
+        text: 'OK',
+        provider: 'gemini',
+        model: 'gemini-2.5-flash',
+        usage: { inputTokens: 4, outputTokens: 2, totalTokens: 6, cachedTokens: 0, estimated: false },
+      },
+    })
+  );
 }
 
 test.describe('Track 4 - Feature 21: AI Exam Generator Modal (Prompt-based)', () => {
@@ -624,15 +709,25 @@ test.describe('Track 4 - Feature 28: AI Admin Provider Management & Failover', (
 
   test('T4.F28.4 - [Tier 1] performs latency ping test and measures roundtrip response time', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    const pingBtn = page.getByRole('button', { name: /فحص الاستجابة/i });
-    if (await pingBtn.isVisible()) {
-      await pingBtn.click();
-    }
+    const pingBtn = page.getByTestId('btn-ping-gemini');
+    await expect(pingBtn).toBeVisible();
+    await pingBtn.click();
+    await expect(page.getByTestId('gemini-latency-value')).toHaveText(/\d+\s*ms/);
   });
 
-  test('T4.F28.5 - [Tier 1] displays response latency badge in milliseconds', async ({ page }) => {
+  test('T4.F28.5 - [Tier 1] displays measured response latency badge and real error on ping failure', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByText(/185\s*ms/)).toBeVisible();
+    await expect(page.getByTestId('gemini-latency-value')).toHaveText('—');
+    await page.getByTestId('btn-ping-gemini').click();
+    await expect(page.getByTestId('gemini-latency-value')).toHaveText(/\d+\s*ms/);
+
+    await page.unroute('**/api/v1/ai/admin/providers/gemini/test');
+    await page.route('**/api/v1/ai/admin/providers/gemini/test', (r) =>
+      json(r, { message: 'AI provider unavailable' }, 503)
+    );
+    await page.getByTestId('btn-ping-gemini').click();
+    await expect(page.getByRole('alert')).toContainText('AI provider unavailable');
+    await expect(page.getByTestId('gemini-latency-value')).toHaveText('—');
   });
 
   // Tier 2: Boundary & Corner Cases (5 tests)
@@ -700,15 +795,19 @@ test.describe('Track 4 - Feature 29: School B2B AI Quota Allocation & Checks', (
 
   test('T4.F29.3 - [Tier 1] renders school enterprise, pro, and basic tier badges', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
-    await expect(page.getByText('enterprise').first()).toBeVisible();
+    await expect(page.getByText('مؤسسي Enterprise').first()).toBeVisible();
+    await expect(page.getByText('متقدم Pro').first()).toBeVisible();
+    await expect(page.getByText('أساسي Basic').first()).toBeVisible();
   });
 
-  test('T4.F29.4 - [Tier 1] resets school quota consumption with confirmation dialog', async ({ page }) => {
+  test('T4.F29.4 - [Tier 1] resets school quota consumption via backend endpoint', async ({ page }) => {
     await page.goto('/admin-dashboard/ai');
+    const resetReq = page.waitForRequest((req) => req.url().includes('/api/v1/ai/admin/school-quotas/') && req.url().endsWith('/reset') && req.method() === 'POST');
     const resetBtn = page.getByRole('button', { name: /تصفير الاستهلاك/i }).first();
-    if (await resetBtn.isVisible()) {
-      await resetBtn.click();
-    }
+    await resetBtn.click();
+    const req = await resetReq;
+    expect(req.headers()['x-csrf-token']).toBe('csrf-t4');
+    await expect(page.getByText(/تم تصفير استهلاك الذكاء الاصطناعي/)).toBeVisible();
   });
 
   test('T4.F29.5 - [Tier 1] backend enforces 429 quota exhaustion when quota reached', async ({ page }) => {

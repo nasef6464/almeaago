@@ -52,6 +52,7 @@ func New(service *orgapp.Service, auth Authenticator, inquiryService ...*orgapp.
 	r.Delete("/{schoolId}/classes/{classId}", h.archiveClass)
 
 	r.Get("/{schoolId}/roster", h.roster)
+	r.Post("/{schoolId}/students", h.addStudent)
 
 	r.Put("/{schoolId}/memberships", h.upsertMembership)
 	r.Get("/{schoolId}/directors", h.listDirectors)
@@ -63,13 +64,14 @@ func New(service *orgapp.Service, auth Authenticator, inquiryService ...*orgapp.
 }
 
 type schoolResponse struct {
-	ID        string          `json:"id"`
-	Code      string          `json:"code"`
-	Name      string          `json:"name"`
-	Status    string          `json:"status"`
-	Metadata  json.RawMessage `json:"metadata"`
-	CreatedAt string          `json:"createdAt"`
-	UpdatedAt string          `json:"updatedAt"`
+	ID        string                `json:"id"`
+	Code      string                `json:"code"`
+	Name      string                `json:"name"`
+	Status    string                `json:"status"`
+	Metadata  json.RawMessage       `json:"metadata"`
+	Stats     orgdomain.SchoolStats `json:"stats"`
+	CreatedAt string                `json:"createdAt"`
+	UpdatedAt string                `json:"updatedAt"`
 }
 
 type classResponse struct {
@@ -294,6 +296,53 @@ func (h *Handler) roster(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) addStudent(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authenticate(w, r, true)
+	if !ok {
+		return
+	}
+	var payload struct {
+		Name     string `json:"name"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		ClassID  string `json:"classId"`
+	}
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+	result, err := h.service.AdminAddStudent(
+		r.Context(),
+		auth.User,
+		chi.URLParam(r, "schoolId"),
+		orgdomain.DirectorStudentCreate{
+			Name:     payload.Name,
+			Email:    payload.Email,
+			Password: payload.Password,
+			ClassID:  payload.ClassID,
+		},
+	)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	status := http.StatusOK
+	if result.Created {
+		status = http.StatusCreated
+	}
+	writeJSON(w, status, map[string]any{
+		"student": map[string]any{
+			"studentId": result.Student.StudentID,
+			"name":      result.Student.Name,
+			"email":     result.Student.Email,
+			"phone":     result.Student.Phone,
+			"isActive":  result.Student.Active,
+			"classId":   result.Student.ClassID,
+			"className": result.Student.ClassName,
+		},
+		"created": result.Created,
+	})
+}
+
 func (h *Handler) authenticate(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -395,9 +444,14 @@ func pagination(page, limit, total int) map[string]int {
 }
 
 func presentSchool(school orgdomain.School) schoolResponse {
+	stats := school.Stats
+	if stats.ContractStatus == "" {
+		stats.ContractStatus = "none"
+	}
 	return schoolResponse{
 		ID: school.ID, Code: school.Code, Name: school.Name, Status: string(school.Status),
-		Metadata: school.Metadata, CreatedAt: school.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		Metadata: school.Metadata, Stats: stats,
+		CreatedAt: school.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt: school.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 	}
 }

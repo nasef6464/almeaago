@@ -242,6 +242,20 @@ test.describe('School Complete Creation & Lifecycle User Journey', () => {
       json(r, { classes: initialClasses, pagination: { page: 1, limit: 100, total: initialClasses.length, totalPages: 1 } })
     );
 
+    // School Roster & Assignments (for Admin SchoolsAdminPage)
+    await page.route(/\/api\/v1\/schools\/sch-dar-01\/roster/, (r) =>
+      json(r, { members: [], pagination: { page: 1, limit: 100, total: 0, totalPages: 1 } })
+    );
+    await page.route(/\/api\/v1\/schools\/sch-dar-01\/assignments/, (r) =>
+      json(r, { assignments, pagination: { page: 1, limit: 50, total: assignments.length, totalPages: 1 } })
+    );
+    await page.route(/\/api\/v1\/commerce\/products/, (r) =>
+      json(r, { items: [], page: 1, limit: 50, hasMore: false })
+    );
+    await page.route(/\/api\/v1\/commerce\/admin\/access-codes/, (r) =>
+      json(r, { items: [], page: 1, limit: 100, hasMore: false })
+    );
+
     // School Directors endpoint
     await page.route(/\/api\/v1\/schools\/sch-dar-01\/directors(\/.*)?$/, async (route) => {
       if (route.request().method() === 'PUT') {

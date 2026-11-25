@@ -51,6 +51,18 @@ func (d dummyAIRepo) DailyUsage(context.Context, time.Time, string, string) (ai.
 func (d dummyAIRepo) UsageSummary(context.Context, time.Time) (ai.UsageSummary, error) {
 	return ai.UsageSummary{}, nil
 }
+func (d dummyAIRepo) ResetCircuitBreakers(context.Context, string) ([]ai.ProviderSetting, error) {
+	return []ai.ProviderSetting{}, nil
+}
+func (d dummyAIRepo) ListSchoolQuotas(context.Context) ([]ai.SchoolQuota, error) {
+	return []ai.SchoolQuota{}, nil
+}
+func (d dummyAIRepo) ResetSchoolQuota(_ context.Context, _ string, schoolID string) (ai.SchoolQuota, error) {
+	return ai.SchoolQuota{ID: schoolID, Tier: "basic"}, nil
+}
+func (d dummyAIRepo) UpdateSchoolQuota(_ context.Context, _ string, schoolID string, write ai.SchoolQuotaWrite) (ai.SchoolQuota, error) {
+	return ai.SchoolQuota{ID: schoolID, Tier: write.Tier}, nil
+}
 
 type staticAuthStub struct {
 	user identity.User

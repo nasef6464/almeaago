@@ -42,6 +42,7 @@ import {
 } from '../utils/importRowParsing';
 import {
   organizationsClient,
+  OrganizationsApiError,
   type SchoolSummary,
   type SchoolClass,
   type DirectorStudent,
@@ -50,6 +51,8 @@ import {
   type SchoolContractData,
   type SchoolDirectorRecord,
 } from '../api/organizations-client';
+import { commerceClient } from '../../commerce/api/commerce-client';
+import type { CommerceAccessCode, CommerceProduct } from '../../commerce/api/commerce-types';
 import { Skeleton, SkeletonTable, SkeletonMetricCard } from '../../../components/ui/Skeleton';
 
 export const PACKAGE_TIERS = [
@@ -150,14 +153,6 @@ interface NewSchoolForm {
   initialClass: string;
 }
 
-interface AccessCodeDraft {
-  code: string;
-  packageTitle: string;
-  expiresAt: string;
-  usedBy?: string;
-  status: 'active' | 'used' | 'expired';
-}
-
 export function SchoolsAdminPage() {
   const { user, getCsrfToken } = useAuth();
 
@@ -179,6 +174,7 @@ export function SchoolsAdminPage() {
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [students, setStudents] = useState<DirectorStudent[]>([]);
   const [teachers, setTeachers] = useState<DirectorTeacher[]>([]);
+  const [supervisorsCount, setSupervisorsCount] = useState<number>(0);
   const [assignments, setAssignments] = useState<DirectorAssignment[]>([]);
   const [contractData, setContractData] = useState<SchoolContractData | null>(null);
   const [contractModules, setContractModules] = useState<string[]>([]);
@@ -226,12 +222,13 @@ export function SchoolsAdminPage() {
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [newStudentForm, setNewStudentForm] = useState({ name: '', email: '', password: '', classId: '' });
 
-  // Mock Access Codes for B2B Package Tab Parity
-  const [accessCodes, setAccessCodes] = useState<AccessCodeDraft[]>([
-    { code: 'SCH-DEMO-PKG-01', packageTitle: 'باقة القدرات العامة للمدارس', expiresAt: '2027-06-30', status: 'active' },
-    { code: 'SCH-DEMO-PKG-02', packageTitle: 'باقة التحصيلي العلمي الشامل', expiresAt: '2027-06-30', status: 'active' },
-    { code: 'SCH-DEMO-PKG-03', packageTitle: 'باقة اختبارات نافس الوطنية', expiresAt: '2027-06-30', status: 'used', usedBy: 'أحمد السعيد' },
-  ]);
+  // Persisted Commerce B2B Packages & Access Codes
+  const [packageProducts, setPackageProducts] = useState<CommerceProduct[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [newCodeMaxUses, setNewCodeMaxUses] = useState<number>(50);
+  const [newCodeDurationDays, setNewCodeDurationDays] = useState<number>(365);
+  const [codeActionBusy, setCodeActionBusy] = useState<boolean>(false);
+  const [accessCodes, setAccessCodes] = useState<CommerceAccessCode[]>([]);
 
   // Noor Bulk Roster Import State
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
@@ -288,6 +285,7 @@ export function SchoolsAdminPage() {
 
       const existingClassMap = new Map<string, string>();
       classes.forEach((c) => existingClassMap.set(c.name.trim(), c.id));
+      let fallbackClassId = selectedClassId || classes[0]?.id || '';
 
       for (const row of importRows) {
         let classId = '';
@@ -302,27 +300,31 @@ export function SchoolsAdminPage() {
               classId = res.class.id;
               existingClassMap.set(cName, classId);
             } catch {
-              // ignore
+              classId = fallbackClassId;
             }
           }
+        } else {
+          classId = fallbackClassId;
+        }
+        if (!classId) {
+          const res = await organizationsClient.createClass(selectedSchool.id, { name: 'الصف الافتراضي' }, csrf);
+          classId = res.class.id;
+          fallbackClassId = classId;
+          existingClassMap.set('الصف الافتراضي', classId);
         }
 
         const pwd = row.password && row.password.trim() ? row.password.trim() : `Almeaa@${Math.floor(1000 + Math.random() * 9000)}`;
-        try {
-          await organizationsClient.addDirectorStudent(selectedSchool.id, {
-            name: row.name,
-            email: row.email,
-            password: pwd,
-            classId,
-          }, csrf);
-        } catch {
-          // ignore duplicate in backend
-        }
+        await organizationsClient.addSchoolStudent(selectedSchool.id, {
+          name: row.name,
+          email: row.email,
+          password: pwd,
+          classId,
+        }, csrf);
         createdCreds.push({
           name: row.name,
           email: row.email,
           password: pwd,
-          className: row.className,
+          className: row.className || 'الصف الافتراضي',
         });
       }
 
@@ -391,37 +393,99 @@ export function SchoolsAdminPage() {
     try {
       setWorkspaceLoading(true);
       setError(null);
+      setContractError(null);
+      setContractNotice(null);
       setSelectedSchool(school);
       setRenameValue(school.name);
 
-      const [classesRes, studentsRes, teachersRes, contractRes, directorsRes] = await Promise.allSettled([
+      const [
+        classesRes,
+        studentRosterRes,
+        teacherRosterRes,
+        supervisorRosterRes,
+        assignmentsRes,
+        contractRes,
+        directorsRes,
+        productsRes,
+        accessCodesRes,
+      ] = await Promise.allSettled([
         organizationsClient.classes(school.id),
-        organizationsClient.directorStudents(school.id),
-        organizationsClient.directorTeachers(school.id),
+        organizationsClient.roster(school.id, { role: 'student', limit: 100 }),
+        organizationsClient.roster(school.id, { role: 'teacher', limit: 100 }),
+        organizationsClient.roster(school.id, { role: 'supervisor', limit: 100 }),
+        organizationsClient.assignments(school.id),
         organizationsClient.contract(school.id),
         organizationsClient.directors(school.id),
+        commerceClient.products(1, 50, 'package'),
+        commerceClient.accessCodes(1, 100, school.id),
       ]);
 
-      if (classesRes.status === 'fulfilled' && classesRes.value.classes) {
-        setClasses(classesRes.value.classes);
-        if (classesRes.value.classes.length > 0) {
-          setSelectedClassId(classesRes.value.classes[0].id);
-        }
+      const loadedClasses =
+        classesRes.status === 'fulfilled' && Array.isArray(classesRes.value.classes)
+          ? classesRes.value.classes
+          : [];
+      setClasses(loadedClasses);
+      if (loadedClasses.length > 0) {
+        setSelectedClassId((prev) => (prev && loadedClasses.some((c) => c.id === prev) ? prev : loadedClasses[0].id));
       } else {
-        setClasses([]);
+        setSelectedClassId('');
       }
+      const classNameMap = new Map(loadedClasses.map((c) => [c.id, c.name]));
 
-      if (studentsRes.status === 'fulfilled' && studentsRes.value.students) {
-        setStudents(studentsRes.value.students);
+      if (studentRosterRes.status === 'fulfilled' && Array.isArray(studentRosterRes.value.members)) {
+        setStudents(
+          studentRosterRes.value.members.map((m) => {
+            const firstClassId = m.classIds?.[0] || null;
+            return {
+              studentId: m.userId,
+              name: m.name,
+              email: m.email,
+              phone: '',
+              isActive: m.status === 'active',
+              classId: firstClassId,
+              className: firstClassId ? classNameMap.get(firstClassId) || null : null,
+            };
+          }),
+        );
       } else {
         setStudents([]);
       }
 
-      if (teachersRes.status === 'fulfilled') {
-        setTeachers(teachersRes.value.teachers || []);
-        setAssignments(teachersRes.value.assignments || []);
+      if (teacherRosterRes.status === 'fulfilled' && Array.isArray(teacherRosterRes.value.members)) {
+        setTeachers(
+          teacherRosterRes.value.members.map((m) => ({
+            teacherId: m.userId,
+            name: m.name,
+            email: m.email,
+            isActive: m.status === 'active',
+          })),
+        );
       } else {
         setTeachers([]);
+      }
+
+      if (supervisorRosterRes.status === 'fulfilled') {
+        setSupervisorsCount(
+          supervisorRosterRes.value.pagination?.total ?? supervisorRosterRes.value.members?.length ?? 0,
+        );
+      } else {
+        setSupervisorsCount(school.stats?.supervisorsCount ?? 0);
+      }
+
+      if (assignmentsRes.status === 'fulfilled' && Array.isArray(assignmentsRes.value.assignments)) {
+        setAssignments(
+          assignmentsRes.value.assignments.map((raw) => {
+            const a = raw as Record<string, unknown>;
+            return {
+              assignmentId: String(a.assignmentId || a.id || ''),
+              teacherId: String(a.teacherId || ''),
+              classId: String(a.classId || ''),
+              subjectId: String(a.subjectId || ''),
+              status: String(a.status || 'active'),
+            };
+          }),
+        );
+      } else {
         setAssignments([]);
       }
 
@@ -429,6 +493,22 @@ export function SchoolsAdminPage() {
         setDirectorsList(directorsRes.value.directors);
       } else {
         setDirectorsList([]);
+      }
+
+      if (productsRes.status === 'fulfilled' && Array.isArray(productsRes.value.items)) {
+        const pkgItems = productsRes.value.items.filter((p) => p.productType === 'package');
+        setPackageProducts(pkgItems);
+        const defaultPaid = pkgItems.find((p) => p.status === 'active' && p.accessMode === 'paid') || pkgItems[0];
+        setSelectedProductId((prev) => (prev && pkgItems.some((p) => p.id === prev) ? prev : defaultPaid?.id || ''));
+      } else {
+        setPackageProducts([]);
+        setSelectedProductId('');
+      }
+
+      if (accessCodesRes.status === 'fulfilled' && Array.isArray(accessCodesRes.value.items)) {
+        setAccessCodes(accessCodesRes.value.items);
+      } else {
+        setAccessCodes([]);
       }
 
       if (contractRes.status === 'fulfilled' && contractRes.value.contract) {
@@ -444,17 +524,25 @@ export function SchoolsAdminPage() {
         setContractMaxSeats(typeof meta.maxSeats === 'number' ? meta.maxSeats : 500);
         setContractMaxClasses(typeof meta.maxClasses === 'number' ? meta.maxClasses : 15);
         setContractTier(meta.packageTier || 'tier_excellence');
-      } else {
-        setContractData(null);
-        setContractModules(['SCHOOL_CORE', 'QUESTION_BANK', 'SCHOOL_ASSESSMENTS', 'PATHS_AND_COURSES', 'INTERACTIVE_VIDEO', 'SMART_CLASSROOM']);
-        setContractStatus('active');
-        setContractValidFrom('');
-        setContractValidUntil('');
-        setContractAllowedPaths(['qudurat_general', 'tahsili_science']);
-        setContractLogoUrl('');
-        setContractMaxSeats(500);
-        setContractMaxClasses(15);
-        setContractTier('tier_excellence');
+      } else if (contractRes.status === 'rejected') {
+        const isNotFound = contractRes.reason instanceof OrganizationsApiError && contractRes.reason.status === 404;
+        if (isNotFound) {
+          setContractData(null);
+          setContractModules(['SCHOOL_CORE']);
+          setContractStatus('active');
+          setContractValidFrom('');
+          setContractValidUntil('');
+          setContractAllowedPaths(['qudurat_general']);
+          setContractLogoUrl('');
+          setContractMaxSeats(200);
+          setContractMaxClasses(5);
+          setContractTier('tier_foundation');
+          setContractNotice('لا يوجد عقد محفوظ بعد. سيُنشأ عند الحفظ الأول.');
+        } else {
+          setContractData(null);
+          setContractModules([]);
+          setContractError('تعذر قراءة العقد من الخادم. لم يتم تغيير أي بيانات محليًا.');
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'تعذر تحميل بيانات المدرسة';
@@ -464,30 +552,34 @@ export function SchoolsAdminPage() {
     }
   };
 
-  // Portfolio Statistics Helper
+  // Portfolio Statistics Helper (derived strictly from backend school.stats)
   const getSchoolStats = (school: SchoolSummary): SchoolPortfolioStats => {
-    const hasActiveContract = school.status === 'active';
-    const isDemo = school.code === 'SCH-DEMO-01';
-    const classesCount = isDemo ? (classes.length || 1) : 0;
-    const studentsCount = isDemo ? (students.length || 24) : 0;
-    const teachersCount = isDemo ? (teachers.length || 3) : 0;
-    const supervisorsCount = isDemo ? 1 : 0;
-    const packagesCount = isDemo ? 2 : 0;
+    const raw = school.stats;
+    const classesCount = raw?.classesCount ?? 0;
+    const studentsCount = raw?.studentsCount ?? 0;
+    const teachersCount = raw?.teachersCount ?? 0;
+    const supervisorsCountForSchool = raw?.supervisorsCount ?? 0;
+    const packagesCount = raw?.activePackagesCount ?? 0;
+    const activeAccessCodesCount = raw?.activeAccessCodesCount ?? 0;
+    const hasActiveContract = raw?.contractStatus === 'active';
 
-    let readinessScore = 0;
-    if (classesCount > 0) readinessScore += 25;
-    if (studentsCount > 0) readinessScore += 25;
-    if (teachersCount > 0 || supervisorsCount > 0) readinessScore += 25;
-    if (hasActiveContract) readinessScore += 25;
+    const checks = [
+      classesCount > 0,
+      studentsCount > 0,
+      teachersCount > 0 || supervisorsCountForSchool > 0,
+      hasActiveContract || packagesCount > 0,
+      activeAccessCodesCount > 0,
+    ];
+    const readinessScore = checks.filter(Boolean).length * 20;
 
     const readinessStatus: 'ready' | 'near_ready' | 'needs_setup' =
-      readinessScore >= 75 ? 'ready' : readinessScore >= 50 ? 'near_ready' : 'needs_setup';
+      readinessScore >= 80 ? 'ready' : readinessScore >= 40 ? 'near_ready' : 'needs_setup';
 
     return {
       classesCount,
       studentsCount,
       teachersCount,
-      supervisorsCount,
+      supervisorsCount: supervisorsCountForSchool,
       packagesCount,
       readinessScore,
       readinessStatus,
@@ -508,7 +600,7 @@ export function SchoolsAdminPage() {
       const stats = getSchoolStats(s);
       return stats.readinessStatus === statusFilter;
     });
-  }, [schools, search, statusFilter, classes.length, students.length, teachers.length]);
+  }, [schools, search, statusFilter]);
 
   // Overall Metrics
   const portfolioSummary = useMemo(() => {
@@ -536,7 +628,7 @@ export function SchoolsAdminPage() {
       totalStudents,
       totalClasses,
     };
-  }, [schools, classes.length, students.length, teachers.length]);
+  }, [schools]);
 
   // Handlers
   const handleSelectPackageTier = (tierId: string) => {
@@ -565,7 +657,11 @@ export function SchoolsAdminPage() {
   };
 
   const handleSaveContract = async () => {
-    if (!selectedSchool) return;
+    if (!selectedSchool || contractError) return;
+    if (contractValidFrom && contractValidUntil && contractValidUntil < contractValidFrom) {
+      setContractError('تاريخ انتهاء العقد يجب ألا يسبق تاريخ البداية.');
+      return;
+    }
     try {
       setContractSaving(true);
       setContractError(null);
@@ -766,40 +862,169 @@ export function SchoolsAdminPage() {
     if (!selectedSchool || !newStudentForm.name.trim() || !newStudentForm.email.trim()) return;
     try {
       setError(null);
+      const targetClassId = newStudentForm.classId || selectedClassId || (classes[0]?.id || '');
+      if (!targetClassId) {
+        setError('يرجى إنشاء فصل دراسي أولًا قبل إضافة طالب.');
+        return;
+      }
       const csrf = await getCsrfToken();
-      await organizationsClient.addDirectorStudent(
+      await organizationsClient.addSchoolStudent(
         selectedSchool.id,
         {
           name: newStudentForm.name.trim(),
           email: newStudentForm.email.trim(),
           password: newStudentForm.password || 'Student@123456',
-          classId: newStudentForm.classId || selectedClassId || (classes[0]?.id || ''),
+          classId: targetClassId,
         },
         csrf,
       );
       setNotice(`تمت إضافة الطالب «${newStudentForm.name.trim()}» بنجاح.`);
       setIsAddStudentOpen(false);
       setNewStudentForm({ name: '', email: '', password: '', classId: '' });
-      const studentsRes = await organizationsClient.directorStudents(selectedSchool.id);
-      if (studentsRes && studentsRes.students) {
-        setStudents(studentsRes.students);
+      const classNameMap = new Map(classes.map((c) => [c.id, c.name]));
+      const rosterRes = await organizationsClient.roster(selectedSchool.id, { role: 'student', limit: 100 });
+      if (rosterRes && Array.isArray(rosterRes.members)) {
+        setStudents(
+          rosterRes.members.map((m) => {
+            const firstClassId = m.classIds?.[0] || null;
+            return {
+              studentId: m.userId,
+              name: m.name,
+              email: m.email,
+              phone: '',
+              isActive: m.status === 'active',
+              classId: firstClassId,
+              className: firstClassId ? classNameMap.get(firstClassId) || null : null,
+            };
+          }),
+        );
       }
+      void loadSchools();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'تعذر إضافة الطالب';
       setError(msg);
     }
   };
 
-  const handleGenerateAccessCode = () => {
-    const newCode: AccessCodeDraft = {
-      code: `SCH-${selectedSchool?.code || 'AC'}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
-      packageTitle: 'باقة تدريب المدرسة الشاملة',
-      expiresAt: '2027-12-31',
-      status: 'active',
-    };
-    setAccessCodes((prev) => [newCode, ...prev]);
-    setNotice(`تم توليد كود وصول جديد: ${newCode.code}`);
+  const handleGenerateAccessCode = async () => {
+    if (!selectedSchool) return;
+    if (!selectedProductId) {
+      setError('يلزم اختيار باقة مدفوعة نشطة قبل توليد كود وصول جديد.');
+      return;
+    }
+    try {
+      setCodeActionBusy(true);
+      setError(null);
+      setNotice(null);
+      const csrf = await getCsrfToken();
+      const rawPrefix = (selectedSchool.code || 'SCH').replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase() || 'SCH';
+      const suffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+      const code = `${rawPrefix}-${suffix}`;
+      const maxUses = Math.max(1, Math.min(10000, Number(newCodeMaxUses) || 50));
+      const days = Math.max(1, Math.min(3650, Number(newCodeDurationDays) || 365));
+      const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+
+      const res = await commerceClient.createAccessCode(
+        {
+          code,
+          productId: selectedProductId,
+          schoolId: selectedSchool.id,
+          maxUses,
+          expiresAt,
+        },
+        csrf,
+      );
+      const updated = await commerceClient.accessCodes(1, 100, selectedSchool.id);
+      setAccessCodes(updated.items || (res?.accessCode ? [res.accessCode, ...accessCodes] : accessCodes));
+      setNotice(`تم توليد كود وصول جديد: ${res?.accessCode?.code || code}`);
+      void loadSchools();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'تعذر توليد كود الوصول';
+      setError(msg);
+    } finally {
+      setCodeActionBusy(false);
+    }
   };
+
+  const handleToggleAccessCodeStatus = async (row: CommerceAccessCode) => {
+    if (!selectedSchool) return;
+    const nextStatus = row.status === 'active' ? 'paused' : 'active';
+    try {
+      setCodeActionBusy(true);
+      setError(null);
+      const csrf = await getCsrfToken();
+      const res = await commerceClient.setAccessCodeStatus(row, nextStatus, csrf);
+      if (res?.accessCode) {
+        setAccessCodes((prev) => prev.map((c) => (c.id === row.id ? res.accessCode : c)));
+      }
+      setNotice(nextStatus === 'active' ? `تم تفعيل الكود ${row.code}` : `تم إيقاف الكود ${row.code} مؤقتًا`);
+      void loadSchools();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'تعذر تحديث حالة الكود';
+      setError(msg);
+    } finally {
+      setCodeActionBusy(false);
+    }
+  };
+
+  const handleExportAccessCodesCsv = () => {
+    if (!selectedSchool || accessCodes.length === 0) {
+      setError('لا توجد أكواد وصول مسجلة لتصديرها.');
+      return;
+    }
+    const productNameById = new Map(packageProducts.map((p) => [p.id, p.name]));
+    const esc = (v: string | number) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = ['الكود', 'الباقة', 'الاستخدامات', 'الحد الأقصى', 'تاريخ الانتهاء', 'الحالة'].map(esc).join(',');
+    const rows = accessCodes.map((c) =>
+      [
+        c.code,
+        productNameById.get(c.productId) || c.productId,
+        c.currentUses,
+        c.maxUses,
+        c.expiresAt ? c.expiresAt.slice(0, 10) : '',
+        c.status,
+      ]
+        .map(esc)
+        .join(','),
+    );
+    const csv = '\uFEFF' + [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `access-codes-${selectedSchool.code || 'school'}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setNotice('تم تنزيل كشف أكواد الوصول بصيغة CSV.');
+  };
+
+  const activeAccessCodesCount = useMemo(
+    () =>
+      accessCodes.filter(
+        (c) => c.status === 'active' && new Date(c.expiresAt).getTime() > Date.now() && c.currentUses < c.maxUses,
+      ).length,
+    [accessCodes],
+  );
+
+  const workspaceReadiness = useMemo(() => {
+    const hasContract = contractData?.status === 'active' || (selectedSchool?.stats?.activePackagesCount ?? 0) > 0;
+    const checks = [
+      classes.length > 0,
+      students.length > 0,
+      teachers.length > 0 || supervisorsCount > 0,
+      hasContract,
+      activeAccessCodesCount > 0,
+    ];
+    const done = checks.filter(Boolean).length;
+    return { done, total: checks.length, percent: done * 20 };
+  }, [classes.length, students.length, teachers.length, supervisorsCount, contractData?.status, selectedSchool?.stats?.activePackagesCount, activeAccessCodesCount]);
+
+  const paidPackageProducts = useMemo(
+    () => packageProducts.filter((p) => p.status === 'active' && p.accessMode === 'paid'),
+    [packageProducts],
+  );
 
   // Filtered Students for Class Tab
   const classStudents = useMemo(() => {
@@ -1190,11 +1415,23 @@ export function SchoolsAdminPage() {
               </div>
               <div className="p-2">
                 <span className="text-gray-400 font-bold">الأكواد النشطة: </span>
-                <span className="font-black text-gray-800">{accessCodes.length}</span>
+                <span className="font-black text-gray-800">{activeAccessCodesCount}</span>
               </div>
               <div className="p-2">
                 <span className="text-gray-400 font-bold">الجاهزية: </span>
-                <span className="font-black text-emerald-700">100% مكتمل</span>
+                <span
+                  className={`font-black ${
+                    workspaceReadiness.percent >= 80
+                      ? 'text-emerald-700'
+                      : workspaceReadiness.percent >= 40
+                        ? 'text-amber-700'
+                        : 'text-rose-700'
+                  }`}
+                >
+                  {workspaceReadiness.percent === 100
+                    ? '100% مكتمل'
+                    : `${workspaceReadiness.percent}% (${workspaceReadiness.done}/${workspaceReadiness.total})`}
+                </span>
               </div>
             </div>
           </div>
@@ -1308,7 +1545,9 @@ export function SchoolsAdminPage() {
                       <span>تراخيص B2B والأكواد</span>
                     </div>
                     <p className="mt-2 text-xs font-bold text-gray-600 leading-5">
-                      تم إصدار أكواد التفعيل لجميع مقاعد الطلاب، وصالحة للاستخدام المباشر.
+                      {accessCodes.length === 0
+                        ? 'لم يتم إصدار أكواد تفعيل لهذه المدرسة بعد.'
+                        : `إجمالي الأكواد: ${accessCodes.length} · النشطة: ${activeAccessCodesCount} · الاستخدامات المسجلة: ${accessCodes.reduce((sum, c) => sum + c.currentUses, 0)}`}
                     </p>
                   </div>
                 </div>
@@ -1448,30 +1687,80 @@ export function SchoolsAdminPage() {
           {/* ── Workspace Tab 3: Packages & Access Codes ── */}
           {activeTab === 'packages' && (
             <div className="space-y-6">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-                <div>
-                  <h2 className="text-lg font-black text-gray-900">باقات الوصول ورموز التفعيل (B2B Access Codes)</h2>
-                  <p className="text-xs font-bold text-gray-500">
-                    أكواد التفعيل المخصصة للمدرسة وربط المقاعد بالباقات التعليمية.
-                  </p>
+              <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-lg font-black text-gray-900">باقات الوصول ورموز التفعيل (B2B Access Codes)</h2>
+                    <p className="text-xs font-bold text-gray-500">
+                      أكواد التفعيل المخصصة للمدرسة وربط المقاعد بالباقات التعليمية المعتمدة.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleGenerateAccessCode()}
+                      disabled={codeActionBusy || paidPackageProducts.length === 0}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
+                    >
+                      <Key size={15} />
+                      <span>{codeActionBusy ? 'جاري التوليد...' : 'توليد كود وصول جديد'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExportAccessCodesCsv}
+                      disabled={accessCodes.length === 0}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
+                    >
+                      <Download size={15} />
+                      <span>تصدير Excel</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleGenerateAccessCode}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700"
-                  >
-                    <Key size={15} />
-                    <span>توليد كود وصول جديد</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNotice('تم تصدير كشف أكواد الوصول بصيغة CSV.')}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
-                  >
-                    <Download size={15} />
-                    <span>تصدير Excel</span>
-                  </button>
+
+                <div className="grid gap-3 sm:grid-cols-3 border-t border-gray-100 pt-4">
+                  <div>
+                    <label className="block text-[11px] font-black text-gray-600 mb-1">الباقة المدفوعة المرتبطة</label>
+                    <select
+                      aria-label="الباقة المدفوعة المرتبطة"
+                      value={selectedProductId}
+                      onChange={(e) => setSelectedProductId(e.target.value)}
+                      className="w-full rounded-xl border border-gray-200 bg-white p-2 text-xs font-bold"
+                    >
+                      {paidPackageProducts.length === 0 ? (
+                        <option value="">لا توجد باقات مدفوعة نشطة في التجارة</option>
+                      ) : (
+                        paidPackageProducts.map((pkg) => (
+                          <option key={pkg.id} value={pkg.id}>
+                            {pkg.name} ({pkg.code})
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-black text-gray-600 mb-1">عدد المقاعد لكل كود</label>
+                    <input
+                      aria-label="عدد المقاعد لكل كود"
+                      type="number"
+                      min={1}
+                      max={10000}
+                      value={newCodeMaxUses}
+                      onChange={(e) => setNewCodeMaxUses(Math.max(1, Number(e.target.value) || 1))}
+                      className="w-full rounded-xl border border-gray-200 p-2 text-xs font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-black text-gray-600 mb-1">مدة الصلاحية (أيام)</label>
+                    <input
+                      aria-label="مدة الصلاحية بالأيام"
+                      type="number"
+                      min={1}
+                      max={3650}
+                      value={newCodeDurationDays}
+                      onChange={(e) => setNewCodeDurationDays(Math.max(1, Number(e.target.value) || 1))}
+                      className="w-full rounded-xl border border-gray-200 p-2 text-xs font-bold"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1484,29 +1773,69 @@ export function SchoolsAdminPage() {
                         <th className="p-4">رمز التفعيل (Access Code)</th>
                         <th className="p-4">الباقة المشمولة</th>
                         <th className="p-4">تاريخ الصلاحية</th>
-                        <th className="p-4">المستفيد</th>
+                        <th className="p-4">الاستخدام</th>
                         <th className="p-4">الحالة</th>
+                        <th className="p-4">الإجراء</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 font-bold text-gray-700">
-                      {accessCodes.map((code, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50/50">
-                          <td className="p-4 font-mono font-black text-indigo-700">{code.code}</td>
-                          <td className="p-4">{code.packageTitle}</td>
-                          <td className="p-4 text-gray-500">{code.expiresAt}</td>
-                          <td className="p-4">{code.usedBy || '—'}</td>
-                          <td className="p-4">
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-[10px] font-black ${code.status === 'active'
-                                  ? 'bg-emerald-50 text-emerald-700'
-                                  : 'bg-gray-100 text-gray-600'
-                                }`}
-                            >
-                              {code.status === 'active' ? 'متاح للاستخدام' : 'مستخدم'}
-                            </span>
+                      {accessCodes.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="p-8 text-center text-gray-400">
+                            لا توجد أكواد وصول مسجلة لهذه المدرسة بعد. اختر باقة مدفوعة ثم اضغط «توليد كود وصول جديد».
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        accessCodes.map((code) => {
+                          const pkgName = packageProducts.find((p) => p.id === code.productId)?.name || code.productId;
+                          const expired = new Date(code.expiresAt).getTime() <= Date.now();
+                          return (
+                            <tr key={code.id} className="hover:bg-gray-50/50">
+                              <td className="p-4 font-mono font-black text-indigo-700">{code.code}</td>
+                              <td className="p-4">{pkgName}</td>
+                              <td className="p-4 text-gray-500">{code.expiresAt ? code.expiresAt.slice(0, 10) : '—'}</td>
+                              <td className="p-4">
+                                {code.currentUses} / {code.maxUses}
+                              </td>
+                              <td className="p-4">
+                                <span
+                                  className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                                    code.status === 'active' && !expired && code.currentUses < code.maxUses
+                                      ? 'bg-emerald-50 text-emerald-700'
+                                      : code.status === 'paused'
+                                        ? 'bg-amber-50 text-amber-800'
+                                        : 'bg-gray-100 text-gray-600'
+                                  }`}
+                                >
+                                  {expired
+                                    ? 'منتهي'
+                                    : code.currentUses >= code.maxUses
+                                      ? 'مكتمل الاستخدام'
+                                      : code.status === 'active'
+                                        ? 'متاح للاستخدام'
+                                        : code.status === 'paused'
+                                          ? 'موقوف مؤقتًا'
+                                          : 'مؤرشف'}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                {code.status !== 'archived' ? (
+                                  <button
+                                    type="button"
+                                    disabled={codeActionBusy}
+                                    onClick={() => void handleToggleAccessCodeStatus(code)}
+                                    className="rounded-lg border border-gray-200 px-2.5 py-1 text-[11px] font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                                  >
+                                    {code.status === 'active' ? 'إيقاف' : 'تفعيل'}
+                                  </button>
+                                ) : (
+                                  '—'
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1590,11 +1919,31 @@ export function SchoolsAdminPage() {
                   <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
                     <h3 className="text-sm font-black text-gray-800 mb-2">إسناد المواد والفصول</h3>
                     <p className="text-xs font-bold text-gray-500 mb-3">
-                      يمكن للمشرفين والمدير إسناد المعلمين للمواد والفصول عبر لوحة الإسناد الأكاديمي.
+                      إسنادات المعلمين المسجلة للمدرسة في قاعدة البيانات ({assignments.length}).
                     </p>
-                    <div className="rounded-xl border border-dashed border-gray-200 bg-white p-4 text-center text-xs font-bold text-gray-400">
-                      تم حفظ إسنادات الفصول بنجاح ومتوافقة مع قاعدة البيانات.
-                    </div>
+                    {assignments.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-gray-200 bg-white p-4 text-center text-xs font-bold text-gray-400">
+                        لا توجد إسنادات فصول مسجلة حاليًا.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {assignments.map((asg, idx) => {
+                          const teacherName = teachers.find((t) => t.teacherId === asg.teacherId)?.name || asg.teacherId;
+                          const className = classes.find((c) => c.id === asg.classId)?.name || asg.classId;
+                          return (
+                            <div key={asg.assignmentId || idx} className="flex items-center justify-between rounded-xl bg-white p-3 border border-gray-100">
+                              <div>
+                                <div className="font-black text-xs text-gray-800">{teacherName}</div>
+                                <div className="text-[10px] text-gray-500">{className}</div>
+                              </div>
+                              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-black text-indigo-700">
+                                {asg.status === 'active' ? 'نشط' : asg.status}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1706,7 +2055,7 @@ export function SchoolsAdminPage() {
                   <button
                     type="button"
                     onClick={handleSaveContract}
-                    disabled={contractSaving}
+                    disabled={contractSaving || Boolean(contractError)}
                     className="flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3 text-sm font-black text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 disabled:opacity-50 transition-all cursor-pointer"
                   >
                     <Sparkles size={18} />

@@ -787,16 +787,50 @@ test.describe('Track 4: Enterprise AI System (Generator, Whiteboard & Admin Quot
         ],
       })
     );
+    await page.route('**/api/v1/ai/admin/school-quotas', (r) =>
+      json(r, {
+        items: [
+          {
+            id: 'sch-01',
+            name: 'مدارس الرياض النموذجية الأهلية',
+            tier: 'enterprise',
+            tokenLimit: 500000,
+            tokensUsed: 142300,
+            pdfExamLimit: 250,
+            pdfExamsUsed: 42,
+            voiceMinutesLimit: 300,
+            voiceMinutesUsed: 68,
+            whiteboardEnabled: true,
+            lastResetAt: null,
+            updatedAt: '2026-11-22T08:00:00Z',
+          },
+          {
+            id: 'sch-03',
+            name: 'مجمع الرواد التعليمي الدولي',
+            tier: 'basic',
+            tokenLimit: 75000,
+            tokensUsed: 12000,
+            pdfExamLimit: 30,
+            pdfExamsUsed: 4,
+            voiceMinutesLimit: 40,
+            voiceMinutesUsed: 9,
+            whiteboardEnabled: false,
+            lastResetAt: null,
+            updatedAt: '2026-11-22T08:00:00Z',
+          },
+        ],
+      })
+    );
 
     await page.goto('/admin-dashboard/ai');
     await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();
     await expect(page.getByText('Gemini', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('DeepSeek')).toBeVisible();
-    await expect(page.getByText('OpenRouter')).toBeVisible();
-    await expect(page.getByText('Qwen')).toBeVisible();
-    await expect(page.getByText('OpenAI', { exact: true })).toBeVisible();
-    await expect(page.getByText('Ollama')).toBeVisible();
-    await expect(page.getByText('LM Studio')).toBeVisible();
+    await expect(page.getByText('DeepSeek', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('OpenRouter', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Qwen', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('OpenAI', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Ollama', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('LM Studio', { exact: true }).first()).toBeVisible();
 
     // Check School B2B AI Quota Table
     await expect(page.getByText('مدارس الرياض النموذجية الأهلية')).toBeVisible();
@@ -859,6 +893,7 @@ test.describe('Tier 3: Cross-Feature Interactions', () => {
         },
       })
     );
+    await page.route('**/api/v1/ai/admin/school-quotas', (r) => json(r, { items: [] }));
 
     await page.goto('/admin-dashboard/ai');
     await expect(page.getByRole('heading', { name: /إدارة المساعد الذكي|منظومة الذكاء الاصطناعي/i })).toBeVisible();

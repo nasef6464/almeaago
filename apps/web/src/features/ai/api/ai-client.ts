@@ -9,6 +9,8 @@ import type {
   AiQuestionAssistResult,
   AiHelpLevel,
   AiUsageSummary,
+  SchoolAiQuotaRow,
+  SchoolAiQuotaWrite,
 } from './ai-types';
 
 export interface AiChatInput {
@@ -74,6 +76,24 @@ export const aiClient = {
     request<{ result: AiProviderTestResult }>('/api/v1/ai/admin/providers/' + encodeURIComponent(provider) + '/test', {
       method: 'POST',
       headers: { 'X-CSRF-Token': csrf },
+    }),
+  resetCircuitBreakers: (csrf: string) =>
+    request<{ items: AiProviderSetting[] }>('/api/v1/ai/admin/circuit-breakers/reset', {
+      method: 'POST',
+      headers: { 'X-CSRF-Token': csrf },
+    }),
+  schoolQuotas: (signal?: AbortSignal) =>
+    request<{ items: SchoolAiQuotaRow[] }>('/api/v1/ai/admin/school-quotas', {}, signal),
+  resetSchoolQuota: (schoolId: string, csrf: string) =>
+    request<{ quota: SchoolAiQuotaRow }>(`/api/v1/ai/admin/school-quotas/${encodeURIComponent(schoolId)}/reset`, {
+      method: 'POST',
+      headers: { 'X-CSRF-Token': csrf },
+    }),
+  updateSchoolQuota: (schoolId: string, write: SchoolAiQuotaWrite, csrf: string) =>
+    request<{ quota: SchoolAiQuotaRow }>(`/api/v1/ai/admin/school-quotas/${encodeURIComponent(schoolId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+      body: JSON.stringify(write),
     }),
   interactions: (page = 1, limit = 50, signal?: AbortSignal) =>
     request<AiInteractionPage>(`/api/v1/ai/admin/interactions?page=${page}&limit=${limit}`, {}, signal),
