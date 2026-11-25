@@ -71,5 +71,9 @@ WHERE f.contype='f' AND f.confrelid=to_regclass($1) AND parent.attname='id'`, ta
 	if err = writeTaxonomyAudit(ctx, tx, actor, "taxonomy."+kind+".delete", kind, id); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	r.invalidateBootstrapCache(ctx)
+	return nil
 }
