@@ -33,6 +33,21 @@ func (r *Repository) CanAuthor(ctx context.Context, userID, pathID, subjectID st
 	return ok, err
 }
 
+func (r *Repository) CanManageSchool(ctx context.Context, userID, schoolID string) (bool, error) {
+	var ok bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1
+			FROM school_memberships
+			WHERE user_id = $1::uuid
+			  AND school_id = $2::uuid
+			  AND role IN ('school_admin', 'supervisor')
+			  AND status = 'active'
+		)
+	`, userID, schoolID).Scan(&ok)
+	return ok, err
+}
+
 func (r *Repository) validateRefs(ctx context.Context, tx pgx.Tx, w assessment.Write) error {
 	var ok bool
 	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM paths p WHERE p.id=$1::uuid AND p.status='active' AND (($2 = '' AND $3 = 'mock') OR EXISTS (SELECT 1 FROM subjects s WHERE s.path_id=p.id AND s.id=NULLIF($2,'')::uuid AND s.status='active')))`, w.Version.PathID, w.Version.SubjectID, string(w.Version.Kind)).Scan(&ok); err != nil {

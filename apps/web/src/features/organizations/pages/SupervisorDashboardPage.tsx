@@ -44,7 +44,7 @@ const groups = [
 const PAGE_SIZE = 20;
 
 export function SupervisorDashboardPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, getCsrfToken } = useAuth();
   const [params, setParams] = useSearchParams();
   const requested = params.get('tab');
   const tab: SupervisorTab = tabs.some((item) => item.id === requested && enabledTabs.has(item.id))
@@ -53,6 +53,13 @@ export function SupervisorDashboardPage() {
   const activeGroup = groups.find((group) => group.ids.includes(tab))?.label || '';
   const [userExpandedGroup, setUserExpandedGroup] = useState<string | null>(null);
   const [prevTab, setPrevTab] = useState(tab);
+  const [liveMonitoringSessions, setLiveMonitoringSessions] = useState<Array<{ id: string; title: string; status: string; participantsCount?: number; pin?: string }>>([]);
+  const [liveMonitoringBusy, setLiveMonitoringBusy] = useState(false);
+  const [liveMonitoringError, setLiveMonitoringError] = useState('');
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertBody, setAlertBody] = useState('');
+  const [alertSending, setAlertSending] = useState(false);
+  const [alertFeedback, setAlertFeedback] = useState('');
   const [prevParams, setPrevParams] = useState(params.toString());
 
   if (prevParams !== params.toString()) {
@@ -196,6 +203,78 @@ export function SupervisorDashboardPage() {
       });
     return () => controller.abort();
   }, [schoolId, authorized, tab]);
+
+  useEffect(() => {
+    if (!schoolId || !authorized || tab !== 'live-monitoring') {
+      return;
+    }
+    let active = true;
+    const controller = new AbortController();
+    const fetchLive = async () => {
+      setLiveMonitoringBusy(true);
+      setLiveMonitoringError('');
+      try {
+        const res = await fetch(`/api/v1/classroom/teacher/sessions?schoolId=${encodeURIComponent(schoolId)}`, {
+          credentials: 'include',
+          headers: { Accept: 'application/json' },
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error('تعذر تحميل جلسات المراقبة الحية');
+        const data = await res.json();
+        if (active && !controller.signal.aborted) {
+          const rows = Array.isArray(data.sessions) ? data.sessions : [];
+          setLiveMonitoringSessions(rows.filter((s: any) => s.status === 'live' || s.status === 'active'));
+        }
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
+        if (active) {
+          setLiveMonitoringSessions([]);
+          setLiveMonitoringError(err?.message || 'تعذر تحميل جلسات المراقبة الحية');
+        }
+      } finally {
+        if (active) setLiveMonitoringBusy(false);
+      }
+    };
+    void fetchLive();
+    const timer = setInterval(() => void fetchLive(), 10000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      controller.abort();
+    };
+  }, [schoolId, authorized, tab]);
+
+  const sendStudentAlert = async () => {
+    if (!schoolId || !alertTitle.trim() || !alertBody.trim() || visibleRoster.length === 0) return;
+    setAlertSending(true);
+    setAlertFeedback('');
+    try {
+      const csrf = await getCsrfToken();
+      const res = await fetch('/api/v1/notifications/admin/send', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'X-CSRF-Token': csrf,
+        },
+        body: JSON.stringify({
+          title: alertTitle.trim(),
+          body: alertBody.trim(),
+          channels: ['in_app'],
+          recipientUserIds: visibleRoster.slice(0, 50).map((m) => m.userId),
+        }),
+      });
+      if (!res.ok) throw new Error('تعذر إرسال التنبيه للطلاب');
+      setAlertTitle('');
+      setAlertBody('');
+      setAlertFeedback('✅ تم إرسال التنبيه لطلاب النطاق بنجاح.');
+    } catch (err: any) {
+      setAlertFeedback(`❌ ${err?.message || 'تعذر إرسال التنبيه'}`);
+    } finally {
+      setAlertSending(false);
+    }
+  };
 
   const mappedStudentsForSkills = useMemo(() => {
     const avg = overviewReport?.assessment?.averageScore != null ? Math.round(overviewReport.assessment.averageScore) : 0;
@@ -683,14 +762,68 @@ export function SupervisorDashboardPage() {
                     </div>
                     <div className="flex w-fit items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">
                       <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500"></span>
-                      متصل (0 نشط)
+                      متصل ({liveMonitoringSessions.length} نشط)
                     </div>
                   </div>
+                  {liveMonitoringError ? (
+                    <div role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700">
+                      {liveMonitoringError}
+                    </div>
+                  ) : null}
+                  {liveMonitoringBusy && liveMonitoringSessions.length === 0 ? (
+                    <div className="py-8 text-center text-xs font-bold text-gray-500">جاري تحديث شاشة المراقبة الحية...</div>
+                  ) : null}
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    <div className="col-span-1 py-12 text-center text-gray-500 md:col-span-2 lg:col-span-3">
-                      <Activity className="mx-auto mb-2 text-slate-300" size={36} />
-                      <p className="font-bold">لا يوجد اختبارات نشطة حالياً.</p>
-                      <p className="mt-1 text-xs text-gray-400">ستظهر الاختبارات الجارية تلقائياً بمجرد بدء الطلاب لأي اختبار مدرسي موجه.</p>
+                    {liveMonitoringSessions.length === 0 ? (
+                      <div className="col-span-1 py-12 text-center text-gray-500 md:col-span-2 lg:col-span-3">
+                        <Activity className="mx-auto mb-2 text-slate-300" size={36} />
+                        <p className="font-bold">لا يوجد اختبارات نشطة حالياً.</p>
+                        <p className="mt-1 text-xs text-gray-400">ستظهر الاختبارات الجارية تلقائياً بمجرد بدء الطلاب لأي اختبار مدرسي موجه.</p>
+                      </div>
+                    ) : (
+                      liveMonitoringSessions.map((session) => (
+                        <div key={session.id} className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-black text-emerald-800">{session.title}</span>
+                            <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black text-white">نشط</span>
+                          </div>
+                          {session.pin ? <p className="text-[11px] font-bold text-slate-600">رمز الجلسة: {session.pin}</p> : null}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Send Student Alert (scoped to current school roster) */}
+                  <div className="mt-6 border-t border-gray-100 pt-5 space-y-3">
+                    <h3 className="text-sm font-black text-gray-900">إرسال تنبيه فوري لطلاب المدرسة</h3>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <input
+                        type="text"
+                        aria-label="عنوان تنبيه الطلاب"
+                        value={alertTitle}
+                        onChange={(e) => setAlertTitle(e.target.value)}
+                        placeholder="عنوان التنبيه..."
+                        className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-bold text-gray-800"
+                      />
+                      <input
+                        type="text"
+                        aria-label="نص تنبيه الطلاب"
+                        value={alertBody}
+                        onChange={(e) => setAlertBody(e.target.value)}
+                        placeholder="محتوى التنبيه لطلاب النطاق..."
+                        className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-bold text-gray-800"
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void sendStudentAlert()}
+                        disabled={alertSending || !alertTitle.trim() || !alertBody.trim() || visibleRoster.length === 0}
+                        className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-40"
+                      >
+                        {alertSending ? 'جاري الإرسال...' : 'إرسال تنبيه للطلاب'}
+                      </button>
+                      {alertFeedback ? <span className="text-xs font-bold text-slate-700">{alertFeedback}</span> : null}
                     </div>
                   </div>
                 </div>
