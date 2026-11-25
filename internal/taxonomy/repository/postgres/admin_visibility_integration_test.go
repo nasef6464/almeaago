@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	neturl "net/url"
 	"os"
 	"strings"
 	"testing"
@@ -15,6 +16,7 @@ import (
 
 	identityapp "github.com/nasef6464/almeaago/internal/identity/application"
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
+	"github.com/nasef6464/almeaago/internal/platform/cache"
 	taxonomyapp "github.com/nasef6464/almeaago/internal/taxonomy/application"
 	taxonomy "github.com/nasef6464/almeaago/internal/taxonomy/domain"
 	taxonomyhttp "github.com/nasef6464/almeaago/internal/taxonomy/transport/http"
@@ -301,6 +303,56 @@ func TestAdminVisibilityReachesLearnerPostgres(t *testing.T) {
 	if hasSkill(subOrphan) {
 		t.Fatal("deactivating main skill must hide its sub-skill again")
 	}
+
+	t.Run("deleted taxonomy disappears from the warmed public cache", func(t *testing.T) {
+		redisURL := os.Getenv("TAXONOMY_CACHE_TEST_REDIS_URL")
+		if redisURL == "" {
+			t.Skip("requires a disposable Redis database")
+		}
+		target, err := neturl.Parse(redisURL)
+		if err != nil || target.Hostname() != "127.0.0.1" || target.Path != "/1" {
+			t.Fatal("requires dedicated loopback Redis database 1")
+		}
+		redis, err := cache.Open(ctx, redisURL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer redis.Close()
+		cached := New(db, redis)
+		cached.invalidateBootstrapCache(ctx)
+		defer cached.invalidateBootstrapCache(ctx)
+
+		const disposable = "01900000-0000-7000-8000-000000009199"
+		if _, err := db.Exec(ctx, "INSERT INTO paths(id,code,name) VALUES ($1,'DELETE_CACHE','Delete cache fixture')", disposable); err != nil {
+			t.Fatal(err)
+		}
+		hasPath := func(includeSkills bool) bool {
+			t.Helper()
+			bootstrap, err := cached.PublicBootstrap(ctx, includeSkills)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, row := range bootstrap.Paths {
+				if row.ID == disposable {
+					return true
+				}
+			}
+			return false
+		}
+		for _, includeSkills := range []bool{false, true} {
+			if !hasPath(includeSkills) {
+				t.Fatalf("expected test path before deletion (includeSkills=%t)", includeSkills)
+			}
+		}
+		if err := cached.DeleteTaxonomy(ctx, actor, "path", disposable); err != nil {
+			t.Fatal(err)
+		}
+		for _, includeSkills := range []bool{false, true} {
+			if hasPath(includeSkills) {
+				t.Errorf("deleted path was still cached (includeSkills=%t)", includeSkills)
+			}
+		}
+	})
 }
 
 type taxonomyVisibilityAuth struct {
