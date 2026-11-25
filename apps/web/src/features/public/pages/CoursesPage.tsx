@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, BookOpen, ChevronDown, ChevronUp, Loader2, Search, User } from 'lucide-react';
+import { ArrowRight, BookOpen, ChevronDown, ChevronUp, Filter, Loader2, Search, User } from 'lucide-react';
 import { useAuth } from '../../auth/state/AuthProvider';
 import {
   lessonProgressSummaryClient,
@@ -40,24 +40,28 @@ export function CoursesPage() {
       setIsLoading(true);
       try {
         if (user && user.roles.includes('student')) {
-          const res = await lessonProgressSummaryClient.coursesSummary(controller.signal);
-          if (mounted) {
-            setCourses(
-              (res.courses || []).map((c) => ({
-                id: c.id,
-                title: c.title,
-                description: c.description,
-                instructorName: c.instructorName,
-                thumbnailUrl: c.thumbnailUrl,
-                category: c.category || c.subjectName || c.pathName || '',
-                progress: c.progress,
-                lessonsCount: c.lessonsCount,
-                completedLessonsCount: c.completedLessonsCount,
-                isEnrolled: c.isEnrolled,
-                modules: c.modules || [],
-              })),
-            );
-            return;
+          try {
+            const res = await lessonProgressSummaryClient.coursesSummary(controller.signal);
+            if (mounted && (res.courses?.length ?? 0) > 0) {
+              setCourses(
+                res.courses.map((c) => ({
+                  id: c.id,
+                  title: c.title,
+                  description: c.description,
+                  instructorName: c.instructorName,
+                  thumbnailUrl: c.thumbnailUrl,
+                  category: c.category || c.subjectName || c.pathName || '',
+                  progress: c.progress,
+                  lessonsCount: c.lessonsCount,
+                  completedLessonsCount: c.completedLessonsCount,
+                  isEnrolled: c.isEnrolled,
+                  modules: c.modules || [],
+                })),
+              );
+              return;
+            }
+          } catch {
+            // Fall through to public courses when summary endpoint is unavailable
           }
         }
         const publicList = await getPublicCourses(controller.signal);
@@ -169,6 +173,15 @@ export function CoursesPage() {
             className="w-full pr-10 pl-4 py-3 rounded-xl border border-gray-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-all text-sm"
           />
         </div>
+        <button
+          type="button"
+          aria-label="خيارات فلترة الدورات"
+          title="فلترة الدورات"
+          onClick={() => setCategoryFilter('')}
+          className="bg-white border border-gray-200 text-gray-600 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors w-full sm:w-auto flex items-center justify-center shadow-xs cursor-pointer"
+        >
+          <Filter size={20} />
+        </button>
         {categories.length > 0 && (
           <select
             aria-label="فلترة الدورات حسب التصنيف"

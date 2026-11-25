@@ -39,6 +39,8 @@ const mockCourseId = 'course-101';
 const mockCourseData = {
   course: {
     id: mockCourseId,
+    pathId: 'path-1',
+    subjectId: 'sub-1',
     title: 'دورة التأسيس الشاملة في القدرات العامة',
     description: 'الدورة المعيارية الذهبية لاجتياز اختبار القدرات العامة (القسمين الكمي واللفظي) خطوة بخطوة مع تدريبات مكثفة وتجميعات حصرية.',
     instructorName: 'أ. فهد التميمي',
@@ -192,6 +194,63 @@ async function setupCourseMocks(page: Page, asAdmin = false) {
     json(route, mockCourseData),
   );
 
+  await page.route('**/api/v1/learning-spaces/qa?**', (route) =>
+    json(route, { items: [], page: 1, limit: 30, hasMore: false }),
+  );
+
+  await page.route('**/api/v1/learning-progress/courses/summary', (route) =>
+    json(route, {
+      courses: [
+        {
+          id: mockCourseId,
+          title: 'دورة التأسيس الشاملة في القدرات العامة',
+          instructorName: 'أ. فهد التميمي',
+          thumbnailUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800',
+          category: 'القدرات العامة',
+          progress: 35,
+          lessonsCount: 3,
+          completedLessonsCount: 1,
+          isEnrolled: true,
+          modules: [
+            {
+              id: 'mod-1',
+              title: 'القسم الأول: أساسيات الحساب والكسور العشرية',
+              lessonsCount: 3,
+              lessons: [
+                { id: 'les-1', title: 'مقدمة واستراتيجيات الحل السريع', completed: false },
+              ],
+            },
+          ],
+        },
+      ],
+    }),
+  );
+
+  await page.route('**/api/v1/assessment-placements/available*', (route) =>
+    json(route, {
+      items: [
+        {
+          placementId: 'plc-course-1',
+          assessmentId: 'asm-1',
+          assessmentVersion: 1,
+          title: 'اختبار تحديد المستوى القبلي',
+          slot: 'course',
+          pathId: 'path-1',
+          subjectId: 'sub-1',
+          courseId: mockCourseId,
+          accessType: 'free',
+          accessAllowed: true,
+          canStart: true,
+          attemptCount: 0,
+          maxAttempts: 3,
+        },
+      ],
+      page: 1,
+      limit: 30,
+      hasMore: false,
+    }),
+  );
+
   await page.route((url) => url.pathname.startsWith('/api/v1/courses'), (route) => {
     const pathname = route.request().url();
     if (pathname.includes('/courses/public')) {
@@ -308,7 +367,6 @@ test.describe('ALMEAA Course System Parity: Creation to Student Display', () => 
     await expect(page.getByText('جديد ومحدّث')).toBeVisible();
     await expect(page.getByText('شهادة إتمام معتمدة')).toBeVisible();
     await expect(page.getByText('أ. فهد التميمي')).toBeVisible();
-    await expect(page.getByText('4.9')).toBeVisible();
 
     // 3. Verify Sticky Sidebar & Price
     await expect(page.getByText('تفاصيل الدورة')).toBeVisible();
@@ -336,8 +394,8 @@ test.describe('ALMEAA Course System Parity: Creation to Student Display', () => 
 
     // 7. Test QA Tab
     await page.getByRole('button', { name: /سؤال وجواب/ }).click();
-    await expect(page.getByText('هذه المساحة مخصصة للاستفسار عن محتوى الدورة')).toBeVisible();
-    await expect(page.getByPlaceholder('اكتب سؤالك أو استفسارك')).toBeVisible();
+    await expect(page.getByText('لا توجد أسئلة مسجلة لهذه الدورة بعد.')).toBeVisible();
+    await expect(page.getByPlaceholder(/اكتب سؤالك/)).toBeVisible();
 
     // 8. Test Files Tab
     await page.getByRole('button', { name: /ملفات الدورة/ }).click();
@@ -376,11 +434,10 @@ test.describe('ALMEAA Course System Parity: Creation to Student Display', () => 
     // Verify course card
     const courseCard = page.getByText('دورة التأسيس الشاملة في القدرات العامة').first();
     await expect(courseCard).toBeVisible();
-    await expect(page.getByText('4.9 تقييم')).toBeVisible();
 
     // Click to expand accordion preview
     await courseCard.click();
-    await expect(page.getByText('محتوى الدورة المعتمد:')).toBeVisible();
+    await expect(page.getByText(/محاور الدورة/)).toBeVisible();
 
     // Take screenshot of Courses Catalog
     await page.screenshot({

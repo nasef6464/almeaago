@@ -376,9 +376,10 @@ test('a completion response for another lesson cannot update progress or report 
 test('course overview does not invent shared discussions or delete old local data', async ({ page }) => {
   test.setTimeout(120_000);
   await setup(page);
+  await page.route('**/api/v1/learning-spaces/qa?**', (route) => json(route, { items: [], page: 1, limit: 30, hasMore: false }));
   await page.addInitScript(() => localStorage.setItem('course_qa_course-1', JSON.stringify([{id:'old',question:'سؤال قديم خاص بالجهاز',replies:[]}])));
   await page.goto('/course/course-1?tab=qa');
-  await expect(page.getByText('النقاش مع المدرب غير متاح حاليًا.',{exact:false})).toBeVisible();
+  await expect(page.getByText('لا توجد أسئلة مسجلة لهذه الدورة بعد.',{exact:false})).toBeVisible();
   await expect(page.getByText('سارة العتيبي')).toHaveCount(0);
   await expect(page.getByText('سؤال قديم خاص بالجهاز')).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('course_qa_course-1'))).toContain('سؤال قديم خاص بالجهاز');
