@@ -350,7 +350,7 @@ test('full report links follow-up actions to the verified foundation topic', asy
   await expect(fraction.getByText('شرح مرتبط', { exact: true })).toBeVisible();
   await expect(fraction.getByText('تدريب قصير', { exact: true })).toBeVisible();
   const unlinked = followUp.getByRole('article').filter({ has: page.getByRole('heading', { name: 'النسب', exact: true }) });
-  await expect(unlinked.getByRole('link')).toHaveCount(0);
+  await expect(unlinked.getByRole('link', { name: /راجع الشرح|تدريب مناسب|ملف داعم/ })).toHaveCount(0);
   const noResource = followUp.getByRole('article').filter({ has: page.getByRole('heading', { name: 'الجبر', exact: true }) });
   await expect(noResource.getByRole('link', { name: 'ملف داعم' })).toHaveCount(0);
   await expect(noResource.getByRole('button', { name: 'شاهد الفيديو' })).toHaveCount(0);

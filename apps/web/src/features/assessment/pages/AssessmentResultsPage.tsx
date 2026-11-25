@@ -661,7 +661,7 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
           <p className="mt-1 text-xs font-bold leading-relaxed text-gray-500">{weakestSkill.foundationTopics?.[0]?.hasLesson ? 'ابدأ بشرح قصير لهذه المهارة ثم انتقل للتدريب.' : weakestSkill.foundationTopics?.[0]?.hasPractice ? 'ابدأ بتدريب قصير الآن ثم أعد القياس بعده.' : 'ابدأ بخطوة صغيرة على المهارة الأضعف ثم أعد الاختبار لاحقًا.'}</p>
           <div className="mt-5 rounded-3xl border border-slate-100 bg-slate-50/80 p-4 sm:p-5">
             <h3 className="mb-3 text-sm font-black text-gray-900">مسار ما بعد الاختبار</h3>
-            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-4">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
               <button type="button" disabled={!detail.allowQuestionReview || !detail.questions?.length} onClick={() => changeReviewView(true)} className="min-h-[104px] rounded-2xl border border-emerald-100 bg-white p-3 text-start text-emerald-800 disabled:opacity-50">
                 <span className="text-xs font-black">مراجعة الحلول</span><span className="mt-3 block text-sm font-black text-gray-900">راجع موضع الخطأ</span><span className="mt-1 block text-xs font-bold">{detail.allowQuestionReview && detail.questions?.length ? `${detail.questions.length} سؤال متاح للمراجعة.` : 'تفاصيل الحلول غير متاحة لهذه المحاولة.'}</span>
               </button>
@@ -673,6 +673,20 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
               </Link>
               <Link to={`/reports?${new URLSearchParams({ pathId: weakestSkill.pathId, subjectId: weakestSkill.subjectId, skillId: weakestSkill.skillId })}`} className="min-h-[104px] rounded-2xl border border-slate-200 bg-white p-3 text-slate-800">
                 <span className="text-xs font-black">فتح التقرير</span><span className="mt-3 block text-sm font-black text-gray-900">تابع الخطة</span><span className="mt-1 block text-xs font-bold">ارجع للتقرير العام لترى هل تحسنت المهارة بعد المحاولة القادمة.</span>
+              </Link>
+              <Link
+                to={`/book-session?${new URLSearchParams({
+                  skillId: weakestSkill.skillId,
+                  skillName: weakestSkill.skillName,
+                  ...(weakestSkill.pathId ? { pathId: weakestSkill.pathId } : {}),
+                  ...(weakestSkill.subjectId ? { subjectId: weakestSkill.subjectId } : {}),
+                  ...(weakestSkill.subjectName ? { subjectName: weakestSkill.subjectName } : {}),
+                  ...(weakestSkill.sectionName ? { sectionName: weakestSkill.sectionName } : {}),
+                  source: 'quiz-result',
+                }).toString()}`}
+                className="min-h-[104px] rounded-2xl border border-violet-200 bg-violet-50/70 p-3 text-violet-800 hover:bg-violet-50"
+              >
+                <span className="text-xs font-black">حجز حصة خاصة</span><span className="mt-3 block text-sm font-black text-gray-900">شرح فردي مباشر</span><span className="mt-1 block text-xs font-bold">احجز حصة مركزة على {weakestSkill.skillName} مع مدرب مختص.</span>
               </Link>
             </div>
           </div>
@@ -706,8 +720,10 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
           <p className="mt-1 text-xs font-bold leading-relaxed text-gray-500">{detail.skillAnalysis?.complete && detail.skillAnalysis.items.length > 0 ? 'أتقنت المهارات المقاسة في هذه المحاولة. واصل التعلم بتحدٍ جديد.' : 'راجع الحلول أولًا؛ لا توجد أدلة مهارية كافية لتحديد خطة تحسين.'}</p>
           <div className="mt-5 rounded-3xl border border-slate-100 bg-slate-50/80 p-4 sm:p-5">
             <h3 className="mb-3 text-sm font-black text-gray-900">مسار ما بعد الاختبار</h3>
-            <div className="grid gap-2.5 sm:grid-cols-2">
+            <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
               <button type="button" disabled={!detail.allowQuestionReview || !detail.questions?.length} onClick={() => changeReviewView(true)} className="rounded-2xl border border-emerald-100 bg-white p-3 text-start text-sm font-black text-emerald-800 disabled:opacity-50">مراجعة الحلول</button>
+              <Link to="/reports" className="rounded-2xl border border-slate-200 bg-white p-3 text-sm font-black text-slate-800">التقرير الشامل</Link>
+              <Link to="/book-session?source=quiz-result" className="rounded-2xl border border-violet-200 bg-violet-50/70 p-3 text-sm font-black text-violet-800">حجز حصة خاصة</Link>
               <Link to="/dashboard" className="rounded-2xl border border-indigo-100 bg-white p-3 text-sm font-black text-indigo-800">العودة لمساري</Link>
             </div>
           </div>

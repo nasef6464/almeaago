@@ -65,14 +65,40 @@ export function AssessmentFollowUpSkills({ detail, openAnalysis }: { detail: Res
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100" aria-hidden="true">
                 <div className={`h-full rounded-full ${priority.bar}`} style={{ width: `${skill.mastery}%` }} />
               </div>
-              {topic && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Link to={resultFoundationPath(skill, topic.id, 'lessons')} className={`${actionClass} border-indigo-100 bg-indigo-50 text-indigo-700 hover:bg-indigo-100`}>راجع الشرح</Link>
-                  {topic.videoLessonId && <AssessmentFoundationVideoAction key={`${topic.id}:${topic.videoLessonId}`} topicId={topic.id} lessonId={topic.videoLessonId} skillName={skill.skillName} />}
-                  <Link to={resultFoundationPath(skill, topic.id, 'quizzes')} className={`${actionClass} border-amber-100 bg-amber-50 text-amber-700 hover:bg-amber-100`}>تدريب مناسب</Link>
-                  {topic.hasSupport && <Link to={resultFoundationPath(skill, topic.id, 'support')} className={`${actionClass} border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100`}>ملف داعم</Link>}
-                </div>
-              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {topic && (
+                  <>
+                    <Link to={resultFoundationPath(skill, topic.id, 'lessons')} className={`${actionClass} border-indigo-100 bg-indigo-50 text-indigo-700 hover:bg-indigo-100`}>راجع الشرح</Link>
+                    {topic.videoLessonId && <AssessmentFoundationVideoAction key={`${topic.id}:${topic.videoLessonId}`} topicId={topic.id} lessonId={topic.videoLessonId} skillName={skill.skillName} />}
+                    <Link to={resultFoundationPath(skill, topic.id, 'quizzes')} className={`${actionClass} border-amber-100 bg-amber-50 text-amber-700 hover:bg-amber-100`}>تدريب مناسب</Link>
+                    {topic.hasSupport && <Link to={resultFoundationPath(skill, topic.id, 'support')} className={`${actionClass} border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100`}>ملف داعم</Link>}
+                  </>
+                )}
+                <Link
+                  to={`/reports?${new URLSearchParams({
+                    ...(skill.pathId ? { pathId: skill.pathId } : {}),
+                    ...(skill.subjectId ? { subjectId: skill.subjectId } : {}),
+                    skillId: skill.skillId,
+                  }).toString()}`}
+                  className={`${actionClass} border-indigo-100 bg-white text-indigo-700 hover:bg-indigo-50`}
+                >
+                  تقرير المهارة
+                </Link>
+                <Link
+                  to={`/book-session?${new URLSearchParams({
+                    skillId: skill.skillId,
+                    skillName: skill.skillName,
+                    ...(skill.pathId ? { pathId: skill.pathId } : {}),
+                    ...(skill.subjectId ? { subjectId: skill.subjectId } : {}),
+                    ...(skill.subjectName ? { subjectName: skill.subjectName } : {}),
+                    ...(skill.sectionName ? { sectionName: skill.sectionName } : {}),
+                    source: 'quiz-result',
+                  }).toString()}`}
+                  className={`${actionClass} border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100`}
+                >
+                  احجز حصة للمهارة
+                </Link>
+              </div>
             </article>
           );
         }) : (

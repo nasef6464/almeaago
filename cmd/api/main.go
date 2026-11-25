@@ -222,6 +222,7 @@ func main() {
 	learningService := learningapp.NewService(learningRepository, questionService)
 	masteryGoalService := learningapp.NewMasteryGoalService(learningRepository, taxonomyRepository)
 	lessonProgressService := learningapp.NewLessonProgressService(learningRepository, contentRepository, contentService)
+	sessionBookingService := learningapp.NewSessionBookingService(learningRepository)
 	assessmentRepository := assessmentrepo.New(db, auditWriter)
 	aiService.SetResultReviewReader(assessmentRepository)
 	assessmentService := assessmentapp.NewService(assessmentRepository)
@@ -283,6 +284,7 @@ func main() {
 	learningReviewHandler := learninghttp.NewReview(learningService, identityService)
 	masteryHandler := learninghttp.NewMasteryWithGoals(learningService, masteryGoalService, identityService)
 	lessonProgressHandler := learninghttp.NewLessonProgress(lessonProgressService, identityService)
+	sessionBookingsHandler := learninghttp.NewSessionBookings(sessionBookingService, identityService)
 	studyPlansHandler := learninghttp.NewStudyPlans(studyPlanService, identityService)
 	interventionsHandler := learninghttp.NewInterventions(interventionService, identityService)
 	communicationHandler := communicationhttp.NewWithRealtime(
@@ -367,6 +369,7 @@ func main() {
 		LearningReview:           learningReviewHandler,
 		Mastery:                  masteryHandler,
 		LearningProgress:         lessonProgressHandler,
+		SessionBookings:          sessionBookingsHandler,
 		StudyPlans:               studyPlansHandler,
 		Interventions:            interventionsHandler,
 		Notifications:            communicationHandler,

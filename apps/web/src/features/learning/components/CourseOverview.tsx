@@ -1,7 +1,10 @@
 import { courseFileURL } from '../courseFileURL';
 import { CourseAssessmentList } from './CourseAssessmentList';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../auth/state/AuthProvider';
+import { contentClient } from '../../content/api/content-client';
+import { lessonProgressSummaryClient, type CourseCertificate } from '../api/learning-client';
 import {
   Award,
   BarChart,
@@ -170,7 +173,45 @@ export function CourseOverview({
   completedLessonIds: serverCompletedIds = null,
 }: CourseOverviewProps) {
   const navigate = useNavigate();
+  const { user, getCsrfToken } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+  const [certificate, setCertificate] = useState<CourseCertificate | null>(null);
+  const [certBusy, setCertBusy] = useState(false);
+  const [certError, setCertError] = useState('');
+
+  type CourseQAItem = Awaited<ReturnType<typeof contentClient.qaList>>['items'][number];
+  type CourseQAReply = Awaited<ReturnType<typeof contentClient.qaReplies>>['items'][number];
+  const [qaItems, setQaItems] = useState<CourseQAItem[]>([]);
+  const [qaLoading, setQaLoading] = useState(false);
+  const [qaError, setQaError] = useState('');
+  const [newQuestionText, setNewQuestionText] = useState('');
+  const [qaSubmitting, setQaSubmitting] = useState(false);
+  const [openRepliesId, setOpenRepliesId] = useState<string>('');
+  const [repliesByQuestion, setRepliesByQuestion] = useState<Record<string, CourseQAReply[]>>({});
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+
+  const loadCourseQA = useCallback(async (signal?: AbortSignal) => {
+    if (!user) return;
+    setQaLoading(true);
+    setQaError('');
+    try {
+      const res = await contentClient.qaList({ courseId: course.id, limit: 30 }, signal);
+      setQaItems(res.items || []);
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        setQaError(err instanceof Error ? err.message : 'تعذر تحميل أسئلة الدورة.');
+      }
+    } finally {
+      setQaLoading(false);
+    }
+  }, [course.id, user]);
+
+  useEffect(() => {
+    if (activeTab !== 'qa' || !user) return;
+    const controller = new AbortController();
+    loadCourseQA(controller.signal);
+    return () => controller.abort();
+  }, [activeTab, loadCourseQA, user]);
   const [isFavorite, setIsFavorite] = useState(() => {
     try {
       return localStorage.getItem(`course_fav_${course.id}`) === 'true';
@@ -255,8 +296,8 @@ export function CourseOverview({
   const courseOriginalPrice = Number(course.originalPrice || 0);
   const hasDiscount = courseOriginalPrice > coursePrice && coursePrice > 0;
   const isFree = coursePrice <= 0;
-  const audienceCount = (Number(course.studentsCount) || 0) + (Number(course.fakeStudentsCount) || 0) || 55;
-  const displayRating = course.fakeRating ? Math.min(Number(course.fakeRating) || 5, 5) : (Number(course.rating) || 4.9);
+  const audienceCount = (Number(course.studentsCount) || 0) + (Number(course.fakeStudentsCount) || 0);
+  const displayRating = course.fakeRating ? Math.min(Number(course.fakeRating) || 0, 5) : (Number(course.rating) || 0);
 
 
   const filesList = useMemo(() => course.files || course.presentation?.files || [], [course.files, course.presentation?.files]);
@@ -270,33 +311,8 @@ export function CourseOverview({
     if (course.presentation?.assessments && course.presentation.assessments.length > 0) {
       return course.presentation.assessments;
     }
-    return [
-      {
-        id: `mock-pre-${course.id}`,
-        title: `اختبار تحديد المستوى القبلي - ${course.title}`,
-        phase: 'pre_course' as const,
-        durationMinutes: 25,
-        questionsCount: 20,
-        access: 'free_preview' as const,
-      },
-      {
-        id: `mock-mid-${course.id}`,
-        title: `اختبار المراجعة النصفية - المهارات الأساسية`,
-        phase: 'during_course' as const,
-        durationMinutes: 30,
-        questionsCount: 25,
-        access: 'enrolled_paid' as const,
-      },
-      {
-        id: `mock-final-${course.id}`,
-        title: `الاختبار المحاكي الشامل النهائي - معيار قياس`,
-        phase: 'final_course' as const,
-        durationMinutes: 60,
-        questionsCount: 50,
-        access: 'enrolled_paid' as const,
-      },
-    ];
-  }, [course.assessments, course.tests, course.presentation?.assessments, course.id, course.title]);
+    return [];
+  }, [course.assessments, course.tests, course.presentation?.assessments]);
 
   const objectivesList = course.objectives && course.objectives.length > 0 ? course.objectives : DEFAULT_OBJECTIVES;
   const featuresList = course.features && course.features.length > 0 ? course.features : DEFAULT_FEATURES;
@@ -370,33 +386,36 @@ export function CourseOverview({
                   </div>
 
                   {/* Rating */}
-                  <div className="rounded-2xl border border-slate-700/80 bg-slate-800/80 p-3.5 shadow-sm backdrop-blur-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/20 text-amber-400 font-black">
-                        <Star size={20} className="fill-amber-400 text-amber-400" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-slate-400">التقييم</p>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-black text-white">{displayRating.toFixed(1)}</span>
-                          <span className="text-[10px] font-bold text-amber-400">★ ★ ★ ★ ★</span>
+                  {displayRating > 0 && (
+                    <div className="rounded-2xl border border-slate-700/80 bg-slate-800/80 p-3.5 shadow-sm backdrop-blur-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/20 text-amber-400 font-black">
+                          <Star size={20} className="fill-amber-400 text-amber-400" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-bold text-slate-400">التقييم</p>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-black text-white">{displayRating.toFixed(1)}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Enrolled Students */}
-                  <div className="rounded-2xl border border-slate-700/80 bg-slate-800/80 p-3.5 shadow-sm backdrop-blur-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/20 text-emerald-400 font-black">
-                        <BarChart size={20} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-slate-400">الطلاب المسجلون</p>
-                        <p className="truncate text-sm font-black text-emerald-400">+{audienceCount.toLocaleString()} طالب</p>
+                  {audienceCount > 0 && (
+                    <div className="rounded-2xl border border-slate-700/80 bg-slate-800/80 p-3.5 shadow-sm backdrop-blur-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/20 text-emerald-400 font-black">
+                          <BarChart size={20} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-bold text-slate-400">الطلاب المسجلون</p>
+                          <p className="truncate text-sm font-black text-emerald-400">+{audienceCount.toLocaleString()} طالب</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Content / Lessons */}
                   <div className="rounded-2xl border border-slate-700/80 bg-slate-800/80 p-3.5 shadow-sm backdrop-blur-sm">
@@ -698,7 +717,11 @@ export function CourseOverview({
                               </div>
                               <button
                                 type="button"
-                                onClick={() => navigate(`/exam/test-${test.id}`)}
+                                onClick={() =>
+                                  navigate(
+                                    `/assessments/${encodeURIComponent(test.id)}/start?courseId=${encodeURIComponent(course.id)}&returnTo=${encodeURIComponent(`/course/${encodeURIComponent(course.id)}?tab=tests`)}`,
+                                  )
+                                }
                                 className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-black text-white hover:bg-indigo-700 transition shadow-xs"
                               >
                                 {isLocked ? 'فتح الاختبار' : 'بدء الاختبار ←'}
@@ -716,21 +739,197 @@ export function CourseOverview({
                 {activeTab === 'qa' && (
                   <div className="space-y-6">
                     <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm leading-7 text-indigo-800">
-                      هذه المساحة مخصصة للاستفسار عن محتوى الدورة ومتابعة الردود التعليمية. النقاش مع المدرب غير متاح حاليًا. حجز الحصص الخاصة يتم من صفحة الحصص، وليس من سؤال وجواب الدورة.
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-4 mb-8">
-                      <input
-                        type="text"
-                        placeholder="اكتب سؤالك أو استفسارك..."
-                        className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
+                      اطرح استفسارك حول دروس الدورة، وتابع ردود المدربين والطلاب مباشرة. لحجز حصة خاصة فردية استخدم{' '}
                       <button
                         type="button"
-                        className="bg-indigo-600 text-white px-6 py-3 rounded-xl hover:bg-indigo-700 transition-colors font-bold text-sm"
+                        onClick={() => navigate('/book-session?source=course')}
+                        className="font-black underline hover:text-indigo-950"
                       >
-                        إرسال السؤال
+                        صفحة حجز الحصص
                       </button>
+                      .
                     </div>
+
+                    {!user ? (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-sm font-bold text-slate-600">
+                        سجّل الدخول لطرح الأسئلة ومتابعة نقاشات الدورة.
+                      </div>
+                    ) : (
+                      <>
+                        {qaError && (
+                          <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">
+                            {qaError}
+                          </div>
+                        )}
+                        <form
+                          onSubmit={async (e) => {
+                            e.preventDefault();
+                            if (newQuestionText.trim().length < 5) {
+                              setQaError('يرجى كتابة سؤال واضح لا يقل عن 5 أحرف.');
+                              return;
+                            }
+                            setQaSubmitting(true);
+                            setQaError('');
+                            try {
+                              const csrf = await getCsrfToken();
+                              await contentClient.qaCreate(
+                                {
+                                  courseId: course.id,
+                                  pathId: course.pathId,
+                                  subjectId: course.subjectId,
+                                  subjectName: course.category || course.title,
+                                  question: newQuestionText.trim(),
+                                  requestId: `cqa-${Date.now()}`,
+                                },
+                                csrf,
+                              );
+                              setNewQuestionText('');
+                              await loadCourseQA();
+                            } catch (err) {
+                              setQaError(err instanceof Error ? err.message : 'تعذر إرسال السؤال.');
+                            } finally {
+                              setQaSubmitting(false);
+                            }
+                          }}
+                          className="flex flex-col sm:flex-row gap-3 mb-6"
+                        >
+                          <input
+                            type="text"
+                            value={newQuestionText}
+                            onChange={(e) => setNewQuestionText(e.target.value)}
+                            placeholder="اكتب سؤالك أو استفسارك حول الدورة..."
+                            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                          <button
+                            type="submit"
+                            disabled={qaSubmitting}
+                            className="bg-indigo-600 text-white px-6 py-3 rounded-xl hover:bg-indigo-700 transition-colors font-bold text-sm disabled:opacity-60"
+                          >
+                            {qaSubmitting ? 'جاري الإرسال...' : 'إرسال السؤال'}
+                          </button>
+                        </form>
+
+                        {qaLoading ? (
+                          <p role="status" className="text-center text-sm font-bold text-slate-500 py-6">
+                            جاري تحميل النقاشات...
+                          </p>
+                        ) : qaItems.length === 0 ? (
+                          <p className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm font-bold text-slate-500">
+                            لا توجد أسئلة مسجلة لهذه الدورة بعد. كن أول من يطرح سؤالاً!
+                          </p>
+                        ) : (
+                          <div className="space-y-3">
+                            {qaItems.map((item) => {
+                              const isExpanded = openRepliesId === item.id;
+                              const threadReplies = repliesByQuestion[item.id] || [];
+                              return (
+                                <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+                                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                    <span className="font-black text-slate-700">{item.authorName}</span>
+                                    <div className="flex items-center gap-2">
+                                      {item.isResolved ? (
+                                        <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 font-black text-emerald-700">تم الحل</span>
+                                      ) : item.authorId === user.id && (
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            try {
+                                              const csrf = await getCsrfToken();
+                                              await contentClient.qaResolve(item.id, csrf);
+                                              await loadCourseQA();
+                                            } catch {}
+                                          }}
+                                          className="rounded-lg border border-emerald-200 px-2.5 py-1 font-bold text-emerald-700 hover:bg-emerald-50"
+                                        >
+                                          تحديد كمحلول
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          if (isExpanded) {
+                                            setOpenRepliesId('');
+                                            return;
+                                          }
+                                          setOpenRepliesId(item.id);
+                                          try {
+                                            const r = await contentClient.qaReplies(item.id);
+                                            setRepliesByQuestion((prev) => ({ ...prev, [item.id]: r.items || [] }));
+                                          } catch {}
+                                        }}
+                                        className="rounded-lg bg-slate-100 px-2.5 py-1 font-bold text-slate-700 hover:bg-slate-200"
+                                      >
+                                        الردود ({item.repliesCount})
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <p className="text-sm font-bold text-slate-900">{item.question}</p>
+                                  {item.latestReply && !isExpanded && (
+                                    <div className="rounded-xl bg-emerald-50/70 p-3 text-xs text-slate-700">
+                                      <span className="font-black text-emerald-800">{item.latestReplyBy || 'المدرب'}: </span>
+                                      {item.latestReply}
+                                    </div>
+                                  )}
+                                  {isExpanded && (
+                                    <div className="space-y-2 border-t border-slate-100 pt-3">
+                                      {threadReplies.map((rep) => (
+                                        <div
+                                          key={rep.id}
+                                          className={`rounded-xl p-3 text-xs ${
+                                            rep.isInstructor ? 'bg-indigo-50 border border-indigo-100' : 'bg-slate-50'
+                                          }`}
+                                        >
+                                          <span className="font-black text-slate-900">
+                                            {rep.authorName}{rep.isInstructor ? ' (مدرب)' : ''}:{' '}
+                                          </span>
+                                          <span className="text-slate-700">{rep.body}</span>
+                                        </div>
+                                      ))}
+                                      <div className="flex gap-2 pt-1">
+                                        <input
+                                          type="text"
+                                          value={replyDrafts[item.id] || ''}
+                                          onChange={(e) =>
+                                            setReplyDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))
+                                          }
+                                          placeholder="أضف رداً..."
+                                          className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-xs"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            const draft = (replyDrafts[item.id] || '').trim();
+                                            if (draft.length < 2) return;
+                                            try {
+                                              const csrf = await getCsrfToken();
+                                              const created = await contentClient.qaCreateReply(
+                                                item.id,
+                                                draft,
+                                                `cqar-${Date.now()}`,
+                                                csrf,
+                                              );
+                                              setReplyDrafts((prev) => ({ ...prev, [item.id]: '' }));
+                                              setRepliesByQuestion((prev) => ({
+                                                ...prev,
+                                                [item.id]: [...(prev[item.id] || []), created.item],
+                                              }));
+                                              await loadCourseQA();
+                                            } catch {}
+                                          }}
+                                          className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700"
+                                        >
+                                          رد
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </article>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -842,7 +1041,7 @@ export function CourseOverview({
                   <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-indigo-600 transition-all duration-700"
-                      style={{ width: `${progressPercent === null ? 'غير متاح' : `${progressPercent}%`}` }}
+                      style={{ width: `${progressPercent ?? 0}%` }}
                     />
                   </div>
                 </div>
@@ -933,12 +1132,44 @@ export function CourseOverview({
                     <span className="font-bold text-gray-700">{totalLessonsCount} درس</span>
                   </div>
                   {course.certificateEnabled ? (
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2 text-gray-500">
-                        <Award size={15} />
-                        <span>شهادة الإتمام</span>
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <Award size={15} />
+                          <span>شهادة الإتمام</span>
+                        </div>
+                        <span className="font-bold text-emerald-600">معتمدة وموثقة</span>
                       </div>
-                      <span className="font-bold text-emerald-600">معتمدة وموثقة</span>
+                      {user && progressPercent === 100 && totalLessonsCount > 0 && (
+                        certificate ? (
+                          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+                            <div className="font-black">تم إصدار شهادتك بنجاح</div>
+                            <div className="mt-1 font-mono text-[11px] font-bold">رمز التحقق: {certificate.verificationCode}</div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={certBusy}
+                            onClick={async () => {
+                              setCertBusy(true);
+                              setCertError('');
+                              try {
+                                const csrf = await getCsrfToken();
+                                const res = await lessonProgressSummaryClient.issueCertificate(course.id, csrf);
+                                setCertificate(res.certificate);
+                              } catch (err) {
+                                setCertError(err instanceof Error ? err.message : 'تعذر إصدار الشهادة.');
+                              } finally {
+                                setCertBusy(false);
+                              }
+                            }}
+                            className="w-full rounded-xl bg-emerald-600 py-2 text-xs font-black text-white hover:bg-emerald-700 disabled:opacity-60"
+                          >
+                            {certBusy ? 'جاري الإصدار...' : 'إصدار شهادة إتمام الدورة'}
+                          </button>
+                        )
+                      )}
+                      {certError && <p className="text-[11px] font-bold text-rose-600">{certError}</p>}
                     </div>
                   ) : null}
                 </div>

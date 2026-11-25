@@ -112,6 +112,7 @@ func queryFromRequest(r *http.Request) (reporting.Query, error) {
 		ClassID:      strings.TrimSpace(r.URL.Query().Get("classId")),
 		PathID:       strings.TrimSpace(r.URL.Query().Get("pathId")),
 		SubjectID:    strings.TrimSpace(r.URL.Query().Get("subjectId")),
+		SkillID:      strings.TrimSpace(r.URL.Query().Get("skillId")),
 		FromAt:       fromAt,
 		ToAt:         toAt,
 		StudentLimit: studentLimit,

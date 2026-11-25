@@ -64,6 +64,7 @@ export interface ReportingQuery{
   classId?:string;
   pathId?:string;
   subjectId?:string;
+  skillId?:string;
   dateFrom?:string;
   dateTo?:string;
   studentLimit?:number;

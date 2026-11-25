@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, CheckCircle, FileText, Video, X } from 'lucide-react';
+import { BookOpen, Calendar, CheckCircle, FileText, Video, X } from 'lucide-react';
 import { displayText } from './studentReportDomain';
 import type { StudentAggregatedSkill, SkillRecommendation } from './studentReportTypes';
 
@@ -26,6 +26,15 @@ export const StudentSelectedSkillPanel: React.FC<StudentSelectedSkillPanelProps>
     : '/dashboard?tab=assessments';
 
   const recheckLink = `/dashboard?tab=assessments&slot=tests&pathId=${skill.pathId || ''}`;
+  const bookParams = new URLSearchParams({
+    skillId: skill.skillId || skill.skill,
+    skillName: skill.skill,
+    source: 'reports',
+  });
+  if (skill.pathId) bookParams.set('pathId', skill.pathId);
+  if (skill.subjectId) bookParams.set('subjectId', skill.subjectId);
+  if (skill.parentSkill) bookParams.set('subjectName', skill.parentSkill);
+  const bookSessionLink = `/book-session?${bookParams.toString()}`;
 
   return (
     <div
@@ -88,7 +97,7 @@ export const StudentSelectedSkillPanel: React.FC<StudentSelectedSkillPanelProps>
           </p>
         </div>
 
-        <div className="grid w-full gap-2.5 sm:grid-cols-3 lg:w-auto lg:min-w-[480px]">
+        <div className="grid w-full gap-2.5 sm:grid-cols-2 lg:w-auto lg:min-w-[520px]">
           <Link
             to={recommendation?.lessonLink || foundationLink}
             className="flex items-center justify-center gap-2 rounded-2xl bg-white dark:bg-slate-800 p-3.5 text-xs sm:text-sm font-black text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-slate-700 transition shadow-2xs"
@@ -111,6 +120,14 @@ export const StudentSelectedSkillPanel: React.FC<StudentSelectedSkillPanelProps>
           >
             <CheckCircle size={17} className="shrink-0" />
             <span>إعادة القياس</span>
+          </Link>
+
+          <Link
+            to={bookSessionLink}
+            className="flex items-center justify-center gap-2 rounded-2xl border border-violet-200 bg-violet-50 hover:bg-violet-100 p-3.5 text-xs sm:text-sm font-black text-violet-700 transition shadow-2xs"
+          >
+            <Calendar size={17} className="shrink-0 text-violet-600" />
+            <span>حجز حصة خاصة</span>
           </Link>
         </div>
       </div>

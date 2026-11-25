@@ -34,14 +34,11 @@ test('the reviewed legacy snapshot can be compared to the current Go App route t
   const diff = compareRoutes(legacy.paths, goRoutes);
   assert.equal(legacy.sourceFile, 'app/AppRouteTree.tsx');
   assert.equal(diff.legacyCount, 55);
-  // Refreshed 2026-11-21 against the combined App route tree (86 explicit routes):
-  // the merged Antigravity branch adds the canonical /school-director alias
-  // beside /school-director-dashboard. The legacy baseline stays frozen.
-  assert.equal(diff.targetCount, 86);
-  assert.equal(diff.sharedCount, 41);
-  assert.equal(diff.legacyOnly.length, 14);
-  assert.equal(diff.targetOnly.length, 45);
-  assert.ok(diff.legacyOnly.includes('/admin/quiz-gen'));
+  // M2 Student, Reporting, Routes & Policy Parity: all 55 legacy routes are now mounted in App.tsx (99 total explicit routes).
+  assert.equal(diff.targetCount, 99);
+  assert.equal(diff.sharedCount, 55);
+  assert.equal(diff.legacyOnly.length, 0);
+  assert.equal(diff.targetOnly.length, 44);
   assert.ok(diff.targetOnly.includes('/admin-dashboard/assessments'));
   assert.ok(diff.targetOnly.includes('/admin-dashboard/platform-fonts'));
 });

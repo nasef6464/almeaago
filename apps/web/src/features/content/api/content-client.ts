@@ -555,4 +555,181 @@ export const contentClient = {
       },
     );
   },
+
+  qaList(
+    params: { courseId?: string; filter?: 'all' | 'answered' | 'pending'; q?: string; limit?: number } = {},
+    signal?: AbortSignal,
+  ) {
+    const qs = new URLSearchParams();
+    if (params.courseId) qs.set('courseId', params.courseId);
+    if (params.filter) qs.set('filter', params.filter);
+    if (params.q) qs.set('q', params.q);
+    if (params.limit) qs.set('limit', String(params.limit));
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return request<{
+      items: Array<{
+        id: string;
+        courseId?: string;
+        courseTitle?: string;
+        pathId?: string;
+        pathName?: string;
+        subjectId?: string;
+        subjectName: string;
+        authorId: string;
+        authorName: string;
+        question: string;
+        latestReply?: string;
+        latestReplyBy?: string;
+        repliesCount: number;
+        hasAnswer: boolean;
+        isResolved: boolean;
+        createdAt: string;
+        updatedAt: string;
+      }>;
+      stats: { total: number; answered: number; pending: number };
+    }>(`/api/v1/learning-spaces/qa${suffix}`, { signal });
+  },
+
+  qaCreate(
+    input: {
+      courseId?: string;
+      pathId?: string;
+      subjectId?: string;
+      subjectName?: string;
+      question: string;
+      requestId: string;
+    },
+    csrfToken: string,
+  ) {
+    return request<{
+      item: {
+        id: string;
+        courseId?: string;
+        courseTitle?: string;
+        pathId?: string;
+        pathName?: string;
+        subjectId?: string;
+        subjectName: string;
+        authorId: string;
+        authorName: string;
+        question: string;
+        latestReply?: string;
+        latestReplyBy?: string;
+        repliesCount: number;
+        hasAnswer: boolean;
+        isResolved: boolean;
+        createdAt: string;
+        updatedAt: string;
+      };
+    }>('/api/v1/learning-spaces/qa', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      body: JSON.stringify(input),
+    });
+  },
+
+  qaReplies(questionId: string, signal?: AbortSignal) {
+    return request<{
+      items: Array<{
+        id: string;
+        questionId: string;
+        authorId: string;
+        authorName: string;
+        body: string;
+        isInstructor: boolean;
+        createdAt: string;
+      }>;
+    }>(`/api/v1/learning-spaces/qa/${encodeURIComponent(questionId)}/replies`, { signal });
+  },
+
+  qaCreateReply(questionId: string, body: string, requestId: string, csrfToken: string) {
+    return request<{
+      item: {
+        id: string;
+        questionId: string;
+        authorId: string;
+        authorName: string;
+        body: string;
+        isInstructor: boolean;
+        createdAt: string;
+      };
+    }>(`/api/v1/learning-spaces/qa/${encodeURIComponent(questionId)}/replies`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      body: JSON.stringify({ body, requestId }),
+    });
+  },
+
+  qaResolve(questionId: string, csrfToken: string) {
+    return request<{ resolved: boolean }>(
+      `/api/v1/learning-spaces/qa/${encodeURIComponent(questionId)}/resolve`,
+      {
+        method: 'PATCH',
+        headers: { 'X-CSRF-Token': csrfToken },
+      },
+    );
+  },
+
+  liveSessions(signal?: AbortSignal) {
+    return request<{
+      lessons: Array<{
+        id: string;
+        title: string;
+        description: string;
+        type: string;
+        pathId: string;
+        pathName: string;
+        subjectId: string;
+        subjectName: string;
+        teacherName: string;
+        meetingUrl: string;
+        meetingDate?: string;
+        durationMinutes: number;
+        recordingUrl: string;
+        showRecording: boolean;
+        joinInstructions: string;
+        isLocked: boolean;
+      }>;
+      classroomSessions: Array<{
+        id: string;
+        classId: string;
+        className: string;
+        subjectId: string;
+        subjectName: string;
+        teacherName: string;
+        status: string;
+        day: string;
+        startedAt?: string;
+      }>;
+    }>('/api/v1/learning-spaces/live-sessions', { signal });
+  },
+
+  liveLesson(lessonId: string, signal?: AbortSignal) {
+    return request<{
+      lesson: {
+        id: string;
+        title: string;
+        description: string;
+        type: string;
+        pathId: string;
+        pathName: string;
+        subjectId: string;
+        subjectName: string;
+        teacherName: string;
+        meetingUrl: string;
+        meetingDate?: string;
+        durationMinutes: number;
+        recordingUrl: string;
+        showRecording: boolean;
+        joinInstructions: string;
+        isLocked: boolean;
+      };
+    }>(`/api/v1/learning-spaces/live-sessions/${encodeURIComponent(lessonId)}`, { signal });
+  },
 };

@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   Menu,
   MessageCircle,
+  Radio,
   Route as RouteIcon,
   Sparkles,
   Star,
@@ -24,12 +25,13 @@ import {
   X,
 } from 'lucide-react';
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../auth/state/AuthProvider';
 import { assessmentAssignmentClient, type LearnerAssessmentAssignment } from '../../assessment/api/assessment-assignment-client';
 import { contentClient } from '../../content/api/content-client';
 import type { TaxonomyPath } from '../../content/api/content-types';
+import { lessonProgressSummaryClient } from '../api/learning-client';
 import { QiyasCalculatorModal } from '../components/QiyasCalculatorModal';
 import { SmartLearningPathWidget } from '../components/SmartLearningPathWidget';
 import { ProgressBar } from '../components/ProgressBar';
@@ -61,30 +63,6 @@ type NavItem = {
   tone: string;
 };
 
-const INITIAL_PATHS: TaxonomyPath[] = [
-  {
-    id: '018f0000-0000-7000-8000-000000000030',
-    code: 'QUDRAT',
-    name: 'مسار القدرات العامة',
-    description: 'تأسيس وتدريب شامل لاختبار القدرات العامة (كمي ولفظي)',
-    sortOrder: 1,
-  },
-  {
-    id: 'd242dd63-2c42-54e1-81da-37322e5234a7',
-    code: 'TAHSILI',
-    name: 'مسار التحصيلي العلمي',
-    description: 'تأسيس واختبارات محاكية لاختبار التحصيلي لطلاب العلمي',
-    sortOrder: 2,
-  },
-  {
-    id: 'a5d9b9ec-625e-5eb1-87b9-0cd8f6073a44',
-    code: 'NAFES',
-    name: 'مسار اختبار نافس الوطني',
-    description: 'اختبارات محاكية ومراجعات لمعايير الاختبارات الوطنية نافس',
-    sortOrder: 3,
-  },
-];
-
 export function StudentDashboardPage() {
   const { user, loading } = useAuth();
   const [searchParams] = useSearchParams();
@@ -93,8 +71,9 @@ export function StudentDashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
-  const [paths, setPaths] = useState<TaxonomyPath[]>(INITIAL_PATHS);
+  const [paths, setPaths] = useState<TaxonomyPath[]>([]);
   const [assignments, setAssignments] = useState<LearnerAssessmentAssignment[]>([]);
+  const [streakDays, setStreakDays] = useState(0);
   const [loadingData, setLoadingData] = useState(false);
 
   useEffect(() => {
@@ -109,13 +88,17 @@ export function StudentDashboardPage() {
     Promise.allSettled([
       contentClient.taxonomyCore(controller.signal),
       tab === 'overview' ? assessmentAssignmentClient.mine(1, 4, controller.signal) : Promise.resolve(null),
-    ]).then(([taxResult, assignResult]) => {
+      lessonProgressSummaryClient.achievements(controller.signal),
+    ]).then(([taxResult, assignResult, achResult]) => {
       if (!active) return;
       if (taxResult.status === 'fulfilled') {
         setPaths(taxResult.value.paths || []);
       }
       if (assignResult.status === 'fulfilled' && assignResult.value) {
         setAssignments(assignResult.value.items || []);
+      }
+      if (achResult.status === 'fulfilled') {
+        setStreakDays(achResult.value.summary?.streakDays ?? 0);
       }
       setLoadingData(false);
     });
@@ -163,6 +146,13 @@ export function StudentDashboardPage() {
   }
 
   if (!studentUser) {
+    if (!searchParams.get('tab')) {
+      if (user.roles.includes('admin')) return <Navigate replace to="/admin-dashboard" />;
+      if (user.roles.includes('school_admin')) return <Navigate replace to="/school-director-dashboard" />;
+      if (user.roles.includes('supervisor')) return <Navigate replace to="/supervisor-dashboard" />;
+      if (user.roles.includes('teacher')) return <Navigate replace to="/school-teacher-dashboard" />;
+      if (user.roles.includes('parent')) return <Navigate replace to="/parent-dashboard" />;
+    }
     return (
       <main dir="rtl" className="p-10 text-center font-black text-rose-700">
         هذه الصفحة مخصصة للطالب.
@@ -227,6 +217,8 @@ export function StudentDashboardPage() {
         { to: '/reports', label: 'تقاريري', icon: BarChart3, tone: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' },
         { to: '/notifications', label: 'الإشعارات', icon: Bell, tone: 'bg-orange-100 dark:bg-orange-900/60 text-orange-700 dark:text-orange-300' },
         { to: '/dashboard?tab=qa', label: 'سؤال وجواب', icon: MessageCircle, tone: 'bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300' },
+        { to: '/dashboard?tab=sessions', label: 'الحصص واللقاءات', icon: Radio, tone: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' },
+        { to: '/book-session', label: 'حجز حصة خاصة', icon: CalendarDays, tone: 'bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300' },
         { to: '/dashboard?tab=requests', label: 'طلباتي', icon: ClipboardList, tone: 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300' },
       ],
     },
@@ -473,7 +465,9 @@ export function StudentDashboardPage() {
                   <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-base shadow-xs">🔥</div>
                   <div>
                     <div className="text-[10px] font-black text-orange-600">شريط الاستمرارية</div>
-                    <div className="text-sm font-black text-orange-700 leading-tight">5 أيام متتالية</div>
+                    <div className="text-sm font-black text-orange-700 leading-tight">
+                      {streakDays === 1 ? 'يوم واحد متتالي' : `${streakDays} أيام متتالية`}
+                    </div>
                   </div>
                 </div>
                 <Link

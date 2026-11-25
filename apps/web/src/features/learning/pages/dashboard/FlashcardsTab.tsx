@@ -1,30 +1,47 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Award, Check, ChevronLeft, ChevronRight, Frown, Loader2, RefreshCw, RotateCcw, Sparkles } from 'lucide-react';
-import { learningClient } from '../../api/learning-client';
+import { Award, Check, Frown, Loader2, RotateCcw, Sparkles } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../../../auth/state/AuthProvider';
+import { learningClient, type ReviewItem } from '../../api/learning-client';
 import { contentClient } from '../../../content/api/content-client';
-import type { ReviewItem } from '../../api/learning-client';
 
 export const FlashcardsTab: React.FC = () => {
+  const { getCsrfToken } = useAuth();
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [knownCount, setKnownCount] = useState(0);
   const [completed, setCompleted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     contentClient
       .taxonomyCore(controller.signal)
-      .then((tax) => {
-        const pathId = tax.paths?.[0]?.id || '';
-        if (!pathId) return { items: [] as ReviewItem[] };
-        return learningClient.reviewLibrary('all', pathId, '', 1, 30, controller.signal);
+      .then(async (tax) => {
+        const paths = tax.paths || [];
+        if (paths.length === 0) return [] as ReviewItem[];
+        const settled = await Promise.allSettled(
+          paths.map((p) => learningClient.reviewLibrary('all', p.id, '', 1, 20, controller.signal)),
+        );
+        const combined: ReviewItem[] = [];
+        const seen = new Set<string>();
+        for (const r of settled) {
+          if (r.status !== 'fulfilled') continue;
+          for (const item of r.value.items || []) {
+            if (!seen.has(item.card.cardId)) {
+              seen.add(item.card.cardId);
+              combined.push(item);
+            }
+          }
+        }
+        return combined;
       })
-      .then((res) => {
+      .then((combined) => {
         if (!controller.signal.aborted) {
-          setItems(res.items || []);
+          setItems(combined);
         }
       })
       .catch(() => {
@@ -38,57 +55,46 @@ export const FlashcardsTab: React.FC = () => {
   }, []);
 
   const flashcards = useMemo(() => {
-    if (!items.length) {
-      // Fallback demo flashcards if student hasn't accumulated saved questions yet
-      return [
-        {
-          id: 'card-1',
-          question: 'ما هو حاصل جمع الزوايا الداخلية لأي مثلث؟',
-          answer: '180 درجة مئوية / هندسية.',
-          explanation: 'مجموع قياسات الزوايا الداخلية في أي مضلع ثلاثي هو 180° دائماً.',
-        },
-        {
-          id: 'card-2',
-          question: 'ما هو التناظر اللفظي بين: (كتاب : ورقة)؟',
-          answer: 'علاقة كل إلى جزء (الكتاب يتكون من أوراق).',
-          explanation: 'الكل يسبق الجزء، كما في (شجرة : غصن) أو (سيارة : عجلة).',
-        },
-        {
-          id: 'card-3',
-          question: 'إذا كان س + ص = 10، وَ س - ص = 4، فما قيمة س؟',
-          answer: 'س = 7',
-          explanation: 'بجمع المعادلتين: 2س = 14 إذاً س = 7.',
-        },
-        {
-          id: 'card-4',
-          question: 'ما مضاد كلمة «جذوة»؟',
-          answer: 'رماد أو انطفاء.',
-          explanation: 'الجذوة هي الشعلة الملتهبة، وضدها الانطفاء أو الرماد الخامل.',
-        },
-        {
-          id: 'card-5',
-          question: 'ما النسبة المئوية للكسر 3/5؟',
-          answer: '60%',
-          explanation: '(3 ÷ 5) × 100 = 60%.',
-        },
-      ];
-    }
-
-    return items.slice(0, 15).map((item) => {
+    return items.slice(0, 20).map((item) => {
       const q = item.question;
-      const correctOpt = q?.options?.find((o: { index: number; text: string }) => o.index === q.correctOptionIndex) || q?.options?.[0];
+      const options = q?.options || [];
+      const correctOpt =
+        options.find((o: { index: number; text: string }) => o.index === q.correctOptionIndex) || options[0];
+      const wrongOpt = options.find((o: { index: number; text: string }) => o.index !== q.correctOptionIndex);
       return {
-        id: item.card.questionId,
+        id: item.card.cardId,
+        updatedAt: item.card.updatedAt,
+        correctOptionIndex: q?.correctOptionIndex ?? correctOpt?.index ?? 0,
+        wrongOptionIndex: wrongOpt?.index ?? ((q?.correctOptionIndex ?? 0) === 0 ? 1 : 0),
         question: q?.text || 'سؤال مراجعة',
-        answer: correctOpt?.text || 'الإجابة الصحيحة',
+        answer: correctOpt?.text || 'راجع الحل داخل المكتبة',
         explanation: q?.explanation || 'راجع درس التأسيس لتثبيت فهم هذه النقطة.',
       };
     });
   }, [items]);
 
-  const current = flashcards[currentIndex] || flashcards[0];
+  const current = flashcards[currentIndex];
 
-  const handleNext = (known: boolean) => {
+  const handleNext = async (known: boolean) => {
+    if (!current || submitting) return;
+    setSubmitting(true);
+    try {
+      const csrf = await getCsrfToken();
+      await learningClient.answerReview(
+        current.id,
+        {
+          submissionKey: `fc-${current.id}-${Date.now()}`,
+          expectedUpdatedAt: current.updatedAt,
+          selectedOptionIndex: known ? current.correctOptionIndex : current.wrongOptionIndex,
+        },
+        csrf,
+      );
+    } catch {
+      // Advance gracefully even if review card state changed concurrently.
+    } finally {
+      setSubmitting(false);
+    }
+
     if (known) setKnownCount((k) => k + 1);
     if (currentIndex < flashcards.length - 1) {
       setCurrentIndex((idx) => idx + 1);
@@ -114,6 +120,34 @@ export const FlashcardsTab: React.FC = () => {
     );
   }
 
+  if (flashcards.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-12 text-center" dir="rtl">
+        <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center mb-4">
+          <Sparkles size={28} />
+        </div>
+        <h2 className="text-lg font-black text-gray-900 dark:text-white">لا توجد بطاقات تذكر حالياً</h2>
+        <p className="mt-1.5 max-w-md text-xs sm:text-sm font-bold text-gray-500 dark:text-slate-400 leading-6">
+          تُنشأ بطاقات المراجعة الذكية تلقائياً من الأسئلة التي تحفظها أو تخطئ فيها أثناء الاختبارات.
+        </p>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          <Link
+            to="/dashboard?tab=review"
+            className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-black text-white hover:bg-indigo-700"
+          >
+            الانتقال لمكتبة المراجعة
+          </Link>
+          <Link
+            to="/dashboard?tab=assessments"
+            className="rounded-xl border border-slate-200 px-5 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50"
+          >
+            بدء اختبار جديد
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (completed) {
     const percentage = Math.round((knownCount / flashcards.length) * 100);
     return (
@@ -121,7 +155,7 @@ export const FlashcardsTab: React.FC = () => {
         <div className="w-20 h-20 bg-amber-100 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center rounded-3xl mb-5 shadow-xs">
           <Award size={40} />
         </div>
-        <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">أحسنت يا بطل! أنهيت جلسة التذكر</h2>
+        <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">أحسنت! أنهيت جلسة التذكر</h2>
         <p className="text-sm font-bold text-gray-500 dark:text-slate-400 mb-6">
           أتقنت {knownCount} من أصل {flashcards.length} بطاقة ({percentage}% إتقان).
         </p>
@@ -144,7 +178,6 @@ export const FlashcardsTab: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in pb-16 w-full max-w-2xl mx-auto" dir="rtl">
-      {/* Header */}
       <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm">
         <div>
           <div className="inline-flex items-center gap-1.5 text-xs font-black text-violet-600 dark:text-violet-400 mb-1">
@@ -169,15 +202,14 @@ export const FlashcardsTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Flip Card */}
       <div
         onClick={() => setIsFlipped((f) => !f)}
         className="cursor-pointer min-h-[300px] sm:min-h-[340px] rounded-3xl border-2 border-indigo-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 flex flex-col justify-between shadow-md transition-all hover:border-indigo-300 dark:hover:border-indigo-700 select-none relative"
       >
         <div className="flex items-center justify-between text-xs font-bold text-gray-400 dark:text-slate-500">
-          <span>{isFlipped ? '💡 الإجابة والتفسير' : '❓ السؤال'}</span>
+          <span>{isFlipped ? 'الإجابة والتفسير' : 'السؤال'}</span>
           <span className="text-[11px] bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
-            انقر للقلب 🔄
+            انقر للقلب
           </span>
         </div>
 
@@ -203,12 +235,12 @@ export const FlashcardsTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Action Buttons */}
       <div className="grid grid-cols-2 gap-3">
         <button
           type="button"
+          disabled={submitting}
           onClick={() => handleNext(false)}
-          className="flex items-center justify-center gap-2 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/50 py-3.5 px-4 text-sm font-black text-rose-700 dark:text-rose-300 hover:bg-rose-100 transition shadow-xs"
+          className="flex items-center justify-center gap-2 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/50 py-3.5 px-4 text-sm font-black text-rose-700 dark:text-rose-300 hover:bg-rose-100 transition shadow-xs disabled:opacity-60"
         >
           <Frown size={18} />
           أحتاج مراجعتها لاحقاً
@@ -216,11 +248,12 @@ export const FlashcardsTab: React.FC = () => {
 
         <button
           type="button"
+          disabled={submitting}
           onClick={() => handleNext(true)}
-          className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 py-3.5 px-4 text-sm font-black text-white transition shadow-xs"
+          className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 py-3.5 px-4 text-sm font-black text-white transition shadow-xs disabled:opacity-60"
         >
           <Check size={18} />
-          أعرفها تماماً ✓
+          أعرفها تماماً
         </button>
       </div>
     </div>

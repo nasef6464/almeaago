@@ -19,11 +19,56 @@ type LessonProgressHandler struct {
 func NewLessonProgress(service *learningapp.LessonProgressService, auth Authenticator) http.Handler {
 	h := &LessonProgressHandler{service: service, auth: auth}
 	r := chi.NewRouter()
+	r.Get("/achievements", h.achievements)
+	r.Get("/courses/summary", h.coursesSummary)
+	r.Post("/courses/{courseId}/certificate", h.issueCourseCertificate)
 	r.Get("/lessons/{lessonId}", h.get)
 	r.Get("/courses/{courseId}/completed", h.courseCompleted)
 	r.Put("/lessons/{lessonId}/video", h.video)
 	r.Post("/lessons/{lessonId}/complete", h.complete)
 	return r
+}
+
+func (h *LessonProgressHandler) achievements(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	a, ok := (&Handler{auth: h.auth}).authn(w, r, false)
+	if !ok {
+		return
+	}
+	out, err := h.service.AchievementsSummary(r.Context(), a.User)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"summary": out})
+}
+
+func (h *LessonProgressHandler) coursesSummary(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	a, ok := (&Handler{auth: h.auth}).authn(w, r, false)
+	if !ok {
+		return
+	}
+	items, err := h.service.CoursesProgressSummary(r.Context(), a.User)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"courses": items})
+}
+
+func (h *LessonProgressHandler) issueCourseCertificate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	a, ok := (&Handler{auth: h.auth}).authn(w, r, true)
+	if !ok {
+		return
+	}
+	cert, err := h.service.IssueCourseCertificate(r.Context(), a.User, chi.URLParam(r, "courseId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"certificate": cert})
 }
 
 func (h *LessonProgressHandler) courseCompleted(w http.ResponseWriter, r *http.Request) {

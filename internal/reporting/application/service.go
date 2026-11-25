@@ -55,7 +55,8 @@ func normalizeQuery(input reporting.Query) (reporting.Query, error) {
 	input.ClassID = strings.TrimSpace(input.ClassID)
 	input.PathID = strings.TrimSpace(input.PathID)
 	input.SubjectID = strings.TrimSpace(input.SubjectID)
-	for _, value := range []string{input.SchoolID, input.ClassID, input.PathID, input.SubjectID} {
+	input.SkillID = strings.TrimSpace(input.SkillID)
+	for _, value := range []string{input.SchoolID, input.ClassID, input.PathID, input.SubjectID, input.SkillID} {
 		if value != "" && !uuidPattern.MatchString(value) {
 			return reporting.Query{}, ErrInvalidInput
 		}
