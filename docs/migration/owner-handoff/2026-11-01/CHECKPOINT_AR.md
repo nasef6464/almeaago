@@ -1,4 +1,21 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 26 نوفمبر — دمج M1 (الإدارة والعمليات والمدارس) و M2 (رحلة الطالب والتقارير والمسارات) وتحديث P6/P7 / PARTIAL
+
+- Go main `9cca0bce` بعد دمج [PR #313](https://github.com/nasef6464/almeaago/pull/313) (`26419df9`) و[PR #315](https://github.com/nasef6464/almeaago/pull/315) (`9cca0bce`).
+- **إنجازات PR #313 (حزمة M1 — الإدارة والعمليات والذكاء الاصطناعي والمدارس):**
+  1. تطبيق المهاجرة `000065_m1_admin_ops_ai` وربط حصص الذكاء الاصطناعي للمدارس (`internal/ai`)، وتصدير النسخ الاحتياطية لـ 10 جداول وإعدادات التكامل/SEO (`internal/operations`)، وإحصائيات وعقود المدارس (`internal/organizations`)، وصلاحيات التجارة (`internal/commerce`)، و`api/openapi/openapi.yaml`.
+  2. تحديث واجهات `AiAdminPage` و`BackupAdminPage` (حالة فارغة صادقة وفحص ملفات JSON للقراءة فقط دون استعادة وهمية) و`PlatformIntegrationsAdminPage` و`SchoolsAdminPage` و`AdminDashboardShell` (تفعيل `ThemeToggle` و`SearchModal` ورابط السلة والإشعارات).
+  3. **التحقق:** PASS `go vet` واختبارات Go/PG، و`tsc -b`، و`admin-skills-separation.test.mjs` (11/11)، وPlaywright `m1-admin-ops-parity.spec.ts` (4/4)، واجتياز جميع بوابات GitHub Actions السبع (`backend`, `database`, `frontend`, `overlap`, `e2e 1-3`).
+- **إنجازات PR #315 (حزمة M2 — الطالب والتقارير والمسارات والسياسات):**
+  1. تطبيق المهاجرة `000066_m2_student_parity` وإضافة مسارات وخدمات Go/PG لحجز الحصص (`/api/v1/session-bookings`)، وملخص إنجازات ودورات المتعلم (`/api/v1/learning-progress/achievements` و`courses/summary`)، وسؤال وجواب واللقاءات المباشرة (`/api/v1/learning-spaces/qa`)، وسياسة أدلة التقارير (`internal/reporting`).
+  2. إضافة صفحات `BookSessionPage` و`LiveSessionsPage` و`LiveSessionLobbyPage` و`MyRequestsPage` و`QAPage` و`QuizGeneratorPage`، واستكمال تطابق `StudentDashboardPage` و`ReportsPage` و`CoursesPage` و`CourseOverview` و`AssessmentFollowUpSkills`.
+  3. **التحقق:** PASS `go vet` واختبارات Go/PG، و`tsc -b`، و`student-dashboard-parity.spec.ts` (2/2)، و`student-report-skill-focus.spec.ts` (4/4)، و`m2-student-parity.spec.ts` (6/6 شاملة `390/820/1440` RTL)، و`course-system-parity.spec.ts`، وفحص `route-inventory.mjs` (`55/55` مسار Legacy، `legacyOnly: []`)، واجتياز جميع بوابات GitHub Actions الثماني (`backend`, `database`, `frontend`, `overlap`, `review-saved`, `e2e 1-3`).
+- **حالة بوابة P6:**
+  - تم التحقق آليًا في `Database CI` على `PR #313` و`PR #315` من تطبيق المهاجرات الـ `66` (`000001..000066`) كاملةً والتراجع عنها وإعادة تطبيقها، إضافةً إلى تمرين `pg_dump`/`psql` المثبت في `PR #309`.
+  - **مطابقة البيانات الفعلية (`MongoDB -> PostgreSQL`):** تظل **`BLOCKED`** محليًا لعدم توفر نسخة تصدير معزولة من MongoDB (`*.bson`/`*.archive`) أو أدوات `mongod`/`mongorestore` محليًا، مع الالتزام التام بعدم الاتصال بالإنتاج.
+- **حالة بوابة P7 والخطوة التالية:**
+  - تم اجتياز اختبارات Playwright RTL (`390/820/1440`) لفحوص M1 وM2، وتبقى حزم M3–M5 (أدوار المعلم/المدرب/المدير/المشرف، الفصل الذكي وعقود OpenAPI، والمطابقة البصرية المتقابلة بالصور Legacy مقابل Go `HEADER-VISUAL-EXACT-001`) وبقية فجوات `gap-register.json` المفتوحة. تبقى حالة المنصة العامة **`PARTIAL`**.
+
 ## 25 نوفمبر — تركيز المهارة عبر URL في التقارير وصدق إجراءات ولي الأمر (PR #311 و PR #312) / PARTIAL
 
 - Go main `035d67ef` بعد دمج [PR #311](https://github.com/nasef6464/almeaago/pull/311) و[PR #312](https://github.com/nasef6464/almeaago/pull/312) (`f2a0bcf9`) فوق [PR #310](https://github.com/nasef6464/almeaago/pull/310) (`3469085d`).
