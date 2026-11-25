@@ -287,6 +287,7 @@ func main() {
 	sessionBookingsHandler := learninghttp.NewSessionBookings(sessionBookingService, identityService)
 	studyPlansHandler := learninghttp.NewStudyPlans(studyPlanService, identityService)
 	interventionsHandler := learninghttp.NewInterventions(interventionService, identityService)
+	learningEvidenceHandler := learninghttp.NewEvidenceHandler(learningapp.NewEvidenceService(learningRepository), identityService)
 	communicationHandler := communicationhttp.NewWithRealtime(
 		communicationService,
 		identityService,
@@ -351,6 +352,7 @@ func main() {
 		Parents:                  parentsHandler,
 		Taxonomy:                 taxonomyHandler,
 		NavigationPreferences:    learningnavigation.NewHandler(learningnavigation.NewService(learningnavigation.NewPostgres(db)), identityService),
+		LearningEvidence:         learningEvidenceHandler,
 		QuestionBank:             questionHandler,
 		Assessments:              assessmentHandler,
 		Quizzes:                  quizzesHandler,
