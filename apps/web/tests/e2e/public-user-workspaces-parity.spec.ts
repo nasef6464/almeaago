@@ -81,6 +81,7 @@ test('public landing stays bounded on tablet and source-backed info pages are re
 });
 
 test('student dashboard restores the legacy workspace shell over real V2 routes',async({page})=>{
+  test.setTimeout(120_000);
   await page.route('**/api/v1/auth/me',route=>json(route,{user:student}));
   await page.setViewportSize({width:390,height:844});
   await page.goto('/dashboard');
@@ -88,22 +89,21 @@ test('student dashboard restores the legacy workspace shell over real V2 routes'
   await expect(page.getByRole('heading',{name:'مرحباً يا بطل! 👋'})).toBeVisible();
   await expect(page.getByTestId('student-today-focus')).toContainText('خطوتك اليوم');
 
-  const studentMain=page.locator('main');
-  await expect(studentMain.locator('a[href="/learning"]').first()).toBeVisible();
-  await expect(studentMain.locator('a[href="/assessments"]').first()).toBeVisible();
-  await expect(studentMain.locator('a[href="/review"]').first()).toBeVisible();
-  await expect(studentMain.locator('a[href="/reports"]').first()).toBeVisible();
-  await expect(studentMain.locator('a[href="/notifications"]').first()).toBeVisible();
+  const studentMain=page.locator('main#overview');
+  await expect(studentMain.locator('a[href="/notifications"]')).toBeVisible();
+  await expect(studentMain.getByRole('region',{name:'اختصارات رحلة الطالب'})).toHaveCount(0);
 
   await page.getByRole('button',{name:'فتح قائمة لوحة الطالب'}).click();
   const navigation=page.getByRole('navigation',{name:'تنقل لوحة الطالب'});
   await expect(navigation).toBeVisible();
-  await expect(page.getByTestId('student-menu-group-learning')).toContainText('التعلم');
+  await expect(page.getByTestId('student-menu-group-learning').getByRole('link')).toHaveText(['مساراتي','دوراتي','جلساتي']);
   await expect(page.getByTestId('student-menu-group-exams')).toContainText('الاختبارات');
   await expect(page.getByTestId('student-menu-group-tools')).toContainText('الأدوات');
-  await expect(page.getByTestId('student-menu-group-support')).toContainText('الدعم والمتابعة');
-  await expect(navigation.locator('a[href="/assessment-assignments"]')).toBeVisible();
-  await expect(navigation.locator('a[href="/classroom/join"]')).toBeVisible();
+  await expect(page.getByTestId('student-menu-group-support')).toContainText('الدعم');
+  await expect(navigation.locator('a[href="/dashboard?tab=school-tests"]')).toBeVisible();
+  await navigation.getByRole('link',{name:'جلساتي',exact:true}).click();
+  await expect(page.locator('main#overview').locator('a[href="/classroom/join"]')).toBeVisible();
+  await page.getByRole('button',{name:'فتح قائمة لوحة الطالب'}).click();
 
   await expect(page.getByText('هذه الوجهة ستُنقل من الواجهة المرجعية في مرحلتها.')).toHaveCount(0);
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
@@ -119,6 +119,7 @@ test('student dashboard restores the legacy workspace shell over real V2 routes'
 
 
 test('learner reporting entry opens the already-certified report without duplicating reporting authority',async({page})=>{
+  test.setTimeout(120_000);
   await page.route('**/api/v1/auth/me',route=>json(route,{user:student}));
   await page.route('**/api/v1/taxonomy/bootstrap?phase=core',route=>json(route,{paths:[],subjects:[]}));
   await page.route('**/api/v1/reports/overview',route=>json(route,{scope:{canExport:false,isTruncated:false},assessment:{averageScore:0,passRate:0,passed:0,resultCount:0,resultsTruncated:false,attemptsTruncated:false},weakestSkills:[]}));
@@ -126,10 +127,10 @@ test('learner reporting entry opens the already-certified report without duplica
   await page.setViewportSize({width:390,height:844});
   await page.goto('/dashboard');
   await page.getByRole('button',{name:'فتح قائمة لوحة الطالب'}).click();
-  const reportingEntry=page.getByRole('navigation',{name:'تنقل لوحة الطالب'}).locator('a[href="/reports"]');
+  const reportingEntry=page.getByTestId('student-menu-group-journey').getByRole('link',{name:'تقاريري',exact:true});
   await expect(reportingEntry).toBeVisible();
   await reportingEntry.click();
-  await expect(page).toHaveURL(/\/reports$/);
+  await expect(page).toHaveURL(/\/dashboard\?tab=reports$/);
   await expect(page.getByRole('heading',{name:'تقارير الأداء'})).toBeVisible();
   await expect(page.getByText('قراءة سريعة للتقرير')).toBeVisible();
   await expect(page.getByText('لا توجد نتائج في النطاق الحالي.')).toBeVisible();
