@@ -6,6 +6,8 @@ import {
   Sparkles, Target, UserPlus, Users, X, XCircle, Zap
 } from 'lucide-react';
 import { useAuth } from '../../auth/state/AuthProvider';
+import { notificationClient } from '../../notifications/api/notification-client';
+import type { NotificationPreferences } from '../../notifications/api/notification-types';
 import { parentsClient } from '../api/parents-client';
 import type { ParentChildSummary, ParentDashboard, ParentResultPage, ParentWeeklyReport } from '../api/parents-types';
 
@@ -20,7 +22,7 @@ function score(score: number) { return `${Math.round(score)}%`; }
 function date(value: string) { return new Date(value).toLocaleDateString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric' }); }
 
 export function ParentDashboardPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, getCsrfToken } = useAuth();
   const [data, setData] = useState<ParentDashboard | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
   const [selectedId, setSelectedId] = useState('');
@@ -34,13 +36,16 @@ export function ParentDashboardPage() {
   const [copiedCoach, setCopiedCoach] = useState(false);
   const [reload, setReload] = useState(0);
 
-  // WhatsApp & Digest Settings
-  const [whatsappEnabled, setWhatsappEnabled] = useState(true);
+  // WhatsApp & Digest Settings (persisted via /api/v1/notifications/me/preferences)
+  const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
+  const [prefLoading, setPrefLoading] = useState(true);
+  const [prefSaving, setPrefSaving] = useState(false);
+  const [prefError, setPrefError] = useState('');
   const [requestReportLoading, setRequestReportLoading] = useState(false);
   const [feedback, setFeedback] = useState('');
 
-  // Parent Approvals State
-  const [approvals, setApprovals] = useState<Array<{
+  // Parent Approvals State (populated only from verified server sources when available)
+  const [approvals] = useState<Array<{
     id: string;
     studentName: string;
     title: string;
@@ -48,26 +53,7 @@ export function ParentDashboardPage() {
     description: string;
     date: string;
     status: 'pending' | 'approved' | 'rejected';
-  }>>([
-    {
-      id: 'appr-1',
-      studentName: 'فيصل بن سعد',
-      title: 'المشاركة في أولمبياد القدرات والتحصيلي المركزي',
-      type: 'مسابقة وطنية',
-      description: 'ترشيح الطالب للمشاركة في تصفيات الأولمبياد التنافسي على مستوى منطقة الرياض التعليمية.',
-      date: '2026-11-20',
-      status: 'pending',
-    },
-    {
-      id: 'appr-2',
-      studentName: 'فيصل بن سعد',
-      title: 'حضور المعسكر المكثف لاختبارات قياس (يوم السبت)',
-      type: 'تدريب إضافي',
-      description: 'برنامج تدريبي صفحة محاكاة كاملة مع حصص ذكية مباشرة وبنك أسئلة مكثف.',
-      date: '2026-11-14',
-      status: 'approved',
-    },
-  ]);
+  }>>([]);
 
   useEffect(() => {
     if (authLoading || !user || !user.roles.includes('parent')) return;
@@ -93,6 +79,29 @@ export function ParentDashboardPage() {
       })
       .finally(() => {
         if (!controller.signal.aborted) setBusy(false);
+      });
+    return () => controller.abort();
+  }, [authLoading, reload, user]);
+
+  useEffect(() => {
+    if (authLoading || !user || !user.roles.includes('parent')) return;
+    const controller = new AbortController();
+    setPrefLoading(true);
+    setPrefError('');
+    notificationClient.preferences(controller.signal)
+      .then((out) => {
+        if (!controller.signal.aborted) {
+          setPreferences(out.preferences);
+        }
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted) {
+          setPreferences(null);
+          setPrefError(e instanceof Error ? e.message : 'تعذر تحميل تفضيل ملخصات واتساب');
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setPrefLoading(false);
       });
     return () => controller.abort();
   }, [authLoading, reload, user]);
@@ -189,11 +198,39 @@ export function ParentDashboardPage() {
     } catch {}
   }
 
+  const handleToggleWhatsappDigest = async () => {
+    if (!preferences || prefSaving) return;
+    setPrefSaving(true);
+    setPrefError('');
+    try {
+      const csrf = await getCsrfToken();
+      const out = await notificationClient.updatePreferences(
+        {
+          parentWhatsAppDigestEnabled: !preferences.parentWhatsAppDigestEnabled,
+          expectedRevision: preferences.revision,
+        },
+        csrf,
+      );
+      setPreferences(out.preferences);
+      setFeedback(
+        out.preferences.parentWhatsAppDigestEnabled
+          ? '✅ تم حفظ تفعيل ملخصات واتساب الأسبوعية (يتطلب رقم هاتف ومزود واتساب مهيأ).'
+          : 'تم حفظ إيقاف ملخصات واتساب الأسبوعية.',
+      );
+      setTimeout(() => setFeedback(''), 3500);
+    } catch (e) {
+      setPrefError(e instanceof Error ? e.message : 'تعذر حفظ تفضيل ملخصات واتساب');
+    } finally {
+      setPrefSaving(false);
+    }
+  };
+
   const handleRequestWeeklyReport = async () => {
     setRequestReportLoading(true);
     try {
       const rep = await parentsClient.weeklyReport(1, 20);
       setWeekly(rep);
+      setTab('report');
       setFeedback('✅ تم تحديث التقرير الأسبوعي بنجاح وإعداد ملخص أداء الأبناء المعتمد.');
     } catch {
       setFeedback('⚠️ تعذر استرداد التقرير الأسبوعي من الخادم حالياً. يرجى إعادة المحاولة.');
@@ -334,32 +371,47 @@ export function ParentDashboardPage() {
                 {/* Quick Parent Tools: WhatsApp Weekly Digest & Request Report */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* WhatsApp Weekly Digest Card */}
-                  <div className="rounded-3xl border border-emerald-100 bg-emerald-50/50 p-5 shadow-xs flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3.5">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-white font-black shadow-sm shrink-0">
-                        <MessageCircle size={22} />
+                  <div className="rounded-3xl border border-emerald-100 bg-emerald-50/50 p-5 shadow-xs flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3.5">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-white font-black shadow-sm shrink-0">
+                          <MessageCircle size={22} />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-slate-900 text-sm">ملخصات واتساب الأسبوعية</h4>
+                          <p className="text-xs text-slate-500 font-bold mt-0.5">
+                            {prefLoading
+                              ? 'جاري تحميل تفضيل الإشعارات...'
+                              : preferences
+                                ? 'تلقي تقرير فوري بنتائج واختبارات الأبناء أسبوعياً عبر واتساب (يتطلب رقم هاتف ومزود مهيأ).'
+                                : 'تعذر تحميل تفضيل ملخصات واتساب من الخادم.'}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-black text-slate-900 text-sm">ملخصات واتساب الأسبوعية</h4>
-                        <p className="text-xs text-slate-500 font-bold mt-0.5">
-                          تلقي تقرير فوري بنتائج واختبارات الأبناء أسبوعياً عبر واتساب.
-                        </p>
-                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={Boolean(preferences?.parentWhatsAppDigestEnabled)}
+                        aria-label="ملخصات واتساب الأسبوعية"
+                        disabled={prefLoading || prefSaving || !preferences}
+                        onClick={() => void handleToggleWhatsappDigest()}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 ${
+                          preferences?.parentWhatsAppDigestEnabled ? 'bg-emerald-600' : 'bg-slate-300'
+                        } ${prefLoading || prefSaving || !preferences ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                            preferences?.parentWhatsAppDigestEnabled ? 'translate-x-0' : '-translate-x-5'
+                          }`}
+                        />
+                      </button>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                      <input
-                        type="checkbox"
-                        className="sr-only peer"
-                        checked={whatsappEnabled}
-                        onChange={() => {
-                          const next = !whatsappEnabled;
-                          setWhatsappEnabled(next);
-                          setFeedback(next ? '✅ تم تفعيل ملخصات واتساب الأسبوعية' : 'تم إيقاف ملخصات واتساب');
-                          setTimeout(() => setFeedback(''), 3000);
-                        }}
-                      />
-                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                    </label>
+                    {prefError ? (
+                      <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                        {prefError}
+                      </div>
+                    ) : null}
                   </div>
 
                   {/* Immediate Report Request Card */}
@@ -676,30 +728,40 @@ export function ParentDashboardPage() {
                 </div>
 
                 <div className="space-y-4">
-                  {approvals.map((appr) => (
-                    <div
-                      key={appr.id}
-                      className="rounded-2xl border border-slate-100 bg-slate-50/60 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-black text-emerald-800">
-                            {appr.type}
-                          </span>
-                          <span className="text-xs font-bold text-slate-500">الطالب: {appr.studentName}</span>
-                          <span className="text-xs text-slate-400 font-bold">تاريخ الفعالية: {appr.date}</span>
+                  {approvals.length > 0 ? (
+                    approvals.map((appr) => (
+                      <div
+                        key={appr.id}
+                        className="rounded-2xl border border-slate-100 bg-slate-50/60 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-black text-emerald-800">
+                              {appr.type}
+                            </span>
+                            <span className="text-xs font-bold text-slate-500">الطالب: {appr.studentName}</span>
+                            <span className="text-xs text-slate-400 font-bold">تاريخ الفعالية: {appr.date}</span>
+                          </div>
+                          <h3 className="mt-2 text-base font-black text-slate-900">{appr.title}</h3>
+                          <p className="mt-1 text-xs text-slate-600 leading-relaxed max-w-2xl">{appr.description}</p>
                         </div>
-                        <h3 className="mt-2 text-base font-black text-slate-900">{appr.title}</h3>
-                        <p className="mt-1 text-xs text-slate-600 leading-relaxed max-w-2xl">{appr.description}</p>
-                      </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 px-3 py-1 text-xs font-bold border border-slate-200">
-                          {appr.status === 'approved' ? 'معتمد من المدرسة' : 'إشعار إداري'}
-                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 px-3 py-1 text-xs font-bold border border-slate-200">
+                            {appr.status === 'approved' ? 'معتمد من المدرسة' : 'إشعار إداري'}
+                          </span>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-8 text-center">
+                      <ShieldCheck className="mx-auto mb-2 text-slate-300" size={32} />
+                      <div className="text-sm font-black text-slate-700">لا توجد طلبات موافقات أو تراخيص مسجلة حالياً</div>
+                      <p className="mt-1 text-xs font-bold text-slate-500">
+                        ستظهر هنا أي إشعارات أو تراخيص رسمية تصدرها إدارة المدرسة لحسابك.
+                      </p>
                     </div>
-                  ))}
+                  )}
                 </div>
                 <div className="mt-4 rounded-xl bg-slate-50 p-3 text-xs font-bold text-slate-500 text-center border border-slate-100">
                   ملاحظة: نماذج التراخيص الموقعة يتم تسليمها مباشرة لإدارة المدرسة المعنية وفق الإجراءات النظامية.

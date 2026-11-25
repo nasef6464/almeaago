@@ -292,6 +292,15 @@ export function ReportsPage({ embedded }: { embedded?: boolean } = {}){
         )}
        </div>
        <div className="flex flex-wrap gap-2 self-start">
+        {selectedSkillId ? (
+         <button
+          type="button"
+          onClick={()=>selectSkill('')}
+          className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-100"
+         >
+          عرض كل المهارات
+         </button>
+        ) : null}
         <button
          type="button"
          onClick={()=>setSkillMapOpen(true)}
@@ -304,6 +313,12 @@ export function ReportsPage({ embedded }: { embedded?: boolean } = {}){
        </div>
       </div>
 
+      {selectedSkillId && !overview.weakestSkills.some(row=>row.skillId===selectedSkillId) ? (
+       <div data-testid="focused-skill-missing" className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-bold leading-6 text-amber-900">
+        المهارة المحددة من التقرير ليست ضمن قائمة المهارات الضعيفة الحالية (قد تكون أُتقنت أو لم تبلغ حد 3 أدلة بعد).
+       </div>
+      ) : null}
+
       {selectedSkillData && (
        <StudentSelectedSkillPanel
         skill={selectedSkillData}
@@ -312,9 +327,9 @@ export function ReportsPage({ embedded }: { embedded?: boolean } = {}){
       )}
 
       <div className="mt-5 space-y-2">
-       {overview.weakestSkills.length?overview.weakestSkills.map(row=>{const tone=masteryTone(row.mastery);const isSelected=selectedSkillId===row.skillId;return <article key={row.skillId} className={`rounded-2xl border p-3 transition ${tone.wrap} ${isSelected?'ring-2 ring-indigo-500':''} dark:bg-slate-850 dark:border-slate-800`}>
+       {overview.weakestSkills.length?[...overview.weakestSkills].sort((a,b)=>(a.skillId===selectedSkillId?-1:b.skillId===selectedSkillId?1:0)).map(row=>{const tone=masteryTone(row.mastery);const isSelected=Boolean(selectedSkillId&&row.skillId===selectedSkillId);return <article key={row.skillId} data-testid={isSelected?'focused-skill-card':undefined} className={`rounded-2xl border p-3 transition ${tone.wrap} ${isSelected?'ring-2 ring-indigo-500 shadow-md':''} dark:bg-slate-850 dark:border-slate-800`}>
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-         <div><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full bg-white/70 dark:bg-slate-800 px-3 py-1 text-[11px] font-black ${tone.text}`}>{tone.label}</span><span className="text-[11px] font-bold text-gray-500 dark:text-slate-400">{row.evidenceCount} دليل</span></div><div className="mt-2 font-black leading-7 text-gray-900 dark:text-white">{row.skillName}</div><div className="mt-1 text-xs font-bold text-gray-500 dark:text-slate-400">متأثر بها {row.affectedStudents} طالب ضمن النطاق الحالي.</div></div>
+         <div><div className="flex flex-wrap items-center gap-2">{isSelected?<span className="rounded-full bg-indigo-600 px-3 py-1 text-[11px] font-black text-white">المهارة المحددة</span>:null}<span className={`rounded-full bg-white/70 dark:bg-slate-800 px-3 py-1 text-[11px] font-black ${tone.text}`}>{tone.label}</span><span className="text-[11px] font-bold text-gray-500 dark:text-slate-400">{row.evidenceCount} دليل</span></div><div className="mt-2 font-black leading-7 text-gray-900 dark:text-white">{row.skillName}</div><div className="mt-1 text-xs font-bold text-gray-500 dark:text-slate-400">متأثر بها {row.affectedStudents} طالب ضمن النطاق الحالي.</div></div>
          <div className="flex flex-wrap items-center gap-3">
           <div className={`w-14 text-center text-2xl font-black ${tone.text}`}>{score(row.mastery)}</div>
           <div className="h-2 w-24 overflow-hidden rounded-full bg-white/80 dark:bg-slate-800"><div className={`h-full rounded-full ${tone.bar}`} style={{width:`${Math.max(0,Math.min(100,row.mastery))}%`}}/></div>
