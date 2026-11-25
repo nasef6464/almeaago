@@ -568,7 +568,10 @@ test('الطالب ينفذ اختبار المدرسة ويرى نتيجته', 
     expect(response.status()).toBe(200);
   };
   await login(process.env.PREPARED_OWNER_EMAIL!);
-  await page.goto('/assessment-assignments', { waitUntil: 'domcontentloaded' });
+  await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+  const studentNav = page.getByRole('navigation', { name: 'تنقل لوحة الطالب' });
+  await studentNav.getByRole('link', { name: /الاختبارات المدرسية/ }).click();
+  await expect(page).toHaveURL('/dashboard?tab=school-tests');
   await expect(page.getByText('اختبار تجريبي جاهز', { exact: true })).toBeVisible();
   const started = page.waitForResponse(response => response.url().endsWith('/assessment-assignments/00000000-0000-4000-8000-000000000091/start') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'ابدأ التكليف' }).click();
@@ -584,6 +587,10 @@ test('الطالب ينفذ اختبار المدرسة ويرى نتيجته', 
   expect((await history.json()).items).toEqual(expect.arrayContaining([expect.objectContaining({ attemptId })]));
   await page.getByRole('button', { name: /مراجعة الأسئلة/ }).click();
   await expect(page.getByText('الإجابة الصحيحة', { exact: true })).toBeVisible();
+  await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
+  await studentNav.getByRole('link', { name: /الاختبارات السابقة/ }).click();
+  await expect(page).toHaveURL('/dashboard?tab=quizzes');
+  await expect(page.getByRole('heading', { name: 'اختبار تجريبي جاهز', exact: true })).toBeVisible();
   await login(process.env.PREPARED_OTHER_EMAIL!);
   const review = await page.request.get(`/api/v1/assessment-attempts/${attemptId}/review`);
   expect([403, 404]).toContain(review.status());

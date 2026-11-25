@@ -35,19 +35,17 @@ test('mobile learner browses bounded legacy-shaped learning tabs without content
 });
 
 
-test('dashboard learning entry reaches working learning content',async({page})=>{
- const calls=await mockLearning(page);
+test('dashboard learning entry opens the learner path workspace',async({page})=>{
+ test.setTimeout(120_000);
+ await mockLearning(page);
  await page.setViewportSize({width:390,height:844});
  await page.goto('/dashboard');
  await page.getByRole('button',{name:'فتح قائمة لوحة الطالب'}).click();
  const studentNav=page.getByRole('navigation',{name:'تنقل لوحة الطالب'});
- await studentNav.getByRole('link',{name:/مساراتي ودوراتي/}).click();
- await expect(page).toHaveURL(/\/learning(?:\?tab=courses)?$/);
- await expect(page.getByTestId('legacy-learning-space')).toBeVisible();
- await page.getByLabel('المسار').selectOption('p1');
- await page.getByLabel('المادة').selectOption('s1');
- await expect(page.getByText('دورة الكمي')).toBeVisible();
- expect(calls()).toBe(1);
+ await studentNav.getByRole('link',{name:'مساراتي',exact:true}).click();
+ await expect(page).toHaveURL(/\/dashboard\?tab=paths$/);
+ await expect(page.getByRole('heading',{name:'مساراتي التعليمية والخطط الدراسية'})).toBeVisible();
+ await expect(page.getByTestId('active-path-card-p1').locator('a[href="/category/p1"]').first()).toBeVisible();
  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
 });
 
@@ -96,12 +94,10 @@ test('student dashboard click-through reaches all remaining certified learner de
  await page.setViewportSize({width:390,height:844});
 
  const destinations=[
-  {label:/اختبارات المنصة/,url:/\/assessments$/,heading:'اختبارات المنصة'},
-  {label:/أسئلتي للمراجعة/,url:/\/review$/,heading:'أسئلتي للمراجعة'},
-  {label:/خططي/,url:/\/plan$/,heading:'خططي'},
-  {label:/اختباراتي ونتائجي/,url:/\/assessment-results$/,heading:'اختباراتي'},
-  {label:/تقاريري/,url:/\/reports$/,heading:'تقارير الأداء'},
-  {label:/الإشعارات/,url:/\/notifications$/,heading:'الإشعارات'},
+  {label:/أسئلتي للمراجعة/,url:/\/dashboard\?tab=favorites$/,heading:'أسئلتي للمراجعة'},
+  {label:/خططي/,url:/\/dashboard\?tab=plan$/,heading:'خططي'},
+  {label:/الاختبارات السابقة/,url:/\/dashboard\?tab=quizzes$/,heading:'اختباراتي'},
+  {label:/تقاريري/,url:/\/dashboard\?tab=reports$/,heading:'تقارير الأداء'},
  ];
 
  for(const destination of destinations){
@@ -114,4 +110,12 @@ test('student dashboard click-through reaches all remaining certified learner de
   await expect(page.getByText(/Placeholder|Something went wrong|Application error/i)).toHaveCount(0);
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
  }
+
+ await page.goto('/dashboard?tab=quizzes');
+ await page.getByRole('link',{name:/اختبارات متاحة للتدرب/}).click();
+ await expect(page.getByRole('heading',{name:'اختبارات المنصة',exact:true})).toBeVisible();
+ await page.goto('/dashboard');
+ await page.locator('main#overview').getByRole('link',{name:'الإشعارات',exact:true}).click();
+ await expect(page).toHaveURL(/\/notifications$/);
+ await expect(page.getByRole('heading',{name:'الإشعارات',exact:true})).toBeVisible();
 });

@@ -514,7 +514,10 @@ export function AssessmentResultsPage({ embedded, resultAttemptId, hideReturnLin
                 <p className="mt-1 text-xs font-bold text-gray-500 dark:text-slate-400 sm:text-sm">محاولاتك ونتائجك المحفوظة من الخادم، مرتبة من الأحدث.</p>
               </div>
             </div>
-            <Link to={embedded ? "/dashboard?tab=assessments" : "/assessments"} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/50 px-4 py-3 text-sm font-black text-amber-800 dark:text-amber-300"><Target size={16}/>مركز الاختبارات</Link>
+            <Link to={embedded ? "/dashboard?tab=platform-assessments" : "/assessments"} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/50 px-4 py-3 text-sm font-black text-amber-800 dark:text-amber-300">
+              <Target size={16} />
+              {embedded ? 'اختبارات متاحة للتدرب — اختياري' : 'مركز الاختبارات'}
+            </Link>
           </div>
         </header>
 
