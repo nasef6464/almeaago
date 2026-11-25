@@ -42,22 +42,24 @@ func TestLearningEvidencePathMockNullableSubjectPostgres(t *testing.T) {
 	const assessment = "00000000-0000-0000-0000-000000000003"
 	const path = "00000000-0000-0000-0000-000000000004"
 	statements := []string{
-		`CREATE TABLE assessment_attempts(id uuid,student_id uuid,assessment_id uuid,assessment_version int,status text);
+		`CREATE TABLE assessment_attempts(id uuid,student_id uuid,assessment_id uuid,assessment_version int,status text,attempt_kind text DEFAULT 'prepared');
  CREATE TABLE assessment_results(attempt_id uuid,finalized_at timestamptz);
  CREATE TABLE assessment_versions(assessment_id uuid,version int,path_id uuid,subject_id uuid);
  CREATE TABLE assessment_version_questions(assessment_id uuid,assessment_version int,question_id uuid,question_version int,sort_order int);
- CREATE TABLE assessment_answers(attempt_id uuid,question_id uuid,is_correct bool);
- CREATE TABLE questions(id uuid,path_id uuid,subject_id uuid);
+ CREATE TABLE assessment_answers(attempt_id uuid,question_id uuid,is_correct bool,selected_option_index int,text_answer text);
+ CREATE TABLE questions(id uuid,path_id uuid,subject_id uuid,current_version int DEFAULT 1);
  CREATE TABLE subjects(id uuid,path_id uuid);
  CREATE TABLE skills(id uuid,subject_id uuid);
- CREATE TABLE question_skill_links(question_id uuid,skill_id uuid);`,
-		`INSERT INTO assessment_attempts VALUES('` + attempt + `','` + student + `','` + assessment + `',1,'submitted');
+ CREATE TABLE question_skill_links(question_id uuid,skill_id uuid);
+ CREATE TABLE question_version_taxonomy(question_id uuid,question_version int,path_id uuid,subject_id uuid);
+ CREATE TABLE question_version_taxonomy_skills(question_id uuid,question_version int,skill_id uuid);`,
+		`INSERT INTO assessment_attempts(id,student_id,assessment_id,assessment_version,status) VALUES('` + attempt + `','` + student + `','` + assessment + `',1,'submitted');
  INSERT INTO assessment_results VALUES('` + attempt + `',now());
  INSERT INTO assessment_versions VALUES('` + assessment + `',1,'` + path + `',NULL);`,
 		`INSERT INTO subjects VALUES ('00000000-0000-0000-0000-000000000011','` + path + `'),('00000000-0000-0000-0000-000000000012','` + path + `');
- INSERT INTO questions VALUES ('00000000-0000-0000-0000-000000000021','` + path + `','00000000-0000-0000-0000-000000000011'),('00000000-0000-0000-0000-000000000022','` + path + `','00000000-0000-0000-0000-000000000012');
+ INSERT INTO questions(id,path_id,subject_id) VALUES ('00000000-0000-0000-0000-000000000021','` + path + `','00000000-0000-0000-0000-000000000011'),('00000000-0000-0000-0000-000000000022','` + path + `','00000000-0000-0000-0000-000000000012');
  INSERT INTO assessment_version_questions SELECT '` + assessment + `',1,id,1,1 FROM questions;
- INSERT INTO assessment_answers VALUES('` + attempt + `','00000000-0000-0000-0000-000000000021',true);
+ INSERT INTO assessment_answers(attempt_id,question_id,is_correct,selected_option_index) VALUES('` + attempt + `','00000000-0000-0000-0000-000000000021',true,0);
  INSERT INTO skills VALUES('00000000-0000-0000-0000-000000000031','00000000-0000-0000-0000-000000000011'),('00000000-0000-0000-0000-000000000032','00000000-0000-0000-0000-000000000012');
  INSERT INTO question_skill_links VALUES ('00000000-0000-0000-0000-000000000021','00000000-0000-0000-0000-000000000031'),('00000000-0000-0000-0000-000000000022','00000000-0000-0000-0000-000000000032');`,
 	}
@@ -90,5 +92,13 @@ func TestLearningEvidencePathMockNullableSubjectPostgres(t *testing.T) {
 	}
 	if _, err = New(db, nil).LearningSubmissionEvidence(ctx, student, attempt); err == nil {
 		t.Fatal("foreign subject skill evidence must be rejected")
+	}
+	if _, err = db.Exec(ctx, `UPDATE questions SET current_version=2 WHERE id='00000000-0000-0000-0000-000000000021'`); err != nil {
+		t.Fatal(err)
+	}
+	event, err = New(db, nil).LearningSubmissionEvidence(ctx, student, attempt)
+	if err != nil || len(event.Questions) != 2 || len(event.Questions[0].SkillIDs) != 0 ||
+		!event.Questions[0].Correct || len(event.Questions[1].SkillIDs) != 1 {
+		t.Fatalf("untracked old versions must keep the question outcome without borrowing today's links: %+v, %v", event, err)
 	}
 }

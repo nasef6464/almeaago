@@ -145,6 +145,13 @@ COMMIT;`)
 	if _, err = db.Exec(ctx, string(sectionUp)); err != nil {
 		t.Fatalf("taxonomy skill sections migration: %v", err)
 	}
+	taxonomyUp, err := os.ReadFile("../../../../migrations/000064_question_version_taxonomy.up.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec(ctx, string(taxonomyUp)); err != nil {
+		t.Fatalf("question version taxonomy migration: %v", err)
+	}
 	if _, err = db.Exec(ctx, `UPDATE questions SET path_id='00000000-0000-0000-0000-000000000102',subject_id='00000000-0000-0000-0000-000000000103' WHERE id='00000000-0000-0000-0000-000000000105'`); err != nil {
 		t.Fatal(err)
 	}

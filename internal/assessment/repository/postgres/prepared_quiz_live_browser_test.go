@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -95,9 +94,6 @@ func TestPreparedQuizLiveBrowser(t *testing.T) {
 	}
 	sort.Strings(files)
 	for _, file := range files {
-		if strings.Compare(filepath.Base(file), "000063_") >= 0 {
-			continue
-		}
 		sql, e := os.ReadFile(file)
 		if e != nil {
 			t.Fatal(e)
@@ -141,6 +137,7 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 	_, err = db.Exec(ctx, `
 INSERT INTO skills(id,subject_id,code,name,kind) VALUES ('00000000-0000-0000-0000-000000000020','00000000-0000-4000-8000-000000000004','LIVE-MAIN','المهارة الرئيسية','main');
 INSERT INTO skills(id,subject_id,parent_skill_id,code,name,kind) VALUES ('00000000-0000-0000-0000-000000000021','00000000-0000-4000-8000-000000000004','00000000-0000-0000-0000-000000000020','LIVE-SUB','مهارة فرعية تجريبية','sub');
+INSERT INTO skills(id,subject_id,code,name,kind) VALUES ('00000000-0000-0000-0000-000000000097','00000000-0000-4000-8000-000000000004','LIVE-RETAG','مهارة التصنيف الجديد','main');
 INSERT INTO question_skill_links(question_id,skill_id,relation_type) VALUES ('00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000021','sub');
 INSERT INTO foundation_topics(id,subject_id,path_id,code,title) VALUES ('00000000-0000-0000-0000-000000000023','00000000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000003','LIVE-PARENT','موضوع رئيسي تجريبي');
 INSERT INTO foundation_topics(id,subject_id,path_id,parent_topic_id,code,title) VALUES ('00000000-0000-0000-0000-000000000022','00000000-0000-4000-8000-000000000004','00000000-0000-4000-8000-000000000003','00000000-0000-0000-0000-000000000023','LIVE-TOPIC','موضوع تأسيس تجريبي');
@@ -444,6 +441,23 @@ INSERT INTO question_options(question_id,version,option_index,option_text) VALUE
 		t.Fatalf("prepared live browser: %v\n%s", err, output)
 	}
 	t.Logf("prepared live browser: %s", output)
+	if os.Getenv("PREPARED_SKILL_VERSION_TEST") == "1" {
+		var results, evidence, originalLinks, replacementLinks int
+		if err := db.QueryRow(ctx, `
+			SELECT count(DISTINCT r.attempt_id),count(DISTINCT e.id),
+			       count(s.skill_id) FILTER (WHERE s.skill_id='00000000-0000-0000-0000-000000000021'),
+			       count(s.skill_id) FILTER (WHERE s.skill_id='00000000-0000-0000-0000-000000000097')
+			FROM assessment_results r
+			LEFT JOIN mastery_evidence e ON e.source_attempt_id=r.attempt_id
+			LEFT JOIN mastery_evidence_skills s ON s.evidence_id=e.id
+			WHERE r.assessment_id=$1::uuid
+		`, created.ID).Scan(&results, &evidence, &originalLinks, &replacementLinks); err != nil {
+			t.Fatal(err)
+		}
+		if results != 1 || evidence != 1 || originalLinks != 1 || replacementLinks != 0 {
+			t.Fatalf("results=%d evidence=%d original links=%d replacement links=%d", results, evidence, originalLinks, replacementLinks)
+		}
+	}
 }
 
 // Windows may retain child processes or blocked connections after a failed
