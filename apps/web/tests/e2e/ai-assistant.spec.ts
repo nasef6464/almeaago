@@ -66,6 +66,9 @@ test('AI admin edits non-secret routing policy and runs a provider health test',
   await page.route('**/api/v1/ai/admin/providers', (route) =>
     json(route, { items: [gemini] }),
   );
+  await page.route('**/api/v1/ai/admin/school-quotas', (route) =>
+    json(route, { items: [] }),
+  );
   await page.route('**/api/v1/ai/admin/interactions?**', (route) =>
     json(route, {
       items: [

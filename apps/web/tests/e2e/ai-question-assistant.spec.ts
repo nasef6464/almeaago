@@ -33,6 +33,7 @@ test('admin manages non-secret AI provider policy and inspects usage evidence',a
   today:{dayKey:'2026-09-28T00:00:00Z',scopeType:'global',scopeId:'*',requestCount:12,inputTokens:120,outputTokens:40,totalTokens:160,cachedTokens:20,fallbackCount:2,errorCount:1,updatedAt:'2026-09-28T08:00:00Z'},
   last24h:14,fallback24h:2,error24h:1,cacheHit24h:3,inputTokens24h:140,outputTokens24h:50,totalTokens24h:190,cachedTokens24h:20,byProvider:[]
  }}));
+ await page.route('**/api/v1/ai/admin/school-quotas**',route=>json(route,{items:[]}));
  await page.route('**/api/v1/ai/admin/readiness',route=>json(route,{readiness:{
   checkedAt:'2026-09-28T08:00:00Z',status:'degraded',enabledProviders:1,configuredProviders:1,openCircuits:[],todayRequests:12,globalDailyLimit:800,userDailyLimit:80,fallback24h:2,error24h:1,
   notes:['Runtime configured لا يساوي live-provider certification؛ الدليل الحي يبقى deployment evidence منفصلًا.']

@@ -600,3 +600,29 @@ func TestParentAuthorityReturnsOnlyCanonicalIdentifiers(t *testing.T) {
 		}
 	}
 }
+
+func TestAdminCanAddSchoolStudentViaAdminEndpointWithoutWeakeningDirectorRBAC(t *testing.T) {
+	service := orgapp.NewService(&repoStub{})
+	adminHandler := New(service, authStub{auth: adminAuth()})
+	legacyHandler := NewLegacy(service, authStub{auth: adminAuth()})
+
+	payload := `{"name":"سارة خالد","email":"sara@school.test","password":"Password1","classId":"class-1"}`
+
+	// Platform admin succeeds on POST /api/v1/schools/{schoolId}/students
+	req := httptest.NewRequest(http.MethodPost, "/school-1/students", strings.NewReader(payload))
+	req.Header.Set("X-CSRF-Token", "csrf-ok")
+	rec := httptest.NewRecorder()
+	adminHandler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 on admin add student, got %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	// Platform admin WITHOUT school_admin still receives 403 on legacy director endpoint
+	reqLegacy := httptest.NewRequest(http.MethodPost, "/director/schools/school-1/students", strings.NewReader(payload))
+	reqLegacy.Header.Set("X-CSRF-Token", "csrf-ok")
+	recLegacy := httptest.NewRecorder()
+	legacyHandler.ServeHTTP(recLegacy, reqLegacy)
+	if recLegacy.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 on director endpoint for platform admin without school_admin, got %d", recLegacy.Code)
+	}
+}

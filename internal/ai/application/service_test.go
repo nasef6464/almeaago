@@ -119,6 +119,22 @@ func (r *repoStub) UsageSummary(_ context.Context, now time.Time) (ai.UsageSumma
 	}
 	return out, nil
 }
+func (r *repoStub) ResetCircuitBreakers(context.Context, string) ([]ai.ProviderSetting, error) {
+	return append([]ai.ProviderSetting(nil), r.settings...), nil
+}
+func (r *repoStub) ListSchoolQuotas(context.Context) ([]ai.SchoolQuota, error) {
+	return []ai.SchoolQuota{}, nil
+}
+func (r *repoStub) ResetSchoolQuota(_ context.Context, _ string, schoolID string) (ai.SchoolQuota, error) {
+	return ai.SchoolQuota{ID: schoolID, Tier: "basic"}, nil
+}
+func (r *repoStub) UpdateSchoolQuota(_ context.Context, _ string, schoolID string, write ai.SchoolQuotaWrite) (ai.SchoolQuota, error) {
+	return ai.SchoolQuota{
+		ID: schoolID, Tier: write.Tier, TokenLimit: write.TokenLimit,
+		PDFExamLimit: write.PDFExamLimit, VoiceMinutesLimit: write.VoiceMinutesLimit,
+		WhiteboardEnabled: write.WhiteboardEnabled,
+	}, nil
+}
 
 type learningStub struct {
 	card        learning.ReviewCard
@@ -623,5 +639,30 @@ func TestStoryboardTextQuestionStillDisplaysQuestion(t *testing.T) {
 		if !storyboardQuestionHasImage(q) {
 			t.Fatalf("legacy image not detected: %q", text)
 		}
+	}
+}
+
+func TestAIAdminCircuitBreakerResetAndSchoolQuotaRBAC(t *testing.T) {
+	service := NewService(&repoStub{}, nil, nil, nil, Config{})
+	nonAdmin := identity.User{ID: "teacher-1", Roles: []identity.Role{identity.RoleTeacher}}
+	adminUser := identity.User{ID: "admin-1", Roles: []identity.Role{identity.RoleAdmin}}
+
+	if _, err := service.ResetCircuitBreakers(context.Background(), nonAdmin); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected forbidden for non-admin reset circuit breakers, got %v", err)
+	}
+	if _, err := service.AdminSchoolQuotas(context.Background(), nonAdmin); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected forbidden for non-admin school quotas, got %v", err)
+	}
+	if _, err := service.ResetSchoolQuota(context.Background(), nonAdmin, "sch-1"); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected forbidden for non-admin reset school quota, got %v", err)
+	}
+	if _, err := service.UpdateSchoolQuota(context.Background(), adminUser, "sch-1", ai.SchoolQuotaWrite{Tier: "invalid"}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected invalid input for unknown tier, got %v", err)
+	}
+	quota, err := service.UpdateSchoolQuota(context.Background(), adminUser, "sch-1", ai.SchoolQuotaWrite{
+		Tier: "enterprise", TokenLimit: 500000, PDFExamLimit: 250, VoiceMinutesLimit: 300, WhiteboardEnabled: true,
+	})
+	if err != nil || quota.Tier != "enterprise" || quota.TokenLimit != 500000 {
+		t.Fatalf("unexpected quota update: %+v err=%v", quota, err)
 	}
 }

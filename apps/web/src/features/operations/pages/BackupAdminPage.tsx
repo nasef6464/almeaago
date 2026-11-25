@@ -8,15 +8,12 @@ import {
   History,
   Loader2,
   RefreshCw,
-  Save,
   ShieldCheck,
-  Trash2,
   Upload,
 } from 'lucide-react';
-import { contentClient } from '../../content/api/content-client';
-import { taxonomyAdminClient } from '../../taxonomy/api/taxonomy-admin-client';
-import { authClient } from '../../auth/api/auth-client';
-import { organizationsClient } from '../../organizations/api/organizations-client';
+import { useAuth } from '../../auth/state/AuthProvider';
+import { operationsClient } from '../api/operations-client';
+import type { BackupExportPayload, BackupExportRecord } from '../api/operations-types';
 
 const collectionLabels: Record<string, string> = {
   paths: 'المسارات التعليمية',
@@ -31,39 +28,45 @@ const collectionLabels: Record<string, string> = {
   schools: 'المدارس والمجموعات',
 };
 
-type BackupPayload = {
-  kind: 'almeaa-platform-backup';
-  schemaVersion: 1;
-  createdAt: string;
-  summary: Record<string, number>;
-  collections: Record<string, unknown[]>;
-};
-
 export function BackupAdminPage() {
+  const { user, loading: authLoading, getCsrfToken } = useAuth();
+  const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [error, setError] = useState('');
+  const [reloadTick, setReloadTick] = useState(0);
 
   // Uploaded backup preview
-  const [importedBackup, setImportedBackup] = useState<BackupPayload | null>(null);
+  const [importedBackup, setImportedBackup] = useState<BackupExportPayload | null>(null);
   const [fileName, setFileName] = useState('');
 
-  // Backup history / snapshots
-  const [snapshots, setSnapshots] = useState<Array<{ id: string; title: string; createdAt: string; totalDocs: number }>>([
-    {
-      id: 'snap-1',
-      title: 'نسخة احتياطية آلية - استقرار النظام والتصنيف',
-      createdAt: new Date(Date.now() - 3600000 * 4).toLocaleString('ar-SA'),
-      totalDocs: 1450,
-    },
-    {
-      id: 'snap-2',
-      title: 'نسخة احتياطية سابقة - بنك الأسئلة والمهارات',
-      createdAt: new Date(Date.now() - 3600000 * 28).toLocaleString('ar-SA'),
-      totalDocs: 1410,
-    },
-  ]);
+  // Persisted export history from PostgreSQL
+  const [snapshots, setSnapshots] = useState<BackupExportRecord[]>([]);
+
+  useEffect(() => {
+    if (authLoading || !user || !user.roles.includes('admin')) {
+      if (!authLoading) setLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setLoading(true);
+    setError('');
+    operationsClient
+      .backups(controller.signal)
+      .then((res) => {
+        setSnapshots(res.items || []);
+      })
+      .catch((err: unknown) => {
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : 'تعذر تحميل سجل النسخ الاحتياطية');
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [authLoading, user, reloadTick]);
 
   const handleExportBackup = async () => {
     try {
@@ -71,32 +74,10 @@ export function BackupAdminPage() {
       setError('');
       setFeedback('جاري تجميع بيانات المنصة من خادم PostgreSQL...');
 
-      const [taxBootstrap, schoolsRes] = await Promise.all([
-        taxonomyAdminClient.bootstrap().catch(() => ({ paths: [], levels: [], subjects: [], skills: [] })),
-        organizationsClient.schools().catch(() => ({ schools: [] })),
-      ]);
+      const csrf = await getCsrfToken();
+      const result = await operationsClient.exportBackup(csrf);
 
-      const payload: BackupPayload = {
-        kind: 'almeaa-platform-backup',
-        schemaVersion: 1,
-        createdAt: new Date().toISOString(),
-        summary: {
-          paths: taxBootstrap.paths.length,
-          levels: taxBootstrap.levels.length,
-          subjects: taxBootstrap.subjects.length,
-          skills: taxBootstrap.skills.length,
-          schools: schoolsRes.schools.length,
-        },
-        collections: {
-          paths: taxBootstrap.paths,
-          levels: taxBootstrap.levels,
-          subjects: taxBootstrap.subjects,
-          skills: taxBootstrap.skills,
-          schools: schoolsRes.schools,
-        },
-      };
-
-      const jsonStr = JSON.stringify(payload, null, 2);
+      const jsonStr = JSON.stringify(result.payload, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
@@ -108,19 +89,16 @@ export function BackupAdminPage() {
       anchor.remove();
       URL.revokeObjectURL(url);
 
-      const totalItems = Object.values(payload.summary).reduce((a, b) => a + b, 0);
-      setSnapshots((prev) => [
-        {
-          id: `snap-${Date.now()}`,
-          title: `تصدير يدوي كامل (${totalItems} عنصر)`,
-          createdAt: new Date().toLocaleString('ar-SA'),
-          totalDocs: totalItems,
-        },
-        ...prev,
-      ]);
+      if (result.exportRecord) {
+        setSnapshots((prev) => [result.exportRecord, ...prev.filter((item) => item.id !== result.exportRecord.id)]);
+      } else {
+        setReloadTick((v) => v + 1);
+      }
 
-      setFeedback(`تم تصدير وتنزيل النسخة الاحتياطية بنجاح (${totalItems} عنصر).`);
-    } catch (err) {
+      const totalItems = result.exportRecord?.totalRecords ?? Object.values(result.payload.summary || {}).reduce((a, b) => a + b, 0);
+      setFeedback(`تم تصدير وتنزيل النسخة الاحتياطية بنجاح (${totalItems} عنصر) وتسجيلها في السجل الرسمي.`);
+    } catch (err: unknown) {
+      setFeedback('');
       setError(err instanceof Error ? err.message : 'تعذر تصدير النسخة الاحتياطية');
     } finally {
       setIsExporting(false);
@@ -137,8 +115,8 @@ export function BackupAdminPage() {
     reader.onload = (e) => {
       try {
         const text = String(e.target?.result || '');
-        const parsed = JSON.parse(text) as BackupPayload;
-        if (parsed.kind !== 'almeaa-platform-backup' || !parsed.collections) {
+        const parsed = JSON.parse(text) as BackupExportPayload;
+        if (parsed.kind !== 'almeaa-platform-backup' || parsed.schemaVersion !== 1 || !parsed.collections) {
           setError('ملف النسخة الاحتياطية غير صالح أو لا يطابق البنية القياسية للمنصة.');
           setImportedBackup(null);
           return;
@@ -155,19 +133,46 @@ export function BackupAdminPage() {
 
   // Direct database restore is intentionally prohibited from the web browser to safeguard production data.
   // Inspection is strictly limited to validating JSON structure and displaying collection summaries.
-  const handleValidateSchemaOnly = () => {
+  const handleValidateSchemaOnly = async () => {
     if (!importedBackup) return;
     setIsRestoring(true);
+    setError('');
     try {
-      const summaryKeys = Object.keys(importedBackup.summary || {});
-      const totalCount = Object.values(importedBackup.summary || {}).reduce((acc, n) => acc + (typeof n === 'number' ? n : 0), 0);
-      setFeedback(`تم فحص هيكل ملف النسخة بنجاح: تم التحقق من ${summaryKeys.length} مجموعات بيانات بإجمالي ${totalCount} عنصر. (ملاحظة: الاستعادة الفعلية إلى قاعدة البيانات تتطلب أدوات الإدارة عبر CLI).`);
-    } catch {
-      setError('تعذر قراءة محتويات ملف النسخة الاحتياطية.');
+      const csrf = await getCsrfToken();
+      const res = await operationsClient.validateBackup(
+        {
+          kind: importedBackup.kind,
+          schemaVersion: importedBackup.schemaVersion,
+          summary: importedBackup.summary || {},
+          collections: importedBackup.collections || {},
+        },
+        csrf,
+      );
+      setFeedback(
+        `تم فحص هيكل ملف النسخة بنجاح: تم التحقق من ${res.collectionsCount} مجموعات بيانات بإجمالي ${res.totalRecords} عنصر. (ملاحظة: الاستعادة الفعلية إلى قاعدة البيانات تتطلب أدوات الإدارة عبر CLI).`,
+      );
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'تعذر قراءة أو التحقق من محتويات ملف النسخة الاحتياطية.');
     } finally {
       setIsRestoring(false);
     }
   };
+
+  if (authLoading || loading) {
+    return (
+      <main dir="rtl" className="p-10 text-center font-black text-slate-600">
+        جاري تحميل مركز النسخ الاحتياطي والاستعادة...
+      </main>
+    );
+  }
+
+  if (!user || !user.roles.includes('admin')) {
+    return (
+      <main dir="rtl" className="p-10 text-center font-black text-rose-700">
+        هذه الشاشة لمدير المنصة فقط.
+      </main>
+    );
+  }
 
   return (
     <main dir="rtl" className="mx-auto max-w-7xl space-y-6 pb-16 font-sans">
@@ -181,18 +186,28 @@ export function BackupAdminPage() {
             </div>
             <h1 className="mt-2 text-2xl font-black sm:text-3xl">مركز النسخ الاحتياطي والاستعادة</h1>
             <p className="mt-1 text-xs font-bold text-indigo-200 sm:text-sm">
-              تصدير المحتوى التعليمي والمسارات وقواعد البيانات كملفات JSON مع إمكانية التحقق والاستعادة الآمنة.
+              تصدير المحتوى التعليمي والمسارات والمدارس كملفات JSON من قاعدة البيانات مع التحقق الهيكلي الآمن.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleExportBackup}
-            disabled={isExporting}
-            className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-6 py-3 text-xs font-black text-slate-950 shadow-md hover:bg-amber-400 transition cursor-pointer"
-          >
-            {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-            <span>{isExporting ? 'جاري التصدير...' : 'تصدير نسخة احتياطية كاملة'}</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setReloadTick((v) => v + 1)}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-4 py-3 text-xs font-black text-white hover:bg-white/10 transition cursor-pointer"
+            >
+              <RefreshCw size={15} />
+              <span>تحديث السجل</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleExportBackup()}
+              disabled={isExporting}
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-6 py-3 text-xs font-black text-slate-950 shadow-md hover:bg-amber-400 disabled:opacity-50 transition cursor-pointer"
+            >
+              {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+              <span>{isExporting ? 'جاري التصدير...' : 'تصدير نسخة احتياطية كاملة'}</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -207,7 +222,7 @@ export function BackupAdminPage() {
       ) : null}
 
       {error ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-black text-rose-800 flex items-center justify-between animate-fade-in">
+        <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-black text-rose-800 flex items-center justify-between animate-fade-in">
           <div className="flex items-center gap-2">
             <AlertTriangle size={16} className="text-rose-600" />
             <span>{error}</span>
@@ -227,7 +242,7 @@ export function BackupAdminPage() {
             <div>
               <h2 className="text-base font-black text-slate-900">إنشاء وتنزيل نسخة احتياطية</h2>
               <p className="text-xs font-bold text-slate-500 mt-0.5">
-                توليد ملف متكامل يتضمن كافة جداول المحتوى والتصنيف والمدارس.
+                توليد ملف متكامل يتضمن كافة جداول المحتوى والتصنيف والمدارس الـ 10 دون أسرار أو كلمات مرور.
               </p>
             </div>
           </div>
@@ -235,7 +250,7 @@ export function BackupAdminPage() {
           <div className="rounded-2xl bg-slate-50 p-4 space-y-2 text-xs font-bold text-slate-700">
             <div className="flex items-center justify-between">
               <span>المحتويات المشمولة:</span>
-              <span className="font-black text-indigo-600">كافة الجداول الأساسية</span>
+              <span className="font-black text-indigo-600">كافة الجداول الـ 10 الأساسية</span>
             </div>
             <div className="flex flex-wrap gap-1.5 pt-2">
               {Object.entries(collectionLabels).map(([k, label]) => (
@@ -248,9 +263,9 @@ export function BackupAdminPage() {
 
           <button
             type="button"
-            onClick={handleExportBackup}
+            onClick={() => void handleExportBackup()}
             disabled={isExporting}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-xs font-black text-white hover:bg-indigo-700 transition"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50 transition cursor-pointer"
           >
             {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
             <span>توليد وتنزيل JSON الآن</span>
@@ -264,9 +279,9 @@ export function BackupAdminPage() {
               <Upload size={20} />
             </div>
             <div>
-              <h2 className="text-base font-black text-slate-900">استعادة من ملف احتياطي</h2>
+              <h2 className="text-base font-black text-slate-900">فحص ملف احتياطي</h2>
               <p className="text-xs font-bold text-slate-500 mt-0.5">
-                رفع ملف JSON للمعاينة والتحقق قبل تطبيق التحديثات.
+                رفع ملف JSON للمعاينة والتحقق الهيكلي للقراءة فقط قبل تنفيذ أي استعادة عبر CLI.
               </p>
             </div>
           </div>
@@ -292,7 +307,7 @@ export function BackupAdminPage() {
                 <span>تاريخ التوليد: {new Date(importedBackup.createdAt).toLocaleDateString('ar-SA')}</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {Object.entries(importedBackup.summary).map(([k, count]) => (
+                {Object.entries(importedBackup.summary || {}).map(([k, count]) => (
                   <div key={k} className="rounded-xl bg-white border p-2 text-center">
                     <div className="text-sm font-black text-slate-900">{count}</div>
                     <div className="text-[10px] font-bold text-slate-500">{collectionLabels[k] || k}</div>
@@ -304,9 +319,9 @@ export function BackupAdminPage() {
               </div>
               <button
                 type="button"
-                onClick={handleValidateSchemaOnly}
+                onClick={() => void handleValidateSchemaOnly()}
                 disabled={isRestoring}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-xs font-black text-white hover:bg-slate-900 transition"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2.5 text-xs font-black text-white hover:bg-slate-900 disabled:opacity-50 transition cursor-pointer"
               >
                 {isRestoring ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
                 <span>فحص ومطابقة الهيكل فقط (Read-Only)</span>
@@ -326,25 +341,34 @@ export function BackupAdminPage() {
           <span className="text-xs font-bold text-slate-500">{snapshots.length} عمليات مسجلة</span>
         </div>
 
-        <div className="divide-y divide-slate-100">
-          {snapshots.map((snap) => (
-            <div key={snap.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div>
-                <span className="text-xs font-black text-slate-900 block">{snap.title}</span>
-                <span className="text-[11px] font-bold text-slate-400 mt-0.5 block">{snap.createdAt}</span>
+        {snapshots.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-xs font-bold text-slate-500">
+            لا توجد عمليات تصدير مسجلة في قاعدة البيانات بعد. اضغط «تصدير نسخة احتياطية كاملة» لإنشاء أول سجل فعلي.
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {snapshots.map((snap) => (
+              <div key={snap.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <span className="text-xs font-black text-slate-900 block">{snap.title}</span>
+                  <span className="text-[11px] font-bold text-slate-400 mt-0.5 block">
+                    {new Date(snap.createdAt).toLocaleString('ar-SA')}
+                    {snap.createdByEmail ? ` · ${snap.createdByEmail}` : ''}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">
+                    {snap.totalRecords} عنصر
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
+                    <CheckCircle2 size={13} />
+                    <span>مسجل</span>
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">
-                  {snap.totalDocs} عنصر
-                </span>
-                <span className="inline-flex items-center gap-1 text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
-                  <CheckCircle2 size={13} />
-                  <span>معتمد</span>
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </main>
   );

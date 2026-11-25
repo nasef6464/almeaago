@@ -47,6 +47,10 @@ type Repository interface {
 	CountQuestionAssistSince(context.Context, string, time.Time) (int, error)
 	DailyUsage(context.Context, time.Time, string, string) (ai.DailyUsage, error)
 	UsageSummary(context.Context, time.Time) (ai.UsageSummary, error)
+	ResetCircuitBreakers(context.Context, string) ([]ai.ProviderSetting, error)
+	ListSchoolQuotas(context.Context) ([]ai.SchoolQuota, error)
+	ResetSchoolQuota(context.Context, string, string) (ai.SchoolQuota, error)
+	UpdateSchoolQuota(context.Context, string, string, ai.SchoolQuotaWrite) (ai.SchoolQuota, error)
 }
 
 type LearningReader interface {
@@ -331,6 +335,67 @@ func (s *Service) AdminUsage(
 		return ai.UsageSummary{}, ErrForbidden
 	}
 	return s.repo.UsageSummary(ctx, s.now().UTC())
+}
+
+func (s *Service) ResetCircuitBreakers(
+	ctx context.Context,
+	actor identity.User,
+) ([]ai.ProviderSetting, error) {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return nil, ErrForbidden
+	}
+	rows, err := s.repo.ResetCircuitBreakers(ctx, actor.ID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range rows {
+		rows[i].SecretConfigured = s.providers != nil && s.providers.SecretConfigured(rows[i].Provider)
+	}
+	return rows, nil
+}
+
+func (s *Service) AdminSchoolQuotas(
+	ctx context.Context,
+	actor identity.User,
+) ([]ai.SchoolQuota, error) {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return nil, ErrForbidden
+	}
+	return s.repo.ListSchoolQuotas(ctx)
+}
+
+func (s *Service) ResetSchoolQuota(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+) (ai.SchoolQuota, error) {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return ai.SchoolQuota{}, ErrForbidden
+	}
+	schoolID = strings.TrimSpace(schoolID)
+	if schoolID == "" {
+		return ai.SchoolQuota{}, ErrInvalidInput
+	}
+	return s.repo.ResetSchoolQuota(ctx, actor.ID, schoolID)
+}
+
+func (s *Service) UpdateSchoolQuota(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+	write ai.SchoolQuotaWrite,
+) (ai.SchoolQuota, error) {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return ai.SchoolQuota{}, ErrForbidden
+	}
+	schoolID = strings.TrimSpace(schoolID)
+	write.Tier = strings.TrimSpace(write.Tier)
+	if schoolID == "" ||
+		(write.Tier != "basic" && write.Tier != "pro" && write.Tier != "enterprise") ||
+		write.TokenLimit < 0 || write.PDFExamLimit < 0 || write.VoiceMinutesLimit < 0 {
+		return ai.SchoolQuota{}, ErrInvalidInput
+	}
+	return s.repo.UpdateSchoolQuota(ctx, actor.ID, schoolID, write)
 }
 
 func (s *Service) AdminReadiness(

@@ -27,12 +27,23 @@ type AccessContext struct {
 	ActorRoles  []identity.Role
 }
 
+type SchoolStats struct {
+	ClassesCount           int    `json:"classesCount"`
+	StudentsCount          int    `json:"studentsCount"`
+	TeachersCount          int    `json:"teachersCount"`
+	SupervisorsCount       int    `json:"supervisorsCount"`
+	ActivePackagesCount    int    `json:"activePackagesCount"`
+	ActiveAccessCodesCount int    `json:"activeAccessCodesCount"`
+	ContractStatus         string `json:"contractStatus"`
+}
+
 type School struct {
 	ID        string
 	Code      string
 	Name      string
 	Status    SchoolStatus
 	Metadata  json.RawMessage
+	Stats     SchoolStats
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

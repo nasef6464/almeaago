@@ -27,7 +27,7 @@ test('staff creates activates and exposes a stable barcode session',async({page}
  await expect(page.getByRole('heading',{name:'إنشاء جلسة اختبار جديدة'})).toBeVisible();
  await page.getByRole('button',{name:'إنشاء جلسة الباركود'}).click();
  await expect(page.getByText('barcodeabc123')).toBeVisible();
- await page.getByRole('button',{name:'تفعيل'}).click();
+ await page.getByRole('button',{name:'تفعيل',exact:true}).click();
  await expect(page.getByText('نشط')).toBeVisible();
  await expect(page.getByRole('link',{name:'فتح'})).toHaveAttribute('href',new URL('/barcode-test/barcodeabc123', page.url()).href);
 });
