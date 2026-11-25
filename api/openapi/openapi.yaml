@@ -274,6 +274,24 @@ paths:
         "404": { description: Submitted result not found for this learner }
 
 
+  /api/v1/assessments:
+    get:
+      operationId: assessmentStaffList
+      description: Bounded list of assessment definitions within the caller's staff scope. The optional normalMode selects normal assessments by their current version.
+      parameters:
+        - { in: query, name: pathId, schema: { type: string, format: uuid } }
+        - { in: query, name: subjectId, schema: { type: string, format: uuid } }
+        - { in: query, name: normalMode, schema: { type: string, enum: [practice, exam] } }
+        - { in: query, name: workflowStatus, schema: { type: string } }
+        - { in: query, name: search, schema: { type: string, maxLength: 160 } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        "200": { description: Assessment summary page with normalMode on normal assessment items }
+        "400": { description: Invalid filters }
+        "401": { description: Authentication required }
+        "403": { description: Staff role required }
+
   /api/v1/assessments/{id}/placements:
     get:
       operationId: assessmentStaffLearningPlacementList

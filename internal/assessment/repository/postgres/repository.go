@@ -295,6 +295,10 @@ func (r *Repository) List(ctx context.Context, q assessment.ListQuery) (assessme
 	if q.SubjectID != "" {
 		add("v.subject_id=$%d::uuid", q.SubjectID)
 	}
+	if q.NormalMode != "" {
+		parts = append(parts, "v.assessment_kind='normal'")
+		add("v.normal_mode=$%d", string(q.NormalMode))
+	}
 	if q.WorkflowStatus != "" {
 		add("a.workflow_status=$%d", string(q.WorkflowStatus))
 	}
@@ -307,7 +311,7 @@ func (r *Repository) List(ctx context.Context, q assessment.ListQuery) (assessme
 		parts = append(parts, fmt.Sprintf("(a.owner_user_id=$%d::uuid OR a.assigned_teacher_id=$%d::uuid)", i, i))
 	}
 	args = append(args, q.Limit+1, (q.Page-1)*q.Limit)
-	rows, err := r.db.Query(ctx, `SELECT a.id::text,a.assessment_code,v.title,v.path_id::text,COALESCE(v.subject_id::text,''),v.assessment_kind,a.workflow_status,a.owner_type,a.revision,a.current_version,a.is_published,a.updated_at FROM assessments a JOIN assessment_versions v ON v.assessment_id=a.id AND v.version=a.current_version WHERE `+strings.Join(parts, " AND ")+` ORDER BY a.updated_at DESC,a.id DESC LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
+	rows, err := r.db.Query(ctx, `SELECT a.id::text,a.assessment_code,v.title,v.path_id::text,COALESCE(v.subject_id::text,''),v.assessment_kind,COALESCE(v.normal_mode,''),a.workflow_status,a.owner_type,a.revision,a.current_version,a.is_published,a.updated_at FROM assessments a JOIN assessment_versions v ON v.assessment_id=a.id AND v.version=a.current_version WHERE `+strings.Join(parts, " AND ")+` ORDER BY a.updated_at DESC,a.id DESC LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
 	if err != nil {
 		return assessment.Page{}, err
 	}
@@ -315,7 +319,7 @@ func (r *Repository) List(ctx context.Context, q assessment.ListQuery) (assessme
 	items := make([]assessment.Summary, 0, q.Limit+1)
 	for rows.Next() {
 		var x assessment.Summary
-		if err = rows.Scan(&x.ID, &x.Code, &x.Title, &x.PathID, &x.SubjectID, &x.Kind, &x.WorkflowStatus, &x.OwnerType, &x.Revision, &x.CurrentVersion, &x.IsPublished, &x.UpdatedAt); err != nil {
+		if err = rows.Scan(&x.ID, &x.Code, &x.Title, &x.PathID, &x.SubjectID, &x.Kind, &x.NormalMode, &x.WorkflowStatus, &x.OwnerType, &x.Revision, &x.CurrentVersion, &x.IsPublished, &x.UpdatedAt); err != nil {
 			return assessment.Page{}, err
 		}
 		items = append(items, x)

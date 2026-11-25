@@ -153,7 +153,12 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 400, map[string]string{"message": "Invalid pagination"})
 		return
 	}
-	out, e := h.service.List(r.Context(), a.User, assessment.ListQuery{Page: page, Limit: limit, PathID: r.URL.Query().Get("pathId"), SubjectID: r.URL.Query().Get("subjectId"), WorkflowStatus: assessment.WorkflowStatus(r.URL.Query().Get("workflowStatus")), Search: r.URL.Query().Get("search")})
+	query := r.URL.Query()
+	out, e := h.service.List(r.Context(), a.User, assessment.ListQuery{
+		Page: page, Limit: limit, PathID: query.Get("pathId"), SubjectID: query.Get("subjectId"),
+		NormalMode:     assessment.NormalMode(query.Get("normalMode")),
+		WorkflowStatus: assessment.WorkflowStatus(query.Get("workflowStatus")), Search: query.Get("search"),
+	})
 	if e != nil {
 		writeError(w, e)
 		return

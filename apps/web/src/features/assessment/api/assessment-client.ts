@@ -3,7 +3,7 @@ const API_BASE=(import.meta.env.VITE_API_BASE_URL??'').replace(/\/$/,'');
 type ErrorBody={message?:string;error?:{message?:string}};
 export class AssessmentHttpError extends Error { constructor(public readonly status:number,message:string){super(message);this.name='AssessmentHttpError'} }
 async function request<T>(path:string,init:RequestInit={}):Promise<T>{const r=await fetch(`${API_BASE}${path}`,{...init,credentials:'include',headers:{Accept:'application/json',...init.headers}});if(!r.ok){let b:ErrorBody={};try{b=await r.json() as ErrorBody}catch{}throw new AssessmentHttpError(r.status,b.error?.message||b.message||'تعذر تنفيذ الطلب الآن.')}return await r.json() as T}
-function qs(f:AssessmentFilters){const p=new URLSearchParams();p.set('page',String(f.page||1));p.set('limit',String(f.limit||50));if(f.pathId)p.set('pathId',f.pathId);if(f.subjectId)p.set('subjectId',f.subjectId);if(f.workflowStatus)p.set('workflowStatus',f.workflowStatus);if(f.kind)p.set('kind',f.kind);if(f.search)p.set('search',f.search);return p.toString()}
+function qs(f:AssessmentFilters){const p=new URLSearchParams();p.set('page',String(f.page||1));p.set('limit',String(f.limit||50));if(f.pathId)p.set('pathId',f.pathId);if(f.subjectId)p.set('subjectId',f.subjectId);if(f.workflowStatus)p.set('workflowStatus',f.workflowStatus);if(f.kind)p.set('kind',f.kind);if(f.normalMode)p.set('normalMode',f.normalMode);if(f.search)p.set('search',f.search);return p.toString()}
 export const assessmentClient={
  list:async(f:AssessmentFilters,s?:AbortSignal):Promise<AssessmentPage>=>{
    const raw=await request<any>(`/api/v1/assessments?${qs(f)}`,{signal:s});
@@ -15,6 +15,7 @@ export const assessmentClient={
      pathId:x.pathId??x.PathID??'',
      subjectId:x.subjectId??x.SubjectID??'',
      kind:(x.kind??x.Kind??'normal') as 'normal'|'mock',
+     normalMode:x.normalMode??x.NormalMode??'',
      workflowStatus:x.workflowStatus??x.WorkflowStatus??'draft',
      ownerType:x.ownerType??x.OwnerType??'platform',
      revision:Number(x.revision??x.Revision??0),
@@ -50,6 +51,7 @@ export const assessmentClient={
      isPublished:Boolean(a?.isPublished??a?.IsPublished??false),
      revision:Number(a?.revision??a?.Revision??0),
      currentVersion:Number(a?.currentVersion??a?.CurrentVersion??1),
+     publishedVersion:a?.publishedVersion??a?.PublishedVersion??null,
      updatedAt:a?.updatedAt??a?.UpdatedAt??'',
      version:v,
      sections:(a?.sections||a?.Sections||[]).map((sec:any)=>({

@@ -147,6 +147,7 @@ type ListQuery struct {
 	Limit              int
 	PathID             string
 	SubjectID          string
+	NormalMode         NormalMode
 	WorkflowStatus     WorkflowStatus
 	Search             string
 	TeacherScopeUserID string
@@ -159,6 +160,7 @@ type Summary struct {
 	PathID         string         `json:"pathId"`
 	SubjectID      string         `json:"subjectId"`
 	Kind           Kind           `json:"kind"`
+	NormalMode     NormalMode     `json:"normalMode,omitempty"`
 	WorkflowStatus WorkflowStatus `json:"workflowStatus"`
 	OwnerType      OwnerType      `json:"ownerType"`
 	Revision       int            `json:"revision"`

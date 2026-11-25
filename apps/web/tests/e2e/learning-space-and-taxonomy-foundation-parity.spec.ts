@@ -195,6 +195,94 @@ async function setupAdminMocks(page: Page) {
   });
 }
 
+test('admin changes access from foundation, training and exam cards', async ({ page }, testInfo) => {
+  test.setTimeout(150_000);
+  await setupAdminMocks(page);
+  const subject = { pathId: 'p_qudrat', subjectId: 'sub_quant' };
+  const prefix = '/admin-dashboard/taxonomy?path=p_qudrat&subject=sub_quant&subjectTab=';
+  let topic = { ...mockFoundation.items[0], status: 'active', revision: 7, skillIds: ['skill-1'] };
+  await page.route('**/api/v1/foundation/topics*', route => json(route, { items: [topic], hasMore: false }));
+  await page.route('**/api/v1/foundation/topics/top_1', async route => {
+    if (route.request().method() === 'PUT') {
+      expect(route.request().postDataJSON()).toMatchObject({
+        isLocked: !topic.isLocked, isVisible: true, expectedRevision: topic.revision, skillIds: ['skill-1'],
+      });
+      topic = { ...topic, isLocked: !topic.isLocked, revision: topic.revision + 1 };
+    }
+    return json(route, { topic });
+  });
+
+  const exams = [
+    { id: 'drill-1', title: 'تدريب التجربة', normalMode: 'practice', slot: 'training' },
+    { id: 'exam-1', title: 'اختبار التجربة', normalMode: 'exam', slot: 'tests' },
+  ].map(row => ({ ...row, ...subject, kind: 'normal', ownerType: 'platform', currentVersion: 2, isPublished: true }));
+  await page.route('**/api/v1/assessments?*', route => {
+    const filters = new URL(route.request().url()).searchParams;
+    const mode = filters.get('normalMode');
+    if (mode) {
+      expect(filters.get('pathId')).toBe(subject.pathId);
+      expect(filters.get('subjectId')).toBe(subject.subjectId);
+    }
+    return json(route, { items: exams.filter(exam => !mode || exam.normalMode === mode), hasMore: false });
+  });
+  for (const exam of exams) {
+    let placement = { ...subject, id: 'place-' + exam.id, assessmentVersion: 2, slot: exam.slot, accessType: 'free', isVisible: false, sortOrder: 7, updatedAt: '2026-11-25T12:00:00Z' };
+    await page.route('**/api/v1/assessments/' + exam.id, route => json(route, {
+      assessment: { ...exam, publishedVersion: 2, version: { accessType: 'free' } },
+    }));
+    await page.route('**/api/v1/assessments/' + exam.id + '/placements?*', route => json(route, {
+      items: [{ ...placement, id: 'other-topic', topicId: 'other-topic' }, placement],
+      hasMore: false,
+    }));
+    await page.route('**/api/v1/assessment-placements/other-topic', () => {
+      throw new Error('The card must not update a topic-specific placement');
+    });
+    await page.route('**/api/v1/assessment-placements/' + placement.id, route => {
+      const accessType = placement.accessType === 'free' ? 'package' : 'free';
+      expect(route.request().postDataJSON()).toEqual({
+        expectedUpdatedAt: placement.updatedAt, accessType, isVisible: false, sortOrder: 7,
+      });
+      placement = { ...placement, accessType };
+      return json(route, { placement });
+    });
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(prefix + 'foundation', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'جعل الجبر والحساب ضمن باقة التأسيس' }).click();
+  await expect(page.getByRole('button', { name: 'جعل الجبر والحساب مجانيًا' })).toBeVisible();
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const makeFoundationFree = page.getByRole('button', { name: 'جعل الجبر والحساب مجانيًا' });
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(makeFoundationFree).toBeVisible();
+    if (process.env.ALMEAA_CARD_SCREENSHOTS) {
+      await makeFoundationFree.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath(`foundation-${width}.png`) });
+    }
+  }
+  await makeFoundationFree.click();
+  await expect(page.getByRole('button', { name: 'جعل الجبر والحساب ضمن باقة التأسيس' })).toBeVisible();
+  for (const [tab, exam] of [['questions', exams[0]], ['exams', exams[1]]] as const) {
+    await page.goto(prefix + tab, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'إتاحة ' + exam.title }).click();
+    await page.getByRole('button', { name: 'جعله ضمن باقة', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'جعله مجانيًا', exact: true })).toBeVisible();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const card = page.getByRole('article').filter({ hasText: exam.title });
+    await card.getByRole('button', { name: 'إتاحة ' + exam.title }).click();
+    await expect(card.getByText('ضمن باقة', { exact: true })).toBeVisible();
+    for (const width of [390, 820, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect(card.getByRole('button', { name: 'جعله مجانيًا', exact: true })).toBeVisible();
+      if (process.env.ALMEAA_CARD_SCREENSHOTS) {
+        await card.screenshot({ path: testInfo.outputPath(`${exam.slot}-${width}.png`) });
+      }
+    }
+    await card.getByRole('button', { name: 'جعله مجانيًا', exact: true }).click();
+    await expect(card.getByText('مجاني', { exact: true })).toBeVisible();
+  }
+});
+
 test.describe('Learning Space & Foundation Workspace Parity', () => {
   test('Subject Learning Space: Training tab shows placement drills without mock exam confusion', async ({
     page,

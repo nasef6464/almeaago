@@ -52,6 +52,8 @@ import type {
 import { contentClient } from '../../content/api/content-client';
 import type { CourseSummary, FoundationTopicSummary, LibrarySummary } from '../../content/api/content-types';
 import { FoundationEditorPanel } from '../../content/components/FoundationEditorPanel';
+import { FoundationCardAccess } from '../../content/components/FoundationCardAccess';
+import { SubjectAssessmentCards } from '../../assessment/components/SubjectAssessmentCards';
 import { assessmentClient } from '../../assessment/api/assessment-client';
 import type { AssessmentSummary } from '../../assessment/api/assessment-types';
 import { AdminBreadcrumbHeader } from '../components/AdminBreadcrumbHeader';
@@ -940,7 +942,7 @@ export function TaxonomyAdminPage() {
 
                         return (
                           <div key={mainTopic.id} className="rounded-2xl border border-gray-100 bg-slate-50/50 overflow-hidden">
-                            <div className="flex items-center justify-between p-4 bg-white border-b border-gray-100">
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-white p-4">
                               <div className="flex items-center gap-3">
                                 <button
                                   type="button"
@@ -957,7 +959,7 @@ export function TaxonomyAdminPage() {
                                   {isExpanded ? <ChevronLeft size={18} className="rotate-90" /> : <ChevronRight size={18} />}
                                 </button>
                                 <div>
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex flex-wrap items-center gap-2">
                                     <span className="font-black text-sm text-slate-900">{mainTopic.title}</span>
                                     <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-mono text-slate-500 font-bold">{mainTopic.code}</span>
                                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${mainTopic.isVisible ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -966,13 +968,18 @@ export function TaxonomyAdminPage() {
                                     {mainTopic.isLocked ? (
                                       <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">ضمن باقة</span>
                                     ) : (
-                                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">مفتوح</span>
+                                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">مجاني</span>
                                     )}
                                   </div>
                                   <span className="text-xs text-slate-400 font-bold mt-0.5 block">{subTopics.length} موضوعات فرعية • ترتيب {mainTopic.sortOrder}</span>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <FoundationCardAccess
+                                  topic={mainTopic}
+                                  getCsrfToken={getCsrfToken}
+                                  onUpdated={updated => setFoundationTopics(items => items.map(item => item.id === updated.id ? updated : item))}
+                                />
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1223,6 +1230,14 @@ export function TaxonomyAdminPage() {
               </div>
             </div>
 
+            <SubjectAssessmentCards
+              key={`${selectedPath.id}:${selectedSubject.id}:training`}
+              pathId={selectedPath.id}
+              subjectId={selectedSubject.id}
+              slot="training"
+              getCsrfToken={getCsrfToken}
+            />
+
             {/* Skills & Topics Coverage */}
             <div className="rounded-3xl border bg-white p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between border-b pb-3">
@@ -1276,56 +1291,13 @@ export function TaxonomyAdminPage() {
               </div>
             </div>
 
-            {(() => {
-              const subjectExams = assessments.filter((a) => a.subjectId === selectedSubject.id && a.kind !== 'mock');
-              if (subjectExams.length === 0) {
-                return (
-                  <div className="rounded-3xl border border-dashed bg-white p-12 text-center text-slate-400 font-bold space-y-2">
-                    <Award size={36} className="mx-auto text-purple-300" />
-                    <p className="text-sm">لا توجد اختبارات مسجلة لهذه المادة بعد.</p>
-                    <Link
-                      to={`/admin-dashboard/assessments?pathId=${selectedPath.id}&subjectId=${selectedSubject.id}`}
-                      className="mt-3 inline-flex rounded-xl bg-indigo-50 px-4 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-100"
-                    >
-                      إنشاء أول اختبار للمادة ←
-                    </Link>
-                  </div>
-                );
-              }
-
-              return (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                  {subjectExams.map((exam) => (
-                    <div
-                      key={exam.id}
-                      className="rounded-3xl border border-gray-100 bg-white p-5 shadow-xs flex flex-col justify-between hover:shadow-md transition-all"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black ${
-                            exam.isPublished ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
-                          }`}>
-                            {exam.isPublished ? 'منشور' : 'مسودة'}
-                          </span>
-                          <span className="font-mono text-xs text-slate-400">{exam.code}</span>
-                        </div>
-                        <h4 className="font-black text-sm text-slate-900 leading-snug">{exam.title}</h4>
-                      </div>
-                      <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
-                        <Link
-                          to={`/assessments/${exam.id}/start`}
-                          target="_blank"
-                          className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-200"
-                        >
-                          <Eye size={13} />
-                          <span>معاينة</span>
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
+            <SubjectAssessmentCards
+              key={`${selectedPath.id}:${selectedSubject.id}:tests`}
+              pathId={selectedPath.id}
+              subjectId={selectedSubject.id}
+              slot="tests"
+              getCsrfToken={getCsrfToken}
+            />
           </div>
         )}
 
