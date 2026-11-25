@@ -25,6 +25,7 @@ import (
 	commercerepo "github.com/nasef6464/almeaago/internal/commerce/repository/postgres"
 	commercehttp "github.com/nasef6464/almeaago/internal/commerce/transport/http"
 	communicationapp "github.com/nasef6464/almeaago/internal/communication/application"
+	communication "github.com/nasef6464/almeaago/internal/communication/domain"
 	communicationredis "github.com/nasef6464/almeaago/internal/communication/infrastructure/redis"
 	communicationrepo "github.com/nasef6464/almeaago/internal/communication/repository/postgres"
 	communicationhttp "github.com/nasef6464/almeaago/internal/communication/transport/http"
@@ -55,6 +56,7 @@ import (
 	orgrepo "github.com/nasef6464/almeaago/internal/organizations/repository/postgres"
 	organizationshttp "github.com/nasef6464/almeaago/internal/organizations/transport/http"
 	parentapp "github.com/nasef6464/almeaago/internal/parents/application"
+	parentrepo "github.com/nasef6464/almeaago/internal/parents/repository/postgres"
 	parentshttp "github.com/nasef6464/almeaago/internal/parents/transport/http"
 	"github.com/nasef6464/almeaago/internal/platform/cache"
 	"github.com/nasef6464/almeaago/internal/platform/config"
@@ -321,7 +323,9 @@ func main() {
 	organizationsHandler := organizationshttp.New(organizationsService, identityService, schoolInquiryService)
 	schoolContractsHandler := organizationshttp.NewSchoolContractHandler(schoolContractService, identityService)
 	classroomHandler := realtimehttp.New(realtimeService, identityService, realtimeBroker, cfg.WebOrigin)
-	parentService := parentapp.NewService(organizationsService, identityRepository, assessmentRepository, learningRepository)
+	parentRepository := parentrepo.NewRepository(db)
+	parentService := parentapp.NewService(organizationsService, identityRepository, assessmentRepository, learningRepository).
+		WithExtras(parentRepository, parentRepository, parentWeeklySender{comm: communicationService})
 	parentsHandler := parentshttp.New(parentService, identityService)
 	legacySchoolAccessHandler := organizationshttp.NewLegacy(organizationsService, identityService)
 
@@ -396,4 +400,27 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = server.Shutdown(shutdownCtx)
+}
+
+type parentWeeklySender struct {
+	comm *communicationapp.Service
+}
+
+func (p parentWeeklySender) SendParentWeeklySummary(
+	ctx context.Context,
+	parentUserID string,
+	idempotencyKey string,
+	title string,
+	body string,
+) (string, int, int, error) {
+	res, err := p.comm.SendSystemCampaign(ctx, idempotencyKey, communication.CampaignWrite{
+		Title:    title,
+		Body:     body,
+		Channels: []communication.Channel{communication.ChannelInApp},
+		UserIDs:  []string{parentUserID},
+	})
+	if err != nil {
+		return "", 0, 0, err
+	}
+	return res.CampaignID, res.Recipients, res.Created, nil
 }

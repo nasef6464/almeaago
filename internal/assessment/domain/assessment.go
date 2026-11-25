@@ -147,24 +147,27 @@ type ListQuery struct {
 	Limit              int
 	PathID             string
 	SubjectID          string
+	NormalMode         NormalMode
 	WorkflowStatus     WorkflowStatus
 	Search             string
 	TeacherScopeUserID string
 }
 
 type Summary struct {
-	ID             string         `json:"id"`
-	Code           string         `json:"code"`
-	Title          string         `json:"title"`
-	PathID         string         `json:"pathId"`
-	SubjectID      string         `json:"subjectId"`
-	Kind           Kind           `json:"kind"`
-	WorkflowStatus WorkflowStatus `json:"workflowStatus"`
-	OwnerType      OwnerType      `json:"ownerType"`
-	Revision       int            `json:"revision"`
-	CurrentVersion int            `json:"currentVersion"`
-	IsPublished    bool           `json:"isPublished"`
-	UpdatedAt      time.Time      `json:"updatedAt"`
+	ID               string                  `json:"id"`
+	Code             string                  `json:"code"`
+	Title            string                  `json:"title"`
+	PathID           string                  `json:"pathId"`
+	SubjectID        string                  `json:"subjectId"`
+	Kind             Kind                    `json:"kind"`
+	NormalMode       NormalMode              `json:"normalMode,omitempty"`
+	WorkflowStatus   WorkflowStatus          `json:"workflowStatus"`
+	OwnerType        OwnerType               `json:"ownerType"`
+	Revision         int                     `json:"revision"`
+	CurrentVersion   int                     `json:"currentVersion"`
+	IsPublished      bool                    `json:"isPublished"`
+	UpdatedAt        time.Time               `json:"updatedAt"`
+	SubjectPlacement *SubjectPlacementAccess `json:"subjectPlacement,omitempty"`
 }
 
 type Page struct {

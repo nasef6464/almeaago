@@ -51,6 +51,16 @@ type PlacementPatch struct {
 	SortOrder         int                 `json:"sortOrder"`
 }
 
+// SubjectPlacementAccess contains the fields needed to update access from a subject card.
+type SubjectPlacementAccess struct {
+	ID             string              `json:"id"`
+	AccessType     PlacementAccessType `json:"accessType"`
+	BaseAccessType AccessType          `json:"baseAccessType"`
+	IsVisible      bool                `json:"isVisible"`
+	SortOrder      int                 `json:"sortOrder"`
+	UpdatedAt      time.Time           `json:"updatedAt"`
+}
+
 type PlacementPage struct {
 	Items   []Placement `json:"items"`
 	Page    int         `json:"page"`

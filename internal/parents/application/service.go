@@ -3,6 +3,8 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -14,8 +16,12 @@ import (
 )
 
 var (
-	ErrForbidden    = errors.New("parent operation forbidden")
-	ErrInvalidInput = errors.New("invalid parent request")
+	ErrForbidden                    = errors.New("parent operation forbidden")
+	ErrInvalidInput                 = errors.New("invalid parent request")
+	ErrNotFound                     = errors.New("parent resource not found")
+	ErrConflict                     = errors.New("parent resource conflict")
+	ErrNoLinkedChildren             = errors.New("no linked children for parent account")
+	ErrSelfLinkRequiresVerification = errors.New("parent self-link requires verified school or student approval")
 )
 
 type AuthorityResolver interface {
@@ -39,12 +45,29 @@ type LearningReader interface {
 	ParentStudentLearningSnapshots(context.Context, []string, int) (map[string]learning.ParentStudentLearningSnapshot, error)
 }
 
+type ApprovalStore interface {
+	ListPendingApprovals(context.Context, []string) ([]parents.PaymentApproval, error)
+	GetApprovalTarget(context.Context, string) (studentID, status, parentStatus string, revision int, err error)
+	DecideApproval(context.Context, string, string, string, int) (parents.PaymentApproval, error)
+}
+
+type LinkStore interface {
+	RevokeStudentLink(context.Context, string, string) error
+}
+
+type WeeklyReportSender interface {
+	SendParentWeeklySummary(ctx context.Context, parentUserID, idempotencyKey, title, body string) (campaignID string, recipients int, created int, err error)
+}
+
 type Service struct {
 	authority      AuthorityResolver
 	authorityBatch BatchAuthorityResolver
 	students       StudentDirectory
 	assess         AssessmentReader
 	learning       LearningReader
+	approvals      ApprovalStore
+	links          LinkStore
+	reportSender   WeeklyReportSender
 	now            func() time.Time
 }
 
@@ -54,6 +77,13 @@ func NewService(authority AuthorityResolver, students StudentDirectory, assess A
 		service.authorityBatch = batch
 	}
 	return service
+}
+
+func (s *Service) WithExtras(approvals ApprovalStore, links LinkStore, sender WeeklyReportSender) *Service {
+	s.approvals = approvals
+	s.links = links
+	s.reportSender = sender
+	return s
 }
 
 func normalizePage(page, limit int) (int, int, error) {
@@ -395,4 +425,143 @@ func (s *Service) WeeklyReport(ctx context.Context, actor identity.User, page, l
 		out.Children = append(out.Children, row)
 	}
 	return out, nil
+}
+
+func hasActiveChild(authority org.ParentAuthority, studentID string) bool {
+	target := strings.TrimSpace(studentID)
+	if target == "" {
+		return false
+	}
+	for _, scope := range relationshipScopes(authority) {
+		if scope.studentID == target {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) SendWeeklyReport(ctx context.Context, actor identity.User) (parents.WeeklyReportSendResult, error) {
+	report, err := s.WeeklyReport(ctx, actor, 1, 50)
+	if err != nil {
+		return parents.WeeklyReportSendResult{}, err
+	}
+	if len(report.Children) == 0 {
+		return parents.WeeklyReportSendResult{}, ErrNoLinkedChildren
+	}
+	if s.reportSender == nil {
+		return parents.WeeklyReportSendResult{}, errors.New("weekly report sender is not configured")
+	}
+	lines := make([]string, 0, len(report.Children))
+	for _, child := range report.Children {
+		line := fmt.Sprintf("%s: %d اختبار (متوسط %.0f%%)", child.Name, child.AssessmentCount, math.Round(child.AverageScore))
+		if len(child.WeakSkills) > 0 {
+			line += fmt.Sprintf(" — مهارة للمتابعة: %s", child.WeakSkills[0].SkillName)
+		}
+		lines = append(lines, line)
+	}
+	body := strings.Join(lines, " | ")
+	if len([]rune(body)) > 480 {
+		body = string([]rune(body)[:477]) + "..."
+	}
+	idemKey := fmt.Sprintf("parent-weekly-%s-%d", actor.ID, s.now().UTC().UnixNano())
+	campaignID, recipients, created, err := s.reportSender.SendParentWeeklySummary(
+		ctx,
+		actor.ID,
+		idemKey,
+		"ملخص التقرير الأسبوعي للأبناء",
+		body,
+	)
+	if err != nil {
+		return parents.WeeklyReportSendResult{}, err
+	}
+	return parents.WeeklyReportSendResult{
+		OK:               true,
+		CampaignID:       campaignID,
+		Recipients:       recipients,
+		Created:          created,
+		StudentsReported: len(report.Children),
+		Message:          "تم إرسال التقرير الأسبوعي إلى صندوق الإشعارات بنجاح.",
+	}, nil
+}
+
+func (s *Service) Approvals(ctx context.Context, actor identity.User) ([]parents.PaymentApproval, error) {
+	authority, err := s.authorityFor(ctx, actor)
+	if err != nil {
+		return nil, err
+	}
+	scopes := relationshipScopes(authority)
+	if len(scopes) == 0 {
+		return []parents.PaymentApproval{}, nil
+	}
+	if s.approvals == nil {
+		return nil, errors.New("parent approval store is not configured")
+	}
+	return s.approvals.ListPendingApprovals(ctx, scopeIDs(scopes))
+}
+
+func (s *Service) DecideApproval(
+	ctx context.Context,
+	actor identity.User,
+	requestID string,
+	decision string,
+	expectedRevision int,
+) (parents.PaymentApproval, error) {
+	authority, err := s.authorityFor(ctx, actor)
+	if err != nil {
+		return parents.PaymentApproval{}, err
+	}
+	requestID = strings.TrimSpace(requestID)
+	decision = strings.TrimSpace(decision)
+	if requestID == "" || (decision != "approved" && decision != "rejected") || expectedRevision < 1 {
+		return parents.PaymentApproval{}, ErrInvalidInput
+	}
+	if s.approvals == nil {
+		return parents.PaymentApproval{}, errors.New("parent approval store is not configured")
+	}
+	studentID, status, parentStatus, _, err := s.approvals.GetApprovalTarget(ctx, requestID)
+	if err != nil {
+		return parents.PaymentApproval{}, ErrNotFound
+	}
+	if !hasActiveChild(authority, studentID) {
+		return parents.PaymentApproval{}, ErrForbidden
+	}
+	if status != "pending" || parentStatus != "pending" {
+		return parents.PaymentApproval{}, ErrConflict
+	}
+	out, err := s.approvals.DecideApproval(ctx, requestID, actor.ID, decision, expectedRevision)
+	if err != nil {
+		return parents.PaymentApproval{}, ErrConflict
+	}
+	return out, nil
+}
+
+func (s *Service) LinkStudentFailClosed(ctx context.Context, actor identity.User) error {
+	if _, err := s.authorityFor(ctx, actor); err != nil {
+		return err
+	}
+	return ErrSelfLinkRequiresVerification
+}
+
+func (s *Service) UnlinkStudent(ctx context.Context, actor identity.User, studentID string) (parents.UnlinkStudentResult, error) {
+	authority, err := s.authorityFor(ctx, actor)
+	if err != nil {
+		return parents.UnlinkStudentResult{}, err
+	}
+	studentID = strings.TrimSpace(studentID)
+	if studentID == "" {
+		return parents.UnlinkStudentResult{}, ErrInvalidInput
+	}
+	if !hasActiveChild(authority, studentID) {
+		return parents.UnlinkStudentResult{}, ErrForbidden
+	}
+	if s.links == nil {
+		return parents.UnlinkStudentResult{}, errors.New("parent link store is not configured")
+	}
+	if err := s.links.RevokeStudentLink(ctx, actor.ID, studentID); err != nil {
+		return parents.UnlinkStudentResult{}, ErrNotFound
+	}
+	return parents.UnlinkStudentResult{
+		StudentID: studentID,
+		Message:   "تم إلغاء ربط الطالب",
+	}, nil
 }

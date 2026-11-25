@@ -49,6 +49,9 @@ func normalizeList(actor identity.User, q *assessment.ListQuery) error {
 	if q.WorkflowStatus != "" && !assessment.ValidWorkflowStatus(q.WorkflowStatus) {
 		return ErrInvalidInput
 	}
+	if q.NormalMode != "" && q.NormalMode != assessment.ModePractice && q.NormalMode != assessment.ModeExam {
+		return ErrInvalidInput
+	}
 	if actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleAdmin) {
 		q.TeacherScopeUserID = actor.ID
 	}

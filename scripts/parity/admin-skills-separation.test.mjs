@@ -35,7 +35,8 @@ function load(relative, initialStates = []) {
     if (id.endsWith('/questionbank-client')) return { questionBankClient: {} };
     if (id.endsWith('/content-client')) return { contentClient: {} };
     if (id.endsWith('/commerce/api/commerce-client')) return { commerceClient: {} };
-    if (id.endsWith('/assessment/api/assessment-client')) return { assessmentClient: {} };
+    if (id.endsWith('/api/assessment-placement-client')) return { assessmentPlacementClient: {} };
+    if (id.endsWith('/api/assessment-client')) return { assessmentClient: {} };
     if (id.endsWith('/components/AdminBreadcrumbHeader')) return { AdminBreadcrumbHeader: () => null };
     if (id.endsWith('/components/EducationalIconPicker')) return { EducationalIconPicker: () => null };
     if (id.endsWith('/components/pathDisplayPresentation')) return {
@@ -59,6 +60,8 @@ function load(relative, initialStates = []) {
     if (id.endsWith('/LessonEditorPanel')) return load('features/content/components/LessonEditorPanel.tsx');
     if (id.endsWith('/VideoQuestionPicker') || id === './VideoQuestionPicker') return { VideoQuestionPicker: () => null };
     if (id.endsWith('/FoundationEditorPanel') || id.includes('FoundationEditorPanel')) return { FoundationEditorPanel: () => null };
+    if (id.endsWith('/FoundationCardAccess')) return load('features/content/components/FoundationCardAccess.tsx');
+    if (id.endsWith('/SubjectAssessmentCards')) return load('features/assessment/components/SubjectAssessmentCards.tsx');
     if (id.endsWith('/navigation')) return {
       HOMEPAGE_ADMIN_HREF: '/admin-dashboard?tab=homepage', PLATFORM_FONTS_ADMIN_HREF: '/admin-dashboard?tab=platform-fonts',
       isHomepageLocation: () => false, isPlatformFontsLocation: () => false,

@@ -81,3 +81,27 @@ export interface ParentWeeklyReport{
   limit:number;
   hasMore:boolean;
 }
+
+export interface ParentPaymentApproval{
+  id:string;
+  studentId:string;
+  studentName:string;
+  productId:string;
+  productName:string;
+  productType:string;
+  finalAmountMinor:number;
+  currency:string;
+  status:string;
+  parentApprovalStatus:string;
+  revision:number;
+  createdAt:string;
+}
+
+export interface ParentWeeklyReportSendResult{
+  ok:boolean;
+  campaignId?:string;
+  recipients:number;
+  created:number;
+  studentsReported:number;
+  message?:string;
+}
