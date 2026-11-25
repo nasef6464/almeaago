@@ -49,3 +49,61 @@ test('trainer courses use scoped API, retry, pagination and open the real editor
   expect(called.filter(value => value === '1').length).toBeGreaterThanOrEqual(2);
   expect(called).toContain('2');
 });
+
+test('trainer cannot self-approve assessments or questions and only transitions draft to pending_review', async ({ page }) => {
+  const user = { id: 'teacher-1', name: 'مدرب تجريبي', email: 'teacher@example.invalid', roles: ['teacher'], role: 'teacher' };
+  const workflowStatuses: string[] = [];
+
+  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+    const req = route.request();
+    const path = new URL(req.url()).pathname;
+    if (path === '/api/v1/auth/me') return route.fulfill({ json: { user } });
+    if (path === '/api/v1/auth/csrf') return route.fulfill({ json: { csrfToken: 'csrf-1' } });
+    if (path === '/api/v1/taxonomy/bootstrap') return route.fulfill({ json: { paths: [], subjects: [], levels: [], skills: [] } });
+    if (path === '/api/v1/assessments') {
+      return route.fulfill({
+        json: {
+          items: [
+            { id: 'assess-draft-1', code: 'A1', title: 'اختبار مسودة للمدرب', kind: 'normal', workflowStatus: 'draft', totalQuestions: 5 },
+            { id: 'assess-app-1', code: 'A2', title: 'اختبار معتمد مسبقاً', kind: 'normal', workflowStatus: 'approved', totalQuestions: 10 },
+          ],
+          hasMore: false,
+        },
+      });
+    }
+    if (path === '/api/v1/assessments/assess-draft-1/workflow' && req.method() === 'POST') {
+      const body = req.postDataJSON();
+      workflowStatuses.push(body?.status);
+      return route.fulfill({ json: { assessment: { id: 'assess-draft-1', workflowStatus: body?.status } } });
+    }
+    if (path === '/api/v1/questions') {
+      return route.fulfill({
+        json: {
+          items: [
+            { id: 'q-draft-1', text: 'سؤال مسودة للمدرب', difficulty: 'medium', revision: 1, workflowStatus: 'draft' },
+          ],
+          hasMore: false,
+        },
+      });
+    }
+    if (path === '/api/v1/questions/q-draft-1/workflow' && req.method() === 'PATCH') {
+      const body = req.postDataJSON();
+      workflowStatuses.push(body?.status);
+      return route.fulfill({ json: { question: { id: 'q-draft-1', workflowStatus: body?.status } } });
+    }
+    return route.fulfill({ json: { items: [], ads: [], announcements: [], hasMore: false } });
+  });
+
+  await page.goto('/trainer-dashboard', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'الاختبارات والتقييمات' }).click();
+  await expect(page.getByText('اختبار مسودة للمدرب')).toBeVisible();
+  await page.getByRole('button', { name: 'مسودة (إرسال للمراجعة)' }).click();
+  await expect(page.getByRole('button', { name: 'قيد المراجعة (سحب)' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'بنك الأسئلة والتمارين' }).click();
+  await expect(page.getByText('سؤال مسودة للمدرب')).toBeVisible();
+  await page.getByRole('button', { name: 'مسودة (إرسال للمراجعة)' }).click();
+  await expect(page.getByRole('button', { name: 'قيد المراجعة (سحب)' })).toBeVisible();
+
+  expect(workflowStatuses).toEqual(['pending_review', 'pending_review']);
+});
