@@ -41,7 +41,14 @@ func (r *Repository) ListSchools(
 			s.status,
 			s.metadata,
 			s.created_at,
-			s.updated_at
+			s.updated_at,
+			(SELECT count(*)::int FROM classes c WHERE c.school_id = s.id AND c.status = 'active'),
+			(SELECT count(*)::int FROM school_memberships sm WHERE sm.school_id = s.id AND sm.role = 'student' AND sm.status = 'active'),
+			(SELECT count(*)::int FROM school_memberships sm WHERE sm.school_id = s.id AND sm.role = 'teacher' AND sm.status = 'active'),
+			(SELECT count(DISTINCT scope.supervisor_user_id)::int FROM school_supervisor_scopes scope WHERE scope.school_id = s.id AND scope.status = 'active'),
+			(SELECT count(*)::int FROM commerce_entitlements ce WHERE ce.school_id = s.id AND ce.subject_type = 'school' AND ce.status = 'active' AND ce.starts_at <= now() AND (ce.expires_at IS NULL OR ce.expires_at > now())),
+			(SELECT count(*)::int FROM commerce_access_codes cac WHERE cac.school_id = s.id AND cac.status = 'active' AND cac.starts_at <= now() AND cac.expires_at > now() AND cac.current_uses < cac.max_uses),
+			COALESCE((SELECT sc.status FROM school_contracts sc WHERE sc.school_id = s.id), 'none')
 		FROM schools s
 	`+where+`
 		ORDER BY s.created_at DESC, s.id DESC
@@ -55,7 +62,7 @@ func (r *Repository) ListSchools(
 
 	schools := make([]org.School, 0, query.Limit)
 	for rows.Next() {
-		school, err := scanSchool(rows)
+		school, err := scanSchoolWithStats(rows)
 		if err != nil {
 			return org.SchoolPage{}, err
 		}
@@ -142,17 +149,24 @@ func (r *Repository) SchoolByID(
 	_ org.AccessContext,
 	schoolID string,
 ) (org.School, error) {
-	school, err := scanSchool(r.db.QueryRow(ctx, `
+	school, err := scanSchoolWithStats(r.db.QueryRow(ctx, `
 		SELECT
-			id::text,
-			code,
-			name,
-			status,
-			metadata,
-			created_at,
-			updated_at
-		FROM schools
-		WHERE id = $1::uuid
+			s.id::text,
+			s.code,
+			s.name,
+			s.status,
+			s.metadata,
+			s.created_at,
+			s.updated_at,
+			(SELECT count(*)::int FROM classes c WHERE c.school_id = s.id AND c.status = 'active'),
+			(SELECT count(*)::int FROM school_memberships sm WHERE sm.school_id = s.id AND sm.role = 'student' AND sm.status = 'active'),
+			(SELECT count(*)::int FROM school_memberships sm WHERE sm.school_id = s.id AND sm.role = 'teacher' AND sm.status = 'active'),
+			(SELECT count(DISTINCT scope.supervisor_user_id)::int FROM school_supervisor_scopes scope WHERE scope.school_id = s.id AND scope.status = 'active'),
+			(SELECT count(*)::int FROM commerce_entitlements ce WHERE ce.school_id = s.id AND ce.subject_type = 'school' AND ce.status = 'active' AND ce.starts_at <= now() AND (ce.expires_at IS NULL OR ce.expires_at > now())),
+			(SELECT count(*)::int FROM commerce_access_codes cac WHERE cac.school_id = s.id AND cac.status = 'active' AND cac.starts_at <= now() AND cac.expires_at > now() AND cac.current_uses < cac.max_uses),
+			COALESCE((SELECT sc.status FROM school_contracts sc WHERE sc.school_id = s.id), 'none')
+		FROM schools s
+		WHERE s.id = $1::uuid
 	`, schoolID))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return org.School{}, org.ErrNotFound

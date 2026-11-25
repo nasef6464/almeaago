@@ -102,7 +102,7 @@ func main() {
 	defer redisClient.Close()
 
 	auditWriter := operationsrepo.NewAuditWriter()
-	operationsReadRepository := operationsrepo.NewReadRepository(db, redisClient)
+	operationsReadRepository := operationsrepo.NewRepository(db, redisClient, auditWriter)
 	operationsService := operationsapp.NewService(operationsReadRepository, operationsapp.Config{
 		Integrations: []operations.IntegrationCheck{
 			{ID: "r2", Configured: cfg.R2AccountID != "" && cfg.R2Bucket != "" && cfg.R2AccessKeyID != "" && cfg.R2SecretAccessKey != "", Detail: "Cloudflare R2 media storage"},

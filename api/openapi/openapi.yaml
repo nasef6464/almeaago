@@ -997,6 +997,41 @@ paths:
         "200": { description: Bounded PaymentRequest page }
         "403": { description: Platform admin required }
 
+  /api/v1/commerce/admin/access-codes:
+    get:
+      operationId: commerceAdminAccessCodeList
+      description: Platform-admin bounded B2B access code list, optionally filtered by exact schoolId UUID.
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: schoolId, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Bounded access code page }
+        "400": { description: Invalid pagination or schoolId UUID }
+        "403": { description: Platform admin required }
+    post:
+      operationId: commerceAdminAccessCodeCreate
+      description: Platform-admin CSRF-protected creation of a paid package access code bound to an active school.
+      parameters:
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      responses:
+        "201": { description: Access code created }
+        "400": { description: Invalid access code input }
+        "403": { description: Platform admin or CSRF required }
+        "409": { description: Duplicate code or inactive package/school conflict }
+
+  /api/v1/commerce/admin/access-codes/{id}/status:
+    patch:
+      operationId: commerceAdminAccessCodeStatus
+      description: Platform-admin CSRF-protected optimistic status update using expectedRevision.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Access code status updated }
+        "403": { description: Platform admin or CSRF required }
+        "409": { description: Revision conflict }
+
   /api/v1/commerce/admin/payment-requests/{id}/review:
     patch:
       operationId: commerceAdminPaymentReview
@@ -1417,6 +1452,69 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Platform admin required }
 
+  /api/v1/operations/integrations:
+    get:
+      operationId: operationsGetIntegrations
+      description: >
+        Platform-admin-only non-secret platform integration, auth, SEO and contact widget settings
+        with optimistic revision and read-only server runtime secret configuration flags. Secrets are
+        never returned to the browser.
+      responses:
+        "200": { description: Current platform integration settings and runtime status }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin required }
+    patch:
+      operationId: operationsUpdateIntegrations
+      description: >
+        Platform-admin-only CSRF-protected optimistic update of platform integration settings.
+        Atomically updates platform_integration_settings, syncs contactWidget into
+        content_platform_contact_settings, and records an immutable audit_logs entry.
+      parameters:
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Updated integration settings and incremented revision }
+        "400": { description: Invalid settings or unknown JSON fields }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin or CSRF required }
+        "409": { description: Optimistic revision conflict }
+
+  /api/v1/operations/backups:
+    get:
+      operationId: operationsListBackups
+      description: Platform-admin-only bounded history of PostgreSQL-recorded platform backup exports.
+      responses:
+        "200": { description: Persisted backup export history }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin required }
+
+  /api/v1/operations/backups/export:
+    post:
+      operationId: operationsExportBackup
+      description: >
+        Platform-admin-only CSRF-protected non-secret JSON export across all 10 platform collections
+        (paths, levels, subjects, skills, courses, lessons, questions, quizzes, library, schools).
+        Records export manifest in operations_backup_exports and writes audit_logs.
+      parameters:
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Recorded export metadata and full non-secret JSON backup payload }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin or CSRF required }
+
+  /api/v1/operations/backups/validate:
+    post:
+      operationId: operationsValidateBackup
+      description: >
+        Platform-admin-only CSRF-protected read-only validation of an uploaded backup JSON payload.
+        Never mutates platform tables; records validation event in audit_logs.
+      parameters:
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Validated collection counts and total record count }
+        "400": { description: Invalid backup schema or payload }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin or CSRF required }
+
   /api/v1/ai/admin/providers:
     get:
       operationId: aiAdminProviders
@@ -1455,6 +1553,51 @@ paths:
         "200": { description: Provider test response and token usage }
         "403": { description: Platform admin and valid CSRF required }
         "503": { description: Provider is not configured or test failed }
+
+  /api/v1/ai/admin/circuit-breakers/reset:
+    post:
+      operationId: aiAdminResetCircuitBreakers
+      description: Platform-admin + CSRF reset of all AI provider circuit breakers in PostgreSQL with audit_logs entry.
+      parameters:
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Updated provider list with cleared health circuit state }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin and valid CSRF required }
+
+  /api/v1/ai/admin/school-quotas:
+    get:
+      operationId: aiAdminListSchoolQuotas
+      description: Platform-admin-only list of active schools joined with their PostgreSQL ai_school_quotas configuration and usage.
+      responses:
+        "200": { description: School AI quota rows }
+        "401": { description: Authentication required }
+        "403": { description: Platform admin required }
+
+  /api/v1/ai/admin/school-quotas/{schoolId}:
+    put:
+      operationId: aiAdminUpdateSchoolQuota
+      description: Platform-admin + CSRF update of a school's AI tier, token/PDF/voice limits and whiteboard feature flag.
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string, format: uuid } }
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Updated school AI quota row }
+        "400": { description: Invalid tier or negative limits }
+        "403": { description: Platform admin and valid CSRF required }
+        "404": { description: Active school not found }
+
+  /api/v1/ai/admin/school-quotas/{schoolId}/reset:
+    post:
+      operationId: aiAdminResetSchoolQuota
+      description: Platform-admin + CSRF reset of a school's consumed AI counters (tokensUsed, pdfExamsUsed, voiceMinutesUsed) with audit_logs entry.
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string, format: uuid } }
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Reset school AI quota row }
+        "403": { description: Platform admin and valid CSRF required }
+        "404": { description: Active school not found }
 
   /api/v1/ai/admin/interactions:
     get:
@@ -1721,13 +1864,17 @@ paths:
   /api/v1/schools:
     get:
       operationId: organizationsListSchools
+      description: >
+        Paginated schools visible to the authenticated organization scope, including real PostgreSQL
+        portfolio stats (classesCount, studentsCount, teachersCount, supervisorsCount,
+        activePackagesCount, activeAccessCodesCount, contractStatus).
       parameters:
         - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
         - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
         - { in: query, name: search, schema: { type: string, maxLength: 120 } }
         - { in: query, name: status, schema: { type: string, enum: [active, suspended, archived] } }
       responses:
-        "200": { description: Paginated schools visible to the authenticated organization scope }
+        "200": { description: Paginated schools with portfolio stats visible to the authenticated organization scope }
         "401": { description: Authentication required }
         "403": { description: Organization role or scope denied }
     post:
@@ -1905,6 +2052,36 @@ paths:
         "400": { description: Invalid filter }
         "401": { description: Authentication required }
         "403": { description: School/role/class scope denied }
+
+  /api/v1/schools/{schoolId}/students:
+    post:
+      operationId: organizationsAddSchoolStudent
+      description: >
+        Platform-admin or class-management-authorized student account creation/attachment to an active
+        class in the target school. Leaves /api/school-access/director/* restricted to school_admin.
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string } }
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, email, password, classId]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8, maxLength: 160 }
+                classId: { type: string }
+      responses:
+        "200": { description: Existing student attached/reactivated in school }
+        "201": { description: New student account created and attached }
+        "400": { description: Invalid student or class payload }
+        "401": { description: Authentication required }
+        "403": { description: Class-management scope or CSRF denied }
+        "409": { description: Student email belongs to non-student or active in another school }
 
   /api/v1/schools/{schoolId}/memberships:
     put:

@@ -120,3 +120,26 @@ export interface AiAdminReadiness{
 export interface AiAdminCopilotResult{
  text:string;provider:AiProvider|'none';model:string;usedFallback:boolean;promptVersion:string;readiness:AiAdminReadiness;
 }
+
+export interface SchoolAiQuotaRow{
+ id:string;
+ name:string;
+ tier:'enterprise'|'pro'|'basic';
+ tokenLimit:number;
+ tokensUsed:number;
+ pdfExamLimit:number;
+ pdfExamsUsed:number;
+ voiceMinutesLimit:number;
+ voiceMinutesUsed:number;
+ whiteboardEnabled:boolean;
+ lastResetAt:string|null;
+ updatedAt:string;
+}
+
+export interface SchoolAiQuotaWrite{
+ tier:'enterprise'|'pro'|'basic';
+ tokenLimit:number;
+ pdfExamLimit:number;
+ voiceMinutesLimit:number;
+ whiteboardEnabled:boolean;
+}

@@ -371,7 +371,7 @@ test.describe('Complete Admin Departments and Learning Space Parity Suite', () =
 
     await expect(page.getByRole('heading', { name: 'مركز النسخ الاحتياطي والاستعادة' })).toBeVisible();
     await expect(page.getByText('إنشاء وتنزيل نسخة احتياطية')).toBeVisible();
-    await expect(page.getByText('استعادة من ملف احتياطي')).toBeVisible();
+    await expect(page.getByText('فحص ملف احتياطي')).toBeVisible();
     await expect(page.getByText('سجل النسخ الاحتياطية والتصدير الأخير')).toBeVisible();
 
     await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'admin-backups-desktop-1440.png'), fullPage: true });

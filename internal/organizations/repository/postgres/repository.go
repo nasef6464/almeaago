@@ -89,6 +89,36 @@ func scanSchool(row rowScanner) (org.School, error) {
 		return org.School{}, err
 	}
 	school.Metadata = json.RawMessage(metadata)
+	school.Stats.ContractStatus = "none"
+	return school, nil
+}
+
+func scanSchoolWithStats(row rowScanner) (org.School, error) {
+	var school org.School
+	var metadata []byte
+	err := row.Scan(
+		&school.ID,
+		&school.Code,
+		&school.Name,
+		&school.Status,
+		&metadata,
+		&school.CreatedAt,
+		&school.UpdatedAt,
+		&school.Stats.ClassesCount,
+		&school.Stats.StudentsCount,
+		&school.Stats.TeachersCount,
+		&school.Stats.SupervisorsCount,
+		&school.Stats.ActivePackagesCount,
+		&school.Stats.ActiveAccessCodesCount,
+		&school.Stats.ContractStatus,
+	)
+	if err != nil {
+		return org.School{}, err
+	}
+	school.Metadata = json.RawMessage(metadata)
+	if school.Stats.ContractStatus == "" {
+		school.Stats.ContractStatus = "none"
+	}
 	return school, nil
 }
 

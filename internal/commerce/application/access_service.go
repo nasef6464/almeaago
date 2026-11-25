@@ -10,7 +10,7 @@ import (
 )
 
 type AccessRepository interface {
-	ListAccessCodes(context.Context, int, int) (commerce.AccessCodePage, error)
+	ListAccessCodes(context.Context, int, int, ...string) (commerce.AccessCodePage, error)
 	CreateAccessCode(context.Context, string, commerce.AccessCodeCreate) (commerce.AccessCode, error)
 	UpdateAccessCodeStatus(context.Context, string, string, int, commerce.AccessCodeStatus) (commerce.AccessCode, error)
 	RedeemAccessCode(context.Context, string, []string, string) (commerce.AccessCodeRedemption, error)
@@ -33,7 +33,7 @@ func NewAccessService(repo AccessRepository, products ProductReader, schools Sch
 	return &AccessService{repo: repo, products: products, schools: schools}
 }
 
-func (s *AccessService) ListAccessCodes(ctx context.Context, actor identity.User, page, limit int) (commerce.AccessCodePage, error) {
+func (s *AccessService) ListAccessCodes(ctx context.Context, actor identity.User, page, limit int, schoolID ...string) (commerce.AccessCodePage, error) {
 	if !actor.HasRole(identity.RoleAdmin) {
 		return commerce.AccessCodePage{}, ErrForbidden
 	}
@@ -41,7 +41,7 @@ func (s *AccessService) ListAccessCodes(ctx context.Context, actor identity.User
 	if err != nil {
 		return commerce.AccessCodePage{}, err
 	}
-	return s.repo.ListAccessCodes(ctx, page, limit)
+	return s.repo.ListAccessCodes(ctx, page, limit, schoolID...)
 }
 
 func (s *AccessService) CreateAccessCode(ctx context.Context, actor identity.User, in commerce.AccessCodeCreate) (commerce.AccessCode, error) {

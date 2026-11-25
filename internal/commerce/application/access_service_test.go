@@ -15,7 +15,7 @@ type accessRepoStub struct {
 	assignSchools []string
 }
 
-func (r *accessRepoStub) ListAccessCodes(context.Context, int, int) (commerce.AccessCodePage, error) {
+func (r *accessRepoStub) ListAccessCodes(context.Context, int, int, ...string) (commerce.AccessCodePage, error) {
 	return commerce.AccessCodePage{}, nil
 }
 func (r *accessRepoStub) CreateAccessCode(_ context.Context, _ string, in commerce.AccessCodeCreate) (commerce.AccessCode, error) {

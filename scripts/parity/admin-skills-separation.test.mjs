@@ -66,6 +66,10 @@ function load(relative, initialStates = []) {
     };
     if (id.endsWith('/SharedVideoPlayer')) return { SharedVideoPlayer: () => null, resolveVideoSource: () => null };
     if (id.endsWith('/lib/questionHtml')) return { normalizeQuestionHtml: (value) => value ?? '' };
+    if (id.endsWith('/header/dependencies/ThemeToggle')) return { ThemeToggle: () => React.createElement('button', { type: 'button', 'aria-label': 'تفعيل الوضع الداكن' }, 'theme') };
+    if (id.endsWith('/header/dependencies/SearchModal')) return { SearchModal: () => null };
+    if (id.endsWith('/header/dependencies/NotificationBell')) return { NotificationBell: () => React.createElement('button', { type: 'button', 'aria-label': 'الإشعارات' }, 'bell') };
+    if (id.endsWith('/header/commerce/useHeaderCart')) return { useHeaderCart: () => ({ cartItems: [], count: 0, cartCount: () => 0 }) };
     return require(id);
   };
   const module = { exports: {} };
@@ -80,6 +84,10 @@ test('original admin navigation keeps Skills Center separate from Paths Center',
   assert.match(html, /href="\/admin-dashboard\?tab=skills"[^>]*>[^<]*<[^>]*>.*?مركز المهارات/s);
   assert.match(html, /href="\/admin-dashboard\/taxonomy"/);
   assert.doesNotMatch(html, /إدارة المسارات والتصنيف/);
+  assert.match(html, /href="\/cart"/);
+  assert.match(html, /aria-label="بحث"/);
+  assert.match(html, /aria-label="الإشعارات"/);
+  assert.doesNotMatch(html, /تغيير الدور/);
 });
 
 test('path workspace does not also own the skill creation tree', () => {

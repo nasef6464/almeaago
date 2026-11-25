@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -25,10 +26,20 @@ SELECT id::text,code,product_id::text,COALESCE(school_id::text,''),status,max_us
 FROM commerce_access_codes
 `
 
-func (r *Repository) ListAccessCodes(ctx context.Context, page, limit int) (commerce.AccessCodePage, error) {
-	rows, err := r.db.Query(ctx, accessCodeSelect+` ORDER BY updated_at DESC,id DESC LIMIT $1 OFFSET $2`, limit+1, (page-1)*limit)
+func (r *Repository) ListAccessCodes(ctx context.Context, page, limit int, schoolIDs ...string) (commerce.AccessCodePage, error) {
+	schoolID := ""
+	if len(schoolIDs) > 0 {
+		schoolID = strings.TrimSpace(schoolIDs[0])
+	}
+	var rows pgx.Rows
+	var err error
+	if schoolID != "" {
+		rows, err = r.db.Query(ctx, accessCodeSelect+` WHERE school_id = $1::uuid ORDER BY updated_at DESC,id DESC LIMIT $2 OFFSET $3`, schoolID, limit+1, (page-1)*limit)
+	} else {
+		rows, err = r.db.Query(ctx, accessCodeSelect+` ORDER BY updated_at DESC,id DESC LIMIT $1 OFFSET $2`, limit+1, (page-1)*limit)
+	}
 	if err != nil {
-		return commerce.AccessCodePage{}, err
+		return commerce.AccessCodePage{}, mapError(err)
 	}
 	defer rows.Close()
 	out := commerce.AccessCodePage{Page: page, Limit: limit}

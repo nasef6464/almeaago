@@ -516,6 +516,31 @@ func (s *Service) Roster(
 	return s.repo.Roster(ctx, accessOf(actor), schoolID, query)
 }
 
+func (s *Service) AdminAddStudent(
+	ctx context.Context,
+	actor identity.User,
+	schoolID string,
+	input org.DirectorStudentCreate,
+) (org.DirectorStudentMutationResult, error) {
+	schoolID = strings.TrimSpace(schoolID)
+	input.Name = strings.TrimSpace(input.Name)
+	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
+	input.ClassID = strings.TrimSpace(input.ClassID)
+
+	if schoolID == "" ||
+		len(input.Name) < 2 ||
+		len(input.Name) > 120 ||
+		!validDirectorEmail(input.Email) ||
+		!validDirectorPassword(input.Password) ||
+		input.ClassID == "" {
+		return org.DirectorStudentMutationResult{}, ErrInvalidInput
+	}
+	if err := s.requireClassManagement(ctx, actor, schoolID); err != nil {
+		return org.DirectorStudentMutationResult{}, err
+	}
+	return s.repo.DirectorAddStudent(ctx, actor.ID, schoolID, input)
+}
+
 func (s *Service) UpsertMembership(
 	ctx context.Context,
 	actor identity.User,
