@@ -26,12 +26,34 @@ type Repository interface {
 	CanAuthor(ctx context.Context, userID, pathID, subjectID string) (bool, error)
 }
 
+type SchoolAuthorizer interface {
+	CanManageSchool(ctx context.Context, userID, schoolID string) (bool, error)
+}
+
 type Service struct{ repo Repository }
 
 func NewService(repo Repository) *Service { return &Service{repo: repo} }
 
+func (s *Service) canManageSchool(ctx context.Context, actor identity.User, schoolID string) (bool, error) {
+	if actor.HasRole(identity.RoleAdmin) {
+		return true, nil
+	}
+	if !actor.HasRole(identity.RoleSchoolAdmin) && !actor.HasRole(identity.RoleSupervisor) {
+		return false, nil
+	}
+	schoolID = strings.TrimSpace(schoolID)
+	if schoolID == "" {
+		return false, nil
+	}
+	sa, ok := s.repo.(SchoolAuthorizer)
+	if !ok {
+		return false, nil
+	}
+	return sa.CanManageSchool(ctx, actor.ID, schoolID)
+}
+
 func normalizeList(actor identity.User, q *assessment.ListQuery) error {
-	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleSupervisor) {
+	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleSupervisor) && !actor.HasRole(identity.RoleSchoolAdmin) {
 		return ErrForbidden
 	}
 	if q.Page == 0 {
@@ -65,15 +87,31 @@ func (s *Service) List(ctx context.Context, actor identity.User, q assessment.Li
 	return s.repo.List(ctx, q)
 }
 func (s *Service) Get(ctx context.Context, actor identity.User, id string) (assessment.Assessment, error) {
-	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleSupervisor) {
+	if !actor.HasRole(identity.RoleAdmin) && !actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleSupervisor) && !actor.HasRole(identity.RoleSchoolAdmin) {
 		return assessment.Assessment{}, ErrForbidden
 	}
 	a, err := s.repo.Get(ctx, strings.TrimSpace(id))
 	if err != nil {
 		return assessment.Assessment{}, err
 	}
-	if actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleAdmin) && a.OwnerUserID != actor.ID && a.AssignedTeacherID != actor.ID {
-		return assessment.Assessment{}, ErrForbidden
+	if !actor.HasRole(identity.RoleAdmin) {
+		if actor.HasRole(identity.RoleSchoolAdmin) || actor.HasRole(identity.RoleSupervisor) {
+			if a.OwnerType == assessment.OwnerSchool {
+				ok, err := s.canManageSchool(ctx, actor, a.OwnerSchoolID)
+				if err != nil {
+					return assessment.Assessment{}, err
+				}
+				if ok {
+					return a, nil
+				}
+			}
+			if !actor.HasRole(identity.RoleTeacher) {
+				return assessment.Assessment{}, ErrForbidden
+			}
+		}
+		if actor.HasRole(identity.RoleTeacher) && a.OwnerUserID != actor.ID && a.AssignedTeacherID != actor.ID {
+			return assessment.Assessment{}, ErrForbidden
+		}
 	}
 	return a, nil
 }
@@ -91,7 +129,17 @@ func (s *Service) normalizeWrite(ctx context.Context, actor identity.User, w *as
 	if w.Code == "" || w.Version.Title == "" || w.Version.PathID == "" || len(w.Code) > 120 || len(w.Version.Title) > 240 || len(w.Version.Description) > 8000 || len(w.Sections) > 100 || len(w.Questions) > 500 {
 		return ErrInvalidInput
 	}
-	if actor.HasRole(identity.RoleTeacher) && !actor.HasRole(identity.RoleAdmin) {
+	if actor.HasRole(identity.RoleAdmin) {
+		// Platform admins can author any owner type.
+	} else if (actor.HasRole(identity.RoleSchoolAdmin) || actor.HasRole(identity.RoleSupervisor)) && w.OwnerType == assessment.OwnerSchool {
+		ok, err := s.canManageSchool(ctx, actor, w.OwnerSchoolID)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return ErrForbidden
+		}
+	} else if actor.HasRole(identity.RoleTeacher) {
 		ok, err := s.repo.CanAuthor(ctx, actor.ID, w.Version.PathID, w.Version.SubjectID)
 		if err != nil {
 			return err
@@ -103,7 +151,7 @@ func (s *Service) normalizeWrite(ctx context.Context, actor identity.User, w *as
 		w.OwnerUserID = actor.ID
 		w.OwnerSchoolID = ""
 		w.AssignedTeacherID = actor.ID
-	} else if !actor.HasRole(identity.RoleAdmin) {
+	} else {
 		return ErrForbidden
 	}
 	if !assessment.ValidOwnerType(w.OwnerType) {
@@ -191,6 +239,13 @@ func (s *Service) SetWorkflow(ctx context.Context, actor identity.User, id strin
 		return assessment.Assessment{}, err
 	}
 	admin := actor.HasRole(identity.RoleAdmin)
+	if !admin && a.OwnerType == assessment.OwnerSchool {
+		ok, err := s.canManageSchool(ctx, actor, a.OwnerSchoolID)
+		if err != nil {
+			return assessment.Assessment{}, err
+		}
+		admin = ok
+	}
 	if !validTransition(a.WorkflowStatus, to, admin) {
 		return assessment.Assessment{}, ErrWorkflow
 	}
@@ -203,12 +258,20 @@ func (s *Service) SetPublication(ctx context.Context, actor identity.User, id st
 	if rev < 1 {
 		return assessment.Assessment{}, ErrInvalidInput
 	}
-	if !actor.HasRole(identity.RoleAdmin) {
-		return assessment.Assessment{}, ErrForbidden
-	}
 	a, err := s.Get(ctx, actor, id)
 	if err != nil {
 		return assessment.Assessment{}, err
+	}
+	allowed := actor.HasRole(identity.RoleAdmin)
+	if !allowed && a.OwnerType == assessment.OwnerSchool {
+		ok, err := s.canManageSchool(ctx, actor, a.OwnerSchoolID)
+		if err != nil {
+			return assessment.Assessment{}, err
+		}
+		allowed = ok
+	}
+	if !allowed {
+		return assessment.Assessment{}, ErrForbidden
 	}
 	if published && (a.WorkflowStatus != assessment.WorkflowApproved || len(a.Questions) == 0) {
 		return assessment.Assessment{}, ErrWorkflow
@@ -243,12 +306,20 @@ func (s *Service) SetVisibility(ctx context.Context, actor identity.User, id str
 	if rev < 1 {
 		return assessment.Assessment{}, ErrInvalidInput
 	}
-	if !actor.HasRole(identity.RoleAdmin) {
-		return assessment.Assessment{}, ErrForbidden
-	}
 	a, err := s.Get(ctx, actor, id)
 	if err != nil {
 		return assessment.Assessment{}, err
+	}
+	allowed := actor.HasRole(identity.RoleAdmin)
+	if !allowed && a.OwnerType == assessment.OwnerSchool {
+		ok, err := s.canManageSchool(ctx, actor, a.OwnerSchoolID)
+		if err != nil {
+			return assessment.Assessment{}, err
+		}
+		allowed = ok
+	}
+	if !allowed {
+		return assessment.Assessment{}, ErrForbidden
 	}
 	if a.WorkflowStatus == assessment.WorkflowArchived {
 		return assessment.Assessment{}, ErrWorkflow

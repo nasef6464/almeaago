@@ -209,9 +209,14 @@ test('supervisor live sessions and monitoring tabs render honest states', async 
  await expect(page.getByText('بث مباشر الآن')).toBeVisible();
  await expect(page.getByRole('link', { name: 'دخول الحصة' })).toBeVisible();
 
- // Live Monitoring
+ // Live Monitoring (reflects active session from above)
  await page.goto('/supervisor-dashboard?tab=live-monitoring');
  await expect(page.getByRole('heading', { name: 'شاشة المراقبة الحية للاختبارات' })).toBeVisible();
+ await expect(page.getByText('متصل (1 نشط)')).toBeVisible();
+
+ // Live Monitoring (empty state when no active sessions)
+ await page.route('**/api/v1/classroom/teacher/sessions**', (route) => json(route, { sessions: [] }));
+ await page.reload();
  await expect(page.getByText('متصل (0 نشط)')).toBeVisible();
  await expect(page.getByText('لا يوجد اختبارات نشطة حالياً.')).toBeVisible();
 });
