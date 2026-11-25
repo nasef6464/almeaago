@@ -57,3 +57,32 @@ type WeeklyReport struct {
 	Limit       int                 `json:"limit"`
 	HasMore     bool                `json:"hasMore"`
 }
+
+type PaymentApproval struct {
+	ID                   string    `json:"id"`
+	StudentID            string    `json:"studentId"`
+	StudentName          string    `json:"studentName"`
+	ProductID            string    `json:"productId"`
+	ProductName          string    `json:"productName"`
+	ProductType          string    `json:"productType"`
+	FinalAmountMinor     int64     `json:"finalAmountMinor"`
+	Currency             string    `json:"currency"`
+	Status               string    `json:"status"`
+	ParentApprovalStatus string    `json:"parentApprovalStatus"`
+	Revision             int       `json:"revision"`
+	CreatedAt            time.Time `json:"createdAt"`
+}
+
+type WeeklyReportSendResult struct {
+	OK               bool   `json:"ok"`
+	CampaignID       string `json:"campaignId,omitempty"`
+	Recipients       int    `json:"recipients"`
+	Created          int    `json:"created"`
+	StudentsReported int    `json:"studentsReported"`
+	Message          string `json:"message,omitempty"`
+}
+
+type UnlinkStudentResult struct {
+	StudentID string `json:"studentId"`
+	Message   string `json:"message"`
+}
