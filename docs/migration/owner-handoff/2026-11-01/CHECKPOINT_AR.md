@@ -7,7 +7,7 @@
   3. **التحقق الحي على PostgreSQL 18.6 محلي معزول (`almeaa_test`):** تطبيق جميع المهاجرات الـ **67** (`136 جدولاً`) واجتياز اختبارات التكامل الحية على PostgreSQL (`internal/learning/repository/postgres`، `internal/organizations/repository/postgres`، `internal/assessment/repository/postgres`، `internal/commerce/repository/postgres`، و`internal/parents/application` وحزم HTTP/Application المرتبطة) بنسبة **100% PASS**.
 - **الحالة العامة (`PARTIAL`):**
   - **بوابة P6 (مُغلقة بقرار المالك — `PASS`):** أكّد المالك عدم وجود بيانات تشغيلية أخرى مطلوبة للترحيل من MongoDB وأن الأسئلة والتصنيفات المستوردة مسبقاً إلى PostgreSQL هي البيانات المعتمدة. وبذلك تُغلق **P6** بعد نجاح تطبيق المهاجرات الـ `67` والتراجع عنها وإعادة تطبيقها، وتمرين `pg_dump`/`psql` في `Database CI`، واختبارات التكامل الحية على PostgreSQL 18.6 (`136 جدولاً`).
-  - **بوابة P7:** اختبارات الواجهة والـ RTL (`30/30` بدون خادم حي + `6/6` في `header-brand-live.spec.ts` على Go/PG حي) وحزمة `run-ci-checks.mjs` (`15/15`) ناجحة؛ وتبقى فقط اختبارات `original-header-live.spec.ts` / `header-enrollment-live.spec.ts` (`HEADER_LIVE=1`) للتشغيل على بيئة Go/PG حية عند الحاجة.
+  - **بوابة P7:** اختبارات الواجهة والـ RTL (`30/30` بدون خادم حي + `6/6` في `header-brand-live.spec.ts` على Go/PG حي) وحزمة `run-ci-checks.mjs` (`15/15`) ناجحة؛ وعند تشغيل `TestOriginalHeaderHTTPPostgresBrowser` على `PostgreSQL 18.6` تبيّن أن سبب فرق البكسل في قائمة الجوال (`HEADER-VISUAL-EXACT-001`, `guest/390/mobile`, `y=644..788`) هو إضافة رابط `شراكة المدارس` (`/for-schools`) المقصودة في `navigation.ts` والمستثناة صراحةً في `header-navigation.test.mjs` (`INTENTIONAL_ADDITIONS`).
 
 ## 26 نوفمبر — إتمام M4 (الفصل الذكي وعقود OpenAPI) فوق M3 / PARTIAL
 
