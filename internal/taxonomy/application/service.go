@@ -37,12 +37,31 @@ type deletionRepository interface {
 	DeleteTaxonomy(context.Context, string, string, string) error
 }
 
+type BulkDeleteBlocked struct {
+	ID     string `json:"id"`
+	Reason string `json:"reason"`
+}
+
+type BulkDeleteResult struct {
+	DeletedIDs []string            `json:"deletedIds"`
+	Blocked    []BulkDeleteBlocked `json:"blocked"`
+}
+
+func validDeleteKind(kind string) bool {
+	switch kind {
+	case "path", "subject", "level", "skill", "skill_section":
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *Service) DeleteTaxonomy(ctx context.Context, actor identity.User, kind, id string) error {
 	if !actor.HasRole(identity.RoleAdmin) {
 		return ErrForbidden
 	}
 	id = strings.TrimSpace(id)
-	if id == "" || (kind != "path" && kind != "subject" && kind != "level") {
+	if id == "" || !validDeleteKind(kind) {
 		return ErrInvalidInput
 	}
 	repo, ok := s.repo.(deletionRepository)
@@ -50,6 +69,40 @@ func (s *Service) DeleteTaxonomy(ctx context.Context, actor identity.User, kind,
 		return errors.New("taxonomy deletion unavailable")
 	}
 	return repo.DeleteTaxonomy(ctx, actor.ID, kind, id)
+}
+
+func (s *Service) BulkDeleteTaxonomy(ctx context.Context, actor identity.User, kind string, ids []string) (BulkDeleteResult, error) {
+	if !actor.HasRole(identity.RoleAdmin) {
+		return BulkDeleteResult{}, ErrForbidden
+	}
+	if !validDeleteKind(kind) || len(ids) == 0 || len(ids) > 100 {
+		return BulkDeleteResult{}, ErrInvalidInput
+	}
+	repo, ok := s.repo.(deletionRepository)
+	if !ok {
+		return BulkDeleteResult{}, errors.New("taxonomy deletion unavailable")
+	}
+	seen := map[string]bool{}
+	res := BulkDeleteResult{DeletedIDs: make([]string, 0, len(ids)), Blocked: make([]BulkDeleteBlocked, 0)}
+	for _, raw := range ids {
+		id := strings.TrimSpace(raw)
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		err := repo.DeleteTaxonomy(ctx, actor.ID, kind, id)
+		switch {
+		case err == nil:
+			res.DeletedIDs = append(res.DeletedIDs, id)
+		case errors.Is(err, taxonomy.ErrHasDependencies):
+			res.Blocked = append(res.Blocked, BulkDeleteBlocked{ID: id, Reason: "مرتبط بعناصر أو بيانات نشطة"})
+		case errors.Is(err, taxonomy.ErrNotFound):
+			res.Blocked = append(res.Blocked, BulkDeleteBlocked{ID: id, Reason: "غير موجود"})
+		default:
+			res.Blocked = append(res.Blocked, BulkDeleteBlocked{ID: id, Reason: "تعذر الحذف"})
+		}
+	}
+	return res, nil
 }
 
 func (s *Service) PublicBootstrap(ctx context.Context, phase string) (taxonomy.Bootstrap, error) {

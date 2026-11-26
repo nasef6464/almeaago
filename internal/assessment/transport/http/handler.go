@@ -75,6 +75,8 @@ func NewWithDistribution(service *app.Service, auth Authenticator, assignmentSer
 	r.Delete("/prepared-groups/{groupID}/members/{userID}", h.changePreparedGroupMember)
 	r.Get("/{id}", h.get)
 	r.Patch("/{id}", h.update)
+	r.Delete("/{id}", h.deleteAssessment)
+	r.Post("/bulk-delete", h.bulkDeleteAssessments)
 	r.Post("/{id}/workflow", h.workflow)
 	r.Post("/{id}/publication", h.publication)
 	r.Post("/{id}/visibility", h.visibility)
@@ -285,6 +287,8 @@ func writeError(w http.ResponseWriter, e error) {
 		writeJSON(w, 404, map[string]string{"message": "Assessment not found"})
 	case errors.Is(e, assessment.ErrUnscorableQuestion):
 		writeJSON(w, 409, map[string]string{"message": assessment.ErrUnscorableQuestion.Error()})
+	case errors.Is(e, app.ErrHasDependencies):
+		writeJSON(w, 409, map[string]string{"message": "لا يمكن حذف هذا الاختبار لارتباطه بمحاولات أو تعيينات نشطة"})
 	case errors.Is(e, app.ErrWorkflow), errors.Is(e, assessment.ErrConflict), errors.Is(e, assessment.ErrVersionConflict):
 		writeJSON(w, 409, map[string]string{"message": "Assessment state conflicts with requested operation"})
 	default:
@@ -436,4 +440,35 @@ func (h *Handler) createPlacement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"placement": out})
+}
+
+func (h *Handler) deleteAssessment(w http.ResponseWriter, r *http.Request) {
+	a, ok := h.authenticate(w, r, true)
+	if !ok {
+		return
+	}
+	if err := h.service.DeleteAssessment(r.Context(), a.User, chi.URLParam(r, "id")); err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"deleted": true})
+}
+
+func (h *Handler) bulkDeleteAssessments(w http.ResponseWriter, r *http.Request) {
+	a, ok := h.authenticate(w, r, true)
+	if !ok {
+		return
+	}
+	var payload struct {
+		IDs []string `json:"ids"`
+	}
+	if !decode(w, r, &payload) {
+		return
+	}
+	res, err := h.service.BulkDeleteAssessments(r.Context(), a.User, payload.IDs)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, res)
 }

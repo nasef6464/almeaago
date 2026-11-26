@@ -207,6 +207,12 @@ export const questionBankClient={
   workflow(id:string,expectedCurrentVersion:number,status:QuestionWorkflowStatus,reviewerNotes:string,csrf:string){
     return request<{question:QuestionDetail}>(`/api/v1/questions/${encodeURIComponent(id)}/workflow`,{method:'PATCH',headers:csrfHeaders(csrf),body:JSON.stringify({expectedCurrentVersion,status,reviewerNotes})});
   },
+  deleteQuestion(id:string,csrf:string){
+    return request<{deleted:boolean}>(`/api/v1/questions/${encodeURIComponent(id)}`,{method:'DELETE',headers:{'X-CSRF-Token':csrf}});
+  },
+  bulkDelete(ids:string[],csrf:string){
+    return request<{deletedIds:string[];blocked:Array<{id:string;reason:string}>}>('/api/v1/questions/bulk-delete',{method:'POST',headers:csrfHeaders(csrf),body:JSON.stringify({ids})});
+  },
   importBatch(batchId:string,dryRun:boolean,items:unknown[],csrf:string){
     return request<ImportResult>('/api/v1/questions/import-batches',{method:'POST',headers:csrfHeaders(csrf),body:JSON.stringify({batchId,dryRun,items})});
   },

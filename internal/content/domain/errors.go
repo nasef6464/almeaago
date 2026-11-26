@@ -8,4 +8,5 @@ var (
 	ErrInvalidTaxonomy = errors.New("invalid content taxonomy")
 	ErrInvalidAsset    = errors.New("invalid content asset")
 	ErrVersionConflict = errors.New("content revision conflict")
+	ErrHasDependencies = errors.New("content record is referenced by active data")
 )
