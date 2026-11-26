@@ -53,6 +53,7 @@ func New(service *orgapp.Service, auth Authenticator, inquiryService ...*orgapp.
 
 	r.Get("/{schoolId}/roster", h.roster)
 	r.Post("/{schoolId}/students", h.addStudent)
+	r.Put("/{schoolId}/supervisor/students/{studentId}/class", h.supervisorMoveStudent)
 
 	r.Put("/{schoolId}/memberships", h.upsertMembership)
 	r.Get("/{schoolId}/directors", h.listDirectors)

@@ -27,6 +27,71 @@ async function mockRoster(page:Page){
  await page.route('**/api/v1/classroom/teacher/sessions**',route=>json(route,{sessions:[]}));
 }
 const original=['الملخص العام','تعلم الطلاب وجاهزيتهم','الحصص المباشرة','الاختبارات والتحليل','المراقبة الحية','خريطة المهارات','تقارير الأداء'];
+
+test('supervisor transfers a student between delegated classes and reads the saved roster', async ({ page }) => {
+  test.setTimeout(60_000);
+  await mockRoster(page);
+  const schoolId = 'school-1';
+  const source = { id: 'class-a', schoolId, name: 'الأول أ', status: 'active' };
+  const target = { id: 'class-b', schoolId, name: 'الثاني ب', status: 'active' };
+  let currentClass = source.id;
+  let classLoadFailed = false;
+  let writes = 0;
+  let rosterReads = 0;
+  await page.route('**/api/v1/schools/school-1/classes?*', route => {
+    if (!classLoadFailed) {
+      classLoadFailed = true;
+      return json(route, { message: 'Unavailable' }, 503);
+    }
+    const pageNumber = Number(new URL(route.request().url()).searchParams.get('page'));
+    return json(route, { classes: [pageNumber === 1 ? source : target], pagination: { page: pageNumber, totalPages: 2 } });
+  });
+  await page.route('**/api/v1/schools/school-1/roster?*', route => {
+    rosterReads++;
+    return json(route, {
+      members: [{ userId: 'student-one', name: 'طالب الأولى', email: 'first@example.test', status: 'active', roles: ['student'], classIds: [currentClass] }],
+      pagination: { page: 1, limit: 20, total: 1, totalPages: 1 },
+    });
+  });
+  await page.route('**/api/v1/schools/school-1/supervisor/students/student-one/class', route => {
+    expect(route.request().method()).toBe('PUT');
+    expect(route.request().headers()['x-csrf-token']).toBe('csrf');
+    expect(route.request().postDataJSON()).toEqual({ fromClassId: source.id, classId: target.id });
+    if (++writes === 1) return json(route, { message: 'Unavailable' }, 503);
+    currentClass = target.id;
+    return json(route, { classId: currentClass, idempotent: false });
+  });
+  await page.goto('/supervisor-dashboard');
+  const select = page.getByRole('combobox', { name: 'نقل الطالب طالب الأولى إلى فصل آخر' });
+  await expect(page.getByRole('alert')).toContainText('تعذر تحميل الفصول المتاحة للنقل');
+  await expect(select).toHaveCount(0);
+  await page.getByRole('button', { name: 'إعادة تحميل الفصول' }).click();
+  await expect(select).toHaveValue(source.id);
+  await expect(select.getByRole('option')).toHaveCount(2);
+  page.once('dialog', confirmation => confirmation.dismiss());
+  await select.selectOption(target.id);
+  expect(writes).toBe(0);
+  await expect(select).toHaveValue(source.id);
+  page.on('dialog', confirmation => confirmation.accept());
+  await select.selectOption(target.id);
+  await expect(page.getByRole('alert')).toContainText('تعذر نقل الطالب');
+  await expect(select).toHaveValue(source.id);
+  const before = rosterReads;
+  await select.selectOption(target.id);
+  await expect(select).toHaveValue(target.id);
+  expect(rosterReads).toBeGreaterThan(before);
+  await page.reload({ waitUntil: 'commit' });
+  await expect(select).toHaveValue(target.id, { timeout: 15_000 });
+  for (const width of [390, 820, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(select).toBeVisible();
+    await test.info().attach(`supervisor-transfer-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
+  }
+  await page.getByLabel('المدرسة').selectOption('school-2');
+  await expect(page.getByText('طالب الثانية')).toBeVisible();
+  await expect(select).toHaveCount(0);
+});
+
 for(const width of [390,820,1440]){
  test('supervisor roster keeps original navigation and school scope at '+width,async({page})=>{
   await mockRoster(page);
@@ -119,6 +184,7 @@ test('supervisor student list uses original show-more and show-less controls wit
 });
 test('supervisor failed context and roster reads fail closed, preserve search and retry',async({page})=>{
  await auth(page);
+ await page.route('**/api/v1/schools/*/classes?*',route=>json(route,{classes:[],pagination:{page:1,totalPages:1}}));
  let contextFail=true;
  await page.route('**/api/v1/schools/context',route=>{
   if(contextFail){contextFail=false;return json(route,{message:'فشل النطاق'},503);}

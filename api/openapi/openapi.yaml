@@ -2357,6 +2357,44 @@ paths:
         "403": { description: Class-management scope or CSRF denied }
         "409": { description: Student email belongs to non-student or active in another school }
 
+  /api/v1/schools/{schoolId}/supervisor/students/{studentId}/class:
+    put:
+      operationId: organizationsSupervisorMoveStudent
+      description: >
+        Move an active school student between two distinct active classes in the same school.
+        The supervisor must be an active member of the school and each class must be covered by an active assignment.
+        Safe retries return the destination without duplicating membership or audit events.
+      parameters:
+        - { in: path, name: schoolId, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: studentId, required: true, schema: { type: string, format: uuid } }
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [fromClassId, classId]
+              properties:
+                fromClassId: { type: string, format: uuid }
+                classId: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Student is assigned to the requested class
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [classId, idempotent]
+                properties:
+                  classId: { type: string, format: uuid }
+                  idempotent: { type: boolean }
+        "400": { description: Invalid request or matching source and destination }
+        "401": { description: Authentication required }
+        "403": { description: Supervisor role, school, class, student scope or CSRF denied }
+        "409": { description: Student belongs to multiple classes in this school }
+
   /api/v1/schools/{schoolId}/memberships:
     put:
       operationId: organizationsUpsertMembership
