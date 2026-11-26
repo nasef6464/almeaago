@@ -156,7 +156,7 @@ function csrfHeaders(csrf: string) { return { 'X-CSRF-Token': csrf } }
 export const organizationsClient = {
   schools(signal?: AbortSignal) {
     return request<{ schools: SchoolSummary[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
-      '/api/v1/schools/?page=1&limit=100&status=active', { signal });
+      '/api/v1/schools?page=1&limit=100&status=active', { signal });
   },
   teacherWorkspace(signal?: AbortSignal) {
     return request<TeacherWorkspace>('/api/v1/schools/teacher-workspace', { signal });
@@ -270,7 +270,7 @@ export const organizationsClient = {
     return request<{ classroom: { classId: string; className: string } }>(`/api/school-access/director/schools/${encodeURIComponent(schoolId)}/classes/${encodeURIComponent(classId)}`, { method: 'PATCH', headers: csrfHeaders(csrf), body: JSON.stringify({ name }) });
   },
   createSchool(payload: { name: string; code: string; metadata?: Record<string, unknown> }, csrf: string) {
-    return request<{ school: SchoolSummary }>(`/api/v1/schools/`, { method: 'POST', headers: csrfHeaders(csrf), body: JSON.stringify(payload) });
+    return request<{ school: SchoolSummary }>('/api/v1/schools', { method: 'POST', headers: csrfHeaders(csrf), body: JSON.stringify(payload) });
   },
   updateSchool(schoolId: string, payload: { name?: string; status?: string; metadata?: Record<string, unknown> }, csrf: string) {
     return request<{ school: SchoolSummary }>(`/api/v1/schools/${encodeURIComponent(schoolId)}`, { method: 'PATCH', headers: csrfHeaders(csrf), body: JSON.stringify(payload) });

@@ -246,7 +246,7 @@ test.describe('Milestone M1 Admin Ops, Backup, Shell & School Contract Parity', 
 
     const school404 = '018f0000-0000-7000-8000-000000000404';
     const school500 = '018f0000-0000-7000-8000-000000000500';
-    await page.route('**/api/v1/schools/?page=1&limit=100&status=active', (r) =>
+    await page.route('**/api/v1/schools?page=1&limit=100&status=active', (r) =>
       json(r, {
         schools: [
           { id: school404, code: 'SCH-404', name: 'مدرسة بدون عقد', status: 'active', stats: { classesCount: 0, studentsCount: 0, teachersCount: 0, supervisorsCount: 0, activePackagesCount: 0, activeAccessCodesCount: 0, contractStatus: 'none' } },

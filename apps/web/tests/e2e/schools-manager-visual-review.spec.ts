@@ -165,7 +165,7 @@ async function setupSchoolsMock(page: Page) {
     return json(route, { message: 'Forbidden' }, 403);
   });
 
-  await page.route('**/api/v1/schools/?page=1&limit=100&status=active', (route) => {
+  await page.route('**/api/v1/schools?page=1&limit=100&status=active', (route) => {
     return json(route, {
       schools: data.schools,
       pagination: { page: 1, limit: 100, total: data.schools.length, totalPages: 1 },
@@ -238,7 +238,7 @@ async function setupSchoolsMock(page: Page) {
     return json(route, { items: data.accessCodes, page: 1, limit: 100, hasMore: false });
   });
 
-  await page.route('**/api/v1/schools/', (route) => {
+  await page.route('**/api/v1/schools', (route) => {
     if (route.request().method() === 'POST') {
       const payload = route.request().postDataJSON();
       return json(route, {
@@ -253,10 +253,55 @@ async function setupSchoolsMock(page: Page) {
     return route.continue();
   });
 
-  return { getDirectorEndpointCalls: () => directorEndpointCalls };
+  return { school1Id, getDirectorEndpointCalls: () => directorEndpointCalls };
 }
 
 test.describe('Schools Management (تشغيل المدارس) - 100% Authentic Legacy Parity Review', () => {
+  test('creates a school through the canonical API and retains the form after a duplicate code', async ({ page }) => {
+    test.setTimeout(90_000);
+    await auth(page);
+    const { school1Id } = await setupSchoolsMock(page);
+    let writes = 0;
+    await page.route(url => url.pathname === '/api/v1/schools/', route => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      return route.fulfill({ status: 405 });
+    });
+    await page.route(url => url.pathname === '/api/v1/schools', route => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      writes += 1;
+      const { name, code } = route.request().postDataJSON();
+      expect(name).toBe('مدرسة التجربة');
+      expect(route.request().headers()['x-csrf-token']).toBeTruthy();
+      if (writes === 1) {
+        expect(code).toBe('SCH-DUP');
+        return json(route, { message: 'Organization record conflicts with an existing record' }, 409);
+      }
+      expect(code).toBe('SCH-NEW');
+      return json(route, { school: { id: school1Id, name, code, status: 'active' } }, 201);
+    });
+
+    await page.goto('/admin-dashboard/schools');
+    await page.getByRole('button', { name: 'إضافة مدرسة جديدة' }).click();
+    const dialog = page.getByRole('dialog', { name: 'إضافة مدرسة جديدة للشراكات' });
+    const name = page.getByPlaceholder('مثال: مدرسة دار العلوم الأهلية');
+    const code = page.getByPlaceholder('مثال: SCH-DAR-01');
+    await name.fill('مدرسة التجربة');
+    await code.fill('sch-dup');
+    const [rejected] = await Promise.all([
+      page.waitForResponse(response => response.url().includes('/api/v1/schools') && response.request().method() === 'POST'),
+      page.getByTestId('submit-create-school-btn').click(),
+    ]);
+    expect(rejected.status()).toBe(409);
+    await expect(dialog.getByRole('alert')).toHaveText('الرمز التعريفي مستخدم لمدرسة أخرى. اختر رمزًا مختلفًا.');
+    await expect(name).toHaveValue('مدرسة التجربة');
+    await expect(code).toHaveValue('sch-dup');
+    await code.fill('sch-new');
+    await dialog.getByTestId('submit-create-school-btn').click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText('تم إنشاء المدرسة «مدرسة التجربة» بنجاح.')).toBeVisible();
+    expect(writes).toBe(2);
+  });
+
   test('1440px Desktop: Visual verification of portfolio, workspace tabs, and modals', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await auth(page);

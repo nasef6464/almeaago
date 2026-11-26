@@ -51,6 +51,7 @@ import {
   type SchoolContractData,
   type SchoolDirectorRecord,
 } from '../api/organizations-client';
+import { SchoolCreateDialog } from '../components/SchoolCreateDialog';
 import { commerceClient } from '../../commerce/api/commerce-client';
 import type { CommerceAccessCode, CommerceProduct } from '../../commerce/api/commerce-types';
 import { Skeleton, SkeletonTable, SkeletonMetricCard } from '../../../components/ui/Skeleton';
@@ -145,14 +146,6 @@ interface SchoolPortfolioStats {
   readinessStatus: 'ready' | 'near_ready' | 'needs_setup';
 }
 
-interface NewSchoolForm {
-  name: string;
-  code: string;
-  directorName: string;
-  directorEmail: string;
-  initialClass: string;
-}
-
 export function SchoolsAdminPage() {
   const { user, getCsrfToken } = useAuth();
 
@@ -201,15 +194,6 @@ export function SchoolsAdminPage() {
 
   // Modals & Panels
   const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [wizardForm, setWizardForm] = useState<NewSchoolForm>({
-    name: '',
-    code: '',
-    directorName: '',
-    directorEmail: '',
-    initialClass: 'الصف الأول الثانوي',
-  });
-  const [wizardBusy, setWizardBusy] = useState(false);
-
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState('');
 
@@ -698,51 +682,11 @@ export function SchoolsAdminPage() {
     }
   };
 
-  const handleCreateSchool = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!wizardForm.name.trim() || !wizardForm.code.trim()) {
-      setError('يرجى كتابة اسم المدرسة والرمز التعريفي.');
-      return;
-    }
-
-    try {
-      setWizardBusy(true);
-      setError(null);
-      const csrf = await getCsrfToken();
-      const res = await organizationsClient.createSchool(
-        {
-          name: wizardForm.name.trim(),
-          code: wizardForm.code.trim().toUpperCase(),
-          metadata: {
-            directorName: wizardForm.directorName,
-            directorEmail: wizardForm.directorEmail,
-            initialClass: wizardForm.initialClass,
-          },
-        },
-        csrf,
-      );
-
-      setNotice(`تم إنشاء المدرسة «${wizardForm.name}» بنجاح.`);
-      setIsWizardOpen(false);
-      setWizardForm({
-        name: '',
-        code: '',
-        directorName: '',
-        directorEmail: '',
-        initialClass: 'الصف الأول الثانوي',
-      });
-      await loadSchools();
-
-      if (res && res.school) {
-        await loadSchoolWorkspace(res.school);
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'تعذر إنشاء المدرسة';
-      setError(msg);
-    } finally {
-      setWizardBusy(false);
-    }
-  };
+  async function openCreatedSchool(school: SchoolSummary) {
+    setNotice(`تم إنشاء المدرسة «${school.name}» بنجاح.`);
+    await loadSchools();
+    await loadSchoolWorkspace(school);
+  }
 
   const openAssignDirectorModal = async () => {
     setDirectorAssignNotice(null);
@@ -2352,103 +2296,12 @@ export function SchoolsAdminPage() {
         </div>
       )}
 
-      {/* ── Modal: Add New School Wizard ── */}
-      {isWizardOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-              <div className="flex items-center gap-2">
-                <Building2 size={20} className="text-indigo-600" />
-                <h3 className="text-lg font-black text-gray-900">إضافة مدرسة جديدة للشراكات</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsWizardOpen(false)}
-                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateSchool} className="mt-4 space-y-4">
-              <div>
-                <label className="block text-xs font-black text-gray-700">اسم المدرسة</label>
-                <input
-                  type="text"
-                  required
-                  value={wizardForm.name}
-                  onChange={(e) => setWizardForm({ ...wizardForm, name: e.target.value })}
-                  placeholder="مثال: مدرسة دار العلوم الأهلية"
-                  className="mt-1 w-full rounded-xl border border-gray-200 p-2.5 text-xs font-bold focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-black text-gray-700">الرمز التعريفي للمدرسة (Code)</label>
-                <input
-                  type="text"
-                  required
-                  value={wizardForm.code}
-                  onChange={(e) => setWizardForm({ ...wizardForm, code: e.target.value })}
-                  placeholder="مثال: SCH-DAR-01"
-                  className="mt-1 w-full rounded-xl border border-gray-200 p-2.5 font-mono text-xs font-bold focus:border-indigo-500 focus:outline-none uppercase"
-                />
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="block text-xs font-black text-gray-700">اسم مدير المدرسة</label>
-                  <input
-                    type="text"
-                    value={wizardForm.directorName}
-                    onChange={(e) => setWizardForm({ ...wizardForm, directorName: e.target.value })}
-                    placeholder="مثال: أ. محمد العتيبي"
-                    className="mt-1 w-full rounded-xl border border-gray-200 p-2.5 text-xs font-bold focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-black text-gray-700">البريد الإلكتروني للإدارة</label>
-                  <input
-                    type="email"
-                    value={wizardForm.directorEmail}
-                    onChange={(e) => setWizardForm({ ...wizardForm, directorEmail: e.target.value })}
-                    placeholder="director@school.edu.sa"
-                    className="mt-1 w-full rounded-xl border border-gray-200 p-2.5 text-xs font-bold focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-black text-gray-700">الفصل الافتراضي الأولي</label>
-                <input
-                  type="text"
-                  value={wizardForm.initialClass}
-                  onChange={(e) => setWizardForm({ ...wizardForm, initialClass: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-gray-200 p-2.5 text-xs font-bold focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setIsWizardOpen(false)}
-                  className="rounded-xl border border-gray-200 px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50"
-                >
-                  إلغاء
-                </button>
-                <button
-                  type="submit"
-                  disabled={wizardBusy}
-                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
-                  data-testid="submit-create-school-btn"
-                >
-                  {wizardBusy ? 'جاري الإنشاء...' : 'إنشاء المدرسة وتجهيز مساحة العمل'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <SchoolCreateDialog
+        open={isWizardOpen}
+        getCsrfToken={getCsrfToken}
+        onClose={() => setIsWizardOpen(false)}
+        onCreated={school => void openCreatedSchool(school)}
+      />
 
       {/* ── Modal: Rename School ── */}
       {isRenameOpen && (
