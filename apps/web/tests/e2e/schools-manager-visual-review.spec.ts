@@ -316,7 +316,9 @@ test.describe('Schools Management (تشغيل المدارس) - 100% Authentic L
     await dialog.getByPlaceholder('مثال: مدرسة دار العلوم الأهلية').fill(school.name);
     await dialog.getByPlaceholder('مثال: SCH-DAR-01').fill(school.code);
     await dialog.getByRole('button', { name: 'التالي' }).click();
+    await page.setViewportSize({ width: 390, height: 844 });
     await dialog.getByRole('checkbox', { name: /وحدة الفصول الذكية/ }).check();
+    await expect(dialog.getByRole('button', { name: 'التالي' })).toBeInViewport();
     await dialog.getByRole('button', { name: 'التالي' }).click();
     await dialog.getByRole('combobox', { name: 'مدير المدرسة' }).selectOption(director.id);
     await dialog.getByRole('button', { name: 'التالي' }).click();

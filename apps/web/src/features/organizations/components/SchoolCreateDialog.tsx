@@ -133,104 +133,110 @@ export function SchoolCreateDialog({ actorId, open, getCsrfToken, onClose, onCre
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div role="dialog" aria-modal="true" aria-labelledby="create-school-title" className="max-h-[calc(100dvh-2rem)] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-6">
-        <div className="flex items-center justify-between gap-3 border-b border-gray-100 pb-4">
-          <div className="flex items-center gap-2">
-            <Building2 size={20} className="shrink-0 text-indigo-600" />
-            <h3 id="create-school-title" className="text-lg font-black text-gray-900">إضافة مدرسة جديدة للشراكات</h3>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+      <div role="dialog" aria-modal="true" aria-labelledby="create-school-title" className="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+        <div className="shrink-0 bg-slate-950 bg-gradient-to-l from-slate-950 to-indigo-950 px-4 py-3 text-white sm:px-6 sm:py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Building2 size={20} className="shrink-0 text-indigo-200" />
+              <h3 id="create-school-title" className="text-base font-black sm:text-lg">إضافة مدرسة جديدة للشراكات</h3>
+            </div>
+            <button type="button" aria-label="إغلاق نافذة إضافة المدرسة" disabled={busy} onClick={close} className="rounded-lg p-1 text-slate-200 hover:bg-white/10"><X size={18} /></button>
           </div>
-          <button type="button" aria-label="إغلاق نافذة إضافة المدرسة" disabled={busy} onClick={close} className="rounded-lg p-1 text-slate-600 hover:bg-slate-100"><X size={18} /></button>
+          <ol aria-label="خطوات تأسيس المدرسة" className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {steps.map((label, index) => (
+              <li key={label} aria-current={step === index + 1 ? 'step' : undefined}
+                className={`rounded-xl px-2 py-2 text-center text-xs font-bold ${step === index + 1 ? 'bg-indigo-100 text-indigo-900' : 'bg-white/10 text-slate-200'}`}>
+                {label}
+              </li>
+            ))}
+          </ol>
         </div>
-        <ol aria-label="خطوات تأسيس المدرسة" className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {steps.map((label, index) => (
-            <li key={label} aria-current={step === index + 1 ? 'step' : undefined}
-              className={`rounded-xl px-2 py-2 text-center text-xs font-bold ${step === index + 1 ? 'bg-indigo-100 text-indigo-900' : 'bg-slate-100 text-slate-600'}`}>
-              {label}
-            </li>
-          ))}
-        </ol>
-        <form onSubmit={submit} className="mt-4 space-y-4">
-          {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-900">{error}</p>}
-          {progress && <p role="status" className="rounded-xl bg-indigo-50 p-3 text-sm text-indigo-900">جارٍ التحقق من {schoolSetupStages[progress]}…</p>}
-          {setup ? (
-            <div className="space-y-2 rounded-xl bg-slate-50 p-4 text-sm">
-              <h4 className="font-bold">استكمال تأسيس {setup.name}</h4>
-              <p>تستأنف المحاولة من السجل نفسه وتتحقق من الخطوات المحفوظة.</p>
-            </div>
-          ) : step === 1 ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="text-sm font-bold">اسم المدرسة
-                <input required value={name} onChange={event => setName(event.target.value)} placeholder="مثال: مدرسة دار العلوم الأهلية" className={inputClass} />
-              </label>
-              <label className="text-sm font-bold">الرمز التعريفي
-                <input required value={code} onChange={event => setCode(event.target.value)} placeholder="مثال: SCH-DAR-01" dir="ltr" className={inputClass} />
-              </label>
-              <label className="text-sm font-bold">المرحلة الدراسية
-                <input value={stage} onChange={event => setStage(event.target.value)} className={inputClass} />
-              </label>
-              <label className="text-sm font-bold">المدينة
-                <input value={city} onChange={event => setCity(event.target.value)} className={inputClass} />
-              </label>
-            </div>
-          ) : step === 2 ? (
-            <fieldset className="space-y-3">
-              <legend className="text-sm font-bold">الخدمات المتاحة للمدرسة</legend>
-              <p className="text-xs text-slate-600">مدة العقد سنة من تاريخ بدء التأسيس.</p>
-              <label className="block text-sm font-bold">نموذج الخدمات
-                <select value={PACKAGE_TIERS.find(tier => tier.modules.length === modules.length && tier.modules.every(id => modules.includes(id)))?.id ?? ''}
-                  onChange={event => {
-                    const selected = PACKAGE_TIERS.find(tier => tier.id === event.target.value);
-                    if (selected) setModules([...selected.modules]);
-                  }} className={inputClass}>
-                  <option value="" disabled>اختيار مخصص</option>
-                  {PACKAGE_TIERS.map(tier => <option key={tier.id} value={tier.id}>{tier.name}</option>)}
-                </select>
-              </label>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {ALL_CONTRACT_MODULES.map(module => (
-                  <label key={module.id} className="flex items-start gap-2 rounded-xl border p-3 text-xs font-bold">
-                    <input type="checkbox" checked={modules.includes(module.id)} disabled={module.id === 'SCHOOL_CORE'}
-                      onChange={event => setModules(items => event.target.checked ? [...items, module.id] : items.filter(id => id !== module.id))} />
-                    {module.title}
-                  </label>
-                ))}
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 space-y-4 overflow-y-auto p-4 sm:p-6">
+            {error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-900">{error}</p>}
+            {progress && <p role="status" className="rounded-xl bg-indigo-50 p-3 text-sm text-indigo-900">جارٍ التحقق من {schoolSetupStages[progress]}…</p>}
+            {setup ? (
+              <div className="space-y-2 rounded-xl bg-slate-50 p-4 text-sm">
+                <h4 className="font-bold">استكمال تأسيس {setup.name}</h4>
+                <p>تستأنف المحاولة من السجل نفسه وتتحقق من الخطوات المحفوظة.</p>
               </div>
-            </fieldset>
-          ) : step === 3 ? (
-            <div className="space-y-3">
-              <p className="text-sm text-slate-700">اختر حساب مدير موجودًا لربطه بالمدرسة، أو اترك الربط لوقت لاحق.</p>
-              <div className="flex flex-wrap items-end gap-2">
-                <label className="flex-1 text-sm font-bold">بحث عن حساب مدير
-                  <input value={directorSearch} onChange={event => setDirectorSearch(event.target.value)} className={inputClass} />
+            ) : step === 1 ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-sm font-bold">اسم المدرسة
+                  <input required value={name} onChange={event => setName(event.target.value)} placeholder="مثال: مدرسة دار العلوم الأهلية" className={inputClass} />
                 </label>
-                <button type="button" onClick={() => { setDirectorId(''); setDirectorQuery({ search: directorSearch.trim() }); }}
-                  className="rounded-xl border px-3 py-2 text-sm font-bold">بحث</button>
+                <label className="text-sm font-bold">الرمز التعريفي
+                  <input required value={code} onChange={event => setCode(event.target.value)} placeholder="مثال: SCH-DAR-01" dir="ltr" className={inputClass} />
+                </label>
+                <label className="text-sm font-bold">المرحلة الدراسية
+                  <input value={stage} onChange={event => setStage(event.target.value)} className={inputClass} />
+                </label>
+                <label className="text-sm font-bold">المدينة
+                  <input value={city} onChange={event => setCity(event.target.value)} className={inputClass} />
+                </label>
               </div>
-              <label className="block text-sm font-bold">مدير المدرسة
-                <select aria-label="مدير المدرسة" value={directorId} disabled={directorLoading} onChange={event => setDirectorId(event.target.value)} className={inputClass}>
-                  <option value="">ربط المدير لاحقًا</option>
-                  {directorChoices.map(director => <option key={director.id} value={director.id}>{director.name} · {director.email}</option>)}
-                </select>
-              </label>
-              {directorLoading && <p role="status" className="text-sm text-slate-600">جارٍ تحميل حسابات المديرين…</p>}
-              {directorError && <p role="alert" className="text-sm text-rose-800">{directorError}</p>}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <label className="block text-sm font-bold">الفصول المبدئية
-                <textarea rows={5} value={classText} onChange={event => setClassText(event.target.value)} className={inputClass} aria-label="الفصول المبدئية" />
-                <span className="text-xs font-normal text-slate-600">اكتب اسم كل فصل في سطر، أو أضف الفصول لاحقًا من مساحة المدرسة.</span>
-              </label>
-              {stage.includes('ثانوي') && (
-                <button type="button" className="rounded-xl border px-3 py-2 text-sm font-bold"
-                  onClick={() => setClassText(value => Array.from(new Set([...value.split(/\r?\n/).map(line => line.trim()).filter(Boolean), ...suggestedClasses])).join('\n'))}>
-                  إضافة الفصول المقترحة للثانوي
-                </button>
-              )}
-            </div>
-          )}
-          <div className="flex flex-wrap justify-end gap-2 border-t border-gray-100 pt-3">
+            ) : step === 2 ? (
+              <fieldset className="space-y-3">
+                <legend className="text-sm font-bold">الخدمات المتاحة للمدرسة</legend>
+                <p className="text-xs text-slate-600">مدة العقد سنة من تاريخ بدء التأسيس.</p>
+                <div role="group" aria-label="نماذج الخدمات" className="grid gap-2">
+                  {PACKAGE_TIERS.map(tier => {
+                    const selected = tier.modules.length === modules.length && tier.modules.every(id => modules.includes(id));
+                    return (
+                      <button type="button" key={tier.id} aria-pressed={selected} onClick={() => setModules([...tier.modules])}
+                        className={`rounded-xl border px-3 py-2 text-start ${selected ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                        <span className="block text-xs font-black text-slate-900">{tier.name}</span>
+                        <span className="block text-xs text-slate-600">{tier.description}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {ALL_CONTRACT_MODULES.map(module => (
+                    <label key={module.id} className="flex items-start gap-2 rounded-xl border p-3 text-xs font-bold">
+                      <input type="checkbox" checked={modules.includes(module.id)} disabled={module.id === 'SCHOOL_CORE'}
+                        onChange={event => setModules(items => event.target.checked ? [...items, module.id] : items.filter(id => id !== module.id))} />
+                      {module.title}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            ) : step === 3 ? (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-700">اختر حساب مدير موجودًا لربطه بالمدرسة، أو اترك الربط لوقت لاحق.</p>
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="flex-1 text-sm font-bold">بحث عن حساب مدير
+                    <input value={directorSearch} onChange={event => setDirectorSearch(event.target.value)} className={inputClass} />
+                  </label>
+                  <button type="button" onClick={() => { setDirectorId(''); setDirectorQuery({ search: directorSearch.trim() }); }}
+                    className="rounded-xl border px-3 py-2 text-sm font-bold">بحث</button>
+                </div>
+                <label className="block text-sm font-bold">مدير المدرسة
+                  <select aria-label="مدير المدرسة" value={directorId} disabled={directorLoading} onChange={event => setDirectorId(event.target.value)} className={inputClass}>
+                    <option value="">ربط المدير لاحقًا</option>
+                    {directorChoices.map(director => <option key={director.id} value={director.id}>{director.name} · {director.email}</option>)}
+                  </select>
+                </label>
+                {directorLoading && <p role="status" className="text-sm text-slate-600">جارٍ تحميل حسابات المديرين…</p>}
+                {directorError && <p role="alert" className="text-sm text-rose-800">{directorError}</p>}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="block text-sm font-bold">الفصول المبدئية
+                  <textarea rows={5} value={classText} onChange={event => setClassText(event.target.value)} className={inputClass} aria-label="الفصول المبدئية" />
+                  <span className="text-xs font-normal text-slate-600">اكتب اسم كل فصل في سطر، أو أضف الفصول لاحقًا من مساحة المدرسة.</span>
+                </label>
+                {stage.includes('ثانوي') && (
+                  <button type="button" className="rounded-xl border px-3 py-2 text-sm font-bold"
+                    onClick={() => setClassText(value => Array.from(new Set([...value.split(/\r?\n/).map(line => line.trim()).filter(Boolean), ...suggestedClasses])).join('\n'))}>
+                    إضافة الفصول المقترحة للثانوي
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-gray-100 bg-slate-50 px-4 py-3 sm:px-6">
             <button type="button" disabled={busy} onClick={close} className="rounded-xl border px-3 py-2 text-sm font-bold">
               {setup ? 'متابعة لاحقًا' : 'إلغاء'}
             </button>
