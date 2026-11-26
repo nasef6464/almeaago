@@ -2,6 +2,7 @@ package organizationshttp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -31,6 +32,7 @@ func (a authStub) VerifyCSRF(identityapp.Authenticated, string) error {
 type repoStub struct {
 	contexts                   []orgdomain.SchoolContext
 	page                       orgdomain.SchoolPage
+	rosterPage                 orgdomain.RosterPage
 	membershipWrite            orgdomain.MembershipWrite
 	directorWrite              orgdomain.DirectorWrite
 	assignmentWrite            orgdomain.AssignmentWrite
@@ -129,7 +131,7 @@ func (r *repoStub) ArchiveClass(context.Context, string, string, string) (orgdom
 	return orgdomain.Class{}, nil
 }
 func (r *repoStub) Roster(context.Context, orgdomain.AccessContext, string, orgdomain.RosterQuery) (orgdomain.RosterPage, error) {
-	return orgdomain.RosterPage{}, nil
+	return r.rosterPage, nil
 }
 
 func (r *repoStub) UpsertMembership(
@@ -396,6 +398,38 @@ func TestParseRosterRejectsInvalidBoolean(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/?isActive=maybe", nil)
 	if _, err := parseRosterQuery(request); !errors.Is(err, orgapp.ErrInvalidInput) {
 		t.Fatalf("expected invalid input, got %v", err)
+	}
+}
+
+func TestRosterReturnsFrontendFieldNames(t *testing.T) {
+	repo := &repoStub{rosterPage: orgdomain.RosterPage{
+		Members: []orgdomain.RosterMember{{
+			UserID: "student-1", Name: "طالبة", Email: "student@example.invalid",
+			Status: "active", Roles: []identitydomain.Role{identitydomain.RoleStudent},
+			ClassIDs: []string{"class-a"},
+		}},
+		Page: 1, Limit: 20, Total: 1,
+	}}
+	handler := New(orgapp.NewService(repo), authStub{auth: adminAuth()})
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/school-1/roster?role=student", nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("read roster: %d %s", response.Code, response.Body)
+	}
+	var body struct {
+		Members []map[string]json.RawMessage `json:"members"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil || len(body.Members) != 1 {
+		t.Fatalf("roster response: %s %v", response.Body, err)
+	}
+	row := body.Members[0]
+	for key, want := range map[string]string{
+		"userId": `"student-1"`, "name": `"طالبة"`, "email": `"student@example.invalid"`,
+		"status": `"active"`, "roles": `["student"]`, "classIds": `["class-a"]`,
+	} {
+		if got := string(row[key]); got != want {
+			t.Errorf("roster member %q = %q; want %q", key, got, want)
+		}
 	}
 }
 
