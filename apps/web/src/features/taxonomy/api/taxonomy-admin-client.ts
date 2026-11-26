@@ -110,11 +110,29 @@ function mutation(path: string, method: 'POST' | 'PATCH', body: unknown, csrf: s
   return request<unknown>(path, { method, headers: { 'X-CSRF-Token': csrf }, body: JSON.stringify(body) });
 }
 
+export interface BulkDeleteResult {
+  deletedIds: string[];
+  blocked: Array<{ id: string; reason: string }>;
+}
+
 export const taxonomyAdminClient = {
-  deleteRecord(type: 'path' | 'level' | 'subject', id: string, csrf: string) {
-    const plural = { path: 'paths', level: 'levels', subject: 'subjects' }[type];
+  deleteRecord(type: 'path' | 'level' | 'subject' | 'skill' | 'skill_section', id: string, csrf: string) {
+    const plural = {
+      path: 'paths',
+      level: 'levels',
+      subject: 'subjects',
+      skill: 'skills',
+      skill_section: 'skill-sections',
+    }[type];
     return request<{deleted: boolean}>(`/api/v1/taxonomy/admin/${plural}/${encodeURIComponent(id)}`, {
       method: 'DELETE', headers: { 'X-CSRF-Token': csrf },
+    });
+  },
+  bulkDelete(type: 'path' | 'level' | 'subject' | 'skill' | 'skill_section', ids: string[], csrf: string) {
+    return request<BulkDeleteResult>(`/api/v1/taxonomy/admin/bulk-delete/${encodeURIComponent(type)}`, {
+      method: 'POST',
+      headers: { 'X-CSRF-Token': csrf },
+      body: JSON.stringify({ ids }),
     });
   },
   bootstrap(signal?: AbortSignal) {

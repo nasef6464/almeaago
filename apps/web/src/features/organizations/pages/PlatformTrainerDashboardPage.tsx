@@ -11,6 +11,8 @@ import { Link } from 'react-router-dom';
 import { TrainerCourses } from '../components/TrainerCourses';
 import { assessmentClient } from '../../assessment/api/assessment-client';
 import { questionBankClient } from '../../questionbank/api/questionbank-client';
+import { contentClient } from '../../content/api/content-client';
+import type { TrainerScope } from '../../content/api/content-types';
 
 export interface TrainerCourse {
   id: string;
@@ -238,6 +240,14 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
 
   // Modals
   const [showCreateCourseModal, setShowCreateCourseModal] = useState(false);
+  const [trainerScope, setTrainerScope] = useState<TrainerScope | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const c = new AbortController();
+    contentClient.getTrainerScope('me', c.signal).then((res) => setTrainerScope(res.scope)).catch(() => {});
+    return () => c.abort();
+  }, [user]);
   const [showScheduleLiveModal, setShowScheduleLiveModal] = useState(false);
   const [previewQuestion, setPreviewQuestion] = useState<TrainerQuestionItem | null>(null);
 
@@ -557,6 +567,36 @@ export const PlatformTrainerDashboardPage: React.FC = () => {
                 <div className="mt-1 text-[11px] font-bold text-slate-500">من 215 تقييم موثق</div>
               </div>
             </div>
+
+            {trainerScope ? (
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">صلاحياتي ونطاق عملي المصرح به</h3>
+                    <p className="text-xs text-slate-500">
+                      المسارات المسندة: {trainerScope.pathIds.length} · المواد المسندة: {trainerScope.subjectIds.length}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs font-black">
+                    {(trainerScope.permissions.manageCourses || trainerScope.permissions.manageLessons || trainerScope.permissions.manageFoundation || trainerScope.permissions.manageLibrary) ? (
+                      <Link to="/admin-dashboard/content" className="rounded-xl bg-indigo-50 px-3 py-2 text-indigo-700 hover:bg-indigo-100">إدارة المحتوى والدورات</Link>
+                    ) : null}
+                    {trainerScope.permissions.manageQuestions ? (
+                      <Link to="/admin-dashboard/questions" className="rounded-xl bg-emerald-50 px-3 py-2 text-emerald-700 hover:bg-emerald-100">بنك الأسئلة</Link>
+                    ) : null}
+                    {trainerScope.permissions.manageAssessments ? (
+                      <Link to="/admin-dashboard/assessments" className="rounded-xl bg-amber-50 px-3 py-2 text-amber-800 hover:bg-amber-100">الاختبارات</Link>
+                    ) : null}
+                    {trainerScope.permissions.manageSkills ? (
+                      <Link to="/admin-dashboard/skills" className="rounded-xl bg-sky-50 px-3 py-2 text-sky-700 hover:bg-sky-100">المهارات</Link>
+                    ) : null}
+                    {trainerScope.permissions.manageTaxonomy ? (
+                      <Link to="/admin-dashboard/taxonomy" className="rounded-xl bg-purple-50 px-3 py-2 text-purple-700 hover:bg-purple-100">المسارات والمواد</Link>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             {/* Performance Verified Section */}
             <div className="rounded-3xl border border-indigo-100 bg-gradient-to-l from-indigo-50/70 via-white to-white p-6 shadow-xs">

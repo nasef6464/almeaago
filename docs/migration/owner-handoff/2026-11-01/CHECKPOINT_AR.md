@@ -1,4 +1,21 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 26 نوفمبر — فحص M5 / P7 (حزمة المطابقة الكاملة والـ RTL والبصريات) على main / PARTIAL
+
+- Go main `c55d558c` (فوق M1–M4 المدمجة في [PR #313](https://github.com/nasef6464/almeaago/pull/313) و[PR #315](https://github.com/nasef6464/almeaago/pull/315) و[PR #318](https://github.com/nasef6464/almeaago/pull/318)–[PR #321](https://github.com/nasef6464/almeaago/pull/321) و[PR #325](https://github.com/nasef6464/almeaago/pull/325)):
+  1. **حزمة فحوصات Frontend CI الكاملة (`node scripts/parity/run-ci-checks.mjs`):** **15/15 PASS** (شاملةً `public-footer`, `platform-fonts`, `homepage-ui`, `header-brand`, `admin-skills-separation`, `header-navigation`, `StudentNavigationProvider`, `studentPathScope`, `learning-route-selection`, `screen-inventory`, `route-inventory` (`55/55`, `legacyOnly: []`), `api-mount-inventory`, `identity-login-digits`, `learning-golden`, `adaptive-ranking`, `adaptive-selection-golden`).
+  2. **فحص P7 البصري والـ RTL (`390/820/1440`):** **30/30 PASS** عبر `codax-parity-master.spec.ts` و`header-breakpoint-parity.spec.ts` و`public-static-info-parity.spec.ts` و`enrollment-visual-parity.spec.ts`، إضافةً إلى **6/6 PASS** لاختبارات البصريات الحية للعلامة التجارية (`TestHomepageSettingsHTTPPostgres` / `header-brand-live.spec.ts` لـ `admin` و`guest` على `390/820/1440` ضد Go + PostgreSQL 18.6 حية معزولة).
+  3. **التحقق الحي على PostgreSQL 18.6 محلي معزول (`almeaa_test`):** تطبيق جميع المهاجرات الـ **67** (`136 جدولاً`) واجتياز اختبارات التكامل الحية على PostgreSQL (`internal/learning/repository/postgres`، `internal/organizations/repository/postgres`، `internal/assessment/repository/postgres`، `internal/commerce/repository/postgres`، و`internal/parents/application` وحزم HTTP/Application المرتبطة) بنسبة **100% PASS**.
+- **الحالة العامة (`PARTIAL`):**
+  - **بوابة P6 (مُغلقة بقرار المالك — `PASS`):** أكّد المالك عدم وجود بيانات تشغيلية أخرى مطلوبة للترحيل من MongoDB وأن الأسئلة والتصنيفات المستوردة مسبقاً إلى PostgreSQL هي البيانات المعتمدة. وبذلك تُغلق **P6** بعد نجاح تطبيق المهاجرات الـ `67` والتراجع عنها وإعادة تطبيقها، وتمرين `pg_dump`/`psql` في `Database CI`، واختبارات التكامل الحية على PostgreSQL 18.6 (`136 جدولاً`).
+  - **بوابة P7:** اختبارات الواجهة والـ RTL (`30/30` بدون خادم حي + `6/6` في `header-brand-live.spec.ts` على Go/PG حي) وحزمة `run-ci-checks.mjs` (`15/15`) ناجحة؛ وعند تشغيل `TestOriginalHeaderHTTPPostgresBrowser` على `PostgreSQL 18.6` تبيّن أن سبب فرق البكسل في قائمة الجوال (`HEADER-VISUAL-EXACT-001`, `guest/390/mobile`, `y=644..788`) هو إضافة رابط `شراكة المدارس` (`/for-schools`) المقصودة في `navigation.ts` والمستثناة صراحةً في `header-navigation.test.mjs` (`INTENTIONAL_ADDITIONS`).
+
+## 26 نوفمبر — إتمام M4 (الفصل الذكي وعقود OpenAPI) فوق M3 / PARTIAL
+
+- Go main `16562a4b` بعد دمج **[PR #325](https://github.com/nasef6464/almeaago/pull/325)** (`16562a4b`, حزمة **M4**):
+  1. **تسوية عقود OpenAPI (`CLASSROOM-OPENAPI-COVERAGE` + مسارات M3):** توثيق **17 مسارًا** مفقودًا للفصل الذكي (`/api/v1/classroom/*` الخاصة بالحضور والمنافسة والدفعات والـ aggregate والـ aliases) وتوثيق مسارات M3 (`/api/v1/learning/evidence` و`/api/v1/parents/*`) في `api/openapi/openapi.yaml`.
+  2. **أدوات المعلم في الفصل الذكي (`CLASSROOM-TEACHER-TOOLS`):** ربط السبورة الذكية التفاعلية (`SmartWhiteboardCanvas`) والتصويت السريع (`ClassroomLivePollModal`) في `ClassroomTeacherPage.tsx` أثناء الحصة المباشرة دون المساس بثوابت الخادم.
+  3. **التحقق:** PASS `go test ./internal/realtime/... ./internal/media/...`، و`api-mount-inventory.test.mjs` + `route-inventory.test.mjs` (`7/7`)، و`tsc -b`، و`20/20` اختبار Playwright (`classroom.spec.ts` `4/4`، `schools-classroom-projector-session-scope.spec.ts`، `schools-classroom-student-session-scope.spec.ts`)، واجتياز جميع بوابات GitHub Actions (`frontend`, `overlap`, `e2e 1-3`).
+- **حالة البوابات المتبقية (`PARTIAL`):** تبقى مطابقة `MongoDB -> PostgreSQL` في **P6** **`BLOCKED`** محليًا لحين توفير أرشيف معزول من MongoDB، والمطابقة البصرية المتقابلة بالصور في **P7** + إغلاق أي فجوات متبقية في **M5**.
 
 ## 26 نوفمبر — إصلاح مسار إضافة المدرسة والتحقق من نشر #317
 
@@ -6,6 +23,7 @@
 - إصلاح المدارس مستقل في فرع `fix/school-create-routing` على أساس `cd3f11b6`. نقل نموذج الإضافة إلى `SchoolCreateDialog.tsx`، وأعاد مساري القائمة والإنشاء في `organizations-client.ts` إلى `/api/v1/schools`، وأضاف رسالة خطأ قابلة للإصلاح وحفظ المسودة. المشاهدة الفعلية على Vercel قبل الإصلاح: الطلب القديم 405، والمسار الموثق 401 JSON من Go دون الجلسة. اختبار Playwright RED 405 ثم PASS 409/201، ونجح التحقق الحقيقي المحلي في إعادة فتح المدرسة ومنع الطالب 403.
 - قاعدة اختبار منعزلة مع Go الأحدث أثبتت إنشاء فصلين، ربط طالب، نقله إلى الثاني بمدير مفوض، رفض مدرسة أخرى، وتخزين منح وإزالة وحدة الاختبارات. Render ما زال يعيد 404 لمسار إضافة الطالب الذي دخل في #313. هذا فرق إصدار مثبت. لم تُكتب بيانات المدارس المنشورة ولم تُطبق هجرات في هذه الدفعة.
 - راجعنا معالج Legacy عند `ed28102d7084899856de0371dc2c93a3d602d518` وسجلنا أين تنتمي الفصول والجدول، العقود، تكليفات المعلم، تفويض المشرف والمدير، الاختبارات والتدخلات والجاهزية. الدليل [مصفوفة المدارس](../../SCHOOLS_INTEGRATION_MATRIX_20261114_AR.md). المحاور B/D/E/G/H، ومهارتا تدقيق الأزرار وعقود المدارس. صور نافذة الخطأ محليًا بعروض 390/820/1440، ومقارنة صفحة المدارس كاملة **PARTIAL**. استئناف الدفعة التالية يبدأ بمعالج التأسيس الفعلي وعقوده ومراجعة إعداد نشر Go، بعد إثبات الفحوص على رأس PR.
+
 
 ### متابعة معالج التأسيس في 26 نوفمبر
 

@@ -12,6 +12,7 @@ import {
   Plus,
   RefreshCcw,
   Search,
+  Trash2,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -139,6 +140,53 @@ export function ContentAdminPage() {
   const [actionError, setActionError] = useState('');
   const [previewCourse, setPreviewCourse] = useState<CourseSummary | null>(null);
   const [actionErrorScope, setActionErrorScope] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  const toggleSelectRow = (id: string) => {
+    setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  };
+
+  const tabDeleteKind = (): 'course' | 'lesson' | 'foundation_topic' | 'library_item' => {
+    if (tab === 'courses') return 'course';
+    if (tab === 'lessons') return 'lesson';
+    if (tab === 'library') return 'library_item';
+    return 'foundation_topic';
+  };
+
+  async function deleteSingleRow(row: ContentRow) {
+    const kind = tabDeleteKind();
+    if (!window.confirm(`هل أنت متأكد من حذف «${row.title}» نهائيًا؟ لن يُحذف إذا كان مرتبطًا ببيانات نشطة.`)) return;
+    setActionError('');
+    setActionErrorScope(listScope);
+    try {
+      await contentClient.deleteRecord(kind, row.id, await getCsrfToken());
+      setSelectedIds((current) => current.filter((item) => item !== row.id));
+      setReloadKey((value) => value + 1);
+    } catch (cause: unknown) {
+      setActionError(cause instanceof Error ? cause.message : 'تعذر حذف العنصر.');
+    }
+  }
+
+  async function bulkDeleteSelected() {
+    if (selectedIds.length === 0 || bulkDeleting) return;
+    if (!window.confirm(`هل أنت متأكد من حذف ${selectedIds.length} عنصر محدد نهائيًا؟ العناصر المرتبطة ببيانات نشطة لن تُحذف.`)) return;
+    setBulkDeleting(true);
+    setActionError('');
+    setActionErrorScope(listScope);
+    try {
+      const res = await contentClient.bulkDeleteRecords(tabDeleteKind(), selectedIds, await getCsrfToken());
+      setSelectedIds([]);
+      if (res.blocked.length > 0) {
+        setActionError(`تم حذف ${res.deletedIds.length} عنصر، وتعذر حذف ${res.blocked.length} لوجود ارتباطات نشطة.`);
+      }
+      setReloadKey((value) => value + 1);
+    } catch (cause: unknown) {
+      setActionError(cause instanceof Error ? cause.message : 'تعذر تنفيذ الحذف الجماعي.');
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
 
   const listScope = JSON.stringify([
     tab, page, pathId, subjectId, debouncedSearch,
@@ -674,10 +722,23 @@ export function ContentAdminPage() {
                   <h2 className="font-black text-gray-900">{tabLabel(tab)}</h2>
                   <p className="mt-1 text-xs font-bold text-gray-400">صفحة {page.toLocaleString('ar-SA')} · 50 عنصرًا كحد أقصى</p>
                 </div>
-                <button type="button" onClick={() => setReloadKey((value) => value + 1)} className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-xs font-black text-gray-600">
-                  <RefreshCcw size={15} className={scopedLoading ? 'animate-spin' : ''} />
-                  تحديث
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {selectedIds.length > 0 ? (
+                    <button
+                      type="button"
+                      disabled={bulkDeleting}
+                      onClick={() => void bulkDeleteSelected()}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3 py-2 text-xs font-black text-white hover:bg-rose-700 disabled:opacity-50"
+                    >
+                      <Trash2 size={14} />
+                      {bulkDeleting ? 'جاري الحذف...' : `حذف المحدد (${selectedIds.length})`}
+                    </button>
+                  ) : null}
+                  <button type="button" onClick={() => setReloadKey((value) => value + 1)} className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-xs font-black text-gray-600">
+                    <RefreshCcw size={15} className={scopedLoading ? 'animate-spin' : ''} />
+                    تحديث
+                  </button>
+                </div>
               </div>
 
               {scopedLoading ? (
@@ -693,6 +754,15 @@ export function ContentAdminPage() {
                   <table className="w-full min-w-[820px] text-right text-sm">
                     <thead className="bg-gray-50 text-xs font-black text-gray-500">
                       <tr>
+                        <th className="w-10 px-3 py-3">
+                          <input
+                            type="checkbox"
+                            aria-label="تحديد جميع العناصر"
+                            checked={scopedRows.length > 0 && selectedIds.length === scopedRows.length}
+                            onChange={() => setSelectedIds(selectedIds.length === scopedRows.length ? [] : scopedRows.map((item) => item.id))}
+                            className="h-4 w-4 rounded border-gray-300 text-indigo-600"
+                          />
+                        </th>
                         <th className="px-4 py-3">العنوان</th>
                         <th className="px-4 py-3">المسار / المادة</th>
                         <th className="px-4 py-3">الحالة</th>
@@ -710,6 +780,15 @@ export function ContentAdminPage() {
                         const type = 'level' in row ? row.level : 'type' in row ? row.type : 'code' in row ? row.code : '-';
                         return (
                           <tr key={row.id} className="text-gray-700 hover:bg-gray-50/70">
+                            <td className="px-3 py-4">
+                              <input
+                                type="checkbox"
+                                aria-label={`تحديد ${row.title}`}
+                                checked={selectedIds.includes(row.id)}
+                                onChange={() => toggleSelectRow(row.id)}
+                                className="h-4 w-4 rounded border-gray-300 text-indigo-600"
+                              />
+                            </td>
                             <td className="px-4 py-4"><div className="font-black text-gray-900">{row.title}</div></td>
                             <td className="px-4 py-4"><div className="font-bold">{path?.name || row.pathId}</div><div className="mt-1 text-xs text-gray-500">{subject?.name || row.subjectId}</div></td>
                             <td className="px-4 py-4">
@@ -819,6 +898,14 @@ export function ContentAdminPage() {
                                       {row.isPublished ? 'إلغاء النشر' : 'نشر'}
                                     </button>
                                   ) : null}
+                                  <button
+                                    type="button"
+                                    onClick={() => void deleteSingleRow(row)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-black text-rose-700 hover:bg-rose-100"
+                                  >
+                                    <Trash2 size={13} />
+                                    حذف
+                                  </button>
                                 </div>
                               ) : isLessonRow(row) ? (
                                 <div className="flex flex-wrap gap-2">
@@ -870,6 +957,14 @@ export function ContentAdminPage() {
                                       </button>
                                     </>
                                   ) : null}
+                                  <button
+                                    type="button"
+                                    onClick={() => void deleteSingleRow(row)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-black text-rose-700 hover:bg-rose-100"
+                                  >
+                                    <Trash2 size={13} />
+                                    حذف
+                                  </button>
                                 </div>
                               ) : isLibraryRow(row) ? (
                                 <div className="flex flex-wrap gap-2">
@@ -921,15 +1016,33 @@ export function ContentAdminPage() {
                                       </button>
                                     </>
                                   ) : null}
+                                  <button
+                                    type="button"
+                                    onClick={() => void deleteSingleRow(row)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-black text-rose-700 hover:bg-rose-100"
+                                  >
+                                    <Trash2 size={13} />
+                                    حذف
+                                  </button>
                                 </div>
                               ) : isFoundationRow(row) ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingTopicId(row.id)}
-                                  className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-black text-blue-800"
-                                >
-                                  تعديل / روابط
-                                </button>
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingTopicId(row.id)}
+                                    className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-black text-blue-800"
+                                  >
+                                    تعديل / روابط
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void deleteSingleRow(row)}
+                                    className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-black text-rose-700 hover:bg-rose-100"
+                                  >
+                                    <Trash2 size={13} />
+                                    حذف
+                                  </button>
+                                </div>
                               ) : (
                                 <span className="text-xs font-bold text-gray-400">—</span>
                               )}

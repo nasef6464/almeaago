@@ -15,6 +15,8 @@ func NewFoundation(service *contentapp.Service, auth Authenticator) http.Handler
 	r.Post("/topics", h.createTopic)
 	r.Get("/topics/{id}", h.getTopic)
 	r.Put("/topics/{id}", h.updateTopic)
+	r.Delete("/topics/{id}", h.deleteKind("foundation_topic", "id"))
+	r.Post("/topics/bulk-delete", h.bulkDeleteKind("foundation_topic"))
 	r.Get("/topics/{id}/placements", h.getTopicPlacements)
 	r.Put("/topics/{id}/lessons/{lessonId}", h.linkTopicLesson)
 	r.Delete("/topics/{id}/lessons/{lessonId}", h.unlinkTopicLesson)

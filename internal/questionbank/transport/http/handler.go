@@ -44,6 +44,8 @@ func New(service *questionapp.Service, auth Authenticator, options ...Options) h
 	r.Put("/{id}/section", h.setQuestionSection)
 	r.Post("/{id}/versions", h.appendVersion)
 	r.Patch("/{id}/workflow", h.setWorkflow)
+	r.Delete("/{id}", h.deleteQuestion)
+	r.Post("/bulk-delete", h.bulkDeleteQuestions)
 	if h.importService != nil {
 		r.Post("/import-batches", h.importBatch)
 		r.Get("/import-batches/{batchId}", h.getImportBatch)
@@ -236,6 +238,8 @@ func writeError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"message": "Forbidden"})
 	case errors.Is(err, questionapp.ErrDryRunRequired):
 		writeJSON(w, http.StatusConflict, map[string]string{"message": "A successful matching dry run is required before import write"})
+	case errors.Is(err, questionapp.ErrHasDependencies):
+		writeJSON(w, http.StatusConflict, map[string]string{"message": "لا يمكن حذف هذا السؤال لارتباطه باختبارات أو محاولات نشطة"})
 	case errors.Is(err, questionapp.ErrVersionConflict), errors.Is(err, questionapp.ErrWorkflow), errors.Is(err, question.ErrConflict), errors.Is(err, question.ErrInvalidTaxonomy):
 		writeJSON(w, http.StatusConflict, map[string]string{"message": "Question state conflicts with the requested operation"})
 	case errors.Is(err, question.ErrNotFound):
@@ -249,4 +253,35 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)
+}
+
+func (h *Handler) deleteQuestion(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authenticate(w, r, true)
+	if !ok {
+		return
+	}
+	if err := h.service.DeleteQuestion(r.Context(), auth.User, chi.URLParam(r, "id")); err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"deleted": true})
+}
+
+func (h *Handler) bulkDeleteQuestions(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authenticate(w, r, true)
+	if !ok {
+		return
+	}
+	var payload struct {
+		IDs []string `json:"ids"`
+	}
+	if !decodeJSON(w, r, &payload) {
+		return
+	}
+	res, err := h.service.BulkDeleteQuestions(r.Context(), auth.User, payload.IDs)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, res)
 }

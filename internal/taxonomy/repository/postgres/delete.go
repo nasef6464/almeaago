@@ -12,7 +12,13 @@ import (
 // DeleteTaxonomy deletes only an unreferenced record. Even cascading and
 // SET NULL foreign keys are checked to avoid erasing or detaching user data.
 func (r *Repository) DeleteTaxonomy(ctx context.Context, actor, kind, id string) error {
-	tables := map[string]string{"path": "paths", "level": "levels", "subject": "subjects"}
+	tables := map[string]string{
+		"path":          "paths",
+		"level":         "levels",
+		"subject":       "subjects",
+		"skill":         "skills",
+		"skill_section": "skill_sections",
+	}
 	table, ok := tables[kind]
 	if !ok {
 		return taxonomy.ErrNotFound
