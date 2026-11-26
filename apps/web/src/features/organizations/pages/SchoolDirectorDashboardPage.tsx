@@ -39,9 +39,11 @@ import { DirectorTeacherAssignments } from '../components/DirectorTeacherAssignm
 import { SupervisorTestsManager } from '../components/SupervisorTestsManager';
 import { SchoolDirectorBreadcrumb, SchoolDirectorSectionNav, directorNavItems, type DirectorSectionID } from '../components/SchoolDirectorSectionNav';
 import { SchoolImportPanel, type ImportSummary, type ImportCredentialItem } from '../components/SchoolImportPanel';
+import { importDirectorRoster, type DirectorImportFailure } from '../utils/importDirectorRoster';
 import {
   parseImportRows,
   parseTextToRows,
+  normalizeRows,
   inspectImportData,
   type ImportRow,
 } from '../utils/importRowParsing';
@@ -108,6 +110,10 @@ export function SchoolDirectorDashboardPage(){
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importCredentials, setImportCredentials] = useState<ImportCredentialItem[]>([]);
+  const [importFailures, setImportFailures] = useState<DirectorImportFailure[]>([]);
+  const importedClassIds = useRef(new Set<string>());
+  const importVersion = useRef(0);
+  const importRunning = useRef(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [importPreviewStats, setImportPreviewStats] = useState({
     classNames: [] as string[],
@@ -116,10 +122,30 @@ export function SchoolDirectorDashboardPage(){
     existingEmails: [] as string[],
   });
 
+  function clearDirectorImport() {
+    ++importVersion.current;
+    importRunning.current = false;
+    importedClassIds.current.clear();
+    setIsImporting(false);
+    setImportRows([]);
+    setImportSummary(null);
+    setImportCredentials([]);
+    setImportFailures([]);
+    setImportError(null);
+    setImportPreviewStats({ classNames: [], rowsWithoutPassword: 0, duplicateEmails: [], existingEmails: [] });
+  }
+
   const handleDirectorImportFile = async (file: File) => {
+    if (importRunning.current) return;
+    clearDirectorImport();
+    const version = importVersion.current;
     try {
-      setImportError(null);
+      if (/\.xlsx?$/i.test(file.name)) {
+        setImportError('احفظ كشف Excel بصيغة CSV ثم ارفعه من جديد.');
+        return;
+      }
       const text = await file.text();
+      if (version !== importVersion.current) return;
       const rawRows = parseTextToRows(text);
       if (rawRows.length < 2) {
         setImportError('الملف فارغ أو لا يحتوي على صفوف صالحة.');
@@ -128,6 +154,11 @@ export function SchoolDirectorDashboardPage(){
       const parsed = parseImportRows(rawRows);
       if (parsed.length === 0) {
         setImportError('لم يتم العثور على صفوف صالحة. تأكد من وجود عمود الاسم والبريد الإلكتروني.');
+        return;
+      }
+      const incompleteCount = normalizeRows(rawRows).length - 1 - parsed.length;
+      if (incompleteCount > 0) {
+        setImportError(`الكشف فيه ${incompleteCount} صف بدون اسم أو بريد إلكتروني أو سجل مدني. صحح البيانات ثم ارفع الكشف من جديد.`);
         return;
       }
       const stats = inspectImportData(parsed);
@@ -142,72 +173,44 @@ export function SchoolDirectorDashboardPage(){
         setImportError(`يوجد ${stats.duplicateEmails.length} إيميل مكرر في الملف. يرجى تصحيح التكرار.`);
       }
     } catch (err: unknown) {
+      if (version !== importVersion.current) return;
       const msg = err instanceof Error ? err.message : 'تعذر قراءة ملف الكشف.';
       setImportError(msg);
     }
   };
 
   const handleDirectorStartImport = async () => {
-    if (!selectedSchool || importRows.length === 0) return;
+    if (!selectedSchool || !has('SCHOOL_STUDENTS_ADD') || importRunning.current || importPreviewStats.duplicateEmails.length) return;
+    const rows = importSummary ? importFailures.map(({ row }) => row) : importRows;
+    if (!rows.length) return;
+    const school = selectedSchool.schoolId;
+    const version = importVersion.current;
+    const isCurrent = () => version === importVersion.current && school === activeSchoolId.current;
+    importRunning.current = true;
     try {
       setIsImporting(true);
       setImportError(null);
       const csrf = await getCsrfToken();
-      const createdCreds: ImportCredentialItem[] = [];
-      const touchedClasses = new Set<string>();
-
-      const existingClassMap = new Map<string, string>();
-      classes.forEach((c) => existingClassMap.set(c.name.trim(), c.id));
-
-      for (const row of importRows) {
-        let classId = '';
-        if (row.className && row.className.trim()) {
-          const cName = row.className.trim();
-          touchedClasses.add(cName);
-          if (existingClassMap.has(cName)) {
-            classId = existingClassMap.get(cName)!;
-          } else {
-            try {
-              const res = await organizationsClient.createDirectorClass(selectedSchool.schoolId, cName, csrf);
-              classId = res.classroom.classId;
-              existingClassMap.set(cName, classId);
-            } catch {
-              // ignore
-            }
-          }
-        }
-
-        const pwd = row.password && row.password.trim() ? row.password.trim() : `Almeaa@${Math.floor(1000 + Math.random() * 9000)}`;
-        try {
-          await organizationsClient.addDirectorStudent(selectedSchool.schoolId, {
-            name: row.name,
-            email: row.email,
-            password: pwd,
-            classId,
-          }, csrf);
-        } catch {
-          // ignore duplicate in backend
-        }
-        createdCreds.push({
-          name: row.name,
-          email: row.email,
-          password: pwd,
-          className: row.className,
-        });
-      }
-
-      setImportCredentials(createdCreds);
+      const result = await importDirectorRoster(school, rows, csrf, isCurrent);
+      if (!isCurrent()) return;
+      for (const classId of result.classIds) importedClassIds.current.add(classId);
+      setImportCredentials(current => [...current, ...result.credentials]);
+      setImportFailures(result.failures);
       setImportSummary({
         totalRows: importRows.length,
-        imported: createdCreds.length,
-        classesTouched: touchedClasses.size || 1,
+        imported: (importSummary?.imported ?? 0) + result.credentials.length + result.linked,
+        linked: (importSummary?.linked ?? 0) + result.linked,
+        classesTouched: importedClassIds.current.size,
       });
       void refresh();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'تعذر إتمام عملية الاستيراد.';
-      setImportError(msg);
+      setOverviewReload(value => value + 1);
+    } catch {
+      if (isCurrent()) setImportError('تعذر تجهيز الاستيراد. تحقق من الجلسة واتصال الخادم ثم أعد المحاولة.');
     } finally {
-      setIsImporting(false);
+      if (isCurrent()) {
+        importRunning.current = false;
+        setIsImporting(false);
+      }
     }
   };
 
@@ -225,7 +228,8 @@ export function SchoolDirectorDashboardPage(){
   const downloadDirectorCredentials = () => {
     if (importCredentials.length === 0) return;
     const header = 'اسم الطالب,البريد الإلكتروني,الفصل,كلمة المرور\n';
-    const rows = importCredentials.map((c) => `"${c.name}","${c.email}","${c.className || ''}","${c.password || ''}"`).join('\n');
+    const csvField = (value: string) => `"${(/^[\s\u0000-\u001f]*[=+@-]/.test(value) ? "'" + value : value).replaceAll('"', '""')}"`;
+    const rows = importCredentials.map((c) => [c.name, c.email, c.className || '', c.password || ''].map(csvField).join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + header + rows], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -434,6 +438,8 @@ export function SchoolDirectorDashboardPage(){
     ++teacherReadVersion.current;
     ++overviewReadEpoch.current;
     ++assessmentReadEpoch.current;
+    clearDirectorImport();
+    setShowImportModal(false);
     setSchools([]);setClasses([]);setStudents([]);setStudentTotal(0);
     setTeachers([]);setAssignments([]);setOverview(null);setAssessmentWorkspace(null);
     setOverviewLoading(false);setAssessmentLoading(false);
@@ -614,6 +620,8 @@ export function SchoolDirectorDashboardPage(){
   }
 
   function changeSchool(nextSchoolId:string){
+    clearDirectorImport();
+    setShowImportModal(false);
     activeSchoolId.current=nextSchoolId;
     setSelectedAssessment(null);
     ++schoolVisitEpoch.current;
@@ -1515,51 +1523,46 @@ export function SchoolDirectorDashboardPage(){
 
       {/* Noor Bulk Roster Import Modal */}
       {showImportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs overflow-y-auto" dir="rtl">
-          <div className="relative my-auto w-full max-w-4xl rounded-3xl bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs" dir="rtl">
+          <div role="dialog" aria-modal="true" aria-labelledby="director-import-title" className="flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 p-4 sm:p-6">
               <div className="flex items-center gap-2">
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
                   <Upload size={20} />
                 </span>
                 <div>
-                  <h3 className="text-lg font-black text-slate-900">استيراد كشف طلاب نظام نور</h3>
+                  <h3 id="director-import-title" className="text-lg font-black text-slate-900">استيراد كشف طلاب نظام نور</h3>
                   <p className="text-xs text-slate-500">رفع ومعاينة كشوفات الفصول والطلاب واستيرادها إلى المدرسة مباشرة</p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setShowImportModal(false)}
+                aria-label="إغلاق استيراد كشف نور"
+                disabled={isImporting}
+                onClick={() => { clearDirectorImport(); setShowImportModal(false); }}
                 className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <SchoolImportPanel
-              importRows={importRows}
-              importSummary={importSummary}
-              isImporting={isImporting}
-              importCredentials={importCredentials}
-              importError={importError}
-              importPreviewStats={importPreviewStats}
-              handleImportFile={handleDirectorImportFile}
-              handleStartImport={handleDirectorStartImport}
-              downloadTemplate={downloadDirectorTemplate}
-              downloadCredentials={downloadDirectorCredentials}
-              onReset={() => {
-                setImportRows([]);
-                setImportSummary(null);
-                setImportCredentials([]);
-                setImportError(null);
-                setImportPreviewStats({
-                  classNames: [],
-                  rowsWithoutPassword: 0,
-                  duplicateEmails: [],
-                  existingEmails: [],
-                });
-              }}
-            />
+            <div className="min-h-0 overflow-y-auto px-4 sm:px-6">
+              <SchoolImportPanel
+                importRows={importRows}
+                importSummary={importSummary}
+                isImporting={isImporting}
+                importCredentials={importCredentials}
+                importError={importError}
+                importPreviewStats={importPreviewStats}
+                handleImportFile={handleDirectorImportFile}
+                handleStartImport={handleDirectorStartImport}
+                downloadTemplate={downloadDirectorTemplate}
+                downloadCredentials={downloadDirectorCredentials}
+                onReset={clearDirectorImport}
+                failures={importFailures}
+                textFilesOnly
+              />
+            </div>
           </div>
         </div>
       )}
