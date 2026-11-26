@@ -3,6 +3,7 @@ package domain
 import "errors"
 
 var (
-	ErrNotFound = errors.New("organization record not found")
-	ErrConflict = errors.New("organization record conflict")
+	ErrNotFound  = errors.New("organization record not found")
+	ErrConflict  = errors.New("organization record conflict")
+	ErrForbidden = errors.New("organization scope denied")
 )

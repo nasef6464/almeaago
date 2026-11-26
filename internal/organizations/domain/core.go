@@ -138,6 +138,11 @@ type RosterPage struct {
 	Total   int
 }
 
+type SupervisorClassMove struct {
+	FromClassID string `json:"fromClassId"`
+	ClassID     string `json:"classId"`
+}
+
 func ValidSchoolStatus(status SchoolStatus) bool {
 	switch status {
 	case SchoolStatusActive, SchoolStatusSuspended, SchoolStatusArchived:

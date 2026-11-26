@@ -167,6 +167,10 @@ func (m *repositoryMock) Roster(_ context.Context, _ org.AccessContext, _ string
 	return org.RosterPage{Page: query.Page, Limit: query.Limit}, nil
 }
 
+func (*repositoryMock) SupervisorMoveStudent(context.Context, string, string, string, org.SupervisorClassMove) (bool, error) {
+	return false, org.ErrForbidden
+}
+
 func (m *repositoryMock) UpsertMembership(
 	_ context.Context,
 	_ string,

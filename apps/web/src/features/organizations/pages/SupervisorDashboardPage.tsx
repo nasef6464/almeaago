@@ -5,7 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/state/AuthProvider';
 import { reportingClient } from '../../reporting/api/reporting-client';
 import type { ReportingOverview } from '../../reporting/api/reporting-types';
-import { organizationsClient, type RosterMember, type SchoolContext } from '../api/organizations-client';
+import { OrganizationsApiError, organizationsClient, type RosterMember, type SchoolClass, type SchoolContext } from '../api/organizations-client';
 import { ClassReportPanel } from '../components/ClassReportPanel';
 import { ClassSkillsMapPanel } from '../components/ClassSkillsMapPanel';
 import { LiveSessionsManager } from '../components/LiveSessionsManager';
@@ -89,7 +89,10 @@ export function SupervisorDashboardPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
-  const [classes, setClasses] = useState<Array<{ id: string; name: string }>>([]);
+  const [classSnapshot, setClassSnapshot] = useState<{ schoolId: string; owner: string; classes: SchoolClass[]; failed?: boolean } | null>(null);
+  const [classReload, setClassReload] = useState(0);
+  const [transferPending, setTransferPending] = useState('');
+  const [transferNotice, setTransferNotice] = useState<{ schoolId: string; owner: string; failed: boolean; text: string } | null>(null);
   const [overviewReport, setOverviewReport] = useState<ReportingOverview | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
@@ -97,6 +100,11 @@ export function SupervisorDashboardPage() {
   const visibleContexts = scopeOwner === user?.id ? contexts : [];
   const currentSchool = visibleContexts.find((item) => item.schoolId === schoolId);
   const visibleRoster = !scopeBusy && !scopeError && !rosterError && rosterSchoolId === schoolId ? roster : [];
+  const classLoadFailed = classSnapshot?.schoolId === schoolId && classSnapshot.owner === user?.id && classSnapshot.failed;
+  const classes = useMemo(() => (
+    currentSchool && classSnapshot?.schoolId === schoolId && classSnapshot.owner === user?.id
+      ? classSnapshot.classes : []
+  ), [currentSchool, classSnapshot, schoolId, user?.id]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -171,21 +179,53 @@ export function SupervisorDashboardPage() {
   }, [scopeBusy, scopeError, currentSchool?.schoolId, schoolId, authorized, tab, search, page, rosterReload]);
 
   useEffect(() => {
-    if (!schoolId || !authorized || !['tests', 'skills', 'reports'].includes(tab)) {
+    if (!currentSchool || !user?.id || !['students', 'tests', 'skills', 'reports'].includes(tab)) {
       return;
     }
+    const owner = user.id;
     const controller = new AbortController();
-    organizationsClient
-      .classes(schoolId, controller.signal)
-      .then((res) => {
-        if (controller.signal.aborted) return;
-        setClasses(res.classes.map((c) => ({ id: c.id, name: c.name })));
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setClasses([]);
-      });
+    async function loadClasses() {
+      const first = await organizationsClient.classes(schoolId, controller.signal);
+      const rows = [...first.classes];
+      if (tab === 'students') {
+        for (let index = 2; index <= first.pagination.totalPages; index++) {
+          const next = await organizationsClient.classes(schoolId, controller.signal, index);
+          rows.push(...next.classes);
+        }
+      }
+      if (!controller.signal.aborted) setClassSnapshot({ schoolId, owner, classes: rows });
+    }
+    void loadClasses().catch(() => {
+      if (!controller.signal.aborted) setClassSnapshot({ schoolId, owner, classes: [], failed: true });
+    });
     return () => controller.abort();
-  }, [schoolId, authorized, tab]);
+  }, [currentSchool, schoolId, tab, user?.id, classReload]);
+
+  async function moveStudent(member: RosterMember, fromClassId: string, destination: SchoolClass) {
+    if (!currentSchool || !user?.id || transferPending) return;
+    if (!window.confirm(`هل تريد نقل ${member.name} إلى ${destination.name}؟`)) return;
+    const owner = user.id;
+    setTransferPending(member.userId);
+    setTransferNotice(null);
+    try {
+      await organizationsClient.supervisorMoveStudent(schoolId, member.userId, { fromClassId, classId: destination.id }, await getCsrfToken());
+      setTransferNotice({ schoolId, owner, failed: false, text: `تم نقل ${member.name} إلى ${destination.name}.` });
+      setPage(1);
+      setRosterReload((previous) => previous + 1);
+    } catch (error) {
+      const stale = error instanceof OrganizationsApiError && [403, 409].includes(error.status);
+      const text = stale ? error.message : 'تعذر نقل الطالب. حاول مرة أخرى.';
+      setTransferNotice({ schoolId, owner, failed: true, text });
+      if (stale) {
+        setClassSnapshot(null);
+        setClassReload((previous) => previous + 1);
+        setPage(1);
+        setRosterReload((previous) => previous + 1);
+      }
+    } finally {
+      setTransferPending('');
+    }
+  }
 
   useEffect(() => {
     if (!schoolId || !authorized || !['overview', 'skills', 'reports'].includes(tab)) {
@@ -515,7 +555,9 @@ export function SupervisorDashboardPage() {
               <select
                 aria-label="المدرسة"
                 value={schoolId}
+                disabled={Boolean(transferPending)}
                 onChange={(event) => {
+                  setTransferNotice(null);
                   setSchoolId(event.target.value);
                   setRosterSchoolId('');
                   setRoster([]);
@@ -617,6 +659,20 @@ export function SupervisorDashboardPage() {
             {tab === 'students' ? (
               <div className="space-y-3">
                 <h2 className="text-lg font-bold">تعلم الطلاب وجاهزيتهم</h2>
+                {transferNotice?.schoolId === schoolId && transferNotice.owner === user?.id ? (
+                  <p role={transferNotice.failed ? 'alert' : 'status'} className={`rounded-xl border p-3 text-sm font-bold ${transferNotice.failed ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
+                    {transferNotice.text}
+                  </p>
+                ) : null}
+                {classLoadFailed ? (
+                  <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">
+                    تعذر تحميل الفصول المتاحة للنقل.
+                    <button type="button" className="ms-3 font-bold underline" onClick={() => {
+                      setClassSnapshot(null);
+                      setClassReload((previous) => previous + 1);
+                    }}>إعادة تحميل الفصول</button>
+                  </div>
+                ) : null}
                 <label className="block text-sm font-bold">
                   بحث عن طالب
                   <input
@@ -659,21 +715,40 @@ export function SupervisorDashboardPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {visibleRoster.map((member) => (
-                          <tr key={member.userId} className="border-t">
-                            <td className="p-3 font-bold">{member.name}</td>
-                            <td className="p-3">{member.email}</td>
-                            <td className="p-3">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedStudentId(member.userId)}
-                                className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 hover:bg-indigo-100"
-                              >
-                                الملف والمهارات
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                        {visibleRoster.map((member) => {
+                          const source = member.classIds?.length === 1 ? classes.find((item) => item.id === member.classIds[0]) : undefined;
+                          return (
+                            <tr key={member.userId} className="border-t">
+                              <td className="p-3 font-bold">{member.name}</td>
+                              <td className="p-3">{member.email}</td>
+                              <td className="p-3">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {source && classes.length > 1 ? (
+                                    <select
+                                      aria-label={`نقل الطالب ${member.name} إلى فصل آخر`}
+                                      value={source.id}
+                                      disabled={Boolean(transferPending) || rosterBusy}
+                                      onChange={(event) => {
+                                        const destination = classes.find((item) => item.id === event.target.value);
+                                        if (destination && destination.id !== source.id) void moveStudent(member, source.id, destination);
+                                      }}
+                                      className="max-w-40 rounded-lg border border-gray-300 bg-gray-50 p-1.5 text-xs font-bold"
+                                    >
+                                      {classes.map((item) => <option key={item.id} value={item.id}>{item.name}{item.id === source.id ? ' (حالي)' : ''}</option>)}
+                                    </select>
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedStudentId(member.userId)}
+                                    className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 hover:bg-indigo-100"
+                                  >
+                                    الملف والمهارات
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
