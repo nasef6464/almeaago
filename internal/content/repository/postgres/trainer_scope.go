@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -47,7 +49,34 @@ func (r *Repository) GetTrainerScope(ctx context.Context, userID string) (conten
 	if err != nil {
 		return content.TrainerScope{}, err
 	}
+	var permsRaw []byte
+	if err := r.db.QueryRow(ctx, `
+		SELECT permissions
+		FROM content_trainer_permissions
+		WHERE user_id=$1::uuid
+	`, userID).Scan(&permsRaw); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return content.TrainerScope{}, mapError(err)
+	}
+	if len(permsRaw) > 0 {
+		_ = json.Unmarshal(permsRaw, &scope.Permissions)
+	}
 	return scope, nil
+}
+
+func (r *Repository) SetTrainerPermissions(ctx context.Context, actorUserID, userID string, perms content.TrainerPermissions) error {
+	payload, err := json.Marshal(perms)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.Exec(ctx, `
+		INSERT INTO content_trainer_permissions(user_id, permissions, updated_by, updated_at)
+		VALUES($1::uuid, $2::jsonb, NULLIF($3,'')::uuid, now())
+		ON CONFLICT (user_id) DO UPDATE SET
+			permissions = EXCLUDED.permissions,
+			updated_by = EXCLUDED.updated_by,
+			updated_at = now()
+	`, userID, payload, actorUserID)
+	return mapError(err)
 }
 
 func (r *Repository) SetTrainerScope(ctx context.Context, actorUserID, userID string, pathIDs, subjectIDs []string) (content.TrainerScope, error) {

@@ -1,4 +1,4 @@
-import { BookOpen, ChevronDown, ChevronUp, Edit2, HelpCircle, Link2, Loader2, Plus, Target, Unlink, X } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, Edit2, HelpCircle, Link2, Loader2, Plus, Target, Trash2, Unlink, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -41,7 +41,58 @@ export function SkillsAdminPage() {
   const [lessonError, setLessonError] = useState('');
   const [lessonNotice, setLessonNotice] = useState('');
   const [lessonEditor, setLessonEditor] = useState<{ skill: AdminTaxonomySkill; lessonId?: string } | null>(null);
+  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const isAdmin = user?.roles.includes('admin') ?? false;
+
+  const toggleSkillSelection = (id: string) => {
+    setSelectedSkillIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  };
+
+  async function deleteSingleSkill(skill: AdminTaxonomySkill) {
+    if (pending) return;
+    if (!window.confirm(`هل أنت متأكد من حذف المهارة «${skill.name}» نهائيًا؟ لن يُحذف إذا كانت مرتبطة بأسئلة أو دروس أو مهارات فرعية.`)) return;
+    setPending(true); setError(''); setNotice('');
+    try {
+      await taxonomyAdminClient.deleteRecord('skill', skill.id, await getCsrfToken());
+      setSelectedSkillIds((current) => current.filter((id) => id !== skill.id));
+      setNotice(`تم حذف المهارة «${skill.name}» بنجاح.`);
+      setRefresh((value) => value + 1);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'تعذر حذف المهارة');
+    } finally { setPending(false); }
+  }
+
+  async function bulkDeleteSelectedSkills() {
+    if (selectedSkillIds.length === 0 || bulkDeleting) return;
+    if (!window.confirm(`هل أنت متأكد من حذف ${selectedSkillIds.length} مهارة محددة؟ العناصر المرتبطة ببيانات لن تُحذف.`)) return;
+    setBulkDeleting(true); setError(''); setNotice('');
+    try {
+      const res = await taxonomyAdminClient.bulkDelete('skill', selectedSkillIds, await getCsrfToken());
+      setSelectedSkillIds([]);
+      if (res.blocked.length > 0) {
+        setNotice(`تم حذف ${res.deletedIds.length} مهارة، وتعذر حذف ${res.blocked.length} لوجود ارتباطات.`);
+      } else {
+        setNotice(`تم حذف ${res.deletedIds.length} مهارة بنجاح.`);
+      }
+      setRefresh((value) => value + 1);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'تعذر تنفيذ الحذف الجماعي');
+    } finally { setBulkDeleting(false); }
+  }
+
+  async function deleteLinkedLesson(lesson: LessonSummary) {
+    if (lessonPendingId) return;
+    if (!window.confirm(`هل أنت متأكد من حذف الدرس «${lesson.title}» نهائيًا؟`)) return;
+    setLessonPendingId(lesson.id); setLessonError(''); setLessonNotice('');
+    try {
+      await contentClient.deleteRecord('lesson', lesson.id, await getCsrfToken());
+      setLessonNotice(`تم حذف الدرس «${lesson.title}» نهائيًا.`);
+      setLessonPage(1); setLessonRefresh((value) => value + 1);
+    } catch (reason) {
+      setLessonError(reason instanceof Error ? reason.message : 'تعذر حذف الدرس');
+    } finally { setLessonPendingId(''); }
+  }
 
   useEffect(() => {
     if (authLoading || !isAdmin) return;
@@ -159,6 +210,11 @@ export function SkillsAdminPage() {
         <p className="mt-1 text-sm text-gray-500">المصدر الحقيقي للمهارات في المنصة: المهارات الرئيسة والمهارات الفرعية وربطها بالدروس والأسئلة.</p>
       </div>
       <div className="flex flex-wrap gap-2">
+        {selectedSkillIds.length > 0 ? (
+          <button type="button" disabled={bulkDeleting} onClick={() => void bulkDeleteSelectedSkills()} className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 font-bold text-white shadow-sm hover:bg-rose-700 disabled:opacity-50">
+            <Trash2 size={17}/> {bulkDeleting ? 'جاري الحذف...' : `حذف المحدد (${selectedSkillIds.length})`}
+          </button>
+        ) : null}
         <button type="button" onClick={() => openCreate('main')} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white shadow-sm hover:bg-indigo-700"><Plus size={18}/> إضافة مهارة رئيسة</button>
       </div>
     </header>
@@ -190,12 +246,14 @@ export function SkillsAdminPage() {
         const expanded = expandedMainId === main.id;
         return <article key={main.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className={`flex items-center gap-3 p-4 ${expanded ? 'border-b border-indigo-100 bg-indigo-50/50' : 'bg-gray-50'}`}>
+            <input type="checkbox" aria-label={`تحديد المهارة الرئيسة ${main.name}`} checked={selectedSkillIds.includes(main.id)} onChange={() => toggleSkillSelection(main.id)} className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600"/>
             <button type="button" onClick={() => { setExpandedMainId(expanded ? null : main.id); setExpandedSubSkillId(null); }} aria-label={`${expanded ? 'طي' : 'فتح'} المهارة الرئيسة ${main.name}`} aria-expanded={expanded} className="flex min-w-0 flex-1 items-center gap-3 text-right">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white"><Target size={23}/></span>
               <span className="min-w-0"><b className="block text-lg text-gray-900">{main.name}</b><span className="text-sm text-gray-500">{children.length} مهارات فرعية · {subjectName(main.subjectId)} · {pathName(main.subjectId)}</span></span>
               {expanded ? <ChevronUp size={19} className="text-indigo-600"/> : <ChevronDown size={19} className="text-gray-400"/>}
             </button>
             <button type="button" onClick={() => openEdit(main)} aria-label={`تعديل المهارة الرئيسة ${main.name}`} className="rounded-lg p-2 text-blue-600 hover:bg-blue-50"><Edit2 size={18}/></button>
+            <button type="button" onClick={() => void deleteSingleSkill(main)} aria-label={`حذف المهارة الرئيسة ${main.name}`} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50"><Trash2 size={18}/></button>
           </div>
           {expanded ? <div className="space-y-3 p-5">
             <div className="flex items-center justify-between"><h2 className="font-bold text-gray-800">المهارات الفرعية ({main.name})</h2><button type="button" onClick={() => openCreate('sub', main)} className="inline-flex items-center gap-1 rounded-xl bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700"><Plus size={16}/> إضافة مهارة فرعية</button></div>
@@ -206,13 +264,14 @@ export function SkillsAdminPage() {
               const lessons = linkedLessons.skillId === sub.id ? linkedLessons : null;
               return <article key={sub.id} className="overflow-hidden rounded-xl border bg-white">
                 <div className="flex items-center gap-2 bg-gray-50 p-3">
+                  <input type="checkbox" aria-label={`تحديد المهارة الفرعية ${sub.name}`} checked={selectedSkillIds.includes(sub.id)} onChange={() => toggleSkillSelection(sub.id)} className="h-4 w-4 shrink-0 rounded border-gray-300 text-indigo-600"/>
                   <button type="button" onClick={() => { setExpandedSubSkillId(subExpanded ? null : sub.id); setLessonPage(1); setLessonError(''); setLessonNotice(''); }} aria-label={`${subExpanded ? 'طي' : 'فتح'} المهارة الفرعية ${sub.name}`} aria-expanded={subExpanded} className="flex min-w-0 flex-1 items-center gap-2 text-right">
                     <Target size={16} className="shrink-0 text-indigo-600"/>
                     <span className="min-w-0"><b className="block truncate">{sub.name}</b><span className="text-xs text-gray-500">{sub.code}</span></span>
                     {subExpanded ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
                   </button>
                   <button type="button" onClick={() => openEdit(sub)} aria-label={`تعديل المهارة الفرعية ${sub.name}`} className="rounded-lg p-2 text-blue-600"><Edit2 size={16}/></button>
-                  
+                  <button type="button" onClick={() => void deleteSingleSkill(sub)} aria-label={`حذف المهارة الفرعية ${sub.name}`} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50"><Trash2 size={16}/></button>
                 </div>
                 {subExpanded ? <section className="space-y-3 border-t p-4" aria-label={`تفاصيل مهارة ${sub.name}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -231,6 +290,7 @@ export function SkillsAdminPage() {
                       <span className="min-w-0 flex-1"><b className="block truncate text-sm text-gray-800">{lesson.title}</b><span className="text-xs text-gray-500">{lesson.type} · {lesson.workflowStatus === 'approved' ? 'معتمد' : lesson.workflowStatus === 'archived' ? 'مؤرشف' : 'قابل للتحرير بحسب الصلاحية'}</span></span>
                       <button type="button" aria-label={`تعديل الدرس ${lesson.title}`} disabled={!!lessonPendingId || lesson.workflowStatus === 'approved' || lesson.workflowStatus === 'archived'} title={lesson.workflowStatus === 'approved' || lesson.workflowStatus === 'archived' ? 'الدرس المعتمد أو المؤرشف محمي من التعديل' : 'تعديل الدرس'} onClick={() => setLessonEditor({ skill: sub, lessonId: lesson.id })} className="rounded-lg p-2 text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"><Edit2 size={16}/></button>
                       <button type="button" aria-label={`فصل الدرس ${lesson.title} عن المهارة`} disabled={!!lessonPendingId || lesson.workflowStatus === 'approved' || lesson.workflowStatus === 'archived'} title={lesson.workflowStatus === 'approved' || lesson.workflowStatus === 'archived' ? 'الدرس المعتمد أو المؤرشف محمي من تعديل الروابط' : 'فصل الارتباط فقط دون حذف الدرس'} onClick={() => void detachLesson(sub, lesson)} className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"><Unlink size={14}/> فصل</button>
+                      <button type="button" aria-label={`حذف الدرس ${lesson.title}`} disabled={!!lessonPendingId} title="حذف الدرس نهائيًا (إذا لم يكن مرتبطًا بدورات أو تأسيس)" onClick={() => void deleteLinkedLesson(lesson)} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50 disabled:opacity-40"><Trash2 size={16}/></button>
                     </li>)}</ul> : <p className="text-sm text-gray-500">لا توجد دروس مرتبطة بهذه المهارة.</p>}
                     {lessons.hasMore ? <button type="button" onClick={() => setLessonPage((page) => page + 1)} className="rounded-lg border px-3 py-2 text-xs font-bold text-indigo-700">عرض المزيد من الدروس</button> : null}
                   </> : null}

@@ -368,3 +368,23 @@ export interface LearnerLessonDetail extends LearnerLessonSummary {
   videoUrl:string;
   videoSource:''|'upload'|'youtube'|'vimeo';
 }
+
+export interface TrainerPermissions {
+  manageTaxonomy: boolean;
+  manageSkills: boolean;
+  manageFoundation: boolean;
+  manageCourses: boolean;
+  manageLessons: boolean;
+  manageLibrary: boolean;
+  manageQuestions: boolean;
+  manageAssessments: boolean;
+  canDelete: boolean;
+  canPublish: boolean;
+}
+
+export interface TrainerScope {
+  userId: string;
+  pathIds: string[];
+  subjectIds: string[];
+  permissions: TrainerPermissions;
+}

@@ -1152,7 +1152,7 @@ export function TaxonomyAdminPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setDeleteConfirm({ open: true, type: 'skill', id: sk.id, name: sk.name })}
+                            onClick={() => setDeleteConfirm({ open: true, type: 'skill', id: sk.id, name: sk.name, action: 'delete' })}
                             className="rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-black text-rose-700 hover:bg-rose-100 transition"
                             title="أرشفة المهارة"
                           >
@@ -3221,8 +3221,8 @@ export function TaxonomyAdminPage() {
                 taxonomyConfirmInFlight.current = true;
                 try {
                 const target = deleteConfirm;
-                if (target.action === 'delete' && target.type !== 'skill') {
-                  const saved = await run(`delete-${target.type}-${target.id}`, (csrf) => taxonomyAdminClient.deleteRecord(target.type as 'path' | 'level' | 'subject', target.id, csrf).then(() => undefined), `تم حذف ${typeLabel} نهائيًا.`);
+                if (target.action === 'delete') {
+                  const saved = await run(`delete-${target.type}-${target.id}`, (csrf) => taxonomyAdminClient.deleteRecord(target.type as 'path' | 'level' | 'subject' | 'skill', target.id, csrf).then(() => undefined), `تم حذف ${typeLabel} نهائيًا.`);
                   if (saved) {
                     setDeleteConfirm(null);
                     if (target.type === 'subject') setSelectedSubjectId(null);

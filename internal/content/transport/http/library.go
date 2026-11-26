@@ -15,6 +15,8 @@ func NewLibrary(service *contentapp.Service, auth Authenticator) http.Handler {
 	r.Post("/", h.createLibrary)
 	r.Get("/{id}", h.getLibrary)
 	r.Put("/{id}", h.updateLibrary)
+	r.Delete("/{id}", h.deleteKind("library_item", "id"))
+	r.Post("/bulk-delete", h.bulkDeleteKind("library_item"))
 	r.Patch("/{id}/workflow", h.libraryWorkflow)
 	return r
 }
