@@ -855,6 +855,29 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Student role required }
 
+  /api/v1/learning/evidence:
+    get:
+      operationId: learningEvidenceReport
+      description: >
+        Teacher/supervisor/admin read of 5-status student skill evidence (unmeasured, insufficient,
+        support, developing, ready) across school_assessment or platform_self_study sources,
+        strictly scoped to the actor's authorized school/class assignments.
+      parameters:
+        - { in: query, name: source, schema: { type: string, enum: [school_assessment, platform_self_study], default: school_assessment } }
+        - { in: query, name: schoolId, schema: { type: string } }
+        - { in: query, name: classId, schema: { type: string } }
+        - { in: query, name: subjectId, schema: { type: string } }
+        - { in: query, name: pathId, schema: { type: string } }
+        - { in: query, name: status, schema: { type: string, enum: [unmeasured, insufficient, support, developing, ready] } }
+        - { in: query, name: search, schema: { type: string } }
+        - { in: query, name: days, schema: { type: integer, minimum: 1, default: 30 } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        "200": { description: Bounded 5-status learning evidence report }
+        "400": { description: Invalid learning evidence query }
+        "403": { description: Staff scope denied }
+
 
   /api/v1/commerce/products:
     get:
@@ -1286,6 +1309,49 @@ paths:
         "200": { description: Bounded weekly linked-child report }
         "401": { description: Authentication required }
         "403": { description: Parent role required }
+
+  /api/v1/parents/weekly-report/send:
+    post:
+      operationId: parentsWeeklyReportSend
+      description: >
+        CSRF-protected delivery of the authenticated parent's weekly linked-child report via
+        Communication notifications.
+      responses:
+        "200": { description: Weekly report delivered }
+        "401": { description: Authentication required }
+        "403": { description: Parent role or CSRF denied }
+
+  /api/v1/parents/approvals:
+    get:
+      operationId: parentsApprovalsList
+      description: Parent-scoped list of linked-student commerce payment approval requests.
+      responses:
+        "200": { description: Parent approval requests }
+        "401": { description: Authentication required }
+        "403": { description: Parent role required }
+
+  /api/v1/parents/approvals/{requestId}/decision:
+    post:
+      operationId: parentsApprovalDecision
+      description: CSRF-protected parent approve/reject decision on a linked student's payment request.
+      parameters:
+        - { in: path, name: requestId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Updated payment approval request }
+        "400": { description: Invalid decision payload }
+        "403": { description: Parent role, link scope, or CSRF denied }
+        "404": { description: Approval request not found }
+
+  /api/v1/parents/children/{studentId}:
+    delete:
+      operationId: parentsUnlinkChild
+      description: CSRF-protected revocation of an active parent-student link.
+      parameters:
+        - { in: path, name: studentId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Link revoked }
+        "403": { description: Parent role, link scope, or CSRF denied }
+        "404": { description: Link not found }
 
   /api/v1/notifications/me:
     get:
@@ -1855,6 +1921,172 @@ paths:
         "200": { description: Final classroom report }
         "403": { description: Staff scope denied }
         "404": { description: Report not finalized }
+
+  /api/v1/classroom/teacher/sessions:
+    get:
+      operationId: classroomTeacherSessionsAlias
+      description: Bounded recent sessions owned by the authenticated teacher or school supervisor scope.
+      responses:
+        "200": { description: Recent classroom sessions }
+
+  /api/v1/classroom/join:
+    post:
+      operationId: classroomJoinAlias
+      description: CSRF-protected student join by PIN/QR alias.
+      responses:
+        "200": { description: Idempotent participant join }
+        "403": { description: Student/class/module authorization denied }
+        "404": { description: No live session for the PIN }
+
+  /api/v1/classroom/sessions/{sessionId}:
+    get:
+      operationId: classroomStaffState
+      description: Authorized staff snapshot of the classroom session, batches, and participants.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Staff classroom snapshot }
+        "403": { description: Staff scope or module denied }
+
+  /api/v1/classroom/sessions/{sessionId}/batches:
+    post:
+      operationId: classroomAppendBatch
+      description: CSRF-protected append of up to 20 approved canonical questions to a classroom session.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Appended question batch }
+        "403": { description: Teacher scope or module denied }
+
+  /api/v1/classroom/sessions/{sessionId}/batches/{batchId}/end:
+    post:
+      operationId: classroomEndBatch
+      description: CSRF-protected close of an active classroom question batch.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: batchId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Closed classroom batch }
+        "403": { description: Teacher scope denied }
+
+  /api/v1/classroom/sessions/{sessionId}/questions/{ordinal}/publish:
+    post:
+      operationId: classroomPublishQuestionAlias
+      description: Alias for publishing a question ordinal in a classroom session.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: ordinal, required: true, schema: { type: integer, minimum: 0 } }
+      responses:
+        "200": { description: Updated live session }
+
+  /api/v1/classroom/sessions/{sessionId}/questions/{ordinal}/reveal:
+    post:
+      operationId: classroomRevealQuestionAlias
+      description: Alias for revealing a question ordinal in a classroom session.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: ordinal, required: true, schema: { type: integer, minimum: 0 } }
+      responses:
+        "200": { description: Revealed pinned question }
+
+  /api/v1/classroom/sessions/{sessionId}/join:
+    post:
+      operationId: classroomJoinSession
+      description: CSRF-protected student join by explicit session ID.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Idempotent participant join }
+        "403": { description: Student/class/module authorization denied }
+
+  /api/v1/classroom/sessions/{sessionId}/state:
+    get:
+      operationId: classroomStudentStateAlias
+      description: Alias for student-safe classroom resume snapshot.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Student-safe classroom snapshot }
+
+  /api/v1/classroom/sessions/{sessionId}/aggregate:
+    get:
+      operationId: classroomAggregate
+      description: Authorized staff live response aggregates for a classroom session.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Live classroom aggregates }
+        "403": { description: Staff scope denied }
+
+  /api/v1/classroom/sessions/{sessionId}/attendance:
+    get:
+      operationId: classroomAttendanceSnapshot
+      description: Canonical Organizations-backed class roster attendance snapshot for the session.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Attendance roster snapshot }
+        "403": { description: Staff scope denied }
+
+  /api/v1/classroom/sessions/{sessionId}/attendance/{studentId}:
+    patch:
+      operationId: classroomAttendanceOverride
+      description: CSRF-protected teacher/admin attendance override (present, late, absent, excused).
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: studentId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Updated attendance record }
+        "403": { description: Teacher scope or foreign student denied }
+
+  /api/v1/classroom/sessions/{sessionId}/participants/{studentId}/attendance:
+    patch:
+      operationId: classroomParticipantAttendanceOverride
+      description: Alias for teacher/admin attendance override.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+        - { in: path, name: studentId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Updated attendance record }
+
+  /api/v1/classroom/sessions/{sessionId}/challenge-state:
+    get:
+      operationId: classroomChallengeState
+      description: Student/projector-safe timed challenge countdown state.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Challenge timer state }
+
+  /api/v1/classroom/sessions/{sessionId}/competition:
+    get:
+      operationId: classroomCompetitionLeaderboard
+      description: Authorized staff deterministic competition leaderboard computed from persisted responses.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Competition leaderboard }
+        "403": { description: Staff scope denied }
+
+  /api/v1/classroom/sessions/{sessionId}/competition/configure:
+    post:
+      operationId: classroomCompetitionConfigure
+      description: CSRF-protected teacher configuration of a bounded 10-600s timed challenge on the active batch.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Configured timed challenge }
+        "403": { description: Teacher scope denied }
+
+  /api/v1/classroom/sessions/{sessionId}/competition/end:
+    post:
+      operationId: classroomCompetitionEnd
+      description: CSRF-protected teacher termination of the active timed challenge.
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Ended timed challenge }
+        "403": { description: Teacher scope denied }
 
   /api/v1/classroom/sessions/{sessionId}/stream:
     get:
