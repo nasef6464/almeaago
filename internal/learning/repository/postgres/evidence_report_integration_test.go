@@ -36,6 +36,7 @@ func TestScopedLearningEvidencePostgres(t *testing.T) {
 		"users", "user_roles", "schools", "classes", "teaching_assignments", "class_memberships",
 		"school_memberships", "school_membership_permissions", "school_contracts", "school_contract_modules",
 		"school_supervisor_scopes", "assessments", "mastery_evidence", "mastery_evidence_skills", "skills",
+		"subjects", "paths",
 	} {
 		if _, err := db.Exec(ctx, "CREATE TEMP TABLE "+table+" AS SELECT * FROM public."+table+" WITH NO DATA"); err != nil {
 			t.Fatal(err)
@@ -49,6 +50,9 @@ func TestScopedLearningEvidencePostgres(t *testing.T) {
 			SELECT id,'student' FROM users;
 		INSERT INTO schools(id,status) VALUES
 			('10000000-0000-0000-0000-000000000003','active'),('10000000-0000-0000-0000-000000000004','active');
+		INSERT INTO paths(id,status) VALUES ('10000000-0000-0000-0000-000000000012','active');
+		INSERT INTO subjects(id,path_id,status)
+			VALUES('10000000-0000-0000-0000-000000000010','10000000-0000-0000-0000-000000000012','active');
 		INSERT INTO classes(id,school_id,status) VALUES
 			('10000000-0000-0000-0000-000000000005','10000000-0000-0000-0000-000000000003','active'),
 			('10000000-0000-0000-0000-000000000006','10000000-0000-0000-0000-000000000004','active');

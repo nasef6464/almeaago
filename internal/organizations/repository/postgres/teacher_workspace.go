@@ -18,6 +18,7 @@ func (r *Repository) TeacherWorkspace(
 			c.id::text,
 			c.name,
 			COALESCE(ta.subject_id::text, ''),
+			subj.name,
 			(
 				SELECT count(DISTINCT cm.user_id)::int
 				FROM class_memberships cm
@@ -85,6 +86,7 @@ func (r *Repository) TeacherWorkspace(
 			&assignment.ClassID,
 			&assignment.ClassName,
 			&assignment.SubjectID,
+			&assignment.SubjectName,
 			&assignment.StudentCount,
 		); err != nil {
 			return org.TeacherWorkspace{}, err

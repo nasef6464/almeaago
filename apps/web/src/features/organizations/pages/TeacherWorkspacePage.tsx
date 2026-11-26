@@ -224,11 +224,24 @@ export function TeacherWorkspacePage() {
   const [evidenceSource, setEvidenceSource] = useState<'school_assessment' | 'platform_self_study'>('school_assessment');
   const [evidenceStatusFilter, setEvidenceStatusFilter] = useState<LearningEvidenceStatus | ''>('');
   const [evidenceClassFilter, setEvidenceClassFilter] = useState<string>('');
+  const [evidenceSubjectFilter, setEvidenceSubjectFilter] = useState('');
   const [evidenceSearch, setEvidenceSearch] = useState<string>('');
   const [evidenceDays, setEvidenceDays] = useState<number>(30);
   const [evidenceReport, setEvidenceReport] = useState<LearningEvidenceReport | null>(null);
   const [evidenceLoading, setEvidenceLoading] = useState<boolean>(false);
   const [evidenceError, setEvidenceError] = useState<string>('');
+  const [evidencePagination, setEvidencePagination] = useState({ key: '', page: 1 });
+  const evidenceLimit = 30;
+  const evidenceClassId = teacherClasses.some(item => item.id === evidenceClassFilter) ? evidenceClassFilter : '';
+  const evidenceSubjects = useMemo(() => Array.from(new Map((selectedSchool?.assignments ?? [])
+    .filter(item => item.subjectId && (!evidenceClassId || item.classId === evidenceClassId))
+    .map(item => [item.subjectId, item.subjectName ?? '']))), [selectedSchool, evidenceClassId]);
+  const evidenceSubjectId = evidenceSubjects.some(([id]) => id === evidenceSubjectFilter)
+    ? evidenceSubjectFilter
+    : evidenceSubjects[0]?.[0] ?? '';
+  const evidenceKey = JSON.stringify([selectedSchool?.schoolId, evidenceClassId, evidenceSubjectId, evidenceSource,
+    evidenceStatusFilter, evidenceSearch, evidenceDays]);
+  const evidencePage = evidencePagination.key === evidenceKey ? evidencePagination.page : 1;
 
   const loadAssessments = useCallback(async (signal?: AbortSignal) => {
     if (!selectedSchool?.schoolId) {
@@ -269,9 +282,10 @@ export function TeacherWorkspacePage() {
   }, [loadAssessments]);
 
   useEffect(() => {
-    if (!selectedSchool?.schoolId) {
+    if (!selectedSchool?.schoolId || !evidenceSubjectId) {
       setEvidenceReport(null);
       setEvidenceError('');
+      setEvidenceLoading(false);
       return;
     }
     const ctrl = new AbortController();
@@ -284,12 +298,13 @@ export function TeacherWorkspacePage() {
         {
           source: evidenceSource,
           schoolId: selectedSchool.schoolId,
-          classId: evidenceClassFilter || undefined,
+          subjectId: evidenceSubjectId,
+          classId: evidenceClassId || undefined,
           status: evidenceStatusFilter || undefined,
           search: evidenceSearch || undefined,
           days: evidenceDays,
-          page: 1,
-          limit: 50,
+          page: evidencePage,
+          limit: evidenceLimit,
         },
         ctrl.signal,
       )
@@ -312,7 +327,9 @@ export function TeacherWorkspacePage() {
   }, [
     selectedSchool?.schoolId,
     evidenceSource,
-    evidenceClassFilter,
+    evidenceClassId,
+    evidenceSubjectId,
+    evidencePage,
     evidenceStatusFilter,
     evidenceSearch,
     evidenceDays,
@@ -337,7 +354,8 @@ export function TeacherWorkspacePage() {
         atRiskStudents: Array<{ id: string; name: string; score: number; status: string; class: string }>;
       }
     >();
-    const defaultAssignment = selectedSchool?.assignments[0];
+    const subjectName = evidenceSubjects.find(([id]) => id === evidenceSubjectId)?.[1] || 'المادة';
+    const className = teacherClasses.find(item => item.id === evidenceClassId)?.name || 'الفصول المسندة';
     for (const student of evidenceReport.students) {
       for (const sk of student.skills || []) {
         const existing = bySkill.get(sk.id) ?? {
@@ -345,10 +363,10 @@ export function TeacherWorkspacePage() {
           skill: sk.name,
           pathId: 'qudrat',
           pathName: 'المسار الأكاديمي',
-          subjectName: defaultAssignment?.subjectId || 'المادة',
-          gradeName: defaultAssignment?.className || 'الصف',
-          classId: defaultAssignment?.classId || '',
-          className: defaultAssignment?.className || '',
+          subjectName,
+          gradeName: className,
+          classId: evidenceClassId,
+          className,
           masterySum: 0,
           masteryCount: 0,
           attempts: 0,
@@ -365,7 +383,7 @@ export function TeacherWorkspacePage() {
             name: student.name,
             score: sk.accuracy ?? 0,
             status: EVIDENCE_STATUS_LABELS[sk.status].label,
-            class: defaultAssignment?.className || '',
+            class: className,
           });
         }
         bySkill.set(sk.id, existing);
@@ -375,7 +393,7 @@ export function TeacherWorkspacePage() {
       ...item,
       mastery: item.masteryCount > 0 ? Math.round(item.masterySum / item.masteryCount) : 0,
     }));
-  }, [evidenceReport, selectedSchool]);
+  }, [evidenceReport, evidenceSubjectId, evidenceSubjects, evidenceClassId, teacherClasses]);
 
   const filteredSkillsList = useMemo(() => {
     return teacherSkills.filter((sk) => {
@@ -1376,10 +1394,21 @@ export function TeacherWorkspacePage() {
                 </div>
 
                 {/* Filters */}
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                  <select
+                    aria-label="المادة للتعلم والجاهزية"
+                    value={evidenceSubjectId}
+                    onChange={event => setEvidenceSubjectFilter(event.target.value)}
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800"
+                  >
+                    {!evidenceSubjects.length && <option value="">لا توجد مادة مسندة</option>}
+                    {evidenceSubjects.map(([id, name], index) => (
+                      <option key={id} value={id}>{name || `المادة المسندة ${index + 1}`}</option>
+                    ))}
+                  </select>
                   <select
                     aria-label="فلتر الفصل للتعلم والجاهزية"
-                    value={evidenceClassFilter}
+                    value={evidenceClassId}
                     onChange={(e) => setEvidenceClassFilter(e.target.value)}
                     className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800"
                   >
@@ -1420,6 +1449,10 @@ export function TeacherWorkspacePage() {
                     className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800"
                   />
                 </div>
+
+                {!evidenceSubjectId && (
+                  <p role="status" className="text-sm text-slate-600">تظهر الجاهزية عند إسناد مادة للمعلم في هذه المدرسة.</p>
+                )}
 
                 {/* Policy + Summary */}
                 {evidenceReport && (
@@ -1494,6 +1527,22 @@ export function TeacherWorkspacePage() {
                       </div>
                     ))}
                   </div>
+                )}
+                {evidenceReport && (evidencePage > 1 || evidencePage * evidenceLimit < evidenceReport.filteredTotal) && (
+                  <nav aria-label="صفحات شواهد التعلم" className="flex flex-wrap gap-2 text-sm">
+                    <button
+                      type="button"
+                      disabled={evidencePage === 1}
+                      onClick={() => setEvidencePagination({ key: evidenceKey, page: evidencePage - 1 })}
+                      className="rounded-lg border px-3 py-1 disabled:opacity-50"
+                    >السابق</button>
+                    <button
+                      type="button"
+                      disabled={evidencePage * evidenceLimit >= evidenceReport.filteredTotal}
+                      onClick={() => setEvidencePagination({ key: evidenceKey, page: evidencePage + 1 })}
+                      className="rounded-lg border px-3 py-1 disabled:opacity-50"
+                    >التالي</button>
+                  </nav>
                 )}
               </div>
             </div>

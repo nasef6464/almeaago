@@ -26,10 +26,12 @@ func (r *Repository) resolveEvidenceScope(ctx context.Context, actor identity.Us
 			FROM teaching_assignments ta
 			JOIN schools s ON s.id=ta.school_id AND s.status='active'
 			JOIN classes c ON c.id=ta.class_id AND c.school_id=s.id AND c.status='active'
+			JOIN subjects subj ON subj.id=ta.subject_id AND subj.status='active'
+			JOIN paths p ON p.id=subj.path_id AND p.status='active'
 			JOIN school_memberships sm ON sm.school_id=s.id AND sm.user_id=ta.teacher_id
 				AND sm.role='teacher' AND sm.status='active'
 			WHERE ta.teacher_id::text=$1 AND ta.status='active'
-				AND (ta.subject_id IS NULL OR ta.subject_id::text=$2)
+				AND ta.subject_id::text=$2
 				AND ($3='' OR s.id::text=$3)
 		`, actor.ID, q.SubjectID, q.SchoolID)
 	case actor.HasRole(identity.RoleSchoolAdmin):
