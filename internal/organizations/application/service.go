@@ -47,6 +47,7 @@ type Repository interface {
 	ArchiveClass(ctx context.Context, actorUserID, schoolID, classID string) (org.Class, error)
 
 	Roster(ctx context.Context, access org.AccessContext, schoolID string, query org.RosterQuery) (org.RosterPage, error)
+	SupervisorMoveStudent(ctx context.Context, actorID, schoolID, studentID string, move org.SupervisorClassMove) (bool, error)
 
 	UpsertMembership(ctx context.Context, actorUserID, schoolID string, write org.MembershipWrite) (org.SchoolMembership, error)
 	ListDirectors(ctx context.Context, schoolID string, query org.DirectorQuery) (org.DirectorPage, error)

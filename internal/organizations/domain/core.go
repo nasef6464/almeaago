@@ -112,12 +112,12 @@ type RosterQuery struct {
 }
 
 type RosterMember struct {
-	UserID   string
-	Name     string
-	Email    string
-	Status   string
-	Roles    []identity.Role
-	ClassIDs []string
+	UserID   string          `json:"userId"`
+	Name     string          `json:"name"`
+	Email    string          `json:"email"`
+	Status   string          `json:"status"`
+	Roles    []identity.Role `json:"roles"`
+	ClassIDs []string        `json:"classIds"`
 }
 
 type RosterPage struct {
@@ -125,6 +125,11 @@ type RosterPage struct {
 	Page    int
 	Limit   int
 	Total   int
+}
+
+type SupervisorClassMove struct {
+	FromClassID string `json:"fromClassId"`
+	ClassID     string `json:"classId"`
 }
 
 func ValidSchoolStatus(status SchoolStatus) bool {
