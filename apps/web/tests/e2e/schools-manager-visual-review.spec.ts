@@ -257,17 +257,115 @@ async function setupSchoolsMock(page: Page) {
 }
 
 test.describe('Schools Management (تشغيل المدارس) - 100% Authentic Legacy Parity Review', () => {
+  test('school setup resumes the same school after a lost response and a class write failure', async ({ page }) => {
+    test.setTimeout(60_000);
+    await auth(page);
+    const { school1Id } = await setupSchoolsMock(page);
+    const school = { id: school1Id, code: 'SCH-RUN', name: 'مدرسة التأسيس التجريبية', status: 'active', metadata: {} };
+    const director = { id: 'director-setup', name: 'مدير التأسيس', email: 'director@example.invalid' };
+    const classes: Array<{ id: string; code: string; name: string; status: string }> = [];
+    const root = `/api/v1/schools/${school.id}`;
+    let schoolWrites = 0;
+    let schoolAttempts = 0;
+    let contractWrites = 0;
+    let directorWrites = 0;
+    let recoverableFailure = true;
+    await page.route(url => url.pathname === '/api/v1/schools', route => {
+      if (route.request().method() === 'GET') {
+        return json(route, { schools: schoolWrites ? [school] : [], pagination: { page: 1, totalPages: 1 } });
+      }
+      schoolAttempts += 1;
+      if (schoolWrites) return json(route, { message: 'Code already exists' }, 409);
+      schoolWrites += 1;
+      Object.assign(school, route.request().postDataJSON());
+      return json(route, { message: 'The write succeeded, but the response was lost' }, 503);
+    });
+    await page.route(url => url.pathname === root, route => json(route, { school }));
+    await page.route('**/api/v1/auth/admin/users?*', route => json(route, { users: [director], pagination: { page: 1, totalPages: 1 } }));
+    const contract = { schoolId: school.id, status: 'active', modules: ['SCHOOL_CORE', 'SMART_CLASSROOM'], revision: 1, validFrom: '', validUntil: '' };
+    await page.route(url => url.pathname === root + '/contract' || url.pathname === '/api/v1/school-contracts/' + school.id, route => {
+      if (route.request().method() === 'PUT') {
+        contractWrites += 1;
+        const input = route.request().postDataJSON();
+        expect(input).toMatchObject({ modules: contract.modules, expectedRevision: 0 });
+        contract.validFrom = input.validFrom;
+        contract.validUntil = input.validUntil;
+      }
+      return contractWrites ? json(route, { contract }) : json(route, { message: 'Not found' }, 404);
+    });
+    await page.route(url => url.pathname === root + '/classes', route => {
+      if (route.request().method() === 'GET') return json(route, { classes, pagination: { page: 1, totalPages: 1 } });
+      const input = route.request().postDataJSON();
+      if (input.name === 'الثاني ب' && recoverableFailure) {
+        recoverableFailure = false;
+        return json(route, { message: 'Try again' }, 503);
+      }
+      expect(classes.some(item => item.code === input.code)).toBe(false);
+      const item = { ...input, id: 'class-' + classes.length, status: 'active' };
+      classes.push(item);
+      return json(route, { class: item }, 201);
+    });
+    await page.route(url => url.pathname === root + '/directors' || url.pathname === root + '/directors/' + director.id, route => {
+      if (route.request().method() === 'PUT') directorWrites += 1;
+      const record = { membership: { userId: director.id, status: 'active' }, user: director };
+      return json(route, { directors: directorWrites ? [record] : [], director: record });
+    });
+
+    await page.goto('/admin-dashboard/schools');
+    await page.getByRole('button', { name: 'إضافة مدرسة جديدة' }).click();
+    const dialog = page.getByRole('dialog', { name: 'إضافة مدرسة جديدة للشراكات' });
+    await dialog.getByPlaceholder('مثال: مدرسة دار العلوم الأهلية').fill(school.name);
+    await dialog.getByPlaceholder('مثال: SCH-DAR-01').fill(school.code);
+    await dialog.getByRole('button', { name: 'التالي' }).click();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await dialog.getByRole('checkbox', { name: /وحدة الفصول الذكية/ }).check();
+    await expect(dialog.getByRole('button', { name: 'التالي' })).toBeInViewport();
+    await dialog.getByRole('button', { name: 'التالي' }).click();
+    await dialog.getByRole('combobox', { name: 'مدير المدرسة' }).selectOption(director.id);
+    await dialog.getByRole('button', { name: 'التالي' }).click();
+    await dialog.getByRole('textbox', { name: 'الفصول المبدئية' }).fill('الأول أ\nالثاني ب');
+    await dialog.getByTestId('submit-create-school-btn').click();
+    await expect(dialog.getByRole('alert')).toContainText('سجل المدرسة');
+    expect({ schoolWrites, contractWrites }).toEqual({ schoolWrites: 1, contractWrites: 0 });
+    await dialog.getByTestId('submit-create-school-btn').click();
+    await expect(dialog.getByRole('alert')).toContainText('الفصول');
+    expect({ schoolWrites, contractWrites, directorWrites, classes: classes.length }).toEqual({ schoolWrites: 1, contractWrites: 1, directorWrites: 0, classes: 1 });
+
+    await page.reload({ waitUntil: 'commit' });
+    await page.getByRole('button', { name: 'إضافة مدرسة جديدة' }).click();
+    await dialog.getByTestId('submit-create-school-btn').click();
+    await expect(dialog).toBeHidden();
+    expect({ schoolWrites, contractWrites, directorWrites, classes: classes.length }).toEqual({ schoolWrites: 1, contractWrites: 1, directorWrites: 1, classes: 2 });
+    expect(schoolAttempts).toBe(2);
+  });
+
   test('creates a school through the canonical API and retains the form after a duplicate code', async ({ page }) => {
     test.setTimeout(90_000);
     await auth(page);
     const { school1Id } = await setupSchoolsMock(page);
     let writes = 0;
+    let savedSchool = {};
+    let savedContract: Record<string, unknown> | undefined;
+    await page.route(url => url.pathname === '/api/v1/schools/' + school1Id, route => json(route, { school: savedSchool }));
+    await page.route('**/api/v1/auth/admin/users?*', route => json(route, { users: [] }));
+    await page.route(url => url.pathname === '/api/v1/schools/' + school1Id + '/contract' ||
+      url.pathname === '/api/v1/school-contracts/' + school1Id, route => {
+      if (route.request().method() === 'PUT') savedContract = { ...route.request().postDataJSON(), revision: 1 };
+      return savedContract ? json(route, { contract: savedContract }) : json(route, {}, 404);
+    });
     await page.route(url => url.pathname === '/api/v1/schools/', route => {
       if (route.request().method() !== 'POST') return route.fallback();
       return route.fulfill({ status: 405 });
     });
     await page.route(url => url.pathname === '/api/v1/schools', route => {
-      if (route.request().method() !== 'POST') return route.fallback();
+      if (route.request().method() !== 'POST') {
+        if (new URL(route.request().url()).searchParams.has('search')) {
+          return json(route, { schools: [{
+            id: 'other-school', code: 'SCH-DUP', status: 'active', metadata: { setupRequestId: 'different-setup' },
+          }], pagination: { totalPages: 1 } });
+        }
+        return route.fallback();
+      }
       writes += 1;
       const { name, code } = route.request().postDataJSON();
       expect(name).toBe('مدرسة التجربة');
@@ -277,7 +375,8 @@ test.describe('Schools Management (تشغيل المدارس) - 100% Authentic L
         return json(route, { message: 'Organization record conflicts with an existing record' }, 409);
       }
       expect(code).toBe('SCH-NEW');
-      return json(route, { school: { id: school1Id, name, code, status: 'active' } }, 201);
+      savedSchool = { id: school1Id, name, code, status: 'active', metadata: route.request().postDataJSON().metadata };
+      return json(route, { school: savedSchool }, 201);
     });
 
     await page.goto('/admin-dashboard/schools');
@@ -287,6 +386,8 @@ test.describe('Schools Management (تشغيل المدارس) - 100% Authentic L
     const code = page.getByPlaceholder('مثال: SCH-DAR-01');
     await name.fill('مدرسة التجربة');
     await code.fill('sch-dup');
+    const next = dialog.getByRole('button', { name: 'التالي' });
+    for (const _step of [1, 2, 3]) await next.click();
     const [rejected] = await Promise.all([
       page.waitForResponse(response => response.url().includes('/api/v1/schools') && response.request().method() === 'POST'),
       page.getByTestId('submit-create-school-btn').click(),
@@ -296,6 +397,7 @@ test.describe('Schools Management (تشغيل المدارس) - 100% Authentic L
     await expect(name).toHaveValue('مدرسة التجربة');
     await expect(code).toHaveValue('sch-dup');
     await code.fill('sch-new');
+    for (const _step of [1, 2, 3]) await next.click();
     await dialog.getByTestId('submit-create-school-btn').click();
     await expect(dialog).toBeHidden();
     await expect(page.getByText('تم إنشاء المدرسة «مدرسة التجربة» بنجاح.')).toBeVisible();
