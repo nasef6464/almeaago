@@ -1,4 +1,12 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 26 نوفمبر — إتمام M4 (الفصل الذكي وعقود OpenAPI) فوق M3 / PARTIAL
+
+- Go main `16562a4b` بعد دمج **[PR #325](https://github.com/nasef6464/almeaago/pull/325)** (`16562a4b`, حزمة **M4**):
+  1. **تسوية عقود OpenAPI (`CLASSROOM-OPENAPI-COVERAGE` + مسارات M3):** توثيق **17 مسارًا** مفقودًا للفصل الذكي (`/api/v1/classroom/*` الخاصة بالحضور والمنافسة والدفعات والـ aggregate والـ aliases) وتوثيق مسارات M3 (`/api/v1/learning/evidence` و`/api/v1/parents/*`) في `api/openapi/openapi.yaml`.
+  2. **أدوات المعلم في الفصل الذكي (`CLASSROOM-TEACHER-TOOLS`):** ربط السبورة الذكية التفاعلية (`SmartWhiteboardCanvas`) والتصويت السريع (`ClassroomLivePollModal`) في `ClassroomTeacherPage.tsx` أثناء الحصة المباشرة دون المساس بثوابت الخادم.
+  3. **التحقق:** PASS `go test ./internal/realtime/... ./internal/media/...`، و`api-mount-inventory.test.mjs` + `route-inventory.test.mjs` (`7/7`)، و`tsc -b`، و`20/20` اختبار Playwright (`classroom.spec.ts` `4/4`، `schools-classroom-projector-session-scope.spec.ts`، `schools-classroom-student-session-scope.spec.ts`)، واجتياز جميع بوابات GitHub Actions (`frontend`, `overlap`, `e2e 1-3`).
+- **حالة البوابات المتبقية (`PARTIAL`):** تبقى مطابقة `MongoDB -> PostgreSQL` في **P6** **`BLOCKED`** محليًا لحين توفير أرشيف معزول من MongoDB، والمطابقة البصرية المتقابلة بالصور في **P7** + إغلاق أي فجوات متبقية في **M5**.
+
 ## 26 نوفمبر — إتمام حزمة M3 (ولي الأمر والمعلم والمدرب والمدير والمشرف) وتحديث P6/P7 / PARTIAL
 
 - Go main `56bcf2dd` بعد دمج حزم M3 الأربع:
