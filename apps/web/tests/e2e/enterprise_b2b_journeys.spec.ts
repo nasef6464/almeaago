@@ -249,7 +249,7 @@ async function setupBaselineMocks(page: Page, currentUser: MockUser | null = nul
       ],
     })
   );
-  await page.route('**/api/v1/schools/?page=1&limit=100&status=active**', (r) =>
+  await page.route('**/api/v1/schools?page=1&limit=100&status=active**', (r) =>
     json(r, {
       schools: [{ id: 'sch-alrowaad-01', code: 'SCH-ALROWAAD', name: 'مدارس الرواد الأهلية', status: 'active' }],
       items: [{ id: 'sch-alrowaad-01', code: 'SCH-ALROWAAD', name: 'مدارس الرواد الأهلية', status: 'active' }],
@@ -416,7 +416,7 @@ test.describe('Track 2: Schools Contracts, 11-Module Matrix, Quotas & Certificat
       });
     });
 
-    await page.route('**/api/v1/schools/?page=1&limit=100&status=active', (r) =>
+    await page.route('**/api/v1/schools?page=1&limit=100&status=active', (r) =>
       json(r, {
         schools: [{ id: schoolId, code: 'SCH-ALROWAAD', name: 'مدارس الرواد الأهلية', status: 'active' }],
         pagination: { page: 1, limit: 100, total: 1, totalPages: 1 },

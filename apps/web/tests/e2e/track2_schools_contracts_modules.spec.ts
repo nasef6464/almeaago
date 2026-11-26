@@ -110,7 +110,7 @@ async function setupTrack2Mocks(page: Page, user = adminUser) {
       },
     })
   );
-  await page.route('**/api/v1/schools/?page=1&limit=100&status=active**', (route) =>
+  await page.route('**/api/v1/schools?page=1&limit=100&status=active**', (route) =>
     json(route, {
       schools: [{ id: 'sch-alrowaad-01', code: 'SCH-01', name: 'مدارس الرواد الأهلية', status: 'active' }],
       items: [{ id: 'sch-alrowaad-01', code: 'SCH-01', name: 'مدارس الرواد الأهلية', status: 'active' }],
@@ -127,7 +127,7 @@ test.describe('Track 2 - Feature 6: School Contract Configurator', () => {
 
   // Tier 1: Feature Coverage (5 tests)
   test('T2.F6.1 - [Tier 1] navigates to school contract manager in admin dashboard', async ({ page }) => {
-    await page.route('**/api/v1/schools/?page=1&limit=100&status=active', (r) =>
+    await page.route('**/api/v1/schools?page=1&limit=100&status=active', (r) =>
       json(r, {
         schools: [{ id: 'sch-alrowaad-01', code: 'SCH-01', name: 'مدارس الرواد الأهلية', status: 'active' }],
         pagination: { page: 1, limit: 100, total: 1, totalPages: 1 },

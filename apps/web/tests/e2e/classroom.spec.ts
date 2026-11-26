@@ -199,7 +199,7 @@ test('projector lobby exposes PIN and QR without student identity',async({page})
 
 test('platform admin controls SMART_CLASSROOM school module with csrf',async({page})=>{
  await auth(page,admin);
- await page.route('**/api/v1/schools/?**',route=>json(route,{
+ await page.route('**/api/v1/schools?**',route=>json(route,{
   schools:[{id:'school-1',code:'SCH-1',name:'مدرسة المئة',status:'active'}],
   pagination:{page:1,limit:100,total:1,totalPages:1}
  }));

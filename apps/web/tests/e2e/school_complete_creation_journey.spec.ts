@@ -128,7 +128,6 @@ async function openDirectorSection(page: Page, label: string) {
 }
 
 test.describe('School Complete Creation & Lifecycle User Journey', () => {
-  test.use({ baseURL: 'http://127.0.0.1:5173' });
   let currentUser = adminUser;
   let createdSchool = {
     id: 'sch-dar-01',
@@ -192,7 +191,7 @@ test.describe('School Complete Creation & Lifecycle User Journey', () => {
     );
 
     // Schools list & creation
-    await page.route(/\/api\/v1\/schools(\/|\/\?.*)?$/, async (route) => {
+    await page.route(url => url.pathname === '/api/v1/schools', async (route) => {
       const req = route.request();
       if (req.method() === 'POST') {
         const body = req.postDataJSON();
