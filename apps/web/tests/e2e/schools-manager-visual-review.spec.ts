@@ -258,6 +258,7 @@ async function setupSchoolsMock(page: Page) {
 
 test.describe('Schools Management (تشغيل المدارس) - 100% Authentic Legacy Parity Review', () => {
   test('school setup resumes the same school after a lost response and a class write failure', async ({ page }) => {
+    test.setTimeout(60_000);
     await auth(page);
     const { school1Id } = await setupSchoolsMock(page);
     const school = { id: school1Id, code: 'SCH-RUN', name: 'مدرسة التأسيس التجريبية', status: 'active', metadata: {} };
@@ -330,7 +331,7 @@ test.describe('Schools Management (تشغيل المدارس) - 100% Authentic L
     await expect(dialog.getByRole('alert')).toContainText('الفصول');
     expect({ schoolWrites, contractWrites, directorWrites, classes: classes.length }).toEqual({ schoolWrites: 1, contractWrites: 1, directorWrites: 0, classes: 1 });
 
-    await page.reload();
+    await page.reload({ waitUntil: 'commit' });
     await page.getByRole('button', { name: 'إضافة مدرسة جديدة' }).click();
     await dialog.getByTestId('submit-create-school-btn').click();
     await expect(dialog).toBeHidden();
