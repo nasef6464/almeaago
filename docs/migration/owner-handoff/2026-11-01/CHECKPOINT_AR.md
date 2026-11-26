@@ -1,5 +1,19 @@
 # نقطة استئناف — 1 نوفمبر 2026
 
+## 26 نوفمبر — صدق استيراد كشف نور من حساب مدير المدرسة
+
+- المصدر `ed28102d7084899856de0371dc2c93a3d602d518` في `dashboards/admin/SchoolsManager.tsx` يعرض ملخص وبيانات الدخول من الخادم. Go الأساسي `0e807a4a1acdc2cfc22201a192cf8600182fcedd`. فرع `fix/director-noor-import-truth` يعالج `SchoolDirectorDashboardPage` و`SchoolImportPanel`. كان رفض أي طلب يُخفى ويُحسب الصف مستوردًا وتُصدّر له كلمة مرور.
+- مدير المدرسة ← استيراد كشف نور ← `GET /api/v1/schools/{schoolId}/classes` بترقيم الصفحات، ثم إنشاء الفصل عند الحاجة و`POST /api/school-access/director/schools/{schoolId}/students` مع CSRF و`name/email/password/classId` ← `DirectorAddStudent` يحفظ الحساب والعضوية والفصل في معاملة PostgreSQL. يؤكد العميل الحساب والفصل من الرد. تُصدّر بيانات الدخول فقط للحساب الجديد إذا أكد الخادم `created: true`، وتُعاد محاولة المتعثر دون إعادة إرسال الصفوف المثبتة. ملف Excel يُحفظ بصيغة CSV أولًا. لم يتغير Go أو المخطط.
+- المحاور A/B/D/F/G/H والمهارات `almeaa-school-director-validator` و`almeaa-api-contract-validator` و`almeaa-rtl-browser-verifier`. RED في Playwright على كشف مختلط. التجربة الفعلية مع نسخة Go المنشورة محليًا وPostgreSQL معزول أثبتت تنزيل الحساب الجديد وحده، استمرار كلمة مرور الحساب الموجود، واسترجاع العضويات بعد المحاولة وتحديث الصفحة. صور Go المحلية 390/820/1440 في `C:/almeaago/tmp-evidence/supervisor-transfer-stack/noor-*.png`. المطابقة البصرية مع شاشة الأصل **PARTIAL**.
+- متابعة الفحوص تبدأ بـ `gh pr list --head fix/director-noor-import-truth`. لا دمج أو نشر جديد بهذه الجولة. يبقى ربط الحصص الذكية ورادار مهارات المدير ببيانات المدرسة من الخادم. بحوث العمليات مؤجلة.
+
+## 26 نوفمبر — نشر تأسيس المدرسة ونقل طلاب المشرف ومراجعة لوحة المدير
+
+- دُمج #322 عند `6ca523fa60ed74754ee750acad7971dc2225d457` و#326 عند `ee6269b0a1a596d9a7a98cb61dc6e59c2ada9d62` و#323 عند `5a4313b81a0d52aea0d52fc9cdd12b3b04f83880` و[#328](https://github.com/nasef6464/almeaago/pull/328) عند `0e807a4a1acdc2cfc22201a192cf8600182fcedd`. اجتاز رأس #328 `c9d8bfcbc191b0a1a09592e9b0d600355dc53f18` Backend وDatabase وFrontend وOverlap وشرائح E2E الثلاث. Vercel `dpl_55eQN4uAWFdC259qi6W7wNcSYJYn` READY موجه إلى `almeaago.vercel.app` عند نسخة الدمج.
+- Render خادم Go `358d4bf0115f48b762808cb5648241d6f3bde72e` في `dep-dc44n459el5s73a7eftg` LIVE. التغيير مقتصر على عقد كشف الطلاب ونقل المشرف فوق النسخة العاملة `9909b550ca1a72d797d752f2426897179bd20887` دون ترحيل. التراجع إلى `dep-dc3lu2uc6qcc73b6fhdg` ممكن. أُخذت نسخة احتياطية وأُعيدت إلى PostgreSQL محلي بعد استبعاد بيانات تعريف تخص مزود القاعدة فقط. PASS بناء Go والفحوص والرحلة الفعلية المعزولة وقراءة صحة الخدمة واستجابة مسار النقل 401 دون جلسة. لم تُجر كتابة اختبارية في الإنتاج.
+- مراجعة لوحة مدير المدرسة: ستة اختبارات Playwright على main شملت الطلاب والفصول وتكليف المعلم وإنشاء اختبار خاص بالفصل والتقارير والقوائم. طابقت تجربة فعلية على مدرسة جديدة معزولة أن «الحصص الذكية المدرسية» و«رادار مهارات المدرسة» يعرضان سجلات نموذجية من `SchoolDirectorDashboardPage.tsx` بلا نشاط حقيقي، وأن استيراد كشف نور عرض تنزيل بيانات الدخول بعد رفض طلب إنشاء الطالب. دليل `director-audit.log` بجانب لقطات RTL في `C:/almeaago/tmp-evidence/supervisor-transfer-stack`. تقرير الجاهزية #324 خارج الإصدار مع FAIL في E2E 2.
+- بحوث العمليات مؤجلة بتوجيه المالك. أول إجراء عند استئناف إصلاح لوحة المدير هو إعادة تشغيل `node C:/almeaago/tmp-evidence/supervisor-transfer-stack/director-audit.cjs` على Go وPostgreSQL معزولين لتوثيق RED لاستيراد نور، ثم تتبع نتائج الحفظ وقراءات الحصص والرادار من الخادم. نطاق المطابقة البصرية الشاملة **PARTIAL**.
+
 ## 26 نوفمبر — نقل طالب بواسطة المشرف / PARTIAL
 
 - المصدر Legacy `ed28102d7084899856de0371dc2c93a3d602d518`، `dashboards/admin/SupervisorDashboard.tsx` في تبويب الطلاب. الاختيار والتأكيد موجودان في الأصل. الفرع `feat/supervisor-student-transfer` فوق إصلاح عقد كشف الطلاب في [#323](https://github.com/nasef6464/almeaago/pull/323) عند `478a549c6468d6747525c5a3bf3485f5e14a880b`. عند بدء الدفعة كان `origin/main` على `dfc35ec0a429e862a174e5bc586142ddd972fefd`.

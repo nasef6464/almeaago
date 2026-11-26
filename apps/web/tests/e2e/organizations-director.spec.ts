@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 
 const director={
   id:'director-1',email:'director@example.com',name:'مدير المدرسة',status:'active',avatarUrl:'',emailVerified:true,
@@ -52,6 +53,74 @@ async function openDirectorSection(page:Page,label:string){
   }
   await button.click();
 }
+
+test('Noor import counts saved students, protects credentials and retries only failed rows', async ({ page }) => {
+  test.setTimeout(60_000);
+  await mockDirector(page);
+  const writes: string[] = [];
+  const saved = [student];
+  const newEmail = 'new@example.test';
+  const existingEmail = student.email;
+  const failedEmail = 'retry@example.test';
+  const missingClassEmail = 'class@example.test';
+  let available = false;
+  await page.route('**/api/school-access/director/schools/school-1/classes', route =>
+    available ? json(route, { classroom: { classId: 'new-class', className: 'الفصل الجديد' } }, 201)
+      : json(route, { message: 'Failed to create class' }, 403));
+  await page.route('**/api/school-access/director/schools/school-1/students*', async route => {
+    if (route.request().method() === 'GET') return json(route, { students: saved, total: saved.length });
+    const input = route.request().postDataJSON();
+    writes.push(input.email);
+    expect(route.request().headers()['x-csrf-token']).toBe('csrf-director');
+    if (input.email === existingEmail) return json(route, { student, created: false });
+    if (input.email === failedEmail && !available) return json(route, { message: 'Unavailable' }, 503);
+    const row = { ...student, email: input.email, name: input.name, studentId: input.email, classId: input.classId };
+    saved.push(row);
+    return json(route, { student: row, created: true }, 201);
+  });
+  await page.goto('/school-director-dashboard');
+  await openDirectorSection(page, 'الطلاب');
+  await page.getByRole('button', { name: 'استيراد كشف نور' }).click();
+  await page.getByLabel('رفع ملف الكشف').setInputFiles({
+    name: 'incomplete.csv', mimeType: 'text/csv',
+    buffer: Buffer.from('name,email,className\nطالب صالح,new@example.test,الأول أ\nطالب ناقص,,الأول أ'),
+  });
+  await expect(page.getByRole('alert').filter({ hasText: 'الكشف فيه 1 صف' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'بدء إنشاء حسابات الطلاب والفصول' })).toHaveCount(0);
+  expect(writes).toEqual([]);
+  await page.getByLabel('رفع ملف الكشف').setInputFiles({
+    name: 'noor.csv', mimeType: 'text/csv',
+    buffer: Buffer.from([
+      'name,email,className,password',
+      `طالب جديد,${newEmail},الأول أ,Fixture@123`,
+      `طالب موجود,${existingEmail},الأول أ,WrongFixture@123`,
+      `طالب إعادة,${failedEmail},الأول أ,Fixture@123`,
+      `طالب فصل,${missingClassEmail},الفصل الجديد,Fixture@123`,
+    ].join('\n')),
+  });
+  await page.getByRole('button', { name: 'بدء إنشاء حسابات الطلاب والفصول' }).click();
+  await expect(page.getByText('تم استيراد 2 من 4 طلاب.')).toBeVisible();
+  await expect(page.getByText('حسابات موجودة تم ربطها: 1')).toBeVisible();
+  await expect(page.getByText(failedEmail, { exact: true })).toBeVisible();
+  await expect(page.getByText(missingClassEmail, { exact: true })).toBeVisible();
+  expect(writes).toEqual([newEmail, existingEmail, failedEmail]);
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'تحميل بيانات الدخول (Excel / CSV)' }).click();
+  const csv = await readFile((await (await download).path())!, 'utf8');
+  expect(csv).toContain(newEmail);
+  expect(csv).not.toContain(existingEmail);
+  expect(csv).not.toContain(failedEmail);
+  expect(csv).not.toContain(missingClassEmail);
+
+  available = true;
+  await page.getByRole('button', { name: 'إعادة محاولة الصفوف المتعثرة' }).click();
+  await expect(page.getByText('تم استيراد 4 من 4 طلاب.')).toBeVisible();
+  expect(writes).toEqual([newEmail, existingEmail, failedEmail, failedEmail, missingClassEmail]);
+  await page.getByRole('button', { name: 'إغلاق استيراد كشف نور' }).click();
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await openDirectorSection(page, 'الطلاب');
+  await expect(page.getByText('طالب فصل', { exact: true })).toBeVisible();
+});
 
 test('school director desktop runs bounded student class and teacher operations',async({page})=>{
   await mockDirector(page);

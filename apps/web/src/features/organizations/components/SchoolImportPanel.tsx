@@ -1,10 +1,12 @@
 import React from 'react';
 import { Download, CheckCircle, FileSpreadsheet, Plus, ShieldAlert, FileText, RefreshCw } from 'lucide-react';
 import type { ImportRow } from '../utils/importRowParsing';
+import type { DirectorImportFailure } from '../utils/importDirectorRoster';
 
 export interface ImportSummary {
   totalRows: number;
   imported: number;
+  linked?: number;
   classesTouched: number;
 }
 
@@ -32,6 +34,8 @@ export interface SchoolImportPanelProps {
   downloadTemplate: () => void;
   downloadCredentials: () => void;
   onReset?: () => void;
+  failures?: DirectorImportFailure[];
+  textFilesOnly?: boolean;
 }
 
 export const SchoolImportPanel: React.FC<SchoolImportPanelProps> = ({
@@ -46,7 +50,10 @@ export const SchoolImportPanel: React.FC<SchoolImportPanelProps> = ({
   downloadTemplate,
   downloadCredentials,
   onReset,
+  failures,
+  textFilesOnly,
 }) => {
+  const hasFailures = Boolean(failures?.length);
   return (
     <div className="max-w-4xl mx-auto py-6 space-y-8" dir="rtl">
       <div className="text-center">
@@ -110,22 +117,23 @@ export const SchoolImportPanel: React.FC<SchoolImportPanelProps> = ({
         <div
           className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors relative overflow-hidden flex flex-col justify-center items-center ${
             importSummary
-              ? 'border-emerald-500 bg-emerald-50/70'
+              ? hasFailures ? 'border-amber-300 bg-amber-50/70' : 'border-emerald-500 bg-emerald-50/70'
               : 'border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50/30 bg-white'
           }`}
         >
-          <input
+          {!importSummary && !isImporting ? <input
             type="file"
-            accept=".xlsx,.xls,.csv,.tsv,.txt"
+            accept={textFilesOnly ? '.csv,.tsv,.txt' : '.xlsx,.xls,.csv,.tsv,.txt'}
             aria-label="رفع ملف الكشف"
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
             onChange={(event) => {
               const file = event.target.files?.[0];
+              event.target.value = '';
               if (file) {
                 void handleImportFile(file);
               }
             }}
-          />
+          /> : null}
 
           {isImporting ? (
             <div className="flex flex-col items-center justify-center py-6">
@@ -135,21 +143,27 @@ export const SchoolImportPanel: React.FC<SchoolImportPanelProps> = ({
             </div>
           ) : importSummary ? (
             <div className="flex flex-col items-center justify-center py-4">
-              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <CheckCircle size={32} />
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 ${hasFailures ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-600'}`}>
+                {hasFailures ? <ShieldAlert size={32} /> : <CheckCircle size={32} />}
               </div>
-              <h3 className="font-black text-emerald-900 mb-1 text-base">تم الاستيراد بنجاح</h3>
-              <p className="text-xs font-bold text-emerald-700 mb-4">
-                تم استيراد {importSummary.imported} طالب وتوزيعهم عبر {importSummary.classesTouched} فصل.
+              <h3 className="font-black mb-1 text-base">{hasFailures ? 'نتيجة الاستيراد' : 'تم الاستيراد بنجاح'}</h3>
+              <p role="status" className="text-xs font-bold mb-2">
+                {failures ? `تم استيراد ${importSummary.imported} من ${importSummary.totalRows} طلاب.` :
+                  `تم استيراد ${importSummary.imported} طالب وتوزيعهم عبر ${importSummary.classesTouched} فصل.`}
               </p>
+              {failures && importSummary.classesTouched > 0 ? <p className="mb-2 text-xs">الفصول التي تم ربط الطلاب بها: {importSummary.classesTouched}</p> : null}
+              {importSummary.linked ? <p className="mb-2 text-xs">حسابات موجودة تم ربطها: {importSummary.linked}</p> : null}
               <div className="flex flex-wrap items-center gap-2">
-                <button
+                {importCredentials.length > 0 ? <button
                   type="button"
                   onClick={downloadCredentials}
                   className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 hover:bg-emerald-700 shadow-sm"
                 >
                   <Download size={15} /> تحميل بيانات الدخول (Excel / CSV)
-                </button>
+                </button> : null}
+                {hasFailures ? <button type="button" onClick={() => void handleStartImport()} className="rounded-xl border border-amber-400 bg-white px-4 py-2 text-xs font-black text-amber-900">
+                  إعادة محاولة الصفوف المتعثرة
+                </button> : null}
                 {onReset ? (
                   <button
                     type="button"
@@ -168,7 +182,7 @@ export const SchoolImportPanel: React.FC<SchoolImportPanelProps> = ({
               </div>
               <h3 className="font-black text-gray-900 mb-1">2. اسحب ملف الكشف وأفلته هنا</h3>
               <p className="text-xs font-bold text-gray-500 mb-4">
-                يدعم كشوفات نظام نور بصيغ (.xlsx, .csv, .tsv) حتى 5,000 طالب
+                {textFilesOnly ? 'ارفع كشف نور بصيغة CSV أو TSV. احفظ ملف Excel بصيغة CSV أولًا.' : 'يدعم كشوفات نظام نور بصيغ (.xlsx, .csv, .tsv) حتى 5,000 طالب'}
               </p>
               <span className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-black text-white shadow-sm pointer-events-none">
                 <Plus size={15} /> اختيار ملف من الجهاز
@@ -178,9 +192,23 @@ export const SchoolImportPanel: React.FC<SchoolImportPanelProps> = ({
         </div>
       </div>
 
+      {hasFailures && !isImporting ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4" aria-label="الصفوف المتعثرة">
+          <h3 className="text-sm font-black">الصفوف المتعثرة ({failures?.length})</h3>
+          <ul className="mt-2 max-h-48 space-y-2 overflow-auto text-sm">
+            {failures?.map(({ row, message }) => (
+              <li key={row.email} className="rounded-lg bg-white p-2">
+                <b>{row.name}</b> <bdi className="break-all">{row.email}</bdi>
+                <p>{message}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       {/* Error Alert */}
       {importError && (
-        <div className="bg-rose-50 text-rose-800 p-4 rounded-2xl border border-rose-200 flex items-start gap-3 text-right">
+        <div role="alert" className="bg-rose-50 text-rose-800 p-4 rounded-2xl border border-rose-200 flex items-start gap-3 text-right">
           <ShieldAlert size={20} className="shrink-0 mt-0.5 text-rose-600" />
           <div>
             <h4 className="font-black text-sm mb-0.5">تنبيه في قراءة الكشف</h4>
