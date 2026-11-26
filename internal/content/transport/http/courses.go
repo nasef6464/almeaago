@@ -17,6 +17,8 @@ func NewCourses(service *contentapp.Service, auth Authenticator) http.Handler {
 	r.Post("/", h.createCourse)
 	r.Get("/{id}", h.getCourse)
 	r.Put("/{id}", h.updateCourse)
+	r.Delete("/{id}", h.deleteKind("course", "id"))
+	r.Post("/bulk-delete", h.bulkDeleteKind("course"))
 	r.Patch("/{id}/workflow", h.courseWorkflow)
 	r.Patch("/{id}/publication", h.coursePublication)
 	r.Post("/{id}/enroll", h.enrollCourse)
@@ -24,6 +26,7 @@ func NewCourses(service *contentapp.Service, auth Authenticator) http.Handler {
 	r.Get("/{id}/modules", h.listCourseModules)
 	r.Post("/{id}/modules", h.createCourseModule)
 	r.Put("/{id}/modules/{moduleId}", h.updateCourseModule)
+	r.Delete("/{id}/modules/{moduleId}", h.deleteKind("course_module", "moduleId"))
 	r.Put("/{id}/modules/{moduleId}/lessons/{lessonId}", h.placeCourseLesson)
 	r.Delete("/{id}/modules/{moduleId}/lessons/{lessonId}", h.removeCourseLesson)
 	return r

@@ -732,4 +732,66 @@ export const contentClient = {
       };
     }>(`/api/v1/learning-spaces/live-sessions/${encodeURIComponent(lessonId)}`, { signal });
   },
+
+  deleteRecord(
+    kind: 'course' | 'lesson' | 'foundation_topic' | 'library_item' | 'course_module',
+    id: string,
+    csrfToken: string,
+  ) {
+    const pathMap = {
+      course: `/api/v1/courses/${encodeURIComponent(id)}`,
+      lesson: `/api/v1/lessons/${encodeURIComponent(id)}`,
+      foundation_topic: `/api/v1/foundation-topics/${encodeURIComponent(id)}`,
+      library_item: `/api/v1/library/${encodeURIComponent(id)}`,
+      course_module: `/api/v1/courses/modules/${encodeURIComponent(id)}`,
+    };
+    return request<{ deleted: boolean }>(pathMap[kind], {
+      method: 'DELETE',
+      headers: { 'X-CSRF-Token': csrfToken },
+    });
+  },
+
+  bulkDeleteRecords(
+    kind: 'course' | 'lesson' | 'foundation_topic' | 'library_item',
+    ids: string[],
+    csrfToken: string,
+  ) {
+    const pathMap = {
+      course: '/api/v1/courses/bulk-delete',
+      lesson: '/api/v1/lessons/bulk-delete',
+      foundation_topic: '/api/v1/foundation-topics/bulk-delete',
+      library_item: '/api/v1/library/bulk-delete',
+    };
+    return request<{ deletedIds: string[]; blocked: Array<{ id: string; reason: string }> }>(pathMap[kind], {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify({ ids }),
+    });
+  },
+
+  getTrainerScope(userId: string, signal?: AbortSignal) {
+    return request<{ scope: import('./content-types').TrainerScope }>(
+      `/api/v1/content/trainer-scopes/${encodeURIComponent(userId)}`,
+      { signal, cache: 'no-store' },
+    );
+  },
+
+  setTrainerScope(
+    userId: string,
+    payload: {
+      pathIds: string[];
+      subjectIds: string[];
+      permissions: import('./content-types').TrainerPermissions;
+    },
+    csrfToken: string,
+  ) {
+    return request<{ scope: import('./content-types').TrainerScope }>(
+      `/api/v1/content/trainer-scopes/${encodeURIComponent(userId)}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+        body: JSON.stringify(payload),
+      },
+    );
+  },
 };

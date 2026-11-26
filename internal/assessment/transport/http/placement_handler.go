@@ -24,8 +24,21 @@ func NewPlacements(service *app.PlacementService, auth Authenticator) http.Handl
 	r.Get("/subject-progress", h.subjectProgress)
 	r.Get("/subject-access-guide", h.subjectAccessGuide)
 	r.Patch("/{id}", h.patch)
+	r.Delete("/{id}", h.delete)
 	r.Post("/{id}/start", h.start)
 	return r
+}
+
+func (h *PlacementHandler) delete(w http.ResponseWriter, r *http.Request) {
+	a, ok := h.authn(w, r, true)
+	if !ok {
+		return
+	}
+	if err := h.service.DeletePlacement(r.Context(), a.User, chi.URLParam(r, "id")); err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"deleted": true})
 }
 
 func (h *PlacementHandler) subjectProgress(w http.ResponseWriter, r *http.Request) {

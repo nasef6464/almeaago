@@ -15,6 +15,7 @@ var (
 	ErrAttemptSubmitted   = errors.New("assessment attempt submitted")
 	ErrResultUnavailable  = errors.New("assessment result unavailable")
 	ErrInvalidAnswer      = errors.New("invalid assessment answer")
+	ErrHasDependencies    = errors.New("assessment is referenced by active attempts, assignments, or placements")
 )
 
 type WorkflowStatus string
