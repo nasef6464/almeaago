@@ -1,4 +1,13 @@
 # نقطة استئناف — 1 نوفمبر 2026
+## 26 نوفمبر — فحص M5 / P7 (حزمة المطابقة الكاملة والـ RTL والبصريات) على main / PARTIAL
+
+- Go main `c55d558c` (فوق M1–M4 المدمجة في [PR #313](https://github.com/nasef6464/almeaago/pull/313) و[PR #315](https://github.com/nasef6464/almeaago/pull/315) و[PR #318](https://github.com/nasef6464/almeaago/pull/318)–[PR #321](https://github.com/nasef6464/almeaago/pull/321) و[PR #325](https://github.com/nasef6464/almeaago/pull/325)):
+  1. **حزمة فحوصات Frontend CI الكاملة (`node scripts/parity/run-ci-checks.mjs`):** **15/15 PASS** (شاملةً `public-footer`, `platform-fonts`, `homepage-ui`, `header-brand`, `admin-skills-separation`, `header-navigation`, `StudentNavigationProvider`, `studentPathScope`, `learning-route-selection`, `screen-inventory`, `route-inventory` (`55/55`, `legacyOnly: []`), `api-mount-inventory`, `identity-login-digits`, `learning-golden`, `adaptive-ranking`, `adaptive-selection-golden`).
+  2. **فحص P7 البصري والـ RTL (`390/820/1440`):** **30/30 PASS** عبر `codax-parity-master.spec.ts` و`header-breakpoint-parity.spec.ts` و`public-static-info-parity.spec.ts` و`enrollment-visual-parity.spec.ts` (مع تخطي 8 اختبارات `header-brand-live.spec.ts` و`original-header-live.spec.ts` محليًا لعدم تشغيل خادم Go/PG حي في هذه الجلسة).
+- **الحالة العامة (`PARTIAL`):**
+  - **P6:** المهاجرات الـ `67` وتمرين `pg_dump`/`psql` خضراء في `Database CI`؛ وتبقى مطابقة `MongoDB -> PostgreSQL` **`BLOCKED`** محليًا لحين توفير أرشيف معزول من MongoDB.
+  - **P7:** اختبارات البصريات والـ RTL بدون خادم حي اجتازت `30/30`، وتبقى اختبارات البصريات الحية المرتبطة بـ Go/PG (`header-brand-live` و`original-header-live`) للتنفيذ على بيئة Go/PG حية معزولة.
+
 ## 26 نوفمبر — إتمام M4 (الفصل الذكي وعقود OpenAPI) فوق M3 / PARTIAL
 
 - Go main `16562a4b` بعد دمج **[PR #325](https://github.com/nasef6464/almeaago/pull/325)** (`16562a4b`, حزمة **M4**):
