@@ -2070,7 +2070,27 @@ paths:
         - { in: query, name: classId, schema: { type: string } }
         - { in: query, name: isActive, schema: { type: boolean } }
       responses:
-        "200": { description: Bounded school roster; teacher and school-director reads are constrained by role/capability policy }
+        "200":
+          description: Bounded school roster filtered by authorized school and class scope.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [members, pagination]
+                properties:
+                  members:
+                    type: array
+                    items:
+                      type: object
+                      required: [userId, name, email, status, roles, classIds]
+                      properties:
+                        userId: { type: string }
+                        name: { type: string }
+                        email: { type: string }
+                        status: { type: string }
+                        roles: { type: array, items: { type: string } }
+                        classIds: { type: array, items: { type: string } }
+                  pagination: { type: object }
         "400": { description: Invalid filter }
         "401": { description: Authentication required }
         "403": { description: School/role/class scope denied }
