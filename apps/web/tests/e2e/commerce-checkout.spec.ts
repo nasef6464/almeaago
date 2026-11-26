@@ -247,7 +247,7 @@ test('admin uses canonical school context for scoped access codes and capped sea
  await page.route('**/api/v1/commerce/admin/payment-requests?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/commerce/admin/access-codes?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
  await page.route('**/api/v1/commerce/admin/revenue?**',r=>json(r,{items:[],page:1,limit:50,hasMore:false}));
- await page.route('**/api/v1/schools/?page=1&limit=100&status=active',r=>json(r,{schools:[{id:'school-1',code:'SCH1',name:'مدرسة الإبداع',status:'active'}],pagination:{page:1,limit:100,total:1,totalPages:1}}));
+ await page.route('**/api/v1/schools?page=1&limit=100&status=active',r=>json(r,{schools:[{id:'school-1',code:'SCH1',name:'مدرسة الإبداع',status:'active'}],pagination:{page:1,limit:100,total:1,totalPages:1}}));
  await page.route('**/api/v1/schools/school-1/classes?**',r=>json(r,{classes:[{id:'class-1',schoolId:'school-1',code:'1A',name:'الأول أ',status:'active'}],pagination:{page:1,limit:100,total:1,totalPages:1}}));
  await page.route('**/api/v1/schools/school-1/roster?**',r=>json(r,{members:[{userId:'student-1',name:'طالب المدرسة',email:'student@school.test',status:'active',roles:['student'],classIds:['class-1']}],pagination:{page:1,limit:100,total:1,totalPages:1}}));
  await page.route('**/api/v1/commerce/admin/access-codes',async r=>{

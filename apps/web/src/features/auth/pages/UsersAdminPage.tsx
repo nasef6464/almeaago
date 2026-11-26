@@ -30,7 +30,33 @@ import { authClient } from '../api/auth-client';
 import type { AdminUser, AdminUsersSummary, UserRole } from '../api/auth-types';
 import { organizationsClient, type SchoolSummary } from '../../organizations/api/organizations-client';
 import { contentClient } from '../../content/api/content-client';
-import type { TaxonomyCore } from '../../content/api/content-types';
+import type { TaxonomyCore, TrainerPermissions } from '../../content/api/content-types';
+
+const DEFAULT_TRAINER_PERMISSIONS: TrainerPermissions = {
+  manageTaxonomy: false,
+  manageSkills: false,
+  manageFoundation: false,
+  manageCourses: true,
+  manageLessons: true,
+  manageLibrary: true,
+  manageQuestions: true,
+  manageAssessments: true,
+  canDelete: false,
+  canPublish: false,
+};
+
+const TRAINER_PERMISSION_ITEMS: Array<{ key: keyof TrainerPermissions; label: string }> = [
+  { key: 'manageCourses', label: 'إدارة الدورات' },
+  { key: 'manageLessons', label: 'إدارة الدروس' },
+  { key: 'manageFoundation', label: 'إدارة مواضيع التأسيس' },
+  { key: 'manageLibrary', label: 'إدارة المكتبة' },
+  { key: 'manageQuestions', label: 'إدارة بنك الأسئلة' },
+  { key: 'manageAssessments', label: 'إدارة الاختبارات والتدريبات' },
+  { key: 'manageSkills', label: 'إدارة المهارات' },
+  { key: 'manageTaxonomy', label: 'إدارة المسارات والمواد' },
+  { key: 'canDelete', label: 'السماح بالحذف' },
+  { key: 'canPublish', label: 'السماح بالنشر' },
+];
 import { AdminTablePageSkeleton, SkeletonTable } from '../../../components/ui/Skeleton';
 
 interface UsersAdminPageProps {
@@ -87,6 +113,7 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
     schoolId: '',
     managedPathIds: [] as string[],
     managedSubjectIds: [] as string[],
+    permissions: { ...DEFAULT_TRAINER_PERMISSIONS } as TrainerPermissions,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -98,6 +125,7 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
     schoolId: string;
     managedPathIds: string[];
     managedSubjectIds: string[];
+    permissions: TrainerPermissions;
   }>({
     name: '',
     role: 'student',
@@ -105,6 +133,7 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
     schoolId: '',
     managedPathIds: [],
     managedSubjectIds: [],
+    permissions: { ...DEFAULT_TRAINER_PERMISSIONS },
   });
 
   const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
@@ -202,7 +231,18 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
         payload.schoolId = createForm.schoolId || null;
       }
 
-      await authClient.adminCreateUser(payload, csrf);
+      const created = await authClient.adminCreateUser(payload, csrf);
+      if (createForm.role === 'teacher' && createForm.trainerType === 'platform_trainer' && created?.user?.id) {
+        await contentClient.setTrainerScope(
+          created.user.id,
+          {
+            pathIds: createForm.managedPathIds,
+            subjectIds: createForm.managedSubjectIds,
+            permissions: createForm.permissions,
+          },
+          csrf
+        );
+      }
       setNotice('تم إنشاء المستخدم بنجاح.');
       setIsCreateOpen(false);
       setCreateForm({
@@ -216,6 +256,7 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
         schoolId: '',
         managedPathIds: [],
         managedSubjectIds: [],
+        permissions: { ...DEFAULT_TRAINER_PERMISSIONS },
       });
       setReload((x) => x + 1);
     } catch (err) {
@@ -245,6 +286,17 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
         },
         csrf
       );
+      if (editForm.role === 'teacher') {
+        await contentClient.setTrainerScope(
+          editingUser.id,
+          {
+            pathIds: editForm.managedPathIds,
+            subjectIds: editForm.managedSubjectIds,
+            permissions: editForm.permissions,
+          },
+          csrf
+        );
+      }
       setNotice('تم تحديث بيانات المستخدم بنجاح.');
       setEditingUser(null);
       setReload((x) => x + 1);
@@ -299,7 +351,21 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
       schoolId: u.schoolId || '',
       managedPathIds: u.managedPathIds || [],
       managedSubjectIds: u.managedSubjectIds || [],
+      permissions: { ...DEFAULT_TRAINER_PERMISSIONS },
     });
+    if (u.role === 'teacher') {
+      contentClient
+        .getTrainerScope(u.id)
+        .then(({ scope }) => {
+          setEditForm((cur) => ({
+            ...cur,
+            managedPathIds: scope.pathIds?.length ? scope.pathIds : cur.managedPathIds,
+            managedSubjectIds: scope.subjectIds?.length ? scope.subjectIds : cur.managedSubjectIds,
+            permissions: scope.permissions ? { ...DEFAULT_TRAINER_PERMISSIONS, ...scope.permissions } : cur.permissions,
+          }));
+        })
+        .catch(() => {});
+    }
   };
 
   const resolveBadge = (u: AdminUser) => {
@@ -739,18 +805,41 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
                     </div>
                   )}
                   {createForm.trainerType === 'platform_trainer' && (
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-600 mb-1">المسارات المسندة</label>
-                      <select
-                        multiple
-                        value={createForm.managedPathIds}
-                        onChange={(e) => setCreateForm({ ...createForm, managedPathIds: Array.from(e.target.selectedOptions, (o) => o.value) })}
-                        className="w-full rounded-xl border border-gray-200 bg-white p-2 text-xs font-bold h-24"
-                      >
-                        {(taxonomy?.paths || []).map((p) => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1">المسارات المسندة</label>
+                        <select
+                          multiple
+                          value={createForm.managedPathIds}
+                          onChange={(e) => setCreateForm({ ...createForm, managedPathIds: Array.from(e.target.selectedOptions, (o) => o.value) })}
+                          className="w-full rounded-xl border border-gray-200 bg-white p-2 text-xs font-bold h-24"
+                        >
+                          {(taxonomy?.paths || []).map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1">صلاحيات المدرب التفصيلية</label>
+                        <div className="grid grid-cols-2 gap-2 rounded-xl border border-gray-200 bg-white p-2.5">
+                          {TRAINER_PERMISSION_ITEMS.map((item) => (
+                            <label key={item.key} className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(createForm.permissions[item.key])}
+                                onChange={(e) =>
+                                  setCreateForm({
+                                    ...createForm,
+                                    permissions: { ...createForm.permissions, [item.key]: e.target.checked },
+                                  })
+                                }
+                                className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600"
+                              />
+                              <span>{item.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -872,6 +961,27 @@ export function UsersAdminPage({ defaultRoleFilter = 'all', pageTitle }: UsersAd
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 mb-1">صلاحيات المدرب التفصيلية</label>
+                    <div className="grid grid-cols-2 gap-2 rounded-xl border border-gray-200 bg-white p-2.5">
+                      {TRAINER_PERMISSION_ITEMS.map((item) => (
+                        <label key={item.key} className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(editForm.permissions[item.key])}
+                            onChange={(e) =>
+                              setEditForm({
+                                ...editForm,
+                                permissions: { ...editForm.permissions, [item.key]: e.target.checked },
+                              })
+                            }
+                            className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600"
+                          />
+                          <span>{item.label}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}

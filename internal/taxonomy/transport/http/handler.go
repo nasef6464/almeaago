@@ -45,9 +45,12 @@ func New(service *taxonomyapp.Service, authenticators ...Authenticator) http.Han
 	r.Delete("/admin/subjects/{id}", h.deleteTaxonomy("subject"))
 	r.Post("/admin/skills", h.createSkill)
 	r.Patch("/admin/skills/{id}", h.updateSkill)
+	r.Delete("/admin/skills/{id}", h.deleteTaxonomy("skill"))
 	r.Post("/admin/skill-sections", h.createSkillSection)
 	r.Patch("/admin/skill-sections/{id}", h.updateSkillSection)
+	r.Delete("/admin/skill-sections/{id}", h.deleteTaxonomy("skill_section"))
 	r.Put("/admin/skills/{id}/section", h.setSkillSection)
+	r.Post("/admin/bulk-delete/{kind}", h.bulkDeleteTaxonomy)
 	return r
 }
 
@@ -60,6 +63,21 @@ func (h *Handler) deleteTaxonomy(kind string) http.HandlerFunc {
 		err := h.service.DeleteTaxonomy(r.Context(), auth.User, kind, chi.URLParam(r, "id"))
 		writeMutation(w, http.StatusOK, map[string]any{"deleted": true}, err)
 	}
+}
+
+func (h *Handler) bulkDeleteTaxonomy(w http.ResponseWriter, r *http.Request) {
+	auth, ok := h.authenticateMutation(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		IDs []string `json:"ids"`
+	}
+	if !decodeJSON(w, r, &body) {
+		return
+	}
+	res, err := h.service.BulkDeleteTaxonomy(r.Context(), auth.User, chi.URLParam(r, "kind"), body.IDs)
+	writeMutation(w, http.StatusOK, res, err)
 }
 
 func (h *Handler) authenticateRead(w http.ResponseWriter, r *http.Request) (identityapp.Authenticated, bool) {

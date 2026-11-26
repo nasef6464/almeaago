@@ -349,10 +349,34 @@ type LibraryWrite struct {
 	PrimaryAssetID         string
 }
 
+type TrainerPermissions struct {
+	ManageTaxonomy    bool `json:"manageTaxonomy"`
+	ManageSkills      bool `json:"manageSkills"`
+	ManageFoundation  bool `json:"manageFoundation"`
+	ManageCourses     bool `json:"manageCourses"`
+	ManageLessons     bool `json:"manageLessons"`
+	ManageLibrary     bool `json:"manageLibrary"`
+	ManageQuestions   bool `json:"manageQuestions"`
+	ManageAssessments bool `json:"manageAssessments"`
+	CanDelete         bool `json:"canDelete"`
+	CanPublish        bool `json:"canPublish"`
+}
+
 type TrainerScope struct {
-	UserID     string
-	PathIDs    []string
-	SubjectIDs []string
+	UserID      string
+	PathIDs     []string
+	SubjectIDs  []string
+	Permissions TrainerPermissions
+}
+
+type BulkDeleteBlocked struct {
+	ID     string `json:"id"`
+	Reason string `json:"reason"`
+}
+
+type BulkDeleteResult struct {
+	DeletedIDs []string            `json:"deletedIds"`
+	Blocked    []BulkDeleteBlocked `json:"blocked"`
 }
 
 type CourseModule struct {

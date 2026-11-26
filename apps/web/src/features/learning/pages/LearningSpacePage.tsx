@@ -507,6 +507,18 @@ export function LearningSpacePage() {
           ))}
         </section>
 
+        {(user?.roles?.includes('admin') || user?.roles?.includes('teacher')) && pathId && subjectId ? (
+          <section aria-label="شريط الإدارة السريعة" className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-indigo-200 bg-indigo-50/70 px-4 py-2.5 text-xs font-black text-indigo-900">
+            <span>إدارة سريعة لمحتوى هذه المادة:</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link to={`/admin-dashboard/content?tab=courses`} className="rounded-lg bg-white px-3 py-1.5 text-indigo-700 shadow-xs hover:bg-indigo-100">الدورات والدروس والتأسيس والمكتبة</Link>
+              <Link to={`/admin-dashboard/skills`} className="rounded-lg bg-white px-3 py-1.5 text-indigo-700 shadow-xs hover:bg-indigo-100">المهارات</Link>
+              <Link to={`/admin-dashboard/questions`} className="rounded-lg bg-white px-3 py-1.5 text-indigo-700 shadow-xs hover:bg-indigo-100">بنك الأسئلة</Link>
+              <Link to={`/admin-dashboard/assessments`} className="rounded-lg bg-white px-3 py-1.5 text-indigo-700 shadow-xs hover:bg-indigo-100">الاختبارات والتدريبات</Link>
+            </div>
+          </section>
+        ) : null}
+
         {!pathId ? (
           <section className="space-y-6">
             <div className="rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-sm">

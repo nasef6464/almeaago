@@ -497,24 +497,43 @@ export function QuestionBankAdminPage() {
   async function deleteQuestion(rowId: string) {
     const row = rows.find((r) => r.id === rowId);
     const code = row?.questionCode || 'هذا السؤال';
-    if (!window.confirm(`هل أنت متأكد من حذف ${code} (أرشفته)؟`)) {
+    if (!window.confirm(`هل أنت متأكد من حذف السؤال ${code} نهائيًا؟ (إذا كان مرتبطًا باختبارات أو محاولات نشطة ستتمكن من أرشفته بدل الحذف)`)) {
       return;
     }
     await run('delete-' + rowId, async (csrf) => {
-      const version = row ? row.currentVersion : 1;
-      await questionBankClient.workflow(rowId, version, 'archived', 'تم الحذف من جدول بنك الأسئلة', csrf);
-      setRows((prev) => prev.filter((r) => r.id !== rowId));
-      setSelectedQuestionIds((prev) => {
-        if (!prev.has(rowId)) return prev;
-        const next = new Set(prev);
-        next.delete(rowId);
-        return next;
-      });
-      setCoverage((prev) => ({
-        ...prev,
-        questionsTotal: Math.max(0, prev.questionsTotal - 1),
-      }));
-      setNotice(`تم حذف (أرشفة) السؤال ${code} بنجاح`);
+      try {
+        await questionBankClient.deleteQuestion(rowId, csrf);
+        setRows((prev) => prev.filter((r) => r.id !== rowId));
+        setSelectedQuestionIds((prev) => {
+          if (!prev.has(rowId)) return prev;
+          const next = new Set(prev);
+          next.delete(rowId);
+          return next;
+        });
+        setCoverage((prev) => ({
+          ...prev,
+          questionsTotal: Math.max(0, prev.questionsTotal - 1),
+        }));
+        setNotice(`تم حذف السؤال ${code} نهائيًا بنجاح`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : '';
+        if (msg.includes('مرتبط') || msg.includes('نشطة')) {
+          if (window.confirm(`${msg}\nهل تريد أرشفة السؤال ${code} بدلًا من الحذف النهائي؟`)) {
+            const version = row ? row.currentVersion : 1;
+            await questionBankClient.workflow(rowId, version, 'archived', 'تمت الأرشفة لوجود ارتباطات نشطة', csrf);
+            setRows((prev) => prev.filter((r) => r.id !== rowId));
+            setSelectedQuestionIds((prev) => {
+              if (!prev.has(rowId)) return prev;
+              const next = new Set(prev);
+              next.delete(rowId);
+              return next;
+            });
+            setNotice(`تمت أرشفة السؤال ${code} بنجاح`);
+            return;
+          }
+        }
+        throw err;
+      }
     });
   }
 
@@ -1678,7 +1697,38 @@ export function QuestionBankAdminPage() {
                   type="button"
                   onClick={async () => {
                     const count = selectedQuestionIds.size;
-                    if (!window.confirm(`هل أنت متأكد من حذف وأرشفة ${count} سؤال/أسئلة محددة؟`)) {
+                    if (!window.confirm(`هل أنت متأكد من الحذف النهائي لـ ${count} سؤال/أسئلة محددة؟ الأسئلة المرتبطة باختبارات أو محاولات نشطة لن تُحذف.`)) {
+                      return;
+                    }
+                    const ids = Array.from(selectedQuestionIds);
+                    await run('bulk-delete', async (csrf) => {
+                      const res = await questionBankClient.bulkDelete(ids, csrf);
+                      if (res.deletedIds.length > 0) {
+                        const deletedSet = new Set(res.deletedIds);
+                        setRows((prev) => prev.filter((r) => !deletedSet.has(r.id)));
+                        setSelectedQuestionIds((prev) => {
+                          const next = new Set(prev);
+                          res.deletedIds.forEach((id) => next.delete(id));
+                          return next;
+                        });
+                      }
+                      if (res.blocked.length > 0) {
+                        setNotice(`تم حذف ${res.deletedIds.length} سؤال نهائيًا، وتعذر حذف ${res.blocked.length} لارتباطه باختبارات أو محاولات نشطة.`);
+                      } else {
+                        setNotice(`تم حذف ${res.deletedIds.length} سؤال نهائيًا بنجاح`);
+                      }
+                    });
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-colors shadow-xs cursor-pointer"
+                  title="حذف نهائي للأسئلة غير المرتبطة"
+                >
+                  <Trash2 size={15} /> حذف نهائي ({selectedQuestionIds.size})
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const count = selectedQuestionIds.size;
+                    if (!window.confirm(`هل أنت متأكد من أرشفة ${count} سؤال/أسئلة محددة؟`)) {
                       return;
                     }
                     const ids = Array.from(selectedQuestionIds);
@@ -1687,12 +1737,12 @@ export function QuestionBankAdminPage() {
                     }
                     setRows((prev) => prev.filter((r) => !ids.includes(r.id)));
                     setSelectedQuestionIds(new Set());
-                    setNotice(`تم حذف وأرشفة ${count} سؤال بنجاح`);
+                    setNotice(`تمت أرشفة ${count} سؤال بنجاح`);
                   }}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-colors shadow-xs cursor-pointer"
-                  title="حذف وأرشفة جميع الأسئلة المحددة"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-700 text-white text-xs font-bold hover:bg-slate-800 transition-colors shadow-xs cursor-pointer"
+                  title="أرشفة جميع الأسئلة المحددة"
                 >
-                  <Trash2 size={15} /> حذف جماعي ({selectedQuestionIds.size})
+                  <Archive size={15} /> أرشفة جماعية ({selectedQuestionIds.size})
                 </button>
               </>
             )}

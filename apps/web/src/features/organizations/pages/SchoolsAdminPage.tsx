@@ -51,82 +51,11 @@ import {
   type SchoolContractData,
   type SchoolDirectorRecord,
 } from '../api/organizations-client';
+import { SchoolCreateDialog } from '../components/SchoolCreateDialog';
+import { ALL_CONTRACT_MODULES, PACKAGE_TIERS } from '../utils/schoolContractModules';
 import { commerceClient } from '../../commerce/api/commerce-client';
 import type { CommerceAccessCode, CommerceProduct } from '../../commerce/api/commerce-types';
 import { Skeleton, SkeletonTable, SkeletonMetricCard } from '../../../components/ui/Skeleton';
-
-export const PACKAGE_TIERS = [
-  {
-    id: 'tier_foundation',
-    name: 'باقة التأسيس',
-    badge: 'الأساسية',
-    description: 'تشمل مسار القدرات وبنك الأسئلة التفاعلي وتأسيس الفصول والمقاعد المدرسية.',
-    color: 'border-blue-200 bg-blue-50/50 text-blue-800',
-    modules: ['SCHOOL_CORE', 'QUESTION_BANK', 'PATHS_AND_COURSES'],
-    allowedPaths: ['qudurat_general'],
-    maxSeats: 200,
-    maxClasses: 5,
-  },
-  {
-    id: 'tier_excellence',
-    name: 'باقة التميز الأكاديمي',
-    badge: 'الأكثر طلباً ⭐',
-    description: 'تشمل القدرات والتحصيلي والفصول الذكية ونظام الاختبارات والتقييمات المدرسية الشامل.',
-    color: 'border-indigo-300 bg-indigo-50/70 text-indigo-900',
-    modules: ['SCHOOL_CORE', 'QUESTION_BANK', 'SCHOOL_ASSESSMENTS', 'PATHS_AND_COURSES', 'INTERACTIVE_VIDEO', 'SMART_CLASSROOM'],
-    allowedPaths: ['qudurat_general', 'tahsili_science'],
-    maxSeats: 500,
-    maxClasses: 15,
-  },
-  {
-    id: 'tier_smart_vip',
-    name: 'باقة المدرسة الذكية VIP',
-    badge: 'VIP شاملة 👑',
-    description: 'جميع وحدات المنصة الـ 11 بالكامل، الشعار المميز، ذكاء رادار نافس والتحليلات التنفيذية العليا.',
-    color: 'border-amber-300 bg-amber-50/70 text-amber-900',
-    modules: [
-      'SCHOOL_CORE',
-      'QUESTION_BANK',
-      'SCHOOL_ASSESSMENTS',
-      'PATHS_AND_COURSES',
-      'INTERACTIVE_VIDEO',
-      'SMART_CLASSROOM',
-      'SCHOOL_INTELLIGENCE',
-      'INTERVENTION_CENTER',
-      'LIVE_TUTORING',
-      'WHITE_LABEL',
-      'EXECUTIVE_ANALYTICS',
-    ],
-    allowedPaths: ['qudurat_general', 'tahsili_science', 'tahsili_arts', 'nafis_national'],
-    maxSeats: 2000,
-    maxClasses: 50,
-  },
-  {
-    id: 'custom',
-    name: 'وضع التخصيص الحر',
-    badge: 'مخصص',
-    description: 'تحكم تفصيلي كامل في اختيار وتفعيل كل موديول ومسار وسعة المقاعد حسب بنود العقد.',
-    color: 'border-slate-200 bg-slate-50 text-slate-800',
-    modules: [],
-    allowedPaths: [],
-    maxSeats: 500,
-    maxClasses: 15,
-  },
-] as const;
-
-export const ALL_CONTRACT_MODULES = [
-  { id: 'SCHOOL_CORE', title: 'نواة المدرسة والفصول (School Core)', desc: 'إدارة الهيكل التنظيمي والفصول وإسناد الكادر التعليمي.' },
-  { id: 'QUESTION_BANK', title: 'بنك الأسئلة المدرسية (Question Bank)', desc: 'إتاحة آلاف الأسئلة المصنفة مع الشروحات ونماذج الحل.' },
-  { id: 'SCHOOL_ASSESSMENTS', title: 'التقييمات والاختبارات (School Assessments)', desc: 'إنشاء اختبارات دورية ومحاكاة قدرات وتحصيلي بمستويات قياس.' },
-  { id: 'PATHS_AND_COURSES', title: 'المسارات والمقررات (Paths & Courses)', desc: 'المحتوى التعليمي التأسيسي والمتقدم والتسلسل المهاري.' },
-  { id: 'INTERACTIVE_VIDEO', title: 'الفيديو التفاعلي (Interactive Video)', desc: 'شروحات مرئية تفاعلية تتوقف لطرح أسئلة قياس فهم فورية.' },
-  { id: 'SMART_CLASSROOM', title: 'وحدة الفصول الذكية (Smart Classroom)', desc: 'جلسات تفاعلية حية وتحديات تنافسية مباشرة داخل الفصل.' },
-  { id: 'SCHOOL_INTELLIGENCE', title: 'ذكاء المدرسة ورادار نافس (School Intelligence)', desc: 'تحليل الفجوات المهارية ورادار الجاهزية للاختبارات الوطنية.' },
-  { id: 'INTERVENTION_CENTER', title: 'مركز التدخلات العلاجية (Intervention Center)', desc: 'خطط علاجية وتوجيه مهاري آلي للطلاب المتعثرين.' },
-  { id: 'LIVE_TUTORING', title: 'الدروس المساندة المباشرة (Live Tutoring)', desc: 'فصول تقوية وبث مباشر للمراجعات المكثفة ليلة الاختبار.' },
-  { id: 'WHITE_LABEL', title: 'الهوية والشعار المميز (White-Label & Branding)', desc: 'ظهور شعار المدرسة في اللوحات والتقارير والشهادات الرسمية.' },
-  { id: 'EXECUTIVE_ANALYTICS', title: 'التحليلات التنفيذية (Executive Analytics)', desc: 'تقارير الأداء الشامل ومؤشرات القيادة لملاك ومدراء المجمعات.' },
-] as const;
 
 export const ALL_CONTRACT_PATHS = [
   { id: 'qudurat_general', name: 'القدرات العامة (علمي وأدبي)', badge: 'قدرات' },
@@ -143,14 +72,6 @@ interface SchoolPortfolioStats {
   packagesCount: number;
   readinessScore: number;
   readinessStatus: 'ready' | 'near_ready' | 'needs_setup';
-}
-
-interface NewSchoolForm {
-  name: string;
-  code: string;
-  directorName: string;
-  directorEmail: string;
-  initialClass: string;
 }
 
 export function SchoolsAdminPage() {
@@ -201,15 +122,6 @@ export function SchoolsAdminPage() {
 
   // Modals & Panels
   const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [wizardForm, setWizardForm] = useState<NewSchoolForm>({
-    name: '',
-    code: '',
-    directorName: '',
-    directorEmail: '',
-    initialClass: 'الصف الأول الثانوي',
-  });
-  const [wizardBusy, setWizardBusy] = useState(false);
-
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState('');
 
@@ -698,51 +610,11 @@ export function SchoolsAdminPage() {
     }
   };
 
-  const handleCreateSchool = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!wizardForm.name.trim() || !wizardForm.code.trim()) {
-      setError('يرجى كتابة اسم المدرسة والرمز التعريفي.');
-      return;
-    }
-
-    try {
-      setWizardBusy(true);
-      setError(null);
-      const csrf = await getCsrfToken();
-      const res = await organizationsClient.createSchool(
-        {
-          name: wizardForm.name.trim(),
-          code: wizardForm.code.trim().toUpperCase(),
-          metadata: {
-            directorName: wizardForm.directorName,
-            directorEmail: wizardForm.directorEmail,
-            initialClass: wizardForm.initialClass,
-          },
-        },
-        csrf,
-      );
-
-      setNotice(`تم إنشاء المدرسة «${wizardForm.name}» بنجاح.`);
-      setIsWizardOpen(false);
-      setWizardForm({
-        name: '',
-        code: '',
-        directorName: '',
-        directorEmail: '',
-        initialClass: 'الصف الأول الثانوي',
-      });
-      await loadSchools();
-
-      if (res && res.school) {
-        await loadSchoolWorkspace(res.school);
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'تعذر إنشاء المدرسة';
-      setError(msg);
-    } finally {
-      setWizardBusy(false);
-    }
-  };
+  async function openCreatedSchool(school: SchoolSummary) {
+    setNotice(`تم إنشاء المدرسة «${school.name}» بنجاح.`);
+    await loadSchools();
+    await loadSchoolWorkspace(school);
+  }
 
   const openAssignDirectorModal = async () => {
     setDirectorAssignNotice(null);
@@ -2352,103 +2224,14 @@ export function SchoolsAdminPage() {
         </div>
       )}
 
-      {/* ── Modal: Add New School Wizard ── */}
-      {isWizardOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-              <div className="flex items-center gap-2">
-                <Building2 size={20} className="text-indigo-600" />
-                <h3 className="text-lg font-black text-gray-900">إضافة مدرسة جديدة للشراكات</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsWizardOpen(false)}
-                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateSchool} className="mt-4 space-y-4">
-              <div>
-                <label className="block text-xs font-black text-gray-700">اسم المدرسة</label>
-                <input
-                  type="text"
-                  required
-                  value={wizardForm.name}
-                  onChange={(e) => setWizardForm({ ...wizardForm, name: e.target.value })}
-                  placeholder="مثال: مدرسة دار العلوم الأهلية"
-                  className="mt-1 w-full rounded-xl border border-gray-200 p-2.5 text-xs font-bold focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-black text-gray-700">الرمز التعريفي للمدرسة (Code)</label>
-                <input
-                  type="text"
-                  required
-                  value={wizardForm.code}
-                  onChange={(e) => setWizardForm({ ...wizardForm, code: e.target.value })}
-                  placeholder="مثال: SCH-DAR-01"
-                  className="mt-1 w-full rounded-xl border border-gray-200 p-2.5 font-mono text-xs font-bold focus:border-indigo-500 focus:outline-none uppercase"
-                />
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="block text-xs font-black text-gray-700">اسم مدير المدرسة</label>
-                  <input
-                    type="text"
-                    value={wizardForm.directorName}
-                    onChange={(e) => setWizardForm({ ...wizardForm, directorName: e.target.value })}
-                    placeholder="مثال: أ. محمد العتيبي"
-                    className="mt-1 w-full rounded-xl border border-gray-200 p-2.5 text-xs font-bold focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-black text-gray-700">البريد الإلكتروني للإدارة</label>
-                  <input
-                    type="email"
-                    value={wizardForm.directorEmail}
-                    onChange={(e) => setWizardForm({ ...wizardForm, directorEmail: e.target.value })}
-                    placeholder="director@school.edu.sa"
-                    className="mt-1 w-full rounded-xl border border-gray-200 p-2.5 text-xs font-bold focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-black text-gray-700">الفصل الافتراضي الأولي</label>
-                <input
-                  type="text"
-                  value={wizardForm.initialClass}
-                  onChange={(e) => setWizardForm({ ...wizardForm, initialClass: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-gray-200 p-2.5 text-xs font-bold focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setIsWizardOpen(false)}
-                  className="rounded-xl border border-gray-200 px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50"
-                >
-                  إلغاء
-                </button>
-                <button
-                  type="submit"
-                  disabled={wizardBusy}
-                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
-                  data-testid="submit-create-school-btn"
-                >
-                  {wizardBusy ? 'جاري الإنشاء...' : 'إنشاء المدرسة وتجهيز مساحة العمل'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <SchoolCreateDialog
+        key={user?.id}
+        actorId={user?.id ?? ''}
+        open={isWizardOpen}
+        getCsrfToken={getCsrfToken}
+        onClose={() => setIsWizardOpen(false)}
+        onCreated={school => void openCreatedSchool(school)}
+      />
 
       {/* ── Modal: Rename School ── */}
       {isRenameOpen && (

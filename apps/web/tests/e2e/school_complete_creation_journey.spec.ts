@@ -128,7 +128,6 @@ async function openDirectorSection(page: Page, label: string) {
 }
 
 test.describe('School Complete Creation & Lifecycle User Journey', () => {
-  test.use({ baseURL: 'http://127.0.0.1:5173' });
   let currentUser = adminUser;
   let createdSchool = {
     id: 'sch-dar-01',
@@ -192,18 +191,21 @@ test.describe('School Complete Creation & Lifecycle User Journey', () => {
     );
 
     // Schools list & creation
-    await page.route(/\/api\/v1\/schools(\/|\/\?.*)?$/, async (route) => {
+    let savedSchool = { ...createdSchool, metadata: {} };
+    await page.route(url => url.pathname === '/api/v1/schools', async (route) => {
       const req = route.request();
       if (req.method() === 'POST') {
         const body = req.postDataJSON();
         expect(body.name).toBe('مدارس دار التميز الأهلية');
         expect(body.code).toBe('SCH-DAR-01');
         schoolCreationIntercepted = true;
-        return json(route, { school: createdSchool }, 201);
+        savedSchool = { ...createdSchool, metadata: body.metadata };
+        return json(route, { school: savedSchool }, 201);
       }
       const schools = createdSchool ? [createdSchool] : [];
       return json(route, { schools, pagination: { page: 1, limit: 100, total: schools.length, totalPages: 1 } });
     });
+    await page.route(url => url.pathname === '/api/v1/schools/sch-dar-01', route => json(route, { school: savedSchool }));
 
     // School Context for Director & Members
     await page.route(/\/api\/v1\/schools\/context/, (r) =>
@@ -222,20 +224,14 @@ test.describe('School Complete Creation & Lifecycle User Journey', () => {
     );
 
     // School Contract
-    await page.route(/\/api\/v1\/schools\/sch-dar-01\/contract/, (r) =>
-      json(r, {
-        contract: {
-          id: 'contract-dar-01',
-          schoolId: 'sch-dar-01',
-          status: 'active',
-          modules: directorModules,
-          validFrom: '2026-09-01T00:00:00Z',
-          validUntil: '2027-08-31T00:00:00Z',
-          revision: 1,
-          metadata: { packageTier: 'tier_excellence', maxSeats: 500, maxClasses: 15 },
-        },
-      })
-    );
+    let savedContract: Record<string, unknown> | undefined;
+    await page.route(url => url.pathname === '/api/v1/schools/sch-dar-01/contract' ||
+      url.pathname === '/api/v1/school-contracts/sch-dar-01', route => {
+      if (route.request().method() === 'PUT') {
+        savedContract = { ...route.request().postDataJSON(), id: 'contract-dar-01', schoolId: 'sch-dar-01', revision: 1, metadata: {} };
+      }
+      return savedContract ? json(route, { contract: savedContract }) : json(route, {}, 404);
+    });
 
     // School Classes
     await page.route(/\/api\/v1\/schools\/sch-dar-01\/classes/, (r) =>
@@ -440,8 +436,8 @@ test.describe('School Complete Creation & Lifecycle User Journey', () => {
     await expect(page.getByRole('heading', { name: 'إضافة مدرسة جديدة للشراكات' })).toBeVisible();
     await page.getByPlaceholder('مثال: مدرسة دار العلوم الأهلية').fill('مدارس دار التميز الأهلية');
     await page.getByPlaceholder('مثال: SCH-DAR-01').fill('SCH-DAR-01');
-    await page.getByPlaceholder('مثال: أ. محمد العتيبي').fill('أ. منصور العتيبي');
-    await page.getByPlaceholder('director@school.edu.sa').fill('director@dar-altamayoz.edu.sa');
+    const setupForm = page.getByRole('dialog', { name: 'إضافة مدرسة جديدة للشراكات' });
+    for (const _step of [1, 2, 3]) await setupForm.getByRole('button', { name: 'التالي' }).click();
 
     console.log('[E2E-JOURNEY] Step 1: Submitting school creation form...');
     const schoolCreatePromise = page.waitForResponse((r) => r.url().includes('/api/v1/schools') && r.request().method() === 'POST');

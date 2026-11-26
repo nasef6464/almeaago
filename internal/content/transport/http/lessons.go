@@ -15,6 +15,8 @@ func NewLessons(service *contentapp.Service, auth Authenticator) http.Handler {
 	r.Post("/", h.createLesson)
 	r.Get("/{id}", h.getLesson)
 	r.Put("/{id}", h.updateLesson)
+	r.Delete("/{id}", h.deleteKind("lesson", "id"))
+	r.Post("/bulk-delete", h.bulkDeleteKind("lesson"))
 	r.Patch("/{id}/workflow", h.lessonWorkflow)
 	return r
 }
