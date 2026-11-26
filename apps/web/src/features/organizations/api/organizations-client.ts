@@ -46,7 +46,7 @@ export interface SchoolPortfolioStats {
   activeAccessCodesCount: number;
   contractStatus: string;
 }
-export interface SchoolSummary { id: string; code: string; name: string; status: string; stats?: SchoolPortfolioStats }
+export interface SchoolSummary { id: string; code: string; name: string; status: string; stats?: SchoolPortfolioStats; metadata?: Record<string, unknown> }
 export interface DirectorStudent { studentId: string; name: string; email: string; phone: string; isActive: boolean; classId: string | null; className: string | null }
 export interface DirectorTeacher { teacherId: string; name: string; email: string; isActive: boolean }
 export interface DirectorAssignment { assignmentId: string; teacherId: string; classId: string; subjectId: string; status: string }
@@ -158,6 +158,13 @@ export const organizationsClient = {
     return request<{ schools: SchoolSummary[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
       '/api/v1/schools?page=1&limit=100&status=active', { signal });
   },
+  findSchools(search: string, page: number) {
+    const query = new URLSearchParams({ search, page: String(page), limit: '100' });
+    return request<{ schools: SchoolSummary[]; pagination: { totalPages: number } }>(`/api/v1/schools?${query}`);
+  },
+  school(schoolId: string) {
+    return request<{ school: SchoolSummary }>(`/api/v1/schools/${encodeURIComponent(schoolId)}`);
+  },
   teacherWorkspace(signal?: AbortSignal) {
     return request<TeacherWorkspace>('/api/v1/schools/teacher-workspace', { signal });
   },
@@ -191,9 +198,9 @@ export const organizationsClient = {
       method: 'POST', headers: { ...csrfHeaders(csrf), 'Idempotency-Key': requestKey }, body: JSON.stringify(input),
     });
   },
-  classes(schoolId: string, signal?: AbortSignal) {
+  classes(schoolId: string, signal?: AbortSignal, page = 1) {
     return request<{ classes: SchoolClass[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
-      `/api/v1/schools/${encodeURIComponent(schoolId)}/classes?page=1&limit=100&status=active`, { signal });
+      `/api/v1/schools/${encodeURIComponent(schoolId)}/classes?page=${page}&limit=100&status=active`, { signal });
   },
   supervisorRoster(schoolId: string, search: string, page: number, signal?: AbortSignal) {
     // The Go roster query enforces school/class supervisor scopes in PostgreSQL.
