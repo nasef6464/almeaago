@@ -48,11 +48,55 @@ async function openDirectorSection(page:Page,label:string){
   const nav=page.getByRole('navigation',{name:'أقسام لوحة مدير المدرسة'});
   const button=nav.getByRole('button',{name:label,exact:true});
   if(!(await button.isVisible())){
-    const group=label==='الملخص العام'?'البداية':label==='اختبارات المدرسة'?'التعلم والمتابعة':'إدارة المدرسة';
+    const group=label==='الملخص العام'?'البداية':['اختبارات المدرسة','الحصص الذكية المدرسية'].includes(label)?'التعلم والمتابعة':'إدارة المدرسة';
     await nav.locator('summary').filter({hasText:group}).click();
   }
   await button.click();
 }
+
+test('director smart classrooms use the school session list with scoped retry and live-only projection', async ({ page }) => {
+  test.setTimeout(60_000);
+  await mockDirector(page);
+  await page.route('**/api/v1/schools/context', route => json(route, { contexts: [
+    { schoolId: 'school-1', schoolName: 'مدرسة المئة', role: 'school_admin', permissions: [...permissions, 'SCHOOL_SMART_CLASSROOM_VIEW'], modules: ['SCHOOL_CORE', 'SMART_CLASSROOM'] },
+    { schoolId: 'school-2', schoolName: 'مدرسة ثانية', role: 'school_admin', permissions: ['SCHOOL_OVERVIEW_VIEW', 'SCHOOL_SMART_CLASSROOM_VIEW'], modules: ['SMART_CLASSROOM'] },
+  ] }));
+  const schoolsRequested: string[] = [];
+  let shouldFail = true;
+  await page.route('**/api/v1/classroom/teacher/sessions?*', route => {
+    const school = new URL(route.request().url()).searchParams.get('schoolId')!;
+    schoolsRequested.push(school);
+    if (school === 'school-2') return json(route, { sessions: [] });
+    if (shouldFail) return json(route, { message: 'Unavailable' }, 503);
+    const base = { schoolId: 'school-1', classId: 'class-1', day: '2026-11-27', period: 2, endedAt: null };
+    return json(route, { sessions: [
+      { ...base, id: 'live-row', status: 'live' },
+      { ...base, id: 'ended-row', status: 'ended', day: '2026-11-26' },
+      { ...base, id: 'foreign-row', schoolId: 'other', status: 'live' },
+    ] });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/school-director-dashboard');
+  await openDirectorSection(page, 'الحصص الذكية المدرسية');
+  await expect(page.getByRole('alert')).toContainText('تعذر تحميل الحصص الذكية');
+  const failedReads = schoolsRequested.length;
+  shouldFail = false;
+  await page.getByRole('button', { name: 'إعادة المحاولة' }).click();
+  const section = page.getByRole('region', { name: 'الحصص الذكية المدرسية' });
+  await expect(section.getByRole('article')).toHaveCount(2);
+  await expect(section.getByText('مكتملة', { exact: true })).toBeVisible();
+  const projector = section.getByRole('link', { name: 'فتح شاشة العرض' });
+  await expect(projector).toHaveCount(1);
+  await expect(projector).toHaveAttribute('href', '/classroom/live-row/projector');
+  await projector.click({ trial: true });
+  await expect(section).not.toContainText('605542');
+  expect(schoolsRequested.length).toBeGreaterThan(failedReads);
+  await page.getByLabel('المدرسة', { exact: true }).selectOption('school-2');
+  await openDirectorSection(page, 'الحصص الذكية المدرسية');
+  await expect(section.getByText('لا توجد حصص ذكية مسجلة لهذه المدرسة.')).toBeVisible();
+  await expect(section.getByRole('article')).toHaveCount(0);
+  expect([...new Set(schoolsRequested)]).toEqual(['school-1', 'school-2']);
+});
 
 test('Noor import counts saved students, protects credentials and retries only failed rows', async ({ page }) => {
   test.setTimeout(60_000);

@@ -33,6 +33,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../auth/state/AuthProvider';
 import { contentClient } from '../../content/api/content-client';
 import type { TaxonomyPath, TaxonomySubject } from '../../content/api/content-types';
+import { DirectorSmartClassrooms } from '../components/DirectorSmartClassrooms';
 import { DirectorAssessmentCreator } from '../components/DirectorAssessmentCreator';
 import { DirectorAssessmentReportPanel } from '../components/DirectorAssessmentReportPanel';
 import { DirectorTeacherAssignments } from '../components/DirectorTeacherAssignments';
@@ -250,32 +251,6 @@ export function SchoolDirectorDashboardPage(){
   const [skillsViewMode, setSkillsViewMode] = useState<'cards' | 'matrix'>('cards');
   const [activeSkillForDrawer, setActiveSkillForDrawer] = useState<any | null>(null);
   const [remedialFeedback, setRemedialFeedback] = useState('');
-
-  // Smart Classroom Live & Completed Sessions
-  const [smartSessions] = useState([
-    {
-      id: '01a1c5d4-ecb7-73e5-8184-eb07274aef81',
-      className: 'الصف الثالث الثانوي (أ)',
-      subjectName: 'القدرات العامة - القسم الكمي',
-      teacherName: 'أ. فهد القحطاني',
-      pin: '605542',
-      status: 'completed',
-      activeParticipants: 1,
-      finalizedAt: 'اليوم · 05:20 م',
-      mode: 'single',
-    },
-    {
-      id: '01a1c5d2-5a09-7228-8510-86cb4e28e35f',
-      className: 'الصف الثالث الثانوي (ب)',
-      subjectName: 'التحصيلي العلمي - فيزياء',
-      teacherName: 'أ. فهد القحطاني',
-      pin: '678683',
-      status: 'completed',
-      activeParticipants: 1,
-      finalizedAt: 'اليوم · 05:18 م',
-      mode: 'single',
-    },
-  ]);
 
   // School-wide Skills List
   const [directorSkills] = useState([
@@ -795,6 +770,7 @@ export function SchoolDirectorDashboardPage(){
           </div>
         </button>
 
+        {navItems.some(item => item.id === 'smart-classrooms') ? (
         <button onClick={() => setActiveSection('smart-classrooms')} className="group flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 text-right shadow-2xs hover:border-indigo-400 hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600"><Radio size={20} /></span>
@@ -802,9 +778,10 @@ export function SchoolDirectorDashboardPage(){
           </div>
           <div className="mt-4">
             <h3 className="font-black text-slate-900">الحصص التفاعلية الذكية</h3>
-            <p className="mt-1 text-xs text-slate-500">متابعة حصص المعلمين المباشرة ورموز الـ PIN ونسب المشاركة.</p>
+            <p className="mt-1 text-xs text-slate-500">متابعة الحصص المسجلة وفتح شاشة الحصة المباشرة.</p>
           </div>
         </button>
+        ) : null}
 
         <button onClick={() => setActiveSection('school-skills')} className="group flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 text-right shadow-2xs hover:border-indigo-400 hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
@@ -979,51 +956,13 @@ export function SchoolDirectorDashboardPage(){
       />
     ) : null}
 
-    {/* SECTION: SMART CLASSROOMS */}
-    {section==='smart-classrooms'?<section aria-label="الحصص الذكية المدرسية" className="mt-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-5 rounded-3xl border shadow-sm">
-        <div>
-          <span className="text-xs font-black text-rose-600 flex items-center gap-1.5"><Radio size={14} className="animate-pulse" /> الحصص التفاعلية والبث المباشر</span>
-          <h2 className="text-xl font-black text-slate-900 mt-1">الحصص الذكية المدرسية</h2>
-          <p className="text-xs text-slate-500 mt-0.5">متابعة غرف البث المباشر ورموز الـ PIN ونسب إنجاز الطلاب لحظة بلحظة</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="bg-rose-50 text-rose-700 px-3 py-1.5 rounded-xl text-xs font-black">{smartSessions.length} حصص مسجلة</span>
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        {smartSessions.map((session) => (
-          <article key={session.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs hover:border-indigo-300 transition-all">
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="inline-block rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-700 mb-2">
-                  PIN: <strong className="text-indigo-700 font-mono text-sm tracking-wider">{session.pin}</strong>
-                </span>
-                <h3 className="font-black text-slate-900 text-base">{session.className}</h3>
-                <p className="text-xs font-bold text-slate-600 mt-1">{session.subjectName}</p>
-              </div>
-              <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 text-[11px] font-black">مكتملة وموثقة</span>
-            </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-              <span className="font-bold">المعلم: {session.teacherName}</span>
-              <span>المشاركون: <strong className="text-slate-900">{session.activeParticipants} طلاب</strong></span>
-            </div>
-            <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
-              <span>التوقيت: {session.finalizedAt}</span>
-              <a
-                href={`/classroom/${session.id}/projector`}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
-              >
-                شاشة العرض (البروجكتر) ←
-              </a>
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>:null}
+    {section==='smart-classrooms' ? <DirectorSmartClassrooms
+      key={selectedSchool.schoolId}
+      schoolId={selectedSchool.schoolId}
+      classes={classes.length ? classes : (overview?.classes ?? []).map(item => ({ id: item.classId, name: item.className }))}
+      subjects={subjects}
+      teachers={teachers}
+    /> : null}
 
     {/* SECTION: SCHOOL SKILLS RADAR */}
     {section==='school-skills'?<section aria-label="رادار مهارات المدرسة" className="mt-6 space-y-6">
