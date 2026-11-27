@@ -57,7 +57,7 @@ export function DirectorSmartClassrooms({ schoolId, classes, subjects, teachers 
           const subject = subjects.find(item => item.id === session.subjectId);
           const teacher = teachers.find(item => item.teacherId === session.teacherId);
           return <article key={session.id} className="space-y-3 rounded-2xl border bg-white p-5 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-between">
               <h3 className="font-black text-slate-900">{classroom?.name || subject?.name || 'حصة ذكية'}</h3>
               <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${session.status === 'live' ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-700'}`}>
                 {statusLabels[session.status] || 'حالة غير متاحة'}
