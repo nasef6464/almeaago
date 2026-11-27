@@ -47,11 +47,64 @@ async function openDirectorSection(page:Page,label:string){
   const nav=page.getByRole('navigation',{name:'أقسام لوحة مدير المدرسة'});
   const button=nav.getByRole('button',{name:label,exact:true});
   if(!(await button.isVisible())){
-    const group=label==='الملخص العام'?'البداية':label==='اختبارات المدرسة'?'التعلم والمتابعة':'إدارة المدرسة';
+    const group=label==='الملخص العام'?'البداية':label==='اختبارات المدرسة'?'التعلم والمتابعة':
+      label==='رادار مهارات المدرسة'?'الذكاء الأكاديمي والتدخلات':'إدارة المدرسة';
     await nav.locator('summary').filter({hasText:group}).click();
   }
   await button.click();
 }
+
+test('director radar reads scoped school evidence and distinguishes zero from no measurement', async ({page}) => {
+  await mockDirector(page);
+  await page.route('**/api/v1/schools/context', route => json(route, {contexts: [
+    {schoolId:'school-1',schoolName:'مدرسة المئة',role:'school_admin',
+      permissions:[...permissions,'SCHOOL_REPORTS_DETAILED_VIEW'],modules:['SCHOOL_CORE','SCHOOL_INTELLIGENCE'],source:'membership'},
+    {schoolId:'school-2',schoolName:'مدرسة ثانية',role:'school_admin',
+      permissions:['SCHOOL_OVERVIEW_VIEW'],modules:['SCHOOL_CORE'],source:'membership'},
+  ]}));
+  const queries: URLSearchParams[] = [];
+  let fail = false;
+  await page.route('**/api/v1/learning/evidence?*', route => {
+    const query = new URL(route.request().url()).searchParams;
+    queries.push(query);
+    if (fail) return json(route, {}, 503);
+    return json(route, {
+      source:'school_assessment',subjectId:'subject-1',days:30,
+      policy:{minimumAnswers:5,supportBelow:60,readyFrom:80},
+      coverage:'scoped_school_assessment',total:2,filteredTotal:2,page:1,limit:20,
+      summary:{unmeasured:1,insufficient:0,support:1,developing:0,ready:0},
+      students:[
+        {id:'st-a',name:'طالب بقياس',status:'support',skillCount:1,skills:[
+          {id:'sk-a',name:'مهارة الكسور',accuracy:0,questions:5,correct:0,tests:1,status:'support'},
+        ]},
+        {id:'st-b',name:'طالب دون قياس',status:'unmeasured',skillCount:0,skills:[]},
+      ],
+    });
+  });
+  await page.goto('/school-director-dashboard');
+  await openDirectorSection(page,'رادار مهارات المدرسة');
+  const radar = page.getByRole('region',{name:'رادار مهارات المدرسة'});
+  await radar.getByLabel('المسار',{exact:true}).selectOption('path-1');
+  await radar.getByLabel('المادة',{exact:true}).selectOption('subject-1');
+  await expect(radar.getByText('مهارة الكسور',{exact:true})).toBeVisible();
+  await expect(radar.getByText('0%',{exact:true})).toBeVisible();
+  await expect(radar.getByText('لا توجد إجابات مقاسة لهذا الطالب.')).toBeVisible();
+  expect(Object.fromEntries(queries.at(-1)!)).toMatchObject({
+    source:'school_assessment',schoolId:'school-1',pathId:'path-1',subjectId:'subject-1',page:'1',
+  });
+
+  fail = true;
+  await radar.getByLabel('الفصل',{exact:true}).selectOption('class-1');
+  await expect(radar.getByRole('alert')).toContainText('تعذر تحميل أدلة المهارات');
+  await expect(radar.getByText('مهارة الكسور',{exact:true})).toHaveCount(0);
+  expect(queries.at(-1)?.get('classId')).toBe('class-1');
+  fail = false;
+  await radar.getByRole('button',{name:'إعادة المحاولة'}).click();
+  await expect(radar.getByText('مهارة الكسور',{exact:true})).toBeVisible();
+  await page.getByLabel('المدرسة',{exact:true}).selectOption('school-2');
+  await expect(radar).toHaveCount(0);
+  expect(queries.every(query => query.get('schoolId') === 'school-1')).toBe(true);
+});
 
 test('school director desktop runs bounded student class and teacher operations',async({page})=>{
   await mockDirector(page);
