@@ -1925,9 +1925,14 @@ paths:
   /api/v1/classroom/teacher/sessions:
     get:
       operationId: classroomTeacherSessionsAlias
-      description: Bounded recent sessions owned by the authenticated teacher or school supervisor scope.
+      description: Up to 50 recent classroom sessions visible to the authenticated staff account within its role and school scope.
+      parameters:
+        - { in: query, name: schoolId, schema: { type: string, format: uuid }, description: Scope the list to the selected school }
       responses:
         "200": { description: Recent classroom sessions }
+        "400": { description: Invalid school identifier }
+        "401": { description: Authentication required }
+        "403": { description: Staff role or school scope denied }
 
   /api/v1/classroom/join:
     post:
