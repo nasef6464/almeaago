@@ -13,7 +13,6 @@ import (
 	"os/signal"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -124,11 +123,16 @@ func loadMigrations(dir fs.FS) ([]migration, error) {
 	if len(list) == 0 {
 		return nil, errors.New("no migrations found")
 	}
-	for i, pair := range list {
-		version, _ := strconv.Atoi(pair.name[:6])
-		if version != i+1 || pair.up == "" || pair.down == "" {
-			return nil, fmt.Errorf("expected a complete migration pair for version %06d, found %s", i+1, pair.name)
+	previous := "000000"
+	for _, pair := range list {
+		version := pair.name[:6]
+		if version == previous {
+			return nil, fmt.Errorf("invalid or duplicate migration version %s", version)
 		}
+		if pair.up == "" || pair.down == "" {
+			return nil, fmt.Errorf("missing migration pair for %s", pair.name)
+		}
+		previous = version
 	}
 	return list, nil
 }

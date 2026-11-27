@@ -10,14 +10,28 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func TestLoadMigrationsRejectsMissingPairAndVersion(t *testing.T) {
+func TestLoadMigrationsRejectsMissingPairAndDuplicateVersion(t *testing.T) {
 	for _, files := range []fstest.MapFS{
 		{"000001_first.up.sql": {Data: []byte("SELECT 1;")}},
-		{"000002_second.up.sql": {Data: []byte("SELECT 1;")}, "000002_second.down.sql": {Data: []byte("SELECT 1;")}},
+		{
+			"000001_first.up.sql": {Data: []byte("SELECT 1;")}, "000001_first.down.sql": {Data: []byte("SELECT 1;")},
+			"000001_second.up.sql": {Data: []byte("SELECT 1;")}, "000001_second.down.sql": {Data: []byte("SELECT 1;")},
+		},
 	} {
 		if _, err := loadMigrations(files); err == nil {
 			t.Fatal("accepted incomplete migration history")
 		}
+	}
+}
+
+func TestLoadMigrationsAllowsVersionsReservedByOtherBranches(t *testing.T) {
+	files := fstest.MapFS{
+		"000001_first.up.sql": {Data: []byte("SELECT 1;")}, "000001_first.down.sql": {Data: []byte("SELECT 1;")},
+		"000004_fourth.up.sql": {Data: []byte("SELECT 1;")}, "000004_fourth.down.sql": {Data: []byte("SELECT 1;")},
+	}
+	list, err := loadMigrations(files)
+	if err != nil || len(list) != 2 || list[1].name != "000004_fourth" {
+		t.Fatalf("branch-local migration pairs: %v, %v", list, err)
 	}
 }
 
