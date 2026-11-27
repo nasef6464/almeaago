@@ -19,7 +19,7 @@ const pageSize = 20;
 
 function SkillResult({ skill }: { skill: LearningEvidenceSkill }) {
   return <li className="rounded-xl bg-slate-50 px-3 py-2">
-    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+    <div className="flex flex-wrap items-baseline gap-x-3">
       <span className="font-bold">{skill.name}</span>
       <span className="font-black tabular-nums" dir="ltr">{skill.accuracy == null ? '—' : `${skill.accuracy}%`}</span>
     </div>
@@ -152,7 +152,7 @@ export function DirectorSkillsRadar({ school }: { school: SchoolContext }) {
       <button type="button" className={`mt-2 ${buttonClass}`} onClick={() => setRetry(current => current + 1)}>إعادة المحاولة</button>
     </div> : null}
     {report ? <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <p className="text-sm text-slate-700">آخر {report.days} يومًا · {report.filteredTotal} طالب مطابق</p>
         <div aria-label="طريقة عرض النتائج" role="group" className="flex flex-wrap gap-2">
           <button type="button" className={buttonClass} aria-pressed={view === 'cards'} onClick={() => setView('cards')}>بطاقات</button>
