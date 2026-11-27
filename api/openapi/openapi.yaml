@@ -2106,7 +2106,7 @@ paths:
       operationId: organizationsTeacherWorkspace
       description: >
         Organizations-owned structural workspace for an authenticated teacher. Returns active
-        school/class/subject assignments and aggregate student counts, plus a platformTrainer
+        school/class/subject assignments with subjectId, subjectName and aggregate student counts, plus a platformTrainer
         persona boolean resolved from Content's canonical active trainer scope. Organizations
         does not infer platform-trainer authority from school membership. Entitlements,
         assessments, realtime state, and reporting data remain owned by their domains.

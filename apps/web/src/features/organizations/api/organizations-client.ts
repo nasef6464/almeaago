@@ -34,7 +34,7 @@ export interface SchoolContractData {
 }
 export interface SchoolClass { id: string; schoolId: string; code: string; name: string; status: string }
 export interface RosterMember { userId: string; name: string; email: string; status: string; roles: string[]; classIds: string[] }
-export interface TeacherWorkspaceAssignment { assignmentId: string; classId: string; className: string; subjectId: string; studentCount: number }
+export interface TeacherWorkspaceAssignment { assignmentId: string; classId: string; className: string; subjectId: string; subjectName?: string; studentCount: number }
 export interface TeacherWorkspaceSchool { schoolId: string; schoolName: string; source: string; assignments: TeacherWorkspaceAssignment[] }
 export interface TeacherWorkspace { personas: { platformTrainer: boolean; schoolTeacher: boolean }; schools: TeacherWorkspaceSchool[] }
 export interface SchoolPortfolioStats {

@@ -81,7 +81,7 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		"CREATE TABLE school_memberships (school_id uuid, user_id uuid, role text, status text)",
 		"CREATE TABLE class_memberships (class_id uuid, user_id uuid, status text)",
 		"CREATE TABLE paths (id uuid PRIMARY KEY, status text)",
-		"CREATE TABLE subjects (id uuid PRIMARY KEY, path_id uuid, status text)",
+		"CREATE TABLE subjects (id uuid PRIMARY KEY, path_id uuid, status text, name text)",
 	} {
 		if _, err := pool.Exec(ctx, ddl); err != nil {
 			t.Fatal(err)
@@ -108,7 +108,7 @@ func TestTeacherWorkspaceSchoolAndAssignmentIsolationPostgres(t *testing.T) {
 		{"INSERT INTO users VALUES ($1,'active'),($2,'active'),($3,'active'),($4,'active')", []any{teacher, studentA, studentB, schoolAOnlyTeacher}},
 		{"INSERT INTO user_roles VALUES ($1,'teacher'),($2,'teacher')", []any{teacher, schoolAOnlyTeacher}},
 		{"INSERT INTO paths VALUES ($1,'active'),($2,'active')", []any{pathA, pathB}},
-		{"INSERT INTO subjects VALUES ($1,$2,'active'),($3,$4,'active')", []any{subject, pathA, subjectB, pathB}},
+		{"INSERT INTO subjects VALUES ($1,$2,'active','Mathematics'),($3,$4,'active','Science')", []any{subject, pathA, subjectB, pathB}},
 		{"INSERT INTO schools VALUES ($1,'مدرسة ألف','active'),($2,'مدرسة باء','active')", []any{schoolA, schoolB}},
 		{"INSERT INTO classes VALUES ($1,$2,'الأول ألف','active'),($3,$4,'الثاني باء','active')", []any{classA, schoolA, classB, schoolB}},
 		{"INSERT INTO school_memberships VALUES ($1,$3,'teacher','active'),($2,$3,'teacher','active'),($1,$4,'student','active'),($2,$5,'student','active'),($1,$6,'teacher','active')", []any{schoolA, schoolB, teacher, studentA, studentB, schoolAOnlyTeacher}},

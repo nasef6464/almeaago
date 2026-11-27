@@ -6,7 +6,7 @@ const teacher = {
 };
 const schools = [
   { schoolId: 'school-a', schoolName: 'مدرسة ألف', source: 'membership', assignments: [
-    { assignmentId: 'assign-a', classId: 'class-a', className: 'الأول ألف', subjectId: 'math-a', studentCount: 11 },
+    { assignmentId: 'assign-a', classId: 'class-a', className: 'الأول ألف', subjectId: 'math-a', subjectName: 'القدرات الكمية', studentCount: 11 },
   ] },
   { schoolId: 'school-b', schoolName: 'مدرسة باء', source: 'membership', assignments: [
     { assignmentId: 'assign-b', classId: 'class-b', className: 'الثاني باء', subjectId: 'math-b', studentCount: 23 },
@@ -250,19 +250,26 @@ test('teacher assessments load from server and learning evidence supports 5-stat
   await page.route('**/api/v1/learning/evidence*', route => {
     const url = route.request().url();
     evidenceRequests.push(url);
-    const source = new URL(url).searchParams.get('source') || 'school_assessment';
+    const query = new URL(url).searchParams;
+    expect(query.get('schoolId')).toBe('school-a');
+    expect(query.get('subjectId')).toBe('math-a');
+    expect(Number(query.get('limit'))).toBeLessThanOrEqual(30);
+    const source = query.get('source') || 'school_assessment';
+    const resultPage = Number(query.get('page'));
     return json(route, {
       source,
-      subjectId: '',
+      subjectId: 'math-a',
       days: 30,
       policy: { minimumAnswers: 5, supportBelow: 60, readyFrom: 80 },
       coverage: 'school_scoped_students',
-      total: 2,
-      filteredTotal: 2,
-      page: 1,
-      limit: 50,
+      total: 31,
+      filteredTotal: 31,
+      page: resultPage,
+      limit: 30,
       summary: { unmeasured: 0, insufficient: 1, support: 0, developing: 0, ready: 1 },
-      students: [
+      students: resultPage === 2 ? [
+        { id: 'last-student', name: 'طالب الصفحة الثانية', status: 'unmeasured', skillCount: 0, skills: [] },
+      ] : [
         {
           id: 'real-student-1',
           name: source === 'platform_self_study' ? 'خالد عبدالله (ذاتي)' : 'خالد عبدالله',
@@ -292,9 +299,13 @@ test('teacher assessments load from server and learning evidence supports 5-stat
   await page.getByRole('navigation', { name: 'تنقل لوحة معلم المدرسة' }).getByText('التعلم والجاهزية').click();
   await expect(page).toHaveURL(/tab=learning-evidence/);
   await expect(page.getByTestId('teacher-learning-evidence')).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'المادة للتعلم والجاهزية' }).locator('option:checked')).toHaveText('القدرات الكمية');
   await expect(page.getByText('سياسة القياس: الحد الأدنى 5 إجابات')).toBeVisible();
   await expect(page.getByText('خالد عبدالله')).toBeVisible();
   await expect(page.getByTestId('teacher-learning-evidence').locator('span', { hasText: 'شواهد غير كافية' }).first()).toBeVisible();
+  await page.getByRole('navigation', { name: 'صفحات شواهد التعلم' }).getByRole('button', { name: 'التالي' }).click();
+  await expect(page.getByText('طالب الصفحة الثانية')).toBeVisible();
+  expect(evidenceRequests.some(url => new URL(url).searchParams.get('page') === '2')).toBe(true);
 
   // Switch source to platform_self_study
   await page.getByRole('button', { name: 'الدراسة الذاتية' }).click();

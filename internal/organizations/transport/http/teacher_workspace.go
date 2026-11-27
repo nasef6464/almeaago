@@ -26,6 +26,7 @@ type teacherWorkspaceAssignmentResponse struct {
 	ClassID      string `json:"classId"`
 	ClassName    string `json:"className"`
 	SubjectID    string `json:"subjectId"`
+	SubjectName  string `json:"subjectName"`
 	StudentCount int    `json:"studentCount"`
 }
 
@@ -63,6 +64,7 @@ func presentTeacherWorkspaceSchool(school orgdomain.TeacherWorkspaceSchool) teac
 			ClassID:      assignment.ClassID,
 			ClassName:    assignment.ClassName,
 			SubjectID:    assignment.SubjectID,
+			SubjectName:  assignment.SubjectName,
 			StudentCount: assignment.StudentCount,
 		})
 	}

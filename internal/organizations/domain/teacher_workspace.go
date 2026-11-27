@@ -21,5 +21,6 @@ type TeacherWorkspaceAssignment struct {
 	ClassID      string
 	ClassName    string
 	SubjectID    string
+	SubjectName  string
 	StudentCount int
 }
