@@ -1,4 +1,12 @@
 # نقطة استئناف — 1 نوفمبر 2026
+
+## 27 نوفمبر — رادار مهارات مدير المدرسة
+
+- مرجع الأصل `ed28102d7084899856de0371dc2c93a3d602d518` و`dashboards/SchoolDirectorAcademicCenter.tsx`. الكود `4290c1ef7a62e11754f52224e61c37d1ffbc0592` على `codex/director-skills-radar` فوق [#324](https://github.com/nasef6464/almeaago/pull/324) عند `58a86f570633738201cf917668d22eb50a584c99`. الملفات `DirectorSkillsRadar.tsx` و`SchoolDirectorDashboardPage.tsx` وعميل فصول المدرسة واختبار `organizations-director.spec.ts`.
+- مدير المدرسة المفوّض وتفعيل `SCHOOL_INTELLIGENCE` ← اختيار مسار ومادة وفصل اختياري وحالة/اسم الطالب ← `GET /api/v1/learning/evidence?source=school_assessment&schoolId=…&pathId=…&subjectId=…` ← خدمة أدلة التعلم ← صلاحية تقارير المدير ووحدة العقد وعضوية المدرسة والفصل ← PostgreSQL `mastery_evidence` و`mastery_evidence_skills` واختبارات المدرسة المالكة. الفصل يُضيّق قائمة الطلاب الحاليين، والمصدر اختبارات المدرسة. تظهر نسبة الإجابات الصحيحة وعددها وعدد الأسئلة والاختبارات، مع حالة غياب القياس. أزيل زر إنشاء التدريب ذي رسالة النجاح المصطنعة؛ مسار التدخل العلاجي غير مغلق.
+- **PASS محليًا:** TypeScript وثلاثة سيناريوهات Playwright للمدير تشمل خطأ القراءة وإعادة المحاولة واختفاء الرادار عند تبديل المدرسة إلى نطاق غير مفوض. `TestScopedLearningEvidencePostgres` ناجح على PostgreSQL معزول. تجربة المتصفح مع Go وPostgreSQL فعليين أثبتت 0% مقابل غياب الإجابات، و403 لمدرسة خارج التفويض، وبقاء الدليل بعد تحديث الصفحة وإعادة اختيار المادة، وRTL عند 390/820/1440. الصور و`director-radar-real-pass.log` في `C:/almeaago/tmp-evidence/supervisor-transfer-stack`. المقارنة البصرية المقترنة مع المصدر **PARTIAL**.
+- المحاور A/B/D/E/F/G/H، والمهارات `almeaa-api-contract-validator` و`almeaa-rbac-audit` و`almeaa-school-director-validator` و`almeaa-rtl-browser-verifier`. طلب الرادار مسودة فوق #324، وأُعيد تشغيل شريحة E2E التي تعثرت في اختبار صفحة مقرر الطالب في #324. عند اعتماد الأساس، يتطلب التحديث إلى main استعمال عميل الفصول المرقّم الموجود فيه وحفظ تعديلات صفحة المدير واختباراتها في #329 و#330. يبدأ الاستئناف بـ `gh pr list --head codex/director-skills-radar` ثم فحص الطلب و#324. لا دمج أو نشر لهذه الدفعة. بحوث العمليات مؤجلة.
+
 ## 26 نوفمبر — إتمام حزمة M3 (ولي الأمر والمعلم والمدرب والمدير والمشرف) وتحديث P6/P7 / PARTIAL
 
 - Go main `56bcf2dd` بعد دمج حزم M3 الأربع:
