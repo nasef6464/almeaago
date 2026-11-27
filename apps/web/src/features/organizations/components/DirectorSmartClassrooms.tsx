@@ -65,7 +65,7 @@ export function DirectorSmartClassrooms({ schoolId, classes, subjects, teachers 
             </div>
             {classroom && subject ? <p className="text-sm text-slate-700">{subject.name}</p> : null}
             {teacher ? <p className="text-sm text-slate-700">المعلم {teacher.name}</p> : null}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3 text-sm text-slate-600">
+            <div className="flex flex-col items-start gap-2 border-t pt-3 text-sm text-slate-600 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
               <span><bdi>{session.day}</bdi>{session.period != null ? ` · الحصة ${session.period}` : ''}</span>
               {session.status === 'live' ? <a href={`/classroom/${encodeURIComponent(session.id)}/projector`} target="_blank" rel="noreferrer" className="font-bold text-indigo-700 underline">فتح شاشة العرض</a> : null}
             </div>

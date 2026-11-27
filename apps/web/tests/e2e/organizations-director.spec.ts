@@ -88,6 +88,7 @@ test('director smart classrooms use the school session list with scoped retry an
   const projector = section.getByRole('link', { name: 'فتح شاشة العرض' });
   await expect(projector).toHaveCount(1);
   await expect(projector).toHaveAttribute('href', '/classroom/live-row/projector');
+  await projector.click({ trial: true });
   await expect(section).not.toContainText('605542');
   expect(schoolsRequested.length).toBeGreaterThan(failedReads);
   await page.getByLabel('المدرسة', { exact: true }).selectOption('school-2');
