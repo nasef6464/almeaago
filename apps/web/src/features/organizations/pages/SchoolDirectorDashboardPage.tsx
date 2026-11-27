@@ -9,10 +9,7 @@ import {
   ChevronRight,
   Download,
   FileText,
-  Filter,
   GraduationCap,
-  LayoutGrid,
-  ListFilter,
   Loader2,
   Pencil,
   Plus,
@@ -21,7 +18,6 @@ import {
   RotateCcw,
   Search,
   ShieldCheck,
-  SlidersHorizontal,
   Sparkles,
   Upload,
   Users,
@@ -36,6 +32,7 @@ import type { TaxonomyPath, TaxonomySubject } from '../../content/api/content-ty
 import { DirectorAssessmentCreator } from '../components/DirectorAssessmentCreator';
 import { DirectorAssessmentReportPanel } from '../components/DirectorAssessmentReportPanel';
 import { DirectorTeacherAssignments } from '../components/DirectorTeacherAssignments';
+import { DirectorSkillsRadar } from '../components/DirectorSkillsRadar';
 import { SupervisorTestsManager } from '../components/SupervisorTestsManager';
 import { SchoolDirectorBreadcrumb, SchoolDirectorSectionNav, directorNavItems, type DirectorSectionID } from '../components/SchoolDirectorSectionNav';
 import { SchoolImportPanel, type ImportSummary, type ImportCredentialItem } from '../components/SchoolImportPanel';
@@ -235,18 +232,6 @@ export function SchoolDirectorDashboardPage(){
     URL.revokeObjectURL(url);
   };
 
-  // Skills Radar States for School Director
-  const [skillLevelFilter, setSkillLevelFilter] = useState<'all' | 'critical' | 'watch' | 'mastered'>('all');
-  const [skillPathFilter, setSkillPathFilter] = useState('all');
-  const [skillSubjectFilter, setSkillSubjectFilter] = useState('all');
-  const [skillClassFilter, setSkillClassFilter] = useState('all');
-  const [skillGradeFilter, setSkillGradeFilter] = useState('all');
-  const [skillStudentFilter, setSkillStudentFilter] = useState('all');
-  const [skillSearchQuery, setSkillSearchQuery] = useState('');
-  const [skillsViewMode, setSkillsViewMode] = useState<'cards' | 'matrix'>('cards');
-  const [activeSkillForDrawer, setActiveSkillForDrawer] = useState<any | null>(null);
-  const [remedialFeedback, setRemedialFeedback] = useState('');
-
   // Smart Classroom Live & Completed Sessions
   const [smartSessions] = useState([
     {
@@ -270,99 +255,6 @@ export function SchoolDirectorDashboardPage(){
       activeParticipants: 1,
       finalizedAt: 'اليوم · 05:18 م',
       mode: 'single',
-    },
-  ]);
-
-  // School-wide Skills List
-  const [directorSkills] = useState([
-    {
-      id: 'sk-1',
-      skill: 'المتتابعات الحسابية والهندسية',
-      pathId: 'qudrat',
-      pathName: 'القدرات العامة',
-      subjectName: 'القدرات الكمي',
-      gradeName: 'الصف الثالث الثانوي',
-      classId: '018f0000-0000-7000-9100-000000000001',
-      className: 'الصف الثالث الثانوي (أ)',
-      mastery: 54,
-      attempts: 24,
-      atRiskStudents: [
-        { id: '018f0000-0000-7000-8000-000000000005', name: 'فيصل بن سعد', score: 52, status: 'حرجة', class: 'الصف الثالث الثانوي (أ)' },
-        { id: 'st-5', name: 'عمر القحطاني', score: 48, status: 'حرجة', class: 'الصف الثالث الثانوي (أ)' },
-        { id: 'st-6', name: 'عبدالله الشهري', score: 55, status: 'حرجة', class: 'الصف الثالث الثانوي (أ)' },
-      ],
-    },
-    {
-      id: 'sk-2',
-      skill: 'الكسور والعمليات الحسابية السريعة',
-      pathId: 'qudrat',
-      pathName: 'القدرات العامة',
-      subjectName: 'القدرات الكمي',
-      gradeName: 'الصف الثالث الثانوي',
-      classId: '018f0000-0000-7000-9100-000000000002',
-      className: 'الصف الثالث الثانوي (ب)',
-      mastery: 62,
-      attempts: 30,
-      atRiskStudents: [
-        { id: 'st-3', name: 'محمد الدوسري', score: 50, status: 'حرجة', class: 'الصف الثالث الثانوي (ب)' },
-        { id: 'st-7', name: 'ياسر الحربي', score: 64, status: 'قيد التعزيز', class: 'الصف الثالث الثانوي (ب)' },
-      ],
-    },
-    {
-      id: 'sk-3',
-      skill: 'التناسب الطردي والعكسي وتطبيقات النسبة',
-      pathId: 'qudrat',
-      pathName: 'القدرات العامة',
-      subjectName: 'القدرات الكمي',
-      gradeName: 'الصف الثالث الثانوي',
-      classId: '018f0000-0000-7000-9100-000000000001',
-      className: 'الصف الثالث الثانوي (أ)',
-      mastery: 86,
-      attempts: 42,
-      atRiskStudents: [],
-    },
-    {
-      id: 'sk-4',
-      skill: 'استيعاب المقروء وتحليل النصوص الفلسفية والبيئية',
-      pathId: 'qudrat',
-      pathName: 'القدرات العامة',
-      subjectName: 'القدرات اللفظي',
-      gradeName: 'الصف الثالث الثانوي',
-      classId: '018f0000-0000-7000-9100-000000000002',
-      className: 'الصف الثالث الثانوي (ب)',
-      mastery: 78,
-      attempts: 38,
-      atRiskStudents: [
-        { id: 'st-8', name: 'خالد المطيري', score: 58, status: 'حرجة', class: 'الصف الثالث الثانوي (ب)' },
-      ],
-    },
-    {
-      id: 'sk-5',
-      skill: 'قوانين نيوتن وحسابات القوة والتسارع',
-      pathId: 'tahsili',
-      pathName: 'التحصيلي العلمي',
-      subjectName: 'التحصيلي - فيزياء',
-      gradeName: 'الصف الثالث الثانوي',
-      classId: '018f0000-0000-7000-9100-000000000001',
-      className: 'الصف الثالث الثانوي (أ)',
-      mastery: 59,
-      attempts: 26,
-      atRiskStudents: [
-        { id: '018f0000-0000-7000-8000-000000000005', name: 'فيصل بن سعد', score: 56, status: 'حرجة', class: 'الصف الثالث الثانوي (أ)' },
-      ],
-    },
-    {
-      id: 'sk-6',
-      skill: 'الكيمياء الكهربية وتفاعلات الأكسدة والاختزال',
-      pathId: 'tahsili',
-      pathName: 'التحصيلي العلمي',
-      subjectName: 'التحصيلي - كيمياء',
-      gradeName: 'الصف الثاني الثانوي',
-      classId: '018f0000-0000-7000-9100-000000000003',
-      className: 'الصف الثاني الثانوي (أ)',
-      mastery: 91,
-      attempts: 34,
-      atRiskStudents: [],
     },
   ]);
 
@@ -677,39 +569,6 @@ export function SchoolDirectorDashboardPage(){
     setTimeout(() => setNotice(''), 4000);
   };
 
-  // Filtered skills radar
-  const filteredSkills = useMemo(() => {
-    return directorSkills.filter((s) => {
-      if (skillLevelFilter === 'critical' && s.mastery >= 60) return false;
-      if (skillLevelFilter === 'watch' && (s.mastery < 60 || s.mastery >= 75)) return false;
-      if (skillLevelFilter === 'mastered' && s.mastery < 75) return false;
-      if (skillPathFilter !== 'all' && s.pathId !== skillPathFilter) return false;
-      if (skillSubjectFilter !== 'all' && !s.subjectName.includes(skillSubjectFilter)) return false;
-      if (skillClassFilter !== 'all' && s.classId !== skillClassFilter) return false;
-      if (skillSearchQuery.trim()) {
-        const q = skillSearchQuery.toLowerCase();
-        if (!s.skill.toLowerCase().includes(q) && !s.subjectName.toLowerCase().includes(q)) return false;
-      }
-      return true;
-    });
-  }, [directorSkills, skillLevelFilter, skillPathFilter, skillSubjectFilter, skillClassFilter, skillSearchQuery]);
-
-  const activeSkillFilterCount = [
-    skillLevelFilter !== 'all',
-    skillPathFilter !== 'all',
-    skillSubjectFilter !== 'all',
-    skillClassFilter !== 'all',
-    skillGradeFilter !== 'all',
-    skillStudentFilter !== 'all',
-    skillSearchQuery.trim() !== '',
-  ].filter(Boolean).length;
-
-  const handleCreateRemedialDrill = (skill: any, studentName?: string) => {
-    const target = studentName ? `للطالب ${studentName}` : `لمجموعة الطلاب المتعثرين (${skill.atRiskStudents.length} طلاب)`;
-    setRemedialFeedback(`✅ تم إنشاء تدريب علاجي مكثف ${target} في مهارة "${skill.skill}" بنجاح.`);
-    setTimeout(() => setRemedialFeedback(''), 4500);
-  };
-
   if(authLoading||busy&&schools.length===0)return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 px-4 py-6 text-slate-900 sm:px-8"><div className="mx-auto max-w-7xl"><SchoolDirectorDashboardSkeleton/></div></main>;
   if(!user?.roles.includes('school_admin'))return <main dir="rtl" className="p-10 text-center font-black text-rose-700">هذه المساحة مخصصة لمدير المدرسة.</main>;
   if(!selectedSchool)return <main dir="rtl" className="min-h-[calc(100vh-5rem)] bg-slate-50 p-6"><div className="mx-auto mt-20 max-w-xl rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center"><ShieldCheck className="mx-auto text-slate-400" size={40}/><h1 className="mt-4 text-xl font-black">{error?'تعذر تحميل مساحة مدير المدرسة':'لا توجد مدرسة مفوضة'}</h1><p className="mt-2 text-sm text-slate-500">{error?'تعذر قراءة نطاق المدارس المصرح به. أعد فتح الصفحة للمحاولة مجددًا.':'اطلب من مدير المنصة ربط حسابك بمدرسة وتفعيل الصلاحيات المطلوبة.'}</p></div></main>;
@@ -798,16 +657,16 @@ export function SchoolDirectorDashboardPage(){
           </div>
         </button>
 
-        <button onClick={() => setActiveSection('school-skills')} className="group flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 text-right shadow-2xs hover:border-indigo-400 hover:shadow-md transition-all">
+        {navItems.some(item=>item.id==='school-skills')?<button onClick={() => setActiveSection('school-skills')} className="group flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 text-right shadow-2xs hover:border-indigo-400 hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><Activity size={20} /></span>
             <span className="text-xs font-bold text-emerald-600 group-hover:translate-x-1 transition-transform">رادار المهارات ←</span>
           </div>
           <div className="mt-4">
             <h3 className="font-black text-slate-900">رادار مهارات المدرسة</h3>
-            <p className="mt-1 text-xs text-slate-500">تحليل الفجوات والمهارات الحرجة للطلاب مع التدخل العلاجي.</p>
+            <p className="mt-1 text-xs text-slate-500">أدلة المهارات من اختبارات المدرسة لكل مادة.</p>
           </div>
-        </button>
+        </button>:null}
 
         <button onClick={() => setActiveSection('reports-export')} className="group flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 text-right shadow-2xs hover:border-indigo-400 hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
@@ -1018,295 +877,7 @@ export function SchoolDirectorDashboardPage(){
     </section>:null}
 
     {/* SECTION: SCHOOL SKILLS RADAR */}
-    {section==='school-skills'?<section aria-label="رادار مهارات المدرسة" className="mt-6 space-y-6">
-      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                <Activity size={16} />
-              </span>
-              <h2 className="text-xl font-black text-slate-900">رادار المهارات الأكاديمية للمدرسة</h2>
-            </div>
-            <p className="mt-1 text-xs text-slate-500">
-              تحليل مهارات الطلاب التراكمية في القدرات والتحصيلي مع الكشف المبكر عن المهارات الحرجة.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSkillsViewMode('cards')}
-              className={`flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-black cursor-pointer ${
-                skillsViewMode === 'cards' ? 'bg-indigo-600 text-white' : 'border border-slate-200 bg-slate-50 text-slate-700'
-              }`}
-            >
-              <LayoutGrid size={14} /> بطاقات
-            </button>
-            <button
-              onClick={() => setSkillsViewMode('matrix')}
-              className={`flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-black cursor-pointer ${
-                skillsViewMode === 'matrix' ? 'bg-indigo-600 text-white' : 'border border-slate-200 bg-slate-50 text-slate-700'
-              }`}
-            >
-              <ListFilter size={14} /> مصفوفة الفصول
-            </button>
-          </div>
-        </div>
-
-        {/* 6-Level Filter Bar */}
-        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-            <div className="flex items-center gap-2 text-xs font-black text-slate-700">
-              <SlidersHorizontal size={15} className="text-indigo-600" />
-              <span>فلاتر تصنيف المهارات للمدير</span>
-              {activeSkillFilterCount > 0 ? (
-                <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-black text-white">{activeSkillFilterCount}</span>
-              ) : null}
-            </div>
-            {activeSkillFilterCount > 0 ? (
-              <button
-                onClick={() => {
-                  setSkillLevelFilter('all');
-                  setSkillPathFilter('all');
-                  setSkillSubjectFilter('all');
-                  setSkillClassFilter('all');
-                  setSkillGradeFilter('all');
-                  setSkillStudentFilter('all');
-                  setSkillSearchQuery('');
-                }}
-                className="flex items-center gap-1 text-[11px] font-black text-rose-600 hover:text-rose-800"
-              >
-                <RotateCcw size={12} /> إعادة ضبط
-              </button>
-            ) : null}
-          </div>
-
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <div>
-              <label className="mb-1 block text-[11px] font-bold text-slate-600">مستوى الإتقان</label>
-              <select
-                value={skillLevelFilter}
-                onChange={(e) => setSkillLevelFilter(e.target.value as any)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800"
-              >
-                <option value="all">كل المستويات</option>
-                <option value="critical">حرجة (&lt; 60%)</option>
-                <option value="watch">قيد التعزيز (60-74%)</option>
-                <option value="mastered">متقنة (≥ 75%)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-[11px] font-bold text-slate-600">المسار التعليمي</label>
-              <select
-                value={skillPathFilter}
-                onChange={(e) => setSkillPathFilter(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800"
-              >
-                <option value="all">كل المسارات</option>
-                <option value="qudrat">القدرات العامة</option>
-                <option value="tahsili">التحصيلي العلمي</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-[11px] font-bold text-slate-600">المادة الدراسية</label>
-              <select
-                value={skillSubjectFilter}
-                onChange={(e) => setSkillSubjectFilter(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800"
-              >
-                <option value="all">كل المواد</option>
-                <option value="كمي">القدرات الكمي</option>
-                <option value="لفظي">القدرات اللفظي</option>
-                <option value="فيزياء">الفيزياء</option>
-                <option value="كيمياء">الكيمياء</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-[11px] font-bold text-slate-600">الفصل الدراسي</label>
-              <select
-                value={skillClassFilter}
-                onChange={(e) => setSkillClassFilter(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800"
-              >
-                <option value="all">كل الفصول</option>
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-[11px] font-bold text-slate-600">الصف الدراسي</label>
-              <select
-                value={skillGradeFilter}
-                onChange={(e) => setSkillGradeFilter(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800"
-              >
-                <option value="all">كل الصفوف</option>
-                <option value="3-sec">الصف الثالث الثانوي</option>
-                <option value="2-sec">الصف الثاني الثانوي</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-[11px] font-bold text-slate-600">بحث بالمهارة</label>
-              <input
-                type="text"
-                value={skillSearchQuery}
-                onChange={(e) => setSkillSearchQuery(e.target.value)}
-                placeholder="ابحث بالاسم..."
-                className="w-full rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800"
-              />
-            </div>
-          </div>
-        </div>
-
-        {remedialFeedback ? (
-          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-black text-emerald-800 animate-fade-in">
-            {remedialFeedback}
-          </div>
-        ) : null}
-
-        {/* Skills Cards View */}
-        {skillsViewMode === 'cards' ? (
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredSkills.map((sk) => (
-              <div key={sk.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs hover:shadow-sm transition-all">
-                <div className="flex items-start justify-between">
-                  <span className="text-[11px] font-bold text-slate-500">{sk.subjectName}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                    sk.mastery >= 75 ? 'bg-emerald-50 text-emerald-700' : sk.mastery >= 60 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'
-                  }`}>
-                    {sk.mastery >= 75 ? 'متقنة' : sk.mastery >= 60 ? 'متوسطة' : 'حرجة'}
-                  </span>
-                </div>
-                <h3 className="mt-2 font-black text-slate-900 text-sm">{sk.skill}</h3>
-                <p className="mt-1 text-xs text-slate-500">{sk.className}</p>
-
-                <div className="mt-3">
-                  <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">
-                    <span>نسبة الإتقان للمدرسة:</span>
-                    <span className="font-mono">{sk.mastery}%</span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                    <div className={`h-full rounded-full ${sk.mastery >= 75 ? 'bg-emerald-500' : sk.mastery >= 60 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${sk.mastery}%` }}></div>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="text-slate-500 font-bold">{sk.atRiskStudents.length} طلاب متعثرين</span>
-                  {sk.atRiskStudents.length > 0 ? (
-                    <button
-                      onClick={() => setActiveSkillForDrawer(sk)}
-                      className="text-indigo-600 hover:text-indigo-800 font-black"
-                    >
-                      عرض المتعثرين ←
-                    </button>
-                  ) : (
-                    <span className="text-emerald-600 font-black">لا توجد حالات حرجة</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          /* Matrix Table View */
-          <div className="mt-5 overflow-x-auto rounded-2xl border border-slate-200">
-            <table className="w-full text-right text-xs">
-              <thead className="bg-slate-50 text-slate-700 border-b">
-                <tr>
-                  <th className="p-3 font-black">المهارة</th>
-                  <th className="p-3 font-black">المادة والمسار</th>
-                  <th className="p-3 font-black">الفصل الدراسي</th>
-                  <th className="p-3 font-black">متوسط الإتقان</th>
-                  <th className="p-3 font-black">الطلاب في دائرة الخطر</th>
-                  <th className="p-3 font-black">الإجراء العلاجي</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredSkills.map((sk) => (
-                  <tr key={sk.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-3 font-bold text-slate-900">{sk.skill}</td>
-                    <td className="p-3 text-slate-600">{sk.subjectName} · {sk.pathName}</td>
-                    <td className="p-3 font-bold text-indigo-700">{sk.className}</td>
-                    <td className="p-3">
-                      <span className={`font-mono font-black ${sk.mastery >= 75 ? 'text-emerald-700' : sk.mastery >= 60 ? 'text-amber-700' : 'text-rose-700'}`}>
-                        {sk.mastery}%
-                      </span>
-                    </td>
-                    <td className="p-3 font-bold text-rose-700">{sk.atRiskStudents.length} طلاب</td>
-                    <td className="p-3">
-                      {sk.atRiskStudents.length > 0 ? (
-                        <button
-                          onClick={() => handleCreateRemedialDrill(sk)}
-                          className="rounded-lg bg-indigo-50 text-indigo-700 px-2.5 py-1 text-xs font-black hover:bg-indigo-100"
-                        >
-                          إنشاء تدريب علاجي
-                        </button>
-                      ) : (
-                        <span className="text-emerald-700 font-bold">متقنة</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Struggling Students Drawer Modal */}
-      {activeSkillForDrawer ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-2xs">
-          <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl animate-scale-in text-right">
-            <div className="flex items-center justify-between pb-3 border-b">
-              <div>
-                <span className="text-xs font-bold text-rose-600">الطلاب المتعثرون في المهارة</span>
-                <h3 className="text-lg font-black text-slate-900 mt-0.5">{activeSkillForDrawer.skill}</h3>
-              </div>
-              <button onClick={() => setActiveSkillForDrawer(null)} className="rounded-xl border p-2 hover:bg-slate-50 text-slate-500">✕</button>
-            </div>
-
-            <div className="mt-4 space-y-2 max-h-72 overflow-y-auto">
-              {activeSkillForDrawer.atRiskStudents.map((st: any) => (
-                <div key={st.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-3">
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-sm">{st.name}</h4>
-                    <span className="text-xs text-slate-500">{st.class}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs font-black text-rose-700">{st.score}%</span>
-                    <button
-                      onClick={() => handleCreateRemedialDrill(activeSkillForDrawer, st.name)}
-                      className="rounded-lg bg-indigo-600 px-2.5 py-1 text-xs font-black text-white hover:bg-indigo-700"
-                    >
-                      تدريب مخصص
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-5 pt-3 border-t flex justify-end gap-2">
-              <button
-                onClick={() => handleCreateRemedialDrill(activeSkillForDrawer)}
-                className="rounded-xl bg-indigo-700 px-4 py-2 text-xs font-black text-white hover:bg-indigo-800"
-              >
-                إنشاء تدريب علاجي لكامل المجموعة
-              </button>
-              <button
-                onClick={() => setActiveSkillForDrawer(null)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50"
-              >
-                إغلاق
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </section>:null}
+    {section==='school-skills'?<DirectorSkillsRadar key={selectedSchool.schoolId} school={selectedSchool}/>:null}
 
     {/* SECTION: INTERVENTIONS */}
     {section==='interventions'?<section aria-label="مركز التدخلات العلاجية" className="mt-6 space-y-6">

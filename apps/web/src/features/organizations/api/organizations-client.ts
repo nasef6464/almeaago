@@ -191,9 +191,9 @@ export const organizationsClient = {
       method: 'POST', headers: { ...csrfHeaders(csrf), 'Idempotency-Key': requestKey }, body: JSON.stringify(input),
     });
   },
-  classes(schoolId: string, signal?: AbortSignal) {
+  classes(schoolId: string, signal?: AbortSignal, page = 1) {
     return request<{ classes: SchoolClass[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
-      `/api/v1/schools/${encodeURIComponent(schoolId)}/classes?page=1&limit=100&status=active`, { signal });
+      `/api/v1/schools/${encodeURIComponent(schoolId)}/classes?page=${page}&limit=100&status=active`, { signal });
   },
   supervisorRoster(schoolId: string, search: string, page: number, signal?: AbortSignal) {
     // The Go roster query enforces school/class supervisor scopes in PostgreSQL.
