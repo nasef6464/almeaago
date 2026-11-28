@@ -11,6 +11,12 @@ import { questionBankClient, type ClassroomPreparedTemplate, type QuestionDetail
 type QuestionPreview = Pick<QuestionDetail, 'id' | 'questionCode' | 'currentVersion' | 'workflowStatus' | 'text' | 'imageUrl' | 'difficulty' | 'options'> &
   Partial<Pick<QuestionDetail, 'version'>>;
 
+const questionTypeLabels: Record<ClassroomQuestionSummary['questionType'], string> = {
+  mcq: 'اختيار من متعدد',
+  true_false: 'صح أو خطأ',
+};
+const difficultyLabels: Record<string, string> = { easy: 'سهل', medium: 'متوسط', hard: 'صعب' };
+
 interface TeacherPreparedQuestionsManagerProps {
   schoolId: string;
   classId: string;
@@ -247,7 +253,7 @@ export const TeacherPreparedQuestionsManager: React.FC<TeacherPreparedQuestionsM
               <Target className="text-indigo-600" size={22} /> بنك التحضير المسبق وحزم التحدي الصفية
             </h2>
             <p className="mt-1 text-xs text-slate-500">
-              جهّز أسئلتك قبل دخول الحصة، حدد أسئلة التحدي، واحفظ حزمك لتشغيلها بضغطة زر واحدة أمام الطلاب.
+              اختر أسئلة الحصة والتحدي، واحفظها في حزمة للرجوع إليها.
             </p>
           </div>
 
@@ -436,8 +442,8 @@ export const TeacherPreparedQuestionsManager: React.FC<TeacherPreparedQuestionsM
                           {q.text || 'سؤال بصري / بدون نص صريح'}
                         </p>
                         <div className="flex flex-wrap items-center gap-2 mt-2 text-[10px] text-slate-500 font-bold">
-                          <span className="rounded-md bg-slate-100 px-2 py-0.5">{q.questionType}</span>
-                          <span className="rounded-md bg-slate-100 px-2 py-0.5">{q.difficulty || 'متوسط'}</span>
+                          <span className="rounded-md bg-slate-100 px-2 py-0.5">{questionTypeLabels[q.questionType]}</span>
+                          <span className="rounded-md bg-slate-100 px-2 py-0.5">{difficultyLabels[q.difficulty] ?? 'صعوبة غير محددة'}</span>
                           <span className="rounded-md bg-slate-100 px-2 py-0.5">الإصدار {q.version}</span>
                         </div>
                       </div>
@@ -601,7 +607,7 @@ export const TeacherPreparedQuestionsManager: React.FC<TeacherPreparedQuestionsM
                   {previewQuestion.workflowStatus === 'approved' ? 'معتمد ✓' : previewQuestion.workflowStatus}
                 </span>
                 <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600">
-                  {previewQuestion.version?.difficulty || previewQuestion.difficulty || 'متوسط'}
+                  {difficultyLabels[previewQuestion.version?.difficulty || previewQuestion.difficulty] ?? 'صعوبة غير محددة'}
                 </span>
               </div>
               <button
