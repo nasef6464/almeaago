@@ -14,7 +14,7 @@ import { organizationsClient, type TeacherWorkspace, type TeacherWorkspaceSchool
 import { classroomClient } from '../../classroom/api/classroom-client';
 import type { ClassroomSession } from '../../classroom/api/classroom-types';
 import { TeacherCertificateModal } from '../components/TeacherCertificateModal';
-import { TeacherSmartClassroomSchedulerModal } from '../components/TeacherSmartClassroomSchedulerModal';
+import { TeacherSmartClassroomSchedulerModal, type PreparedClassroomLaunch } from '../components/TeacherSmartClassroomSchedulerModal';
 import { TeacherClassroomReportsSection } from '../components/TeacherClassroomReportsSection';
 import { TeacherPreparedQuestionsManager } from '../components/TeacherPreparedQuestionsManager';
 import { SupervisorTestsManager } from '../components/SupervisorTestsManager';
@@ -89,6 +89,7 @@ export function TeacherWorkspacePage() {
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [showCreateAssessmentModal, setShowCreateAssessmentModal] = useState(false);
   const [targetClassForLaunch, setTargetClassForLaunch] = useState('');
+  const [preparedLaunch, setPreparedLaunch] = useState<PreparedClassroomLaunch>();
 
   // Real active session detection
   const [activeSession, setActiveSession] = useState<ClassroomSession | null>(null);
@@ -435,8 +436,9 @@ export function TeacherWorkspacePage() {
     });
   };
 
-  const openScheduler = (classId = '') => {
+  const openScheduler = (classId = '', prepared?: PreparedClassroomLaunch) => {
     setTargetClassForLaunch(classId);
+    setPreparedLaunch(prepared);
     setShowSchedulerModal(true);
   };
 
@@ -945,6 +947,14 @@ export function TeacherWorkspacePage() {
               schoolId={selectedSchool?.schoolId || ''}
               classId={selectedSchool?.assignments[0]?.classId || ''}
               subjectId={selectedSchool?.assignments[0]?.subjectId || ''}
+              onLaunchPreparedPackage={(questionIds, challengeIds) => {
+                const assignment = selectedSchool?.assignments[0];
+                if (!selectedSchool || !assignment?.subjectId) return;
+                openScheduler(assignment.classId, {
+                  schoolId: selectedSchool.schoolId, assignmentId: assignment.assignmentId,
+                  questionIds: [...questionIds], challengeCount: challengeIds.length,
+                });
+              }}
             />
           )}
 
@@ -1567,6 +1577,7 @@ export function TeacherWorkspacePage() {
           initialSchoolId={selectedSchool?.schoolId}
           initialClassId={targetClassForLaunch}
           activeSessionId={activeSession?.id}
+          prepared={preparedLaunch}
           onSuccess={(sessionId, pin) => {
             void checkActiveSessions();
           }}

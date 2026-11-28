@@ -8,6 +8,13 @@ import { useAuth } from '../../auth/state/AuthProvider';
 import { classroomClient } from '../../classroom/api/classroom-client';
 import type { TeacherWorkspace, TeacherWorkspaceSchool } from '../api/organizations-client';
 
+export interface PreparedClassroomLaunch {
+  schoolId: string;
+  assignmentId: string;
+  questionIds: string[];
+  challengeCount: number;
+}
+
 interface TeacherSmartClassroomSchedulerModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -15,6 +22,7 @@ interface TeacherSmartClassroomSchedulerModalProps {
   initialSchoolId?: string;
   initialClassId?: string;
   activeSessionId?: string | null;
+  prepared?: PreparedClassroomLaunch;
   onSuccess?: (sessionId: string, pin: string) => void;
 }
 
@@ -38,6 +46,7 @@ export const TeacherSmartClassroomSchedulerModal: React.FC<TeacherSmartClassroom
   initialSchoolId,
   initialClassId,
   activeSessionId,
+  prepared,
   onSuccess,
 }) => {
   const navigate = useNavigate();
@@ -57,6 +66,12 @@ export const TeacherSmartClassroomSchedulerModal: React.FC<TeacherSmartClassroom
   const [challengeTimerSeconds, setChallengeTimerSeconds] = useState(60);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [preparedSession, setPreparedSession] = useState<{ id: string; revision: number; pin: string }>();
+
+  useEffect(() => {
+    setPreparedSession(undefined);
+    setErrorMessage('');
+  }, [prepared]);
 
   useEffect(() => {
     if (initialSchoolId) setSchoolId(initialSchoolId);
@@ -72,8 +87,53 @@ export const TeacherSmartClassroomSchedulerModal: React.FC<TeacherSmartClassroom
   if (!isOpen) return null;
 
   const currentAssignment = selectedSchool?.assignments.find((a) => a.classId === classId);
+  const preparedSchool = prepared && workspace.schools.find(school => school.schoolId === prepared.schoolId);
+  const preparedAssignment = preparedSchool && preparedSchool.assignments.find(assignment => assignment.assignmentId === prepared?.assignmentId);
+  const closeDisabled = Boolean(prepared && (isSubmitting || preparedSession));
+
+  const enterPreparedSession = (id: string) => {
+    if (!prepared) return;
+    onClose();
+    const query = new URLSearchParams({ schoolId: prepared.schoolId, assignmentId: prepared.assignmentId, sessionId: id });
+    navigate(`/school-teacher-dashboard/classroom?${query}`);
+  };
+
+  const handlePreparedLaunch = async () => {
+    if (!prepared || !preparedAssignment?.subjectId || !prepared.questionIds.length) {
+      setErrorMessage('لم تعد الحزمة ضمن تكليف صالح. أعد اختيار التكليف والأسئلة.');
+      return;
+    }
+    setIsSubmitting(true);
+    setErrorMessage('');
+    let session = preparedSession;
+    try {
+      const csrf = await getCsrfToken();
+      if (!session) {
+        const result = await classroomClient.create({
+          schoolId: prepared.schoolId, classId: preparedAssignment.classId, subjectId: preparedAssignment.subjectId,
+          questionIds: prepared.questionIds, day: selectedDay, period: Number(selectedPeriod) || null,
+          publishedMode: 'batch',
+        }, csrf);
+        session = { id: result.session.id, revision: result.session.revision, pin: result.pin };
+        setPreparedSession(session);
+      }
+      sessionStorage.setItem(`almeaa:classroom:pin:${session.id}`, session.pin);
+      await classroomClient.start(session.id, session.revision, csrf);
+      onSuccess?.(session.id, session.pin);
+      enterPreparedSession(session.id);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'تعذر تشغيل الحصة.';
+      setErrorMessage(session ? `تم إنشاء الحصة. تعذر تأكيد بدئها. ${detail}` : detail);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleLaunch = async () => {
+    if (prepared) {
+      await handlePreparedLaunch();
+      return;
+    }
     if (!schoolId || !classId) {
       setErrorMessage('يرجى تحديد المدرسة والفصل الدراسي المسند أولاً.');
       return;
@@ -151,8 +211,8 @@ export const TeacherSmartClassroomSchedulerModal: React.FC<TeacherSmartClassroom
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3 sm:p-5 backdrop-blur-xs" dir="rtl">
-      <div className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+    <div role="dialog" aria-modal="true" aria-labelledby="classroom-scheduler-title" className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 p-3 sm:p-5 backdrop-blur-xs" dir="rtl">
+      <div className="relative flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-l from-indigo-900 via-indigo-800 to-slate-900 p-6 text-white">
           <div className="flex items-center gap-3">
@@ -160,7 +220,7 @@ export const TeacherSmartClassroomSchedulerModal: React.FC<TeacherSmartClassroom
               <Presentation size={24} />
             </div>
             <div>
-              <h2 className="text-xl font-black text-white">إعداد وإطلاق الحصة الذكية</h2>
+              <h2 id="classroom-scheduler-title" className="text-xl font-black text-white">إعداد وإطلاق الحصة الذكية</h2>
               <p className="mt-0.5 text-xs text-indigo-200">
                 الحصة تبدأ الآن وتبث مباشرة لطلاب الفصل عبر الرمز وQR وشاشة البروجكتور
               </p>
@@ -169,6 +229,8 @@ export const TeacherSmartClassroomSchedulerModal: React.FC<TeacherSmartClassroom
           <button
             type="button"
             onClick={onClose}
+            disabled={closeDisabled}
+            aria-label="إغلاق مجدول الحصة"
             className="rounded-xl p-2 text-indigo-200 hover:bg-white/10 hover:text-white transition-colors"
           >
             <X size={20} />
@@ -176,8 +238,8 @@ export const TeacherSmartClassroomSchedulerModal: React.FC<TeacherSmartClassroom
         </div>
 
         {/* Body */}
-        <div className="max-h-[75vh] space-y-5 overflow-y-auto p-6">
-          {activeSessionId && (
+        <div className="min-h-0 max-h-[75vh] space-y-5 overflow-y-auto p-6">
+          {activeSessionId && !prepared && (
             <div className="rounded-2xl border-2 border-amber-500 bg-amber-50 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-xs font-black text-amber-900">
@@ -199,7 +261,7 @@ export const TeacherSmartClassroomSchedulerModal: React.FC<TeacherSmartClassroom
           )}
 
           {errorMessage && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700">
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700">
               {errorMessage}
             </div>
           )}
@@ -210,19 +272,20 @@ export const TeacherSmartClassroomSchedulerModal: React.FC<TeacherSmartClassroom
               <label className="block text-xs font-black text-slate-700 mb-1.5">المدرسة المسندة</label>
               <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800">
                 <School size={16} className="text-indigo-600 shrink-0" />
-                <span className="truncate">{selectedSchool?.schoolName || 'مدارس المئة'}</span>
+                <span className="truncate">{(prepared ? preparedSchool : selectedSchool)?.schoolName || 'المدرسة المسندة'}</span>
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-black text-slate-700 mb-1.5">الفصل الدراسي المستهدف</label>
               <select
-                value={classId}
+                value={prepared ? preparedAssignment?.classId || '' : classId}
+                disabled={Boolean(prepared)}
                 onChange={(e) => setClassId(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
               >
-                {selectedSchool?.assignments.map((a) => (
-                  <option key={a.classId} value={a.classId}>
+                {(prepared ? (preparedAssignment ? [preparedAssignment] : []) : selectedSchool?.assignments)?.map((a) => (
+                  <option key={a.assignmentId} value={a.classId}>
                     {a.className} ({a.studentCount} طلاب)
                   </option>
                 ))}
@@ -236,6 +299,7 @@ export const TeacherSmartClassroomSchedulerModal: React.FC<TeacherSmartClassroom
               <label className="block text-xs font-black text-slate-700 mb-1.5">اليوم الدراسي</label>
               <select
                 value={selectedDay}
+                disabled={Boolean(preparedSession) || isSubmitting}
                 onChange={(e) => setSelectedDay(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
               >
@@ -249,6 +313,7 @@ export const TeacherSmartClassroomSchedulerModal: React.FC<TeacherSmartClassroom
               <label className="block text-xs font-black text-slate-700 mb-1.5">الحصة الدراسية</label>
               <select
                 value={selectedPeriod}
+                disabled={Boolean(preparedSession) || isSubmitting}
                 onChange={(e) => setSelectedPeriod(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
               >
@@ -259,6 +324,10 @@ export const TeacherSmartClassroomSchedulerModal: React.FC<TeacherSmartClassroom
             </div>
           </div>
 
+          {prepared ? <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-900">
+            <p className="font-bold">أسئلة الحزمة بالترتيب المحفوظ ({prepared.questionIds.length})</p>
+            {prepared.challengeCount > 0 ? <p className="mt-1">الأسئلة المعلّمة كتحدٍ ستظهر ضمن الحزمة في وضع العرض الجماعي.</p> : null}
+          </div> : <>
           {/* Session Mode Selector */}
           <div>
             <label className="block text-xs font-black text-slate-700 mb-2">نمط الحصة والأسئلة</label>
@@ -345,6 +414,7 @@ export const TeacherSmartClassroomSchedulerModal: React.FC<TeacherSmartClassroom
           )}
 
           {/* Quick Notice */}
+          </>}
           <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-3.5 text-xs text-indigo-900 flex items-start gap-2.5">
             <CheckCircle2 size={16} className="text-indigo-600 shrink-0 mt-0.5" />
             <p className="leading-5">
@@ -354,14 +424,18 @@ export const TeacherSmartClassroomSchedulerModal: React.FC<TeacherSmartClassroom
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 p-5">
-          <button
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50 p-5">
+          {preparedSession && prepared ? <button
+            type="button" disabled={isSubmitting} onClick={() => enterPreparedSession(preparedSession.id)}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700"
+          >فتح الحصة الموجودة</button> : <button
             type="button"
             onClick={onClose}
+            disabled={closeDisabled}
             className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
           >
             إلغاء
-          </button>
+          </button>}
 
           <button
             type="button"
@@ -377,7 +451,7 @@ export const TeacherSmartClassroomSchedulerModal: React.FC<TeacherSmartClassroom
             ) : (
               <>
                 <Zap size={15} />
-                <span>إطلاق الحصة الذكية الآن 🚀</span>
+                <span>{prepared && preparedSession ? 'إعادة محاولة بدء الحصة' : 'إطلاق الحصة الذكية الآن 🚀'}</span>
               </>
             )}
           </button>

@@ -207,7 +207,6 @@ test('teacher creates, applies, previews real options, and deletes server-backed
   // Apply template
   await page.getByRole('button', { name: 'تحديد الأسئلة' }).click();
   await expect(page.getByRole('button', { name: /حفظ كحزمة تحضير \(1\)/ })).toBeEnabled();
-  await expect(page.getByRole('button', { name: /إطلاق الحزمة للفصل/ })).toBeDisabled();
 
   // RTL overflow check across 390, 820, 1440
   for (const width of [390, 820, 1440]) {
@@ -220,4 +219,43 @@ test('teacher creates, applies, previews real options, and deletes server-backed
   await expect(page.getByText('حزمة الضرب السريع الخادمية', { exact: true })).toHaveCount(0);
   await page.reload();
   await expect(page.getByText('حزمة الضرب السريع الخادمية', { exact: true })).toHaveCount(0);
+});
+
+test('prepared launch pins the saved question order and retries the same session', async ({ page }) => {
+  await setupBaseTeacherRoutes(page);
+  const questionIds = [
+    '01950000-0000-7000-8000-000000000102',
+    '01950000-0000-7000-8000-000000000101',
+  ];
+  await page.route('**/api/v1/classroom/questions?*', route => json(route, { items: [] }));
+  await page.route('**/api/v1/questions/classroom-templates?*', route => json(route, {
+    templates: [{id:'saved-1',schoolId:'school-a',teacherId:teacher.id,title:'حزمة إطلاق',questionIds,
+      challengeIds:[questionIds[0]],createdAt:'2026-11-28T12:00:00Z',updatedAt:'2026-11-28T12:00:00Z'}],
+  }));
+  let creates = 0;
+  let starts = 0;
+  await page.route('**/api/v1/classroom/sessions', route => {
+    creates++;
+    expect(route.request().headers()['x-csrf-token']).toBe('csrf-teacher');
+    expect(route.request().postDataJSON()).toMatchObject({
+      schoolId:'school-a', classId:'class-a', subjectId:'math-a', questionIds, publishedMode:'batch',
+    });
+    return json(route, {session:{id:'prepared-session',revision:7},pin:'123456'}, 201);
+  });
+  await page.route('**/api/v1/classroom/sessions/prepared-session/start', route => {
+    starts++;
+    expect(route.request().postDataJSON()).toEqual({expectedRevision:7});
+    return starts === 1 ? json(route, {message:'تعذر بدء الحصة مؤقتًا'}, 503)
+      : json(route, {session:{id:'prepared-session',revision:8,status:'live'}});
+  });
+  await page.goto('/school-teacher-dashboard?schoolId=school-a&tab=prepared-questions');
+  await page.getByRole('button',{name:'تحديد الأسئلة'}).click();
+  await page.getByRole('button',{name:/إطلاق الحزمة للفصل/}).click();
+  await expect(page.getByText('أسئلة الحزمة بالترتيب المحفوظ', {exact:false})).toBeVisible();
+  await page.getByRole('button',{name:/إطلاق الحصة الذكية الآن/}).click();
+  await expect(page.getByRole('alert')).toContainText('تم إنشاء الحصة');
+  await page.getByRole('button',{name:'إعادة محاولة بدء الحصة'}).click();
+  await expect(page).toHaveURL(/\/school-teacher-dashboard\/classroom\?schoolId=school-a&assignmentId=assign-a&sessionId=prepared-session/);
+  expect(creates).toBe(1);
+  expect(starts).toBe(2);
 });

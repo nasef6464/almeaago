@@ -18,6 +18,7 @@ export function ClassroomTeacherPage(){
  const[searchParams,setSearchParams]=useSearchParams();
  const requestedSchoolId=searchParams.get('schoolId')||'';
  const requestedAssignmentId=searchParams.get('assignmentId')||'';
+ const requestedSessionId=searchParams.get('sessionId')||'';
  const[workspace,setWorkspace]=useState<TeacherWorkspace|null>(null);
  const[subjectNames,setSubjectNames]=useState<Record<string,string>>({});
  const[scope,setScope]=useState<Scope|null>(null);
@@ -61,12 +62,19 @@ export function ClassroomTeacherPage(){
    if(school&&assignment){
     setScope({school,assignment});
     const scoped=sessions.sessions.filter(x=>x.schoolId===school.schoolId&&x.classId===assignment.classId&&x.subjectId===assignment.subjectId);
-    const active=scoped.find(x=>x.status==='live')||scoped.find(x=>x.status==='draft'||x.status==='scheduled');
+    const active=requestedSessionId
+      ? scoped.find(x=>x.id===requestedSessionId)
+      : scoped.find(x=>x.status==='live')||scoped.find(x=>x.status==='draft'||x.status==='scheduled');
+    if(requestedSessionId&&!active){
+     setScope(null);
+     setError('الحصة المحددة غير متاحة ضمن هذا التكليف');
+     return;
+    }
     setSession(active||null);
    }
   }catch(e){if(epoch===scopeEpoch.current)setError(e instanceof Error?e.message:'تعذر تحميل مساحة الفصل الذكي')}
   finally{if(epoch===scopeEpoch.current)setBusy('')}
- },[requestedSchoolId,requestedAssignmentId]);
+ },[requestedSchoolId,requestedAssignmentId,requestedSessionId]);
  useEffect(()=>{if(!authLoading&&user)void loadWorkspace()},[authLoading,user,loadWorkspace]);
 
  useEffect(()=>{

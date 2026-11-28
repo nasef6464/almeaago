@@ -21,12 +21,14 @@ interface TeacherPreparedQuestionsManagerProps {
   schoolId: string;
   classId: string;
   subjectId: string;
+  onLaunchPreparedPackage: (questionIds: string[], challengeIds: string[]) => void;
 }
 
 export const TeacherPreparedQuestionsManager: React.FC<TeacherPreparedQuestionsManagerProps> = ({
   schoolId,
   classId,
   subjectId,
+  onLaunchPreparedPackage,
 }) => {
   const { getCsrfToken } = useAuth();
   const [questions, setQuestions] = useState<ClassroomQuestionSummary[]>([]);
@@ -269,8 +271,8 @@ export const TeacherPreparedQuestionsManager: React.FC<TeacherPreparedQuestionsM
 
             <button
               type="button"
-              disabled
-              aria-describedby="prepared-launch-status"
+              disabled={!selectedIds.length || !schoolId || !classId || !subjectId}
+              onClick={() => onLaunchPreparedPackage(selectedIds, challengeIds)}
               className="flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-5 py-2 text-xs font-black text-white shadow-md active:scale-95 disabled:opacity-40 transition-all"
             >
               <Presentation size={14} /> إطلاق الحزمة للفصل 🚀
@@ -278,9 +280,6 @@ export const TeacherPreparedQuestionsManager: React.FC<TeacherPreparedQuestionsM
           </div>
         </div>
 
-        <p id="prepared-launch-status" className="mt-2 text-xs text-slate-600">
-          إطلاق الحزمة مباشرة غير متاح حاليًا. يمكنك حفظ الأسئلة وتحديدها مجددًا من الحزمة.
-        </p>
         {feedback && (
           <div role="status" className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-800">
             {feedback}
