@@ -1,5 +1,12 @@
 # نقطة استئناف — 1 نوفمبر 2026
 
+## 28 نوفمبر — إطلاق الفصل الذكي بأسئلة حزمة المعلم / PARTIAL
+
+- مصدر القديم `ed28102d7084899856de0371dc2c93a3d602d518` في `components/classroom/SmartClassroomSessionSchedulerModal.tsx`. أساس العمل [#334](https://github.com/nasef6464/almeaago/pull/334) عند `07e89e4ca0785e5c7fb28abc5df3d2b3998ccc79`، والكود `3146ec4a919ea7773b1c338a0120e3aef665af8f` في `codex/launch-prepared-classroom`. #334 اجتاز Backend وDatabase وFrontend وOverlap وشرائح Playwright الثلاث، ومعاينة Vercel كانت معلقة.
+- معلم المدرسة ← تحديد أسئلة الحزمة ← المجدول المفوض للتكليف نفسه ← `POST /api/v1/classroom/sessions` بترتيب `questionIds` و`publishedMode=batch` ← `realtime.Create` وصلاحية المعلم والفصل والمادة ← تثبيت السؤال وإصداره وترتيبه في `classroom_questions` ← `POST …/start` ← لوحة الفصل على `sessionId` نفسه. إذا كان الإنشاء قد تأكد وتعثر البدء، تُعاد محاولة البدء على المعرّف نفسه أو تفتح الحصة الموجودة.
+- **PASS محليًا:** TypeScript والاختبارات الثلاثة للحزم، ومنها رد فشل البدء ثم إعادة الطلب دون إنشاء ثانٍ. متصفح مع جلسات فعلية على Go وPostgreSQL أثبت ترتيب سؤالين، الحالة live، الاسترجاع بعد إعادة التحميل ورفض بدء الحصة من معلم آخر. أدلة RTL 390/820/1440 في `C:/almeaago/tmp-evidence/r1-launch-real-*.png` و`r1-launch-browser-final.log`. المقارنة البصرية مع القديم **PARTIAL**. المحاور B/D/E/G/H ومهارتا عقود API وعزل الصلاحيات.
+- عقد الحصة الحالي يستقبل قائمة الأسئلة، وتعيين تحديات مستقلة لكل سؤال كما في الأصل يظل فجوة. الأسئلة التي تحمل علامة تحدٍ تدخل ضمن العرض الجماعي. لا ترحيل جديد. عند الاستئناف ابدأ بـ `gh pr list --head codex/launch-prepared-classroom` وتحقق من فحوص رأس الطلب، ثم مصالحة `ClassroomTeacherPage.tsx` مع العمل المحلي `tw-m4-classroom` عند استلامه. لا نشر إنتاجي.
+
 ## 28 نوفمبر — حزم تحضير المعلم / PARTIAL
 
 - المصدر `ed28102d7084899856de0371dc2c93a3d602d518` و`components/classroom/ClassroomPreparedTemplatesManager.tsx`. فصّلت دفعة الحزم من عمل Antigravity المحلي في `feat/tw-r1-role-mocks` إلى `codex/teacher-prepared-templates` عند `3cbb610611dd29766213be663d8ed2ea6e105d2f` فوق `0e807a4a1acdc2cfc22201a192cf8600182fcedd`. تعديلات الاختبارات والمدرب وبقية وحدات الفرع الأصلي بقيت في شجرته.
