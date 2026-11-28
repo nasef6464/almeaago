@@ -1,5 +1,12 @@
 # نقطة استئناف — 1 نوفمبر 2026
 
+## 28 نوفمبر — حزم تحضير المعلم / PARTIAL
+
+- المصدر `ed28102d7084899856de0371dc2c93a3d602d518` و`components/classroom/ClassroomPreparedTemplatesManager.tsx`. فصّلت دفعة الحزم من عمل Antigravity المحلي في `feat/tw-r1-role-mocks` إلى `codex/teacher-prepared-templates` عند `3cbb610611dd29766213be663d8ed2ea6e105d2f` فوق `0e807a4a1acdc2cfc22201a192cf8600182fcedd`. تعديلات الاختبارات والمدرب وبقية وحدات الفرع الأصلي بقيت في شجرته.
+- المعلم المسند ← بنك التحضير ← `GET/POST /api/v1/questions/classroom-templates` و`DELETE /api/v1/questions/classroom-templates/{id}` مع CSRF عند الكتابة ← `questionbank` وعضوية المدرسة وتكليف المعلم ← `classroom_prepared_templates` في PostgreSQL بالترحيل `000070` ← إعادة قراءة الحزمة ومراجعة الأسئلة وحذفها وتسجيل التدقيق. استُخدم عميل بنك الأسئلة المشترك، وأُلغي تأكيد نجاح النسخ قبل اكتمال عملية الحافظة.
+- **PASS محليًا:** TypeScript، اختبارا Playwright، اختبار نطاق الحزمة في Go، واختبار حفظ واسترجاع وحذف وعزل على PostgreSQL. أثبتت تجربة المتصفح بخادم Go وحسابين حقيقيين محليًا رفض المدرسة الخارجية وحذف المعلم الآخر، ومقاسات 390/820/1440. الأدلة في `C:/almeaago/tmp-evidence/r1-template-*-real.log` والصور المناظرة. المقارنة البصرية المقترنة مع الأصل **PARTIAL**. المحاور B/D/F/G/H ومهارات الصلاحيات وعقود API وRTL.
+- عُطّل زر إطلاق الحزمة المباشر في الدفعة لأن المسار السابق كان يفتح المجدول ويتجاهل معرّفات الحزمة والتحديات. البدء من مسار الفصل الذكي القائم مستقل. مصالحة الشجرة اجتازت #324 و#329 و#330 و#332 محليًا قبل إضافة المستند. يبقى حل تعارض #331 مع عميل المدارس ونقطة الاستئناف، ثم تنفيذ نقل معرّفات الحزمة إلى مجدول الفصل بعقد واختبار مستقلين. يبدأ الاستئناف بـ `gh pr list --head codex/teacher-prepared-templates`. لا نشر إنتاجي.
+
 ## 26 نوفمبر — نقل طالب بواسطة المشرف / PARTIAL
 
 - المصدر Legacy `ed28102d7084899856de0371dc2c93a3d602d518`، `dashboards/admin/SupervisorDashboard.tsx` في تبويب الطلاب. الاختيار والتأكيد موجودان في الأصل. الفرع `feat/supervisor-student-transfer` فوق إصلاح عقد كشف الطلاب في [#323](https://github.com/nasef6464/almeaago/pull/323) عند `478a549c6468d6747525c5a3bf3485f5e14a880b`. عند بدء الدفعة كان `origin/main` على `dfc35ec0a429e862a174e5bc586142ddd972fefd`.

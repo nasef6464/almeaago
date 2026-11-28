@@ -121,6 +121,62 @@ paths:
         "403": { description: Staff role or CSRF denied }
         "409": { description: Question code, taxonomy, asset, or hierarchy conflict }
 
+  /api/v1/questions/classroom-templates:
+    get:
+      operationId: questionBankListClassroomTemplates
+      description: Lists a teacher's own prepared packages within an active school assignment.
+      parameters:
+        - { in: query, name: schoolId, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: Private list of templates }
+        "400": { description: Invalid school ID }
+        "401": { description: Authentication required }
+        "403": { description: Teacher role or school assignment required }
+    post:
+      operationId: questionBankCreateClassroomTemplate
+      description: Saves approved questions in a package for the signed-in teacher.
+      parameters:
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [schoolId, title, questionIds]
+              properties:
+                schoolId: { type: string, format: uuid }
+                title: { type: string }
+                questionIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items: { type: string, format: uuid }
+                challengeIds:
+                  type: array
+                  description: IDs must also be present in questionIds.
+                  items: { type: string, format: uuid }
+      responses:
+        "201": { description: Persisted teacher template }
+        "400": { description: Invalid body or challenge IDs }
+        "401": { description: Authentication required }
+        "403": { description: Teacher, CSRF or school scope denied }
+        "409": { description: One or more questions are unavailable or unapproved }
+
+  /api/v1/questions/classroom-templates/{id}:
+    delete:
+      operationId: questionBankDeleteClassroomTemplate
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+        - { in: header, name: X-CSRF-Token, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Template deleted }
+        "400": { description: Invalid template ID }
+        "401": { description: Authentication required }
+        "403": { description: Teacher or CSRF denied }
+        "404": { description: Template absent or outside the teacher's current scope }
+
   /api/v1/questions/coverage:
     get:
       operationId: questionBankCoverage
