@@ -670,6 +670,43 @@ paths:
         "403": { description: Student role or CSRF denied }
         "409": { description: Goal ownership or concurrent-update conflict }
 
+  /api/v1/learning-progress/certificates/mine:
+    get:
+      operationId: learningMyCourseCertificates
+      description: Lists the signed-in student's own issued course certificates.
+      responses:
+        "200": { description: Private certificate list }
+        "401": { description: Authentication required }
+        "403": { description: Student role required }
+
+  /api/v1/learning-progress/certificates/{verificationCode}:
+    get:
+      operationId: learningVerifyCourseCertificate
+      description: Verifies an issued course certificate using its shared code and returns the details printed on it.
+      parameters:
+        - { in: path, name: verificationCode, required: true, schema: { type: string, maxLength: 80 } }
+      responses:
+        "200":
+          description: Verified course certificate
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [certificate]
+                properties:
+                  certificate:
+                    type: object
+                    additionalProperties: false
+                    required: [verificationCode, courseName, studentName, completionPercentage, issuedAt]
+                    properties:
+                      verificationCode: { type: string }
+                      courseName: { type: string }
+                      studentName: { type: string }
+                      completionPercentage: { type: integer, minimum: 0, maximum: 100 }
+                      issuedAt: { type: string, format: date-time }
+        "400": { description: Invalid verification code }
+        "404": { description: Certificate not found }
+
   /api/v1/learning-progress/lessons/{lessonId}:
     get:
       operationId: learningLessonProgressGet

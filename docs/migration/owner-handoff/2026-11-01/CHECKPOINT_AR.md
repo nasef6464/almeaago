@@ -1,5 +1,12 @@
 # نقطة استئناف — 1 نوفمبر 2026
 
+## 28 نوفمبر — التحقق من شهادات إتمام الدورات / PARTIAL
+
+- استُخرجت ملفات الشهادة من عمل Antigravity المحلي في `tw-r2b-profile-commerce` إلى فرع مستقل، مع بقاء بقية تعديلاته في موضعها. المصدر `ed28102d7084899856de0371dc2c93a3d602d518`، وسلوك الأصل في `server/src/routes/certificates.routes.ts`. أساس Go `0e807a4a1acdc2cfc22201a192cf8600182fcedd`، ورأس الوظيفة `8a1bd7f41357a63ffd1d73d560e18e789f125a63`.
+- زائر يحمل رابط الشهادة ← صفحة الشهادة ← `GET /api/v1/learning-progress/certificates/{verificationCode}` ← `LessonProgressService.CertificateByCode` ← قراءة `course_certificates` في PostgreSQL. يعرض الخادم حقول الشهادة المطبوعة ويحجب المعرّفات الداخلية ويمنع التخزين المؤقت. قائمة شهادات الحساب تتطلب تسجيل الطالب. روابط التحقق العامة تقبل الرموز الصالحة القديمة، وتولد الإصدارات الجديدة رمزًا أطول. أكواد الروابط محجوبة من سجل طلبات Go، وأضيفت ترويسات منع الفهرسة والإحالة لمسارات الشهادات في إعداد الواجهة.
+- **PASS محليًا:** PostgreSQL وHTTP للرمز الصحيح والمجهول وحدود الرد، TypeScript وPlaywright لحالات خطأ الخدمة، وتطابق الرمز، ومنع الطباعة عند الفشل، وفشل نسخ الرابط. ثبتت إعادة القراءة في المتصفح مع Go وPostgreSQL وRTL عند 390/820/1440 ببيانات اختبار. الصور و`foundation-certificate-real.log` في `C:/almeaago/tmp-evidence`. المطابقة البصرية المقترنة مع الأصل **PARTIAL**. المحاور B/C/D/F/G/H ومهارات عقد API والصلاحيات والتحقق.
+- ترحيلات التطوير في [#332](https://github.com/nasef6464/almeaago/pull/332) اجتازت Backend وDatabase وFrontend وOverlap وأجزاء E2E على `6468f6868d6a2d55491ea7af9c460d5a45c9451c`. اختبارا التخزين والعزل في #324 اجتازا القاعدة الناتجة. تبقى معاينات Vercel والإطلاق منفصلين عن هذه الأدلة. يبدأ الاستئناف بـ `gh pr list --head codex/certificate-verification`. شهادة تقدير المعلم المطبوعة مسار مستقل عن شهادة الدورة؛ يلزم فحص رابطها التجريبي قبل اعتمادها. بحوث العمليات مؤجلة.
+
 ## 26 نوفمبر — نقل طالب بواسطة المشرف / PARTIAL
 
 - المصدر Legacy `ed28102d7084899856de0371dc2c93a3d602d518`، `dashboards/admin/SupervisorDashboard.tsx` في تبويب الطلاب. الاختيار والتأكيد موجودان في الأصل. الفرع `feat/supervisor-student-transfer` فوق إصلاح عقد كشف الطلاب في [#323](https://github.com/nasef6464/almeaago/pull/323) عند `478a549c6468d6747525c5a3bf3485f5e14a880b`. عند بدء الدفعة كان `origin/main` على `dfc35ec0a429e862a174e5bc586142ddd972fefd`.

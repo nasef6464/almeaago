@@ -1,33 +1,75 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { Award, CheckCircle2, Copy, Printer, ShieldCheck, Sparkles } from 'lucide-react';
+import { AlertCircle, Award, CheckCircle2, Copy, Loader2, Printer, ShieldCheck, Sparkles } from 'lucide-react';
+import { lessonProgressSummaryClient, type CertificateVerification } from '../../learning/api/learning-client';
 
 const formatIssuedDate = (value?: string | number | Date) => {
   if (!value) {
-    return new Date().toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
+    return '—';
   }
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
-    return new Date().toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
+    return '—';
   }
   return parsed.toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
 export const CertificatePage: React.FC = () => {
   const { code = '' } = useParams<{ code: string }>();
-  const [copied, setCopied] = useState(false);
+  return <CertificateDetails key={code} code={code} />;
+};
+
+function CertificateDetails({ code }: { code: string }) {
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [certificate, setCertificate] = useState<CertificateVerification | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!code) {
+      setLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setLoading(true);
+    setError('');
+    lessonProgressSummaryClient
+      .certificateByCode(code, controller.signal)
+      .then((res) => {
+        if (controller.signal.aborted) return;
+        if (!res.certificate?.verificationCode ||
+          res.certificate.verificationCode.toUpperCase() !== code.trim().toUpperCase()) {
+          setError('تعذر التحقق من رمز الشهادة في السجل الرسمي.');
+          return;
+        }
+        setCertificate(res.certificate);
+      })
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+        setCertificate(null);
+        const unknown = err instanceof Error && 'status' in err && err.status === 404;
+        setError(unknown
+          ? 'لم يتم العثور على شهادة مطابقة لهذا الرمز.'
+          : 'تعذر التحقق من رمز الشهادة في السجل الرسمي.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [code]);
 
   const verifyUrl = useMemo(() => {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://almeaa.net';
     return `${origin}/certificate/${encodeURIComponent(code)}`;
   }, [code]);
 
-  const handleCopyLink = () => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(verifyUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 3000);
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(verifyUrl);
+      setCopyStatus('copied');
+    } catch {
+      setCopyStatus('error');
     }
   };
 
@@ -43,6 +85,31 @@ export const CertificatePage: React.FC = () => {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center" dir="rtl">
         <div className="max-w-md rounded-3xl border border-rose-200 bg-white p-8 shadow-sm">
           <p className="text-rose-600 font-black text-lg">لم يتم تحديد رمز الشهادة للتحقق.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center" dir="rtl">
+        <div className="max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm flex flex-col items-center gap-3">
+          <Loader2 size={28} className="animate-spin text-indigo-600" />
+          <p role="status" className="text-slate-700 font-black text-sm">جارٍ التحقق من الشهادة في السجل الرسمي…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !certificate) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center" dir="rtl">
+        <div className="max-w-md rounded-3xl border border-rose-200 bg-white p-8 shadow-sm space-y-2">
+          <AlertCircle size={28} className="mx-auto text-rose-600" />
+          <p role="alert" className="text-rose-700 font-black text-base">
+            {error || 'لم يتم العثور على شهادة مطابقة لهذا الرمز.'}
+          </p>
+          <p className="font-mono text-xs text-slate-500" dir="ltr">{code}</p>
         </div>
       </div>
     );
@@ -94,7 +161,7 @@ export const CertificatePage: React.FC = () => {
                   </div>
                   <h1 className="text-2xl sm:text-3xl font-black">شهادة تقدير وإنجاز معتمدة</h1>
                   <p className="mt-1 text-xs text-indigo-100 font-bold">
-                    صادرة وموثقة رسمياً بالشراكة مع المدارس النموذجية المعتمدة
+                    صادرة من منصة المئة بناءً على إتمام الدورة
                   </p>
                 </div>
                 <div className="hidden sm:flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-xs border border-white/20">
@@ -107,14 +174,15 @@ export const CertificatePage: React.FC = () => {
             <div className="grid gap-8 p-8 md:grid-cols-[1.5fr_0.5fr] items-center">
               <section className="text-right space-y-4">
                 <p className="text-xs font-black text-slate-500">
-                  تشهد إدارة المدرسة ومنصة المئة التعليمية بأن الطالب:
+                  تشهد منصة المئة التعليمية بأن الطالب:
                 </p>
                 <div className="inline-block border-b-2 border-dashed border-amber-400 pb-1">
-                  <h2 className="text-3xl font-black text-slate-900">طالب متميز</h2>
+                  <h2 className="text-3xl font-black text-slate-900">{certificate.studentName || 'طالب المنصة'}</h2>
                 </div>
 
                 <p className="text-xs font-bold text-slate-600 leading-6">
-                  قد اجتاز بنجاح متطلبات التدريب المهاري التفاعلي واختبارات قياس الجاهزية وحقق وسام التميز الأكاديمي.
+                  أتم متطلبات {certificate.courseName ? `دورة «${certificate.courseName}»` : 'الدورة'}.
+                  {certificate.completionPercentage != null ? ` نسبة الإتمام ${certificate.completionPercentage}%.` : ''}
                 </p>
 
                 <div className="grid gap-3 sm:grid-cols-2 pt-2">
@@ -126,7 +194,7 @@ export const CertificatePage: React.FC = () => {
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5">
                     <p className="text-[11px] font-bold text-slate-500">تاريخ الإصدار</p>
-                    <p className="mt-0.5 text-sm font-black text-slate-800">{formatIssuedDate()}</p>
+                    <p className="mt-0.5 text-sm font-black text-slate-800">{formatIssuedDate(certificate.issuedAt)}</p>
                   </div>
                 </div>
 
@@ -134,7 +202,7 @@ export const CertificatePage: React.FC = () => {
                   <p>
                     رمز التحقق الرقمي:{' '}
                     <span className="font-mono font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-lg">
-                      {code}
+                      {certificate.verificationCode || code}
                     </span>
                   </p>
                   <p className="mt-1 text-[11px] text-slate-400 break-all">{verifyUrl}</p>
@@ -170,8 +238,11 @@ export const CertificatePage: React.FC = () => {
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50 transition-colors"
               >
                 <Copy size={15} />
-                <span>{copied ? 'تم نسخ الرابط!' : 'نسخ رابط التحقق'}</span>
+                <span>نسخ رابط التحقق</span>
               </button>
+              {copyStatus !== 'idle' ? <p role="status" className="w-full text-xs text-slate-600">
+                {copyStatus === 'copied' ? 'تم نسخ الرابط.' : 'تعذر نسخ الرابط. يمكنك تحديده ونسخه يدويًا.'}
+              </p> : null}
             </footer>
           </div>
         </div>

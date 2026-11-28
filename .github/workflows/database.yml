@@ -100,6 +100,11 @@ jobs:
           NAVIGATION_TEST_DB: "1"
         run: go test ./internal/learning/navigation -run '^TestPostgresSaveReloadIsolationForeignLevelAndAuditRollback$' -count=1 -v
 
+      - name: Verify public course certificate response and learner ownership
+        env:
+          DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable
+        run: go test ./internal/learning/repository/postgres -run '^TestLearnerSummaryAchievementsCoursesAndCertificatePostgres$' -count=1 -v
+
       - name: Verify persisted homepage settings and relations against PostgreSQL
         env:
           DATABASE_URL: postgres://almeaa:almeaa@127.0.0.1:5432/almeaa?sslmode=disable

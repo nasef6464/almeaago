@@ -14,6 +14,11 @@ type LearnerSummaryReader interface {
 	IssueCourseCertificate(context.Context, string, string) (learning.CourseCertificate, error)
 }
 
+type CertificateReader interface {
+	ListMyCertificates(context.Context, string) ([]learning.CourseCertificate, error)
+	GetCertificateByCode(context.Context, string) (learning.CertificateVerification, error)
+}
+
 func (s *LessonProgressService) AchievementsSummary(ctx context.Context, actor identity.User) (learning.LearnerAchievementsSummary, error) {
 	if requireStudent(actor) != nil {
 		return learning.LearnerAchievementsSummary{}, ErrForbidden
@@ -49,4 +54,27 @@ func (s *LessonProgressService) IssueCourseCertificate(ctx context.Context, acto
 		return learning.CourseCertificate{}, ErrForbidden
 	}
 	return reader.IssueCourseCertificate(ctx, actor.ID, courseID)
+}
+
+func (s *LessonProgressService) MyCertificates(ctx context.Context, actor identity.User) ([]learning.CourseCertificate, error) {
+	if requireStudent(actor) != nil {
+		return nil, ErrForbidden
+	}
+	reader, ok := s.repo.(CertificateReader)
+	if !ok {
+		return nil, ErrForbidden
+	}
+	return reader.ListMyCertificates(ctx, actor.ID)
+}
+
+func (s *LessonProgressService) CertificateByCode(ctx context.Context, verificationCode string) (learning.CertificateVerification, error) {
+	code := strings.TrimSpace(verificationCode)
+	if code == "" || len(code) > 80 {
+		return learning.CertificateVerification{}, ErrInvalidInput
+	}
+	reader, ok := s.repo.(CertificateReader)
+	if !ok {
+		return learning.CertificateVerification{}, ErrNotFound
+	}
+	return reader.GetCertificateByCode(ctx, code)
 }

@@ -298,10 +298,15 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			started := time.Now()
 			next.ServeHTTP(w, r)
+			path := r.URL.Path
+			const certificatePrefix = "/api/v1/learning-progress/certificates/"
+			if strings.HasPrefix(path, certificatePrefix) && path != certificatePrefix+"mine" {
+				path = certificatePrefix + "{verificationCode}"
+			}
 			logger.Info(
 				"http_request",
 				"method", r.Method,
-				"path", r.URL.Path,
+				"path", path,
 				"request_id", middleware.GetReqID(r.Context()),
 				"duration_ms", time.Since(started).Milliseconds(),
 			)
