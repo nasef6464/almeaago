@@ -43,6 +43,21 @@ export interface QuestionCoverage{
   skillsHasMore:boolean;
 }
 export interface QuestionOption{index:number;text:string;assetId:string}
+export interface ClassroomPreparedTemplate {
+  id: string;
+  schoolId: string;
+  teacherId: string;
+  title: string;
+  questionIds: string[];
+  challengeIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ApprovedQuestionPreview = Pick<QuestionDetail, 'id' | 'questionCode' | 'text' | 'imageUrl' | 'difficulty' | 'options'> & {
+  version: number;
+  embeddedOptionTexts?: string[];
+};
 export interface QuestionSkillLink{skillId:string;relationType:'main'|'sub'|'secondary'}
 export interface QuestionDetail extends QuestionSummary{
   approvedBy:string;
@@ -197,6 +212,24 @@ export const questionBankClient={
   },
   get(id:string,signal?:AbortSignal){
     return request<{question:QuestionDetail}>(`/api/v1/questions/${encodeURIComponent(id)}/staff`,{signal});
+  },
+  getApprovedQuestionPreview(id: string, signal?: AbortSignal) {
+    return request<{ question: ApprovedQuestionPreview }>(`/api/v1/questions/${encodeURIComponent(id)}`, { signal });
+  },
+  listClassroomTemplates(schoolId: string, signal?: AbortSignal) {
+    return request<{ templates: ClassroomPreparedTemplate[] }>(
+      `/api/v1/questions/classroom-templates?schoolId=${encodeURIComponent(schoolId)}`, { signal },
+    );
+  },
+  createClassroomTemplate(input: Pick<ClassroomPreparedTemplate, 'schoolId' | 'title' | 'questionIds' | 'challengeIds'>, csrf: string) {
+    return request<{ template: ClassroomPreparedTemplate }>('/api/v1/questions/classroom-templates', {
+      method: 'POST', headers: csrfHeaders(csrf), body: JSON.stringify(input),
+    });
+  },
+  deleteClassroomTemplate(id: string, csrf: string) {
+    return request<{ deleted: boolean }>(`/api/v1/questions/classroom-templates/${encodeURIComponent(id)}`, {
+      method: 'DELETE', headers: csrfHeaders(csrf),
+    });
   },
   create(input:QuestionCreateWrite,csrf:string){
     return request<{question:QuestionDetail}>('/api/v1/questions/',{method:'POST',headers:csrfHeaders(csrf),body:JSON.stringify(input)});

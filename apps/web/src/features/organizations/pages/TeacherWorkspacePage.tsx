@@ -941,12 +941,10 @@ export function TeacherWorkspacePage() {
           {/* TAB 3: PREPARED QUESTIONS */}
           {activeTab === 'prepared-questions' && (
             <TeacherPreparedQuestionsManager
+              key={JSON.stringify([selectedSchool?.schoolId, selectedSchool?.assignments[0]?.classId, selectedSchool?.assignments[0]?.subjectId])}
               schoolId={selectedSchool?.schoolId || ''}
               classId={selectedSchool?.assignments[0]?.classId || ''}
-              subjectId={selectedSchool?.assignments[0]?.subjectId || '01a19398-9241-70ff-a58d-949395434579'}
-              onLaunchPreparedPackage={(qIds, chIds) => {
-                openScheduler();
-              }}
+              subjectId={selectedSchool?.assignments[0]?.subjectId || ''}
             />
           )}
 
