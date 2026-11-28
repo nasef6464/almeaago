@@ -2,7 +2,10 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -12,6 +15,7 @@ import (
 	identity "github.com/nasef6464/almeaago/internal/identity/domain"
 	learningapp "github.com/nasef6464/almeaago/internal/learning/application"
 	learning "github.com/nasef6464/almeaago/internal/learning/domain"
+	learninghttp "github.com/nasef6464/almeaago/internal/learning/transport/http"
 )
 
 func TestLearnerSummaryAchievementsCoursesAndCertificatePostgres(t *testing.T) {
@@ -34,6 +38,7 @@ func TestLearnerSummaryAchievementsCoursesAndCertificatePostgres(t *testing.T) {
 	defer db.Close()
 
 	for _, stmt := range []string{
+		"CREATE TEMP TABLE users (LIKE public.users INCLUDING ALL)",
 		"CREATE TEMP TABLE paths (LIKE public.paths INCLUDING ALL)",
 		"CREATE TEMP TABLE subjects (LIKE public.subjects INCLUDING ALL)",
 		"CREATE TEMP TABLE assets (LIKE public.assets INCLUDING ALL)",
@@ -76,6 +81,7 @@ func TestLearnerSummaryAchievementsCoursesAndCertificatePostgres(t *testing.T) {
 	yesterday := now.Add(-24 * time.Hour)
 
 	for _, sql := range []string{
+		`INSERT INTO users(id,email,name,status) VALUES ('` + studentID + `','student-summary@example.invalid','نورة العتيبي','active')`,
 		`INSERT INTO paths(id,code,name,status) VALUES ('` + pathID + `','P-1','القدرات','active')`,
 		`INSERT INTO subjects(id,path_id,code,name,status) VALUES ('` + subjectID + `','` + pathID + `','S-1','الكمي','active')`,
 		`INSERT INTO lessons(id,path_id,subject_id,title,lesson_type,duration_seconds,workflow_status,is_visible) VALUES
@@ -158,5 +164,44 @@ func TestLearnerSummaryAchievementsCoursesAndCertificatePostgres(t *testing.T) {
 	cert2, err := svc.IssueCourseCertificate(ctx, actor, courseID)
 	if err != nil || cert2.ID != cert1.ID || cert2.VerificationCode != cert1.VerificationCode {
 		t.Fatalf("IssueCourseCertificate second call must return existing cert: %+v vs %+v err=%v", cert2, cert1, err)
+	}
+
+	mine, err := svc.MyCertificates(ctx, actor)
+	if err != nil || len(mine) != 1 {
+		t.Fatalf("MyCertificates failed: len=%d err=%v", len(mine), err)
+	}
+	if mine[0].VerificationCode != cert1.VerificationCode || mine[0].CourseName != "دورة الكمي الشاملة" || mine[0].StudentName != "نورة العتيبي" || mine[0].CompletionPercentage != 100 {
+		t.Fatalf("unexpected MyCertificates projection: %+v", mine[0])
+	}
+
+	byCode, err := svc.CertificateByCode(ctx, cert1.VerificationCode)
+	if err != nil || byCode.StudentName != "نورة العتيبي" || byCode.CourseName != "دورة الكمي الشاملة" {
+		t.Fatalf("CertificateByCode failed: %+v err=%v", byCode, err)
+	}
+	if _, err := svc.CertificateByCode(ctx, "ALM-CERT-MISSING"); !errors.Is(err, learning.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound for unknown code, got %v", err)
+	}
+
+	handler := learninghttp.NewLessonProgress(svc, nil)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/certificates/"+cert1.VerificationCode, nil))
+	var public struct {
+		Certificate map[string]any `json:"certificate"`
+	}
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &public) != nil {
+		t.Fatalf("public verification failed: %d %s", response.Code, response.Body.String())
+	}
+	for _, field := range []string{"id", "userId", "courseId"} {
+		if _, included := public.Certificate[field]; included {
+			t.Fatalf("public response exposed internal field %s", field)
+		}
+	}
+	if public.Certificate["verificationCode"] != cert1.VerificationCode || response.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("public certificate omitted verification data or cache protection")
+	}
+	missing := httptest.NewRecorder()
+	handler.ServeHTTP(missing, httptest.NewRequest(http.MethodGet, "/certificates/ALM-CERT-MISSING", nil))
+	if missing.Code != http.StatusNotFound {
+		t.Fatalf("unknown verification code: expected 404, got %d", missing.Code)
 	}
 }

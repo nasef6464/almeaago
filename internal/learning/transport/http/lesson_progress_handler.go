@@ -22,6 +22,8 @@ func NewLessonProgress(service *learningapp.LessonProgressService, auth Authenti
 	r.Get("/achievements", h.achievements)
 	r.Get("/courses/summary", h.coursesSummary)
 	r.Post("/courses/{courseId}/certificate", h.issueCourseCertificate)
+	r.Get("/certificates/mine", h.myCertificates)
+	r.Get("/certificates/{verificationCode}", h.certificateByCode)
 	r.Get("/lessons/{lessonId}", h.get)
 	r.Get("/courses/{courseId}/completed", h.courseCompleted)
 	r.Put("/lessons/{lessonId}/video", h.video)
@@ -64,6 +66,31 @@ func (h *LessonProgressHandler) issueCourseCertificate(w http.ResponseWriter, r 
 		return
 	}
 	cert, err := h.service.IssueCourseCertificate(r.Context(), a.User, chi.URLParam(r, "courseId"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"certificate": cert})
+}
+
+func (h *LessonProgressHandler) myCertificates(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	a, ok := (&Handler{auth: h.auth}).authn(w, r, false)
+	if !ok {
+		return
+	}
+	items, err := h.service.MyCertificates(r.Context(), a.User)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"certificates": items})
+}
+
+func (h *LessonProgressHandler) certificateByCode(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Robots-Tag", "noindex")
+	cert, err := h.service.CertificateByCode(r.Context(), chi.URLParam(r, "verificationCode"))
 	if err != nil {
 		writeError(w, err)
 		return

@@ -58,9 +58,21 @@ type LearnerCourseProgressSummary struct {
 }
 
 type CourseCertificate struct {
-	ID               string    `json:"id"`
-	UserID           string    `json:"userId"`
-	CourseID         string    `json:"courseId"`
-	VerificationCode string    `json:"verificationCode"`
-	IssuedAt         time.Time `json:"issuedAt"`
+	ID                   string    `json:"id"`
+	UserID               string    `json:"userId"`
+	CourseID             string    `json:"courseId"`
+	VerificationCode     string    `json:"verificationCode"`
+	CourseName           string    `json:"courseName,omitempty"`
+	StudentName          string    `json:"studentName,omitempty"`
+	CompletionPercentage int       `json:"completionPercentage,omitempty"`
+	IssuedAt             time.Time `json:"issuedAt"`
+}
+
+// CertificateVerification is the public information printed on a shared certificate.
+type CertificateVerification struct {
+	VerificationCode     string    `json:"verificationCode"`
+	CourseName           string    `json:"courseName"`
+	StudentName          string    `json:"studentName"`
+	CompletionPercentage int       `json:"completionPercentage"`
+	IssuedAt             time.Time `json:"issuedAt"`
 }

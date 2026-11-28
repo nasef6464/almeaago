@@ -170,7 +170,7 @@ async function request<T>(path: string, init: RequestInit = {}) {
     } catch {
       // Preserve the localized fallback when a proxy sends non-JSON content.
     }
-    throw new Error(message);
+    throw Object.assign(new Error(message), { status: response.status });
   }
   return response.json() as Promise<T>;
 }
@@ -686,8 +686,14 @@ export interface CourseCertificate {
   userId: string;
   courseId: string;
   verificationCode: string;
+  courseName?: string;
+  studentName?: string;
+  completionPercentage?: number;
   issuedAt: string;
 }
+
+export type CertificateVerification = Pick<CourseCertificate,
+  'verificationCode' | 'courseName' | 'studentName' | 'completionPercentage' | 'issuedAt'>;
 
 export type LearningEvidenceStatus =
   | 'unmeasured'
@@ -781,6 +787,15 @@ export const lessonProgressSummaryClient = {
         method: 'POST',
         headers: { 'X-CSRF-Token': csrfToken },
       },
+    );
+  },
+  myCertificates(signal?: AbortSignal) {
+    return request<{ certificates: CourseCertificate[] }>('/api/v1/learning-progress/certificates/mine', { signal });
+  },
+  certificateByCode(verificationCode: string, signal?: AbortSignal) {
+    return request<{ certificate: CertificateVerification }>(
+      `/api/v1/learning-progress/certificates/${encodeURIComponent(verificationCode)}`,
+      { signal },
     );
   },
 };

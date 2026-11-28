@@ -1,10 +1,26 @@
 package httpserver
 
 import (
+	"bytes"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
+
+func TestRequestLogOmitsSharedCertificateCode(t *testing.T) {
+	var log bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&log, nil))
+	handler := requestLogger(logger)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet,
+		"/api/v1/learning-progress/certificates/TEST-SHARE-CODE", nil))
+	if strings.Contains(log.String(), "TEST-SHARE-CODE") || !strings.Contains(log.String(), "{verificationCode}") {
+		t.Fatalf("certificate path was not redacted: %s", log.String())
+	}
+}
 
 func TestSecurityHeadersAreAppliedToEveryResponse(t *testing.T) {
 	handler := securityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

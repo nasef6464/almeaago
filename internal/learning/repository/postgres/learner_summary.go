@@ -378,7 +378,7 @@ func (r *Repository) ListCoursesProgressSummary(ctx context.Context, studentID s
 }
 
 func randomCertCode() (string, error) {
-	var b [6]byte
+	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		return "", err
 	}
@@ -473,4 +473,65 @@ func (r *Repository) IssueCourseCertificate(ctx context.Context, userID, courseI
 		return learning.CourseCertificate{}, err
 	}
 	return cert, nil
+}
+
+func (r *Repository) ListMyCertificates(ctx context.Context, userID string) ([]learning.CourseCertificate, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT cc.id::text, cc.user_id::text, cc.course_id::text, cc.verification_code,
+		       COALESCE(c.title, ''), COALESCE(u.name, ''), cc.issued_at
+		FROM course_certificates cc
+		LEFT JOIN courses c ON c.id = cc.course_id
+		LEFT JOIN users u ON u.id = cc.user_id
+		WHERE cc.user_id = $1::uuid
+		ORDER BY cc.issued_at DESC, cc.id DESC
+	`, userID)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	defer rows.Close()
+	out := make([]learning.CourseCertificate, 0)
+	for rows.Next() {
+		var item learning.CourseCertificate
+		if err := rows.Scan(
+			&item.ID,
+			&item.UserID,
+			&item.CourseID,
+			&item.VerificationCode,
+			&item.CourseName,
+			&item.StudentName,
+			&item.IssuedAt,
+		); err != nil {
+			return nil, mapError(err)
+		}
+		item.CompletionPercentage = 100
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (r *Repository) GetCertificateByCode(ctx context.Context, verificationCode string) (learning.CertificateVerification, error) {
+	var item learning.CertificateVerification
+	err := r.db.QueryRow(ctx, `
+		SELECT cc.verification_code,
+		       COALESCE(c.title, ''), COALESCE(u.name, ''), cc.issued_at
+		FROM course_certificates cc
+		LEFT JOIN courses c ON c.id = cc.course_id
+		LEFT JOIN users u ON u.id = cc.user_id
+		WHERE cc.verification_code IN ($1, upper($1), lower($1))
+		ORDER BY (cc.verification_code = $1) DESC, cc.verification_code
+		LIMIT 1
+	`, verificationCode).Scan(
+		&item.VerificationCode,
+		&item.CourseName,
+		&item.StudentName,
+		&item.IssuedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return learning.CertificateVerification{}, learning.ErrNotFound
+	}
+	if err != nil {
+		return learning.CertificateVerification{}, mapError(err)
+	}
+	item.CompletionPercentage = 100
+	return item, nil
 }
